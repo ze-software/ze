@@ -23,7 +23,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 0 | of 3 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 0 | of 3 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (non-normative), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 0 | of 0 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
 
 No card above is a share of a population, so there is nothing to add up.
@@ -32,7 +32,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -64,7 +64,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (non-normative): Use of BGP Large Communities, IETF category Informational. A capitalised MUST / MUST NOT / SHALL / SHALL NOT / REQUIRED scan over rfc/full/rfc8195.txt hits zero keywords, and the document invokes neither RFC 2119 nor RFC 8174 nor BCP 14 anywhere, so it declares no key-words machinery for a reader to read its prose by. Its own abstract calls it examples and inspiration for operator application of BGP Large Communities. The summary written against it captures 3 requirements and gates none: RFC8195-2-1, RFC8195-2.2-1 and RFC8195-4.3.3-1, all at SHOULD. Section 3.2 and Section 4.1.1 both say an AS could assign a function number, which states a convention rather than an obligation. Thomas ruled on 2026-08-12 that this is non-normative rather than backlog.
+Not enrolled (non-normative, the document imposes no MUST-level obligation on an implementation, so there is nothing to gate): Use of BGP Large Communities, IETF category Informational. A capitalised MUST / MUST NOT / SHALL / SHALL NOT / REQUIRED scan over rfc/full/rfc8195.txt hits zero keywords, and the document invokes neither RFC 2119 nor RFC 8174 nor BCP 14 anywhere, so it declares no key-words machinery for a reader to read its prose by. Its own abstract calls it examples and inspiration for operator application of BGP Large Communities. The summary written against it captures 3 requirements and gates none: RFC8195-2-1, RFC8195-2.2-1 and RFC8195-4.3.3-1, all at SHOULD. Section 3.2 and Section 4.1.1 both say an AS could assign a function number, which states a convention rather than an obligation. Thomas ruled on 2026-08-12 that this is non-normative rather than backlog.
 
 ## What the public ledger says
 

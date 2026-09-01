@@ -21,7 +21,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 10 | of 13 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 10 | of 13 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 3 | of 10 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
 
 ### Negative
@@ -38,7 +38,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -70,7 +70,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (backlog): The RPKI to Router Protocol, Version 2. Split out of rfc9582 on 2026-09-01 because the obligations below are stated by this draft and not by RFC 9582, which profiles the ROA certificate. It is not enrolled because its obligations are not yet proven and the draft is still in the RFC Editor queue, so a version bump can restate them.
+Not enrolled (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): The RPKI to Router Protocol, Version 2. Split out of rfc9582 on 2026-09-01 because the obligations below are stated by this draft and not by RFC 9582, which profiles the ROA certificate. It is not enrolled because its obligations are not yet proven and the draft is still in the RFC Editor queue, so a version bump can restate them.
 
 ## What the public ledger says
 

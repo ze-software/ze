@@ -23,7 +23,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 0 | of 64 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 0 | of 64 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (non-normative), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 0 | of 0 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
 
 No card above is a share of a population, so there is nothing to add up.
@@ -32,7 +32,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -64,7 +64,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (non-normative): BGP Operations and Security, published as BCP 194 with IETF category Best Current Practice. A capitalised MUST / MUST NOT / SHALL / SHALL NOT scan over rfc/full/rfc7454.txt hits four keywords and all four sit inside the RFC 2119 key-words sentence of section 1.1, which tells a reader how to read the other sentences and states no obligation of its own. Outside that sentence the document uses no MUST-level keyword except one NOT REQUIRED in section 5.1, and that phrase negates a requirement instead of stating one. The summary written 2026-08-08 therefore captures 64 requirements and gates none of them: 42 SHOULD, 12 SHOULD NOT, 8 RECOMMENDED, 1 MAY, and the single NOT REQUIRED of section 5.1 recorded at the OPTIONAL level. The document also addresses network administrators rather than protocol implementers, and section 12 states that it "does not aim to describe existing BGP implementations". A zero-MUST BCP can reach the public ledger two ways, as a non-normative disposition or as a manual-walk extraction sign-off with a register-reason, and that choice is a ledger judgement for the owner. Thomas made it on 2026-08-12: non-normative, on the grounds that the scan recorded above finds no MUST-level keyword outside the key-words sentence, so backlog overstated a debt this text does not create. The choice is no longer open.
+Not enrolled (non-normative, the document imposes no MUST-level obligation on an implementation, so there is nothing to gate): BGP Operations and Security, published as BCP 194 with IETF category Best Current Practice. A capitalised MUST / MUST NOT / SHALL / SHALL NOT scan over rfc/full/rfc7454.txt hits four keywords and all four sit inside the RFC 2119 key-words sentence of section 1.1, which tells a reader how to read the other sentences and states no obligation of its own. Outside that sentence the document uses no MUST-level keyword except one NOT REQUIRED in section 5.1, and that phrase negates a requirement instead of stating one. The summary written 2026-08-08 therefore captures 64 requirements and gates none of them: 42 SHOULD, 12 SHOULD NOT, 8 RECOMMENDED, 1 MAY, and the single NOT REQUIRED of section 5.1 recorded at the OPTIONAL level. The document also addresses network administrators rather than protocol implementers, and section 12 states that it "does not aim to describe existing BGP implementations". A zero-MUST BCP can reach the public ledger two ways, as a non-normative disposition or as a manual-walk extraction sign-off with a register-reason, and that choice is a ledger judgement for the owner. Thomas made it on 2026-08-12: non-normative, on the grounds that the scan recorded above finds no MUST-level keyword outside the key-words sentence, so backlog overstated a debt this text does not create. The choice is no longer open.
 
 ## What the public ledger says
 

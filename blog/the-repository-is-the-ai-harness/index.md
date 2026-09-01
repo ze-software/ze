@@ -6,7 +6,7 @@ The harness gives an agent tools. The repository provides project-specific meani
 
 ![General harness abilities and repository-specific meaning converge on an agent change; checks return failures to the rule and example that guide the next revision.](../../assets/blog/the-repository-is-the-ai-harness.svg)
 
-Ze is a network operating system spread over 750+ Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.
+Ze is a network operating system spread over 760 Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.
 
 The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on.
 
@@ -24,7 +24,7 @@ Ze carries that meaning in several layers.
 
 `ai/INDEX.md` is a task-oriented entrance. It answers questions such as where to start when adding a plugin, changing configuration, implementing an RFC or adding a command, so the agent does not have to search hundreds of packages to find the first document.
 
-`ai/PACKAGE-MAP.md` gives one short description for each of those 750+ packages, and that saves a great deal of blind exploration.
+`ai/PACKAGE-MAP.md` gives one short description for each of those 760 packages, and that saves a great deal of blind exploration.
 
 Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are 4,400+ of the first kind and 4,000+ of the second.
 

@@ -70,8 +70,8 @@
 <section><h2>Sensitivity</h2><p><em>If the code were wrong, would something go red?</em></p>
 <article class="th-card th-ok">
   <h3>Tests with no reachable failure call</h3>
-  <p class="th-value">132 / 27245 (floor 132) <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="132 of 27245"><span class="th-meter-fill" style="width:0.5%"></span></div><p class="th-meter-note">132 of 27245 (0.5%)</p>
+  <p class="th-value">132 / 27252 (floor 132) <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="132 of 27252"><span class="th-meter-fill" style="width:0.5%"></span></div><p class="th-meter-note">132 of 27252 (0.5%)</p>
   <p>These execute code and pass unconditionally. Breaking the code under test would not turn them red.</p>
   <p class="th-action"><strong>If this degrades:</strong> Add a real assertion, or annotate with `// test-asserts-nothing: &lt;why&gt;` when the oracle is genuinely implicit (a must-not-panic smoke test).</p>
   <table><thead><tr><th>file</th><th>test</th></tr></thead><tbody><tr><td><code>internal/chaos/chaos_test.go</code></td><td><code>TestChaosConcurrency</code></td></tr><tr><td><code>internal/chaos/watchdog/watchdog_test.go</code></td><td><code>TestWatchdogRouteRegression</code></td></tr><tr><td><code>internal/component/bfd/api/registry_test.go</code></td><td><code>TestSetGetService_ConcurrentNoRace</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestMetricsHookStateChangeCounters</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestRefreshSessionsGauge</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestBMPPeerUpSkippedOnCacheMiss</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestHandleSenderNoSenders</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_ShortUpdate_Skipped</code></td></tr><tr><td><code>internal/component/bgp/plugins/filter_irr/filter_irr_test.go</code></td><td><code>TestRefreshSwapsAtomically</code></td></tr></tbody></table>
@@ -104,16 +104,16 @@
 </article>
 <article class="th-card th-ok">
   <h3>In-repo test inventory</h3>
-  <p class="th-value">27276 test functions <span class="th-status">Within threshold</span></p>
+  <p class="th-value">27283 test functions <span class="th-status">Within threshold</span></p>
   
-  <p>3657 Go test files, 79 fuzz targets, 132 benchmarks, 1807 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
+  <p>3658 Go test files, 79 fuzz targets, 132 benchmarks, 1807 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
   <p class="th-action"><strong>If this degrades:</strong> This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.</p>
   
 </article>
 <article class="th-card th-ok">
   <h3>Test files that expect a specific error</h3>
-  <p class="th-value">1294 / 3657 <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="1294 of 3657"><span class="th-meter-fill" style="width:35.4%"></span></div><p class="th-meter-note">1294 of 3657 (35.4%)</p>
+  <p class="th-value">1295 / 3658 <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="1295 of 3658"><span class="th-meter-fill" style="width:35.4%"></span></div><p class="th-meter-note">1295 of 3658 (35.4%)</p>
   <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
   <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
   <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>10</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>11</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/test/mock</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/doctor</code></td><td><code>17</code></td><td><code>1</code></td><td><code>5.9</code></td></tr><tr><td><code>internal/component/lg</code></td><td><code>17</code></td><td><code>1</code></td><td><code>5.9</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>12</code></td><td><code>1</code></td><td><code>8.3</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr></tbody></table>
@@ -179,7 +179,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:47 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 23:01 UTC</span>
                 </div>
             </div>
         </footer>

@@ -13,7 +13,7 @@
     "repo.design_comments": "website/data/repo-facts.json: git ls-files '*.go', counting the file-header annotations",
     "repo.detail_comments": "website/data/repo-facts.json: git ls-files '*.go', counting the file-header annotations",
     "repo.go_packages": "website/data/repo-facts.json: go list ./..., keeping the packages git holds a file for",
-    "rfc": "internal/le/rfc.Collect, over rfc/short/*.md and rfc/enrolled.txt",
+    "rfc": "internal/le/rfc.Collect, over rfc/short/*.md",
     "tests": "internal/le/testhealth.Render, over the tree this build read"
   },
   "blog_articles": 7,
@@ -34,14 +34,14 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-09-01T21:43:15Z",
+  "published_at": "2026-09-01T22:59:39Z",
   "repo": {
-    "design_comments": 4462,
+    "design_comments": 4480,
     "design_comments_display": "4,400+",
-    "detail_comments": 4037,
+    "detail_comments": 4070,
     "detail_comments_display": "4,000+",
-    "go_packages": 759,
-    "go_packages_display": "750+"
+    "go_packages": 760,
+    "go_packages_display": "760"
   },
   "rfc": {
     "enrolled": 181,
@@ -62,7 +62,7 @@
     "editor_display": "160+",
     "fuzz": 79,
     "fuzz_display": "79",
-    "unit": 27276,
+    "unit": 27283,
     "unit_display": "27,200+"
   }
 }

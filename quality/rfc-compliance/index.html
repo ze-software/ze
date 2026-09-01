@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>26.7%</strong><b>649 of 2,430 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>152 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
+<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>153 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
 </div>
 <p>The 4 shares marked as a part above are the whole of the 2,430 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,8 +183,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <div class="rfc-verdict rfc-bad">
 <p><span>Gate verdict</span><strong>RED</strong></p>
-<p>152 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
-<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 152 violation(s)</code>.</p>
+<p>153 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
+<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 153 violation(s)</code>.</p>
 </div>
 <section><h2>Requirement buckets</h2>
 <div class="rfc-tape" role="img" aria-label="How the obligations that bind Ze are answered">
@@ -666,7 +666,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>127 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+<p>128 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
 </section>
 <section><h2>Enrolled RFCs</h2>
 <div class="rfc-table-wrap">
@@ -1764,6 +1764,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Summaries that are not enrolled</h2>
+<ul>
+<li><code>backlog</code>: the requirements have not been extracted from the document yet; this is work owed rather than a decision</li>
+<li><code>blocked</code>: something outside the summary stops the extraction, and it is named in the reason</li>
+<li><code>non-normative</code>: the document imposes no MUST-level obligation on an implementation, so there is nothing to gate</li>
+<li><code>out-of-scope</code>: the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap</li>
+</ul>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Disposition</th><th>Reason</th></tr></thead>
@@ -1873,7 +1879,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:47 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 23:01 UTC</span>
                 </div>
             </div>
         </footer>

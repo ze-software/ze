@@ -23,7 +23,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 0 | of 0 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 0 | of 0 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 0 | of 0 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
 
 No card above is a share of a population, so there is nothing to add up.
@@ -32,7 +32,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -64,7 +64,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (backlog): OSPF Stub Router Advertisement. Its five obligations sit behind bare [LSA]-style category tags, which parse_checklist_line reads as prose rather than as requirements, so the summary captures zero at any level while the source is normative. Declared backlog and not non-normative on purpose: calling it non-normative would launder five unparsed obligations into a decision, which is exactly the shape D5 exists to expose.
+Not enrolled (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): OSPF Stub Router Advertisement. Its five obligations sit behind bare [LSA]-style category tags, which parse_checklist_line reads as prose rather than as requirements, so the summary captures zero at any level while the source is normative. Declared backlog and not non-normative on purpose: calling it non-normative would launder five unparsed obligations into a decision, which is exactly the shape D5 exists to expose.
 
 ## What the public ledger says
 

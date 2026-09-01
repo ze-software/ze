@@ -1,11 +1,11 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 152,
+    "error-count": 153,
     "gated-must": 3264,
     "enrolled-rfcs": 181,
     "test-tags": 4156,
-    "message": "rfc-requirements: 152 violation(s)",
+    "message": "rfc-requirements: 153 violation(s)",
     "violations": [
       "rfc/short/draft-abraitis-bgp-version-capability.md:70: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
       "rfc/short/draft-abraitis-bgp-version-capability.md:71: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
@@ -158,7 +158,8 @@
       "docs/features/rfc-status.md claims rfc8671 is 'Supported within BMP sender scope', but rfc/extraction/rfc8671.json is not a valid extraction sign-off, so nothing bounds what rfc/short/rfc8671.md left out: an obligation nobody extracted is owed no test, and this gate stays green for it forever. Walk the source and classify every site: ./le rfc extraction-create stem rfc8671. A generated skeleton is not a sign-off -- an unclassified site earns no credit here. Only a status that PROMISES conformance is asked for one; 'Partial', 'Experimental', 'Unsupported' and 'Future' disclose the gap instead and are outside this check",
       "rfc/short/rfc7606.md:338: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc7606.md:340: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/extraction/rfc8671.json: RFC8671-5.2-1 [MUST] is declared by rfc/short/rfc8671.md but no source site maps to it and no section lists it in unsourced-ids: The L flag MUST be set to 0 to indicate pre-policy (§5.2). Either it is backed by a site the walk should map, or it was read from indicative prose -- say which"
+      "rfc/extraction/rfc8671.json: RFC8671-5.2-1 [MUST] is declared by rfc/short/rfc8671.md but no source site maps to it and no section lists it in unsourced-ids: The L flag MUST be set to 0 to indicate pre-policy (§5.2). Either it is backed by a site the walk should map, or it was read from indicative prose -- say which",
+      "ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: ./le rfc index-update"
     ],
     "findings": [
       {
@@ -1504,6 +1505,9 @@
       },
       {
         "message": "rfc/extraction/rfc8671.json: RFC8671-5.2-1 [MUST] is declared by rfc/short/rfc8671.md but no source site maps to it and no section lists it in unsourced-ids: The L flag MUST be set to 0 to indicate pre-policy (§5.2). Either it is backed by a site the walk should map, or it was read from indicative prose -- say which"
+      },
+      {
+        "message": "ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: ./le rfc index-update"
       }
     ]
   },

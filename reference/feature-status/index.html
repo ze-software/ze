@@ -392,7 +392,7 @@
 <tr>
 <td>IKEv2 Engine</td>
 <td>Supported</td>
-<td>Full IKE FSM for both <strong>initiator and responder</strong> roles (<code>connection-type initiate</code>/<code>respond</code>): IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, INFORMATIONAL exchanges. PSK and X.509 certificate authentication; as responder Ze also acts as the EAP authenticator (EAP-MSCHAPv2/EAP-TLS server). Child SA creation with traffic selectors and ESP proposals. IKE SA and Child SA rekeying (initiate and respond) with collision handling. DPD (Dead Peer Detection) via INFORMATIONAL exchange with configurable interval and timeout. XFRM policy and state programming via netlink. Reconciliation on config reload. SK crypto, key derivation, AUTH octets, and ESP key roles are parameterized by SA role. <!-- source: internal/component/ike/engine/ -- IKE FSM and reconciliation --> <!-- source: internal/component/ike/engine/responder.go -- IKE responder handshake --> Compile-out-able with the <code>ze_ike</code> build tag (default-on in <code>ZE_FEATURES</code>): a stripped build drops the engine, IPsec config plumbing, crypto, EAP, wire codec, and command surface and rejects a <code>vpn { ipsec {} }</code> block; <code>ike/dataplane</code> (the XFRM programming seam OSPF's RFC 4552 authentication also uses) stays always-on. <!-- source: feature-gates.txt -- ze_ike --></td>
+<td>Full IKE FSM for both <strong>initiator and responder</strong> roles (<code>connection-type initiate</code>/<code>respond</code>): IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, INFORMATIONAL exchanges. PSK and X.509 certificate authentication; as responder Ze also acts as the EAP authenticator (EAP-MSCHAPv2, EAP-TLS and MD5-Challenge server). Child SA creation with traffic selectors and ESP proposals. IKE SA and Child SA rekeying (initiate and respond) with collision handling. DPD (Dead Peer Detection) via INFORMATIONAL exchange with configurable interval and timeout. XFRM policy and state programming via netlink. Reconciliation on config reload. SK crypto, key derivation, AUTH octets, and ESP key roles are parameterized by SA role. <!-- source: internal/component/ike/engine/ -- IKE FSM and reconciliation --> <!-- source: internal/component/ike/engine/responder.go -- IKE responder handshake --> Compile-out-able with the <code>ze_ike</code> build tag (default-on in <code>ZE_FEATURES</code>): a stripped build drops the engine, IPsec config plumbing, crypto, EAP, wire codec, and command surface and rejects a <code>vpn { ipsec {} }</code> block; <code>ike/dataplane</code> (the XFRM programming seam OSPF's RFC 4552 authentication also uses) stays always-on. <!-- source: feature-gates.txt -- ze_ike --></td>
 </tr>
 <tr>
 <td>IPsec EAP Authentication</td>
@@ -417,7 +417,7 @@
 <tr>
 <td>IPsec Interop Testing</td>
 <td>Supported</td>
-<td>Docker-based interop test infrastructure against strongSwan as the remote IKE peer, covering Ze as initiator (PSK, EAP-MSCHAPv2, EAP-TLS, BGP redistribute, child rekey) and as responder (PSK, EAP-MSCHAPv2, IKE-SA rekey) via. On hosts without XFRM (macOS Docker) the dataplane checks gate on availability and control-plane establishment is verified from strongSwan's logs. <!-- source: internal/le/interoplab/ipsec/ipsec.go -- native interop lab runner -->. <span class="ev-src"><span class="ev-ref"><code>test/interop-ipsec/scenarios/</code></span></span></td>
+<td>Docker-based interop test infrastructure against strongSwan as the remote IKE peer, covering Ze as initiator (PSK, EAP-MSCHAPv2, EAP-TLS, EAP method negotiation by Nak, BGP redistribute, child rekey) and as responder (PSK, EAP-MSCHAPv2, IKE-SA rekey) via. On hosts without XFRM (macOS Docker) the dataplane checks gate on availability and control-plane establishment is verified from strongSwan's logs. <!-- source: internal/le/interoplab/ipsec/ipsec.go -- native interop lab runner -->. <span class="ev-src"><span class="ev-ref"><code>test/interop-ipsec/scenarios/</code></span></span></td>
 </tr>
 <tr>
 <td>IPsec CLI and Diagnostics</td>
@@ -686,7 +686,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:01 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 23:01 UTC</span>
                 </div>
             </div>
         </footer>

@@ -27127,7 +27127,7 @@
               "polarity": "negative",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 382,
+              "line": 385,
               "carrier": "unit/verify",
               "claim": "-- once the peer has answered an MS-CHAPv2 Challenge with an MS-CHAPv2 Response, the SAME Type-40 Request draws no Nak. RFC 3748 Section 2.1: \"A peer MUST NOT send a Nak (legacy or expanded) in reply to a Request after an initial non-Nak Response has been sent.\" It is discarded instead: no Response, no error, and the exchange waits for the next packet.",
               "tags": 1,
@@ -27144,7 +27144,7 @@
               "polarity": "positive",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 369,
+              "line": 372,
               "carrier": "unit/verify",
               "claim": "-- before the peer has answered a Request of its method's own Type, a Request of Type 40 draws a legacy Nak. The Identity Response has already gone out, so it is not the \"initial non-Nak Response\" the sentence bounds the Nak with.",
               "tags": 1,
@@ -27396,11 +27396,11 @@
           "gated": true,
           "positive-test": "--",
           "negative-test": "--",
-          "note": "{not-applicable} ze offers only EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/component/ike/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/component/ike/eap/peer.go), and that Nak carries no Vendor-Id",
+          "note": "{not-applicable} ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/component/ike/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/component/ike/eap/peer.go), and that Nak carries no Vendor-Id",
           "nightly-only": false,
           "annotation": {
             "kind": "not-applicable",
-            "reason": "ze offers only EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/component/ike/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/component/ike/eap/peer.go), and that Nak carries no Vendor-Id"
+            "reason": "ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/component/ike/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/component/ike/eap/peer.go), and that Nak carries no Vendor-Id"
           }
         },
         {
@@ -27462,7 +27462,7 @@
               "file": "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go",
               "line": 169,
               "carrier": "unit/verify",
-              "claim": "-- the body sweeps ipsec.AuthMode from zero to authModeSweepMax, which declaredAuthModes checks is past the last value ipsec names, and asks both producers what each value selects: the authenticator producer NewEAPSession (eap_auth.go) and the peer producer startEAPExchange (fsm.go). A value the ipsec package does not name starts no session at either producer. A value whose session answers false to DerivesKey is a value the ipsec package names, and warnKeylessEAPModes (eap_auth.go) writes one line for it carrying the peer name, the mode name and the RFC 7296 Section 2.16 sentence quoted in keylessMethodSentence; every other value draws no line at all. The body also counts the sessions each producer started and the keyless selections it saw, so a producer that selects nothing, and a sweep that never reaches a keyless method, do not satisfy it.",
+              "claim": "-- the body sweeps ipsec.AuthMode from zero to authModeSweepMax, which declaredAuthModes checks is past the last value ipsec names, and asks both producers what each value selects: the authenticator producer newEAPSession (eap_auth.go) and the peer producer startEAPExchange (fsm.go). A value the ipsec package does not name starts no session at either producer. A value whose session answers false to DerivesKey is a value the ipsec package names, and warnKeylessEAPModes (eap_auth.go) writes one line for it carrying the peer name, the mode name and the RFC 7296 Section 2.16 sentence quoted in keylessMethodSentence; every other value draws no line at all. The body also counts the sessions each producer started and the keyless selections it saw, so a producer that selects nothing, and a sweep that never reaches a keyless method, do not satisfy it.",
               "tags": 1,
               "proof": {
                 "route": "revert",
@@ -27479,13 +27479,13 @@
               "file": "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go",
               "line": 118,
               "carrier": "unit/verify",
-              "claim": "-- every ipsec.AuthMode that ipsec.IsEAPMode names is accepted by NewEAPSession (eap_auth.go), the producer that picks the EAP method of an IKEv2 exchange for the authenticator, and the eap.Session it returns answers true to DerivesKey for every one of those modes except ipsec.AuthEAPMD5, which is required only to be accepted because RFC 3748 Section 5.4 gives MD5-Challenge no key derivation.",
+              "claim": "-- every ipsec.AuthMode that ipsec.IsEAPMode names is accepted by newEAPSession (eap_auth.go), the producer that picks the EAP method of an IKEv2 exchange for the authenticator, and the eap.Session it returns answers true to DerivesKey for every one of those modes except ipsec.AuthEAPMD5, which is required only to be accepted because RFC 3748 Section 5.4 gives MD5-Challenge no key derivation.",
               "tags": 1,
               "proof": {
                 "route": "revert",
                 "state": "verified",
-                "producer": "internal/component/ike/engine/eap_auth.go::NewEAPSession",
-                "break": "body of NewEAPSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "producer": "internal/component/ike/engine/eap_auth.go::newEAPSession",
+                "break": "body of newEAPSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -28335,7 +28335,7 @@
               "polarity": "negative",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestPeerDoesNotNakATypeItHandles",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 176,
+              "line": 179,
               "carrier": "unit/verify",
               "claim": "-- Type 1 (Identity), Type 2 (Notification) and Type 26 (the configured method) draw no Nak. Section 5.3.1 bounds the Nak to \"an unacceptable authentication Type (4-253,255)\" and Section 5 numbers the authentication Types \"4 and above\", so each of the three is answered with a Response of the Request's own Type instead.",
               "tags": 1,
@@ -28352,7 +28352,7 @@
               "polarity": "positive",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestPeerNaksAnExpandedTypeRequestWithALegacyNak",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 256,
+              "line": 259,
               "carrier": "unit/verify",
               "claim": "-- RFC 3748 Section 5.7: \"Peers not equipped to interpret the Expanded Type MUST send a Nak as described in Section 5.3.1, and negotiate a more suitable authentication method.\" A Type-254 Request draws the LEGACY Nak of Section 5.3.1: Code 2, Type 3, one octet naming the configured method, six octets encoded. No packet the peer produces carries Type 254.",
               "tags": 1,
@@ -28369,7 +28369,7 @@
               "polarity": "positive",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestPeerNaksAnUnacceptableAuthenticationType",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 137,
+              "line": 140,
               "carrier": "unit/verify",
               "claim": "-- RFC 3748 Section 5.3.1: \"Where a peer receives a Request for an unacceptable authentication Type (4-253,255), or a peer lacking support for Expanded Types receives a Request for Type 254, a Nak Response (Type 3) MUST be sent.\" Types 40, 4 and 255 each draw a Type-3 Response, from the identity state and from the state after the Identity Response.",
               "tags": 1,
@@ -28399,7 +28399,7 @@
               "polarity": "negative",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestNakNamesTheConfiguredMethod",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 227,
+              "line": 230,
               "carrier": "unit/verify",
               "claim": "-- the desired-Type octet is read from the peer's configured method rather than written as a constant. An EAP-TLS peer answers the same Type-40 Request with 13, where the EAP-MSCHAPv2 peer answers 26.",
               "tags": 1,
@@ -28416,7 +28416,7 @@
               "polarity": "positive",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestPeerNaksAnUnacceptableAuthenticationType",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 144,
+              "line": 147,
               "carrier": "unit/verify",
               "claim": "-- RFC 3748 Section 5.3.1: \"The Type-Data field of the Nak Response (Type 3) MUST contain one or more octets indicating the desired authentication Type(s), one octet per Type, or the value zero (0) to indicate no proposed alternative.\" Each Nak carries exactly one octet, holding 26 for a peer configured with EAP-MSCHAPv2, so the encoded packet is six octets and the octet is never the zero that ends the negotiation.",
               "tags": 1,
@@ -28446,7 +28446,7 @@
               "polarity": "negative",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestNakIdentifierMatchesTheRequest",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 301,
+              "line": 304,
               "carrier": "unit/verify",
               "claim": "-- the Identifier is copied from the Request rather than held at a value of the peer's own. Four Requests bearing four different Identifiers draw four Naks bearing four different Identifiers, which a constant or a counter of the peer's could not produce.",
               "tags": 1,
@@ -28463,7 +28463,7 @@
               "polarity": "positive",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestNakIdentifierMatchesTheRequest",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 286,
+              "line": 289,
               "carrier": "unit/verify",
               "claim": "-- RFC 3748 Section 5.3.1: \"The Identifier field of a legacy Nak Response MUST match the Identifier field of the Request packet that it is sent in response to.\" Each of four Requests of Type 40, carrying Identifiers 0, 1, 127 and 255, draws a Nak carrying that same value.",
               "tags": 1,
@@ -28493,7 +28493,7 @@
               "polarity": "negative",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 344,
+              "line": 347,
               "carrier": "unit/verify",
               "claim": "-- the same peer DOES Nak a Request of an unacceptable authentication Type, so the refusal above is the malformed-payload path acting rather than a peer with no Nak to send.",
               "tags": 1,
@@ -28510,7 +28510,7 @@
               "polarity": "positive",
               "unit": "internal/component/ike/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError",
               "file": "internal/component/ike/eap/rfc3748_nak_test.go",
-              "line": 321,
+              "line": 324,
               "carrier": "unit/verify",
               "claim": "-- RFC 3748 Section 5.3.1: \"Since the legacy Nak Type is valid only in Responses and has very limited functionality, it MUST NOT be used as a general purpose error indication, such as for communication of error messages, or negotiation of parameters specific to a particular EAP method.\" A malformed Request of the method's own Type reports the method's error and sends no packet, so no Nak carries the failure.",
               "tags": 1,
@@ -29189,7 +29189,7 @@
             "id": "5.2:3",
             "quote": "In this case, the peer MUST silently discard Notification Requests from the point where an initial Request for that Type is answered with a Response of the same Type.",
             "excluded-kind": "advisory-in-context",
-            "reason": "The MUST is the consequent of a MAY, and the enclosing construction is: 'An EAP method MAY indicate within its specification that Notification messages must not be sent during that method.  In this case, the peer MUST silently discard Notification Requests from the point where an initial Request for that Type is answered with a Response of the same Type.' The antecedent is false for both methods Ze runs. Neither specification exercises that MAY: the string 'Notification' appears nowhere in rfc/full/rfc5216.txt and nowhere in rfc/full/rfc2759.txt, so no method Ze offers prohibits Notification messages and the peer is never in the state this sentence describes. What Ze owes a Notification Request OUTSIDE that state is Section 5.2's opening obligation, which sites 5.2:1 and 5.2:5 relocate to plan/spec-eap-notification-and-nak.md under RFC3748-5.2-1."
+            "reason": "The MUST is the consequent of a MAY, and the enclosing construction is: 'An EAP method MAY indicate within its specification that Notification messages must not be sent during that method.  In this case, the peer MUST silently discard Notification Requests from the point where an initial Request for that Type is answered with a Response of the same Type.' The antecedent is false for every method Ze runs. Neither specification exercises that MAY: the string 'Notification' appears nowhere in rfc/full/rfc5216.txt and nowhere in rfc/full/rfc2759.txt, so no method Ze offers prohibits Notification messages and the peer is never in the state this sentence describes. What Ze owes a Notification Request OUTSIDE that state is Section 5.2's opening obligation, which sites 5.2:1 and 5.2:5 relocate to plan/spec-eap-notification-and-nak.md under RFC3748-5.2-1."
           },
           {
             "id": "5.2:4",
@@ -29207,25 +29207,25 @@
             "id": "5.3.2:1",
             "quote": "It MUST be sent only in reply to a Request of Type 254 (Expanded Type) where the authentication Type is unacceptable.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states when an Expanded Nak may be sent. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states when an Expanded Nak may be sent. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.3.2:2",
             "quote": "Since the Expanded Nak Type is valid only in Responses and has very limited functionality, it MUST NOT be used as a general purpose error indication, such as for communication of error messages, or negotiation of parameters specific to a particular EAP method.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states the ban on an Expanded Nak as a general error indication. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states the ban on an Expanded Nak as a general error indication. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.3.2:3",
             "quote": "The Identifier field of an Expanded Nak Response MUST match the Identifier field of the Request packet that it is sent in response to.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states the Expanded Nak Identifier rule. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states the Expanded Nak Identifier rule. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.3.2:4",
             "quote": "The Vendor-Data field of the Nak Response MUST contain one or more authentication Types (4 or greater), all in expanded format, 8 octets per Type, or the value zero (0), also in Expanded Type format, to indicate no proposed alternative.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states the Expanded Nak Vendor-Data contents. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states the Expanded Nak Vendor-Data contents. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.4:3",
@@ -29243,55 +29243,55 @@
             "id": "5.5:1",
             "quote": "A Response MUST be sent in reply to the Request.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states answering an OTP Request. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states answering an OTP Request. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, so RFC 7296 Section 2.16 would key its AUTH payloads from SK_pi and SK_pr; RFC3748-7.10-3 states that as a SHOULD NOT rather than a prohibition. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.5:2",
             "quote": "The Response MUST be of Type 5 (OTP), Nak (Type 3), or Expanded Nak (Type 254).",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states the Type of the answering Response. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states the Type of the answering Response. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, so RFC 7296 Section 2.16 would key its AUTH payloads from SK_pi and SK_pr; RFC3748-7.10-3 states that as a SHOULD NOT rather than a prohibition. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.5:3",
             "quote": "The EAP OTP method is intended for use with the One-Time Password system only, and MUST NOT be used to provide support for cleartext passwords.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states the ban on cleartext passwords. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states the ban on cleartext passwords. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, so RFC 7296 Section 2.16 would key its AUTH payloads from SK_pi and SK_pr; RFC3748-7.10-3 states that as a SHOULD NOT rather than a prohibition. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.5:4",
             "quote": "The messages MUST NOT be null terminated.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states the message not being null terminated. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states the message not being null terminated. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, so RFC 7296 Section 2.16 would key its AUTH payloads from SK_pi and SK_pr; RFC3748-7.10-3 states that as a SHOULD NOT rather than a prohibition. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.6:1",
             "quote": "A Response MUST be sent in reply to the Request.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states answering a GTC Request. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states answering a GTC Request. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, so RFC 7296 Section 2.16 would key its AUTH payloads from SK_pi and SK_pr; RFC3748-7.10-3 states that as a SHOULD NOT rather than a prohibition. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.6:2",
             "quote": "The Response MUST be of Type 6 (GTC), Nak (Type 3), or Expanded Nak (Type 254).",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the Type of the answering Response. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the Type of the answering Response. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, so RFC 7296 Section 2.16 would key its AUTH payloads from SK_pi and SK_pr; RFC3748-7.10-3 states that as a SHOULD NOT rather than a prohibition. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.6:3",
             "quote": "The EAP GTC method is intended for use with the Token Cards supporting challenge/response authentication and MUST NOT be used to provide support for cleartext passwords in the absence of a protected tunnel with server authentication.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the ban on cleartext passwords outside a protected tunnel. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the ban on cleartext passwords outside a protected tunnel. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, so RFC 7296 Section 2.16 would key its AUTH payloads from SK_pi and SK_pr; RFC3748-7.10-3 states that as a SHOULD NOT rather than a prohibition. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.6:4",
             "quote": "The message MUST NOT be null terminated.",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the message not being null terminated. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the message not being null terminated. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, so RFC 7296 Section 2.16 would key its AUTH payloads from SK_pi and SK_pr; RFC3748-7.10-3 states that as a SHOULD NOT rather than a prohibition. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.6:5",
             "quote": "A Response MUST be sent in reply to the Request with a Type field of 6 (Generic Token Card).",
             "excluded-kind": "feature-out-of-scope",
-            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the Type field of the answering Response. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
+            "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the Type field of the answering Response. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 4, Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, so RFC 7296 Section 2.16 would key its AUTH payloads from SK_pi and SK_pr; RFC3748-7.10-3 states that as a SHOULD NOT rather than a prohibition. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
           },
           {
             "id": "5.7:2",
@@ -79678,7 +79678,7 @@
               "polarity": "negative",
               "unit": "internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go::TestEAPAuthOfKeyDerivingMethodStillUsesTheMSK",
               "file": "internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go",
-              "line": 173,
+              "line": 174,
               "carrier": "unit/verify",
               "claim": "-- the SK_pi and SK_pr construction is conditional on the method deriving no key, and is not applied to every EAP exchange. The body runs a real MS-CHAPv2 handshake, whose method does derive a key, and asserts for the initiator and for the responder that the AUTH payload equals the Section 2.15 shared-secret construction over sa.EAPMSK and does not equal it over SK_pi or SK_pr.",
               "tags": 1,
@@ -79695,7 +79695,7 @@
               "polarity": "positive",
               "unit": "internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go::TestEAPAuthOfNonKeyDerivingMethodUsesSKpiAndSKpr",
               "file": "internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go",
-              "line": 125,
+              "line": 126,
               "carrier": "unit/verify",
               "claim": "-- an EAP exchange whose method derives no key, a real MD5-Challenge conversation run to success on both roles, keys message 7 with SK_pi and message 8 with SK_pr. The body asserts each payload equals the Section 2.15 shared-secret construction over that key, that verifyRemoteAuth on the opposite side accepts it, that neither equals the same construction over sa.EAPMSK, which both SAs hold non-zero throughout, and that the two payloads differ from each other.",
               "tags": 1,

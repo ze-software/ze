@@ -4,7 +4,7 @@ Source: `internal/le/rfc`, `rfc/short/*.md`, and `rfc/audit/*.json`.
 
 ## Gate verdict
 
-RED. 152 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 152 violation(s)`.
+RED. 153 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 153 violation(s)`.
 
 ### Overall
 
@@ -41,7 +41,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 26.7% | 649 of 2,430 binding obligations | no test carries the requirement id, whether or not a gap states why |
-| Gate verdict | RED | 152 open gate issues | whether ./le rfc check passes over this tree |
+| Gate verdict | RED | 153 open gate issues | whether ./le rfc check passes over this tree |
 
 The 4 shares marked as a part above are the whole of the 2,430 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -61,7 +61,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 152 |
+| Gate issues | 153 |
 | Gated MUST-level requirements | 3,264 |
 | Enrolled RFCs | 181 |
 | Resolved test tags | 4,156 |
@@ -217,7 +217,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 43 
 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-6-1) | MUST | has no test and no annotation | "If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of \\"treat-as-withdraw\\", as described in section 7.3 of [RFC7606]" (§6) |
 | RFC 3748 | [`RFC3748-2-3`](rfc3748/index.md#rfc3748-2-3) | MUST NOT | has no test and no annotation | The authenticator MUST NOT send a Success or Failure packet when retransmitting or when it fails to get a response from the peer (S2) |
 
-127 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
+128 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
 
 ## Enrolled RFCs
 
@@ -406,6 +406,11 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 43 
 | [`SFLOW-V5`](sflow-v5/index.md) sFlow: A Method for Monitoring Traffic in Switched and Routed Networks | Experimental | 16 | 3 | 0 |
 
 ## Summaries that are not enrolled
+
+- `backlog`: the requirements have not been extracted from the document yet; this is work owed rather than a decision
+- `blocked`: something outside the summary stops the extraction, and it is named in the reason
+- `non-normative`: the document imposes no MUST-level obligation on an implementation, so there is nothing to gate
+- `out-of-scope`: the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap
 
 | RFC | Disposition | Reason |
 |---|---|---|
