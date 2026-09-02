@@ -2734,7 +2734,7 @@ negotiation, authentication, IP pool, and teardown over real loopback UDP.
 Run with `./le functional l2tp`.
 
 > **In the default release gate.** The in-tree L2TP `.ci` tests are included in
-> `./le functional` and can be selected with `./le functional l2tp`.
+> `./le functional gating` and can be selected with `./le functional l2tp`.
 > External-peer and PPP dataplane evidence use separate deployment actions.
 
 ```bash
