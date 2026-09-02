@@ -38,4 +38,3 @@ the file, and carry no row for it.
 
 | Test | Reason |
 |------|--------|
-| TestEveryAnnotationKindTheCorpusCarriesHasABucket | RENAMED to `TestEveryAnnotationKindHasABucket`, and strengthened rather than dropped. It walked the CORPUS for annotation kinds, so a kind added to `rfc.AnnotationKinds` and not yet used by any summary passed it, which is precisely the moment the page is wrong and nobody has noticed. It now walks the UNION of the vocabulary and the corpus, and it reads `rfcAnnotationBucket` in place of the map it held, which was a second copy of the mapping `rfcLedgerCoverageOf` performed. Observed RED under an invented fourth vocabulary kind, which the old test passed |

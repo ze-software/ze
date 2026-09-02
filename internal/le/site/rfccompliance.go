@@ -44,6 +44,22 @@ const (
 	rfcOneSideBucket  = "one_polarity_unexcused"
 	rfcMissingBucket  = "missing_unexcused"
 	rfcNotApplyBucket = "not_applicable"
+	// rfcUnmappedBucket is where a gated requirement goes when it carries an
+	// annotation this page has no bucket for. It is deliberately NOT one of
+	// rfcSatisfaction, so nothing publishes it as a share: it leaves a hole in
+	// the accounting that both notes state, which is what a page can be honest
+	// about.
+	//
+	// Falling through to the polarity switch is what it did until 2026-09-02,
+	// and that was worse than losing the requirement. A {single-polarity}
+	// requirement whose kind lost its bucket carries one tag, so the switch put
+	// it in "One polarity, unexcused" -- a red-tone card -- and the index
+	// would have republished every {single-polarity} obligation of the corpus
+	// as unexcused, with every test green (independent review). A visible hole
+	// is a defect a reader can see. A
+	// silent move into a worse-looking bucket is a false statement about the
+	// requirements in it.
+	rfcUnmappedBucket = "unmapped_annotation"
 	// The border color a card takes, one for each thing a number can MEAN.
 	//
 	// A color on a number is a verdict, so a number with no good or bad
@@ -72,6 +88,10 @@ type rfcCompliance struct {
 	Gaps         rfcGaps     `json:"gaps"`
 	Audit        rfcAudit    `json:"audit"`
 	Verify       rfcVerify   `json:"verify"`
+	// Unmapped counts the gated requirements whose annotation kind has no
+	// bucket. It is zero in a healthy tree and the page states it when it is
+	// not, because those requirements are in no published share.
+	Unmapped int `json:"unmapped-annotations,omitempty"`
 }
 
 // rfcGate is the gate's verdict and the scale it judged.
@@ -417,7 +437,8 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 		Verify: rfcGateStages(),
 	}
 	snapshot.Gate.Message = rfcGateSummary(&report)
-	snapshot.Satisfaction, snapshot.Gaps = rfcBuckets(gated, collected.Tags, input.Rows)
+	snapshot.Satisfaction, snapshot.Gaps, snapshot.Unmapped = rfcBuckets(gated, collected.Tags,
+		input.Rows)
 	snapshot.Audit = rfcAuditCounts(gated, input.States, len(gated))
 	return snapshot, nil
 }
@@ -459,8 +480,12 @@ func rfcGateStages() rfcVerify {
 // The gap cluster order is the count, descending, with ties broken by the order
 // the summaries were parsed in. That is the order the retired renderer
 // published, and it is stable: a Go map's own order is not.
+//
+// The third answer is the requirements whose annotation kind has no bucket.
+// They are in NO published share, so the accounting is short by that many and
+// both notes say so.
 func rfcBuckets(gated []rfc.Requirement, tags []rfc.Tag,
-	rows map[string]rfc.LedgerRow) ([]rfcBucket, rfcGaps) {
+	rows map[string]rfc.LedgerRow) ([]rfcBucket, rfcGaps, int) {
 	polarities := map[string]map[string]bool{}
 	for _, tag := range tags {
 		if polarities[tag.RID] == nil {
@@ -490,16 +515,24 @@ func rfcBuckets(gated []rfc.Requirement, tags []rfc.Tag,
 	for _, bucket := range rfcSatisfaction {
 		buckets = append(buckets, rfcBucket{Key: bucket.Key, Count: counts[bucket.Key]})
 	}
-	return buckets, rfcGapsOf(counts[rfcGapBucket], gapCounts, gapOrder, rows)
+	return buckets, rfcGapsOf(counts[rfcGapBucket], gapCounts, gapOrder, rows),
+		counts[rfcUnmappedBucket]
 }
 
 // rfcBucketOf answers the bucket one gated requirement falls in. An annotation
 // decides on its own; otherwise the tagged polarities do.
+//
+// An annotation with no bucket decides too, and it decides on rfcUnmappedBucket
+// rather than letting the polarities answer. A requirement the summary EXCUSED
+// must never be counted as one nobody excused, and the polarity switch cannot
+// tell the difference: it sees one tag and says "one polarity, unexcused".
 func rfcBucketOf(requirement rfc.Requirement, polarities map[string]bool) string {
 	if requirement.Annotation != nil {
-		if bucket, known := rfcAnnotationBucket(requirement.Annotation.Kind); known {
-			return bucket
+		bucket, known := rfcAnnotationBucket(requirement.Annotation.Kind)
+		if !known {
+			return rfcUnmappedBucket
 		}
+		return bucket
 	}
 	switch {
 	case len(polarities) > 1:
@@ -940,7 +973,7 @@ var rfcStanding = []struct {
 
 // rfcBinding is the population that actually binds Ze, and how it is answered.
 //
-// Every ratio this page leads with is taken over Obligations, never over the
+// Every ratio this page leads with is taken over Binding(), never over the
 // gated count: the gated count includes 834 obligations a `{not-applicable}`
 // annotation says never bound Ze, and a denominator carrying them makes the
 // answer look better than it is (owner ruling, 2026-09-01).
@@ -950,6 +983,9 @@ type rfcBinding struct {
 	Obligations int
 	Pairs       int
 	NoTest      int
+	// Unmapped counts the gated requirements in no bucket at all, which is the
+	// one way Obligations and Binding() can disagree.
+	Unmapped int
 }
 
 // Binding answers the binding population the way the GATE counts it: its own
@@ -1018,7 +1054,8 @@ func rfcBindingOf(snapshot *rfcCompliance) rfcBinding {
 	for _, bucket := range snapshot.Satisfaction {
 		counted[bucket.Key] = bucket.Count
 	}
-	split := rfcBinding{Gated: snapshot.Gate.GatedMust, Pairs: counted[rfcBothBucket]}
+	split := rfcBinding{Gated: snapshot.Gate.GatedMust, Pairs: counted[rfcBothBucket],
+		Unmapped: snapshot.Unmapped}
 	for _, bucket := range rfcSatisfaction {
 		if bucket.Binds {
 			split.Obligations += counted[bucket.Key]
@@ -1203,7 +1240,7 @@ func rfcSatisfactionHTML(snapshot *rfcCompliance) string {
 			continue
 		}
 		out.WriteString(`<span class="rfc-tape-` + bucket.Key + `" style="--w: ` +
-			strconv.FormatFloat(rfcPercent(counted[bucket.Key], split.Obligations), 'f', 3, 64) +
+			strconv.FormatFloat(rfcPercent(counted[bucket.Key], split.Binding()), 'f', 3, 64) +
 			`%"></span>` + "\n")
 	}
 	out.WriteString("</div>\n<ul class=\"rfc-tape-key\">\n")
@@ -1213,7 +1250,7 @@ func rfcSatisfactionHTML(snapshot *rfcCompliance) string {
 		}
 		out.WriteString(`<li><span class="rfc-swatch rfc-tape-` + bucket.Key + `"></span> ` +
 			html.EscapeString(bucket.Label) + ": <strong>" + groupThousands(counted[bucket.Key]) +
-			"</strong> (" + rfcPercentText(counted[bucket.Key], split.Obligations) + ")</li>\n")
+			"</strong> (" + rfcPercentText(counted[bucket.Key], split.Binding()) + ")</li>\n")
 	}
 	out.WriteString("</ul>\n<p>" + html.EscapeString(rfcScopeNote(split)) + "</p>\n")
 	out.WriteString(rfcTableHTML(rfcHeadCells("Bucket", "Count", "Share of binding",
@@ -1233,14 +1270,14 @@ func rfcSatisfactionRows(counted map[string]int, split rfcBinding) string {
 		accounted += counted[bucket.Key]
 		rows.WriteString(rfcRowCells(html.EscapeString(bucket.Label),
 			"<strong>"+groupThousands(counted[bucket.Key])+"</strong>",
-			rfcPercentText(counted[bucket.Key], split.Obligations),
+			rfcPercentText(counted[bucket.Key], split.Binding()),
 			"<code>"+html.EscapeString(bucket.Condition)+"</code>"))
 	}
 	rows.WriteString(`<tr class="rfc-total"><td><strong>` +
 		html.EscapeString(rfcBindingLabel) + `</strong></td><td><strong>` +
 		groupThousands(accounted) + "</strong></td><td>" +
-		rfcPercentText(accounted, split.Obligations) + "</td><td>" +
-		html.EscapeString(rfcAccountedNote(accounted, split.Binding())) + "</td></tr>\n")
+		rfcPercentText(accounted, split.Binding()) + "</td><td>" +
+		html.EscapeString(rfcAccountedNote(split, accounted)) + "</td></tr>\n")
 	for _, bucket := range rfcSatisfaction {
 		if bucket.Binds {
 			continue
@@ -1270,18 +1307,25 @@ const (
 // A mismatch is STATED rather than hidden. The buckets are meant to partition
 // it, so a difference is a defect in the bucketing and a page that printed only
 // the sum would let it pass.
-func rfcAccountedNote(accounted, obligations int) string {
+func rfcAccountedNote(split rfcBinding, accounted int) string {
+	obligations := split.Binding()
 	if accounted == obligations {
 		return "every obligation that binds Ze falls in exactly one bucket above"
 	}
-	return "the buckets account for " + groupThousands(accounted) + " of " +
+	note := "the buckets account for " + groupThousands(accounted) + " of " +
 		groupThousands(obligations) + ", so " + groupThousands(obligations-accounted) +
 		" fall in none: the bucketing is incomplete"
+	if split.Unmapped == 0 {
+		return note
+	}
+	return note + ". " + groupThousands(split.Unmapped) +
+		" of them carry an annotation kind this page has no bucket for, so they are " +
+		"counted apart rather than moved into a bucket that would misdescribe them"
 }
 
 // rfcGatedNote states the accounting total as the sum it is.
 func rfcGatedNote(split rfcBinding) string {
-	return "the accounting total: " + groupThousands(split.Obligations) +
+	return "the accounting total: " + groupThousands(split.Binding()) +
 		" that bind Ze plus " + groupThousands(split.OutOfScope) + " that do not"
 }
 
@@ -1291,7 +1335,7 @@ func rfcScopeNote(split rfcBinding) string {
 	if split.OutOfScope == 0 {
 		return "The bar is every gated MUST-level requirement: none of them is out of scope."
 	}
-	return "The bar is the " + groupThousands(split.Obligations) +
+	return "The bar is the " + groupThousands(split.Binding()) +
 		" obligations that bind Ze. " + groupThousands(split.OutOfScope) +
 		" further gated MUSTs are {not-applicable}: they do not bind Ze, they are not in the " +
 		"bar, and they are counted apart below."
@@ -1513,12 +1557,12 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 		}
 		accounted += counted[bucket.Key]
 		mirror.WriteString("| " + bucket.Label + " | " + groupThousands(counted[bucket.Key]) + " | " +
-			rfcPercentText(counted[bucket.Key], split.Obligations) + " | `" +
+			rfcPercentText(counted[bucket.Key], split.Binding()) + " | `" +
 			bucket.Condition + "` |\n")
 	}
 	mirror.WriteString("| **" + rfcBindingLabel + "** | **" + groupThousands(accounted) + "** | " +
-		rfcPercentText(accounted, split.Obligations) + " | " +
-		rfc.TableCell(rfcAccountedNote(accounted, split.Binding())) + " |\n")
+		rfcPercentText(accounted, split.Binding()) + " | " +
+		rfc.TableCell(rfcAccountedNote(split, accounted)) + " |\n")
 	for _, bucket := range rfcSatisfaction {
 		if bucket.Binds {
 			continue

@@ -312,8 +312,7 @@ func narratesTheWalk(lead string) bool {
 	if !sectionNarrationArticles[strings.ToLower(strings.Trim(words[1], ",;:"))] {
 		return false
 	}
-	return sectionNarrationIrregulars[first] ||
-		(strings.HasSuffix(first, "ed") && !strings.HasSuffix(first, "ing"))
+	return sectionNarrationIrregulars[first] || strings.HasSuffix(first, "ed")
 }
 
 // sectionNotASection is how a record says the numbered section does not exist

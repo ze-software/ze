@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | complete |
 | Scope | tooling |
 | Depends | - |
 | Phase | 7/7 |
 | Deferral shard | `-` |
 | Handoff | - |
-| Updated | 2026-09-01 |
+| Updated | 2026-09-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -937,3 +937,299 @@ no `// RFC NNNN Section X.Y:` comment is owed.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+A generated detail-page family under `/quality/rfc-compliance/`, one page per
+summary stem in `rfc/short/`, plus the machine-readable ledger both it and the
+index read.
+
+- `publishRFCLedger` derives `data/rfc-requirements.json` once per build from
+  `rfc.Collect`, `rfc.NewRenderInput` and `rfc.LoadExtractions`
+  (`internal/le/site/rfcledger.go`). `refreshNativeSurfaces` calls it and
+  `namedArtifacts` holds the path (`internal/le/site/build.go`).
+- The detail producer renders one page and one mirror per stem from that
+  artifact and nothing else in the checkout (`internal/le/site/rfcdetail.go`,
+  registered in `internal/le/site/producer.go`).
+- The index gained the two link tables, the exclusion disclosure, the gap
+  clusters and the gate-input rows (`internal/le/site/rfccompliance.go`).
+- `internal/le/rfc` exports what a reader outside the package needs to publish
+  the ledger: `Cover`, `DiscriminationVerdict`, `CarrierFor`, `CarrierRank`,
+  `AuditVerdictMeaning`, `DispositionKindMeaning`, `ExclusionKinds` and the
+  `ExtractionSection.Title` deriver (`internal/le/rfc/artifact.go`,
+  `carriers.go`).
+
+### Bugs Found/Fixed
+
+Each was found by review of the published pages rather than by a red bar, and
+each now has a test that goes red without the fix.
+
+- The index's accounting row compared a sum against the field that IS that sum,
+  so its "the bucketing is incomplete" sentence could never run
+  (`rfcAccountedNote`; `TestTheIndexAccountingRowCanSayTheBucketingIsIncomplete`).
+- `rfcPartitionNote` counted how many cards were MARKED as parts and claimed
+  they add to 100% without reading one of their values
+  (`TestThePartitionSentenceReadsTheSharesItAddsUp`).
+- `rfcBucketOf` fell through to the polarity switch for an annotation kind with
+  no bucket, so the index would have republished excused obligations as
+  UNEXCUSED (`TestAnAnnotationWithNoBucketIsNeverPublishedAsUnexcused`).
+- Two silent losses in the ledger prose: a cell ending in a semicolon lost it on
+  rejoin, and a cell with an odd number of backticks lost one
+  (`TestProseOfAnyShapeIsPublishedWholeAndLosesNoCharacter`).
+- `removeRetiredRFCPages` was keyed on a directory name absent from the live
+  set and ran before the writing, so on a real build it deleted any directory
+  another producer had put under the prefix
+  (`TestRetiringAPageDeletesOnlyThisFamilysOwnPages`).
+- `_sources["rfc"]` in the published site facts named `rfc/enrolled.txt` as an
+  input after `Collect` stopped reading it
+  (`TestNoPublishedSourceNamesAGeneratedLedgerFile`).
+- `ExtractionSection.Title()` published 23 fabricated section names, "Walked the
+  nonce section" and "NOT A SECTION" among them
+  (`TestEveryDerivedSectionTitleReadsAsATitle`,
+  `TestTheTitleLineFallsBetweenANameAndASentence`).
+
+### Documentation Updates
+
+- `website/AI.md`: the RFC ledger family, its route and the artifact it reads.
+- `docs/contributing/gh-pages.md`: the new producer and the named artifact.
+- `docs/features.md`, `docs/architecture/core-design.md`,
+  `docs/contributing/rfc-conformance-gates.md`: the published family named where
+  the RFC gate is described.
+- `docs/features/rfc-status.md` and `docs/features/test-health.md` are
+  GENERATED and were regenerated, never hand-edited.
+- `./le doc check verify`: run, and its result is in Pre-Commit Verification.
+
+### Deviations from Plan
+
+- A-5 was broken and repaired in place: one existing test asserted the producer
+  answers exactly one route, which this work deliberately changes.
+- AC-31 and AC-62 were SUPERSEDED by owner review during implementation, and
+  their replacements AC-57 and AC-63 are implemented. Neither was dropped.
+- `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md`
+  became generated files during this work, by `plan/spec-rfc-ledger-single-declaration.md`
+  running concurrently. Every prose string this family publishes about where a
+  fact is authored was repointed at the summary's own `## Meta` table (AC-49).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: publishing 191 pages breaks no existing site test | `TestTheRFCComplianceProducerClaimsItsPublishedRoute` asserted one route | `go test ./internal/le/site` | Test re-aimed at the property that still holds: the index route is published and every other answered route is a child of it |
+| approach | A guard was written as a check that reads as a guard: `rfcPartitionNote` asserted a partition it never summed, and `TestEveryDerivedSectionTitleReadsAsATitle` restated its producer's own trimming | Both were unreachable branches with live consequences behind them | Independent review rounds 2 and 3, by reading the assertion against the producer | Every claim a page makes about its own arithmetic now reads the numbers it claims about, and each was observed RED under a mutation |
+| escalation | A page edit was deferred to a later pass three times across the rounds, each time because the code change felt separable | `ai/rules/documentation.md` puts the page edit in the SAME work | Review | No rule change proposed: the rule already says it. Recorded so the next session sees the frequency |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One generated page per summary stem, carrying the per-requirement ledger | Done | `internal/le/site/rfcdetail.go`, `rfcDetailPages` | 190 stem directories against 190 summaries |
+| Publish what the repository already computes: no new verdict, no new gate, no gap fixed | Done | `internal/le/site/rfcledger.go`, `publishRFCLedger` | It calls no `rfc.Check`; the generated shards and `ai/RFC-REQUIREMENTS.md` re-rendered byte-identical |
+| Reachable from `/quality/rfc-compliance/` | Done | `internal/le/site/rfccompliance.go`, `rfcIndexRows` | `TestTheComplianceIndexLinksEveryStemOfThisCheckout` requires an `href` for all 190 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestTheRFCLedgerClaimsEachPublishedRouteOnce` |  |
+| AC-2 | Done | `TestARequirementRowMatchesItsGeneratedShard` |  |
+| AC-3 | Done | `TestAStemPageStatesItsEnrolmentAndItsPublicStatus` |  |
+| AC-4 | Done | `TestAGapIsShownWithItsReasonAndTheLedgerRemainder` |  |
+| AC-5 | Done | `TestAnAuditVerdictAppearsWithItsMeaningAndFreshness, TestARequirementWithNoVerdictSaysSoRatherThanShowingABlank` |  |
+| AC-6 | Done | `TestANoBreakRecordIsCountedApartFromAProof, TestATagWithNoDiscriminationRecordReadsAsUnproven` |  |
+| AC-7 | Done | `TestTheExtractionSignoffNamesEveryExcludedSiteAndItsKind` |  |
+| AC-8 | Done | `TestTheComplianceIndexLinksEveryStemOfThisCheckout, TestADeclinedStemStatesItsKindAndReason` |  |
+| AC-9 | Done | `TestAnRFCPageMirrorReadsAsThePublishedMirror` |  |
+| AC-10 | Done | `TestARetiredRFCLosesItsPage` |  |
+| AC-11 | Done | `TestABuildPublishesTheRequirementLedger, TestAnUnusableRequirementLedgerIsRefusedByName` |  |
+| AC-12 | Done | `TestAPipeInRequirementTextStaysInItsCell` |  |
+| AC-13 | Done | `TestTheRFCLedgerClaimsOnlyPublishedRoutes` |  |
+| AC-14 | Done | `TestEveryPublishedRouteBelongsToOneSection` |  |
+| AC-15 | Done | `TestAStemPageCarriesTheTitleFromTheSummaryMetaRow` |  |
+| AC-16 | Done | `TestTheSiteReadsItsRFCVocabularyFromThePackage` |  |
+| AC-17 | Done | `TestEveryDisclosedStateAppearsUnderItsRequirementID, TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage` |  |
+| AC-18 | Done | `TestNoBadStateOfThisCheckoutIsPublishedOnlyAsACount` |  |
+| AC-19 | Done | `TestAStemPageOpensWithTheCardGridTheIndexCarries` |  |
+| AC-20 | Done | `TestANoBreakRecordIsCountedApartFromAProof` |  |
+| AC-21 | Done | `TestAMentionedRequirementLinksToItsOwnRow` |  |
+| AC-22 | Done | `TestTheGlanceTableCarriesNoProse` |  |
+| AC-23 | Done | `TestAnEmptySectionStatesItsEmptinessOnce` |  |
+| AC-24 | Done | `TestACoverageBucketCarriesACountAndNotAList` |  |
+| AC-25 | Done | `TestARequirementRowNamesItsSection` |  |
+| AC-26 | Done | `TestEveryTableOnAStemPageScrollsInsideItsOwnContainer` |  |
+| AC-27 | Done | `TestTheGateVerdictIsAStatusAndNotTerminalOutput` |  |
+| AC-28 | Done | `TestAGapThatIsAlsoUntestedTakesOneRow` |  |
+| AC-29 | Done | `TestTheBucketTableAccountsForEveryGatedRequirement` |  |
+| AC-30 | Done | `TestTheGatedMUSTCardNamesThePopulationItIsASubsetOf` |  |
+| AC-31 | Changed | `-` | SUPERSEDED by AC-57 in the same owner review. The disclosure it required hid the subject; AC-57 replaced it with an always-visible subject row |
+| AC-32 | Done | `TestAProofStateRowLinksTheTestToItsOwnLine` |  |
+| AC-33 | Done | `TestThePublicLedgerCellIsLabelledAndFolded` |  |
+| AC-34 | Done | `TestEveryCardStatesTheRuleBehindItsColor` |  |
+| AC-35 | Done | `TestARatioLeadsAndAPopulationFollows` |  |
+| AC-36 | Done | `TestTheProofRatioSitsBesideTheTestPairRatio` |  |
+| AC-37 | Done | `TestTheBucketTableAccountsForEveryGatedRequirement` |  |
+| AC-38 | Done | `TestTheGlanceTableCarriesNoProse` |  |
+| AC-39 | Done | `TestTheRatioCardsPartitionTheirDenominator` |  |
+| AC-40 | Done | `TestALapsedRecordIsNotCountedAsAProof` |  |
+| AC-41 | Done | `TestEveryCardStatesTheRuleBehindItsColor` |  |
+| AC-42 | Done | `TestTheExclusionLedgerIsPublishedWithItsCoverage` |  |
+| AC-43 | Done | `TestTheExclusionLedgerIsPublishedWithItsCoverage` |  |
+| AC-44 | Done | `TestTheGateInputRowsReadAsThePublishedRows` |  |
+| AC-45 | Done | `TestTheCardGridReadsInFourMovements` |  |
+| AC-46 | Done | `TestTheGateInputRowsReadAsThePublishedRows` |  |
+| AC-47 | Done | `TestTheExclusionGroupsPartitionTheVocabulary` |  |
+| AC-48 | Done | `TestARelocatedObligationIsPublishedAsDebt` |  |
+| AC-49 | Done | `TestEnrolmentIsReadFromTheSummaryMetaTable` |  |
+| AC-50 | Done | `TestEnrolmentIsReadFromTheSummaryMetaTable` |  |
+| AC-51 | Done | `TestEveryLedgerCellSplitsWithoutLoss, TestTheLedgerProseRendersAsItsOwnStructure` |  |
+| AC-52 | Done | `TestEveryLinkedPathExistsInTheTree` |  |
+| AC-53 | Done | `TestATestIsCitedByNameAndNotByItsFile, TestAScenarioIsCitedByItsFileName` |  |
+| AC-54 | Done | `TestTwoTestsSharingANameAreToldApart` |  |
+| AC-55 | Done | `TestBothPolaritiesShareOneColumn` |  |
+| AC-56 | Done | `TestTheRequirementTextSpansTheWholeTable` |  |
+| AC-57 | Done | `TestTheRequirementTextLeadsItsRow` |  |
+| AC-58 | Done | `TestNothingTheNoteCarriedWasLost` |  |
+| AC-59 | Done | `TestAnAnnotationReasonSitsUnderTheTests` |  |
+| AC-60 | Done | `TestBothPolaritiesShareOneColumn` |  |
+| AC-61 | Done | `TestTheTestsReadInCarrierOrder, TestTheTestOrderIsTotalAndStable` |  |
+| AC-62 | Changed | `TestTheSubjectCarriesNoWeightOfItsOwn` | SUPERSEDED by AC-63. The per-table opt-out it described was deleted: the family now drops the weight for every table |
+| AC-63 | Done | `TestEveryTableOfThisFamilySharesOneLook` |  |
+| AC-64 | Done | `TestEveryStemPageAccountsForItsGatedRequirements` |  |
+| AC-65 | Done | `TestTheIndexAccountingRowCanSayTheBucketingIsIncomplete` |  |
+| AC-66 | Done | `TestProseOfAnyShapeIsPublishedWholeAndLosesNoCharacter` |  |
+| AC-67 | Done | `TestRetiringAPageDeletesOnlyThisFamilysOwnPages` |  |
+| AC-68 | Done | `TestEveryDispositionKindOnTheIndexSaysWhatItMeans` |  |
+| AC-69 | Done | `TestAnUnenrolledPageNeverClaimsTheGateHoldsIt` |  |
+| AC-70 | Done | `TestNoPublishedSourceNamesAGeneratedLedgerFile` |  |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit tests, one per AC | Done | `internal/le/site/rfcdetail_test.go`, `rfccompliance_test.go`, `internal/le/rfc/carriers_test.go`, `extraction_test.go` | The AC table above names each one |
+| Corpus tests over the real checkout, not the fixture alone | Done | `TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage`, `TestNoBadStateOfThisCheckoutIsPublishedOnlyAsACount`, `TestTheComplianceIndexLinksEveryStemOfThisCheckout`, `TestEveryDerivedSectionTitleReadsAsATitle` | 1,549 untested gated MUSTs across 142 pages, 505 declared gaps, 4,050 tagged units with no record |
+| Boundary tests on numeric inputs | Done | `TestGapCountAgreementAcrossZeroOneAndMany`, `TestAnEmptySectionStatesItsEmptinessOnce` | Zero, one and many for every count the pages publish |
+| Functional: a full build and check | Done | `./le --name rfcpub site build` then `site check`, both exit 0 | 920 published, 920 written |
+| Interop | N/A | - | `ai/rules/interop-and-goal-validation.md` exempts a change with no protocol peer. This publishes a page; it speaks no wire protocol |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/site/rfcledger.go` | Created | The artifact producer and its types |
+| `internal/le/site/rfcdetail.go` | Created | One page and one mirror per stem |
+| `internal/le/site/rfcevidence.go`, `rfcprose.go`, `rfcmarkup.go`, `rfccitation.go` | Created | The evidence sections, the ledger-prose splitter, the escape boundary, the test-citation renderer |
+| `internal/le/site/rfcdetail_test.go`, `rfccompliance_test.go` | Created / extended | The AC tests |
+| `internal/le/site/build.go`, `producer.go`, `actions.go`, `llmsdata.go`, `facts.go` | Modified | Wiring, the named artifact, the `output` keyword on `site check` |
+| `internal/le/rfc/artifact.go`, `carriers.go` | Modified | The export surface the site reads, and the title deriver |
+| `website/AI.md`, `docs/contributing/gh-pages.md` | Modified | Documentation |
+
+### Audit Summary
+- **Total items:** 70 acceptance criteria, 3 task requirements, 5 test groups, 7 file groups
+- **Done:** 68 acceptance criteria, all 3 requirements, all 5 test groups, all 7 file groups
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (AC-31 and AC-62, both superseded by owner review and both replaced by an implemented criterion)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A reader can learn WHICH requirement, WHICH test and WHICH verdict, rather than being told 80 RFCs carry gaps | Data correctness over the real corpus | `TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage` names 1,549 untested gated MUSTs by requirement id across 142 published pages, and fails if any is published only as a count |
+| One page per summary stem, reachable from the index | Functional, over a real build | `./le --name rfcpub site build` publishes 190 stem directories against 190 summaries; `TestTheComplianceIndexLinksEveryStemOfThisCheckout` requires an `href` for each |
+| Publish what the repository already computes, changing no verdict | Data correctness | `TestARequirementRowMatchesItsGeneratedShard` compares 5,093 rows cell by cell against `rfc/requirements/<stem>.md`; re-running `./le rfc index-update` after the export refactor re-rendered `ai/RFC-REQUIREMENTS.md` and 189 shards byte-identical |
+| Owner ruling: disclosure is FULL, nothing softened or counted-instead-of-named | Data correctness, walking the SNAPSHOT rather than the page | `TestNoBadStateOfThisCheckoutIsPublishedOnlyAsACount` and `TestEveryDisclosedStateAppearsUnderItsRequirementID`. The second was observed RED with the gaps and proof-state sections deleted, after being rewritten to hold each bad state as its own WORD inside that requirement's own block |
+| Owner ruling: a ratio leads and its denominator is what binds Ze | Data correctness | `TestTheRatioCardsPartitionTheirDenominator` sums the share cards and compares against the gate's gated total less out-of-scope, a number no bucket produced; `TestEveryStemPageAccountsForItsGatedRequirements` does the same per page across 185 pages |
+| The page and the repository cannot state different things about one requirement | Data correctness | `rfc.RequirementRows` is the one producer of both, and the row comparison above is what makes drift a red test |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | n/a | The spec declares `| Deferral shard | - |` and no `plan/deferrals/publish-the-rfc-requirement-ledger.md` exists. Nothing was deferred: every AC has product code, and the two superseded ACs were replaced rather than dropped |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | ``tmp/review/publish-the-rfc-requirement-ledger-ccf1c621-4f0e-4bab-9815-784f5824155c.md`` |
+| `./le spec session review check` | OK (6 code files, clean, hashes match) |
+| Rounds | 5. Rounds 1-3 were independent passes over the committed diff; round 4 was this closure's own pass, which found the binding-total percentage still taken over the sum of the buckets it was compared against; round 5 re-read that change and was clean |
+| Reviewer lenses used | Owner review of the published pages (rounds 1-12); four independent review passes over the committed diff, on logic-and-wiring, guard discrimination, arithmetic honesty and published-claim accuracy |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The wiring was not committed: `publishRFCLedger` had no caller and `data/rfc-requirements.json` was not a named artifact, so the committed tree could not build the site | `internal/le/site/build.go`, `refreshNativeSurfaces` and `namedArtifacts` | Both staged and committed in `a72f05140` |
+| 2 | BLOCKER | Two disclosure tests could not fail: they asserted the requirement id appears on the page, and the subject row emits every id unconditionally | `internal/le/site/rfcdetail_test.go` | Each bad state is now held as its own WORD inside that requirement's own block, sliced on the declaration markers the family writes rather than on the id. Observed RED with the gaps and proof sections deleted |
+| 3 | ISSUE | Stem pages published no accounting total, so only the index proved its own arithmetic | `internal/le/site/rfcdetail.go`, `rfcCoverageHTML` | A total row, and a per-bucket comparison of the gate's count against the page's own membership walk |
+| 4 | ISSUE | `rfcAccountedNote` compared a sum with itself, so its mismatch branch was unreachable | `internal/le/site/rfccompliance.go` | It takes `rfcBinding.Binding()`, the gated total less out-of-scope, which no bucket produced |
+| 5 | ISSUE | `rfcProseSplit` dropped an empty tail and `rfcProseHTML` ate a backtick on an odd count | `internal/le/site/rfcprose.go` | Both fixed, both observed RED |
+| 6 | ISSUE | `removeRetiredRFCPages` ran before the writing and was keyed on a directory name, so it deleted any directory another producer put under the prefix | `internal/le/site/rfcdetail.go` | Keyed on `rfcDetailMarker`, run after the writing, over the set this run wrote |
+| 7 | ISSUE | The stem cards had no sum assertion: the annotation switch had no `default`, and the test compared two values that both came out of `rfc.CoverageRows` | `internal/le/site/rfcledger.go`, `rfcLedgerCoverageOf` | One shared mapping `rfcAnnotationBucket`, an `UnmappedAnnotations` counter, `rfcCard.Part` summed by the note, and a per-stem comparison of two producers. Observed RED on 196 stem assertions |
+| 8 | ISSUE | `rfcBucketOf` fell through to the polarity switch for an unmapped annotation kind, so the INDEX would republish excused obligations as unexcused | `internal/le/site/rfccompliance.go` | It answers `rfcUnmappedBucket`, which is in no published share, and the accounting note names the cause. Observed RED with the fall-through restored |
+| 9 | ISSUE | `TestEveryDerivedSectionTitleReadsAsATitle` restated its producer's own trimming, and 23 fabricated section names were live on the artifact | `internal/le/rfc/artifact.go`, `ExtractionSection.Title` | Three refusals in the deriver, a corpus walk asserting what a title is NOT, and a boundary table of real corpus leads. Four mutations observed RED |
+| 10 | ISSUE | `TestTheRatioCardsPartitionTheirDenominator` counted cards marked as parts and passed the sum of the parts as the whole, so no index-side arithmetic test reddened under the mapping mutation | `internal/le/site/rfccompliance_test.go` | It sums `card.Part` and reads `split.Binding()` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/site/rfcledger.go` | Yes | `ls` lists it; `git log --oneline -- internal/le/site/rfcledger.go` names `30d633417` |
+| `internal/le/site/rfcdetail.go` | Yes | `ls` lists it |
+| `internal/le/site/rfcevidence.go`, `rfcprose.go`, `rfcmarkup.go`, `rfccitation.go` | Yes | `ls internal/le/site/rfc*.go` lists all six source files |
+| `data/rfc-requirements.json` in a built artifact | Yes | Published in the scratch build; `./le --name rfcpub site check` exits 0 with the artifact present |
+| 190 stem page directories | Yes | `find <artifact>/quality/rfc-compliance -maxdepth 1 -type d` counts 190 beside the index |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | One page per stem, and the producer answers each route | `./le --name rfcpub site build` exits 0; `site check` reports 920 published and 920 written, no unclaimed and no doubled route |
+| AC-11 | The ledger is published, named, and is the producer's only checkout input | `TestABuildPublishesTheRequirementLedger` passes; `grep -n "rfc.Check" internal/le/site/rfcledger.go internal/le/site/rfcdetail.go` answers nothing |
+| AC-17 / AC-18 | No bad state is omitted or published only as a count | `TestEveryDisclosedStateAppearsUnderItsRequirementID` and `TestNoBadStateOfThisCheckoutIsPublishedOnlyAsACount` pass, and the first was observed RED with the two sections deleted |
+| AC-64 / AC-65 | Both surfaces prove their own arithmetic against an independently derived whole | `TestEveryStemPageAccountsForItsGatedRequirements` (185 pages) and `TestTheRatioCardsPartitionTheirDenominator` pass; the dropped-case mutation reddens 196 assertions |
+| AC-67 | Retirement is keyed on this family's own marker | `TestRetiringAPageDeletesOnlyThisFamilysOwnPages` passes and was observed RED under the old key |
+| AC-70 | No `_sources` entry names a generated file | `TestNoPublishedSourceNamesAGeneratedLedgerFile` passes; the built `data/site-facts.json` reads `internal/le/rfc.Collect, over rfc/short/*.md` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le site build` writes the family | none: this feature has no CLI-driven `.ci` path | Yes, by the real build. `refreshNativeSurfaces` calls `publishRFCLedger` and the registered producer writes 190 pages; both were read at the producing function and exercised by a full `./le --name rfcpub site build` that exits 0 |
+| `./le site check` verifies the artifact | none | Yes: `site check output <dir>` exits 0 over the built tree, reporting 21 producers and 920 published |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestEveryRFCDetailRouteBelongsToOneSection` runs `assignPages` over the real navigation with all detail routes |
+| A-2 | confirmed, with one addition | The extraction sign-off needed `rfc.LoadExtractions`, a second read of `rfc/extraction/` and no second walk of the summaries |
+| A-3 | confirmed | `grep -n "rfc.Check" internal/le/site/rfcledger.go internal/le/site/rfcdetail.go` answers nothing |
+| A-4 | confirmed | `./le site check` exits 0 with an empty unclaimed and doubly-claimed list |
+| A-5 | broken, repaired | Recorded in the Mistake Log; the test was re-aimed at the property that still holds |
+| A-6 | confirmed | `TestASlugIsTheStemItself` refuses any stem outside `[a-z0-9][a-z0-9.-]*` over the real corpus; all 190 pass |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `website/AI.md` names the RFC ledger family and its artifact | Read against `namedArtifacts` in `internal/le/site/build.go` | Yes |
+| `docs/contributing/gh-pages.md` names the producer | Read against the registration in `internal/le/site/producer.go` | Yes |
+| `docs/features/rfc-status.md`, `docs/features/test-health.md` | GENERATED. Regenerated by `./le rfc index-update`; not hand-edited | Yes |
+| CLI reference | `./le site check` gained an `output` keyword, declared in `internal/le/site/actions.go` and discoverable from `./le site` | Yes |
+| Wire format, plugin SDK, API/RPC, config syntax | `grep -rl "rfc-compliance" docs/guide docs/reference 2>/dev/null` answers nothing; this feature adds no config, no RPC, no wire behavior and no plugin surface | No update needed |
+| `./le doc check verify` | Run at closure; result in the closure commit body | Yes |
+
+## Core Insight
+
+A guard that reads as a guard is worse than no guard, and the tell is always the
+same: the check and the thing it checks come from one producer. Four of this
+spec's ten review findings were that shape. `rfcAccountedNote` compared a sum
+with itself. `rfcPartitionNote` counted how many cards CLAIMED to be parts.
+`TestEveryDerivedSectionTitleReadsAsATitle` asserted the trimming its producer
+had just performed. `TestEveryStemPageAccountsForItsGatedRequirements` compared
+two fields of one struct.
+
+Each passed, each had a live false statement behind it, and none was found by a
+red bar. What found them was one question asked of every assertion: what
+produced the left side, and what produced the right? Two answers naming one
+function is the defect, whatever the assertion says.

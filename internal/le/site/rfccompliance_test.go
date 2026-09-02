@@ -534,10 +534,12 @@ func TestTheRFCComplianceProducerClaimsItsPublishedRoute(t *testing.T) {
 // noticed (independent review, 2026-09-02). The vocabulary alone would pass a
 // kind a summary carries that the parser's own set does not name.
 //
-// A kind with no bucket does not fall into the tag-derived buckets and get
-// published as unexcused: rfcLedgerCoverageOf counts it as an unmapped
-// annotation, so the shares no longer silently sum to less than their whole.
-// This test is what keeps that counter at zero.
+// A kind with no bucket is counted APART on both surfaces rather than falling
+// into a tag-derived bucket: rfcLedgerCoverageOf counts it as an unmapped
+// annotation and rfcBucketOf answers rfcUnmappedBucket, so each page is short
+// by it and says so. Until 2026-09-02 the index did fall through, which
+// republished excused obligations as unexcused rather than merely losing them.
+// This test is what keeps both counters at zero.
 func TestEveryAnnotationKindHasABucket(t *testing.T) {
 	collected, err := rfc.Collect(repositoryRoot(t))
 	if err != nil {
@@ -568,8 +570,10 @@ func TestEveryAnnotationKindHasABucket(t *testing.T) {
 	for kind, source := range kinds {
 		bucket, known := rfcAnnotationBucket(kind)
 		if !known {
-			t.Errorf("annotation kind %q (%s) falls in no bucket, so every share that "+
-				"partitions the binding population loses it", kind, source)
+			t.Errorf("annotation kind %q (%s) falls in no bucket: the stem page counts it "+
+				"as an unmapped annotation and the index counts it apart, so the shares "+
+				"on both are short by it and neither can partition its population",
+				kind, source)
 			continue
 		}
 		if !buckets[bucket] {
@@ -652,7 +656,7 @@ func TestTwoRFCsTyingOnGapsKeepTheParseOrder(t *testing.T) {
 		"rfc900": {Status: "Partial"}, "rfc100": {Status: "Partial"}, "rfc500": {Status: "Partial"},
 	}
 	for attempt := range 8 {
-		_, gaps := rfcBuckets(gated, nil, rows)
+		_, gaps, _ := rfcBuckets(gated, nil, rows)
 		var order []string
 		for _, cluster := range gaps.TopRFCs {
 			order = append(order, cluster.RFC)
@@ -673,7 +677,7 @@ func TestAGapWithNoPublicRowIsCountedAsMissing(t *testing.T) {
 	gated := []rfc.Requirement{
 		{RFC: "rfc900", RID: "RFC900-1-1", Level: "MUST", Annotation: &rfc.Annotation{Kind: "gap"}},
 	}
-	_, gaps := rfcBuckets(gated, nil, map[string]rfc.LedgerRow{})
+	_, gaps, _ := rfcBuckets(gated, nil, map[string]rfc.LedgerRow{})
 	if len(gaps.StatusCounts) != 1 || gaps.StatusCounts[0].Status != rfcMissingRow {
 		t.Fatalf("an undisclosed gap counts as %v, want one %q row", gaps.StatusCounts, rfcMissingRow)
 	}
@@ -704,7 +708,7 @@ func TestEachGatedRequirementFallsInTheBucketItsEvidencePutsItIn(t *testing.T) {
 		{RID: "pair", Polarity: "positive"}, {RID: "pair", Polarity: "negative"},
 		{RID: "one-side", Polarity: "positive"},
 	}
-	buckets, _ := rfcBuckets(gated, tags, map[string]rfc.LedgerRow{"rfc100": {Status: "Partial"}})
+	buckets, _, _ := rfcBuckets(gated, tags, map[string]rfc.LedgerRow{"rfc100": {Status: "Partial"}})
 
 	want := map[string]int{
 		"both_polarities": 1, "single_polarity": 1, "not_applicable": 1,
@@ -748,7 +752,7 @@ func TestTheGapDisclosureOrdersStatusesAndBoundsTheClusters(t *testing.T) {
 		gated = append(gated, rfc.Requirement{RFC: stem, RID: stem + "-1",
 			Level: "MUST", Annotation: &rfc.Annotation{Kind: "gap"}})
 	}
-	_, gaps := rfcBuckets(gated, nil, rows)
+	_, gaps, _ := rfcBuckets(gated, nil, rows)
 
 	var order []string
 	for _, row := range gaps.StatusCounts {
@@ -1222,9 +1226,12 @@ func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 	if split.OutOfScope == 0 {
 		t.Fatal("the fixture carries no out-of-scope obligation, so this proves nothing")
 	}
-	if split.Obligations+split.OutOfScope != split.Gated {
-		t.Errorf("%d binding plus %d out of scope is not the %d gated",
-			split.Obligations, split.OutOfScope, split.Gated)
+	// Unmapped is the third term and is zero in a healthy tree. Leaving it out
+	// made this an invariant an unmapped annotation kind would break, on a page
+	// whose whole subject is arithmetic that adds up.
+	if split.Obligations+split.OutOfScope+split.Unmapped != split.Gated {
+		t.Errorf("%d binding plus %d out of scope plus %d unmapped is not the %d gated",
+			split.Obligations, split.OutOfScope, split.Unmapped, split.Gated)
 	}
 	for _, card := range cards {
 		if !strings.HasSuffix(card.Value, "%") {
@@ -1296,15 +1303,16 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 		cards []rfcCard
 		whole int
 	}{
-		"index":  {rfcComplianceCards(&snapshot, twoStemLedger()), split.Obligations},
+		"index":  {rfcComplianceCards(&snapshot, twoStemLedger()), split.Binding()},
 		"detail": {rfcDetailCards(&entry), entry.Coverage.Binding()},
 	} {
-		parts := 0
+		parts, sum := 0, 0
 		for _, card := range one.cards {
 			if !card.Partition {
 				continue
 			}
 			parts++
+			sum += card.Part
 			if !strings.HasSuffix(card.Count, "of "+groupThousands(one.whole)+
 				" binding obligations") {
 				t.Errorf("the %s %s card does not name its denominator: %q", name, card.Label,
@@ -1314,6 +1322,19 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 		if parts != len(rfcStanding) {
 			t.Errorf("the %s grid marks %d cards as parts, want %d", name, parts,
 				len(rfcStanding))
+		}
+		// Counting the cards marked as parts is not the arithmetic. It was all
+		// this test did, and the producer's own note did the same, so an
+		// annotation kind that lost its bucket reddened nothing on the index
+		// (independent review, 2026-09-02). The whole is the gate's gated total
+		// less out-of-scope, which no bucket produced.
+		if sum != one.whole {
+			t.Errorf("the %s grid's %d share cards add to %d and its binding population is %d",
+				name, parts, sum, one.whole)
+		}
+		if note := rfcPartitionNote(one.cards, one.whole); !strings.Contains(note,
+			"they add to 100%") {
+			t.Errorf("the %s grid partitions its population and its note reads %q", name, note)
 		}
 		// The proof ratio is over tagged units, so it must never be counted in.
 		for _, card := range one.cards {
@@ -1625,4 +1646,59 @@ func TestEveryDispositionKindOnTheIndexSaysWhatItMeans(t *testing.T) {
 		}
 	}
 	t.Logf("%d disposition kinds are in use, each with its meaning published", len(seen))
+}
+
+// VALIDATES: an annotation kind with no bucket is counted APART on the index,
+// and is never moved into a bucket that would misdescribe it.
+//
+// rfcBucketOf fell through to the polarity switch, and on the index that is
+// worse than the shortfall it causes on a stem page. A {single-polarity}
+// requirement carries one tag, so the switch put it in "One polarity,
+// unexcused" -- a red-tone card -- and the index republished excused
+// obligations as unexcused with every test green (independent review,
+// 2026-09-02). The index's own card test cannot see this: it reads a stored
+// gate snapshot, so no mutation of this producer reaches it.
+//
+// The requirement below carries one tag AND an annotation kind with no bucket,
+// which is the only input that tells the two behaviors apart.
+func TestAnAnnotationWithNoBucketIsNeverPublishedAsUnexcused(t *testing.T) {
+	gated := []rfc.Requirement{
+		{RFC: "rfc100", RID: "excused", Level: "MUST",
+			Annotation: &rfc.Annotation{Kind: "single-polarity"}},
+		{RFC: "rfc100", RID: "unknown", Level: "MUST",
+			Annotation: &rfc.Annotation{Kind: "a-kind-this-page-has-no-bucket-for"}},
+	}
+	tags := []rfc.Tag{
+		{RID: "excused", Polarity: "positive"}, {RID: "unknown", Polarity: "positive"},
+	}
+	buckets, _, unmapped := rfcBuckets(gated, tags, map[string]rfc.LedgerRow{})
+	if unmapped != 1 {
+		t.Errorf("one requirement carries an unmapped kind and the walk counts %d", unmapped)
+	}
+	counted := map[string]int{}
+	for _, bucket := range buckets {
+		counted[bucket.Key] = bucket.Count
+	}
+	if counted[rfcOneSideBucket] != 0 {
+		t.Errorf("%d requirement(s) landed in %q, which says nothing excused them and the "+
+			"summary did", counted[rfcOneSideBucket], rfcOneSideBucket)
+	}
+	if counted[rfcSingleBucket] != 1 {
+		t.Errorf("the excused requirement counts %d in %q, want 1",
+			counted[rfcSingleBucket], rfcSingleBucket)
+	}
+	// It is in no published bucket at all, so the accounting is short by it and
+	// the index says so rather than balancing the books with a wrong bucket.
+	total := 0
+	for _, bucket := range rfcSatisfaction {
+		total += counted[bucket.Key]
+	}
+	if total != len(gated)-unmapped {
+		t.Errorf("the buckets account for %d of %d gated requirements, want %d",
+			total, len(gated), len(gated)-unmapped)
+	}
+	split := rfcBinding{Gated: len(gated), Unmapped: unmapped}
+	if note := rfcAccountedNote(split, total); !strings.Contains(note, "no bucket for") {
+		t.Errorf("the accounting row does not name the unmapped kind: %q", note)
+	}
 }

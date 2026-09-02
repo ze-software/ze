@@ -2383,12 +2383,23 @@ func TestTheIndexAccountingRowCanSayTheBucketingIsIncomplete(t *testing.T) {
 	if got := split.Binding(); got != 90 {
 		t.Fatalf("the binding population reads %d, want 90", got)
 	}
-	if note := rfcAccountedNote(85, split.Binding()); !strings.Contains(note, "incomplete") {
+	if note := rfcAccountedNote(split, 85); !strings.Contains(note, "incomplete") {
 		t.Errorf("85 of 90 accounted reads %q, which does not say the bucketing is incomplete",
 			note)
 	}
-	if note := rfcAccountedNote(90, split.Binding()); strings.Contains(note, "incomplete") {
+	if note := rfcAccountedNote(split, 90); strings.Contains(note, "incomplete") {
 		t.Errorf("90 of 90 accounted reads %q, which calls a complete bucketing incomplete", note)
+	}
+	// The one cause the page can name. A shortfall with no unmapped annotation
+	// behind it says only that the buckets are short, because this page does
+	// not know what else could have caused one.
+	unmapped := rfcBinding{Gated: 100, OutOfScope: 10, Obligations: 85, Unmapped: 5}
+	note := rfcAccountedNote(unmapped, 85)
+	if !strings.Contains(note, "no bucket for") {
+		t.Errorf("5 requirements are in no bucket and the note does not say why: %q", note)
+	}
+	if strings.Contains(rfcAccountedNote(split, 85), "no bucket for") {
+		t.Error("a shortfall with no unmapped annotation behind it claims one")
 	}
 }
 
