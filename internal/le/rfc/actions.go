@@ -179,12 +179,20 @@ func discriminateAnswer(args leaction.Arguments) (any, int) {
 }
 
 // checkAnswer runs the read-only RFC requirement gate over this checkout.
+//
+// The answer is a POINTER, and it MUST stay one. `CheckReport.Text` carries a
+// pointer receiver because the struct is past gocritic's hugeParam threshold,
+// and `leroot.Prose` is matched by a type assertion on the answer. A
+// `CheckReport` value fails that assertion, so the dispatcher falls back to the
+// generic table renderer and the violation page a person reads disappears with
+// no error, no log line and no change of exit code.
 func checkAnswer() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
-		return CheckReport{CannotRun: err.Error()}, 2
+		return &CheckReport{CannotRun: err.Error()}, 2
 	}
-	return Check(tree)
+	report, code := Check(tree)
+	return &report, code
 }
 
 // resealAnswer re-stamps the shifted verdicts of this checkout.

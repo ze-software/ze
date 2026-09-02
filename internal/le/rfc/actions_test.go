@@ -1,6 +1,7 @@
 package rfc
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -95,5 +96,24 @@ func TestDiscriminationStatusSeparatesProvenFromUnproven(t *testing.T) {
 	}
 	if len(other.Records) != 1 || other.Records[0].RID != selftestRIDDrop {
 		t.Fatalf("the id selector answered %+v, want only its own record", other.Records)
+	}
+}
+
+// VALIDATES: `le rfc check` answers a payload that renders the gate's own violation page,
+// which leroot selects by asserting a `Text() string` method on whatever the action answered.
+// PREVENTS: an answer returned BY VALUE, whose pointer-receiver Text sits outside its method
+// set, so the dispatcher falls back to the generic table and the violation list a person reads
+// disappears with no error, no log line and no change of exit code.
+//
+// The interface is spelled structurally rather than imported, for the reason leaction spells
+// its own copy that way: the action package must not depend on the dispatcher that runs it.
+func TestCheckAnswerRendersItsOwnPage(t *testing.T) {
+	answer, _ := Answer([]string{"check"})
+	page, renders := answer.(interface{ Text() string })
+	if !renders {
+		t.Fatalf("le rfc check answered %T, which the dispatcher renders as a table rather than the gate page", answer)
+	}
+	if !strings.HasPrefix(page.Text(), "rfc-requirements") {
+		t.Errorf("the rendered page does not open with the gate's own summary:\n%s", page.Text())
 	}
 }
