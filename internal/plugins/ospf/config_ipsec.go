@@ -42,6 +42,8 @@ var (
 	ErrIPsecStrayEncKey = errors.New("ospf: ipsec encryption-key set without an encryption-algorithm")
 	// ErrIPsecAHConfidentiality rejects AH + confidentiality (RFC 4552 §4: only ESP).
 	ErrIPsecAHConfidentiality = errors.New("ospf: ipsec AH cannot provide confidentiality; use esp for encryption (RFC 4552 §4)")
+	// ErrIPsecReplayWindow rejects an anti-replay window outside 0 (disabled) or 32..255.
+	ErrIPsecReplayWindow = errors.New("ospf: ipsec replay-window must be 0 (anti-replay disabled) or 32..255 packets (RFC 4302 §3.4.3 requires a minimum window of 32)")
 	// ErrIPsecMutualExclusion rejects IPsec and RFC 7166 on the same interface.
 	ErrIPsecMutualExclusion = errors.New("ospf: an interface cannot configure both ipsec (RFC 4552) and a 7166 authentication key-chain; they are mutually exclusive auth paths")
 )
@@ -57,6 +59,13 @@ type ipsecInterfaceConfig struct {
 	AuthKey  string //nolint:gosec // hex integrity key, masked via ze:sensitive, never logged
 	EncAlgo  string // "" | null | aes128 | aes256 (ESP confidentiality; empty/null = auth-only)
 	EncKey   string //nolint:gosec // hex encryption key, masked via ze:sensitive, never logged
+
+	// ReplayWindow is the anti-replay window in packets: 0 disables the service and
+	// 32..255 enables it (RFC 4302 §3.4.3, RFC 4303 §3.4.3). It is held at the parser's
+	// own width, so validateIPsecInterface sees the value the operator wrote rather than
+	// one already truncated into the uint8 the dataplane takes; buildIPsecSA narrows it
+	// once the range is proven.
+	ReplayWindow uint64
 }
 
 // hasConfidentiality reports whether ESP confidentiality is requested.
@@ -93,12 +102,16 @@ func parseIPsec(m map[string]any) *ipsecInterfaceConfig {
 	c.AuthKey = configString(m["key"])
 	c.EncAlgo = strings.ToLower(configString(m["encryption-algorithm"]))
 	c.EncKey = configString(m["encryption-key"])
+	if v, ok := configNumber(m["replay-window"]); ok {
+		c.ReplayWindow = v
+	}
 	return c
 }
 
 // validateIPsecInterface enforces the RFC 4552 manual-SA constraints for one IPv6-family
 // interface: SPI range (RFC 4303 §2.1), protocol/algorithm enums, hex key length vs
-// algorithm, ESP-only confidentiality (§4), and RFC 7166 mutual exclusion (AC-6).
+// algorithm, anti-replay window range (RFC 4302 §3.4.3), ESP-only confidentiality (§4),
+// and RFC 7166 mutual exclusion (AC-6).
 func validateIPsecInterface(ic interfaceConfig) error {
 	c := ic.IPsec
 	if c.SPI < ipsecSPIMin {
@@ -122,6 +135,9 @@ func validateIPsecInterface(ic interfaceConfig) error {
 	if len(authKey) != authLen {
 		return fmt.Errorf("%w: interface %q algorithm %s wants %d bytes, got %d", ErrIPsecKeyLength, ic.Name, c.AuthAlgo, authLen, len(authKey))
 	}
+	if err := validateIPsecReplayWindow(ic); err != nil {
+		return err
+	}
 	if c.Protocol == ipsecProtoAH {
 		// RFC 4552 §4: confidentiality MUST use ESP, never AH.
 		if c.hasConfidentiality() || c.EncKey != "" {
@@ -135,6 +151,23 @@ func validateIPsecInterface(ic interfaceConfig) error {
 		return fmt.Errorf("%w: interface %q", ErrIPsecMutualExclusion, ic.Name)
 	}
 	return nil
+}
+
+// validateIPsecReplayWindow enforces the anti-replay window range. RFC 4302 §3.4.3:
+// "All AH implementations MUST support the anti-replay service, though its use may be
+// enabled or disabled by the receiver on a per-SA basis." RFC 4303 §3.4.3 says the same
+// for ESP, so one leaf serves both protocols. Zero is the disabled case the RFC allows
+// the receiver to choose; a window that IS enabled starts at the 32-packet minimum the
+// same section makes mandatory to support.
+func validateIPsecReplayWindow(ic interfaceConfig) error {
+	w := ic.IPsec.ReplayWindow
+	if w == ipsecReplayWindowOff {
+		return nil
+	}
+	if w >= ipsecReplayWindowMin && w <= ipsecReplayWindowMax {
+		return nil
+	}
+	return fmt.Errorf("%w: interface %q replay-window %d", ErrIPsecReplayWindow, ic.Name, w)
 }
 
 // validateESPConfidentiality validates the optional ESP encryption fields (RFC 4552 §4).

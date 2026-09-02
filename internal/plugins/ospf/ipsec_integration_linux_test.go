@@ -157,3 +157,45 @@ func TestIPsecInstallerXFRMEndToEnd(t *testing.T) {
 		}
 	}
 }
+
+// TestIPsecInstallerXFRMReplayWindow checks that the interface's replay-window leaf reaches
+// the kernel. The method is the installer's own path -- onInterfaceUp, buildIPsecSA, the
+// XFRM backend -- read back from `XfrmStateList`, so it proves the boundary Ze owns rather
+// than the SAParams struct alone. RFC 4302 Section 3.4.3: "All AH implementations MUST
+// support the anti-replay service, though its use may be enabled or disabled by the
+// receiver on a per-SA basis." The kernel is what performs the per-packet check, so the
+// window Ze installs for it is the whole of Ze's part.
+func TestIPsecInstallerXFRMReplayWindow(t *testing.T) {
+	requireXFRM(t)
+	const spi = 0x4552b3
+	inst := newIPsecInstaller(nil, nil)
+	inst.setTransportSource(func(string) (netip.Addr, int, bool) {
+		return netip.MustParseAddr("fe80::1"), 1, true
+	})
+	inst.setConfig([]interfaceConfig{{
+		Name: "ipsec-replay",
+		IPsec: &ipsecInterfaceConfig{
+			SPI: spi, Protocol: "ah", AuthAlgo: "sha256", AuthKey: hexKey(32), ReplayWindow: 64,
+		},
+	}})
+
+	inst.onInterfaceUp(1, "ipsec-replay")
+	defer inst.onInterfaceDown(1, "ipsec-replay")
+
+	states, err := netlink.XfrmStateList(netlink.FAMILY_ALL)
+	if err != nil {
+		t.Fatalf("XfrmStateList: %v", err)
+	}
+	var found *netlink.XfrmState
+	for i := range states {
+		if states[i].Spi == spi {
+			found = &states[i]
+		}
+	}
+	if found == nil {
+		t.Fatal("installed AH SA not found in kernel")
+	}
+	if found.ReplayWindow != 64 {
+		t.Errorf("kernel SA ReplayWindow = %d, want 64 (the configured replay-window)", found.ReplayWindow)
+	}
+}

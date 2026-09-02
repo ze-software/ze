@@ -101,6 +101,20 @@ const (
 
 	// ipsecSPIMin is the lowest assignable SPI: RFC 4303 §2.1 reserves 0..255.
 	ipsecSPIMin = 256
+
+	// ipsecReplayWindowOff disables the anti-replay service on a Security Association.
+	// It is the default for every OSPFv3 SA, because they are all manually keyed and
+	// RFC 4302 §5 states: "a compliant implementation SHOULD NOT provide this service
+	// in conjunction with SAs that are manually keyed".
+	ipsecReplayWindowOff = 0
+	// ipsecReplayWindowMin is the smallest window an operator can enable. RFC 4302
+	// §3.4.3: "A MINIMUM window size of 32 packets MUST be supported, but a window size
+	// of 64 is preferred and SHOULD be employed as the default." A smaller window is
+	// below what every AH implementation must support, so Ze refuses it.
+	ipsecReplayWindowMin = 32
+	// ipsecReplayWindowMax is the widest window the dataplane seam carries:
+	// dataplane.SAParams.ReplayWin is a uint8.
+	ipsecReplayWindowMax = 255
 )
 
 // ipsecAuthKeyLen is the required integrity key length in bytes per HMAC-SHA

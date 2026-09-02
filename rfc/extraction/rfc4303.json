@@ -549,7 +549,7 @@
       "quote": "If a user chooses to employ anti-replay in conjunction with SAs that are manually keyed, the sequence number counter at the sender MUST be correctly maintained across local reboots, etc., until the key is replaced.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the ESP transmit datapath that maintains the per-SA sequence counter across reboots, and only once a user employs anti-replay with a manually keyed SA. Ze enables neither half: buildIPsecSA (internal/plugins/ospf/ipsec_install.go) sets no ReplayWin on the manually keyed OSPFv3 SA, so anti-replay is off there, and the counter itself is kernel state. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+      "reason": "Binds the ESP transmit datapath that maintains the per-SA sequence counter across reboots, and only once a user employs anti-replay with a manually keyed SA. The counter itself is kernel state. An operator can now switch anti-replay on for a manually keyed OSPFv3 SA (the interface replay-window leaf, carried into SAParams.ReplayWin by buildIPsecSA, internal/plugins/ospf/ipsec_install.go), and it is off unless they do; either way the sender counter is maintained by Linux XFRM and Ze never reads or writes it. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
     },
     {
       "id": "3.3.4:1",
@@ -585,7 +585,7 @@
       "quote": "This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected.",
       "disposition": "mapped",
       "mapped-to": "RFC4303-3.4.3-2",
-      "reason": "The anti-replay-needs-integrity prohibition, captured as RFC4303-3.4.3-2 at [MUST NOT]. Read at the producer: every ESP SA Ze installs carries integrity, because parseESPProposal refuses a non-AEAD proposal with no hash and planStateAlgos gives ESP either Crypt+Auth or a single AEAD transform, and the only replay window Ze sets is on those SAs (replayWindow = 64, internal/component/ike/engine/child.go). The OSPFv3 manual path sets no window at all."
+      "reason": "The anti-replay-needs-integrity prohibition, captured as RFC4303-3.4.3-2 at [MUST NOT]. Read at the producer: every ESP SA Ze installs carries integrity, because parseESPProposal refuses a non-AEAD proposal with no hash and planStateAlgos gives ESP either Crypt+Auth or a single AEAD transform, and every replay window Ze sets is on an SA that carries integrity: the IKE Child SAs (replayWindow = 64, internal/component/ike/engine/child.go), and the OSPFv3 manual SAs, whose optional replay-window leaf sits on a path where validateIPsecInterface refuses any interface with no integrity algorithm and key (internal/plugins/ospf/config_ipsec.go)."
     },
     {
       "id": "3.4.3:3",

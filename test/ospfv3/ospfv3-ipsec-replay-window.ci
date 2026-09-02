@@ -1,0 +1,135 @@
+# Test: the per-SA anti-replay window on an OSPFv3 IPsec interface, through the command an
+# operator runs (`ze config validate`).
+#
+# VALIDATES: RFC 4302 Section 3.4.3 -- "All AH implementations MUST support the anti-replay
+# service, though its use may be enabled or disabled by the receiver on a per-SA basis."
+# The `replay-window` leaf is that per-SA switch, and it serves esp on the same terms
+# (RFC 4303 Section 3.4.3). A window of 64 on ah and of 32 on esp validate; 16 is refused,
+# because the same section makes a 32-packet window the minimum every implementation must
+# support; 300 is refused, above what the kernel SA parameter carries.
+# PREVENTS: a window the operator asked for that no surface accepts, and a window below the
+# RFC minimum reaching an installed Security Association.
+
+# --- Valid: AH with the anti-replay window RFC 4302 Section 3.4.3 prefers. ------
+stdin=replay-ah-64:terminator=EOF_AH64
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					ipsec {
+						protocol ah
+						spi 256
+						algorithm sha256
+						key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+						replay-window 64
+					}
+				}
+			}
+		}
+	}
+}
+EOF_AH64
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=replay-ah-64:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Valid: ESP with the 32-packet minimum. ------------------------------------
+stdin=replay-esp-32:terminator=EOF_ESP32
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					ipsec {
+						protocol esp
+						spi 256
+						algorithm sha256
+						key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+						replay-window 32
+					}
+				}
+			}
+		}
+	}
+}
+EOF_ESP32
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=replay-esp-32:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid: 16 is below the 32-packet minimum RFC 4302 Section 3.4.3 mandates. ---
+stdin=replay-too-small:terminator=EOF_SMALL
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					ipsec {
+						protocol ah
+						spi 256
+						algorithm sha256
+						key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+						replay-window 16
+					}
+				}
+			}
+		}
+	}
+}
+EOF_SMALL
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=replay-too-small:exit=1
+expect=exit:code=1
+expect=stdout:contains=replay-window
+
+# --- Invalid: 300 is wider than the kernel SA parameter carries. ----------------
+stdin=replay-too-large:terminator=EOF_LARGE
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					ipsec {
+						protocol ah
+						spi 256
+						algorithm sha256
+						key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+						replay-window 300
+					}
+				}
+			}
+		}
+	}
+}
+EOF_LARGE
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=replay-too-large:exit=1
+expect=exit:code=1
+expect=stdout:contains=replay-window

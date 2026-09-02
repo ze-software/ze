@@ -427,6 +427,16 @@ func buildIPsecSA(ifindex int, c ipsecInterfaceConfig) dataplane.SAParams {
 		AuthKey:  c.authKeyBytes(),
 		EncAlgo:  encAlgo,
 		EncKey:   c.encKeyBytes(),
+		// RFC 4302 §3.4.3: "All AH implementations MUST support the anti-replay service,
+		// though its use may be enabled or disabled by the receiver on a per-SA basis."
+		// The interface's replay-window leaf IS that per-SA switch, and it reaches the
+		// kernel through xfrmStateFromParams (ike/dataplane/xfrm_linux.go), which sets a
+		// window only for a non-zero ReplayWin. RFC 4303 §3.4.3 states the same
+		// obligation for ESP, so the one leaf serves both protocols. Zero is the default
+		// because this path is manually keyed and RFC 4302 §5 says a compliant
+		// implementation SHOULD NOT provide anti-replay with a manually keyed SA.
+		// validateIPsecReplayWindow has already proven the value is 0 or 32..255.
+		ReplayWin: uint8(c.ReplayWindow),
 	}
 }
 

@@ -392,6 +392,61 @@ For cryptographic auth the OSPF common-header Checksum is zero (the appended dig
 Keys are organised as named chains for hitless rotation: a chain holds multiple keys, the first is used to sign, and any chain key is accepted on receive during an overlap window. A chain is bound per interface, or an interface set to `authentication { mode inherit }` uses the area-level default chain. Secrets are stored `$9$`-encoded and never appear in plaintext in `show configuration` or backups.
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, inherit resolution, decodeSecret -->
 
+## OSPFv3 IPsec (RFC 4552)
+
+OSPFv3 has no authentication field of its own, so an IPv6-family interface is protected by
+a manually keyed IPsec Security Association instead. The `ipsec` block installs one
+transport-mode kernel SA and three protocol-89 XFRM policies (out, in and forward) scoped
+to that interface. AH gives integrity only; ESP gives integrity, and confidentiality when
+an `encryption-algorithm` and `encryption-key` are set. This path is Linux-only, and it is
+mutually exclusive with a RFC 7166 authentication key chain on the same interface.
+
+```
+ospf {
+    address-family {
+        ipv6 {
+            interfaces {
+                interface eth1 {
+                    area 0.0.0.0
+                    ipsec {
+                        protocol ah
+                        spi 256
+                        algorithm sha256
+                        key <64 hex characters>
+                        replay-window 64
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+Each interface needs its own SPI: the kernel identifies the shared wildcard state by
+destination, SPI and protocol, so two interfaces sharing an SPI collide. `spi` is 256 or
+above, because RFC 4303 §2.1 reserves 0 to 255. The `key` length must match `algorithm`
+(sha1 40, sha256 64, sha384 96, sha512 128 hex characters).
+
+`replay-window` is the anti-replay window in packets, for AH and ESP alike. RFC 4302
+§3.4.3 and RFC 4303 §3.4.3 require every implementation to support the anti-replay service
+and leave its use to the receiver, per SA. Ze accepts 0, which disables it, or 32 to 255;
+32 is the minimum window those sections make mandatory to support, and 64 is the size they
+prefer. The kernel performs the per-packet check.
+
+The default is 0, and leaving it there is the RFC's own advice for this path. RFC 4302 §5:
+"If the key used to compute an ICV is manually distributed, correct provision of the
+anti-replay service would require correct maintenance of the counter state at the sender,
+until the key is replaced ... Thus, a compliant implementation SHOULD NOT provide this
+service in conjunction with SAs that are manually keyed." Nothing rekeys these SAs, and
+the sequence counter lives in kernel state that a restart clears. So a peer that restarts
+begins again at sequence 1, and a receiver holding a window from before the restart drops
+those packets until its own SA is reinstalled. Enable the window only where a peer restart
+is an event you handle, because recovery needs the receiving interface to bounce.
+
+<!-- source: internal/plugins/ospf/config_ipsec.go -- parseIPsec, validateIPsecInterface -->
+<!-- source: internal/plugins/ospf/ipsec_install.go -- buildIPsecSA, buildIPsecPolicies -->
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- the ipsec container -->
+
 ## Operational Commands
 
 Operational state is available through the `show ospf` command tree:

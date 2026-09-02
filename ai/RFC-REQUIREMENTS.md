@@ -19,7 +19,7 @@ Every test link in the per-RFC requirement files carries a `kind/tier` cell. **k
 | `interop/nightly` | `*.go` | `./le deployment docker-l2tp-ppp-test` | .github/workflows/evidence-nightly.yml (advisory) |
 | `interop/nightly` | `*.go` | `./le deployment docker-pppoe-accel-test` | .github/workflows/evidence-nightly.yml (advisory) |
 | `unit/verify` | `*_test.go` | `./le verify deps unit-cached` | ./le verify current mode full (unit stage) |
-| `functional/verify` | `*.ci` | `./le functional` | ./le verify current mode full (functional stage) -- suites: `encode`, `plugin`, `parse`, `decode`, `reload`, `ui`, `editor`, `managed`, `l2tp`, `firewall`, `policy`, `ipsec`, `ldp`, `rsvpte`, `isis`, `ospf`, `ospfv3`, `web`, `install`, `appliance`, `l2tp-wire`, `isis-wire`, `ospf-wire`, `runner` |
+| `functional/verify` | `*.ci` | `./le functional gating` | ./le verify current mode full (functional stage) -- suites: `encode`, `plugin`, `parse`, `decode`, `reload`, `ui`, `editor`, `managed`, `l2tp`, `firewall`, `policy`, `ipsec`, `ldp`, `rsvpte`, `isis`, `ospf`, `ospfv3`, `web`, `install`, `appliance`, `l2tp-wire`, `isis-wire`, `ospf-wire`, `runner` |
 | `editor/verify` | `*.et` | `./le functional editor` | ./le verify current mode full (functional stage) -- suites: `editor` |
 | `functional/verify` | `*.ci` | `./le functional exabgp-test` | ./le verify current mode full (exabgp stage) |
 
@@ -27,7 +27,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 
 ## Coverage by RFC
 
-393 MUST-level requirement(s) still owe work across 185 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
+385 MUST-level requirement(s) still owe work across 185 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
 
 **Nightly-only** (2 requirement(s)) counts what is proven ONLY by evidence no `./le verify current mode full` stage runs -- today, interop scenarios, which are scheduled and advisory. **Both** and **One polarity** are the polarity view: they answer which polarities exist, not which pipeline runs them, so a nightly-only requirement is counted there too. **Nightly-only** is the tier view over the same rows -- an overlapping subset marker naming which of them no merge-gate stage proves, never a total to sum with the others.
 
@@ -212,7 +212,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 | `draft-ietf-idr-linklocal-capability` | 13 | 0 | 0 | 0 | 13 | 13 | 0 | **enrolled** |
 | `rfc3748` | 61 | 33 | 0 | 13 | 15 | 15 | 0 | **enrolled** |
 | `rfc5282` | 19 | 1 | 0 | 0 | 18 | 18 | 0 | **enrolled** |
-| `rfc4302` | 34 | 0 | 0 | 0 | 34 | 34 | 0 | **enrolled** |
+| `rfc4302` | 34 | 8 | 0 | 0 | 26 | 26 | 0 | **enrolled** |
 | `rfc5798` | 55 | 0 | 0 | 0 | 55 | 55 | 0 | **enrolled**, superseded by RFC9568 |
 | `rfc1035` | 27 | 25 | 0 | 0 | 2 | 2 | 0 | backlog |
 | `draft-ietf-sidrops-8210bis` | 10 | 0 | 0 | 4 | 6 | 6 | 0 | backlog |
@@ -223,13 +223,13 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 
 ## Audit coverage
 
-50 of 1781 auditable requirement(s) carry a `ze-rfc-audit` verdict (2.81%), across 1 of 181 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
+50 of 1789 auditable requirement(s) carry a `ze-rfc-audit` verdict (2.79%), across 1 of 181 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
 
 **Proven** (48) is the count that means what the badge implies: a verdict of `enforced` -- the tests would fail if the code stopped complying -- that is still fresh. It is NOT the **Both** column of the rollup above: that one answers which polarities exist, and a requirement can have both and still be judged `weak`. Every one of the 4 verdict(s) that is audited but not proven is named below with its verdict, so no requirement can read as proven and weak at once.
 
-The remaining 1731 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `./le rfc check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
+The remaining 1739 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `./le rfc check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
 
-Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1781) = `Audited` (50) + `Unaudited` (1731). **Records:** all 52 recorded verdict(s) = `Proven` (48) + `Not proven` (4), and the worklist below names every one of those 4. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
+Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1789) = `Audited` (50) + `Unaudited` (1739). **Records:** all 52 recorded verdict(s) = `Proven` (48) + `Not proven` (4), and the worklist below names every one of those 4. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
 
 | RFC | Auditable | Audited | Proven | Not proven | Unaudited |
 |---|---|---|---|---|---|
@@ -277,6 +277,7 @@ Two partitions over two populations, because one denominator cannot carry both q
 | `rfc4090` | 12 | 0 | 0 | 0 | 12 |
 | `rfc4271` | 78 | 0 | 0 | 0 | 78 |
 | `rfc4301` | 11 | 0 | 0 | 0 | 11 |
+| `rfc4302` | 8 | 0 | 0 | 0 | 8 |
 | `rfc4303` | 8 | 0 | 0 | 0 | 8 |
 | `rfc4360` | 2 | 0 | 0 | 0 | 2 |
 | `rfc4456` | 6 | 0 | 0 | 0 | 6 |
@@ -398,7 +399,7 @@ One row per requirement whose verdict is anything other than a fresh `enforced`.
 
 A tag names a requirement and a polarity, and then states in prose what its test demonstrates. No gate can read that sentence, so a test that asserts less than its tag claims counts as evidence everywhere else on this page. A record under `rfc/discrimination/` replaces reading it: it names a break of the producing code, and it stores the observation that the tagged unit went RED under that break and green again after it. `./le rfc check` replays the fingerprints on every run and refuses a record whose unit, claim or producer has moved since.
 
-Proven: 140 (mutant 3, revert 137). Escaped: 0. Unproven backlog: 3844 of 3981 tagged unit(s) on a gated requirement of an enrolled RFC. 3 further record(s) sit outside that population, on a requirement no gate obliges: an un-enrolled RFC, or a level below MUST. They are counted in the totals above and not in the backlog, so the two figures are two populations rather than one arithmetic.
+Proven: 136 (mutant 3, revert 133). Escaped: 0. Unproven backlog: 3864 of 3997 tagged unit(s) on a gated requirement of an enrolled RFC. 3 further record(s) sit outside that population, on a requirement no gate obliges: an un-enrolled RFC, or a level below MUST. They are counted in the totals above and not in the backlog, so the two figures are two populations rather than one arithmetic.
 
 The backlog is grandfathered, as the extraction backlog is. The obligation is CHANGE-SCOPED: a tagged unit that is new against git HEAD owes its proof in the change that added it, and `./le rfc check` reports that figure as `owed`. It is absent from this page on purpose. `owed` is a fact about a commit boundary rather than about this tree, so a page carrying it would go stale when nothing in the tree had changed.
 

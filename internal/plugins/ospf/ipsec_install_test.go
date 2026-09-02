@@ -295,6 +295,13 @@ func TestIPsecDisabledInterfaceBypass(t *testing.T) {
 // RFC requirement: RFC4303-2-1 negative -- the number tracks the configured protocol rather
 // than being 50 for everything: an ah interface builds an SA carrying 51, so a blanket-50
 // installer fails this test.
+// RFC requirement: RFC4302-2-1 positive -- RFC 4302 Section 2: "The protocol header (IPv4,
+// IPv6, or IPv6 Extension) immediately preceding the AH header SHALL contain the value 51 in
+// its Protocol (IPv4) or Next Header (IPv6, Extension) fields [DH98]." An ah interface builds
+// an SA whose protocol number is 51, which is the value that makes the kernel write 51 in the
+// header preceding AH (buildIPsecSA -> ipsecProtoNumber, ipsec_install.go).
+// RFC requirement: RFC4302-2-1 negative -- 51 is written for AH alone: an esp interface builds
+// an SA carrying 50, so an installer writing a blanket 51 fails this test.
 func TestIPsecSAProtocolNumber(t *testing.T) {
 	esp := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
 		SPI: 256, Protocol: "esp", AuthAlgo: "sha256", AuthKey: hexKey(32),
@@ -344,5 +351,39 @@ func TestIPsecLoadsXFRMBackend(t *testing.T) {
 	dp, err := defaultDataplaneSource()
 	if err != nil || dp == nil {
 		t.Fatalf("defaultDataplaneSource() = (%v, %v), want a backend", dp, err)
+	}
+}
+
+// TestIPsecSAReplayWindow checks that the interface's replay-window leaf is what decides
+// the anti-replay state of the SA Ze installs. The method is buildIPsecSA, because
+// SAParams.ReplayWin is the field xfrmStateFromParams (ike/dataplane/xfrm_linux.go) turns
+// into the kernel window, and it sets one only when ReplayWin is non-zero.
+//
+// RFC requirement: RFC4302-3.4.3-1 positive -- RFC 4302 Section 3.4.3: "All AH
+// implementations MUST support the anti-replay service, though its use may be enabled or
+// disabled by the receiver on a per-SA basis." An interface configuring replay-window 64
+// builds an SA carrying 64, so the receiver CAN enable the service on that SA. ESP carries
+// it on the same terms (RFC 4303 Section 3.4.3), so both protocols are checked.
+// RFC requirement: RFC4302-3.4.3-1 negative -- the choice is per SA and it works in the
+// other direction too: an interface that configures no window builds an SA carrying 0, so
+// anti-replay stays DISABLED for it. An installer that enabled anti-replay for every SA,
+// or that ignored the leaf, fails this test.
+func TestIPsecSAReplayWindow(t *testing.T) {
+	for _, proto := range []string{ipsecProtoAH, ipsecProtoESP} {
+		enabled := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+			SPI: 256, Protocol: proto, AuthAlgo: "sha256", AuthKey: hexKey(32), ReplayWindow: 64,
+		})
+		if enabled.ReplayWin != 64 {
+			t.Errorf("%s SA ReplayWin = %d, want 64: the configured window must reach the kernel SA",
+				proto, enabled.ReplayWin)
+		}
+		disabled := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+			SPI: 256, Protocol: proto, AuthAlgo: "sha256", AuthKey: hexKey(32),
+		})
+		if disabled.ReplayWin != 0 {
+			t.Errorf("%s SA ReplayWin = %d with no replay-window configured, want 0: RFC 4302 Section 5 says "+
+				"a manually keyed SA SHOULD NOT carry anti-replay unless the operator asks for it",
+				proto, disabled.ReplayWin)
+		}
 	}
 }

@@ -1,0 +1,181 @@
+{
+  "rfc": "rfc4302",
+  "records": [
+    {
+      "rid": "RFC4302-2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber",
+      "unit-sha": "ec3c85e7670888d9",
+      "claim-sha": "f3abeb078f966b1b",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+      "producer-sha": "c05a39ef55486b0e",
+      "break": "line 471: \"protocol == ipsecProtoAH\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC4302-2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber",
+      "unit-sha": "ec3c85e7670888d9",
+      "claim-sha": "da8d8feef7bd794d",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+      "producer-sha": "c05a39ef55486b0e",
+      "break": "line 471: \"protocol == ipsecProtoAH\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4302-2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration",
+      "unit-sha": "06660fd8d4bb59ec",
+      "claim-sha": "d1c73b47eedcf395",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/config_ipsec.go::parseIPsec",
+      "producer-sha": "79a7da837a737a9a",
+      "break": "line 97: \"\u003c=\" -\u003e \"\u003e\""
+    },
+    {
+      "rid": "RFC4302-2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration",
+      "unit-sha": "06660fd8d4bb59ec",
+      "claim-sha": "7cf4a2152c02d8b3",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+      "producer-sha": "30c3ee956902c48e",
+      "break": "line 128: \"!\" -\u003e \"\""
+    },
+    {
+      "rid": "RFC4302-2.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol",
+      "unit-sha": "19f52eeb2eb6854d",
+      "claim-sha": "2b3061f1ca57020e",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+      "producer-sha": "c05a39ef55486b0e",
+      "break": "line 471: \"protocol == ipsecProtoAH\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC4302-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol",
+      "unit-sha": "19f52eeb2eb6854d",
+      "claim-sha": "6db684b87fa574e0",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "8cdc399f20b49025",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-2.4-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAAddressMatchIndication",
+      "unit-sha": "8ccd8ce46ef2d23d",
+      "claim-sha": "e3647d3b1cdd8a51",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "8cdc399f20b49025",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-2.4-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAAddressMatchIndication",
+      "unit-sha": "8ccd8ce46ef2d23d",
+      "claim-sha": "2de31dc7afba9569",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "8cdc399f20b49025",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-2.4-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused",
+      "unit-sha": "8e392603a8934d0c",
+      "claim-sha": "007371a8521a6391",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+      "producer-sha": "30c3ee956902c48e",
+      "break": "line 117: \"c.SPI \u003c ipsecSPIMin\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4302-2.4-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused",
+      "unit-sha": "8e392603a8934d0c",
+      "claim-sha": "ae7c723e2616d7cc",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+      "producer-sha": "30c3ee956902c48e",
+      "break": "line 117: \"c.SPI \u003c ipsecSPIMin\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC4302-3.4.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled",
+      "unit-sha": "36ad11afbe3bada9",
+      "claim-sha": "113aa3e2c91efccf",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies",
+      "producer-sha": "82d190d1cec3f817",
+      "break": "body of buildIPsecPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-3.4.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled",
+      "unit-sha": "36ad11afbe3bada9",
+      "claim-sha": "4c57552851e6ac17",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/ipsec_install.go::setConfig",
+      "producer-sha": "105a438ab75af3a8",
+      "break": "line 193: \"ic.IPsec != nil\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4302-3.4.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow",
+      "unit-sha": "52e1773bcde89d15",
+      "claim-sha": "cf569fa159c8f8d6",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "8cdc399f20b49025",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-3.4.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow",
+      "unit-sha": "52e1773bcde89d15",
+      "claim-sha": "3d9e619186ab76da",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "8cdc399f20b49025",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-3.4.3-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange",
+      "unit-sha": "affb2aed15dcd271",
+      "claim-sha": "50cd689869c73db3",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecReplayWindow",
+      "producer-sha": "5b69594e269c2512",
+      "break": "line 167: \"w \u003e= ipsecReplayWindowMin \u0026\u0026 w \u003c= ipsecReplayWindowMax\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC4302-3.4.3-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange",
+      "unit-sha": "affb2aed15dcd271",
+      "claim-sha": "05625fa629861d8a",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecReplayWindow",
+      "producer-sha": "5b69594e269c2512",
+      "break": "line 167: \"w \u003e= ipsecReplayWindowMin \u0026\u0026 w \u003c= ipsecReplayWindowMax\" -\u003e \"true\""
+    }
+  ]
+}

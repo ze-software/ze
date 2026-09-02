@@ -27,6 +27,15 @@ This path is Linux-only.
   <!-- source: internal/plugins/ospf/config_ipsec.go -- parseIPsec -->
 - **The SA and the policies are installed BEFORE the interface state machine
   starts**, so outbound traffic is protected before the first Hello.
+- **Anti-replay is a per-interface leaf that defaults to OFF.** RFC 4302 §3.4.3 and
+  RFC 4303 §3.4.3 make the service mandatory to implement and leave its use to the
+  receiver, per SA, so `replay-window` is that switch and it serves AH and ESP alike.
+  Zero is the default because RFC 4302 §5 says a compliant implementation SHOULD NOT
+  provide anti-replay with a manually keyed SA, and every SA on this path is manually
+  keyed. A non-zero window is 32 to 255: 32 is the RFC minimum, and 255 is the width of
+  `dataplane.SAParams.ReplayWin`.
+  <!-- source: internal/plugins/ospf/config_ipsec.go -- validateIPsecReplayWindow -->
+  <!-- source: internal/plugins/ospf/ipsec_install.go -- buildIPsecSA -->
 - **The shared IKE dataplane gained additive, zero-valued fields** for the
   selector, the upper protocol, the ifindex, policy removal and the algorithm
   plan. IKE is byte-identical with them at their zero values.
@@ -54,5 +63,10 @@ This path is Linux-only.
 - **A startup window remains open.** The socket opens and joins ff02::5 before
   the inbound require-policy installs. Closing it needs the shared engine
   start hook split into a pre-join and a post-open half.
+- **An enabled replay window breaks the adjacency when the PEER restarts.** The peer's
+  sequence counter returns to 1 while the receiver's window does not, so every packet
+  looks replayed until the receiving SA is reinstalled. Nothing rekeys a manual SA, which
+  is the reason RFC 4302 §5 advises against anti-replay here and the reason the leaf
+  defaults to zero.
 - A null encryption name maps to `ecb(cipher_null)`, and some kernels expect
   `cipher_null`. Verify against the target kernel.

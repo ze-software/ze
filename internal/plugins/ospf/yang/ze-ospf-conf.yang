@@ -149,6 +149,20 @@ module ze-ospf-conf {
                         ze:sensitive;
                         description "Hex integrity key; length must match the algorithm (sha1=40, sha256=64, sha384=96, sha512=128 hex characters).";
                     }
+                    leaf replay-window {
+                        type uint8 { range "0 | 32..255"; }
+                        default 0;
+                        units packets;
+                        description
+                            "Anti-replay window in packets, for ah and esp alike. RFC 4302
+                             §3.4.3 and RFC 4303 §3.4.3 let the receiver enable or disable
+                             anti-replay per SA, and this leaf is that switch. 0 disables it.
+                             0 is the default because every OSPFv3 SA is manually keyed
+                             (RFC 4552 §7), and RFC 4302 §5 says a compliant implementation
+                             SHOULD NOT provide anti-replay with a manually keyed SA. A
+                             non-zero window is 32 or more, the minimum RFC 4302 §3.4.3
+                             requires; that section prefers 64.";
+                    }
                     leaf encryption-algorithm {
                         type enumeration {
                             enum null;

@@ -9,6 +9,7 @@ package ospf
 import (
 	"encoding/hex"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -244,5 +245,49 @@ func TestIPsecNonHexKeyRejected(t *testing.T) {
 	}
 	if err := validateConfig(cfg); !errors.Is(err, ErrIPsecKeyHex) {
 		t.Fatalf("validateConfig(non-hex key) = %v, want ErrIPsecKeyHex", err)
+	}
+}
+
+// TestIPsecReplayWindowRange checks the per-SA anti-replay window the operator sets on an
+// interface: the values the RFC makes legal are accepted and every other value is refused
+// by name. The method is the config validator, because that is where an operator's value
+// is judged before any SA is built.
+//
+// RFC requirement: RFC4302-3.4.3-5 positive -- RFC 4302 Section 3.4.3: "A MINIMUM window
+// size of 32 packets MUST be supported, but a window size of 64 is preferred and SHOULD be
+// employed as the default." A replay-window of 32 validates on an AH interface, and so do
+// the preferred 64 and the 255 the dataplane's uint8 window parameter tops out at.
+// RFC requirement: RFC4302-3.4.3-5 negative -- a window BELOW that mandatory minimum is
+// refused with ErrIPsecReplayWindow rather than installed: 1 and 31 are rejected, so no SA
+// can carry a window narrower than the 32 packets every implementation must support. 256
+// is rejected too, above what the kernel SA parameter carries.
+func TestIPsecReplayWindowRange(t *testing.T) {
+	for _, w := range []uint64{0, 32, 64, 255} {
+		cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
+			`"protocol":"ah","spi":256,"algorithm":"sha256","key":"`+hexKey(32)+`","replay-window":`+strconv.FormatUint(w, 10), "")), nil)
+		if err != nil {
+			t.Fatalf("parseOSPFConfig(replay-window %d): %v", w, err)
+		}
+		if got := cfg.V6.Interfaces[0].IPsec.ReplayWindow; got != w {
+			t.Errorf("parsed replay-window = %d, want %d", got, w)
+		}
+		if err := validateConfig(cfg); err != nil {
+			t.Errorf("validateConfig(replay-window %d) = %v, want accepted", w, err)
+		}
+	}
+	for _, w := range []uint64{1, 31, 256, 65535} {
+		cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
+			`"protocol":"ah","spi":256,"algorithm":"sha256","key":"`+hexKey(32)+`","replay-window":`+strconv.FormatUint(w, 10), "")), nil)
+		if err != nil {
+			t.Fatalf("parseOSPFConfig(replay-window %d): %v", w, err)
+		}
+		err = validateConfig(cfg)
+		if !errors.Is(err, ErrIPsecReplayWindow) {
+			t.Errorf("validateConfig(replay-window %d) = %v, want ErrIPsecReplayWindow", w, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "replay-window") || !strings.Contains(err.Error(), "32..255") {
+			t.Errorf("error %q must name the leaf and its range", err)
+		}
 	}
 }
