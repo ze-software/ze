@@ -1252,6 +1252,25 @@ failed, so the daemon's exit code does not prove the observer's assertion. A
 failing observer returns an error, which `fixture.Run` hands to
 `fixture.ReportFailure`.
 
+**The sentinel is written where the scenario fails, BEFORE `request shutdown`.**
+The runner reads it out of the DAEMON's stderr, and the daemon relays a plugin's
+stderr only while both processes live (`internal/component/plugin/process`,
+`relayStderrFrom`). `fixture.Run` reports the same error after `Plugin.Run`
+returns, which is after the daemon was asked to stop, so that line reaches the
+runner only when it wins the race with the shutdown. Measured 2026-09-02: an
+observer asserting a route that can never arrive still passed
+`test/plugin/rpki-group-action.ci`, and three plugin cases (`fib-table`,
+`metrics-name-show`, `modify-increment-localpref`) passed with a failing
+observer. `fixture.ReportFailure` emits the FIRST failure only, so the report at
+the failure site and the one on the way out are one line.
+<!-- source: internal/test/fixture/fixture.go -- observeConfigured, ReportFailure -->
+<!-- source: internal/component/plugin/process/process.go -- relayStderrFrom -->
+
+An observer assertion is therefore worth only what its wait is worth: a value
+that a plugin fills asynchronously (the Adj-RIB-In after RPKI validation, the
+SPF table after the first run, a session that drops when the peer completes)
+needs `fixture.Poll` around the read, never a fixed settle before it.
+
 ## Engine Steps
 
 Engine steps drive a live daemon through CLI dispatch, first-class in `.ci`

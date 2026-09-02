@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -129,6 +130,17 @@ func observeConfigured(
 					scenarioErr = fmt.Errorf("observer quiesce status is %q", status)
 				}
 			}
+			// Reported HERE, before the shutdown below, because the runner reads
+			// this sentinel out of the DAEMON's stderr: the engine relays a
+			// plugin's stderr while that plugin's process and its own are alive
+			// (plugin/process/process.go, relayStderrFrom). Run reports the same
+			// error after Run returns, which is after the daemon was asked to
+			// stop, and that line reaches the runner only if it wins the race
+			// with the shutdown. Measured 2026-09-02: an observer asserting a
+			// route that can never arrive still passed
+			// test/plugin/rpki-group-action.ci, and reporting here made the same
+			// assertion fail.
+			ReportFailure(scenarioErr)
 			result <- scenarioErr
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -216,10 +228,21 @@ func Dispatch(ctx context.Context, plugin *sdk.Plugin, command string, value any
 	return status, nil
 }
 
+// reportedOnce says the sentinel has already been written, so the second report
+// of one failure is dropped instead of printed twice.
+var reportedOnce atomic.Bool
+
 // ReportFailure emits the sentinel the .ci runner treats as an authoritative
 // observer failure. Quoting with %q matches slog's text format.
+//
+// The FIRST failure is the one emitted, and a later call is dropped. An observer
+// scenario reports where it fails, while the daemon is still alive to relay the
+// line, and the process then exits through Run, which holds the same error.
 func ReportFailure(err error) {
 	if err == nil {
+		return
+	}
+	if reportedOnce.Swap(true) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "time=runtime level=ERROR msg=%q subsystem=test.observer\n", observerFailure+": "+err.Error())
