@@ -773,19 +773,40 @@ func startExaProcess(ctx context.Context, name, program string, args, env []stri
 		return nil, err
 	}
 
-	go copyExaOutput(stdout, &proc.stdout, portCh)
-	go copyExaOutput(stderr, &proc.stderr, nil)
-	go func() {
-		err := cmd.Wait()
-		proc.mu.Lock()
-		proc.err = err
-		proc.mu.Unlock()
-		close(proc.done)
-		if portCh != nil {
-			close(portCh)
-		}
-	}()
+	// The readers are joined BEFORE Wait, which is the ordering StdoutPipe
+	// documents: Wait closes the pipe once it sees the command exit, so a read
+	// still in flight loses whatever the child wrote last. The verdict is read
+	// off this buffer, so a server that printed "successful" and exited zero was
+	// reported as "did not report success" whenever Wait won that race, which is
+	// a red saying nothing about the software under test. Both readers end on
+	// the EOF the child's exit produces, so joining them cannot outlive it.
+	copiers := &sync.WaitGroup{}
+	copiers.Add(2)
+	go copyExaOutputTracked(copiers, stdout, &proc.stdout, portCh)
+	go copyExaOutputTracked(copiers, stderr, &proc.stderr, nil)
+	go proc.reap(copiers, portCh)
 	return proc, nil
+}
+
+// copyExaOutputTracked drains one pipe and reports that it reached EOF, which
+// is what lets reap call Wait only once nothing is still reading.
+func copyExaOutputTracked(copiers *sync.WaitGroup, r io.Reader, dst *lockedBuffer, portCh chan<- int) {
+	defer copiers.Done()
+	copyExaOutput(r, dst, portCh)
+}
+
+// reap records the child's exit status once both pipes are drained, then wakes
+// everything waiting on this process.
+func (p *exaProcess) reap(copiers *sync.WaitGroup, portCh chan<- int) {
+	copiers.Wait()
+	err := p.cmd.Wait()
+	p.mu.Lock()
+	p.err = err
+	p.mu.Unlock()
+	close(p.done)
+	if portCh != nil {
+		close(portCh)
+	}
 }
 
 func copyExaOutput(r io.Reader, dst *lockedBuffer, portCh chan<- int) {
