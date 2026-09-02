@@ -1,4 +1,4 @@
-// Design: the activity page's own script, recovered from the published page
+// Design: website/AI.md -- the activity page's own script, recovered from the published page
 // Related: activity.go writes the metric summaries this script reads.
 package site
 

@@ -1,4 +1,4 @@
-// Design: the activity page's own stylesheet, recovered from the published page
+// Design: website/AI.md -- the activity page's own stylesheet, recovered from the published page
 // Related: activity.go renders the page these rules lay out.
 package site
 

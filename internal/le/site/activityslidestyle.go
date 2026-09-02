@@ -1,4 +1,4 @@
-// Design: the deck embed's own stylesheet, dark and sized to one slide
+// Design: website/AI.md -- the deck embed's own stylesheet, dark and sized to one slide
 // Related: activity.go renders the widget these rules lay out, and
 // activitystyle.go dresses the same widget for the published web page.
 package site

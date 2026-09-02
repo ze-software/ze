@@ -1,4 +1,4 @@
-// Design: one measurement of a repository's commit calendar, drawn by two pages
+// Design: website/AI.md -- one commit calendar, measured once and drawn by two pages
 // Related: activity.go renders the standalone dashboard from it; internal/le/site
 // renders the published /project/activity/ page from the same value.
 package sourcerewrite
