@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The dependency reference registers from here.
@@ -192,52 +194,52 @@ func dependenciesLead(codeSpan string, total int) string {
 // dependenciesBody renders the page under <main>: the hero, the filter box, and
 // one open group for each curated category in the file's own order.
 func dependenciesBody(data dependencyData, versions map[string]string) string {
-	var body strings.Builder
-	body.WriteString("            <section aria-labelledby=\"dependencies-title\" class=\"md-content reveal cat-platform\">\n")
-	body.WriteString(pageHero("Dependencies", dependenciesLead("<code>go.mod</code>", data.total()),
-		capitalizeWord(categoryPlatform), ` id="dependencies-title"`, heroClasses) + "\n")
-	body.WriteString("                <input id=\"dep-search\" type=\"search\" " +
-		"placeholder=\"Filter dependencies (e.g. netlink, ssh, prometheus)...\" " +
-		"aria-label=\"Filter dependencies\" />\n")
+	var body textbuf.Buffer
+	body.Reset().Str("            <section aria-labelledby=\"dependencies-title\" class=\"md-content reveal cat-platform\">\n")
+	body.Str(pageHero("Dependencies", dependenciesLead("<code>go.mod</code>", data.total()),
+		capitalizeWord(categoryPlatform), ` id="dependencies-title"`, heroClasses)).Byte('\n')
+	body.Str("                <input id=\"dep-search\" type=\"search\" ").
+		Str("placeholder=\"Filter dependencies (e.g. netlink, ssh, prometheus)...\" ").
+		Str("aria-label=\"Filter dependencies\" />\n")
 	for _, category := range data.Categories {
-		body.WriteString(dependencyGroupHTML(category, versions))
+		body.Str(dependencyGroupHTML(category, versions))
 	}
-	body.WriteString("            </section>\n")
+	body.Str("            </section>\n")
 	return body.String()
 }
 
 // dependencyGroupHTML renders one group as a table of its curated modules.
 func dependencyGroupHTML(category dependencyCategory, versions map[string]string) string {
-	var out strings.Builder
-	out.WriteString("<details class=\"dep-group\" open>\n")
-	out.WriteString("<summary>" + html.EscapeString(category.Name) +
-		" <span class=\"dep-group-count\">" + strconv.Itoa(len(category.Modules)) + "</span></summary>\n")
-	out.WriteString("<table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>\n")
+	var out textbuf.Buffer
+	out.Reset().Str("<details class=\"dep-group\" open>\n")
+	out.Str("<summary>").Str(html.EscapeString(category.Name)).
+		Str(" <span class=\"dep-group-count\">").Int(int64(len(category.Modules))).Str("</span></summary>\n")
+	out.Str("<table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>\n")
 	for _, module := range category.Modules {
-		out.WriteString("<tr><td><code>" + html.EscapeString(module.Module) + "</code></td><td><code>" +
-			html.EscapeString(versions[module.Module]) + "</code></td><td>" +
-			inlineMarkup(module.Why) + "</td></tr>\n")
+		out.Str("<tr><td><code>").Str(html.EscapeString(module.Module)).Str("</code></td><td><code>").
+			Str(html.EscapeString(versions[module.Module])).Str("</code></td><td>").
+			Str(inlineMarkup(module.Why)).Str("</td></tr>\n")
 	}
-	out.WriteString("</tbody></table></details>\n")
+	out.Str("</tbody></table></details>\n")
 	return out.String()
 }
 
 // dependenciesMirror renders the Markdown sibling: one table for each group, in
 // the same order the page writes them.
 func dependenciesMirror(data dependencyData, versions map[string]string) string {
-	var mirror strings.Builder
-	mirror.WriteString("# Dependencies\n\n")
-	mirror.WriteString(dependenciesLead("`go.mod`", data.total()) + "\n\n")
+	var mirror textbuf.Buffer
+	mirror.Reset().Str("# Dependencies\n\n")
+	mirror.Str(dependenciesLead("`go.mod`", data.total())).Str("\n\n")
 	for _, category := range data.Categories {
-		mirror.WriteString("## " + category.Name + " (" + strconv.Itoa(len(category.Modules)) + ")\n\n")
-		mirror.WriteString("| Module | Version | Why we use it |\n| --- | --- | --- |\n")
+		mirror.Str("## ").Str(category.Name).Str(" (").Int(int64(len(category.Modules))).Str(")\n\n")
+		mirror.Str("| Module | Version | Why we use it |\n| --- | --- | --- |\n")
 		for _, module := range category.Modules {
 			// A pipe inside a cell would end the cell, so it is escaped. The
 			// module path and the version cannot carry one.
 			why := strings.ReplaceAll(module.Why, "|", `\|`)
-			mirror.WriteString("| `" + module.Module + "` | `" + versions[module.Module] + "` | " + why + " |\n")
+			mirror.Str("| `").Str(module.Module).Str("` | `").Str(versions[module.Module]).Str("` | ").Str(why).Str(" |\n")
 		}
-		mirror.WriteString("\n")
+		mirror.Byte('\n')
 	}
 	return strings.TrimSpace(mirror.String()) + "\n"
 }

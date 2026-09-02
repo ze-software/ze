@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The homepage registers from here.
@@ -356,22 +358,22 @@ func audienceCardHTML(card *audienceCard) (string, error) {
 			" <small>" + html.EscapeString(card.Link.Sublabel) + "</small></span>\n"
 	}
 
-	var out strings.Builder
-	out.WriteString("                    <article class=\"card audience-card cat-" + html.EscapeString(category) + tone + "\">\n")
-	out.WriteString("                        <span class=\"cat\">" + html.EscapeString(label) + "</span>\n")
-	out.WriteString("                        <h3>" + title + "</h3>\n")
-	out.WriteString("                        <p>\n")
-	out.WriteString("                            " + html.EscapeString(card.Body) + "\n")
-	out.WriteString("                        </p>\n")
+	var out textbuf.Buffer
+	out.Reset().Str("                    <article class=\"card audience-card cat-").Str(html.EscapeString(category)).Str(tone).Str("\">\n")
+	out.Str("                        <span class=\"cat\">").Str(html.EscapeString(label)).Str("</span>\n")
+	out.Str("                        <h3>").Str(title).Str("</h3>\n")
+	out.Str("                        <p>\n")
+	out.Str("                            ").Str(html.EscapeString(card.Body)).Byte('\n')
+	out.Str("                        </p>\n")
 	if len(card.Chips) != 0 {
-		out.WriteString("                        <div class=\"chips\">\n")
+		out.Str("                        <div class=\"chips\">\n")
 		for _, chip := range card.Chips {
-			out.WriteString("                            <span class=\"chip\">" + html.EscapeString(chip) + "</span>\n")
+			out.Str("                            <span class=\"chip\">").Str(html.EscapeString(chip)).Str("</span>\n")
 		}
-		out.WriteString("                        </div>\n")
+		out.Str("                        </div>\n")
 	}
-	out.WriteString(action)
-	out.WriteString("                    </article>")
+	out.Str(action)
+	out.Str("                    </article>")
 	return out.String(), nil
 }
 
@@ -467,20 +469,20 @@ func blogTeaserCards(weeks []changeWeek) string {
 		if intro == "" {
 			intro = "Weekly update"
 		}
-		var out strings.Builder
-		out.WriteString("                    <article class=\"card card-post home-update-card tone-" +
-			homeTeaserTones[index%len(homeTeaserTones)] + "\">\n")
-		out.WriteString("                        <div class=\"home-update-head\">\n")
-		out.WriteString("                            <span class=\"cat\">Update</span>\n")
-		out.WriteString("                            <span class=\"home-update-number\">" +
-			twoDigits(index+1) + "</span>\n")
-		out.WriteString("                        </div>\n")
-		out.WriteString("                        <p class=\"home-update-date\">Week of " +
-			html.EscapeString(week.Slug) + "</p>\n")
-		out.WriteString("                        <h3><a href=\"" + html.EscapeString(week.route()) +
-			"\">" + html.EscapeString(intro) + "</a></h3>\n")
-		out.WriteString(homeUpdateTagRow(week.Topics))
-		out.WriteString("                    </article>")
+		var out textbuf.Buffer
+		out.Reset().Str("                    <article class=\"card card-post home-update-card tone-").
+			Str(homeTeaserTones[index%len(homeTeaserTones)]).Str("\">\n")
+		out.Str("                        <div class=\"home-update-head\">\n")
+		out.Str("                            <span class=\"cat\">Update</span>\n")
+		out.Str("                            <span class=\"home-update-number\">").
+			Str(twoDigits(index + 1)).Str("</span>\n")
+		out.Str("                        </div>\n")
+		out.Str("                        <p class=\"home-update-date\">Week of ").
+			Str(html.EscapeString(week.Slug)).Str("</p>\n")
+		out.Str("                        <h3><a href=\"").Str(html.EscapeString(week.route())).
+			Str("\">").Str(html.EscapeString(intro)).Str("</a></h3>\n")
+		out.Str(homeUpdateTagRow(week.Topics))
+		out.Str("                    </article>")
 		cards = append(cards, out.String())
 	}
 	return strings.Join(cards, "\n")
@@ -494,13 +496,13 @@ func homeUpdateTagRow(topics []changeTopic) string {
 	if len(picked) == 0 {
 		return ""
 	}
-	var out strings.Builder
-	out.WriteString("                        <div class=\"home-update-tags\">\n")
+	var out textbuf.Buffer
+	out.Reset().Str("                        <div class=\"home-update-tags\">\n")
 	for _, topic := range picked {
-		out.WriteString("                            <span class=\"home-update-tag cat-" +
-			html.EscapeString(topic.Category) + "\">" + html.EscapeString(topic.Label) + "</span>\n")
+		out.Str("                            <span class=\"home-update-tag cat-").
+			Str(html.EscapeString(topic.Category)).Str("\">").Str(html.EscapeString(topic.Label)).Str("</span>\n")
 	}
-	out.WriteString("                        </div>\n")
+	out.Str("                        </div>\n")
 	return out.String()
 }
 

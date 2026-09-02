@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/sourcerewrite"
 )
 
@@ -116,26 +117,27 @@ const (
 // activityBody renders the widget that holds the summary cards, the calendar,
 // the Go inventory and the tooltip, inside the shell its surface asks for.
 func activityBody(window *sourcerewrite.ActivityWindow, surface activitySurface) string {
-	var body strings.Builder
+	var body textbuf.Buffer
+	body.Reset()
 	switch surface {
 	case activitySurfacePage:
-		body.WriteString(`            <section class="activity-page" aria-labelledby="activity-title">` + "\n")
-		body.WriteString(`                <div class="activity-hero journey-hero reveal">` + "\n")
-		body.WriteString(`                    <span class="activity-eyebrow journey-eyebrow">Git telemetry</span>` + "\n")
-		body.WriteString(`                    <h1 id="activity-title">Development activity</h1>` + "\n")
-		body.WriteString(`                    <p>A year of commits, added lines, and Go composition ` +
-			`regenerated from the repository.</p>` + "\n")
-		body.WriteString("                </div>\n")
-		body.WriteString(activityWidgetHTML(window, surface))
-		body.WriteString("            </section>\n")
+		body.Str(`            <section class="activity-page" aria-labelledby="activity-title">`).Byte('\n')
+		body.Str(`                <div class="activity-hero journey-hero reveal">`).Byte('\n')
+		body.Str(`                    <span class="activity-eyebrow journey-eyebrow">Git telemetry</span>`).Byte('\n')
+		body.Str(`                    <h1 id="activity-title">Development activity</h1>`).Byte('\n')
+		body.Str(`                    <p>A year of commits, added lines, and Go composition `).
+			Str(`regenerated from the repository.</p>`).Byte('\n')
+		body.Str("                </div>\n")
+		body.Str(activityWidgetHTML(window, surface))
+		body.Str("            </section>\n")
 	case activitySurfaceSlide:
-		body.WriteString(`        <main class="activity-slide">` + "\n")
-		body.WriteString(activityWidgetHTML(window, surface))
-		body.WriteString("        </main>\n")
+		body.Str(`        <main class="activity-slide">`).Byte('\n')
+		body.Str(activityWidgetHTML(window, surface))
+		body.Str("        </main>\n")
 	case activitySurfaceUnspecified:
 		panic("BUG: site.activityBody: the caller named no activity surface")
 	}
-	body.WriteString(activityScriptHTML(activityLineMetric(window), activityCommitMetric(window)))
+	body.Str(activityScriptHTML(activityLineMetric(window), activityCommitMetric(window)))
 	return body.String()
 }
 
@@ -151,17 +153,17 @@ func activityWidgetHTML(window *sourcerewrite.ActivityWindow, surface activitySu
 		class = "activity-widget reveal"
 	}
 
-	var out strings.Builder
-	out.WriteString(`                <div class="` + class + `" aria-label="Activity heatmap">` + "\n")
-	out.WriteString(activitySummaryHTML(activityLineMetric(window), activityRangeText(window), activityDaysShown(window)))
-	out.WriteString(`                    <div class="dashboard-grid">` + "\n")
-	out.WriteString(`                        <div class="left-stack">` + "\n")
-	out.WriteString(activityChartHTML(window))
-	out.WriteString(activityGoPanelHTML(window.Go))
-	out.WriteString("                        </div>\n")
-	out.WriteString("                    </div>\n")
-	out.WriteString(activityTooltipHTML)
-	out.WriteString("                </div>\n")
+	var out textbuf.Buffer
+	out.Reset().Str(`                <div class="`).Str(class).Str(`" aria-label="Activity heatmap">`).Byte('\n')
+	out.Str(activitySummaryHTML(activityLineMetric(window), activityRangeText(window), activityDaysShown(window)))
+	out.Str(`                    <div class="dashboard-grid">`).Byte('\n')
+	out.Str(`                        <div class="left-stack">`).Byte('\n')
+	out.Str(activityChartHTML(window))
+	out.Str(activityGoPanelHTML(window.Go))
+	out.Str("                        </div>\n")
+	out.Str("                    </div>\n")
+	out.Str(activityTooltipHTML)
+	out.Str("                </div>\n")
 	return out.String()
 }
 
@@ -221,21 +223,21 @@ func activityDaysShown(window *sourcerewrite.ActivityWindow) int {
 // of the added-line metric, so a reader with no JavaScript still reads a
 // complete summary of the grid the page draws.
 func activitySummaryHTML(lines activityMetric, rangeText string, days int) string {
-	var out strings.Builder
-	out.WriteString(`<section class="stats" aria-label="Summary">` + "\n")
-	out.WriteString(activityStatHTML("total", lines.TotalLabel, lines.TotalValue))
-	out.WriteString(activityStatHTML("active", lines.ActiveLabel, lines.ActiveValue))
-	out.WriteString(activityStatHTML("peak", lines.PeakLabel, lines.PeakValue))
-	out.WriteString(`        <div class="stat"><span>Days shown</span><strong>` +
-		groupThousands(days) + "</strong></div>\n")
-	out.WriteString(`        <div class="metric-control">` + "\n")
-	out.WriteString(`            <div class="metric-switch" aria-label="Activity metric">` + "\n")
-	out.WriteString(`                <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>` + "\n")
-	out.WriteString(`                <button type="button" data-metric="commits" aria-pressed="false">Commits</button>` + "\n")
-	out.WriteString("            </div>\n")
-	out.WriteString(`            <div class="pill">` + html.EscapeString(rangeText) + "</div>\n")
-	out.WriteString("        </div>\n")
-	out.WriteString("    </section>\n")
+	var out textbuf.Buffer
+	out.Reset().Str(`<section class="stats" aria-label="Summary">`).Byte('\n')
+	out.Str(activityStatHTML("total", lines.TotalLabel, lines.TotalValue))
+	out.Str(activityStatHTML("active", lines.ActiveLabel, lines.ActiveValue))
+	out.Str(activityStatHTML("peak", lines.PeakLabel, lines.PeakValue))
+	out.Str(`        <div class="stat"><span>Days shown</span><strong>`).
+		Str(groupThousands(days)).Str("</strong></div>\n")
+	out.Str(`        <div class="metric-control">`).Byte('\n')
+	out.Str(`            <div class="metric-switch" aria-label="Activity metric">`).Byte('\n')
+	out.Str(`                <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>`).Byte('\n')
+	out.Str(`                <button type="button" data-metric="commits" aria-pressed="false">Commits</button>`).Byte('\n')
+	out.Str("            </div>\n")
+	out.Str(`            <div class="pill">`).Str(html.EscapeString(rangeText)).Str("</div>\n")
+	out.Str("        </div>\n")
+	out.Str("    </section>\n")
 	return out.String()
 }
 
@@ -253,24 +255,24 @@ func activityStatHTML(name, label, value string) string {
 // squares with no shared meaning, so it states role="img" and a label naming
 // the span it covers.
 func activityChartHTML(window *sourcerewrite.ActivityWindow) string {
-	var out strings.Builder
-	out.WriteString(`<div class="chart-scroll">` + "\n")
-	out.WriteString(`            <div class="chart">` + "\n")
-	out.WriteString(`                <div class="months" aria-hidden="true">` + "\n")
-	out.WriteString(window.MonthLabels)
-	out.WriteString("                </div>\n")
-	out.WriteString(`                <div class="chart-body">` + "\n")
-	out.WriteString(`                    <div class="weekday-labels" aria-hidden="true">` +
-		`<span></span><span>Mon</span><span></span><span>Wed</span><span></span>` +
-		`<span>Fri</span><span></span></div>` + "\n")
-	out.WriteString(`                    <div class="activity-grid" role="img" aria-label="Daily activity from ` +
-		html.EscapeString(activityRangeText(window)) + `">` + "\n")
-	out.WriteString(window.Cells)
-	out.WriteString("                    </div>\n")
-	out.WriteString("                </div>\n")
-	out.WriteString("            </div>\n")
-	out.WriteString("        </div>\n")
-	out.WriteString(activityLegendHTML)
+	var out textbuf.Buffer
+	out.Reset().Str(`<div class="chart-scroll">`).Byte('\n')
+	out.Str(`            <div class="chart">`).Byte('\n')
+	out.Str(`                <div class="months" aria-hidden="true">`).Byte('\n')
+	out.Str(window.MonthLabels)
+	out.Str("                </div>\n")
+	out.Str(`                <div class="chart-body">`).Byte('\n')
+	out.Str(`                    <div class="weekday-labels" aria-hidden="true">`).
+		Str(`<span></span><span>Mon</span><span></span><span>Wed</span><span></span>`).
+		Str(`<span>Fri</span><span></span></div>`).Byte('\n')
+	out.Str(`                    <div class="activity-grid" role="img" aria-label="Daily activity from `).
+		Str(html.EscapeString(activityRangeText(window))).Str(`">`).Byte('\n')
+	out.Str(window.Cells)
+	out.Str("                    </div>\n")
+	out.Str("                </div>\n")
+	out.Str("            </div>\n")
+	out.Str("        </div>\n")
+	out.Str(activityLegendHTML)
 	return out.String()
 }
 
@@ -284,18 +286,18 @@ const activityLegendHTML = `        <div class="legend"><span>Less</span>` +
 
 // activityGoPanelHTML renders the four buckets of the Go source inventory.
 func activityGoPanelHTML(inventory sourcerewrite.ActivityGo) string {
-	var out strings.Builder
-	out.WriteString(`<section class="panel go-panel" aria-label="Go code stats">` + "\n")
-	out.WriteString("        <h2>Go code composition</h2>\n")
-	out.WriteString(`        <div class="go-breakdown">` + "\n")
-	out.WriteString(activityGoBucketHTML("Total Code", inventory.Total, ""))
-	out.WriteString(activityGoBucketHTML("Production", inventory.Code, ""))
-	out.WriteString(activityGoBucketHTML("Test", inventory.Tests, ""))
-	out.WriteString(activityGoBucketHTML("Dependencies", inventory.Vendor,
+	var out textbuf.Buffer
+	out.Reset().Str(`<section class="panel go-panel" aria-label="Go code stats">`).Byte('\n')
+	out.Str("        <h2>Go code composition</h2>\n")
+	out.Str(`        <div class="go-breakdown">`).Byte('\n')
+	out.Str(activityGoBucketHTML("Total Code", inventory.Total, ""))
+	out.Str(activityGoBucketHTML("Production", inventory.Code, ""))
+	out.Str(activityGoBucketHTML("Test", inventory.Tests, ""))
+	out.Str(activityGoBucketHTML("Dependencies", inventory.Vendor,
 		`                <div class="stat"><span>Modules</span><strong>`+
 			groupThousands(inventory.VendorModules)+"</strong></div>\n"))
-	out.WriteString("        </div>\n")
-	out.WriteString("    </section>\n")
+	out.Str("        </div>\n")
+	out.Str("    </section>\n")
 	return out.String()
 }
 
@@ -303,18 +305,18 @@ func activityGoPanelHTML(inventory sourcerewrite.ActivityGo) string {
 // card that bucket alone carries. Only the vendored bucket has one, the module
 // count, so extraCard is empty for the other three.
 func activityGoBucketHTML(title string, bucket sourcerewrite.ActivityGoBucket, extraCard string) string {
-	var out strings.Builder
-	out.WriteString(`<div class="go-bucket">` + "\n")
-	out.WriteString("            <h3>" + html.EscapeString(title) + "</h3>\n")
-	out.WriteString(`            <div class="go-stats">` + "\n")
-	out.WriteString(activityGoStatHTML("Files", bucket.Files))
-	out.WriteString(activityGoStatHTML("Total lines", bucket.TotalLines))
-	out.WriteString(activityGoStatHTML("Code", bucket.CodeLines))
-	out.WriteString(activityGoStatHTML("Blank", bucket.BlankLines))
-	out.WriteString(activityGoStatHTML("Comments", bucket.CommentLines))
-	out.WriteString(extraCard)
-	out.WriteString("            </div>\n")
-	out.WriteString("        </div>\n")
+	var out textbuf.Buffer
+	out.Reset().Str(`<div class="go-bucket">`).Byte('\n')
+	out.Str("            <h3>").Str(html.EscapeString(title)).Str("</h3>\n")
+	out.Str(`            <div class="go-stats">`).Byte('\n')
+	out.Str(activityGoStatHTML("Files", bucket.Files))
+	out.Str(activityGoStatHTML("Total lines", bucket.TotalLines))
+	out.Str(activityGoStatHTML("Code", bucket.CodeLines))
+	out.Str(activityGoStatHTML("Blank", bucket.BlankLines))
+	out.Str(activityGoStatHTML("Comments", bucket.CommentLines))
+	out.Str(extraCard)
+	out.Str("            </div>\n")
+	out.Str("        </div>\n")
 	return out.String()
 }
 

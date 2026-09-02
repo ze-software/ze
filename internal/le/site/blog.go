@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The blog is registered from here, so a build discovers it through the
@@ -292,37 +294,37 @@ func blogArticleBody(article *blogArticle, body string, headings []docHeading) s
 	if article.Image != "" {
 		shellClass += " has-visual"
 	}
-	var page strings.Builder
-	page.WriteString(`            <section class="` + shellClass + `" aria-labelledby="post-title">` + "\n")
-	page.WriteString(pageHero(html.EscapeString(article.Title), html.EscapeString(article.lead()),
-		"Article", ` id="post-title"`, "journey-hero blog-article-hero reveal") + "\n")
-	page.WriteString(blogArticleMeta(article) + "\n")
+	var page textbuf.Buffer
+	page.Str(`            <section class="`).Str(shellClass).Str(`" aria-labelledby="post-title">`).Byte('\n')
+	page.Str(pageHero(html.EscapeString(article.Title), html.EscapeString(article.lead()),
+		"Article", ` id="post-title"`, "journey-hero blog-article-hero reveal")).Byte('\n')
+	page.Str(blogArticleMeta(article)).Byte('\n')
 	if visual := blogImage(article, blogArticleRoot, "eager", "figure", "blog-article-visual reveal"); visual != "" {
-		page.WriteString(visual + "\n")
+		page.Str(visual).Byte('\n')
 	}
-	page.WriteString(`                <p class="post-back"><a href="../">&larr; All articles</a></p>` + "\n")
-	page.WriteString("            </section>\n")
-	page.WriteString(blogKeyPoints(article.KeyPoints))
-	page.WriteString(blogArticleContents(headings))
+	page.Str(`                <p class="post-back"><a href="../">&larr; All articles</a></p>`).Byte('\n')
+	page.Str("            </section>\n")
+	page.Str(blogKeyPoints(article.KeyPoints))
+	page.Str(blogArticleContents(headings))
 	// An article is read top to bottom, so its tables take no column selector
 	// and its code blocks take no copy button.
-	page.WriteString(`            <section class="md-content blog-article-content reveal" ` +
-		`data-table-columns="off" data-code-copy="off">` + "\n")
-	page.WriteString(body)
-	page.WriteString("            </section>\n")
+	page.Str(`            <section class="md-content blog-article-content reveal" `).
+		Str(`data-table-columns="off" data-code-copy="off">`).Byte('\n')
+	page.Str(body)
+	page.Str("            </section>\n")
 	return page.String()
 }
 
 // blogArticleMeta renders the byline: when the article was written and who
 // wrote it.
 func blogArticleMeta(article *blogArticle) string {
-	var meta strings.Builder
-	meta.WriteString(`                <div class="blog-article-meta">`)
+	var meta textbuf.Buffer
+	meta.Str(`                <div class="blog-article-meta">`)
 	if article.Date != "" {
-		meta.WriteString(`<time datetime="` + html.EscapeString(article.Date) + `">` +
-			html.EscapeString(article.Date) + "</time>")
+		meta.Str(`<time datetime="`).Str(html.EscapeString(article.Date)).Str(`">`).
+			Str(html.EscapeString(article.Date)).Str("</time>")
 	}
-	meta.WriteString("<span>by " + html.EscapeString(article.Author) + "</span></div>")
+	meta.Str("<span>by ").Str(html.EscapeString(article.Author)).Str("</span></div>")
 	return meta.String()
 }
 
@@ -371,14 +373,14 @@ func blogKeyPoints(points []string) string {
 	if len(points) == 0 {
 		return ""
 	}
-	var aside strings.Builder
-	aside.WriteString(`            <aside class="blog-key-points reveal" aria-label="Key points">` + "\n")
-	aside.WriteString(`                <p class="blog-key-points-label">Key points</p>` + "\n")
-	aside.WriteString("                <ul>\n")
+	var aside textbuf.Buffer
+	aside.Str(`            <aside class="blog-key-points reveal" aria-label="Key points">`).Byte('\n')
+	aside.Str(`                <p class="blog-key-points-label">Key points</p>`).Byte('\n')
+	aside.Str("                <ul>\n")
 	for _, point := range points {
-		aside.WriteString("                    <li>" + html.EscapeString(point) + "</li>\n")
+		aside.Str("                    <li>").Str(html.EscapeString(point)).Str("</li>\n")
 	}
-	aside.WriteString("                </ul>\n            </aside>\n")
+	aside.Str("                </ul>\n            </aside>\n")
 	return aside.String()
 }
 
@@ -400,58 +402,58 @@ func blogArticleContents(headings []docHeading) string {
 	if len(sections) < blogArticleContentsFloor {
 		return ""
 	}
-	var contents strings.Builder
-	contents.WriteString(`            <nav class="blog-article-toc reveal" aria-label="Article sections">` + "\n")
-	contents.WriteString(`                <p class="blog-article-toc-label">In this article</p>` + "\n")
-	contents.WriteString("                <ol>\n")
+	var contents textbuf.Buffer
+	contents.Str(`            <nav class="blog-article-toc reveal" aria-label="Article sections">`).Byte('\n')
+	contents.Str(`                <p class="blog-article-toc-label">In this article</p>`).Byte('\n')
+	contents.Str("                <ol>\n")
 	for _, section := range sections {
-		contents.WriteString(`                    <li><a href="#` + html.EscapeString(section.ID) + `">` +
-			html.EscapeString(section.Label) + "</a></li>\n")
+		contents.Str(`                    <li><a href="#`).Str(html.EscapeString(section.ID)).Str(`">`).
+			Str(html.EscapeString(section.Label)).Str("</a></li>\n")
 	}
-	contents.WriteString("                </ol>\n            </nav>\n")
+	contents.Str("                </ol>\n            </nav>\n")
 	return contents.String()
 }
 
 // blogArticleMirror renders the Markdown sibling of one article: the front
 // matter an author wrote, then the body with its number tokens resolved.
 func blogArticleMirror(article *blogArticle, body string) string {
-	var mirror strings.Builder
-	mirror.WriteString("# " + article.Title + "\n\n")
+	var mirror textbuf.Buffer
+	mirror.Str("# ").Str(article.Title).Str("\n\n")
 	byline := "by " + article.Author
 	if article.Date != "" {
 		byline = article.Date + " " + byline
 	}
-	mirror.WriteString("*" + byline + "*\n\n")
+	mirror.Byte('*').Str(byline).Str("*\n\n")
 	if article.Deck != "" {
-		mirror.WriteString(article.Deck + "\n\n")
+		mirror.Str(article.Deck).Str("\n\n")
 	}
 	if article.Image != "" {
-		mirror.WriteString("![" + article.altText() + "](" +
-			articleAsset(blogArticleRoot, article.Image) + ")\n\n")
+		mirror.Str("![").Str(article.altText()).Str("](").Str(articleAsset(blogArticleRoot, article.Image)).
+			Str(")\n\n")
 	}
 	if len(article.KeyPoints) != 0 {
-		mirror.WriteString("## Key points\n\n")
+		mirror.Str("## Key points\n\n")
 		for _, point := range article.KeyPoints {
-			mirror.WriteString("- " + point + "\n")
+			mirror.Str("- ").Str(point).Byte('\n')
 		}
-		mirror.WriteString("\n")
+		mirror.Byte('\n')
 	}
-	mirror.WriteString(strings.TrimSpace(body))
+	mirror.Str(strings.TrimSpace(body))
 	return strings.TrimSpace(mirror.String()) + "\n"
 }
 
 // blogIndexBody renders the index between <main> and </main>: one card for each
 // article, newest first.
 func blogIndexBody(articles []blogArticle) string {
-	var page strings.Builder
-	page.WriteString(`            <section class="blog-index" aria-labelledby="blog-title">` + "\n")
-	page.WriteString(pageHero("The Ze blog.", blogIndexLead(`<a href="../project/changes/">changelog</a>`),
-		"Blog", ` id="blog-title"`, "journey-hero blog-index-hero reveal") + "\n")
-	page.WriteString(`                <div class="blog-list reveal">` + "\n")
+	var page textbuf.Buffer
+	page.Str(`            <section class="blog-index" aria-labelledby="blog-title">`).Byte('\n')
+	page.Str(pageHero("The Ze blog.", blogIndexLead(`<a href="../project/changes/">changelog</a>`),
+		"Blog", ` id="blog-title"`, "journey-hero blog-index-hero reveal")).Byte('\n')
+	page.Str(`                <div class="blog-list reveal">`).Byte('\n')
 	for index := range articles {
-		page.WriteString(blogIndexCard(&articles[index], presentationTones[index%len(presentationTones)]))
+		page.Str(blogIndexCard(&articles[index], presentationTones[index%len(presentationTones)]))
 	}
-	page.WriteString("                </div>\n            </section>\n")
+	page.Str("                </div>\n            </section>\n")
 	return page.String()
 }
 
@@ -461,42 +463,42 @@ func blogIndexCard(article *blogArticle, tone string) string {
 	if article.Image != "" {
 		classes += " has-media"
 	}
-	var card strings.Builder
-	card.WriteString(`                    <article class="` + classes + " tone-" + tone + `">` + "\n")
+	var card textbuf.Buffer
+	card.Str(`                    <article class="`).Str(classes).Str(" tone-").Str(tone).Str(`">`).Byte('\n')
 	if article.Date != "" {
-		card.WriteString(`                        <div class="blog-card-meta"><time datetime="` +
-			html.EscapeString(article.Date) + `">` + html.EscapeString(article.Date) +
-			"</time><span>Article</span></div>\n")
+		card.Str(`                        <div class="blog-card-meta"><time datetime="`).
+			Str(html.EscapeString(article.Date)).Str(`">`).Str(html.EscapeString(article.Date)).
+			Str("</time><span>Article</span></div>\n")
 	}
 	if media := blogImage(article, blogIndexRoot, "lazy", "div", "blog-card-media"); media != "" {
-		card.WriteString(media + "\n")
+		card.Str(media).Byte('\n')
 	}
-	card.WriteString(`                        <h3><a href="` + article.Slug + `/">` +
-		html.EscapeString(article.Title) + "</a></h3>\n")
+	card.Str(`                        <h3><a href="`).Str(article.Slug).Str(`/">`).
+		Str(html.EscapeString(article.Title)).Str("</a></h3>\n")
 	if article.Description != "" {
-		card.WriteString("                        <p>" + html.EscapeString(article.Description) + "</p>\n")
+		card.Str("                        <p>").Str(html.EscapeString(article.Description)).Str("</p>\n")
 	}
-	card.WriteString(`                        <span class="post-more">Read the article</span>` + "\n")
-	card.WriteString("                    </article>\n")
+	card.Str(`                        <span class="post-more">Read the article</span>`).Byte('\n')
+	card.Str("                    </article>\n")
 	return card.String()
 }
 
 // blogIndexMirror renders the Markdown sibling of the index: one line for each
 // article, linking the article's own mirror rather than its page.
 func blogIndexMirror(articles []blogArticle) string {
-	var mirror strings.Builder
-	mirror.WriteString("# The Ze blog\n\n")
-	mirror.WriteString(blogIndexLead("[changelog](../project/changes/)") + "\n\n")
+	var mirror textbuf.Buffer
+	mirror.Str("# The Ze blog\n\n")
+	mirror.Str(blogIndexLead("[changelog](../project/changes/)")).Str("\n\n")
 	for index := range articles {
 		article := &articles[index]
-		mirror.WriteString("- [" + article.Title + "](" + article.Slug + "/" + pageMirrorFile + ")")
+		mirror.Str("- [").Str(article.Title).Str("](").Str(article.Slug).Byte('/').Str(pageMirrorFile).Byte(')')
 		if article.Date != "" {
-			mirror.WriteString(" (" + article.Date + ")")
+			mirror.Str(" (").Str(article.Date).Byte(')')
 		}
 		if article.Description != "" {
-			mirror.WriteString(": " + article.Description)
+			mirror.Str(": ").Str(article.Description)
 		}
-		mirror.WriteString("\n")
+		mirror.Byte('\n')
 	}
 	return strings.TrimSpace(mirror.String()) + "\n"
 }
@@ -507,7 +509,7 @@ func blogIndexMirror(articles []blogArticle) string {
 // no date is published as a page and left out of the feed rather than given a
 // date the author did not write.
 func blogFeed(articles []blogArticle) string {
-	var items strings.Builder
+	var items textbuf.Buffer
 	built := feedEpoch
 	for index := range articles {
 		article := &articles[index]
@@ -522,28 +524,28 @@ func blogFeed(articles []blogArticle) string {
 		if description == "" {
 			description = article.Title
 		}
-		items.WriteString("        <item>\n")
-		items.WriteString("            <title>" + xmlText(article.Title) + "</title>\n")
-		items.WriteString("            <link>" + link + "</link>\n")
-		items.WriteString(`            <guid isPermaLink="true">` + link + "</guid>\n")
-		items.WriteString("            <pubDate>" + feedDate(article.Date) + "</pubDate>\n")
+		items.Str("        <item>\n")
+		items.Str("            <title>").Str(xmlText(article.Title)).Str("</title>\n")
+		items.Str("            <link>").Str(link).Str("</link>\n")
+		items.Str(`            <guid isPermaLink="true">`).Str(link).Str("</guid>\n")
+		items.Str("            <pubDate>").Str(feedDate(article.Date)).Str("</pubDate>\n")
 		// RSS <author> wants an email address, so the byline goes in
 		// dc:creator, which every reader understands and needs no address.
-		items.WriteString("            <dc:creator>" + xmlText(article.Author) + "</dc:creator>\n")
-		items.WriteString("            <description>" + xmlText(description) + "</description>\n")
-		items.WriteString("        </item>\n")
+		items.Str("            <dc:creator>").Str(xmlText(article.Author)).Str("</dc:creator>\n")
+		items.Str("            <description>").Str(xmlText(description)).Str("</description>\n")
+		items.Str("        </item>\n")
 	}
-	var feed strings.Builder
-	feed.WriteString(feedDeclaration)
-	feed.WriteString(`<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">` + "\n")
-	feed.WriteString("    <channel>\n")
-	feed.WriteString("        <title>Ze blog</title>\n")
-	feed.WriteString("        <link>" + blogURL + "</link>\n")
-	feed.WriteString("        <description>Editorial articles on Ze.</description>\n")
-	feed.WriteString("        <language>en</language>\n")
-	feed.WriteString("        <lastBuildDate>" + feedDate(built) + "</lastBuildDate>\n")
-	feed.WriteString(items.String())
-	feed.WriteString("    </channel>\n</rss>\n")
+	var feed textbuf.Buffer
+	feed.Str(feedDeclaration)
+	feed.Str(`<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">`).Byte('\n')
+	feed.Str("    <channel>\n")
+	feed.Str("        <title>Ze blog</title>\n")
+	feed.Str("        <link>").Str(blogURL).Str("</link>\n")
+	feed.Str("        <description>Editorial articles on Ze.</description>\n")
+	feed.Str("        <language>en</language>\n")
+	feed.Str("        <lastBuildDate>").Str(feedDate(built)).Str("</lastBuildDate>\n")
+	feed.Str(items.String())
+	feed.Str("    </channel>\n</rss>\n")
 	return feed.String()
 }
 

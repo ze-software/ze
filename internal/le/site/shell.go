@@ -6,6 +6,8 @@ import (
 	"html"
 	"path/filepath"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The site's own addresses and the assets every page links.
@@ -123,47 +125,47 @@ func (shell pageShell) render(body string) string {
 	canonical := html.EscapeString(pageCanonicalURL(shell.Path))
 	root := html.EscapeString(shell.Root)
 
-	var page strings.Builder
-	page.WriteString("<!doctype html>\n<html lang=\"en\">\n    <head>\n")
-	page.WriteString("        <meta charset=\"utf-8\" />\n")
-	page.WriteString("        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n")
-	page.WriteString(themeBootstrap + "\n")
-	page.WriteString("        <title>" + html.EscapeString(shell.Title) + "</title>\n")
-	page.WriteString(metaTag("name", "description", shell.Description))
-	page.WriteString(metaTag("property", "og:title", shell.socialTitle()))
-	page.WriteString(metaTag("property", "og:description", shell.socialDescription()))
-	page.WriteString(metaTag("property", "og:type", "website"))
-	page.WriteString(metaTag("property", "og:image", socialImage))
-	page.WriteString(metaTag("property", "og:image:width", "1200"))
-	page.WriteString(metaTag("property", "og:image:height", "630"))
-	page.WriteString(metaTag("property", "og:image:alt", "Ze, an open-source configuration and protocol engine"))
-	page.WriteString(metaTag("name", "twitter:card", "summary_large_image"))
-	page.WriteString(metaTag("name", "twitter:title", shell.socialTitle()))
-	page.WriteString(metaTag("name", "twitter:description", shell.socialDescription()))
-	page.WriteString(metaTag("name", "twitter:image", socialImage))
-	page.WriteString("        <link rel=\"icon\" href=\"" + root + "assets/ze.svg\" type=\"image/svg+xml\" />\n")
-	page.WriteString("        <link rel=\"stylesheet\" href=\"" + root + fontStylesheet + "\" />\n")
+	var page textbuf.Buffer
+	page.Reset().Str("<!doctype html>\n<html lang=\"en\">\n    <head>\n")
+	page.Str("        <meta charset=\"utf-8\" />\n")
+	page.Str("        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n")
+	page.Str(themeBootstrap).Byte('\n')
+	page.Str("        <title>").Str(html.EscapeString(shell.Title)).Str("</title>\n")
+	page.Str(metaTag("name", "description", shell.Description))
+	page.Str(metaTag("property", "og:title", shell.socialTitle()))
+	page.Str(metaTag("property", "og:description", shell.socialDescription()))
+	page.Str(metaTag("property", "og:type", "website"))
+	page.Str(metaTag("property", "og:image", socialImage))
+	page.Str(metaTag("property", "og:image:width", "1200"))
+	page.Str(metaTag("property", "og:image:height", "630"))
+	page.Str(metaTag("property", "og:image:alt", "Ze, an open-source configuration and protocol engine"))
+	page.Str(metaTag("name", "twitter:card", "summary_large_image"))
+	page.Str(metaTag("name", "twitter:title", shell.socialTitle()))
+	page.Str(metaTag("name", "twitter:description", shell.socialDescription()))
+	page.Str(metaTag("name", "twitter:image", socialImage))
+	page.Str("        <link rel=\"icon\" href=\"").Str(root).Str("assets/ze.svg\" type=\"image/svg+xml\" />\n")
+	page.Str("        <link rel=\"stylesheet\" href=\"").Str(root).Str(fontStylesheet).Str("\" />\n")
 
 	// The canonical link and og:url sit immediately before the stylesheet
 	// link. The retired renderer emitted neither, and a later pass anchored
 	// both on the site.css link and inserted them before it, so this is where
 	// every published page carries them.
-	page.WriteString("        <link rel=\"canonical\" href=\"" + canonical + "\" />\n")
-	page.WriteString("        <meta property=\"og:url\" content=\"" + canonical + "\" />\n")
-	page.WriteString("        <link rel=\"stylesheet\" href=\"" + root + "assets/site.css\" />\n")
-	page.WriteString(structuredData)
-	page.WriteString(shell.ExtraHead)
-	page.WriteString("    </head>\n    <body>\n")
-	page.WriteString("        <a class=\"skip-link\" href=\"#top\">Skip to main content</a>\n")
-	page.WriteString(headerMount(shell.Root) + "\n")
-	page.WriteString("\n        <main id=\"top\"" + shell.mainClass() + " tabindex=\"-1\">\n")
+	page.Str("        <link rel=\"canonical\" href=\"").Str(canonical).Str("\" />\n")
+	page.Str("        <meta property=\"og:url\" content=\"").Str(canonical).Str("\" />\n")
+	page.Str("        <link rel=\"stylesheet\" href=\"").Str(root).Str("assets/site.css\" />\n")
+	page.Str(structuredData)
+	page.Str(shell.ExtraHead)
+	page.Str("    </head>\n    <body>\n")
+	page.Str("        <a class=\"skip-link\" href=\"#top\">Skip to main content</a>\n")
+	page.Str(headerMount(shell.Root)).Byte('\n')
+	page.Str("\n        <main id=\"top\"").Str(shell.mainClass()).Str(" tabindex=\"-1\">\n")
 
-	page.WriteString(body)
+	page.Str(body)
 
-	page.WriteString(shell.Sidebar + "        </main>\n")
-	page.WriteString("\n        <script src=\"" + root + "assets/site.js\" defer></script>\n\n")
-	page.WriteString(footerHTML(shell.Root, buildClock()) + "\n")
-	page.WriteString("    </body>\n</html>\n")
+	page.Str(shell.Sidebar).Str("        </main>\n")
+	page.Str("\n        <script src=\"").Str(root).Str("assets/site.js\" defer></script>\n\n")
+	page.Str(footerHTML(shell.Root, buildClock())).Byte('\n')
+	page.Str("    </body>\n</html>\n")
 	return page.String()
 }
 

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/sourcerewrite"
 )
 
@@ -98,7 +99,8 @@ func bundlePresentationHTML(content, base string) string {
 	}
 	screenshots, _ := filepath.Glob(filepath.Join(base, "screenshots", "*"))
 	sort.Strings(screenshots)
-	var mapBody strings.Builder
+	var mapBody textbuf.Buffer
+	mapBody.Reset()
 	for _, path := range screenshots {
 		info, err := os.Stat(path)
 		if err != nil || !info.Mode().IsRegular() {
@@ -161,10 +163,11 @@ func replaceRegexpGroups(pattern *regexp.Regexp, content string, replace func(st
 	if len(matches) == 0 {
 		return content
 	}
-	var out strings.Builder
+	var out textbuf.Buffer
+	out.Reset()
 	offset := 0
 	for _, indexes := range matches {
-		out.WriteString(content[offset:indexes[0]])
+		out.Str(content[offset:indexes[0]])
 		groups := make([]string, len(indexes)/2)
 		for index := range groups {
 			start, end := indexes[index*2], indexes[index*2+1]
@@ -172,10 +175,10 @@ func replaceRegexpGroups(pattern *regexp.Regexp, content string, replace func(st
 				groups[index] = content[start:end]
 			}
 		}
-		out.WriteString(replace(groups[0], groups))
+		out.Str(replace(groups[0], groups))
 		offset = indexes[1]
 	}
-	out.WriteString(content[offset:])
+	out.Str(content[offset:])
 	return out.String()
 }
 
@@ -235,15 +238,15 @@ func renderActivity(options ActivityOptions) error {
 		return fmt.Errorf("measure activity: %w", err)
 	}
 
-	var page strings.Builder
-	page.WriteString("<!doctype html>\n<html lang=\"en\">\n    <head>\n")
-	page.WriteString("        <meta charset=\"utf-8\" />\n")
-	page.WriteString("        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n")
-	page.WriteString("        <title>Development activity</title>\n")
-	page.WriteString(activitySlideStyle)
-	page.WriteString("    </head>\n    <body>\n")
-	page.WriteString(activityBody(&window, activitySurfaceSlide))
-	page.WriteString("    </body>\n</html>\n")
+	var page textbuf.Buffer
+	page.Reset().Str("<!doctype html>\n<html lang=\"en\">\n    <head>\n")
+	page.Str("        <meta charset=\"utf-8\" />\n")
+	page.Str("        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n")
+	page.Str("        <title>Development activity</title>\n")
+	page.Str(activitySlideStyle)
+	page.Str("    </head>\n    <body>\n")
+	page.Str(activityBody(&window, activitySurfaceSlide))
+	page.Str("    </body>\n</html>\n")
 
 	if err := os.MkdirAll(filepath.Dir(options.Output), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return err

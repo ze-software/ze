@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/inventory"
 )
 
@@ -268,7 +269,8 @@ func assignPluginSlugs(entries []*pluginEntry) {
 
 // pluginSlug folds a plugin name into the directory its page sits in.
 func pluginSlug(name string) string {
-	var slug strings.Builder
+	var slug textbuf.Buffer
+	slug.Reset()
 	previousDash := true
 	for _, letter := range strings.ToLower(name) {
 		if (letter >= 'a' && letter <= 'z') || (letter >= '0' && letter <= '9') {
@@ -277,7 +279,7 @@ func pluginSlug(name string) string {
 			continue
 		}
 		if !previousDash {
-			slug.WriteByte('-')
+			slug.Byte('-')
 			previousDash = true
 		}
 	}
@@ -364,12 +366,13 @@ func pathSegments(path string) []string {
 
 // pluginGroupLabel spells a group identifier for a reader.
 func pluginGroupLabel(id string) string {
-	var label strings.Builder
+	var label textbuf.Buffer
+	label.Reset()
 	for _, token := range strings.FieldsFunc(id, func(letter rune) bool { return letter == '-' || letter == '_' }) {
 		if label.Len() > 0 {
-			label.WriteByte(' ')
+			label.Byte(' ')
 		}
-		label.WriteString(pluginLabelWord(token))
+		label.Str(pluginLabelWord(token))
 	}
 	return label.String()
 }
@@ -638,42 +641,42 @@ func fixtureClause(conjunction string, fixtures int) string {
 // search console, and one section for each area.
 func pluginCatalogBody(entries []*pluginEntry, groups []*pluginGroup) string {
 	counts := countPlugins(entries)
-	var body strings.Builder
-	body.WriteString(`            <section class="md-content reveal cat-automate plugin-catalog" data-plugin-catalog aria-labelledby="plugin-catalog-title">` + "\n")
-	body.WriteString(pageHero("Plugin catalog",
+	var body textbuf.Buffer
+	body.Reset().Str(`            <section class="md-content reveal cat-automate plugin-catalog" data-plugin-catalog aria-labelledby="plugin-catalog-title">`).Byte('\n')
+	body.Str(pageHero("Plugin catalog",
 		"Ze features are composed from plugins. This catalog is generated from the live registry "+
 			"and explains what each plugin is for, what it configures, and which other plugins it "+
 			"relies on. Click any plugin to open a local detail page.",
-		"Plugins", ` id="plugin-catalog-title"`, "journey-hero reveal") + "\n")
-	body.WriteString(`                <p class="plugin-summary">Generated from ` +
-		strconv.Itoa(counts.Total) + " registry entries: " + plural(counts.Runtime, "runtime plugin") +
-		fixtureClause(" and ", counts.Fixtures) +
-		". Among runtime plugins, " + strconv.Itoa(counts.Configured) +
-		" declare configuration roots, " + strconv.Itoa(counts.Dependent) +
-		" declare dependencies, and " + strconv.Itoa(counts.WithYANG) + " ship YANG modules.</p>\n")
-	body.WriteString(`                <div class="plugin-console" role="search" aria-label="Search plugins">` + "\n")
-	body.WriteString(`                    <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>` + "\n")
-	body.WriteString(`                    <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />` + "\n")
-	body.WriteString(pluginFilterControls(groups) + "\n")
-	body.WriteString(`                    <p id="plugin-status" class="plugin-status search-status" aria-live="polite"></p>` + "\n")
-	body.WriteString("                </div>\n")
-	body.WriteString(`                <p class="plugin-empty" hidden>No plugins match this search.</p>` + "\n")
-	body.WriteString(`                <div class="plugin-groups">` + "\n")
+		"Plugins", ` id="plugin-catalog-title"`, "journey-hero reveal")).Byte('\n')
+	body.Str(`                <p class="plugin-summary">Generated from `).
+		Int(int64(counts.Total)).Str(" registry entries: ").Str(plural(counts.Runtime, "runtime plugin")).
+		Str(fixtureClause(" and ", counts.Fixtures)).
+		Str(". Among runtime plugins, ").Int(int64(counts.Configured)).
+		Str(" declare configuration roots, ").Int(int64(counts.Dependent)).
+		Str(" declare dependencies, and ").Int(int64(counts.WithYANG)).Str(" ship YANG modules.</p>\n")
+	body.Str(`                <div class="plugin-console" role="search" aria-label="Search plugins">`).Byte('\n')
+	body.Str(`                    <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>`).Byte('\n')
+	body.Str(`                    <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />`).Byte('\n')
+	body.Str(pluginFilterControls(groups)).Byte('\n')
+	body.Str(`                    <p id="plugin-status" class="plugin-status search-status" aria-live="polite"></p>`).Byte('\n')
+	body.Str("                </div>\n")
+	body.Str(`                <p class="plugin-empty" hidden>No plugins match this search.</p>`).Byte('\n')
+	body.Str(`                <div class="plugin-groups">`).Byte('\n')
 	for _, group := range groups {
-		body.WriteString(pluginGroupHTML(group))
+		body.Str(pluginGroupHTML(group))
 	}
-	body.WriteString("                </div>\n")
-	body.WriteString("            </section>\n")
-	body.WriteString(pluginCatalogScript)
+	body.Str("                </div>\n")
+	body.Str("            </section>\n")
+	body.Str(pluginCatalogScript)
 	return body.String()
 }
 
 // pluginFilterControls renders the two selects that narrow the catalog: one
 // over the coarse buckets and one over the areas inside the chosen bucket.
 func pluginFilterControls(groups []*pluginGroup) string {
-	var categories, areas strings.Builder
-	categories.WriteString(`<option value="">All categories</option>`)
-	areas.WriteString(`<option value="" data-label="All areas">All areas</option>`)
+	var categories, areas textbuf.Buffer
+	categories.Reset().Str(`<option value="">All categories</option>`)
+	areas.Reset().Str(`<option value="" data-label="All areas">All areas</option>`)
 	for _, bucket := range pluginBucketOrder {
 		filed := make([]*pluginGroup, 0, len(groups))
 		count := 0
@@ -687,18 +690,18 @@ func pluginFilterControls(groups []*pluginGroup) string {
 			continue
 		}
 		label := html.EscapeString(pluginBucketLabels[bucket])
-		categories.WriteString("\n                                    " +
-			`<option value="` + html.EscapeString(bucket) + `" data-label="` + label + `">` +
-			label + " (" + strconv.Itoa(count) + ")</option>")
-		areas.WriteString("\n                                    <optgroup label=\"" + label + "\">")
+		categories.Str("\n                                    ").
+			Str(`<option value="`).Str(html.EscapeString(bucket)).Str(`" data-label="`).Str(label).Str(`">`).
+			Str(label).Str(" (").Int(int64(count)).Str(")</option>")
+		areas.Str("\n                                    <optgroup label=\"").Str(label).Str("\">")
 		for _, group := range filed {
 			groupLabel := html.EscapeString(group.Label)
-			areas.WriteString("\n                                    " +
-				`<option value="` + html.EscapeString(group.ID) + `" data-category="` + html.EscapeString(bucket) +
-				`" data-label="` + groupLabel + `">` + groupLabel + " (" +
-				strconv.Itoa(len(group.Plugins)) + ")</option>")
+			areas.Str("\n                                    ").
+				Str(`<option value="`).Str(html.EscapeString(group.ID)).Str(`" data-category="`).Str(html.EscapeString(bucket)).
+				Str(`" data-label="`).Str(groupLabel).Str(`">`).Str(groupLabel).Str(" (").
+				Int(int64(len(group.Plugins))).Str(")</option>")
 		}
-		areas.WriteString("\n                                    </optgroup>")
+		areas.Str("\n                                    </optgroup>")
 	}
 	return "\n" +
 		`                        <div class="plugin-filter-controls">` + "\n" +
@@ -718,12 +721,13 @@ func pluginFilterControls(groups []*pluginGroup) string {
 // pluginGroupHTML renders one area of the catalog: its heading, the sentence
 // that says how the area was derived, and one card for each plugin in it.
 func pluginGroupHTML(group *pluginGroup) string {
-	var cards strings.Builder
+	var cards textbuf.Buffer
+	cards.Reset()
 	for index, entry := range group.Plugins {
 		if index > 0 {
-			cards.WriteString("\n")
+			cards.Byte('\n')
 		}
-		cards.WriteString(pluginCardHTML(entry, group))
+		cards.Str(pluginCardHTML(entry, group))
 	}
 	return "\n" +
 		`                <section class="plugin-group" data-plugin-group data-family="` + html.EscapeString(group.ID) +
@@ -836,21 +840,22 @@ func pluginChips(entry *pluginEntry) []string {
 // pluginMetaHTML is the definition list under a card's chips. A plugin that
 // declares nothing states "None" rather than showing an empty list.
 func pluginMetaHTML(entry *pluginEntry) string {
-	var rows strings.Builder
+	var rows textbuf.Buffer
+	rows.Reset()
 	if len(entry.ConfigRoots) != 0 {
-		rows.WriteString(pluginMetaRow("Config", codeList(entry.ConfigRoots)))
+		rows.Str(pluginMetaRow("Config", codeList(entry.ConfigRoots)))
 	}
 	if len(entry.Dependencies) != 0 {
-		rows.WriteString(pluginMetaRow("Needs", codeList(entry.Dependencies)))
+		rows.Str(pluginMetaRow("Needs", codeList(entry.Dependencies)))
 	}
 	if len(entry.OptionalDependencies) != 0 {
-		rows.WriteString(pluginMetaRow("Optional", codeList(entry.OptionalDependencies)))
+		rows.Str(pluginMetaRow("Optional", codeList(entry.OptionalDependencies)))
 	}
 	if len(entry.YangFiles) != 0 {
-		rows.WriteString(pluginMetaRow("YANG", plural(len(entry.YangFiles), "module")))
+		rows.Str(pluginMetaRow("YANG", plural(len(entry.YangFiles), "module")))
 	}
 	if rows.Len() == 0 {
-		rows.WriteString(pluginMetaRow("Config", nothingDeclared))
+		rows.Str(pluginMetaRow("Config", nothingDeclared))
 	}
 	return `<dl class="plugin-meta">` + rows.String() + "</dl>"
 }
@@ -873,29 +878,29 @@ func codeList(values []string) string {
 // areas in the same order, each as one table.
 func pluginCatalogMirror(entries []*pluginEntry, groups []*pluginGroup) string {
 	counts := countPlugins(entries)
-	var mirror strings.Builder
-	mirror.WriteString("# Plugin catalog\n\n")
-	mirror.WriteString(plural(counts.Runtime, "runtime plugin") +
-		" generated from `" + pluginFile + "`" + fixtureClause(", plus ", counts.Fixtures) + ". " +
-		strconv.Itoa(counts.Configured) + " runtime plugins declare configuration roots and " +
-		strconv.Itoa(counts.WithYANG) + " ship YANG modules.\n\n")
-	mirror.WriteString("The HTML page includes browser-side search across name, purpose, config roots, " +
-		"dependencies, YANG files, and source directories. Clicking a plugin opens its generated " +
-		"local detail page.\n\n")
+	var mirror textbuf.Buffer
+	mirror.Reset().Str("# Plugin catalog\n\n")
+	mirror.Str(plural(counts.Runtime, "runtime plugin")).
+		Str(" generated from `").Str(pluginFile).Byte('`').Str(fixtureClause(", plus ", counts.Fixtures)).Str(". ").
+		Int(int64(counts.Configured)).Str(" runtime plugins declare configuration roots and ").
+		Int(int64(counts.WithYANG)).Str(" ship YANG modules.\n\n")
+	mirror.Str("The HTML page includes browser-side search across name, purpose, config roots, ").
+		Str("dependencies, YANG files, and source directories. Clicking a plugin opens its generated ").
+		Str("local detail page.\n\n")
 	for _, group := range groups {
 		if len(group.Plugins) == 0 {
 			continue
 		}
-		mirror.WriteString("## " + group.Label + "\n\n" + pluginGroupDeck(group) + "\n\n")
-		mirror.WriteString("| Plugin | Used for | Config | Depends on | Source path |\n")
-		mirror.WriteString("|--------|----------|--------|------------|-------------|\n")
+		mirror.Str("## ").Str(group.Label).Str("\n\n").Str(pluginGroupDeck(group)).Str("\n\n")
+		mirror.Str("| Plugin | Used for | Config | Depends on | Source path |\n")
+		mirror.Str("|--------|----------|--------|------------|-------------|\n")
 		for _, entry := range group.Plugins {
-			mirror.WriteString("| [`" + entry.Name + "`](" + entry.Slug + "/" + pageMirrorFile + ") | " +
-				strings.ReplaceAll(entry.Description, "|", `\|`) + " | " +
-				pluginOrNone(codeMarkerList(entry.ConfigRoots)) + " | " +
-				pluginOrNone(codeMarkerList(entry.Dependencies)) + " | `" + entry.SourceDir + "` |\n")
+			mirror.Str("| [`").Str(entry.Name).Str("`](").Str(entry.Slug).Byte('/').Str(pageMirrorFile).Str(") | ").
+				Str(strings.ReplaceAll(entry.Description, "|", `\|`)).Str(" | ").
+				Str(pluginOrNone(codeMarkerList(entry.ConfigRoots))).Str(" | ").
+				Str(pluginOrNone(codeMarkerList(entry.Dependencies))).Str(" | `").Str(entry.SourceDir).Str("` |\n")
 		}
-		mirror.WriteString("\n")
+		mirror.Byte('\n')
 	}
 	return strings.TrimRight(mirror.String(), "\n") + "\n"
 }

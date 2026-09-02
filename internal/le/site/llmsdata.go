@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The site's own addresses, named once because llms.txt states each of them.
@@ -187,8 +189,8 @@ func pageURL(href string) string {
 // rendered page is a summary of the chrome around it. The list is the docs
 // producer's own manifest and use-case family, so a page that stops being
 // published stops being listed here in the same edit.
-func writeLLMSDocumentation(out *strings.Builder, paths Paths) error {
-	out.WriteString("## Complete documentation index\n\n")
+func writeLLMSDocumentation(out *textbuf.Buffer, paths Paths) error {
+	out.Str("## Complete documentation index\n\n")
 	for _, row := range docsManifest {
 		directory, err := docsDestination(row.Source)
 		if err != nil {
@@ -204,18 +206,18 @@ func writeLLMSDocumentation(out *strings.Builder, paths Paths) error {
 			return err
 		}
 	}
-	out.WriteString("\n")
+	out.Byte('\n')
 	return nil
 }
 
 // writeDocumentationEntry writes one documentation page as one line.
-func writeDocumentationEntry(out *strings.Builder, paths Paths, source, href string) error {
+func writeDocumentationEntry(out *textbuf.Buffer, paths Paths, source, href string) error {
 	title, summary, err := markdownTitleAndSummary(filepath.Join(paths.Repository, filepath.FromSlash(source)))
 	if err != nil {
 		return err
 	}
-	out.WriteString("- [" + title + "](" + mirrorURL(href) + "): " + summary +
-		" (web: " + pageURL(href) + ")\n")
+	out.Str("- [").Str(title).Str("](").Str(mirrorURL(href)).Str("): ").Str(summary).
+		Str(" (web: ").Str(pageURL(href)).Str(")\n")
 	return nil
 }
 

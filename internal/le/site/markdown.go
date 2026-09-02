@@ -17,6 +17,8 @@ import (
 	goldmarkhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // markdownEngine converts a page source into the body HTML a page shell wraps.
@@ -359,7 +361,8 @@ func documentHeadings(document ast.Node, source []byte) []docHeading {
 // every mark dropped. A heading that reads "`ze bgp` state" gives back
 // "ze bgp state", which is what the contents list shows.
 func inlineText(node ast.Node, source []byte) string {
-	var label strings.Builder
+	var label textbuf.Buffer
+	label.Reset()
 	_ = ast.Walk(node, func(child ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil

@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // noscriptHubLinks are the section hubs a reader reaches when JavaScript is
@@ -55,22 +57,22 @@ func rootedHref(root, target string) string {
 // JavaScript. The fallback nests no further div, which keeps the mount one
 // element a later pass can find and replace.
 func headerMount(root string) string {
-	var mount strings.Builder
-	mount.WriteString(`        <div id="site-header-mount" data-header-src="` +
-		html.EscapeString(root) + `assets/header.html" data-site-root="` +
-		html.EscapeString(root) + "\">\n")
-	mount.WriteString("            <noscript>\n")
-	mount.WriteString("                <nav class=\"site-header-fallback\" aria-label=\"Site navigation\">\n")
-	mount.WriteString(`                    <a class="brand" href="` +
-		html.EscapeString(rootedHref(root, "index.html#top")) + "\">Ze</a>\n")
+	var mount textbuf.Buffer
+	mount.Reset().Str(`        <div id="site-header-mount" data-header-src="`).
+		Str(html.EscapeString(root)).Str(`assets/header.html" data-site-root="`).
+		Str(html.EscapeString(root)).Str("\">\n")
+	mount.Str("            <noscript>\n")
+	mount.Str("                <nav class=\"site-header-fallback\" aria-label=\"Site navigation\">\n")
+	mount.Str(`                    <a class="brand" href="`).
+		Str(html.EscapeString(rootedHref(root, "index.html#top"))).Str("\">Ze</a>\n")
 	for _, link := range noscriptHubLinks {
-		mount.WriteString(`                    <a href="` +
-			html.EscapeString(rootedHref(root, link.Href)) + `">` +
-			html.EscapeString(link.Label) + "</a>\n")
+		mount.Str(`                    <a href="`).
+			Str(html.EscapeString(rootedHref(root, link.Href))).Str(`">`).
+			Str(html.EscapeString(link.Label)).Str("</a>\n")
 	}
-	mount.WriteString("                </nav>\n")
-	mount.WriteString("            </noscript>\n")
-	mount.WriteString("        </div>")
+	mount.Str("                </nav>\n")
+	mount.Str("            </noscript>\n")
+	mount.Str("        </div>")
 	return mount.String()
 }
 
@@ -162,22 +164,22 @@ func sharedHeaderHTML(data siteNav, facts *siteFacts) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var header strings.Builder
-	header.WriteString("        <header class=\"site-header\">\n")
-	header.WriteString("            <nav class=\"nav\" aria-label=\"Main navigation\">\n")
-	header.WriteString(`                <a class="brand" href="` +
-		html.EscapeString(rootedHref(root, "index.html#top")) + "\" aria-label=\"Ze home\">\n")
-	header.WriteString(`                    <img src="` + html.EscapeString(root) +
-		"assets/ze.svg\" alt=\"\" width=\"32\" height=\"32\" />\n")
-	header.WriteString("                    <span>Ze</span>\n")
-	header.WriteString("                </a>\n")
-	header.WriteString(`                <button class="nav-menu-toggle" type="button" ` +
-		"aria-controls=\"site-nav-links\" aria-expanded=\"false\">\n")
-	header.WriteString("                    <span class=\"nav-menu-toggle-bars\" aria-hidden=\"true\"></span>\n")
-	header.WriteString("                    <span>Menu</span>\n")
-	header.WriteString("                </button>\n")
-	header.WriteString(links)
-	header.WriteString("\n            </nav>\n        </header>\n")
+	var header textbuf.Buffer
+	header.Reset().Str("        <header class=\"site-header\">\n")
+	header.Str("            <nav class=\"nav\" aria-label=\"Main navigation\">\n")
+	header.Str(`                <a class="brand" href="`).
+		Str(html.EscapeString(rootedHref(root, "index.html#top"))).Str("\" aria-label=\"Ze home\">\n")
+	header.Str(`                    <img src="`).Str(html.EscapeString(root)).
+		Str("assets/ze.svg\" alt=\"\" width=\"32\" height=\"32\" />\n")
+	header.Str("                    <span>Ze</span>\n")
+	header.Str("                </a>\n")
+	header.Str(`                <button class="nav-menu-toggle" type="button" `).
+		Str("aria-controls=\"site-nav-links\" aria-expanded=\"false\">\n")
+	header.Str("                    <span class=\"nav-menu-toggle-bars\" aria-hidden=\"true\"></span>\n")
+	header.Str("                    <span>Menu</span>\n")
+	header.Str("                </button>\n")
+	header.Str(links)
+	header.Str("\n            </nav>\n        </header>\n")
 	return header.String(), nil
 }
 
@@ -185,27 +187,27 @@ func sharedHeaderHTML(data siteNav, facts *siteFacts) (string, error) {
 // badges and the theme toggle, in the order nav.json states them.
 func navLinksHTML(root string, data siteNav, facts *siteFacts) (string, error) {
 	counts := navCounts(facts)
-	var links strings.Builder
-	links.WriteString("                <div id=\"site-nav-links\" class=\"nav-links\">\n")
+	var links textbuf.Buffer
+	links.Reset().Str("                <div id=\"site-nav-links\" class=\"nav-links\">\n")
 	for _, link := range data.TopLinks {
-		links.WriteString(navBarLink(root, link))
+		links.Str(navBarLink(root, link))
 	}
 	for _, dropdown := range data.Dropdowns {
 		panel, err := navDropdownHTML(root, dropdown, counts)
 		if err != nil {
 			return "", err
 		}
-		links.WriteString(panel)
+		links.Str(panel)
 	}
 	for _, link := range data.TrailingLinks {
-		links.WriteString(navBarLink(root, link))
+		links.Str(navBarLink(root, link))
 	}
-	links.WriteString(navSearchBadge(root))
-	links.WriteString(navBadge(discordInvite, "Ze Discord", "0 0 640 512", discordIconPath, "Discord"))
-	links.WriteString(navBadge(repositoryURL, "Ze on GitHub, "+strconv.Itoa(facts.GitHubStars)+" stars",
+	links.Str(navSearchBadge(root))
+	links.Str(navBadge(discordInvite, "Ze Discord", "0 0 640 512", discordIconPath, "Discord"))
+	links.Str(navBadge(repositoryURL, "Ze on GitHub, "+strconv.Itoa(facts.GitHubStars)+" stars",
 		"0 0 496 512", githubIconPath, strconv.Itoa(facts.GitHubStars)))
-	links.WriteString(navThemeToggle)
-	links.WriteString("                </div>")
+	links.Str(navThemeToggle)
+	links.Str("                </div>")
 	return links.String(), nil
 }
 
@@ -244,32 +246,32 @@ func navDropdownHTML(root string, dropdown navDropdown, counts *strings.Replacer
 		return "", fmt.Errorf("data/%s: a dropdown states no label", navDataFile)
 	}
 	panelID := "nav-panel-" + navSlug(dropdown.Label)
-	var panel strings.Builder
-	panel.WriteString("                    <div class=\"nav-dropdown\">\n")
-	panel.WriteString(`                    <button class="nav-dropdown-trigger" type="button" ` +
-		`aria-haspopup="true" aria-expanded="false" aria-controls="` + panelID + `">` +
-		html.EscapeString(dropdown.Label) + "\n")
-	panel.WriteString("                        " + navChevron + "\n")
-	panel.WriteString("                    </button>\n")
-	panel.WriteString(`                    <div class="nav-dropdown-panel" id="` + panelID + "\">\n")
+	var panel textbuf.Buffer
+	panel.Reset().Str("                    <div class=\"nav-dropdown\">\n")
+	panel.Str(`                    <button class="nav-dropdown-trigger" type="button" `).
+		Str(`aria-haspopup="true" aria-expanded="false" aria-controls="`).Str(panelID).Str(`">`).
+		Str(html.EscapeString(dropdown.Label)).Byte('\n')
+	panel.Str("                        ").Str(navChevron).Byte('\n')
+	panel.Str("                    </button>\n")
+	panel.Str(`                    <div class="nav-dropdown-panel" id="`).Str(panelID).Str("\">\n")
 	entries := 0
 	for _, column := range dropdown.Columns {
-		panel.WriteString("                    <div class=\"nav-dropdown-col\">\n")
+		panel.Str("                    <div class=\"nav-dropdown-col\">\n")
 		for _, entry := range column {
 			rendered, err := navEntryHTML(root, dropdown.Label, entry, counts)
 			if err != nil {
 				return "", err
 			}
-			panel.WriteString(rendered)
+			panel.Str(rendered)
 			entries++
 		}
-		panel.WriteString("                    </div>\n")
+		panel.Str("                    </div>\n")
 	}
 	if entries == 0 {
 		return "", fmt.Errorf("data/%s: the %s dropdown states no entry", navDataFile, dropdown.Label)
 	}
-	panel.WriteString("                    </div>\n")
-	panel.WriteString("                    </div>\n")
+	panel.Str("                    </div>\n")
+	panel.Str("                    </div>\n")
 	return panel.String(), nil
 }
 
@@ -542,12 +544,13 @@ func pageSidebar(root, pageKey string, links pageLinks) string {
 	current := normalizePageKey(pageKey)
 	var groups []string
 	for _, group := range spec.Groups {
-		var entries strings.Builder
+		var entries textbuf.Buffer
+		entries.Reset()
 		for _, link := range group.Links {
 			if link.External == "" && normalizePageKey(link.Href) == current {
 				continue
 			}
-			entries.WriteString(sidebarLink(root, link, links.External))
+			entries.Str(sidebarLink(root, link, links.External))
 		}
 		if entries.Len() == 0 {
 			continue
@@ -560,18 +563,18 @@ func pageSidebar(root, pageKey string, links pageLinks) string {
 	if len(groups) == 0 {
 		return ""
 	}
-	var sidebar strings.Builder
-	sidebar.WriteString("            <aside class=\"page-sidebar\" aria-label=\"Related page links\">\n")
+	var sidebar textbuf.Buffer
+	sidebar.Reset().Str("            <aside class=\"page-sidebar\" aria-label=\"Related page links\">\n")
 	if spec.Eyebrow != "" {
-		sidebar.WriteString(`                <p class="page-sidebar-eyebrow">` +
-			html.EscapeString(spec.Eyebrow) + "</p>\n")
+		sidebar.Str(`                <p class="page-sidebar-eyebrow">`).
+			Str(html.EscapeString(spec.Eyebrow)).Str("</p>\n")
 	}
-	sidebar.WriteString("                <nav class=\"page-sidebar-nav\" aria-label=\"Related links\">\n")
+	sidebar.Str("                <nav class=\"page-sidebar-nav\" aria-label=\"Related links\">\n")
 	for _, group := range groups {
-		sidebar.WriteString(group)
+		sidebar.Str(group)
 	}
-	sidebar.WriteString("                </nav>\n")
-	sidebar.WriteString("            </aside>\n")
+	sidebar.Str("                </nav>\n")
+	sidebar.Str("            </aside>\n")
 	return sidebar.String()
 }
 

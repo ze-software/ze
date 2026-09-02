@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The three data pages register from here. A build discovers them through the
@@ -58,22 +60,22 @@ func inlineMarkup(text string) string {
 // The loop is bounded by the length of the text: each turn consumes at least
 // the opening marker, and an unpaired marker returns.
 func wrapInlineMarker(text, marker, opening, closing string) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	rest := text
 	for {
 		start := strings.Index(rest, marker)
 		if start < 0 {
-			out.WriteString(rest)
+			out.Str(rest)
 			return out.String()
 		}
 		after := start + len(marker)
 		end := strings.Index(rest[after:], marker)
 		if end <= 0 {
-			out.WriteString(rest)
+			out.Str(rest)
 			return out.String()
 		}
-		out.WriteString(rest[:start])
-		out.WriteString(opening + rest[after:after+end] + closing)
+		out.Str(rest[:start])
+		out.Str(opening).Str(rest[after : after+end]).Str(closing)
 		rest = rest[after+end+len(marker):]
 	}
 }
@@ -285,34 +287,34 @@ func featuresBody(data featureData, shipped []featureCard) string {
 		counts[shipped[index].Category]++
 	}
 
-	var body strings.Builder
-	body.WriteString("            <section aria-labelledby=\"features-title\">\n")
-	body.WriteString(pageHero("Every feature Ze ships.",
+	var body textbuf.Buffer
+	body.Str("            <section aria-labelledby=\"features-title\">\n")
+	body.Str(pageHero("Every feature Ze ships.",
 		strconv.Itoa(len(shipped))+" shipped features plus the planned roadmap.",
-		"Project", ` id="features-title"`, heroClasses) + "\n")
-	body.WriteString("                <div class=\"section-note reveal\">\n")
-	body.WriteString("                    <p>Each card&#39;s color is its category: how the feature fits " +
-		"into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards " +
-		"at the bottom are specs, not code. Everything shipped runs in both daemon and appliance " +
-		"modes unless a card says otherwise. Click a category to filter, click again to show " +
-		"everything.</p>\n")
-	body.WriteString("                </div>\n")
-	body.WriteString("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter features by category\">\n")
+		"Project", ` id="features-title"`, heroClasses)).Byte('\n')
+	body.Str("                <div class=\"section-note reveal\">\n")
+	body.Str("                    <p>Each card&#39;s color is its category: how the feature fits ").
+		Str("into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards ").
+		Str("at the bottom are specs, not code. Everything shipped runs in both daemon and appliance ").
+		Str("modes unless a card says otherwise. Click a category to filter, click again to show ").
+		Str("everything.</p>\n")
+	body.Str("                </div>\n")
+	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter features by category\">\n")
 	for _, category := range legendCategories {
 		label := capitalizeWord(category)
 		count := strconv.Itoa(counts[category])
-		body.WriteString("                    <button class=\"cat-" + category + "\" data-cat=\"" + category +
-			"\" aria-pressed=\"false\" aria-label=\"Filter features by " + label + ", " + count +
-			" features\">" + label + " <span class=\"legend-count\" aria-hidden=\"true\">" + count +
-			"</span></button>\n")
+		body.Str("                    <button class=\"cat-").Str(category).Str("\" data-cat=\"").Str(category).
+			Str("\" aria-pressed=\"false\" aria-label=\"Filter features by ").Str(label).Str(", ").Str(count).
+			Str(" features\">").Str(label).Str(" <span class=\"legend-count\" aria-hidden=\"true\">").Str(count).
+			Str("</span></button>\n")
 	}
-	body.WriteString("                </div>\n")
-	body.WriteString("                <p id=\"feature-filter-status\" class=\"feature-filter-status search-status\" aria-live=\"polite\"></p>\n")
-	body.WriteString("            </section>\n\n")
+	body.Str("                </div>\n")
+	body.Str("                <p id=\"feature-filter-status\" class=\"feature-filter-status search-status\" aria-live=\"polite\"></p>\n")
+	body.Str("            </section>\n\n")
 
 	for _, section := range data.Sections {
-		body.WriteString(featureSectionHTML(section))
-		body.WriteString("\n")
+		body.Str(featureSectionHTML(section))
+		body.Byte('\n')
 	}
 	return body.String()
 }
@@ -320,25 +322,25 @@ func featuresBody(data featureData, shipped []featureCard) string {
 // featureSectionHTML renders one titled block: its heading, its lead, its
 // optional note, and its cards in the file's own order.
 func featureSectionHTML(section featureSection) string {
-	var out strings.Builder
-	out.WriteString("            <section id=\"" + html.EscapeString(section.ID) +
-		"\" aria-labelledby=\"" + html.EscapeString(section.ID) + "-title\" data-cards>\n")
-	out.WriteString("                <div class=\"section-head reveal\">\n")
-	out.WriteString("                    <h2 id=\"" + html.EscapeString(section.ID) + "-title\">" +
-		html.EscapeString(section.Heading) + "</h2>\n")
-	out.WriteString("                    <p>" + html.EscapeString(section.Lead) + "</p>\n")
-	out.WriteString("                </div>\n")
+	var out textbuf.Buffer
+	out.Str("            <section id=\"").Str(html.EscapeString(section.ID)).Str("\" aria-labelledby=\"").
+		Str(html.EscapeString(section.ID)).Str("-title\" data-cards>\n")
+	out.Str("                <div class=\"section-head reveal\">\n")
+	out.Str("                    <h2 id=\"").Str(html.EscapeString(section.ID)).Str("-title\">").
+		Str(html.EscapeString(section.Heading)).Str("</h2>\n")
+	out.Str("                    <p>").Str(html.EscapeString(section.Lead)).Str("</p>\n")
+	out.Str("                </div>\n")
 	if section.Note != "" {
-		out.WriteString("                <div class=\"section-note reveal\">\n")
-		out.WriteString("                    <p>" + inlineMarkup(section.Note) + "</p>\n")
-		out.WriteString("                </div>\n")
+		out.Str("                <div class=\"section-note reveal\">\n")
+		out.Str("                    <p>").Str(inlineMarkup(section.Note)).Str("</p>\n")
+		out.Str("                </div>\n")
 	}
-	out.WriteString("                <div class=\"cards feature-grid reveal\">\n")
+	out.Str("                <div class=\"cards feature-grid reveal\">\n")
 	for index := range section.Cards {
-		out.WriteString(featureCardHTML(&section.Cards[index]))
+		out.Str(featureCardHTML(&section.Cards[index]))
 	}
-	out.WriteString("                </div>\n")
-	out.WriteString("            </section>\n")
+	out.Str("                </div>\n")
+	out.Str("            </section>\n")
 	return out.String()
 }
 
@@ -351,58 +353,58 @@ func featureCardHTML(card *featureCard) string {
 	}
 	classes += " cat-" + card.Category
 
-	var out strings.Builder
-	out.WriteString("                    <article class=\"" + html.EscapeString(classes) +
-		"\" data-cat=\"" + html.EscapeString(card.Category) + "\">\n")
-	out.WriteString("                    <span class=\"cat\">" +
-		html.EscapeString(capitalizeWord(card.Category)) + "</span>\n")
+	var out textbuf.Buffer
+	out.Str("                    <article class=\"").Str(html.EscapeString(classes)).Str("\" data-cat=\"").
+		Str(html.EscapeString(card.Category)).Str("\">\n")
+	out.Str("                    <span class=\"cat\">").Str(html.EscapeString(capitalizeWord(card.Category))).
+		Str("</span>\n")
 	if card.Status != "" {
-		out.WriteString("                    <span class=\"status\">" +
-			html.EscapeString(featureStatusLabels[card.Status]) + "</span>\n")
+		out.Str("                    <span class=\"status\">").
+			Str(html.EscapeString(featureStatusLabels[card.Status])).Str("</span>\n")
 	}
 	target := ""
 	if card.External {
 		target = ` target="_blank" rel="noopener"`
 	}
-	out.WriteString("                    <h3><a href=\"" + html.EscapeString(card.href()) + "\"" + target +
-		">" + html.EscapeString(card.Title) + "</a></h3>\n")
-	out.WriteString("                    <div class=\"chips\">\n")
+	out.Str("                    <h3><a href=\"").Str(html.EscapeString(card.href())).Byte('"').Str(target).Byte('>').
+		Str(html.EscapeString(card.Title)).Str("</a></h3>\n")
+	out.Str("                    <div class=\"chips\">\n")
 	for _, chip := range card.Chips {
 		class := "chip"
 		if chip.Mode {
 			class = "chip mode"
 		}
-		out.WriteString("                    <span class=\"" + class + "\">" +
-			html.EscapeString(chip.Text) + "</span>\n")
+		out.Str("                    <span class=\"").Str(class).Str("\">").Str(html.EscapeString(chip.Text)).
+			Str("</span>\n")
 	}
-	out.WriteString("                    </div>\n")
-	out.WriteString("                    <ul>\n")
+	out.Str("                    </div>\n")
+	out.Str("                    <ul>\n")
 	for _, bullet := range card.Bullets {
-		out.WriteString("                    <li>" + inlineMarkup(bullet) + "</li>\n")
+		out.Str("                    <li>").Str(inlineMarkup(bullet)).Str("</li>\n")
 	}
-	out.WriteString("                    </ul>\n")
-	out.WriteString("                    </article>\n")
+	out.Str("                    </ul>\n")
+	out.Str("                    </article>\n")
 	return out.String()
 }
 
 // featuresMirror renders the Markdown sibling from the same data the page uses,
 // so the two cannot disagree about what the site ships.
 func featuresMirror(data featureData, shipped int) string {
-	var mirror strings.Builder
-	mirror.WriteString("# Every feature Ze ships.\n\n")
-	mirror.WriteString(strconv.Itoa(shipped) + " shipped features plus the planned roadmap. " +
-		"Each card's category shows where the feature fits: operate, routing, services, automate, " +
-		"observe, secure, or platform. Everything shipped runs in both daemon and appliance modes " +
-		"unless a card says otherwise.\n\n")
+	var mirror textbuf.Buffer
+	mirror.Str("# Every feature Ze ships.\n\n")
+	mirror.Int(int64(shipped)).Str(" shipped features plus the planned roadmap. ").
+		Str("Each card's category shows where the feature fits: operate, routing, services, automate, ").
+		Str("observe, secure, or platform. Everything shipped runs in both daemon and appliance modes ").
+		Str("unless a card says otherwise.\n\n")
 	for _, section := range data.Sections {
-		mirror.WriteString("## " + section.Heading + "\n\n")
-		mirror.WriteString(section.Lead + "\n\n")
+		mirror.Str("## ").Str(section.Heading).Str("\n\n")
+		mirror.Str(section.Lead).Str("\n\n")
 		if section.Note != "" {
-			mirror.WriteString("> " + section.Note + "\n\n")
+			mirror.Str("> ").Str(section.Note).Str("\n\n")
 		}
 		for index := range section.Cards {
 			card := &section.Cards[index]
-			mirror.WriteString("### " + card.Title + "\n\n")
+			mirror.Str("### ").Str(card.Title).Str("\n\n")
 			meta := card.Category
 			if card.Status != "" {
 				meta += " / " + featureStatusLabels[card.Status]
@@ -415,11 +417,11 @@ func featuresMirror(data featureData, shipped int) string {
 				}
 				line += " -- " + strings.Join(chips, " ")
 			}
-			mirror.WriteString(line + "\n\n")
+			mirror.Str(line).Str("\n\n")
 			for _, bullet := range card.Bullets {
-				mirror.WriteString("- " + bullet + "\n")
+				mirror.Str("- ").Str(bullet).Byte('\n')
 			}
-			mirror.WriteString("\n[Learn more](" + card.mirrorHref() + ")\n\n")
+			mirror.Str("\n[Learn more](").Str(card.mirrorHref()).Str(")\n\n")
 		}
 	}
 	return strings.TrimSpace(mirror.String()) + "\n"
@@ -656,45 +658,45 @@ func renderMilestones(paths Paths) ([]string, error) {
 // milestonesBody renders the page under <main>: the hero and its filter legend,
 // then one block for each quarter, newest first.
 func milestonesBody(data milestoneData, quarters []milestoneQuarter) (string, error) {
-	var body strings.Builder
-	body.WriteString("            <section aria-labelledby=\"milestones-title\">\n")
-	body.WriteString("                <div class=\"section-head journey-hero reveal\">\n")
-	body.WriteString("                    <span class=\"journey-eyebrow\">Timeline</span>\n")
-	body.WriteString("                    <h1 id=\"milestones-title\">The road so far.</h1>\n")
-	body.WriteString("                    <p>" + strconv.Itoa(len(data.Milestones)) +
-		" milestones, newest first. " + html.EscapeString(data.Intro) + "</p>\n")
-	body.WriteString("                </div>\n")
-	body.WriteString("                <div class=\"section-note reveal\">\n")
-	body.WriteString("                    <p>Each node&#39;s color is its category. This is the coarse " +
-		"view: the <a href=\"../changes/\">Changes</a> log has every week, and " +
-		"<a href=\"../../features/\">Features</a> lists what ships today. Click a category to " +
-		"filter, click again to show everything.</p>\n")
-	body.WriteString("                </div>\n")
-	body.WriteString("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter milestones by category\">\n")
+	var body textbuf.Buffer
+	body.Str("            <section aria-labelledby=\"milestones-title\">\n")
+	body.Str("                <div class=\"section-head journey-hero reveal\">\n")
+	body.Str("                    <span class=\"journey-eyebrow\">Timeline</span>\n")
+	body.Str("                    <h1 id=\"milestones-title\">The road so far.</h1>\n")
+	body.Str("                    <p>").Int(int64(len(data.Milestones))).Str(" milestones, newest first. ").
+		Str(html.EscapeString(data.Intro)).Str("</p>\n")
+	body.Str("                </div>\n")
+	body.Str("                <div class=\"section-note reveal\">\n")
+	body.Str("                    <p>Each node&#39;s color is its category. This is the coarse ").
+		Str("view: the <a href=\"../changes/\">Changes</a> log has every week, and ").
+		Str("<a href=\"../../features/\">Features</a> lists what ships today. Click a category to ").
+		Str("filter, click again to show everything.</p>\n")
+	body.Str("                </div>\n")
+	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter milestones by category\">\n")
 	for _, category := range legendCategories {
-		body.WriteString("                    <button class=\"cat-" + category + "\" data-cat=\"" +
-			category + "\" aria-pressed=\"false\">" + capitalizeWord(category) + "</button>\n")
+		body.Str("                    <button class=\"cat-").Str(category).Str("\" data-cat=\"").Str(category).
+			Str("\" aria-pressed=\"false\">").Str(capitalizeWord(category)).Str("</button>\n")
 	}
-	body.WriteString("                </div>\n")
-	body.WriteString("            </section>\n\n")
+	body.Str("                </div>\n")
+	body.Str("            </section>\n\n")
 
-	body.WriteString("            <section class=\"reveal\" aria-label=\"Milestone timeline\">\n")
+	body.Str("            <section class=\"reveal\" aria-label=\"Milestone timeline\">\n")
 	for _, quarter := range quarters {
-		body.WriteString("                <div class=\"tl-quarter\" data-quarter>\n")
-		body.WriteString("                    <h2 class=\"tl-quarter-head\">" +
-			html.EscapeString(quarter.Label) + "</h2>\n")
-		body.WriteString("                    <ol class=\"tl-list\">\n")
+		body.Str("                <div class=\"tl-quarter\" data-quarter>\n")
+		body.Str("                    <h2 class=\"tl-quarter-head\">").Str(html.EscapeString(quarter.Label)).
+			Str("</h2>\n")
+		body.Str("                    <ol class=\"tl-list\">\n")
 		for _, item := range quarter.Items {
 			node, err := milestoneItemHTML(item)
 			if err != nil {
 				return "", err
 			}
-			body.WriteString(node)
+			body.Str(node)
 		}
-		body.WriteString("                    </ol>\n")
-		body.WriteString("                </div>\n")
+		body.Str("                    </ol>\n")
+		body.Str("                </div>\n")
 	}
-	body.WriteString("            </section>\n")
+	body.Str("            </section>\n")
 	return body.String(), nil
 }
 
@@ -704,50 +706,50 @@ func milestoneItemHTML(item milestone) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var out strings.Builder
+	var out textbuf.Buffer
 	category := html.EscapeString(item.Category)
-	out.WriteString("                    <li class=\"tl-item cat-" + category + "\" data-cat=\"" +
-		category + "\">\n")
-	out.WriteString("                        <span class=\"tl-node\" aria-hidden=\"true\"></span>\n")
-	out.WriteString("                        <div class=\"tl-date\"><time datetime=\"" + item.Date + "\">" +
-		month + "</time></div>\n")
-	out.WriteString("                        <div class=\"tl-card\">\n")
-	out.WriteString("                            <div class=\"tl-head\">\n")
-	out.WriteString("                                <h3 class=\"tl-title\">" +
-		html.EscapeString(item.Title) + "</h3>\n")
-	out.WriteString("                                <span class=\"tl-cat\">" +
-		html.EscapeString(item.Category) + "</span>\n")
-	out.WriteString("                            </div>\n")
-	out.WriteString("                            <p>" + inlineMarkup(item.Blurb) + "</p>\n")
+	out.Str("                    <li class=\"tl-item cat-").Str(category).Str("\" data-cat=\"").Str(category).
+		Str("\">\n")
+	out.Str("                        <span class=\"tl-node\" aria-hidden=\"true\"></span>\n")
+	out.Str("                        <div class=\"tl-date\"><time datetime=\"").Str(item.Date).Str("\">").Str(month).
+		Str("</time></div>\n")
+	out.Str("                        <div class=\"tl-card\">\n")
+	out.Str("                            <div class=\"tl-head\">\n")
+	out.Str("                                <h3 class=\"tl-title\">").Str(html.EscapeString(item.Title)).
+		Str("</h3>\n")
+	out.Str("                                <span class=\"tl-cat\">").Str(html.EscapeString(item.Category)).
+		Str("</span>\n")
+	out.Str("                            </div>\n")
+	out.Str("                            <p>").Str(inlineMarkup(item.Blurb)).Str("</p>\n")
 	if item.Blog != "" {
-		out.WriteString("                            <a class=\"tl-link\" href=\"../changes/" +
-			html.EscapeString(item.Blog) + "/\">Read the week &rarr;</a>\n")
+		out.Str("                            <a class=\"tl-link\" href=\"../changes/").
+			Str(html.EscapeString(item.Blog)).Str("/\">Read the week &rarr;</a>\n")
 	}
-	out.WriteString("                        </div>\n")
-	out.WriteString("                    </li>\n")
+	out.Str("                        </div>\n")
+	out.Str("                    </li>\n")
 	return out.String(), nil
 }
 
 // milestonesMirror renders the Markdown sibling from the same grouping the page
 // uses, so the two cannot disagree about which quarter a landmark sits in.
 func milestonesMirror(data milestoneData, quarters []milestoneQuarter) (string, error) {
-	var mirror strings.Builder
-	mirror.WriteString("# Milestones\n\n")
-	mirror.WriteString(data.Intro + "\n\n")
+	var mirror textbuf.Buffer
+	mirror.Str("# Milestones\n\n")
+	mirror.Str(data.Intro).Str("\n\n")
 	for _, quarter := range quarters {
-		mirror.WriteString("## " + quarter.Label + "\n\n")
+		mirror.Str("## ").Str(quarter.Label).Str("\n\n")
 		for _, item := range quarter.Items {
 			month, err := monthLabel(item.Date)
 			if err != nil {
 				return "", err
 			}
-			mirror.WriteString("### " + item.Title + " (" + month + ")\n\n")
-			mirror.WriteString("*" + item.Category + "*\n\n")
-			mirror.WriteString(item.Blurb + "\n")
+			mirror.Str("### ").Str(item.Title).Str(" (").Str(month).Str(")\n\n")
+			mirror.Byte('*').Str(item.Category).Str("*\n\n")
+			mirror.Str(item.Blurb).Byte('\n')
 			if item.Blog != "" {
-				mirror.WriteString("\n[Read the week](../changes/" + item.Blog + "/)\n")
+				mirror.Str("\n[Read the week](../changes/").Str(item.Blog).Str("/)\n")
 			}
-			mirror.WriteString("\n")
+			mirror.Byte('\n')
 		}
 	}
 	return strings.TrimSpace(mirror.String()) + "\n", nil
@@ -825,47 +827,47 @@ func renderTalkIndex(paths Paths) ([]string, error) {
 // talksBody renders the listing under <main>: one card for each talk, newest
 // first, each linking its deck and the standalone download beside it.
 func talksBody(talks []talkEntry) (string, error) {
-	var body strings.Builder
-	body.WriteString("            <section id=\"talks\" aria-labelledby=\"talks-title\">\n")
-	body.WriteString(pageHero("Talks and presentations.", "Sharing Ze with the community.",
-		journeyCommunity, ` id="talks-title"`, heroClasses) + "\n")
-	body.WriteString("                <div class=\"audience reveal\">\n")
+	var body textbuf.Buffer
+	body.Str("            <section id=\"talks\" aria-labelledby=\"talks-title\">\n")
+	body.Str(pageHero("Talks and presentations.", "Sharing Ze with the community.",
+		journeyCommunity, ` id="talks-title"`, heroClasses)).Byte('\n')
+	body.Str("                <div class=\"audience reveal\">\n")
 	for _, talk := range talks {
 		date, err := displayDate(talk.Date)
 		if err != nil {
 			return "", fmt.Errorf("talk %q: %w", talk.Title, err)
 		}
 		slug := html.EscapeString(talk.Slug)
-		body.WriteString("                    <article class=\"audience-card\">\n")
-		body.WriteString("                        <a href=\"" + slug + "/\" class=\"talk-link\">\n")
-		body.WriteString("                            <h3>" + html.EscapeString(talk.Venue) + "</h3>\n")
-		body.WriteString("                            <p>" + html.EscapeString(talk.Title) + "</p>\n")
-		body.WriteString("                            <p class=\"talk-date\">" + date + "</p>\n")
-		body.WriteString("                        </a>\n")
-		body.WriteString("                        <p class=\"talk-alt\"><a href=\"" + slug +
-			"/index-inlined.html\" download>Download standalone HTML deck</a></p>\n")
-		body.WriteString("                    </article>\n")
+		body.Str("                    <article class=\"audience-card\">\n")
+		body.Str("                        <a href=\"").Str(slug).Str("/\" class=\"talk-link\">\n")
+		body.Str("                            <h3>").Str(html.EscapeString(talk.Venue)).Str("</h3>\n")
+		body.Str("                            <p>").Str(html.EscapeString(talk.Title)).Str("</p>\n")
+		body.Str("                            <p class=\"talk-date\">").Str(date).Str("</p>\n")
+		body.Str("                        </a>\n")
+		body.Str("                        <p class=\"talk-alt\"><a href=\"").Str(slug).
+			Str("/index-inlined.html\" download>Download standalone HTML deck</a></p>\n")
+		body.Str("                    </article>\n")
 	}
-	body.WriteString("                </div>\n")
-	body.WriteString("            </section>\n")
+	body.Str("                </div>\n")
+	body.Str("            </section>\n")
 	return body.String(), nil
 }
 
 // talksMirror renders the Markdown sibling. Its links are absolute, because a
 // reader reaches a mirror from anywhere.
 func talksMirror(talks []talkEntry) (string, error) {
-	var mirror strings.Builder
-	mirror.WriteString("# Talks and presentations.\n\nSharing Ze with the community.\n\n")
+	var mirror textbuf.Buffer
+	mirror.Str("# Talks and presentations.\n\nSharing Ze with the community.\n\n")
 	for _, talk := range talks {
 		date, err := displayDate(talk.Date)
 		if err != nil {
 			return "", fmt.Errorf("talk %q: %w", talk.Title, err)
 		}
-		mirror.WriteString("## " + talk.Venue + "\n\n")
-		mirror.WriteString(talk.Title + " -- " + date + "\n\n")
-		mirror.WriteString("[Watch](" + siteBase + "talks/" + talk.Slug + "/)\n")
-		mirror.WriteString("[Download standalone HTML deck](" + siteBase + "talks/" + talk.Slug +
-			"/index-inlined.html)\n\n")
+		mirror.Str("## ").Str(talk.Venue).Str("\n\n")
+		mirror.Str(talk.Title).Str(" -- ").Str(date).Str("\n\n")
+		mirror.Str("[Watch](").Str(siteBase).Str("talks/").Str(talk.Slug).Str("/)\n")
+		mirror.Str("[Download standalone HTML deck](").Str(siteBase).Str("talks/").Str(talk.Slug).
+			Str("/index-inlined.html)\n\n")
 	}
 	return strings.TrimSpace(mirror.String()) + "\n", nil
 }

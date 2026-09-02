@@ -11,6 +11,8 @@ import (
 	"html"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // rfcAnchor is the id one requirement's row carries and the fragment every
@@ -56,21 +58,21 @@ func rfcTableHTML(head, rows string) string {
 
 // rfcHeadCells answers one table's header row.
 func rfcHeadCells(labels ...string) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	for _, label := range labels {
-		out.WriteString("<th>" + html.EscapeString(label) + "</th>")
+		out.Str("<th>").Str(html.EscapeString(label)).Str("</th>")
 	}
 	return out.String()
 }
 
 // rfcRowCells answers one table row from cells that are already markup.
 func rfcRowCells(cells ...string) string {
-	var out strings.Builder
-	out.WriteString("<tr>")
+	var out textbuf.Buffer
+	out.Str("<tr>")
 	for _, cell := range cells {
-		out.WriteString("<td>" + cell + "</td>\n")
+		out.Str("<td>").Str(cell).Str("</td>\n")
 	}
-	out.WriteString("</tr>\n")
+	out.Str("</tr>\n")
 	return out.String()
 }
 

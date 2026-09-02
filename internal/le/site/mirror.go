@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	xhtml "golang.org/x/net/html"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // blockHTMLLine matches site-layout HTML on a line of its own in a Markdown
@@ -80,7 +82,7 @@ const tagPreformatted = "pre"
 type mirrorNode struct {
 	tag        string
 	attributes map[string]string
-	text       strings.Builder
+	text       textbuf.Buffer
 }
 
 // mirrorList is one open list and the number of items it has numbered.
@@ -193,10 +195,10 @@ func (converter *mirrorConverter) data(text string) {
 		return
 	}
 	if converter.pre != 0 {
-		converter.top().text.WriteString(text)
+		converter.top().text.Str(text)
 		return
 	}
-	converter.top().text.WriteString(mirrorSpaceRun.ReplaceAllString(text, " "))
+	converter.top().text.Str(mirrorSpaceRun.ReplaceAllString(text, " "))
 }
 
 // top answers the element currently open.
@@ -222,14 +224,14 @@ func (converter *mirrorConverter) start(tag string, attributes map[string]string
 	}
 	switch tag {
 	case "br":
-		converter.top().text.WriteString("  \n")
+		converter.top().text.Str("  \n")
 		return
 	case "hr":
-		converter.top().text.WriteString("\n\n---\n\n")
+		converter.top().text.Str("\n\n---\n\n")
 		return
 	case "img":
-		converter.top().text.WriteString("![" + attributes["alt"] + "](" +
-			converter.absolute(attributes["src"]) + ")")
+		converter.top().text.Str("![").Str(attributes["alt"]).Str("](").
+			Str(converter.absolute(attributes["src"])).Byte(')')
 		return
 	}
 	if void {
@@ -308,12 +310,12 @@ func (converter *mirrorConverter) end(tag string) {
 			rows = converter.tables[len(converter.tables)-1]
 			converter.tables = converter.tables[:len(converter.tables)-1]
 		}
-		converter.top().text.WriteString(renderMarkdownTable(rows))
+		converter.top().text.Str(renderMarkdownTable(rows))
 		return
 	case "thead", "tbody", "tfoot":
 		return
 	}
-	converter.top().text.WriteString(converter.renderNode(tag, node))
+	converter.top().text.Str(converter.renderNode(tag, node))
 }
 
 // renderMarkdownTable writes the rows of one table as a Markdown table. The

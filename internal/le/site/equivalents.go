@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The command-equivalent pages are registered from here, so a build discovers
@@ -424,43 +426,43 @@ func equivalentIndexBody(
 			equivalent++
 		}
 	}
-	var body strings.Builder
-	body.WriteString("\n" + `<section aria-labelledby="command-equivalents-title" ` +
-		`class="md-content command-equivalents reveal cat-operate">` + "\n")
-	body.WriteString(pageHero("Command Equivalents",
+	var body textbuf.Buffer
+	body.Byte('\n').Str(`<section aria-labelledby="command-equivalents-title" `).
+		Str(`class="md-content command-equivalents reveal cat-operate">`).Byte('\n')
+	body.Str(pageHero("Command Equivalents",
 		"One line per live Ze command, with vendor CLI surfaced first when a curated equivalent "+
 			"exists. The full catalog still includes reviewed gaps; a dash means no equivalent has "+
 			"been listed yet.",
 		"Reference", ` id="command-equivalents-title"`, heroClasses))
-	body.WriteString("\n" + `<div class="cmd-eq-stats">` + "\n")
+	body.Byte('\n').Str(`<div class="cmd-eq-stats">`).Byte('\n')
 	writeStat(&body, len(rows), "live Ze commands")
 	writeStat(&body, equivalent, "commands with vendor CLI")
 	writeStat(&body, reviewed, "reviewed command rows")
 	writeStat(&body, len(mapping.Entries), "curated mapping intents")
 	writeStat(&body, len(vendorOnly), "vendor-only gap notes")
-	body.WriteString("</div>\n")
-	body.WriteString(equivalentCoverage(mapping, rows, vendors, reviewed, equivalent))
-	body.WriteString(equivalentVendorSelector(mapping, vendors))
-	body.WriteString(equivalentSearchShelf(mapping, vendors))
-	body.WriteString(equivalentSpotlight(mapping, rows, vendors))
-	body.WriteString(`<section class="cmd-eq-full-catalog" aria-labelledby="cmd-eq-full-catalog-title">` + "\n")
-	body.WriteString(`<h2 id="cmd-eq-full-catalog-title">Full live command catalog</h2>` + "\n")
-	body.WriteString("<noscript><p>JavaScript is disabled. Browser find works across the " +
-		"side-by-side command table.</p></noscript>\n")
+	body.Str("</div>\n")
+	body.Str(equivalentCoverage(mapping, rows, vendors, reviewed, equivalent))
+	body.Str(equivalentVendorSelector(mapping, vendors))
+	body.Str(equivalentSearchShelf(mapping, vendors))
+	body.Str(equivalentSpotlight(mapping, rows, vendors))
+	body.Str(`<section class="cmd-eq-full-catalog" aria-labelledby="cmd-eq-full-catalog-title">`).Byte('\n')
+	body.Str(`<h2 id="cmd-eq-full-catalog-title">Full live command catalog</h2>`).Byte('\n')
+	body.Str("<noscript><p>JavaScript is disabled. Browser find works across the ").
+		Str("side-by-side command table.</p></noscript>\n")
 	for _, group := range groupEquivalentRows(rows) {
-		body.WriteString(equivalentIndexGroup(mapping, group, vendors))
+		body.Str(equivalentIndexGroup(mapping, group, vendors))
 	}
-	body.WriteString(equivalentVendorOnly(mapping, vendorOnly, vendors))
-	body.WriteString("</section>\n")
-	body.WriteString(equivalentSources(mapping))
-	body.WriteString("</section>\n")
+	body.Str(equivalentVendorOnly(mapping, vendorOnly, vendors))
+	body.Str("</section>\n")
+	body.Str(equivalentSources(mapping))
+	body.Str("</section>\n")
 	return body.String()
 }
 
 // writeStat writes one headline number of the index.
-func writeStat(out *strings.Builder, count int, label string) {
-	out.WriteString("<div><strong>" + strconv.Itoa(count) + "</strong><span>" +
-		html.EscapeString(label) + "</span></div>\n")
+func writeStat(out *textbuf.Buffer, count int, label string) {
+	out.Str("<div><strong>").Int(int64(count)).Str("</strong><span>").Str(html.EscapeString(label)).
+		Str("</span></div>\n")
 }
 
 // equivalentGroup is one verb's worth of rows in the full catalog.
@@ -492,17 +494,17 @@ func groupEquivalentRows(rows []equivalentRow) []equivalentGroup {
 func equivalentCoverage(
 	mapping *equivalentMapping, rows []equivalentRow, vendors []string, reviewed, equivalent int,
 ) string {
-	var panel strings.Builder
-	panel.WriteString(`<section class="cmd-eq-overview" aria-labelledby="cmd-eq-overview-title">` + "\n")
-	panel.WriteString(`<div class="cmd-eq-overview-copy">` + "\n")
-	panel.WriteString(`<h2 id="cmd-eq-overview-title">Where equivalents exist</h2>` + "\n")
-	panel.WriteString("<p>" + strconv.Itoa(equivalent) + " Ze commands have at least one vendor CLI " +
-		"equivalent today. " + strconv.Itoa(reviewed) + " commands have been reviewed for migration " +
-		"intent, including gaps where a direct vendor command is not listed.</p>\n")
-	panel.WriteString("<p>The rows with actual vendor CLI are pulled forward below so the useful " +
-		"equivalents are visible before the complete generated catalog.</p>\n")
-	panel.WriteString("</div>\n")
-	panel.WriteString(`<div class="cmd-eq-coverage-grid" aria-label="Vendor equivalent coverage">` + "\n")
+	var panel textbuf.Buffer
+	panel.Str(`<section class="cmd-eq-overview" aria-labelledby="cmd-eq-overview-title">`).Byte('\n')
+	panel.Str(`<div class="cmd-eq-overview-copy">`).Byte('\n')
+	panel.Str(`<h2 id="cmd-eq-overview-title">Where equivalents exist</h2>`).Byte('\n')
+	panel.Str("<p>").Int(int64(equivalent)).Str(" Ze commands have at least one vendor CLI ").
+		Str("equivalent today. ").Int(int64(reviewed)).Str(" commands have been reviewed for migration ").
+		Str("intent, including gaps where a direct vendor command is not listed.</p>\n")
+	panel.Str("<p>The rows with actual vendor CLI are pulled forward below so the useful ").
+		Str("equivalents are visible before the complete generated catalog.</p>\n")
+	panel.Str("</div>\n")
+	panel.Str(`<div class="cmd-eq-coverage-grid" aria-label="Vendor equivalent coverage">`).Byte('\n')
 	total := 0
 	for _, vendor := range vendors {
 		mapped, lines := 0, 0
@@ -514,13 +516,13 @@ func equivalentCoverage(
 			}
 		}
 		total += lines
-		panel.WriteString("<article><span>" + html.EscapeString(mapping.vendorLabel(vendor)) +
-			"</span><strong>" + strconv.Itoa(mapped) + "</strong><small>Ze " +
-			plural(mapped, "command") + ", " + plural(lines, "command line") + "</small></article>\n")
+		panel.Str("<article><span>").Str(html.EscapeString(mapping.vendorLabel(vendor))).Str("</span><strong>").
+			Int(int64(mapped)).Str("</strong><small>Ze ").Str(plural(mapped, "command")).Str(", ").
+			Str(plural(lines, "command line")).Str("</small></article>\n")
 	}
-	panel.WriteString(`<article class="cmd-eq-coverage-total"><span>Total</span><strong>` +
-		strconv.Itoa(total) + "</strong><small>vendor command lines</small></article>\n")
-	panel.WriteString("</div>\n</section>\n")
+	panel.Str(`<article class="cmd-eq-coverage-total"><span>Total</span><strong>`).Int(int64(total)).
+		Str("</strong><small>vendor command lines</small></article>\n")
+	panel.Str("</div>\n</section>\n")
 	return panel.String()
 }
 
@@ -545,18 +547,18 @@ func equivalentVendorSelector(mapping *equivalentMapping, vendors []string) stri
 
 // equivalentSearchShelf renders the search box above the tables.
 func equivalentSearchShelf(mapping *equivalentMapping, vendors []string) string {
-	var shelf strings.Builder
-	shelf.WriteString(`<section class="cmd-eq-search-shelf" aria-labelledby="cmd-eq-search-title">` + "\n")
-	shelf.WriteString(`<h2 id="cmd-eq-search-title">Search the command map</h2>` + "\n")
-	shelf.WriteString(`<p class="cmd-eq-panel-note">Search every generated Ze command, reviewed ` +
-		`mapping note, and listed vendor command. Rows without vendor CLI remain visible in the ` +
-		"full catalog so missing coverage is explicit.</p>\n")
-	shelf.WriteString(`<div class="cmd-eq-search-wrap">` + "\n")
-	shelf.WriteString(`<input id="cmd-eq-search" type="search" autocomplete="off" placeholder="Search Ze, ` +
-		html.EscapeString(strings.Join(mapping.vendorLabels(vendors), ", ")) +
-		` commands..." aria-label="Search command equivalents" />` + "\n")
-	shelf.WriteString(`<div id="cmd-eq-search-count" class="cmd-eq-search-count" aria-live="polite"></div>` + "\n")
-	shelf.WriteString("</div>\n</section>\n")
+	var shelf textbuf.Buffer
+	shelf.Str(`<section class="cmd-eq-search-shelf" aria-labelledby="cmd-eq-search-title">`).Byte('\n')
+	shelf.Str(`<h2 id="cmd-eq-search-title">Search the command map</h2>`).Byte('\n')
+	shelf.Str(`<p class="cmd-eq-panel-note">Search every generated Ze command, reviewed `).
+		Str(`mapping note, and listed vendor command. Rows without vendor CLI remain visible in the `).
+		Str("full catalog so missing coverage is explicit.</p>\n")
+	shelf.Str(`<div class="cmd-eq-search-wrap">`).Byte('\n')
+	shelf.Str(`<input id="cmd-eq-search" type="search" autocomplete="off" placeholder="Search Ze, `).
+		Str(html.EscapeString(strings.Join(mapping.vendorLabels(vendors), ", "))).
+		Str(` commands..." aria-label="Search command equivalents" />`).Byte('\n')
+	shelf.Str(`<div id="cmd-eq-search-count" class="cmd-eq-search-count" aria-live="polite"></div>`).Byte('\n')
+	shelf.Str("</div>\n</section>\n")
 	return shelf.String()
 }
 
@@ -574,15 +576,15 @@ func equivalentSpotlight(mapping *equivalentMapping, rows []equivalentRow, vendo
 	if len(mapped) == 0 {
 		return ""
 	}
-	var panel strings.Builder
-	panel.WriteString(`<details class="cmd-eq-panel cmd-eq-mapped-first" open>` + "\n")
-	panel.WriteString(`<summary>Commands with vendor CLI <span class="cmd-eq-count">` +
-		strconv.Itoa(len(mapped)) + "</span></summary>\n")
-	panel.WriteString(`<p class="cmd-eq-panel-note">This table contains only rows where at least one ` +
-		"vendor column has a curated command. Use the full catalog below to inspect reviewed gaps " +
-		"and every live Ze command.</p>\n")
-	panel.WriteString(equivalentTable(mapping, mapped, vendors, false))
-	panel.WriteString("</details>\n")
+	var panel textbuf.Buffer
+	panel.Str(`<details class="cmd-eq-panel cmd-eq-mapped-first" open>`).Byte('\n')
+	panel.Str(`<summary>Commands with vendor CLI <span class="cmd-eq-count">`).Int(int64(len(mapped))).
+		Str("</span></summary>\n")
+	panel.Str(`<p class="cmd-eq-panel-note">This table contains only rows where at least one `).
+		Str("vendor column has a curated command. Use the full catalog below to inspect reviewed gaps ").
+		Str("and every live Ze command.</p>\n")
+	panel.Str(equivalentTable(mapping, mapped, vendors, false))
+	panel.Str("</details>\n")
 	return panel.String()
 }
 
@@ -606,12 +608,12 @@ func equivalentIndexGroup(mapping *equivalentMapping, group equivalentGroup, ven
 	}
 	counts = append(counts, strconv.Itoa(len(group.Rows))+" total")
 
-	var out strings.Builder
-	out.WriteString(`<details class="cmd-eq-group" id="cmd-eq-group-` + commandSlug(group.Label) + `" open>` + "\n")
-	out.WriteString("<summary>" + html.EscapeString(group.Label) + ` <span class="cmd-eq-count">` +
-		html.EscapeString(strings.Join(counts, ", ")) + "</span></summary>\n")
-	out.WriteString(equivalentTable(mapping, group.Rows, vendors, true))
-	out.WriteString("</details>\n")
+	var out textbuf.Buffer
+	out.Str(`<details class="cmd-eq-group" id="cmd-eq-group-`).Str(commandSlug(group.Label)).Str(`" open>`).Byte('\n')
+	out.Str("<summary>").Str(html.EscapeString(group.Label)).Str(` <span class="cmd-eq-count">`).
+		Str(html.EscapeString(strings.Join(counts, ", "))).Str("</span></summary>\n")
+	out.Str(equivalentTable(mapping, group.Rows, vendors, true))
+	out.Str("</details>\n")
 	return out.String()
 }
 
@@ -620,17 +622,17 @@ func equivalentIndexGroup(mapping *equivalentMapping, group equivalentGroup, ven
 func equivalentTable(
 	mapping *equivalentMapping, rows []*equivalentRow, vendors []string, anchored bool,
 ) string {
-	var out strings.Builder
-	out.WriteString(`<div class="cmd-eq-table-wrap">` + "\n")
-	out.WriteString(`<table class="cmd-eq-table cmd-eq-compact"><thead><tr><th>Ze</th>`)
+	var out textbuf.Buffer
+	out.Str(`<div class="cmd-eq-table-wrap">`).Byte('\n')
+	out.Str(`<table class="cmd-eq-table cmd-eq-compact"><thead><tr><th>Ze</th>`)
 	for _, vendor := range vendors {
-		out.WriteString("<th>" + html.EscapeString(mapping.vendorLabel(vendor)) + "</th>")
+		out.Str("<th>").Str(html.EscapeString(mapping.vendorLabel(vendor))).Str("</th>")
 	}
-	out.WriteString("<th>Details</th></tr></thead><tbody>\n")
+	out.Str("<th>Details</th></tr></thead><tbody>\n")
 	for _, row := range rows {
 		writeEquivalentIndexRow(&out, row, vendors, anchored)
 	}
-	out.WriteString("</tbody></table></div>\n")
+	out.Str("</tbody></table></div>\n")
 	return out.String()
 }
 
@@ -638,32 +640,32 @@ func equivalentTable(
 //
 // The Ze cell carries exactly one <code>, holding the registry path, so the row
 // a reader sees and the anchor it answers to are one value.
-func writeEquivalentIndexRow(out *strings.Builder, row *equivalentRow, vendors []string, anchored bool) {
-	out.WriteString("<tr")
+func writeEquivalentIndexRow(out *textbuf.Buffer, row *equivalentRow, vendors []string, anchored bool) {
+	out.Str("<tr")
 	if anchored {
-		out.WriteString(` id="cmd-eq-` + row.Slug + `"`)
+		out.Str(` id="cmd-eq-`).Str(row.Slug).Byte('"')
 	}
 	class := "cmd-eq-no-vendor"
 	if row.hasVendorCommands(vendors) {
 		class = "cmd-eq-has-vendor"
 	}
-	out.WriteString(` class="` + class + `" data-search="` + html.EscapeString(row.searchText(vendors)) + `">`)
-	out.WriteString(`<td class="cmd-eq-ze"><a href="` + row.Slug + `/"><code>` +
-		html.EscapeString(row.Command.Path) + `</code></a><span class="cmd-mode">` +
-		html.EscapeString(commandModeLabel(row.Command.Mode)) + "</span></td>")
+	out.Str(` class="`).Str(class).Str(`" data-search="`).Str(html.EscapeString(row.searchText(vendors))).Str(`">`)
+	out.Str(`<td class="cmd-eq-ze"><a href="`).Str(row.Slug).Str(`/"><code>`).Str(html.EscapeString(row.Command.Path)).
+		Str(`</code></a><span class="cmd-mode">`).Str(html.EscapeString(commandModeLabel(row.Command.Mode))).
+		Str("</span></td>")
 	for _, vendor := range vendors {
-		out.WriteString("<td>")
+		out.Str("<td>")
 		commands := row.vendorCommands(vendor)
 		if len(commands) == 0 {
-			out.WriteString(`<span class="cmd-no-equivalent">-</span>`)
+			out.Str(`<span class="cmd-no-equivalent">-</span>`)
 		}
 		for _, item := range commands {
-			out.WriteString(`<div class="cmd-compact-command"><code>` +
-				html.EscapeString(item.Command.Command) + "</code></div>")
+			out.Str(`<div class="cmd-compact-command"><code>`).Str(html.EscapeString(item.Command.Command)).
+				Str("</code></div>")
 		}
-		out.WriteString("</td>")
+		out.Str("</td>")
 	}
-	out.WriteString(`<td class="cmd-eq-detail-link"><a href="` + row.Slug + `/">details</a></td></tr>` + "\n")
+	out.Str(`<td class="cmd-eq-detail-link"><a href="`).Str(row.Slug).Str(`/">details</a></td></tr>`).Byte('\n')
 }
 
 // searchText answers the lowercase haystack the page's own filter searches.
@@ -691,54 +693,54 @@ func equivalentVendorOnly(mapping *equivalentMapping, entries []*equivalentEntry
 	if len(entries) == 0 {
 		return ""
 	}
-	var out strings.Builder
-	out.WriteString(`<details class="cmd-eq-group cmd-eq-vendor-only" id="cmd-eq-vendor-only" open>` + "\n")
-	out.WriteString("<summary>Vendor-only gaps</summary>\n")
-	out.WriteString(`<div class="cmd-eq-table-wrap">` + "\n")
-	out.WriteString(`<table class="cmd-eq-table cmd-eq-compact"><thead><tr><th>Intent</th>`)
+	var out textbuf.Buffer
+	out.Str(`<details class="cmd-eq-group cmd-eq-vendor-only" id="cmd-eq-vendor-only" open>`).Byte('\n')
+	out.Str("<summary>Vendor-only gaps</summary>\n")
+	out.Str(`<div class="cmd-eq-table-wrap">`).Byte('\n')
+	out.Str(`<table class="cmd-eq-table cmd-eq-compact"><thead><tr><th>Intent</th>`)
 	for _, vendor := range vendors {
-		out.WriteString("<th>" + html.EscapeString(mapping.vendorLabel(vendor)) + "</th>")
+		out.Str("<th>").Str(html.EscapeString(mapping.vendorLabel(vendor))).Str("</th>")
 	}
-	out.WriteString("<th>Notes</th></tr></thead><tbody>\n")
+	out.Str("<th>Notes</th></tr></thead><tbody>\n")
 	for _, entry := range entries {
-		out.WriteString("<tr><td><strong>" + html.EscapeString(entry.Intent) +
-			`</strong><span class="cmd-mode">` + html.EscapeString(entry.Category) + "</span></td>")
+		out.Str("<tr><td><strong>").Str(html.EscapeString(entry.Intent)).Str(`</strong><span class="cmd-mode">`).
+			Str(html.EscapeString(entry.Category)).Str("</span></td>")
 		for _, vendor := range vendors {
-			out.WriteString("<td>")
+			out.Str("<td>")
 			rows := entry.Vendors[vendor]
 			if len(rows) == 0 {
-				out.WriteString(`<span class="cmd-no-equivalent">-</span>`)
+				out.Str(`<span class="cmd-no-equivalent">-</span>`)
 			}
 			for _, item := range rows {
-				out.WriteString(`<div class="cmd-compact-command"><code>` +
-					html.EscapeString(item.Command) + "</code></div>")
+				out.Str(`<div class="cmd-compact-command"><code>`).Str(html.EscapeString(item.Command)).
+					Str("</code></div>")
 			}
-			out.WriteString("</td>")
+			out.Str("</td>")
 		}
-		out.WriteString("<td>" + html.EscapeString(entry.Notes) + "</td></tr>\n")
+		out.Str("<td>").Str(html.EscapeString(entry.Notes)).Str("</td></tr>\n")
 	}
-	out.WriteString("</tbody></table></div></details>\n")
+	out.Str("</tbody></table></div></details>\n")
 	return out.String()
 }
 
 // equivalentSources renders the vendor documents the curation cites.
 func equivalentSources(mapping *equivalentMapping) string {
-	var out strings.Builder
-	out.WriteString(`<details class="cmd-eq-sources"><summary>Data sources and confidence</summary>` + "\n")
-	out.WriteString("<p>Source links and confidence labels are shown on each command detail page. " +
-		"The index only shows side-by-side command text.</p>\n")
-	out.WriteString("<h2>Vendor documents</h2>\n")
+	var out textbuf.Buffer
+	out.Str(`<details class="cmd-eq-sources"><summary>Data sources and confidence</summary>`).Byte('\n')
+	out.Str("<p>Source links and confidence labels are shown on each command detail page. ").
+		Str("The index only shows side-by-side command text.</p>\n")
+	out.Str("<h2>Vendor documents</h2>\n")
 	for _, id := range mapping.vendorIDs() {
 		vendor := mapping.Vendors[id]
-		out.WriteString("<h3>" + html.EscapeString(vendor.Label) + "</h3><ul>\n")
+		out.Str("<h3>").Str(html.EscapeString(vendor.Label)).Str("</h3><ul>\n")
 		for _, document := range vendor.Documentation {
-			out.WriteString(`<li><a href="` + html.EscapeString(document.URL) +
-				`" target="_blank" rel="noopener">` + html.EscapeString(document.Label) +
-				"</a> <code>" + html.EscapeString(document.ID) + "</code></li>\n")
+			out.Str(`<li><a href="`).Str(html.EscapeString(document.URL)).Str(`" target="_blank" rel="noopener">`).
+				Str(html.EscapeString(document.Label)).Str("</a> <code>").Str(html.EscapeString(document.ID)).
+				Str("</code></li>\n")
 		}
-		out.WriteString("</ul>\n")
+		out.Str("</ul>\n")
 	}
-	out.WriteString("</details>\n")
+	out.Str("</details>\n")
 	return out.String()
 }
 
@@ -758,29 +760,29 @@ func equivalentIndexMirror(
 			mapped = append(mapped, &rows[index])
 		}
 	}
-	var out strings.Builder
-	out.WriteString("# Command Equivalents\n\n")
-	out.WriteString(strconv.Itoa(len(rows)) + " live Ze commands. " + strconv.Itoa(equivalent) +
-		" have vendor CLI today. " + strconv.Itoa(reviewed) + " have been reviewed for migration " +
-		"intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.\n\n")
-	out.WriteString("## Commands with vendor CLI\n\nThese rows have at least one listed vendor command.\n\n")
+	var out textbuf.Buffer
+	out.Str("# Command Equivalents\n\n")
+	out.Int(int64(len(rows))).Str(" live Ze commands. ").Int(int64(equivalent)).Str(" have vendor CLI today. ").
+		Int(int64(reviewed)).Str(" have been reviewed for migration ").
+		Str("intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.\n\n")
+	out.Str("## Commands with vendor CLI\n\nThese rows have at least one listed vendor command.\n\n")
 	writeEquivalentMirrorTable(&out, mapping, mapped, vendors)
-	out.WriteString("\n## Full live command catalog\n\n")
-	out.WriteString("Rows without vendor CLI remain visible so missing coverage is explicit.\n\n")
+	out.Str("\n## Full live command catalog\n\n")
+	out.Str("Rows without vendor CLI remain visible so missing coverage is explicit.\n\n")
 	for _, group := range groupEquivalentRows(rows) {
-		out.WriteString("\n### " + group.Label + "\n\n")
+		out.Str("\n### ").Str(group.Label).Str("\n\n")
 		writeEquivalentMirrorTable(&out, mapping, group.Rows, vendors)
 	}
 	if len(vendorOnly) != 0 {
-		out.WriteString("\n## Vendor-only gaps\n\n")
-		out.WriteString("| Intent | " + strings.Join(mapping.vendorLabels(vendors), " | ") + " | Notes |\n")
-		out.WriteString("| --- | " + strings.Repeat("--- | ", len(vendors)) + "--- |\n")
+		out.Str("\n## Vendor-only gaps\n\n")
+		out.Str("| Intent | ").Str(strings.Join(mapping.vendorLabels(vendors), " | ")).Str(" | Notes |\n")
+		out.Str("| --- | ").Str(strings.Repeat("--- | ", len(vendors))).Str("--- |\n")
 		for _, entry := range vendorOnly {
-			out.WriteString("| " + markdownCell(entry.Intent))
+			out.Str("| ").Str(markdownCell(entry.Intent))
 			for _, vendor := range vendors {
-				out.WriteString(" | " + vendorOnlyMirrorCell(entry.Vendors[vendor]))
+				out.Str(" | ").Str(vendorOnlyMirrorCell(entry.Vendors[vendor]))
 			}
-			out.WriteString(" | " + markdownCell(entry.Notes) + " |\n")
+			out.Str(" | ").Str(markdownCell(entry.Notes)).Str(" |\n")
 		}
 	}
 	return strings.TrimRight(out.String(), "\n") + "\n"
@@ -788,17 +790,17 @@ func equivalentIndexMirror(
 
 // writeEquivalentMirrorTable writes one side-by-side table into a mirror.
 func writeEquivalentMirrorTable(
-	out *strings.Builder, mapping *equivalentMapping, rows []*equivalentRow, vendors []string,
+	out *textbuf.Buffer, mapping *equivalentMapping, rows []*equivalentRow, vendors []string,
 ) {
-	out.WriteString("| Ze | Mode | " + strings.Join(mapping.vendorLabels(vendors), " | ") + " | Details |\n")
-	out.WriteString("| --- | --- | " + strings.Repeat("--- | ", len(vendors)) + "--- |\n")
+	out.Str("| Ze | Mode | ").Str(strings.Join(mapping.vendorLabels(vendors), " | ")).Str(" | Details |\n")
+	out.Str("| --- | --- | ").Str(strings.Repeat("--- | ", len(vendors))).Str("--- |\n")
 	for _, row := range rows {
-		out.WriteString("| `" + markdownCell(row.Command.Path) + "` | " +
-			markdownCell(commandModeLabel(row.Command.Mode)))
+		out.Str("| `").Str(markdownCell(row.Command.Path)).Str("` | ").
+			Str(markdownCell(commandModeLabel(row.Command.Mode)))
 		for _, vendor := range vendors {
-			out.WriteString(" | " + vendorMirrorCell(row.vendorCommands(vendor)))
+			out.Str(" | ").Str(vendorMirrorCell(row.vendorCommands(vendor)))
 		}
-		out.WriteString(" | [details](" + row.Slug + "/) |\n")
+		out.Str(" | [details](").Str(row.Slug).Str("/) |\n")
 	}
 }
 

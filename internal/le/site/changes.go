@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The weekly changelog is registered from here, so a build discovers it through
@@ -390,29 +392,29 @@ func renderChangeWeek(output string, week changeWeek, links pageLinks) error {
 // changeWeekBody renders one week between <main> and </main>: the hero over its
 // intro, and one block for each themed section.
 func changeWeekBody(week changeWeek, lead string) (string, error) {
-	var page strings.Builder
-	page.WriteString(`            <section class="blog-post" aria-labelledby="post-title">` + "\n")
+	var page textbuf.Buffer
+	page.Reset().Str(`            <section class="blog-post" aria-labelledby="post-title">`).Byte('\n')
 	if week.IsDraft {
-		page.WriteString(`                <span class="tag">Draft -- pending review</span>` + "\n")
+		page.Str(`                <span class="tag">Draft -- pending review</span>`).Byte('\n')
 	}
-	page.WriteString(pageHero("Week of "+week.Slug, lead, "Weekly update", ` id="post-title"`, heroClasses) + "\n")
-	page.WriteString(`                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>` + "\n")
-	page.WriteString("            </section>\n")
-	page.WriteString(`            <section class="blog-post reveal">` + "\n")
-	page.WriteString(`                <div class="blog-grid">` + "\n")
+	page.Str(pageHero("Week of "+week.Slug, lead, "Weekly update", ` id="post-title"`, heroClasses)).Byte('\n')
+	page.Str(`                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>`).Byte('\n')
+	page.Str("            </section>\n")
+	page.Str(`            <section class="blog-post reveal">`).Byte('\n')
+	page.Str(`                <div class="blog-grid">`).Byte('\n')
 	for _, section := range week.sections {
 		body, _, err := renderMarkdown([]byte(blankLineBeforeLists(section.Body)))
 		if err != nil {
 			return "", err
 		}
-		page.WriteString(`                    <div class="blog-block" aria-label="` +
-			html.EscapeString(section.Header) + `">` + "\n")
-		page.WriteString(`                        <div class="md-content">` + "\n")
-		page.WriteString("                            <h2>" + html.EscapeString(section.Header) + "</h2>\n")
-		page.WriteString("                            " + body)
-		page.WriteString("                        </div>\n                    </div>\n")
+		page.Str(`                    <div class="blog-block" aria-label="`).
+			Str(html.EscapeString(section.Header)).Str(`">`).Byte('\n')
+		page.Str(`                        <div class="md-content">`).Byte('\n')
+		page.Str("                            <h2>").Str(html.EscapeString(section.Header)).Str("</h2>\n")
+		page.Str("                            ").Str(body)
+		page.Str("                        </div>\n                    </div>\n")
 	}
-	page.WriteString("                </div>\n            </section>\n")
+	page.Str("                </div>\n            </section>\n")
 	return page.String(), nil
 }
 
@@ -449,14 +451,14 @@ func changeWeekMirror(week changeWeek) string {
 	if week.IsDraft {
 		title += " (Draft -- pending review)"
 	}
-	var mirror strings.Builder
-	mirror.WriteString("# " + title + "\n\n")
+	var mirror textbuf.Buffer
+	mirror.Reset().Str("# ").Str(title).Str("\n\n")
 	if week.Intro != "" {
-		mirror.WriteString(strings.TrimSpace(week.Intro) + "\n\n")
+		mirror.Str(strings.TrimSpace(week.Intro)).Str("\n\n")
 	}
 	for _, section := range week.sections {
-		mirror.WriteString("## " + section.Header + "\n\n")
-		mirror.WriteString(strings.TrimSpace(blankLineBeforeLists(section.Body)) + "\n\n")
+		mirror.Str("## ").Str(section.Header).Str("\n\n")
+		mirror.Str(strings.TrimSpace(blankLineBeforeLists(section.Body))).Str("\n\n")
 	}
 	return strings.TrimSpace(mirror.String()) + "\n"
 }
@@ -480,57 +482,57 @@ func changesIndexBody(weeks []changeWeek) string {
 		}
 	}
 
-	var page strings.Builder
-	page.WriteString(`            <section aria-labelledby="changes-title">` + "\n")
-	page.WriteString(pageHero("Changes.", changesIndexLead, "Weekly updates", ` id="changes-title"`,
-		"section-head "+heroClasses) + "\n")
-	page.WriteString(`                <div class="legend ch-filters reveal" role="group" ` +
-		`aria-label="Filter weeks by category">` + "\n")
+	var page textbuf.Buffer
+	page.Reset().Str(`            <section aria-labelledby="changes-title">`).Byte('\n')
+	page.Str(pageHero("Changes.", changesIndexLead, "Weekly updates", ` id="changes-title"`,
+		"section-head "+heroClasses)).Byte('\n')
+	page.Str(`                <div class="legend ch-filters reveal" role="group" `).
+		Str(`aria-label="Filter weeks by category">`).Byte('\n')
 	for _, category := range categoryFilterOrder {
 		if !present[category] {
 			continue
 		}
-		page.WriteString(`                    <button class="cat-` + category + `" data-cat="` + category +
-			`" aria-pressed="false">` + capitalizeWord(category) + "</button>\n")
+		page.Str(`                    <button class="cat-`).Str(category).Str(`" data-cat="`).Str(category).
+			Str(`" aria-pressed="false">`).Str(capitalizeWord(category)).Str("</button>\n")
 	}
-	page.WriteString("                </div>\n")
-	page.WriteString(`                <div class="ch-list reveal">` + "\n")
+	page.Str("                </div>\n")
+	page.Str(`                <div class="ch-list reveal">`).Byte('\n')
 	for _, week := range weeks {
-		page.WriteString(changesIndexRow(week))
+		page.Str(changesIndexRow(week))
 	}
-	page.WriteString(`                    <p class="ch-empty filtered-out">No weeks in that category yet.</p>` + "\n")
-	page.WriteString("                </div>\n            </section>\n")
+	page.Str(`                    <p class="ch-empty filtered-out">No weeks in that category yet.</p>`).Byte('\n')
+	page.Str("                </div>\n            </section>\n")
 	return page.String()
 }
 
 // changesIndexRow renders one week's row on the index. The whole row is the
 // link, so a reader reaches the week from anywhere in it.
 func changesIndexRow(week changeWeek) string {
-	var row strings.Builder
-	row.WriteString(`                    <a class="ch-week" data-cats="` +
-		html.EscapeString(strings.Join(week.categories(), " ")) + `" href="` + week.Slug +
-		`/" aria-label="Read Week of ` + week.Slug + `">` + "\n")
-	row.WriteString(`                        <div class="ch-head">` + "\n")
+	var row textbuf.Buffer
+	row.Reset().Str(`                    <a class="ch-week" data-cats="`).
+		Str(html.EscapeString(strings.Join(week.categories(), " "))).Str(`" href="`).Str(week.Slug).
+		Str(`/" aria-label="Read Week of `).Str(week.Slug).Str(`">`).Byte('\n')
+	row.Str(`                        <div class="ch-head">`).Byte('\n')
 	draft := ""
 	if week.IsDraft {
 		draft = `<span class="ch-draft">pending review</span>`
 	}
-	row.WriteString(`                            <h2><span class="ch-week-title">Week of ` + week.Slug +
-		"</span>" + draft + "</h2>\n")
-	row.WriteString("                        </div>\n")
+	row.Str(`                            <h2><span class="ch-week-title">Week of `).Str(week.Slug).
+		Str("</span>").Str(draft).Str("</h2>\n")
+	row.Str("                        </div>\n")
 	if week.Intro != "" {
-		row.WriteString(`                        <p class="ch-intro">` +
-			html.EscapeString(trimIntroWhitespace(week.Intro)) + "</p>\n")
+		row.Str(`                        <p class="ch-intro">`).
+			Str(html.EscapeString(trimIntroWhitespace(week.Intro))).Str("</p>\n")
 	}
 	if len(week.Topics) != 0 {
-		row.WriteString(`                        <div class="ch-chips">` + "\n")
+		row.Str(`                        <div class="ch-chips">`).Byte('\n')
 		for _, topic := range week.Topics {
-			row.WriteString(`                            <span class="ch-chip cat-` + topic.Category + `">` +
-				html.EscapeString(topic.Label) + "</span>\n")
+			row.Str(`                            <span class="ch-chip cat-`).Str(topic.Category).Str(`">`).
+				Str(html.EscapeString(topic.Label)).Str("</span>\n")
 		}
-		row.WriteString("                        </div>\n")
+		row.Str("                        </div>\n")
 	}
-	row.WriteString("                    </a>\n")
+	row.Str("                    </a>\n")
 	return row.String()
 }
 
@@ -546,28 +548,28 @@ func capitalizeWord(word string) string {
 // changesIndexMirror renders the Markdown sibling of the index: one section for
 // each week, linking the week's own mirror rather than its page.
 func changesIndexMirror(weeks []changeWeek) string {
-	var mirror strings.Builder
-	mirror.WriteString("# Changes\n\n")
-	mirror.WriteString("What shipped in Ze, newest first: the weekly updates, mined from git history " +
-		"and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for " +
-		"the full write-up. Ze is pre-release, so the configuration syntax can still change, and the " +
-		"[roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a " +
-		"timeline, see [Milestones](../milestones/).\n\n")
+	var mirror textbuf.Buffer
+	mirror.Reset().Str("# Changes\n\n")
+	mirror.Str("What shipped in Ze, newest first: the weekly updates, mined from git history ").
+		Str("and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for ").
+		Str("the full write-up. Ze is pre-release, so the configuration syntax can still change, and the ").
+		Str("[roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a ").
+		Str("timeline, see [Milestones](../milestones/).\n\n")
 	for _, week := range weeks {
 		title := "Week of " + week.Slug
 		if week.IsDraft {
 			title += " (pending review)"
 		}
-		mirror.WriteString("## [" + title + "](" + week.Slug + "/" + pageMirrorFile + ")\n\n")
+		mirror.Str("## [").Str(title).Str("](").Str(week.Slug).Byte('/').Str(pageMirrorFile).Str(")\n\n")
 		if week.Intro != "" {
-			mirror.WriteString(trimIntroWhitespace(week.Intro) + "\n\n")
+			mirror.Str(trimIntroWhitespace(week.Intro)).Str("\n\n")
 		}
 		if len(week.Topics) != 0 {
 			labels := make([]string, 0, len(week.Topics))
 			for _, topic := range week.Topics {
 				labels = append(labels, topic.Label)
 			}
-			mirror.WriteString("Areas: " + strings.Join(labels, ", ") + "\n\n")
+			mirror.Str("Areas: ").Str(strings.Join(labels, ", ")).Str("\n\n")
 		}
 	}
 	return strings.TrimSpace(mirror.String()) + "\n"
@@ -578,7 +580,8 @@ func changesIndexMirror(weeks []changeWeek) string {
 // A draft week keeps its page, so a reviewer can read it at its own URL, and
 // stays out of the feed, so a subscriber is not sent a week nobody has checked.
 func changesFeed(weeks []changeWeek) string {
-	var items strings.Builder
+	var items textbuf.Buffer
+	items.Reset()
 	built := feedEpoch
 	for _, week := range weeks {
 		if week.IsDraft {
@@ -592,26 +595,26 @@ func changesFeed(weeks []changeWeek) string {
 		if week.Intro != "" {
 			description = trimIntroWhitespace(week.Intro)
 		}
-		items.WriteString("        <item>\n")
-		items.WriteString("            <title>Week of " + week.Slug + "</title>\n")
-		items.WriteString("            <link>" + link + "</link>\n")
-		items.WriteString(`            <guid isPermaLink="true">` + link + "</guid>\n")
-		items.WriteString("            <pubDate>" + feedDate(week.Slug) + "</pubDate>\n")
-		items.WriteString("            <description>" + xmlText(description) + "</description>\n")
-		items.WriteString("        </item>\n")
+		items.Str("        <item>\n")
+		items.Str("            <title>Week of ").Str(week.Slug).Str("</title>\n")
+		items.Str("            <link>").Str(link).Str("</link>\n")
+		items.Str(`            <guid isPermaLink="true">`).Str(link).Str("</guid>\n")
+		items.Str("            <pubDate>").Str(feedDate(week.Slug)).Str("</pubDate>\n")
+		items.Str("            <description>").Str(xmlText(description)).Str("</description>\n")
+		items.Str("        </item>\n")
 	}
-	var feed strings.Builder
-	feed.WriteString(feedDeclaration)
-	feed.WriteString(`<rss version="2.0">` + "\n")
-	feed.WriteString("    <channel>\n")
-	feed.WriteString("        <title>" + changesFeedTitle + "</title>\n")
-	feed.WriteString("        <link>" + changesURL + "</link>\n")
-	feed.WriteString("        <description>What shipped in Ze each week, in Zeledon's voice, " +
-		"mined from git history.</description>\n")
-	feed.WriteString("        <language>en</language>\n")
-	feed.WriteString("        <lastBuildDate>" + feedDate(built) + "</lastBuildDate>\n")
-	feed.WriteString(items.String())
-	feed.WriteString("    </channel>\n</rss>\n")
+	var feed textbuf.Buffer
+	feed.Reset().Str(feedDeclaration)
+	feed.Str(`<rss version="2.0">`).Byte('\n')
+	feed.Str("    <channel>\n")
+	feed.Str("        <title>").Str(changesFeedTitle).Str("</title>\n")
+	feed.Str("        <link>").Str(changesURL).Str("</link>\n")
+	feed.Str("        <description>What shipped in Ze each week, in Zeledon's voice, ").
+		Str("mined from git history.</description>\n")
+	feed.Str("        <language>en</language>\n")
+	feed.Str("        <lastBuildDate>").Str(feedDate(built)).Str("</lastBuildDate>\n")
+	feed.Str(items.String())
+	feed.Str("    </channel>\n</rss>\n")
 	return feed.String()
 }
 

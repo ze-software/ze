@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/rfc"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
@@ -708,28 +709,28 @@ func rfcAuditCounts(gated []rfc.Requirement, states map[string]rfc.Freshness, to
 
 // rfcComplianceBody renders the page under <main>.
 func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
-	var body strings.Builder
-	body.WriteString("            <section aria-labeledby=\"rfc-compliance-title\" class=\"md-content reveal cat-observe\">\n")
-	body.WriteString(pageHero("RFC Compliance Gate Report",
+	var body textbuf.Buffer
+	body.Str("            <section aria-labeledby=\"rfc-compliance-title\" class=\"md-content reveal cat-observe\">\n")
+	body.Str(pageHero("RFC Compliance Gate Report",
 		"Source: <code>internal/le/rfc</code>, <code>rfc/short/*.md</code>, and "+
 			"<code>rfc/audit/*.json</code>.",
-		"Quality", ` id="rfc-compliance-title"`, heroClasses) + "\n")
-	body.WriteString(rfcComplianceStyle)
-	body.WriteString(rfcCardGrid(snapshot, ledger))
-	body.WriteString(rfcGateVerdictHTML(snapshot))
+		"Quality", ` id="rfc-compliance-title"`, heroClasses)).Byte('\n')
+	body.Str(rfcComplianceStyle)
+	body.Str(rfcCardGrid(snapshot, ledger))
+	body.Str(rfcGateVerdictHTML(snapshot))
 
-	body.WriteString("<section><h2>Requirement buckets</h2>\n" + rfcSatisfactionHTML(snapshot) + "\n</section>\n")
-	body.WriteString("<section><h2>Gap disclosure</h2>\n" + rfcGapDisclosureHTML(snapshot.Gaps) + "\n</section>\n")
-	body.WriteString("<section><h2>Exclusion disclosure</h2>\n" +
-		rfcExclusionDisclosureHTML(ledger) + "\n</section>\n")
-	body.WriteString("<section><h2>Top gap clusters</h2>\n" + rfcGapClusterHTML(snapshot.Gaps) + "\n</section>\n")
-	body.WriteString("<section><h2>How this is checked</h2>\n" + rfcMechanismHTML(snapshot) +
-		"\n</section>\n")
-	body.WriteString("<section><h2>Check results</h2>\n" + rfcCheckHTML(snapshot.Gate) + "\n</section>\n")
-	body.WriteString("<section><h2>Enrolled RFCs</h2>\n" + rfcEnrolledIndexHTML(ledger) + "\n</section>\n")
-	body.WriteString("<section><h2>Summaries that are not enrolled</h2>\n" +
-		rfcDeclinedIndexHTML(ledger) + "\n</section>\n")
-	body.WriteString("            </section>\n")
+	body.Str("<section><h2>Requirement buckets</h2>\n").Str(rfcSatisfactionHTML(snapshot)).Str("\n</section>\n")
+	body.Str("<section><h2>Gap disclosure</h2>\n").Str(rfcGapDisclosureHTML(snapshot.Gaps)).Str("\n</section>\n")
+	body.Str("<section><h2>Exclusion disclosure</h2>\n").
+		Str(rfcExclusionDisclosureHTML(ledger)).Str("\n</section>\n")
+	body.Str("<section><h2>Top gap clusters</h2>\n").Str(rfcGapClusterHTML(snapshot.Gaps)).Str("\n</section>\n")
+	body.Str("<section><h2>How this is checked</h2>\n").Str(rfcMechanismHTML(snapshot)).
+		Str("\n</section>\n")
+	body.Str("<section><h2>Check results</h2>\n").Str(rfcCheckHTML(snapshot.Gate)).Str("\n</section>\n")
+	body.Str("<section><h2>Enrolled RFCs</h2>\n").Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
+	body.Str("<section><h2>Summaries that are not enrolled</h2>\n").
+		Str(rfcDeclinedIndexHTML(ledger)).Str("\n</section>\n")
+	body.Str("            </section>\n")
 	return body.String()
 }
 
@@ -810,47 +811,47 @@ func rfcCardsIn(cards []rfcCard, tone string, overall bool) []rfcCard {
 // rfcCardsHTML renders the card grid in its four movements, and the sentence
 // that says which of its cards add up.
 func rfcCardsHTML(cards []rfcCard, whole int) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	for _, group := range rfcCardGroups {
 		held := rfcCardsIn(cards, group.Tone, group.Overall)
 		if len(held) == 0 {
 			continue
 		}
-		out.WriteString("<h3>" + html.EscapeString(group.Heading) + "</h3>\n<p>" +
-			html.EscapeString(group.Lead) + "</p>\n")
-		out.WriteString(`<div class="rfc-card-grid reveal">` + "\n")
+		out.Str("<h3>").Str(html.EscapeString(group.Heading)).Str("</h3>\n<p>").
+			Str(html.EscapeString(group.Lead)).Str("</p>\n")
+		out.Str(`<div class="rfc-card-grid reveal">`).Byte('\n')
 		for _, card := range held {
-			out.WriteString(`<article class="rfc-card rfc-` + card.Tone + `"><span>` +
-				html.EscapeString(card.Label) + "</span><strong>" +
-				html.EscapeString(card.Value) + "</strong>")
+			out.Str(`<article class="rfc-card rfc-`).Str(card.Tone).Str(`"><span>`).
+				Str(html.EscapeString(card.Label)).Str("</span><strong>").
+				Str(html.EscapeString(card.Value)).Str("</strong>")
 			if card.Count != "" {
-				out.WriteString("<b>" + html.EscapeString(card.Count) + "</b>")
+				out.Str("<b>").Str(html.EscapeString(card.Count)).Str("</b>")
 			}
-			out.WriteString("<p>" + html.EscapeString(card.Note) + "</p></article>\n")
+			out.Str("<p>").Str(html.EscapeString(card.Note)).Str("</p></article>\n")
 		}
-		out.WriteString("</div>\n")
+		out.Str("</div>\n")
 	}
-	out.WriteString("<p>" + html.EscapeString(rfcPartitionNote(cards, whole)) + "</p>\n")
+	out.Str("<p>").Str(html.EscapeString(rfcPartitionNote(cards, whole))).Str("</p>\n")
 	return out.String()
 }
 
 // rfcCardsMirror states the same cards, in the same four movements.
 func rfcCardsMirror(cards []rfcCard, whole int) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	for _, group := range rfcCardGroups {
 		held := rfcCardsIn(cards, group.Tone, group.Overall)
 		if len(held) == 0 {
 			continue
 		}
-		out.WriteString("### " + group.Heading + "\n\n" + group.Lead + "\n\n")
-		out.WriteString("| Measure | Value | Count | What it means |\n|---|---:|---|---|\n")
+		out.Str("### ").Str(group.Heading).Str("\n\n").Str(group.Lead).Str("\n\n")
+		out.Str("| Measure | Value | Count | What it means |\n|---|---:|---|---|\n")
 		for _, card := range held {
-			out.WriteString("| " + card.Label + " | " + card.Value + " | " +
-				rfc.TableCell(rfcOrDash(card.Count)) + " | " + rfc.TableCell(card.Note) + " |\n")
+			out.Str("| ").Str(card.Label).Str(" | ").Str(card.Value).Str(" | ").
+				Str(rfc.TableCell(rfcOrDash(card.Count))).Str(" | ").Str(rfc.TableCell(card.Note)).Str(" |\n")
 		}
-		out.WriteString("\n")
+		out.Byte('\n')
 	}
-	out.WriteString(rfcPartitionNote(cards, whole) + "\n")
+	out.Str(rfcPartitionNote(cards, whole)).Byte('\n')
 	return out.String()
 }
 
@@ -946,9 +947,9 @@ const rfcToneRule = "A color names what the measure MEANS, not how well Ze score
 // the rule the code applied. A card whose tone is neutral says so, because "no
 // direction" is an answer and a blank cell is not.
 func rfcToneLegendHTML(cards []rfcCard) string {
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	for _, card := range cards {
-		rows.WriteString(rfcRowCells(html.EscapeString(card.Label),
+		rows.Str(rfcRowCells(html.EscapeString(card.Label),
 			`<span class="rfc-swatch rfc-`+card.Tone+`"></span> `+html.EscapeString(card.Tone),
 			html.EscapeString(card.Rule)))
 	}
@@ -960,11 +961,11 @@ func rfcToneLegendHTML(cards []rfcCard) string {
 
 // rfcToneLegendMirror states the same rule and the same reasons.
 func rfcToneLegendMirror(cards []rfcCard) string {
-	var out strings.Builder
-	out.WriteString(rfcToneRule + "\n\n")
-	out.WriteString(rfcMirrorHead("Card", "Tone here", "Why that color"))
+	var out textbuf.Buffer
+	out.Str(rfcToneRule).Str("\n\n")
+	out.Str(rfcMirrorHead("Card", "Tone here", "Why that color"))
 	for _, card := range cards {
-		out.WriteString(rfcMirrorRow(card.Label, card.Tone, rfc.TableCell(card.Rule)))
+		out.Str(rfcMirrorRow(card.Label, card.Tone, rfc.TableCell(card.Rule)))
 	}
 	return out.String()
 }
@@ -1373,27 +1374,27 @@ func rfcSatisfactionHTML(snapshot *rfcCompliance) string {
 	}
 	split := rfcBindingOf(snapshot)
 
-	var out strings.Builder
-	out.WriteString(`<div class="rfc-tape" role="img" aria-label="How every gated MUST is answered">` + "\n")
+	var out textbuf.Buffer
+	out.Str(`<div class="rfc-tape" role="img" aria-label="How every gated MUST is answered">`).Byte('\n')
 	for _, bucket := range rfcSatisfaction {
 		if counted[bucket.Key] == 0 {
 			continue
 		}
-		out.WriteString(`<span class="rfc-tape-` + bucket.Key + `" style="--w: ` +
-			strconv.FormatFloat(rfcPercent(counted[bucket.Key], split.Gated), 'f', 3, 64) +
-			`%"></span>` + "\n")
+		out.Str(`<span class="rfc-tape-`).Str(bucket.Key).Str(`" style="--w: `).
+			Float(rfcPercent(counted[bucket.Key], split.Gated), 3).
+			Str(`%"></span>`).Byte('\n')
 	}
-	out.WriteString("</div>\n<ul class=\"rfc-tape-key\">\n")
+	out.Str("</div>\n<ul class=\"rfc-tape-key\">\n")
 	for _, bucket := range rfcSatisfaction {
 		if counted[bucket.Key] == 0 {
 			continue
 		}
-		out.WriteString(`<li><span class="rfc-swatch rfc-tape-` + bucket.Key + `"></span> ` +
-			html.EscapeString(bucket.Label) + ": <strong>" + groupThousands(counted[bucket.Key]) +
-			"</strong> (" + rfcPercentText(counted[bucket.Key], split.Gated) + ")</li>\n")
+		out.Str(`<li><span class="rfc-swatch rfc-tape-`).Str(bucket.Key).Str(`"></span> `).
+			Str(html.EscapeString(bucket.Label)).Str(": <strong>").Str(groupThousands(counted[bucket.Key])).
+			Str("</strong> (").Str(rfcPercentText(counted[bucket.Key], split.Gated)).Str(")</li>\n")
 	}
-	out.WriteString("</ul>\n<p>" + html.EscapeString(rfcScopeNote(split)) + "</p>\n")
-	out.WriteString(rfcTableHTML(rfcHeadCells("Bucket", "Count", "Share of gated",
+	out.Str("</ul>\n<p>").Str(html.EscapeString(rfcScopeNote(split))).Str("</p>\n")
+	out.Str(rfcTableHTML(rfcHeadCells("Bucket", "Count", "Share of gated",
 		"Source condition"), rfcSatisfactionRows(counted, split)))
 	return out.String()
 }
@@ -1405,7 +1406,7 @@ func rfcSatisfactionHTML(snapshot *rfcCompliance) string {
 // below a subtotal it had been subtracted out of. It is a row like the others
 // now, and its Source condition still says the obligation does not bind Ze.
 func rfcSatisfactionRows(counted map[string]int, split rfcBinding) string {
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	accounted := 0
 	for _, bucket := range rfcSatisfaction {
 		accounted += counted[bucket.Key]
@@ -1413,15 +1414,15 @@ func rfcSatisfactionRows(counted map[string]int, split rfcBinding) string {
 		if !bucket.Binds {
 			condition += ": " + html.EscapeString(rfcScopeCell)
 		}
-		rows.WriteString(rfcRowCells(html.EscapeString(bucket.Label),
+		rows.Str(rfcRowCells(html.EscapeString(bucket.Label),
 			"<strong>"+groupThousands(counted[bucket.Key])+"</strong>",
 			rfcPercentText(counted[bucket.Key], split.Gated), condition))
 	}
-	rows.WriteString(`<tr class="rfc-total"><td><strong>` +
-		html.EscapeString(rfcGatedLabel) + `</strong></td><td><strong>` +
-		groupThousands(split.Gated) + "</strong></td><td>" +
-		rfcPercentText(accounted, split.Gated) + "</td><td>" +
-		html.EscapeString(rfcAccountedNote(split, accounted)) + "</td></tr>\n")
+	rows.Str(`<tr class="rfc-total"><td><strong>`).
+		Str(html.EscapeString(rfcGatedLabel)).Str(`</strong></td><td><strong>`).
+		Str(groupThousands(split.Gated)).Str("</strong></td><td>").
+		Str(rfcPercentText(accounted, split.Gated)).Str("</td><td>").
+		Str(html.EscapeString(rfcAccountedNote(split, accounted))).Str("</td></tr>\n")
 	return rows.String()
 }
 
@@ -1472,24 +1473,24 @@ func rfcScopeNote(split rfcBinding) string {
 // rfcGapDisclosureHTML renders what the public page says about the RFCs
 // declaring a gap, and the Supported rows that still disclose one.
 func rfcGapDisclosureHTML(gaps rfcGaps) string {
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	for _, row := range gaps.StatusCounts {
-		rows.WriteString(rfcRowCells(html.EscapeString(row.Status),
+		rows.Str(rfcRowCells(html.EscapeString(row.Status),
 			"<strong>"+groupThousands(row.Count)+"</strong>"))
 	}
-	var out strings.Builder
-	out.WriteString(rfcTableHTML(rfcHeadCells("Public status for RFCs with gaps", "RFCs"),
+	var out textbuf.Buffer
+	out.Str(rfcTableHTML(rfcHeadCells("Public status for RFCs with gaps", "RFCs"),
 		rows.String()))
 	if len(gaps.SupportedWithRemaining) == 0 {
 		return out.String()
 	}
-	out.WriteString("\n" + `<div class="rfc-note-box">` +
-		"\n<h3>Supported rows that still disclose a gap</h3>\n<ul>\n")
+	out.Byte('\n').Str(`<div class="rfc-note-box">`).
+		Str("\n<h3>Supported rows that still disclose a gap</h3>\n<ul>\n")
 	for _, row := range gaps.SupportedWithRemaining {
-		out.WriteString("<li><strong>" + html.EscapeString(row.RFC) + "</strong>: " +
-			html.EscapeString(row.Remaining) + "</li>\n")
+		out.Str("<li><strong>").Str(html.EscapeString(row.RFC)).Str("</strong>: ").
+			Str(html.EscapeString(row.Remaining)).Str("</li>\n")
 	}
-	out.WriteString("</ul></div>")
+	out.Str("</ul></div>")
 	return out.String()
 }
 
@@ -1498,9 +1499,9 @@ func rfcGapClusterHTML(gaps rfcGaps) string {
 	if len(gaps.TopRFCs) == 0 {
 		return "<p>No RFC declares a gap.</p>"
 	}
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	for _, row := range gaps.TopRFCs {
-		rows.WriteString(rfcRowCells("<code>"+html.EscapeString(row.RFC)+"</code>",
+		rows.Str(rfcRowCells("<code>"+html.EscapeString(row.RFC)+"</code>",
 			"<strong>"+groupThousands(row.Count)+"</strong>",
 			html.EscapeString(row.Status)))
 	}
@@ -1520,30 +1521,30 @@ func rfcGapClusterHTML(gaps rfcGaps) string {
 // The requirement id links to its own page and row. Those pages exist now,
 // which is what makes the table worth more than the list.
 func rfcCheckHTML(gate rfcGate) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	if len(gate.Findings) == 0 {
-		out.WriteString("<p>No open issue. Every enrolled MUST-level requirement carries both test " +
-			"polarities or an annotation saying why not.</p>")
+		out.Str("<p>No open issue. Every enrolled MUST-level requirement carries both test ").
+			Str("polarities or an annotation saying why not.</p>")
 		return out.String()
 	}
 	shown := gate.Findings
 	if len(shown) > rfcIssuesShown {
 		shown = shown[:rfcIssuesShown]
 	}
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	for index := range shown {
 		finding := &shown[index]
-		rows.WriteString(rfcRowCells(
+		rows.Str(rfcRowCells(
 			html.EscapeString(rfcFindingRFC(finding)),
 			rfcFindingRequirementHTML(finding),
 			html.EscapeString(rfcOrDash(finding.Level)),
 			html.EscapeString(rfcFindingIssue(finding)),
 			html.EscapeString(rfcOrDash(finding.Text))))
 	}
-	out.WriteString(rfcTableHTML(rfcHeadCells("RFC", "Requirement", "Level", "What is wrong",
+	out.Str(rfcTableHTML(rfcHeadCells("RFC", "Requirement", "Level", "What is wrong",
 		"The requirement"), rows.String()))
 	if left := len(gate.Findings) - len(shown); left > 0 {
-		out.WriteString("\n<p>" + html.EscapeString(rfcFindingsLeftOut(left)) + "</p>")
+		out.Str("\n<p>").Str(html.EscapeString(rfcFindingsLeftOut(left))).Str("</p>")
 	}
 	return out.String()
 }
@@ -1558,17 +1559,17 @@ func rfcCheckMirror(gate rfcGate) string {
 	if len(shown) > rfcIssuesShown {
 		shown = shown[:rfcIssuesShown]
 	}
-	var out strings.Builder
-	out.WriteString(rfcMirrorHead("RFC", "Requirement", "Level", "What is wrong",
+	var out textbuf.Buffer
+	out.Str(rfcMirrorHead("RFC", "Requirement", "Level", "What is wrong",
 		"The requirement"))
 	for index := range shown {
 		finding := &shown[index]
-		out.WriteString(rfcMirrorRow(rfcFindingRFC(finding),
+		out.Str(rfcMirrorRow(rfcFindingRFC(finding),
 			rfcFindingRequirementMirror(finding), rfcOrDash(finding.Level),
 			rfc.TableCell(rfcFindingIssue(finding)), rfc.TableCell(rfcOrDash(finding.Text))))
 	}
 	if left := len(gate.Findings) - len(shown); left > 0 {
-		out.WriteString("\n" + rfcFindingsLeftOut(left) + "\n")
+		out.Byte('\n').Str(rfcFindingsLeftOut(left)).Byte('\n')
 	}
 	return out.String()
 }
@@ -1646,17 +1647,17 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 		counted[bucket.Key] = bucket.Count
 	}
 
-	var mirror strings.Builder
-	mirror.WriteString("# RFC Compliance Gate Report\n\n")
-	mirror.WriteString("Source: `internal/le/rfc`, `rfc/short/*.md`, and " +
-		"`rfc/audit/*.json`.\n\n")
-	mirror.WriteString("## Gate verdict\n\n" + rfcGateWord(snapshot.Gate.OK) + ". " +
-		rfcGateVerdictText(snapshot) + " Reproduce it with `" + snapshot.Verify.Command +
-		"`. The gate's own line reads `" + snapshot.Gate.Message + "`.\n\n")
+	var mirror textbuf.Buffer
+	mirror.Str("# RFC Compliance Gate Report\n\n")
+	mirror.Str("Source: `internal/le/rfc`, `rfc/short/*.md`, and ").
+		Str("`rfc/audit/*.json`.\n\n")
+	mirror.Str("## Gate verdict\n\n").Str(rfcGateWord(snapshot.Gate.OK)).Str(". ").
+		Str(rfcGateVerdictText(snapshot)).Str(" Reproduce it with `").Str(snapshot.Verify.Command).
+		Str("`. The gate's own line reads `").Str(snapshot.Gate.Message).Str("`.\n\n")
 	cards := rfcComplianceCards(snapshot, ledger)
-	mirror.WriteString(rfcCardsMirror(cards, rfcBindingOf(snapshot).Gated) + "\n" +
-		rfcToneLegendMirror(cards) + "\n")
-	mirror.WriteString("| Metric | Value |\n|---|---:|\n")
+	mirror.Str(rfcCardsMirror(cards, rfcBindingOf(snapshot).Gated)).Byte('\n').
+		Str(rfcToneLegendMirror(cards)).Byte('\n')
+	mirror.Str("| Metric | Value |\n|---|---:|\n")
 	for _, row := range []struct {
 		Label string
 		Value int
@@ -1671,13 +1672,13 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 		{"Shifted semantic audit verdicts", snapshot.Audit.Shifted},
 		{"Stale semantic audit verdicts", snapshot.Audit.Stale},
 	} {
-		mirror.WriteString("| " + row.Label + " | " + groupThousands(row.Value) + " |\n")
+		mirror.Str("| ").Str(row.Label).Str(" | ").Str(groupThousands(row.Value)).Str(" |\n")
 	}
 
 	split := rfcBindingOf(snapshot)
-	mirror.WriteString("\n## Requirement buckets\n\n")
-	mirror.WriteString(rfcScopeNote(split) + "\n\n")
-	mirror.WriteString("| Bucket | Count | Share of gated | Source condition |\n|---|---:|---:|---|\n")
+	mirror.Str("\n## Requirement buckets\n\n")
+	mirror.Str(rfcScopeNote(split)).Str("\n\n")
+	mirror.Str("| Bucket | Count | Share of gated | Source condition |\n|---|---:|---:|---|\n")
 	accounted := 0
 	for _, bucket := range rfcSatisfaction {
 		accounted += counted[bucket.Key]
@@ -1685,40 +1686,40 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 		if !bucket.Binds {
 			condition += ": " + rfc.TableCell(rfcScopeCell)
 		}
-		mirror.WriteString("| " + bucket.Label + " | " + groupThousands(counted[bucket.Key]) +
-			" | " + rfcPercentText(counted[bucket.Key], split.Gated) + " | " + condition + " |\n")
+		mirror.Str("| ").Str(bucket.Label).Str(" | ").Str(groupThousands(counted[bucket.Key])).
+			Str(" | ").Str(rfcPercentText(counted[bucket.Key], split.Gated)).Str(" | ").Str(condition).Str(" |\n")
 	}
-	mirror.WriteString("| **" + rfcGatedLabel + "** | **" + groupThousands(split.Gated) +
-		"** | " + rfcPercentText(accounted, split.Gated) + " | " +
-		rfc.TableCell(rfcAccountedNote(split, accounted)) + " |\n")
+	mirror.Str("| **").Str(rfcGatedLabel).Str("** | **").Str(groupThousands(split.Gated)).
+		Str("** | ").Str(rfcPercentText(accounted, split.Gated)).Str(" | ").
+		Str(rfc.TableCell(rfcAccountedNote(split, accounted))).Str(" |\n")
 
-	mirror.WriteString("\n## Gap disclosure\n\n")
-	mirror.WriteString("| Public status for RFCs with gaps | RFCs |\n|---|---:|\n")
+	mirror.Str("\n## Gap disclosure\n\n")
+	mirror.Str("| Public status for RFCs with gaps | RFCs |\n|---|---:|\n")
 	for _, row := range snapshot.Gaps.StatusCounts {
-		mirror.WriteString("| " + row.Status + " | " + groupThousands(row.Count) + " |\n")
+		mirror.Str("| ").Str(row.Status).Str(" | ").Str(groupThousands(row.Count)).Str(" |\n")
 	}
 	if len(snapshot.Gaps.SupportedWithRemaining) > 0 {
-		mirror.WriteString("\n### Supported rows that still disclose a gap\n\n")
+		mirror.Str("\n### Supported rows that still disclose a gap\n\n")
 		for _, row := range snapshot.Gaps.SupportedWithRemaining {
-			mirror.WriteString("- **" + row.RFC + ":** " + row.Remaining + "\n")
+			mirror.Str("- **").Str(row.RFC).Str(":** ").Str(row.Remaining).Byte('\n')
 		}
 	}
 
-	mirror.WriteString("\n## Exclusion disclosure\n\n")
-	mirror.WriteString(rfcExclusionDisclosureMirror(ledger))
+	mirror.Str("\n## Exclusion disclosure\n\n")
+	mirror.Str(rfcExclusionDisclosureMirror(ledger))
 
-	mirror.WriteString("\n## Top gap clusters\n\n")
-	mirror.WriteString("| RFC | Declared gaps | Public status |\n|---|---:|---|\n")
+	mirror.Str("\n## Top gap clusters\n\n")
+	mirror.Str("| RFC | Declared gaps | Public status |\n|---|---:|---|\n")
 	for _, row := range snapshot.Gaps.TopRFCs {
-		mirror.WriteString("| `" + row.RFC + "` | " + groupThousands(row.Count) + " | " + row.Status + " |\n")
+		mirror.Str("| `").Str(row.RFC).Str("` | ").Str(groupThousands(row.Count)).Str(" | ").Str(row.Status).Str(" |\n")
 	}
 
-	mirror.WriteString("\n## How this is checked\n\n")
-	mirror.WriteString(rfcMechanismMirror(snapshot))
+	mirror.Str("\n## How this is checked\n\n")
+	mirror.Str(rfcMechanismMirror(snapshot))
 
-	mirror.WriteString("\n## Check results\n\n")
-	mirror.WriteString(rfcCheckMirror(snapshot.Gate))
-	mirror.WriteString(rfcIndexMirror(ledger))
+	mirror.Str("\n## Check results\n\n")
+	mirror.Str(rfcCheckMirror(snapshot.Gate))
+	mirror.Str(rfcIndexMirror(ledger))
 	return mirror.String()
 }
 
@@ -1743,10 +1744,10 @@ func groupThousands(value int) string {
 	if strings.HasPrefix(digits, "-") {
 		sign, digits = "-", digits[1:]
 	}
-	var out strings.Builder
+	var out textbuf.Buffer
 	for index, digit := range digits {
 		if index > 0 && (len(digits)-index)%3 == 0 {
-			out.WriteByte(',')
+			out.Byte(',')
 		}
 		out.WriteRune(digit)
 	}
@@ -1839,10 +1840,10 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 	if len(rows) == 0 {
 		return "<p>No summary is enrolled.</p>"
 	}
-	var body strings.Builder
+	var body textbuf.Buffer
 	for index := range rows {
 		entry := rows[index]
-		body.WriteString(rfcRowCells(
+		body.Str(rfcRowCells(
 			"<a href=\""+html.EscapeString(rfcStemHref(entry.Stem))+"\"><code>"+
 				html.EscapeString(entry.Display)+"</code></a> "+html.EscapeString(entry.Title),
 			html.EscapeString(rfcIndexStatus(entry)),
@@ -1865,10 +1866,10 @@ func rfcDeclinedIndexHTML(ledger rfcLedger) string {
 	if len(rows) == 0 {
 		return "<p>Every summary is enrolled.</p>"
 	}
-	var body strings.Builder
+	var body textbuf.Buffer
 	for index := range rows {
 		entry := rows[index]
-		body.WriteString(rfcRowCells(
+		body.Str(rfcRowCells(
 			"<a href=\""+html.EscapeString(rfcStemHref(entry.Stem))+"\"><code>"+
 				html.EscapeString(entry.Display)+"</code></a> "+html.EscapeString(entry.Title),
 			html.EscapeString(rfcIndexDispositionKind(entry)),
@@ -1902,60 +1903,60 @@ func rfcDispositionsUsed(rows []*rfcLedgerStem) []string {
 
 // rfcDispositionLegendHTML says what each kind on the table below means.
 func rfcDispositionLegendHTML(rows []*rfcLedgerStem) string {
-	var out strings.Builder
-	out.WriteString("<ul>\n")
+	var out textbuf.Buffer
+	out.Str("<ul>\n")
 	for _, kind := range rfcDispositionsUsed(rows) {
-		out.WriteString("<li><code>" + html.EscapeString(kind) + "</code>: " +
-			html.EscapeString(rfcDispositionMeaning(kind)) + "</li>\n")
+		out.Str("<li><code>").Str(html.EscapeString(kind)).Str("</code>: ").
+			Str(html.EscapeString(rfcDispositionMeaning(kind))).Str("</li>\n")
 	}
-	out.WriteString("</ul>\n")
+	out.Str("</ul>\n")
 	return out.String()
 }
 
 // rfcDispositionLegendMirror states the same legend.
 func rfcDispositionLegendMirror(rows []*rfcLedgerStem) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	for _, kind := range rfcDispositionsUsed(rows) {
-		out.WriteString("- `" + kind + "`: " + rfcDispositionMeaning(kind) + "\n")
+		out.Str("- `").Str(kind).Str("`: ").Str(rfcDispositionMeaning(kind)).Byte('\n')
 	}
-	out.WriteString("\n")
+	out.Byte('\n')
 	return out.String()
 }
 
 // rfcIndexMirror states both link tables in the Markdown sibling.
 func rfcIndexMirror(ledger rfcLedger) string {
-	var out strings.Builder
-	out.WriteString("\n## Enrolled RFCs\n\n")
+	var out textbuf.Buffer
+	out.Str("\n## Enrolled RFCs\n\n")
 	enrolled := rfcIndexRows(ledger, true)
 	if len(enrolled) == 0 {
-		out.WriteString("No summary is enrolled.\n")
+		out.Str("No summary is enrolled.\n")
 	} else {
-		out.WriteString("| RFC | Public status | Gated MUSTs | Declared gaps | " +
-			"Gated with no test |\n|---|---|---:|---:|---:|\n")
+		out.Str("| RFC | Public status | Gated MUSTs | Declared gaps | ").
+			Str("Gated with no test |\n|---|---|---:|---:|---:|\n")
 		for index := range enrolled {
 			entry := enrolled[index]
-			out.WriteString("| [`" + entry.Display + "`](" + rfcStemHref(entry.Stem) +
-				pageMirrorFile + ") " + rfc.TableCell(entry.Title) + " | " +
-				rfc.TableCell(rfcIndexStatus(entry)) + " | " +
-				strconv.Itoa(entry.Coverage.Gated) + " | " +
-				strconv.Itoa(entry.Coverage.Gaps) + " | " +
-				strconv.Itoa(entry.Coverage.Missing) + " |\n")
+			out.Str("| [`").Str(entry.Display).Str("`](").Str(rfcStemHref(entry.Stem)).
+				Str(pageMirrorFile).Str(") ").Str(rfc.TableCell(entry.Title)).Str(" | ").
+				Str(rfc.TableCell(rfcIndexStatus(entry))).Str(" | ").
+				Int(int64(entry.Coverage.Gated)).Str(" | ").
+				Int(int64(entry.Coverage.Gaps)).Str(" | ").
+				Int(int64(entry.Coverage.Missing)).Str(" |\n")
 		}
 	}
-	out.WriteString("\n## Summaries that are not enrolled\n\n")
+	out.Str("\n## Summaries that are not enrolled\n\n")
 	declined := rfcIndexRows(ledger, false)
 	if len(declined) == 0 {
-		out.WriteString("Every summary is enrolled.\n")
+		out.Str("Every summary is enrolled.\n")
 		return out.String()
 	}
-	out.WriteString(rfcDispositionLegendMirror(declined))
-	out.WriteString("| RFC | Disposition | Reason |\n|---|---|---|\n")
+	out.Str(rfcDispositionLegendMirror(declined))
+	out.Str("| RFC | Disposition | Reason |\n|---|---|---|\n")
 	for index := range declined {
 		entry := declined[index]
-		out.WriteString("| [`" + entry.Display + "`](" + rfcStemHref(entry.Stem) +
-			pageMirrorFile + ") " + rfc.TableCell(entry.Title) + " | " +
-			rfcIndexDispositionKind(entry) + " | " +
-			rfc.TableCell(rfcIndexDispositionReason(entry)) + " |\n")
+		out.Str("| [`").Str(entry.Display).Str("`](").Str(rfcStemHref(entry.Stem)).
+			Str(pageMirrorFile).Str(") ").Str(rfc.TableCell(entry.Title)).Str(" | ").
+			Str(rfcIndexDispositionKind(entry)).Str(" | ").
+			Str(rfc.TableCell(rfcIndexDispositionReason(entry))).Str(" |\n")
 	}
 	return out.String()
 }
@@ -2138,56 +2139,56 @@ const rfcExclusionCaution = "ai/rules/rfc-compliance.md treats binds-another-rol
 // in one group or reddens a test rather than defaulting to scope.
 func rfcExclusionDisclosureHTML(ledger rfcLedger) string {
 	exclusions := rfcExclusionsOf(ledger)
-	var out strings.Builder
-	out.WriteString("<p>" + html.EscapeString(rfcExclusionIntro(exclusions)) + "</p>\n")
-	out.WriteString("<p>" + html.EscapeString(rfcExclusionCoverage(exclusions)) + "</p>\n")
+	var out textbuf.Buffer
+	out.Str("<p>").Str(html.EscapeString(rfcExclusionIntro(exclusions))).Str("</p>\n")
+	out.Str("<p>").Str(html.EscapeString(rfcExclusionCoverage(exclusions))).Str("</p>\n")
 	if exclusions.Sites == 0 {
-		out.WriteString("<p>" + html.EscapeString("No sign-off has declined a sentence.") + "</p>")
+		out.Str("<p>").Str(html.EscapeString("No sign-off has declined a sentence.")).Str("</p>")
 		return out.String()
 	}
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	for _, kind := range exclusions.Kinds {
-		rows.WriteString(rfcRowCells("<code>"+html.EscapeString(kind.Kind)+"</code>",
+		rows.Str(rfcRowCells("<code>"+html.EscapeString(kind.Kind)+"</code>",
 			html.EscapeString(rfcExclusionGroupWord(kind.Group)),
 			"<strong>"+groupThousands(kind.Sites)+"</strong>",
 			strconv.Itoa(len(kind.Stems)),
 			html.EscapeString(kind.Meaning)))
 	}
-	rows.WriteString(`<tr class="rfc-total"><td><strong>` +
-		html.EscapeString(rfcExcludedLabel) + `</strong></td><td>-</td><td><strong>` +
-		groupThousands(exclusions.Sites) + "</strong></td><td>-</td><td>" +
-		html.EscapeString(rfcExclusionTotalNote(exclusions)) + "</td></tr>\n")
-	out.WriteString(rfcTableHTML(rfcHeadCells("Excluded kind", "Means", "Sites", "Summaries",
+	rows.Str(`<tr class="rfc-total"><td><strong>`).
+		Str(html.EscapeString(rfcExcludedLabel)).Str(`</strong></td><td>-</td><td><strong>`).
+		Str(groupThousands(exclusions.Sites)).Str("</strong></td><td>-</td><td>").
+		Str(html.EscapeString(rfcExclusionTotalNote(exclusions))).Str("</td></tr>\n")
+	out.Str(rfcTableHTML(rfcHeadCells("Excluded kind", "Means", "Sites", "Summaries",
 		"What it means"), rows.String()))
 	for _, kind := range exclusions.Kinds {
 		if len(kind.Stems) == 0 || kind.Group == rfc.ExclusionDebt {
 			continue
 		}
-		out.WriteString("\n<p class=\"rfc-id-list\"><strong>" + html.EscapeString(kind.Kind) +
-			" (" + groupThousands(kind.Sites) + "):</strong> " + rfcStemLinksHTML(kind.Stems))
+		out.Str("\n<p class=\"rfc-id-list\"><strong>").Str(html.EscapeString(kind.Kind)).
+			Str(" (").Str(groupThousands(kind.Sites)).Str("):</strong> ").Str(rfcStemLinksHTML(kind.Stems))
 		if kind.Suspect {
-			out.WriteString("<br />" + html.EscapeString(rfcExclusionCaution))
+			out.Str("<br />").Str(html.EscapeString(rfcExclusionCaution))
 		}
-		out.WriteString("</p>")
+		out.Str("</p>")
 	}
-	out.WriteString("\n<h3>" + html.EscapeString(rfcDebtHeading) + "</h3>\n<p>" +
-		html.EscapeString(rfcDebtLead(exclusions)) + "</p>\n")
+	out.Str("\n<h3>").Str(html.EscapeString(rfcDebtHeading)).Str("</h3>\n<p>").
+		Str(html.EscapeString(rfcDebtLead(exclusions))).Str("</p>\n")
 	if len(exclusions.Relocated) == 0 {
-		out.WriteString("<p>" + html.EscapeString("No sign-off has relocated an obligation to a "+
-			"spec.") + "</p>")
+		out.Str("<p>").Str(html.EscapeString("No sign-off has relocated an obligation to a " +
+			"spec.")).Str("</p>")
 		return out.String()
 	}
-	var debt strings.Builder
+	var debt textbuf.Buffer
 	for index := range exclusions.Relocated {
 		row := &exclusions.Relocated[index]
-		debt.WriteString(rfcRowCells(
+		debt.Str(rfcRowCells(
 			`<a href="`+html.EscapeString(rfcStemHref(row.Stem))+`"><code>`+
 				html.EscapeString(rfcDisplayName(row.Stem))+"</code></a>",
 			"<code>"+html.EscapeString(rfcOrUnstated(row.ID))+"</code>",
 			html.EscapeString(rfcOrUnstated(row.Quote)),
 			"<code>"+html.EscapeString(rfcOrUnstated(row.Spec))+"</code>"))
 	}
-	out.WriteString(rfcTableHTML(rfcHeadCells("RFC", "Reserved id", "The obligation",
+	out.Str(rfcTableHTML(rfcHeadCells("RFC", "Reserved id", "The obligation",
 		"The spec that owes it"), debt.String()))
 	return out.String()
 }
@@ -2216,41 +2217,41 @@ func rfcExclusionGroupWord(group string) string {
 // the same relocated obligations.
 func rfcExclusionDisclosureMirror(ledger rfcLedger) string {
 	exclusions := rfcExclusionsOf(ledger)
-	var out strings.Builder
-	out.WriteString(rfcExclusionIntro(exclusions) + "\n\n")
-	out.WriteString(rfcExclusionCoverage(exclusions) + "\n\n")
+	var out textbuf.Buffer
+	out.Str(rfcExclusionIntro(exclusions)).Str("\n\n")
+	out.Str(rfcExclusionCoverage(exclusions)).Str("\n\n")
 	if exclusions.Sites == 0 {
 		return out.String() + "No sign-off has declined a sentence.\n"
 	}
-	out.WriteString(rfcMirrorHead("Excluded kind", "Means", "Sites", "Summaries",
+	out.Str(rfcMirrorHead("Excluded kind", "Means", "Sites", "Summaries",
 		"What it means"))
 	for _, kind := range exclusions.Kinds {
-		out.WriteString(rfcMirrorRow("`"+kind.Kind+"`", rfcExclusionGroupWord(kind.Group),
+		out.Str(rfcMirrorRow("`"+kind.Kind+"`", rfcExclusionGroupWord(kind.Group),
 			groupThousands(kind.Sites), strconv.Itoa(len(kind.Stems)),
 			rfc.TableCell(kind.Meaning)))
 	}
-	out.WriteString(rfcMirrorRow("**"+rfcExcludedLabel+"**", "-",
+	out.Str(rfcMirrorRow("**"+rfcExcludedLabel+"**", "-",
 		"**"+groupThousands(exclusions.Sites)+"**", "-",
 		rfc.TableCell(rfcExclusionTotalNote(exclusions))))
 	for _, kind := range exclusions.Kinds {
 		if len(kind.Stems) == 0 || kind.Group == rfc.ExclusionDebt {
 			continue
 		}
-		out.WriteString("\n**" + kind.Kind + " (" + groupThousands(kind.Sites) + "):** " +
-			rfcStemLinksMirror(kind.Stems) + "\n")
+		out.Str("\n**").Str(kind.Kind).Str(" (").Str(groupThousands(kind.Sites)).Str("):** ").
+			Str(rfcStemLinksMirror(kind.Stems)).Byte('\n')
 		if kind.Suspect {
-			out.WriteString("\n" + rfcExclusionCaution + "\n")
+			out.Byte('\n').Str(rfcExclusionCaution).Byte('\n')
 		}
 	}
-	out.WriteString("\n### " + rfcDebtHeading + "\n\n" + rfcDebtLead(exclusions) + "\n\n")
+	out.Str("\n### ").Str(rfcDebtHeading).Str("\n\n").Str(rfcDebtLead(exclusions)).Str("\n\n")
 	if len(exclusions.Relocated) == 0 {
 		return out.String() + "No sign-off has relocated an obligation to a spec.\n"
 	}
-	out.WriteString(rfcMirrorHead("RFC", "Reserved id", "The obligation",
+	out.Str(rfcMirrorHead("RFC", "Reserved id", "The obligation",
 		"The spec that owes it"))
 	for index := range exclusions.Relocated {
 		row := &exclusions.Relocated[index]
-		out.WriteString(rfcMirrorRow(
+		out.Str(rfcMirrorRow(
 			"[`"+rfcDisplayName(row.Stem)+"`]("+rfcStemHref(row.Stem)+pageMirrorFile+")",
 			"`"+rfcOrUnstated(row.ID)+"`", rfc.TableCell(rfcOrUnstated(row.Quote)),
 			"`"+rfcOrUnstated(row.Spec)+"`"))
@@ -2311,9 +2312,9 @@ func rfcStemLinksMirror(stems []string) string {
 // finds all of it in one place, and the grid holds only measures (owner
 // review, 2026-09-01).
 func rfcMechanismHTML(snapshot *rfcCompliance) string {
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	for _, row := range rfcMechanismRows(snapshot) {
-		rows.WriteString(rfcRowCells(html.EscapeString(row[0]), row[1],
+		rows.Str(rfcRowCells(html.EscapeString(row[0]), row[1],
 			html.EscapeString(row[2])))
 	}
 	return "<p>" + html.EscapeString(rfcMechanismLead(snapshot)) + "</p>\n" +
@@ -2322,11 +2323,11 @@ func rfcMechanismHTML(snapshot *rfcCompliance) string {
 
 // rfcMechanismMirror states the same mechanism.
 func rfcMechanismMirror(snapshot *rfcCompliance) string {
-	var out strings.Builder
-	out.WriteString(rfcMechanismLead(snapshot) + "\n\n")
-	out.WriteString(rfcMirrorHead("Input", "Producer", "What it answered here"))
+	var out textbuf.Buffer
+	out.Str(rfcMechanismLead(snapshot)).Str("\n\n")
+	out.Str(rfcMirrorHead("Input", "Producer", "What it answered here"))
 	for _, row := range rfcMechanismRows(snapshot) {
-		out.WriteString(rfcMirrorRow(row[0], rfc.TableCell(rfcPlain(row[1])),
+		out.Str(rfcMirrorRow(row[0], rfc.TableCell(rfcPlain(row[1])),
 			rfc.TableCell(row[2])))
 	}
 	return out.String()

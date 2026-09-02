@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The configuration reference registers from here.
@@ -247,28 +249,28 @@ func configurationBody(tree []byte, sections []string,
 		return "", fmt.Errorf("publish the configuration ownership: %w", err)
 	}
 
-	var body strings.Builder
-	body.WriteString(`            <section aria-labelledby="config-ref-title" class="md-content reveal cat-operate">` + "\n")
-	body.WriteString(pageHero("Configuration Reference",
+	var body textbuf.Buffer
+	body.Reset().Str(`            <section aria-labelledby="config-ref-title" class="md-content reveal cat-operate">`).Byte('\n')
+	body.Str(pageHero("Configuration Reference",
 		configLead(len(sections), owned, configurationRoot+configurationGuide),
-		"Reference", ` id="config-ref-title"`, "journey-hero reveal") + "\n")
-	body.WriteString(`                <div class="config-explorer" data-config-explorer>` + "\n")
-	body.WriteString(`<script>document.documentElement.classList.add("config-js")</script>` + "\n")
-	body.WriteString(`                <input id="config-search" type="search" ` +
-		`placeholder="Search the whole configuration (setting, type, plugin)..." ` +
-		`aria-label="Search the configuration" />` + "\n")
-	body.WriteString(`                <nav class="config-crumbs" aria-label="Breadcrumb"></nav>` + "\n")
-	body.WriteString(`                <div class="config-level"></div>` + "\n")
-	body.WriteString(`                <noscript><p class="config-noscript">This config browser ` +
-		`needs JavaScript. The whole configuration is also available as ` +
-		`<a href="` + pageMirrorFile + `">plain text</a>.</p></noscript>` + "\n")
-	body.WriteString("                </div>\n")
-	body.WriteString(`                <script id="config-tree" type="application/json">` +
-		escapeEmbeddedJSON(tree) + "</script>\n")
-	body.WriteString(`                <script id="config-owners" type="application/json">` +
-		escapeEmbeddedJSON(ownership) + "</script>\n")
-	body.WriteString("            </section>\n")
-	body.WriteString(configBrowserScript)
+		"Reference", ` id="config-ref-title"`, "journey-hero reveal")).Byte('\n')
+	body.Str(`                <div class="config-explorer" data-config-explorer>`).Byte('\n')
+	body.Str(`<script>document.documentElement.classList.add("config-js")</script>`).Byte('\n')
+	body.Str(`                <input id="config-search" type="search" `).
+		Str(`placeholder="Search the whole configuration (setting, type, plugin)..." `).
+		Str(`aria-label="Search the configuration" />`).Byte('\n')
+	body.Str(`                <nav class="config-crumbs" aria-label="Breadcrumb"></nav>`).Byte('\n')
+	body.Str(`                <div class="config-level"></div>`).Byte('\n')
+	body.Str(`                <noscript><p class="config-noscript">This config browser `).
+		Str(`needs JavaScript. The whole configuration is also available as `).
+		Str(`<a href="`).Str(pageMirrorFile).Str(`">plain text</a>.</p></noscript>`).Byte('\n')
+	body.Str("                </div>\n")
+	body.Str(`                <script id="config-tree" type="application/json">`).
+		Str(escapeEmbeddedJSON(tree)).Str("</script>\n")
+	body.Str(`                <script id="config-owners" type="application/json">`).
+		Str(escapeEmbeddedJSON(ownership)).Str("</script>\n")
+	body.Str("            </section>\n")
+	body.Str(configBrowserScript)
 	return body.String(), nil
 }
 
@@ -321,27 +323,27 @@ func configOwnerLabel(plugins []registryPlugin) string {
 func configurationMirror(tree map[string]configNode, sections []string,
 	owners map[string][]registryPlugin, owned int,
 ) string {
-	var mirror strings.Builder
-	mirror.WriteString("# Configuration Reference\n\n")
-	mirror.WriteString("The complete Ze configuration as one tree: " + strconv.Itoa(len(sections)) +
-		" top-level sections (" + strconv.Itoa(owned) + " provided by plugins, the rest core), " +
-		"generated live from the YANG schema with `ze yang tree`. This is about the structure of " +
-		"the configuration -- every section, searchable and inspectable. See " +
-		"[the Configuration guide](" + siteBase + configurationGuide + ") for a narrative " +
-		"walkthrough of BGP peer config specifically.\n\n")
+	var mirror textbuf.Buffer
+	mirror.Reset().Str("# Configuration Reference\n\n")
+	mirror.Str("The complete Ze configuration as one tree: ").Int(int64(len(sections))).
+		Str(" top-level sections (").Int(int64(owned)).Str(" provided by plugins, the rest core), ").
+		Str("generated live from the YANG schema with `ze yang tree`. This is about the structure of ").
+		Str("the configuration -- every section, searchable and inspectable. See ").
+		Str("[the Configuration guide](").Str(siteBase).Str(configurationGuide).Str(") for a narrative ").
+		Str("walkthrough of BGP peer config specifically.\n\n")
 	for _, name := range sections {
 		node := tree[name]
-		mirror.WriteString("## " + name + "\n\n")
+		mirror.Str("## ").Str(name).Str("\n\n")
 		if line := configOwnerMirrorLine(owners[name]); line != "" {
-			mirror.WriteString(line + "\n\n")
+			mirror.Str(line).Str("\n\n")
 		}
 		if node.Description != "" {
-			mirror.WriteString(collapseWhitespace(node.Description) + "\n\n")
+			mirror.Str(collapseWhitespace(node.Description)).Str("\n\n")
 		}
 		for _, child := range node.Children {
 			writeConfigChildMirror(&mirror, &child, name+"/"+child.Name, owners, 0)
 		}
-		mirror.WriteString("\n")
+		mirror.Byte('\n')
 	}
 	return strings.TrimRight(mirror.String(), "\n") + "\n"
 }
@@ -352,20 +354,20 @@ func configurationMirror(tree map[string]configNode, sections []string,
 // finite tree fixed at build time and nothing an external peer can deepen. Its
 // depth is the schema's own nesting, eleven levels at the deepest measured
 // today, so the stack is bounded by the committed schema.
-func writeConfigChildMirror(mirror *strings.Builder, node *configNode, path string,
+func writeConfigChildMirror(mirror *textbuf.Buffer, node *configNode, path string,
 	owners map[string][]registryPlugin, depth int,
 ) {
 	indent := strings.Repeat("  ", depth)
-	mirror.WriteString(indent + "- **" + configNodeHead(node) + "**")
+	mirror.Str(indent).Str("- **").Str(configNodeHead(node)).Str("**")
 	if badge := configNodeBadge(node); badge != "" {
-		mirror.WriteString(" `" + badge + "`")
+		mirror.Str(" `").Str(badge).Str("`")
 	}
-	mirror.WriteString("\n")
+	mirror.Byte('\n')
 	if line := configOwnerMirrorLine(owners[path]); line != "" {
-		mirror.WriteString(indent + "  " + line + "\n")
+		mirror.Str(indent).Str("  ").Str(line).Byte('\n')
 	}
 	if node.Description != "" {
-		mirror.WriteString(indent + "  " + collapseWhitespace(node.Description) + "\n")
+		mirror.Str(indent).Str("  ").Str(collapseWhitespace(node.Description)).Byte('\n')
 	}
 	for _, child := range node.Children {
 		writeConfigChildMirror(mirror, &child, path+"/"+child.Name, owners, depth+1)

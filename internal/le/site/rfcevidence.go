@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
@@ -79,32 +80,32 @@ func rfcGapReason(requirement *rfcLedgerRequirement, declared bool) string {
 // cell it belongs with (owner review, 2026-09-01). This section is the
 // requirement-by-requirement answer.
 func rfcGapsHTML(entry *rfcLedgerStem) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	rows := rfcGapRows(entry)
 	if len(rows) == 0 {
-		out.WriteString("<p>" + html.EscapeString(rfcNoGapsText(entry)) + "</p>")
+		out.Str("<p>").Str(html.EscapeString(rfcNoGapsText(entry))).Str("</p>")
 		return out.String()
 	}
-	var body strings.Builder
+	var body textbuf.Buffer
 	for _, row := range rows {
-		body.WriteString(rfcRowCells(rfcRequirementRefHTML(row.RID, row.Text),
+		body.Str(rfcRowCells(rfcRequirementRefHTML(row.RID, row.Text),
 			html.EscapeString(row.Kind), html.EscapeString(row.Reason)))
 	}
-	out.WriteString(rfcTableHTML(rfcHeadCells("Requirement", "State", "Reason"), body.String()))
+	out.Str(rfcTableHTML(rfcHeadCells("Requirement", "State", "Reason"), body.String()))
 	return out.String()
 }
 
 // rfcGapsMirror states the same rows.
 func rfcGapsMirror(entry *rfcLedgerStem) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	rows := rfcGapRows(entry)
 	if len(rows) == 0 {
-		out.WriteString(rfcNoGapsText(entry) + "\n")
+		out.Str(rfcNoGapsText(entry)).Byte('\n')
 		return out.String()
 	}
-	out.WriteString(rfcMirrorHead("Requirement", "State", "Reason"))
+	out.Str(rfcMirrorHead("Requirement", "State", "Reason"))
 	for _, row := range rows {
-		out.WriteString(rfcMirrorRow(rfc.TableCell(rfcRequirementRefMirror(row.RID, row.Text)),
+		out.Str(rfcMirrorRow(rfc.TableCell(rfcRequirementRefMirror(row.RID, row.Text)),
 			row.Kind, rfc.TableCell(row.Reason)))
 	}
 	return out.String()
@@ -227,28 +228,28 @@ func rfcProofHTML(entry *rfcLedgerStem) string {
 			"to state.") + "</p>"
 	}
 	ambiguous := rfcAmbiguousNames(entry)
-	var out strings.Builder
-	out.WriteString("<p>" + html.EscapeString(rfcProofLegend) + "</p>\n")
+	var out textbuf.Buffer
+	out.Str("<p>").Str(html.EscapeString(rfcProofLegend)).Str("</p>\n")
 	for _, requirement := range rows {
-		out.WriteString("<h3>" + rfcRequirementRefHTML(requirement.RID, "") + "</h3>\n")
-		out.WriteString("<p>" + html.EscapeString(requirement.Text) + "</p>\n")
-		out.WriteString("<p><strong>Audit verdict:</strong> " +
-			html.EscapeString(rfcVerdictText(requirement.Audit)) + "</p>\n")
+		out.Str("<h3>").Str(rfcRequirementRefHTML(requirement.RID, "")).Str("</h3>\n")
+		out.Str("<p>").Str(html.EscapeString(requirement.Text)).Str("</p>\n")
+		out.Str("<p><strong>Audit verdict:</strong> ").
+			Str(html.EscapeString(rfcVerdictText(requirement.Audit))).Str("</p>\n")
 		if len(requirement.Covers) == 0 {
-			out.WriteString("<p>" + html.EscapeString("No test carries "+requirement.RID+
-				", so no unit is bound to it.") + "</p>\n")
+			out.Str("<p>").Str(html.EscapeString("No test carries " + requirement.RID +
+				", so no unit is bound to it.")).Str("</p>\n")
 			continue
 		}
-		var body strings.Builder
+		var body textbuf.Buffer
 		for index := range requirement.Covers {
 			cover := &requirement.Covers[index]
-			body.WriteString(rfcRowCells(html.EscapeString(cover.Polarity),
+			body.Str(rfcRowCells(html.EscapeString(cover.Polarity),
 				rfcCitationHTML(cover, ambiguous),
 				html.EscapeString(rfcOrUnstated(cover.Carrier)),
 				html.EscapeString(rfcProofStateText(cover))))
 		}
-		out.WriteString(rfcTableHTML(rfcHeadCells("Polarity", "Test",
-			"Kind and tier", "Proof state"), body.String()) + "\n")
+		out.Str(rfcTableHTML(rfcHeadCells("Polarity", "Test",
+			"Kind and tier", "Proof state"), body.String())).Byte('\n')
 	}
 	return strings.TrimSuffix(out.String(), "\n")
 }
@@ -261,22 +262,22 @@ func rfcProofMirror(entry *rfcLedgerStem) string {
 			"is no proof state to state.\n"
 	}
 	ambiguous := rfcAmbiguousNames(entry)
-	var out strings.Builder
-	out.WriteString(rfcProofLegend + "\n")
+	var out textbuf.Buffer
+	out.Str(rfcProofLegend).Byte('\n')
 	for _, requirement := range rows {
-		out.WriteString("\n### " + rfcRequirementRefMirror(requirement.RID, "") + "\n\n")
-		out.WriteString(requirement.Text + "\n\n")
-		out.WriteString("Audit verdict: " + rfcVerdictText(requirement.Audit) + "\n")
+		out.Str("\n### ").Str(rfcRequirementRefMirror(requirement.RID, "")).Str("\n\n")
+		out.Str(requirement.Text).Str("\n\n")
+		out.Str("Audit verdict: ").Str(rfcVerdictText(requirement.Audit)).Byte('\n')
 		if len(requirement.Covers) == 0 {
-			out.WriteString("\nNo test carries " + requirement.RID +
-				", so no unit is bound to it.\n")
+			out.Str("\nNo test carries ").Str(requirement.RID).
+				Str(", so no unit is bound to it.\n")
 			continue
 		}
-		out.WriteString("\n" + rfcMirrorHead("Polarity", "Test",
+		out.Byte('\n').Str(rfcMirrorHead("Polarity", "Test",
 			"Kind and tier", "Proof state"))
 		for index := range requirement.Covers {
 			cover := &requirement.Covers[index]
-			out.WriteString(rfcMirrorRow(cover.Polarity,
+			out.Str(rfcMirrorRow(cover.Polarity,
 				rfc.TableCell(rfcCitationMirror(cover, ambiguous)),
 				rfcOrUnstated(cover.Carrier),
 				rfc.TableCell(rfcProofStateText(cover))))
@@ -293,42 +294,42 @@ func rfcExtractionHTML(entry *rfcLedgerStem) string {
 			", so no reviewer has walked its text sentence by sentence.") + "</p>"
 	}
 	signoff := entry.Extraction
-	var facts strings.Builder
+	var facts textbuf.Buffer
 	for _, fact := range rfcExtractionFacts(signoff) {
-		facts.WriteString(rfcRowCells(html.EscapeString(fact[0]),
+		facts.Str(rfcRowCells(html.EscapeString(fact[0]),
 			html.EscapeString(rfcOrUnstated(fact[1]))))
 	}
-	var out strings.Builder
-	out.WriteString(rfcTableHTML(rfcHeadCells("Field", "Value"), facts.String()) + "\n")
+	var out textbuf.Buffer
+	out.Str(rfcTableHTML(rfcHeadCells("Field", "Value"), facts.String())).Byte('\n')
 
-	out.WriteString("<h3>Sections</h3>\n")
+	out.Str("<h3>Sections</h3>\n")
 	if len(signoff.Sections) == 0 {
-		out.WriteString("<p>" + html.EscapeString(rfcNoSectionsText(entry)) + "</p>\n")
+		out.Str("<p>").Str(html.EscapeString(rfcNoSectionsText(entry))).Str("</p>\n")
 	} else {
-		var body strings.Builder
+		var body textbuf.Buffer
 		for _, section := range signoff.Sections {
-			body.WriteString(rfcRowCells("<code>"+html.EscapeString(section.ID)+"</code>",
+			body.Str(rfcRowCells("<code>"+html.EscapeString(section.ID)+"</code>",
 				html.EscapeString(rfcOrUnstated(section.Name)), strconv.Itoa(section.Sites),
 				html.EscapeString(rfcOrUnstated(rfcSectionDisposition(&section))),
 				html.EscapeString(rfcOrUnstated(section.Reason))))
 		}
-		out.WriteString(rfcTableHTML(rfcHeadCells("Section", "Name", "Sites",
-			"Disposition", "Reason"), body.String()) + "\n")
+		out.Str(rfcTableHTML(rfcHeadCells("Section", "Name", "Sites",
+			"Disposition", "Reason"), body.String())).Byte('\n')
 	}
 
-	out.WriteString("<h3>Excluded sentences</h3>\n")
+	out.Str("<h3>Excluded sentences</h3>\n")
 	if len(signoff.Exclusions) == 0 {
-		out.WriteString("<p>" + html.EscapeString(rfcNoExclusionsText(entry)) + "</p>")
+		out.Str("<p>").Str(html.EscapeString(rfcNoExclusionsText(entry))).Str("</p>")
 		return out.String()
 	}
-	var body strings.Builder
+	var body textbuf.Buffer
 	for _, site := range signoff.Exclusions {
-		body.WriteString(rfcRowCells("<code>"+html.EscapeString(site.ID)+"</code>",
+		body.Str(rfcRowCells("<code>"+html.EscapeString(site.ID)+"</code>",
 			rfcExclusionKindHTML(site.Kind),
 			html.EscapeString(rfcOrUnstated(rfcExclusionReason(&site))),
 			html.EscapeString(rfcOrUnstated(site.Quote))))
 	}
-	out.WriteString(rfcTableHTML(rfcHeadCells("Site", "Excluded kind", "Reason", "Quote"),
+	out.Str(rfcTableHTML(rfcHeadCells("Site", "Excluded kind", "Reason", "Quote"),
 		body.String()))
 	return out.String()
 }
@@ -387,33 +388,33 @@ func rfcExtractionMirror(entry *rfcLedgerStem) string {
 			", so no reviewer has walked its text sentence by sentence.\n"
 	}
 	signoff := entry.Extraction
-	var out strings.Builder
-	out.WriteString(rfcMirrorHead("Field", "Value"))
+	var out textbuf.Buffer
+	out.Str(rfcMirrorHead("Field", "Value"))
 	for _, fact := range rfcExtractionFacts(signoff) {
-		out.WriteString(rfcMirrorRow(fact[0], rfc.TableCell(rfcOrUnstated(fact[1]))))
+		out.Str(rfcMirrorRow(fact[0], rfc.TableCell(rfcOrUnstated(fact[1]))))
 	}
 
-	out.WriteString("\n### Sections\n\n")
+	out.Str("\n### Sections\n\n")
 	if len(signoff.Sections) == 0 {
-		out.WriteString(rfcNoSectionsText(entry) + "\n")
+		out.Str(rfcNoSectionsText(entry)).Byte('\n')
 	} else {
-		out.WriteString(rfcMirrorHead("Section", "Name", "Sites", "Disposition", "Reason"))
+		out.Str(rfcMirrorHead("Section", "Name", "Sites", "Disposition", "Reason"))
 		for _, section := range signoff.Sections {
-			out.WriteString(rfcMirrorRow("`"+section.ID+"`",
+			out.Str(rfcMirrorRow("`"+section.ID+"`",
 				rfc.TableCell(rfcOrUnstated(section.Name)), strconv.Itoa(section.Sites),
 				rfcOrUnstated(rfcSectionDisposition(&section)),
 				rfc.TableCell(rfcOrUnstated(section.Reason))))
 		}
 	}
 
-	out.WriteString("\n### Excluded sentences\n\n")
+	out.Str("\n### Excluded sentences\n\n")
 	if len(signoff.Exclusions) == 0 {
-		out.WriteString(rfcNoExclusionsText(entry) + "\n")
+		out.Str(rfcNoExclusionsText(entry)).Byte('\n')
 		return out.String()
 	}
-	out.WriteString(rfcMirrorHead("Site", "Excluded kind", "Reason", "Quote"))
+	out.Str(rfcMirrorHead("Site", "Excluded kind", "Reason", "Quote"))
 	for _, site := range signoff.Exclusions {
-		out.WriteString(rfcMirrorRow("`"+site.ID+"`",
+		out.Str(rfcMirrorRow("`"+site.ID+"`",
 			rfc.TableCell(rfcExclusionKindMirror(site.Kind)),
 			rfc.TableCell(rfcOrUnstated(rfcExclusionReason(&site))),
 			rfc.TableCell(rfcOrUnstated(site.Quote))))
@@ -472,17 +473,17 @@ func rfcSupersededHTML(entry *rfcLedgerStem) string {
 	if len(rows) == 0 {
 		return "<p>" + html.EscapeString(rfcNoSupersededText(entry)) + "</p>"
 	}
-	var out strings.Builder
-	out.WriteString("<p>" + html.EscapeString(entry.Display+" is obsoleted by "+
-		rfcDisplayName(entry.Successor)+".") + "</p>\n")
-	var body strings.Builder
+	var out textbuf.Buffer
+	out.Str("<p>").Str(html.EscapeString(entry.Display + " is obsoleted by " +
+		rfcDisplayName(entry.Successor) + ".")).Str("</p>\n")
+	var body textbuf.Buffer
 	for _, row := range rows {
-		body.WriteString(rfcRowCells(rfcRequirementRefHTML(row.RID, row.Text),
+		body.Str(rfcRowCells(rfcRequirementRefHTML(row.RID, row.Text),
 			html.EscapeString(row.Superseded.Disposition),
 			html.EscapeString(rfcOrUnstated(row.Superseded.Target)),
 			html.EscapeString(row.Superseded.Reason)))
 	}
-	out.WriteString(rfcTableHTML(rfcHeadCells("Requirement", "Disposition", "Now stated at",
+	out.Str(rfcTableHTML(rfcHeadCells("Requirement", "Disposition", "Now stated at",
 		"Reason"), body.String()))
 	return out.String()
 }
@@ -493,11 +494,11 @@ func rfcSupersededMirror(entry *rfcLedgerStem) string {
 	if len(rows) == 0 {
 		return rfcNoSupersededText(entry) + "\n"
 	}
-	var out strings.Builder
-	out.WriteString(entry.Display + " is obsoleted by " + rfcDisplayName(entry.Successor) + ".\n\n")
-	out.WriteString(rfcMirrorHead("Requirement", "Disposition", "Now stated at", "Reason"))
+	var out textbuf.Buffer
+	out.Str(entry.Display).Str(" is obsoleted by ").Str(rfcDisplayName(entry.Successor)).Str(".\n\n")
+	out.Str(rfcMirrorHead("Requirement", "Disposition", "Now stated at", "Reason"))
 	for _, row := range rows {
-		out.WriteString(rfcMirrorRow(rfc.TableCell(rfcRequirementRefMirror(row.RID, row.Text)),
+		out.Str(rfcMirrorRow(rfc.TableCell(rfcRequirementRefMirror(row.RID, row.Text)),
 			row.Superseded.Disposition, rfcOrUnstated(row.Superseded.Target),
 			rfc.TableCell(row.Superseded.Reason)))
 	}

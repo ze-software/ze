@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // llms.txt is registered from here, so a build discovers it through the
@@ -35,7 +37,7 @@ func renderLLMS(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out strings.Builder
+	var out textbuf.Buffer
 	writeLLMSIntro(&out)
 	writeLLMSProductSnapshot(&out, inputs)
 	writeLLMSQualityModel(&out, inputs)
@@ -60,50 +62,50 @@ func renderLLMS(paths Paths) ([]string, error) {
 }
 
 // writeLLMSIntro states what this file is and how to read it.
-func writeLLMSIntro(out *strings.Builder) {
-	out.WriteString("# Ze\n\n")
-	out.WriteString("> Ze is an open-source configuration and protocol engine. The network operating " +
-		"system built on it speaks BGP, manages Linux interfaces, programs the FIB, and serves the " +
-		"same YANG-modeled configuration through CLI, SSH, web, API, and MCP. Its core holds the " +
-		"supervisor, message bus, config provider, and plugin manager; protocols and services arrive " +
-		"as subsystems or plugins.\n\n")
-	out.WriteString("Pre-release: no tagged versions yet, built continuously from the main branch. " +
-		"AGPLv3 open source. See the ExaBGP [migration path](use-cases/exabgp-migration/index.md).\n\n")
-	out.WriteString("This file is intentionally denormalized for AI use. It includes the high-signal " +
-		"product inventory and then the normal page map, so common questions should not require " +
-		"fetching many separate pages. Page links still point at Markdown `index.md` files first, " +
-		"with rendered web URLs beside them for humans.\n\n")
+func writeLLMSIntro(out *textbuf.Buffer) {
+	out.Str("# Ze\n\n")
+	out.Str("> Ze is an open-source configuration and protocol engine. The network operating ").
+		Str("system built on it speaks BGP, manages Linux interfaces, programs the FIB, and serves the ").
+		Str("same YANG-modeled configuration through CLI, SSH, web, API, and MCP. Its core holds the ").
+		Str("supervisor, message bus, config provider, and plugin manager; protocols and services arrive ").
+		Str("as subsystems or plugins.\n\n")
+	out.Str("Pre-release: no tagged versions yet, built continuously from the main branch. ").
+		Str("AGPLv3 open source. See the ExaBGP [migration path](use-cases/exabgp-migration/index.md).\n\n")
+	out.Str("This file is intentionally denormalized for AI use. It includes the high-signal ").
+		Str("product inventory and then the normal page map, so common questions should not require ").
+		Str("fetching many separate pages. Page links still point at Markdown `index.md` files first, ").
+		Str("with rendered web URLs beside them for humans.\n\n")
 }
 
 // writeLLMSProductSnapshot states what Ze is, in numbers this build derived.
-func writeLLMSProductSnapshot(out *strings.Builder, inputs *llmsInputs) {
+func writeLLMSProductSnapshot(out *textbuf.Buffer, inputs *llmsInputs) {
 	facts := inputs.Facts
-	out.WriteString("## Product snapshot\n\n")
-	out.WriteString("- Purpose: configuration and protocol engine for Linux routing, plus a network " +
-		"operating system built on that core.\n")
-	out.WriteString("- Protocols and subsystems in the shipped daemon: BGP, IS-IS, OSPF, BFD, static " +
-		"routes, policy routing, FIB programming, interfaces, firewall, traffic control, DNS, DHCP, " +
-		"NTP, IPsec, L2TP, PPPoE, telemetry, web UI, SSH CLI, MCP, and plugins.\n")
-	out.WriteString("- Operator surfaces: SSH CLI with commit and rollback, generated command " +
-		"reference, server-rendered web workbench, looking glass, telemetry, gNMI, gRPC, MCP, " +
-		"JSON/YAML/NDJSON/table output, and shell-like output pipes derived from the schema where " +
-		"possible.\n")
-	out.WriteString("- Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP " +
-		"integrations, and namespace-aware testing.\n")
-	out.WriteString("- Release state: pre-release, main-branch builds, no tagged stable release yet.\n")
-	out.WriteString("- License and repos: AGPLv3. Canonical repository: " + repositoryURL +
-		". Discord: " + discordInvite + ".\n")
-	out.WriteString("- Current generated counts: " + strconv.Itoa(facts.Features.CoreExperimental) +
-		" shipped or experimental feature cards, " + strconv.Itoa(facts.Features.Planned) +
-		" roadmap cards, " + strconv.Itoa(facts.CLICommands) + " CLI commands, " +
-		strconv.Itoa(facts.ConfigSections) + " config sections, " + strconv.Itoa(len(inputs.Plugins)) +
-		" plugin registrations, " + strconv.Itoa(facts.Dependencies) + " direct Go dependencies, " +
-		strconv.Itoa(facts.Changes) + " weekly change entries.\n")
-	out.WriteString("- Test evidence counts: " + facts.Tests.UnitDisplay + " unit tests, " +
-		facts.Tests.FuzzDisplay + " fuzz targets, " + facts.Tests.E2EDisplay +
-		" end-to-end transcript steps, " + strconv.Itoa(facts.Interop.Scenarios) +
-		" interop scenarios across " + facts.Interop.TargetDisplay + " target implementations.\n")
-	out.WriteString("- Generated date: " + facts.GeneratedAt + ".\n\n")
+	out.Str("## Product snapshot\n\n")
+	out.Str("- Purpose: configuration and protocol engine for Linux routing, plus a network ").
+		Str("operating system built on that core.\n")
+	out.Str("- Protocols and subsystems in the shipped daemon: BGP, IS-IS, OSPF, BFD, static ").
+		Str("routes, policy routing, FIB programming, interfaces, firewall, traffic control, DNS, DHCP, ").
+		Str("NTP, IPsec, L2TP, PPPoE, telemetry, web UI, SSH CLI, MCP, and plugins.\n")
+	out.Str("- Operator surfaces: SSH CLI with commit and rollback, generated command ").
+		Str("reference, server-rendered web workbench, looking glass, telemetry, gNMI, gRPC, MCP, ").
+		Str("JSON/YAML/NDJSON/table output, and shell-like output pipes derived from the schema where ").
+		Str("possible.\n")
+	out.Str("- Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP ").
+		Str("integrations, and namespace-aware testing.\n")
+	out.Str("- Release state: pre-release, main-branch builds, no tagged stable release yet.\n")
+	out.Str("- License and repos: AGPLv3. Canonical repository: ").Str(repositoryURL).Str(". Discord: ").
+		Str(discordInvite).Str(".\n")
+	out.Str("- Current generated counts: ").Int(int64(facts.Features.CoreExperimental)).
+		Str(" shipped or experimental feature cards, ").Int(int64(facts.Features.Planned)).Str(" roadmap cards, ").
+		Int(int64(facts.CLICommands)).Str(" CLI commands, ").Int(int64(facts.ConfigSections)).
+		Str(" config sections, ").Int(int64(len(inputs.Plugins))).Str(" plugin registrations, ").
+		Int(int64(facts.Dependencies)).Str(" direct Go dependencies, ").Int(int64(facts.Changes)).
+		Str(" weekly change entries.\n")
+	out.Str("- Test evidence counts: ").Str(facts.Tests.UnitDisplay).Str(" unit tests, ").Str(facts.Tests.FuzzDisplay).
+		Str(" fuzz targets, ").Str(facts.Tests.E2EDisplay).Str(" end-to-end transcript steps, ").
+		Int(int64(facts.Interop.Scenarios)).Str(" interop scenarios across ").Str(facts.Interop.TargetDisplay).
+		Str(" target implementations.\n")
+	out.Str("- Generated date: ").Str(facts.GeneratedAt).Str(".\n\n")
 }
 
 // writeLLMSQualityModel states how Ze proves what it claims, and with which
@@ -112,57 +114,57 @@ func writeLLMSProductSnapshot(out *strings.Builder, inputs *llmsInputs) {
 // Every command here is an action this repository registers today. The retired
 // renderer named eight `make` targets, and `make` went with the interpreter
 // cutover, so a reader who copied that paragraph got "no rule to make target".
-func writeLLMSQualityModel(out *strings.Builder, inputs *llmsInputs) {
+func writeLLMSQualityModel(out *textbuf.Buffer, inputs *llmsInputs) {
 	tests := inputs.Facts.Tests
-	out.WriteString("## Quality and verification model\n\n")
-	out.WriteString("Ze uses layered proof because bugs appear at different boundaries.\n\n")
-	out.WriteString("- Local Go tests: package behavior, parser rules, encoders, state transitions, " +
-		"validation paths, and error shapes. Current scale: " + tests.UnitDisplay + " unit tests.\n")
-	out.WriteString("- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated " +
-		"input. Current scale: " + tests.FuzzDisplay + " fuzz targets.\n")
-	out.WriteString("- gomu mutation checks: mutate production Go code and rerun tests to find weak " +
-		"assertions. gomu is advisory, not the default CI gate.\n")
-	out.WriteString("- Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, " +
-		"syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded " +
-		"structurally, not shown as raw hex only.\n")
-	out.WriteString("- Browser `.wb` transcripts: drive the rendered web UI through real browser flows.\n")
-	out.WriteString("- Editor `.et` transcripts: drive the headless interactive editor.\n")
-	out.WriteString("- QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, " +
-		"PPP, network namespaces, and kernel modules exist.\n")
-	out.WriteString("- Interop: " + strconv.Itoa(inputs.Facts.Interop.Scenarios) + " scenarios against " +
-		inputs.Facts.Interop.TargetDisplay + " target implementations, including FRR, BIRD, GoBGP, " +
-		"RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.\n")
-	out.WriteString("- Verify workflow: `./le verify worktree` runs the whole native verification " +
-		"population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, " +
-		"groups related failures, and prints narrow rerun commands. `./le repository` is the " +
-		"narrower handoff gate.\n")
-	out.WriteString("- Rule for regressions: do not hide a failure with a skip or loose assertion. " +
-		"Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, " +
-		"then rerun the gate that should have caught it.\n\n")
-	out.WriteString("Useful commands: `go test -race -run TestName ./internal/...`, `./le fuzz run`, " +
-		"`gomu run`, `bin/ze-test bgp plugin 42 -v`, `./le qemu netns-test`, " +
-		"`./le integration interop`, `./le evidence release-candidate`.\n\n")
+	out.Str("## Quality and verification model\n\n")
+	out.Str("Ze uses layered proof because bugs appear at different boundaries.\n\n")
+	out.Str("- Local Go tests: package behavior, parser rules, encoders, state transitions, ").
+		Str("validation paths, and error shapes. Current scale: ").Str(tests.UnitDisplay).Str(" unit tests.\n")
+	out.Str("- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated ").
+		Str("input. Current scale: ").Str(tests.FuzzDisplay).Str(" fuzz targets.\n")
+	out.Str("- gomu mutation checks: mutate production Go code and rerun tests to find weak ").
+		Str("assertions. gomu is advisory, not the default CI gate.\n")
+	out.Str("- Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, ").
+		Str("syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded ").
+		Str("structurally, not shown as raw hex only.\n")
+	out.Str("- Browser `.wb` transcripts: drive the rendered web UI through real browser flows.\n")
+	out.Str("- Editor `.et` transcripts: drive the headless interactive editor.\n")
+	out.Str("- QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, ").
+		Str("PPP, network namespaces, and kernel modules exist.\n")
+	out.Str("- Interop: ").Int(int64(inputs.Facts.Interop.Scenarios)).Str(" scenarios against ").
+		Str(inputs.Facts.Interop.TargetDisplay).Str(" target implementations, including FRR, BIRD, GoBGP, ").
+		Str("RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.\n")
+	out.Str("- Verify workflow: `./le verify worktree` runs the whole native verification ").
+		Str("population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, ").
+		Str("groups related failures, and prints narrow rerun commands. `./le repository` is the ").
+		Str("narrower handoff gate.\n")
+	out.Str("- Rule for regressions: do not hide a failure with a skip or loose assertion. ").
+		Str("Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, ").
+		Str("then rerun the gate that should have caught it.\n\n")
+	out.Str("Useful commands: `go test -race -run TestName ./internal/...`, `./le fuzz run`, ").
+		Str("`gomu run`, `bin/ze-test bgp plugin 42 -v`, `./le qemu netns-test`, ").
+		Str("`./le integration interop`, `./le evidence release-candidate`.\n\n")
 }
 
 // writeLLMSComparison states which daemons Ze is compared with, and on what
 // evidence a comparison claim rests.
-func writeLLMSComparison(out *strings.Builder) {
-	out.WriteString("## Comparison positioning\n\n")
-	out.WriteString("- BGP comparison lens: Ze is compared with BIRD, FRR, OpenBGPD, GoBGP, bio-rd, " +
-		"ExaBGP, RustyBGP, rustbgpd, and freeRtr across AFI/SAFI, core protocol, policy, security, " +
-		"observability, APIs, operations, and best-path behavior.\n")
-	out.WriteString("- Network OS lens: Ze is compared with VyOS and freeRtr across routing, " +
-		"interfaces, firewall, NAT, VPN, AAA, services, management APIs, automation, packaging, " +
-		"observability, tests, and implementation model.\n")
-	out.WriteString("- Evidence policy: capability claims should cite upstream code, official feature " +
-		"documentation, or the integration layer that owns the behavior. `Unclear`, `Partial`, and " +
-		"`Not found` are valid outcomes when evidence does not support a stronger claim.\n")
-	out.WriteString("- Comparison pages are advice for product decisions, not marketing copy.\n\n")
+func writeLLMSComparison(out *textbuf.Buffer) {
+	out.Str("## Comparison positioning\n\n")
+	out.Str("- BGP comparison lens: Ze is compared with BIRD, FRR, OpenBGPD, GoBGP, bio-rd, ").
+		Str("ExaBGP, RustyBGP, rustbgpd, and freeRtr across AFI/SAFI, core protocol, policy, security, ").
+		Str("observability, APIs, operations, and best-path behavior.\n")
+	out.Str("- Network OS lens: Ze is compared with VyOS and freeRtr across routing, ").
+		Str("interfaces, firewall, NAT, VPN, AAA, services, management APIs, automation, packaging, ").
+		Str("observability, tests, and implementation model.\n")
+	out.Str("- Evidence policy: capability claims should cite upstream code, official feature ").
+		Str("documentation, or the integration layer that owns the behavior. `Unclear`, `Partial`, and ").
+		Str("`Not found` are valid outcomes when evidence does not support a stronger claim.\n")
+	out.Str("- Comparison pages are advice for product decisions, not marketing copy.\n\n")
 }
 
 // writeLLMSFeatures lists every feature card in the order website/data states.
-func writeLLMSFeatures(out *strings.Builder, inputs *llmsInputs) {
-	out.WriteString("## Feature inventory\n\n")
+func writeLLMSFeatures(out *textbuf.Buffer, inputs *llmsInputs) {
+	out.Str("## Feature inventory\n\n")
 	for index := range inputs.Features.Sections {
 		section := &inputs.Features.Sections[index]
 		counts := make(map[string]int, 4)
@@ -173,15 +175,15 @@ func writeLLMSFeatures(out *strings.Builder, inputs *llmsInputs) {
 		for _, status := range sortedStatuses(counts) {
 			summary = append(summary, strconv.Itoa(counts[status])+" "+status)
 		}
-		out.WriteString("### " + cleanInline(section.Heading) + " (" + strconv.Itoa(len(section.Cards)) +
-			" cards: " + strings.Join(summary, ", ") + ")\n")
+		out.Str("### ").Str(cleanInline(section.Heading)).Str(" (").Int(int64(len(section.Cards))).Str(" cards: ").
+			Str(strings.Join(summary, ", ")).Str(")\n")
 		if lead := cleanInline(section.Lead); lead != "" {
-			out.WriteString(lead + "\n")
+			out.Str(lead).Byte('\n')
 		}
 		for cardIndex := range section.Cards {
-			out.WriteString(featureCardLine(&section.Cards[cardIndex]) + "\n")
+			out.Str(featureCardLine(&section.Cards[cardIndex])).Byte('\n')
 		}
-		out.WriteString("\n")
+		out.Byte('\n')
 	}
 }
 
@@ -252,10 +254,10 @@ func orUncategorized(value string) string {
 
 // writeLLMSConfigRoots lists the top-level YANG config roots and their direct
 // children, which is enough to orient without fetching the full reference.
-func writeLLMSConfigRoots(out *strings.Builder, inputs *llmsInputs) {
-	out.WriteString("## Configuration model roots\n\n")
-	out.WriteString("Top-level YANG-derived config roots. Child names are direct children only, " +
-		"enough to orient without fetching the full reference.\n\n")
+func writeLLMSConfigRoots(out *textbuf.Buffer, inputs *llmsInputs) {
+	out.Str("## Configuration model roots\n\n")
+	out.Str("Top-level YANG-derived config roots. Child names are direct children only, ").
+		Str("enough to orient without fetching the full reference.\n\n")
 	names := make([]string, 0, len(inputs.ConfigTree))
 	for name := range inputs.ConfigTree {
 		names = append(names, name)
@@ -279,9 +281,9 @@ func writeLLMSConfigRoots(out *strings.Builder, inputs *llmsInputs) {
 			}
 		}
 		listed = orNone(listed)
-		out.WriteString("- `" + name + "`: " + description + " Children: " + listed + ".\n")
+		out.Str("- `").Str(name).Str("`: ").Str(description).Str(" Children: ").Str(listed).Str(".\n")
 	}
-	out.WriteString("\n")
+	out.Byte('\n')
 }
 
 // configChildrenListed bounds the children one root names, so a root with sixty
@@ -305,23 +307,22 @@ func orConfigRoot(value string) string {
 }
 
 // writeLLMSPlugins lists every runtime plugin registration.
-func writeLLMSPlugins(out *strings.Builder, inputs *llmsInputs) {
-	out.WriteString("## Plugin registry\n\n")
-	out.WriteString("Each registration comes from the Go runtime registry. Config roots come from " +
-		"plugin metadata and YANG files.\n\n")
+func writeLLMSPlugins(out *textbuf.Buffer, inputs *llmsInputs) {
+	out.Str("## Plugin registry\n\n")
+	out.Str("Each registration comes from the Go runtime registry. Config roots come from ").
+		Str("plugin metadata and YANG files.\n\n")
 	plugins := make([]registryPlugin, len(inputs.Plugins))
 	copy(plugins, inputs.Plugins)
 	sort.Slice(plugins, func(left, right int) bool { return plugins[left].Name < plugins[right].Name })
 	for index := range plugins {
 		plugin := &plugins[index]
-		out.WriteString("- `" + cleanInline(plugin.Name) + "`: " + trimInline(plugin.Description, 170) +
-			" Config roots: " + joinOrNone(plugin.ConfigRoots) +
-			". Dependencies: " + joinOrNone(plugin.Dependencies) +
-			". Optional: " + joinOrNone(plugin.OptionalDependencies) +
-			". YANG files: " + strconv.Itoa(len(plugin.YangFiles)) +
-			". Source: `" + cleanInline(plugin.SourceDir) + "`.\n")
+		out.Str("- `").Str(cleanInline(plugin.Name)).Str("`: ").Str(trimInline(plugin.Description, 170)).
+			Str(" Config roots: ").Str(joinOrNone(plugin.ConfigRoots)).Str(". Dependencies: ").
+			Str(joinOrNone(plugin.Dependencies)).Str(". Optional: ").Str(joinOrNone(plugin.OptionalDependencies)).
+			Str(". YANG files: ").Int(int64(len(plugin.YangFiles))).Str(". Source: `").
+			Str(cleanInline(plugin.SourceDir)).Str("`.\n")
 	}
-	out.WriteString("\n")
+	out.Byte('\n')
 }
 
 // joinOrNone writes a list for a reader, saying "none" rather than leaving the
@@ -342,7 +343,7 @@ func joinOrNone(values []string) string {
 // line opening with its path in a code span. Both are read back by the
 // documentation drift check, which extracts this section by heading and each
 // command's metadata from its line.
-func writeLLMSCommands(out *strings.Builder, inputs *llmsInputs) {
+func writeLLMSCommands(out *textbuf.Buffer, inputs *llmsInputs) {
 	commands := inputs.Commands
 	modes := make(map[string]int, 4)
 	byVerb := make(map[string][]*catalogCommand, 32)
@@ -368,24 +369,24 @@ func writeLLMSCommands(out *strings.Builder, inputs *llmsInputs) {
 		counted = append(counted, strconv.Itoa(modes[mode])+" "+mode)
 	}
 
-	out.WriteString("## CLI command surface\n\n")
-	out.WriteString("The command catalog is generated from `ze help command --json`, not " +
-		"hand-written. Modes: " + strings.Join(counted, ", ") + ".\n")
-	out.WriteString("`daemon` commands require a running Ze daemon. `read-only` commands query " +
-		"state. `offline` commands can run without daemon state. `pipes` groups operators as " +
-		"`always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of " +
-		"the contract. An operator absent from those groups is refused by name.\n\n")
+	out.Str("## CLI command surface\n\n")
+	out.Str("The command catalog is generated from `ze help command --json`, not ").Str("hand-written. Modes: ").
+		Str(strings.Join(counted, ", ")).Str(".\n")
+	out.Str("`daemon` commands require a running Ze daemon. `read-only` commands query ").
+		Str("state. `offline` commands can run without daemon state. `pipes` groups operators as ").
+		Str("`always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of ").
+		Str("the contract. An operator absent from those groups is refused by name.\n\n")
 	for _, verb := range verbs {
 		group := byVerb[verb]
-		out.WriteString("### `" + verb + "` commands (" + strconv.Itoa(len(group)) + ")\n")
+		out.Str("### `").Str(verb).Str("` commands (").Int(int64(len(group))).Str(")\n")
 		for _, command := range group {
 			// The whole summary, with no character budget: it is declared as
 			// one line, so there is nothing left for a cut to do but stop a
 			// sentence mid-clause.
-			out.WriteString("- `" + command.Path + "` (" + commandMetadataLine(command) + "): " +
-				cleanInline(command.Description) + "\n")
+			out.Str("- `").Str(command.Path).Str("` (").Str(commandMetadataLine(command)).Str("): ").
+				Str(cleanInline(command.Description)).Byte('\n')
 		}
-		out.WriteString("\n")
+		out.Byte('\n')
 	}
 }
 
@@ -439,17 +440,17 @@ func commandMetadataLine(command *catalogCommand) string {
 }
 
 // writeLLMSEquivalents lists the curated vendor command map.
-func writeLLMSEquivalents(out *strings.Builder, inputs *llmsInputs) {
+func writeLLMSEquivalents(out *textbuf.Buffer, inputs *llmsInputs) {
 	mapping := inputs.Equivalents
 	vendors := mapping.vendorIDs()
-	out.WriteString("## Vendor command equivalents\n\n")
-	out.WriteString(cleanInline(mapping.Summary) + "\n")
-	out.WriteString("Updated: " + cleanInline(mapping.Updated) + ".\n")
+	out.Str("## Vendor command equivalents\n\n")
+	out.Str(cleanInline(mapping.Summary)).Byte('\n')
+	out.Str("Updated: ").Str(cleanInline(mapping.Updated)).Str(".\n")
 	rooted := make([]string, 0, len(vendors))
 	for _, vendor := range vendors {
 		rooted = append(rooted, mapping.vendorLabel(vendor)+" ("+mapping.Vendors[vendor].RootingModel+")")
 	}
-	out.WriteString("Vendors: " + strings.Join(rooted, ", ") + ".\n\n")
+	out.Str("Vendors: ").Str(strings.Join(rooted, ", ")).Str(".\n\n")
 	for index := range mapping.Entries {
 		entry := &mapping.Entries[index]
 		parts := []string{"- " + cleanInline(entry.Category) + ": " + cleanInline(entry.Intent)}
@@ -480,53 +481,52 @@ func writeLLMSEquivalents(out *strings.Builder, inputs *llmsInputs) {
 			}
 			parts = append(parts, mapping.vendorLabel(vendor)+": "+strings.Join(lines, "; "))
 		}
-		out.WriteString(strings.Join(parts, ". ") + ".\n")
+		out.Str(strings.Join(parts, ". ")).Str(".\n")
 	}
-	out.WriteString("\n")
+	out.Byte('\n')
 }
 
 // writeLLMSDependencies states why Ze takes each direct Go module.
-func writeLLMSDependencies(out *strings.Builder, inputs *llmsInputs) {
-	out.WriteString("## Dependency rationale\n\n")
-	out.WriteString("Direct Go modules are grouped by why Ze needs them. This is generated from " +
-		"go.mod plus curated rationale, not copied from package names alone.\n\n")
+func writeLLMSDependencies(out *textbuf.Buffer, inputs *llmsInputs) {
+	out.Str("## Dependency rationale\n\n")
+	out.Str("Direct Go modules are grouped by why Ze needs them. This is generated from ").
+		Str("go.mod plus curated rationale, not copied from package names alone.\n\n")
 	for index := range inputs.Dependencies.Categories {
 		category := &inputs.Dependencies.Categories[index]
-		out.WriteString("### " + cleanInline(category.Name) + " (" +
-			strconv.Itoa(len(category.Modules)) + ")\n")
+		out.Str("### ").Str(cleanInline(category.Name)).Str(" (").Int(int64(len(category.Modules))).Str(")\n")
 		for _, module := range category.Modules {
-			out.WriteString("- `" + cleanInline(module.Module) + "`: " + trimInline(module.Why, 240) + "\n")
+			out.Str("- `").Str(cleanInline(module.Module)).Str("`: ").Str(trimInline(module.Why, 240)).Byte('\n')
 		}
-		out.WriteString("\n")
+		out.Byte('\n')
 	}
 }
 
 // writeLLMSPageMap lists the curated navigation, dropdown by dropdown.
-func writeLLMSPageMap(out *strings.Builder, inputs *llmsInputs) {
-	out.WriteString("## Page map\n\n")
-	out.WriteString("Every link points to the page Markdown mirror first. The web URL is the " +
-		"human-rendered version of the same page.\n\n")
+func writeLLMSPageMap(out *textbuf.Buffer, inputs *llmsInputs) {
+	out.Str("## Page map\n\n")
+	out.Str("Every link points to the page Markdown mirror first. The web URL is the ").
+		Str("human-rendered version of the same page.\n\n")
 	for index := range inputs.Nav.Dropdowns {
 		dropdown := &inputs.Nav.Dropdowns[index]
-		out.WriteString("## " + dropdown.Label + "\n\n")
+		out.Str("## ").Str(dropdown.Label).Str("\n\n")
 		for _, column := range dropdown.Columns {
 			for _, entry := range column {
 				if entry.LabelOnly != "" {
-					out.WriteString("### " + entry.LabelOnly + "\n")
+					out.Str("### ").Str(entry.LabelOnly).Byte('\n')
 					continue
 				}
-				out.WriteString(navEntryLine(entry, inputs))
+				out.Str(navEntryLine(entry, inputs))
 			}
 		}
-		out.WriteString("\n")
+		out.Byte('\n')
 	}
-	out.WriteString("## More\n\n")
+	out.Str("## More\n\n")
 	for _, link := range inputs.Nav.TrailingLinks {
-		out.WriteString("- [" + link.Label + "](" + mirrorURL(link.Href) + ") (web: " +
-			pageURL(link.Href) + ")\n")
+		out.Str("- [").Str(link.Label).Str("](").Str(mirrorURL(link.Href)).Str(") (web: ").Str(pageURL(link.Href)).
+			Str(")\n")
 	}
-	out.WriteString("- [Discord](" + discordInvite + "): community and support\n")
-	out.WriteString("- [GitHub](" + repositoryURL + "): canonical repository, issues, wiki\n")
+	out.Str("- [Discord](").Str(discordInvite).Str("): community and support\n")
+	out.Str("- [GitHub](").Str(repositoryURL).Str("): canonical repository, issues, wiki\n")
 }
 
 // navEntryLine writes one navigation entry, with the count-carrying description

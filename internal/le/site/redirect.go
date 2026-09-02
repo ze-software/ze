@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The redirect producer is NOT registered, by owner decision on 2026-08-30:
@@ -261,17 +263,17 @@ func redirectStubHTML(target string) string { //nolint:unused // owner decision 
 		panic("BUG: site.redirectStubHTML: a string has no JSON encoding: " + err.Error())
 	}
 
-	var stub strings.Builder
-	stub.WriteString("<!doctype html>\n<html lang=\"en\">\n<head>\n")
-	stub.WriteString("    <meta charset=\"utf-8\">\n")
-	stub.WriteString("    <meta name=\"robots\" content=\"noindex\">\n")
-	stub.WriteString("    <meta http-equiv=\"refresh\" content=\"0; url=" + escapedPath + "\">\n")
-	stub.WriteString("    <link rel=\"canonical\" href=\"" + escapedURL + "\">\n")
-	stub.WriteString("    <title>Page moved - Ze</title>\n")
-	stub.WriteString("    <script>location.replace(" + string(scriptTarget) + " + location.search + location.hash);</script>\n")
-	stub.WriteString("</head>\n<body>\n")
-	stub.WriteString("    <p>This page moved to <a href=\"" + escapedURL + "\">" + escapedURL + "</a>.</p>\n")
-	stub.WriteString("</body>\n</html>\n")
+	var stub textbuf.Buffer
+	stub.Reset().Str("<!doctype html>\n<html lang=\"en\">\n<head>\n")
+	stub.Str("    <meta charset=\"utf-8\">\n")
+	stub.Str("    <meta name=\"robots\" content=\"noindex\">\n")
+	stub.Str("    <meta http-equiv=\"refresh\" content=\"0; url=").Str(escapedPath).Str("\">\n")
+	stub.Str("    <link rel=\"canonical\" href=\"").Str(escapedURL).Str("\">\n")
+	stub.Str("    <title>Page moved - Ze</title>\n")
+	stub.Str("    <script>location.replace(").Str(string(scriptTarget)).Str(" + location.search + location.hash);</script>\n")
+	stub.Str("</head>\n<body>\n")
+	stub.Str("    <p>This page moved to <a href=\"").Str(escapedURL).Str("\">").Str(escapedURL).Str("</a>.</p>\n")
+	stub.Str("</body>\n</html>\n")
 	return stub.String()
 }
 

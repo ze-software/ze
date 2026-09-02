@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
@@ -98,41 +99,41 @@ var rfcDetailSections = []struct {
 
 // rfcDetailDescription is the one-line summary a search result shows.
 func rfcDetailDescription(entry *rfcLedgerStem) string {
-	var out strings.Builder
-	out.WriteString(entry.Display)
+	var out textbuf.Buffer
+	out.Str(entry.Display)
 	if entry.Title != "" {
-		out.WriteString(": " + entry.Title)
+		out.Str(": ").Str(entry.Title)
 	}
-	out.WriteString(". " + strconv.Itoa(entry.Coverage.Gated) +
-		" gated MUST-level requirements, " + strconv.Itoa(entry.Coverage.Gaps) +
-		" declared gaps, " + strconv.Itoa(entry.Coverage.Missing) + " with no test.")
+	out.Str(". ").Int(int64(entry.Coverage.Gated)).
+		Str(" gated MUST-level requirements, ").Int(int64(entry.Coverage.Gaps)).
+		Str(" declared gaps, ").Int(int64(entry.Coverage.Missing)).Str(" with no test.")
 	return out.String()
 }
 
 // rfcDetailBody renders one summary's page under <main>.
 func rfcDetailBody(entry *rfcLedgerStem) string {
-	var body strings.Builder
-	body.WriteString(`            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">` + "\n")
-	body.WriteString(pageHero(html.EscapeString(rfcDetailHeading(entry)),
+	var body textbuf.Buffer
+	body.Str(`            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">`).Byte('\n')
+	body.Str(pageHero(html.EscapeString(rfcDetailHeading(entry)),
 		html.EscapeString(rfcDetailLead(entry)), rfcDetailEyebrow(entry),
-		rfcDetailMarker, heroClasses) + "\n")
-	body.WriteString(rfcComplianceStyle)
+		rfcDetailMarker, heroClasses)).Byte('\n')
+	body.Str(rfcComplianceStyle)
 	for _, section := range rfcDetailSections {
-		body.WriteString("<section><h2>" + html.EscapeString(section.Heading) + "</h2>\n" +
-			section.HTML(entry) + "\n</section>\n")
+		body.Str("<section><h2>").Str(html.EscapeString(section.Heading)).Str("</h2>\n").
+			Str(section.HTML(entry)).Str("\n</section>\n")
 	}
-	body.WriteString("            </section>\n")
+	body.Str("            </section>\n")
 	return body.String()
 }
 
 // rfcDetailMirror renders one summary's Markdown sibling, which states the same
 // facts as the page in the order the page states them.
 func rfcDetailMirror(entry *rfcLedgerStem) string {
-	var out strings.Builder
-	out.WriteString("# " + rfcDetailHeading(entry) + "\n\n")
-	out.WriteString(rfcDetailEyebrow(entry) + ". " + rfcDetailLead(entry) + "\n")
+	var out textbuf.Buffer
+	out.Str("# ").Str(rfcDetailHeading(entry)).Str("\n\n")
+	out.Str(rfcDetailEyebrow(entry)).Str(". ").Str(rfcDetailLead(entry)).Byte('\n')
 	for _, section := range rfcDetailSections {
-		out.WriteString("\n## " + section.Heading + "\n\n" + section.Mirror(entry))
+		out.Str("\n## ").Str(section.Heading).Str("\n\n").Str(section.Mirror(entry))
 	}
 	return out.String()
 }
@@ -309,19 +310,19 @@ func rfcPathOrAbsent(path, absent string) string {
 
 // rfcGlanceHTML renders the at-a-glance facts.
 func rfcGlanceHTML(entry *rfcLedgerStem) string {
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	for _, fact := range rfcGlanceFacts(entry) {
-		rows.WriteString(rfcRowCells(html.EscapeString(fact[0]), fact[1]))
+		rows.Str(rfcRowCells(html.EscapeString(fact[0]), fact[1]))
 	}
 	return rfcTableHTML(rfcHeadCells("Field", "Value"), rows.String())
 }
 
 // rfcGlanceMirror states the same facts.
 func rfcGlanceMirror(entry *rfcLedgerStem) string {
-	var out strings.Builder
-	out.WriteString(rfcMirrorHead("Field", "Value"))
+	var out textbuf.Buffer
+	out.Str(rfcMirrorHead("Field", "Value"))
 	for _, fact := range rfcGlanceFacts(entry) {
-		out.WriteString(rfcMirrorRow(fact[0], rfc.TableCell(rfcPlain(fact[1]))))
+		out.Str(rfcMirrorRow(fact[0], rfc.TableCell(rfcPlain(fact[1]))))
 	}
 	return out.String()
 }
@@ -430,8 +431,8 @@ func rfcClaimsHTML(label, prose string, declared map[string]bool) string {
 	if len(items) < 2 {
 		return rfcFoldMarkupHTML(label, prose, rfcProseHTML(prose, declared))
 	}
-	var body strings.Builder
-	body.WriteString("<ul class=\"rfc-prose\">\n")
+	var body textbuf.Buffer
+	body.Str("<ul class=\"rfc-prose\">\n")
 	for _, item := range items {
 		// An empty item is the trailing semicolon the split keeps so that
 		// rejoining reproduces the cell. It carries no claim, so it gets no
@@ -439,9 +440,9 @@ func rfcClaimsHTML(label, prose string, declared map[string]bool) string {
 		if strings.TrimSpace(item) == "" {
 			continue
 		}
-		body.WriteString("<li>" + rfcProseHTML(strings.TrimSpace(item), declared) + "</li>\n")
+		body.Str("<li>").Str(rfcProseHTML(strings.TrimSpace(item), declared)).Str("</li>\n")
 	}
-	body.WriteString("</ul>")
+	body.Str("</ul>")
 	return rfcFoldMarkupHTML(label, prose, body.String())
 }
 
@@ -451,12 +452,12 @@ func rfcClaimsMirror(label, prose string, declared map[string]bool) string {
 	if len(items) < 2 {
 		return rfcFoldMarkupMirror(label, prose, rfcProseMirror(prose, declared))
 	}
-	var body strings.Builder
+	var body textbuf.Buffer
 	for _, item := range items {
 		if strings.TrimSpace(item) == "" {
 			continue
 		}
-		body.WriteString("- " + rfcProseMirror(strings.TrimSpace(item), declared) + "\n")
+		body.Str("- ").Str(rfcProseMirror(strings.TrimSpace(item), declared)).Byte('\n')
 	}
 	return rfcFoldMarkupMirror(label, prose, body.String())
 }
@@ -471,15 +472,15 @@ func rfcThemesHTML(label, prose string, declared map[string]bool) string {
 	if len(themes) < 2 {
 		return rfcFoldMarkupHTML(label, prose, rfcProseHTML(prose, declared))
 	}
-	var body strings.Builder
+	var body textbuf.Buffer
 	for _, theme := range themes {
 		if theme.Label == "" {
-			body.WriteString("<p>" + rfcProseHTML(strings.TrimSpace(theme.Body), declared) +
-				"</p>\n")
+			body.Str("<p>").Str(rfcProseHTML(strings.TrimSpace(theme.Body), declared)).
+				Str("</p>\n")
 			continue
 		}
-		body.WriteString("<p class=\"rfc-prose\"><strong>" + html.EscapeString(theme.Label) +
-			":</strong> " + rfcProseHTML(strings.TrimSpace(theme.Body), declared) + "</p>\n")
+		body.Str("<p class=\"rfc-prose\"><strong>").Str(html.EscapeString(theme.Label)).
+			Str(":</strong> ").Str(rfcProseHTML(strings.TrimSpace(theme.Body), declared)).Str("</p>\n")
 	}
 	return rfcFoldMarkupHTML(label, prose, strings.TrimSuffix(body.String(), "\n"))
 }
@@ -490,14 +491,14 @@ func rfcThemesMirror(label, prose string, declared map[string]bool) string {
 	if len(themes) < 2 {
 		return rfcFoldMarkupMirror(label, prose, rfcProseMirror(prose, declared))
 	}
-	var body strings.Builder
+	var body textbuf.Buffer
 	for _, theme := range themes {
 		if theme.Label == "" {
-			body.WriteString(rfcProseMirror(strings.TrimSpace(theme.Body), declared) + "\n\n")
+			body.Str(rfcProseMirror(strings.TrimSpace(theme.Body), declared)).Str("\n\n")
 			continue
 		}
-		body.WriteString("- **" + theme.Label + ":** " +
-			rfcProseMirror(strings.TrimSpace(theme.Body), declared) + "\n")
+		body.Str("- **").Str(theme.Label).Str(":** ").
+			Str(rfcProseMirror(strings.TrimSpace(theme.Body), declared)).Byte('\n')
 	}
 	return rfcFoldMarkupMirror(label, prose, strings.TrimSuffix(body.String(), "\n"))
 }
@@ -657,27 +658,27 @@ func rfcCoverageHTML(entry *rfcLedgerStem) string {
 			" declares no MUST-level requirement, so the gate counts nothing here.") + "</p>"
 	}
 	buckets := rfcCoverageBuckets(entry)
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	for _, bucket := range buckets {
-		rows.WriteString(rfcRowCells(html.EscapeString(bucket.Label),
+		rows.Str(rfcRowCells(html.EscapeString(bucket.Label),
 			"<strong>"+strconv.Itoa(bucket.Count)+"</strong>",
 			html.EscapeString(rfcCoverageRoleNote(bucket))))
 	}
-	rows.WriteString(`<tr class="rfc-total"><td><strong>` +
-		html.EscapeString(rfcGatedBucketLabel) + `</strong></td><td><strong>` +
-		strconv.Itoa(entry.Coverage.Gated) + "</strong></td><td>" +
-		html.EscapeString(rfcCoverageAccountedNote(rfcCoverageTotal(buckets),
-			entry.Coverage.Gated)) + "</td></tr>\n")
-	var out strings.Builder
-	out.WriteString(rfcTableHTML(rfcHeadCells("Bucket", "Count", "What it counts"),
+	rows.Str(`<tr class="rfc-total"><td><strong>`).
+		Str(html.EscapeString(rfcGatedBucketLabel)).Str(`</strong></td><td><strong>`).
+		Int(int64(entry.Coverage.Gated)).Str("</strong></td><td>").
+		Str(html.EscapeString(rfcCoverageAccountedNote(rfcCoverageTotal(buckets),
+			entry.Coverage.Gated))).Str("</td></tr>\n")
+	var out textbuf.Buffer
+	out.Str(rfcTableHTML(rfcHeadCells("Bucket", "Count", "What it counts"),
 		rows.String()))
 	for _, bucket := range buckets {
 		if len(bucket.IDs) == 0 {
 			continue
 		}
-		out.WriteString("\n<p class=\"rfc-id-list\"><strong>" + html.EscapeString(bucket.Label) +
-			" (" + strconv.Itoa(len(bucket.IDs)) + "):</strong> " +
-			rfcIDLinksHTML(bucket.IDs) + "</p>")
+		out.Str("\n<p class=\"rfc-id-list\"><strong>").Str(html.EscapeString(bucket.Label)).
+			Str(" (").Int(int64(len(bucket.IDs))).Str("):</strong> ").
+			Str(rfcIDLinksHTML(bucket.IDs)).Str("</p>")
 	}
 	return out.String()
 }
@@ -689,13 +690,13 @@ func rfcCoverageMirror(entry *rfcLedgerStem) string {
 			"nothing here.\n"
 	}
 	buckets := rfcCoverageBuckets(entry)
-	var out strings.Builder
-	out.WriteString(rfcMirrorHead("Bucket", "Count", "What it counts"))
+	var out textbuf.Buffer
+	out.Str(rfcMirrorHead("Bucket", "Count", "What it counts"))
 	for _, bucket := range buckets {
-		out.WriteString(rfcMirrorRow(bucket.Label, strconv.Itoa(bucket.Count),
+		out.Str(rfcMirrorRow(bucket.Label, strconv.Itoa(bucket.Count),
 			rfc.TableCell(rfcCoverageRoleNote(bucket))))
 	}
-	out.WriteString(rfcMirrorRow("**"+rfcGatedBucketLabel+"**",
+	out.Str(rfcMirrorRow("**"+rfcGatedBucketLabel+"**",
 		"**"+strconv.Itoa(entry.Coverage.Gated)+"**",
 		rfc.TableCell(rfcCoverageAccountedNote(rfcCoverageTotal(buckets),
 			entry.Coverage.Gated))))
@@ -703,8 +704,8 @@ func rfcCoverageMirror(entry *rfcLedgerStem) string {
 		if len(bucket.IDs) == 0 {
 			continue
 		}
-		out.WriteString("\n**" + bucket.Label + " (" + strconv.Itoa(len(bucket.IDs)) + "):** " +
-			rfcIDLinksMirror(bucket.IDs) + "\n")
+		out.Str("\n**").Str(bucket.Label).Str(" (").Int(int64(len(bucket.IDs))).Str("):** ").
+			Str(rfcIDLinksMirror(bucket.IDs)).Byte('\n')
 	}
 	return out.String()
 }
@@ -786,16 +787,16 @@ func rfcRequirementsHTML(entry *rfcLedgerStem) string {
 	}
 	names := rfcSectionNames(entry)
 	ambiguous := rfcAmbiguousNames(entry)
-	var rows strings.Builder
+	var rows textbuf.Buffer
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
-		rows.WriteString(rfcSubjectRow(rfcRequirementColumns,
+		rows.Str(rfcSubjectRow(rfcRequirementColumns,
 			`<code id="`+html.EscapeString(rfcAnchor(requirement.RID))+`">`+
 				html.EscapeString(requirement.RID)+"</code>",
 			rfcRequirementSubjectHTML(requirement)))
 		// The metadata row continues the subject above it, so its identity cell
 		// is empty rather than repeating the id a reader just read.
-		rows.WriteString(rfcRowCells("",
+		rows.Str(rfcRowCells("",
 			html.EscapeString(requirement.Level),
 			html.EscapeString(rfcSectionText(requirement.Section, names)),
 			rfcRequirementTestsHTML(requirement, ambiguous)))
@@ -848,20 +849,20 @@ func rfcRequirementSubjectHTML(requirement *rfcLedgerRequirement) string {
 func rfcRequirementTestsHTML(requirement *rfcLedgerRequirement,
 	ambiguous map[string]bool,
 ) string {
-	var out strings.Builder
-	out.WriteString(`<div class="rfc-tests" role="table" aria-label="` +
-		html.EscapeString("tests bound to "+requirement.RID) + `">` + "\n")
+	var out textbuf.Buffer
+	out.Str(`<div class="rfc-tests" role="table" aria-label="`).
+		Str(html.EscapeString("tests bound to " + requirement.RID)).Str(`">`).Byte('\n')
 	for _, row := range rfcTestRows(requirement) {
 		test := html.EscapeString(rfcNoPolarityText(row.Polarity))
 		if row.Cover != nil {
 			test = rfcCitationHTML(row.Cover, ambiguous)
 		}
-		out.WriteString(rfcTestsRowHTML(row.Polarity, row.Carrier, test))
+		out.Str(rfcTestsRowHTML(row.Polarity, row.Carrier, test))
 	}
-	out.WriteString("</div>")
+	out.Str("</div>")
 	for _, mark := range rfcRequirementMarks(requirement) {
-		out.WriteString(`<p class="rfc-mark"><strong>` + html.EscapeString(mark[0]) +
-			":</strong> " + html.EscapeString(mark[1]) + "</p>")
+		out.Str(`<p class="rfc-mark"><strong>`).Str(html.EscapeString(mark[0])).
+			Str(":</strong> ").Str(html.EscapeString(mark[1])).Str("</p>")
 	}
 	return out.String()
 }
@@ -942,13 +943,13 @@ func rfcRequirementsMirror(entry *rfcLedgerStem) string {
 	}
 	names := rfcSectionNames(entry)
 	ambiguous := rfcAmbiguousNames(entry)
-	var out strings.Builder
+	var out textbuf.Buffer
 	// The subject leads here too, and there is no Note column: its four marks
 	// went where they explain something, exactly as on the page.
-	out.WriteString(rfcMirrorHead("Requirement", "Text", "Level", "Section", "Tests"))
+	out.Str(rfcMirrorHead("Requirement", "Text", "Level", "Section", "Tests"))
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
-		out.WriteString(rfcMirrorRow("`"+requirement.RID+"`",
+		out.Str(rfcMirrorRow("`"+requirement.RID+"`",
 			rfc.TableCell(requirement.Text), requirement.Level,
 			rfc.TableCell(rfcSectionText(requirement.Section, names)),
 			rfc.TableCell(rfcRequirementTestsMirror(requirement, ambiguous))))

@@ -14,6 +14,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The search page and its index are written together, after every page
@@ -113,20 +115,20 @@ func renderSearch(paths Paths) ([]string, error) {
 
 // writeSearchPage publishes the search page and the Markdown mirror beside it.
 func writeSearchPage(output string, links pageLinks) error {
-	var body strings.Builder
-	body.WriteString(`            <section class="md-content reveal" aria-labelledby="search-title">` + "\n")
-	body.WriteString(pageHero("Search", searchLead, "Site search", ` id="search-title"`, heroClasses) + "\n")
-	body.WriteString(`                <div class="cli-search-wrap">` + "\n")
-	body.WriteString(`                    <input id="site-search" type="search" autocomplete="off"` + "\n")
-	body.WriteString(`                        autofocus aria-label="Search the site"` + "\n")
-	body.WriteString(`                        placeholder="Search the site ` +
-		`(e.g. flowspec, quickstart, RPKI, exabgp)..." />` + "\n")
-	body.WriteString("                </div>\n")
-	body.WriteString(`                <p id="search-status" class="search-status" aria-live="polite"></p>` + "\n")
-	body.WriteString(`                <ol id="search-results" class="search-results"></ol>` + "\n")
-	body.WriteString(`                <noscript><p>JavaScript is disabled. Browse from the ` +
-		`<a href="` + searchRoot + `docs/">documentation hub</a> instead.</p></noscript>` + "\n")
-	body.WriteString("            </section>\n")
+	var body textbuf.Buffer
+	body.Reset().Str(`            <section class="md-content reveal" aria-labelledby="search-title">`).Byte('\n')
+	body.Str(pageHero("Search", searchLead, "Site search", ` id="search-title"`, heroClasses)).Byte('\n')
+	body.Str(`                <div class="cli-search-wrap">`).Byte('\n')
+	body.Str(`                    <input id="site-search" type="search" autocomplete="off"`).Byte('\n')
+	body.Str(`                        autofocus aria-label="Search the site"`).Byte('\n')
+	body.Str(`                        placeholder="Search the site `).
+		Str(`(e.g. flowspec, quickstart, RPKI, exabgp)..." />`).Byte('\n')
+	body.Str("                </div>\n")
+	body.Str(`                <p id="search-status" class="search-status" aria-live="polite"></p>`).Byte('\n')
+	body.Str(`                <ol id="search-results" class="search-results"></ol>`).Byte('\n')
+	body.Str(`                <noscript><p>JavaScript is disabled. Browse from the `).
+		Str(`<a href="`).Str(searchRoot).Str(`docs/">documentation hub</a> instead.</p></noscript>`).Byte('\n')
+	body.Str("            </section>\n")
 
 	shell := pageShell{
 		Title:       searchTitle,
@@ -293,15 +295,15 @@ func searchIndexJSON(records []searchRecord) string {
 	if len(records) == 0 {
 		return "[]\n"
 	}
-	var index strings.Builder
-	index.WriteString("[\n")
+	var index textbuf.Buffer
+	index.Reset().Str("[\n")
 	for position := range records {
 		if position != 0 {
-			index.WriteString(",\n")
+			index.Str(",\n")
 		}
-		index.WriteString(searchRecordJSON(records[position]))
+		index.Str(searchRecordJSON(records[position]))
 	}
-	index.WriteString("\n]\n")
+	index.Str("\n]\n")
 	return index.String()
 }
 

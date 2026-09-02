@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The two kinds a detail page names, which are the two halves the catalog
@@ -60,14 +62,14 @@ func pluginKind(entry *pluginEntry) string {
 func pluginDetailBody(entry *pluginEntry, group *pluginGroup,
 	byName map[string]*pluginEntry, relations *pluginRelations,
 ) string {
-	var body strings.Builder
-	body.WriteString(`            <section class="md-content reveal cat-automate plugin-detail" aria-labelledby="plugin-detail-title">` + "\n")
-	body.WriteString(pageHero("<code>"+html.EscapeString(entry.Name)+"</code>",
+	var body textbuf.Buffer
+	body.Reset().Str(`            <section class="md-content reveal cat-automate plugin-detail" aria-labelledby="plugin-detail-title">`).Byte('\n')
+	body.Str(pageHero("<code>"+html.EscapeString(entry.Name)+"</code>",
 		html.EscapeString(entry.Description), group.Label,
-		` id="plugin-detail-title"`, "journey-hero reveal cat-automate") + "\n")
-	body.WriteString(`                <div class="plugin-detail-grid">` + "\n")
+		` id="plugin-detail-title"`, "journey-hero reveal cat-automate")).Byte('\n')
+	body.Str(`                <div class="plugin-detail-grid">`).Byte('\n')
 
-	body.WriteString(pluginPanel("At a glance", `                        <dl class="plugin-detail-facts">`+"\n"+
+	body.Str(pluginPanel("At a glance", `                        <dl class="plugin-detail-facts">`+"\n"+
 		pluginFactRow("Registry area", html.EscapeString(group.Label))+
 		pluginFactRow("Kind", pluginKind(entry))+
 		pluginFactRow("Source path", "<code>"+html.EscapeString(entry.SourceDir)+"</code>")+
@@ -80,15 +82,15 @@ func pluginDetailBody(entry *pluginEntry, group *pluginGroup,
 		configuration = append(configuration, `<a href="`+html.EscapeString(pluginConfigHref(root))+
 			`"><code>`+html.EscapeString(root)+"</code></a>")
 	}
-	body.WriteString(pluginPanel("Configuration", "                        "+pluginLinkList(configuration), ""))
+	body.Str(pluginPanel("Configuration", "                        "+pluginLinkList(configuration), ""))
 
-	body.WriteString(pluginPanel("Dependencies",
+	body.Str(pluginPanel("Dependencies",
 		"                        <h3>Required</h3>\n"+
 			"                        "+pluginLinkList(pluginDependencyLinks(entry.Dependencies, byName))+"\n"+
 			"                        <h3>Optional</h3>\n"+
 			"                        "+pluginLinkList(pluginDependencyLinks(entry.OptionalDependencies, byName)), ""))
 
-	body.WriteString(pluginPanel("Used by",
+	body.Str(pluginPanel("Used by",
 		"                        <h3>Required dependency for</h3>\n"+
 			"                        "+pluginLinkList(pluginEntryLinks(relations.Required))+"\n"+
 			"                        <h3>Optional dependency for</h3>\n"+
@@ -98,7 +100,7 @@ func pluginDetailBody(entry *pluginEntry, group *pluginGroup,
 	for _, path := range entry.YangFiles {
 		yang = append(yang, "<code>"+html.EscapeString(path)+"</code>")
 	}
-	body.WriteString(pluginPanel("Repository artifacts",
+	body.Str(pluginPanel("Repository artifacts",
 		"                        <p>These paths come from the registry extraction and are shown locally so the detail page stays on the site.</p>\n"+
 			`                        <dl class="plugin-detail-facts">`+"\n"+
 			"                            <div><dt>Package</dt><dd><code>"+html.EscapeString(entry.SourceDir)+"</code></dd></div>\n"+
@@ -106,8 +108,8 @@ func pluginDetailBody(entry *pluginEntry, group *pluginGroup,
 			"                        <h3>YANG files</h3>\n"+
 			"                        "+pluginLinkList(yang), " plugin-detail-panel-wide"))
 
-	body.WriteString("                </div>\n")
-	body.WriteString("            </section>\n")
+	body.Str("                </div>\n")
+	body.Str("            </section>\n")
 	return body.String()
 }
 
@@ -130,12 +132,12 @@ func pluginLinkList(items []string) string {
 	if len(items) == 0 {
 		return `<p class="plugin-detail-empty">None declared.</p>`
 	}
-	var list strings.Builder
-	list.WriteString("<ul>")
+	var list textbuf.Buffer
+	list.Reset().Str("<ul>")
 	for _, item := range items {
-		list.WriteString("<li>" + item + "</li>")
+		list.Str("<li>").Str(item).Str("</li>")
 	}
-	list.WriteString("</ul>")
+	list.Str("</ul>")
 	return list.String()
 }
 
@@ -199,26 +201,26 @@ func pluginSiblingMirrorHref(entry *pluginEntry) string {
 func pluginDetailMirror(entry *pluginEntry, group *pluginGroup,
 	byName map[string]*pluginEntry, relations *pluginRelations,
 ) string {
-	var mirror strings.Builder
-	mirror.WriteString("# `" + entry.Name + "` plugin\n\n")
-	mirror.WriteString(entry.Description + "\n\n")
-	mirror.WriteString("## At a glance\n\n")
-	mirror.WriteString("| Field | Value |\n|-------|-------|\n")
-	mirror.WriteString("| Registry area | " + group.Label + " |\n")
-	mirror.WriteString("| Kind | " + pluginKind(entry) + " |\n")
-	mirror.WriteString("| Source path | `" + entry.SourceDir + "` |\n")
-	mirror.WriteString("| YANG modules | " + strconv.Itoa(len(entry.YangFiles)) + " |\n\n")
-	mirror.WriteString("## Configuration\n\n" + pluginOrNone(codeMarkerList(entry.ConfigRoots)) + "\n\n")
-	mirror.WriteString("## Dependencies\n\n")
-	mirror.WriteString("- Required: " + pluginDependencyMirrorList(entry.Dependencies, byName) + "\n")
-	mirror.WriteString("- Optional: " + pluginDependencyMirrorList(entry.OptionalDependencies, byName) + "\n\n")
-	mirror.WriteString("## Used by\n\n")
-	mirror.WriteString("- Required dependency for: " + pluginEntryMirrorList(relations.Required) + "\n")
-	mirror.WriteString("- Optional dependency for: " + pluginEntryMirrorList(relations.Optional) + "\n\n")
-	mirror.WriteString("## Repository artifacts\n\n")
-	mirror.WriteString("Package: `" + entry.SourceDir + "`\n\n")
-	mirror.WriteString("YANG files: " + pluginOrNone(codeMarkerList(entry.YangFiles)) + "\n")
-	mirror.WriteString("Metadata source: `" + pluginMetadataSource + "`\n")
+	var mirror textbuf.Buffer
+	mirror.Reset().Str("# `").Str(entry.Name).Str("` plugin\n\n")
+	mirror.Str(entry.Description).Str("\n\n")
+	mirror.Str("## At a glance\n\n")
+	mirror.Str("| Field | Value |\n|-------|-------|\n")
+	mirror.Str("| Registry area | ").Str(group.Label).Str(" |\n")
+	mirror.Str("| Kind | ").Str(pluginKind(entry)).Str(" |\n")
+	mirror.Str("| Source path | `").Str(entry.SourceDir).Str("` |\n")
+	mirror.Str("| YANG modules | ").Int(int64(len(entry.YangFiles))).Str(" |\n\n")
+	mirror.Str("## Configuration\n\n").Str(pluginOrNone(codeMarkerList(entry.ConfigRoots))).Str("\n\n")
+	mirror.Str("## Dependencies\n\n")
+	mirror.Str("- Required: ").Str(pluginDependencyMirrorList(entry.Dependencies, byName)).Byte('\n')
+	mirror.Str("- Optional: ").Str(pluginDependencyMirrorList(entry.OptionalDependencies, byName)).Str("\n\n")
+	mirror.Str("## Used by\n\n")
+	mirror.Str("- Required dependency for: ").Str(pluginEntryMirrorList(relations.Required)).Byte('\n')
+	mirror.Str("- Optional dependency for: ").Str(pluginEntryMirrorList(relations.Optional)).Str("\n\n")
+	mirror.Str("## Repository artifacts\n\n")
+	mirror.Str("Package: `").Str(entry.SourceDir).Str("`\n\n")
+	mirror.Str("YANG files: ").Str(pluginOrNone(codeMarkerList(entry.YangFiles))).Byte('\n')
+	mirror.Str("Metadata source: `").Str(pluginMetadataSource).Str("`\n")
 	return mirror.String()
 }
 

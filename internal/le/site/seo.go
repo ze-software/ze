@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The sitemap and the robots file are written after every page producer,
@@ -98,15 +100,15 @@ func sitemapURLs(output string, routes []legacyRoute) ([]string, error) {
 // build, which stamps every page on every run, so it would tell a crawler that
 // every page changed whenever any page did.
 func sitemapXML(urls []string) string {
-	var sitemap strings.Builder
-	sitemap.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-	sitemap.WriteString("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
+	var sitemap textbuf.Buffer
+	sitemap.Reset().Str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+	sitemap.Str("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
 	for _, url := range urls {
-		sitemap.WriteString("  <url>\n")
-		sitemap.WriteString("    <loc>" + html.EscapeString(url) + "</loc>\n")
-		sitemap.WriteString("  </url>\n")
+		sitemap.Str("  <url>\n")
+		sitemap.Str("    <loc>").Str(html.EscapeString(url)).Str("</loc>\n")
+		sitemap.Str("  </url>\n")
 	}
-	sitemap.WriteString("</urlset>\n")
+	sitemap.Str("</urlset>\n")
 	return sitemap.String()
 }
 

@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // hrefAttribute matches one href attribute of the rendered body, written with
@@ -338,13 +340,14 @@ func relayoutEvidenceCell(cell string) (string, bool) {
 	if len(groups) == 0 {
 		return "", false
 	}
-	var references strings.Builder
+	var references textbuf.Buffer
+	references.Reset()
 	for _, group := range groups {
 		stripped := make([]string, 0, len(group))
 		for _, span := range group {
 			stripped = append(stripped, stripRepositoryPrefix(span))
 		}
-		references.WriteString(`<span class="ev-ref">` + strings.Join(stripped, ", ") + `</span>`)
+		references.Str(`<span class="ev-ref">`).Str(strings.Join(stripped, ", ")).Str(`</span>`)
 	}
 	lead := cleanProse(strings.Join(prose, ""))
 	if lead != "" {
@@ -506,16 +509,16 @@ const heroClasses = "journey-hero reveal"
 // classes is written out at every call site rather than defaulted, so a call
 // states the hero it renders.
 func pageHero(title, lead, label, headingAttributes, classes string) string {
-	var hero strings.Builder
-	hero.WriteString(`<div class="` + html.EscapeString(classes) + `">`)
+	var hero textbuf.Buffer
+	hero.Reset().Str(`<div class="`).Str(html.EscapeString(classes)).Str(`">`)
 	if label != "" {
-		hero.WriteString("\n    " + `<span class="journey-eyebrow">` + html.EscapeString(label) + `</span>`)
+		hero.Str("\n    ").Str(`<span class="journey-eyebrow">`).Str(html.EscapeString(label)).Str(`</span>`)
 	}
-	hero.WriteString("\n    <h1" + headingAttributes + ">" + title + "</h1>")
+	hero.Str("\n    <h1").Str(headingAttributes).Byte('>').Str(title).Str("</h1>")
 	if lead != "" {
-		hero.WriteString("\n    <p>" + lead + "</p>")
+		hero.Str("\n    <p>").Str(lead).Str("</p>")
 	}
-	hero.WriteString("\n</div>")
+	hero.Str("\n</div>")
 	return hero.String()
 }
 

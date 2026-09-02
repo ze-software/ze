@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/testhealth"
 )
 
@@ -214,17 +215,17 @@ func byHealthStatus(metrics []healthMetric) []healthMetric {
 
 // healthBody renders the page under <main>.
 func healthBody(record healthRecord) string {
-	var body strings.Builder
-	body.WriteString("            <section aria-labelledby=\"test-health-title\" class=\"md-content reveal cat-observe\">\n")
-	body.WriteString(pageHero("Testing Health",
+	var body textbuf.Buffer
+	body.Str("            <section aria-labelledby=\"test-health-title\" class=\"md-content reveal cat-observe\">\n")
+	body.Str(pageHero("Testing Health",
 		"Not how many tests exist, but whether a regression would be caught. A suite can grow "+
 			//nolint:misspell // Recovered published prose: the page says "behaviour".
 			"forever while the share of behaviour it actually pins falls, and no count of tests can "+
 			"show that. Every metric here belongs to one of three questions; anything belonging to "+
 			"none is volume, and is deliberately absent.",
-		"Observe", ` id="test-health-title"`, heroClasses) + "\n")
-	body.WriteString(healthStyle)
-	body.WriteString(healthAttention(record.Metrics))
+		"Observe", ` id="test-health-title"`, heroClasses)).Byte('\n')
+	body.Str(healthStyle)
+	body.Str(healthAttention(record.Metrics))
 	for _, question := range testhealth.Questions() {
 		var group []healthMetric
 		for _, metric := range record.Metrics {
@@ -235,15 +236,15 @@ func healthBody(record healthRecord) string {
 		if len(group) == 0 {
 			continue
 		}
-		body.WriteString("<section><h2>" + html.EscapeString(question.Title) + "</h2><p><em>" +
-			html.EscapeString(question.Prompt) + "</em></p>\n")
+		body.Str("<section><h2>").Str(html.EscapeString(question.Title)).Str("</h2><p><em>").
+			Str(html.EscapeString(question.Prompt)).Str("</em></p>\n")
 		for _, metric := range byHealthStatus(group) {
-			body.WriteString(healthCardHTML(metric))
+			body.Str(healthCardHTML(metric))
 		}
-		body.WriteString("</section>\n")
+		body.Str("</section>\n")
 	}
-	body.WriteString(healthTrends(record.History))
-	body.WriteString("            </section>\n")
+	body.Str(healthTrends(record.History))
+	body.Str("            </section>\n")
 	return body.String()
 }
 
@@ -262,33 +263,33 @@ func healthAttention(metrics []healthMetric) string {
 			"<p>Nothing outstanding. Every metric is within its threshold.</p></section>\n"
 	}
 
-	var out strings.Builder
-	out.WriteString(`<section class="th-attention"><h2>Needs attention</h2>` +
-		"<table><thead><tr><th>Metric</th><th>Question</th><th>Value</th>" +
-		"<th>What to do</th></tr></thead><tbody>")
+	var out textbuf.Buffer
+	out.Str(`<section class="th-attention"><h2>Needs attention</h2>`).
+		Str("<table><thead><tr><th>Metric</th><th>Question</th><th>Value</th>").
+		Str("<th>What to do</th></tr></thead><tbody>")
 	for _, metric := range byHealthStatus(problems) {
-		out.WriteString("<tr><td>" + html.EscapeString(metric.text("label")) + "</td><td>" +
-			html.EscapeString(metric.text("question")) + "</td><td><strong>" +
-			html.EscapeString(metric.text("value")) + "</strong></td><td>" +
-			html.EscapeString(metric.text("action")) + "</td></tr>")
+		out.Str("<tr><td>").Str(html.EscapeString(metric.text("label"))).Str("</td><td>").
+			Str(html.EscapeString(metric.text("question"))).Str("</td><td><strong>").
+			Str(html.EscapeString(metric.text("value"))).Str("</strong></td><td>").
+			Str(html.EscapeString(metric.text("action"))).Str("</td></tr>")
 	}
-	out.WriteString("</tbody></table></section>\n")
+	out.Str("</tbody></table></section>\n")
 	return out.String()
 }
 
 // healthCardHTML renders one metric.
 func healthCardHTML(metric healthMetric) string {
-	var out strings.Builder
-	out.WriteString(`<article class="th-card th-` + healthStatusName(metric.text("status")) + "\">\n")
-	out.WriteString("  <h3>" + html.EscapeString(metric.text("label")) + "</h3>\n")
-	out.WriteString(`  <p class="th-value">` + html.EscapeString(metric.text("value")) +
-		` <span class="th-status">` + healthStatusLabel(metric.text("status")) + "</span></p>\n")
-	out.WriteString("  " + healthMeter(metric) + "\n")
-	out.WriteString("  <p>" + html.EscapeString(metric.text("detail")) + "</p>\n")
-	out.WriteString(`  <p class="th-action"><strong>If this degrades:</strong> ` +
-		html.EscapeString(metric.text("action")) + "</p>\n")
-	out.WriteString("  " + healthDetailTable(metric) + "\n")
-	out.WriteString("</article>\n")
+	var out textbuf.Buffer
+	out.Str(`<article class="th-card th-`).Str(healthStatusName(metric.text("status"))).Str("\">\n")
+	out.Str("  <h3>").Str(html.EscapeString(metric.text("label"))).Str("</h3>\n")
+	out.Str(`  <p class="th-value">`).Str(html.EscapeString(metric.text("value"))).Str(` <span class="th-status">`).
+		Str(healthStatusLabel(metric.text("status"))).Str("</span></p>\n")
+	out.Str("  ").Str(healthMeter(metric)).Byte('\n')
+	out.Str("  <p>").Str(html.EscapeString(metric.text("detail"))).Str("</p>\n")
+	out.Str(`  <p class="th-action"><strong>If this degrades:</strong> `).
+		Str(html.EscapeString(metric.text("action"))).Str("</p>\n")
+	out.Str("  ").Str(healthDetailTable(metric)).Byte('\n')
+	out.Str("</article>\n")
 	return out.String()
 }
 
@@ -367,20 +368,20 @@ func healthWorstTable(metric healthMetric) (string, bool) {
 	}
 	sort.Strings(keys)
 
-	var out strings.Builder
-	out.WriteString("<table><thead><tr>")
+	var out textbuf.Buffer
+	out.Str("<table><thead><tr>")
 	for _, key := range keys {
-		out.WriteString("<th>" + html.EscapeString(strings.ReplaceAll(key, "_", " ")) + "</th>")
+		out.Str("<th>").Str(html.EscapeString(strings.ReplaceAll(key, "_", " "))).Str("</th>")
 	}
-	out.WriteString("</tr></thead><tbody>")
+	out.Str("</tr></thead><tbody>")
 	for _, entry := range entries {
-		out.WriteString("<tr>")
+		out.Str("<tr>")
 		for _, key := range keys {
-			out.WriteString("<td><code>" + html.EscapeString(healthValueText(entry[key])) + "</code></td>")
+			out.Str("<td><code>").Str(html.EscapeString(healthValueText(entry[key]))).Str("</code></td>")
 		}
-		out.WriteString("</tr>")
+		out.Str("</tr>")
 	}
-	out.WriteString("</tbody></table>")
+	out.Str("</tbody></table>")
 	return out.String(), true
 }
 
@@ -390,18 +391,17 @@ func healthOrphanTable(metric healthMetric) (string, bool) {
 	if !ok || len(rows) == 0 {
 		return "", false
 	}
-	var out strings.Builder
-	out.WriteString("<table><thead><tr><th>File</th><th>Requires</th></tr></thead><tbody>")
+	var out textbuf.Buffer
+	out.Str("<table><thead><tr><th>File</th><th>Requires</th></tr></thead><tbody>")
 	for _, raw := range rows {
 		entry, isObject := raw.(map[string]any)
 		if !isObject {
 			continue
 		}
-		out.WriteString("<tr><td><code>" + html.EscapeString(healthField(entry, "file")) +
-			"</code></td><td><code>" + html.EscapeString(healthField(entry, "requires")) +
-			"</code></td></tr>")
+		out.Str("<tr><td><code>").Str(html.EscapeString(healthField(entry, "file"))).Str("</code></td><td><code>").
+			Str(html.EscapeString(healthField(entry, "requires"))).Str("</code></td></tr>")
 	}
-	out.WriteString("</tbody></table>")
+	out.Str("</tbody></table>")
 	return out.String(), true
 }
 
@@ -427,35 +427,34 @@ func healthBucketTable(metric healthMetric) (string, bool) {
 	}
 	sort.Strings(years)
 
-	var out strings.Builder
-	out.WriteString("<table><thead><tr><th>Package first commit</th><th>Packages with tests</th>" +
-		"<th>With a fuzz target</th><th>With an RFC-tagged test</th>" +
-		"<th>With a .ci scenario</th></tr></thead><tbody>")
+	var out textbuf.Buffer
+	out.Str("<table><thead><tr><th>Package first commit</th><th>Packages with tests</th>").
+		Str("<th>With a fuzz target</th><th>With an RFC-tagged test</th>").
+		Str("<th>With a .ci scenario</th></tr></thead><tbody>")
 	for _, year := range years {
 		slot, isObject := buckets[year].(map[string]any)
 		if !isObject {
 			continue
 		}
-		out.WriteString("<tr><td>" + html.EscapeString(year) + "</td>")
+		out.Str("<tr><td>").Str(html.EscapeString(year)).Str("</td>")
 		for _, key := range []string{"packages", "with_fuzz", "with_rfc_tag", "with_ci"} {
-			out.WriteString("<td>" + html.EscapeString(healthField(slot, key)) + "</td>")
+			out.Str("<td>").Str(html.EscapeString(healthField(slot, key))).Str("</td>")
 		}
-		out.WriteString("</tr>")
+		out.Str("</tr>")
 	}
-	out.WriteString("</tbody></table>")
+	out.Str("</tbody></table>")
 	return out.String(), true
 }
 
 // healthTrends renders the trend table, one row for each series the generator
 // states.
 func healthTrends(history []map[string]any) string {
-	var out strings.Builder
-	out.WriteString(`<section class="th-trends"><h2>Evolution over time</h2>` +
-		"<p>Each row shows its sample count. A statistic without its <em>n</em> is " +
-		"an assertion, not a measurement, and a trend drawn through three points is " +
-		"noise with a direction.</p>" +
-		"<table><thead><tr><th>Series</th><th>Trend</th><th>Latest</th>" +
-		"<th>Samples</th></tr></thead><tbody>")
+	var out textbuf.Buffer
+	out.Str(`<section class="th-trends"><h2>Evolution over time</h2>`).
+		Str("<p>Each row shows its sample count. A statistic without its <em>n</em> is ").
+		Str("an assertion, not a measurement, and a trend drawn through three points is ").
+		Str("noise with a direction.</p>").Str("<table><thead><tr><th>Series</th><th>Trend</th><th>Latest</th>").
+		Str("<th>Samples</th></tr></thead><tbody>")
 	for _, series := range testhealth.TrendSeries() {
 		var values []json.Number
 		for _, sample := range history {
@@ -467,19 +466,18 @@ func healthTrends(history []map[string]any) string {
 		}
 		label := html.EscapeString(series.Label)
 		if len(values) < healthMinSamples {
-			out.WriteString("<tr><td>" + label + "</td><td><em>insufficient data</em></td><td>-</td><td>" +
-				strconv.Itoa(len(values)) + "</td></tr>")
+			out.Str("<tr><td>").Str(label).Str("</td><td><em>insufficient data</em></td><td>-</td><td>").
+				Int(int64(len(values))).Str("</td></tr>")
 			continue
 		}
 		drawn := values
 		if len(drawn) > healthSamplesDrawn {
 			drawn = drawn[len(drawn)-healthSamplesDrawn:]
 		}
-		out.WriteString("<tr><td>" + label + "</td><td>" + healthSparkline(drawn) + "</td><td><code>" +
-			values[len(values)-1].String() + "</code></td><td>" +
-			strconv.Itoa(len(values)) + "</td></tr>")
+		out.Str("<tr><td>").Str(label).Str("</td><td>").Str(healthSparkline(drawn)).Str("</td><td><code>").
+			Str(values[len(values)-1].String()).Str("</code></td><td>").Int(int64(len(values))).Str("</td></tr>")
 	}
-	out.WriteString("</tbody></table></section>\n")
+	out.Str("</tbody></table></section>\n")
 	return out.String()
 }
 
@@ -525,14 +523,14 @@ func healthSparkline(values []json.Number) string {
 	}
 	step := float64(healthSparklineWidth) / float64(len(values)-1)
 
-	var points strings.Builder
+	var points textbuf.Buffer
 	for index, value := range values {
 		if index > 0 {
-			points.WriteString(" ")
+			points.Byte(' ')
 		}
-		points.WriteString(strconv.FormatFloat(float64(index)*step, 'f', 1, 64) + "," +
-			strconv.FormatFloat(float64(healthSparklineHeight)-
-				((healthFloat(value)-low)/span)*float64(healthSparklineHeight-6)-3, 'f', 1, 64))
+		points.Float(float64(index)*step, 1).Byte(',').
+			Float(float64(healthSparklineHeight)-
+				((healthFloat(value)-low)/span)*float64(healthSparklineHeight-6)-3, 1)
 	}
 	size := strconv.Itoa(healthSparklineWidth) + " " + strconv.Itoa(healthSparklineHeight)
 	return `<svg class="th-spark" viewBox="0 0 ` + size + `" width="` +

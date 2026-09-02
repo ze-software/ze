@@ -6,6 +6,8 @@ package site
 import (
 	"html"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // renderEquivalentDetail publishes one command's own page and its mirror.
@@ -30,32 +32,32 @@ func renderEquivalentDetail(
 
 // equivalentDetailBody renders one command's page between <main> and </main>.
 func equivalentDetailBody(mapping *equivalentMapping, row *equivalentRow, vendors []string) string {
-	var body strings.Builder
-	body.WriteString("\n" + `<section class="md-content command-equivalents command-equivalent-detail ` +
-		`reveal cat-operate" aria-labelledby="command-equivalent-detail-title">` + "\n")
+	var body textbuf.Buffer
+	body.Byte('\n').Str(`<section class="md-content command-equivalents command-equivalent-detail `).
+		Str(`reveal cat-operate" aria-labelledby="command-equivalent-detail-title">`).Byte('\n')
 
 	// The hero title and its lead are escaped exactly once. The retired
 	// renderer escaped the lead twice, so a command holding <args> published a
 	// literal "&lt;args&gt;" for a reader to puzzle over.
-	body.WriteString(pageHero(
+	body.Str(pageHero(
 		html.EscapeString(row.Command.Path),
 		html.EscapeString(commandLede(row.Command)),
 		"Command map", ` id="command-equivalent-detail-title"`, heroClasses))
-	body.WriteString("\n" + `<div class="cmd-detail-grid">` + "\n")
-	body.WriteString(equivalentZeCard(row.Command))
-	body.WriteString(equivalentIntentCard(row))
+	body.Byte('\n').Str(`<div class="cmd-detail-grid">`).Byte('\n')
+	body.Str(equivalentZeCard(row.Command))
+	body.Str(equivalentIntentCard(row))
 	for _, vendor := range vendors {
-		body.WriteString(equivalentVendorCard(mapping, row, vendor))
+		body.Str(equivalentVendorCard(mapping, row, vendor))
 	}
-	body.WriteString("</div></section>\n")
+	body.Str("</div></section>\n")
 	return body.String()
 }
 
 // equivalentZeCard renders what Ze itself says about the command.
 func equivalentZeCard(command *catalogCommand) string {
-	var card strings.Builder
-	card.WriteString(`<article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>` + "\n")
-	card.WriteString(`<dl class="cmd-meta">` + "\n")
+	var card textbuf.Buffer
+	card.Str(`<article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>`).Byte('\n')
+	card.Str(`<dl class="cmd-meta">`).Byte('\n')
 	writeDetailRow(&card, "Registry path", "<code>"+html.EscapeString(command.Path)+"</code>")
 	if command.Usage != "" {
 		writeDetailRow(&card, "Usage", "<code>"+html.EscapeString(command.Usage)+"</code>")
@@ -92,15 +94,15 @@ func equivalentZeCard(command *catalogCommand) string {
 	if len(command.AddressFields) != 0 {
 		writeDetailRow(&card, "Address fields", html.EscapeString(strings.Join(command.AddressFields, ", ")))
 	}
-	card.WriteString("</dl>\n")
+	card.Str("</dl>\n")
 	// The summary is the page's lede, so the card explains rather than repeats
 	// it. A command that declares no long form has nothing to explain, and an
 	// empty heading would read as a claim the command model never made.
 	if command.LongHelp != "" {
-		card.WriteString("<h3>Description</h3><p>" +
-			strings.ReplaceAll(html.EscapeString(command.LongHelp), "\n", "<br>") + "</p>\n")
+		card.Str("<h3>Description</h3><p>").Str(strings.ReplaceAll(html.EscapeString(command.LongHelp), "\n", "<br>")).
+			Str("</p>\n")
 	}
-	card.WriteString("<h3>Arguments</h3>\n" + equivalentArgumentTable(command) + "\n</article>\n")
+	card.Str("<h3>Arguments</h3>\n").Str(equivalentArgumentTable(command)).Str("\n</article>\n")
 	return card.String()
 }
 
@@ -170,8 +172,8 @@ func detailPipeLabel(availability string, hasAnswerShape bool) string {
 }
 
 // writeDetailRow writes one term and its value into a definition list.
-func writeDetailRow(out *strings.Builder, term, value string) {
-	out.WriteString("<div><dt>" + term + "</dt><dd>" + value + "</dd></div>\n")
+func writeDetailRow(out *textbuf.Buffer, term, value string) {
+	out.Str("<div><dt>").Str(term).Str("</dt><dd>").Str(value).Str("</dd></div>\n")
 }
 
 // The three ways a surface says a value is absent. Each one states WHY it is
@@ -211,15 +213,15 @@ func equivalentArgumentTable(command *catalogCommand) string {
 	if len(command.Args) == 0 {
 		return "<p>No command-specific arguments listed.</p>"
 	}
-	var out strings.Builder
-	out.WriteString(`<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th>` +
-		"<th>Required</th><th>Values</th></tr></thead><tbody>\n")
+	var out textbuf.Buffer
+	out.Str(`<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th>`).
+		Str("<th>Required</th><th>Values</th></tr></thead><tbody>\n")
 	for _, argument := range command.Args {
-		out.WriteString("<tr><td><code>" + html.EscapeString(argument.Name) + "</code></td><td>" +
-			html.EscapeString(argument.Type) + "</td><td>" + argumentRequiredLabel(argument) +
-			"</td><td>" + argumentValuesHTML(argument) + "</td></tr>\n")
+		out.Str("<tr><td><code>").Str(html.EscapeString(argument.Name)).Str("</code></td><td>").
+			Str(html.EscapeString(argument.Type)).Str("</td><td>").Str(argumentRequiredLabel(argument)).
+			Str("</td><td>").Str(argumentValuesHTML(argument)).Str("</td></tr>\n")
 	}
-	out.WriteString("</tbody></table>")
+	out.Str("</tbody></table>")
 	return out.String()
 }
 
@@ -238,17 +240,17 @@ func equivalentIntentCard(row *equivalentRow) string {
 		return `<article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has ` +
 			"been curated yet for this Ze command.</p></article>\n"
 	}
-	var card strings.Builder
-	card.WriteString(`<article class="cmd-detail-card"><h2>Mapping intents</h2>` + "\n")
+	var card textbuf.Buffer
+	card.Str(`<article class="cmd-detail-card"><h2>Mapping intents</h2>`).Byte('\n')
 	for _, entry := range row.Entries {
-		card.WriteString(`<section class="cmd-intent"><h3>` + html.EscapeString(entry.Intent) + "</h3>\n")
-		card.WriteString("<p><strong>Category:</strong> " + html.EscapeString(entry.Category) + "</p>\n")
+		card.Str(`<section class="cmd-intent"><h3>`).Str(html.EscapeString(entry.Intent)).Str("</h3>\n")
+		card.Str("<p><strong>Category:</strong> ").Str(html.EscapeString(entry.Category)).Str("</p>\n")
 		if entry.Notes != "" {
-			card.WriteString("<p>" + html.EscapeString(entry.Notes) + "</p>\n")
+			card.Str("<p>").Str(html.EscapeString(entry.Notes)).Str("</p>\n")
 		}
-		card.WriteString("</section>\n")
+		card.Str("</section>\n")
 	}
-	card.WriteString("</article>\n")
+	card.Str("</article>\n")
 	return card.String()
 }
 
@@ -256,9 +258,9 @@ func equivalentIntentCard(row *equivalentRow) string {
 // the evidence behind each line.
 func equivalentVendorCard(mapping *equivalentMapping, row *equivalentRow, vendor string) string {
 	sources := mapping.sources()
-	var card strings.Builder
-	card.WriteString(`<article class="cmd-detail-card cmd-vendor-detail"><h2>` +
-		html.EscapeString(mapping.Vendors[vendor].Label) + "</h2>\n")
+	var card textbuf.Buffer
+	card.Str(`<article class="cmd-detail-card cmd-vendor-detail"><h2>`).
+		Str(html.EscapeString(mapping.Vendors[vendor].Label)).Str("</h2>\n")
 	listed := false
 	for _, entry := range row.Entries {
 		rows := entry.Vendors[vendor]
@@ -266,28 +268,26 @@ func equivalentVendorCard(mapping *equivalentMapping, row *equivalentRow, vendor
 			continue
 		}
 		listed = true
-		card.WriteString(`<section class="cmd-vendor-intent"><h3>` +
-			html.EscapeString(entry.Intent) + "</h3>\n")
+		card.Str(`<section class="cmd-vendor-intent"><h3>`).Str(html.EscapeString(entry.Intent)).Str("</h3>\n")
 		ordered := make([]vendorEquivalent, 0, len(rows))
 		for _, item := range rows {
 			ordered = append(ordered, vendorEquivalent{Intent: entry.Intent, Command: item})
 		}
 		sortEquivalentsByConfidence(ordered)
 		for _, item := range ordered {
-			card.WriteString(`<div class="cmd-vendor-line"><code>` +
-				html.EscapeString(item.Command.Command) + "</code> " +
-				confidenceBadge(item.Command.Confidence) + " " +
-				sourceLinks(item.Command.SourceRefs, sources) + "</div>\n")
+			card.Str(`<div class="cmd-vendor-line"><code>`).Str(html.EscapeString(item.Command.Command)).
+				Str("</code> ").Str(confidenceBadge(item.Command.Confidence)).Byte(' ').
+				Str(sourceLinks(item.Command.SourceRefs, sources)).Str("</div>\n")
 			if item.Command.Notes != "" {
-				card.WriteString(`<p class="cmd-note">` + html.EscapeString(item.Command.Notes) + "</p>\n")
+				card.Str(`<p class="cmd-note">`).Str(html.EscapeString(item.Command.Notes)).Str("</p>\n")
 			}
 		}
-		card.WriteString("</section>\n")
+		card.Str("</section>\n")
 	}
 	if !listed {
-		card.WriteString(`<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>` + "\n")
+		card.Str(`<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>`).Byte('\n')
 	}
-	card.WriteString("</article>\n")
+	card.Str("</article>\n")
 	return card.String()
 }
 
@@ -318,60 +318,59 @@ func sourceLinks(refs []string, sources map[string]equivalentSourceDoc) string {
 func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vendors []string) string {
 	command := row.Command
 	grouped := operatorsByAvailability(command)
-	var out strings.Builder
-	out.WriteString("# `" + markdownCell(command.Path) + "`\n\n")
-	out.WriteString(markdownCell(commandLede(command)) + "\n\n## Ze command\n\n")
-	out.WriteString("- Registry path: `" + markdownCell(command.Path) + "`\n")
+	var out textbuf.Buffer
+	out.Str("# `").Str(markdownCell(command.Path)).Str("`\n\n")
+	out.Str(markdownCell(commandLede(command))).Str("\n\n## Ze command\n\n")
+	out.Str("- Registry path: `").Str(markdownCell(command.Path)).Str("`\n")
 	if command.Usage != "" {
-		out.WriteString("- Usage: `" + markdownCell(command.Usage) + "`\n")
+		out.Str("- Usage: `").Str(markdownCell(command.Usage)).Str("`\n")
 	}
-	out.WriteString("- Mode: " + markdownCell(commandModeLabel(command.Mode)) + "\n")
-	out.WriteString("- Wire method: `" + markdownCell(orNotListed(command.WireMethod)) + "`\n")
-	out.WriteString("- Backends: " + backendsMirror(command) + "\n")
-	out.WriteString("- Task support: " + markdownCell(commandTaskSupportLabel(command.TaskSupport)) + "\n")
-	out.WriteString("- Subcommands: " + subcommandsMirror(command) + "\n")
-	out.WriteString("- Answer shape: " + markdownCell(orNotDeclared(command.AnswerShape)) + "\n")
-	out.WriteString("- Address fields: " + orNone(strings.Join(command.AddressFields, ", ")) + "\n")
+	out.Str("- Mode: ").Str(markdownCell(commandModeLabel(command.Mode))).Byte('\n')
+	out.Str("- Wire method: `").Str(markdownCell(orNotListed(command.WireMethod))).Str("`\n")
+	out.Str("- Backends: ").Str(backendsMirror(command)).Byte('\n')
+	out.Str("- Task support: ").Str(markdownCell(commandTaskSupportLabel(command.TaskSupport))).Byte('\n')
+	out.Str("- Subcommands: ").Str(subcommandsMirror(command)).Byte('\n')
+	out.Str("- Answer shape: ").Str(markdownCell(orNotDeclared(command.AnswerShape))).Byte('\n')
+	out.Str("- Address fields: ").Str(orNone(strings.Join(command.AddressFields, ", "))).Byte('\n')
 	for _, availability := range availabilityOrder {
-		out.WriteString("- " + detailPipeLabel(availability, command.AnswerShape != "") + ": " +
-			orNone(strings.Join(grouped[availability], ", ")) + "\n")
+		out.Str("- ").Str(detailPipeLabel(availability, command.AnswerShape != "")).Str(": ").
+			Str(orNone(strings.Join(grouped[availability], ", "))).Byte('\n')
 	}
-	out.WriteString("- Command pipes: " + orNone(commandPipeMirrorList(command)) + "\n")
-	out.WriteString("- Pipe aliases: " + orNone(aliasMirrorList(command)) + "\n\n")
+	out.Str("- Command pipes: ").Str(orNone(commandPipeMirrorList(command))).Byte('\n')
+	out.Str("- Pipe aliases: ").Str(orNone(aliasMirrorList(command))).Str("\n\n")
 	if command.LongHelp != "" {
-		out.WriteString(markdownCell(command.LongHelp) + "\n\n")
+		out.Str(markdownCell(command.LongHelp)).Str("\n\n")
 	}
-	out.WriteString(argumentMirrorTable(command))
-	out.WriteString("## Mapping intents\n\n")
+	out.Str(argumentMirrorTable(command))
+	out.Str("## Mapping intents\n\n")
 	if len(row.Entries) == 0 {
-		out.WriteString("No vendor equivalent has been curated yet for this Ze command.\n\n")
+		out.Str("No vendor equivalent has been curated yet for this Ze command.\n\n")
 	}
 	for _, entry := range row.Entries {
-		out.WriteString("### " + entry.Intent + "\n\nCategory: " + entry.Category + "\n\n")
+		out.Str("### ").Str(entry.Intent).Str("\n\nCategory: ").Str(entry.Category).Str("\n\n")
 		if entry.Notes != "" {
-			out.WriteString(markdownCell(entry.Notes) + "\n\n")
+			out.Str(markdownCell(entry.Notes)).Str("\n\n")
 		}
 	}
-	out.WriteString("## Vendor equivalents\n\n")
+	out.Str("## Vendor equivalents\n\n")
 	for _, vendor := range vendors {
-		out.WriteString("### " + mapping.vendorLabel(vendor) + "\n")
+		out.Str("### ").Str(mapping.vendorLabel(vendor)).Byte('\n')
 		commands := row.vendorCommands(vendor)
 		if len(commands) == 0 {
-			out.WriteString("\nNo equivalent listed.\n\n")
+			out.Str("\nNo equivalent listed.\n\n")
 			continue
 		}
 		for _, item := range commands {
-			out.WriteString("- `" + markdownCell(item.Command.Command) + "` (" +
-				item.Command.Confidence + ", " +
-				orNoSourceRef(strings.Join(item.Command.SourceRefs, ", ")) + ")\n")
+			out.Str("- `").Str(markdownCell(item.Command.Command)).Str("` (").Str(item.Command.Confidence).Str(", ").
+				Str(orNoSourceRef(strings.Join(item.Command.SourceRefs, ", "))).Str(")\n")
 			if item.Intent != "" {
-				out.WriteString("  - Intent: " + markdownCell(item.Intent) + "\n")
+				out.Str("  - Intent: ").Str(markdownCell(item.Intent)).Byte('\n')
 			}
 			if item.Command.Notes != "" {
-				out.WriteString("  - Note: " + markdownCell(item.Command.Notes) + "\n")
+				out.Str("  - Note: ").Str(markdownCell(item.Command.Notes)).Byte('\n')
 			}
 		}
-		out.WriteString("\n")
+		out.Byte('\n')
 	}
 	return strings.TrimRight(out.String(), "\n") + "\n"
 }
@@ -399,23 +398,22 @@ func subcommandsMirror(command *catalogCommand) string {
 // mirror takes, because it states the same four columns the page's own table
 // states and a mirror reads best beside the page it mirrors.
 func argumentMirrorTable(command *catalogCommand) string {
-	var out strings.Builder
-	out.WriteString("## Arguments\n\n")
+	var out textbuf.Buffer
+	out.Str("## Arguments\n\n")
 	if len(command.Args) == 0 {
-		out.WriteString("No command-specific arguments listed.\n\n")
+		out.Str("No command-specific arguments listed.\n\n")
 		return out.String()
 	}
-	out.WriteString("| Name | Type | Required | Values |\n| --- | --- | --- | --- |\n")
+	out.Str("| Name | Type | Required | Values |\n| --- | --- | --- | --- |\n")
 	for _, argument := range command.Args {
 		values := argumentValuesAny
 		if len(argument.Values) != 0 {
 			values = markdownCodeList(argument.Values)
 		}
-		out.WriteString("| `" + markdownCell(argument.Name) + "` | " +
-			markdownCell(argument.Type) + " | " + argumentRequiredLabel(argument) + " | " +
-			values + " |\n")
+		out.Str("| `").Str(markdownCell(argument.Name)).Str("` | ").Str(markdownCell(argument.Type)).Str(" | ").
+			Str(argumentRequiredLabel(argument)).Str(" | ").Str(values).Str(" |\n")
 	}
-	out.WriteString("\n")
+	out.Byte('\n')
 	return out.String()
 }
 

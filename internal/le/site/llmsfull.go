@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	sitewiki "github.com/ze-software/ze/internal/le/site/wiki"
 )
 
@@ -174,7 +175,8 @@ func renderLLMSFull(paths Paths) ([]string, error) {
 		return nil, err
 	}
 
-	var out strings.Builder
+	var out textbuf.Buffer
+	out.Reset()
 	writeLLMSFullIntro(&out)
 	for position, section := range llmsFullReadingOrder {
 		if err := writeLLMSFullSection(&out, paths.Output, section, sections[position]); err != nil {
@@ -379,37 +381,37 @@ func claimFor(route string, claimants map[string][]sectionClaim) (sectionClaim, 
 }
 
 // writeLLMSFullIntro states what this file is and how it is ordered.
-func writeLLMSFullIntro(out *strings.Builder) {
-	out.WriteString("# Ze: every published page\n\n")
-	out.WriteString("> The full text of the Ze website, as one file. Each page is the Markdown " +
-		"mirror the site publishes beside its HTML, preceded by the page title and the canonical " +
-		"URL a person opens. llms.txt beside this file is the same curation as links alone.\n\n")
-	out.WriteString("The order is a reading order, not the site's route order: what Ze is and " +
-		"why it is worth evaluating comes first, how to use it comes second. Talk decks are left " +
-		"out, because a deck is its own document and publishes no Markdown mirror.\n\n")
+func writeLLMSFullIntro(out *textbuf.Buffer) {
+	out.Str("# Ze: every published page\n\n")
+	out.Str("> The full text of the Ze website, as one file. Each page is the Markdown ").
+		Str("mirror the site publishes beside its HTML, preceded by the page title and the canonical ").
+		Str("URL a person opens. llms.txt beside this file is the same curation as links alone.\n\n")
+	out.Str("The order is a reading order, not the site's route order: what Ze is and ").
+		Str("why it is worth evaluating comes first, how to use it comes second. Talk decks are left ").
+		Str("out, because a deck is its own document and publishes no Markdown mirror.\n\n")
 	// A page body carries headings of its own, so a bare "## Start" would read
 	// the same as a heading inside the page above it. The two prefixes are what
 	// tells this file's own structure apart from the pages it carries.
-	out.WriteString("Every section opens with `" + llmsFullSectionPrefix + "<name>` and every page with `" +
-		llmsFullPagePrefix + "<title>` followed by its URL on the next line. The headings inside a " +
-		"page body carry neither prefix.\n\n")
+	out.Str("Every section opens with `").Str(llmsFullSectionPrefix).Str("<name>` and every page with `").
+		Str(llmsFullPagePrefix).Str("<title>` followed by its URL on the next line. The headings inside a ").
+		Str("page body carry neither prefix.\n\n")
 }
 
 // writeLLMSFullSection writes one section: its heading, then each page's title,
 // canonical URL and body.
-func writeLLMSFullSection(out *strings.Builder, output string, section readingSection, pages []assignment) error {
-	out.WriteString(llmsFullSectionPrefix + section.title() + "\n\n")
+func writeLLMSFullSection(out *textbuf.Buffer, output string, section readingSection, pages []assignment) error {
+	out.Str(llmsFullSectionPrefix).Str(section.title()).Str("\n\n")
 	for _, page := range pages {
 		body, err := os.ReadFile(filepath.Join(output, filepath.FromSlash(page.mirror))) //nolint:gosec // the artifact this build just wrote
 		if err != nil {
 			return fmt.Errorf("llms-full.txt: the published page %s has no Markdown mirror: %w", page.route, err)
 		}
 		text := strings.TrimSpace(string(body))
-		out.WriteString("---\n\n")
-		out.WriteString(llmsFullPagePrefix + mirrorTitle(text, page.route) + "\n")
-		out.WriteString(siteBase + strings.TrimPrefix(page.route, "/") + "\n\n")
+		out.Str("---\n\n")
+		out.Str(llmsFullPagePrefix).Str(mirrorTitle(text, page.route)).Byte('\n')
+		out.Str(siteBase).Str(strings.TrimPrefix(page.route, "/")).Str("\n\n")
 		if text != "" {
-			out.WriteString(text + "\n\n")
+			out.Str(text).Str("\n\n")
 		}
 	}
 	return nil
@@ -436,30 +438,30 @@ func mirrorTitle(text, route string) string {
 // The index is the committed website/data/wiki.json, so this build never opens
 // a wiki checkout and a machine that has only this repository writes the same
 // file. `le site wiki update` is what refreshes it.
-func writeLLMSFullWiki(out *strings.Builder, index sitewiki.Index) {
-	out.WriteString(llmsFullSectionPrefix + "Wiki\n\n")
-	out.WriteString("The Ze wiki is a separate source of truth, with its own pages and its own " +
-		"edit history. It is referenced here rather than copied, so nothing below states an " +
-		"answer twice with two dates on it. The order and the grouping are the wiki's own.\n\n")
+func writeLLMSFullWiki(out *textbuf.Buffer, index sitewiki.Index) {
+	out.Str(llmsFullSectionPrefix).Str("Wiki\n\n")
+	out.Str("The Ze wiki is a separate source of truth, with its own pages and its own ").
+		Str("edit history. It is referenced here rather than copied, so nothing below states an ").
+		Str("answer twice with two dates on it. The order and the grouping are the wiki's own.\n\n")
 	for _, group := range index.Groups {
-		out.WriteString("### " + group.Title + "\n\n")
+		out.Str("### ").Str(group.Title).Str("\n\n")
 		for _, page := range group.Pages {
-			out.WriteString("- [" + page.Title + "](" + index.URL(page.Slug) + ")")
+			out.Str("- [").Str(page.Title).Str("](").Str(index.URL(page.Slug)).Byte(')')
 			if page.Summary != "" {
-				out.WriteString(": " + page.Summary)
+				out.Str(": ").Str(page.Summary)
 			}
-			out.WriteString("\n")
+			out.Byte('\n')
 		}
-		out.WriteString("\n")
+		out.Byte('\n')
 	}
 	if len(index.Unlisted) == 0 {
 		return
 	}
-	out.WriteString("### Not referenced\n\n")
-	out.WriteString("The wiki holds these pages and its own sidebar does not list them, so this " +
-		"index has no place to put them. Each one is named rather than dropped.\n\n")
+	out.Str("### Not referenced\n\n")
+	out.Str("The wiki holds these pages and its own sidebar does not list them, so this ").
+		Str("index has no place to put them. Each one is named rather than dropped.\n\n")
 	for _, omission := range index.Unlisted {
-		out.WriteString("- " + omission.Slug + ": " + omission.Why + "\n")
+		out.Str("- ").Str(omission.Slug).Str(": ").Str(omission.Why).Byte('\n')
 	}
-	out.WriteString("\n")
+	out.Byte('\n')
 }

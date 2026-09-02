@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The CLI reference is registered from here, so a build discovers it through
@@ -59,20 +61,20 @@ func cliReferenceDescription(commands, groups int) string {
 
 // cliReferenceBody renders the page between <main> and </main>.
 func cliReferenceBody(commands []catalogCommand, groups []commandGroup) string {
-	var body strings.Builder
-	body.WriteString("\n            <section aria-labelledby=\"cli-title\" class=\"md-content reveal cat-operate\">\n")
-	body.WriteString(pageHero("CLI Reference", cliReferenceLead(len(commands), len(groups)), "Reference", ` id="cli-title"`, heroClasses))
-	body.WriteString("\n")
-	body.WriteString(renderOperatorGuide(commands))
-	body.WriteString(`                <div class="cli-search-wrap">` + "\n")
-	body.WriteString(`                    <input id="cli-search" type="search" autocomplete="off" ` +
-		`placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />` + "\n")
-	body.WriteString(`                    <div id="cli-suggestions" class="cli-suggestions" hidden></div>` + "\n")
-	body.WriteString("                </div>\n")
+	var body textbuf.Buffer
+	body.Reset().Str("\n            <section aria-labelledby=\"cli-title\" class=\"md-content reveal cat-operate\">\n")
+	body.Str(pageHero("CLI Reference", cliReferenceLead(len(commands), len(groups)), "Reference", ` id="cli-title"`, heroClasses))
+	body.Byte('\n')
+	body.Str(renderOperatorGuide(commands))
+	body.Str(`                <div class="cli-search-wrap">`).Byte('\n')
+	body.Str(`                    <input id="cli-search" type="search" autocomplete="off" `).
+		Str(`placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />`).Byte('\n')
+	body.Str(`                    <div id="cli-suggestions" class="cli-suggestions" hidden></div>`).Byte('\n')
+	body.Str("                </div>\n")
 	for index := range groups {
 		writeCommandGroup(&body, &groups[index])
 	}
-	body.WriteString("            </section>\n")
+	body.Str("            </section>\n")
 	return body.String()
 }
 
@@ -129,25 +131,25 @@ func renderOperatorGuide(commands []catalogCommand) string {
 	if len(order) == 0 {
 		return ""
 	}
-	var guide strings.Builder
-	guide.WriteString(`<section class="cli-pipe-guide" aria-labelledby="cli-pipe-guide-title">` + "\n")
-	guide.WriteString(`<div class="cli-pipe-guide-head">` + "\n")
-	guide.WriteString(`<span class="tag">Pipes</span>` + "\n")
-	guide.WriteString(`<div><h2 id="cli-pipe-guide-title">Pipe operators</h2>` + "\n")
-	guide.WriteString("<p>Each command row names the operators it accepts after <code>|</code>. " +
-		"Availability comes from the live command registry: operators may require row data, " +
-		"a streaming answer, or expansion by the operator's local process.</p></div>\n")
-	guide.WriteString("</div>\n<details>\n")
-	guide.WriteString("<summary>Operator reference <span>" + strconv.Itoa(len(order)) + "</span></summary>\n")
-	guide.WriteString("<table><thead><tr><th>Operator</th><th>Class</th><th>Available</th>" +
-		"<th>Description</th></tr></thead><tbody>\n")
+	var guide textbuf.Buffer
+	guide.Reset().Str(`<section class="cli-pipe-guide" aria-labelledby="cli-pipe-guide-title">`).Byte('\n')
+	guide.Str(`<div class="cli-pipe-guide-head">`).Byte('\n')
+	guide.Str(`<span class="tag">Pipes</span>`).Byte('\n')
+	guide.Str(`<div><h2 id="cli-pipe-guide-title">Pipe operators</h2>`).Byte('\n')
+	guide.Str("<p>Each command row names the operators it accepts after <code>|</code>. ").
+		Str("Availability comes from the live command registry: operators may require row data, ").
+		Str("a streaming answer, or expansion by the operator's local process.</p></div>\n")
+	guide.Str("</div>\n<details>\n")
+	guide.Str("<summary>Operator reference <span>").Int(int64(len(order))).Str("</span></summary>\n")
+	guide.Str("<table><thead><tr><th>Operator</th><th>Class</th><th>Available</th>").
+		Str("<th>Description</th></tr></thead><tbody>\n")
 	for _, row := range order {
-		guide.WriteString("<tr><td><code>" + html.EscapeString(row.name) + "</code></td><td>" +
-			html.EscapeString(operatorClassLabel(row.class)) + "</td><td>" +
-			html.EscapeString(availabilityList(row.availability)) + "</td><td>" +
-			html.EscapeString(row.description) + "</td></tr>\n")
+		guide.Str("<tr><td><code>").Str(html.EscapeString(row.name)).Str("</code></td><td>").
+			Str(html.EscapeString(operatorClassLabel(row.class))).Str("</td><td>").
+			Str(html.EscapeString(availabilityList(row.availability))).Str("</td><td>").
+			Str(html.EscapeString(row.description)).Str("</td></tr>\n")
 	}
-	guide.WriteString("</tbody></table>\n</details>\n</section>\n")
+	guide.Str("</tbody></table>\n</details>\n</section>\n")
 	return guide.String()
 }
 
@@ -182,16 +184,16 @@ func appendOnce(values []string, value string) []string {
 }
 
 // writeCommandGroup writes one open <details> holding one table of commands.
-func writeCommandGroup(out *strings.Builder, group *commandGroup) {
-	out.WriteString(`<details class="cli-group" id="cli-group-` + commandSlug(group.Label) + `" open>` + "\n")
-	out.WriteString("<summary>" + html.EscapeString(group.Label) +
-		` <span class="cli-group-count">` + strconv.Itoa(len(group.Commands)) + "</span></summary>\n")
-	out.WriteString("<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th>" +
-		"<th>Pipes</th></tr></thead><tbody>\n")
+func writeCommandGroup(out *textbuf.Buffer, group *commandGroup) {
+	out.Str(`<details class="cli-group" id="cli-group-`).Str(commandSlug(group.Label)).Str(`" open>`).Byte('\n')
+	out.Str("<summary>").Str(html.EscapeString(group.Label)).
+		Str(` <span class="cli-group-count">`).Int(int64(len(group.Commands))).Str("</span></summary>\n")
+	out.Str("<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th>").
+		Str("<th>Pipes</th></tr></thead><tbody>\n")
 	for _, command := range group.Commands {
 		writeCommandRow(out, command)
 	}
-	out.WriteString("</tbody></table></details>\n")
+	out.Str("</tbody></table></details>\n")
 }
 
 // writeCommandRow writes one command as one table row.
@@ -200,19 +202,19 @@ func writeCommandGroup(out *strings.Builder, group *commandGroup) {
 // derived from that same path, so the anchor a reader links and the text they
 // read are one value; the invocation form goes in the description cell, where
 // the command model's own usage line belongs.
-func writeCommandRow(out *strings.Builder, command *catalogCommand) {
-	out.WriteString(`<tr id="cmd-` + commandSlug(command.Path) + `"><td><code>` +
-		html.EscapeString(command.Path) + "</code></td>")
-	out.WriteString(`<td><span class="cli-mode cli-mode-` + html.EscapeString(command.Mode) + `">` +
-		html.EscapeString(commandModeLabel(command.Mode)) + "</span></td><td>")
-	out.WriteString(strings.ReplaceAll(html.EscapeString(command.Description), "\n", "<br>"))
+func writeCommandRow(out *textbuf.Buffer, command *catalogCommand) {
+	out.Str(`<tr id="cmd-`).Str(commandSlug(command.Path)).Str(`"><td><code>`).
+		Str(html.EscapeString(command.Path)).Str("</code></td>")
+	out.Str(`<td><span class="cli-mode cli-mode-`).Str(html.EscapeString(command.Mode)).Str(`">`).
+		Str(html.EscapeString(commandModeLabel(command.Mode))).Str("</span></td><td>")
+	out.Str(strings.ReplaceAll(html.EscapeString(command.Description), "\n", "<br>"))
 	if command.Usage != "" {
-		out.WriteString("<br><code>" + html.EscapeString(command.Usage) + "</code>")
+		out.Str("<br><code>").Str(html.EscapeString(command.Usage)).Str("</code>")
 	}
 	writeCommandFacts(out, command)
-	out.WriteString("</td><td>")
+	out.Str("</td><td>")
 	writeCommandPipeCell(out, command)
-	out.WriteString("</td></tr>\n")
+	out.Str("</td></tr>\n")
 }
 
 // writeCommandFacts writes what the command model states beside the invocation
@@ -223,27 +225,27 @@ func writeCommandRow(out *strings.Builder, command *catalogCommand) {
 // This cell is repeated for each of the catalog's commands, and "not declared"
 // four times over says nothing a reader scanning the table needs; the detail
 // page states the absences, one command at a time.
-func writeCommandFacts(out *strings.Builder, command *catalogCommand) {
+func writeCommandFacts(out *textbuf.Buffer, command *catalogCommand) {
 	if len(command.Args) == 0 && len(command.Backend) == 0 &&
 		command.TaskSupport == "" && len(command.Subcommands) == 0 {
 		return
 	}
-	out.WriteString(`<div class="cli-command-facts">`)
+	out.Str(`<div class="cli-command-facts">`)
 	if len(command.Args) != 0 {
-		out.WriteString("<p><span>Arguments</span>" +
-			strings.Join(argumentLines(command), "<br>") + "</p>")
+		out.Str("<p><span>Arguments</span>").
+			Str(strings.Join(argumentLines(command), "<br>")).Str("</p>")
 	}
 	if len(command.Backend) != 0 {
-		out.WriteString("<p><span>Backends</span>" + codeSpanList(command.Backend) + "</p>")
+		out.Str("<p><span>Backends</span>").Str(codeSpanList(command.Backend)).Str("</p>")
 	}
 	if command.TaskSupport != "" {
-		out.WriteString("<p><span>Task support</span>" +
-			html.EscapeString(commandTaskSupportLabel(command.TaskSupport)) + "</p>")
+		out.Str("<p><span>Task support</span>").
+			Str(html.EscapeString(commandTaskSupportLabel(command.TaskSupport))).Str("</p>")
 	}
 	if len(command.Subcommands) != 0 {
-		out.WriteString("<p><span>Subcommands</span>" + codeSpanList(command.Subcommands) + "</p>")
+		out.Str("<p><span>Subcommands</span>").Str(codeSpanList(command.Subcommands)).Str("</p>")
 	}
-	out.WriteString("</div>")
+	out.Str("</div>")
 }
 
 // argumentLines writes one line for each argument: its name, its type, whether
@@ -273,55 +275,55 @@ func codeSpanList(values []string) string {
 
 // writeCommandPipeCell writes the Pipes cell: a summary a reader can scan
 // closed, and the detail behind it.
-func writeCommandPipeCell(out *strings.Builder, command *catalogCommand) {
+func writeCommandPipeCell(out *textbuf.Buffer, command *catalogCommand) {
 	grouped := operatorsByAvailability(command)
 	if len(grouped) == 0 && len(command.Pipes) == 0 && len(command.Aliases) == 0 &&
 		command.AnswerShape == "" && len(command.AddressFields) == 0 {
-		out.WriteString(`<span class="cli-pipe-none">None</span>`)
+		out.Str(`<span class="cli-pipe-none">None</span>`)
 		return
 	}
-	out.WriteString(`<details class="cli-pipes"><summary>` +
-		html.EscapeString(commandPipeSummary(command)) + `</summary><div class="cli-pipe-detail">`)
+	out.Str(`<details class="cli-pipes"><summary>`).
+		Str(html.EscapeString(commandPipeSummary(command))).Str(`</summary><div class="cli-pipe-detail">`)
 	if command.AnswerShape != "" {
-		out.WriteString("<p><span>Answer shape</span><code>" +
-			html.EscapeString(command.AnswerShape) + "</code></p>")
+		out.Str("<p><span>Answer shape</span><code>").
+			Str(html.EscapeString(command.AnswerShape)).Str("</code></p>")
 	}
 	if len(command.AddressFields) != 0 {
-		out.WriteString("<p><span>Address fields</span><code>" +
-			html.EscapeString(strings.Join(command.AddressFields, " · ")) + "</code></p>")
+		out.Str("<p><span>Address fields</span><code>").
+			Str(html.EscapeString(strings.Join(command.AddressFields, " · "))).Str("</code></p>")
 	}
 	if len(command.Pipes) != 0 {
-		out.WriteString(`<strong>Command pipes</strong><div class="cli-pipe-chips">`)
+		out.Str(`<strong>Command pipes</strong><div class="cli-pipe-chips">`)
 		for _, pipe := range command.Pipes {
-			out.WriteString(`<code title="` + html.EscapeString(pipe.Description) + `">` +
-				html.EscapeString(pipeDisplayName(pipe)) + "</code>")
+			out.Str(`<code title="`).Str(html.EscapeString(pipe.Description)).Str(`">`).
+				Str(html.EscapeString(pipeDisplayName(pipe))).Str("</code>")
 		}
-		out.WriteString("</div>")
-		out.WriteString(`<details class="cli-pipe-descriptions"><summary>Command pipe descriptions</summary><dl>`)
+		out.Str("</div>")
+		out.Str(`<details class="cli-pipe-descriptions"><summary>Command pipe descriptions</summary><dl>`)
 		for _, pipe := range command.Pipes {
-			out.WriteString("<dt><code>" + html.EscapeString(pipeDisplayName(pipe)) + "</code></dt><dd>" +
-				html.EscapeString(pipe.Description) + "</dd>")
+			out.Str("<dt><code>").Str(html.EscapeString(pipeDisplayName(pipe))).Str("</code></dt><dd>").
+				Str(html.EscapeString(pipe.Description)).Str("</dd>")
 		}
-		out.WriteString("</dl></details>")
+		out.Str("</dl></details>")
 	}
 	if len(command.Aliases) != 0 {
-		out.WriteString("<strong>Aliases</strong><dl>")
+		out.Str("<strong>Aliases</strong><dl>")
 		for _, alias := range command.Aliases {
-			out.WriteString("<dt><code>" + html.EscapeString(alias.Name) + "</code></dt><dd>" +
-				html.EscapeString(alias.Description) + " <code>" +
-				html.EscapeString(alias.Expansion) + "</code></dd>")
+			out.Str("<dt><code>").Str(html.EscapeString(alias.Name)).Str("</code></dt><dd>").
+				Str(html.EscapeString(alias.Description)).Str(" <code>").
+				Str(html.EscapeString(alias.Expansion)).Str("</code></dd>")
 		}
-		out.WriteString("</dl>")
+		out.Str("</dl>")
 	}
 	for _, availability := range availabilityOrder {
 		names := grouped[availability]
 		if len(names) == 0 {
 			continue
 		}
-		out.WriteString("<p><span>" + html.EscapeString(availabilityLabels[availability]) + "</span><code>" +
-			html.EscapeString(strings.Join(names, " · ")) + "</code></p>")
+		out.Str("<p><span>").Str(html.EscapeString(availabilityLabels[availability])).Str("</span><code>").
+			Str(html.EscapeString(strings.Join(names, " · "))).Str("</code></p>")
 	}
-	out.WriteString("</div></details>")
+	out.Str("</div></details>")
 }
 
 // commandPipeSummary is the one line a reader sees with the pipe detail closed.
@@ -359,25 +361,25 @@ func commandPipeSummary(command *catalogCommand) string {
 // It is written from the same groups the HTML uses, so the two cannot disagree
 // about how the commands are organized.
 func cliReferenceMirror(commands []catalogCommand, groups []commandGroup) string {
-	var out strings.Builder
-	out.WriteString("# CLI Reference\n\n")
-	out.WriteString(strconv.Itoa(len(commands)) + " commands across " + strconv.Itoa(len(groups)) +
-		" groups, generated straight from `ze help command --json` -- the same live command registry " +
-		"the binary itself uses, so this list cannot drift from what the binary actually supports. " +
-		"Full machine-readable list (path, mode, description, pipe operators, command pipes, and " +
-		"aliases for every command): [" + catalogFile + "](" + siteBase + catalogFile + ").\n\n")
-	out.WriteString(operatorGuideMirror(commands))
+	var out textbuf.Buffer
+	out.Reset().Str("# CLI Reference\n\n")
+	out.Int(int64(len(commands))).Str(" commands across ").Int(int64(len(groups))).
+		Str(" groups, generated straight from `ze help command --json` -- the same live command registry ").
+		Str("the binary itself uses, so this list cannot drift from what the binary actually supports. ").
+		Str("Full machine-readable list (path, mode, description, pipe operators, command pipes, and ").
+		Str("aliases for every command): [").Str(catalogFile).Str("](").Str(siteBase).Str(catalogFile).Str(").\n\n")
+	out.Str(operatorGuideMirror(commands))
 	for index := range groups {
 		group := &groups[index]
-		out.WriteString("## " + group.Label + " (" + strconv.Itoa(len(group.Commands)) + ")\n\n")
-		out.WriteString("| Command | Mode | Description | Pipes |\n| --- | --- | --- | --- |\n")
+		out.Str("## ").Str(group.Label).Str(" (").Int(int64(len(group.Commands))).Str(")\n\n")
+		out.Str("| Command | Mode | Description | Pipes |\n| --- | --- | --- | --- |\n")
 		for _, command := range group.Commands {
-			out.WriteString("| `" + markdownCell(command.Path) + "` | " +
-				markdownCell(commandModeLabel(command.Mode)) + " | " +
-				commandMirrorDescription(command) + " | " +
-				commandMirrorPipes(command) + " |\n")
+			out.Str("| `").Str(markdownCell(command.Path)).Str("` | ").
+				Str(markdownCell(commandModeLabel(command.Mode))).Str(" | ").
+				Str(commandMirrorDescription(command)).Str(" | ").
+				Str(commandMirrorPipes(command)).Str(" |\n")
 		}
-		out.WriteString("\n")
+		out.Byte('\n')
 	}
 	return strings.TrimRight(out.String(), "\n") + "\n"
 }
@@ -393,17 +395,17 @@ func operatorGuideMirror(commands []catalogCommand) string {
 	if len(order) == 0 {
 		return ""
 	}
-	var out strings.Builder
-	out.WriteString("## Pipe operators (" + strconv.Itoa(len(order)) + ")\n\n")
-	out.WriteString("Each command row names the operators it accepts after `|`.\n\n")
-	out.WriteString("| Operator | Class | Available | Description |\n| --- | --- | --- | --- |\n")
+	var out textbuf.Buffer
+	out.Reset().Str("## Pipe operators (").Int(int64(len(order))).Str(")\n\n")
+	out.Str("Each command row names the operators it accepts after `|`.\n\n")
+	out.Str("| Operator | Class | Available | Description |\n| --- | --- | --- | --- |\n")
 	for _, row := range order {
-		out.WriteString("| `" + markdownCell(row.name) + "` | " +
-			markdownCell(operatorClassLabel(row.class)) + " | " +
-			markdownCell(availabilityList(row.availability)) + " | " +
-			markdownCell(row.description) + " |\n")
+		out.Str("| `").Str(markdownCell(row.name)).Str("` | ").
+			Str(markdownCell(operatorClassLabel(row.class))).Str(" | ").
+			Str(markdownCell(availabilityList(row.availability))).Str(" | ").
+			Str(markdownCell(row.description)).Str(" |\n")
 	}
-	out.WriteString("\n")
+	out.Byte('\n')
 	return out.String()
 }
 

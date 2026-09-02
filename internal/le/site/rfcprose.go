@@ -22,6 +22,8 @@ import (
 	"html"
 	"regexp"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // rfcProseSplit answers one cell's top-level items, split at the semicolons
@@ -36,7 +38,7 @@ func rfcProseSplit(prose string) []string {
 		return nil
 	}
 	var out []string
-	var item strings.Builder
+	var item textbuf.Buffer
 	depth, quoted, coded := 0, false, false
 	for _, letter := range prose {
 		switch {
@@ -170,12 +172,12 @@ func rfcThemeStarts(prose string) []int {
 // rfcProseThemesJoin is the inverse of rfcProseThemes, for the same reason
 // rfcProseJoin exists.
 func rfcProseThemesJoin(themes []rfcProseTheme) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	for _, theme := range themes {
 		if theme.Label != "" {
-			out.WriteString(theme.Label + ": ")
+			out.Str(theme.Label).Str(": ")
 		}
-		out.WriteString(theme.Body)
+		out.Str(theme.Body)
 	}
 	return out.String()
 }
@@ -222,13 +224,13 @@ func rfcProseHTML(prose string, declared map[string]bool) string {
 	if !rfcProseCodeSpansClose(prose) {
 		return rfcProseLinksHTML(prose, declared)
 	}
-	var out strings.Builder
+	var out textbuf.Buffer
 	for index, run := range strings.Split(prose, "`") {
 		if index%2 == 1 {
-			out.WriteString(rfcProseCodeHTML(run))
+			out.Str(rfcProseCodeHTML(run))
 			continue
 		}
-		out.WriteString(rfcProseLinksHTML(run, declared))
+		out.Str(rfcProseLinksHTML(run, declared))
 	}
 	return out.String()
 }
@@ -258,25 +260,25 @@ func rfcProseCodeHTML(run string) string {
 
 // rfcProseLinksHTML links the ids and the paths of one run of plain prose.
 func rfcProseLinksHTML(run string, declared map[string]bool) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	rest := run
 	for rest != "" {
 		next := rfcNextToken(rest)
 		if !next.Found {
-			out.WriteString(html.EscapeString(rest))
+			out.Str(html.EscapeString(rest))
 			break
 		}
-		out.WriteString(html.EscapeString(rest[:next.Start]))
+		out.Str(html.EscapeString(rest[:next.Start]))
 		token := rest[next.Start:next.End]
 		switch {
 		case next.IsID && declared[token]:
-			out.WriteString(rfcRequirementRefHTML(token, ""))
+			out.Str(rfcRequirementRefHTML(token, ""))
 		case !next.IsID && rfcLinkablePath(token):
-			out.WriteString(`<a href="` + html.EscapeString(repositoryBlobURL(token)) +
-				`" target="_blank" rel="noopener"><code>` + html.EscapeString(token) +
-				"</code></a>")
+			out.Str(`<a href="`).Str(html.EscapeString(repositoryBlobURL(token))).
+				Str(`" target="_blank" rel="noopener"><code>`).Str(html.EscapeString(token)).
+				Str("</code></a>")
 		default:
-			out.WriteString(html.EscapeString(token))
+			out.Str(html.EscapeString(token))
 		}
 		rest = rest[next.End:]
 	}
@@ -316,13 +318,13 @@ func rfcProseMirror(prose string, declared map[string]bool) string {
 	if !rfcProseCodeSpansClose(prose) {
 		return rfcProseLinksMirror(prose, declared)
 	}
-	var out strings.Builder
+	var out textbuf.Buffer
 	for index, run := range strings.Split(prose, "`") {
 		if index%2 == 1 {
-			out.WriteString(rfcProseCodeMirror(run))
+			out.Str(rfcProseCodeMirror(run))
 			continue
 		}
-		out.WriteString(rfcProseLinksMirror(run, declared))
+		out.Str(rfcProseLinksMirror(run, declared))
 	}
 	return out.String()
 }
@@ -338,23 +340,23 @@ func rfcProseCodeMirror(run string) string {
 
 // rfcProseLinksMirror links the ids and the paths of one run of plain prose.
 func rfcProseLinksMirror(run string, declared map[string]bool) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	rest := run
 	for rest != "" {
 		next := rfcNextToken(rest)
 		if !next.Found {
-			out.WriteString(rest)
+			out.Str(rest)
 			break
 		}
-		out.WriteString(rest[:next.Start])
+		out.Str(rest[:next.Start])
 		token := rest[next.Start:next.End]
 		switch {
 		case next.IsID && declared[token]:
-			out.WriteString(rfcRequirementRefMirror(token, ""))
+			out.Str(rfcRequirementRefMirror(token, ""))
 		case !next.IsID && rfcLinkablePath(token):
-			out.WriteString("[`" + token + "`](" + repositoryBlobURL(token) + ")")
+			out.Str("[`").Str(token).Str("`](").Str(repositoryBlobURL(token)).Byte(')')
 		default:
-			out.WriteString(token)
+			out.Str(token)
 		}
 		rest = rest[next.End:]
 	}
