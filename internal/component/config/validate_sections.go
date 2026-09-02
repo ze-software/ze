@@ -7,6 +7,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -297,9 +298,7 @@ func ValidatorSectionCoverage() (ValidatorCoverage, error) {
 // sheet over a tree it never saw.
 func KnownUnwalkedValidatorSections() map[string]string {
 	out := make(map[string]string, len(knownUnwalkedValidatorSections))
-	for k, v := range knownUnwalkedValidatorSections {
-		out[k] = v
-	}
+	maps.Copy(out, knownUnwalkedValidatorSections)
 	return out
 }
 

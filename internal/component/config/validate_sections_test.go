@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -175,10 +176,8 @@ func TestValidatedSectionsExcludesBGP(t *testing.T) {
 // validator names under it are ipv4-address and ipv4-prefix, both pure form
 // checks that read no registry and depend on no startup order.
 func TestValidatedSectionsIncludesService(t *testing.T) {
-	for _, s := range validatedSections {
-		if s == "service" {
-			return
-		}
+	if slices.Contains(validatedSections, "service") {
+		return
 	}
 	t.Error("\"service\" is absent from validatedSections, so every ze:validate under it is inert")
 }
