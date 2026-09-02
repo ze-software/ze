@@ -612,6 +612,12 @@ func leRFCAnswersExportHEAD(ctx context.Context, root, parent, name string) stri
 			leRFCAnswersRequireNoError(copyErr, "extract "+header.Name)
 			leRFCAnswersRequireNoError(closeErr, "close "+header.Name)
 		case tar.TypeSymlink:
+			// A link target is a second path into the export, so it is held to
+			// the same containment as the entry name. The helper fails the
+			// fixture when the joined path leaves the destination.
+			leRFCAnswersRequire(!filepath.IsAbs(header.Linkname), "absolute symlink target %q", header.Linkname)
+			leRFCAnswersArchivePath(destination,
+				filepath.Join(filepath.Dir(filepath.FromSlash(header.Name)), filepath.FromSlash(header.Linkname)))
 			leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o750), "create parent for "+header.Name)
 			leRFCAnswersRequireNoError(os.Symlink(header.Linkname, path), "create symlink "+header.Name)
 		case tar.TypeLink:

@@ -434,6 +434,14 @@ func leSTEExtractTar(r io.Reader, destination string) error {
 				return closeErr
 			}
 		case tar.TypeSymlink:
+			// A link target is a second path into the export, so it is held to
+			// the same containment as the entry name above.
+			if filepath.IsAbs(hdr.Linkname) {
+				return fmt.Errorf("unsafe absolute symlink target %q", hdr.Linkname)
+			}
+			if !leSTEWithin(destination, filepath.Join(filepath.Dir(path), filepath.FromSlash(hdr.Linkname))) {
+				return fmt.Errorf("symlink %q escapes export", hdr.Name)
+			}
 			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 				return err
 			}
