@@ -51,6 +51,7 @@ import (
 	"strings"
 
 	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
+	"github.com/ze-software/ze/internal/le/population"
 )
 
 // allowlist maps a path prefix (a file, or a directory ending in "/", relative
@@ -59,14 +60,23 @@ import (
 // functions themselves -- their own callers are not a cross-process boundary. A
 // scanned file whose path has any of these prefixes never contributes a finding
 // or a guard signal.
+//
+// An entry is owed only by an owning package the walk actually reaches, which
+// means one that is also a plugin search root. trafficstat is an owning package
+// and is NOT a root, so its entry exempted nothing from 2026-08-26 until the
+// accounting below found it. If a later generator adds that root, the gate will
+// ask for the entry back.
 var allowlist = map[string]string{
-	"internal/component/iface/":       "the owning package -- its own callers of RegisterOwnedAddresses/GetBackend/SubscribeCollectNotify etc. are not a cross-process boundary.",
-	"internal/component/trafficstat/": "the owning package -- its own callers of EnsureGlobal/Global are not a cross-process boundary.",
+	"internal/component/iface/": "the owning package, and a plugin search root -- its own callers of RegisterOwnedAddresses/GetBackend/SubscribeCollectNotify etc. are not a cross-process boundary.",
 }
 
 // The two owning packages whose exported functions only reach real, shared
 // engine state in the same OS process. They are constants because the watch
-// list, the fixture and the allowlist must all name the same package.
+// list and the fixture must name the same package.
+//
+// The allowlist names only the one the walk reaches. An owning package that is
+// not a plugin search root contributes no file to scan. It owes no exemption,
+// and writing one anyway states a rule that can never fire.
 const (
 	ifacePackage       = "github.com/ze-software/ze/internal/component/iface"
 	trafficstatPackage = "github.com/ze-software/ze/internal/component/trafficstat"
@@ -123,11 +133,43 @@ func Roots() []string { return pluginimports.PluginSearchRoots() }
 // floor is a parameter rather than a constant because a fixture tree holds a
 // handful of files: le passes scanFloor and a test passes 0.
 func Check(tree string, floor int) (Findings, error) {
+	findings, _, err := scan(tree, treeRoots(tree), floor)
+	return findings, err
+}
+
+// CheckCheckout is Check plus the accounting over the allowlist itself, for a
+// caller that is judging the real repository.
+//
+// The two are separate for the reason floor is a parameter. Over a fixture, an
+// entry that matches nothing means the tree does not hold that path. Over the
+// checkout it means an exemption that has stopped naming anything. Only the
+// caller knows which tree it handed over.
+func CheckCheckout(tree string, floor int) (Findings, error) {
+	findings, matched, err := scan(tree, treeRoots(tree), floor)
+	if err != nil {
+		return nil, err
+	}
+	coverage, err := population.Exemptions("plugin-boundary allowlist", allowlist, matched)
+	if err != nil {
+		return nil, err
+	}
+	if len(coverage.Unexcused) != 0 {
+		return nil, fmt.Errorf("%w: %s -- delete the entry, or correct the path it was meant to name",
+			ErrDeadAllowlistEntry, strings.Join(coverage.Unexcused, ", "))
+	}
+	return findings, nil
+}
+
+// ErrDeadAllowlistEntry names an allowlist entry that exempted no file in the
+// tree the walk just read.
+var ErrDeadAllowlistEntry = errors.New("a plugin-boundary allowlist entry matches no file")
+
+func treeRoots(tree string) []string {
 	roots := make([]string, 0, len(Roots()))
 	for _, rel := range Roots() {
 		roots = append(roots, filepath.Join(tree, filepath.FromSlash(rel)))
 	}
-	return scan(tree, roots, floor)
+	return roots
 }
 
 // packageScan holds the accumulated dangerous-call findings and guard presence
@@ -147,10 +189,11 @@ type packageScan struct {
 // script this replaced answered `if fi, statErr := os.Stat(root); statErr != nil
 // || !fi.IsDir() { continue }` -- one skip for both facts, so a run whose roots
 // ALL resolved to nothing printed OK having read no file.
-func scan(tree string, roots []string, floor int) (Findings, error) {
+func scan(tree string, roots []string, floor int) (Findings, map[string]bool, error) {
 	watch := watchedImportPaths()
 	packages := map[string]*packageScan{}
 	read := 0
+	matched := make(map[string]bool, len(allowlist))
 
 	for _, root := range roots {
 		info, statErr := os.Stat(root)
@@ -158,9 +201,9 @@ func scan(tree string, roots []string, floor int) (Findings, error) {
 		case errors.Is(statErr, fs.ErrNotExist):
 			continue
 		case statErr != nil:
-			return nil, fmt.Errorf("stat the scan root %s: %w", root, statErr)
+			return nil, nil, fmt.Errorf("stat the scan root %s: %w", root, statErr)
 		case !info.IsDir():
-			return nil, fmt.Errorf("the scan root %s is not a directory", root)
+			return nil, nil, fmt.Errorf("the scan root %s is not a directory", root)
 		}
 
 		walkErr := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
@@ -176,18 +219,19 @@ func scan(tree string, roots []string, floor int) (Findings, error) {
 			}
 			rel := filepath.ToSlash(relPath)
 			read++
-			if Allowlisted(rel) {
+			if prefix, exempt := AllowlistedBy(rel); exempt {
+				matched[prefix] = true
 				return nil
 			}
 			return scanFile(path, rel, watch, packages)
 		})
 		if walkErr != nil {
-			return nil, fmt.Errorf("scan error in %s: %w", root, walkErr)
+			return nil, nil, fmt.Errorf("scan error in %s: %w", root, walkErr)
 		}
 	}
 
 	if read < floor {
-		return nil, fmt.Errorf("the walk read %d non-test Go files under %s, below the floor of %d: this tree was not read", read, tree, floor)
+		return nil, nil, fmt.Errorf("the walk read %d non-test Go files under %s, below the floor of %d: this tree was not read", read, tree, floor)
 	}
 
 	var unguarded Findings
@@ -210,7 +254,7 @@ func scan(tree string, roots []string, floor int) (Findings, error) {
 		}
 		return unguarded[i].Line < unguarded[j].Line
 	})
-	return unguarded, nil
+	return unguarded, matched, nil
 }
 
 // scanFile records one file's dangerous calls and guard presence against its
@@ -330,12 +374,23 @@ func resolveImportAliases(path string, watch []string) (map[string]string, error
 // Allowlisted reports whether rel is exempt -- the owning package of a
 // dangerous function.
 func Allowlisted(rel string) bool {
+	_, exempt := AllowlistedBy(rel)
+	return exempt
+}
+
+// AllowlistedBy answers the allowlist entry that exempts rel, and whether one
+// does.
+//
+// It names WHICH entry because the entries are a population of their own. One
+// that matches no file is an exemption nobody rechecked. The walk is the only
+// producer that can tell.
+func AllowlistedBy(rel string) (string, bool) {
 	for prefix := range allowlist {
 		if strings.HasPrefix(rel, prefix) {
-			return true
+			return prefix, true
 		}
 	}
-	return false
+	return "", false
 }
 
 // StripComment answers the code portion of a Go source line, dropping a leading

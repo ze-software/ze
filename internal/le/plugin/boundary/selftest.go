@@ -189,7 +189,7 @@ func Selftest() (leroot.SelftestReport, error) {
 		return leroot.SelftestReport{}, err
 	}
 
-	findings, err := scan(dir, []string{filepath.Join(dir, "internal", "plugins")}, 0)
+	findings, _, err := scan(dir, []string{filepath.Join(dir, "internal", "plugins")}, 0)
 	if err != nil {
 		return leroot.SelftestReport{}, err
 	}

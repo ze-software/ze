@@ -8,6 +8,7 @@ package pluginboundary
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -258,5 +259,22 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 		if verbs.Actions[i].Verb != want {
 			t.Errorf("action %d is %q, want %q", i, verbs.Actions[i].Verb, want)
 		}
+	}
+}
+
+// VALIDATES: every allowlist entry still exempts a file that exists.
+// PREVENTS: an exemption nobody rechecked. Each entry states that a package owns
+// the dangerous functions and needs no guard, and a dead entry keeps stating it
+// for whatever code arrives at that path next. A file-level accounting cannot
+// find this: every file the walk reads is either scanned or exempted, so it
+// balances by construction. The entries are the population, and only the walk
+// can say which of them still match something.
+func TestEveryAllowlistEntryStillMatchesAFile(t *testing.T) {
+	tree, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	if _, err := CheckCheckout(tree, scanFloor); err != nil && errors.Is(err, ErrDeadAllowlistEntry) {
+		t.Error(err)
 	}
 }

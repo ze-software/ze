@@ -248,17 +248,7 @@ var ErrDeadAllowlistEntry = errors.New("an iface-resolution allowlist entry matc
 // resolution is legitimate at a path, and it keeps stating that for whatever
 // code arrives at that path next, with nobody having judged it.
 func verifyAllowlistIsLive(matched map[string]bool) error {
-	entries := make(map[string]bool, len(allowlist))
-	for prefix := range allowlist {
-		entries[prefix] = true
-	}
-	claim := population.Claim{
-		Subject:         "iface-resolution allowlist",
-		Population:      entries,
-		Walked:          matched,
-		UnexcusedReason: "MATCHES NO FILE UNDER cmd, internal OR pkg",
-	}
-	coverage, err := claim.Assess()
+	coverage, err := population.Exemptions("iface-resolution allowlist", allowlist, matched)
 	if err != nil {
 		return err
 	}

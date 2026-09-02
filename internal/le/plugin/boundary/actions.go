@@ -50,7 +50,10 @@ func runCheck() (any, int) {
 		return nil, 2
 	}
 
-	findings, err := Check(tree, scanFloor)
+	// CheckCheckout rather than Check: this caller resolved the real repository
+	// root, so an allowlist entry matching nothing here is an exemption that has
+	// stopped naming anything, not a fixture that never held the file.
+	findings, err := CheckCheckout(tree, scanFloor)
 	if err != nil {
 		// 2 rather than 1: a walk that did not complete is a different fact
 		// from a tree holding an unguarded call.

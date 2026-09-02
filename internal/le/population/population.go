@@ -69,6 +69,34 @@ type Claim struct {
 	UnexcusedReason string
 }
 
+// Exemptions accounts for a gate's exemption rules against the members each rule
+// matched during the walk.
+//
+// This is the accounting a file-level one cannot give. A gate whose walk either
+// scans a file or exempts it balances by construction, so it proves nothing
+// about the exemptions themselves. Here the RULES are the population, and the
+// walk is the only producer that can say which of them still match anything.
+//
+// A rule that matches nothing is not untidiness. It states that some behavior
+// is legitimate at a path. It keeps stating that for whatever code arrives at
+// the path next, with nobody having judged it.
+//
+// rules maps each rule to the reason it exists. matched holds the rules the
+// walk used. A rule the walk never used comes back in Coverage.Unexcused.
+func Exemptions(subject string, rules map[string]string, matched map[string]bool) (Coverage, error) {
+	declared := make(map[string]bool, len(rules))
+	for rule := range rules {
+		declared[rule] = true
+	}
+	claim := Claim{
+		Subject:         subject,
+		Population:      declared,
+		Walked:          matched,
+		UnexcusedReason: "MATCHES NOTHING IN THE TREE THE WALK READ",
+	}
+	return claim.Assess()
+}
+
 // Assess accounts for every member of the claimed population against the set the
 // gate walked.
 //
