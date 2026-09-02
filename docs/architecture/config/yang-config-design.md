@@ -251,6 +251,34 @@ This accepts either a valid non-zero IPv4 address or the literal "self".
 
 <!-- source: internal/component/config/yang/validator_registry.go -- CheckAllValidatorsRegistered -->
 
+### Where a validator actually runs
+
+Declaring a `ze:validate` is not sufficient to make it run. `ValidateCustomSections`
+iterates `validatedSections`, a list of top-level section names, and checks only
+inside those, so an annotation under any other section never executes.
+
+The check above cannot see that: it asks whether the validator FUNCTION exists,
+never whether the walk reaches it, so a dead annotation and a live one are
+spelled identically and both pass. Three sections had dead annotations for as
+long as they had existed, and the first one found was a DHCP `default-router`
+that `ze config validate` accepted as `2001:db8::1`.
+
+`ValidatorSectionCoverage` derives the declaring sections from the resolved
+model and subtracts `validatedSections` and `knownUnwalkedValidatorSections`,
+which records each deliberate exclusion against its reason.
+`TestEveryValidatorSectionIsWalkedOrExcused` fails on anything left over, so a
+new plugin that declares a validator under a new section is told rather than
+shipping a rule that does nothing.
+
+Read the resolved model, never the YANG source: a `ze:validate` written inside a
+grouping lands wherever that grouping is used, so the source cannot say which
+section owns it. The derivation is also only as complete as the modules the
+binary linked, and every plugin sits behind a feature build tag, which is why
+the test asserts its recorded exclusions are present before it reads an empty
+answer as good news.
+
+<!-- source: internal/component/config/validate_sections.go -- ValidatorSectionCoverage, knownUnwalkedValidatorSections -->
+
 ### Claim Completeness Gate
 
 Validation says a config value is well formed. It does not say the value reaches
@@ -418,8 +446,9 @@ each one answers a different question.
 
 | Statement | Holds | Read by |
 |-----------|-------|---------|
-| `description` | the one-line SUMMARY of the command | every surface that shows a command on one line: a list row, a completion candidate, a table cell |
-| `ze:help` | the LONG explanation of that one command | the help page for that command |
+| `description` | the one-line SUMMARY of the command | every surface that shows a command on one line: a list row, a table cell, and the message line under the interactive completion menu |
+| `ze:help` | the LONG explanation of that one command | the help page for that command, and the box that Tab opens in the interactive CLI |
+<!-- source: internal/component/cli/model_render.go -- warningText, renderExplanationBox -->
 
 `mergeYANGEntry` (`internal/component/config/yang/command.go`) writes them to
 `command.Node.Description` and `command.Node.Help`. Neither field is derived
@@ -442,7 +471,9 @@ nodes and 211 RPCs, each summary one sentence of 25 words at most, on one line,
 with no semicolon and a full stop at the end.
 
 An empty `ze:help` means nobody has written an explanation for that command.
-That is not a defect. The help page then prints the summary alone.
+That is not a defect. The help page then prints the summary alone, and the
+interactive CLI says that the command declares none.
+<!-- source: internal/component/cli/model_keys.go -- revealExplanation -->
 
 An empty `description` is a defect. Every list that names the command shows a
 blank cell, and `validateNode` warns for each one by path.

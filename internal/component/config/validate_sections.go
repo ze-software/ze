@@ -7,7 +7,10 @@ package config
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
+
+	gyang "github.com/openconfig/goyang/pkg/yang"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -190,4 +193,127 @@ func isSensitiveLeaf(path string, sensitiveKeys map[string]bool) bool {
 		return sensitiveKeys[path[idx+1:]]
 	}
 	return sensitiveKeys[path]
+}
+
+// knownUnwalkedValidatorSections names every top-level section that declares a
+// ze:validate and is deliberately absent from validatedSections, against what
+// that absence costs and what it owes. A section in this map is a DECISION. A
+// section in neither this map nor validatedSections is a DEFECT, and it is the
+// defect nobody could see: an annotation that never runs is spelled exactly
+// like one that does, and CheckAllValidatorsRegistered is satisfied either way,
+// because it asks whether the validator function exists rather than whether the
+// walk reaches it. Three of these five were found by measurement on 2026-09-02
+// and had never been recorded.
+var knownUnwalkedValidatorSections = map[string]string{
+	"bgp": "AddressFamilyValidator reads registry.FamilyMap(), which omits the " +
+		"builtin families, so walking bgp refuses 742 family sites across 687 " +
+		"shipped configs. The validator is the defect, not the section.",
+	"redistribute": "The same AddressFamilyValidator defect, over 33 further " +
+		"family sites.",
+	"policy": "The one exclusion with a user-visible cost: all four annotated " +
+		"`policy route ... rule ... from` leaves accept a value their annotation " +
+		"forbids, because the policyroute parser checks next-hop alone, so a " +
+		"typo in a match prefix yields a rule that matches nothing and no " +
+		"surface says so. Widening is not a measurement run: the population is " +
+		"71 configs, the section holds the BGP routing-policy tree as well as " +
+		"policy routing, and ze-types.yang carries ze:validate " +
+		"\"registered-address-family\" in a grouping, so walking policy can arm " +
+		"the AddressFamilyValidator defect above. Settle that reachability first.",
+	"static": "Inert, and nothing is user-visible: the static parser refuses a " +
+		"malformed prefix itself. Owes the measurement run service had.",
+	"control-plane-protection": "Inert, and nothing is user-visible: the copp " +
+		"parser refuses a malformed prefix itself. Owes the measurement run " +
+		"service had.",
+}
+
+// ValidatorCoverage is what the resolved model says about ze:validate: every
+// top-level section that declares one, and the subset of those that no rule
+// accounts for.
+type ValidatorCoverage struct {
+	// Declaring is every top-level section carrying a ze:validate anywhere in
+	// its subtree, in the model this binary compiled.
+	Declaring map[string]bool
+	// Unaccounted is the sections in Declaring that ValidateCustomSections does
+	// not walk and knownUnwalkedValidatorSections does not excuse. Each one is
+	// an annotation that silently does nothing.
+	Unaccounted []string
+}
+
+// ValidatorSectionCoverage derives ValidatorCoverage from the resolved model.
+//
+// It reads the RESOLVED tree rather than the YANG source, because a ze:validate
+// written inside a grouping lands wherever that grouping is used, so the source
+// cannot say which section owns it. It builds the model the way
+// ValidateCustomSections does, so the population it reports is the population
+// that walk would cover.
+//
+// The answer is only as complete as the modules the calling binary LINKED. A
+// build with a feature compiled out sees neither that plugin's YANG nor the
+// section it declares, so a caller MUST check Declaring against what it expects
+// before reading an empty Unaccounted as good news.
+func ValidatorSectionCoverage() (ValidatorCoverage, error) {
+	loader, err := loadYANGModules(nil)
+	if err != nil {
+		return ValidatorCoverage{}, fmt.Errorf("build YANG model: %w", err)
+	}
+
+	walked := make(map[string]bool, len(validatedSections))
+	for _, s := range validatedSections {
+		walked[s] = true
+	}
+
+	cov := ValidatorCoverage{Declaring: make(map[string]bool)}
+	unaccounted := make(map[string]bool)
+	for _, modName := range loader.ConfModuleNames() {
+		entry := loader.GetEntry(modName)
+		if entry == nil || entry.Dir == nil {
+			continue
+		}
+		for section, sectionEntry := range entry.Dir {
+			if !subtreeDeclaresValidator(sectionEntry) {
+				continue
+			}
+			cov.Declaring[section] = true
+			if walked[section] {
+				continue
+			}
+			if _, known := knownUnwalkedValidatorSections[section]; known {
+				continue
+			}
+			unaccounted[section] = true
+		}
+	}
+
+	cov.Unaccounted = make([]string, 0, len(unaccounted))
+	for s := range unaccounted {
+		cov.Unaccounted = append(cov.Unaccounted, s)
+	}
+	sort.Strings(cov.Unaccounted)
+	return cov, nil
+}
+
+// KnownUnwalkedValidatorSections answers the recorded exclusions, so a test can
+// check the model it read actually contains them rather than reporting a clean
+// sheet over a tree it never saw.
+func KnownUnwalkedValidatorSections() map[string]string {
+	out := make(map[string]string, len(knownUnwalkedValidatorSections))
+	for k, v := range knownUnwalkedValidatorSections {
+		out[k] = v
+	}
+	return out
+}
+
+// subtreeDeclaresValidator reports whether entry or anything under it carries a
+// ze:validate. The recursion is over a resolved YANG tree, which is finite and
+// built from modules this binary compiled in, never from operator input.
+func subtreeDeclaresValidator(entry *gyang.Entry) bool {
+	if yang.GetValidateExtension(entry) != "" {
+		return true
+	}
+	for _, child := range entry.Dir {
+		if subtreeDeclaresValidator(child) {
+			return true
+		}
+	}
+	return false
 }
