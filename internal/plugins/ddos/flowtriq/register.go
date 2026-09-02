@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"sync/atomic"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/ddosevent"
@@ -55,13 +54,7 @@ func runEngine(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	var (
-		cl                 *client
-		activeUUID         string
-		activeFamily       ddosevent.AttackFamily
-		activePeakPPS      float64
-		activePeakBPS      float64
-		activeConfidence   int
-		attackStart        time.Time
+		rep                reporter
 		unsubDetected      func()
 		unsubCharacterized func()
 		unsubOngoing       func()
@@ -85,58 +78,15 @@ func runEngine(conn net.Conn) int {
 		return DefaultConfig(), nil
 	}
 
+	// The four handles are written here and read by unsubscribe, and both run
+	// on the SDK's reader goroutine (OnConfigure, OnConfigApply, and the tail of
+	// this function once Run has returned). The incident state the callbacks
+	// share with the detector's goroutines lives in reporter, which guards it.
 	subscribe := func(bus ze.EventBus) {
-		unsubDetected = ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) {
-			if cl == nil {
-				return
-			}
-			uuid, err := cl.openIncident(e)
-			if err != nil {
-				log.Warn("ddos-flowtriq: open incident failed", "error", err)
-				return
-			}
-			activeUUID = uuid
-			activeFamily = e.Family
-			activePeakPPS = e.PeakRxPps
-			activePeakBPS = e.PeakRxBps
-			activeConfidence = 0
-			attackStart = time.Now()
-			log.Info("ddos-flowtriq: incident opened", "uuid", uuid)
-		})
-		// Characterized carries the confidence score (unavailable at Detected time);
-		// capture it so the next update and the resolve report it to the dashboard.
-		unsubCharacterized = ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) {
-			if activeUUID != "" {
-				activeConfidence = e.Confidence
-			}
-		})
-		unsubOngoing = ddosevent.Ongoing.Subscribe(bus, func(e *ddosevent.AttackOngoing) {
-			if cl == nil || activeUUID == "" {
-				return
-			}
-			if e.CurrentPps > activePeakPPS {
-				activePeakPPS = e.CurrentPps
-			}
-			if e.CurrentBps > activePeakBPS {
-				activePeakBPS = e.CurrentBps
-			}
-			if err := cl.updateIncident(activeUUID, e.CurrentPps, e.CurrentBps, activeFamily, activeConfidence); err != nil {
-				log.Warn("ddos-flowtriq: update incident failed", "error", err)
-			}
-		})
-		unsubCleared = ddosevent.Cleared.Subscribe(bus, func(_ *ddosevent.AttackCleared) {
-			if cl == nil || activeUUID == "" {
-				return
-			}
-			duration := time.Since(attackStart).Seconds()
-			if err := cl.resolveIncident(activeUUID, duration, activePeakPPS, activePeakBPS, activeConfidence); err != nil {
-				log.Warn("ddos-flowtriq: resolve incident failed", "error", err)
-			} else {
-				log.Info("ddos-flowtriq: incident resolved", "uuid", activeUUID, "duration", duration)
-			}
-			activeUUID = ""
-			activeConfidence = 0
-		})
+		unsubDetected = ddosevent.Detected.Subscribe(bus, rep.onDetected)
+		unsubCharacterized = ddosevent.Characterized.Subscribe(bus, rep.onCharacterized)
+		unsubOngoing = ddosevent.Ongoing.Subscribe(bus, rep.onOngoing)
+		unsubCleared = ddosevent.Cleared.Subscribe(bus, rep.onCleared)
 	}
 
 	unsubscribe := func() {
@@ -162,7 +112,7 @@ func runEngine(conn net.Conn) int {
 			return err
 		}
 		if cfg.Enabled {
-			cl = newClient(cfg.APIBase, cfg.APIKey, cfg.NodeUUID)
+			rep.swapClient(newClient(cfg.APIBase, cfg.APIKey, cfg.NodeUUID))
 			bus, busErr := loadBus()
 			if busErr != nil {
 				return busErr
@@ -188,25 +138,21 @@ func runEngine(conn net.Conn) int {
 		if cfg == nil {
 			return nil
 		}
-		if cl != nil && activeUUID != "" {
-			duration := time.Since(attackStart).Seconds()
-			if err := cl.resolveIncident(activeUUID, duration, activePeakPPS, activePeakBPS, activeConfidence); err != nil {
-				log.Warn("ddos-flowtriq: resolve on config reload failed", "error", err)
-			}
-			activeUUID = ""
-			activeConfidence = 0
-		}
+		// pendingCfg needs no lock: OnConfigVerify writes it and this reads it,
+		// and both are SDK callbacks the one reader goroutine runs in sequence.
+		// The incident state is the part a detector goroutine also touches, and
+		// swapClient is what orders this apply against a delivery in flight.
 		unsubscribe()
-		if cfg.Enabled {
-			cl = newClient(cfg.APIBase, cfg.APIKey, cfg.NodeUUID)
-			bus, busErr := loadBus()
-			if busErr != nil {
-				return busErr
-			}
-			subscribe(bus)
-		} else {
-			cl = nil
+		if !cfg.Enabled {
+			rep.swapClient(nil)
+			return nil
 		}
+		rep.swapClient(newClient(cfg.APIBase, cfg.APIKey, cfg.NodeUUID))
+		bus, busErr := loadBus()
+		if busErr != nil {
+			return busErr
+		}
+		subscribe(bus)
 		return nil
 	})
 
@@ -217,7 +163,12 @@ func runEngine(conn net.Conn) int {
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
-		ApplyBudget:  10,
+		// 20 rather than 10 because an apply now waits for a delivery already
+		// inside a callback before it takes the lock, and a callback holds it
+		// across one API post, which the HTTP client caps at 10 seconds
+		// (newClient, client.go). The apply's own resolveIncident post is a
+		// second one, so the budget covers two.
+		ApplyBudget: 20,
 	}); err != nil {
 		log.Error("ddos-flowtriq plugin failed", "error", err)
 		unsubscribe()
