@@ -14,6 +14,8 @@ import (
 	"unicode"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // PathOperationKind selects the structural path edit.
@@ -672,7 +674,7 @@ func transformQuotedText(content []byte, transform func(string) string) ([]byte,
 		}
 		start := index
 		index++
-		var value strings.Builder
+		var value textbuf.Buffer
 		closed := false
 		for index < len(content) {
 			if content[index] == '\\' && index+1 < len(content) {
@@ -684,14 +686,15 @@ func transformQuotedText(content []byte, transform func(string) string) ([]byte,
 				closed = true
 				break
 			}
-			value.WriteByte(content[index])
+			value.Byte(content[index])
 			index++
 		}
 		if !closed {
 			return nil, fmt.Errorf("unclosed quoted string at byte %d", start)
 		}
-		changed := transform(value.String())
-		if changed != value.String() {
+		original := value.String()
+		changed := transform(original)
+		if changed != original {
 			replacements = append(replacements, textReplacement{start: start + 1, end: index, text: changed})
 		}
 		index++

@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/leaction"
 )
 
@@ -70,16 +71,16 @@ func (r *claudeServerReport) add(step, status, detail string) {
 
 // Text renders the legacy-style ordered diagnostic transcript.
 func (r *claudeServerReport) Text() string {
-	var text strings.Builder
+	var text textbuf.Buffer
 	for _, event := range r.Events {
 		if event.Step != "" {
-			_, _ = text.WriteString(event.Step)
+			text.Str(event.Step)
 			if event.Detail != "" {
-				_, _ = text.WriteString(": ")
+				text.Str(": ")
 			}
 		}
-		_, _ = text.WriteString(event.Detail)
-		_ = text.WriteByte('\n')
+		text.Str(event.Detail)
+		text.Byte('\n')
 	}
 	return text.String()
 }

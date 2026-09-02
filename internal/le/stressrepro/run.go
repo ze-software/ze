@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/anmitsu/go-shlex"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var crashSignatures = []string{
@@ -60,7 +62,7 @@ type Report struct {
 
 // Text preserves the old tool's concise result and capture-path contract.
 func (r Report) Text() string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	_, _ = fmt.Fprintf(&b, "stress-repro: suite=%s sel=%s burners=%d parallel=%d iterations=%d race=%t\n",
 		r.Suite, valueOr(r.Test, "--all"), r.Burners, r.Parallel, r.Iterations, r.Race)
 	if r.Log != "" {
@@ -78,11 +80,11 @@ func (r Report) Text() string {
 		}
 		_, _ = fmt.Fprintf(&b, "*** REPRODUCED on invocation %d (exit %d, signature: %s) ***\n", r.Completed, r.Exit, what)
 		if r.Excerpt != "" {
-			_, _ = b.WriteString("--- crash excerpt ---\n")
+			b.Str("--- crash excerpt ---\n")
 			for line := range strings.SplitSeq(r.Excerpt, "\n") {
 				_, _ = fmt.Fprintf(&b, "  %s\n", line)
 			}
-			_, _ = b.WriteString("--- end excerpt ---\n")
+			b.Str("--- end excerpt ---\n")
 		}
 		_, _ = fmt.Fprintf(&b, "full capture: %s\n", r.Log)
 	case r.Interrupted:
@@ -357,19 +359,19 @@ func runSlug(suite, test string) (string, error) {
 }
 
 func slugPart(word string) string {
-	var clean strings.Builder
+	var clean textbuf.Buffer
 	clean.Grow(len(word))
 	invalid := false
 	for _, r := range word {
 		valid := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' ||
 			r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-'
 		if valid {
-			_, _ = clean.WriteRune(r)
+			clean.WriteRune(r)
 			invalid = false
 			continue
 		}
 		if !invalid {
-			_ = clean.WriteByte('-')
+			clean.Byte('-')
 			invalid = true
 		}
 	}

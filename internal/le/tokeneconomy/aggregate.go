@@ -13,7 +13,8 @@ import (
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Totals aggregates one set of calls. Context is summed AND kept per call,
@@ -63,16 +64,16 @@ func BucketLabels() []string {
 	labels := make([]string, 0, len(BucketEdges)+1)
 	var low int64
 	for _, edge := range BucketEdges {
-		var tb strings.Builder
-		tb.WriteString(Short(float64(low)))
-		tb.WriteByte('-')
-		tb.WriteString(Short(float64(edge)))
+		var tb textbuf.Buffer
+		tb.Str(Short(float64(low)))
+		tb.Byte('-')
+		tb.Str(Short(float64(edge)))
 		labels = append(labels, tb.String())
 		low = edge
 	}
-	var last strings.Builder
-	last.WriteString(Short(float64(BucketEdges[len(BucketEdges)-1])))
-	last.WriteByte('+')
+	var last textbuf.Buffer
+	last.Str(Short(float64(BucketEdges[len(BucketEdges)-1])))
+	last.Byte('+')
 	return append(labels, last.String())
 }
 
@@ -375,13 +376,13 @@ func Short(value float64) string {
 		if magnitude < 0.9995 {
 			continue
 		}
-		var tb strings.Builder
+		var tb textbuf.Buffer
 		if magnitude >= 100 {
-			tb.WriteString(strconv.FormatFloat(scaled, 'f', 0, 64))
+			tb.Float(scaled, 0)
 		} else {
-			tb.WriteString(strconv.FormatFloat(scaled, 'g', 3, 64))
+			tb.Str(strconv.FormatFloat(scaled, 'g', 3, 64))
 		}
-		tb.WriteString(unit.name)
+		tb.Str(unit.name)
 		return tb.String()
 	}
 	return strconv.FormatFloat(value, 'f', 0, 64)

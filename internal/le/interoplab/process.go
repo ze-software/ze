@@ -9,9 +9,10 @@ import (
 	"context"
 	"errors"
 	"os/exec"
-	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const timeoutExitCode = 124
@@ -46,8 +47,8 @@ func (systemProcessRunner) Run(ctx context.Context, command processCommand) (pro
 
 	//nolint:gosec // Every argv comes from the closed Docker grammar in docker.go.
 	cmd := exec.CommandContext(runCtx, command.Arguments[0], command.Arguments[1:]...)
-	var stdout strings.Builder
-	var stderr strings.Builder
+	var stdout textbuf.Buffer
+	var stderr textbuf.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
@@ -236,33 +237,33 @@ func rewriteModuleText(text, old, new string) (string, int) {
 	if len(oldParts) != len(newParts) {
 		return text, count
 	}
-	var pattern strings.Builder
-	pattern.WriteString(`"` + regexp.QuoteMeta(oldParts[0]) + `"`)
+	var pattern textbuf.Buffer
+	pattern.Byte('"').Str(regexp.QuoteMeta(oldParts[0])).Byte('"')
 	for _, part := range oldParts[1:] {
-		pattern.WriteString(`(\s*,\s*)"` + regexp.QuoteMeta(part) + `"`)
+		pattern.Str(`(\s*,\s*)"`).Str(regexp.QuoteMeta(part)).Byte('"')
 	}
 	rx := regexp.MustCompile(pattern.String())
 	matches := rx.FindAllStringSubmatchIndex(text, -1)
 	if len(matches) == 0 {
 		return text, count
 	}
-	var out strings.Builder
+	var out textbuf.Buffer
 	at := 0
 	for _, match := range matches {
-		out.WriteString(text[at:match[0]])
-		out.WriteByte('"')
-		out.WriteString(newParts[0])
-		out.WriteByte('"')
+		out.Str(text[at:match[0]])
+		out.Byte('"')
+		out.Str(newParts[0])
+		out.Byte('"')
 		for index, part := range newParts[1:] {
 			capture := 2 + index*2
-			out.WriteString(text[match[capture]:match[capture+1]])
-			out.WriteByte('"')
-			out.WriteString(part)
-			out.WriteByte('"')
+			out.Str(text[match[capture]:match[capture+1]])
+			out.Byte('"')
+			out.Str(part)
+			out.Byte('"')
 		}
 		at = match[1]
 	}
-	out.WriteString(text[at:])
+	out.Str(text[at:])
 	return out.String(), count + len(matches)
 }
 

@@ -16,6 +16,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 //go:embed cards.json
@@ -213,7 +215,7 @@ func startCommand(name string, args, environ []string, logPath string) (int, err
 }
 
 func writePIDs(path string, pids []int) error {
-	var text strings.Builder
+	var text textbuf.Buffer
 	for _, pid := range pids {
 		fmt.Fprintf(&text, "%d\n", pid)
 	}

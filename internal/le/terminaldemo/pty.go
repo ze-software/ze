@@ -20,6 +20,8 @@ import (
 
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -413,12 +415,12 @@ func tapeQuoted(value string) (string, error) {
 		return "", fmt.Errorf("needs a double-quoted string, got %q", value)
 	}
 	inner := value[1 : len(value)-1]
-	var output strings.Builder
+	var output textbuf.Buffer
 	for index := 0; index < len(inner); index++ {
 		if inner[index] == '\\' && index+1 < len(inner) {
 			index++
 		}
-		output.WriteByte(inner[index])
+		output.Byte(inner[index])
 	}
 	return output.String(), nil
 }
@@ -558,7 +560,7 @@ type utf8Stream struct{ pending []byte }
 func (decoder *utf8Stream) decode(data []byte) string {
 	data = append(decoder.pending, data...)
 	decoder.pending = decoder.pending[:0]
-	var text strings.Builder
+	var text textbuf.Buffer
 	for len(data) != 0 {
 		if !utf8.FullRune(data) {
 			decoder.pending = append(decoder.pending, data...)

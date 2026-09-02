@@ -309,7 +309,7 @@ func checkAuditNote(tree string, requirements []Requirement, tags []Tag, enrolle
 			continue
 		}
 		seen[req.RID] = true
-		var blob strings.Builder
+		var blob textbuf.Buffer
 		files := map[string]bool{}
 		for _, tag := range byRID[req.RID] {
 			content := reader.text(tag.File)
@@ -319,19 +319,20 @@ func checkAuditNote(tree string, requirements []Requirement, tags []Tag, enrolle
 			files[tag.File] = true
 			name := index.funcNameAt(tag.File, content, tag.Line)
 			if name == "" {
-				blob.WriteString(content)
+				blob.Str(content)
 				continue
 			}
 			units := index.funcTexts(content, name)
 			if len(units) == 1 {
-				blob.WriteString(units[0])
+				blob.Str(units[0])
 			}
 		}
 		note, _ := verdict["note"].(string)
 		tokens := noteIdentRE.FindAllString(note, -1)
+		unit := blob.String()
 		matched := false
 		for _, token := range tokens {
-			if strings.Contains(blob.String(), token) {
+			if strings.Contains(unit, token) {
 				matched = true
 			}
 		}

@@ -15,8 +15,6 @@
 package repositorytrackedbuild
 
 import (
-	"strings"
-
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/verify/failuregroup"
 )
@@ -74,7 +72,7 @@ const (
 // use for it.
 func (r Report) Text() string {
 	var tb textbuf.Buffer
-	var groupOut strings.Builder
+	var groupOut textbuf.Buffer
 	short := r.Commit
 	if len(short) > shortCommit {
 		short = short[:shortCommit]

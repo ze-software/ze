@@ -408,7 +408,7 @@ func gitLines(root string, argv []string) ([]string, error) {
 
 	cmd := exec.CommandContext(ctx, "git", argv...) //nolint:gosec // one of three fixed queries declared above
 	cmd.Dir = root
-	var errOut strings.Builder
+	var errOut textbuf.Buffer
 	cmd.Stderr = &errOut
 	out, err := cmd.Output()
 	if err != nil {

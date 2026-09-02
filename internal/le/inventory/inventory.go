@@ -348,7 +348,7 @@ func rpcNameIn(line string) string {
 // loadCIContent reads every .ci file under testDir into one string, which is
 // what the coverage search reads.
 func loadCIContent(testDir string) (string, error) {
-	var buf strings.Builder
+	var buf textbuf.Buffer
 	err := walkFiles(testDir, ".ci", func(path string, _ fs.DirEntry) error {
 		data, err := os.ReadFile(path) //nolint:gosec // path comes from a walk of the tree the caller named
 		if err != nil {
@@ -357,8 +357,8 @@ func loadCIContent(testDir string) (string, error) {
 			}
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
-		buf.Write(data)     //nolint:errcheck // strings.Builder never fails
-		buf.WriteByte('\n') //nolint:errcheck // strings.Builder never fails
+		buf.Write(data) //nolint:errcheck // textbuf.Buffer never fails
+		buf.Byte('\n')
 		return nil
 	})
 	if err != nil {
@@ -382,10 +382,8 @@ func rpcHasCoverage(rpcName, ciContent string) bool {
 	if !found {
 		return false
 	}
-	var glob strings.Builder
-	glob.WriteString(first) //nolint:errcheck // strings.Builder never fails
-	glob.WriteString(" * ") //nolint:errcheck // strings.Builder never fails
-	glob.WriteString(rest)  //nolint:errcheck // strings.Builder never fails
+	var glob textbuf.Buffer
+	glob.Str(first).Str(" * ").Str(rest)
 	return strings.Contains(ciContent, glob.String())
 }
 

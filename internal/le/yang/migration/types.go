@@ -3,7 +3,8 @@ package yangmigration
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Workflow identifies one of the three legacy YANG refactors.
@@ -76,7 +77,7 @@ func (r Report) Text() string {
 	if r.Apply {
 		mode = keywordApply
 	}
-	var out strings.Builder
+	var out textbuf.Buffer
 	fmt.Fprintf(&out, "%s %s: %d move(s), %d edit(s), %d removal(s), %d manual edit(s)\n", r.Workflow, mode, len(r.Moves), len(r.Edits), len(r.Removals), len(r.Manual))
 	for _, refusal := range r.Refusals {
 		if refusal.Path == "" {

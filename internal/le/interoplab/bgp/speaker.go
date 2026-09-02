@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -262,7 +264,7 @@ func runSpeakerHelper(args []string, output io.Writer) error {
 	if len(verdict.failures) > 0 {
 		status = "FAIL"
 	}
-	var report strings.Builder
+	var report textbuf.Buffer
 	_, _ = fmt.Fprintf(&report, "result: %s\nplugin: %s\n", status, verdict.plugin)
 	for _, failure := range verdict.failures {
 		_, _ = fmt.Fprintf(&report, "fail: %s\n", failure)
@@ -270,11 +272,12 @@ func runSpeakerHelper(args []string, output io.Writer) error {
 	for _, note := range verdict.notes {
 		_, _ = fmt.Fprintf(&report, "note: %s\n", note)
 	}
-	if _, err := io.WriteString(output, report.String()); err != nil {
+	rendered := report.String()
+	if _, err := io.WriteString(output, rendered); err != nil {
 		return err
 	}
 	if options.result != "" {
-		if err := os.WriteFile(options.result, []byte(report.String()), 0o600); err != nil {
+		if err := os.WriteFile(options.result, []byte(rendered), 0o600); err != nil {
 			return err
 		}
 	}

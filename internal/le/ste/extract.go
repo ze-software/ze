@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The Markdown structures the extractor reads.
@@ -371,7 +373,7 @@ var numberedAbbreviationRe = mustPattern(`(No|Fig)\.{SP}*{D}`)
 // looked ahead at, because Python's lookahead consumes nothing. The bound is
 // the input: each iteration advances at least one byte.
 func holdNumberedAbbreviations(text string) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	written, search := 0, 0
 	for search <= len(text) {
 		loc := numberedAbbreviationRe.FindStringSubmatchIndex(text[search:])
@@ -385,22 +387,22 @@ func holdNumberedAbbreviations(text string) string {
 			search = start + size
 			continue
 		}
-		out.WriteString(text[written:start])
-		out.WriteString(text[start : dotEnd-1])
-		out.WriteString(held)
+		out.Str(text[written:start])
+		out.Str(text[start : dotEnd-1])
+		out.Str(held)
 		written, search = dotEnd, dotEnd
 	}
-	out.WriteString(text[written:])
+	out.Str(text[written:])
 	return out.String()
 }
 
 // holdInnerDots replaces every dot that sits between two word characters, which
 // keeps 4.5, foo.go and Rule 1.1 whole.
 func holdInnerDots(text string) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	for index, r := range text {
 		if r == '.' && isWordBefore(text, index) && isWordAfter(text, index+1) {
-			out.WriteString(held)
+			out.Str(held)
 			continue
 		}
 		out.WriteRune(r)
@@ -523,7 +525,7 @@ func isWordLike(r rune) bool {
 //
 // The bound is the input: each iteration consumes a match or advances one rune.
 func replaceMeasures(text string) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	written, search := 0, 0
 	for search <= len(text) {
 		loc := numberUnitRe.FindStringIndex(text[search:])
@@ -553,11 +555,11 @@ func replaceMeasures(text string) string {
 			continue
 		}
 
-		out.WriteString(text[written:start])
-		out.WriteString(" MEASURE ")
+		out.Str(text[written:start])
+		out.Str(" MEASURE ")
 		written, search = end, end
 	}
-	out.WriteString(text[written:])
+	out.Str(text[written:])
 	return out.String()
 }
 

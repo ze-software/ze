@@ -230,24 +230,24 @@ func scratchText(command string) string {
 		return command
 	}
 
-	var visible strings.Builder
+	var visible textbuf.Buffer
 	visible.Grow(len(command))
 	var quote byte
 	for index := range len(command) {
 		char := command[index]
 		if quote == 0 && (char == '\'' || char == '"') {
 			quote = char
-			visible.WriteByte(' ')
+			visible.Byte(' ')
 			continue
 		}
 		if quote != 0 {
 			if char == quote {
 				quote = 0
 			}
-			visible.WriteByte(' ')
+			visible.Byte(' ')
 			continue
 		}
-		visible.WriteByte(char)
+		visible.Byte(char)
 	}
 	return visible.String()
 }

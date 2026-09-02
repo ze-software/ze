@@ -212,14 +212,14 @@ func (s Session) AllToolCalls() []ToolCall {
 // It counts CHARACTERS, not bytes. One accented letter becomes ONE hyphen in
 // Python. A byte walk would produce two and name a nonexistent directory.
 func SlugForPath(path string) string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	out.Grow(len(path))
 	for _, r := range path {
 		switch {
 		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-':
 			out.WriteRune(r)
 		default:
-			out.WriteByte('-')
+			out.Byte('-')
 		}
 	}
 	return out.String()
@@ -637,10 +637,10 @@ func ReadMeta(path string) Meta {
 // remains unclassified regardless of the type. A type-only phase would give the
 // same label to every spawn of that agent type.
 func PhaseOf(description, agentType string) string {
-	var haystack strings.Builder
-	haystack.WriteString(description)
-	haystack.WriteByte(' ')
-	haystack.WriteString(agentType)
+	var haystack textbuf.Buffer
+	haystack.Str(description)
+	haystack.Byte(' ')
+	haystack.Str(agentType)
 	lowered := strings.ToLower(haystack.String())
 	if strings.TrimSpace(description) == "" {
 		return Unclassified
@@ -701,9 +701,9 @@ func stem(path string) string {
 
 // metaPath answers the spawn metadata beside a subagent transcript.
 func metaPath(path string) string {
-	var name strings.Builder
-	name.WriteString(stem(path))
-	name.WriteString(".meta.json")
+	var name textbuf.Buffer
+	name.Str(stem(path))
+	name.Str(".meta.json")
 	return filepath.Join(filepath.Dir(path), name.String())
 }
 
@@ -851,16 +851,16 @@ func comma(value int64) string {
 	if strings.HasPrefix(digits, "-") {
 		sign, digits = "-", digits[1:]
 	}
-	var out strings.Builder
-	out.WriteString(sign)
+	var out textbuf.Buffer
+	out.Str(sign)
 	lead := len(digits) % 3
 	if lead == 0 {
 		lead = 3
 	}
-	out.WriteString(digits[:lead])
+	out.Str(digits[:lead])
 	for i := lead; i < len(digits); i += 3 {
-		out.WriteByte(',')
-		out.WriteString(digits[i : i+3])
+		out.Byte(',')
+		out.Str(digits[i : i+3])
 	}
 	return out.String()
 }

@@ -147,7 +147,7 @@ func escapes(candidate string) bool {
 // another group. HTML escaping is off because a JSON parser reads the output,
 // not a browser. A path with an angle bracket reads as itself.
 func (gr Group) Line() string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	encoder := json.NewEncoder(&out)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(gr); err != nil {

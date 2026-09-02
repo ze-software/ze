@@ -330,7 +330,7 @@ func extract(ctx context.Context, repo, commit, dest string) error {
 		return fmt.Errorf("pipe git archive: %w", err)
 	}
 	untar.Stdin = pipe
-	var archiveErr, untarErr strings.Builder
+	var archiveErr, untarErr textbuf.Buffer
 	archive.Stderr = &archiveErr
 	untar.Stderr = &untarErr
 
@@ -402,7 +402,7 @@ func sanityCheck(ctx context.Context, repo, commit, dest string) error {
 // quietly restore the fail-open this guard exists to close.
 func commitHasPath(ctx context.Context, repo, commit, path string) (bool, error) {
 	cmd := exec.CommandContext(ctx, "git", "-C", repo, "ls-tree", "--name-only", commit, "--", path) //nolint:gosec // commit is a resolved sha, path is a constant
-	var stderr strings.Builder
+	var stderr textbuf.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
@@ -529,7 +529,7 @@ func flavorPackages(ctx context.Context, dest string, flavor Flavor, spec string
 	list := exec.CommandContext(ctx, "go", "list", "-tags", spec, buildPackages) //nolint:gosec // spec comes from this file's table plus the feature manifest
 	list.Dir = dest
 	list.Env = goEnv(flavor)
-	var listErr strings.Builder
+	var listErr textbuf.Buffer
 	list.Stderr = &listErr
 	out, err := list.Output()
 	if err != nil {
@@ -562,7 +562,7 @@ func anchorGoFiles(ctx context.Context, dest string, flavor Flavor, spec string)
 	cmd := exec.CommandContext(ctx, "go", "list", "-tags", spec, "-f", "{{range .GoFiles}}{{.}}\n{{end}}", flavor.Anchor) //nolint:gosec // spec and Anchor come from this file's table
 	cmd.Dir = dest
 	cmd.Env = goEnv(flavor)
-	var stderr strings.Builder
+	var stderr textbuf.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {

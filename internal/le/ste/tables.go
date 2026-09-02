@@ -17,6 +17,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // wordFix contains one list entry: current prose and its replacement.
@@ -326,17 +328,17 @@ func init() {
 	sort.Strings(nouns)
 	joined := strings.Join(nouns, "|")
 
-	var light strings.Builder
-	light.WriteString(`(?i)(do|does|did|doing|perform|performs|performed|performing|make|makes|made`)
-	light.WriteString(`|making|conduct|conducts|conducted|carry out|carries out|carried out){SP}+`)
-	light.WriteString(`(?:a|an|the|any|its|their)?{SP}*(`)
-	light.WriteString(joined)
-	light.WriteString(`)`)
+	var light textbuf.Buffer
+	light.Str(`(?i)(do|does|did|doing|perform|performs|performed|performing|make|makes|made`)
+	light.Str(`|making|conduct|conducts|conducted|carry out|carries out|carried out){SP}+`)
+	light.Str(`(?:a|an|the|any|its|their)?{SP}*(`)
+	light.Str(joined)
+	light.Str(`)`)
 	lightVerbRe = mustPattern(light.String())
 
-	var frozen strings.Builder
-	frozen.WriteString(`(?i)(before|after|during|upon){SP}+the{SP}+(`)
-	frozen.WriteString(joined)
-	frozen.WriteString(`){SP}+of`)
+	var frozen textbuf.Buffer
+	frozen.Str(`(?i)(before|after|during|upon){SP}+the{SP}+(`)
+	frozen.Str(joined)
+	frozen.Str(`){SP}+of`)
 	frozenOfRe = mustPattern(frozen.String())
 }

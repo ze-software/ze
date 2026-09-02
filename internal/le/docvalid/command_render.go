@@ -13,6 +13,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // renderCommandSurfaces writes the contract FIXTURE the drift check compares a
@@ -86,8 +88,8 @@ type operatorCatalogRow struct {
 }
 
 func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
-	var out strings.Builder
-	out.WriteString("<!doctype html><html><body>\n<section class=\"cli-pipe-guide\"><table><tbody>\n")
+	var out textbuf.Buffer
+	out.Str("<!doctype html><html><body>\n<section class=\"cli-pipe-guide\"><table><tbody>\n")
 	rows := make(map[string]*operatorCatalogRow)
 	for index := range commands {
 		command := &commands[index]
@@ -116,7 +118,7 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 		fmt.Fprintf(&out, "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
 			html.EscapeString(row.name), html.EscapeString(row.class), html.EscapeString(strings.Join(row.availability, ", ")), html.EscapeString(row.description))
 	}
-	out.WriteString("</tbody></table></section>\n<table><tbody>\n")
+	out.Str("</tbody></table></section>\n<table><tbody>\n")
 	for index := range commands {
 		command := &commands[index]
 		fmt.Fprintf(
@@ -135,30 +137,30 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 		}
 		writePrimaryOperatorGroups(&out, command)
 		if len(command.Pipes) != 0 {
-			out.WriteString("<strong>Command pipes</strong><div class=\"cli-pipe-chips\">")
+			out.Str("<strong>Command pipes</strong><div class=\"cli-pipe-chips\">")
 			for _, pipe := range command.Pipes {
 				fmt.Fprintf(&out, "<code>%s</code>", html.EscapeString(commandPipeDisplayName(pipe)))
 			}
-			out.WriteString("</div><dl>")
+			out.Str("</div><dl>")
 			for _, pipe := range command.Pipes {
 				fmt.Fprintf(&out, "<dt><code>%s</code></dt><dd>%s</dd>", html.EscapeString(commandPipeDisplayName(pipe)), html.EscapeString(pipe.Description))
 			}
-			out.WriteString("</dl>")
+			out.Str("</dl>")
 		}
 		if len(command.Aliases) != 0 {
-			out.WriteString("<strong>Aliases</strong><dl>")
+			out.Str("<strong>Aliases</strong><dl>")
 			for _, alias := range command.Aliases {
 				fmt.Fprintf(&out, "<dt><code>%s</code></dt><dd>%s <code>%s</code></dd>", html.EscapeString(alias.Name), html.EscapeString(alias.Description), html.EscapeString(alias.Expansion))
 			}
-			out.WriteString("</dl>")
+			out.Str("</dl>")
 		}
-		out.WriteString("</td></tr>\n")
+		out.Str("</td></tr>\n")
 	}
-	out.WriteString("</tbody></table>\n</body></html>\n")
+	out.Str("</tbody></table>\n</body></html>\n")
 	return []byte(out.String())
 }
 
-func writePrimaryOperatorGroups(out *strings.Builder, command *publishedCommand) {
+func writePrimaryOperatorGroups(out *textbuf.Buffer, command *publishedCommand) {
 	for _, group := range []struct{ availability, label string }{
 		{availabilityAlways, alwaysLabel}, {availabilityWithRows, withRowsLabel}, {availabilityWhenStreaming, whileStreamingLabel}, {availabilityLocalOnly, localOnlyLabel},
 	} {
@@ -170,8 +172,8 @@ func writePrimaryOperatorGroups(out *strings.Builder, command *publishedCommand)
 }
 
 func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
-	var out strings.Builder
-	out.WriteString("# CLI command catalog\n\n| Command | Mode | Description | Contract |\n|---|---|---|---|\n")
+	var out textbuf.Buffer
+	out.Str("# CLI command catalog\n\n| Command | Mode | Description | Contract |\n|---|---|---|---|\n")
 	for index := range commands {
 		command := &commands[index]
 		metadata := make([]string, 0, 8)
@@ -203,33 +205,33 @@ func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 			}
 			metadata = append(metadata, "Aliases: "+markdownTableCodeList(aliases))
 		}
-		out.WriteString("| ")
-		out.WriteString(markdownTableCodeLiteral(command.Path))
-		out.WriteString(" | ")
-		out.WriteString(commandMarkdownValue(command.Mode))
-		out.WriteString(" | ")
-		out.WriteString(markdownLiteralProse(command.Description))
-		out.WriteString(" | ")
-		out.WriteString(strings.Join(metadata, "<br>"))
-		out.WriteString(" |\n")
+		out.Str("| ")
+		out.Str(markdownTableCodeLiteral(command.Path))
+		out.Str(" | ")
+		out.Str(commandMarkdownValue(command.Mode))
+		out.Str(" | ")
+		out.Str(markdownLiteralProse(command.Description))
+		out.Str(" | ")
+		out.Str(strings.Join(metadata, "<br>"))
+		out.Str(" |\n")
 	}
 	return []byte(out.String())
 }
 
 func renderEquivalentIndexHTML(commands []publishedCommand) []byte {
-	var out strings.Builder
-	out.WriteString("<!doctype html><html><body><table><tbody>\n")
+	var out textbuf.Buffer
+	out.Str("<!doctype html><html><body><table><tbody>\n")
 	for index := range commands {
 		command := &commands[index]
 		fmt.Fprintf(&out, "<tr id=\"cmd-eq-%s\"><td><code>%s</code></td></tr>\n", commandSurfaceSlug(command.Path), html.EscapeString(command.Path))
 	}
-	out.WriteString("</tbody></table></body></html>\n")
+	out.Str("</tbody></table></body></html>\n")
 	return []byte(out.String())
 }
 
 func renderEquivalentIndexMarkdown(commands []publishedCommand) []byte {
-	var out strings.Builder
-	out.WriteString("# Command Equivalents\n\n")
+	var out textbuf.Buffer
+	out.Str("# Command Equivalents\n\n")
 	for index := range commands {
 		command := &commands[index]
 		fmt.Fprintf(&out, "- [%s](%s/)\n", markdownCodeLiteral(command.Path), commandSurfaceSlug(command.Path))
@@ -238,8 +240,8 @@ func renderEquivalentIndexMarkdown(commands []publishedCommand) []byte {
 }
 
 func renderEquivalentHTML(command *publishedCommand) []byte {
-	var out strings.Builder
-	out.WriteString("<!doctype html><html><body>\n<article class=\"cmd-detail-card cmd-detail-ze\">\n<dl>")
+	var out textbuf.Buffer
+	out.Str("<!doctype html><html><body>\n<article class=\"cmd-detail-card cmd-detail-ze\">\n<dl>")
 	fmt.Fprintf(&out, "<div><dt>Registry path</dt><dd><code>%s</code></dd></div>", html.EscapeString(command.Path))
 	if command.AnswerShape != "" {
 		fmt.Fprintf(&out, "<div><dt>Answer shape</dt><dd>%s</dd></div>", html.EscapeString(command.AnswerShape))
@@ -271,7 +273,7 @@ func renderEquivalentHTML(command *publishedCommand) []byte {
 		}
 		fmt.Fprintf(&out, "<div><dt>Pipe aliases</dt><dd>%s</dd></div>", strings.Join(values, "<br>"))
 	}
-	out.WriteString("\n</dl>\n</article>\n</body></html>\n")
+	out.Str("\n</dl>\n</article>\n</body></html>\n")
 	return []byte(out.String())
 }
 
@@ -324,24 +326,24 @@ func markdownLiteralProse(value string) string {
 		"\r", " ",
 		"\n", " ",
 	).Replace(value)
-	var escaped strings.Builder
+	var escaped textbuf.Buffer
 	escaped.Grow(len(value))
 	for index := range len(value) {
 		character := value[index]
 		if character == '\\' {
-			escaped.WriteString(`\\`)
+			escaped.Str(`\\`)
 			continue
 		}
 		if isCommonMarkASCIIPunctuation(character) {
-			escaped.WriteByte('\\')
+			escaped.Byte('\\')
 		}
-		escaped.WriteByte(character)
+		escaped.Byte(character)
 	}
 	return escaped.String()
 }
 
 func renderEquivalentMarkdown(command *publishedCommand) []byte {
-	var out strings.Builder
+	var out textbuf.Buffer
 	fmt.Fprintf(&out, "# %s\n\n## Ze command\n\n- Registry path: %s\n",
 		markdownCodeLiteral(command.Path), markdownCodeLiteral(command.Path))
 	if command.AnswerShape != "" {
@@ -356,7 +358,7 @@ func renderEquivalentMarkdown(command *publishedCommand) []byte {
 		}
 	}
 	if len(command.Pipes) == 0 {
-		out.WriteString("- Command pipes: none\n")
+		out.Str("- Command pipes: none\n")
 	} else {
 		values := make([]string, 0, len(command.Pipes))
 		for _, pipe := range command.Pipes {
@@ -369,7 +371,7 @@ func renderEquivalentMarkdown(command *publishedCommand) []byte {
 		fmt.Fprintf(&out, "- Command pipes: %s\n", strings.Join(values, "; "))
 	}
 	if len(command.Aliases) == 0 {
-		out.WriteString("- Pipe aliases: none\n")
+		out.Str("- Pipe aliases: none\n")
 	} else {
 		values := make([]string, 0, len(command.Aliases))
 		for _, alias := range command.Aliases {
@@ -384,13 +386,13 @@ func renderEquivalentMarkdown(command *publishedCommand) []byte {
 		}
 		fmt.Fprintf(&out, "- Pipe aliases: %s\n", strings.Join(values, "; "))
 	}
-	out.WriteString("\n## Mapping intents\n")
+	out.Str("\n## Mapping intents\n")
 	return []byte(out.String())
 }
 
 func renderCommandLLMS(commands []publishedCommand) []byte {
-	var out strings.Builder
-	out.WriteString("# Ze\n\n## CLI command surface\n\n")
+	var out textbuf.Buffer
+	out.Str("# Ze\n\n## CLI command surface\n\n")
 	for index := range commands {
 		command := &commands[index]
 		meta := []string{command.Mode}

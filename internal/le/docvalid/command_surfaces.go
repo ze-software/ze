@@ -985,11 +985,11 @@ func wikiExpectedVerbGroups(live []publishedCommand) []wikiVerbGroup {
 }
 
 func wikiHeadingAnchor(value string) string {
-	var anchor strings.Builder
+	var anchor textbuf.Buffer
 	for _, character := range strings.ToLower(value) {
 		switch {
 		case character == ' ' || character == '\t':
-			anchor.WriteByte('-')
+			anchor.Byte('-')
 		case character <= unicode.MaxASCII:
 			if character >= 'a' && character <= 'z' ||
 				character >= '0' && character <= '9' ||
@@ -1304,7 +1304,7 @@ func markdownHeadingContent(content, canonical string) (string, int) {
 
 func markdownRenderedHeadingIdentity(heading string) string {
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(heading))
-	var rendered strings.Builder
+	var rendered textbuf.Buffer
 	for {
 		switch tokenizer.Next() {
 		case xhtml.ErrorToken:
@@ -1312,7 +1312,7 @@ func markdownRenderedHeadingIdentity(heading string) string {
 				strings.Fields(markdownInlineVisibleText(rendered.String())), " ",
 			)
 		case xhtml.TextToken:
-			rendered.WriteString(tokenizer.Token().Data)
+			rendered.Str(tokenizer.Token().Data)
 		case xhtml.StartTagToken, xhtml.EndTagToken, xhtml.SelfClosingTagToken,
 			xhtml.CommentToken, xhtml.DoctypeToken:
 			// Only visible text contributes to the rendered heading identity.
@@ -1322,13 +1322,13 @@ func markdownRenderedHeadingIdentity(heading string) string {
 
 func markdownInlineVisibleText(value string) string {
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(markdownHTMLSafeInline(value)))
-	var text strings.Builder
+	var text textbuf.Buffer
 	for {
 		switch tokenizer.Next() {
 		case xhtml.ErrorToken:
 			return markdownInlineVisibleTextNoHTML(text.String())
 		case xhtml.TextToken:
-			text.WriteString(tokenizer.Token().Data)
+			text.Str(tokenizer.Token().Data)
 		case xhtml.StartTagToken, xhtml.EndTagToken, xhtml.SelfClosingTagToken,
 			xhtml.CommentToken, xhtml.DoctypeToken:
 			// Inline markup is not visible text.
@@ -1337,12 +1337,12 @@ func markdownInlineVisibleText(value string) string {
 }
 
 func markdownHTMLSafeInline(value string) string {
-	var safe strings.Builder
+	var safe textbuf.Buffer
 	for index := 0; index < len(value); {
 		if value[index] == '\\' && index+1 < len(value) &&
 			strings.ContainsRune(`<>&`, rune(value[index+1])) {
-			safe.WriteByte('\\')
-			safe.WriteString(html.EscapeString(value[index+1 : index+2]))
+			safe.Byte('\\')
+			safe.Str(html.EscapeString(value[index+1 : index+2]))
 			index += 2
 			continue
 		}
@@ -1350,33 +1350,33 @@ func markdownHTMLSafeInline(value string) string {
 			_, suffix, _, closed := markdownCodeSpanPrefix(value[index:])
 			if closed {
 				end := len(value) - len(suffix)
-				safe.WriteString(html.EscapeString(value[index:end]))
+				safe.Str(html.EscapeString(value[index:end]))
 				index = end
 				continue
 			}
 		}
-		safe.WriteByte(value[index])
+		safe.Byte(value[index])
 		index++
 	}
 	return safe.String()
 }
 
 func markdownInlineVisibleTextNoHTML(value string) string {
-	var rendered strings.Builder
+	var rendered textbuf.Buffer
 	emphasisMarkers := markdownEmphasisMarkers(value)
 	for index := 0; index < len(value); {
 		switch value[index] {
 		case '\\':
 			if index+1 < len(value) &&
 				isCommonMarkASCIIPunctuation(value[index+1]) {
-				rendered.WriteByte(value[index+1])
+				rendered.Byte(value[index+1])
 				index += 2
 				continue
 			}
 		case '`':
 			content, suffix, _, closed := markdownCodeSpanPrefix(value[index:])
 			if closed {
-				rendered.WriteString(content)
+				rendered.Str(content)
 				index = len(value) - len(suffix)
 				continue
 			}
@@ -1392,7 +1392,7 @@ func markdownInlineVisibleTextNoHTML(value string) string {
 			if labelEnd != -1 {
 				suffixEnd := markdownLinkSuffixEnd(value, labelEnd+1)
 				if suffixEnd != -1 {
-					rendered.WriteString(markdownInlineVisibleText(
+					rendered.Str(markdownInlineVisibleText(
 						value[labelAt+1 : labelEnd],
 					))
 					index = suffixEnd
@@ -1406,13 +1406,13 @@ func markdownInlineVisibleTextNoHTML(value string) string {
 			}
 			for markerAt := index; markerAt < runEnd; markerAt++ {
 				if !emphasisMarkers[markerAt] {
-					rendered.WriteByte(value[markerAt])
+					rendered.Byte(value[markerAt])
 				}
 			}
 			index = runEnd
 			continue
 		}
-		rendered.WriteByte(value[index])
+		rendered.Byte(value[index])
 		index++
 	}
 	return rendered.String()
@@ -3751,30 +3751,30 @@ func markdownUnclosedPath(candidate, path string) bool {
 		strings.HasPrefix(candidate, rendered.Str(path).Str(" |").String())
 }
 func commandMarkdownTableValue(value string) string {
-	var encoded strings.Builder
+	var encoded textbuf.Buffer
 	encoded.Grow(len(value))
 	for index := range len(value) {
 		switch value[index] {
 		case '\\':
-			encoded.WriteString(`\\`)
+			encoded.Str(`\\`)
 		case '|':
-			encoded.WriteString(`\|`)
+			encoded.Str(`\|`)
 		default:
-			encoded.WriteByte(value[index])
+			encoded.Byte(value[index])
 		}
 	}
 	return encoded.String()
 }
 
 func decodeCommandMarkdownTableValue(value string) string {
-	var decoded strings.Builder
+	var decoded textbuf.Buffer
 	decoded.Grow(len(value))
 	for index := 0; index < len(value); index++ {
 		if value[index] == '\\' && index+1 < len(value) &&
 			(value[index+1] == '\\' || value[index+1] == '|') {
 			index++
 		}
-		decoded.WriteByte(value[index])
+		decoded.Byte(value[index])
 	}
 	return decoded.String()
 }
@@ -4528,11 +4528,11 @@ func htmlVisibleSubtreeClosed(
 }
 
 func htmlText(root *xhtml.Node) string {
-	var text strings.Builder
+	var text textbuf.Buffer
 	var appendText func(*xhtml.Node)
 	appendText = func(node *xhtml.Node) {
 		if node.Type == xhtml.TextNode {
-			text.WriteString(node.Data)
+			text.Str(node.Data)
 		}
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
 			if child != root && htmlCommandContainerRoot(child) {
@@ -4631,10 +4631,10 @@ func htmlEquivalentDetailTokens(
 }
 
 func normalizedHTMLDetailText(tokens []renderedHTMLInlineToken) string {
-	var value strings.Builder
+	var value textbuf.Buffer
 	for _, token := range tokens {
 		if !token.code && !token.breakLine {
-			value.WriteString(token.value)
+			value.Str(token.value)
 		}
 	}
 	return normalizeRenderedHTMLText(value.String())

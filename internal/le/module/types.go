@@ -3,7 +3,8 @@ package module
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const area = "module"
@@ -63,7 +64,7 @@ type MoveReport struct {
 // Text renders a deterministic operator report while pipe renderers retain the
 // complete structured answer.
 func (r *MoveReport) Text() string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	mode := "DRY RUN (no changes)"
 	if r.Apply {
 		mode = "APPLYING"
@@ -74,7 +75,7 @@ func (r *MoveReport) Text() string {
 	}
 	writeCounted(&out, "import rewrites", r.ImportEdits)
 	if len(r.PluginDirs.Removed) > 0 || len(r.PluginDirs.Added) > 0 {
-		out.WriteString("plugin discovery roots:\n")
+		out.Str("plugin discovery roots:\n")
 		for _, rel := range r.PluginDirs.Removed {
 			fmt.Fprintf(&out, "  - %s\n", rel)
 		}
@@ -83,7 +84,7 @@ func (r *MoveReport) Text() string {
 		}
 	}
 	if len(r.Conflicts) > 0 {
-		out.WriteString("REFUSED file collisions:\n")
+		out.Str("REFUSED file collisions:\n")
 		for _, rel := range r.Conflicts {
 			fmt.Fprintf(&out, "  ! %s\n", rel)
 		}
@@ -97,7 +98,7 @@ func (r *MoveReport) Text() string {
 	writeCounted(&out, "residual references", r.Residual)
 	switch {
 	case !r.Apply:
-		out.WriteString("dry run -- nothing changed. Re-run with apply.\n")
+		out.Str("dry run -- nothing changed. Re-run with apply.\n")
 	case r.Code != 0 && r.Goimports == goimportsNotRun:
 		fmt.Fprintf(&out, "REFUSED before mutation (code %d).\n", r.Code)
 	default:
@@ -109,10 +110,10 @@ func (r *MoveReport) Text() string {
 			fmt.Fprintf(&out, "generated registration added: %s\n", path)
 		}
 		if r.Registrations.Preserved {
-			out.WriteString("generated registration set preserved (0 dropped).\n")
+			out.Str("generated registration set preserved (0 dropped).\n")
 		}
 		if r.Code == 0 {
-			out.WriteString("next: le tier check\n")
+			out.Str("next: le tier check\n")
 		} else {
 			fmt.Fprintf(&out, "FAILED after mutation (code %d).\n", r.Code)
 		}
@@ -143,12 +144,12 @@ type RenameReport struct {
 
 // Text renders the old producer's report from the structured data.
 func (r *RenameReport) Text() string {
-	var out strings.Builder
+	var out textbuf.Buffer
 	fmt.Fprintf(&out, "rename %s\n    -> %s\n", r.Old, r.New)
 	fmt.Fprintf(&out, "%d occurrence(s) in %d file(s), %d directory move(s)\n", r.Occurrences, len(r.Edits), len(r.Moves))
 	writeCountedLimited(&out, "rewrite", r.Edits, r.Limit)
 	if len(r.Moves) > 0 {
-		out.WriteString("move:\n")
+		out.Str("move:\n")
 		limit := limitedLength(len(r.Moves), r.Limit)
 		for _, move := range r.Moves[:limit] {
 			fmt.Fprintf(&out, "  %s  ->  %s\n", move.From, move.To)
@@ -157,7 +158,7 @@ func (r *RenameReport) Text() string {
 	}
 	writeCountedLimited(&out, "REGENERATE (length-prefixed, not rewritten)", r.Regenerate, r.Limit)
 	if len(r.Skipped) > 0 {
-		out.WriteString("skipped (reported, not rewritten):\n")
+		out.Str("skipped (reported, not rewritten):\n")
 		limit := limitedLength(len(r.Skipped), r.Limit)
 		for _, row := range r.Skipped[:limit] {
 			fmt.Fprintf(&out, "  %s  %d  %s\n", row.Path, row.Count, row.Reason)
@@ -165,7 +166,7 @@ func (r *RenameReport) Text() string {
 		writeMore(&out, len(r.Skipped)-limit)
 	}
 	if !r.Apply {
-		out.WriteString("dry run -- nothing changed. Re-run with apply.\n")
+		out.Str("dry run -- nothing changed. Re-run with apply.\n")
 		return out.String()
 	}
 	if r.Code != 0 && r.ChangedFiles == 0 && r.MovedDirs == 0 && r.Goimports == goimportsNotRun {
@@ -178,14 +179,14 @@ func (r *RenameReport) Text() string {
 	}
 	writeCountedLimited(&out, "STILL CONTAIN THE OLD MODULE PATH", r.Left, r.Limit)
 	if len(r.Regenerate) > 0 {
-		out.WriteString("regenerate these, then verify:\n")
+		out.Str("regenerate these, then verify:\n")
 		for _, row := range r.Regenerate {
 			fmt.Fprintf(&out, "  %s\n", row.Path)
 		}
-		out.WriteString("  ./le setup proto-generate\n")
+		out.Str("  ./le setup proto-generate\n")
 	}
 	if len(r.Resealed) > 0 {
-		out.WriteString("re-sealed RFC audit verdicts:\n")
+		out.Str("re-sealed RFC audit verdicts:\n")
 		limit := limitedLength(len(r.Resealed), r.Limit)
 		for _, row := range r.Resealed[:limit] {
 			fmt.Fprintf(&out, "  %s\n", row)
@@ -193,7 +194,7 @@ func (r *RenameReport) Text() string {
 		writeMore(&out, len(r.Resealed)-limit)
 	}
 	if len(r.ResealRefused) > 0 {
-		out.WriteString("RFC audit verdicts REFUSED (left stale):\n")
+		out.Str("RFC audit verdicts REFUSED (left stale):\n")
 		limit := limitedLength(len(r.ResealRefused), r.Limit)
 		for _, row := range r.ResealRefused[:limit] {
 			fmt.Fprintf(&out, "  %s\n", row)
@@ -204,7 +205,7 @@ func (r *RenameReport) Text() string {
 	return out.String()
 }
 
-func writeCounted(out *strings.Builder, title string, rows []CountedPath) {
+func writeCounted(out *textbuf.Buffer, title string, rows []CountedPath) {
 	if len(rows) == 0 {
 		return
 	}
@@ -214,7 +215,7 @@ func writeCounted(out *strings.Builder, title string, rows []CountedPath) {
 	}
 }
 
-func writeCountedLimited(out *strings.Builder, title string, rows []CountedPath, requested int) {
+func writeCountedLimited(out *textbuf.Buffer, title string, rows []CountedPath, requested int) {
 	if len(rows) == 0 {
 		return
 	}
@@ -236,7 +237,7 @@ func limitedLength(length, requested int) int {
 	return length
 }
 
-func writeMore(out *strings.Builder, count int) {
+func writeMore(out *textbuf.Buffer, count int) {
 	if count > 0 {
 		fmt.Fprintf(out, "  ... and %d more\n", count)
 	}

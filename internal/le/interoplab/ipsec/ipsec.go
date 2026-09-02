@@ -398,7 +398,7 @@ func pemBase64DER(text, source string) (string, error) {
 	type block struct{ label, body string }
 	var blocks []block
 	label := ""
-	var body strings.Builder
+	var body textbuf.Buffer
 	for raw := range strings.SplitSeq(text, "\n") {
 		line := strings.TrimSpace(raw)
 		if strings.HasPrefix(line, "-----BEGIN ") && strings.HasSuffix(line, "-----") {
@@ -429,7 +429,7 @@ func pemBase64DER(text, source string) (string, error) {
 		if pemHeader.MatchString(line) {
 			return "", fmt.Errorf("%s: PEM block %q carries encrypted RFC 1421 header %q", source, label, line)
 		}
-		body.WriteString(line)
+		body.Str(line)
 	}
 	if len(blocks) == 0 {
 		return "", fmt.Errorf("%s: no complete PEM block found", source)

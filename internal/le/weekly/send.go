@@ -111,7 +111,7 @@ func execSender(script string) Sender {
 		// separate argv entries rather than a command line: bash reads the
 		// script from a file and never interprets the message text.
 		cmd := exec.CommandContext(ctx, "bash", script, "--channel", channel, "--text", text) //nolint:gosec // G204: the script is the configured transport, and the arguments bypass any shell
-		var out, errOut strings.Builder
+		var out, errOut textbuf.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &errOut
 

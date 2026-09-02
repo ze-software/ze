@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const sessionRoot = "session"
@@ -325,7 +327,7 @@ func sessionCacheKey(process sessionProcess, pid int) string {
 }
 
 func pathToken(value string) string {
-	var token strings.Builder
+	var token textbuf.Buffer
 	separator := false
 	for _, character := range strings.TrimSpace(value) {
 		safe := character >= 'a' && character <= 'z' ||
@@ -334,7 +336,7 @@ func pathToken(value string) string {
 			character == '.' || character == '_' || character == '-'
 		if safe {
 			if separator {
-				token.WriteByte('_')
+				token.Byte('_')
 			}
 			token.WriteRune(character)
 			separator = false

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Render produces the command catalog's canonical Markdown bytes, including
@@ -316,16 +318,16 @@ func writeTableCodeList(out *bytes.Buffer, values []string) {
 }
 
 func tableCodeValue(value string) string {
-	var encoded strings.Builder
+	var encoded textbuf.Buffer
 	encoded.Grow(len(value))
 	for index := range len(value) {
 		switch value[index] {
 		case '\\':
-			encoded.WriteString(`\\`)
+			encoded.Str(`\\`)
 		case '|':
-			encoded.WriteString(`\|`)
+			encoded.Str(`\|`)
 		default:
-			encoded.WriteByte(value[index])
+			encoded.Byte(value[index])
 		}
 	}
 	return encoded.String()
@@ -389,11 +391,11 @@ func catalogHeadingAnchors(
 }
 
 func headingAnchor(value string) string {
-	var anchor strings.Builder
+	var anchor textbuf.Buffer
 	for _, character := range strings.ToLower(value) {
 		switch {
 		case character == ' ' || character == '\t':
-			anchor.WriteByte('-')
+			anchor.Byte('-')
 		case character <= unicode.MaxASCII:
 			if character >= 'a' && character <= 'z' ||
 				character >= '0' && character <= '9' ||
@@ -411,21 +413,21 @@ func headingAnchor(value string) string {
 }
 
 func markdownLiteralProse(value string) string {
-	var escaped strings.Builder
+	var escaped textbuf.Buffer
 	escaped.Grow(len(value))
 	for index := range len(value) {
 		character := value[index]
 		if character == '\\' {
-			escaped.WriteString(`\\`)
+			escaped.Str(`\\`)
 			continue
 		}
 		if (character >= '!' && character <= '/') ||
 			(character >= ':' && character <= '@') ||
 			(character >= '[' && character <= '`') ||
 			(character >= '{' && character <= '~') {
-			escaped.WriteByte('\\')
+			escaped.Byte('\\')
 		}
-		escaped.WriteByte(character)
+		escaped.Byte(character)
 	}
 	return escaped.String()
 }

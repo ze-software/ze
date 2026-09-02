@@ -29,12 +29,12 @@ func (m Matrix) Render() ([]byte, error) {
 		return nil, err
 	}
 
-	var rendered strings.Builder
+	var rendered textbuf.Buffer
 	for _, row := range m {
-		rendered.WriteString(row.Name)
-		rendered.WriteString(": -tags=")
-		rendered.WriteString(strings.Join(row.Tags, ","))
-		rendered.WriteByte('\n')
+		rendered.Str(row.Name)
+		rendered.Str(": -tags=")
+		rendered.Str(strings.Join(row.Tags, ","))
+		rendered.Byte('\n')
 	}
 
 	out := []byte(rendered.String())
@@ -128,7 +128,7 @@ func (v Verdict) Text() string {
 		tb.Str(trimmed).Byte('\n')
 	}
 
-	var group strings.Builder
+	var group textbuf.Buffer
 	if err := failuregroup.Declare(&group, "files:"+v.stage(), "files",
 		"staticcheck could not type-check the feature matrix; these files hold the diagnostics",
 		v.rerun(), v.failingPaths()); err == nil {

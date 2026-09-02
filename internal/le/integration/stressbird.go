@@ -814,7 +814,7 @@ func (realStressBirdSystem) Run(
 	cmd := exec.CommandContext(commandCtx, command.argv[0], command.argv[1:]...) //nolint:gosec // fixed scenario grammar owns argv
 	cmd.Dir = command.dir
 	cmd.Env = command.environ
-	var stdout, stderr strings.Builder
+	var stdout, stderr textbuf.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
