@@ -9,7 +9,7 @@ Set up a Ze development environment with all build, lint, and test dependencies.
 
 ```bash
 git clone <repo-url> && cd ze
-./le setup
+./le setup install
 ```
 
 This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
@@ -22,6 +22,35 @@ Setup behavior lives in `internal/le/setup.Answer`.
 The cache is an existence test, never a freshness test, so a change under
 `internal/le/` does not reach `./le` on its own.
 <!-- source: le -- the binary existence cache -->
+
+The launcher does not rebuild by itself, because a peer session's half-written
+source would then fail every call in every session. It tells you instead. About
+one call in sixteen compares the binary with the build inputs and prints one
+line on stderr when a COMMITTED file is newer:
+
+```
+le: bin/le is older than committed sources; refresh it with './le --update'
+```
+
+A file that git holds as modified is never counted, so a peer's work in progress
+says nothing. The check runs after your command, so it never delays the answer
+you asked for.
+<!-- source: le -- warn_when_stale, committed_change_is_newer -->
+
+`./le --update` builds the working tree into `bin/le`:
+
+```bash
+./le --update
+```
+
+It renames the new binary into place rather than writing through the file. A peer
+executing the old one therefore keeps the inode it started with. A failed build
+leaves `bin/le` as it was and says so. With a command after it, the option
+updates first and then runs that command against the new binary.
+
+`--update` is the answer to a stale shared binary. `--name` below is the answer
+to reading a result back from your own uncommitted edits.
+<!-- source: le -- update_le -->
 
 Do not delete `bin/le`. Several sessions share one checkout and one of them can
 be executing that file right now. Ask for a build of your own instead:
@@ -162,7 +191,7 @@ The target and its checked feature population are documented in
 
 ### Linux
 
-`./le setup` installs the apt packages itself, the same way it installs the
+`./le setup install` installs the apt packages itself, the same way it installs the
 Homebrew ones on macOS. Each command is echoed before it runs. It takes
 `apt-get update` once per run, because a container image ships no package
 lists, and it sets `DEBIAN_FRONTEND=noninteractive` so a package with a debconf
@@ -198,7 +227,7 @@ OTHER architecture needs that architecture's set too, through
 `kernel.apparmor_restrict_unprivileged_userns=1`, which blocks the sandbox
 Chrome relies on and makes the `agent-browser` web functional tests fail to
 launch Chrome (`No usable sandbox!`). Setup checks this tunable as
-`userns-unrestricted`. When it is restricted, `./le setup` (install mode)
+`userns-unrestricted`. When it is restricted, `./le setup install`
 echoes and then runs these commands via `sudo` to lift it globally:
 
 ```bash
@@ -267,7 +296,7 @@ missing address fails at once naming the command above.
 
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
 
-Neither addition survives a reboot. Re-run `./le setup` after one;
+Neither addition survives a reboot. Re-run `./le setup install` after one;
 `./le setup check` says when it is needed. The merge gate adds the IPv6
 address the same way, as its own workflow step (`.github/workflows/verify.yml`).
 

@@ -41,6 +41,14 @@ because `defaultDispatch` selects the personality with
 `registry.LookupRoot(binaryName())`, so the session name goes on the directory.
 The launcher carries the name into the process, and `refuseWrongBuildName`
 refuses to answer when the running binary is a different build.
+
+`./le --update` moves the cache forward instead of stepping around it. It builds
+the working tree beside `bin/le` and renames the result into place, so a peer
+session executing the old binary keeps its inode. The launcher never rebuilds on
+its own, because one peer's unfinished source would then fail every call in every
+session. About one call in sixteen compares the binary with the build inputs,
+after the command has answered. It prints one stderr line when a file git holds
+unmodified is newer.
 <!-- source: le -- the --name option; cmd/ze/le_build_name.go -- refuseWrongBuildName -->
 
 

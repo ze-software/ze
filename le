@@ -35,6 +35,83 @@ build_le() {
 	(cd "$root" && go build -tags "$tags" -o "$out" ./cmd/ze)
 }
 
+# Replaces $1 with a fresh build without writing through the file a peer session
+# may be executing. go build truncates its output in place, which corrupts a
+# running process; building beside the target and renaming leaves that process
+# on the old inode until it exits.
+update_le() {
+	# Not `out`: sh has no local scope, so build_le's own `out=$1` would rewrite
+	# this one and the rename below would name the staging path twice.
+	target=$1
+	staging=$target.new.$$
+
+	# A failed build leaves a 95 MB partial object beside the binary, and every
+	# later call would walk past it, so the staging path is cleared on the way
+	# out whichever way the build went.
+	if ! build_le "$staging"; then
+		rm -f "$staging"
+		echo "le: the build failed, so bin/le is unchanged" >&2
+		return 1
+	fi
+	mv -f "$staging" "$target"
+}
+
+# The build inputs of the le personality: the module's own Go, the vendored
+# dependencies, and the three files that decide how any of it compiles.
+# gokrazy/modcache holds 57,000 more .go files that no package imports, so it is
+# not an input and walking it would cost 2.5 s a call instead of 40 ms.
+le_sources='internal cmd pkg api vendor'
+le_build_config='go.mod go.sum feature-gates.txt'
+
+# True when $1 is older than any build input. `-print -quit` stops at the first
+# newer file, so the answer costs about 40 ms when nothing changed and less when
+# something did.
+le_is_stale() {
+	[ -n "$(
+		cd "$root" && find $le_sources -name '*.go' -newer "$1" -print -quit 2>/dev/null
+		find $le_build_config -newer "$1" -print -quit 2>/dev/null
+	)" ]
+}
+
+# True when a build input newer than $1 is one git holds unmodified. Several
+# sessions share this checkout, so a peer's half-written edit is newer than the
+# binary all day and says nothing: only a file that has LANDED means the binary
+# missed a change. This walk cannot stop at the first hit the way le_is_stale
+# does, because that hit can be the dirty file, so le_is_stale gates it.
+committed_change_is_newer() {
+	[ -n "$(
+		{
+			git -C "$root" status --porcelain -- $le_sources $le_build_config 2>/dev/null |
+				sed -e 's/^...//' -e 's/.* -> //'
+			echo '--'
+			(cd "$root" && find $le_sources -name '*.go' -newer "$1" 2>/dev/null
+			find $le_build_config -newer "$1" 2>/dev/null)
+		} | awk '
+			$0 == "--"     { landed = 1; next }
+			!landed        { dirty[$0] = 1; next }
+			!($0 in dirty) { print; exit }
+		'
+	)" ]
+}
+
+# One call in sixteen pays for the staleness walk. The pid is the sample,
+# because a counter would be state several sessions write at once and the only
+# thing the sample has to be is roughly one in sixteen.
+le_sampled() {
+	[ $(($$ % 16)) -eq 0 ]
+}
+
+# Says the binary is behind the tree. It never rebuilds and never fails: a
+# session that wanted the new binary asked for it with --update, and one that
+# did not is running a command whose answer this must not replace.
+warn_when_stale() {
+	[ -x "$1" ] || return 0
+	le_is_stale "$1" || return 0
+	committed_change_is_newer "$1" || return 0
+
+	echo "le: bin/le is older than committed sources; refresh it with './le --update'" >&2
+}
+
 # A build name becomes one path component, so it accepts letters, digits, dot,
 # underscore and hyphen, it is never empty, and `..` is refused on top of that.
 # A rejected name is never repaired into something safe.
@@ -56,6 +133,16 @@ check_name() {
 # the launcher's own channel rather than an interface: cmd/ze/le_build_name.go
 # reads it and refuses to answer when the running binary is not the one the
 # caller named, which is what turns a stale or hardcoded binary into an error.
+# `./le --update` replaces bin/le with a build of the working tree, and runs
+# whatever follows it against that build. With no command after it, updating IS
+# the command. --name already builds on every call, so the option is satisfied
+# there and writes nothing to the shared binary.
+update=
+if [ "${1:-}" = "--update" ]; then
+	update=yes
+	shift
+fi
+
 name=
 case ${1:-} in
 --name)
@@ -91,12 +178,32 @@ if [ -n "$name" ]; then
 else
 	binary=$root/bin/le
 	# This is an existence cache, not a freshness check. An existing binary is
-	# deliberately executed without asking the toolchain whether sources changed.
-	# Deleting it is not the way to pick a change up, because peer sessions
-	# execute this same path. Pass --name instead.
+	# deliberately executed without asking the toolchain whether sources changed,
+	# because a peer session's unfinished edit would then break every call in
+	# every session. --update picks a change up on demand, and --name builds a
+	# session its own binary. Deleting this one never does: peers execute it.
 	if [ ! -x "$binary" ]; then
 		build_le "$binary"
+	elif [ -n "$update" ]; then
+		update_le "$binary"
 	fi
+fi
+
+if [ $# -eq 0 ] && [ -n "$update" ]; then
+	exit 0
+fi
+
+# The staleness check runs AFTER the command, so a session waiting on le waits
+# on le and not on a find, and reads the line under the answer it asked for
+# rather than above it. Paying that with the exec is what costs this branch a
+# shell process; every other call keeps the exec and costs nothing.
+#
+# --name is exempt: that binary was built from the working tree one line ago.
+if [ -z "$name" ] && le_sampled; then
+	status=0
+	"$binary" "$@" || status=$?
+	warn_when_stale "$binary"
+	exit $status
 fi
 
 exec "$binary" "$@"
