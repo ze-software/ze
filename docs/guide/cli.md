@@ -142,3 +142,35 @@ In `ze cli` interactive mode:
   <!-- source: cmd/ze/help_command.go -- operatorsFor, collectCommands -->
 - **History** persisted across sessions
 - **Ctrl-C** cancels current command, **Ctrl-D** exits
+
+### Keys that reveal help
+
+Every command declares two help texts: a one-line summary and a long
+explanation. Tab reaches both, so an operator reads what a command does and
+stays at the prompt. Two message lines sit above the prompt, and the second one
+carries the summary.
+
+| Key | What it does |
+|-----|--------------|
+| Tab, with more to complete | Completes the command. Two candidates or more open the menu |
+| Up or Down | Moves the selection in the menu. The second message line shows the selected command's summary |
+| Tab, with nothing left to complete | Shows the command's long explanation in a box above the prompt |
+| Tab, on a command that declares no explanation | The second message line reads `<command>: no explanation is declared` |
+| `?`, with the menu open | Writes the selected command's name and summary on the second message line |
+| Enter, with the menu open | Puts the selected command in the input |
+| Enter, with the explanation on the screen | Runs the command as typed |
+| Escape, with the explanation on the screen | Removes the explanation. The typed command stays |
+| Escape, with the menu open | Closes the menu |
+| Escape, with nothing revealed | Clears the typed command. An empty input asks to quit |
+| Any text key, or Backspace | Removes the menu or the explanation. The key still reaches the input |
+<!-- source: internal/component/cli/model_keys.go -- handleTab, revealExplanation, handleEnter -->
+<!-- source: internal/component/cli/model_render.go -- warningText -->
+
+Escape removes one thing for each press. The explanation goes first, and the
+typed command stays until the next press.
+<!-- source: internal/component/cli/model_keys.go -- handleKeyMsg, the Escape descent -->
+
+A menu row is the command name alone. The summary has the second message line to
+itself, so no width cuts it. Ze invents no explanation: a command that declares
+none says so.
+<!-- source: internal/component/cli/model_render.go -- renderDropdownBox, renderExplanationBox -->

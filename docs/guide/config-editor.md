@@ -151,6 +151,17 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
 - Valid config keys at the current level
 - Enum values for leaf nodes
 - Address family names from registered plugins
+<!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions -->
+
+A menu row is the config key alone. The second message line above the prompt
+shows the description of the selected key.
+<!-- source: internal/component/cli/model_render.go -- renderDropdownBox, warningText -->
+
+Tab on a config path that is complete reveals no explanation, because a config
+leaf declares no long form. Operational command help is reachable from
+configuration mode behind `run `, and the keys are in the
+[CLI guide](cli.md#keys-that-reveal-help).
+<!-- source: internal/component/cli/model.go -- commandCompleterInput -->
 
 ## Commit Confirmed
 

@@ -4,6 +4,12 @@
 
 package cli
 
+import (
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
 // pluginCompleter provides tab completion for plugin SDK methods.
 // Used by `ze bgp plugin cli` interactive mode after 5-stage negotiation.
 type pluginCompleter struct {
@@ -74,4 +80,30 @@ func (c *pluginCompleter) GhostText(input string) string {
 		}
 	}
 	return ""
+}
+
+// Explain returns what the named method declares. The argument pattern is on
+// the first line and the help is on the second.
+//
+// It answers false for a name the SDK does not carry. Both halves come from the
+// method's own declaration, so an unknown name leaves nothing to read.
+func (c *pluginCompleter) Explain(input string) (string, bool) {
+	name := strings.TrimSpace(input)
+	if name == "" {
+		return "", false
+	}
+
+	for _, m := range c.methods {
+		if m.name != name {
+			continue
+		}
+		var tb textbuf.Buffer
+		tb.Str(m.name)
+		if m.args != "" {
+			tb.Byte(' ').Str(m.args)
+		}
+		tb.Byte('\n').Str(m.help)
+		return tb.String(), true
+	}
+	return "", false
 }

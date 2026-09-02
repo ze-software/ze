@@ -2491,6 +2491,7 @@ Inside `ze cli`:
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |
 | Tab completion | Contextual command/argument completion <!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model --> <!-- source: internal/component/command/pipe.go -- pipe operator definitions --> <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat --> |
+| Command help at the prompt | Tab, then Tab again: [keys that reveal help](cli.md#keys-that-reveal-help) |
 
 `ze cli` with no command argument runs the interactive model in the CLIENT
 process and expands the pipe chain there. Only the aliases compiled into Ze

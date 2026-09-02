@@ -1,0 +1,29 @@
+# Test: Tab opens the candidate menu and each selection states what the command does
+# VALIDATES: AC-3 -- the selected candidate's declared summary is on message line 2
+# VALIDATES: the summary follows the selection, one candidate at a time
+# PREVENTS: a menu of bare names, which tells an operator nothing about a command
+
+option=mode:value=command
+option=timeout:value=10s
+
+# "show t" matches three commands. Each one declares its own description in a
+# -cmd YANG module, and the real command tree carries that text to the model.
+input=type:text=show t
+expect=completion:contains=tcp-check,traceroute,traffic
+expect=dropdown:hidden
+
+# Tab opens the menu on the first candidate. Its summary reaches message line 2.
+input=tab
+expect=dropdown:visible
+expect=hint:contains=Test TCP connectivity to a remote host and port.
+
+# Each arrow moves the selection, and the summary moves with it.
+input=key:name=down
+expect=hint:contains=Trace the network path from this router to a target.
+
+input=key:name=down
+expect=hint:contains=Traffic subsystem: QoS control and byte-usage accounting.
+
+# The menu stays open, so the operator reads the summaries before the choice.
+expect=dropdown:visible
+expect=input:value=show t

@@ -554,6 +554,41 @@ Markers may appear in any order; each value runs to the next known marker.
 **Foreground:** Starts and waits for completion.
 **Stop:** Terminates a named background process mid-test (see below).
 
+#### How an `exec=` value becomes argv
+
+The runner splits the value on spaces and tabs, and a span inside `"` or `'`
+stays ONE argument. Quote an argument that carries a space or a pipe, exactly as
+you would in a shell:
+
+```
+cmd=foreground:seq=1:exec=ze cli -c "show config dump - | json":stdin=config
+```
+
+`-c` receives `show config dump - | json`, and the quotes do not reach the
+process. Three limits apply:
+
+- A backslash escape is not handled. `\"` is a backslash and a quote character,
+  never a literal quote inside an argument.
+- An unbalanced quote fails the test with `unclosed quote in ...`.
+- No shell runs, so `|`, `>` and `$HOME` are ordinary characters inside an
+  argument. The runner expands `$PORT` and `$PORT2` and nothing else, and
+  `ze-test fixture` expands the environment in its own arguments.
+
+One splitter serves every suite, so a `cmd=` line produces the same argv
+wherever it runs.
+
+**Provenance:** until 2026-09-02 the `.ci` runner split the value on whitespace
+alone while the parse suite honored quotes. The example above was already
+published here, so four `test/ui` tests were written against it. `-c` received
+only the first word of the quoted command, `ze cli` fell through to its SSH
+client, and each test failed with `no credentials for 127.0.0.1:2222`.
+
+<!-- source: internal/test/runner/runner_exec_util.go -- splitCommand -->
+<!-- source: internal/test/runner/runner_exec.go -- runExecCommands argv construction -->
+<!-- source: internal/test/runner/parsing.go -- runOneCommand, the parse suite's own execution -->
+<!-- source: internal/test/fixture/fixture.go -- Run, os.ExpandEnv over the fixture's own arguments -->
+<!-- test: test/runner/exec-quoted-argument.ci -- a quoted argument carrying a pipe reaches the callee as one argv element -->
+
 #### `cmd=stop` -- terminate a background process mid-test
 
 A background process started with `name=<handle>` can be stopped at a chosen step
@@ -686,7 +721,7 @@ and FreeBSD, the test runner adds loopback aliases via the `SIOCAIFADDR` ioctl.
 
 IPv6 works differently, because a host carries exactly one IPv6 loopback
 address. A fixture that needs a second one uses `fd00::2`, which is unique-local
-(RFC 4193) and never globally routable. `./le setup` adds it, and
+(RFC 4193) and never globally routable. `./le setup install` adds it, and
 `./le setup check` reports whether it is there. The runner never adds it:
 the ioctl returns EPERM to an unprivileged process, and `./le verify current mode full` runs as
 an ordinary user. A test that binds an address this host does not carry fails at
@@ -699,7 +734,7 @@ The check reads both places a fixture names an address it binds. One is
 listens on it when `accept` is true, so the host must carry it too. A local
 address outside 127.0.0.0/8 and fc00::/7 is left alone. A config-validation
 fixture names a routable one (`local { ip 192.0.2.1 }`), the daemon exits before
-it binds anything, and `./le setup` adds no such address.
+it binds anything, and `./le setup install` adds no such address.
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
@@ -1503,12 +1538,30 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 | `expect=viewport:not-contains=<text>` | Displayed output must NOT include | `expect=viewport:not-contains=error` |
 | `expect=errors:count=<N>` | Validation error count | `expect=errors:count=0` |
 | `expect=status:contains=<text>` | Status message | `expect=status:contains=committed` |
+| `expect=hint:contains=<text>` | Second message line includes text | `expect=hint:contains=show the peers` |
+| `expect=hint:empty` | Second message line is blank | `expect=hint:empty` |
+| `expect=explanation:contains=<text>` | Revealed long explanation includes text | `expect=explanation:contains=established` |
+| `expect=explanation:empty` | No explanation is revealed | `expect=explanation:empty` |
 | `expect=error:none` | No command error | `expect=error:none` |
 | `expect=timer:active` | Confirm timer running | `expect=timer:active` |
 | `expect=file:path=<rel>:contains=<text>` | On-disk file content | `expect=file:path=test.conf:contains=bgp` |
 | `expect=file:path=<rel>:not-contains=<text>` | File must NOT contain | `expect=file:path=test.conf:not-contains=old` |
 | `expect=file:path=<rel>:absent=true` | File does not exist | `expect=file:path=test.conf:absent=true` |
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
+
+`hint` reads the second message line with every style stripped. That row carries
+the completion hint, and the summary of the candidate the operator selected.
+`explanation` reads the long explanation Tab reveals, without the box that frames
+it on screen. Both accept `empty` and `contains=`. Both refuse an expectation
+that names neither key.
+<!-- source: internal/component/cli/testing/expect.go -- checkHint, checkExplanation -->
+
+A test that runs `option=mode:value=command` or `option=mode:value=operational`
+completes against the real command tree, built from the registered `-cmd` YANG
+modules. The tree carries no value hints and no plugin commands. A hint provider
+reads the live RIB, and a plugin command comes from the live dispatcher. A
+headless test has neither, so a completion over a VALUE stays empty there.
+<!-- source: internal/component/cli/testing/headless.go -- headlessCommandTree -->
 
 ### Wait Actions
 

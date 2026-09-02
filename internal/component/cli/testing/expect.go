@@ -27,6 +27,8 @@ var (
 	errWarningsExpectationRequiresCountOrContains      = errors.New("warnings expectation requires 'count' or 'contains' key")
 	errContentExpectationRequiresContainsNotContains   = errors.New("content expectation requires 'contains', 'not-contains', or 'lines' key")
 	errStatusExpectationRequiresEmptyOrContains        = errors.New("status expectation requires 'empty' or 'contains' key")
+	errHintExpectationRequiresEmptyOrContains          = errors.New("hint expectation requires 'empty' or 'contains' key")
+	errExplanationExpectationRequiresEmptyOrContains   = errors.New("explanation expectation requires 'empty' or 'contains' key")
 	errExpectedTemplateTrueGotFalse                    = errors.New("expected template:true, got false")
 	errExpectedTemplateFalseGotTrue                    = errors.New("expected template:false, got true")
 	errTemplateExpectationRequiresTrueOrFalse          = errors.New("template expectation requires 'true' or 'false' key")
@@ -56,6 +58,8 @@ type State interface {
 	Error() error
 	IsTemplate() bool
 	ShowDropdown() bool
+	MessageHint() string
+	Explanation() string
 	WorkingContent() string
 	ViewportContent() string
 	ConfirmTimerActive() bool
@@ -67,23 +71,25 @@ type State interface {
 
 // validExpectationTypes lists all recognized expectation types.
 var validExpectationTypes = map[string]func(Expectation, State) error{
-	"context":    checkContext,
-	"dirty":      checkDirty,
-	"error":      checkError,
-	"completion": checkCompletion,
-	"ghost":      checkGhost,
-	"errors":     checkErrors,
-	"warnings":   checkWarnings,
-	"content":    checkContent,
-	etStatus:     checkStatus,
-	"template":   checkTemplate,
-	"dropdown":   checkDropdown,
-	"prompt":     checkPrompt,
-	"viewport":   checkViewport,
-	"timer":      checkTimer,
-	etMode:       checkMode,
-	etInput:      checkInput,
-	etFile:       checkFile,
+	"context":     checkContext,
+	"dirty":       checkDirty,
+	"error":       checkError,
+	"completion":  checkCompletion,
+	"ghost":       checkGhost,
+	"errors":      checkErrors,
+	"warnings":    checkWarnings,
+	"content":     checkContent,
+	etStatus:      checkStatus,
+	"hint":        checkHint,
+	"explanation": checkExplanation,
+	"template":    checkTemplate,
+	"dropdown":    checkDropdown,
+	"prompt":      checkPrompt,
+	"viewport":    checkViewport,
+	"timer":       checkTimer,
+	etMode:        checkMode,
+	etInput:       checkInput,
+	etFile:        checkFile,
 }
 
 // checkExpectation verifies a single expectation against the current state.
@@ -389,6 +395,51 @@ func checkStatus(exp Expectation, state State) error {
 	}
 
 	return errStatusExpectationRequiresEmptyOrContains
+}
+
+// checkHint verifies second message line expectations. The row carries the
+// completion hint and the selected candidate's summary, with every style
+// stripped, so a test asserts on the words an operator reads.
+func checkHint(exp Expectation, state State) error {
+	hint := state.MessageHint()
+
+	if _, hasEmpty := exp.Values["empty"]; hasEmpty {
+		if hint != "" {
+			return fmt.Errorf("expected hint:empty, got %q", hint)
+		}
+		return nil
+	}
+
+	if expected, hasContains := exp.Values["contains"]; hasContains {
+		if !strings.Contains(hint, expected) {
+			return fmt.Errorf("message hint does not contain %q, got %q", expected, hint)
+		}
+		return nil
+	}
+
+	return errHintExpectationRequiresEmptyOrContains
+}
+
+// checkExplanation verifies revealed long explanation expectations. The text is
+// the one the command declares, without the box that frames it on screen.
+func checkExplanation(exp Expectation, state State) error {
+	explanation := state.Explanation()
+
+	if _, hasEmpty := exp.Values["empty"]; hasEmpty {
+		if explanation != "" {
+			return fmt.Errorf("expected explanation:empty, got %q", explanation)
+		}
+		return nil
+	}
+
+	if expected, hasContains := exp.Values["contains"]; hasContains {
+		if !strings.Contains(explanation, expected) {
+			return fmt.Errorf("explanation does not contain %q, got %q", expected, explanation)
+		}
+		return nil
+	}
+
+	return errExplanationExpectationRequiresEmptyOrContains
 }
 
 // checkTemplate verifies template mode expectations.

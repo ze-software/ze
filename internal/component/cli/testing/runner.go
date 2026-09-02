@@ -252,7 +252,7 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 	// createModel builds a HeadlessModel based on the current mode.
 	createModel := func() (*headlessModel, error) {
 		if editorMode == "operational" || editorMode == "command" {
-			return newHeadlessCommandModel(), nil
+			return newHeadlessCommandModel()
 		}
 		if configPath == "" {
 			return nil, errNoConfigFileSpecifiedUseOption

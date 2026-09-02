@@ -8,8 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/muesli/reflow/ansi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -560,9 +562,13 @@ func TestOverlayLineRestoresColor(t *testing.T) {
 	assert.Contains(t, result, "OVER\x1b[0m\x1b[34m", "should restore bg color after overlay")
 }
 
-// TestDropdownMultilineDescriptionCollapsed verifies multi-line descriptions
-// do not break the box structure.
-func TestDropdownMultilineDescriptionCollapsed(t *testing.T) {
+// TestDropdownMultilineDescriptionStaysOutOfTheBox verifies a description with
+// a newline in it cannot reach the menu, so it cannot split a row.
+//
+// The box used to carry a description column and collapsed the newline to keep
+// its frame. The column is gone: the row is the name alone, and the declared
+// summary is on message line 2.
+func TestDropdownMultilineDescriptionStaysOutOfTheBox(t *testing.T) {
 	m := Model{
 		completions: []Completion{
 			{Text: "firewall", Description: "Firewall tables.\nTable names are bare.", Type: "command"},
@@ -584,6 +590,11 @@ func TestDropdownMultilineDescriptionCollapsed(t *testing.T) {
 
 	// Should have exactly: top border + 2 items + bottom border = 4 lines
 	assert.Equal(t, 4, len(lines), "should have 4 lines (top + 2 items + bottom)")
+
+	assert.NotContains(t, dropdown, "Table names are bare",
+		"no description reaches the menu, so its newline cannot split a row")
+	assert.NotContains(t, dropdown, "Network interface config",
+		"no description reaches the menu")
 }
 
 // TestModelStatusBarNoErrorsWhenValid verifies no indicator when valid.
@@ -888,5 +899,343 @@ func TestMessageLinesDoNotRepeatTheIdleBanner(t *testing.T) {
 	}
 	if line2 == "" {
 		t.Errorf("the idle banner is missing from the message area: line1=%q line2=%q", line1, line2)
+	}
+}
+
+// TestDropdownRowIsTheCommandNameAlone verifies the menu row carries the name
+// and nothing else.
+//
+// VALIDATES: renderDropdownBox draws each candidate as its whole name, with no
+// description column and no ellipsis on the name.
+// PREVENTS: The width truncation the description column forced, which cut a
+// declared summary at a column the author never chose.
+func TestDropdownRowIsTheCommandNameAlone(t *testing.T) {
+	const summaryLong = "advertise the local preference attribute to every configured peer in the group"
+	const summaryShort = "configure a BGP neighbor and its address families"
+
+	m := Model{
+		completions: []Completion{
+			{Text: "advertise-interval-milliseconds", Description: summaryLong, Type: "command"},
+			{Text: "neighbor", Description: summaryShort, Type: "command"},
+		},
+		selected:     0,
+		showDropdown: true,
+		width:        80,
+	}
+
+	dropdown := m.renderDropdownBox(10)
+
+	assert.Contains(t, dropdown, "advertise-interval-milliseconds",
+		"the longest command name in the repository renders whole")
+	assert.Contains(t, dropdown, "neighbor", "every candidate renders")
+
+	for _, fragment := range []string{"advertise the local", "preference", "address families"} {
+		assert.NotContains(t, dropdown, fragment,
+			"no description text belongs in the menu: %q", fragment)
+	}
+	assert.NotContains(t, dropdown, "...", "no row is truncated with an ellipsis")
+
+	// Every row is the box frame plus the name, so the frame still closes.
+	lines := strings.Split(dropdown, "\n")
+	for i := 1; i < len(lines)-1; i++ {
+		assert.True(t, strings.HasPrefix(lines[i], "│"), "line %d should start with │: %q", i, lines[i])
+		assert.True(t, strings.HasSuffix(lines[i], "│"), "line %d should end with │: %q", i, lines[i])
+	}
+}
+
+// TestSelectionMovesTheSummaryOnTheMessageLine verifies the message line
+// carries the selected candidate's declared summary, whole.
+//
+// VALIDATES: warningText derives the second message line from m.selected, so an
+// arrow key moves the summary with the selection and no handler writes it.
+// PREVENTS: A summary that lags the selection, and a summary cut to a column
+// width the way the removed description column cut it.
+func TestSelectionMovesTheSummaryOnTheMessageLine(t *testing.T) {
+	const summaryFirst = "advertise the local preference attribute to every configured peer in the group"
+	const summarySecond = "configure a BGP neighbor and its address families"
+	const summaryThird = "hold the session down until the operator clears it"
+
+	m := Model{
+		completions: []Completion{
+			{Text: "advertise", Description: summaryFirst, Type: "command"},
+			{Text: "neighbor", Description: summarySecond, Type: "command"},
+			{Text: "shutdown", Description: summaryThird, Type: "command"},
+		},
+		selected:     0,
+		showDropdown: true,
+		width:        80,
+	}
+
+	assert.Equal(t, summaryFirst, m.MessageHint(),
+		"the first candidate's summary shows whole, past the width the old column allowed")
+
+	down, _ := m.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyDown})
+	m, ok := down.(Model)
+	require.True(t, ok)
+	assert.Equal(t, summarySecond, m.MessageHint(), "down moves the summary with the selection")
+
+	down2, _ := m.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyDown})
+	m, ok = down2.(Model)
+	require.True(t, ok)
+	assert.Equal(t, summaryThird, m.MessageHint(), "each move changes the summary")
+
+	up, _ := m.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyUp})
+	m, ok = up.(Model)
+	require.True(t, ok)
+	assert.Equal(t, summarySecond, m.MessageHint(), "up moves it back")
+}
+
+// TestSummaryDoesNotDisplaceAnError verifies the two message rows keep their
+// own occupants.
+//
+// VALIDATES: An error stays on message line 1 (feedbackLine) while the selected
+// candidate's summary is on line 2 (warningLine).
+// PREVENTS: A menu that hides the fault an operator needs to read.
+func TestSummaryDoesNotDisplaceAnError(t *testing.T) {
+	const summary = "configure a BGP neighbor and its address families"
+
+	m := Model{
+		err: errors.New("peer 192.0.2.1 is not configured"),
+		completions: []Completion{
+			{Text: "neighbor", Description: summary, Type: "command"},
+			{Text: "shutdown", Description: "hold the session down", Type: "command"},
+		},
+		selected:     0,
+		showDropdown: true,
+		width:        80,
+	}
+
+	line1, line2 := m.messageLines()
+
+	assert.Contains(t, line1, "peer 192.0.2.1 is not configured", "the error keeps line 1")
+	assert.NotContains(t, line1, summary, "the summary never reaches line 1")
+	assert.Contains(t, line2, summary, "the summary is on line 2")
+	assert.NotContains(t, line2, "peer 192.0.2.1 is not configured",
+		"the two rows are different rows, so neither can hide the other")
+}
+
+// TestSummaryStripsATerminalEscape verifies the message line carries no escape
+// sequence a plugin wrote.
+//
+// VALIDATES: warningText passes the selected candidate's declared summary
+// through sanitizeForDisplay before it reaches the terminal.
+// PREVENTS: A plugin's summary clearing the screen or moving the cursor when an
+// operator arrows onto its command.
+func TestSummaryStripsATerminalEscape(t *testing.T) {
+	m := Model{
+		completions: []Completion{
+			{Text: "evil", Description: "clear \x1b[2J and move \x1b[1;1H the cursor", Type: "command"},
+		},
+		selected:     0,
+		showDropdown: true,
+		width:        80,
+	}
+
+	row := m.warningLine()
+
+	assert.NotContains(t, row, "\x1b[2J", "an erase-display sequence never reaches the terminal")
+	assert.NotContains(t, row, "\x1b[1;1H", "a cursor-position sequence never reaches the terminal")
+	assert.Contains(t, row, "clear  and move  the cursor", "the words the author wrote survive")
+}
+
+// TestDropdownClampsANameWiderThanTheBox verifies the one bound the menu keeps.
+//
+// VALIDATES: renderDropdownBox clamps a candidate name to the inner width, so a
+// name wider than the terminal cannot break the box frame.
+// PREVENTS: A ragged overlay when a name is longer than the box, which is the
+// boundary case the removed description column used to absorb.
+func TestDropdownClampsANameWiderThanTheBox(t *testing.T) {
+	m := Model{
+		completions: []Completion{
+			{Text: strings.Repeat("x", 200), Description: "a name nobody declares", Type: "command"},
+			{Text: "neighbor", Description: "a short one", Type: "command"},
+		},
+		selected:     0,
+		showDropdown: true,
+		width:        50, // inner width clamps to its 48 floor
+	}
+
+	dropdown := m.renderDropdownBox(10)
+	lines := strings.Split(dropdown, "\n")
+
+	require.Len(t, lines, 4, "top border + 2 items + bottom border")
+	for i := 1; i < len(lines)-1; i++ {
+		row := []rune(lines[i])
+		// "│ " (2) + inner(48) + " │" (2) = 52
+		assert.Equal(t, 52, len(row), "content line %d keeps the frame width: %q", i, lines[i])
+		assert.True(t, strings.HasPrefix(lines[i], "│"), "content line %d starts with │", i)
+		assert.True(t, strings.HasSuffix(lines[i], "│"), "content line %d ends with │", i)
+	}
+}
+
+// TestExplanationIsBoundedByTerminalHeight covers AC-11.
+//
+// VALIDATES: an explanation far taller than the terminal renders inside the
+// rows it was given, with an overflow indicator and an intact frame.
+// PREVENTS: a declared explanation pushing the prompt off the screen or
+// breaking the box the operator reads it in.
+func TestExplanationIsBoundedByTerminalHeight(t *testing.T) {
+	m := Model{
+		explanation:        strings.Repeat("the explanation continues and continues. ", 400),
+		explanationSubject: "peer list",
+		width:              80,
+		height:             24,
+	}
+
+	const availableHeight = 10
+	box := m.renderExplanationBox(availableHeight)
+	lines := strings.Split(box, "\n")
+
+	if len(lines) > availableHeight {
+		t.Errorf("box is %d lines, want at most %d", len(lines), availableHeight)
+	}
+	if !strings.HasPrefix(lines[0], "╭") {
+		t.Errorf("first line %q does not open the frame", lines[0])
+	}
+	if !strings.Contains(lines[0], "peer list") {
+		t.Errorf("title %q does not name the command the explanation is about", lines[0])
+	}
+	if !strings.HasPrefix(lines[len(lines)-1], "╰") {
+		t.Errorf("last line %q does not close the frame", lines[len(lines)-1])
+	}
+	if !strings.Contains(box, "more") {
+		t.Error("a bounded explanation must say that text remains")
+	}
+
+	width := ansi.PrintableRuneWidth(lines[0])
+	for i, line := range lines {
+		if got := ansi.PrintableRuneWidth(line); got != width {
+			t.Errorf("line %d is %d wide, want %d: %q", i, got, width, line)
+		}
+	}
+}
+
+// TestExplanationOverlayKeepsTheFrame covers AC-11 over the composed view.
+//
+// VALIDATES: the overlay writes the explanation above the prompt and changes no
+// line count, so the terminal frame survives.
+// PREVENTS: an explanation that scrolls the prompt away.
+func TestExplanationOverlayKeepsTheFrame(t *testing.T) {
+	lines := []string{"Ze Editor", ""}
+	for len(lines) < 23 {
+		lines = append(lines, "")
+	}
+	lines = append(lines, "ze# peer list ")
+	base := strings.Join(lines, "\n")
+
+	m := Model{
+		explanation:        strings.Repeat("wrap this sentence over many rows. ", 200),
+		explanationSubject: "peer list",
+		width:              80,
+		height:             24,
+	}
+
+	out := m.overlayExplanation(base)
+	outLines := strings.Split(out, "\n")
+
+	if len(outLines) != len(lines) {
+		t.Errorf("overlay produced %d lines, want %d", len(outLines), len(lines))
+	}
+	promptIdx, boxIdx := -1, -1
+	for i, line := range outLines {
+		if strings.Contains(line, "ze# peer list") {
+			promptIdx = i
+		}
+		if boxIdx == -1 && strings.Contains(line, "╭") {
+			boxIdx = i
+		}
+	}
+	if promptIdx == -1 {
+		t.Fatal("the prompt line must survive the overlay")
+	}
+	if boxIdx == -1 {
+		t.Fatal("the explanation box must appear in the overlay")
+	}
+	if boxIdx >= promptIdx {
+		t.Errorf("box at line %d is not above the prompt at line %d", boxIdx, promptIdx)
+	}
+}
+
+// TestExplanationStripsATerminalEscape is a Security Review row.
+//
+// VALIDATES: a plugin-declared explanation reaches the terminal with its C0,
+// DEL, C1 and ANSI bytes stripped.
+// PREVENTS: a declared explanation repainting or corrupting the operator's
+// terminal.
+func TestExplanationStripsATerminalEscape(t *testing.T) {
+	m := Model{
+		explanation:        "safe \x1b[31mred\x1b[0m and \x07 a bell",
+		explanationSubject: "peer list",
+		width:              80,
+	}
+
+	box := m.renderExplanationBox(10)
+
+	if strings.Contains(box, "\x1b") {
+		t.Errorf("box carries an escape byte: %q", box)
+	}
+	if strings.Contains(box, "\x07") {
+		t.Errorf("box carries a control byte: %q", box)
+	}
+	if !strings.Contains(box, "safe") || !strings.Contains(box, "red") {
+		t.Errorf("box lost the declared words: %q", box)
+	}
+}
+
+// TestExplanationHonoursTheAuthoredLineBreaks covers the wrap contract.
+//
+// VALIDATES: the explanation keeps the newlines its author wrote and wraps what
+// is still wider than the box.
+// PREVENTS: a declared paragraph break collapsing into one run of text.
+func TestExplanationHonoursTheAuthoredLineBreaks(t *testing.T) {
+	m := Model{
+		explanation:        "first line\nsecond line\n" + strings.Repeat("word ", 40),
+		explanationSubject: "peer list",
+		width:              80,
+	}
+
+	box := m.renderExplanationBox(20)
+	lines := strings.Split(box, "\n")
+
+	firstIdx, secondIdx := -1, -1
+	for i, line := range lines {
+		if strings.Contains(line, "first line") {
+			firstIdx = i
+		}
+		if strings.Contains(line, "second line") {
+			secondIdx = i
+		}
+	}
+	if firstIdx == -1 || secondIdx == -1 {
+		t.Fatalf("both declared lines must render: %q", box)
+	}
+	if secondIdx != firstIdx+1 {
+		t.Errorf("the authored break put line 2 at row %d, want row %d", secondIdx, firstIdx+1)
+	}
+
+	innerWidth := ansi.PrintableRuneWidth(lines[0]) - 4
+	for i, line := range lines {
+		if got := ansi.PrintableRuneWidth(line) - 4; got > innerWidth {
+			t.Errorf("row %d is %d wide, want at most %d", i, got, innerWidth)
+		}
+	}
+}
+
+// TestWrapForBoxReadsNoMoreRowsThanAsked guards the work bound.
+//
+// VALIDATES: the wrap stops at the row count the caller states, whatever the
+// length of the declared text.
+// PREVENTS: a render walking a declaration of any size once per frame.
+func TestWrapForBoxReadsNoMoreRowsThanAsked(t *testing.T) {
+	const linesMax = 4
+	lines := wrapForBox(strings.Repeat("a sentence that keeps going. ", 5000), 40, linesMax)
+
+	if len(lines) != linesMax {
+		t.Errorf("wrap produced %d rows, want %d", len(lines), linesMax)
+	}
+	for i, line := range lines {
+		if len([]rune(line)) > 40 {
+			t.Errorf("row %d is %d runes, want at most 40", i, len([]rune(line)))
+		}
 	}
 }

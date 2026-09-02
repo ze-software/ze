@@ -230,6 +230,8 @@ func (fs *fileState) StatusMessage() string                           { return "
 func (fs *fileState) Error() error                                    { return nil }
 func (fs *fileState) IsTemplate() bool                                { return false }
 func (fs *fileState) ShowDropdown() bool                              { return false }
+func (fs *fileState) MessageHint() string                             { return "" }
+func (fs *fileState) Explanation() string                             { return "" }
 func (fs *fileState) WorkingContent() string                          { return "" }
 func (fs *fileState) ViewportContent() string                         { return "" }
 func (fs *fileState) ConfirmTimerActive() bool                        { return false }

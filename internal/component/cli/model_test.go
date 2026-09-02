@@ -31,7 +31,9 @@ var knownModelFields = map[string]bool{
 	"editor": true, "completer": true, "validator": true, "textInput": true,
 	"viewport": true, "contextPath": true, "isTemplate": true, "dispatch": true,
 	"completions": true, "selected": true, "ghostText": true, "showDropdown": true,
-	"completionHint": true, "completionHintDim": true, "searchCache": true,
+	"completionHint": true, "completionHintDim": true,
+	"explanation": true, "explanationSubject": true,
+	"searchCache":      true,
 	"validationErrors": true, "validationWarnings": true, "validationID": true,
 	"reloadErrors":    true,
 	"viewportContent": true, "showViewport": true, "showingConfig": true,
@@ -1510,5 +1512,135 @@ func TestCommandModelTakesACompleterWithNoEditor(t *testing.T) {
 	got := m.commandCompleter.Complete("show ")
 	if len(got) != 1 || got[0].Text != "version" {
 		t.Errorf("completions = %v, want [version]", got)
+	}
+}
+
+// TestLevelResetsOnEveryCompletionClearSite drives every key that ends a reveal.
+// It asserts the explanation is off the screen after each one.
+//
+// Thirteen sites used to clear the completion hint by hand, and one
+// dismissReveal call replaced them. This test catches a site that clears the
+// hint and forgets the explanation. Such a site leaves stale text under what the
+// operator has since typed.
+//
+// The two arrow keys keep the menu open on purpose, so their level lands on
+// revealCandidates rather than revealNothing. Each case states the level it
+// expects, so the assertion is the exact level and never "anything lower".
+//
+// VALIDATES: assumption A-1 — every completion clear site clears the whole reveal.
+// PREVENTS: an explanation surviving typing, Enter, Escape, a menu move, or a
+// history recall.
+func TestLevelResetsOnEveryCompletionClearSite(t *testing.T) {
+	openMenu := func(m *Model) {
+		m.completions = makeTestCompletions(3)
+		m.showDropdown = true
+		m.selected = 0
+	}
+	withHistory := func(m *Model) {
+		m.history.Append("show version")
+	}
+
+	cases := []struct {
+		name  string
+		setup func(m *Model)
+		keys  []tea.KeyPressMsg
+		want  revealLevel
+	}{
+		{
+			name: "a text rune",
+			keys: []tea.KeyPressMsg{{Code: 'a', Text: "a"}},
+			want: revealNothing,
+		},
+		{
+			name: "backspace",
+			keys: []tea.KeyPressMsg{{Code: tea.KeyBackspace}},
+			want: revealNothing,
+		},
+		{
+			name: "enter on an empty input",
+			keys: []tea.KeyPressMsg{{Code: tea.KeyEnter}},
+			want: revealNothing,
+		},
+		{
+			name:  "enter applies the selected candidate",
+			setup: openMenu,
+			keys:  []tea.KeyPressMsg{{Code: tea.KeyEnter}},
+			want:  revealNothing,
+		},
+		{
+			name:  "enter runs the command as typed",
+			setup: func(m *Model) { m.textInput.SetValue("clear") },
+			keys:  []tea.KeyPressMsg{{Code: tea.KeyEnter}},
+			want:  revealNothing,
+		},
+		{
+			name:  "escape clears a typed input",
+			setup: func(m *Model) { m.textInput.SetValue("show") },
+			keys:  []tea.KeyPressMsg{{Code: tea.KeyEscape}},
+			want:  revealNothing,
+		},
+		{
+			// Escape descends one level for each press. This case puts both
+			// levels on screen, so the first press takes off the explanation
+			// and leaves the menu (AC-5).
+			name:  "escape takes the explanation off first",
+			setup: openMenu,
+			keys:  []tea.KeyPressMsg{{Code: tea.KeyEscape}},
+			want:  revealCandidates,
+		},
+		{
+			name:  "a second escape closes the menu",
+			setup: openMenu,
+			keys:  []tea.KeyPressMsg{{Code: tea.KeyEscape}, {Code: tea.KeyEscape}},
+			want:  revealNothing,
+		},
+		{
+			name:  "arrow up moves the selection",
+			setup: openMenu,
+			keys:  []tea.KeyPressMsg{{Code: tea.KeyUp}},
+			want:  revealCandidates,
+		},
+		{
+			name:  "arrow down moves the selection",
+			setup: openMenu,
+			keys:  []tea.KeyPressMsg{{Code: tea.KeyDown}},
+			want:  revealCandidates,
+		},
+		{
+			name:  "history up recalls a command",
+			setup: withHistory,
+			keys:  []tea.KeyPressMsg{{Code: tea.KeyUp}},
+			want:  revealNothing,
+		},
+		{
+			name:  "history down restores the input",
+			setup: withHistory,
+			keys:  []tea.KeyPressMsg{{Code: tea.KeyUp}, {Code: tea.KeyDown}},
+			want:  revealNothing,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newTestModel(t)
+			m.width = 80
+			m.height = 24
+			if tc.setup != nil {
+				tc.setup(m)
+			}
+			m.explanation = "the long explanation the operator revealed"
+			m.completionHint = "cmd1: Command 1"
+
+			current := *m
+			for _, key := range tc.keys {
+				next, _ := current.handleKeyMsg(key)
+				updated, ok := next.(Model)
+				require.True(t, ok, "handleKeyMsg answered %T, want Model", next)
+				current = updated
+			}
+
+			assert.Equal(t, "", current.Explanation(), "the key left the explanation on screen")
+			assert.Equal(t, tc.want, current.revealLevel(), "reveal level after the key")
+		})
 	}
 }

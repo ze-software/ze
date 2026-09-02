@@ -91,6 +91,15 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Escape descends exactly one reveal level, and the explanation is the
+	// level it descends from first. It takes off the explanation and nothing
+	// else: the operator typed those words to reach it, and the arm below
+	// clears the whole input (AC-5).
+	if keyStr == keyEsc && m.revealLevel() == revealExplanation {
+		m.dismissReveal()
+		return m, nil
+	}
+
 	// Dropdown navigation takes priority
 	if m.showDropdown && len(m.completions) > 0 {
 		switch key.Code {
@@ -99,18 +108,15 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if m.selected < 0 {
 				m.selected = len(m.completions) - 1
 			}
-			m.completionHint = ""
-			m.completionHintDim = false
+			m.dismissReveal()
 			return m, nil
 		case tea.KeyDown:
 			m.selected = (m.selected + 1) % len(m.completions)
-			m.completionHint = ""
-			m.completionHintDim = false
+			m.dismissReveal()
 			return m, nil
 		case tea.KeyEscape:
 			m.showDropdown = false
-			m.completionHint = ""
-			m.completionHintDim = false
+			m.dismissReveal()
 			m.selected = -1
 			return m, nil
 		case tea.KeyEnter:
@@ -165,6 +171,10 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	switch {
 	case keyStr == keyCtrlC || keyStr == keyEsc:
+		// Every branch below leaves the prompt, so the reveal goes first. Ctrl-C
+		// reaches here at any level, and a quit confirmation under an
+		// explanation box would ask a question the operator cannot read (AC-7).
+		m.dismissReveal()
 		// Stop active monitor session before considering quit.
 		if m.monitorSession != nil {
 			m.stopMonitorSession()
@@ -174,8 +184,6 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if keyStr == keyEsc && (m.textInput.Value() != "" || (m.hasEditor() && !m.showingConfig)) {
 			m.textInput.SetValue("")
 			m.showDropdown = false
-			m.completionHint = ""
-			m.completionHintDim = false
 			m.selected = -1
 			m.ghostText = ""
 			m.syncGhostSuggestions()
@@ -223,14 +231,13 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.handleTab()
 
 	case key.Code == tea.KeyEnter:
-		m.completionHint = ""
-		m.completionHintDim = false
+		m.dismissReveal()
 		return m.handleEnter()
 
 	case key.Text != "":
-		// Typing clears transient completion hint and resets history browsing.
-		m.completionHint = ""
-		m.completionHintDim = false
+		// Typing dismisses whatever the completion machinery revealed and
+		// resets history browsing. The rune still reaches the input below.
+		m.dismissReveal()
 		m.history.resetBrowsing()
 		// Pass to text input
 		m.textInput, cmd = m.textInput.Update(msg)
@@ -239,8 +246,7 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// All other key types (including Backspace): forward to text input for processing
-	m.completionHint = ""
-	m.completionHintDim = false
+	m.dismissReveal()
 	m.history.resetBrowsing()
 	m.textInput, cmd = m.textInput.Update(msg)
 	m.updateCompletions()
@@ -304,7 +310,50 @@ func (m Model) handleTab() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// The completion list is exhausted, so Tab has nothing left to add. It
+	// reveals the explanation the command declares instead (AC-4).
+	m.revealExplanation()
 	return m, nil
+}
+
+// revealExplanation puts the long explanation of the typed command on the
+// screen. When the command declares none, the message line says so. It invents
+// no text: an unknown command and a command with no explanation both leave the
+// level where it is.
+//
+// It MUST run after the last updateCompletions call on the path. That function
+// calls dismissReveal whenever one candidate or none is left. That is the state
+// which brings Tab here, so a reveal written before it is erased by it.
+func (m *Model) revealExplanation() {
+	input, ok := m.commandCompleterInput()
+	if !ok {
+		// The command completer is not the completion source for this input, so
+		// nothing here knows what the operator typed. Config paths are the
+		// config editor's own completion and declare no long form.
+		return
+	}
+
+	// A pipe operator explains nothing about the command, so the subject is the
+	// part before the first one. TreeCompleter.Explain cuts the same way.
+	base, _, _ := strings.Cut(input, "|")
+	subject := textbuf.Join(strings.Fields(base), " ")
+	if subject == "" {
+		return
+	}
+
+	text, declared := m.commandCompleter.Explain(input)
+	if !declared {
+		// Silence would leave the operator unable to tell an undeclared
+		// explanation from a dead key, so the message line says which it is.
+		// It reads "<command>: <what>", the shape the ? hint uses.
+		var tb textbuf.Buffer
+		m.completionHint = tb.Str(subject).Str(": no explanation is declared").String()
+		m.completionHintDim = true
+		return
+	}
+
+	m.explanation = text
+	m.explanationSubject = subject
 }
 
 // handleShiftTab handles Shift+Tab key press.
@@ -324,8 +373,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
 		m.applyCompletion(m.completions[m.selected])
 		m.showDropdown = false
-		m.completionHint = ""
-		m.completionHintDim = false
+		m.dismissReveal()
 		m.selected = -1
 		m.updateCompletions()
 		return m, nil
@@ -352,8 +400,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			m.history.Save(m.mode.String())
 		}
 		m.showDropdown = false
-		m.completionHint = ""
-		m.completionHintDim = false
+		m.dismissReveal()
 		m.selected = -1
 		m.ghostText = ""
 		m.syncGhostSuggestions()
@@ -481,8 +528,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	// Clear input
 	m.textInput.SetValue("")
 	m.showDropdown = false
-	m.completionHint = ""
-	m.completionHintDim = false
+	m.dismissReveal()
 	m.selected = -1
 	m.ghostText = ""
 	m.syncGhostSuggestions()
@@ -612,8 +658,7 @@ func (m Model) handleHistoryUp() tea.Model {
 	if !ok {
 		return m
 	}
-	m.completionHint = ""
-	m.completionHintDim = false
+	m.dismissReveal()
 	m.textInput.SetValue(value)
 	m.textInput.CursorEnd()
 	m.updateCompletions()
@@ -626,8 +671,7 @@ func (m Model) handleHistoryDown() tea.Model {
 	if !ok {
 		return m
 	}
-	m.completionHint = ""
-	m.completionHintDim = false
+	m.dismissReveal()
 	m.textInput.SetValue(value)
 	m.textInput.CursorEnd()
 	m.updateCompletions()

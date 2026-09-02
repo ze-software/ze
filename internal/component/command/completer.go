@@ -200,6 +200,33 @@ func pipeSuggestionExists(items []Suggestion, text string) bool {
 	return false
 }
 
+// resolve walks the words from the root and returns the node they name. It
+// returns nil when a word names neither a static child nor a dynamic selector.
+//
+// Complete and Explain both read this one walk. The path a candidate is offered
+// for and the path an explanation is answered for cannot drift apart.
+func (c *TreeCompleter) resolve(words []string) *Node {
+	current := c.root
+	for _, word := range words {
+		if current.Children == nil {
+			return nil
+		}
+
+		child, ok := current.Children[word]
+		if !ok {
+			// Word is not a static child. If parent has DynamicChildren,
+			// the word might be a dynamic selector (e.g., peer name).
+			// Skip it and stay on the same node.
+			if current.DynamicChildren != nil {
+				continue
+			}
+			return nil
+		}
+		current = child
+	}
+	return current
+}
+
 // Complete returns completions for the given input.
 func (c *TreeCompleter) Complete(input string) []Suggestion {
 	// After a pipe character, complete pipe operators.
@@ -214,41 +241,54 @@ func (c *TreeCompleter) Complete(input string) []Suggestion {
 
 	input = strings.TrimLeft(input, " ")
 	words := strings.Fields(input)
-	endsWithSpace := strings.HasSuffix(input, " ")
 
-	// Navigate through completed words.
-	current := c.root
+	// A last word with no space after it is what the operator still types. It
+	// is the prefix to match rather than a step on the path.
 	var partial string
-
-	for i, word := range words {
-		isLast := i == len(words)-1
-		if isLast && !endsWithSpace {
-			partial = word
-			break
-		}
-
-		if current.Children == nil {
-			return nil
-		}
-
-		child, ok := current.Children[word]
-		if !ok {
-			// Word is not a static child. If parent has DynamicChildren,
-			// the word might be a dynamic selector (e.g., peer name).
-			// Skip it and continue showing the same node's children.
-			if current.DynamicChildren != nil {
-				continue
-			}
-			return nil
-		}
-		current = child
+	if len(words) > 0 && !strings.HasSuffix(input, " ") {
+		partial = words[len(words)-1]
+		words = words[:len(words)-1]
 	}
 
-	if endsWithSpace || len(words) == 0 {
-		partial = ""
+	current := c.resolve(words)
+	if current == nil {
+		return nil
 	}
 
 	return c.matchChildren(current, partial)
+}
+
+// Explain returns the long explanation the command the input names declares. It
+// returns false when the input names no command, and when the command declares
+// none.
+//
+// The caller MUST NOT invent text for a false answer. An empty explanation reads
+// on screen as a command whose author wrote nothing, which is a different claim.
+//
+// Every typed word is a step on the path. That holds for the last word, with or
+// without a space after it. Complete treats the last word as a prefix, because
+// it offers what comes next. Explain answers about the command in hand.
+func (c *TreeCompleter) Explain(input string) (string, bool) {
+	if c.root == nil {
+		return "", false
+	}
+
+	// A pipe operator explains nothing about the command, so read the part
+	// before the first one, as Complete does.
+	base, _, _ := strings.Cut(input, "|")
+	words := strings.Fields(base)
+	if len(words) == 0 {
+		return "", false
+	}
+
+	node := c.resolve(words)
+	if node == nil {
+		return "", false
+	}
+	if node.Help == "" {
+		return "", false
+	}
+	return node.Help, true
 }
 
 // GhostText returns the best single completion for inline display.

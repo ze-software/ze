@@ -19,7 +19,7 @@ The error zone is one place per surface:
 
 | Surface | Where a fault appears |
 |---------|-----------------------|
-| CLI, ordinary command | line 2 of the message area, above the prompt |
+| CLI, ordinary command | line 1 of the message area, above the prompt (`Model.feedbackLine`) |
 | CLI, live view (`monitor bgp`, `ping`, `traceroute`) | the same zone, rendered under the view |
 | Web | the page's own error region, from the same value |
 
@@ -92,6 +92,40 @@ in the muted role is not the defect a fixed word in a loud color is.
 `traceroute` are continuous, so `Last update: 0s ago` is the confirmation: it
 changes every second, and it goes stale visibly when the data stops. A view
 that shows fresh data is a view that is working.
+
+## The message area is two rows
+
+The message area above the prompt is two lines, and each row has one owner. An
+operator learns which row answers which question, and learns it once.
+
+| Row | Owner | What it carries |
+|-----|-------|-----------------|
+| 1 | `Model.feedbackLine` | the error, the command result, the welcome banner |
+| 2 | `Model.warningLine` | help about the command being typed |
+
+Row 1 is the error zone. Row 2 is help. The two are different rows, so nothing
+on row 2 can hide a fault. The completion menu and an error are on screen
+together, and each stays where the operator expects it.
+
+Row 2 has four occupants and one order. The first occupant that has text wins
+the row.
+
+| Order | Occupant | When it has text |
+|-------|----------|------------------|
+| 1 | the `?` hint | `?` was pressed on a candidate, or the input is invalid |
+| 2 | the selected candidate's summary | the completion menu is open |
+| 3 | the validation hint | the config holds an error or a warning |
+| 4 | the idle banner | nothing above it applies |
+
+The menu row shows the command name alone, so row 2 says what the selected name
+does. `Model.warningText` READS the summary from the selection, so an arrow key
+moves it and no key handler writes it. The summary renders whole. A declared
+summary is a sentence its author wrote, and this row cuts none of it.
+
+The summary is written in the muted role, which is the role a description
+wears.
+
+<!-- source: internal/component/cli/model_render.go -- messageLines, feedbackLine, warningText -->
 
 ## What this rule does not say
 

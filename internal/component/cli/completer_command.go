@@ -42,3 +42,9 @@ func (c *CommandCompleter) Complete(input string) []Completion {
 func (c *CommandCompleter) GhostText(input string) string {
 	return c.inner.GhostText(input)
 }
+
+// Explain returns the long explanation the named command declares, and false
+// when the input names no command or the command declares none.
+func (c *CommandCompleter) Explain(input string) (string, bool) {
+	return c.inner.Explain(input)
+}

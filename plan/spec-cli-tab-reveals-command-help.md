@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Deferral shard | `plan/deferrals/cli-tab-reveals-command-help.md` (or `-` if nothing deferred) |
 | Handoff | - |
-| Updated | 2026-09-01 |
+| Updated | 2026-09-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -106,9 +106,9 @@ the key already under their finger.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Model ↔ command tree | a new method on `CommandModeCompleter`, implemented twice | No |
-| CLI client ↔ daemon | `command help "<path>"` already answers `long-help`; this spec decides whether the client asks, or reads the tree it already merged | No |
-| Model ↔ screen | `View` composes one overlay today; a summary line and an explanation region must not both claim it | No |
+| Model ↔ command tree | `Explain` on `CommandModeCompleter`, implemented by `*CommandCompleter` and `*pluginCompleter` | Yes: `TestBothCompleterImplementationsAnswerHelp` runs one table over both |
+| CLI client ↔ daemon | the client reads the tree it already merged. No round trip is added | Yes: `(*TreeCompleter).Explain` reads `Node.Help` from the in-process tree |
+| Model ↔ screen | the summary is on message line 2 and the explanation is an overlay. The menu and the explanation are never on screen together | Yes: `TestSummaryDoesNotDisplaceAnError`, `TestExplanationOverlayKeepsTheFrame` |
 
 ### Integration Points
 - `command.FindNode` - resolves a path to a node; exists, and the Model has no root to give it. That is the gap.
@@ -118,22 +118,22 @@ the key already under their finger.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The Model reaches a command only through `CommandModeCompleter`. It holds no tree root and calls `command.FindNode` nowhere |
+| No unintended coupling (components stay isolated) | Yes | `internal/component/command` gained `Explain` and learned nothing about the CLI. `cmd/ze/hub/web_completer.go` implements a different interface and is untouched |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `Complete` and `Explain` share `(*TreeCompleter).resolve`. `renderDropdownBox` and `renderExplanationBox` share `boxTopBorder`, `boxContentRow`, `boxBottomBorder`, `overlayInnerWidth` and `placeAbovePrompt`. The `run ` strip is declared once in `commandCompleterInput` |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | No wire path. The explanation is a declared string read from the tree, not copied per keystroke |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | No command is added, removed or renamed. The two new Model fields are reveal state, added to `knownModelFields` in the same change, and the reveal level is derived from them rather than stored |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A level counter reset at the nine `completionHint` clear sites is enough to make a second Tab observable | `handleTab` and `updateCompletions` are the only writers of completion state | The state survives a keystroke that should dismiss it, and help appears over the wrong command | A test driving text-then-Tab and asserting no help | unvalidated |
-| A-2 | The Model can obtain a node's two texts without a daemon round trip, because `MergeCommandPaths` already merged them into the client tree | `internal/component/command/node.go`; the prior spec's Phase 3 handoff | Tab-for-help needs an RPC and becomes latency-visible | Read `MergeCommandPaths`'s BODY, which the completion doc's claim about it is not evidence for | unvalidated |
-| A-3 | One overlay region is enough: the menu and the explanation never need to be on screen at once | `View` composites exactly one overlay today | Level 2 cannot show the menu and the explanation together, and the level model needs redesign | Render both at level 2 in a test and read the output | unvalidated |
-| A-4 | Removing the description column frees enough width that no candidate name needs truncating | `renderDropdownBox` clamps `innerWidth` between 48 and 96 | A long command name is cut, replacing the truncation this spec removes with another | Measure the longest candidate name in the tree against the clamp | unvalidated |
-| A-5 | The `.et` harness can assert on a rendered region once `State` exposes one | in-package Go tests already read `m.View().Content` | The feature is only testable in Go tests, and no `.et` proves an operator reaches it | Write the expectation kind first, before the feature | unvalidated |
+| A-1 | A level counter reset at the nine `completionHint` clear sites is enough to make a second Tab observable | `handleTab` and `updateCompletions` are the only writers of completion state | The state survives a keystroke that should dismiss it, and help appears over the wrong command | A test driving text-then-Tab and asserting no help | broken as written, and replaced by a stronger mechanism: the level is DERIVED from `explanation` and `showDropdown`, and all thirteen clear sites call one `dismissReveal`. `TestLevelResetsOnEveryCompletionClearSite` drives every key that reaches a site and goes red when the clear is dropped |
+| A-2 | The Model can obtain a node's two texts without a daemon round trip, because `MergeCommandPaths` already merged them into the client tree | `internal/component/command/node.go`; the prior spec's Phase 3 handoff | Tab-for-help needs an RPC and becomes latency-visible | Read `MergeCommandPaths`'s BODY, which the completion doc's claim about it is not evidence for | confirmed: `internal/component/command/node.go:228` writes each help field only on the last path element and only when that field is empty, so the merged client tree carries both texts |
+| A-3 | One overlay region is enough: the menu and the explanation never need to be on screen at once | `View` composites exactly one overlay today | Level 2 cannot show the menu and the explanation together, and the level model needs redesign | Render both at level 2 in a test and read the output | confirmed: `updateCompletions` (`model.go:767`) clears `showDropdown` whenever the completion list holds one entry or none, and the explanation is revealed only when it is empty |
+| A-4 | Removing the description column frees enough width that no candidate name needs truncating | `renderDropdownBox` clamps `innerWidth` between 48 and 96 | A long command name is cut, replacing the truncation this spec removes with another | Measure the longest candidate name in the tree against the clamp | confirmed: the longest YANG node name in the repository is `advertise-interval-milliseconds` at 31 characters, against an inner width clamped at 48 minimum |
+| A-5 | The `.et` harness can assert on a rendered region once `State` exposes one | in-package Go tests already read `m.View().Content` | The feature is only testable in Go tests, and no `.et` proves an operator reaches it | Write the expectation kind first, before the feature | confirmed: `checkHint` and `checkExplanation` (`internal/component/cli/testing/expect.go`) read `MessageHint()` and `Explanation()`, and `TestETFileAssertsHintAndExplanation` fails when either kind is unregistered |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -275,7 +275,7 @@ N/A. No wire protocol and no protocol peer.
 | 8 | Plugin SDK/protocol changed? | No | None |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | No protocol behavior |
 | 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/ci-format.md` - the new expectation kinds |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` - Tab-for-help is a feature operators compare across vendors |
+| 11 | Affects daemon comparison? | No, on evidence | `docs/comparison.md` carries eleven daemon columns. A Ze `Yes` beside ten `Unclear` cells is a claim about the other daemons that this spec did not inspect, and the page's own honesty rule refuses it. Several CLI-driven daemons there publish inline `?` help, so a Ze-only row would be false as well |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/cli/error-surface.md`, `docs/architecture/cli/command-completion.md` |
 | 13 | Route metadata keys added/changed? | N-A | None |
 | 14 | Prometheus counters added/changed? | N-A | None |
@@ -358,6 +358,8 @@ N/A. No wire protocol and no protocol peer.
 | Two levels, not three | A separate Tab step for the summary | Once the menu shows the selected candidate's summary on the message line, a Tab that climbs to "show the summary" renders what is already on screen. The owner's before-and-after collapsed the level: the menu shows the name alone, the summary follows the selection |
 | Escape descends ONE level | Escape dismisses everything | The owner's explicit correction. Returning to the level you were at means two presses to reach a bare prompt, which is the cost of not losing the menu when you only wanted the explanation gone |
 | The menu row is the name alone | Keep a narrower description column | The column is what forces a width truncation, and it duplicates what the message line now shows. Removing it deletes the last truncation left in Ze after the closed spec removed five |
+| `contract.Completion` gains no help field | Carry the long explanation on every candidate | The explanation is needed exactly when the completion list is EMPTY, so no candidate exists to carry it. The field would have no reader, and the summary a candidate DOES need is already `Description`. The spec's Files to Modify named the field; its Deliverables row named the method, and the method is what the ACs require |
+| Enter is unchanged at every level | Make Enter run the command from the menu too | AC-8 reads two ways. Literally, Enter at the menu would run the typed command; but Enter is the menu's only accept key, so that reading deletes the ability to choose a candidate, which no AC asks for. The reading taken is "unchanged by the level": the level this spec adds changes Enter nowhere. `TestEnterRunsTheCommandFromEveryLevel` asserts the accept and the run |
 
 ## Known Limitations
 

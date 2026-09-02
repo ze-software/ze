@@ -133,3 +133,93 @@ func TestCommandModeNilRoot(t *testing.T) {
 		t.Errorf("expected empty ghost with nil root, got %q", ghost)
 	}
 }
+
+// TestBothCompleterImplementationsAnswerHelp holds every CommandModeCompleter to
+// one contract. The long explanation is text the command DECLARES. An input that
+// names no command answers false rather than empty text.
+//
+// The same table runs over both implementations, so a third one cannot answer a
+// different way.
+//
+// VALIDATES: AC-4, AC-10 — Explain answers declared text, or false.
+// PREVENTS: a completer answering ("", true), which the caller renders as a
+// command whose author wrote an empty explanation.
+func TestBothCompleterImplementationsAnswerHelp(t *testing.T) {
+	tree := testCommandTree()
+	tree.Children["peer"].Children["list"].Help = "List every peer, with its state and its uptime."
+	commands := NewCommandCompleter(tree)
+	methods := newPluginCompleter()
+
+	cases := []struct {
+		name      string
+		completer CommandModeCompleter
+		input     string
+		want      string
+		wantOK    bool
+	}{
+		{
+			name:      "command declares an explanation",
+			completer: commands,
+			input:     "peer list",
+			want:      "List every peer, with its state and its uptime.",
+			wantOK:    true,
+		},
+		{
+			name:      "a trailing space still names the command",
+			completer: commands,
+			input:     "peer list ",
+			want:      "List every peer, with its state and its uptime.",
+			wantOK:    true,
+		},
+		{
+			name:      "command declares no explanation",
+			completer: commands,
+			input:     "peer show",
+			wantOK:    false,
+		},
+		{
+			name:      "input names no command",
+			completer: commands,
+			input:     "peer nonesuch",
+			wantOK:    false,
+		},
+		{
+			name:      "empty input names no command",
+			completer: commands,
+			input:     "",
+			wantOK:    false,
+		},
+		{
+			name:      "plugin method declares both halves",
+			completer: methods,
+			input:     "decode-nlri",
+			want:      "decode-nlri <family> <hex>\nDecode NLRI from hex",
+			wantOK:    true,
+		},
+		{
+			name:      "plugin method that takes no argument",
+			completer: methods,
+			input:     "unsubscribe-events",
+			want:      "unsubscribe-events\nUnsubscribe from engine events",
+			wantOK:    true,
+		},
+		{
+			name:      "input names no plugin method",
+			completer: methods,
+			input:     "no-such-method",
+			wantOK:    false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := tc.completer.Explain(tc.input)
+			if ok != tc.wantOK {
+				t.Fatalf("Explain(%q) ok = %v, want %v", tc.input, ok, tc.wantOK)
+			}
+			if got != tc.want {
+				t.Errorf("Explain(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}

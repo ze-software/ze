@@ -33,6 +33,76 @@ summary and `Help` is the long explanation the command's own help page prints.
 They are decided one at a time, so a plugin that states a summary and no
 explanation fills the summary alone.
 
+## What Tab reveals
+
+Tab drives one state machine with three levels. The level is derived from the
+fields that own each screen region. It is never stored.
+
+| Level | On the screen | The field that owns it |
+|-------|---------------|------------------------|
+| nothing | the plain prompt | neither field is set |
+| candidates | the completion menu, and the selected candidate's summary on message line 2 | `showDropdown` |
+| explanation | the command's long explanation, in its own region | `explanation`, which holds the text |
+
+`revealLevel` reads those two fields, so the level and the screen cannot
+disagree. The menu and the explanation are never on the screen together.
+`updateCompletions` hides the menu whenever one candidate or none is left. That
+is the state Tab reveals an explanation in.
+
+Tab advances the level. With something left to complete it completes, as it
+always did. With the completion list exhausted it calls `revealExplanation`,
+which asks the command completer for the long explanation the typed command
+declares. A second Tab reveals the same text, so the level stops at two.
+
+`revealExplanation` reads `commandCompleterInput`, which is the same text
+`updateCompletions` gives `Complete`. In config mode that is the text after the
+`run ` prefix, and in operational mode it is the whole input. One function
+answers for both, so an explanation always describes the command the menu was
+completing.
+
+Nothing is invented. `Explain` answers false for an input that names no command,
+and for a command that declares no long explanation. The level then stays where
+it is, and message line 2 reads `<command>: no explanation is declared`. Silence
+would leave the operator unable to tell an undeclared explanation from a dead
+key.
+
+Every key that ends a reveal calls `dismissReveal`, which clears the hint and the
+explanation in one place. The table below says what each key does at each level.
+
+| Key | At the menu | At the explanation |
+|-----|-------------|--------------------|
+| Escape | closes the menu, and the summary goes with it | takes off the explanation alone |
+| a text rune | dismisses the reveal, and the rune reaches the input | the same |
+| Backspace | dismisses the reveal, and the deletion reaches the input | the same |
+| Enter | accepts the highlighted candidate | dismisses the reveal, then runs the command as typed |
+| Ctrl-C | dismisses the reveal, then asks to quit | the same |
+| an arrow key | moves the selection, and the summary follows it | recalls a command, and the reveal goes with the input it replaced |
+
+Escape descends one level for each press. `handleKeyMsg` tests the level before
+the arm that clears the whole input. So the words the operator typed to reach an
+explanation stay in the prompt. A second Escape then clears the prompt, as it
+always did.
+
+At the menu, Enter is the only key that accepts the highlighted candidate,
+because Tab cycles the selection. Enter runs the command on the press after
+that one, and what it runs is the input the menu completed.
+
+`?` is bound to help, as Tab is. It reveals rather than dismisses, and it does
+not reach the input.
+
+The explanation region is bounded at the render boundary, not at the
+declaration. `renderExplanationBox` wraps the text at the box width, reads no
+more rows than the box can draw, and says `... more` when text remains. It also
+passes the text through `sanitizeForDisplay`, which strips C0, DEL, C1 and ANSI
+escape sequences. A plugin declares this text, so both bounds hold whatever the
+declaration says.
+
+<!-- source: internal/component/cli/model_help_level.go -- revealLevel, dismissReveal -->
+<!-- source: internal/component/cli/model_keys.go -- handleKeyMsg, handleTab, revealExplanation -->
+<!-- source: internal/component/cli/model.go -- commandCompleterInput, updateCompletions -->
+<!-- source: internal/component/cli/model_render.go -- renderExplanationBox, wrapForBox -->
+<!-- source: internal/component/command/completer.go -- TreeCompleter.Explain -->
+
 ## Why web sources at request time
 
 `runYANGConfig` waits for plugin startup before `buildServices` constructs and

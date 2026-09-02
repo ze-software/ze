@@ -418,6 +418,12 @@ func (m Model) View() tea.View {
 		return altView(m.overlayDropdown(baseView), nil)
 	}
 
+	// The explanation region: what Tab reveals once the candidate list is
+	// exhausted (model_help_level.go).
+	if m.revealLevel() == revealExplanation {
+		return altView(m.overlayExplanation(baseView), nil)
+	}
+
 	// Help overlay
 	if m.showHelp {
 		return altView(m.renderHelpOverlay(baseView), nil)
@@ -441,13 +447,15 @@ func (m Model) View() tea.View {
 
 // messageLines returns the two lines for the message area above the prompt.
 //
-// Line 1 (top): command feedback — starts with welcome, replaced by command results.
-// Line 2 (bottom): warnings/help — validation hints, ? completion descriptions, errors.
+// Line 1 (top): command feedback — the welcome banner, a command result, or the
+// error. An error owns this row, so nothing on line 2 can hide one.
+// Line 2 (bottom): help, in this order — the ? hint, the selected candidate's
+// summary while the menu is open, the validation hint, the idle banner.
 func (m Model) messageLines() (string, string) {
 	// Line 1: command feedback
 	line1 := m.feedbackLine()
 
-	// Line 2: warnings/help (priority: error > completion hint > validation hint > idle)
+	// Line 2: help and hints
 	line2 := m.warningLine()
 
 	return line1, line2
@@ -485,7 +493,20 @@ func (m Model) feedbackLine() string {
 
 // warningLine returns the bottom message line: warnings, help, and hints.
 func (m Model) warningLine() string {
-	// Completion hint from ? or validation warning/error
+	text, style := m.warningText()
+	return style.Render(text)
+}
+
+// warningText returns the text of the bottom message line and the style that
+// renders it. warningLine renders the pair, and MessageHint reads the text, so
+// a test asserts on the words an operator reads rather than on escapes.
+//
+// The last two rows build their own styled string from several spans, so they
+// answer styleAsIs: their text is already final.
+func (m Model) warningText() (string, lipgloss.Style) {
+	// Completion hint from ? or validation warning/error. The ? hint carries a
+	// command's declared summary, which a plugin can write, so it is sanitized
+	// here at the render boundary.
 	if m.completionHint != "" {
 		style := hintStyle
 		if m.completionHintDim {
@@ -493,13 +514,36 @@ func (m Model) warningLine() string {
 		} else if strings.HasPrefix(m.completionHint, "invalid ") {
 			style = warnStyle
 		}
-		return style.Render(m.completionHint)
+		return sanitizeForDisplay(m.completionHint), style
+	}
+	// The selected candidate's declared summary, while the menu is open. The
+	// menu row is the name alone, so this row says what the name does.
+	//
+	// The text is READ from the selection. No key handler writes it, so an
+	// arrow key moves it by construction. It renders whole. The summary is a
+	// declared sentence, and no width here cuts one.
+	//
+	// muted is the role a description wears (docs/architecture/cli/color-system.md).
+	if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
+		// A plugin declares this text, so it is sanitized before it reaches the
+		// terminal. `./le docvalid help-shape` refuses a newline in a declared
+		// summary, so the row stays one line.
+		return sanitizeForDisplay(m.completions[m.selected].Description), dimStyle
 	}
 	// Validation hints
 	if hint := m.validationHintLine(); hint != "" {
-		return hint
+		return hint, styleAsIs
 	}
-	return m.idleInfoLine()
+	return m.idleInfoLine(), styleAsIs
+}
+
+// MessageHint returns the text of the second message line with every style
+// stripped, which is what an operator reads there. The `.et` harness asserts on
+// this rather than on the rendered row, so a color change never breaks a test
+// about words.
+func (m Model) MessageHint() string {
+	text, _ := m.warningText()
+	return sanitizeForDisplay(text)
 }
 
 // idleInfoLine returns the default info line shown when there's no error or status.
@@ -536,27 +580,44 @@ func (m Model) validationHintLine() string {
 	return dimStyle.Render(hint)
 }
 
+// overlayIndent is the column an overlay box starts at, so the box is clear of
+// the left edge.
+const overlayIndent = 2
+
 // overlayDropdown renders the dropdown as a floating overlay on the base view.
 // The dropdown is positioned above the prompt line to avoid covering the typed command.
 func (m Model) overlayDropdown(base string) string {
-	// Find the prompt line position
-	baseLines := strings.Split(base, "\n")
-	promptLineIdx := len(baseLines) - 1
-	for promptLineIdx > 0 && strings.TrimSpace(baseLines[promptLineIdx]) == "" {
-		promptLineIdx--
+	promptLine, availableAbove := promptAnchor(base)
+	return placeAbovePrompt(base, m.renderDropdownBox(availableAbove), promptLine)
+}
+
+// overlayExplanation renders the explanation region as a floating overlay on the
+// base view, in the place and with the bounds the dropdown uses. The two are
+// never on the screen together: the explanation is revealed only once the
+// candidate list is empty (model_help_level.go).
+func (m Model) overlayExplanation(base string) string {
+	promptLine, availableAbove := promptAnchor(base)
+	return placeAbovePrompt(base, m.renderExplanationBox(availableAbove), promptLine)
+}
+
+// promptAnchor finds the prompt row of a rendered base view, and the rows above
+// it an overlay box can use.
+func promptAnchor(base string) (promptLine, availableAbove int) {
+	lines := strings.Split(base, "\n")
+	promptLine = len(lines) - 1
+	for promptLine > 0 && strings.TrimSpace(lines[promptLine]) == "" {
+		promptLine--
 	}
+	return promptLine, max(promptLine, 3)
+}
 
-	// Available space above the prompt (lines 0..promptLineIdx-1)
-	availableAbove := max(promptLineIdx, 3)
-
-	dropdown := m.renderDropdownBox(availableAbove)
-
-	// Position dropdown above the prompt line, with 2-line gap for message area
-	dropdownHeight := strings.Count(dropdown, "\n") + 1
-	y := max(promptLineIdx-dropdownHeight-2, 0)
-	x := 2 // Indent slightly from left edge
-
-	return placeOverlay(x, y, dropdown, base)
+// placeAbovePrompt puts a rendered box over the base view. The box sits above
+// the prompt row and clear of the two message rows under it, so the typed
+// command stays readable.
+func placeAbovePrompt(base, box string, promptLine int) string {
+	const messageRows = 2
+	height := strings.Count(box, "\n") + 1
+	return placeOverlay(overlayIndent, max(promptLine-height-messageRows, 0), box, base)
 }
 
 // placeOverlay places a foreground string over a background string at position (x, y).
@@ -753,76 +814,176 @@ func (m Model) renderDropdownBox(availableHeight int) string {
 		start = max(0, end-maxShow)
 	}
 
-	// Dynamic inner width (between │ and │) based on terminal width.
-	// The dropdown is indented 2 chars (overlay x=2) + 4 chars for "│ " and " │" borders.
-	// Leave some margin on the right so it doesn't touch the terminal edge.
-	// Clamp inner width to [48, 96]. 48 = old fixed width. 96 = cap for ultra-wide.
-	innerWidth := min(max(m.width-10, 48), 96) // 10 = 2 indent + 4 border + 4 margin
-
-	// Column layout: prefix(2) + cmd(cmdWidth) + gap(1) + desc(rest)
-	cmdWidth := min(max(innerWidth/5, 12), 24)
-	descWidth := max(innerWidth-2-cmdWidth-1, 20)
+	innerWidth := m.overlayInnerWidth()
 
 	var lines []string
-
-	// Top border: ╭─ Completions ─...─╮
-	lines = append(lines, "╭─ Completions "+strings.Repeat("─", innerWidth-12)+"╮")
+	lines = append(lines, boxTopBorder("Completions", innerWidth))
 
 	for i := start; i < end; i++ {
-		comp := m.completions[i]
-
-		// Build line content
-		var prefix string
+		// The row is the command name alone. The selected candidate's summary
+		// is on message line 2, whole (warningText). The menu spends none of
+		// its width on prose, so it cuts none.
+		//
+		// A name wider than the box would break the frame, so boxContentRow
+		// clamps it there. That clamp bounds the frame. It does not shorten
+		// prose. The longest command name in the repository is 31 runes,
+		// against an inner width of 48 or more, so no name reaches it today.
+		prefix := "  "
 		if i == m.selected {
 			prefix = "> "
-		} else {
-			prefix = "  "
 		}
 
-		cmd := comp.Text
-		if cmdRunes := []rune(cmd); len(cmdRunes) > cmdWidth {
-			cmd = string(cmdRunes[:cmdWidth])
-		}
-
-		desc := textbuf.Join(strings.Fields(comp.Description), " ")
-		if descRunes := []rune(desc); len(descRunes) > descWidth {
-			var tb textbuf.Buffer
-			desc = tb.Str(string(descRunes[:descWidth-3])).Str("...").String()
-		}
-
-		// Format: prefix(2) + cmd(cmdWidth) + padding to cmdWidth+3 + desc
 		var lb textbuf.Buffer
-		lb.Str(prefix).Str(cmd)
-		for lb.Len() < cmdWidth+3 {
-			lb.Byte(' ')
-		}
-		lb.Str(desc)
-		for lb.Len() < innerWidth {
-			lb.Byte(' ')
-		}
-		line := lb.String()
-		if len(line) > innerWidth {
-			line = line[:innerWidth]
-		}
-
-		var lb2 textbuf.Buffer
-		lines = append(lines, lb2.Str("│ ").Str(line).Str(" │").String())
+		lines = append(lines, boxContentRow(lb.Str(prefix).Str(m.completions[i].Text).String(), innerWidth))
 	}
 
 	if len(m.completions) > maxShow {
 		var mb textbuf.Buffer
 		mb.Str("  ... ").Int(int64(len(m.completions) - maxShow)).Str(" more")
-		for mb.Len() < innerWidth {
-			mb.Byte(' ')
-		}
-		var lb3 textbuf.Buffer
-		lines = append(lines, lb3.Str("│ ").Str(mb.String()).Str(" │").String())
+		lines = append(lines, boxContentRow(mb.String(), innerWidth))
 	}
 
-	// Bottom border
-	lines = append(lines, "╰"+strings.Repeat("─", innerWidth+2)+"╯")
+	lines = append(lines, boxBottomBorder(innerWidth))
 
 	return textbuf.Join(lines, "\n")
+}
+
+// renderExplanationBox draws the region that holds the long explanation of the
+// command the operator typed. availableHeight is the number of screen rows the
+// whole box can use, borders included, exactly as renderDropdownBox is bounded.
+//
+// A plugin declares this text, so two bounds are applied here, at the render
+// boundary. sanitizeForDisplay strips its C0, DEL, C1 and ANSI bytes. The wrap
+// reads no more rows than the box can draw. Neither bound depends on the 4096
+// bytes the declaration gate allows, so a longer declaration that reaches this
+// surface by another route is bounded too.
+func (m Model) renderExplanationBox(availableHeight int) string {
+	innerWidth := m.overlayInnerWidth()
+
+	// 2 rows go to the borders. One more goes to the indicator that says text
+	// remains, and only when there is a row to spare for it.
+	rows := max(availableHeight-2, 1)
+	wrapped := wrapForBox(sanitizeForDisplay(m.explanation), innerWidth, rows+1)
+
+	shown := len(wrapped)
+	overflow := shown > rows
+	indicator := overflow && rows > 1
+	if overflow {
+		shown = rows
+		if indicator {
+			shown = rows - 1
+		}
+	}
+
+	lines := make([]string, 0, shown+3)
+	lines = append(lines, boxTopBorder(m.explanationSubject, innerWidth))
+	for _, line := range wrapped[:shown] {
+		lines = append(lines, boxContentRow(line, innerWidth))
+	}
+	if indicator {
+		lines = append(lines, boxContentRow("  ... more", innerWidth))
+	}
+	lines = append(lines, boxBottomBorder(innerWidth))
+
+	return textbuf.Join(lines, "\n")
+}
+
+// overlayInnerWidth is the width inside an overlay box, between the space each
+// side wall carries. The box is indented 2 columns, its two borders take 4, and
+// 4 columns of margin keep it off the right edge of the terminal. It is clamped
+// to [48, 96]: 48 is the width the dropdown was fixed at, and 96 caps it on an
+// ultra-wide terminal.
+func (m Model) overlayInnerWidth() int {
+	return min(max(m.width-10, 48), 96)
+}
+
+// boxTopBorder draws the top of an overlay box, with the title reading out of
+// the left corner: ╭─ title ────╮. A title wider than the box is clamped, so the
+// frame closes whatever it says.
+func boxTopBorder(title string, innerWidth int) string {
+	// The row between the corners is innerWidth+2 wide, and the dash and the
+	// two spaces around the title take 3 of it.
+	name := []rune(title)
+	if len(name) > innerWidth-2 {
+		name = name[:max(innerWidth-2, 0)]
+	}
+
+	var tb textbuf.Buffer
+	return tb.Str("╭─ ").Str(string(name)).Byte(' ').Repeat("─", innerWidth-len(name)-1).Str("╮").String()
+}
+
+// boxContentRow draws one row inside an overlay box. The text is clamped to the
+// inner width, so a long line cannot break the frame. It is then padded, so
+// every row of the box is one width.
+func boxContentRow(text string, innerWidth int) string {
+	row := []rune(text)
+	if len(row) > innerWidth {
+		row = row[:innerWidth]
+	}
+
+	var tb textbuf.Buffer
+	return tb.Str("│ ").Str(string(row)).Repeat(" ", innerWidth-len(row)).Str(" │").String()
+}
+
+// boxBottomBorder draws the bottom of an overlay box.
+func boxBottomBorder(innerWidth int) string {
+	var tb textbuf.Buffer
+	return tb.Str("╰").Repeat("─", innerWidth+2).Str("╯").String()
+}
+
+// wrapForBox splits text into rows of at most width runes, and reads no further
+// once linesMax rows are ready. The caller states that bound, so the work here
+// is bounded by the screen rather than by the length of the text.
+//
+// It keeps the line breaks the author wrote, and breaks a longer line at its
+// last space, or mid-word when one word fills the row. A tab becomes a space and
+// a carriage return is dropped: both move the cursor inside a drawn row.
+func wrapForBox(text string, width, linesMax int) []string {
+	if width < 1 {
+		width = 1
+	}
+
+	lines := make([]string, 0, linesMax)
+	var line []rune
+	breakAt := -1 // Rune index in line just after its last space, -1 when none.
+
+	for _, r := range text {
+		if len(lines) >= linesMax {
+			return lines
+		}
+		if r == '\r' {
+			continue
+		}
+		if r == '\t' {
+			r = ' '
+		}
+		if r == '\n' {
+			lines = append(lines, string(line))
+			line, breakAt = line[:0], -1
+			continue
+		}
+
+		line = append(line, r)
+		if r == ' ' {
+			breakAt = len(line)
+		}
+		if len(line) <= width {
+			continue
+		}
+
+		cut := breakAt
+		if cut < 1 {
+			cut = width
+		}
+		lines = append(lines, strings.TrimRight(string(line[:cut]), " "))
+		line = append(line[:0], line[cut:]...)
+		breakAt = -1
+	}
+
+	if len(line) > 0 && len(lines) < linesMax {
+		lines = append(lines, string(line))
+	}
+	return lines
 }
 
 // renderHelpOverlay renders help as a floating overlay.

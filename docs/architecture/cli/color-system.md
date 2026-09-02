@@ -180,9 +180,12 @@ The autocomplete dropdown is the main gap. Changes:
 
 1. **Selected row**: add cyan background (ANSI 6) to the selected completion.
 2. **Completion keyword**: render in identity color (73).
-3. **Description text**: render in muted color (241).
-4. **Border**: render in muted color (241).
-5. **"... N more"**: render in muted color (241).
+3. **Border**: render in muted color (241).
+4. **"... N more"**: render in muted color (241).
+
+The dropdown holds no description column. A menu row is the command name alone,
+and the selected candidate's summary is on message line 2, in the muted role
+(`docs/architecture/cli/error-surface.md`).
 
 The `hintStyle` in the editor (currently 73/cyan = identity) is used for
 "press ? for help" type text, which is semantically muted. Consider

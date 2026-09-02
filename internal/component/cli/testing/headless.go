@@ -3,15 +3,52 @@
 package testing
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/yang"
 )
+
+// errCommandTreeIsEmpty says the YANG modules that declare commands did not
+// reach this binary. No command then exists to complete against.
+//
+// It is an error rather than an empty tree. An empty tree answers every
+// completion expectation with an empty list. That passes an .et file which
+// asserts nothing was found, and reports coverage the test never had.
+var errCommandTreeIsEmpty = errors.New(
+	"the command tree holds no command: no -cmd YANG module registered, " +
+		"so the binary running this test is missing its plugin/all import")
+
+// headlessCommandTree answers the command tree an operational-mode test
+// completes against, built from the registered -cmd YANG modules. It is the
+// same tree `ze cli` builds, so a test asserts on the commands an operator
+// really types.
+//
+// It is built once for the package: BuildCommandTree parses every registered
+// module, and one .et file creates a model for each session it opens.
+//
+// The tree carries no value hints and no plugin commands. A hint provider reads
+// the live RIB, and a plugin command comes from the live dispatcher. A headless
+// test has neither, so a completion over a value stays empty here.
+var headlessCommandTree = sync.OnceValues(func() (*command.Node, error) {
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return nil, fmt.Errorf("loading the YANG modules for the command tree: %w", err)
+	}
+	tree := yang.BuildCommandTree(loader)
+	if len(tree.Children) == 0 {
+		return nil, errCommandTreeIsEmpty
+	}
+	return tree, nil
+})
 
 // headlessModel wraps the editor Model for headless testing.
 // It provides direct access to model state without TTY rendering.
@@ -85,8 +122,18 @@ func newHeadlessModelWithSession(store storage.Storage, configPath, user, origin
 
 // newHeadlessCommandModel creates a command-only headless model (no editor).
 // Used for testing ze cli behavior where no config file is loaded.
-func newHeadlessCommandModel() *headlessModel {
+//
+// The model completes against the real command tree, so an operational-mode .et
+// file drives the same completion an operator drives over SSH. A tree that
+// cannot be built is returned as an error and never as an empty tree.
+func newHeadlessCommandModel() (*headlessModel, error) {
+	tree, err := headlessCommandTree()
+	if err != nil {
+		return nil, err
+	}
+
 	model := cli.NewCommandModel(cli.FilesystemAuthorityOperatorLocal)
+	model.SetCommandCompleter(cli.NewCommandCompleter(tree))
 
 	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	if m, ok := newModel.(cli.Model); ok {
@@ -97,7 +144,7 @@ func newHeadlessCommandModel() *headlessModel {
 		model: model,
 	}
 
-	return hm
+	return hm, nil
 }
 
 // TmpDir returns the temp directory for file expectations.
@@ -363,6 +410,17 @@ func (hm *headlessModel) IsTemplate() bool {
 // ShowDropdown returns true if the completion dropdown is visible.
 func (hm *headlessModel) ShowDropdown() bool {
 	return hm.model.ShowDropdown()
+}
+
+// MessageHint returns the unstyled text of the second message line, which
+// carries the completion hint and the selected candidate's summary.
+func (hm *headlessModel) MessageHint() string {
+	return hm.model.MessageHint()
+}
+
+// Explanation returns the long explanation now revealed, empty when none is.
+func (hm *headlessModel) Explanation() string {
+	return hm.model.Explanation()
 }
 
 // WorkingContent returns the current working config content.

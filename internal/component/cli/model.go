@@ -54,11 +54,15 @@ var (
 	hintStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("73"))
 	warnStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
 	contextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
-	overlayStyle      = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.Color("62")).
-				Padding(1, 2).
-				Background(lipgloss.Color("236"))
+	// styleAsIs adds nothing to the text it renders. A row that composes its own
+	// styled spans is already final, and this keeps the pair warningText answers
+	// one shape for every row (model_render.go).
+	styleAsIs    = lipgloss.NewStyle()
+	overlayStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("62")).
+			Padding(1, 2).
+			Background(lipgloss.Color("236"))
 	// errorLineStyle highlights lines with validation errors (red text on dark background).
 	errorLineStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).
@@ -104,6 +108,10 @@ type viewportData struct {
 type CommandModeCompleter interface {
 	Complete(input string) []Completion
 	GhostText(input string) string
+	// Explain answers the long explanation declared for the command the input
+	// names, and false when the input names no command or the command declares
+	// none. A caller MUST NOT invent text for a false answer.
+	Explain(input string) (string, bool)
 }
 
 // Model is the Bubble Tea model for the editor.
@@ -128,7 +136,16 @@ type Model struct {
 	showDropdown      bool   // Whether to show dropdown
 	completionHint    string // Transient description shown on second message line (clears on typing/Enter)
 	completionHintDim bool   // When true, render hint in dim style (partial input); false = bright (confirmed)
-	searchCache       string // Cached SetView() output for / search (invalidated on tree change)
+	// explanation holds the long explanation now revealed, as the command
+	// declares it. Empty means none is on screen, and it is what revealLevel
+	// reads to tell revealExplanation from the levels below (model_help_level.go).
+	explanation string
+	// explanationSubject names the command explanation was revealed for. The
+	// region that draws the text takes it as the title. It is captured beside
+	// the text, and never derived from the prompt at render time. The title
+	// then names the command whose words are on the screen.
+	explanationSubject string
+	searchCache        string // Cached SetView() output for / search (invalidated on tree change)
 
 	// Validation state
 	validationErrors   []ConfigValidationError
@@ -695,6 +712,41 @@ func (m *Model) applyCompletion(comp Completion) {
 	m.textInput.CursorEnd()
 }
 
+// commandCompleterInput answers the text the command completer reads for the
+// input now in the prompt. It answers false when the command completer is not
+// the completion source for that input.
+//
+// updateCompletions and the Tab reveal (model_keys.go) both read it, so the
+// rule that strips the "run " prefix in config mode is declared once. An
+// explanation read for another string is an explanation of another command.
+func (m Model) commandCompleterInput() (string, bool) {
+	if m.commandCompleter == nil {
+		return "", false
+	}
+
+	input := m.textInput.Value()
+	if strings.HasPrefix(input, "/") {
+		// Search mode filters config set-commands, not commands.
+		return "", false
+	}
+
+	if m.mode == ModeConfig {
+		// Config mode reaches operational commands behind "run " alone. The
+		// trailing spaces are preserved: they tell Complete that the last word
+		// is finished.
+		if !strings.HasPrefix(input, cmdRun+" ") {
+			return "", false
+		}
+		return input[len(cmdRun)+1:], true
+	}
+
+	if isConfigCommandWithArgs(input) && m.completer != nil {
+		// A config command with arguments is completed from YANG.
+		return "", false
+	}
+	return input, true
+}
+
 // updateCompletions updates completions based on current input.
 // Cross-mode completions:
 //   - Edit mode with "run " prefix → operational command completions
@@ -702,6 +754,7 @@ func (m *Model) applyCompletion(comp Completion) {
 //   - Command mode top-level → merge operational + config command completions
 func (m *Model) updateCompletions() {
 	input := m.textInput.Value()
+	commandArgs, hasCommandArgs := m.commandCompleterInput()
 
 	switch {
 	case strings.HasPrefix(input, "/"):
@@ -711,10 +764,9 @@ func (m *Model) updateCompletions() {
 
 	case m.mode == ModeConfig && strings.HasPrefix(input, cmdRun+" "):
 		// Config mode with "run " prefix: delegate to command completer for operational completions.
-		if m.commandCompleter != nil {
-			args := input[len(cmdRun)+1:] // preserve trailing spaces
-			m.completions = m.commandCompleter.Complete(args)
-			m.ghostText = m.commandCompleter.GhostText(args)
+		if hasCommandArgs {
+			m.completions = m.commandCompleter.Complete(commandArgs)
+			m.ghostText = m.commandCompleter.GhostText(commandArgs)
 		}
 
 	case m.mode == ModeOperational && isConfigCommandWithArgs(input) && m.completer != nil:
@@ -724,9 +776,9 @@ func (m *Model) updateCompletions() {
 
 	case m.mode == ModeOperational:
 		// Operational mode top-level: merge operational + config command completions.
-		if m.commandCompleter != nil {
-			m.completions = m.commandCompleter.Complete(input)
-			m.ghostText = m.commandCompleter.GhostText(input)
+		if hasCommandArgs {
+			m.completions = m.commandCompleter.Complete(commandArgs)
+			m.ghostText = m.commandCompleter.GhostText(commandArgs)
 		}
 		m.completions = appendCLIFormatCompletions(m.completions, input)
 		if m.hasEditor() && (input == "" || strings.HasPrefix(cmdConfigure, input)) {
@@ -766,8 +818,7 @@ func (m *Model) updateCompletions() {
 	// Hide dropdown if no completions or single match
 	if len(m.completions) <= 1 {
 		m.showDropdown = false
-		m.completionHint = ""
-		m.completionHintDim = false
+		m.dismissReveal()
 		m.selected = -1
 	}
 

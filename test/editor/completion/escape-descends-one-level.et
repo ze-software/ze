@@ -1,0 +1,22 @@
+# Test: Escape removes the explanation and leaves the typed command in the input
+# VALIDATES: AC-5 -- Escape at the explanation level clears the reveal alone
+# PREVENTS: Escape reaching the arm that empties the input, which costs the operator every typed word
+
+option=mode:value=command
+option=timeout:value=10s
+
+# show version declares a ze:help in ze-cli-show-cmd.yang. Two Tab presses
+# complete the word and then reveal that text.
+input=type:text=show version
+input=tab
+input=tab
+expect=explanation:contains=which release is deployed on this box
+
+# Escape descends one level: the explanation goes, the input stays.
+input=key:name=esc
+expect=explanation:empty
+
+# The operator adds a pipe operator to the words that survived the Escape.
+# A cleared input would leave "| json" alone here.
+input=type:text=| json
+expect=input:value=show version | json

@@ -290,3 +290,25 @@ func TestHeadlessModelTypeAndEnter(t *testing.T) {
 	// Input should be cleared after command
 	assert.Empty(t, hm.InputValue())
 }
+
+// TestHeadlessCommandModelCompletesRealCommands verifies the command-only
+// headless model completes against the real YANG command tree.
+//
+// VALIDATES: newHeadlessCommandModel installs a command completer built from
+// the registered -cmd YANG modules, so an operational-mode .et file can assert
+// on a command an operator actually types.
+// PREVENTS: A model with no command tree, under which every completion
+// expectation passes vacuously against an empty list.
+func TestHeadlessCommandModelCompletesRealCommands(t *testing.T) {
+	hm, err := newHeadlessCommandModel()
+	require.NoError(t, err)
+
+	hm.typeText("sho")
+	hm.TriggerCompletions()
+
+	var texts []string
+	for _, c := range hm.Completions() {
+		texts = append(texts, c.Text)
+	}
+	assert.Contains(t, texts, "show", "completions were %v", texts)
+}

@@ -351,6 +351,8 @@ type MockState struct {
 	confirmTimerActive bool
 	mode               cli.EditorMode
 	inputValue         string
+	messageHint        string
+	explanation        string
 }
 
 func (m *MockState) ContextPath() []string                           { return m.contextPath }
@@ -370,8 +372,62 @@ func (m *MockState) TriggerCompletions()                             {}
 func (m *MockState) Mode() cli.EditorMode                            { return m.mode }
 func (m *MockState) InputValue() string                              { return m.inputValue }
 func (m *MockState) TmpDir() string                                  { return "" }
+func (m *MockState) MessageHint() string                             { return m.messageHint }
+func (m *MockState) Explanation() string                             { return m.explanation }
 
 // mockError is a simple error type for testing.
 type mockError struct{ msg string }
 
 func (e *mockError) Error() string { return e.msg }
+
+// TestExpectHintKindIsAccepted verifies the message-line hint expectation.
+//
+// VALIDATES: expect=hint:empty and expect=hint:contains= read the second
+// message line, pass when it matches, and FAIL when it does not.
+// PREVENTS: An expectation kind that only ever passes, which would report
+// coverage for a summary the CLI never rendered.
+func TestExpectHintKindIsAccepted(t *testing.T) {
+	empty := Expectation{Type: "hint", Values: map[string]string{"empty": ""}}
+	contains := Expectation{Type: "hint", Values: map[string]string{"contains": "peer status"}}
+
+	// empty passes on a blank hint and fails on a written one.
+	assert.NoError(t, checkExpectation(empty, &MockState{}))
+	err := checkExpectation(empty, &MockState{messageHint: "show peer status"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "show peer status")
+
+	// contains passes on the substring and fails on anything else.
+	assert.NoError(t, checkExpectation(contains, &MockState{messageHint: "show peer status"}))
+	err = checkExpectation(contains, &MockState{messageHint: "Ze CLI [operational]"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "peer status")
+
+	// A hint expectation naming neither key is refused, not passed.
+	err = checkExpectation(Expectation{Type: "hint", Values: map[string]string{}}, &MockState{})
+	assert.ErrorIs(t, err, errHintExpectationRequiresEmptyOrContains)
+}
+
+// TestExpectExplanationKindIsAccepted verifies the explanation expectation.
+//
+// VALIDATES: expect=explanation:empty and expect=explanation:contains= read
+// the revealed long explanation, pass when it matches, and FAIL when it does
+// not.
+// PREVENTS: The Tab-reveal being provable only in Go tests, with no .et able
+// to assert what an operator reads.
+func TestExpectExplanationKindIsAccepted(t *testing.T) {
+	empty := Expectation{Type: "explanation", Values: map[string]string{"empty": ""}}
+	contains := Expectation{Type: "explanation", Values: map[string]string{"contains": "established"}}
+
+	assert.NoError(t, checkExpectation(empty, &MockState{}))
+	err := checkExpectation(empty, &MockState{explanation: "Lists every peer and its state."})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Lists every peer")
+
+	assert.NoError(t, checkExpectation(contains, &MockState{explanation: "A peer is established once"}))
+	err = checkExpectation(contains, &MockState{explanation: "A peer is idle"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "established")
+
+	err = checkExpectation(Expectation{Type: "explanation", Values: map[string]string{}}, &MockState{})
+	assert.ErrorIs(t, err, errExplanationExpectationRequiresEmptyOrContains)
+}

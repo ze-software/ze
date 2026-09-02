@@ -9,7 +9,10 @@ import (
 // VALIDATES: .et lifecycle infrastructure -- restartFunc through headless model.
 // PREVENTS: restartFunc nil when model processes "restart" command.
 func TestHeadlessRestartFuncPropagation(t *testing.T) {
-	hm := newHeadlessCommandModel()
+	hm, err := newHeadlessCommandModel()
+	if err != nil {
+		t.Fatalf("creating the command model: %v", err)
+	}
 
 	// Set restartFunc via the Model() pointer (same as runner line 225-227).
 	called := false

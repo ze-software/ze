@@ -1,0 +1,31 @@
+# Test: A second Tab reveals the long explanation of the completed command
+# VALIDATES: AC-4 -- Tab on an empty completion list reveals the declared ze:help
+# VALIDATES: AC-1 -- the first Tab still completes, and reveals nothing
+# PREVENTS: the long explanation staying unreachable from the interactive CLI
+
+option=mode:value=command
+option=timeout:value=10s
+
+# "show upt" matches one command: show uptime, declared in ze-cli-show-cmd.yang
+# with a description and a ze:help.
+input=type:text=show upt
+expect=completion:contains=uptime
+
+# The first Tab completes the word. It reveals no explanation.
+input=tab
+expect=completion:empty
+expect=explanation:empty
+
+# The list is empty, so the second Tab reveals the declared explanation.
+input=tab
+expect=explanation:contains=Returns the start time and elapsed uptime
+expect=explanation:contains=confirm the process restarted
+
+# The menu is not on the screen with the explanation.
+expect=dropdown:hidden
+
+# A typed rune dismisses the explanation and reaches the input, which still
+# holds the word the first Tab completed.
+input=type:text=| json
+expect=explanation:empty
+expect=input:value=show uptime | json

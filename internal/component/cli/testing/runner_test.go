@@ -480,3 +480,35 @@ func findProjectRoot() string {
 		dir = parent
 	}
 }
+
+// TestETFileAssertsHintAndExplanation runs the new expectation kinds from .et
+// text, through the parser and the runner an editor test file takes.
+//
+// VALIDATES: an .et file can name hint and explanation, and the run FAILS when
+// the screen does not match.
+// PREVENTS: an expectation kind that parses and then passes whatever the CLI
+// rendered, which would report coverage the file never had.
+func TestETFileAssertsHintAndExplanation(t *testing.T) {
+	// The idle info line is what the second message line carries with nothing
+	// completed, and no explanation is revealed until Tab asks for one.
+	const passing = `option=mode:value=command
+expect=hint:contains=Ze CLI
+expect=explanation:empty
+`
+	// The same file asking for text the screen does not carry.
+	const failing = `option=mode:value=command
+expect=explanation:contains=no command declares this sentence
+`
+
+	tc, err := parseETFile(passing)
+	require.NoError(t, err)
+	result := runTestCase(tc)
+	assert.Empty(t, result.Error)
+	assert.True(t, result.Passed, "expected the matching file to pass")
+
+	tc, err = parseETFile(failing)
+	require.NoError(t, err)
+	result = runTestCase(tc)
+	assert.False(t, result.Passed, "expected the mismatching file to fail")
+	assert.Contains(t, result.Error, "no command declares this sentence")
+}
