@@ -78,6 +78,10 @@ const (
 	// matching the card it describes.
 	rfcProvenShareLabel = "Proven by test"
 	rfcProofCardLabel   = "Proven by a recorded break"
+	// The label the non-binding bucket carries. The partition row, the tone
+	// legend and the bucket table each name it, and a label spelled three times
+	// is a sentence that stops matching the card it describes.
+	rfcNotApplyLabel = "Not applicable"
 	// rfcIssuesShown bounds the open issues the page inlines. A gate that goes
 	// red on a bad merge answers thousands of diagnostics, and a page is not a
 	// log file.
@@ -234,7 +238,7 @@ var rfcSatisfaction = []struct {
 		Condition: "tag without annotation", Binds: true},
 	{Key: rfcMissingBucket, Label: "Missing, unexcused", Short: "Missing",
 		Condition: "no tag, no annotation", Binds: true},
-	{Key: rfcNotApplyBucket, Label: "Not applicable", Short: "Not applicable",
+	{Key: rfcNotApplyBucket, Label: rfcNotApplyLabel, Short: rfcNotApplyLabel,
 		Condition: "{not-applicable} annotation", Binds: false},
 }
 
@@ -1067,7 +1071,7 @@ var rfcStanding = []struct {
 		Meaning: "no test carries the requirement id, whether or not a gap states why",
 		Rule: "green at zero, RED above it: a binding obligation nothing exercises is a claim " +
 			"with nothing behind it, whether or not a reason is stated"},
-	{Label: "Not applicable", Keys: []string{rfcNotApplyBucket}, Tone: rfcToneNeutral,
+	{Label: rfcNotApplyLabel, Keys: []string{rfcNotApplyBucket}, Tone: rfcToneNeutral,
 		Meaning: "a {not-applicable} annotation says the obligation does not bind Ze, so no " +
 			"test is owed for it. It stays in the denominator every share here is taken over",
 		Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
