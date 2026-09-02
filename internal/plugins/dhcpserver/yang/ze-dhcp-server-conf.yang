@@ -2,7 +2,16 @@ module ze-dhcp-server-conf {
     namespace "urn:ze:dhcp-server:conf";
     prefix dhcpsrv;
 
-    description "DHCP server configuration for Ze (RFC 2131/2132)";
+    import ze-extensions { prefix ze; }
+
+    description
+        "DHCP server configuration for Ze (RFC 2131/2132).
+         Every address leaf is IPv4: this server speaks DHCPv4 only, and the
+         reply builder narrows each address it sends to four bytes. The
+         ze:validate annotations declare that family in the model. They do not
+         enforce it today, because ValidateCustomSections walks a fixed list of
+         top-level sections and `service` is not one of them, so parseSubnet in
+         the plugin is what refuses an IPv6 address.";
 
     revision 2026-01-01 {
         description "Initial revision";
@@ -36,6 +45,7 @@ module ze-dhcp-server-conf {
 
                 leaf tftp-server {
                     type string;
+                    ze:validate "ipv4-address";
                     description "TFTP server IP address for PXE boot (option 66, siaddr)";
                 }
 
@@ -70,6 +80,7 @@ module ze-dhcp-server-conf {
 
                     leaf prefix {
                         type string;
+                        ze:validate "ipv4-prefix";
                         description "Subnet prefix (e.g. 192.168.1.0/24)";
                     }
 
@@ -84,11 +95,13 @@ module ze-dhcp-server-conf {
 
                         leaf start {
                             type string;
+                            ze:validate "ipv4-address";
                             description "First allocatable address";
                         }
 
                         leaf stop {
                             type string;
+                            ze:validate "ipv4-address";
                             description "Last allocatable address";
                         }
                     }
@@ -103,11 +116,13 @@ module ze-dhcp-server-conf {
 
                     leaf default-router {
                         type string;
+                        ze:validate "ipv4-address";
                         description "Default gateway address (option 3)";
                     }
 
                     leaf-list dns-server {
                         type string;
+                        ze:validate "ipv4-address";
                         description "DNS server addresses (option 6)";
                     }
 
@@ -132,6 +147,7 @@ module ze-dhcp-server-conf {
 
                         leaf ip-address {
                             type string;
+                            ze:validate "ipv4-address";
                             description "Fixed IP address for this client";
                         }
                     }

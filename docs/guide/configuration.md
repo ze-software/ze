@@ -2962,15 +2962,18 @@ service {
 | `enabled` | boolean | `false` | Enable DHCP server. |
 | `listen-interface` | leaf-list | (none) | Interfaces to serve DHCP on. |
 | `shared-network <name>` | list | (none) | Named grouping of subnets. |
-| `subnet <prefix>` | list | (none) | Subnet with address pool and options. |
+| `subnet <prefix>` | IPv4 prefix | (none) | Subnet with address pool and options. |
 | `range <name>` | list | (none) | Named dynamic address pool. Multiple ranges per subnet for disjoint pools. |
-| `range <name>.start` | string | (none) | First allocatable address. |
-| `range <name>.stop` | string | (none) | Last allocatable address. |
+| `range <name>.start` | IPv4 address | (none) | First allocatable address. |
+| `range <name>.stop` | IPv4 address | (none) | Last allocatable address. |
 | `lease-time` | uint32 | `86400` | Lease duration in seconds (60-604800). |
-| `default-router` | string | (none) | Default gateway (option 3). |
-| `dns-server` | leaf-list | (none) | DNS servers (option 6). |
+| `default-router` | IPv4 address | (none) | Default gateway (option 3). |
+| `dns-server` | leaf-list of IPv4 address | (none) | DNS servers (option 6). |
 | `domain-name` | string | (none) | Domain name for clients (option 15). |
 | `static-mapping <name>` | list | (none) | Static MAC-to-IP binding (excluded from dynamic allocation). |
+
+This server speaks DHCPv4. Every address and prefix above must be IPv4, and an
+IPv6 value is refused when the config is validated.
 
 Multiple named ranges allow disjoint address pools within a single subnet.
 Ranges must not overlap and are allocated in order (first range fills before
@@ -3009,7 +3012,7 @@ service {
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `pxe.enabled` | boolean | `false` | Enable PXE boot option injection. |
-| `pxe.tftp-server` | string | (none) | TFTP server IP for PXE boot (option 66, siaddr). Required when enabled. |
+| `pxe.tftp-server` | IPv4 address | (none) | TFTP server IP for PXE boot (option 66, siaddr). Required when enabled. |
 | `pxe.bootfile-bios` | string | (none) | Boot file path for BIOS clients (option 67). Required when enabled. |
 | `pxe.bootfile-uefi` | string | (none) | Boot file path for UEFI clients (option 67). Required when enabled. |
 

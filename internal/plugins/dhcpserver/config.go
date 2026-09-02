@@ -164,6 +164,14 @@ func parseSubnet(prefixStr string, data map[string]any) (subnetConfig, error) {
 	if err != nil {
 		return sub, fmt.Errorf("invalid prefix: %w", err)
 	}
+	// This server speaks RFC 2131 only, so a subnet is IPv4. Every address
+	// derived from the prefix reaches buildReply, which narrows it to four
+	// bytes, and the prefix itself is one of the fallbacks register.go picks
+	// the server identifier from. Refuse the family at the boundary so no
+	// client packet can reach a four-byte narrowing of an IPv6 address.
+	if !prefix.Addr().Is4() {
+		return sub, fmt.Errorf("subnet prefix %q: must be IPv4, this server does not speak DHCPv6", prefixStr)
+	}
 	sub.Prefix = prefix
 	sub.LeaseTimeSec = defaultLeaseTimeSec
 
@@ -187,9 +195,9 @@ func parseSubnet(prefixStr string, data map[string]any) (subnetConfig, error) {
 	}
 
 	if v, ok := data["default-router"].(string); ok && v != "" {
-		addr, err := netip.ParseAddr(v)
+		addr, err := parseIPv4Option("default-router", v)
 		if err != nil {
-			return sub, fmt.Errorf("default-router: %w", err)
+			return sub, err
 		}
 		sub.DefaultRouter = addr
 	}
@@ -199,18 +207,18 @@ func parseSubnet(prefixStr string, data map[string]any) (subnetConfig, error) {
 	case []any:
 		for _, item := range v {
 			if s, ok := item.(string); ok {
-				addr, err := netip.ParseAddr(s)
+				addr, err := parseIPv4Option("dns-server", s)
 				if err != nil {
-					return sub, fmt.Errorf("dns-server: %w", err)
+					return sub, err
 				}
 				sub.DNSServers = append(sub.DNSServers, addr)
 			}
 		}
 	case string:
 		if v != "" {
-			addr, err := netip.ParseAddr(v)
+			addr, err := parseIPv4Option("dns-server", v)
 			if err != nil {
-				return sub, fmt.Errorf("dns-server: %w", err)
+				return sub, err
 			}
 			sub.DNSServers = append(sub.DNSServers, addr)
 		}
@@ -354,6 +362,28 @@ func parseSingleRange(name string, data map[string]any, prefix netip.Prefix) (ad
 	return r, nil
 }
 
+// parseIPv4Option parses one address leaf of a DHCPv4 subnet, naming the leaf
+// in every error so an operator is told which one is wrong. The family is
+// checked here, at the config boundary, rather than where the option is
+// written: buildReply and addrToUint32 both narrow an address to four bytes
+// with As4, which panics on an IPv6 address, and on the reply path a DHCP
+// client would be the one to trigger it. An IPv4-mapped IPv6 spelling is
+// refused with the rest, which is what IPv4AddressValidator accepts for every
+// other module.
+func parseIPv4Option(field, value string) (netip.Addr, error) {
+	addr, err := netip.ParseAddr(value)
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("%s: %w", field, err)
+	}
+	if !addr.Is4() {
+		return netip.Addr{}, fmt.Errorf("%s %q: must be an IPv4 address", field, value)
+	}
+	return addr, nil
+}
+
+// addrToUint32 narrows an IPv4 address to its numeric form. It panics on an
+// IPv6 address, so every caller MUST have taken its address through
+// parseIPv4Option or through a prefix this package has already checked.
 func addrToUint32(a netip.Addr) uint32 {
 	b := a.As4()
 	return binary.BigEndian.Uint32(b[:])
@@ -372,12 +402,9 @@ func parsePXEConfig(dhcpMap map[string]any) (pxeConfig, error) {
 	}
 
 	if v, ok := pxeMap["tftp-server"].(string); ok && v != "" {
-		addr, err := netip.ParseAddr(v)
+		addr, err := parseIPv4Option("pxe tftp-server", v)
 		if err != nil {
-			return pxe, fmt.Errorf("pxe tftp-server: %w", err)
-		}
-		if !addr.Is4() {
-			return pxe, fmt.Errorf("pxe tftp-server: must be IPv4 address")
+			return pxe, err
 		}
 		pxe.TFTPServer = addr
 	}

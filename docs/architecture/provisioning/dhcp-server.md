@@ -69,6 +69,22 @@ name overflow the response buffer. The option length field is one byte as well,
 so a domain name longer than 255 bytes truncates silently. Both are rejected at
 config parse time and guarded at write time.
 
+**Every configured address must be refused unless it is IPv4.** This server
+speaks RFC 2131, and the reply builder narrows each address it sends to four
+bytes with `netip.Addr.As4`, which panics on an IPv6 address. The panic lands on
+the DISCOVER path, so the trigger is an ordinary client packet and the config
+that caused it committed clean. `parseSubnet` refuses an IPv6 subnet prefix, and
+`parseIPv4Option` refuses an IPv6 `default-router`, `dns-server` or
+`pxe tftp-server`. A range bound and a static mapping need no family check of
+their own: each must sit inside the subnet prefix, and `netip.Prefix.Contains`
+is false across families. An IPv4-mapped IPv6 spelling is refused with the rest,
+which is what `config.IPv4AddressValidator` accepts for every other module.
+
+The YANG module carries `ze:validate "ipv4-address"` on the same leaves. That
+annotation declares the family. It does not enforce it, because
+`ValidateCustomSections` walks a fixed list of top-level sections and `service`
+is not one of them.
+
 **The zero-value address panics.** Converting `netip.Addr{}` to four bytes
 panics, which is why every pool mutation guards the empty-pool case. The first
 test suite covered DISCOVER only, whose allocation path returns early, and

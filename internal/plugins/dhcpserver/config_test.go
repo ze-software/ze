@@ -557,3 +557,55 @@ func TestParseConfigValidationErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestParseConfigRejectsNonIPv4 pins the family guards on every address leaf a
+// DHCPv4 subnet carries. The goal is that no IPv6 spelling survives parsing:
+// the reply builder narrows each of these to four bytes with netip.Addr.As4,
+// which panics on an IPv6 address, and the panic would land on the DISCOVER
+// path where a client packet triggers it. The method is one case per leaf,
+// asserting the message names the leaf so a guard cannot drift onto the wrong
+// field. An IPv4-mapped address is refused with the rest, matching what
+// config.IPv4AddressValidator already accepts for every other module.
+func TestParseConfigRejectsNonIPv4(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		data    string
+		wantErr string
+	}{
+		{
+			name:    "IPv6 subnet prefix",
+			data:    `{"service":{"dhcp-server":{"enabled":"true","listen-interface":["br0"],"shared-network":{"L":{"subnet":{"2001:db8::/64":{"range":{"start":"2001:db8::10","stop":"2001:db8::20"}}}}}}}}`,
+			wantErr: "subnet prefix",
+		},
+		{
+			name:    "IPv6 default-router",
+			data:    `{"service":{"dhcp-server":{"enabled":"true","listen-interface":["br0"],"shared-network":{"L":{"subnet":{"192.168.1.0/24":{"range":{"start":"192.168.1.100","stop":"192.168.1.200"},"default-router":"2001:db8::1"}}}}}}}`,
+			wantErr: "default-router",
+		},
+		{
+			name:    "IPv6 dns-server",
+			data:    `{"service":{"dhcp-server":{"enabled":"true","listen-interface":["br0"],"shared-network":{"L":{"subnet":{"192.168.1.0/24":{"range":{"start":"192.168.1.100","stop":"192.168.1.200"},"dns-server":["8.8.8.8","2001:4860:4860::8888"]}}}}}}}`,
+			wantErr: "dns-server",
+		},
+		{
+			name:    "IPv4-mapped default-router",
+			data:    `{"service":{"dhcp-server":{"enabled":"true","listen-interface":["br0"],"shared-network":{"L":{"subnet":{"192.168.1.0/24":{"range":{"start":"192.168.1.100","stop":"192.168.1.200"},"default-router":"::ffff:192.168.1.1"}}}}}}}`,
+			wantErr: "default-router",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := parseConfig(tc.data)
+			if err == nil {
+				t.Fatal("expected the config to be refused")
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("error %q does not name %q", err, tc.wantErr)
+			}
+		})
+	}
+}

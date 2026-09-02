@@ -1,0 +1,72 @@
+# Test: a DHCPv4 server config carrying an IPv6 address on any leaf is rejected.
+#
+# VALIDATES: this server speaks RFC 2131 only. The reply builder narrows every
+#            address it sends to four bytes with netip.Addr.As4, which panics on
+#            an IPv6 address, so an accepted IPv6 leaf becomes a panic a DHCP
+#            client triggers with an ordinary DISCOVER.
+# PREVENTS: an operator writing an IPv6 default-router, dns-server or subnet and
+#           learning about it when the first client crashes the daemon.
+
+stdin=config:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network office {
+            subnet 10.1.0.0/24 {
+                range {
+                    start 10.1.0.100
+                    stop 10.1.0.200
+                }
+                default-router 2001:db8::1
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=default-router
+
+stdin=v6subnet:terminator=EOF_SUBNET
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network office {
+            subnet 2001:db8::/64 {
+                range {
+                    start 2001:db8::100
+                    stop 2001:db8::200
+                }
+            }
+        }
+    }
+}
+EOF_SUBNET
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=v6subnet
+expect=exit:code=1
+
+stdin=v6dns:terminator=EOF_DNS
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network office {
+            subnet 10.1.0.0/24 {
+                range {
+                    start 10.1.0.100
+                    stop 10.1.0.200
+                }
+                dns-server 2001:4860:4860::8888
+            }
+        }
+    }
+}
+EOF_DNS
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=v6dns
+expect=exit:code=1
+expect=stdout:contains=dns-server
