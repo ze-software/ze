@@ -591,12 +591,16 @@ func TestPrefixCountInstalledFamilyIsResolvedOnce(t *testing.T) {
 // (internal/perf/allocgate.go), so the numbers below are a gate rather than a
 // claim.
 //
-// Measured 2026-08-08 on an M4 Max: 0 allocs/op for the first two and 2 for
-// Churn. The single 48-byte allocation both modes paid before was the
-// heap-allocated NLRI iterator on the body path; forEachPrefixEntry walks the
-// same bytes without one, so it is gone for both. No ns/op is recorded here: the
-// same code measured 163 and 551 ns/op an hour apart on this shared machine, and
-// allocs/op is the number that does not move with the load.
+// Measured 2026-09-02 on an M4 Max: 0 allocs/op for the first two and 2 for
+// Churn. Two things keep the path off the heap, and each one was a regression
+// caught here first. The per-family splitter forEachPrefixEntry dispatches to is
+// a WALK rather than a builder (nlrisplit.Splitter), so counting the NLRIs of a
+// section materializes no slice. And the installed mode's visitor is bound once
+// per session (Session.prefixSetVisit) rather than built per section, because
+// the splitter is reached through a func value and Go treats anything handed to
+// one as escaping. No ns/op is recorded here: the same code measured 163 and 551
+// ns/op an hour apart on this shared machine, and allocs/op is the number that
+// does not move with the load.
 //
 // The first two re-announce one unchanged table, which is the steady state and
 // the case that used to walk the count into a lockout. Nothing is inserted

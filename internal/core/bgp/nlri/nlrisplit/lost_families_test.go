@@ -91,11 +91,11 @@ func TestVPNSplitsOnALengthThatCountsLabelAndRD(t *testing.T) {
 func TestVPNLengthAbove128IsNotRejected(t *testing.T) {
 	nlri := append([]byte{200}, make([]byte, 25)...)
 
-	if _, err := splitVPN(nlri, false); err != nil {
+	if _, err := splitAll(t, splitVPN, nlri, false); err != nil {
 		t.Fatalf("a 200-bit VPN length was rejected: %v. The octet counts label, "+
 			"Route Distinguisher and prefix bits together, so it passes 128 routinely", err)
 	}
-	if _, err := splitCIDR(nlri, false); err == nil {
+	if _, err := splitAll(t, splitCIDR, nlri, false); err == nil {
 		t.Fatal("splitCIDR accepted a 200-bit prefix length; the CIDR bound is what " +
 			"makes the two walks different, so it must still refuse this")
 	}
@@ -133,7 +133,7 @@ func TestFlowSpecReadsTheExtendedLength(t *testing.T) {
 func TestFlowSpecOneOctetReadWouldMisframe(t *testing.T) {
 	long := append([]byte{0xf1, 0x00}, bytes.Repeat([]byte{0xbb}, 256)...)
 
-	got, err := SplitFlowSpec(long, false)
+	got, err := splitAll(t, SplitFlowSpec, long, false)
 	if err != nil {
 		t.Fatalf("split returned %v", err)
 	}
@@ -175,7 +175,7 @@ func TestBGPLSFramesByTotalLengthWhateverTheType(t *testing.T) {
 }
 
 // TestTheNewSplittersCarryThePathIdentifier pins the ADD-PATH contract the
-// Splitter type states: the 4-byte path identifier is part of the returned
+// Splitter type states: the 4-byte path identifier is part of the visited
 // slice, because downstream consumers key on the exact wire bytes.
 func TestTheNewSplittersCarryThePathIdentifier(t *testing.T) {
 	pathID := []byte{0x00, 0x00, 0x00, 0x07}
@@ -192,7 +192,7 @@ func TestTheNewSplittersCarryThePathIdentifier(t *testing.T) {
 
 	for name, tc := range cases {
 		want := concat(pathID, tc.body)
-		got, err := tc.split(want, true)
+		got, err := splitAll(t, tc.split, want, true)
 		if err != nil {
 			t.Errorf("%s: %v", name, err)
 			continue
@@ -217,7 +217,7 @@ func TestAZeroLengthNLRIIsMalformedRatherThanAnInfiniteWalk(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		if _, err := tc.split(tc.data, false); err == nil {
+		if _, err := splitAll(t, tc.split, tc.data, false); err == nil {
 			t.Errorf("%s accepted a zero-length NLRI instead of calling it malformed", name)
 		}
 	}
@@ -229,7 +229,7 @@ func TestATruncatedNLRIReturnsWhatWasParsed(t *testing.T) {
 	good := append([]byte{0x00, 0x01, 0x00, 0x02}, 0xaa, 0xbb)
 	truncated := []byte{0x00, 0x01, 0x00, 0x40, 0xcc}
 
-	got, err := SplitBGPLS(concat(good, truncated), false)
+	got, err := splitAll(t, SplitBGPLS, concat(good, truncated), false)
 	if err == nil {
 		t.Fatal("a BGP-LS NLRI whose length runs past the section was accepted")
 	}

@@ -16,8 +16,9 @@ package nlrisplit
 // implements is RFC 7606 Section 5.4's question, answered in the MUP plugin
 // (internal/component/bgp/plugins/nlri/mup, nlritype.Recognizer).
 //
-// Slices alias data. A malformed entry returns the partially-parsed result plus
-// a non-nil error; the caller decides whether to use it.
-func SplitMUP(data []byte, addPath bool) ([][]byte, error) {
-	return splitTypeLength(data, addPath, 4, 3, "MUP")
+// Slices alias data. A malformed entry returns the count of the entries visited
+// before it plus a non-nil error; the caller decides whether to use the partial
+// result.
+func SplitMUP(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+	return splitTypeLength(data, addPath, 4, 3, "MUP", fn)
 }

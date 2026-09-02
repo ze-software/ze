@@ -17,23 +17,24 @@ import "fmt"
 //	MUP   [arch:1][route-type:2][length:1][value]          hdrLen 4, lenOff 3
 //
 // Under ADD-PATH (RFC 7911) each entry is prefixed with a 4-byte path identifier
-// that is included in the returned slice, so a recognizer reading the route type
+// that is included in the visited slice, so a recognizer reading the route type
 // skips it the same way for every family.
 //
 // The walk is route-type-agnostic: it uses only the length octet to find the
 // boundaries. Deciding whether a type is one ze implements is RFC 7606 Section
 // 5.4's business and lives in the owning plugin (nlritype.Recognizer).
 //
-// Slices alias data. A malformed entry returns the partially-parsed result plus a
-// non-nil error; the caller decides whether to use it. That error is the RFC 7606
-// Section 5.3 condition "the length of the last NLRI found exceeds the amount of
-// unconsumed data remaining in the attribute", which Section 3(j) routes to
-// session reset because such an NLRI field cannot be parsed at all.
-func splitTypeLength(data []byte, addPath bool, hdrLen, lenOff int, label string) ([][]byte, error) {
-	if len(data) == 0 {
-		return nil, nil
-	}
-	var result [][]byte
+// Slices alias data. A malformed entry returns the count of the entries visited
+// before it plus a non-nil error; the caller decides whether to use the partial
+// result. That error is the RFC 7606 Section 5.3 condition "the length of the
+// last NLRI found exceeds the amount of unconsumed data remaining in the
+// attribute", which Section 3(j) routes to session reset because such an NLRI
+// field cannot be parsed at all.
+//
+// The walk is bounded by len(data): every entry advances the offset by at least
+// the fixed header.
+func splitTypeLength(data []byte, addPath bool, hdrLen, lenOff int, label string, fn func(nlri []byte)) (int, error) {
+	count := 0
 	offset := 0
 	for offset < len(data) {
 		start := offset
@@ -43,15 +44,18 @@ func splitTypeLength(data []byte, addPath bool, hdrLen, lenOff int, label string
 		}
 		// Need at least the path identifier (if any) plus the whole fixed header.
 		if start+head+hdrLen > len(data) {
-			return result, fmt.Errorf("nlrisplit: truncated %s header at offset %d", label, start)
+			return count, fmt.Errorf("nlrisplit: truncated %s header at offset %d", label, start)
 		}
 		length := int(data[start+head+lenOff])
 		nlriLen := head + hdrLen + length
 		if start+nlriLen > len(data) {
-			return result, fmt.Errorf("nlrisplit: %s NLRI at offset %d extends past data (len=%d)", label, start, length)
+			return count, fmt.Errorf("nlrisplit: %s NLRI at offset %d extends past data (len=%d)", label, start, length)
 		}
-		result = append(result, data[start:start+nlriLen])
+		if fn != nil {
+			fn(data[start : start+nlriLen])
+		}
+		count++
 		offset = start + nlriLen
 	}
-	return result, nil
+	return count, nil
 }

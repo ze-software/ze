@@ -16,14 +16,14 @@ import (
 // PREVENTS: split regressions on the RIB hot path.
 func TestSplitCIDR_Basic(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
-		got, err := splitCIDR(nil, false)
+		got, err := Split(family.IPv4Unicast, nil, false)
 		assert.NoError(t, err)
 		assert.Nil(t, got)
 	})
 
 	t.Run("single-/24-v4", func(t *testing.T) {
 		nlri := []byte{24, 10, 0, 0}
-		got, err := splitCIDR(nlri, false)
+		got, err := Split(family.IPv4Unicast, nlri, false)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, nlri, got[0])
@@ -35,7 +35,7 @@ func TestSplitCIDR_Basic(t *testing.T) {
 			24, 10, 0, 1,
 			24, 10, 0, 2,
 		}
-		got, err := splitCIDR(data, false)
+		got, err := Split(family.IPv4Unicast, data, false)
 		require.NoError(t, err)
 		require.Len(t, got, 3)
 		assert.Equal(t, []byte{24, 10, 0, 0}, got[0])
@@ -46,7 +46,7 @@ func TestSplitCIDR_Basic(t *testing.T) {
 	t.Run("add-path-single", func(t *testing.T) {
 		// path-id = 42, /24 for 10.0.0.0.
 		data := []byte{0, 0, 0, 42, 24, 10, 0, 0}
-		got, err := splitCIDR(data, true)
+		got, err := Split(family.IPv4Unicast, data, true)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, data, got[0], "ADD-PATH NLRI includes path-id in returned slice")
@@ -55,7 +55,7 @@ func TestSplitCIDR_Basic(t *testing.T) {
 	t.Run("v6-/64", func(t *testing.T) {
 		// /64: 1 + 8 addr bytes.
 		data := []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 1}
-		got, err := splitCIDR(data, false)
+		got, err := Split(family.IPv6Unicast, data, false)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, data, got[0])
@@ -68,7 +68,7 @@ func TestSplitCIDR_Malformed(t *testing.T) {
 	t.Run("truncated", func(t *testing.T) {
 		// prefix-len says /24 but only one byte of address follows.
 		data := []byte{24, 10}
-		got, err := splitCIDR(data, false)
+		got, err := Split(family.IPv4Unicast, data, false)
 		assert.Error(t, err)
 		assert.Empty(t, got, "no complete NLRI before truncation")
 	})
@@ -76,7 +76,7 @@ func TestSplitCIDR_Malformed(t *testing.T) {
 	t.Run("prefix-length-too-large", func(t *testing.T) {
 		// /200 exceeds IPv6 /128.
 		data := []byte{200, 0, 0, 0, 0}
-		_, err := splitCIDR(data, false)
+		_, err := Split(family.IPv4Unicast, data, false)
 		assert.Error(t, err)
 	})
 
@@ -85,7 +85,7 @@ func TestSplitCIDR_Malformed(t *testing.T) {
 			24, 10, 0, 0, // one good NLRI
 			24, 10, // then truncation
 		}
-		got, err := splitCIDR(data, false)
+		got, err := Split(family.IPv4Unicast, data, false)
 		assert.Error(t, err)
 		require.Len(t, got, 1, "returns complete NLRI parsed before truncation")
 		assert.Equal(t, []byte{24, 10, 0, 0}, got[0])

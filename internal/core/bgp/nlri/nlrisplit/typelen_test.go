@@ -9,6 +9,14 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+// famMVPN and famMUP are the families whose registered splitters are splitMVPN
+// and SplitMUP. The tests below drive them through Split, the entry point every
+// caller uses.
+var (
+	famMVPN = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}
+	famMUP  = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMUP}
+)
+
 // mvpnNLRI frames one MCAST-VPN NLRI: [route-type:1][length:1][body] (RFC 6514 Section 4).
 func mvpnNLRI(routeType byte, body ...byte) []byte {
 	return append([]byte{routeType, byte(len(body))}, body...)
@@ -32,7 +40,7 @@ func TestSplitMVPNCarvesOnLength(t *testing.T) {
 	b := mvpnNLRI(7)
 	c := mvpnNLRI(5, 0xcc)
 
-	got, err := splitMVPN(concat(a, b, c), false)
+	got, err := Split(famMVPN, concat(a, b, c), false)
 	require.NoError(t, err)
 	assert.Equal(t, [][]byte{a, b, c}, got)
 }
@@ -45,7 +53,7 @@ func TestSplitMVPNAddPathIncludesPathID(t *testing.T) {
 	a := concat(pathID, mvpnNLRI(1, 0xaa))
 	b := concat(pathID, mvpnNLRI(6, 0xbb, 0xcc))
 
-	got, err := splitMVPN(concat(a, b), true)
+	got, err := Split(famMVPN, concat(a, b), true)
 	require.NoError(t, err)
 	assert.Equal(t, [][]byte{a, b}, got)
 }
@@ -59,15 +67,15 @@ func TestSplitMVPNBoundaries(t *testing.T) {
 	good := mvpnNLRI(1, 0xaa)
 
 	// Header boundary: exactly two octets is the shortest legal NLRI; one is not.
-	_, err := splitMVPN([]byte{1, 0x00}, false)
+	_, err := Split(famMVPN, []byte{1, 0x00}, false)
 	assert.NoError(t, err, "a two-octet header with a zero-length body is well framed")
-	_, err = splitMVPN([]byte{1}, false)
+	_, err = Split(famMVPN, []byte{1}, false)
 	assert.Error(t, err, "one octet cannot hold a route type and a length")
 
 	// Value boundary: length 1 with one octet left is legal, with none is not.
-	_, err = splitMVPN([]byte{1, 0x01, 0xaa}, false)
+	_, err = Split(famMVPN, []byte{1, 0x01, 0xaa}, false)
 	assert.NoError(t, err)
-	partial, err := splitMVPN(concat(good, []byte{1, 0x01}), false)
+	partial, err := Split(famMVPN, concat(good, []byte{1, 0x01}), false)
 	assert.Error(t, err, "the last NLRI overruns the section")
 	assert.Equal(t, [][]byte{good}, partial, "what parsed cleanly is still returned")
 }
@@ -81,7 +89,7 @@ func TestSplitMUPCarvesOnLengthAtOffsetThree(t *testing.T) {
 	b := mupNLRI(4)
 	c := mupNLRI(2, 0xdd)
 
-	got, err := SplitMUP(concat(a, b, c), false)
+	got, err := Split(famMUP, concat(a, b, c), false)
 	require.NoError(t, err)
 	assert.Equal(t, [][]byte{a, b, c}, got)
 }
@@ -89,13 +97,13 @@ func TestSplitMUPCarvesOnLengthAtOffsetThree(t *testing.T) {
 // VALIDATES: the MUP header boundary is four octets, not two.
 // PREVENTS: a three-octet tail being accepted as a whole NLRI and read past.
 func TestSplitMUPBoundaries(t *testing.T) {
-	_, err := SplitMUP([]byte{1, 0x00, 0x01, 0x00}, false)
+	_, err := Split(famMUP, []byte{1, 0x00, 0x01, 0x00}, false)
 	assert.NoError(t, err, "a four-octet header with a zero-length body is well framed")
-	_, err = SplitMUP([]byte{1, 0x00, 0x01}, false)
+	_, err = Split(famMUP, []byte{1, 0x00, 0x01}, false)
 	assert.Error(t, err, "three octets cannot hold the MUP header")
 
 	good := mupNLRI(1, 0xaa)
-	partial, err := SplitMUP(concat(good, []byte{1, 0x00, 0x01, 0x02, 0xaa}), false)
+	partial, err := Split(famMUP, concat(good, []byte{1, 0x00, 0x01, 0x02, 0xaa}), false)
 	assert.Error(t, err, "the last NLRI declares two octets and carries one")
 	assert.Equal(t, [][]byte{good}, partial)
 }

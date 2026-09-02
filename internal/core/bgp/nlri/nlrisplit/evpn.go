@@ -8,7 +8,7 @@ package nlrisplit
 // and RFC 8365 Section 8). Every EVPN NLRI is framed as
 // [route-type:1][length:1][route-type-specific:length]. Under ADD-PATH
 // (RFC 7911) each NLRI is prefixed with a 4-byte path-id that is
-// included in the returned slice.
+// included in the visited slice.
 //
 // EVPN route-types 1-5 are standardized (Ethernet Auto-Discovery, MAC/IP
 // Advertisement, Inclusive Multicast Ethernet Tag, Ethernet Segment,
@@ -17,8 +17,9 @@ package nlrisplit
 // carve boundaries. Semantic interpretation lives in the EVPN plugin
 // (internal/component/bgp/plugins/nlri/evpn).
 //
-// Slices alias `data`. A malformed entry returns the partially-parsed
-// result plus a non-nil error; the caller decides whether to use it.
-func splitEVPN(data []byte, addPath bool) ([][]byte, error) {
-	return splitTypeLength(data, addPath, 2, 1, "EVPN")
+// Slices alias `data`. A malformed entry returns the count of the entries
+// visited before it plus a non-nil error; the caller decides whether to use
+// the partial result.
+func splitEVPN(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+	return splitTypeLength(data, addPath, 2, 1, "EVPN", fn)
 }

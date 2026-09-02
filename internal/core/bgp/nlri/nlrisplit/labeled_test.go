@@ -20,7 +20,7 @@ func TestSplitLabeledSingle(t *testing.T) {
 		0x06, 0x40, 0x01,
 		10, 0, 0,
 	}
-	got, err := SplitLabeled(data, false)
+	got, err := splitAll(t, SplitLabeled, data, false)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, data, got[0])
@@ -38,7 +38,7 @@ func TestSplitLabeledStack(t *testing.T) {
 		0x0C, 0x80, 0x01,
 		10, 0, 0,
 	}
-	got, err := SplitLabeled(data, false)
+	got, err := splitAll(t, SplitLabeled, data, false)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, data, got[0])
@@ -50,7 +50,7 @@ func TestSplitLabeledMultipleNLRI(t *testing.T) {
 	nlri2 := []byte{48, 0x0C, 0x80, 0x01, 192, 168, 1}
 	data := append(append([]byte{}, nlri1...), nlri2...)
 
-	got, err := SplitLabeled(data, false)
+	got, err := splitAll(t, SplitLabeled, data, false)
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	assert.Equal(t, nlri1, got[0])
@@ -67,7 +67,7 @@ func TestSplitLabeledIPv6(t *testing.T) {
 		0x12, 0xC0, 0x01,
 		0x20, 0x01, 0x0D, 0xB8,
 	}
-	got, err := SplitLabeled(data, false)
+	got, err := splitAll(t, SplitLabeled, data, false)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, data, got[0])
@@ -76,26 +76,26 @@ func TestSplitLabeledIPv6(t *testing.T) {
 // TestSplitLabeledMalformed validates error handling on truncated/malformed input.
 func TestSplitLabeledMalformed(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
-		got, err := SplitLabeled(nil, false)
+		got, err := splitAll(t, SplitLabeled, nil, false)
 		assert.NoError(t, err)
 		assert.Nil(t, got)
 	})
 
 	t.Run("truncated-label", func(t *testing.T) {
 		data := []byte{48, 0x06, 0x40}
-		_, err := SplitLabeled(data, false)
+		_, err := splitAll(t, SplitLabeled, data, false)
 		assert.Error(t, err)
 	})
 
 	t.Run("truncated-prefix", func(t *testing.T) {
 		data := []byte{48, 0x06, 0x40, 0x01, 10, 0}
-		_, err := SplitLabeled(data, false)
+		_, err := splitAll(t, SplitLabeled, data, false)
 		assert.Error(t, err)
 	})
 
 	t.Run("no-s-bit-then-truncated", func(t *testing.T) {
 		data := []byte{48, 0x06, 0x40, 0x00}
-		_, err := SplitLabeled(data, false)
+		_, err := splitAll(t, SplitLabeled, data, false)
 		assert.Error(t, err)
 	})
 
@@ -104,7 +104,7 @@ func TestSplitLabeledMalformed(t *testing.T) {
 		bad := []byte{48, 0x06}
 		data := append(append([]byte{}, good...), bad...)
 
-		got, err := SplitLabeled(data, false)
+		got, err := splitAll(t, SplitLabeled, data, false)
 		assert.Error(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, good, got[0])
@@ -119,7 +119,7 @@ func TestSplitLabeledAddPath(t *testing.T) {
 		0x06, 0x40, 0x01,
 		10, 0, 0,
 	}
-	got, err := SplitLabeled(data, true)
+	got, err := splitAll(t, SplitLabeled, data, true)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, data, got[0])
@@ -131,7 +131,7 @@ func TestSplitLabeledAddPathMultiple(t *testing.T) {
 	nlri2 := []byte{0, 0, 0, 2, 48, 0x0C, 0x80, 0x01, 192, 168, 1}
 	data := append(append([]byte{}, nlri1...), nlri2...)
 
-	got, err := SplitLabeled(data, true)
+	got, err := splitAll(t, SplitLabeled, data, true)
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	assert.Equal(t, nlri1, got[0])

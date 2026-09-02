@@ -25,16 +25,15 @@ import (
 // the body means is the VPLS plugin's business.
 //
 // Under ADD-PATH (RFC 7911) each NLRI is prefixed with a 4-byte path identifier
-// that is included in the returned slice.
+// that is included in the visited slice.
 //
-// Slices alias data. A malformed entry returns the partially-parsed result plus
-// a non-nil error.
-func SplitVPLS(data []byte, addPath bool) ([][]byte, error) {
-	if len(data) == 0 {
-		return nil, nil
-	}
-
-	var result [][]byte
+// Slices alias data. A malformed entry returns the count of the entries visited
+// before it plus a non-nil error.
+//
+// The walk is bounded by len(data): a zero length is rejected below, so every
+// entry advances the offset.
+func SplitVPLS(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+	count := 0
 	offset := 0
 	for offset < len(data) {
 		start := offset
@@ -44,24 +43,27 @@ func SplitVPLS(data []byte, addPath bool) ([][]byte, error) {
 		}
 
 		if start+head+2 > len(data) {
-			return result, fmt.Errorf("nlrisplit: truncated VPLS length at offset %d", start)
+			return count, fmt.Errorf("nlrisplit: truncated VPLS length at offset %d", start)
 		}
 
 		length := int(binary.BigEndian.Uint16(data[start+head : start+head+2]))
 
 		// A zero-length body would leave the walk on the same octets forever.
 		if length == 0 {
-			return result, fmt.Errorf("nlrisplit: zero-length VPLS NLRI at offset %d", start)
+			return count, fmt.Errorf("nlrisplit: zero-length VPLS NLRI at offset %d", start)
 		}
 
 		nlriLen := head + 2 + length
 		if start+nlriLen > len(data) {
-			return result, fmt.Errorf("nlrisplit: VPLS NLRI at offset %d extends past data (len=%d)", start, length)
+			return count, fmt.Errorf("nlrisplit: VPLS NLRI at offset %d extends past data (len=%d)", start, length)
 		}
 
-		result = append(result, data[start:start+nlriLen])
+		if fn != nil {
+			fn(data[start : start+nlriLen])
+		}
+		count++
 		offset = start + nlriLen
 	}
 
-	return result, nil
+	return count, nil
 }

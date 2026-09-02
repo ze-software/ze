@@ -38,3 +38,4 @@ the file, and carry no row for it.
 
 | Test | Reason |
 |------|--------|
+| TestSRPolicySplitViaRegistry | It asserted one thing: that a caller reaching SplitSRPolicy through nlrisplit.Split on the registered family gets the NLRI back. Every other test in split_test.go now makes that call, because the walk takes a visitor and the slice form comes from Split, so the single case it covered is covered seven times over by tests that also assert the framing. Nothing left the suite. |

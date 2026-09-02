@@ -28,16 +28,15 @@ const bgpLSHeaderLen = 4
 // propagate what it does not understand.
 //
 // Under ADD-PATH (RFC 7911) each NLRI is prefixed with a 4-byte path identifier
-// that is included in the returned slice.
+// that is included in the visited slice.
 //
-// Slices alias data. A malformed entry returns the partially-parsed result plus
-// a non-nil error.
-func SplitBGPLS(data []byte, addPath bool) ([][]byte, error) {
-	if len(data) == 0 {
-		return nil, nil
-	}
-
-	var result [][]byte
+// Slices alias data. A malformed entry returns the count of the entries visited
+// before it plus a non-nil error.
+//
+// The walk is bounded by len(data): a zero Total NLRI Length is rejected below,
+// so every entry advances the offset.
+func SplitBGPLS(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+	count := 0
 	offset := 0
 	for offset < len(data) {
 		start := offset
@@ -47,7 +46,7 @@ func SplitBGPLS(data []byte, addPath bool) ([][]byte, error) {
 		}
 
 		if start+head+bgpLSHeaderLen > len(data) {
-			return result, fmt.Errorf("nlrisplit: truncated BGP-LS NLRI header at offset %d", start)
+			return count, fmt.Errorf("nlrisplit: truncated BGP-LS NLRI header at offset %d", start)
 		}
 
 		lengthAt := start + head + 2
@@ -56,17 +55,20 @@ func SplitBGPLS(data []byte, addPath bool) ([][]byte, error) {
 		// A zero Total NLRI Length carries no descriptors and would leave the walk
 		// on the same header forever.
 		if length == 0 {
-			return result, fmt.Errorf("nlrisplit: zero-length BGP-LS NLRI at offset %d", start)
+			return count, fmt.Errorf("nlrisplit: zero-length BGP-LS NLRI at offset %d", start)
 		}
 
 		nlriLen := head + bgpLSHeaderLen + length
 		if start+nlriLen > len(data) {
-			return result, fmt.Errorf("nlrisplit: BGP-LS NLRI at offset %d extends past data (len=%d)", start, length)
+			return count, fmt.Errorf("nlrisplit: BGP-LS NLRI at offset %d extends past data (len=%d)", start, length)
 		}
 
-		result = append(result, data[start:start+nlriLen])
+		if fn != nil {
+			fn(data[start : start+nlriLen])
+		}
+		count++
 		offset = start + nlriLen
 	}
 
-	return result, nil
+	return count, nil
 }

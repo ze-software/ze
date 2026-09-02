@@ -17,8 +17,9 @@ package nlrisplit
 // types ze implements lives in the MVPN plugin
 // (internal/component/bgp/plugins/nlri/mvpn, nlritype.Recognizer).
 //
-// Slices alias data. A malformed entry returns the partially-parsed result plus
-// a non-nil error; the caller decides whether to use it.
-func splitMVPN(data []byte, addPath bool) ([][]byte, error) {
-	return splitTypeLength(data, addPath, 2, 1, "MVPN")
+// Slices alias data. A malformed entry returns the count of the entries visited
+// before it plus a non-nil error; the caller decides whether to use the partial
+// result.
+func splitMVPN(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+	return splitTypeLength(data, addPath, 2, 1, "MVPN", fn)
 }

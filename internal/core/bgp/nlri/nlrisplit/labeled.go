@@ -26,19 +26,18 @@ var (
 // byte 2) is set.
 //
 // Under ADD-PATH (RFC 7911) each NLRI is prefixed with a 4-byte path-id
-// that is included in the returned slice.
+// that is included in the visited slice.
 //
-// Returns the full wire bytes per NLRI (labels + prefix). The caller
+// Visits the full wire bytes per NLRI (labels + prefix). The caller
 // extracts labels and CIDR bytes separately via ExtractLabels.
 //
-// Slices alias `data`. A malformed entry returns partially-parsed
-// results plus a non-nil error.
-func SplitLabeled(data []byte, addPath bool) ([][]byte, error) {
-	if len(data) == 0 {
-		return nil, nil
-	}
-
-	var result [][]byte
+// Slices alias `data`. A malformed entry returns the count of the entries
+// visited before it plus a non-nil error.
+//
+// The walk is bounded by len(data): every entry advances the offset by at
+// least the length octet and one label entry.
+func SplitLabeled(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+	count := 0
 	offset := 0
 	for offset < len(data) {
 		start := offset
@@ -48,7 +47,7 @@ func SplitLabeled(data []byte, addPath bool) ([][]byte, error) {
 		}
 
 		if start+head+1 > len(data) {
-			return result, fmt.Errorf("nlrisplit: truncated labeled NLRI header at offset %d", start)
+			return count, fmt.Errorf("nlrisplit: truncated labeled NLRI header at offset %d", start)
 		}
 
 		totalBits := int(data[start+head])
@@ -58,7 +57,7 @@ func SplitLabeled(data []byte, addPath bool) ([][]byte, error) {
 		labelBytes := 0
 		for {
 			if labelStart+labelBytes+3 > len(data) {
-				return result, fmt.Errorf("nlrisplit: truncated label stack at offset %d", start)
+				return count, fmt.Errorf("nlrisplit: truncated label stack at offset %d", start)
 			}
 			sbit := data[labelStart+labelBytes+2] & 0x01
 			labelBytes += 3
@@ -69,19 +68,22 @@ func SplitLabeled(data []byte, addPath bool) ([][]byte, error) {
 
 		prefixBits := totalBits - (labelBytes/3)*24
 		if prefixBits < 0 {
-			return result, fmt.Errorf("nlrisplit: invalid totalBits %d with %d label bytes at offset %d", totalBits, labelBytes, start)
+			return count, fmt.Errorf("nlrisplit: invalid totalBits %d with %d label bytes at offset %d", totalBits, labelBytes, start)
 		}
 		prefixBytes := (prefixBits + 7) / 8
 		nlriLen := head + 1 + labelBytes + prefixBytes
 
 		if start+nlriLen > len(data) {
-			return result, fmt.Errorf("nlrisplit: labeled NLRI at offset %d extends past data", start)
+			return count, fmt.Errorf("nlrisplit: labeled NLRI at offset %d extends past data", start)
 		}
 
-		result = append(result, data[start:start+nlriLen])
+		if fn != nil {
+			fn(data[start : start+nlriLen])
+		}
+		count++
 		offset = start + nlriLen
 	}
-	return result, nil
+	return count, nil
 }
 
 // ExtractLabels parses a single labeled NLRI entry (as returned by

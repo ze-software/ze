@@ -384,6 +384,15 @@ type Session struct {
 	// on the session read goroutine like prefixCounts.
 	prefixSetJournal []prefixSetChange
 
+	// prefixSetWalk holds the state of the NLRI section being applied to an
+	// installed family's set, and prefixSetVisit is the visitor that reads it.
+	// Both are set up once in NewSession, because the visitor is handed to a
+	// registered NLRI splitter through a func value and would otherwise be a
+	// heap allocation for every section of every inbound UPDATE
+	// (applyInstalledPrefixSection, session_prefix.go). Read goroutine only.
+	prefixSetWalk  prefixSetWalk
+	prefixSetVisit func(entry []byte)
+
 	// prefixMetrics is a reference to reactor-level Prometheus prefix metrics.
 	// Set by Peer in runOnce(). Nil when metrics are not enabled.
 	prefixMetrics *reactorMetrics
@@ -470,6 +479,11 @@ func NewSession(settings *PeerSettings) *Session {
 		coalesceEnabled: coalesceEnabled(),
 		addrLabel:       settings.Address.String(),
 	}
+
+	// The installed-mode prefix visitor is bound here, once for the session,
+	// rather than for each NLRI section it walks.
+	s.prefixSetWalk.session = s
+	s.prefixSetVisit = s.prefixSetWalk.visit
 
 	// Configure FSM connection mode: passive if active bit is NOT set.
 	s.fsm.SetPassive(!settings.Connection.IsActive())

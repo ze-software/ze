@@ -28,16 +28,16 @@ const flowSpecExtendedLength = 0xF0
 // counted inside the length, so the same walk frames both families.
 //
 // Under ADD-PATH (RFC 7911) each NLRI is prefixed with a 4-byte path identifier
-// that is included in the returned slice.
+// that is included in the visited slice.
 //
-// Slices alias data. A malformed entry returns the partially-parsed result plus
-// a non-nil error; the caller decides whether to use it.
-func SplitFlowSpec(data []byte, addPath bool) ([][]byte, error) {
-	if len(data) == 0 {
-		return nil, nil
-	}
-
-	var result [][]byte
+// Slices alias data. A malformed entry returns the count of the entries visited
+// before it plus a non-nil error; the caller decides whether to use the partial
+// result.
+//
+// The walk is bounded by len(data): a zero length is rejected below, so every
+// entry advances the offset.
+func SplitFlowSpec(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+	count := 0
 	offset := 0
 	for offset < len(data) {
 		start := offset
@@ -47,14 +47,14 @@ func SplitFlowSpec(data []byte, addPath bool) ([][]byte, error) {
 		}
 
 		if start+head+1 > len(data) {
-			return result, fmt.Errorf("nlrisplit: truncated flowspec length at offset %d", start)
+			return count, fmt.Errorf("nlrisplit: truncated flowspec length at offset %d", start)
 		}
 
 		lengthOctets := 1
 		length := int(data[start+head])
 		if length >= flowSpecExtendedLength {
 			if start+head+2 > len(data) {
-				return result, fmt.Errorf("nlrisplit: truncated flowspec extended length at offset %d", start)
+				return count, fmt.Errorf("nlrisplit: truncated flowspec extended length at offset %d", start)
 			}
 			lengthOctets = 2
 			length = int(data[start+head]&0x0F)<<8 | int(data[start+head+1])
@@ -63,17 +63,20 @@ func SplitFlowSpec(data []byte, addPath bool) ([][]byte, error) {
 		// A zero-length flow specification matches nothing and would leave the
 		// walk on the same octet forever, so it is malformed rather than empty.
 		if length == 0 {
-			return result, fmt.Errorf("nlrisplit: zero-length flowspec NLRI at offset %d", start)
+			return count, fmt.Errorf("nlrisplit: zero-length flowspec NLRI at offset %d", start)
 		}
 
 		nlriLen := head + lengthOctets + length
 		if start+nlriLen > len(data) {
-			return result, fmt.Errorf("nlrisplit: flowspec NLRI at offset %d extends past data (len=%d)", start, length)
+			return count, fmt.Errorf("nlrisplit: flowspec NLRI at offset %d extends past data (len=%d)", start, length)
 		}
 
-		result = append(result, data[start:start+nlriLen])
+		if fn != nil {
+			fn(data[start : start+nlriLen])
+		}
+		count++
 		offset = start + nlriLen
 	}
 
-	return result, nil
+	return count, nil
 }

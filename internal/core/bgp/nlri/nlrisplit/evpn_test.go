@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestSplitEVPN_Basic exercises the [route-type][length][body] framing
@@ -18,7 +16,7 @@ import (
 // bytes.
 func TestSplitEVPN_Basic(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
-		got, err := splitEVPN(nil, false)
+		got, err := Split(famEVPN, nil, false)
 		assert.NoError(t, err)
 		assert.Nil(t, got)
 	})
@@ -26,7 +24,7 @@ func TestSplitEVPN_Basic(t *testing.T) {
 	t.Run("single-route-type-2", func(t *testing.T) {
 		// route-type 2 (MAC/IP Advertisement), length 5, body 5 bytes.
 		nlri := []byte{2, 5, 0xaa, 0xbb, 0xcc, 0xdd, 0xee}
-		got, err := splitEVPN(nlri, false)
+		got, err := Split(famEVPN, nlri, false)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, nlri, got[0])
@@ -38,7 +36,7 @@ func TestSplitEVPN_Basic(t *testing.T) {
 			2, 2, 0x04, 0x05, // route-type 2, length 2
 			3, 4, 0x06, 0x07, 0x08, 0x09, // route-type 3, length 4
 		}
-		got, err := splitEVPN(data, false)
+		got, err := Split(famEVPN, data, false)
 		require.NoError(t, err)
 		require.Len(t, got, 3)
 		assert.Equal(t, uint8(1), got[0][0])
@@ -49,7 +47,7 @@ func TestSplitEVPN_Basic(t *testing.T) {
 	t.Run("add-path", func(t *testing.T) {
 		// path-id 7, route-type 5, length 3, body 3 bytes.
 		nlri := []byte{0, 0, 0, 7, 5, 3, 0x11, 0x22, 0x33}
-		got, err := splitEVPN(nlri, true)
+		got, err := Split(famEVPN, nlri, true)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, nlri, got[0], "ADD-PATH slice includes path-id")
@@ -60,14 +58,14 @@ func TestSplitEVPN_Basic(t *testing.T) {
 func TestSplitEVPN_Malformed(t *testing.T) {
 	t.Run("truncated-header", func(t *testing.T) {
 		// Missing length byte after route-type.
-		got, err := splitEVPN([]byte{2}, false)
+		got, err := Split(famEVPN, []byte{2}, false)
 		assert.Error(t, err)
 		assert.Empty(t, got)
 	})
 
 	t.Run("length-exceeds-data", func(t *testing.T) {
 		// Declares length=10 but only 3 body bytes follow.
-		got, err := splitEVPN([]byte{2, 10, 1, 2, 3}, false)
+		got, err := Split(famEVPN, []byte{2, 10, 1, 2, 3}, false)
 		assert.Error(t, err)
 		assert.Empty(t, got)
 	})
@@ -77,7 +75,7 @@ func TestSplitEVPN_Malformed(t *testing.T) {
 			2, 3, 0x11, 0x22, 0x33, // good NLRI
 			4, 10, 0x44, // truncated -- claims len=10 but only 1 body byte
 		}
-		got, err := splitEVPN(data, false)
+		got, err := Split(famEVPN, data, false)
 		assert.Error(t, err)
 		require.Len(t, got, 1, "good NLRIs returned before the malformed one")
 		assert.Equal(t, []byte{2, 3, 0x11, 0x22, 0x33}, got[0])
@@ -86,9 +84,8 @@ func TestSplitEVPN_Malformed(t *testing.T) {
 
 // TestRegistryDispatchEVPN verifies EVPN is bound in the registry.
 func TestRegistryDispatchEVPN(t *testing.T) {
-	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
 	data := []byte{2, 3, 0x11, 0x22, 0x33}
-	got, err := Split(fam, data, false)
+	got, err := Split(famEVPN, data, false)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 }

@@ -24,15 +24,13 @@ const (
 // splitCIDR is the Splitter for families with [prefix-len(1 byte, bits)]
 // [address-bytes((prefix-len+7)/8)] wire NLRIs -- RFC 4271 unicast and
 // multicast for IPv4 / IPv6. Under ADD-PATH (RFC 7911) each NLRI is
-// prefixed with a 4-byte path-id that is included in the returned slice.
+// prefixed with a 4-byte path-id that is included in the visited slice.
 //
-// Walks the input twice: the first pass counts NLRIs so the returned
-// slice is pre-sized, the second fills it. Slices alias `data` -- callers
-// that need to retain bytes must copy. Returns an error when the first
-// malformed NLRI is encountered; any successfully-parsed NLRIs before
-// that point are still returned so partial processing is possible.
-func splitCIDR(data []byte, addPath bool) ([][]byte, error) {
-	return splitByBitLength(data, addPath, maxPrefixBits)
+// Slices alias `data` -- fn must copy what it retains. Returns an error
+// when the first malformed NLRI is encountered; the NLRIs before that
+// point have already been visited and are counted.
+func splitCIDR(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+	return splitByBitLength(data, addPath, maxPrefixBits, fn)
 }
 
 // splitVPN is the Splitter for MPLS VPN families (SAFI 128, RFC 4364 Section
@@ -40,77 +38,43 @@ func splitCIDR(data []byte, addPath bool) ([][]byte, error) {
 // length counts every one of those bits, so the same walk frames it -- with a
 // bound that admits a value above 128, which a prefix alone never reaches but a
 // label stack and a Route Distinguisher together always exceed.
-func splitVPN(data []byte, addPath bool) ([][]byte, error) {
-	return splitByBitLength(data, addPath, maxLengthOctetBits)
+func splitVPN(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+	return splitByBitLength(data, addPath, maxLengthOctetBits, fn)
 }
 
 // splitByBitLength walks NLRIs framed as [length(1 byte, in bits)][value bytes],
-// rejecting a length above maxBits.
-func splitByBitLength(data []byte, addPath bool, maxBits int) ([][]byte, error) {
-	if len(data) == 0 {
-		return nil, nil
-	}
-
-	count, countErr := countCIDR(data, addPath, maxBits)
-	if count == 0 {
-		return nil, countErr
-	}
-
-	result := make([][]byte, 0, count)
+// rejecting a length above maxBits. The walk is bounded by len(data): every
+// entry advances the offset by at least the length octet.
+func splitByBitLength(data []byte, addPath bool, maxBits int, fn func(nlri []byte)) (int, error) {
+	count := 0
 	offset := 0
 	for offset < len(data) {
 		start := offset
 		var prefixLen, nlriLen int
 
 		if addPath {
-			if offset+5 > len(data) {
-				return result, fmt.Errorf("nlrisplit: truncated ADD-PATH NLRI at offset %d", offset)
+			if start+5 > len(data) {
+				return count, fmt.Errorf("nlrisplit: truncated ADD-PATH NLRI at offset %d", start)
 			}
-			prefixLen = int(data[offset+4])
+			prefixLen = int(data[start+4])
 			nlriLen = 4 + 1 + (prefixLen+7)/8
 		} else {
-			prefixLen = int(data[offset])
+			prefixLen = int(data[start])
 			nlriLen = 1 + (prefixLen+7)/8
 		}
 
-		if prefixLen > maxBits {
-			return result, fmt.Errorf("nlrisplit: invalid prefix length %d (max %d)", prefixLen, maxBits)
-		}
-		if start+nlriLen > len(data) {
-			return result, fmt.Errorf("nlrisplit: NLRI at offset %d extends past data", start)
-		}
-
-		result = append(result, data[start:start+nlriLen])
-		offset = start + nlriLen
-	}
-	return result, nil
-}
-
-// countCIDR is a sizing pre-pass; returns the number of NLRIs in a
-// well-formed input and any error encountered.
-func countCIDR(data []byte, addPath bool, maxBits int) (int, error) {
-	count := 0
-	offset := 0
-	for offset < len(data) {
-		var prefixLen, nlriLen int
-		if addPath {
-			if offset+5 > len(data) {
-				return count, fmt.Errorf("nlrisplit: truncated ADD-PATH NLRI at offset %d", offset)
-			}
-			prefixLen = int(data[offset+4])
-			nlriLen = 4 + 1 + (prefixLen+7)/8
-		} else {
-			prefixLen = int(data[offset])
-			nlriLen = 1 + (prefixLen+7)/8
-		}
 		if prefixLen > maxBits {
 			return count, fmt.Errorf("nlrisplit: invalid prefix length %d (max %d)", prefixLen, maxBits)
 		}
-		if offset+nlriLen > len(data) {
-			return count, fmt.Errorf("nlrisplit: NLRI at offset %d extends past data", offset)
+		if start+nlriLen > len(data) {
+			return count, fmt.Errorf("nlrisplit: NLRI at offset %d extends past data", start)
+		}
+
+		if fn != nil {
+			fn(data[start : start+nlriLen])
 		}
 		count++
-		offset += nlriLen
+		offset = start + nlriLen
 	}
 	return count, nil
 }

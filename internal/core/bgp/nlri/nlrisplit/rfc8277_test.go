@@ -34,7 +34,7 @@ func TestLabeledRsrvIgnoredOnReceive(t *testing.T) {
 	assert.Equal(t, []uint32{100}, labels)
 	assert.Equal(t, []byte{8, 10}, cidr, "CIDR bytes are [prefix-bits][prefix]")
 
-	framed, err := SplitLabeled(conformant, false)
+	framed, err := splitAll(t, SplitLabeled, conformant, false)
 	require.NoError(t, err)
 	require.Len(t, framed, 1)
 	assert.Equal(t, conformant, framed[0])
@@ -46,7 +46,7 @@ func TestLabeledRsrvIgnoredOnReceive(t *testing.T) {
 	assert.Equal(t, labels, labelsR, "Rsrv bits must not alter the decoded label value")
 	assert.Equal(t, cidr, cidrR, "Rsrv bits must not alter the decoded prefix")
 
-	framedR, err := SplitLabeled(rsrvNonZero, false)
+	framedR, err := splitAll(t, SplitLabeled, rsrvNonZero, false)
 	require.NoError(t, err)
 	require.Len(t, framedR, 1)
 	assert.Equal(t, rsrvNonZero, framedR[0], "Rsrv bits must not alter NLRI framing")
@@ -72,7 +72,7 @@ func TestLabeledCompatibilityFieldWithdrawalGap(t *testing.T) {
 	assert.ErrorIs(t, err, errNlrisplitTruncatedLabelStack,
 		"gap RFC8277-2.4-1: the Compatibility field is parsed as a label stack entry instead of being ignored")
 
-	_, splitErr := SplitLabeled(withdrawal, false)
+	_, splitErr := splitAll(t, SplitLabeled, withdrawal, false)
 	assert.Error(t, splitErr,
 		"gap RFC8277-2.4-1: NLRI framing also depends on the Compatibility field's S bit")
 }

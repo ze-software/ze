@@ -577,34 +577,70 @@ func (s *Session) applyInstalledPrefixSections(sections []prefixSection, hasLimi
 // journal nothing, which is what makes the count immune to a repeated
 // announcement and to an unmatched withdrawal.
 func (s *Session) applyInstalledPrefixSection(sec prefixSection, hasLimits bool) (maximum uint32, over bool) {
-	set := s.prefixCounts.setFor(sec.fk)
-
-	hasMax := false
-	if hasLimits && sec.announce {
-		maximum, _, hasMax = s.prefixConfigLookup(sec.fk)
+	if s.prefixSetVisit == nil {
+		// A nil visitor would walk the section, count it, and change nothing, so
+		// the family would report an empty set with no error anywhere.
+		panic("BUG: applyInstalledPrefixSection: prefixSetVisit is unbound, so this Session did not come from NewSession")
 	}
 
-	forEachPrefixEntry(sec.fk, sec.bytes, sec.addPath, func(entry []byte) {
-		if over {
-			return
-		}
-		if !sec.announce {
-			if _, held := set[string(entry)]; !held {
-				return
-			}
-			delete(set, string(entry))
-			s.prefixSetJournal = append(s.prefixSetJournal, prefixSetChange{fk: sec.fk, entry: entry})
-			return
-		}
-		if _, held := set[string(entry)]; held {
-			return
-		}
-		set[string(entry)] = struct{}{}
-		s.prefixSetJournal = append(s.prefixSetJournal, prefixSetChange{fk: sec.fk, entry: entry, added: true})
-		over = hasMax && int64(len(set)) > int64(maximum)
-	})
+	w := &s.prefixSetWalk
+	w.set = s.prefixCounts.setFor(sec.fk)
+	w.fk = sec.fk
+	w.announce = sec.announce
+	w.maximum = 0
+	w.hasMax = false
+	w.over = false
 
-	return maximum, over
+	if hasLimits && sec.announce {
+		w.maximum, _, w.hasMax = s.prefixConfigLookup(sec.fk)
+	}
+
+	forEachPrefixEntry(sec.fk, sec.bytes, sec.addPath, s.prefixSetVisit)
+
+	return w.maximum, w.over
+}
+
+// prefixSetWalk is the state one call to applyInstalledPrefixSection hands its
+// visitor. It is a field of the Session rather than a closure because the
+// visitor reaches the family's splitter through a func value, which makes Go
+// treat it as escaping: a closure built for each NLRI section would then be one
+// heap allocation for every section of every inbound UPDATE. Bound once in
+// NewSession, it is none.
+//
+// One section is walked at a time, on the session read goroutine, so the fields
+// are overwritten for each section and never read across two of them.
+type prefixSetWalk struct {
+	session  *Session
+	set      map[string]struct{}
+	fk       uint32
+	maximum  uint32
+	announce bool
+	hasMax   bool
+	over     bool
+}
+
+// visit applies one NLRI to the family's set and journals the change it makes.
+// It stops changing anything once the family has crossed its maximum, which is
+// the bound that stops one over-limit message from growing the set by its own
+// length before the set is thrown away.
+func (w *prefixSetWalk) visit(entry []byte) {
+	if w.over {
+		return
+	}
+	if !w.announce {
+		if _, held := w.set[string(entry)]; !held {
+			return
+		}
+		delete(w.set, string(entry))
+		w.session.prefixSetJournal = append(w.session.prefixSetJournal, prefixSetChange{fk: w.fk, entry: entry})
+		return
+	}
+	if _, held := w.set[string(entry)]; held {
+		return
+	}
+	w.set[string(entry)] = struct{}{}
+	w.session.prefixSetJournal = append(w.session.prefixSetJournal, prefixSetChange{fk: w.fk, entry: entry, added: true})
+	w.over = w.hasMax && int64(len(w.set)) > int64(w.maximum)
 }
 
 // rollbackPrefixSets undoes every change this message made to an installed
@@ -896,17 +932,13 @@ func forEachPrefixEntry(fk uint32, data []byte, addPath bool, fn func(entry []by
 	// through, so asking it here makes the count agree with what the RIB stores,
 	// family by family, rather than approximating it.
 	if splitter := nlrisplit.Get(familyFromKey(fk)); splitter != nil {
-		entries, err := splitter(data, addPath)
-		// A malformed section returns what parsed before the corruption. Counting
+		// The splitter is a walk, so it visits the entries and counts them without
+		// building a slice: a nil fn here costs nothing at all. A malformed section
+		// stops at the corruption and returns what it visited before it. Counting
 		// those is right: they are the NLRIs the peer did send, and RFC 7606 has
 		// already ruled on the message by the time this runs.
-		_ = err
-		for _, entry := range entries {
-			if fn != nil {
-				fn(entry)
-			}
-		}
-		return len(entries)
+		count, _ := splitter(data, addPath, fn)
+		return count
 	}
 
 	count := 0

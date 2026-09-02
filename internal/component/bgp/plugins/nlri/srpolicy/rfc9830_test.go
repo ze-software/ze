@@ -126,7 +126,7 @@ func TestRFC9830NLRIAddressFamilies(t *testing.T) {
 	// RFC requirement: RFC9830-2.1-2 negative -- an NLRI carrying the other AFI's length is refused rather than read short: a 12-octet body is not an AFI 2 NLRI, and a length that is not a whole number of octets is refused outright
 	_, err = Parse(family.AFIIPv6, v4[1:])
 	require.ErrorIs(t, err, ErrSRPolicyTruncated)
-	_, err = SplitSRPolicy([]byte{100, 0, 0, 0, 0}, false)
+	_, err = SplitSRPolicy([]byte{100, 0, 0, 0, 0}, false, nil)
 	require.Error(t, err, "a length of 100 bits is not byte-aligned")
 }
 
