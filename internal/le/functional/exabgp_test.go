@@ -292,3 +292,52 @@ func exaBGPEffectiveEnvironment(entries []string) map[string]string {
 	}
 	return result
 }
+
+// TestExaBGPReportTextNamesTheChildThatCouldNotStart drives the stage with a
+// runner that answers what a missing executable answers: exit 127 and the
+// error the exec package produces. The method is runExaBGP plus the report's
+// own Text, which is the only string the verify sweep prints for this action.
+//
+// It exists because the stage answered 127 with an empty terminal on a runner
+// that has no uv: the cause was recorded in the report and nothing read it.
+func TestExaBGPReportTextNamesTheChildThatCouldNotStart(t *testing.T) {
+	root := exaBGPFixture(t)
+	recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
+		"exabgp": {
+			Error: `exec: "uv": executable file not found in $PATH`,
+			Code:  127,
+		},
+	}}
+
+	report, code := runExaBGP(t.Context(), root, recorder)
+	if code != 127 {
+		t.Fatalf("exit = %d, want 127", code)
+	}
+	text := report.Text()
+	for _, want := range []string{
+		"functional/exabgp-test: stage exabgp exited 127",
+		`exec: "uv": executable file not found in $PATH`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text does not name %q:\n%s", want, text)
+		}
+	}
+	if !strings.HasSuffix(text, "\n") {
+		t.Errorf("text does not end in a newline: %q", text)
+	}
+}
+
+// TestExaBGPReportTextSaysSomethingWhenEveryChildPassed pins the other half.
+// The Prose contract is that Text renders the whole answer, so a passing stage
+// says how many children ran rather than printing nothing at all.
+func TestExaBGPReportTextSaysSomethingWhenEveryChildPassed(t *testing.T) {
+	root := exaBGPFixture(t)
+
+	report, code := runExaBGP(t.Context(), root, &exaBGPRecorder{})
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if want := "functional/exabgp-test: 3 children passed\n"; report.Text() != want {
+		t.Errorf("text = %q, want %q", report.Text(), want)
+	}
+}

@@ -103,6 +103,41 @@ type exaBGPReport struct {
 	Code      int                 `json:"code"`
 }
 
+// Text names the setup error and every failing child, because nothing else
+// prints them: a child that RAN streamed its own output through the process
+// runner, and a child that never started has only this line
+// (plan/journal/failing-gate-prints-no-cause.md). A missing `uv` is the case
+// this exists for, since the stage then answers 127 with an empty terminal.
+func (r exaBGPReport) Text() string {
+	var tb textbuf.Buffer
+	action := r.Action
+	if action == "" {
+		action = exaBGPAction
+	}
+	if r.Error != "" {
+		tb.Str(action).Str(": ").Str(r.Error).Byte('\n')
+	}
+	for _, child := range r.Children {
+		if child.Code == 0 {
+			continue
+		}
+		tb.Str(action).Str(": stage ").Str(child.Stage).Str(" exited ").Int(int64(child.Code))
+		if child.Error != "" {
+			tb.Str(": ").Str(child.Error)
+		}
+		tb.Byte('\n')
+	}
+	if r.Cleanup.Error != "" {
+		tb.Str(action).Str(": cleanup of ").Str(r.Cleanup.Path).Str(" failed: ").
+			Str(r.Cleanup.Error).Byte('\n')
+	}
+	if tb.Len() != 0 {
+		return tb.String()
+	}
+	return tb.Str(action).Str(": ").Int(int64(len(r.Children))).
+		Str(" children passed\n").String()
+}
+
 // runExaBGP builds the exact ze and ze-test subjects, then runs every ExaBGP
 // compatibility case through uv. A nil runner selects the real process runner.
 // The first failing child supplies both the report code and the returned code.

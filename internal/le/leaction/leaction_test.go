@@ -404,3 +404,83 @@ func TestAHelpWordAnswersUsageAndRunsNothing(t *testing.T) {
 		t.Errorf("the area's own help answered %v, %d", answer, code)
 	}
 }
+
+// proseAnswer is a native action's answer that renders itself, which is what
+// leroot.Prose asks of a payload the dispatcher prints.
+type proseAnswer struct{ line string }
+
+// Text renders the whole answer, ending in a newline.
+func (p proseAnswer) Text() string { return p.line + "\n" }
+
+// unterminatedAnswer renders itself WITHOUT the closing newline, which the
+// dispatcher supplies for a bare Prose answer. Several native reports are
+// written that way, and a sweep prints a summary line after them.
+type unterminatedAnswer struct{ line string }
+
+// Text renders the whole answer, with no trailing newline.
+func (u unterminatedAnswer) Text() string { return u.line }
+
+// TestSweepTextNamesTheCauseAFailingReportHolds drives Sweep over one passing
+// and one failing action, both answering a payload that renders itself. The
+// method is Sweep.Text, which is the only string the dispatcher prints for an
+// area invoked with no pipe operator.
+//
+// It exists because a native action holds its cause in SweepRow.Answer and
+// streams nothing: `./le functional exabgp-test` answered 127 with "Failed:
+// exabgp-test" and no reason, while the report named the child that could not
+// start (plan/journal/failing-gate-prints-no-cause.md).
+func TestSweepTextNamesTheCauseAFailingReportHolds(t *testing.T) {
+	area := New("probe",
+		Action{
+			Verb: "green", Why: "a probe that passes",
+			Answer: func() (any, int) { return proseAnswer{"green did its work"}, 0 },
+		},
+		Action{
+			Verb: "red", Why: "a probe that fails",
+			Answer: func() (any, int) { return unterminatedAnswer{"red could not start uv"}, 127 },
+		},
+	)
+
+	answer, code := area.Sweep([]string{"green", "red"}, RunEveryAction)
+	if code != 127 {
+		t.Fatalf("sweep code = %d, want 127", code)
+	}
+	sweep, isSweep := answer.(Sweep)
+	if !isSweep {
+		t.Fatalf("sweep answered %T, want a Sweep payload", answer)
+	}
+	text := sweep.Text()
+	if !strings.Contains(text, "red could not start uv") {
+		t.Errorf("the failing report's cause is absent:\n%s", text)
+	}
+	if strings.Contains(text, "green did its work") {
+		t.Errorf("a passing action's report was printed:\n%s", text)
+	}
+	// The report is written without a closing newline, so the summary would
+	// share its line if the sweep did not close it.
+	if !strings.HasSuffix(text, "red could not start uv\nFailed: red\n") {
+		t.Errorf("the summary line does not close the text on its own line:\n%s", text)
+	}
+}
+
+// TestSweepTextStaysAsummaryWhenNothingFailed pins the other half: a sweep that
+// passed prints its count and no report, so an area whose actions stream their
+// own output does not print it twice.
+func TestSweepTextStaysASummaryWhenNothingFailed(t *testing.T) {
+	area := New("probe", Action{
+		Verb: "green", Why: "a probe that passes",
+		Answer: func() (any, int) { return proseAnswer{"green did its work"}, 0 },
+	})
+
+	answer, code := area.Sweep([]string{"green"}, RunEveryAction)
+	if code != 0 {
+		t.Fatalf("sweep code = %d, want 0", code)
+	}
+	sweep, isSweep := answer.(Sweep)
+	if !isSweep {
+		t.Fatalf("sweep answered %T, want a Sweep payload", answer)
+	}
+	if want := "\nprobe: 1 action(s) passed.\n"; sweep.Text() != want {
+		t.Errorf("text = %q, want %q", sweep.Text(), want)
+	}
+}

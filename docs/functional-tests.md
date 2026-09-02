@@ -8,7 +8,7 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 
 ```bash
 # Quick start
-./le functional                    # Run all release-gate suites
+./le functional gating             # Run all release-gate suites
 ./le functional encode             # Encoding tests only
 ./le functional plugin             # Plugin tests only
 ./le functional reload             # Reload tests only
@@ -340,7 +340,7 @@ which kills leaked `ze` daemons and mock servers with it.
 Override any of them on the command line:
 
 ```bash
-ZE_SUITE_TIMEOUT=1200s ./le functional
+ZE_SUITE_TIMEOUT=1200s ./le functional gating
 ZE_SUITE_TIMEOUT_PLUGIN=1800s ./le functional plugin
 ```
 
@@ -369,7 +369,7 @@ The retired orchestration required four edits that a test had to hold in step,
 since the budget could be spelled in one place and not another: the run would
 then say 1500s while the kill landed at 600s.
 
-`./le functional` prints one runtime line per suite, and a table of all
+`./le functional gating` prints one runtime line per suite, and a table of all
 of them at the end:
 
 ```
@@ -2429,6 +2429,12 @@ summary format as the other functional suites. The public action is:
 ./le functional exabgp-test
 ```
 <!-- source: internal/test/cli/cmd_exabgp.go -- native selection and progress output -->
+
+The stage runs the suite through `uv run --with paramiko`, so `uv` must be on
+PATH. `./le setup install` does not install it; the CI runner installs it in
+`.github/workflows/verify.yml`. Without it the stage exits 127, and the report
+names the child that could not start.
+<!-- source: internal/le/functional/exabgp.go -- exaBGPCommands and exaBGPReport.Text -->
 
 ---
 

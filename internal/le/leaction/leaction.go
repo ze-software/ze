@@ -371,15 +371,46 @@ type Sweep struct {
 	Failed []string   `json:"failed"`
 }
 
-// Text renders the failures by name, or the count that passed. Each action's
-// own output has already streamed to the terminal by the time this is read.
+// prose is a payload that renders itself, which is what leroot.Prose asks of a
+// native action's answer. It is matched structurally here rather than imported,
+// because the action library must not depend on the dispatcher that runs it.
+type prose interface{ Text() string }
+
+// Text renders the failures by name, or the count that passed.
+//
+// An action that runs a subprocess has already streamed its own output to the
+// terminal by the time this is read. An action whose answer is a REPORT has
+// not: nothing else prints it, so the operator sees "Failed: <verb>" and no
+// cause (plan/journal/failing-gate-prints-no-cause.md). A failing row that
+// renders itself is therefore rendered above the summary. A passing row is
+// not, so an area whose actions stream does not print its output twice.
 func (s Sweep) Text() string {
 	var tb textbuf.Buffer
 	tb.Byte('\n')
-	if len(s.Failed) > 0 {
-		return tb.Str("Failed: ").Join(s.Failed, ", ").Byte('\n').String()
+	if len(s.Failed) == 0 {
+		return tb.Str(s.Area).Str(": ").Int(int64(len(s.Ran))).Str(" action(s) passed.\n").String()
 	}
-	return tb.Str(s.Area).Str(": ").Int(int64(len(s.Ran))).Str(" action(s) passed.\n").String()
+	for _, row := range s.Ran {
+		if row.Code == 0 {
+			continue
+		}
+		report, renders := row.Answer.(prose)
+		if !renders {
+			continue
+		}
+		text := report.Text()
+		if text == "" {
+			continue
+		}
+		tb.Str(text)
+		// The dispatcher closes a bare Prose answer itself, so a report is
+		// free to end without a newline. Here the summary follows it, and the
+		// two would share a line.
+		if !strings.HasSuffix(text, "\n") {
+			tb.Byte('\n')
+		}
+	}
+	return tb.Str("Failed: ").Join(s.Failed, ", ").Byte('\n').String()
 }
 
 // Sweep runs the actions named in args, in order, and answers the first failing
