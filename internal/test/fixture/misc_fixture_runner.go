@@ -16,6 +16,27 @@ func init() {
 	Register("runner/verify-scope-debt-clear", verifyScopeDebtClearDriver)
 	Register("runner/verify-scope-debt-clear-gate", verifyScopeDebtGateDriver)
 	Register("runner/verify-scope-wiring-attribution", verifyScopeWiringDriver)
+	Register("runner/exec-quoted-argument", execQuotedArgumentDriver)
+}
+
+// execQuotedArgumentWant is the single argument test/runner/exec-quoted-argument.ci
+// quotes on its exec= line. It carries the two characters that a whitespace
+// split destroys: a space and a pipe.
+const execQuotedArgumentWant = "one | two three"
+
+// execQuotedArgumentDriver fails unless the runner handed the quoted exec=
+// argument over as ONE argv element. A whitespace split delivers four elements
+// (`"one`, `|`, `two`, `three"`), so this fixture is red against a runner that
+// does not honor the quotes.
+func execQuotedArgumentDriver(_ context.Context, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("argv has %d elements %q, want 1 element %q", len(args), args, execQuotedArgumentWant)
+	}
+	if args[0] != execQuotedArgumentWant {
+		return fmt.Errorf("argv[0] = %q, want %q", args[0], execQuotedArgumentWant)
+	}
+	fmt.Println("quoted-argument-intact")
+	return nil
 }
 
 func rawCommand(ctx context.Context, dir string, env []string, name string, args ...string) (string, int, error) {

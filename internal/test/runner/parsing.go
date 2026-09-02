@@ -24,7 +24,6 @@ import (
 var (
 	errNoConfigContentOrCommandsFound        = errors.New("no config content or commands found")
 	errExpectedFailureButValidationSucceeded = errors.New("expected failure but validation succeeded")
-	errEmptyCommand                          = errors.New("empty command")
 )
 
 // ciCommand holds a parsed cmd= line and its associated expectations.
@@ -751,45 +750,6 @@ func (r *parsingRunner) runLegacyTest(ctx context.Context, test *parsingTest) bo
 	}
 
 	return true
-}
-
-// splitCommand splits on whitespace, respecting single/double quotes.
-// Does not handle backslash escapes; .ci exec= values do not use them.
-func splitCommand(s string) ([]string, error) {
-	var args []string
-	var current strings.Builder
-	var inQuote rune
-
-	for _, r := range s {
-		switch {
-		case inQuote != 0:
-			if r == inQuote {
-				inQuote = 0
-			} else {
-				current.WriteRune(r)
-			}
-		case r == '"' || r == '\'':
-			inQuote = r
-		case r == ' ' || r == '\t':
-			if current.Len() > 0 {
-				args = append(args, current.String())
-				current.Reset()
-			}
-		default:
-			current.WriteRune(r)
-		}
-	}
-
-	if inQuote != 0 {
-		return nil, fmt.Errorf("unclosed quote in %q", s)
-	}
-	if current.Len() > 0 {
-		args = append(args, current.String())
-	}
-	if len(args) == 0 {
-		return nil, errEmptyCommand
-	}
-	return args, nil
 }
 
 func containsDash(parts []string) bool {

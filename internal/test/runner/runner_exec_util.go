@@ -25,6 +25,48 @@ import (
 
 var errEmptyExecCommand = errors.New("empty exec command")
 
+// splitCommand splits an exec= value into argv on space and tab, and keeps a
+// quoted span as one argument. Every suite runs through it, so one .ci line
+// produces one argv: `ze cli -c "validate config bad.conf | json"` hands -c the
+// whole pipeline rather than the word `"validate`.
+// Backslash escapes are not handled; no exec= value uses one.
+func splitCommand(s string) ([]string, error) {
+	var args []string
+	var current strings.Builder
+	var inQuote rune
+
+	for _, r := range s {
+		switch {
+		case inQuote != 0:
+			if r == inQuote {
+				inQuote = 0
+			} else {
+				current.WriteRune(r)
+			}
+		case r == '"' || r == '\'':
+			inQuote = r
+		case r == ' ' || r == '\t':
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	if inQuote != 0 {
+		return nil, fmt.Errorf("unclosed quote in %q", s)
+	}
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+	if len(args) == 0 {
+		return nil, errEmptyExecCommand
+	}
+	return args, nil
+}
+
 // errNetnsNeedsUID is returned when ZE_TEST_NETNS is active but no valid
 // non-root ZE_TEST_UID is configured. ze must run as a normal user in the netns
 // (A-4), so this is a setup error, not a silent root run.
