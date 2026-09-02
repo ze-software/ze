@@ -30,11 +30,21 @@ func readEdited(ctx context) string {
 	return string(body)
 }
 
+// generatedMarkerRE is the line Go defines for generated source. One line, at
+// the start of a line, exactly as `go generate` specifies it.
+var generatedMarkerRE = regexp.MustCompile(`(?m)^// Code generated .* DO NOT EDIT\.$`)
+
 // ze point: quality/linting/fix-lint-issues-never-disable-a-linter
 // postFormatGo formats the edited Go file, then refuses it while the linter
-// still reports an issue in its package.
+// still reports an issue in its package. A generated file is left as its
+// generator wrote it: formatting one here writes a shape the generator will
+// never reproduce, and the output check that compares the two then reads the
+// file as out of date with nothing in the tree to explain why.
 func postFormatGo(ctx context) *verdict {
 	if !existingGo(ctx, false) {
+		return nil
+	}
+	if generatedMarkerRE.MatchString(readEdited(ctx)) {
 		return nil
 	}
 	module := filepath.Dir(absolutePath(ctx))

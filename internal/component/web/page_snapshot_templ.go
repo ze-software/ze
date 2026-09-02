@@ -7,10 +7,8 @@ package web
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import (
-	"github.com/a-h/templ"
-	templruntime "github.com/a-h/templ/runtime"
-)
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
 
 // snapshotPage is the standalone read-only view of one command's JSON. The
 // IS-IS and OSPF neighbor and database pages are the same shell, differing only
