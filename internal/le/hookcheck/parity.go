@@ -22,10 +22,10 @@ const (
 )
 
 var parityCatalogDigest = [sha256.Size]byte{
-	0x9e, 0x56, 0x5d, 0xe4, 0x10, 0x29, 0x9e, 0x9d,
-	0xe6, 0x18, 0x48, 0x46, 0x1d, 0x03, 0x9c, 0xd3,
-	0xd4, 0xf8, 0x8d, 0x92, 0x55, 0xd0, 0xc6, 0x64,
-	0xd7, 0xae, 0x22, 0x20, 0x14, 0x80, 0xb7, 0x08,
+	0x31, 0x2c, 0x57, 0xe8, 0xaf, 0xce, 0xa9, 0xbf,
+	0x8d, 0x3e, 0xb4, 0x5f, 0x59, 0x82, 0x47, 0xaa,
+	0x21, 0xc8, 0x2c, 0x20, 0x88, 0xe6, 0x9d, 0x96,
+	0x0a, 0xfd, 0x9c, 0xf6, 0x69, 0x4b, 0xb2, 0x3c,
 }
 
 var (
@@ -35,6 +35,11 @@ var (
 			`(?:(?:\./)?bin/ze-test|(?:/\S*/)?tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[^/\s]+/bin/ze-test)\b|` +
 			`(?:(?:\./)?bin/ze|ze)\s+le\s+hook-check\s+unit\b)[^;&\n]*?(?:\||\|&)\s*(?:head|tail|grep)\b`,
 	)
+	// cheapVerifyArea names the le areas that live under the `verify` word and
+	// run nothing: they read and write the verification certificate. The
+	// expensive pattern above matches `le verify` and RE2 has no lookahead, so
+	// the cheap area is removed from the text before that pattern is applied.
+	cheapVerifyArea = regexp.MustCompile(`(?:\./)?\ble\s+verify\s+(?:status|summary)\b`)
 	rawGoTest       = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?go\s+test\b`)
 	rawLint         = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+\S+\s+)?golangci-lint\s+run\b`)
 	rawZeTest       = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+\S+\s+)?(?:(?:\./)?bin/ze-test(?:-linux-[^\s/]*)?|(?:/\S*/)?tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[^/\s]+/bin/ze-test(?:-linux-[^\s/]*)?)\b`)
@@ -145,7 +150,7 @@ func bashCode(command string) int {
 	if strings.Contains(command, "rm internal/") && strings.Contains(command, "_test.go") {
 		return 2
 	}
-	if unboundedWait(command) || rawJob(command) || expensivePipe.MatchString(command) {
+	if unboundedWait(command) || rawJob(command) || lossyPipe(command) {
 		return 2
 	}
 	if match := rootScratch.FindStringSubmatch(scratchText(command)); len(match) == 2 &&
@@ -153,6 +158,13 @@ func bashCode(command string) int {
 		return 2
 	}
 	return 0
+}
+
+// lossyPipe answers whether an expensive command's output is piped into a
+// filter that drops lines. It mirrors bashLossyPipe in the hook itself
+// (internal/le/hookruntime/bash.go), which reads the same two-word area.
+func lossyPipe(command string) bool {
+	return expensivePipe.MatchString(cheapVerifyArea.ReplaceAllString(command, ""))
 }
 
 func rawJob(command string) bool {

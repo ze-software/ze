@@ -292,16 +292,36 @@ func commandExpensive(segment string) bool {
 	if base == "golangci-lint" || base == "ze-test" || strings.HasPrefix(base, "ze-test-") {
 		return true
 	}
-	heavyArea := func(area string) bool {
-		return oneOf(area, "verify", "functional", "integration", "qemu", "test-unit", "verify deps", "verify lint")
-	}
 	if base == "le" {
-		return len(tokens) > 1 && heavyArea(tokens[1])
+		return heavyArea(tokens[1:])
 	}
 	if strings.HasPrefix(base, "ze") && len(tokens) > 2 && tokens[1] == "le" {
-		return heavyArea(tokens[2])
+		return heavyArea(tokens[2:])
 	}
 	return false
+}
+
+// heavyArea answers whether the le area the words name runs tests, a build, or
+// the verification gate. An area name is two words since the command grouping,
+// so the two-word name is read before the one-word name: `le verify status` and
+// `le verify summary` read and write the verification certificate and run
+// nothing, while every other area under `verify` runs the gate.
+//
+// The suites stopped running on their bare name, so `le functional` and
+// `le test-unit` print a listing and the run needs `gating` or `all`. `le
+// verify` still runs the gate on its bare name, which is why the exemption
+// names the two areas rather than the shape.
+func heavyArea(words []string) bool {
+	if len(words) == 0 {
+		return false
+	}
+	if len(words) == 1 && oneOf(words[0], "functional", "test-unit") {
+		return false
+	}
+	if len(words) > 1 && words[0] == "verify" && oneOf(words[1], "status", "summary") {
+		return false
+	}
+	return oneOf(words[0], "verify", "functional", "integration", "qemu", "test-unit")
 }
 
 // ze point: commands/no-pipes-on-expensive-commands/never-pipe-an-expensive-command-read-the-log

@@ -124,7 +124,7 @@ passes, and so do the root names that are shared by design: `ze-verify*`,
 
 ```
 dir=$(./le session scratch ensure)          # <session-dir>/scratch/, created for you
-./le test-unit > "$dir/unit.log" 2>&1
+./le test-unit all > "$dir/unit.log" 2>&1
 ```
 
 Nothing under `tmp/session/` is deleted automatically: not at session end, not on
@@ -256,6 +256,13 @@ published at four stable paths (`internal/le/verify/engine/artifacts.go`):
 
 Piping such a run through `head` or `grep` loses the failure line and costs a
 re-run. Run it clean, then read the log with paging.
+
+The pretool-bash guard refuses that pipe for the areas that RUN something:
+`verify`, `verify lock`, `verify deps`, `verify lint`, `functional`,
+`integration`, `qemu` and `test-unit` (`heavyArea` in
+`internal/le/hookruntime/bash.go`). It reads the two-word area name, so
+`./le verify status check` and `./le verify summary` stay pipeable: they read
+and write the verification certificate and start no run.
 
 ## Why one owner runs the suites
 

@@ -188,3 +188,46 @@ func TestGovernedWriteLeavesReadsAlone(t *testing.T) {
 		})
 	}
 }
+
+// TestLossyPipeReadsTheTwoWordArea drives the pretool-bash hook with one piped
+// command for each side of the area boundary. The method is the hook's own
+// entry point, so the tokenizer, heavyArea and bashLossyPipe are judged
+// together.
+//
+// It exists because `le verify-status` became `le verify status` when the
+// commands were grouped, and the guard read only the first word: a certificate
+// read piped into `tail` was refused with the message the verification gate
+// owns, while nothing in the tree said the area had changed meaning.
+func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		blocked bool
+	}{
+		{"verify-gate", `./le verify current mode full | tail -5`, true},
+		{"verify-lint", `./le verify lint run | grep issues`, true},
+		{"verify-deps", `./le verify deps unit-cached | head -20`, true},
+		{"verify-status", `./le verify status check | tail -1`, false},
+		{"verify-summary", `./le verify summary append | head -2`, false},
+		{"ze-le-verify-gate", `ze le verify current mode full | tail -5`, true},
+		{"ze-le-verify-status", `ze le verify status check | tail -1`, false},
+		{"functional-run", `./le functional gating | tail -5`, true},
+		{"functional-listing", `./le functional | head -20`, false},
+		{"unit-run", `./le test-unit all | tail -5`, true},
+		{"unit-listing", `./le test-unit | head -20`, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": test.command},
+			})
+			refused := strings.Contains(message, "piping an expensive command's output")
+			if refused != test.blocked {
+				t.Fatalf("%q: refused = %t code = %d, want refused %t: %s",
+					test.command, refused, code, test.blocked, message)
+			}
+		})
+	}
+}

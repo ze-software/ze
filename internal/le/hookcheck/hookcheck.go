@@ -82,6 +82,10 @@ type Report struct {
 
 // Text renders the selftest summary while keeping the report available to data
 // pipe operators.
+//
+// Every failing result is named under the summary, because this string is the
+// only thing the sweep prints: a count with no cause leaves the operator with
+// nothing to act on (plan/journal/failing-gate-prints-no-cause.md).
 func (r Report) Text() string {
 	passed := 0
 	for _, result := range r.Results {
@@ -90,8 +94,22 @@ func (r Report) Text() string {
 		}
 	}
 	var tb textbuf.Buffer
-	return tb.Str("hook native selftest: ").Int(int64(passed)).Byte('/').
-		Int(int64(len(r.Results))).Str(" passed\n").String()
+	tb.Str("hook native selftest: ").Int(int64(passed)).Byte('/').
+		Int(int64(len(r.Results))).Str(" passed\n")
+	for _, result := range r.Results {
+		if result.Passed {
+			continue
+		}
+		tb.Str("  FAIL ").Str(result.Name).Str(" (exit ").Int(int64(result.Code)).Str("): ")
+		if result.Message == "" {
+			// A failing result with no message is a defect in the check that
+			// produced it, so say that rather than print an empty reason.
+			tb.Str("no cause recorded by the check\n")
+			continue
+		}
+		tb.Str(result.Message).Byte('\n')
+	}
+	return tb.String()
 }
 
 // Run evaluates all typed dispatcher rows and behavioral fixture categories.

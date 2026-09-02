@@ -8,6 +8,7 @@
 package hookcheck
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -466,4 +467,63 @@ func copyHookSources(t *testing.T) string {
 		}
 	}
 	return root
+}
+
+// TestEveryStoredDigestMatchesTheTreeItRatchets recomputes each stored digest
+// from the data it ratchets and compares it with the constant in the package.
+// A stale constant is what `./le hook-check unit` reports, and nothing in the
+// unit gate saw it: three commits landed a renamed fixture, a moved producer
+// package and a changed hook while every test here stayed green, because each
+// one only asserts that a MUTATED input differs from the constant, which a
+// stale constant satisfies too.
+//
+// The failure prints the replacement literal, so re-baselining a ratchet is a
+// paste rather than a hand-written hex table.
+func TestEveryStoredDigestMatchesTheTreeItRatchets(t *testing.T) {
+	sources, err := hookSourceContentDigest(hookCheckout(t))
+	if err != nil {
+		t.Fatalf("read hook sources: %v", err)
+	}
+	ratchets := []struct {
+		name    string
+		current [32]byte
+		stored  [32]byte
+	}{
+		{"parityCatalogDigest", parityDigest(parityCatalog[:]), parityCatalogDigest},
+		{"fixtureSiteDigest", fixtureSiteContentDigest(fixtureSites[:]), fixtureSiteDigest},
+		{"fixtureCatalogDigest", fixtureDigest(fixtureCatalog), fixtureCatalogDigest},
+		{"fixtureCategoryDigest", categoryDigest(fixtureCategories[:]), fixtureCategoryDigest},
+		{
+			"fixtureBoundaryDigest",
+			producerBoundaryDigest(fixtureProducerBoundaries[:]),
+			fixtureBoundaryDigest,
+		},
+		{"hookSourcesDigest", sources, hookSourcesDigest},
+	}
+	for _, ratchet := range ratchets {
+		if ratchet.current == ratchet.stored {
+			continue
+		}
+		t.Errorf("%s is stale: the data it ratchets changed and the constant did not.\n"+
+			"Review the change, then replace the constant with:\n%s",
+			ratchet.name, goByteLiteral(ratchet.current))
+	}
+}
+
+// goByteLiteral renders a digest as the body of the Go array literal the
+// package stores, eight bytes to a line and indented with two tabs.
+func goByteLiteral(digest [32]byte) string {
+	var out strings.Builder
+	for index, value := range digest {
+		if index%8 == 0 {
+			out.WriteString("\t\t")
+		}
+		fmt.Fprintf(&out, "0x%02x,", value)
+		if index%8 == 7 {
+			out.WriteByte('\n')
+			continue
+		}
+		out.WriteByte(' ')
+	}
+	return out.String()
 }
