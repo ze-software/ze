@@ -383,8 +383,9 @@ func TestValidateMessageLength(t *testing.T) {
 		{"KEEPALIVE too long", msgtype.TypeKEEPALIVE, 20, true},
 		{"KEEPALIVE way too long", msgtype.TypeKEEPALIVE, 100, true},
 
-		// ROUTE-REFRESH: header floor only. RFC 7313 exact body length errors
-		// are emitted by receive-path validation as ROUTE-REFRESH Message Error.
+		// ROUTE-REFRESH: header floor only. The exact body length is checked by
+		// receive-path validation, which picks the error code its RFC scopes to
+		// the message (session_handlers.go, validateRouteRefreshLength).
 		{"ROUTE-REFRESH header only", msgtype.TypeROUTEREFRESH, 19, false},
 		{"ROUTE-REFRESH below body length", msgtype.TypeROUTEREFRESH, 22, false},
 		{"ROUTE-REFRESH at exact body length", msgtype.TypeROUTEREFRESH, 23, false},
