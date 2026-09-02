@@ -53,7 +53,7 @@ require (
 	golang.org/x/tools/gopls v0.0.0-20260827201838-8471f958f05f // first Go 1.27-compatible revision after v0.23.0
 	golang.org/x/vuln v1.6.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
-	google.golang.org/grpc v1.83.0
+	google.golang.org/grpc v1.83.1
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.2
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
