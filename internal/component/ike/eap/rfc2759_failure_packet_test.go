@@ -85,9 +85,9 @@ func mschapv2Failure(msID uint8, message string) *Packet {
 // failureField returns the value of one space-delimited field of a Failure
 // Message, and reports whether the field is present.
 func failureField(message, prefix string) (string, bool) {
-	for _, field := range strings.Split(message, " ") {
-		if strings.HasPrefix(field, prefix) {
-			return strings.TrimPrefix(field, prefix), true
+	for field := range strings.SplitSeq(message, " ") {
+		if value, found := strings.CutPrefix(field, prefix); found {
+			return value, true
 		}
 	}
 	return "", false
