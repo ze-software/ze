@@ -32,9 +32,21 @@ var ErrCustomValidation = errors.New("config validation failed")
 // non-test callers are `ze doctor` (checkBGPPeerConfig) and `ze config
 // validate` (runValidation), and neither of those is the startup path.
 //
-// The list is deliberately the one `ze config validate` has always walked, and
-// this change does not widen it. Two properties of it are known and recorded
-// rather than fixed here (plan/journal/gate-excludes-part-of-its-population.md):
+// `service` was added on 2026-09-02, and it is the one widening that carries no
+// blast radius. The three defects below each gate a validator NAME, and none of
+// those names appears under `service`: the only two there are `ipv4-address`
+// and `ipv4-prefix`, both pure form checks over the value in hand, reading no
+// registry and depending on no startup order. Before it was added, a
+// `ze:validate` under `service` loaded, passed CheckAllValidatorsRegistered and
+// never ran, so `ze config validate` accepted a DHCP `default-router` of
+// 2001:db8::1 against `ze:validate "ipv4-address"`. The parse, install and ui
+// suites carry the 22 service-bearing configs in the tree and stay green.
+//
+// `static` is the same shape and is NOT added here, because nothing has walked
+// its configs to measure what its two prefix validators would newly refuse.
+//
+// Two further properties of the list are known and recorded rather than fixed
+// here (plan/journal/gate-excludes-part-of-its-population.md):
 //
 //   - Six names -- web, ssh, dns, looking-glass, mcp, managed -- are not
 //     top-level sections. They sit under `environment`, which the list omits, so
@@ -52,7 +64,7 @@ var ErrCustomValidation = errors.New("config validation failed")
 var validatedSections = []string{
 	sectionInterface, "sysctl", "fib", sectionPlugin, sectionWeb, "ssh", "dns",
 	sectionTelemetry, sectionLookingGlass, "mcp", "managed", "vpp",
-	"vpn", "pki", "l2tp", "isis", "ospf",
+	"vpn", "pki", "l2tp", "isis", "ospf", "service",
 }
 
 // SectionValidationError is one failure the walk found, paired with the

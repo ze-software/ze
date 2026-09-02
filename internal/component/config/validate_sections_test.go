@@ -162,3 +162,23 @@ func TestValidatedSectionsExcludesBGP(t *testing.T) {
 		}
 	}
 }
+
+// TestValidatedSectionsIncludesService pins the 2026-09-02 widening. The goal
+// is that a ze:validate annotation under `service` actually runs; the method is
+// to read the list the walk iterates, because that membership is the whole
+// mechanism. Before the widening, `ze config validate` accepted a DHCP
+// `default-router` of 2001:db8::1 against `ze:validate "ipv4-address"`, and the
+// annotation still passed CheckAllValidatorsRegistered, so nothing anywhere
+// reported the gap. Drop "service" from validatedSections and this goes red.
+//
+// `service` is safe to walk where `bgp` and `redistribute` are not: the only
+// validator names under it are ipv4-address and ipv4-prefix, both pure form
+// checks that read no registry and depend on no startup order.
+func TestValidatedSectionsIncludesService(t *testing.T) {
+	for _, s := range validatedSections {
+		if s == "service" {
+			return
+		}
+	}
+	t.Error("\"service\" is absent from validatedSections, so every ze:validate under it is inert")
+}
