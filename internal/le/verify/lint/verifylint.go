@@ -136,7 +136,18 @@ type Runner struct {
 	configTags []string
 	config     []byte
 	ops        runnerOps
+	// progress is the second place every child's output goes, on top of the
+	// operator's terminal. It is the log a job.Ticket holder owes the admission
+	// registry: the breaker reads its growth as liveness, and a session that
+	// attaches to this run replays it instead of linting the tree twice. A run
+	// that holds no slot leaves it nil.
+	progress io.Writer
 }
+
+// Progress names the file this run copies every child's output to. Actions
+// hands it the log of the job slot the run holds, and leaves it unset for a run
+// that holds none.
+func (r *Runner) Progress(writer io.Writer) { r.progress = writer }
 
 // NewRunner loads the current toolchain and lint configuration and refuses a
 // missing required executable before any population query starts.
@@ -644,6 +655,14 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 	// Collects the files the children's findings name, so a red can be charged
 	// to the commits that touch them rather than to every commit in the checkout.
 	collector := newPathCollector()
+	// The collector reads the file names out of the child output. When this run
+	// holds a job slot, that same output is also the record the slot owes:
+	// its arrival is the liveness the breaker reads, and its findings are what
+	// an attaching session replays in place of a second lint.
+	watch := io.Writer(collector)
+	if r.progress != nil {
+		watch = io.MultiWriter(collector, r.progress)
+	}
 	report := Report{Passes: make([]PassResult, 0, len(plan.Passes)), Coverage: plan.Coverage}
 	reportCoverage := plan.reportCoverage ||
 		plan.Coverage.Population != 0 ||
@@ -695,7 +714,7 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 			outputReady = false
 			break
 		}
-		code, runErr := r.ops.stream(r.ctx, pass.Command, r.root, pass.Environment, collector)
+		code, runErr := r.ops.stream(r.ctx, pass.Command, r.root, pass.Environment, watch)
 		result.Code = code
 		if code != 0 {
 			if report.Code == 0 {

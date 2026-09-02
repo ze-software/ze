@@ -718,3 +718,59 @@ func TestRepositoryConfigurationDefinesCompileOutDrops(t *testing.T) {
 		t.Fatalf("compile-out drops %q, want current config features %q", compileOut.Without, features)
 	}
 }
+
+// A run that holds a job slot owes the registry a log. The breaker reads its
+// growth as liveness, and a session that attaches replays it instead of linting
+// the tree a second time, so the child output has to reach it byte for byte.
+func TestExecuteCopiesChildOutputToTheSlotLog(t *testing.T) {
+	root, _ := lintFixture(t)
+	const finding = "internal/le/verify/lint/verifylint.go:12:3: something (errcheck)\n"
+	ops := runnerOps{
+		lookPath: func(name string) (string, error) { return name, nil },
+		capture:  func(context.Context, []string, string, []string) commandResult { return commandResult{} },
+		stream: func(_ context.Context, _ []string, _ string, _ []string, watch io.Writer) (int, error) {
+			if _, err := io.WriteString(watch, finding); err != nil {
+				return 2, err
+			}
+			return 1, nil
+		},
+	}
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+	var slotLog strings.Builder
+	runner.Progress(&slotLog)
+	plan := LintPlan{
+		Passes:   []PassPlan{{Name: "host", Command: []string{lintProgram, "run", "first"}, Packages: []string{"first"}}},
+		Coverage: population.Coverage{Population: 1, Walked: 1},
+	}
+	report, code := runner.execute(plan)
+	if code != 1 {
+		t.Fatalf("execute code = %d, want the child's 1", code)
+	}
+	if slotLog.String() != finding {
+		t.Fatalf("slot log = %q, want the child output %q", slotLog.String(), finding)
+	}
+	want := []string{"internal/le/verify/lint/verifylint.go"}
+	if !reflect.DeepEqual(report.FailingPaths, want) {
+		t.Fatalf("failing paths = %q, want %q: the log must not cost the collector its copy", report.FailingPaths, want)
+	}
+}
+
+// A scoped lint and a full lint do different work. The registry shares a verdict
+// between two jobs whose work keys match, so the two must not fingerprint alike:
+// a scoped run borrowing a full run's green would report packages nobody linted.
+func TestJobArgvSeparatesAFullRunFromAScopedRun(t *testing.T) {
+	full := jobArgv(leaction.Arguments{})
+	scoped := jobArgv(leaction.Arguments{"scope": "./internal/le ./cmd/ze"})
+	if reflect.DeepEqual(full, scoped) {
+		t.Fatalf("full and scoped runs share one work identity %q", full)
+	}
+	if want := []string{"le", "verify", "lint", "run"}; !reflect.DeepEqual(full, want) {
+		t.Fatalf("full run identity = %q, want %q", full, want)
+	}
+	if want := []string{"le", "verify", "lint", "run", "./internal/le", "./cmd/ze"}; !reflect.DeepEqual(scoped, want) {
+		t.Fatalf("scoped run identity = %q, want %q", scoped, want)
+	}
+}
