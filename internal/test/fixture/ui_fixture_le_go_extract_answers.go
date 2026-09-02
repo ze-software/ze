@@ -76,10 +76,6 @@ func leGoExtractAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: %w", err)
 	}
 
-	if _, err := exec.LookPath("goimports"); err != nil {
-		return fmt.Errorf("FAIL: goimports is not installed; go-extract requires it")
-	}
-
 	commandDir, err := makeGoExtractTree(here, "by-command")
 	if err != nil {
 		return err

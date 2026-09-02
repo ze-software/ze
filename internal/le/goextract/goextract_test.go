@@ -1,11 +1,9 @@
 package goextract
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -58,15 +56,15 @@ func read(t *testing.T, path string) string {
 }
 
 // noFormat is the formatter a test uses when the move itself is what is under
-// test: it runs no process, so the case needs no goimports on PATH.
-func noFormat(_ context.Context, _ string) error { return nil }
+// test: it leaves the two files exactly as the move wrote them.
+func noFormat(_ string) error { return nil }
 
 func TestMoveTakesADeclarationWithItsDocComment(t *testing.T) {
 	dir := t.TempDir()
 	source := fixture(t, dir, "sample.go", twoFuncs)
 	dest := filepath.Join(dir, "beta.go")
 
-	report, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat)
+	report, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat)
 	if err != nil {
 		t.Fatalf("Move: %v", err)
 	}
@@ -100,7 +98,7 @@ func TestMoveAppendsToAnExistingDestination(t *testing.T) {
 	source := fixture(t, dir, "sample.go", twoFuncs)
 	dest := fixture(t, dir, "beta.go", "package sample\n\n// Gamma is already here.\nfunc Gamma() {}\n")
 
-	if _, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat); err != nil {
+	if _, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat); err != nil {
 		t.Fatalf("Move: %v", err)
 	}
 
@@ -124,7 +122,7 @@ func TestMoveEndsTheDestinationsLastLineBeforeAppending(t *testing.T) {
 	// then does not parse.
 	dest := fixture(t, dir, "beta.go", "package sample\n\nfunc Gamma() {}")
 
-	if _, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat); err != nil {
+	if _, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat); err != nil {
 		t.Fatalf("Move: %v", err)
 	}
 
@@ -148,7 +146,7 @@ func Keep() {}
 	dest := filepath.Join(dir, "consts.go")
 
 	// Second is named; First shares its group, so the group moves whole.
-	if _, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Second"}}, noFormat); err != nil {
+	if _, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Second"}}, noFormat); err != nil {
 		t.Fatalf("Move: %v", err)
 	}
 
@@ -168,7 +166,7 @@ func TestMoveTakesTheBlankLineBetweenTwoAdjacentDeclarations(t *testing.T) {
 	source := fixture(t, dir, "sample.go", twoFuncs)
 	dest := filepath.Join(dir, "both.go")
 
-	if _, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Alpha", "Beta"}}, noFormat); err != nil {
+	if _, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Alpha", "Beta"}}, noFormat); err != nil {
 		t.Fatalf("Move: %v", err)
 	}
 
@@ -188,7 +186,7 @@ func TestMoveCollapsesTheHoleItLeavesBehind(t *testing.T) {
 	source := fixture(t, dir, "sample.go", "package sample\n\nfunc Keep() {}\n\n\nfunc Alpha() {}\n\n\nfunc Also() {}\n")
 	dest := filepath.Join(dir, "alpha.go")
 
-	if _, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Alpha"}}, noFormat); err != nil {
+	if _, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Alpha"}}, noFormat); err != nil {
 		t.Fatalf("Move: %v", err)
 	}
 
@@ -206,7 +204,7 @@ func TestASymbolThatIsNotDeclaredRefusesTheWholeMove(t *testing.T) {
 	source := fixture(t, dir, "sample.go", twoFuncs)
 	dest := filepath.Join(dir, "beta.go")
 
-	_, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Beta", "Zeta"}}, noFormat)
+	_, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Beta", "Zeta"}}, noFormat)
 	if err == nil {
 		t.Fatal("a symbol that is not declared was accepted")
 	}
@@ -244,7 +242,7 @@ func TestPlanRefusesADestinationItCannotRead(t *testing.T) {
 		t.Fatal("a destination that cannot be read was planned as a new file")
 	}
 
-	_, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat)
+	_, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat)
 	if err == nil {
 		t.Fatal("a destination that cannot be read was accepted")
 	}
@@ -264,7 +262,7 @@ func TestADestinationThatCannotBeWrittenLeavesTheSourceWhole(t *testing.T) {
 	// source is the only copy until the destination holds one.
 	dest := filepath.Join(dir, "nosuchdir", "beta.go")
 
-	_, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat)
+	_, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, noFormat)
 	if err == nil {
 		t.Fatal("a destination that cannot be written reported success")
 	}
@@ -277,7 +275,7 @@ func TestSourceAndDestNamingOneFileIsRefused(t *testing.T) {
 	dir := t.TempDir()
 	source := fixture(t, dir, "sample.go", twoFuncs)
 
-	_, err := Move(t.Context(), Request{Source: source, Dest: filepath.Join(dir, ".", "sample.go"), Symbols: []string{"Beta"}}, noFormat)
+	_, err := Move(Request{Source: source, Dest: filepath.Join(dir, ".", "sample.go"), Symbols: []string{"Beta"}}, noFormat)
 	if err == nil {
 		t.Fatal("a move into the file it comes out of was accepted")
 	}
@@ -290,7 +288,7 @@ func TestAnUnparsableSourceRefusesTheMove(t *testing.T) {
 	dir := t.TempDir()
 	source := fixture(t, dir, "sample.go", "package sample\n\nfunc Beta( {\n")
 
-	_, err := Move(t.Context(), Request{Source: source, Dest: filepath.Join(dir, "beta.go"), Symbols: []string{"Beta"}}, noFormat)
+	_, err := Move(Request{Source: source, Dest: filepath.Join(dir, "beta.go"), Symbols: []string{"Beta"}}, noFormat)
 	if err == nil {
 		t.Fatal("a source that does not parse was accepted")
 	}
@@ -303,7 +301,7 @@ func TestAMoveWithNoSymbolIsRefused(t *testing.T) {
 	dir := t.TempDir()
 	source := fixture(t, dir, "sample.go", twoFuncs)
 
-	if _, err := Move(t.Context(), Request{Source: source, Dest: filepath.Join(dir, "beta.go")}, noFormat); err == nil {
+	if _, err := Move(Request{Source: source, Dest: filepath.Join(dir, "beta.go")}, noFormat); err == nil {
 		t.Fatal("a move naming no symbol was accepted")
 	}
 }
@@ -313,8 +311,8 @@ func TestAFormatterFailureIsReported(t *testing.T) {
 	source := fixture(t, dir, "sample.go", twoFuncs)
 	dest := filepath.Join(dir, "beta.go")
 
-	broken := func(_ context.Context, path string) error { return errors.New("no formatter for " + path) }
-	_, err := Move(t.Context(), Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, broken)
+	broken := func(path string) error { return errors.New("no formatter for " + path) }
+	_, err := Move(Request{Source: source, Dest: dest, Symbols: []string{"Beta"}}, broken)
 	if err == nil {
 		t.Fatal("a formatter that failed was reported as success")
 	}
@@ -325,14 +323,13 @@ func TestAFormatterFailureIsReported(t *testing.T) {
 	}
 }
 
+// The formatter runs in process, so this case has no environment to skip for:
+// a machine with no goimports binary on PATH reaches the same refusal.
 func TestGoimportsReportsAFileItCannotFormat(t *testing.T) {
-	if _, err := exec.LookPath("goimports"); err != nil {
-		t.Skipf("goimports is not installed: %v", err)
-	}
 	dir := t.TempDir()
 	broken := fixture(t, dir, "broken.go", "package sample\n\nfunc Beta( {\n")
 
-	if err := Goimports(t.Context(), broken); err == nil {
+	if err := Goimports(broken); err == nil {
 		t.Fatal("goimports accepted a file that does not parse")
 	}
 }

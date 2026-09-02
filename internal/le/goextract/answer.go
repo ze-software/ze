@@ -18,7 +18,6 @@
 package goextract
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -37,7 +36,7 @@ func Answer(args []string) (any, int) {
 		return nil, 1
 	}
 
-	report, err := Move(context.Background(), req, Goimports)
+	report, err := Move(req, Goimports)
 	if err != nil {
 		reportError(err)
 		return nil, 1

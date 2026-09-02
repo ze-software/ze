@@ -19,7 +19,6 @@ package goextract
 import (
 	"bytes"
 	"cmp"
-	"context"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -27,10 +26,11 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"golang.org/x/tools/imports"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -57,29 +57,47 @@ type Request struct {
 // Format runs an import fixer over one file, in place.
 //
 // It is a parameter of Move rather than a call inside it, so a test drives a
-// move with no goimports on PATH, and so a formatter that fails is a value the
-// caller can report rather than a process that exits.
-type Format func(ctx context.Context, path string) error
+// move with no formatter at all, and so a formatter that fails is a value the
+// caller can report rather than a failure inside the write.
+type Format func(path string) error
 
 // Goimports is the formatter this tool uses: the `goimports -w` a developer
 // runs by hand after a split, which adds the imports the moved code needs to
 // the destination and removes the ones the source no longer uses.
 //
+// It does that work IN PROCESS, through the vendored library the goimports
+// command is itself built from (vendor/golang.org/x/tools/cmd/goimports calls
+// the same imports.Process). A fork would need the goimports BINARY on PATH,
+// which a machine that has not run `./le setup` does not have, and a developer
+// would then be refused a move for a reason that is not about the move.
+// go/format is not the alternative: it cannot ADD an import, and a destination
+// this tool has just created holds a package clause and the moved lines only.
+//
 // goimports cannot resolve an ALIASED import, so a moved declaration that used
 // one still needs its alias added by hand.
-func Goimports(ctx context.Context, path string) error {
-	// G204: the executable is the fixed name goimports, resolved on PATH, and
-	// the one variable argument is the file the operator asked to split.
-	cmd := exec.CommandContext(ctx, "goimports", "-w", path) //nolint:gosec // fixed executable, operator-named file
-	var errOut bytes.Buffer
-	cmd.Stderr = &errOut
+func Goimports(path string) error {
+	source, err := os.ReadFile(path) //nolint:gosec // the file the operator asked to split
+	if err != nil {
+		return fmt.Errorf("goimports %s: %w", path, err)
+	}
 
-	if err := cmd.Run(); err != nil {
-		detail := strings.TrimSpace(errOut.String())
-		if detail == "" {
-			return fmt.Errorf("goimports %s: %w", path, err)
-		}
-		return fmt.Errorf("goimports %s: %w: %s", path, err, detail)
+	// The options `goimports -w <file>` runs with, written out here rather than
+	// taken from the library's defaults.
+	formatted, err := imports.Process(path, source, &imports.Options{
+		Comments:  true,
+		Fragment:  true,
+		TabIndent: true,
+		TabWidth:  8,
+	})
+	if err != nil {
+		return fmt.Errorf("goimports %s: %w", path, err)
+	}
+	if bytes.Equal(source, formatted) {
+		return nil
+	}
+
+	if err := os.WriteFile(path, formatted, filePerm); err != nil {
+		return fmt.Errorf("goimports %s: %w", path, err)
 	}
 	return nil
 }
@@ -175,7 +193,7 @@ func PlanMove(req Request) (Plan, error) {
 // formatter that fails is reported with the report of what has already moved,
 // because the files are written by then and a caller told only "it failed"
 // would go looking for work that is on disk.
-func Move(ctx context.Context, req Request, format Format) (Report, error) {
+func Move(req Request, format Format) (Report, error) {
 	plan, err := PlanMove(req)
 	if err != nil {
 		return Report{}, err
@@ -190,7 +208,7 @@ func Move(ctx context.Context, req Request, format Format) (Report, error) {
 
 	if format != nil {
 		for _, path := range []string{req.Source, req.Dest} {
-			if err := format(ctx, path); err != nil {
+			if err := format(path); err != nil {
 				return plan.Report, err
 			}
 		}
