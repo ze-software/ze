@@ -1669,7 +1669,6 @@ func tokenize(input string) ([]string, error) {
 		if (r == ' ' || r == '\t') && !inQuote {
 			if current.Len() > 0 {
 				tokens = append(tokens, current.String())
-				current.Reset()
 			}
 			continue
 		}

@@ -347,7 +347,6 @@ func tokenizeCommand(input string) []string {
 		if isSpace && !inQuote {
 			if current.Len() > 0 {
 				tokens = append(tokens, current.String())
-				current.Reset()
 			}
 			continue
 		}
@@ -367,13 +366,11 @@ func handleQuoteChar(current *textbuf.Buffer, tokens []string, inQuote bool) ([]
 	if inQuote {
 		// End of quoted string - add token without quotes
 		tokens = append(tokens, current.String())
-		current.Reset()
 		return tokens, false
 	}
 	// Start of quoted string - save any accumulated content first
 	if current.Len() > 0 {
 		tokens = append(tokens, current.String())
-		current.Reset()
 	}
 	return tokens, true
 }

@@ -257,7 +257,6 @@ func splitCommaList(spec string) []string {
 	flush := func() {
 		if field.Len() > 0 {
 			out = append(out, field.String())
-			field.Reset()
 		}
 	}
 	for i := range len(spec) {

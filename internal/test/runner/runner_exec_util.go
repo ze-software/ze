@@ -48,7 +48,6 @@ func splitCommand(s string) ([]string, error) {
 		case r == ' ' || r == '\t':
 			if current.Len() > 0 {
 				args = append(args, current.String())
-				current.Reset()
 			}
 		default:
 			current.WriteRune(r)

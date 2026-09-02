@@ -440,7 +440,6 @@ func splitRequires(s string) []string {
 			if v := strings.TrimSpace(buf.String()); v != "" {
 				parts = append(parts, v)
 			}
-			buf.Reset()
 			continue
 		}
 		buf.Byte(s[i])

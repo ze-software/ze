@@ -102,7 +102,6 @@ func splitMetaCells(line string) []string {
 			escaped = true
 		case char == '|':
 			cells = append(cells, strings.TrimSpace(cell.String()))
-			cell.Reset()
 		default:
 			cell.Byte(char)
 		}

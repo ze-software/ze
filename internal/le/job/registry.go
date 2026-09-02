@@ -317,7 +317,6 @@ func (a *Admission) breakStalled(held entry, static, elapsed time.Duration) {
 		Int(int64(held.pid)).Str(", pgid ").Int(int64(held.pgid)).Colored(colors.Reset)
 	a.note(tb.String())
 
-	tb.Reset()
 	tb.SetColor(a.Color)
 	tb.Colored(colors.BoldRed).Str("  evidence: ").Str(held.log).
 		Str(" has not grown for ").Int(int64(static / time.Second)).

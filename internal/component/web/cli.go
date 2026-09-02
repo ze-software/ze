@@ -110,7 +110,6 @@ func tokenizeCommand(input string) []string {
 		if r == ' ' && !inQuote {
 			if current.Len() > 0 {
 				tokens = append(tokens, current.String())
-				current.Reset()
 			}
 
 			continue

@@ -120,7 +120,6 @@ func (p *SetParser) tokenizeLine(line string) []string {
 			if ch == quoteChar {
 				inQuote = false
 				tokens = append(tokens, current.String())
-				current.Reset()
 			} else {
 				current.Byte(ch)
 			}
@@ -136,7 +135,6 @@ func (p *SetParser) tokenizeLine(line string) []string {
 		if ch == ' ' || ch == '\t' {
 			if current.Len() > 0 {
 				tokens = append(tokens, current.String())
-				current.Reset()
 			}
 			continue
 		}

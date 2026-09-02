@@ -227,7 +227,6 @@ func shellWords(text string) []string {
 	flush := func() {
 		if word.Len() != 0 {
 			words = append(words, word.String())
-			word.Reset()
 		}
 	}
 	for _, character := range text {

@@ -55,7 +55,6 @@ func rfcProseSplit(prose string) []string {
 			}
 		case letter == ';' && depth == 0:
 			out = append(out, item.String())
-			item.Reset()
 			continue
 		}
 		item.WriteRune(letter)
