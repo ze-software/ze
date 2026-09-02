@@ -56,7 +56,7 @@ func init() {
 		{"plugin/traffic-feature-show", "traffic-feature-show-test", plugin16AfterEOR(plugin16TrafficFeature)},
 		{"plugin/traffic-monitor", "traffic-monitor-done", plugin16TrafficMonitor},
 		{"plugin/uptime-show", "uptime-show-test", plugin16AfterEOR(plugin16Uptime)},
-		{"plugin/warnings-filter-show", "warnings-filter-show-test", plugin16WarningsFilter},
+		{"plugin/warnings-filter-show", "warnings-filter-show-test", plugin16AfterEOR(plugin16WarningsFilter)},
 		{"plugin/warnings-show", "warnings-show-test", plugin16AfterEOR(plugin16Warnings)},
 		{"plugin/test-pipe-first-last", "pipe-first-last-test", plugin16PipeFirstLast},
 		{"plugin/wellknown-no-advertise-egress", "wellknown-noadv", plugin16WellknownNoAdvertise},

@@ -37,7 +37,15 @@ func plugin15SubscriberEnricher(ctx context.Context, p *sdk.Plugin) error {
 	return fmt.Errorf("show class-of-service: expected residential in %v", profiles)
 }
 
+// plugin15SubscriberSummary reads the subscriber surfaces, which say nothing
+// about BGP. It still waits for the End-of-RIB first, because
+// `subscriber-summary-show.ci` pins that message on its peer and Observe stops
+// the daemon the moment this returns: without the wait the peer can be left
+// with a Cease notification where the test declared an UPDATE.
 func plugin15SubscriberSummary(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin15WaitEOR(ctx, p, "*"); err != nil {
+		return err
+	}
 	r := plugin15DispatchUntilDone(ctx, p, "show subscriber")
 	if !plugin15Done(r) {
 		return fmt.Errorf("show subscriber: status=%s data=%.200s", r.status, r.text())

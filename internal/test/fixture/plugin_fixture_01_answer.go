@@ -120,7 +120,16 @@ func plugin01AnswerUnconditionalFirst(ctx context.Context, _ []string) error {
 	}
 }
 
+// plugin01AnswerUnconditionalSecond is the observer that ENDS the scenario:
+// Observe asks the daemon to shut down when it returns, and the first fixture
+// asks for no shutdown of its own. So the End-of-RIB `answer-unconditional.ci`
+// pins on its peer must be on the wire before this function returns, and
+// waiting for it is what makes that expectation an assertion rather than a race
+// against teardown.
 func plugin01AnswerUnconditionalSecond(ctx context.Context, plugin *sdk.Plugin) error {
+	if !plugin01WaitCounter(ctx, plugin, "*", "eor-sent", 1, 40) {
+		return errors.New("ze never sent its initial-sync End-of-RIB")
+	}
 	var first []byte
 	if !Poll(ctx, 40, plugin01PollDelay, func() bool {
 		var err error

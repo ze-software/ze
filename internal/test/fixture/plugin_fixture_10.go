@@ -734,7 +734,16 @@ func fixture10PKIData(ctx context.Context, plugin *sdk.Plugin, command, label st
 	return fixture10Object(fixture10Call(ctx, plugin, command), label)
 }
 
+// fixture10PKIExport reads the certificate surfaces, which say nothing about
+// BGP. It still waits for the End-of-RIB first, because
+// `pki-certificate-export-show.ci` pins that message on its peer and Observe
+// stops the daemon the moment this returns: without the wait the peer can be
+// left with a Cease notification where the test declared an UPDATE, and on a
+// loaded machine with no connection at all.
 func fixture10PKIExport(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := fixture10WaitEOR(ctx, plugin, "*", 100); err != nil {
+		return err
+	}
 	pem, err := fixture10PKIData(ctx, plugin, "show pki certificate name dev-1 pem", "pem")
 	if err != nil {
 		return err
