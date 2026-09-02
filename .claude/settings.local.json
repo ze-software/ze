@@ -134,9 +134,9 @@
     ]
   },
   "enableAllProjectMcpServers": false,
+  "outputStyle": "Ze Style",
   "sandbox": {
     "enabled": false,
     "autoAllowBashIfSandboxed": false
-  },
-  "outputStyle": "Concise"
+  }
 }
