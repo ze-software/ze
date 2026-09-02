@@ -430,7 +430,7 @@ func metricsNameShow09(ctx context.Context, _ []string) error {
 		}) {
 			return fmt.Errorf("ze never sent its initial-sync End-of-Rib")
 		}
-		got := ""
+		var got string
 		named := dispatch09(ctx, p, "show metrics name go_goroutines")
 		switch {
 		case done09(named):
