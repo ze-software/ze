@@ -287,8 +287,8 @@ func derivePeerName(neighborTree *config.Tree, counter *int) string {
 // Replaces spaces and invalid characters with hyphens, collapses runs of hyphens,
 // and trims leading/trailing hyphens.
 func sanitizePeerName(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
+	var b textbuf.Buffer
+	b.Reset().Grow(len(s))
 	prevHyphen := false
 	for _, ch := range s {
 		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' {

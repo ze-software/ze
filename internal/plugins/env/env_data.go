@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // envRow is one environment variable as the CLI answers it.
@@ -78,9 +79,8 @@ func dataGet(args []string) (any, int) {
 			return map[string]any{keyVariables: []envRow{row}}, 0
 		}
 	}
-	var tb strings.Builder
-	tb.WriteString("error: no environment variable named ")
-	tb.WriteString(key)
+	var tb textbuf.Buffer
+	tb.Str("error: no environment variable named ").Str(key)
 	writeErr(tb.String())
 	return nil, 1
 }

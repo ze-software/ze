@@ -759,7 +759,7 @@ func (p *Plugin) findApplyHandler(path string) ApplyHandler {
 
 // stripPredicates removes YANG predicates like [key=value] from a path.
 func stripPredicates(path string) string {
-	var result strings.Builder
+	var result textbuf.Buffer
 	depth := 0
 	for _, c := range path {
 		if c == '[' {

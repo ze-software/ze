@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"net/netip"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -307,17 +306,12 @@ func listenersSig(enabled bool, l Listeners) string {
 	if !enabled {
 		return "disabled"
 	}
-	var b strings.Builder
-	b.WriteString("plain=")
-	b.WriteString(endpointSig(true, l.Plain))
-	b.WriteString(";dot=")
-	b.WriteString(endpointSig(true, l.DoT))
-	b.WriteString(";doh=")
-	b.WriteString(endpointSig(true, l.DoH))
-	b.WriteString(";dohpath=")
-	b.WriteString(l.DoHPath)
-	b.WriteString(";cert=")
-	b.WriteString(tlsFingerprint(l.TLSConfig))
+	var b textbuf.Buffer
+	b.Str("plain=").Str(endpointSig(true, l.Plain))
+	b.Str(";dot=").Str(endpointSig(true, l.DoT))
+	b.Str(";doh=").Str(endpointSig(true, l.DoH))
+	b.Str(";dohpath=").Str(l.DoHPath)
+	b.Str(";cert=").Str(tlsFingerprint(l.TLSConfig))
 	return b.String()
 }
 

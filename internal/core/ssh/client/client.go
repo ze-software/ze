@@ -89,7 +89,7 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 	}
 	defer session.Close() //nolint:errcheck // best-effort cleanup
 
-	var frame strings.Builder
+	var frame textbuf.Buffer
 	session.Stderr = &frame
 	output, err := session.Output(command)
 	if err != nil {

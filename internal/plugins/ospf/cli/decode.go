@@ -11,7 +11,6 @@ import (
 	"flag"
 	"io"
 	"os"
-	"strings"
 	"unicode"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -266,7 +265,7 @@ func isHexString(s string) bool {
 }
 
 func stripWhitespace(s string) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.Grow(len(s))
 	for _, r := range s {
 		if !unicode.IsSpace(r) {

@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // handleVizConvergenceTrend serves the convergence trend panel content.
@@ -23,7 +24,7 @@ func (d *Dashboard) handleVizConvergenceTrend(w http.ResponseWriter, _ *http.Req
 
 // renderConvergenceTrend returns the convergence trend HTML fragment for SSE.
 func (d *Dashboard) renderConvergenceTrend() string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	writeConvergenceTrend(&b, d.state.ConvergenceTrend, streamPanel)
 	return b.String()
 }

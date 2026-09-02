@@ -7,7 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -134,11 +135,11 @@ type missingArtifactsError struct {
 }
 
 func (e *missingArtifactsError) Error() string {
-	var b strings.Builder
-	b.WriteString("missing required boot artifacts:")
+	var b textbuf.Buffer
+	b.Str("missing required boot artifacts:")
 	for _, p := range e.paths {
-		b.WriteString("\n  ")
-		b.WriteString(p)
+		b.Str("\n  ")
+		b.Str(p)
 	}
 	return b.String()
 }

@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var prefixChoices = []struct {
@@ -119,18 +120,12 @@ func cmdInstall(args []string) int {
 }
 
 func promptPrefix(r io.Reader, w io.Writer) (string, error) {
-	var b strings.Builder
-	b.WriteString("Select installation prefix:\n")
+	var b textbuf.Buffer
+	b.Str("Select installation prefix:\n")
 	for i, c := range prefixChoices {
-		b.WriteString("  ")
-		b.WriteString(strconv.Itoa(i + 1))
-		b.WriteString(") ")
-		b.WriteString(c.path)
-		b.WriteString("  (")
-		b.WriteString(c.desc)
-		b.WriteString(")\n")
+		b.Str("  ").Int(int64(i + 1)).Str(") ").Str(c.path).Str("  (").Str(c.desc).Str(")\n")
 	}
-	b.WriteString("Choice [1]: ")
+	b.Str("Choice [1]: ")
 	fmt.Fprint(w, b.String()) //nolint:errcheck // terminal prompt
 
 	scanner := bufio.NewScanner(r)
