@@ -580,14 +580,44 @@ func plugin14WaitRPKIReady(ctx context.Context, plugin *sdk.Plugin) error {
 // plugin14AdjRIBInCommand is the command these presence assertions read.
 const plugin14AdjRIBInCommand = "show bgp adj-rib-in"
 
+// plugin14AssertRoutePresence asserts that a validated route is, or is not, in
+// the Adj-RIB-In.
+//
+// The two directions are not symmetrical, because installation is asynchronous
+// and takes one of two rails. With the adj-rib-in validation gate already on,
+// an arriving route is parked in the manager's pending map and reaches ribIn
+// only when the RPKI verdict comes back (adj_rib_in/rib.go,
+// installStructuredNLRIs; the promotion is rib_commands.go, acceptRoutesCommand
+// and batchValidateCommand). With the gate not yet on, the route is installed at
+// ingest and a later cache sync re-decides it in place (applyToInstalled). Which
+// rail runs depends on whether the rpki plugin's `request bgp adj-rib-in
+// enable-validation` (rpki/rpki.go) landed before the UPDATE, and neither the
+// peer's updates-received counter nor `request quiesce`, which drains the
+// reactor's forward pool, covers the verdict round trip.
+//
+// So a presence assertion WAITS for the install it asserts: a single read
+// answered `{"adj-rib-in":{}}` a millisecond after the last event and failed the
+// case. An absence assertion cannot wait, because an empty Adj-RIB-In is what
+// both a rejected route and an unfinished validation look like; it reads once,
+// as it always has.
 func plugin14AssertRoutePresence(ctx context.Context, plugin *sdk.Plugin, prefix string, present bool, label string) error {
+	if present {
+		status, value, err := plugin14PollCommand(ctx, plugin, 40, plugin14AdjRIBInCommand, func(status string, value any) bool {
+			return status == rpc.StatusDone && strings.Contains(plugin14Text(value), prefix)
+		})
+		if err != nil {
+			return fmt.Errorf("%s: route %s never reached the adj-rib-in: status=%q data=%s: %w",
+				label, prefix, status, plugin14Text(value), err)
+		}
+		return nil
+	}
+
 	status, value, err := plugin14Dispatch(ctx, plugin, plugin14AdjRIBInCommand)
 	if err != nil || status != rpc.StatusDone {
 		return fmt.Errorf("%s status=%q: %w", label, status, err)
 	}
-	found := strings.Contains(plugin14Text(value), prefix)
-	if found != present {
-		return fmt.Errorf("%s: route %s presence=%t, want %t: %s", label, prefix, found, present, plugin14Text(value))
+	if strings.Contains(plugin14Text(value), prefix) {
+		return fmt.Errorf("%s: route %s is in the adj-rib-in and must not be: %s", label, prefix, plugin14Text(value))
 	}
 	return nil
 }

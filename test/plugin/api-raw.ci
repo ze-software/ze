@@ -1,5 +1,6 @@
 # Test: peer raw sends raw bytes to peer
-# VALIDATES: raw command sends exact KEEPALIVE bytes verified at wire level
+# VALIDATES: raw command puts the exact bytes it was handed on the wire, judged on
+#            a frame ze never sends on its own account
 # PREVENTS: raw command handler broken or bytes not reaching peer
 
 # ze-peer expectations
@@ -8,8 +9,16 @@ option=tcp_connections:value=1
 option=timeout:value=15s
 # EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# KEEPALIVE: marker(16) + length(0013=19) + type(04)
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+# The injected frame: ROUTE-REFRESH ipv4/unicast, marker(16) + length(0017=23) +
+# type(05) + AFI(0001) + reserved(00) + SAFI(01).
+#
+# It is a ROUTE-REFRESH and not a KEEPALIVE because ze sends a KEEPALIVE of its
+# own, byte for byte the same, so the expectation was met whether or not the raw
+# command ever reached the wire. ze builds a ROUTE-REFRESH only when a command
+# asks for one (reactor/reactor_api.go and reactor_api_forward.go are its only
+# producers) and this test asks for none, so the injection is the only thing that
+# can satisfy this line.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
 EOF_PEER
 
 # Native test plugin: exercises dispatch-command for peer raw

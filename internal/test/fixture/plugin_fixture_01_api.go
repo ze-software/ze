@@ -381,24 +381,59 @@ func plugin01APIPeerShow(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
+// plugin01RawRefreshWire is one complete ROUTE-REFRESH for ipv4/unicast: marker,
+// length 23, type 5, AFI 1, reserved 0, SAFI 1 (RFC 2918 Section 3). `peer <sel>
+// raw hex <data>` with no type word carries a whole packet the caller built.
+//
+// ze builds a ROUTE-REFRESH only where a command asks for one
+// (reactor/reactor_api.go and reactor/reactor_api_forward.go hold both
+// producers), and test/plugin/api-raw.ci asks for none, so the frame the peer
+// expects can only be this injection. A KEEPALIVE cannot carry that claim: ze
+// sends its own and the two are byte-identical.
+const plugin01RawRefreshWire = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001"
+
 func plugin01APIRaw(ctx context.Context, plugin *sdk.Plugin) error {
 	if !plugin01WaitPeers(ctx, plugin, 1, 40) {
 		return errors.New("no peer reached established")
 	}
-	if _, err := plugin01RequireDone(ctx, plugin, "peer peer1 raw hex FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"); err != nil {
+	if _, err := plugin01RequireDone(ctx, plugin, "peer peer1 raw hex "+plugin01RawRefreshWire); err != nil {
 		return err
 	}
-	// The raw socket write exposes no per-message delivery signal. Retain the
-	// original settle before shutdown so the peer can consume the just-written frame.
-	timer := time.NewTimer(time.Second)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
+	if !plugin01WaitSessionDown(ctx, plugin, "peer1") {
+		return errors.New("peer1 stayed established, so the peer never completed on the injected ROUTE-REFRESH")
 	}
-	fmt.Fprintln(os.Stderr, "OK: raw keepalive sent")
+	fmt.Fprintln(os.Stderr, "OK: raw route-refresh sent and consumed by the peer")
 	return nil
+}
+
+// plugin01WaitSessionDown blocks until the named peer's session has left
+// Established, and reports whether it did.
+//
+// It is the delivery barrier the raw write does not offer. ze-peer runs in check
+// mode, so it returns the moment its expectation list is empty and the process
+// exits; the .ci owes it a frame only the injection produces, so the session
+// drops BECAUSE the peer read the injected bytes. Shutting the daemon down on a
+// fixed sleep instead raced that read.
+//
+// A peer row that reports no state at all is not an answer: the poll keeps
+// asking, and the caller names the failure when the attempts run out.
+func plugin01WaitSessionDown(ctx context.Context, plugin *sdk.Plugin, peer string) bool {
+	return Poll(ctx, 40, plugin01PollDelay, func() bool {
+		data, _, err := plugin01DispatchMap(ctx, plugin, "show bgp peer "+peer+" detail")
+		if err != nil {
+			return false
+		}
+		for _, value := range plugin01PeerRows(data) {
+			state, named := plugin01Object(value)["state"].(string)
+			if !named {
+				continue
+			}
+			if state != stateEstablished {
+				return true
+			}
+		}
+		return false
+	})
 }
 
 func plugin01APIRIBInClear(ctx context.Context, plugin *sdk.Plugin) error {

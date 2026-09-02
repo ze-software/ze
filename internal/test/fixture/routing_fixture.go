@@ -335,15 +335,37 @@ func ospfInterAreaScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	if _, err := routingRows(ctx, plugin, "show ospf route", true); err != nil {
 		return err
 	}
-	spf, err := routingRows(ctx, plugin, "show ospf spf", true)
-	if err != nil {
+	if err := waitOSPFSPFAreas(ctx, plugin, 2); err != nil {
 		return err
-	}
-	if len(spf) < 2 {
-		return fmt.Errorf("show ospf spf: expected two configured areas, got %#v", spf)
 	}
 	fmt.Fprintln(os.Stderr, "OK: OSPF inter-area CLI dispatch OK")
 	return nil
+}
+
+// waitOSPFSPFAreas blocks until `show ospf spf` carries a row for at least areas
+// areas, and says which way it ended.
+//
+// A row exists only where SPF has RUN: the snapshot is rendered from the
+// computer's per-area state map, which a run fills for each area it walked
+// (ospf/spf/computer.go, SPFSnapshot over Computer.state, written at the end of
+// Run). The first run is armed by an LSDB change and fires a throttle delay
+// later (DefaultSPFDelay is 50ms, and the back-off raises it), so an observer
+// that starts with the daemon reads the table before it exists. Reading once
+// asked the question about 250ms after startup and took the empty list for an
+// answer.
+func waitOSPFSPFAreas(ctx context.Context, plugin *sdk.Plugin, areas int) error {
+	var rows []map[string]any
+	var dispatchErr error
+	if Poll(ctx, 40, 200*time.Millisecond, func() bool {
+		rows, dispatchErr = routingRows(ctx, plugin, "show ospf spf", true)
+		return dispatchErr == nil && len(rows) >= areas
+	}) {
+		return nil
+	}
+	if dispatchErr != nil {
+		return dispatchErr
+	}
+	return fmt.Errorf("show ospf spf: expected %d configured areas, got %#v", areas, rows)
 }
 
 func ospfInterfaceRuntimeScenario(ctx context.Context, plugin *sdk.Plugin) error {
