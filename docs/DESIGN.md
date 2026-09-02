@@ -882,7 +882,7 @@ The outer Go process stays host-native. Its exec wrapper starts host-native
 `govulncheck` with `GOOS=linux GOARCH=amd64`, so the scanner loads the
 Linux/amd64 package graph. The action needs network access to the live Go
 vulnerability database.
-<!-- source: internal/le/verify/engine/stages.go -- stagesForMode -->
+<!-- source: internal/le/verify/engine/stages.go -- StagesForMode -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
 <!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 

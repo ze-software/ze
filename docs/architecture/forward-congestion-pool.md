@@ -29,19 +29,19 @@ and shared overflow accounting:
 
 Session reads take buffers from shared `BufMux` instances. Destination peers get
 an `Outgoing Peer Pool` for copy-on-modify output. When a destination worker's
-channel is full, `DispatchOverflow` may take a handle from the forward overflow
+channel is full, `dispatchOverflow` may take a handle from the forward overflow
 `MixedBufMux`; if that pool is denied or exhausted, the item is still queued and
 congestion thresholds escalate (denial at 80%, teardown at 95%).
 
 <!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer -->
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- peerPool, DispatchOverflow, overflowMux -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- peerPool, dispatchOverflow, overflowMux -->
 
 ### The second reason an item takes the overflow path: order
 
 A full channel is not the only route into overflow. A destination peer that is
 still inside its initial route sync has UPDATEs of its own that must reach the
 wire first. Both forwarding rails ask `Peer.forwardOrderHold()` before they
-dispatch, and send the item to `DispatchOverflow` when the answer is yes.
+dispatch, and send the item to `dispatchOverflow` when the answer is yes.
 `drainOverflow` keeps the item there while the same predicate stays true
 (`overflowHeld`), so a forwarded withdraw cannot overtake a queued announce of
 the same prefix and leave the peer holding a route that was withdrawn. Gate and
@@ -80,7 +80,7 @@ One consequence is visible to operators: `request peer <sel> flush` blocks until
 every targeted peer has finished its initial sync, because the barrier sentinel
 queues behind the held items.
 
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- overflowHeld, wakeOverflow, safeBatchHandle, DispatchOverflow -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- overflowHeld, wakeOverflow, safeBatchHandle, dispatchOverflow -->
 <!-- source: internal/component/bgp/reactor/peer.go -- forwardOrderHold, forwardOverflowPending, wakeForwardOverflow -->
 
 ## Buffer Ownership: Zero-Copy with Copy-on-Modify
@@ -96,11 +96,11 @@ entry safely. An overflow item cannot: it sits in `w.overflow` for as long as
 the destination stays behind, and the recent-update cache's safety valve
 force-evicts a passed-over entry after 5 minutes, or 30 seconds while the read
 pool is under pressure. Eviction returns exactly the memory those bodies point
-into. So `DispatchOverflow` copies the item's bodies into the overflow
+into. So `dispatchOverflow` copies the item's bodies into the overflow
 `MixedBufMux` handle it already holds, and re-points the item at the copy. When
 there is no handle, or the bodies do not fit one, the copy goes on the heap.
 
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdItem.rawBodies, DispatchOverflow -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdItem.rawBodies, dispatchOverflow -->
 <!-- source: internal/component/bgp/reactor/forward_body.go -- ownOverflowBodies -->
 
 When a destination peer requires modification (AS-PATH prepend, attribute
@@ -135,7 +135,7 @@ to the pool after the modified payload is written to TCP.
 | 3 | Overflow pool denial for the worst destination peer | Forward overflow pool usage above 80% |
 | 4 | Session teardown (GR-aware, last resort) | Forward overflow pool above 95%, worst peer over 2x weight share for grace period |
 
-<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- ShouldDeny and CheckTeardown -->
+<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- shouldDeny and CheckTeardown -->
 
 ## Overflow Sizing Formula
 
@@ -511,7 +511,7 @@ ownership for queued work; it does not copy the route payload.
 | Step | Buffer |
 |------|--------|
 | Forward dispatch finds destination channel full | -- |
-| Dispatch checks congestion controller | `ShouldDeny()` denies overflow-pool handles to the worst destination peer above 80% pool usage |
+| Dispatch checks congestion controller | `shouldDeny()` denies overflow-pool handles to the worst destination peer above 80% pool usage |
 | Dispatch requests an overflow handle when not denied | `MixedBufMux.Get4K()` or `Get64K()` returns `{ID, Buf}` if budget permits |
 | Item queued in overflow backlog | Handle is stored on the `fwdItem` when one was acquired; routes still queue if no handle is available |
 | Destination worker drains item, forwards to peer | Handle passed through |
@@ -522,8 +522,8 @@ destination peer is slow. The route is not dropped if the overflow pool denies
 or cannot allocate a handle; the congestion controller then relies on threshold
 events and teardown to recover capacity.
 
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- DispatchOverflow and releaseItem -->
-<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- ShouldDeny -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- dispatchOverflow and releaseItem -->
+<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- shouldDeny -->
 
 ### Read Pool Exhaustion
 
@@ -616,12 +616,12 @@ destination, so it limits additional overflow-pool ownership by the peer that
 is consuming a disproportionate share.
 
 The culprit is identified from per-destination overflow depths. When the
-forward overflow pool runs low, `ShouldDeny()` returns true only for the worst
+forward overflow pool runs low, `shouldDeny()` returns true only for the worst
 destination peer. Routes still queue; denial controls pool ownership and feeds
 the later teardown decision.
 
 <!-- source: internal/component/bgp/reactor/forward_pool_weight_tracker.go -- WorstPeerRatio -->
-<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- ShouldDeny -->
+<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- shouldDeny -->
 
 ## Pool Multiplexer
 

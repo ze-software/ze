@@ -53,11 +53,11 @@ One producer answers the change set: `Scope.resolveSelector` (`internal/le/chang
 
 ## Native stage execution
 
-`internal/le/verify/engine.RunMode` executes the ordered stage population and captures each stage result. A red stage does not hide later reds; cancellation stops before another stage starts. Each in-process gate returns a populated `GateResult`, so an omitted registration cannot look like exit zero.
+`internal/le/verify/engine.RunMode` executes the ordered stage population and captures each stage result. A red stage does not hide later reds; cancellation stops before another stage starts. Each in-process action runner returns a populated `ActionResult`, so an omitted registration cannot look like exit zero.
 
 Native `./le` actions are the public interface, while Go-to-Go paths call their package functions. Heavy verification enters through `./le job run label <label> command <argv...>` or the `verify-lock` action rather than starting another copy behind the admission registry.
 
-<!-- source: internal/le/verify/engine/run.go -- GateResult, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- ActionResult, RunMode -->
 <!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verify/lock/register.go -- Answer -->
 

@@ -311,7 +311,7 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 | error | `bgp / session-dropped` | An Established session ends without a NOTIFICATION exchange (TCP loss, hold-timer with no notification, peer FIN) | Never |
 
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- report code constants and helper functions -->
-<!-- source: internal/component/bgp/reactor/peer_stats.go -- IncrNotificationSent, IncrNotificationReceived -->
+<!-- source: internal/component/bgp/reactor/peer_stats.go -- incrNotificationSent, incrNotificationReceived -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- raiseSessionDropped at FSM Established->Idle transition -->
 
 **Capacity limits** (configurable via env vars):

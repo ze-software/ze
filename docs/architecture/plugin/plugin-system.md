@@ -286,17 +286,18 @@ mutates the subprocess's own disconnected copy of that state. There is no error,
 no panic and no log line, so the feature quietly never works.
 
 `./le plugin boundary check` scans for this class. It reads every package under
-the generator's plugin search roots, derived at run time from
-`pluginDirs` plus `nestedPluginDomains` rather than a second hardcoded list, and
+`Roots`, which asks the composition-root generator for its own
+`pluginDirs` list rather than declaring the roots a second time, and
 it fails when a plugin package contains a call from the maintained
 `dangerousCalls` list with no `.IsInternal()` or `warnIfExternal(` call anywhere
-in that same package. `--print-roots` prints the derived set. The check is a
-presence heuristic: it does not prove the guard covers the call at run time.
-An `allowlist` entry covers a package's own legitimate calls to its own
-function.
+in that same package. `./le plugin boundary roots` prints the derived set. The
+check is a presence heuristic: it does not prove the guard covers the call at
+run time. An `allowlist` entry covers a package's own legitimate calls to its
+own function.
 
 <!-- source: internal/component/plugin/process/process.go -- startInternal, startExternal -->
-<!-- source: internal/le/plugin/boundary/pluginboundary.go -- loadScanRootsFrom, dangerousCalls -->
+<!-- source: internal/le/plugin/boundary/pluginboundary.go -- Roots, dangerousCalls, allowlist -->
+<!-- source: internal/le/plugin/imports/pluginimports.go -- PluginSearchRoots, pluginDirs -->
 
 ## A registered name lives in many loose strings
 

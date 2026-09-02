@@ -185,9 +185,9 @@ trigger too, phrased as the moment you would reach for it: "looking up which
 check enforces a rule", "reasoning about where a component sits".
 
 Score a candidate trigger before you split a section into a rule of its own.
-`distinctive_terms` (`internal/le/rules/artifacts.go`) drops every trigger term
-that too many other triggers share, and `unreachable_blocking` names each
-blocking rule no past task would surface. `core_members` then makes exactly that
+`distinctiveTerms` (`internal/le/rules/digest.go`) drops every trigger term
+that too many other triggers share, and `unreachableBlocking` names each
+blocking rule no past task would surface. `coreMembers` then makes exactly that
 set always-on, so a split whose trigger scores nothing returns the new rule to
 the core at full size and saves nothing. `./le rules router-report` prints the
 set and the corpus it read.
@@ -209,7 +209,7 @@ A rule over about 150 lines is carrying reference material. Move its tables to
 `docs/` and link them, or split the rule at its real seam.
 
 An always-on rule holds prohibitions, and a PROCEDURE lives in its own rule
-under its own trigger. `core_members` derives eagerness from the precedence
+under its own trigger. `coreMembers` derives eagerness from the precedence
 ladder, so a procedure written inside a rung-1 rule is loaded in full by every
 session that will never carry it out. The ban earns its permanent seat because
 acting without it is unrecoverable, and the how-to is one Read away for the
@@ -277,7 +277,7 @@ Two files load into every session, and one generator emits both from one parse.
 | `ai/rules/TRIGGERS.md` | One routing line per rule: its path, its severity, and its `**When:**` trigger. Every rule appears, so none is ever invisible |
 | `ai/rules/CORE.md` | The condensed directives of the always-on rules only |
 
-<!-- source: internal/le/rules/artifacts.go -- core_members -->
+<!-- source: internal/le/rules/digest.go -- coreMembers -->
 Core membership is derived, never listed. A rule is always-on when the ladder in
 `ai/rules/rule-precedence.md` names it on rung 1 or 2, when it IS that ladder,
 when it has no routable trigger, or when no past task description in `plan/`

@@ -90,8 +90,8 @@ own by calling the push API documented in the architecture reference.
 | `prefix-threshold` | `<peer-addr>/<afi>/<safi>` | `family`, `count`, `warning`, `maximum` | Per-family received prefix count crosses the configured warning threshold (set via `peer { session { family { ipv4/unicast { prefix { warning N ; } } } } }`) | Per-family count drops back below the threshold |
 | `prefix-stale` | peer address | `updated` (ISO date of last refresh) | `peer { prefix { updated YYYY-MM-DD ; } }` is older than 180 days, checked at peer add time | Peer is removed, or peer is re-added with a fresher `updated` date (e.g., after a PeeringDB refresh) |
 
-<!-- source: internal/component/bgp/reactor/session_prefix.go -- raisePrefixThreshold, clearPrefixThreshold, RaisePrefixStale, ClearPrefixStale -->
-<!-- source: internal/component/bgp/reactor/reactor_peers.go -- RaisePrefixStale call at AddPeer, ClearPrefixStale call at RemovePeer -->
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- raisePrefixThreshold, clearPrefixThreshold, raisePrefixStale, clearPrefixStale -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- raisePrefixStale call at AddPeer, clearPrefixStale call at RemovePeer -->
 
 ### Errors (BGP)
 

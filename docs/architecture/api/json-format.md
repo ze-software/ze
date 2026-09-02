@@ -67,7 +67,7 @@ and the registry is the authority.
 Unicast and multicast are built into the engine. Every other family arrives
 with a `bgp-nlri-*` plugin, so removing that plugin removes the family.
 <!-- source: internal/core/family/family.go -- SAFI constants -->
-<!-- source: internal/core/family/registry.go -- Register -->
+<!-- source: internal/core/family/registry.go -- MustRegister -->
 
 ---
 

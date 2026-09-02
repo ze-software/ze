@@ -1190,7 +1190,7 @@ cap how many are unexplained.
 
 ## The compiled observer API
 
-<!-- source: internal/test/fixture/fixture.go -- Register, Run, Observe, ObserveConfigured, Dispatch, Poll, ReportFailure -->
+<!-- source: internal/test/fixture/fixture.go -- Register, Run, Observe, observeConfigured, Dispatch, Poll, ReportFailure -->
 
 Compiled `.ci` observers live under `internal/test/fixture`. They use
 `pkg/plugin/sdk` for the five-stage plugin protocol (`Plugin.Run` owns it) and
@@ -1202,7 +1202,7 @@ reporting.
 | `fixture.Register(name, driver)` | Register one compiled fixture command |
 | `fixture.Run(args)` | Dispatch `ze-test fixture <name> [args...]` |
 | `fixture.Observe(...)` | Connect through the SDK, complete startup, run the scenario after all plugins are ready, then request shutdown |
-| `fixture.ObserveConfigured(...)` | Install callbacks before startup, then run the same observer lifecycle |
+| `observeConfigured(...)` | Install callbacks before startup, then run the same observer lifecycle. It is unexported, so only a fixture in this package calls it |
 | `fixture.Dispatch(...)` | Send one command and decode its JSON answer into a Go value |
 | `fixture.Poll(...)` | Retry a predicate until success, exhaustion, or context cancellation |
 | `fixture.ReportFailure(err)` | Emit the `ZE-OBSERVER-FAIL` sentinel `checkObserverSentinel` (`internal/test/runner/runner_validate.go`) detects |

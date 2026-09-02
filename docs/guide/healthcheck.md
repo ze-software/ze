@@ -1,7 +1,7 @@
 # Healthcheck
 
 Ze's healthcheck plugin monitors service availability by running shell commands and controls BGP route announcement/withdrawal via watchdog groups. It is the successor to ExaBGP's healthcheck program.
-<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- RunHealthcheckPlugin -->
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- runHealthcheckPlugin -->
 
 ## Quick Start
 
