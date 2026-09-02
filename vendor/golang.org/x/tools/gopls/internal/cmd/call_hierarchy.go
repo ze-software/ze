@@ -11,11 +11,12 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/protocol"
+	"golang.org/x/tools/gopls/internal/tool"
 )
 
 // callHierarchy implements the callHierarchy verb for gopls.
 type callHierarchy struct {
-	app *application
+	app *Application
 }
 
 func (c *callHierarchy) Name() string      { return "call_hierarchy" }
@@ -35,7 +36,7 @@ Example:
 
 func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 	if len(args) != 1 {
-		return commandLineErrorf("call_hierarchy expects 1 argument (position)")
+		return tool.CommandLineErrorf("call_hierarchy expects 1 argument (position)")
 	}
 
 	cli, _, err := c.app.connect(ctx)

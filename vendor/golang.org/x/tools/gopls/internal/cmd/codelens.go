@@ -11,12 +11,13 @@ import (
 
 	"golang.org/x/tools/gopls/internal/protocol"
 	"golang.org/x/tools/gopls/internal/settings"
+	"golang.org/x/tools/gopls/internal/tool"
 )
 
 // codelens implements the codelens verb for gopls.
 type codelens struct {
 	EditFlags
-	app *application
+	app *Application
 
 	Exec bool `flag:"exec" help:"execute the first matching code lens"`
 }
@@ -55,14 +56,14 @@ func (r *codelens) Run(ctx context.Context, args ...string) error {
 	var filename, title string
 	switch len(args) {
 	case 0:
-		return commandLineErrorf("codelens requires a file name")
+		return tool.CommandLineErrorf("codelens requires a file name")
 	case 2:
 		title = args[1]
 		fallthrough
 	case 1:
 		filename = args[0]
 	default:
-		return commandLineErrorf("codelens expects at most two arguments")
+		return tool.CommandLineErrorf("codelens expects at most two arguments")
 	}
 
 	r.app.editFlags = &r.EditFlags // in case a codelens perform an edit

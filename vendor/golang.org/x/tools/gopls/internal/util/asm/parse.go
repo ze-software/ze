@@ -6,13 +6,11 @@
 package asm
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
-	"sort"
 	"strings"
 	"unicode"
-
-	"golang.org/x/tools/gopls/internal/protocol"
 )
 
 // Kind describes the nature of an identifier in an assembly file.
@@ -45,101 +43,33 @@ var kindString = [...]string{
 
 // A file represents a parsed file of Go assembly language.
 type File struct {
-	// Idents holds the identifiers of the file, ordered by Offset;
-	// [File.IdentAt] relies on that order for its binary search.
 	Idents []Ident
-
-	Mapper *protocol.Mapper
 
 	// TODO(adonovan): use token.File? This may be important in a
 	// future in which analyzers can report diagnostics in .s files.
 }
 
-// IdentRange returns the protocol.Range for the identifier in this file.
-func (f *File) IdentRange(ident Ident) (protocol.Range, error) {
-	return f.Mapper.OffsetRange(ident.Offset, ident.Offset+ident.OrigLen)
-}
-
-// IdentLocation returns a protocol Location for the identifier in this file.
-func (f *File) IdentLocation(ident Ident) (protocol.Location, error) {
-	return f.Mapper.OffsetLocation(ident.Offset, ident.Offset+ident.OrigLen)
-}
-
-// IdentAt returns the identifier containing the byte range [start, end),
-// or nil if none. Because [File.Idents] are ordered by Offset, the
-// lookup uses a binary search.
-func (f *File) IdentAt(start, end int) *Ident {
-	// Find the last identifier whose Offset <= start.
-	idx := sort.Search(len(f.Idents), func(i int) bool {
-		return f.Idents[i].Offset > start
-	})
-	if idx == 0 {
-		return nil
-	}
-	id := &f.Idents[idx-1]
-	if end <= id.End() {
-		return id
-	}
-	return nil
-}
-
-// FunctionRange returns the byte range [start, end) of the TEXT function
-// enclosing offset: start is the beginning of the line containing the
-// enclosing TEXT directive, end is the beginning of the line containing
-// the next TEXT directive, or len(content) if there is none. If offset
-// precedes the first TEXT directive, the range covers from 0 to the
-// first TEXT directive.
-//
-// TEXT directives are taken from the parsed file rather than re-detected
-// here, so that scoping stays consistent with the identifiers the parser
-// reports (e.g. a bare "TEXT" line with no symbol is not a boundary).
-func (f *File) FunctionRange(offset int) (int, int) {
-	content := f.Mapper.Content
-	funcStart, funcEnd := 0, len(content)
-	for i := range f.Idents {
-		id := &f.Idents[i]
-		if id.Kind != Text {
-			continue
-		}
-		lineStart := id.Offset
-		for lineStart > 0 && content[lineStart-1] != '\n' {
-			lineStart--
-		}
-		if lineStart > offset {
-			funcEnd = lineStart
-			break
-		}
-		funcStart = lineStart
-	}
-	return funcStart, funcEnd
-}
-
 // Ident represents an identifier in an assembly file.
 type Ident struct {
-	Name    string // symbol name (after correcting [·∕]); Name[0]='.' => current package
-	Offset  int    // zero-based byte offset
-	OrigLen int    // original length of the symbol name (before cleanup)
-	Kind    Kind
+	Name   string // symbol name (after correcting [·∕]); Name[0]='.' => current package
+	Offset int    // zero-based byte offset
+	Kind   Kind
 }
 
 // End returns the identifier's end offset.
-func (id Ident) End() int { return id.Offset + id.OrigLen }
+func (id Ident) End() int { return id.Offset + len(id.Name) }
 
 // Parse extracts identifiers from Go assembly files.
 // Since it is a best-effort parser, it never returns an error.
-func Parse(uri protocol.DocumentURI, content []byte) *File {
+func Parse(content []byte) *File {
 	var idents []Ident
-	offset := 0 // byte offset of next raw line
+	offset := 0 // byte offset of start of current line
 
 	// TODO(adonovan) use a proper tokenizer that respects
 	// comments, string literals, line continuations, etc.
-	for rawLine := range bytes.SplitSeq(content, []byte("\n")) {
-		lineOffset := offset
-		offset += len(rawLine)
-		if offset < len(content) {
-			offset++ // skip '\n'
-		}
-		line := strings.TrimSuffix(string(rawLine), "\r")
+	scan := bufio.NewScanner(bytes.NewReader(content))
+	for ; scan.Scan(); offset += len(scan.Bytes()) + len("\n") {
+		line := scan.Text()
 
 		// Strip comments.
 		if idx := strings.Index(line, "//"); idx >= 0 {
@@ -156,10 +86,9 @@ func Parse(uri protocol.DocumentURI, content []byte) *File {
 			label := strings.TrimSpace(line[:colon])
 			if isIdent(label) {
 				idents = append(idents, Ident{
-					Name:    label,
-					Offset:  lineOffset + strings.Index(line, label),
-					OrigLen: len(label),
-					Kind:    Label,
+					Name:   label,
+					Offset: offset + strings.Index(line, label),
+					Kind:   Label,
 				})
 				continue
 			}
@@ -193,10 +122,9 @@ func Parse(uri protocol.DocumentURI, content []byte) *File {
 				if isIdent(sym) {
 					// (The Index call assumes sym is not itself "TEXT" etc.)
 					idents = append(idents, Ident{
-						Name:    cleanup(sym),
-						Kind:    kind,
-						Offset:  lineOffset + strings.Index(line, sym),
-						OrigLen: len(sym),
+						Name:   cleanup(sym),
+						Kind:   kind,
+						Offset: offset + strings.Index(line, sym),
 					})
 				}
 				continue
@@ -254,16 +182,17 @@ func Parse(uri protocol.DocumentURI, content []byte) *File {
 			sym = cutBefore(sym, "<")   // "sym<ABIInternal>" =>> "sym"
 			if isIdent(sym) {
 				idents = append(idents, Ident{
-					Name:    cleanup(sym),
-					Kind:    Ref,
-					Offset:  lineOffset + tokenPos,
-					OrigLen: len(sym),
+					Name:   cleanup(sym),
+					Kind:   Ref,
+					Offset: offset + tokenPos,
 				})
 			}
 		}
 	}
 
-	return &File{Idents: idents, Mapper: protocol.NewMapper(uri, content)}
+	_ = scan.Err() // ignore scan errors
+
+	return &File{Idents: idents}
 }
 
 // isIdent reports whether s is a valid Go assembly identifier.
