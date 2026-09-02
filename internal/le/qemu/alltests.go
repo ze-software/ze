@@ -38,6 +38,7 @@ import (
 	"github.com/ze-software/ze/internal/le/functional"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/population"
 )
 
 // The guest uses fixed paths. The repository arrives on a 9p mount at a known
@@ -476,26 +477,51 @@ func (a *allTestsRun) verify() error {
 	return err
 }
 
-// verifySuiteCoverage refuses a run that would leave a declared suite executing
-// nowhere. It is the guard the shell's hand-written list does not have.
-func (a *allTestsRun) verifySuiteCoverage() error {
+// suiteCoverage accounts for every declared functional suite against the ones
+// this run lists.
+//
+// The population is functional.Suites, which is the repository's own declaration
+// and not derived from vmSuites, so the accounting cannot be satisfied by the
+// list under test agreeing with itself.
+func suiteCoverage() (population.Coverage, error) {
+	declared := make(map[string]bool, len(functional.Suites))
+	for _, suite := range functional.Suites {
+		declared[suite.Name] = true
+	}
 	listed := make(map[string]bool, len(vmSuites))
 	for _, suite := range vmSuites {
 		listed[suite.Name] = true
 	}
-
-	var missing []string
-	for _, suite := range functional.Suites {
-		if !listed[suite.Name] && excludedSuites[suite.Name] == "" {
-			missing = append(missing, suite.Name)
-		}
+	claim := population.Claim{
+		Subject:         "declared functional suite",
+		Population:      declared,
+		Walked:          listed,
+		Excused:         excludedSuites,
+		UnexcusedReason: "RUNS IN NO VM PHASE",
 	}
-	if len(missing) == 0 {
+	return claim.Assess()
+}
+
+// verifySuiteCoverage refuses a run that would leave a declared suite executing
+// nowhere. It is the guard the shell's hand-written list does not have.
+//
+// It also refuses a stale entry in excludedSuites. An exclusion whose suite the
+// VM now runs, or whose suite no longer exists, is a statement nobody rechecked,
+// and it hides the next suite to take that name.
+func (a *allTestsRun) verifySuiteCoverage() error {
+	coverage, err := suiteCoverage()
+	if err != nil {
+		return err
+	}
+	if coverage.Code == 0 {
 		return nil
 	}
-	sort.Strings(missing)
 	var tb textbuf.Buffer
-	return errors.New(tb.Err(ErrIncompleteRun).Str(": ").Join(missing, ", ").String())
+	if len(coverage.Unexcused) != 0 {
+		return errors.New(tb.Err(ErrIncompleteRun).Str(": ").Join(coverage.Unexcused, ", ").String())
+	}
+	return errors.New(tb.Str("excludedSuites names a suite the VM already runs, or one that is not declared: ").
+		Join(coverage.Healed, ", ").String())
 }
 
 // workspacePath resolves a binary path in the same way that the native host

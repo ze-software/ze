@@ -58,6 +58,10 @@ type Claim struct {
 	Walked map[string]bool
 	// Excused maps a member to the reason the gate deliberately does not walk
 	// it. An entry that has stopped being needed is a finding, not a comment.
+	//
+	// An entry whose reason is empty excuses nothing. The reason is the whole
+	// value of the exception: it is what a later reader checks to decide whether
+	// the exception still holds, and a blank one asks them to take it on trust.
 	Excused map[string]string
 	// UnexcusedReason replaces the wording recorded against an unexcused
 	// member, so each gate names the walk a reader must go and extend. Empty
@@ -93,8 +97,8 @@ func (c Claim) Assess() (Coverage, error) {
 	isBlind := make(map[string]bool, len(blind))
 	for _, member := range blind {
 		isBlind[member] = true
-		reason, excused := c.Excused[member]
-		if !excused {
+		reason := c.Excused[member]
+		if reason == "" {
 			reason = unexcused
 			coverage.Unexcused = append(coverage.Unexcused, member)
 		}

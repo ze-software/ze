@@ -1,4 +1,13 @@
 // Design: docs/contributing/testing.md -- the accounting refuses what a silent walk would pass
+//
+// VALIDATES: Claim.Assess refuses an empty population, a member neither walked
+// nor excused, an excuse that states no reason, and an excuse that is no longer
+// needed; and it counts only the population the gate claimed.
+// PREVENTS: the largest class in plan/journal, a gate walking part of the set it
+// claims to govern while the shorter walk reads as a pass. Each test here drives
+// Assess from its entry point, so a guard removed from it goes red rather than
+// silently widening what the gate accepts.
+
 package population
 
 import (
@@ -126,6 +135,29 @@ func TestAssessKeepsTheGatesOwnWordingForAnUnexcusedMember(t *testing.T) {
 	}
 	if len(coverage.Blind) != 1 || coverage.Blind[0].Reason != "NOT COVERED BY ANY PASS" {
 		t.Fatalf("blind is %#v, want the gate's own wording", coverage.Blind)
+	}
+}
+
+// Goal: an excuse with no reason excuses nothing, because the reason is what a
+// later reader checks. Method: excuse a blind member with an empty string, and
+// require it to be reported as unexcused all the same.
+func TestAssessRefusesAnExcuseThatStatesNoReason(t *testing.T) {
+	claim := Claim{
+		Subject:    "test",
+		Population: members("a.go", "b.go"),
+		Walked:     members("a.go"),
+		Excused:    map[string]string{"b.go": ""},
+	}
+
+	coverage, err := claim.Assess()
+	if err != nil {
+		t.Fatalf("assess: %v", err)
+	}
+	if coverage.Code == 0 {
+		t.Fatalf("a blank excuse passed: %#v", coverage)
+	}
+	if !slices.Equal(coverage.Unexcused, []string{"b.go"}) {
+		t.Fatalf("unexcused is %v, want [b.go]", coverage.Unexcused)
 	}
 }
 

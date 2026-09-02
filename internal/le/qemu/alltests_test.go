@@ -96,20 +96,29 @@ func TestEveryDeclaredSuiteIsEitherRunOrExcluded(t *testing.T) {
 		listed[suite.Name] = true
 	}
 
-	for _, suite := range functional.Suites {
-		if !listed[suite.Name] && excludedSuites[suite.Name] == "" {
-			t.Errorf("suite %q runs in no VM phase and carries no exclusion reason,"+
-				" so its tests execute nowhere", suite.Name)
-		}
+	// The accounting is asked of the producer the run itself calls, so a guard
+	// weakened there goes red here. Restating the walk in the test would leave
+	// the two free to disagree, which is the defect this gate is about.
+	coverage, err := suiteCoverage()
+	if err != nil {
+		t.Fatalf("suite coverage: %v", err)
 	}
+	for _, name := range coverage.Unexcused {
+		t.Errorf("suite %q runs in no VM phase and carries no exclusion reason,"+
+			" so its tests execute nowhere", name)
+	}
+	for _, name := range coverage.Healed {
+		t.Errorf("excludedSuites still names %q, which the VM runs or which is no"+
+			" longer declared; delete the entry", name)
+	}
+
+	// Assess answers for the claimed population alone, so a suite the VM runs
+	// and the repository never declared is invisible to it. That direction is
+	// checked here.
 	for name := range listed {
 		if _, declared := functional.SuiteNamed(name); !declared {
 			t.Errorf("the VM runs %q, which is not a declared suite", name)
 		}
-	}
-	if len(vmSuites) != len(functional.Suites) {
-		t.Errorf("the VM lists %d suites and the repository declares %d",
-			len(vmSuites), len(functional.Suites))
 	}
 }
 

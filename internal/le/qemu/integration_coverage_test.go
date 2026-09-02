@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/population"
 )
 
 // treeRoot walks up from the working directory to the checkout holding go.mod.
@@ -139,12 +141,36 @@ func TestEveryIntegrationPackageIsNamed(t *testing.T) {
 	}
 
 	patterns := append(append([]string{}, integrationPackages...), optionalPackages...)
+	holding := make(map[string]bool, len(found))
+	named := make(map[string]bool, len(found))
 	for _, dir := range found {
-		if covered(dir, patterns) || excludedIntegrationPackages[dir] != "" {
-			continue
+		holding[dir] = true
+		if covered(dir, patterns) {
+			named[dir] = true
 		}
+	}
+
+	claim := population.Claim{
+		Subject:         "integration-tagged test package",
+		Population:      holding,
+		Walked:          named,
+		Excused:         excludedIntegrationPackages,
+		UnexcusedReason: "NAMED BY NO RUNNER",
+	}
+	coverage, err := claim.Assess()
+	if err != nil {
+		t.Fatalf("integration package coverage: %v", err)
+	}
+	for _, dir := range coverage.Unexcused {
 		t.Errorf("%s holds integration-tagged tests and no runner names it, so they execute nowhere; "+
 			"add it to integrationPackages or give excludedIntegrationPackages a reason", dir)
+	}
+	// A stale exclusion is the half this test was blind to until 2026-09-02. An
+	// entry whose package a runner now names, or whose package no longer holds
+	// an integration-tagged test, is a statement nobody rechecked.
+	for _, dir := range coverage.Healed {
+		t.Errorf("excludedIntegrationPackages still names %s, which a runner now covers or which"+
+			" holds no integration-tagged test; delete the entry", dir)
 	}
 }
 
