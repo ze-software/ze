@@ -1358,6 +1358,11 @@ never shadows a builtin at the completion layer (mirroring dispatch precedence).
 - **Shell completion** (`ze completion words`) runs in a standalone CLI process
   with no daemon, so it stays YANG-only; the daemon's `system command complete`
   RPC completes plugin commands directly from the registry (`Registry().Complete`).
+- **The attached console** of `ze start --cli` asks the daemon for
+  `system command list` at attach time. It filters the compiled RPC list against
+  that answer, then injects each non-hidden plugin command
+  (`buildRuntimeTreeFromDispatch`, `injectPluginCommands`). A plugin a later
+  reload adds is absent until the operator attaches again.
 
 `Hidden` commands still dispatch when typed in full. They never appear in
 completion, in help, in the MCP `tools/list` result, or in the API command list. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
@@ -1368,6 +1373,7 @@ every hidden plugin command.
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip -->
 <!-- source: internal/component/command/node.go -- MergeCommandPaths, CommandEntry -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands (SSH per-session) -->
+<!-- source: internal/component/cli/client/main.go -- newAttachedModel, buildRuntimeTreeFromDispatch -->
 <!-- source: cmd/ze/hub/web_completer.go -- pluginAwareCommandCompleter (web live overlay) -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->

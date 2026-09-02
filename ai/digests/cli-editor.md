@@ -14,14 +14,18 @@ to in-process registry handlers.
 
 ## Flow
 1. **SSH session → model.** `buildSessionModelFactory` (`cmd/ze/hub/session_factory.go`)
-   builds a per-user `*cli.Editor` (`newSessionEditor`, `session_factory.go`; sets a
-   reload notifier), then `cli.NewModel(ed)` (`internal/component/cli/model.go`). It wires
+   builds a per-user `*cli.Editor` with `newSessionEditor` (`session_editor.go`),
+   which sets the reload notifier and stamps the origin. The factory then calls
+   `cli.NewModel(ed)` (`internal/component/cli/model.go`). It wires
    `SetCommandCompleter(cmdCompleter)`, `SetCommandExecutor(executor)` where `executor =
    srv.ExecutorForUser(...)` (`internal/component/ssh/ssh.go`), plus audit recorder and
    stop/restart callbacks (`session_factory.go`; view factories injected via
    `injectViewFactories` → `cli.RegisteredViews()`). No editor (`ConfigPath` empty) →
    `cli.NewCommandModel()` (`model.go`), an operational-only console. `ze start --cli`
-   uses the same models via `client.RunAttached` (`internal/component/cli/client/main.go`).
+   assembles its model in `newAttachedModel` (`internal/component/cli/client/main.go`)
+   over the editor from `attachedConsoleEditor` (`cmd/ze/hub/session_editor.go`,
+   origin `local`). It opens operational (`Model.SetStartMode`), and `configure`
+   reaches config mode.
 2. **Keystroke → dispatch.** `Model.Update` (`model.go`) routes `tea.KeyPressMsg` to
    `handleKeyMsg` (`model_keys.go`). Tab → `handleTab` (`model_keys.go`) accepts ghost
    text / opens the dropdown; Enter → `handleEnter` (`model_keys.go`). `handleEnter` is

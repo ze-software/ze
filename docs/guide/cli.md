@@ -3,8 +3,8 @@ title: CLI Reference (Guide)
 ---
 # CLI Reference
 
-Ze provides an interactive CLI and single-command execution for runtime queries and control. All CLI access goes through the daemon's SSH server.
-<!-- source: internal/component/cli/client/main.go -- Run -->
+Ze provides an interactive CLI and single-command execution for runtime queries and control. `ze cli` reaches the daemon through its SSH server. `ze start --cli` attaches a console to the daemon it starts, in the same process.
+<!-- source: internal/component/cli/client/main.go -- Run, RunAttached -->
 
 ## Usage
 
@@ -13,6 +13,7 @@ ze cli                              # Interactive CLI with tab completion
 ze cli -c "show bgp peer list"              # Execute single command and exit
 ze show bgp peer upstream1 detail           # Read-only query (safe for scripts)
 ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
+ze start --cli                              # Start the daemon and attach a console
 ```
 
 ### Modes
@@ -22,6 +23,24 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 | `ze cli` | Interactive, full | Exploring, monitoring, operating |
 | `ze show <cmd>` | Read-only | Scripting, monitoring dashboards |
 | `ze cli -c <cmd>` | Full | Automation, route injection |
+| `ze start --cli` | Interactive, full | Running the daemon and operating it from one terminal |
+
+### The attached console
+
+`ze start --cli` starts the daemon and attaches an interactive console to it.
+The console dispatches each command in the daemon process, so it needs no SSH
+server and it works in a build with SSH compiled out.
+
+The console opens at the operational prompt. Type `configure` to reach
+configuration mode, and `commit` there reloads the running daemon, as it does
+over SSH. Type `exit`, or press Ctrl-D, to detach the console and leave the
+daemon running.
+
+The console authenticates nobody, so it names the change author from the `USER`
+environment variable, and `unknown` when that variable is empty. The name is
+what `show | blame` reports for the changes the console commits.
+<!-- source: internal/component/cli/client/main.go -- RunAttached, newAttachedModel -->
+<!-- source: cmd/ze/hub/session_editor.go -- attachedConsoleEditor, attachedConsoleUser -->
 
 ## Peer Commands
 

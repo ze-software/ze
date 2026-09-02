@@ -1,5 +1,6 @@
 // Design: docs/architecture/hub-architecture.md -- SSH session model factory
 // Related: service_ssh.go -- builds the factory into the SSH server (via the seam)
+// Detail: session_editor.go -- newSessionEditor, shared with the attached console
 //
 // Compiled only under //go:build ze_ssh: the interactive ssh session model is
 // ssh-only and dropped from the binary when ssh is compiled out.
@@ -10,7 +11,6 @@ package hub
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -20,7 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -29,26 +28,6 @@ import (
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
-
-// newSessionEditor builds the storage-backed editor for one SSH session:
-// validated user, session identity, and — when a reload function is given —
-// the reload notifier. The notifier is what routes `commit` through the
-// transactional CommitSessionCandidate + NotifyReload path so a session
-// commit reaches the running daemons instead of only writing config.conf.
-func newSessionEditor(store storage.Storage, configPath, username string, reloadFn func() error) (*cli.Editor, error) {
-	if err := cli.ValidateUser(username); err != nil {
-		return nil, fmt.Errorf("invalid username: %w", err)
-	}
-	ed, err := cli.NewEditorWithStorage(store, configPath)
-	if err != nil {
-		return nil, err
-	}
-	ed.SetSession(cli.NewEditSession(username, "ssh"))
-	if reloadFn != nil {
-		ed.SetReloadNotifier(reloadFn)
-	}
-	return ed, nil
-}
 
 // buildSessionModelFactory creates a SessionModelFactory that produces bubbletea
 // models for SSH sessions. This is the logic formerly in ssh/session.go's
@@ -82,7 +61,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 
 		// Try to create editor-capable model.
 		if params.ConfigPath != "" && params.Store != nil {
-			ed, err := newSessionEditor(params.Store, params.ConfigPath, username, reloadFn)
+			ed, err := newSessionEditor(params.Store, params.ConfigPath, username, sessionOriginSSH, reloadFn)
 			if err != nil {
 				log.Warn("session editor creation failed", "user", username, "error", err)
 			} else {

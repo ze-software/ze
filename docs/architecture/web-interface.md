@@ -121,8 +121,8 @@ Each session has an isolated working tree, change tracking, and serialized acces
 
 `Commit` detects conflicts when two users modify the same leaf and returns `CommitResult` with conflict details. Limits: 50 concurrent sessions, 1 hour idle timeout.
 
-Editors with a reload hook commit transactionally: `CommitSessionCandidate` stages a candidate version, the hook (`reloadAfterCommit`) reloads the daemons and promotes the candidate. Editors without a hook write `config.conf` directly via `CommitSession`. The web editor manager and the SSH session factory both wire the hook, so a commit from either surface reaches the running daemons ("commit = apply + propagate").
-<!-- source: cmd/ze/hub/session_factory.go -- newSessionEditor reload notifier wiring -->
+Editors with a reload hook commit transactionally: `CommitSessionCandidate` stages a candidate version, the hook (`reloadAfterCommit`) reloads the daemons and promotes the candidate. Editors without a hook write `config.conf` directly via `CommitSession`. Three surfaces wire the hook: the web editor manager, the SSH session factory, and the `ze start --cli` console. A commit from any of them reaches the running daemons ("commit = apply + propagate").
+<!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor reload notifier wiring, attachedConsoleEditor -->
 <!-- source: cmd/ze/hub/main.go -- sessionReloadHolder late binding -->
 
 ## YANG Schema Integration

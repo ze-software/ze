@@ -115,7 +115,12 @@ Web still builds a live per-request overlay so plugins that a reload adds or
 removes are visible. A one-time build snapshot would become stale after a reload.
 SSH has the same liveness because it rebuilds its whole tree per session.
 
+The attached console of `ze start --cli` builds its tree once, when `runYANGConfig`
+attaches it. The operator detaches and attaches again to see the commands of a
+plugin a later reload added.
+
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: internal/component/cli/client/main.go -- newAttachedModel -->
 <!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->
 
 ## The three completion paths are distinct

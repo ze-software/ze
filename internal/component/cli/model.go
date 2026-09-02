@@ -980,8 +980,8 @@ func (m *Model) refreshCompleter() {
 //
 // The backend names a config completer derives are propagated only when the
 // model HAS a config completer. NewCommandModel builds a model with none, which
-// is what `ze cli` and `ze start --cli` run, and an operational completer needs
-// no YANG-derived backend name to answer.
+// is what `ze cli` runs, and an operational completer needs no YANG-derived
+// backend name to answer.
 func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 	m.commandCompleter = cc
 	if m.completer == nil {
@@ -995,8 +995,28 @@ func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 // SetCommandExecutor sets the function used to execute operational commands in command mode.
 // The executor carries transport completion until the command output is applied.
 // When nil, command mode shows an error on Enter.
+// A caller that also calls SetStartMode MUST call this one first.
 func (m *Model) SetCommandExecutor(fn CommandExecutor) {
 	m.commandExecutor = fn
+}
+
+// SetStartMode selects the mode this model opens in, before the program runs.
+// NewModel opens in config mode, so a console that must greet the operator at
+// the operational prompt calls this with ModeOperational. The welcome carries
+// into the opened mode, so the operator reads it where they land.
+//
+// The caller MUST call SetCommandExecutor before this one. Opening operational
+// mode with no executor replaces the welcome with the "no daemon connection"
+// warning. That warning is the honest greeting for a console that cannot run a
+// command, and the wrong one for a console that can.
+func (m *Model) SetStartMode(mode EditorMode) {
+	if m.mode == mode {
+		return
+	}
+	saved := m.modeStates[mode]
+	saved.statusMessage = m.statusMessage
+	m.modeStates[mode] = saved
+	m.switchMode(mode)
 }
 
 // SetLoginWarnings sets the login warnings to display in the welcome area.

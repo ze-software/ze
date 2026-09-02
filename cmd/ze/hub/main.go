@@ -1323,7 +1323,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				Text:              rendered.Output,
 				TransportComplete: rendered.TransportComplete,
 			}, err
-		})
+		}, attachedConsoleEditor(store, configPath, reloadAfterCommit))
 		fmt.Println("CLI detached. Press Ctrl+C to stop daemon.")
 	}
 

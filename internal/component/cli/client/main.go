@@ -38,6 +38,7 @@ import (
 	traceroutecmd "github.com/ze-software/ze/internal/component/traceroute/cmd" // init() registers traceroute RPCs; NewTracerouteSession used below
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/pkg/zefs"
 
@@ -158,29 +159,33 @@ type CommandFunc func(command string) (unicli.CommandOutput, error)
 
 // RunAttached starts an interactive CLI session using a direct dispatch
 // function (no SSH). Called by `ze start --cli` after the daemon is ready.
-func RunAttached(dispatch CommandFunc) int {
-	return runInteractiveWithDispatch(dispatch)
+// The editor gives the console config mode, reached by typing `configure`.
+// A nil editor leaves the command-only console, which refuses `configure`.
+// The caller builds the editor, because this package is transport and has no
+// config storage of its own.
+func RunAttached(dispatch CommandFunc, ed *unicli.Editor) int {
+	return runInteractiveWithDispatch(dispatch, ed)
 }
 
-func runInteractiveWithDispatch(dispatch CommandFunc) int {
+// newAttachedModel assembles the model the attached console runs. The executor
+// is installed before the opening mode is selected, which is the order
+// SetStartMode requires.
+//
+// The console opens operational whichever model it is, so an editor changes
+// what `configure` reaches and nothing else about the first screen.
+func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed *unicli.Editor) unicli.Model {
 	m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
-
-	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
-		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
-			defer store.Close() //nolint:errcheck // best-effort history
-			m.SetHistory(unicli.NewHistory(store, os.Getenv("USER")))
+	if ed != nil {
+		editorModel, err := unicli.NewModel(ed, unicli.FilesystemAuthorityOperatorLocal)
+		if err != nil {
+			slogutil.Logger("cli.attach").Warn("config editor unavailable", "error", err)
+		} else {
+			m = editorModel
 		}
 	}
 
-	executor := unicli.CommandExecutor(dispatch)
-
-	if tf := openTranscriptFile(); tf != nil {
-		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), "local")
-		defer tw.Close() //nolint:errcheck // best-effort transcript
-		executor = unicli.WrapExecutorWithTranscript(executor, tw)
-	}
-
 	m.SetCommandExecutor(executor)
+	m.SetStartMode(unicli.ModeOperational)
 
 	cmdTree := buildRuntimeTreeFromDispatch(dispatch)
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
@@ -194,6 +199,31 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 			return output.Text, err
 		}, nil
 	})
+
+	return m
+}
+
+func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor) int {
+	var history *unicli.History
+	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
+		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
+			defer store.Close() //nolint:errcheck // best-effort history
+			history = unicli.NewHistory(store, os.Getenv("USER"))
+		}
+	}
+
+	executor := unicli.CommandExecutor(dispatch)
+
+	if tf := openTranscriptFile(); tf != nil {
+		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), "local")
+		defer tw.Close() //nolint:errcheck // best-effort transcript
+		executor = unicli.WrapExecutorWithTranscript(executor, tw)
+	}
+
+	m := newAttachedModel(dispatch, executor, ed)
+	if history != nil {
+		m.SetHistory(history)
+	}
 
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {

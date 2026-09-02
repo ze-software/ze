@@ -12,6 +12,14 @@ ze config edit myconfig.conf        # Edit specific file
 
 The editor starts an ephemeral ze instance in the background for live YANG validation and completion suggestions.
 
+Three more surfaces reach the same editor against a running daemon. An SSH
+session opens in configuration mode. The web interface gives each authenticated
+user an editor of their own. The console of `ze start --cli` opens at the
+operational prompt, where `configure` enters configuration mode. A `commit` from
+any of the three reloads the daemon.
+<!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor, attachedConsoleEditor -->
+<!-- source: internal/component/cli/model_keys.go -- handleEnter, the configure arm -->
+
 ## Editor Commands
 
 | Command | Description |
