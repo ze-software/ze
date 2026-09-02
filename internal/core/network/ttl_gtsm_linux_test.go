@@ -47,7 +47,7 @@ func TestGTSMDialerSetsOutgoingTTLTo255(t *testing.T) {
 	conn := dialTCPV4(t, RealDialer{OutTTL: 255}, listener.Addr().String())
 	defer closeOrLog(t, conn)
 
-	if got := socketOption(t, conn, unix.IPPROTO_IP, unix.IP_TTL); got != 255 {
+	if got := socketOption(t, conn, unix.IP_TTL); got != 255 {
 		t.Fatalf("IP_TTL = %d, want exactly 255", got)
 	}
 }
@@ -66,7 +66,7 @@ func TestGTSMDialerWithoutOutTTLLeavesTheDefault(t *testing.T) {
 	conn := dialTCPV4(t, RealDialer{}, listener.Addr().String())
 	defer closeOrLog(t, conn)
 
-	got := socketOption(t, conn, unix.IPPROTO_IP, unix.IP_TTL)
+	got := socketOption(t, conn, unix.IP_TTL)
 	if got == 255 {
 		t.Fatalf("IP_TTL = 255 with no OutTTL configured; the GTSM value must come from configuration")
 	}
@@ -173,7 +173,7 @@ func TestGTSMNoFloorDeliversAnUnknownPacket(t *testing.T) {
 	controlUDP(t, receiver, func(fd int) error {
 		return SetIPMinTTL(fd, loopbackV4, 0)
 	})
-	if got := socketOption(t, receiver, unix.IPPROTO_IP, unix.IP_MINTTL); got != 0 {
+	if got := socketOption(t, receiver, unix.IP_MINTTL); got != 0 {
 		t.Fatalf("IP_MINTTL = %d with no floor configured, want exactly 0", got)
 	}
 
@@ -188,7 +188,8 @@ func TestGTSMNoFloorDeliversAnUnknownPacket(t *testing.T) {
 
 func listenTCPV4(t *testing.T) net.Listener {
 	t.Helper()
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Skipf("listen tcp4 127.0.0.1:0: %v", err)
 	}
@@ -323,9 +324,9 @@ type rawConn interface {
 	SyscallConn() (syscall.RawConn, error)
 }
 
-// socketOption reads one integer socket option off any connection that exposes
-// a raw file descriptor.
-func socketOption(t *testing.T, conn rawConn, level, option int) int {
+// socketOption reads one integer IPPROTO_IP socket option off any connection
+// that exposes a raw file descriptor.
+func socketOption(t *testing.T, conn rawConn, option int) int {
 	t.Helper()
 	raw, err := conn.SyscallConn()
 	if err != nil {
@@ -334,12 +335,12 @@ func socketOption(t *testing.T, conn rawConn, level, option int) int {
 	var value int
 	var inner error
 	if err := raw.Control(func(fd uintptr) {
-		value, inner = unix.GetsockoptInt(int(fd), level, option)
+		value, inner = unix.GetsockoptInt(int(fd), unix.IPPROTO_IP, option)
 	}); err != nil {
 		t.Fatalf("Control: %v", err)
 	}
 	if inner != nil {
-		t.Fatalf("getsockopt level %d option %d: %v", level, option, inner)
+		t.Fatalf("getsockopt IPPROTO_IP option %d: %v", option, inner)
 	}
 	return value
 }
@@ -353,5 +354,5 @@ func systemDefaultTTL(t *testing.T) int {
 		t.Skipf("listen udp4 for the default TTL: %v", err)
 	}
 	defer closeOrLog(t, conn)
-	return socketOption(t, conn, unix.IPPROTO_IP, unix.IP_TTL)
+	return socketOption(t, conn, unix.IP_TTL)
 }

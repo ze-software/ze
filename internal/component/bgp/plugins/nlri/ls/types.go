@@ -532,14 +532,6 @@ func uint32ToBytes(v uint32) []byte {
 	return b
 }
 
-// uint16ToBytes renders a 2-octet TLV value, such as the Multi-Topology
-// Identifier of TLV 263.
-func uint16ToBytes(v uint16) []byte {
-	b := make([]byte, 2)
-	binary.BigEndian.PutUint16(b, v)
-	return b
-}
-
 // writeTLV writes a TLV header and reserves space for the value.
 // Returns total bytes written (4 + valueLen).
 // Caller must write value data to buf[off+4:off+4+valueLen].

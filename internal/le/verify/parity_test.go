@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/verify/engine"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 func TestPythonPathAndOwnerMarkerParity(t *testing.T) {

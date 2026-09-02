@@ -23,7 +23,7 @@ import (
 // Challenge and Response with the two sides holding the given passwords, and
 // returns the session together with the packet the authenticator answered the
 // peer's Response with.
-func mschapv2Refusal(t *testing.T, peerPassword, serverPassword string) (*Session, *Packet) {
+func mschapv2Refusal(t *testing.T, peerPassword, serverPassword string) (*Session, *Packet) { //nolint:unparam // both passwords are named so a call site reads as agree or differ
 	t.Helper()
 
 	sess, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: serverPassword})

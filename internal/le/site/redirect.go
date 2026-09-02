@@ -76,11 +76,11 @@ func (table *legacyTable) set(from, to string) {
 // legacyDocsDestinations are the five docs sources whose retired public URL was
 // not docs/<stem>. Every other source moved from that address.
 var legacyDocsDestinations = map[string]string{
-	"architecture/config/deprecated-options.md": "reference/deprecations",
-	"contributing/testing.md":                   "contribute/testing",
-	"features/rfc-status.md":                    "reference/rfcs",
-	"glossary.md":                               "reference/glossary",
-	"history.md":                                "project/history",
+	docsSourceContributeTesting: "contribute/testing",
+	docsSourceDeprecatedOptions: "reference/deprecations",
+	docsSourceGlossary:          "reference/glossary",
+	docsSourceHistory:           "project/history",
+	docsSourceRFCStatus:         "reference/rfcs",
 }
 
 // legacyDocsDestination answers the second address one docs source published at
@@ -110,11 +110,11 @@ func retiredUseCaseRoute(destination string) string {
 // the presentations tree.
 var movedRoutes = []legacyRoute{
 	{From: "activity", To: "project/activity"},
-	{From: "changes", To: changesDirectory},
+	{From: changesProducer, To: changesDirectory},
 	{From: "cli", To: "reference/cli"},
 	{From: "command-equivalents", To: "reference/command-equivalents"},
 	{From: "config-reference", To: "reference/configuration"},
-	{From: "dependencies", To: "reference/dependencies"},
+	{From: dependenciesDirectory, To: "reference/" + dependenciesDirectory},
 	{From: "docs/architecture/testing/l2tp-interop", To: "labs/l2tp-interop/architecture"},
 	{From: "docs/architecture/testing/pppoe-interop", To: "labs/pppoe-interop/architecture"},
 	{From: "docs/features/plugins", To: "reference/plugins"},
@@ -201,7 +201,7 @@ func changesPostSlugs(source string) ([]string, error) {
 // A stub answers no route: pageRegistry drops a page carrying the noindex and
 // refresh pair, so the coverage arithmetic never sees one. AC-12 of
 // plan/spec-site-renderers-in-go.md is proven by redirect_test.go instead.
-func renderLegacyRedirects(paths Paths) ([]string, error) {
+func renderLegacyRedirects(paths Paths) ([]string, error) { //nolint:unused,unparam // owner decision 2026-08-30, see the file header; the nil route slice is the Producer.Render signature answering "this producer publishes no route", stated three lines above
 	routes, err := legacyRoutes(paths.Source)
 	if err != nil {
 		return nil, err
@@ -229,7 +229,7 @@ func renderLegacyRedirects(paths Paths) ([]string, error) {
 }
 
 // writeRedirectStub writes one stub at an artifact path.
-func writeRedirectStub(stub, target string) error {
+func writeRedirectStub(stub, target string) error { //nolint:unused // owner decision 2026-08-30, see the file header
 	if err := os.MkdirAll(filepath.Dir(stub), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return err
 	}
@@ -243,7 +243,7 @@ func writeRedirectStub(stub, target string) error {
 // moves a browser with no JavaScript, the canonical link tells a crawler which
 // address counts, and the script moves a browser that has JavaScript while
 // keeping the query string and the fragment the reader arrived with.
-func redirectStubHTML(target string) string {
+func redirectStubHTML(target string) string { //nolint:unused // owner decision 2026-08-30, see the file header
 	trimmed := strings.Trim(target, "/")
 	suffix := "/"
 	if path.Ext(trimmed) != "" {

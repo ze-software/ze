@@ -52,12 +52,6 @@ const enrichedCommandCatalog = `[{
  "subcommands": ["neighbor", "status"]
 }]`
 
-// enrichedCommandMapping is the smallest vendor map the detail page renders
-// against: one vendor and no curated intent, so the page states what Ze itself
-// says about the command and nothing else.
-const enrichedCommandMapping = `{"schema-version": 1,
- "vendors": {"vyos": {"label": "VyOS", "short-label": "VyOS"}}, "entries": []}`
-
 // catalogFieldRendering states where a reader meets one published catalog field.
 //
 // Reason says why the field is presented that way, and it is owed for every
@@ -294,7 +288,7 @@ func renderEnrichedCommandSurfaces(t *testing.T) (reference, referenceMirror, de
 	t.Helper()
 	paths := commandSurfacePaths(t)
 	writeCatalog(t, paths.Output, enrichedCommandCatalog)
-	writeEquivalentMapping(t, paths.Output, enrichedCommandMapping)
+	writeEquivalentMapping(t, paths.Output)
 
 	if _, err := renderCLIReference(paths); err != nil {
 		t.Fatal(err)
@@ -309,11 +303,22 @@ func renderEnrichedCommandSurfaces(t *testing.T) (reference, referenceMirror, de
 		readArtifact(t, paths.Output, detailDirectory+pageMirrorFile)
 }
 
-// writeEquivalentMapping replaces the curated vendor map of one artifact.
-func writeEquivalentMapping(t *testing.T, output, mapping string) {
+// vendorOnlyMapping is the smallest vendor map the detail page renders against:
+// one vendor and no curated intent, so the page states what Ze itself says
+// about the command and nothing else.
+//
+// It is what every caller of writeEquivalentMapping needs, so the map is stated
+// once here rather than passed in. Two callers declared the same bytes under two
+// names until 2026-09-02.
+const vendorOnlyMapping = `{"schema-version": 1,
+ "vendors": {"vyos": {"label": "VyOS", "short-label": "VyOS"}}, "entries": []}`
+
+// writeEquivalentMapping replaces the curated vendor map of one artifact with
+// the vendor-only map above.
+func writeEquivalentMapping(t *testing.T, output string) {
 	t.Helper()
 	path := filepath.Join(output, filepath.FromSlash(equivalentsFile))
-	if err := os.WriteFile(path, []byte(mapping), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(vendorOnlyMapping), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -17,7 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/verify/engine"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 var rootOverrideMu sync.Mutex

@@ -29,7 +29,9 @@ func init() {
 // changesLegacyFeedDest is the feed's first address, from before the changelog
 // moved out of blog/. It is still published because a reader's client holds the
 // URL it subscribed with, and no redirect makes a feed client follow.
-// changesProducer names this producer in a coverage answer.
+// changesProducer is the changelog's own name: it names this producer in a
+// coverage answer, the prose token that carries its count, and the route the
+// section published at before it moved under project/.
 const changesProducer = "changes"
 
 const (

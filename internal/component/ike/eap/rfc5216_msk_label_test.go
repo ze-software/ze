@@ -27,9 +27,7 @@ import (
 // returned by value and ExportKeyingMaterial has a pointer receiver, so the value
 // needs a name before it can be exported from.
 func exportFrom(cs tls.ConnectionState) func(label string, context []byte, length int) ([]byte, error) {
-	return func(label string, context []byte, length int) ([]byte, error) {
-		return cs.ExportKeyingMaterial(label, context, length)
-	}
+	return cs.ExportKeyingMaterial
 }
 
 // mskLabelHandshake drives a full EAP-TLS exchange with the authenticator's TLS

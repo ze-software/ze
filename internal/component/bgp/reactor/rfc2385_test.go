@@ -138,11 +138,15 @@ func TestRFC2385NoKeyWithoutConfiguration(t *testing.T) {
 func TestRFC2385FailedConnectDoesNotDisableSigning(t *testing.T) {
 	const password = "rfc2385-retry-key"
 
-	closed, err := net.Listen("tcp4", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	closed, err := listenConfig.Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("open a listener to borrow a port from: %v", err)
 	}
-	address := closed.Addr().(*net.TCPAddr)
+	address, isTCP := closed.Addr().(*net.TCPAddr)
+	if !isTCP {
+		t.Fatalf("borrowed listener address is %T, want *net.TCPAddr", closed.Addr())
+	}
 	if err := closed.Close(); err != nil {
 		t.Fatalf("close the borrowed listener: %v", err)
 	}

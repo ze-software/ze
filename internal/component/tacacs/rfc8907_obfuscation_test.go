@@ -170,7 +170,7 @@ func TestRFC8907ClientNeverSendsUnobfuscatedBody(t *testing.T) {
 	require.Equal(t, len(want), len(onWire), "wire body length")
 
 	if bytes.Equal(onWire, want) {
-		t.Fatal("the request body travelled in cleartext: every credential in a PAP START is readable by anyone on the path")
+		t.Fatal("the request body traveled in cleartext: every credential in a PAP START is readable by anyone on the path")
 	}
 
 	// The body is the obfuscation of that plaintext and nothing else: XORing the

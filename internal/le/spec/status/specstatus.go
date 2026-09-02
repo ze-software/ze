@@ -289,7 +289,7 @@ func loadSpec(ctx context.Context, root, rel string, warn func(string)) (Spec, e
 // one git process per spec, and the hook needs no date at all.
 //
 // The hook previously kept its own seven-name status list and its own scan, so
-// it dropped `done` silently: on 2026-08-29 it summarised 231 specs over counts
+// it dropped `done` silently: on 2026-08-29 it summarized 231 specs over counts
 // summing to 229, the two missing ones being done-but-never-closed. That is the
 // same under-report summaryOrder's comment records for 2026-08-22, in a second
 // copy that the first fix did not reach.

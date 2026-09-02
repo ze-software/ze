@@ -9,14 +9,14 @@ import (
 	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/featuretags"
-	"github.com/ze-software/ze/internal/le/plugin/imports"
+	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 	"github.com/ze-software/ze/internal/le/rfc"
 	"github.com/ze-software/ze/internal/le/rules"
-	"github.com/ze-software/ze/internal/le/site/facts"
+	sitefacts "github.com/ze-software/ze/internal/le/site/facts"
 	"github.com/ze-software/ze/internal/le/testhealth"
 	"github.com/ze-software/ze/internal/le/vendorweb"
 	"github.com/ze-software/ze/internal/le/webassets"
-	"github.com/ze-software/ze/internal/le/yang/glue"
+	yangglue "github.com/ze-software/ze/internal/le/yang/glue"
 )
 
 // GenerationStep is one native action in the repository generation sequence.

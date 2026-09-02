@@ -70,6 +70,17 @@ func docsLinkManifest() (map[string]string, error) {
 	return manifest, nil
 }
 
+// The five docs sources that two tables name. This registry states the category
+// of each one, and redirect.go states the retired public URL each one moved
+// from. Every other source moved from docs/<stem>, so no other row needs a name.
+const (
+	docsSourceContributeTesting = "contributing/testing.md"
+	docsSourceDeprecatedOptions = "architecture/config/deprecated-options.md"
+	docsSourceGlossary          = "glossary.md"
+	docsSourceHistory           = "history.md"
+	docsSourceRFCStatus         = "features/rfc-status.md"
+)
+
 // docsManifest names every Markdown source under docs/ that the site
 // publishes, in the order the retired registry declared them.
 //
@@ -81,13 +92,13 @@ func docsLinkManifest() (map[string]string, error) {
 var docsManifest = []docsManifestRow{
 	{Source: "architecture.md", Category: ""},
 	{Source: "architecture/api/commands.md", Category: categoryAutomate},
-	{Source: "architecture/config/deprecated-options.md", Category: categoryOperate},
+	{Source: docsSourceDeprecatedOptions, Category: categoryOperate},
 	{Source: "architecture/testing/interop.md", Category: categoryRouting},
 	{Source: "features.md", Category: ""},
 	{Source: "features/ai-first.md", Category: categoryAutomate},
 	{Source: "features/api-commands.md", Category: categoryAutomate},
 	{Source: "features/bgp-protocol.md", Category: categoryRouting},
-	{Source: "features/rfc-status.md", Category: categoryRouting},
+	{Source: docsSourceRFCStatus, Category: categoryRouting},
 	{Source: "features/cli-commands.md", Category: categoryOperate},
 	{Source: "features/configuration.md", Category: categoryOperate},
 	{Source: "features/dns-resolver.md", Category: categoryServices},
@@ -151,9 +162,9 @@ var docsManifest = []docsManifestRow{
 	{Source: "architecture/testing/ci-format.md", Category: categoryObserve},
 	{Source: "contributing/documentation-testing.md", Category: categoryObserve},
 	{Source: "contributing/rfc-implementation-guide.md", Category: categoryRouting},
-	{Source: "contributing/testing.md", Category: categoryObserve},
+	{Source: docsSourceContributeTesting, Category: categoryObserve},
 	{Source: "features/srv6.md", Category: categoryRouting},
-	{Source: "glossary.md", Category: ""},
+	{Source: docsSourceGlossary, Category: ""},
 	{Source: "guide/add-path.md", Category: categoryRouting},
 	{Source: "guide/api.md", Category: categoryAutomate},
 	{Source: "guide/bgp-peering.md", Category: categoryRouting},
@@ -185,7 +196,7 @@ var docsManifest = []docsManifestRow{
 	{Source: "guide/self-update.md", Category: categoryPlatform},
 	{Source: "guide/traffic-control.md", Category: categoryServices},
 	{Source: "guide/web-interface.md", Category: categoryOperate},
-	{Source: "history.md", Category: ""},
+	{Source: docsSourceHistory, Category: ""},
 	{Source: "plugin-development.md", Category: categoryAutomate},
 	{Source: "plugin-development/commands.md", Category: categoryAutomate},
 	{Source: "plugin-development/handlers.md", Category: categoryAutomate},

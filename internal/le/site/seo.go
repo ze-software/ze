@@ -23,12 +23,6 @@ const (
 	robotsFile  = "robots.txt"
 )
 
-// sitemapSkipDirectories are the top-level directories that publish no page.
-// Each holds files a crawler has no route to.
-var sitemapSkipDirectories = map[string]bool{
-	"assets": true, "data": true, "tmp": true, gitMetadataDir: true,
-}
-
 // renderSEO publishes the sitemap and the robots file. Neither is a route, so
 // this producer answers none.
 func renderSEO(paths Paths) ([]string, error) {
@@ -69,7 +63,7 @@ func sitemapURLs(output string, routes []legacyRoute) ([]string, error) {
 		}
 		name := filepath.ToSlash(relative)
 		if entry.IsDir() {
-			if sitemapSkipDirectories[name] {
+			if unpublishedDirectories[name] {
 				return filepath.SkipDir
 			}
 			return nil

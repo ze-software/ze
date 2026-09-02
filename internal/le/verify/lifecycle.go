@@ -17,7 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/verify/engine"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 const (

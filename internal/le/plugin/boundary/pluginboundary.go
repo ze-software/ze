@@ -50,7 +50,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/plugin/imports"
+	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 )
 
 // allowlist maps a path prefix (a file, or a directory ending in "/", relative

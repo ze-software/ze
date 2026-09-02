@@ -24,7 +24,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/qemu"
 	_ "github.com/ze-software/ze/internal/le/verify"
 	_ "github.com/ze-software/ze/internal/le/verify/deps"
-	"github.com/ze-software/ze/internal/le/verify/engine"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 const workflowsDir = ".github/workflows"

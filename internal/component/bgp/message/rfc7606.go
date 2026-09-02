@@ -770,7 +770,7 @@ func validateExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7
 }
 
 // RFC 8092 Section 6: "A BGP Large Communities attribute SHALL be considered
-// malformed if the length ... is not a non-zero multiple of 12."
+// malformed if the length ... is not a non-zero multiple of 12.".
 func validateLargeCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
 	if length == 0 || length%12 != 0 {
 		var b textbuf.Buffer

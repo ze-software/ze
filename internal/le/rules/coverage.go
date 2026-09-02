@@ -65,7 +65,7 @@ var (
 	// `// ze point: none -- <why>` declares that a registered native check
 	// enforces no written point. The reason distinguishes an intentional
 	// exception from a forgotten binding.
-	noPointLine  = regexp.MustCompile(`^none[ \t\n\r\f\v]+--[ \t\n\r\f\v]+(\S.*)$`)
+	noPointLine = regexp.MustCompile(`^none[ \t\n\r\f\v]+--[ \t\n\r\f\v]+(\S.*)$`)
 )
 
 // structuralKinds are excluded from the ungated DENOMINATOR, so the number
@@ -555,11 +555,6 @@ func unboundRegressions(gm gateMap, baseline map[string]map[string]bool, onDisk 
 	sort.Strings(out)
 	return out
 }
-
-
-
-
-
 
 // rationaleProblems answers the declared rationale links, and the ones naming
 // no RECORD.

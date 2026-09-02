@@ -21,8 +21,9 @@ func init() {
 // Where the dependency page reads and writes.
 const (
 	dependenciesDataFile = "dependencies.json"
-	// dependenciesDirectory is the page's own name under reference/, and it is
-	// the producer's name: one page, one directory, one claim.
+	// dependenciesDirectory is the page's own name under reference/. It is also
+	// the producer's name, the prose token that carries its count, and the
+	// route the page published at before it moved: one page, one name.
 	dependenciesDirectory = "dependencies"
 	dependenciesDest      = "reference/" + dependenciesDirectory + "/" + pageIndexFile
 	dependenciesRoot      = "../../"

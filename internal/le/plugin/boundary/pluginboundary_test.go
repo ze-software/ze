@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/plugin/imports"
+	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 )
 
 // fixtureTree writes the four package fixtures into a temporary tree and

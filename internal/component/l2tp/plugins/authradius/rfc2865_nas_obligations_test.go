@@ -74,9 +74,9 @@ func startCapturingRADIUS(t *testing.T, sharedKey []byte, code uint8, attrs []ra
 // every request with an Access-Accept. Every caller here reads the
 // Access-Request off the wire, or requires that none was sent, so the reply code
 // is fixed.
-func setupCapturingAuth(t *testing.T, sharedKey []byte, attrs []radius.Attr) (*radiusAuth, *capturingRADIUS, *fakeResponder) {
+func setupCapturingAuth(t *testing.T, sharedKey []byte) (*radiusAuth, *capturingRADIUS, *fakeResponder) {
 	t.Helper()
-	srv := startCapturingRADIUS(t, sharedKey, radius.CodeAccessAccept, attrs)
+	srv := startCapturingRADIUS(t, sharedKey, radius.CodeAccessAccept, nil)
 	client, err := radius.NewClient(radius.ClientConfig{
 		Servers: []radius.Server{{Address: srv.addr, SharedKey: sharedKey}},
 		Timeout: 300 * time.Millisecond,
@@ -100,7 +100,7 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 
 	// RFC requirement: RFC2865-4.1-3 positive -- a PAP request carries the
 	// User-Password attribute, one of the three Section 4.1 admits.
-	a, srv, resp := setupCapturingAuth(t, key, nil)
+	a, srv, resp := setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
 		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte("password123"),
@@ -113,7 +113,7 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 
 	// RFC requirement: RFC2865-4.1-3 positive -- a CHAP request carries the
 	// CHAP-Password attribute instead.
-	a, srv, resp = setupCapturingAuth(t, key, nil)
+	a, srv, resp = setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
 		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodCHAPMD5,
 		Username: "alice", Identifier: 3,
@@ -128,7 +128,7 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 	// RFC requirement: RFC2865-4.1-3 negative -- a peer that offered no
 	// credential (AuthMethodNone) yields no User-Password, no CHAP-Password and
 	// no State, so no Access-Request is sent and the session is denied.
-	a, srv, resp = setupCapturingAuth(t, key, nil)
+	a, srv, resp = setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
 		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodNone, Username: "alice",
 	}, resp.respond)
@@ -140,7 +140,7 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 	// RFC requirement: RFC2865-4.1-3 negative -- an MS-CHAPv2 response too short
 	// to yield a peer challenge and an NT response produces no credential
 	// attribute either, so no Access-Request is sent.
-	a, srv, resp = setupCapturingAuth(t, key, nil)
+	a, srv, resp = setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
 		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodMSCHAPv2,
 		Username: "alice", Challenge: make([]byte, 16), Response: make([]byte, 39),
@@ -158,7 +158,7 @@ func TestRFC2865SubscriberZeroLengthUserNameOmitted(t *testing.T) {
 
 	// RFC requirement: RFC2865-5-8 positive -- a non-empty Peer-ID is text of
 	// non-zero length, so the User-Name attribute is sent and carries it.
-	a, srv, resp := setupCapturingAuth(t, key, nil)
+	a, srv, resp := setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
 		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte("pw"),
@@ -171,7 +171,7 @@ func TestRFC2865SubscriberZeroLengthUserNameOmitted(t *testing.T) {
 	// RFC requirement: RFC2865-5-8 negative -- a PAP peer may send Peer-ID-Length
 	// 0, and text of length zero MUST NOT be sent, so the User-Name attribute is
 	// omitted entirely rather than sent empty.
-	a, srv, resp = setupCapturingAuth(t, key, nil)
+	a, srv, resp = setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
 		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "", Response: []byte("pw"),

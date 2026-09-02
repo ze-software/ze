@@ -166,6 +166,8 @@ func (s *Sender) buildEVPNRoute(route scenario.EVPNRoute) []byte {
 }
 
 // buildFlowSpecRoute constructs a serialized FlowSpec UPDATE for a single route.
+// It returns nil when the route cannot be encoded, and the caller then sends
+// nothing for that route.
 func (s *Sender) buildFlowSpecRoute(route scenario.FlowSpecRoute) []byte {
 	var family flowspec.Family
 	if route.IsIPv6 {
@@ -175,8 +177,12 @@ func (s *Sender) buildFlowSpecRoute(route scenario.FlowSpecRoute) []byte {
 	}
 
 	fs := flowspec.NewFlowSpec(family)
-	fs.AddComponent(flowspec.NewFlowDestPrefixComponent(route.DestPrefix))
-	fs.AddComponent(flowspec.NewFlowSourcePrefixComponent(route.SourcePrefix))
+	if err := fs.AddComponent(flowspec.NewFlowDestPrefixComponent(route.DestPrefix)); err != nil {
+		return nil
+	}
+	if err := fs.AddComponent(flowspec.NewFlowSourcePrefixComponent(route.SourcePrefix)); err != nil {
+		return nil
+	}
 
 	params := message.FlowSpecParams{
 		IsIPv6:  route.IsIPv6,

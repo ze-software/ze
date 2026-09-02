@@ -170,7 +170,7 @@ var (
 // read from the page.
 func (textWriter) RawWrite(writer util.BufWriter, source []byte) {
 	written := 0
-	for index := range len(source) {
+	for index := range source {
 		replacement := textContentEscape(source[index])
 		if replacement == nil {
 			continue

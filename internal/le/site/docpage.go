@@ -127,9 +127,9 @@ func tableColumnsEnabled(metadata map[string]string) (bool, error) {
 // show through.
 var numberTokenSpecs = map[string]string{
 	"cli-commands":         "cli_commands",
-	"changes":              "changes",
+	changesProducer:        changesProducer,
 	"config-sections":      "config_sections",
-	"dependencies":         "dependencies",
+	dependenciesDirectory:  dependenciesDirectory,
 	"e2e-tests":            "tests.e2e_display",
 	"editor-tests":         "tests.editor_display",
 	"features":             "features.core_experimental",

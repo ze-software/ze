@@ -71,6 +71,14 @@ import (
 // Canonical definition: internal/component/config/yang/command.go.
 const cmdModuleSuffix = "-cmd"
 
+// The two identifiers the command registry package is imported under. A
+// registrar call is recognized by either, because a file that renames the
+// import registers the same command.
+const (
+	pkgRegistry    = "registry"
+	pkgCmdRegistry = "cmdregistry"
+)
+
 // skippedWireMethods are handlers that need no YANG command tree entry.
 var skippedWireMethods = map[string]bool{
 	"ze-editor:mode-command": true,
@@ -337,7 +345,7 @@ func collectLocalHandlersFromFile(path string, paths map[string]bool) error {
 			return true
 		}
 		pkg, ok := selector.X.(*ast.Ident)
-		if !ok || (pkg.Name != "cmdregistry" && pkg.Name != "registry") {
+		if !ok || (pkg.Name != pkgCmdRegistry && pkg.Name != pkgRegistry) {
 			return true
 		}
 		switch selector.Sel.Name {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/verify/engine"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 func TestRunCurrentFullAndChangedModes(t *testing.T) {

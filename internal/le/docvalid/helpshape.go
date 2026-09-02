@@ -418,7 +418,7 @@ func localCommandsInFile(path string) ([]registry.LocalCommandEntry, error) {
 			return true
 		}
 		pkg, ok := selector.X.(*ast.Ident)
-		if !ok || (pkg.Name != "registry" && pkg.Name != "cmdregistry") {
+		if !ok || (pkg.Name != pkgRegistry && pkg.Name != pkgCmdRegistry) {
 			return true
 		}
 
@@ -488,7 +488,7 @@ func isMetaType(expr ast.Expr) bool {
 	if !ok {
 		return false
 	}
-	return pkg.Name == "registry" || pkg.Name == "cmdregistry"
+	return pkg.Name == pkgRegistry || pkg.Name == pkgCmdRegistry
 }
 
 // stringLiteral answers the value of a quoted string expression.

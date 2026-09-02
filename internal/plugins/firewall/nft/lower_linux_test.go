@@ -1894,7 +1894,7 @@ func TestMergeRuleCountersSumsTheRulesOfOneTerm(t *testing.T) {
 // the two that had a test.
 // PREVENTS: an operator writing `flags-constant` or `flags-dynamic`, seeing it
 // parsed by parseSet and rendered back by the web page, while lowerSet sent
-// neither to the kernel. readback_linux.go recognises both on a set the kernel
+// neither to the kernel. readback_linux.go recognizes both on a set the kernel
 // already holds, so ze could display a flag it was unable to apply itself and
 // the operator had no way to learn the difference.
 func TestLowerSetCarriesConstantAndDynamic(t *testing.T) {

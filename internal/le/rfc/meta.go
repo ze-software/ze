@@ -239,7 +239,7 @@ func (m Meta) Enrolled() bool { return m.Enrolment == enrolmentEnrolled }
 
 // OutOfScope answers whether the owner decided not to offer this document's
 // feature for now. Such a summary declares its obligations in full and gates
-// none of them, so a new one is not asked to enrol.
+// none of them, so a new one is not asked to enroll.
 func (m Meta) OutOfScope() bool { return m.Enrolment == dispositionOutOfScope }
 
 // HasRow answers whether this summary renders a row on the public page.
@@ -253,7 +253,7 @@ func (m Meta) Disposition() Disposition {
 
 // nearMissRE is the label a reader must not silently skip: anything naming
 // enrolment, support or obsolescence that is not one of the exact labels above.
-var nearMissRE = regexp.MustCompile(`(?i)enrol|support|obsolet`)
+var nearMissRE = regexp.MustCompile(`(?i)enrol|support|obsolet`) //nolint:misspell // `enrol` matches Enrolment and Enrolled; `enroll` misses Enrolment.
 
 // knownMetaLabels are every label nearMissRE is allowed to match.
 var knownMetaLabels = map[string]bool{
@@ -575,8 +575,8 @@ func summaryMetas(tree string, stems map[string]bool) (map[string]Meta, map[stri
 // enrolledFrom answers the gated set.
 func enrolledFrom(metas map[string]Meta) map[string]bool {
 	out := map[string]bool{}
-	for stem, meta := range metas {
-		if meta.Enrolled() {
+	for stem := range metas {
+		if metas[stem].Enrolled() {
 			out[stem] = true
 		}
 	}
@@ -586,9 +586,9 @@ func enrolledFrom(metas map[string]Meta) map[string]bool {
 // enrolmentReasonsFrom answers why each gated RFC is gated.
 func enrolmentReasonsFrom(metas map[string]Meta) map[string]string {
 	out := map[string]string{}
-	for stem, meta := range metas {
-		if meta.Enrolled() {
-			out[stem] = meta.EnrolmentReason
+	for stem := range metas {
+		if metas[stem].Enrolled() {
+			out[stem] = metas[stem].EnrolmentReason
 		}
 	}
 	return out
@@ -602,9 +602,9 @@ func enrolmentReasonsFrom(metas map[string]Meta) map[string]string {
 // summary cannot be enrolled and declared at the same time.
 func dispositionsFrom(metas map[string]Meta) map[string]Disposition {
 	out := map[string]Disposition{}
-	for stem, meta := range metas {
-		if !meta.Enrolled() {
-			out[stem] = meta.Disposition()
+	for stem := range metas {
+		if !metas[stem].Enrolled() {
+			out[stem] = metas[stem].Disposition()
 		}
 	}
 	return out
@@ -614,15 +614,17 @@ func dispositionsFrom(metas map[string]Meta) map[string]Disposition {
 // cells the checks read.
 func rowsFrom(metas map[string]Meta) map[string]LedgerRow {
 	out := map[string]LedgerRow{}
-	for stem, meta := range metas {
-		if !meta.HasRow() {
+	for stem := range metas {
+		if !metas[stem].HasRow() {
 			continue
 		}
-		remaining := meta.Remaining
+		remaining := metas[stem].Remaining
 		if remaining == supportNone {
 			remaining = ""
 		}
-		out[stem] = LedgerRow{Status: meta.Status, Coverage: meta.Coverage, Remaining: remaining}
+		out[stem] = LedgerRow{
+			Status: metas[stem].Status, Coverage: metas[stem].Coverage, Remaining: remaining,
+		}
 	}
 	return out
 }
@@ -634,9 +636,9 @@ func rowsFrom(metas map[string]Meta) map[string]LedgerRow {
 // stem has no summary" (ai/rules/principles.md).
 func titlesFrom(metas map[string]Meta) map[string]string {
 	out := map[string]string{}
-	for stem, meta := range metas {
-		if meta.Title != "" {
-			out[stem] = meta.Title
+	for stem := range metas {
+		if metas[stem].Title != "" {
+			out[stem] = metas[stem].Title
 		}
 	}
 	return out
@@ -646,9 +648,9 @@ func titlesFrom(metas map[string]Meta) map[string]string {
 // that declares one.
 func successorsFrom(metas map[string]Meta) map[string]string {
 	out := map[string]string{}
-	for stem, meta := range metas {
-		if meta.Successor != "" {
-			out[stem] = meta.Successor
+	for stem := range metas {
+		if metas[stem].Successor != "" {
+			out[stem] = metas[stem].Successor
 		}
 	}
 	return out

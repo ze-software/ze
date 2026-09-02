@@ -89,7 +89,7 @@ func parseHeader(buf []byte) (rTRHeader, error) {
 
 // writeResetQuery writes a Reset Query PDU into buf at offset off.
 // Returns bytes written (always 8).
-func writeResetQuery(buf []byte, off int, version uint8) int {
+func writeResetQuery(buf []byte, off int, version uint8) int { //nolint:unparam // off keeps the buffer-first (buf, off) signature every writer here shares
 	buf[off] = version
 	buf[off+1] = pduResetQuery
 	buf[off+2] = 0

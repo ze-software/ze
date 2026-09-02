@@ -30,6 +30,14 @@ const (
 	selftestCorrectionDate = "2026-08-26"
 )
 
+// The fixture's second stem, so a refusal can be driven from one summary while
+// the first one stays valid, and so a ratchet reading a baseline population has
+// a stem to read there.
+const (
+	selftestStemSecond       = "rfc8888"
+	selftestSummaryRelSecond = "rfc/short/rfc8888.md"
+)
+
 // selftestMeta is the fixture summary's `## Meta` table: the one place a
 // summary declares its own enrolment and its own public row.
 const selftestMeta = "## Meta\n\n| Field | Value |\n|-------|-------|\n" +
@@ -208,9 +216,9 @@ func runStatusSelftest() ([]leroot.SelftestResult, error) {
 	}
 	rows := rowsFrom(map[string]Meta{selftestStem: meta})
 	_, absent := ParseMeta("# RFC 8888\n\n## Meta\n\n| Field | Value |\n|--|--|\n| Title | X |\n",
-		"rfc8888", "rfc/short/rfc8888.md")
-	_, unknown := ParseMeta(selftestMetaWith("| Enrolment | maybe |\n"), "rfc8888", "rfc/short/rfc8888.md")
-	_, nearMiss := ParseMeta(selftestMetaWith("| Enrolled | enrolled |\n"), "rfc8888", "rfc/short/rfc8888.md")
+		selftestStemSecond, selftestSummaryRelSecond)
+	_, unknown := ParseMeta(selftestMetaWith("| Enrolment | maybe |\n"), selftestStemSecond, selftestSummaryRelSecond)
+	_, nearMiss := ParseMeta(selftestMetaWith("| Enrolled | enrolled |\n"), selftestStemSecond, selftestSummaryRelSecond)
 	gap := Requirement{
 		RFC: selftestStem, RID: selftestRIDSend, Level: levelMust, Text: "MUST send", Section: "2",
 		Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"},
@@ -220,7 +228,7 @@ func runStatusSelftest() ([]leroot.SelftestResult, error) {
 		map[string]LedgerRow{selftestStem: {Status: "Supported", Coverage: "complete"}},
 		map[string]bool{selftestStem: true},
 	)
-	judged := checkSummaryDisposition("", map[string]Meta{"rfc8888": {
+	judged := checkSummaryDisposition("", map[string]Meta{selftestStemSecond: {
 		Enrolment: dispositionNonNormative, EnrolmentReason: "ze does not implement it",
 	}}, nil)
 	counted := checkGapCountAgreement([]Requirement{gap},
@@ -247,7 +255,7 @@ func runStatusSelftest() ([]leroot.SelftestResult, error) {
 // selftestMetaWith answers the fixture summary with one extra Meta row, so a
 // refusal can be driven from a real summary rather than from a fragment.
 func selftestMetaWith(row string) string {
-	return strings.Join([]string{"# RFC 8888\n\n", selftestMeta, row}, "")
+	return "# RFC 8888\n\n" + selftestMeta + row
 }
 func runBaselineSelftest() ([]leroot.SelftestResult, error) {
 	root, err := newSelftestTree("rfc-selftest-baseline-", map[string]string{})
@@ -289,14 +297,14 @@ var Gating = []string{suiteParse, suiteUI}
 	levelLoss := checkLevelRatchet(root, []Requirement{demoted}, enrolled,
 		map[string]string{req.RID: levelMust}, baselineEnrolled)
 	newSummary := checkNewSummaries(
-		NewDeriver(root), map[string]bool{selftestStem: true}, map[string]bool{"rfc8888": true},
+		NewDeriver(root), map[string]bool{selftestStem: true}, map[string]bool{selftestStemSecond: true},
 		map[string]bool{}, []Requirement{req}, map[string]string{}, true, map[string]Meta{},
 	)
 	// The same new summary, declared out-of-scope: the extraction is done and
 	// the owner declined the feature, so enrolment is not owed and the check
 	// must stay silent.
 	scoped := checkNewSummaries(
-		NewDeriver(root), map[string]bool{selftestStem: true}, map[string]bool{"rfc8888": true},
+		NewDeriver(root), map[string]bool{selftestStem: true}, map[string]bool{selftestStemSecond: true},
 		map[string]bool{}, []Requirement{req}, map[string]string{}, true,
 		map[string]Meta{selftestStem: {Enrolment: dispositionOutOfScope}},
 	)
@@ -321,7 +329,7 @@ var Gating = []string{suiteParse, suiteUI}
 		selftestResult("baseline/level-ratchet", len(levelLoss) == 1 && strings.Contains(levelLoss[0], levelMust),
 			"the level ratchet accepted an unauthorized demotion"),
 		selftestResult("baseline/out-of-scope-not-billed", len(scoped) == 0,
-			"an out-of-scope summary was asked to enrol, which pressures the next author to delete its checklist"),
+			"an out-of-scope summary was asked to enroll, which pressures the next author to delete its checklist"),
 		selftestResult("baseline/out-of-scope-claims-nothing", len(claimed) == 1 && strings.Contains(claimed[0], "cannot be advertised as supported"),
 			"an out-of-scope summary was allowed to claim public support"),
 		selftestResult("baseline/new-summary-ratchet", len(newSummary) == 1 && strings.Contains(newSummary[0], "does not declare `| Enrolment | enrolled |`"),

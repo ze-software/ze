@@ -81,16 +81,16 @@ func generatedBanner(comment, by string) string {
 		Str("` from the `## Meta` table of each rfc/short/*.md. Do not edit.").String()
 }
 
-// share renders a count with the population it is drawn from.
+// share renders a count against the summary population it is drawn from.
 //
 // Every count these three files state carries its denominator and its
 // percentage (owner directive, 2026-09-01). An absolute number alone reads as
 // an achievement: "3,256 gated MUSTs" counts obligations JUDGED and is read as
 // obligations MET. The percentage is what makes the population visible, and the
 // population is what the reader is actually being told about.
-func share(count, total int, population string) string {
+func share(count, total int) string {
 	var tb textbuf.Buffer
-	tb.Int(int64(count)).Str(" of ").Int(int64(total)).Byte(' ').Str(population)
+	tb.Int(int64(count)).Str(" of ").Int(int64(total)).Str(" summaries")
 	if total <= 0 {
 		return tb.Str(" (no population)").String()
 	}
@@ -129,7 +129,7 @@ func renderEnrolled(metas map[string]Meta) string {
 	var tb textbuf.Buffer
 	tb.Str(generatedBanner("#", "./le rfc index-update")).Byte('\n')
 	tb.Str("#\n")
-	tb.Str("# The gate's scope: ").Str(share(len(enrolled), len(stems), "summaries")).
+	tb.Str("# The gate's scope: ").Str(share(len(enrolled), len(stems))).
 		Str(" declare `| Enrolment | enrolled |`.\n")
 	tb.Str("#\n")
 	tb.Str("# columns: <rfc-stem>\\t<why this RFC is enrolled>\n")
@@ -140,7 +140,7 @@ func renderEnrolled(metas map[string]Meta) string {
 	tb.Str("#       {single-polarity: <polarity>; why}\n")
 	tb.Str("# `./le rfc check` enforces this. See ai/skills/ze-rfc.md.\n")
 	tb.Str("#\n")
-	tb.Str("# To enrol an RFC, edit its summary and nothing else: set `| Enrolment | enrolled |`\n")
+	tb.Str("# To enrol an RFC, edit its summary and nothing else: set `| Enrolment | enrolled |`\n") //nolint:misspell // Generated ledger prose naming the `Enrolment` field; `enroll` here would rewrite rfc/enrolled.txt.
 	tb.Str("# and `| Enrolment reason | ... |` in its `## Meta` table, then run `./le rfc index-update`.\n")
 	tb.Str("# Enrolment REQUIRES the RFC's own text at rfc/full/<stem>.txt or rfc/drafts/<stem>.txt,\n")
 	tb.Str("# and an extraction sign-off at rfc/extraction/<stem>.json. `checkEnrolment` refuses\n")
@@ -169,7 +169,7 @@ func renderNotEnrolled(metas map[string]Meta) string {
 	var tb textbuf.Buffer
 	tb.Str(generatedBanner("#", "./le rfc index-update")).Byte('\n')
 	tb.Str("#\n")
-	tb.Str("# The declared remainder: ").Str(share(len(declared), len(stems), "summaries")).
+	tb.Str("# The declared remainder: ").Str(share(len(declared), len(stems))).
 		Str(" are not enrolled, and each states why in its own `## Meta` table.\n")
 	tb.Str("#\n")
 	tb.Str("# columns: <rfc-stem>\\t<kind>\\t<why>\n")
@@ -181,7 +181,7 @@ func renderNotEnrolled(metas map[string]Meta) string {
 		if kind == enrolmentEnrolled {
 			continue
 		}
-		tb.Str("#   ").Str(kind).Str(": ").Str(share(byKind[kind], len(stems), "summaries")).Byte('\n')
+		tb.Str("#   ").Str(kind).Str(": ").Str(share(byKind[kind], len(stems))).Byte('\n')
 	}
 	tb.Str("#\n")
 	// The meanings are derived from the same closed set as the counts above,
@@ -252,7 +252,8 @@ func renderStatusPage(metas map[string]Meta) (string, error) {
 			tb.Str("| RFC | Area | Status | Implemented coverage | Remaining if not complete |\n")
 			tb.Str("|-----|------|--------|----------------------|---------------------------|\n")
 		}
-		for _, row := range rows {
+		for index := range rows {
+			row := &rows[index]
 			tb.Str("| ").Str(RowName(row.Stem, row.Meta)).Str(" | ").Str(row.Meta.Area).
 				Str(" | ").Str(row.Meta.Status).Str(" | ").Str(row.Meta.Coverage)
 			if !section.Brief {
@@ -334,7 +335,7 @@ func statusPageIntro(unrowed, summaries int) string {
 	tb.Str("`/quality/rfc-compliance/<stem>/`, one page for every summary under `rfc/short/`, ")
 	tb.Str("naming each requirement, the tests bound to it, the audit verdict a reader recorded, ")
 	tb.Str("and every gap and untested MUST under its own requirement id. The ")
-	tb.Str(share(unrowed, summaries, "summaries"))
+	tb.Str(share(unrowed, summaries))
 	tb.Str(" with no row on this page are published there too, and the index at ")
 	tb.Str("`/quality/rfc-compliance/` links all of them.\n\n")
 	tb.Str("**How strong the proof behind a row is.** Every requirement's evidence is listed in ")

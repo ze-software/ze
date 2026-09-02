@@ -263,7 +263,7 @@ func TestEveryGeneratedCountCarriesItsDenominator(t *testing.T) {
 	files, _, _ := ledgerFixture(t)
 
 	for _, rel := range []string{enrolledRel, notEnrolledRel} {
-		for _, line := range strings.Split(files[rel], "\n") {
+		for line := range strings.SplitSeq(files[rel], "\n") {
 			if !strings.HasPrefix(line, "#") {
 				continue
 			}

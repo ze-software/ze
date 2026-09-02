@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -56,12 +57,6 @@ const (
 // search for a section name found nothing. Each section is indexed instead,
 // deep-linked to the hash the in-page explorer routes on.
 const configurationReferenceDirectory = "reference/configuration"
-
-// searchSkipDirectories are the top-level directories of the artifact that hold
-// no published page. Each one can carry a Markdown file that is not a mirror.
-var searchSkipDirectories = map[string]bool{
-	"assets": true, "data": true, "tmp": true, gitMetadataDir: true,
-}
 
 // searchRecord is one entry of the browser's index.
 //
@@ -201,7 +196,7 @@ func pageSearchRecords(output string) ([]searchRecord, error) {
 			if relErr != nil {
 				return relErr
 			}
-			if searchSkipDirectories[filepath.ToSlash(relative)] {
+			if unpublishedDirectories[filepath.ToSlash(relative)] {
 				return filepath.SkipDir
 			}
 			return nil
@@ -261,7 +256,7 @@ func configSearchRecords(output string) ([]searchRecord, error) {
 		node := tree[name]
 		var heads, descriptions []string
 		flattenConfigSection(&node, &heads, &descriptions)
-		body := strings.Join(append(heads, descriptions...), " ")
+		body := strings.Join(slices.Concat(heads, descriptions), " ")
 		records = append(records, newSearchRecord(name,
 			configurationReferenceDirectory+"/#"+name, configurationReferenceDirectory,
 			capRunes(body, searchConfigBodyCap)))

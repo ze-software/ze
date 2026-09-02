@@ -28,7 +28,12 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// and actions.go no longer imports fmt. The buffer now carries the trailing
 	// newline Fprintln used to add, so the bytes on stderr are unchanged, which
 	// is what the digest exists to pin.
-	const want = "c8d52967c05c1bd81f0cb308e4c956239c48bb8e24e30e1adfd145fac8cf4889"
+	//
+	// Updated 2026-09-02: coverage.go was committed unformatted, so gofmt
+	// removed one alignment space on the noPointLine var and five stray blank
+	// lines above rationaleProblems. Whitespace only, so the coverage report
+	// decides exactly what it decided before, which is what the digest pins.
+	const want = "3ad3e68f8ca63efd367c5209120f74af3e3e6b6bc7f98c3dba48e7fd48c19602"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

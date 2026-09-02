@@ -217,7 +217,7 @@ func TestADetailPageStatesWhatAnUndeclaredCommandTakes(t *testing.T) {
 	writeCatalog(t, paths.Output, `[{"path":"show test","mode":"read-only",
 		"description":"Show the rows of the test table.","task-support":"sometimes"},
 		{"path":"show plain","mode":"read-only","description":"Show the plain rows."}]`)
-	writeEquivalentMapping(t, paths.Output, enrichedCommandMapping)
+	writeEquivalentMapping(t, paths.Output)
 
 	if _, err := renderCommandEquivalents(paths); err != nil {
 		t.Fatal(err)

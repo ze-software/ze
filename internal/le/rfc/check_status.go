@@ -321,7 +321,7 @@ func checkSupportedSignoff(rows map[string]LedgerRow, signed map[string]Extracti
 }
 
 // restrictedReasonRE is what a `source-restricted` reason must cite: the body
-// that publishes the standard, or the licence that stops it being copied.
+// that publishes the standard, or the license that stops it being copied.
 //
 // Positive rather than a blacklist, for the reason the non-normative citation
 // requirement is positive. A reason that cites none of these cannot be checked
@@ -362,7 +362,7 @@ func checkSourceRestricted(at, reason, stem, tree string) []string {
 	return []string{tb.Str(at).
 		Str("is declared source-restricted with a reason that names nothing a reviewer can check: ").
 		Str(pyRepr(truncateRunes(reason, 80))).
-		Str(". This kind excuses a public support claim, so its reason must rest on the body that publishes the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) or on the licence, copyright or paywall that stops the text being copied. Where the text IS fetchable, record 'blocked' and fetch it").String()}
+		Str(". This kind excuses a public support claim, so its reason must rest on the body that publishes the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) or on the license, copyright or paywall that stops the text being copied. Where the text IS fetchable, record 'blocked' and fetch it").String()}
 }
 
 // scopeDecisionRE is what an `out-of-scope` reason must carry: the date the

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/plugin/imports"
+	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 )
 
 // fixtureTree writes a fixture checkout and answers its root.

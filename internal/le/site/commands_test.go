@@ -334,11 +334,6 @@ const twoFormCommandCatalog = `[{
  "wire-method": "ze-test:rows"
 }]`
 
-// twoFormCommandMapping is the smallest vendor map the detail page renders
-// against: one vendor and no curated intent.
-const twoFormCommandMapping = `{"schema-version": 1,
- "vendors": {"vyos": {"label": "VyOS", "short-label": "VyOS"}}, "entries": []}`
-
 // VALIDATES: the CLI reference row carries the declared summary and nothing of
 // the long form (AC-9).
 //

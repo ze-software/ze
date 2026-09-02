@@ -70,9 +70,12 @@ func declByName(t *testing.T, decls []sdk.CommandDecl, want map[string]wantShape
 	t.Helper()
 
 	byName := make(map[string]sdk.CommandDecl, len(decls))
-	for _, decl := range decls {
-		require.NotContains(t, byName, decl.Name, "the plugin declares %q twice", decl.Name)
-		byName[decl.Name] = decl
+	// Range over the index: sdk.CommandDecl is large enough that a value
+	// variable copies it on every iteration.
+	for i := range decls {
+		name := decls[i].Name
+		require.NotContains(t, byName, name, "the plugin declares %q twice", name)
+		byName[name] = decls[i]
 	}
 	for name := range byName {
 		assert.Contains(t, want, name, "the plugin declares %q and this test states nothing about it", name)

@@ -15,7 +15,7 @@ import (
 	"sort"
 
 	"github.com/ze-software/ze/internal/le/featuretags"
-	"github.com/ze-software/ze/internal/le/verify/lint"
+	verifylint "github.com/ze-software/ze/internal/le/verify/lint"
 )
 
 // projectTag matches the build tags this repository owns. Non-project tags

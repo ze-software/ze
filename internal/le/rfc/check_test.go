@@ -1473,7 +1473,7 @@ func TestSourceRestrictedReasonMustNameWhatStopsTheCopy(t *testing.T) {
 		want   string
 	}{
 		{"names the publisher", "Published by ISO/IEC and not freely redistributable.", ""},
-		{"names the licence", "The copyright holder forbids redistribution.", ""},
+		{"names the license", "The copyright holder forbids redistribution.", ""},
 		{"cites nothing", "We never got round to it.", "names nothing a reviewer can check"},
 		{"judges what ze owes", "Ze does not need this standard.", "judges what ZE owes"},
 	} {
@@ -1666,7 +1666,7 @@ func TestSurvivingDispositionRefusalsStillFire(t *testing.T) {
 func TestGapCountAgreementAcrossZeroOneAndMany(t *testing.T) {
 	gaps := func(count int) []Requirement {
 		var out []Requirement
-		for index := 0; index < count; index++ {
+		for range count {
 			out = append(out, Requirement{
 				RFC: selftestStem, RID: selftestRIDSend, Level: levelMust,
 				Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"},

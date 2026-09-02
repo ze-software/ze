@@ -180,7 +180,7 @@ func lowerSetType(st firewall.SetType) (nftables.SetDatatype, error) {
 // EVERY flag the config can express is lowered here, for the same reason. The
 // operator writes `flags-constant` or `flags-dynamic`, parseSet reads it into
 // Set.Flags (internal/component/firewall/config.go), the web page renders it
-// back, and readback_linux.go recognises it on a set the kernel already holds.
+// back, and readback_linux.go recognizes it on a set the kernel already holds.
 // A flag that is parsed, displayed and read back but never programmed is a
 // setting that does nothing and says nothing: the operator has no way to learn
 // that the kernel never received it.

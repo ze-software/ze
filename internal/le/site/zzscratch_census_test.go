@@ -64,7 +64,7 @@ func copyScratchTree(t *testing.T, source, target string) {
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if err := exec.Command("cp", "-R", source, target).Run(); err != nil {
+	if err := exec.CommandContext(t.Context(), "cp", "-R", source, target).Run(); err != nil {
 		t.Fatalf("copy %s: %v", source, err)
 	}
 }

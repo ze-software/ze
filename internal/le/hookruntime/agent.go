@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/spec/session"
+	specsession "github.com/ze-software/ze/internal/le/spec/session"
 )
 
 type skillTrigger struct {

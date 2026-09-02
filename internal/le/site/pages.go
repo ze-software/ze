@@ -21,6 +21,17 @@ const (
 	markdownExtension = ".md"
 )
 
+// unpublishedDirectories are the top-level directories of the artifact that
+// hold no published page. Each one can carry a Markdown file that is not a
+// mirror, and each one holds files a crawler has no route to.
+//
+// The search index and the sitemap read this one declaration. They walked two
+// identical copies until 2026-09-02, which is two answers to one question with
+// nothing to arbitrate them.
+var unpublishedDirectories = map[string]bool{
+	"assets": true, "data": true, "tmp": true, gitMetadataDir: true,
+}
+
 // Page is one public route and its human and machine-readable representations.
 type Page struct {
 	Route    string `json:"route"`
