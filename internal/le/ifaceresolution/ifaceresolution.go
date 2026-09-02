@@ -57,8 +57,13 @@ const scanFloor = 500
 // not a comment: a new direct-resolution site not covered here fails, which is
 // the point -- it forces the author to either migrate to the resolver or
 // justify a new exemption here.
+//
+// An entry is owed only where it SUPPRESSES a site. internal/component/iface/
+// and internal/component/doctor/ were listed until 2026-09-02 and neither holds
+// a direct call any more: the resolver delegates to the netlink backend, which
+// carries its own entry, and doctor stopped resolving. Both are gone. The gate
+// asks for the entry back, with a fresh reason, the day the call returns.
 var allowlist = map[string]string{
-	"internal/component/iface/":                             "the shared resolver and dispatch -- the single owner of logical-name -> device resolution that every other consumer calls instead of the kernel.",
 	"internal/plugins/iface/netlink/":                       "the netlink backend -- the single kernel owner the resolver and dispatch delegate to; LinkByName here IS the resolved kernel call.",
 	"internal/plugins/traffic/netlink/":                     "the tc kernel adapter; the traffic backend resolves logical->os in its Apply/RestoreOriginal/ListQdiscs methods (resolveOSName) before this adapter runs, so it only ever sees os device names.",
 	"internal/plugins/fib/kernel/mplsentry_linux.go":        "resolves the literal \"lo\" loopback device, not a config-sourced name.",
@@ -67,7 +72,6 @@ var allowlist = map[string]string{
 	"internal/install/disk/":                                "the disk installer engine (ze-installer initrd PID 1 and `ze install disk`); a self-contained bootstrap context with no iface backend loaded and no logical-name config -- it pins the boot NIC by ze.mac via sysfs (ifaceForMAC) and brings links up via netlink directly, like the provision bootstrap above (docs/architecture/appliance/installer-initrd.md).",
 	"internal/plugins/diag/cmd/capture_interface_linux.go":  "post-resolution: the code uses the resolved OS name to obtain the *net.Interface that the AF_PACKET capture socket needs.",
 	"internal/plugins/ldp/register.go":                      "post-resolution: the code uses the resolved OS name to obtain the *net.Interface that the multicast socket needs.",
-	"internal/component/doctor/":                            "one-shot root CLI (ze doctor) with no iface backend loaded; a resolver call would error on every check. Honors no selectors by design.",
 	"internal/component/l2tp/ppp/":                          "pppN device names are kernel-assigned per session (created/point-to-point kinds), never config-sourced logical names, so no selector applies (umbrella assumption A-5).",
 	"internal/le/deployment/l2tpdiag_linux_ops.go":          "the diagnostic reads the pppN device that PPPIOCNEWUNIT just asked the kernel to allocate; the name is kernel-assigned and no logical selector exists.",
 	"internal/le/interoplab/bgp/isis_inject_linux.go":       "the interop driver enters the lab peer network namespace and opens a raw socket on the veth name that the fixture created; no Ze logical selector exists in the lab process.",
@@ -78,6 +82,7 @@ var allowlist = map[string]string{
 	"internal/test/fixture/plugin_fixture_06_ddos_linux.go": "compiled netlink fixture querying the literal veth pair it created inside its test namespace; the fixture process has no Ze interface backend or logical selector.",
 	"internal/test/fixture/routing_fixture_linux.go":        "compiled routing fixture querying literal veth and decoy devices it created inside its test namespace; these names are fixture state, not operator config.",
 	"internal/test/fixture/tunnel_fixture_pppoe_linux.go":   "compiled PPPoE fixture querying the literal interface passed by its test driver; the fixture process has no Ze interface backend or logical selector.",
+	"internal/test/fixture/vrrp_accept_mode_linux.go":       "compiled VRRP accept-mode fixture querying the literal veth pair vrrpAcceptModeSetup just created inside its test namespace; the fixture process has no Ze interface backend or logical selector.",
 }
 
 // patterns match a direct kernel name->device resolution CALL. The trailing '('
@@ -114,8 +119,8 @@ func stripComment(line string) string {
 // sibling like "register.go2.go".
 //
 // It answers WHICH entry rather than a bare yes, because the entries are a
-// population of their own: one that matches no file is an exemption nobody
-// rechecked, and the walk is the only thing that can tell.
+// population of their own. An entry that suppresses no site is an exemption
+// nobody rechecked, and the walk is the only thing that can tell.
 func allowedBy(rel string) (string, bool) {
 	for prefix := range allowlist {
 		if strings.HasSuffix(prefix, "/") {
@@ -195,13 +200,19 @@ func check(tree string, floor int) (Findings, map[string]bool, error) {
 			}
 			rel = filepath.ToSlash(rel)
 			scanned++
-			if prefix, exempt := allowedBy(rel); exempt {
-				matched[prefix] = true
-				return nil
-			}
+			// An exempt file is scanned rather than skipped, and its sites are
+			// then dropped. Skipping would make "this entry did work" mean only
+			// "a file exists under it", which stays true for an entry whose file
+			// no longer performs the call it was excused for.
 			sites, scanErr := scanFile(path, rel)
 			if scanErr != nil {
 				return scanErr
+			}
+			if prefix, exempt := allowedBy(rel); exempt {
+				if len(sites) != 0 {
+					matched[prefix] = true
+				}
+				return nil
 			}
 			findings = append(findings, sites...)
 			return nil
@@ -233,9 +244,9 @@ type errScannedTooLittle string
 
 func (e errScannedTooLittle) Error() string { return string(e) }
 
-// ErrDeadAllowlistEntry names an allowlist entry that exempted no file in the
-// tree the walk just read.
-var ErrDeadAllowlistEntry = errors.New("an iface-resolution allowlist entry matches no file")
+// ErrDeadAllowlistEntry names an allowlist entry that suppressed no resolution
+// site in the tree the walk just read.
+var ErrDeadAllowlistEntry = errors.New("an iface-resolution allowlist entry suppresses nothing")
 
 // verifyAllowlistIsLive accounts for the allowlist itself.
 //
@@ -244,9 +255,13 @@ var ErrDeadAllowlistEntry = errors.New("an iface-resolution allowlist entry matc
 // the walk read was either scanned or exempted, so it balances by construction
 // and proves nothing.
 //
+// An entry counts as doing work only where it SUPPRESSED a site. The weaker
+// reading, that a file exists under it, stays true for an entry whose file no
+// longer resolves directly, which is the second way an exemption rots.
+//
 // A dead entry is not a tidiness matter. It states that direct kernel
-// resolution is legitimate at a path, and it keeps stating that for whatever
-// code arrives at that path next, with nobody having judged it.
+// resolution is legitimate at a path. It keeps stating that for whatever code
+// arrives at that path next, with nobody having judged it.
 func verifyAllowlistIsLive(matched map[string]bool) error {
 	coverage, err := population.Exemptions("iface-resolution allowlist", allowlist, matched)
 	if err != nil {
