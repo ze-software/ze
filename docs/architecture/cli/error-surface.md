@@ -125,7 +125,16 @@ summary is a sentence its author wrote, and this row cuts none of it.
 The summary is written in the muted role, which is the role a description
 wears.
 
-<!-- source: internal/component/cli/model_render.go -- messageLines, feedbackLine, warningText -->
+Row 2 is ONE row, and `oneRow` holds it to one. It strips the escape bytes. It
+then folds every whitespace run into a single space. No word is lost, and no
+newline survives. A second line would draw a row the view did not count. The
+cursor would then sit one row above the prompt.
+
+`./le docvalid help-shape` refuses a newline in a summary declared in this
+tree. It reads the source. A plugin declares its own summary over the wire, and
+no gate reads that one. The bound is applied where the text is drawn.
+
+<!-- source: internal/component/cli/model_render.go -- messageLines, feedbackLine, warningText, oneRow -->
 
 ## What this rule does not say
 

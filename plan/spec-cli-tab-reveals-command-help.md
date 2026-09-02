@@ -411,3 +411,213 @@ N/A. This spec implements no protocol requirement.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `Explain(input string) (string, bool)` on `CommandModeCompleter` (`internal/component/cli/model.go`). Two implementations answer it: `(*CommandCompleter).Explain` (`completer_command.go`), which delegates to the new `(*TreeCompleter).Explain` (`internal/component/command/completer.go`), and `(*pluginCompleter).Explain` (`completer_plugin.go`). `Complete` and `Explain` share one walk, `(*TreeCompleter).resolve`.
+- The reveal state, derived and never stored. `revealLevel` (`internal/component/cli/model_help_level.go`) reads `explanation` and `showDropdown`. `dismissReveal` is the one clear, and it replaced thirteen hand-written clear pairs.
+- The menu row is the command name alone. `renderDropdownBox` (`model_render.go`) lost `cmdWidth`, `descWidth` and the description column.
+- The selected candidate's summary is DERIVED on message line 2 by `warningText` (`model_render.go`). No key handler writes it.
+- `revealExplanation` (`model_keys.go`) fires on the exhausted completion list. `renderExplanationBox` and `wrapForBox` (`model_render.go`) draw the text, sanitized and bounded by the rows the terminal has.
+- Escape descends one level. The new arm in `handleKeyMsg` sits above the arm that clears the whole input.
+- The `.et` harness gained `hint` and `explanation`. `checkHint` and `checkExplanation` (`internal/component/cli/testing/expect.go`) read `MessageHint()` and `Explanation()`. `headlessCommandTree` (`testing/headless.go`) builds the real YANG command tree and refuses an empty one.
+
+### Bugs Found/Fixed
+- `MessageHint` sanitized the row it READ and `warningLine` did not sanitize the row it RENDERED. Fixed in phase 3. `TestSummaryStripsATerminalEscape` holds it. Row in `plan/journal/guard-added-to-one-half-of-a-pair.md`.
+- Message line 2 drew a SECOND screen row for a declared summary carrying a newline. Found at this review gate and fixed here by `oneRow` (`model_render.go`). `TestSummaryWithANewlineStaysOnOneRow` and `TestHintWithANewlineStaysOnOneRow` hold it, and both were observed RED. Row in `plan/journal/gate-excludes-part-of-its-population.md`.
+- Two unrelated finds carry their own rows and no fix here: `plan/journal/bulk-rename-corruption.md` (the `command list` rename) and `plan/journal/pointer-shared-across-the-names-it-indexes.md`.
+
+### Documentation Updates
+- `docs/architecture/cli/command-completion.md` -- new "What Tab reveals": the three levels, the key table per level, the one input rule, the render bounds. Five source anchors.
+- `docs/architecture/cli/error-surface.md` -- new "The message area is two rows": the owner of each row, line 2's four occupants in order, and the one-row bound. The fault row said line 2 and `feedbackLine` puts `m.err` on line 1. Repaired. Anchor names `messageLines, feedbackLine, warningText, oneRow`.
+- `docs/architecture/testing/ci-format.md` -- four expectation rows, what each kind reads, and the command tree an `option=mode:value=command` test completes against.
+- `docs/guide/cli.md` -- new "Keys that reveal help", an eleven-row key table and the Escape descent. Three anchors.
+- `docs/guide/config-editor.md` -- the config menu row, and Tab on a complete config path. The section carried no anchor and gained one.
+- `docs/guide/command-reference.md` -- one pointer row to the keys table.
+- `docs/features.md` -- the Self-Documenting System row names `ze cli` as a surface that renders both halves.
+- `docs/architecture/cli/color-system.md` -- the migration list dropped the description column it named.
+- `docs/architecture/api/commands.md` -- three claims repaired: the completion pane no longer reads `Description`, no surface cuts a summary, and `Model.warningText` owns the interactive message line.
+- `docs/architecture/config/yang-config-design.md` -- the "Read by" cells for `description` and `ze:help`.
+- `./le doc check verify` fails on the pre-existing command-metadata drift and the published `gh-pages` surfaces. It names no file this spec touched.
+- `./le docs-to-code check`: up to date, 284 design docs.
+
+### Deviations from Plan
+- `contract.Completion` gains NO help field. The spec's Files to Modify named one. The explanation is reached when the completion list is EMPTY, so no candidate exists to carry it, and the summary a candidate needs is already `Description`. The spec's Deliverables row asked for the METHOD, which is what was built.
+- R-5 named `cmd/ze/hub/web_completer.go` as the second implementation of `CommandModeCompleter`. It implements `zeweb.CommandCompleter`, which is `Complete` alone. The second implementation is `*pluginCompleter`. `web_completer.go` is unchanged.
+- The new file is `internal/component/cli/model_help_level.go`, not `help_level.go`. `.golangci.yml` excludes `hugeParam` for `internal/component/cli/model[^/]*\.go`, and `(Model).revealLevel()` needs the value receiver `tea.Model` forces.
+- The spec counted nine `completionHint` clear sites. There are thirteen.
+- The three `.et` files went to `test/editor/completion/`, beside the other completion tests. The spec named `test/editor/*.et`.
+- Enter is unchanged at the menu. AC-8 reads two ways, and the reading taken is "unchanged by the level". See Key Design Decisions.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 proposed a level counter reset at nine clear sites | There are thirteen sites, and a counter beside two flags is a second declaration of one fact | The design pass counted the sites and read `updateCompletions` | The level is DERIVED by `revealLevel`, and `dismissReveal` is the one clear. `TestLevelResetsOnEveryCompletionClearSite` drives every site |
+| approach | R-5 named `cmd/ze/hub/web_completer.go` as the second implementation to change | It implements a different interface, `zeweb.CommandCompleter` | Phase 1 read `internal/component/web/cli.go` before editing | `*pluginCompleter` answers `Explain`. `web_completer.go` is untouched |
+| escalation | A code comment cited `./le docvalid help-shape` as the bound that keeps message line 2 to one row | The gate reads declarations from SOURCE. A plugin declares its summary over the wire, and that text reaches the same row | This review gate traced the claim to `helpShapeContract` | `oneRow` applies the bound where the text is drawn. Row in `plan/journal/gate-excludes-part-of-its-population.md` |
+| approach | Commit a44e5f631 carried a foreign hunk in `docs/architecture/testing/ci-format.md` | The "How an `exec=` value becomes argv" section documents `03f568f969`, committed 30 minutes later | This closure read the doc diff and dated both commits | Nothing to repair. The text is true at HEAD and its referenced files are tracked. Named here so the next reader does not attribute it to this spec |
+| approach | Two of this spec's documentation edits are not in commit a44e5f631 | `docs/architecture/api/commands.md` and `docs/architecture/config/yang-config-design.md` landed in `dc09235f36`, the next commit, which the owner ordered separately | This closure compared the phase handoffs with `git show --stat a44e5f631` | Nothing to repair. Both pages carry the correct claims at HEAD, verified by `grep`. The two rows here and above are one shape: concurrent sessions selected files from one shared working tree, and each commit took a hunk the other owned |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The long explanation is reachable from the Model | Done | `internal/component/command/completer.go` -- `(*TreeCompleter).Explain` | Read from the merged client tree. No daemon round trip |
+| The completion menu spends no width on prose | Done | `internal/component/cli/model_render.go` -- `renderDropdownBox` | `grep -n descWidth` returns nothing |
+| An operator reaches both halves with the key under their finger | Done | `internal/component/cli/model_keys.go` -- `handleTab`, `revealExplanation` | Three `.et` files drive the key sequences |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestTabStillCompletesWhenThereIsMoreToAdd` | `revealExplanation` is the last fall-through in `handleTab`, after every completing branch |
+| AC-2 | Done | `TestDropdownRowIsTheCommandNameAlone` | The row is `prefix + Text`, clamped by `boxContentRow` so the frame closes |
+| AC-3 | Done | `TestSelectionMovesTheSummaryOnTheMessageLine` | `warningText` READS `m.completions[m.selected].Description` |
+| AC-4 | Done | `TestTabOnExhaustedCompletionRevealsTheExplanation` | `revealExplanation` writes `explanation` and `explanationSubject` |
+| AC-5 | Done | `TestEscapeDescendsOneLevelPerPress/from the explanation` | The new arm in `handleKeyMsg` runs before the arm that clears the input |
+| AC-6 | Done | `TestEscapeDescendsOneLevelPerPress/from the menu` | The dropdown block's `tea.KeyEscape` case |
+| AC-7 | Done | `TestTypingDismissesHelpAndReachesTheInput` | The text arm and the fall-through arm both call `dismissReveal` and then reach the input |
+| AC-8 | Changed | `TestEnterRunsTheCommandFromEveryLevel` | At the menu, Enter accepts the candidate and the next press runs it. See Key Design Decisions |
+| AC-9 | Done | `TestSummaryDoesNotDisplaceAnError` | `feedbackLine` owns line 1 and `warningText` owns line 2 |
+| AC-10 | Done | `TestTabOnACommandWithNoExplanationInventsNothing` | `Explain` answers false, and line 2 reads `<command>: no explanation is declared` |
+| AC-11 | Done | `TestExplanationIsBoundedByTerminalHeight`, `TestWrapForBoxReadsNoMoreRowsThanAsked` | `renderExplanationBox` bounds the frame and `wrapForBox` bounds the work |
+| AC-12 | Done | `TestETFileAssertsHintAndExplanation` | Both kinds parse from an `.et` file and fail on a mismatch |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestTabStillCompletesWhenThereIsMoreToAdd` | Done | `model_keys_test.go:97` | |
+| `TestTabOnExhaustedCompletionRevealsTheExplanation` | Done | `model_keys_test.go:56` | |
+| `TestDropdownRowIsTheCommandNameAlone` | Done | `model_render_test.go:912` | |
+| `TestSelectionMovesTheSummaryOnTheMessageLine` | Done | `model_render_test.go:953` | The spec named `model_keys_test.go`. The subject is a render function |
+| `TestEscapeDescendsOneLevelPerPress` | Done | `model_keys_test.go:217` | |
+| `TestTypingDismissesHelpAndReachesTheInput` | Done | `model_keys_test.go:275` | |
+| `TestEnterRunsTheCommandFromEveryLevel` | Done | `model_keys_test.go:352` | |
+| `TestSummaryDoesNotDisplaceAnError` | Done | `model_render_test.go:994` | |
+| `TestTabOnACommandWithNoExplanationInventsNothing` | Done | `model_keys_test.go:121` | |
+| `TestExplanationIsBoundedByTerminalHeight` | Done | `model_render_test.go:1077` | |
+| `TestLevelResetsOnEveryCompletionClearSite` | Done | `model_test.go:1533` | Thirteen sites, not the nine the spec counted |
+| `TestBothCompleterImplementationsAnswerHelp` | Done | `completer_command_test.go:147` | One table over both implementations. `cmd/ze/hub/web_completer_test.go` is not one of them |
+| `TestExpectHintKindIsAccepted` | Done | `testing/expect_test.go:389` | |
+| `tab-reveals-summary-on-selection` | Done | `test/editor/completion/` | |
+| `tab-again-reveals-explanation` | Done | `test/editor/completion/` | |
+| `escape-descends-one-level` | Done | `test/editor/completion/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/cli/model.go` | Done | `Explain` on the interface, two new fields, `commandCompleterInput` |
+| `internal/component/cli/model_keys.go` | Done | The reveal, the Escape descent, thirteen sites behind `dismissReveal` |
+| `internal/component/cli/model_render.go` | Done | The column removed, the summary row, the explanation region, `oneRow` |
+| `internal/component/cli/contract/contract.go` | Changed | No field added. See Deviations |
+| `internal/component/cli/completer_command.go` | Done | |
+| `cmd/ze/hub/web_completer.go` | Changed | Untouched. It implements a different interface. See Deviations |
+| `internal/component/cli/testing/expect.go`, `parser.go`, `headless.go` | Changed | `parser.go` needed no edit. `parseExpect` reads the type without a list |
+| `internal/component/cli/model_help_level.go` | Done | Named `model_help_level.go`. See Deviations |
+| The three `.et` files | Done | Under `test/editor/completion/` |
+| The five documentation pages | Done | Ten pages in the end. See Documentation Updates |
+
+### Audit Summary
+- **Total items:** 41 (3 requirements, 12 ACs, 16 tests, 10 file groups)
+- **Done:** 37
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4 (AC-8, `contract.go`, `web_completer.go`, the harness file set), each recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator reads what each candidate does without leaving the CLI | functional | `test/editor/completion/tab-reveals-summary-on-selection.et`. Three `hint:contains` rows quote the text `ze-diag-cmd.yang`, `ze-traceroute-cmd.yang` and the traffic `-cmd` modules declare. RED when the selection branch is removed from `warningText` |
+| An operator reads the long explanation without leaving the CLI | functional | `test/editor/completion/tab-again-reveals-explanation.et`. Two `explanation:contains` rows quote the `ze:help` of `show uptime`. RED when `revealExplanation` is removed from `handleTab` |
+| An operator returns to typing without losing the words they typed | functional | `test/editor/completion/escape-descends-one-level.et`. The final `input:value` row is the AC-5 claim, and it names the whole typed command. RED when the Escape arm is removed, where an explanation-only assertion stays green |
+| The last width truncation in Ze is gone | deliverable | `grep -n descWidth internal/component/cli/model_render.go` returns nothing. `TestDropdownRowIsTheCommandNameAlone` asserts no description fragment reaches the box |
+| Declared text reaching a TTY is bounded at the render boundary | unit | `TestSummaryStripsATerminalEscape`, `TestExplanationStripsATerminalEscape`, `TestSummaryWithANewlineStaysOnOneRow`, `TestHintWithANewlineStaysOnOneRow`, `TestWrapForBoxReadsNoMoreRowsThanAsked`. Each was observed RED against the unbounded code |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | done | No shard exists. `ls plan/deferrals/cli-tab-reveals-command-help.md` reports no such file, and nothing was deferred. No `remove` is prepared for a shard that was never created |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/cli-tab-reveals-command-help-45c02a83-014d-4cda-97b1-0f71acc09e91.md` |
+| `./le spec session review check` | OK, clean, hashes match, exit 0 |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and dead code, removed-behavior audit over the `Complete` refactor, logic and guard audit, security over plugin-declared text on a TTY, documentation drift, simplicity, the ze-go-style pass |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The diff asserted a safety property it did not prove. A comment named `./le docvalid help-shape` as the bound that keeps message line 2 to one row. That gate reads declarations from source. A plugin declares its summary over the wire, `MergeCommandPaths` writes it into the command tree, and `sanitizeForDisplay` keeps the newline by design. The row then drew a second screen line, and `View` put the cursor one row above the prompt | `internal/component/cli/model_render.go` -- `warningText` | `oneRow` strips the escape bytes and folds every whitespace run into a single space. Both text rows on line 2 read it. `TestSummaryWithANewlineStaysOnOneRow` and `TestHintWithANewlineStaysOnOneRow` were observed RED against `sanitizeForDisplay` alone. `docs/architecture/cli/error-surface.md` states the bound, and `plan/journal/gate-excludes-part-of-its-population.md` carries the class |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/cli/model_help_level.go` | Yes | `ls -la` reports 2.2K, 2026-09-02 |
+| `test/editor/completion/tab-reveals-summary-on-selection.et` | Yes | `ls -la` reports 1.2K |
+| `test/editor/completion/tab-again-reveals-explanation.et` | Yes | `ls -la` reports 1.2K |
+| `test/editor/completion/escape-descends-one-level.et` | Yes | `ls -la` reports 852 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Tab still completes | `sed -n '265,315p' model_keys.go`: `revealExplanation` is the last statement of `handleTab`, under every completing branch |
+| AC-2 | The row is the name alone | `grep -n descWidth internal/component/cli/model_render.go` returns nothing, exit 1 |
+| AC-3 | The summary follows the selection | `warningText` returns `oneRow(m.completions[m.selected].Description)`, read from source |
+| AC-4 | Tab reveals the explanation | `handleTab` calls `m.revealExplanation()`, which writes `m.explanation` from `commandCompleter.Explain` |
+| AC-5 | Escape clears the reveal alone | `handleKeyMsg` holds `if keyStr == keyEsc && m.revealLevel() == revealExplanation` above the dropdown block |
+| AC-6 | Escape closes the menu | The dropdown block's `tea.KeyEscape` case sets `showDropdown = false` and calls `dismissReveal` |
+| AC-7 | No key is swallowed | The `key.Text != ""` arm and the fall-through arm both call `dismissReveal` and then `m.textInput.Update(msg)` |
+| AC-8 | Enter is unchanged by the level | `handleEnter`'s dropdown block is unchanged, and the Enter arm calls `dismissReveal` before it |
+| AC-9 | An error survives | `feedbackLine` renders `m.err`. `warningText` reads neither `m.err` nor `m.statusMessage` |
+| AC-10 | Nothing is invented | `revealExplanation` writes `completionHint` on a false answer and leaves `explanation` empty |
+| AC-11 | The region is bounded | `renderExplanationBox` derives `rows` from `availableHeight` and `wrapForBox` reads `rows+1` lines at most |
+| AC-12 | The harness can fail on it | `validExpectationTypes` (`testing/expect.go`) holds `"hint"` and `"explanation"` |
+| all | The suite is green | `./le test-unit cli` exit 0: cli 114.6s, client 5.9s, cli/testing 304.2s |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Tab with completions remaining | `test/editor/completion/tab-again-reveals-explanation.et` | Yes. The first Tab completes `show upt` to `show uptime ` and asserts `explanation:empty` |
+| Tab with the completion list empty | `test/editor/completion/tab-again-reveals-explanation.et` | Yes. The second Tab asserts two `explanation:contains` rows |
+| Arrow through the menu | `test/editor/completion/tab-reveals-summary-on-selection.et` | Yes. Two `down` presses, three `hint:contains` rows |
+| Escape at the explanation level | `test/editor/completion/escape-descends-one-level.et` | Yes. The `input:value` row proves the typed words survived |
+| A text rune while help shows | `test/editor/completion/tab-again-reveals-explanation.et` | Yes. A typed pipe operator dismisses the reveal and reaches the input |
+| Enter while help shows | `TestEnterRunsTheCommandFromEveryLevel` | Go test. The `.et` harness runs no command in a headless command model |
+| An `.et` file naming a hint expectation | `TestETFileAssertsHintAndExplanation` | Yes. It parses `.et` text and runs it, in both directions |
+| `Explain` reaches a user | The three `.et` files | Yes. `./le repository check` reports no unwired export in `internal/component/cli` or `internal/component/command` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | A counter is not needed. The level is derived by `revealLevel`, and thirteen sites call one `dismissReveal`. `TestLevelResetsOnEveryCompletionClearSite` drives every site |
+| A-2 | confirmed | `MergeCommandPaths` (`internal/component/command/node.go`) writes each help field on the last path element alone, and only when it is empty. The merged client tree carries both texts |
+| A-3 | confirmed | `updateCompletions` (`model.go`) calls `dismissReveal` and hides the menu whenever the list holds one entry or none. That is the state the reveal fires in |
+| A-4 | confirmed | The longest YANG node name in the repository is `advertise-interval-milliseconds`, 31 runes, against an inner width clamped at 48 or more by `overlayInnerWidth` |
+| A-5 | confirmed | `checkHint` and `checkExplanation` read `MessageHint()` and `Explanation()`. `TestETFileAssertsHintAndExplanation` fails when either kind is unregistered |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/cli.md` key table | Every row read against `handleKeyMsg`, `handleTab` and `handleEnter`. The `?` row matches the `key.Text == "?"` arm, which writes `<name>: <summary>` for the selected candidate | Yes |
+| `docs/architecture/cli/error-surface.md` row owners | `messageLines` returns `feedbackLine` then `warningLine`. `m.err` renders in `feedbackLine` alone | Yes |
+| `docs/architecture/cli/error-surface.md` one-row bound | `oneRow` (`model_render.go`), added at this review gate | Yes |
+| `docs/architecture/cli/command-completion.md` level table | `revealLevel` reads `explanation` then `showDropdown`. `View` composes dropdown, then explanation, then `showHelp` | Yes |
+| `docs/architecture/testing/ci-format.md` expectation rows | `validExpectationTypes` holds both kinds. `checkHint` and `checkExplanation` accept `empty` and `contains` and refuse an expectation naming neither | Yes |
+| `docs/features.md` Self-Documenting System row | The anchor names `handleTab, revealExplanation`, and both exist in `model_keys.go` | Yes |
+| Row 11, `docs/comparison.md` | No row written. The API and Programmability table carries eleven daemon columns, and this spec inspected none of them. A Ze `Yes` beside ten `Unclear` cells is a claim about the other daemons | Yes, No on evidence |
+| `./le docs-to-code check` | up to date, 284 design docs, exit 0 | Yes |
+| `./le doc check verify` | Fails on the pre-existing command-metadata drift and the published `gh-pages` surfaces. `grep` over its output names no file this spec touched | Pre-existing |
+| `./le spec citation` | One dangling reference, in `plan/spec-rfcgate-6-supported-extraction-signoff.md`. No citer names `plan/spec-cli-tab-reveals-command-help.md` outside the spec itself | Yes |
+
+## Core Insight
+
+A gate's NAME says what it checks. It never says which population it reads. `./le docvalid help-shape` refuses a newline in a command summary, and a reader takes that as the bound on every summary. It reads the declarations this tree holds. A plugin declares its summary over the wire and reaches the same screen row. The bound belongs where the text is DRAWN, because that is the one place every population passes through.

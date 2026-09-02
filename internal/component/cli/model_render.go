@@ -103,6 +103,22 @@ func sanitizeForDisplay(s string) string {
 	return b.String()
 }
 
+// oneRow makes a declared text safe to draw on ONE screen row. It strips the
+// bytes sanitizeForDisplay refuses, which keeps tab, newline and carriage
+// return, and it then folds every whitespace run into a single space.
+//
+// The fold is not cosmetic. View counts the message area as two entries, and it
+// reads the prompt row from that count. A newline inside a row draws a line
+// View did not count. The cursor then sits one row above the prompt.
+//
+// `./le docvalid help-shape` refuses a newline in a summary declared in this
+// tree. It reads the source. A plugin declares its own summary over the wire,
+// and that text reaches this row through MergeCommandPaths. No gate reads it,
+// so the bound is applied where the text is drawn.
+func oneRow(text string) string {
+	return textbuf.Join(strings.Fields(sanitizeForDisplay(text)), " ")
+}
+
 // setViewportData sets content with line mapping in the viewport.
 // When originalContent is provided and differs from content, a diff gutter
 // is prepended to each line showing change markers: ' ' unchanged, '+' added,
@@ -505,8 +521,8 @@ func (m Model) warningLine() string {
 // answer styleAsIs: their text is already final.
 func (m Model) warningText() (string, lipgloss.Style) {
 	// Completion hint from ? or validation warning/error. The ? hint carries a
-	// command's declared summary, which a plugin can write, so it is sanitized
-	// here at the render boundary.
+	// command's declared summary, which a plugin can write, so it is bounded to
+	// one row here at the render boundary.
 	if m.completionHint != "" {
 		style := hintStyle
 		if m.completionHintDim {
@@ -514,7 +530,7 @@ func (m Model) warningText() (string, lipgloss.Style) {
 		} else if strings.HasPrefix(m.completionHint, "invalid ") {
 			style = warnStyle
 		}
-		return sanitizeForDisplay(m.completionHint), style
+		return oneRow(m.completionHint), style
 	}
 	// The selected candidate's declared summary, while the menu is open. The
 	// menu row is the name alone, so this row says what the name does.
@@ -525,10 +541,9 @@ func (m Model) warningText() (string, lipgloss.Style) {
 	//
 	// muted is the role a description wears (docs/architecture/cli/color-system.md).
 	if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
-		// A plugin declares this text, so it is sanitized before it reaches the
-		// terminal. `./le docvalid help-shape` refuses a newline in a declared
-		// summary, so the row stays one line.
-		return sanitizeForDisplay(m.completions[m.selected].Description), dimStyle
+		// A plugin declares this text, so it is bounded to one row before it
+		// reaches the terminal.
+		return oneRow(m.completions[m.selected].Description), dimStyle
 	}
 	// Validation hints
 	if hint := m.validationHintLine(); hint != "" {

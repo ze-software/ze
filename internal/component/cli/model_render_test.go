@@ -1035,7 +1035,51 @@ func TestSummaryStripsATerminalEscape(t *testing.T) {
 
 	assert.NotContains(t, row, "\x1b[2J", "an erase-display sequence never reaches the terminal")
 	assert.NotContains(t, row, "\x1b[1;1H", "a cursor-position sequence never reaches the terminal")
-	assert.Contains(t, row, "clear  and move  the cursor", "the words the author wrote survive")
+	assert.Contains(t, row, "clear and move the cursor", "the words the author wrote survive")
+}
+
+// TestSummaryWithANewlineStaysOnOneRow verifies the second bound the message row
+// keeps on text a plugin declares.
+//
+// VALIDATES: warningText folds every whitespace run in the selected candidate's
+// summary, so the row it returns holds no newline, carriage return or tab.
+// PREVENTS: A declared summary drawing a SECOND screen line. View counts the
+// message area as two entries and reads the prompt row from that count, so an
+// extra line puts the cursor one row above the prompt. `./le docvalid
+// help-shape` reads the summaries declared in this tree, and a plugin that
+// registers over the wire declares one it never sees.
+func TestSummaryWithANewlineStaysOnOneRow(t *testing.T) {
+	m := Model{
+		completions: []Completion{
+			{Text: "wordy", Description: "First line.\nSecond line.\r\n\tThird.", Type: "command"},
+		},
+		selected:     0,
+		showDropdown: true,
+		width:        80,
+	}
+
+	row := m.warningLine()
+
+	assert.NotContains(t, row, "\n", "no newline reaches the message row")
+	assert.NotContains(t, row, "\r", "no carriage return reaches the message row")
+	assert.NotContains(t, row, "\t", "no tab reaches the message row")
+	assert.Contains(t, row, "First line. Second line. Third.", "every word the author wrote survives")
+	assert.Equal(t, "First line. Second line. Third.", m.MessageHint(), "the harness reads the same one row")
+}
+
+// TestHintWithANewlineStaysOnOneRow verifies the ? hint keeps that bound too.
+//
+// VALIDATES: warningText folds the completion hint, which handleKeyMsg builds
+// from a candidate's declared text as "<name>: <summary>".
+// PREVENTS: The ? key drawing a two-line message row where the summary route
+// draws one, which would leave the guard on half of a pair.
+func TestHintWithANewlineStaysOnOneRow(t *testing.T) {
+	m := Model{
+		completionHint: "wordy: First line.\nSecond line.",
+		width:          80,
+	}
+
+	assert.Equal(t, "wordy: First line. Second line.", m.MessageHint(), "the hint is one row")
 }
 
 // TestDropdownClampsANameWiderThanTheBox verifies the one bound the menu keeps.

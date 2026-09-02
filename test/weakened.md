@@ -38,6 +38,3 @@ the file, and carry no row for it.
 
 | Test | Reason |
 |------|--------|
-| TestSessionEditorHasReloadNotifier | It MOVED. Its subject is newSessionEditor, which this commit takes out of the ze_ssh build tag so the attached console reaches config mode in a build with SSH compiled out. The test follows its subject into cmd/ze/hub/session_editor_test.go, by the same name and with the same assertions. It now runs in every build view rather than only under ze_ssh, so the change adds coverage. Nothing left the suite. |
-| TestSessionEditorWithoutReloadFn | It MOVED, with the same subject and for the same reason as the row above. Same name, same assertions, now in cmd/ze/hub/session_editor_test.go and no longer behind ze_ssh. Nothing left the suite. |
-| session_factory_test | The count fell because the two tests above moved out of this file, not because any assertion was dropped. cmd/ze/hub/session_editor_test.go carries both, and adds TestSessionEditorStampsOrigin and TestSessionEditorRefusesInvalidUser for the origin parameter this commit introduces. The two files together hold more assertions than this one did. |
