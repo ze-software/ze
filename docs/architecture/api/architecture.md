@@ -1551,11 +1551,23 @@ role claim. Without that resolution every aliased binding answered "declares
 nothing" and was dropped from the barrier, and the alias form is what the
 repository's own scenarios use.
 
+**One function answers which registry row a process configuration names, and
+every caller derives from it.** `plugin.RegistryNames` reads the run/use
+spelling through `ResolvePlugin`, so `use bgp-rib`, `use ze.bgp-rib`,
+`run ze.bgp-rib` and `run ze plugin bgp-rib` each answer `bgp-rib`, and the
+process name answers for a config that carries no spelling. The barrier
+(`declaresSessionReady`), the role claim (`prospectivePlugins`), dependency
+expansion (`ExpandDependencies`), the internal runner lookup
+(`(*Process).startInternal`) and the graceful-restart doctor check all read that
+one answer. They each had their own reading before, and the readings disagreed
+about the `ze.` prefix: the barrier alone dropped it, so a peer attaching
+`run ze.bgp-rib` sent its End-of-RIB while bgp-rib was still replaying.
+
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters at Established -->
 <!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding.MayPushRoutes, ProcessBinding.ReceivesPeerState -->
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady, registry.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
-<!-- source: internal/component/plugin/server/startup_claims.go -- implementationNames -->
+<!-- source: internal/component/plugin/resolve.go -- RegistryNames, RegistryName -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, drainAndCloseQueueGate -->
 <!-- source: internal/component/bgp/reactor/api_sync.go -- apiSyncTimeout -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.waitForAPISync, Peer.initialSyncEOROwed -->

@@ -511,7 +511,7 @@ recording that the deferral is a local policy choice and not an RFC deadline.
   "declares nothing" for every aliased binding of a declaring plugin, which is
   the form the repository's own scenarios use. `(*Server).declaresSessionReady`
   (`internal/component/plugin/server/events.go`) now resolves the alias through
-  `implementationNames` (`startup_claims.go`), the resolution `claimsForPlugin`
+  `plugin.RegistryNames` (`internal/component/plugin/resolve.go`), the resolution `claimsForPlugin`
   already used, and the reactor still learns no plugin name.
 - `bgp-persist` and `bgp-rr` reported and declared nothing. Both `register.go`
   files now carry `SignalsSessionReady: true`, so the six declarers the commit
@@ -543,7 +543,7 @@ recording that the deferral is a local policy choice and not an RFC deadline.
 - `docs/architecture/api/process-protocol.md` (Stage-1 `signals-session-ready`).
 
 Second pass, for the namespace resolution:
-- `docs/architecture/api/architecture.md` (the process-name paragraph under the API Sync Protocol, plus anchors on `(*Server).declaresSessionReady` and `implementationNames`).
+- `docs/architecture/api/architecture.md` (the process-name paragraph under the API Sync Protocol, plus anchors on `(*Server).declaresSessionReady` and `plugin.RegistryNames`).
 - `docs/architecture/plugin/plugin-system.md` (the two-namespace paragraph closing "Session-ready reports", plus the seam anchor).
 - `docs/guide/plugins.md` (the paragraph claiming an external plugin "never declares and never has to" contradicted the Stage-1 route this work added; it now names `signals-session-ready`, and a third paragraph tells a plugin author which NAME it is waited for under).
 
@@ -621,7 +621,7 @@ Second pass, for the namespace resolution:
 ### Run 1 (initial) -- independent review of `7f7a2453c`, 2026-09-02
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| 1 | BLOCKER | The declaration lookup crosses two namespaces and answers false. `binding.PluginName` is the `attach process <name>` key; the registry is keyed on `Registration.Name`. Every aliased binding of a declaring plugin is dropped from the barrier | `Peer.initialUpdateReporters` (`reactor/peer_run.go`) into `registry.SignalsSessionReady` | Fixed. The seam `(*Server).declaresSessionReady` resolves the alias through `implementationNames`, the resolution `claimsForPlugin` uses |
+| 1 | BLOCKER | The declaration lookup crosses two namespaces and answers false. `binding.PluginName` is the `attach process <name>` key; the registry is keyed on `Registration.Name`. Every aliased binding of a declaring plugin is dropped from the barrier | `Peer.initialUpdateReporters` (`reactor/peer_run.go`) into `registry.SignalsSessionReady` | Fixed. The seam `(*Server).declaresSessionReady` resolves the alias through `plugin.RegistryNames`, the one function every caller derives from |
 | 2 | BLOCKER | `bgp-persist` and `bgp-rr` report and declare nothing; both carry a comment claiming they declare | `persist/register.go`, `rr/register.go` | Fixed. Both now set `SignalsSessionReady: true`; six declarers, as every doc page says |
 | 3 | ISSUE | The uncredited-report diagnostic asserts a conclusion it cannot know ("it pushes no route into this initial routing update") | `Peer.SignalAPIReady` (`reactor/peer.go`) | Fixed. It states what it observed and prints the barrier's names |
 | 4 | ISSUE | `docs/guide/plugins.md` says an external plugin "never declares and never has to", contradicting the Stage-1 route the same change added | `docs/guide/plugins.md` | Fixed. The three pages now agree with the tree |
@@ -633,7 +633,13 @@ Second pass, for the namespace resolution:
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| | | | | |
+| 2.1 | ISSUE | The alias resolution missed the `ze.` spelling, so run 1's blocker survived in three legal config forms: `external X { run ze.bgp-rib }`, `external X { use ze.bgp-rib }` and an inline `attach process X { run ze.bgp-rib }`. The config loader one package away already stripped the prefix | `implementationNames` (`plugin/server/startup_claims.go`) against `registryName` (`config/loader.go`) | Fixed in `0ffead0d7`. `plugin.RegistryNames` and `plugin.RegistryName` (`internal/component/plugin/resolve.go`) answer it once, and six callers derive from them |
+| 2.2 | NOTE | `declaresSessionReady`'s comment said "false for a process that is not running"; the code tests only that the manager holds the name, so a registered-then-dead process answers true and holds the peer to the timeout | `plugin/server/events.go` | Comment corrected. The behavior fails in the loud direction and is unchanged |
+| 2.3 | NOTE | `session-ready-contract.ci` pins the barrier's log outcome rather than the wire order | `test/plugin/session-ready-contract.ci` | Reason written into the file: `collectPeerUpReplay` returns nil while `seenBefore` is false, so bgp-rib replays nothing into a first session, and no `ze-peer` directive delays the connect |
+| 3.1 | BLOCKER | Run 2's documentation never landed with its code | three pages under `docs/` | Two committed here. `docs/guide/plugins.md` is held: it carries another session's hunk anchoring an untracked file, and committing it would land an anchor that dangles in a clean checkout |
+| 3.2 | ISSUE | Five references named `implementationNames`, deleted in `0ffead0d7`, including the journal row that instructs the peer-up barrier fix | this spec and `plan/journal/gate-excludes-part-of-its-population.md` | Repointed at `plugin.RegistryNames` |
+| 3.3 | NOTE | `collectOrphanedDependencies` (`plugin/server/startup_autoload.go`) asks the same question under a process name and is a seventh reader. Reachability unverified | `plugin/server/startup_autoload.go` | Recorded. Same class as the journalled `countPeerUpBarrier` |
+| 3.4 | NOTE | `hasConfiguredPlugin` now also matches a binary basename, so `run /usr/local/bin/bgp-rib` suppresses an auto-load | `plugin/server/server.go` | Accepted. The bare spelling always did this; the change makes the path-qualified one consistent |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -679,7 +685,7 @@ Second pass, for the namespace resolution:
 |---------------------------------|-----------------|----------|
 | "The in-tree declarers are bgp-rib, bgp-rs, bgp-adj-rib-in, bgp-watchdog, bgp-persist and bgp-rr" (`architecture.md`, `plugin-system.md`) | Six `register.go` files carry the field, listed under AC Verified | yes |
 | "An external plugin declares `signals-session-ready` at Stage 1" (`process-protocol.md`, `guide/plugins.md`) | `rpc.DeclareRegistrationInput.SignalsSessionReady`, read by `(*Server).declaresSessionReady`; `initial-sync-barrier-raw.ci` drives it | yes; the guide contradicted this and was corrected |
-| "The declaration is looked up under the process name, and the seam resolves the alias" (all three pages) | `(*Server).declaresSessionReady` and `implementationNames` | yes |
+| "The declaration is looked up under the process name, and the seam resolves the alias" (all three pages) | `(*Server).declaresSessionReady` and `plugin.RegistryNames` | yes |
 
 ## Checklist
 
