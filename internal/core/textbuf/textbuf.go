@@ -98,6 +98,18 @@ func StringHexUpper(data []byte) string {
 // Go update, compare against $(go env GOROOT)/src/strings/builder.go.
 //
 // Implements io.Writer, io.StringWriter, and io.ByteWriter.
+//
+// NEVER COPY A BUFFER THAT HAS BEEN WRITTEN TO. Pass it as *Buffer, and when
+// one lives in a struct, hold that struct by pointer. strings.Builder catches
+// this: copyCheck runs on every write and panics on a copy. Buffer has no such
+// check, and there is nowhere cheap to put one, because the whole point of the
+// inline array is that a fresh Buffer costs nothing. A copy leaves the copy's
+// b field pointing into the ORIGINAL's arr, so the two write over each other
+// with no panic, no race detector report and no test red.
+//
+// The shape to watch is a Buffer as a struct FIELD. `[]*node` is safe and
+// `[]node` is not, and the day someone changes one to the other, nothing in
+// this package objects.
 type Buffer struct {
 	arr    [128]byte
 	b      []byte
@@ -401,6 +413,28 @@ func (b *Buffer) Bytes() []byte { return b.b }
 // data (>128B) is returned zero-copy with the heap slice detached. Unlike
 // Slice, String does NOT freeze the buffer: subsequent writes are safe
 // because inline data was copied and heap data was detached.
+//
+// READ IT ONCE, LAST. This is where Buffer differs from strings.Builder, and
+// the difference is silent. Detaching the heap slice leaves the buffer EMPTY,
+// so a second String() after further writes answers only what was written
+// since the first one, where strings.Builder answers everything:
+//
+//	s1 := b.String()      // over 128B: b is now empty
+//	b.Str("more")
+//	s2 := b.String()      // Buffer: "more".  strings.Builder: "...more"
+//
+// Writing after a read is memory-safe, which is what the paragraph above
+// promises, and it is still a defect whenever the caller expected the earlier
+// bytes to still be there. The failure is CONTENT-DEPENDENT: under 128 bytes
+// the inline data is copied and the buffer keeps it, so the same code passes
+// on a small fixture and truncates on real input. Size proves nothing here.
+// Judge a call site by whether anything writes to the buffer afterwards on any
+// path, a loop that reads per iteration and a helper that appends after the
+// read included.
+//
+// Converting a strings.Builder to a Buffer is the moment this bites, because
+// every other method carries over unchanged. Reset the buffer when reuse is
+// what you want: that is the same 128 inline bytes and no allocation.
 func (b *Buffer) String() string {
 	if len(b.b) == 0 {
 		return ""
