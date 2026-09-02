@@ -405,7 +405,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		return CheckReport{}, err
 	}
 	findings = append(findings, notes(checkUnprovenSupport(collected.Requirements, rows, stems, dispositions,
-		signed, derived))...)
+		signed, derived, CoverageRows(collected.Requirements, collected.Tags, carriers)))...)
 	// ARMED 2026-09-01, once every support-promising stem carried a sign-off.
 	// It was written unwired on purpose: arming it while 16 stems still owed one
 	// would have redded this gate for every session sharing the checkout, and a

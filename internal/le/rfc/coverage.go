@@ -97,6 +97,20 @@ type CoverageRow struct {
 // Outstanding is the work still owed before this RFC could be enrolled.
 func (c CoverageRow) Outstanding() int { return c.One + c.Missing }
 
+// coverageByRFC keys the polarity rows by stem, for a reader asking about ONE
+// RFC rather than walking the set.
+//
+// A stem with no gated MUST has no row at all, and its zero value is the honest
+// answer to every question here: nothing is gated, so nothing is proven,
+// annotated or outstanding.
+func coverageByRFC(rows []CoverageRow) map[string]CoverageRow {
+	out := make(map[string]CoverageRow, len(rows))
+	for _, row := range rows {
+		out[row.RFC] = row
+	}
+	return out
+}
+
 // CoverageRows answers per-RFC polarity coverage. This is the backlog,
 // derived rather than maintained.
 //

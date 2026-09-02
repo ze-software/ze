@@ -155,7 +155,7 @@ func IndexUpdate(tree string) (IndexReport, error) {
 			Str(summaryRel).Str(" is present").String())
 	}
 
-	ledgers, err := LedgerFiles(in.Metas)
+	ledgers, err := LedgerFiles(in.Metas, CoverageRows(in.Requirements, in.Tags, in.Carriers))
 	if err != nil {
 		return IndexReport{}, err
 	}

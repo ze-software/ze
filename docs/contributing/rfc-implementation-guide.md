@@ -540,8 +540,8 @@ declared by the test.
 
 | Carrier | Kind | Executed by | Tier |
 |---------|------|-------------|------|
-| `*_test.go` outside `internal/le/` | `unit` | `./le test-unit` | `verify`, on every push |
-| `test/<suite>/*.ci` | `functional` | `./le functional` | `verify`, but only from a suite the functional run actually gates. `suiteCarriers` builds one prefixed row per name in `functional.GatingNames()`, so a `.ci` in a non-gating suite (static, traffic, flow-export, vpp, vrrp) earns no verify tier, and `test/draft/` is skipped entirely |
+| `*_test.go` outside `internal/le/` | `unit` | `./le test-unit all` | `verify`, on every push |
+| `test/<suite>/*.ci` | `functional` | `./le functional gating` | `verify`, but only from a suite the functional run actually gates. `suiteCarriers` builds one prefixed row per name in `functional.GatingNames()`, so a `.ci` in a non-gating suite (static, traffic, flow-export, vpp, vrrp) earns no verify tier, and `test/draft/` is skipped entirely |
 | `test/editor/*.et` | `editor` | `./le functional editor` | `verify`, on the same earned-per-suite basis |
 | `internal/le/interoplab/bgp/*.go` | `interop` | `./le integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
 | `internal/le/interoplab/ipsec/*.go` | `interop` | `./le integration interop-ipsec` | same derivation |
@@ -594,10 +594,15 @@ never sums the two, because a nightly tier is not merge-gate proof.
   `Unsupported`. `backlog` and `blocked` are debt, and the ledger renders them as
   debt.
 
-  Two related reds come from the same place. First, a public row that claims support
+  Three related reds come from the same place. First, a public row that claims support
   over a summary with zero gated requirements. The escape is evidence that zero is
   real: a `non-normative` disposition, or a `manual-walk`
-  extraction sign-off whose `register-reason` says why. Second, a `Support remaining`
+  extraction sign-off whose `register-reason` says why. Second, a row that PROMISES
+  conformance -- `Supported`, alone or with a scope after it -- over gated requirements
+  of which not one carries a test in both polarities. Neither escape reaches that one:
+  each says the DOCUMENT imposes no MUST, and this red is about a MUST that exists and
+  is unproven. Prove one requirement, or write `| Support status | Partial |`, which is
+  what the public page's own vocabulary calls "not proven". Third, a `Support remaining`
   cell that spells a gap count immediately before MUST or SHALL must agree with the
   summary's `{gap}` count.
   <!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
@@ -723,7 +728,7 @@ Before marking implementation complete:
 ```
 [ ] Pre-commit verification passes: ./le verify current mode full
 [ ] Fuzz targets pass: ./le fuzz run
-[ ] Functional tests pass: ./le functional
+[ ] Functional tests pass: ./le functional gating
 [ ] RFC MUST tests have both polarities: ./le rfc check
 [ ] RFC section comments on all protocol code
 [ ] RFC constraint comments with quoted requirements

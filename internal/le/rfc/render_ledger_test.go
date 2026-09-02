@@ -9,24 +9,36 @@ import (
 )
 
 // ledgerFixture answers the three generated files over this checkout.
+//
+// The whole collection, not the Meta tables alone: the public page publishes a
+// derived Proof cell per row, so a fixture handing over no coverage would
+// render every row of a corpus with thousands of gated MUSTs as `no gated
+// MUST` and every assertion below would be made against a page nobody
+// generates.
 func ledgerFixture(t *testing.T) (map[string]string, map[string]Meta, string) {
 	t.Helper()
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
 	}
-	metas, metaProblems, err := summaryMetas(root, nil)
+	collected, err := Collect(root)
 	if err != nil {
-		t.Fatalf("read the summaries: %v", err)
+		t.Fatalf("collect the corpus: %v", err)
 	}
-	if len(metaProblems) > 0 {
-		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
+	if len(collected.MetaProblems) > 0 {
+		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v",
+			len(collected.MetaProblems), collected.MetaProblems)
 	}
-	files, err := LedgerFiles(metas)
+	known, err := carriers(root)
+	if err != nil {
+		t.Fatalf("read the carriers: %v", err)
+	}
+	files, err := LedgerFiles(collected.Metas,
+		CoverageRows(collected.Requirements, collected.Tags, known))
 	if err != nil {
 		t.Fatalf("render the ledger files: %v", err)
 	}
-	return files, metas, root
+	return files, collected.Metas, root
 }
 
 // VALIDATES: AC-5 -- generation reproduces the enrolment the authored files
@@ -321,5 +333,64 @@ func TestGapCountPopulationSurvivesTheMove(t *testing.T) {
 	if counted != 57 {
 		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 57",
 			counted, len(rows))
+	}
+}
+
+// VALIDATES: every row of the public page's wide tables publishes its own proof
+// partition, and the partition is the one CoverageRows derives for that stem.
+// PREVENTS: a Proof column that drifts from the coverage it claims to restate.
+// The cell is the only derived thing on a page of editorial prose, so nothing
+// beside it would contradict a stale or mis-keyed number: a row keyed by the
+// wrong stem would publish another RFC's proof and read as this one's. The
+// three counts are summed against the gated count here for the same reason a
+// partition was published instead of a percentage -- a reader must be able to
+// see the whole population.
+func TestEveryWideRowPublishesItsOwnProofPartition(t *testing.T) {
+	files, metas, root := ledgerFixture(t)
+	collected, err := Collect(root)
+	if err != nil {
+		t.Fatalf("collect the corpus: %v", err)
+	}
+	known, err := carriers(root)
+	if err != nil {
+		t.Fatalf("read the carriers: %v", err)
+	}
+	coverage := coverageByRFC(CoverageRows(collected.Requirements, collected.Tags, known))
+
+	stemOf := map[string]string{}
+	for stem, meta := range metas {
+		if meta.HasRow() && statusSection(meta.Support) != nil && !statusSection(meta.Support).Brief {
+			stemOf[RowName(stem, meta)] = stem
+		}
+	}
+	if len(stemOf) == 0 {
+		t.Fatal("no summary declares a row in a wide section, so this test asserts nothing")
+	}
+
+	checked := 0
+	for line := range strings.SplitSeq(files[statusRel], "\n") {
+		if !strings.HasPrefix(line, "| ") {
+			continue
+		}
+		cells := strings.SplitN(strings.TrimPrefix(line, "| "), " | ", 5)
+		if len(cells) < 5 {
+			continue
+		}
+		stem, held := stemOf[cells[0]]
+		if !held {
+			continue
+		}
+		checked++
+		if want := proofCell(coverage[stem]); cells[3] != want {
+			t.Errorf("%s publishes Proof %q, want %q", stem, cells[3], want)
+		}
+		row := coverage[stem]
+		if row.Both+row.Annotated+row.Outstanding() != row.Gated {
+			t.Errorf("%s partitions %d gated requirement(s) into %d + %d + %d, so the cell hides some",
+				stem, row.Gated, row.Both, row.Annotated, row.Outstanding())
+		}
+	}
+	if checked != len(stemOf) {
+		t.Errorf("the page carries a Proof cell for %d of %d wide row(s)", checked, len(stemOf))
 	}
 }

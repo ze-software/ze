@@ -520,8 +520,17 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	// vocabulary paragraph never defined the word, so it now reads 'Supported'.
 	// The shape is kept in the split rather than dropped, because the predicate
 	// still accepts it and a future row could reintroduce it.
-	if len(mapped) != 51 || exact != 40 || qualified != 11 || yes != 0 {
-		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 51 (40, 11, 0)",
+	// 44, not the 51 this test held until 2026-09-02. Seven rows promised
+	// conformance over a checklist not one of whose gated MUST-level
+	// requirements is proven in both polarities, and the second arm of
+	// checkUnprovenSupport refuses exactly that, so each was lowered to
+	// `Partial`: rfc3032 and rfc4302 were the two scope-qualified ones,
+	// rfc4364, rfc4761, rfc5798, rfc7535 and
+	// draft-abraitis-bgp-version-capability the five exact. The draft is the
+	// one of the seven outside the eight RFC sections, which is why the RFC
+	// count below drops by six.
+	if len(mapped) != 44 || exact != 35 || qualified != 9 || yes != 0 {
+		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 44 (35, 9, 0)",
 			len(mapped), exact, qualified, yes)
 	}
 	if exact+qualified+yes != len(mapped) {
@@ -530,8 +539,8 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	}
 
 	rowExact, rowQualified, rowYes := supportClaimSplit(rfcTables)
-	if len(rfcTables) != 48 || rowExact != 37 || rowQualified != 11 || rowYes != 0 {
-		t.Errorf("the eight RFC sections carry %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 48 (37, 11, 0)",
+	if len(rfcTables) != 42 || rowExact != 33 || rowQualified != 9 || rowYes != 0 {
+		t.Errorf("the eight RFC sections carry %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 42 (33, 9, 0)",
 			len(rfcTables), rowExact, rowQualified, rowYes)
 	}
 	if len(mapped) != len(rfcTables)+len(draftTable) {
@@ -1450,7 +1459,7 @@ func TestOnlyANonNormativeDispositionExcusesASupportClaim(t *testing.T) {
 		t.Run(one.kind, func(t *testing.T) {
 			errs := checkUnprovenSupport(nil, rows, stems,
 				map[string]Disposition{selftestStem: {Kind: one.kind, Reason: "why"}},
-				map[string]Extraction{}, map[string]string{})
+				map[string]Extraction{}, map[string]string{}, nil)
 			if one.excused && len(errs) != 0 {
 				t.Errorf("%s did not excuse the claim: %v", one.kind, errs)
 			}
@@ -1475,7 +1484,7 @@ func TestTheUnprovenSupportRemedyOffersOnlyAnExcusingDisposition(t *testing.T) {
 	stems := map[string]bool{selftestStem: true}
 
 	errs := checkUnprovenSupport(nil, rows, stems, map[string]Disposition{},
-		map[string]Extraction{}, map[string]string{})
+		map[string]Extraction{}, map[string]string{}, nil)
 	if len(errs) != 1 {
 		t.Fatalf("an unproven support claim answered %d violation(s), want 1: %v", len(errs), errs)
 	}
@@ -1673,7 +1682,7 @@ func TestSurvivingDispositionRefusalsStillFire(t *testing.T) {
 			"a support claim over a summary declaring no MUST",
 			checkUnprovenSupport(nil, map[string]LedgerRow{selftestStem: {Status: "Partial"}},
 				map[string]bool{selftestStem: true}, map[string]Disposition{},
-				map[string]Extraction{}, map[string]string{}),
+				map[string]Extraction{}, map[string]string{}, nil),
 			"declares no MUST-level requirement",
 		},
 		{
@@ -1916,5 +1925,98 @@ func TestSourceRestrictedIsRefusedWhenTheTextIsPresent(t *testing.T) {
 	absent := checkSummaryDisposition(root, map[string]Meta{"iso-iec-10589": meta}, gatedFixture())
 	if len(absent) != 0 {
 		t.Errorf("a standard whose text is absent was refused: %v", absent)
+	}
+}
+
+// VALIDATES: the second refusal in checkUnprovenSupport -- a public row that
+// PROMISES conformance over gated MUST-level requirements of which not one is
+// proven in both polarities is refused, and the status the message offers
+// clears it.
+// PREVENTS: the hole the first arm left open. That arm skipped every stem with
+// a gated count, so a summary listing 55 MUST-level obligations and proving
+// none of them carried `Supported` on the public page with nothing able to
+// contradict it -- a checklist nothing passes reads greener than the empty one
+// the gate did refuse. The remedy is asserted too, because a guard whose fix
+// does not work costs the reader the round trip the guard exists to save:
+// `Partial` is what this page's own vocabulary calls "not proven", so it must
+// leave the check silent.
+func TestASupportPromiseOverAnUnprovenChecklistIsRefused(t *testing.T) {
+	gated := []Requirement{{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust},
+		{RFC: selftestStem, RID: selftestRIDDrop, Level: levelMust}}
+	annotated := []Requirement{
+		{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust,
+			Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"}},
+		{RFC: selftestStem, RID: selftestRIDDrop, Level: levelMust,
+			Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"}}}
+	positive := []Tag{{RID: selftestRIDSend, Polarity: PolarityPositive, File: selftestTestPath}}
+	both := append([]Tag{}, positive...)
+	both = append(both, Tag{RID: selftestRIDSend, Polarity: PolarityNegative, File: selftestTestPath})
+
+	for _, one := range []struct {
+		name         string
+		status       string
+		requirements []Requirement
+		tags         []Tag
+		refused      bool
+	}{
+		{"a promise over a checklist with no test at all", "Supported", gated, nil, true},
+		{"a promise over one polarity only", "Supported", gated, positive, true},
+		{"a promise over annotations alone", "Supported", annotated, nil, true},
+		{"a scoped promise", "Supported in the OSPFv3 path", gated, nil, true},
+		{"a promise one requirement proves in both polarities", "Supported", gated, both, false},
+		{"the Partial the message offers", "Partial", gated, nil, false},
+		{"an experimental row", "Experimental", gated, nil, false},
+		{"a row that promises nothing", "Unsupported", gated, nil, false},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			errs := checkUnprovenSupport(one.requirements,
+				map[string]LedgerRow{selftestStem: {Status: one.status}},
+				map[string]bool{selftestStem: true}, map[string]Disposition{},
+				map[string]Extraction{}, map[string]string{},
+				CoverageRows(one.requirements, one.tags, nil))
+			if !one.refused {
+				if len(errs) != 0 {
+					t.Fatalf("answered %d violation(s), want none: %v", len(errs), errs)
+				}
+				return
+			}
+			if len(errs) != 1 {
+				t.Fatalf("answered %d violation(s), want 1: %v", len(errs), errs)
+			}
+			for _, want := range []string{selftestStem, "2 MUST-level requirement(s)",
+				"both polarities", "| Support status | Partial |"} {
+				if !strings.Contains(errs[0], want) {
+					t.Errorf("the refusal does not state %q:\n%s", want, errs[0])
+				}
+			}
+		})
+	}
+}
+
+// VALIDATES: the two escapes belong to the empty-checklist arm alone.
+// PREVENTS: an escape widening past the question it answers. `non-normative`
+// and a manual-walk sign-off each state that the DOCUMENT imposes no MUST-level
+// obligation, which says nothing about whether Ze meets one that exists. A
+// summary carrying gated requirements has already contradicted the first, so
+// letting either silence the unproven-checklist refusal would hand every
+// unproven promise a one-cell exit.
+func TestTheEmptyChecklistEscapesDoNotReachAnUnprovenChecklist(t *testing.T) {
+	gated := []Requirement{{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust}}
+	coverage := CoverageRows(gated, nil, nil)
+	rows := map[string]LedgerRow{selftestStem: {Status: "Supported"}}
+	stems := map[string]bool{selftestStem: true}
+
+	nonNormative := checkUnprovenSupport(gated, rows, stems,
+		map[string]Disposition{selftestStem: {Kind: dispositionNonNormative, Reason: "Informational"}},
+		map[string]Extraction{}, map[string]string{}, coverage)
+	if len(nonNormative) != 1 {
+		t.Errorf("a non-normative disposition excused an unproven checklist: %v", nonNormative)
+	}
+	walked := checkUnprovenSupport(gated, rows, stems, map[string]Disposition{},
+		map[string]Extraction{selftestStem: {Path: "rfc/extraction/" + selftestStem + ".json",
+			Register: registerManualWalk, RegisterReason: "no capitalised keyword in the source"}},
+		map[string]string{}, coverage)
+	if len(walked) != 1 {
+		t.Errorf("a manual-walk sign-off excused an unproven checklist: %v", walked)
 	}
 }

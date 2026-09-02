@@ -327,7 +327,8 @@ func rfcFreshnessStage(root string) (any, int) {
 	// and the shards, and by the same rule: they are GENERATED, so a hand edit
 	// to one is destroyed at the next run with nothing saying so. Reporting
 	// them stale is what tells the author before the run does.
-	ledgers, err := rfc.LedgerFiles(input.Metas)
+	ledgers, err := rfc.LedgerFiles(input.Metas,
+		rfc.CoverageRows(input.Requirements, input.Tags, input.Carriers))
 	if err != nil {
 		return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
 			Err(err).Byte('\n').String()}, 2

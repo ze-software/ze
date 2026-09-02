@@ -153,14 +153,33 @@ func derivedRegisters(deriver *Deriver, signed map[string]Extraction,
 	return out, nil
 }
 
+// checkUnprovenSupport refuses a public support claim that nothing behind it
+// can contradict, in the two shapes that state takes.
+//
+// The first is an EMPTY checklist: a claim over a summary declaring no
+// MUST-level requirement at all. The second is a checklist nothing PASSES: a
+// promise of conformance over gated requirements of which not one carries a
+// test in both polarities. Both publish a claim no evidence in this repository
+// bears on, and the second was invisible here until 2026-09-02 because the walk
+// skipped every stem with a gated count.
+//
+// The two arms carry different populations on purpose, and the escapes belong
+// to the first arm alone. `non-normative` and a manual-walk sign-off each state
+// that the DOCUMENT imposes no MUST, which answers the empty-checklist question
+// and says nothing about whether Ze meets an obligation that exists.
 func checkUnprovenSupport(requirements []Requirement, rows map[string]LedgerRow,
 	stems map[string]bool, dispositions map[string]Disposition, signed map[string]Extraction,
-	derived map[string]string) []string {
+	derived map[string]string, coverage []CoverageRow) []string {
 	gated := gatedCounts(requirements)
+	proof := coverageByRFC(coverage)
 	var errs []string
 	for _, stem := range sortedSet(stems) {
 		row, held := rows[stem]
-		if !held || gated[stem] > 0 || !statusIsSupportClaim(row.Status) {
+		if !held || !statusIsSupportClaim(row.Status) {
+			continue
+		}
+		if gated[stem] > 0 {
+			errs = append(errs, unprovenChecklist(stem, row, gated[stem], proof[stem])...)
 			continue
 		}
 		if disposition, held := dispositions[stem]; held && supportClaimExcused(disposition.Kind) {
@@ -192,6 +211,31 @@ func checkUnprovenSupport(requirements []Requirement, rows map[string]LedgerRow,
 			Str("); or, if the document genuinely imposes none, record the evidence -- `| Enrolment | non-normative |` in the summary's own Meta table, or a manual-walk extraction sign-off whose register-reason says why zero is a property of the text, over a source the derivation does not grade 'rfc2119'. A standard whose text may not be redistributed can never bound this claim, and a source-restricted disposition does not excuse it: stop making the claim, with a Status of 'Unsupported' or 'Future', or `| Support | - |` for no row at all").String())
 	}
 	return errs
+}
+
+// unprovenChecklist refuses a public PROMISE of conformance over gated
+// requirements of which none is proven in both polarities.
+//
+// The population is statusPromisesSupport, deliberately narrower than the
+// disclosure question the caller's other arm asks. The public page defines
+// `Partial` as "a named subset is missing, intentionally skipped, or not
+// proven", so a `Partial` row publishing `0 proven` states exactly what is
+// true, and it is the remedy this message names. Billing it here would leave the author no
+// status that clears the refusal, which is a guard whose remedy does not work.
+//
+// A stem with no coverage row reaches this with a zero CoverageRow and is
+// refused, because the caller derived the gated count from the same
+// requirements: a reader that cannot see the proof says so rather than passing
+// the claim (ai/rules/principles.md).
+func unprovenChecklist(stem string, row LedgerRow, gated int, cover CoverageRow) []string {
+	if !statusPromisesSupport(row.Status) || cover.Both > 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return []string{tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is ").
+		Str(pyRepr(strings.TrimSpace(row.Status))).Str(", and not one of the ").Int(int64(gated)).
+		Str(" MUST-level requirement(s) rfc/short/").Str(stem).
+		Str(".md gates carries a test in both polarities, so the promise rests on a checklist nothing passes. An annotation is not a proof: {gap}, {not-applicable} and {single-polarity} each record why a requirement is NOT proven, and the row's Proof cell counts them apart. Prove one requirement -- a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`, with the break each goes red under recorded by ./le rfc discriminate-record -- or state what is true in the summary's own Meta table, `| Support status | Partial |`, and run ./le rfc index-update").String()}
 }
 
 func spelledNumbers() map[string]int {

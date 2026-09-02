@@ -104,8 +104,12 @@ func share(count, total int) string {
 // which summaries are gated, why the rest are not, and what the product claims
 // in public -- and three producers over one declaration could each read it
 // differently.
-func LedgerFiles(metas map[string]Meta) (map[string]string, error) {
-	page, err := renderStatusPage(metas)
+//
+// coverage is the per-RFC polarity partition CoverageRows derives. The public
+// page publishes it beside every support claim, so a caller that has already
+// derived it hands it over rather than deriving it a second time.
+func LedgerFiles(metas map[string]Meta, coverage []CoverageRow) (map[string]string, error) {
+	page, err := renderStatusPage(metas, coverage)
 	if err != nil {
 		return nil, err
 	}
@@ -219,15 +223,16 @@ func renderNotEnrolled(metas map[string]Meta) string {
 // one row per summary that declares a section.
 //
 // The four authored cells are moved verbatim from the summary that owns them.
-// Nothing on this page is synthesized: a support claim is a product judgement,
+// No PROSE on this page is synthesized: a support claim is a product judgement,
 // and a generator that wrote the prose would be inventing the claim it exists
-// to publish. What IS derived is every count, the row order inside a section,
-// and the section headings themselves.
-func renderStatusPage(metas map[string]Meta) (string, error) {
+// to publish. What IS derived is every count, the Proof cell beside each claim,
+// the row order inside a section, and the section headings themselves.
+func renderStatusPage(metas map[string]Meta, coverage []CoverageRow) (string, error) {
 	placed, err := placeRows(metas)
 	if err != nil {
 		return "", err
 	}
+	proof := coverageByRFC(coverage)
 	rowed := 0
 	for _, rows := range placed {
 		rowed += len(rows)
@@ -249,13 +254,17 @@ func renderStatusPage(metas map[string]Meta) (string, error) {
 			tb.Str("| Standard | Area | Status | Note |\n")
 			tb.Str("|----------|------|--------|------|\n")
 		} else {
-			tb.Str("| RFC | Area | Status | Implemented coverage | Remaining if not complete |\n")
-			tb.Str("|-----|------|--------|----------------------|---------------------------|\n")
+			tb.Str("| RFC | Area | Status | Proof | Implemented coverage | Remaining if not complete |\n")
+			tb.Str("|-----|------|--------|-------|----------------------|---------------------------|\n")
 		}
 		for index := range rows {
 			row := &rows[index]
 			tb.Str("| ").Str(RowName(row.Stem, row.Meta)).Str(" | ").Str(row.Meta.Area).
-				Str(" | ").Str(row.Meta.Status).Str(" | ").Str(row.Meta.Coverage)
+				Str(" | ").Str(row.Meta.Status).Str(" | ")
+			if !section.Brief {
+				tb.Str(proofCell(proof[row.Stem])).Str(" | ")
+			}
+			tb.Str(row.Meta.Coverage)
 			if !section.Brief {
 				tb.Str(" | ").Str(row.Meta.Remaining)
 			}
@@ -266,6 +275,33 @@ func renderStatusPage(metas map[string]Meta) (string, error) {
 	tb.Str("<!-- source: docs/features/bgp-protocol.md -- draft-backed BGP capability rows -->\n")
 	tb.Str("<!-- source: docs/guide/rpki.md -- ASPA draft verification behavior -->\n")
 	return tb.String(), nil
+}
+
+// proofCell states one stem's own coverage partition, in the cell that sits
+// beside its support claim.
+//
+// A partition, never a percentage. Two percentages over this corpus already
+// exist and they disagree, because one divides by the gated set and the other
+// by the gated set minus what a scope decision took out of it. A third one
+// here would settle that disagreement on the public page, which is the one
+// place it must not be settled. The three counts sum to the gated count, so a
+// reader takes whichever ratio the question needs.
+//
+// `untested` is CoverageRow.Outstanding: a requirement proven in one polarity
+// only, and a requirement carrying neither a test nor an annotation. Neither
+// is a proof, and the column sits beside a product claim that does not turn on
+// which of the two it is.
+//
+// The zero CoverageRow is the answer for a stem CoverageRows emits no row for,
+// which is exactly a stem gating no MUST-level requirement.
+func proofCell(row CoverageRow) string {
+	if row.Gated == 0 {
+		return "no gated MUST"
+	}
+	var tb textbuf.Buffer
+	return tb.Int(int64(row.Gated)).Str(" gated: ").Int(int64(row.Both)).
+		Str(" proven, ").Int(int64(row.Annotated)).Str(" annotated, ").
+		Int(int64(row.Outstanding())).Str(" untested").String()
 }
 
 // statusRow is one placed row: the summary that declares it, and what it
@@ -356,12 +392,25 @@ func statusPageIntro(unrowed, summaries int) string {
 	tb.Str("same summary.\n")
 	tb.Str("- **Disclosure under a `{gap}`.** A summary can privately admit an unmet MUST. Its row ")
 	tb.Str("here must then say so, in the Status cell or in the Remaining cell.\n")
-	tb.Str("- **A support claim rests on something.** A row claiming anything but `Unsupported` or ")
-	tb.Str("`Future` over a summary that declares no MUST-level requirement is refused, unless the ")
-	tb.Str("summary declares itself non-normative or carries a manual-walk extraction sign-off.\n\n")
+	tb.Str("- **A support claim rests on something.** Two rows are refused. A row claiming anything ")
+	tb.Str("but `Unsupported` or `Future` over a summary that declares no MUST-level requirement, ")
+	tb.Str("unless that summary declares itself non-normative or carries a manual-walk extraction ")
+	tb.Str("sign-off. And a row PROMISING conformance -- `Supported`, alone or with a scope after ")
+	tb.Str("it -- whose `Proof` cell says none of its gated MUST-level requirements is proven. A ")
+	tb.Str("checklist nothing passes carries a support promise no better than an empty one, and ")
+	tb.Str("the two escapes above do not reach it: each says the DOCUMENT imposes no MUST, which ")
+	tb.Str("is a different question from whether Ze meets one. `Partial` is the honest row there, ")
+	tb.Str("and it is not refused.\n\n")
 	tb.Str("Row presence needs no check any more. A row exists exactly where a summary declares a ")
 	tb.Str("section, so an enrolled RFC with no row, a row naming an RFC with no summary, and two ")
 	tb.Str("rows for one RFC are each unrepresentable rather than refused.\n\n")
+	tb.Str("**Proof** is the one derived cell in these tables. It restates that RFC's own coverage ")
+	tb.Str("from `rfc/requirements/<stem>.md`: how many MUST-level requirements the summary gates, ")
+	tb.Str("then how many of them carry a test in BOTH polarities (`proven`), how many carry an ")
+	tb.Str("annotation instead (`annotated`), and how many carry neither -- one polarity only, or ")
+	tb.Str("no test at all (`untested`). The three sum to the gated count. A summary gating no ")
+	tb.Str("MUST-level requirement reads `no gated MUST`, and no cell an author writes changes any ")
+	tb.Str("of it.\n\n")
 	tb.Str("Everything else in the table is editorial and no gate reads it. **Status** is a ")
 	tb.Str("product-support judgement. It is neither the RFC's IETF category nor a derived value. ")
 	tb.Str("**Area** is a hand-written label. **Implemented coverage** is source-anchored prose.\n\n")
