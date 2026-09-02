@@ -290,6 +290,9 @@ func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 	var tb textbuf.Buffer
 	for name, entry := range ethList {
+		if diag := macOverrideBoundByName(name, entry); diag != nil {
+			diags = append(diags, *diag)
+		}
 		device, diag := selectedNetDevice(name, entry)
 		if diag != nil {
 			diags = append(diags, *diag)
@@ -322,6 +325,48 @@ func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 		}
 	}
 	return diags
+}
+
+// macOverrideBoundByName returns a diagnostic for an ethernet entry that
+// IMPOSES a hardware address on a device it reaches by NAME.
+//
+// `mac/address` is written to whichever device the entry resolves to, on every
+// apply (applyConfig, internal/component/iface/config_apply.go). An entry that
+// resolves by name therefore hands THIS NIC's address to a DIFFERENT NIC the
+// first time the kernel gives the name to another port, and the wrong port then
+// answers to the address. `mac/match` removes the exposure: the override
+// follows the NIC it was written for. An `os-name` alias is still a name, so it
+// earns the same report.
+//
+// The check reads the config alone. Comparing the configured address against the
+// device's current address answers nothing, because the apply has already
+// written one onto the other; the permanent address is what the entry should
+// have been bound by in the first place, which is what the message says.
+//
+// It is a warning, not an error, because an override on a named interface is a
+// valid config an operator can mean. The advice holds either way.
+func macOverrideBoundByName(name string, entry *config.Tree) *diagnostic.Diagnostic {
+	if entry == nil {
+		return nil
+	}
+	mac := entry.GetContainer("mac")
+	if mac == nil {
+		return nil
+	}
+	address, ok := mac.Get("address")
+	if !ok || address == "" {
+		return nil
+	}
+	if match, matched := mac.Get("match"); matched && match != "" {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return &diagnostic.Diagnostic{
+		Code:     "doctor-iface-mac-override-by-name",
+		Severity: diagnostic.SeverityWarning,
+		Message: tb.Str("ethernet ").Str(name).Str(": mac address ").Str(address).
+			Str(" is written to whichever device this entry's name reaches; bind the entry with mac match <permanent address> so the override stays on one NIC").String(),
+	}
 }
 
 // selectedNetDevice returns the kernel device an ethernet entry configures, or a

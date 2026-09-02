@@ -88,9 +88,10 @@ func DiscoverInterfaces() ([]DiscoveredInterface, error) {
 			continue
 		}
 		di := DiscoveredInterface{
-			Name: infos[i].Name,
-			Type: zeType,
-			MAC:  infos[i].MAC,
+			Name:         infos[i].Name,
+			Type:         zeType,
+			MAC:          infos[i].MAC,
+			PermanentMAC: infos[i].PermanentMAC,
 		}
 		if zeType == zeTypeWireguard {
 			// Read per-device state via wgctrl so ze init can emit a

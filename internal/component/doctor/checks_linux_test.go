@@ -599,3 +599,44 @@ func TestCheckInterfacesUnselectedEntryUnchanged(t *testing.T) {
 
 	requireDiag(t, checkInterfaces(tree), "doctor-iface-missing", diagnostic.SeverityError)
 }
+
+// TestCheckInterfacesMACOverrideBoundByName covers the entry shape that writes
+// one NIC's address onto another. `mac { address }` is applied to whichever
+// device the entry resolves to, so an entry that reaches its device by NAME
+// hands that address to a different port the first time the kernel renames one.
+// The check reads the config alone: after an apply the device already carries
+// the configured address, so comparing the two answers nothing.
+//
+// VALIDATES: the reporting half of the never-guess-a-NIC work.
+// PREVENTS: doctor staying silent about a name-bound MAC override, the shape
+// `ze init` wrote for every discovered NIC until 2026-09-02.
+func TestCheckInterfacesMACOverrideBoundByName(t *testing.T) {
+	const address = "aa:bb:cc:00:00:01"
+
+	t.Run("override bound by the entry name", func(t *testing.T) {
+		fakeSysClassNet(t, map[string]string{"wan": address})
+		tree := ethernetTree("wan", nil, map[string]string{"address": address})
+		requireDiag(t, checkInterfaces(tree), "doctor-iface-mac-override-by-name", diagnostic.SeverityWarning)
+	})
+
+	t.Run("override bound by os-name", func(t *testing.T) {
+		// An os-name alias is still a name. It reaches whichever device holds
+		// that kernel name, so the exposure is the same.
+		fakeSysClassNet(t, map[string]string{"enp1s0": address})
+		tree := ethernetTree("wan", map[string]string{"os-name": "enp1s0"}, map[string]string{"address": address})
+		requireDiag(t, checkInterfaces(tree), "doctor-iface-mac-override-by-name", diagnostic.SeverityWarning)
+	})
+
+	t.Run("override bound by mac match", func(t *testing.T) {
+		// The override follows the NIC, which is the fix the warning asks for.
+		fakeSysClassNet(t, map[string]string{"enp1s0": "aa:bb:cc:00:00:02"})
+		tree := ethernetTree("wan", nil, map[string]string{"match": "aa:bb:cc:00:00:02", "address": address})
+		assertNoDiagCode(t, checkInterfaces(tree), "doctor-iface-mac-override-by-name")
+	})
+
+	t.Run("no override at all", func(t *testing.T) {
+		fakeSysClassNet(t, map[string]string{"wan": address})
+		tree := ethernetTree("wan", nil, nil)
+		assertNoDiagCode(t, checkInterfaces(tree), "doctor-iface-mac-override-by-name")
+	})
+}

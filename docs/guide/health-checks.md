@@ -34,6 +34,8 @@ remediation guidance.
 | `doctor-ssh-hostkey-missing` | SSH host key |
 | `doctor-listen-unavailable` | Port binding |
 | `doctor-iface-missing` / `doctor-iface-down` | Interface existence and state |
+| `doctor-iface-selector-unmatched` / `doctor-iface-selector-ambiguous` | A `mac { match }` selector names no device, or several |
+| `doctor-iface-mac-override-by-name` | An ethernet overrides its MAC but binds by name, so the address lands on whichever device holds that name |
 | `doctor-disk-space` | Partition free space (<5%) |
 | `doctor-dns-resolver` | Name server reachability |
 | `doctor-*-unreachable` | External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (`doctor-radius-admin-unreachable`), RPKI cache (`doctor-rpki-unreachable`), BMP collector (`doctor-bmp-unreachable`), NTP (`doctor-ntp-server-unreachable`), management hub (`doctor-hub-unreachable`) <!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable --> |

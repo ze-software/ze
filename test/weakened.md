@@ -38,3 +38,4 @@ the file, and carry no row for it.
 
 | Test | Reason |
 |------|--------|
+| TestEmitSetConfigEthernetMAC | Renamed to TestEmitSetConfigCreatedKindMAC and retargeted from an ethernet fixture to a bridge one. The test asserts the two-token `mac address` form rather than the old single `mac-address` leaf, and that property is unchanged. Discovery no longer writes `mac address` for an ethernet, so the ethernet fixture could not carry the assertion any more; a bridge still gets the override, so the property is proven on a kind that has it. The ethernet contract this commit introduces gains four new tests of its own, so the assertion count rises. |

@@ -316,6 +316,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
+		Code:        "doctor-iface-mac-override-by-name",
+		Title:       "Interface MAC override is bound by name",
+		Description: "An ethernet interface overrides its hardware address with mac/address but reaches its device by name. The address is written to whichever device holds that name, so a kernel rename hands one NIC's address to another. Bind the entry with mac/match against the NIC's permanent address instead.",
+		Examples:    []string{exampleDoctorJSON},
+	},
+	{
 		Code:        "doctor-config-reference",
 		Title:       "Dangling config reference",
 		Description: "A filter chain in BGP config references a policy name that is not defined under bgp/policy.",

@@ -342,9 +342,14 @@ type InterfaceRate struct {
 // secret.Encode before writing them to the config file.
 type DiscoveredInterface struct {
 	plugin.DataMarker
-	Name      string         `json:"name"`
-	Type      string         `json:"type"`
-	MAC       string         `json:"mac-address,omitempty"`
-	Wireguard *WireguardSpec `json:"-"`
-	XFRM      *XFRMInfo      `json:"-"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+	MAC  string `json:"mac-address,omitempty"`
+	// PermanentMAC is the NIC's factory address (IFLA_PERM_ADDRESS), empty for
+	// the kinds that report none. It is the identity the emitted config binds
+	// an ethernet by, because it survives a kernel rename and an operational
+	// MAC override, which the name and the current address do not (emit.go).
+	PermanentMAC string         `json:"permanent-mac-address,omitempty"`
+	Wireguard    *WireguardSpec `json:"-"`
+	XFRM         *XFRMInfo      `json:"-"`
 }

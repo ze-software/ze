@@ -205,9 +205,13 @@ a specific physical device.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique on ethernet/veth/bridge lists -->
 
-Each discovered interface also records an `os-name` hidden leaf that preserves the original
-OS interface name. This field is auto-populated during discovery and remains available for
-debugging and internal binding after the user renames the config entry.
+Discovery writes one selector per entry. An ethernet that reports a factory address
+(`IFLA_PERM_ADDRESS`) is bound by `mac { match }` against that address, so the entry
+follows the NIC across a kernel rename. Every other discovered kind records an `os-name`
+hidden leaf holding the original OS interface name, which remains available for debugging
+and internal binding after the user renames the config entry. A discovered ethernet gets no
+`mac { address }` override: that leaf imposes an address on whatever device the entry
+resolves to, which is a wrong write the moment the name reaches a different port.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- os-name hidden leaf in interface-common grouping -->
 

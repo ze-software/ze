@@ -26,6 +26,8 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 		return ""
 	}
 
+	unique := uniquePermanentMACs(discovered)
+
 	var b textbuf.Buffer
 	b.WriteString("interface {\n")
 
@@ -40,12 +42,7 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 				continue
 			}
 			fmt.Fprintf(&b, "    %s %s {\n", di.Type, di.Name) //nolint:errcheck // buffer output
-			if di.MAC != "" && safeEmitName(di.MAC) {
-				b.WriteString("        mac {\n            address ")
-				b.WriteString(di.MAC)
-				b.WriteString(";\n        }\n")
-			}
-			fmt.Fprintf(&b, "        os-name %s;\n", di.Name) //nolint:errcheck // buffer output
+			emitSelectorBlock(&b, di, unique, "        ")
 			b.WriteString("    }\n")
 		case zeTypeWireguard:
 			if !safeEmitName(di.Name) {
@@ -67,6 +64,88 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 
 	b.WriteString("}\n")
 	return b.String()
+}
+
+// zeroMAC is an all-zero hardware address. A driver that reports one for
+// IFLA_PERM_ADDRESS has reported nothing, and reading it as an address would
+// write a selector that names no device.
+const zeroMAC = "00:00:00:00:00:00"
+
+// uniquePermanentMACs returns the permanent addresses carried by exactly one
+// discovered ethernet.
+//
+// A factory address two NICs report is not an identity. validateSelectors
+// (config_apply.go) REFUSES a commit whose selector names more than one device,
+// so emitting it would cost a first-boot appliance its whole config rather than
+// one interface. Those entries fall back to the os-name selector, which is what
+// discovery wrote for every kind before the selector existed.
+func uniquePermanentMACs(discovered []DiscoveredInterface) map[string]bool {
+	seen := make(map[string]int, len(discovered))
+	for i := range discovered {
+		di := &discovered[i]
+		if di.Type != zeTypeEthernet || di.PermanentMAC == zeroMAC || !safeEmitName(di.PermanentMAC) {
+			continue
+		}
+		seen[di.PermanentMAC]++
+	}
+	unique := make(map[string]bool, len(seen))
+	for mac, count := range seen {
+		if count == 1 {
+			unique[mac] = true
+		}
+	}
+	return unique
+}
+
+// matchMACFor returns the hardware address an emitted ethernet entry binds to,
+// or "" when the entry must fall back to the os-name selector. unique comes
+// from uniquePermanentMACs over the same discovered set.
+//
+// Only the physical kind is matched, and only by its PERMANENT (factory)
+// address. That address identifies the NIC: it survives a kernel rename and an
+// operational MAC override, so the entry keeps reaching the same port. The
+// kinds Ze creates (bridge, veth, dummy) report no permanent address and are
+// identified by the name Ze assigns them, which is what the mac/match leaf
+// states (ze-iface-conf.yang).
+func matchMACFor(di *DiscoveredInterface, unique map[string]bool) string {
+	if !unique[di.PermanentMAC] {
+		return ""
+	}
+	return di.PermanentMAC
+}
+
+// emitSelectorBlock writes the hardware selector for one discovered interface
+// in block syntax, indented by indent.
+//
+// A discovered ethernet NEVER gets a mac address override. That leaf IMPOSES an
+// address on whichever device the entry resolves to, so an entry that binds by
+// NAME and carries one writes this NIC's address onto a different NIC the first
+// time the kernel hands the name to another port. It also does nothing in the
+// healthy case, because the address it writes back is the one the NIC already
+// has. The created kinds keep it: there the address is an instruction, and it
+// pins the kernel's random choice across a recreate.
+func emitSelectorBlock(b *textbuf.Buffer, di *DiscoveredInterface, unique map[string]bool, indent string) {
+	if match := matchMACFor(di, unique); match != "" {
+		b.Str(indent).Str("mac {\n").Str(indent).Str("    match ").Str(match).Str(";\n").Str(indent).Str("}\n")
+		return
+	}
+	if di.Type != zeTypeEthernet && safeEmitName(di.MAC) {
+		b.Str(indent).Str("mac {\n").Str(indent).Str("    address ").Str(di.MAC).Str(";\n").Str(indent).Str("}\n")
+	}
+	b.Str(indent).Str("os-name ").Str(di.Name).Str(";\n")
+}
+
+// emitSelectorSet writes the same selector as emitSelectorBlock in set-command
+// syntax. prefix is "set interface <type> <name>".
+func emitSelectorSet(b *textbuf.Buffer, di *DiscoveredInterface, unique map[string]bool, prefix string) {
+	if match := matchMACFor(di, unique); match != "" {
+		b.Str(prefix).Str(" mac match ").Str(match).Byte('\n')
+		return
+	}
+	if di.Type != zeTypeEthernet && safeEmitName(di.MAC) {
+		b.Str(prefix).Str(" mac address ").Str(di.MAC).Byte('\n')
+	}
+	b.Str(prefix).Str(" os-name ").Str(di.Name).Byte('\n')
 }
 
 // emitWireguardBlock writes a wireguard list entry for a discovered netdev.
@@ -137,6 +216,8 @@ func emitSetConfig(discovered []DiscoveredInterface, dhcpEthernet bool) string {
 		return ""
 	}
 
+	unique := uniquePermanentMACs(discovered)
+
 	var b textbuf.Buffer
 	for i := range discovered {
 		di := &discovered[i]
@@ -148,10 +229,8 @@ func emitSetConfig(discovered []DiscoveredInterface, dhcpEthernet bool) string {
 			if !safeEmitName(di.Name) {
 				continue
 			}
-			if di.MAC != "" && safeEmitName(di.MAC) {
-				b.Str("set interface ").Str(di.Type).Byte(' ').Str(di.Name).Str(" mac address ").Str(di.MAC).Byte('\n')
-			}
-			b.Str("set interface ").Str(di.Type).Byte(' ').Str(di.Name).Str(" os-name ").Str(di.Name).Byte('\n')
+			var tb textbuf.Buffer
+			emitSelectorSet(&b, di, unique, tb.Str("set interface ").Str(di.Type).Byte(' ').Str(di.Name).String())
 			if dhcpEthernet && di.Type == zeTypeEthernet {
 				b.Str("set interface ethernet ").Str(di.Name).Str(" unit default ipv4 dhcp enabled true\n")
 			}
@@ -290,6 +369,8 @@ func emitXFRMSet(b *textbuf.Buffer, di *DiscoveredInterface) {
 // reachability). An SSH block is appended so the operator can connect.
 // Returns empty string if no ethernet interfaces are found.
 func EmitBootstrapConfig(discovered []DiscoveredInterface) string {
+	unique := uniquePermanentMACs(discovered)
+
 	var b textbuf.Buffer
 	hasEthernet := false
 
@@ -308,14 +389,7 @@ func EmitBootstrapConfig(discovered []DiscoveredInterface) string {
 		b.WriteString("    ethernet ")
 		b.WriteString(di.Name)
 		b.WriteString(" {\n")
-		if di.MAC != "" && safeEmitName(di.MAC) {
-			b.WriteString("        mac {\n            address ")
-			b.WriteString(di.MAC)
-			b.WriteString(";\n        }\n")
-		}
-		b.WriteString("        os-name ")
-		b.WriteString(di.Name)
-		b.WriteString(";\n")
+		emitSelectorBlock(&b, di, unique, "        ")
 		b.WriteString("        unit default {\n")
 		b.WriteString("            ipv4 {\n")
 		b.WriteString("                dhcp {\n")

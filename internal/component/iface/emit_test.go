@@ -24,13 +24,15 @@ func TestEmitConfig(t *testing.T) {
 		{
 			name: "single ethernet with MAC",
 			discovered: []DiscoveredInterface{
-				{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
+				{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff", PermanentMAC: "aa:bb:cc:dd:ee:ff"},
 			},
 			contains: []string{
 				"interface {",
 				"ethernet eth0 {",
 				"mac {",
-				"address aa:bb:cc:dd:ee:ff;",
+				"match aa:bb:cc:dd:ee:ff;",
+			},
+			excludes: []string{
 				"os-name eth0;",
 			},
 		},
@@ -297,6 +299,13 @@ func TestEmitConfigStructure(t *testing.T) {
 				{Name: "enp4s0", Type: "ethernet", MAC: "11:22:33:44:55:66"},
 			},
 		},
+		{
+			name: "ethernet reporting a factory address",
+			discovered: []DiscoveredInterface{
+				{Name: "enp3s0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff", PermanentMAC: "aa:bb:cc:dd:ee:ff"},
+				{Name: "enp4s0", Type: "ethernet", MAC: "02:00:00:00:00:01", PermanentMAC: "11:22:33:44:55:66"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -331,11 +340,20 @@ func TestEmitConfigStructure(t *testing.T) {
 					if !strings.Contains(got, blockHeader) {
 						t.Errorf("missing block header %q", blockHeader)
 					}
+					// Every entry carries exactly one selector: mac/match for a
+					// NIC that reports a factory address, os-name for the rest.
+					if match := matchMACFor(&di, uniquePermanentMACs(tt.discovered)); match != "" {
+						matchLine := "match " + match + ";"
+						if !strings.Contains(got, matchLine) {
+							t.Errorf("missing mac match line %q for %s", matchLine, di.Name)
+						}
+						continue
+					}
 					osLine := "os-name " + di.Name + ";"
 					if !strings.Contains(got, osLine) {
 						t.Errorf("missing os-name line %q for %s", osLine, di.Name)
 					}
-					if di.MAC != "" {
+					if di.Type != "ethernet" && di.MAC != "" {
 						macLine := "address " + di.MAC + ";"
 						if !strings.Contains(got, macLine) {
 							t.Errorf("missing mac address line %q for %s", macLine, di.Name)
@@ -454,7 +472,7 @@ func TestSafeEmitName(t *testing.T) {
 
 func TestEmitBootstrapConfig(t *testing.T) {
 	discovered := []DiscoveredInterface{
-		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff", PermanentMAC: "aa:bb:cc:dd:ee:ff"},
 	}
 	got := EmitBootstrapConfig(discovered)
 
@@ -462,8 +480,7 @@ func TestEmitBootstrapConfig(t *testing.T) {
 		"interface {",
 		"ethernet eth0 {",
 		"mac {",
-		"address aa:bb:cc:dd:ee:ff;",
-		"os-name eth0;",
+		"match aa:bb:cc:dd:ee:ff;",
 		"unit default {",
 		"ipv4 {",
 		"dhcp {",
@@ -771,23 +788,154 @@ func TestEmitSetConfigWithoutDHCPFlag(t *testing.T) {
 	}
 }
 
-// TestEmitSetConfigEthernetMAC verifies the set-form MAC emission uses the
+// TestEmitSetConfigCreatedKindMAC verifies the set-form MAC emission uses the
 // two-token "mac address" path (container mac { leaf address }), not the old
-// single "mac-address" leaf.
+// single "mac-address" leaf. It runs on a bridge because that is where the
+// address override survives: a discovered ethernet binds by its factory address
+// instead (TestEmitSetConfigEthernetMatchesPermanentMAC).
 //
 // PREVENTS: set-form emit drifting back to the renamed leaf and producing
 // config that no longer parses against the schema.
-func TestEmitSetConfigEthernetMAC(t *testing.T) {
+func TestEmitSetConfigCreatedKindMAC(t *testing.T) {
 	dis := []DiscoveredInterface{{
-		Name: "eth0",
-		Type: zeTypeEthernet,
+		Name: "br0",
+		Type: zeTypeBridge,
 		MAC:  "aa:bb:cc:dd:ee:ff",
 	}}
 	out := emitSetConfig(dis, false)
-	if want := "set interface ethernet eth0 mac address aa:bb:cc:dd:ee:ff"; !strings.Contains(out, want) {
+	if want := "set interface bridge br0 mac address aa:bb:cc:dd:ee:ff"; !strings.Contains(out, want) {
 		t.Errorf("emitSetConfig missing %q in:\n%s", want, out)
 	}
 	if strings.Contains(out, "mac-address") {
 		t.Errorf("emitSetConfig must not emit the old mac-address leaf:\n%s", out)
+	}
+}
+
+// TestEmitConfigEthernetMatchesPermanentMAC drives EmitConfig over a discovered
+// NIC that reports a factory address. The goal is the SELECTOR: the entry must
+// bind by mac/match, so the config follows the NIC, and must carry no mac
+// address override, which would impose one NIC's address on whatever device
+// held its kernel name at the next boot.
+func TestEmitConfigEthernetMatchesPermanentMAC(t *testing.T) {
+	got := EmitConfig([]DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff", PermanentMAC: "aa:bb:cc:dd:ee:ff"},
+	})
+
+	for _, want := range []string{"ethernet eth0 {", "mac {", "match aa:bb:cc:dd:ee:ff;"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+	for _, unwanted := range []string{"address aa:bb:cc:dd:ee:ff;", "os-name eth0;"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("emitted %q; an ethernet binds by its factory address alone:\n%s", unwanted, got)
+		}
+	}
+}
+
+// TestEmitConfigEthernetWithoutPermanentMAC proves the fallback. A device with
+// no factory address (a virtual NIC classified as ethernet) binds by name, and
+// still gets no address override: the override is what makes a stale name
+// dangerous.
+func TestEmitConfigEthernetWithoutPermanentMAC(t *testing.T) {
+	got := EmitConfig([]DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
+	})
+
+	if !strings.Contains(got, "os-name eth0;") {
+		t.Errorf("missing os-name selector:\n%s", got)
+	}
+	if strings.Contains(got, "mac {") {
+		t.Errorf("emitted a mac block for an ethernet with no factory address:\n%s", got)
+	}
+}
+
+// TestEmitConfigCreatedKindKeepsMACAddress proves the address override stays
+// where it is an instruction rather than a record. Ze creates a dummy, a veth
+// and a bridge, so writing the address back pins the kernel's random choice
+// across a recreate. Only the physical kind loses it.
+func TestEmitConfigCreatedKindKeepsMACAddress(t *testing.T) {
+	got := EmitConfig([]DiscoveredInterface{
+		{Name: "br0", Type: "bridge", MAC: "aa:bb:cc:dd:ee:01"},
+		{Name: "dum0", Type: "dummy", MAC: "aa:bb:cc:dd:ee:02"},
+	})
+
+	for _, want := range []string{"address aa:bb:cc:dd:ee:01;", "os-name br0;", "address aa:bb:cc:dd:ee:02;", "os-name dum0;"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "match ") {
+		t.Errorf("emitted a mac/match selector for a Ze-created kind:\n%s", got)
+	}
+}
+
+// TestEmitSetConfigEthernetMatchesPermanentMAC is the set-command counterpart of
+// TestEmitConfigEthernetMatchesPermanentMAC. The first-boot bootstrap path emits
+// this form, so it carries the same selector.
+func TestEmitSetConfigEthernetMatchesPermanentMAC(t *testing.T) {
+	got := EmitSetConfigWithDHCP([]DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff", PermanentMAC: "aa:bb:cc:dd:ee:ff"},
+	})
+
+	if want := "set interface ethernet eth0 mac match aa:bb:cc:dd:ee:ff"; !strings.Contains(got, want) {
+		t.Errorf("missing %q:\n%s", want, got)
+	}
+	if strings.Contains(got, "mac address") {
+		t.Errorf("emitted a mac address override for a discovered NIC:\n%s", got)
+	}
+}
+
+// TestEmitBootstrapConfigEthernetMatchesPermanentMAC covers the third emitter.
+// It runs on a first boot with no template, so a wrong binding here reaches a
+// box nobody is watching.
+func TestEmitBootstrapConfigEthernetMatchesPermanentMAC(t *testing.T) {
+	got := EmitBootstrapConfig([]DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff", PermanentMAC: "aa:bb:cc:dd:ee:ff"},
+	})
+
+	if !strings.Contains(got, "match aa:bb:cc:dd:ee:ff;") {
+		t.Errorf("missing mac/match selector:\n%s", got)
+	}
+	if strings.Contains(got, "address aa:bb:cc:dd:ee:ff;") {
+		t.Errorf("emitted a mac address override:\n%s", got)
+	}
+}
+
+// TestEmitConfigSharedPermanentMACFallsBack covers the case that would cost an
+// appliance its whole config. A factory address two NICs report is not an
+// identity: validateSelectors (config_apply.go) REFUSES a commit whose selector
+// names more than one device, so emitting it on a first boot would leave the box
+// with no config at all. Both entries fall back to the os-name selector.
+func TestEmitConfigSharedPermanentMACFallsBack(t *testing.T) {
+	const shared = "aa:bb:cc:dd:ee:ff"
+	got := EmitConfig([]DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: shared, PermanentMAC: shared},
+		{Name: "eth1", Type: "ethernet", MAC: shared, PermanentMAC: shared},
+	})
+
+	if strings.Contains(got, "match ") {
+		t.Errorf("emitted a selector two devices answer to:\n%s", got)
+	}
+	for _, want := range []string{"os-name eth0;", "os-name eth1;"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing fallback selector %q:\n%s", want, got)
+		}
+	}
+}
+
+// TestEmitConfigZeroPermanentMACFallsBack proves an all-zero factory address is
+// read as "the driver reported nothing", not as an address. Binding to it would
+// name no device, and the entry would stay deferred and unconfigured.
+func TestEmitConfigZeroPermanentMACFallsBack(t *testing.T) {
+	got := EmitConfig([]DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff", PermanentMAC: "00:00:00:00:00:00"},
+	})
+
+	if strings.Contains(got, "match ") {
+		t.Errorf("emitted a selector for an all-zero factory address:\n%s", got)
+	}
+	if !strings.Contains(got, "os-name eth0;") {
+		t.Errorf("missing fallback selector:\n%s", got)
 	}
 }

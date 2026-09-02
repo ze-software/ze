@@ -1736,15 +1736,41 @@ NIC can be matched by its permanent MAC and have its operational MAC overridden 
 time. Names are descriptive labels chosen by the operator; `mac { address }` ties the named
 config entry to a specific operational hardware address.
 
+An override is applied to whichever device the entry resolves to, on every apply. So an
+entry that carries `mac { address }` and reaches its device **by name** writes that address
+onto a different NIC the first time the kernel gives the name to another port. `ze doctor`
+reports that shape as `doctor-iface-mac-override-by-name`, at warning severity. Adding
+`mac { match }` against the NIC's permanent address clears it: the override then follows
+the NIC it was written for. Discovery writes no override on an ethernet for this reason.
+
+<!-- source: internal/component/doctor/checks_linux.go -- macOverrideBoundByName -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, SetMACAddress -->
+
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique "mac/address", container mac -->
 
 ### Discovery During Init
 
 Running `ze init` discovers OS interfaces via netlink (Linux) or stdlib (other platforms)
 and writes initial config to `ze.conf`. Each discovered interface gets an entry named
-after its OS name, with `mac { address }` populated and the `os-name` selector recording
-the original OS device name (so renaming the config entry still maps back to the kernel
-device). Loopback appears as an empty `loopback { }` container.
+after its OS name, carrying one selector that binds it back to the device:
+
+| Discovered kind | Selector written |
+|-----------------|------------------|
+| Ethernet reporting a factory address | `mac { match <permanent MAC> }` |
+| Ethernet reporting none | `os-name <OS device name>` |
+| Bridge, veth, dummy | `mac { address <MAC> }` and `os-name <OS device name>` |
+
+Loopback appears as an empty `loopback { }` container.
+
+A discovered ethernet gets **no** `mac { address }` override. That leaf imposes an address
+on whatever device the entry resolves to, so an entry that binds by name and carries one
+writes this NIC's address onto a different NIC the first time the kernel gives the name to
+another port. Writing the factory address back also does nothing in the healthy case,
+because it is the address the NIC already has. The created kinds keep the override: there
+it is an instruction, and it pins the kernel's random choice across a recreate.
+
+The same selectors are written by the appliance's first boot, which merges the config
+template with its own on-device discovery.
 
 The `--seed` flag skips this discovery entirely: an appliance-image seed database must not
 bake the build host's interfaces into the active config (they belong to the wrong machine
@@ -1753,6 +1779,8 @@ interfaces at first boot instead.
 
 <!-- source: internal/plugins/init/main.go -- runInit interface discovery, seedFlag -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
+<!-- source: internal/component/iface/emit.go -- matchMACFor, emitSelectorBlock, emitSelectorSet -->
+<!-- source: cmd/ze/ze_core_start.go -- bootstrapConfigFromTemplate, bootstrapFromDiscovery -->
 
 ### Example
 
