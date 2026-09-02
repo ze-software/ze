@@ -271,6 +271,25 @@ negated term at once. A feature-only helper must therefore carry its consumer's
 build constraint. Without it, the bare-core build reports the helper as
 `unused`, which is what it is in a binary that compiles its only caller out.
 
+### The accounting every gate owes its population
+
+<!-- source: internal/le/population/population.go -- Claim -->
+
+The lint driver above is the shape every gate is held to, and
+`internal/le/population` is that shape as a callable type. A gate states what it
+governs, what it walked, and a reason for each member it deliberately skipped.
+`Claim.Assess` then answers a `Coverage`. It goes red on two things: a member
+neither walked nor excused, and an excuse that has stopped being needed.
+
+Both halves matter. The first is the gate covering less than it says. The second
+is a stated exception nobody rechecked, which hides the next member to land on
+that same path. An empty population is an error rather than a clean report,
+because a walk that found nothing prints what a healthy tree prints.
+
+A count floor -- refuse below N members -- is NOT this. It catches only the empty
+case, and comparing sizes where the question is about sets is the same defect one
+level up. `plan/journal/gate-excludes-part-of-its-population.md` records both.
+
 ### Feature-tag structural type check
 
 <!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->

@@ -593,6 +593,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/platformvet` | checks the host and interface package trees against the non-Linux implementations that the normal host build does not compile |  |
 | `internal/le/plugin/boundary` | enforces an invariant discovered during the AS112/cos advisory-doctor-check review: a plugin calling another in-process package's plain exported function directly -- bypassing... |  |
 | `internal/le/plugin/imports` | generates internal/component/plugin/all, the product's composition root, from what the tree REGISTERS |  |
+| `internal/le/population` | turns a gate's claim about the set it governs into an accounting that fails when a member is neither walked nor excused |  |
 | `internal/le/portdefaults` | pins the hand-maintained Go listener-default table (internal/component/config/listener_defaults.go, RegisterBuiltinListenerDefaults) |  |
 | `internal/le/protocolskeleton` | classifies each protocol's subpackages against the standard skeleton: a canonical module, per-peer state named by the protocol's own RFC term, a wire-version directory, a domain module, or a... |  |
 | `internal/le/qemu` | proofs that boot a real appliance image in a virtual machine and ask it what it did |  |

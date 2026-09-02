@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/population"
 )
 
 const (
@@ -58,10 +59,10 @@ type PassPlan struct {
 
 // LintPlan is the complete ordered stage derived before any linter starts.
 type LintPlan struct {
-	Passes         []PassPlan `json:"passes"`
-	Coverage       Coverage   `json:"coverage"`
-	TaglessConfig  string     `json:"tagless-config,omitempty"`
-	NeedsTagless   bool       `json:"-"`
+	Passes         []PassPlan          `json:"passes"`
+	Coverage       population.Coverage `json:"coverage"`
+	TaglessConfig  string              `json:"tagless-config,omitempty"`
+	NeedsTagless   bool                `json:"-"`
 	reportCoverage bool
 	configContents []byte
 }
@@ -73,30 +74,13 @@ type PassResult struct {
 	Error string `json:"error,omitempty"`
 }
 
-// BlindFile records one tracked Go file no selected build loads and its stated
-// reason. An unstated blind file makes Coverage.Code non-zero.
-type BlindFile struct {
-	Path   string `json:"path"`
-	Reason string `json:"reason"`
-}
-
-// Coverage is the population proof over the full-tree scope.
-type Coverage struct {
-	Population int         `json:"population"`
-	Selected   int         `json:"selected"`
-	Blind      []BlindFile `json:"blind,omitempty"`
-	Unexpected []string    `json:"unexpected,omitempty"`
-	Healed     []string    `json:"healed-residue,omitempty"`
-	Code       int         `json:"code"`
-}
-
 // Report is the structured result of the lint stage. Code is the first non-zero
 // child status in execution order, with coverage last.
 type Report struct {
-	Passes   []PassResult `json:"passes"`
-	Coverage Coverage     `json:"coverage"`
-	Code     int          `json:"code"`
-	Error    string       `json:"error,omitempty"`
+	Passes   []PassResult        `json:"passes"`
+	Coverage population.Coverage `json:"coverage"`
+	Code     int                 `json:"code"`
+	Error    string              `json:"error,omitempty"`
 	// FailingPaths names the files this run's findings were about, so a red can
 	// be charged to the commits that touch them (see failuregroup.go).
 	FailingPaths []string `json:"failing-paths,omitempty"`
@@ -326,7 +310,7 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 		passes = append(passes, r.passPlan(flavor, scope, len(scope) == 0))
 	}
 
-	var coverage Coverage
+	var coverage population.Coverage
 	if reportCoverage {
 		var err error
 		coverage, err = r.coverage(seen)
@@ -474,43 +458,19 @@ func replaceConfigPath(argv []string, path string) []string {
 	return answer
 }
 
-func (r *Runner) coverage(seen map[string]bool) (Coverage, error) {
-	population, err := r.population()
+func (r *Runner) coverage(seen map[string]bool) (population.Coverage, error) {
+	tracked, err := r.population()
 	if err != nil {
-		return Coverage{}, err
+		return population.Coverage{}, err
 	}
-	if len(population) == 0 {
-		return Coverage{}, errors.New("lint tracked Go population is empty")
+	claim := population.Claim{
+		Subject:         "lint tracked Go",
+		Population:      tracked,
+		Walked:          seen,
+		Excused:         residue,
+		UnexcusedReason: "NOT COVERED BY ANY PASS",
 	}
-	blindPaths := make([]string, 0)
-	for path := range population {
-		if !seen[path] {
-			blindPaths = append(blindPaths, path)
-		}
-	}
-	sort.Strings(blindPaths)
-
-	coverage := Coverage{Population: len(population), Selected: len(population) - len(blindPaths)}
-	blindSet := make(map[string]bool, len(blindPaths))
-	for _, path := range blindPaths {
-		blindSet[path] = true
-		reason, stated := residue[path]
-		if !stated {
-			reason = "NOT COVERED BY ANY PASS"
-			coverage.Unexpected = append(coverage.Unexpected, path)
-		}
-		coverage.Blind = append(coverage.Blind, BlindFile{Path: path, Reason: reason})
-	}
-	for path := range residue {
-		if !blindSet[path] {
-			coverage.Healed = append(coverage.Healed, path)
-		}
-	}
-	sort.Strings(coverage.Healed)
-	if len(coverage.Unexpected) != 0 || len(coverage.Healed) != 0 {
-		coverage.Code = 1
-	}
-	return coverage, nil
+	return claim.Assess()
 }
 
 func (r *Runner) population() (map[string]bool, error) {
@@ -523,7 +483,7 @@ func (r *Runner) population() (map[string]bool, error) {
 		return nil, fmt.Errorf("enumerate tracked Go files: git exited %d: %s", result.code, strings.TrimSpace(string(result.stderr)))
 	}
 	paths := bytes.Split(result.stdout, []byte{0})
-	population := make(map[string]bool, len(paths))
+	tracked := make(map[string]bool, len(paths))
 	for _, raw := range paths {
 		path := filepath.ToSlash(string(raw))
 		if path == "" || strings.HasPrefix(path, "vendor/") || strings.HasPrefix(path, "gokrazy/modcache/") {
@@ -552,9 +512,9 @@ func (r *Runner) population() (map[string]bool, error) {
 		if ignoreConstraint.MatchString(constraint) {
 			continue
 		}
-		population[path] = true
+		tracked[path] = true
 	}
-	return population, nil
+	return tracked, nil
 }
 
 // testdataSegment reports whether a slash-separated repository path has a
@@ -681,9 +641,9 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 	report := Report{Passes: make([]PassResult, 0, len(plan.Passes)), Coverage: plan.Coverage}
 	reportCoverage := plan.reportCoverage ||
 		plan.Coverage.Population != 0 ||
-		plan.Coverage.Selected != 0 ||
+		plan.Coverage.Walked != 0 ||
 		len(plan.Coverage.Blind) != 0 ||
-		len(plan.Coverage.Unexpected) != 0 ||
+		len(plan.Coverage.Unexcused) != 0 ||
 		len(plan.Coverage.Healed) != 0 ||
 		plan.Coverage.Code != 0
 	var errorText textbuf.Buffer
@@ -817,14 +777,14 @@ func announcePass(pass *PassPlan) error {
 	}
 }
 
-func renderCoverage(coverage Coverage) error {
+func renderCoverage(coverage population.Coverage) error {
 	for _, blind := range coverage.Blind {
-		if err := writeLintf(os.Stdout, "  %s: %s\n", blind.Path, blind.Reason); err != nil {
+		if err := writeLintf(os.Stdout, "  %s: %s\n", blind.Member, blind.Reason); err != nil {
 			return err
 		}
 	}
-	if len(coverage.Unexpected) != 0 {
-		return writeLintf(os.Stderr, "lint_flavors: %d tracked Go file(s) are linted by nothing. Add the flavor that selects them, or state the reason in RESIDUE (internal/le/verify/lint/verifylint.go).\n", len(coverage.Unexpected))
+	if len(coverage.Unexcused) != 0 {
+		return writeLintf(os.Stderr, "lint_flavors: %d tracked Go file(s) are linted by nothing. Add the flavor that selects them, or state the reason in RESIDUE (internal/le/verify/lint/verifylint.go).\n", len(coverage.Unexcused))
 	}
 	if len(coverage.Healed) != 0 {
 		return writeLintf(os.Stderr, "lint_flavors: %d RESIDUE entr(y|ies) are now linted: %s. Delete the entry -- a stated remainder that is no longer a remainder hides the next one.\n", len(coverage.Healed), strings.Join(coverage.Healed, ", "))

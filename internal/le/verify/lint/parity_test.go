@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/population"
 )
 
 const fixtureConfig = "version: \"2\"\nrun:\n  timeout: 10m\n  build-tags:\n    - ze_core\n    - ze_a\n    - ze_b\nlinters:\n  enable:\n    - errcheck\n"
@@ -289,7 +290,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 	if !reflect.DeepEqual(gotTrackedOverrides, wantTrackedOverrides) {
 		t.Errorf("tracked population environment differs:\n got: %q\nwant: %q", gotTrackedOverrides, wantTrackedOverrides)
 	}
-	if plan.Coverage.Code != 0 || plan.Coverage.Population != 22 || plan.Coverage.Selected != 20 || len(plan.Coverage.Blind) != 2 {
+	if plan.Coverage.Code != 0 || plan.Coverage.Population != 22 || plan.Coverage.Walked != 20 || len(plan.Coverage.Blind) != 2 {
 		t.Fatalf("coverage differs: %#v", plan.Coverage)
 	}
 }
@@ -321,7 +322,7 @@ func TestScopedRunParsesPackagesAndNeverBroadensToTheTree(t *testing.T) {
 	if !ok {
 		t.Fatalf("scoped run answer type = %T, want Report", answer)
 	}
-	if !reflect.DeepEqual(report.Coverage, Coverage{}) {
+	if !reflect.DeepEqual(report.Coverage, population.Coverage{}) {
 		t.Fatalf("scoped run reported full-tree coverage: %#v", report.Coverage)
 	}
 	if strings.Contains(stdout, "every tracked Go file is linted") || strings.Contains(stderr, "tracked Go file") {
@@ -520,7 +521,7 @@ func TestExecuteRunsAllChildrenAndReturnsTheFirstFailureCode(t *testing.T) {
 			{Name: "empty-on-host", Skipped: true},
 			{Name: "darwin", Command: []string{lintProgram, "run", "fourth"}, Packages: []string{"fourth"}},
 		},
-		Coverage: Coverage{Population: 3, Selected: 3},
+		Coverage: population.Coverage{Population: 3, Walked: 3},
 	}
 	report, code := runner.execute(plan)
 	if code != 7 || report.Code != 7 {
@@ -601,7 +602,7 @@ func TestProducerHeadingsAndCoverageOutputArePinned(t *testing.T) {
 			Packages: []string{"./cmd/ze-installer", "./internal/install/disk"},
 		}
 		outputErr = errors.Join(outputErr, announcePass(&installer))
-		outputErr = errors.Join(outputErr, renderCoverage(Coverage{Population: 42, Selected: 42}))
+		outputErr = errors.Join(outputErr, renderCoverage(population.Coverage{Population: 42, Walked: 42}))
 	})
 	if outputErr != nil {
 		t.Fatalf("write producer output: %v", outputErr)
@@ -641,7 +642,7 @@ func TestExecuteRemovesDerivedTaglessConfiguration(t *testing.T) {
 			Name: "compile-out", Packages: []string{"./pkg/p00"},
 			Command: []string{lintProgram, "run", "-c", path, "./pkg/p00"},
 		}},
-		Coverage:       Coverage{Population: 1, Selected: 1},
+		Coverage:       population.Coverage{Population: 1, Walked: 1},
 		TaglessConfig:  path,
 		NeedsTagless:   true,
 		configContents: []byte(fixtureConfig),
