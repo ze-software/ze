@@ -53,9 +53,15 @@ func partitionPath(disk string, num int) string {
 }
 
 // findTargetDisk scans /sys/block for a suitable non-removable target disk.
-// When rejectMultiple is true (ISO mode), errors on ambiguity.
-// When false (HTTP mode), picks the first match (parity with shell).
-func findTargetDisk(explicit string, sourceDisks []string, rejectMultiple bool) (string, error) {
+// sysblockDir overrides /sys/block for testing.
+//
+// Several candidates is refused rather than resolved, in every mode. Nothing
+// in a directory listing says which disk the operator wants, so taking the
+// first entry is a guess, and the installer acts on it by writing a whole disk
+// image over that disk. The HTTP mode took the first entry until 2026-09-02,
+// for parity with the shell installer it replaced; the parity was with a
+// defect. `ze.target` on the kernel cmdline is the operator's answer.
+func findTargetDisk(explicit string, sourceDisks []string, sysblockDir string) (string, error) {
 	if explicit != "" {
 		if err := validateTargetPath(explicit); err != nil {
 			return "", err
@@ -67,9 +73,12 @@ func findTargetDisk(explicit string, sourceDisks []string, rejectMultiple bool) 
 		return explicit, nil
 	}
 
-	entries, err := os.ReadDir("/sys/block")
+	if sysblockDir == "" {
+		sysblockDir = "/sys/block"
+	}
+	entries, err := os.ReadDir(sysblockDir)
 	if err != nil {
-		return "", fmt.Errorf("read /sys/block: %w", err)
+		return "", fmt.Errorf("read %s: %w", sysblockDir, err)
 	}
 
 	var candidates []string
@@ -82,7 +91,7 @@ func findTargetDisk(explicit string, sourceDisks []string, rejectMultiple bool) 
 			continue
 		}
 		var tbR textbuf.Buffer
-		removablePath := tbR.Str("/sys/block/").Str(name).Str("/removable").String()
+		removablePath := tbR.Str(sysblockDir).Byte('/').Str(name).Str("/removable").String()
 		if data, readErr := os.ReadFile(removablePath); readErr == nil { //nolint:gosec // sysfs path
 			if strings.TrimSpace(string(data)) == "1" {
 				continue
@@ -95,7 +104,7 @@ func findTargetDisk(explicit string, sourceDisks []string, rejectMultiple bool) 
 		return "", fmt.Errorf("no non-removable block device found")
 	}
 
-	if rejectMultiple && len(candidates) > 1 {
+	if len(candidates) > 1 {
 		return "", fmt.Errorf("multiple target disks found (%v); set ze.target on the kernel cmdline", candidates)
 	}
 

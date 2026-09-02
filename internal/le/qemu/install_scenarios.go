@@ -28,6 +28,15 @@ const (
 	InstallAuthBad          = "incorrect"
 	InstallMenuMark         = "Recovery Console"
 	InstallReboot30s        = "rebooting in 30s"
+
+	// InstallAmbiguousTargetMark is the refusal findTargetDisk prints when more
+	// than one fixed disk survives filtering and no ze.target names one
+	// (internal/install/disk/detect.go).
+	InstallAmbiguousTargetMark = "multiple target disks found"
+	// InstallStreamMark is the line the installer prints as it starts writing
+	// the image. Its ABSENCE is what proves the refusal above stopped the run
+	// before any disk was touched (internal/install/disk/run.go, runHTTP).
+	InstallStreamMark = "streaming image to disk"
 )
 
 // The installer scenario names. A name is the report's Name field and the
@@ -39,6 +48,7 @@ const (
 	installScenarioRescueAC7  = "rescue-ac7"
 	installScenarioRescueAC7B = "rescue-ac7b"
 	installScenarioRescueAC7C = "rescue-ac7c"
+	installScenarioAmbiguous  = "target-ambiguous"
 )
 
 type installFixtures struct {
@@ -183,6 +193,73 @@ func (installer *Installer) bootPin(
 		"-drive", drive, "-netdev", pinned, "-device", pinnedDevice,
 		"-netdev", foreign, "-device", foreignDevice)
 	return installer.runCapture(ctx, argv, installer.Options.BootTimeout)
+}
+
+// bootAmbiguous boots the installer against TWO blank fixed disks with no
+// ze.target on the cmdline. One NIC, and the fixtures' image server reachable,
+// so the run reaches disk detection rather than stopping at the network.
+func (installer *Installer) bootAmbiguous(ctx context.Context, fixtures *installFixtures, first, second string) (string, error) {
+	base := installer.qemuBase(false)
+	console := installConsoleAMD64
+	if installer.Options.Arch == ArchARM64 {
+		console = installConsoleARM64
+	}
+	var tb textbuf.Buffer
+	line := tb.Str("console=").Str(console).Str(" ze.server=").Str(InstallGuestServerIP).
+		Str(" ze.port=").Int(int64(fixtures.Port)).Str(" ze.image=").Str(InstallImageName).
+		Str(" ip=dhcp panic=-1").String()
+	tb.Reset()
+	firstDrive := tb.Str("file=").Str(first).Str(",format=raw,if=virtio").String()
+	tb.Reset()
+	secondDrive := tb.Str("file=").Str(second).Str(",format=raw,if=virtio").String()
+	tb.Reset()
+	device := tb.Str(installer.Options.NIC).Str(",netdev=net0").String()
+	argv := slices.Clone(base)
+	argv = append(argv, "-no-reboot", "-kernel", installer.Options.Kernel,
+		"-initrd", fixtures.Initrd, "-append", line,
+		"-drive", firstDrive, "-drive", secondDrive,
+		"-netdev", "user,id=net0", "-device", device)
+	return installer.runCapture(ctx, argv, installer.Options.BootTimeout)
+}
+
+// scenarioAmbiguous proves the installer stops rather than choosing between two
+// fixed disks. Until 2026-09-02 the HTTP path took the first entry of the
+// /sys/block listing and wrote a whole disk image over it, which is a guess
+// about which disk the operator wanted erased.
+func (installer *Installer) scenarioAmbiguous(ctx context.Context, work string, fixtures *installFixtures) (InstallScenarioReport, string, error) {
+	if fixtures == nil {
+		return InstallScenarioReport{Name: installScenarioAmbiguous, Verdict: InstallVerdictSkip, Detail: "no install fixtures"}, "", nil
+	}
+	info, err := installer.ops.FS.Stat(fixtures.Image)
+	if err != nil {
+		return InstallScenarioReport{}, "", err
+	}
+	first := filepath.Join(work, installScenarioAmbiguous+"-first.img")
+	if err := truncateInstallFile(first, info.Size()); err != nil {
+		return InstallScenarioReport{}, "", err
+	}
+	second := filepath.Join(work, installScenarioAmbiguous+"-second.img")
+	if err := truncateInstallFile(second, info.Size()); err != nil {
+		return InstallScenarioReport{}, "", err
+	}
+	serial, err := installer.bootAmbiguous(ctx, fixtures, first, second)
+	if err != nil {
+		return InstallScenarioReport{}, serial, err
+	}
+	return installAmbiguousScenario(serial), serial, nil
+}
+
+// installAmbiguousScenario reads the refusal out of the serial log. Both halves
+// are load-bearing: the refusal says the installer noticed, and the absent
+// stream mark says it stopped before it wrote anything.
+func installAmbiguousScenario(serial string) InstallScenarioReport {
+	if !strings.Contains(serial, InstallAmbiguousTargetMark) {
+		return InstallScenarioReport{Name: installScenarioAmbiguous, Verdict: InstallVerdictFail, Detail: "installer did not refuse two fixed disks"}
+	}
+	if strings.Contains(serial, InstallStreamMark) {
+		return InstallScenarioReport{Name: installScenarioAmbiguous, Verdict: InstallVerdictFail, Detail: "installer wrote a disk it had refused to choose"}
+	}
+	return InstallScenarioReport{Name: installScenarioAmbiguous, Verdict: InstallVerdictPass, Detail: "two fixed disks, no ze.target -> refused, nothing written"}
 }
 
 func (installer *Installer) scenarioPin(ctx context.Context, work, name string, fixtures *installFixtures) (InstallScenarioReport, string, error) {
@@ -417,6 +494,7 @@ func (installer *Installer) executeScenarios(ctx context.Context, work string, r
 	names := []string{
 		installScenarioFault, installScenarioPinAC4, installScenarioPinAC5,
 		installScenarioRescueAC7, installScenarioRescueAC7B, installScenarioRescueAC7C,
+		installScenarioAmbiguous,
 	}
 	for _, name := range names {
 		var scenario InstallScenarioReport
@@ -426,6 +504,8 @@ func (installer *Installer) executeScenarios(ctx context.Context, work string, r
 			scenario, serial, err = installer.scenarioFault(ctx, work)
 		case installScenarioPinAC4, installScenarioPinAC5:
 			scenario, serial, err = installer.scenarioPin(ctx, work, name, fixtures)
+		case installScenarioAmbiguous:
+			scenario, serial, err = installer.scenarioAmbiguous(ctx, work, fixtures)
 		default:
 			scenario, serial, err = installer.scenarioRescue(ctx, work, name)
 		}

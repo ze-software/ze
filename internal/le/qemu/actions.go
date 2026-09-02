@@ -71,7 +71,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:   "install-scenarios-test",
-		Why:    "prove installer panic recovery, boot-NIC pin and fallback, and the three rescue-console policy branches",
+		Why:    "prove installer panic recovery, boot-NIC pin and fallback, the three rescue-console policy branches, and the refusal to choose between two fixed disks",
 		Answer: runInstallScenariosHere,
 	},
 	leaction.Action{

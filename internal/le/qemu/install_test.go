@@ -550,6 +550,19 @@ func TestInstallScenarioBranches(t *testing.T) {
 	if got := installPinScenario("pin-ac5", strings.ReplaceAll(ac5, InstallPinFlushMark, "")); got.Detail != "pinned NIC was not flushed" {
 		t.Fatalf("pin ac5 no flush=%+v", got)
 	}
+
+	// The ambiguous-target branch. Both halves of its verdict are asserted: the
+	// refusal alone is not enough, because an installer that printed the refusal
+	// and then wrote a disk anyway would satisfy a presence-only check.
+	if got := installAmbiguousScenario(InstallAmbiguousTargetMark + " (vda vdb)"); got.Verdict != InstallVerdictPass {
+		t.Fatalf("ambiguous pass=%+v", got)
+	}
+	if got := installAmbiguousScenario("installing to /dev/vda"); got.Detail != "installer did not refuse two fixed disks" {
+		t.Fatalf("ambiguous silent=%+v", got)
+	}
+	if got := installAmbiguousScenario(InstallAmbiguousTargetMark + " (vda vdb) " + InstallStreamMark); got.Detail != "installer wrote a disk it had refused to choose" {
+		t.Fatalf("ambiguous wrote anyway=%+v", got)
+	}
 }
 
 // VALIDATES: the base artifact chain executes six build commands and produces exactly initrd, image, and ZeFS payloads.

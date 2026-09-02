@@ -100,7 +100,7 @@ func runHTTP(cfg installConfig) int {
 		return 1
 	}
 
-	disk, err := findTargetDisk(cfg.Target, nil, false)
+	disk, err := findTargetDisk(cfg.Target, nil, "")
 	if err != nil {
 		slog.Error("disk detection", "error", err)
 		return 1
@@ -173,7 +173,7 @@ func runISO(cfg installConfig) int {
 		sourceDisks = append(sourceDisks, media.ventoyDisk)
 	}
 
-	disk, err := findTargetDisk(cfg.Target, sourceDisks, true)
+	disk, err := findTargetDisk(cfg.Target, sourceDisks, "")
 	if err != nil {
 		slog.Error("disk detection", "error", err)
 		return 1
