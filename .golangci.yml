@@ -157,6 +157,14 @@ linters:
         - "(*github.com/ze-software/ze/internal/core/textbuf.Buffer).WriteByte"
         - "(*github.com/ze-software/ze/internal/core/textbuf.Buffer).WriteRune"
         - "(*github.com/ze-software/ze/internal/core/textbuf.Buffer).WriteString"
+        # errcheck's own default list carries fmt.Fprint/Fprintf/Fprintln for
+        # *bytes.Buffer and *strings.Builder (excludes.go in kisielk/errcheck),
+        # and it cannot know about this repository's buffer. A textbuf.Buffer
+        # write returns a nil error on every path, so a Fprintf into one has no
+        # error to check either.
+        - "fmt.Fprint(*github.com/ze-software/ze/internal/core/textbuf.Buffer)"
+        - "fmt.Fprintf(*github.com/ze-software/ze/internal/core/textbuf.Buffer)"
+        - "fmt.Fprintln(*github.com/ze-software/ze/internal/core/textbuf.Buffer)"
 
     govet:
       disable:
