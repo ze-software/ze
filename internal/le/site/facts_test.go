@@ -119,9 +119,20 @@ func stubGitHubStars(t *testing.T, stars int, failure error) {
 // fixtureRFCLedger is a ledger of four requirements over three summaries: two
 // MUST-level ones under an enrolled RFC, one MUST-level one under an RFC that
 // is not enrolled, and one advisory row that is neither.
+//
+// The Meta table is what rfc.ProvenShareOf reads, so the fixture declares one:
+// enrolment alone does not say whether Ze implements a document, and a ledger
+// with no public row anywhere is refused rather than published as a share over
+// an empty population.
 func fixtureRFCLedger() rfc.Collected {
 	return rfc.Collected{
 		Enrolled: map[string]bool{"rfc4271": true, "rfc7606": true},
+		Metas: map[string]rfc.Meta{
+			"rfc4271": {Enrolment: "enrolled", Support: "core", Status: "Supported"},
+			"rfc7606": {Enrolment: "enrolled", Support: "core", Status: "Supported"},
+			"rfc9999": {Enrolment: "backlog"},
+			"rfc8654": {Enrolment: "backlog"},
+		},
 		Requirements: []rfc.Requirement{
 			{RFC: "rfc4271", RID: "R-1", Level: "MUST"},
 			{RFC: "rfc4271", RID: "R-2", Level: "SHALL NOT"},
@@ -614,7 +625,10 @@ func TestTheRFCFiguresArePrintedExactly(t *testing.T) {
 // are MUST-level under an enrolled RFC and the rest are advisory.
 func manyRFCRequirements(total, gated int) rfc.Collected {
 	collected := rfc.Collected{
-		Enrolled:     map[string]bool{"rfc4271": true},
+		Enrolled: map[string]bool{"rfc4271": true},
+		Metas: map[string]rfc.Meta{
+			"rfc4271": {Enrolment: "enrolled", Support: "core", Status: "Supported"},
+		},
 		Requirements: make([]rfc.Requirement, 0, total),
 	}
 	for index := range total {

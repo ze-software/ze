@@ -603,8 +603,23 @@ func TestTheGateSnapshotAgreesWithItself(t *testing.T) {
 			gaps = bucket.Count
 		}
 	}
-	if counted != snapshot.Gate.GatedMust {
-		t.Errorf("the buckets account for %d requirements, the gate gated %d", counted, snapshot.Gate.GatedMust)
+	// The buckets are counted over the RFCs Ze implements, which is the
+	// population the published share is taken over. The gate holds a WIDER set,
+	// and the snapshot states both: a bucket sum held against the gate's own
+	// count would compare two different populations and read as a defect
+	// (owner decision, 2026-09-02).
+	if counted != snapshot.Share.Gated {
+		t.Errorf("the buckets account for %d requirements, the share's population is %d",
+			counted, snapshot.Share.Gated)
+	}
+	if snapshot.Share.GatedInspected != snapshot.Gate.GatedMust {
+		t.Errorf("the share inspects %d gated MUSTs and the gate holds %d; they are the same "+
+			"population counted twice", snapshot.Share.GatedInspected, snapshot.Gate.GatedMust)
+	}
+	if snapshot.Share.Gated > snapshot.Share.GatedInspected || snapshot.Share.RFCs > snapshot.Share.Inspected {
+		t.Errorf("the share states %d of %d gated MUSTs over %d of %d RFCs; what Ze implements "+
+			"cannot exceed what it inspects", snapshot.Share.Gated, snapshot.Share.GatedInspected,
+			snapshot.Share.RFCs, snapshot.Share.Inspected)
 	}
 	if gaps != snapshot.Gaps.Requirements {
 		t.Errorf("the gap bucket counts %d, the gap disclosure counts %d", gaps, snapshot.Gaps.Requirements)
@@ -1018,9 +1033,13 @@ func TestTheBucketTableAccountsForEveryGatedRequirement(t *testing.T) {
 		}
 		scope += snapshotCount(&snapshot, bucket.Key)
 	}
-	if binding+scope != snapshot.Gate.GatedMust {
-		t.Fatalf("the buckets sum to %d and the gate holds %d, so the fixture cannot prove "+
-			"the accounting", binding+scope, snapshot.Gate.GatedMust)
+	// Against the SHARE's population, which is what the buckets are counted
+	// over: the gated MUSTs of the RFCs Ze implements. The gate holds a wider
+	// set, and holding the bucket sum against that one compares two populations
+	// (owner decision, 2026-09-02).
+	if binding+scope != snapshot.Share.Gated {
+		t.Fatalf("the buckets sum to %d and the share's population is %d, so the fixture "+
+			"cannot prove the accounting", binding+scope, snapshot.Share.Gated)
 	}
 	if split.Obligations != binding || split.OutOfScope != scope {
 		t.Fatalf("the split answers %d binding and %d out of scope, the buckets carry %d and %d",
@@ -1029,9 +1048,9 @@ func TestTheBucketTableAccountsForEveryGatedRequirement(t *testing.T) {
 	if !strings.Contains(text, rfcBindingLabel+groupThousands(binding)) {
 		t.Errorf("the table carries no %q row reading %s", rfcBindingLabel, groupThousands(binding))
 	}
-	if !strings.Contains(text, rfcGatedLabel+groupThousands(snapshot.Gate.GatedMust)) {
+	if !strings.Contains(text, rfcGatedLabel+groupThousands(snapshot.Share.Gated)) {
 		t.Errorf("the table carries no %q row reading %s", rfcGatedLabel,
-			groupThousands(snapshot.Gate.GatedMust))
+			groupThousands(snapshot.Share.Gated))
 	}
 	if !strings.Contains(text, "every obligation that binds Ze falls in exactly one bucket") {
 		t.Error("the page never says the buckets account for the binding population")
@@ -1043,7 +1062,7 @@ func TestTheBucketTableAccountsForEveryGatedRequirement(t *testing.T) {
 	mirror := mirrorOf(t, paths)
 	for _, want := range []string{
 		"| **" + rfcBindingLabel + "** | **" + groupThousands(binding) + "** |",
-		"| **" + rfcGatedLabel + "** | **" + groupThousands(snapshot.Gate.GatedMust) + "** |",
+		"| **" + rfcGatedLabel + "** | **" + groupThousands(snapshot.Share.Gated) + "** |",
 	} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the mirror carries no row %q", want)
@@ -1133,6 +1152,13 @@ func TestTheGatedMUSTCardNamesThePopulationItIsASubsetOf(t *testing.T) {
 	}
 	if !strings.Contains(note, "the gate HOLDS") {
 		t.Errorf("the card note %q does not say what the number counts", note)
+	}
+	// The population is on the card itself. A count with no denominator counts
+	// obligations JUDGED and is read as obligations MET (owner directive,
+	// 2026-09-01), and this card's number is the smaller of two populations the
+	// page states.
+	if !strings.Contains(note, "RFCs Ze implements") || !strings.Contains(note, "RFCs inspected") {
+		t.Errorf("the card note %q names neither population it stands between", note)
 	}
 	var count string
 	for _, card := range cards {
@@ -1237,6 +1263,19 @@ func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 		if !strings.HasSuffix(card.Value, "%") {
 			continue
 		}
+		// The headline share is the ONE exception, and it is deliberate: its
+		// denominator is every gated MUST of the RFCs Ze implements, the
+		// {not-applicable} ones included, because dropping them let annotating
+		// a requirement away raise the published score (owner decision,
+		// 2026-09-02). It states that denominator on the card, which is why the
+		// exemption is safe.
+		if card.Label == "Proven by test" {
+			if !strings.Contains(card.Count, "of "+groupThousands(split.Gated)+" gated MUSTs") {
+				t.Errorf("the headline share reads %q, which does not name its own "+
+					"denominator", card.Count)
+			}
+			continue
+		}
 		if strings.Contains(card.Note, "of "+groupThousands(split.Gated)+" ") {
 			t.Errorf("the %s ratio is taken over the gated count, which carries %d "+
 				"obligations that do not bind Ze", card.Label, split.OutOfScope)
@@ -1254,8 +1293,13 @@ func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 		t.Errorf("the out-of-scope card reads %q, want %s", scope.Value,
 			groupThousands(split.OutOfScope))
 	}
+	// The note has to place this set on BOTH sides: out of the four
+	// satisfaction shares, and inside the headline share's denominator. Saying
+	// only "in no share below" was true until 2026-09-02 and is now the
+	// sentence a reader would use to explain a difference that is really there.
 	if !strings.Contains(scope.Note, "does not bind Ze") ||
-		!strings.Contains(scope.Note, "in no share below") {
+		!strings.Contains(scope.Note, "in none of the four shares below") ||
+		!strings.Contains(scope.Note, "proven share beside it counts it") {
 		t.Errorf("the out-of-scope card does not say what it is: %q", scope.Note)
 	}
 	if scope.Tone != rfcToneNeutral {
@@ -1343,6 +1387,46 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 					name)
 			}
 		}
+	}
+}
+
+// VALIDATES: the headline share's numerator IS the two proven satisfaction
+// cards summed, so the page cannot move one without the other.
+// PREVENTS: the defect this work removed. The page led with a "Tested both
+// ways" share over one denominator while /quality/health/ published another
+// over a second and the home page published neither, and one question had three
+// published answers (owner directive, 2026-09-01).
+//
+// The METHOD is the card values rather than the snapshot, because a reader adds
+// what the page shows. The two shares are over the binding population and the
+// headline is over the gated one, so their PERCENTAGES do not add: what has to
+// hold is the count behind them.
+func TestTheHeadlineShareIsTheTwoProvenCardsSummed(t *testing.T) {
+	snapshot := publishedRFCCompliance(t)
+	cards := rfcComplianceCards(&snapshot, twoStemLedger())
+
+	proven, parts, found := 0, 0, false
+	for _, card := range cards {
+		switch card.Label {
+		case "Proven by test":
+			proven, found = snapshot.Share.Proven, true
+			if !strings.Contains(card.Count, groupThousands(snapshot.Share.Proven)+" of ") {
+				t.Errorf("the headline card reads %q, which does not open with the share's "+
+					"own numerator", card.Count)
+			}
+		case "Tested both ways", "One polarity plus reason":
+			parts += card.Part
+		}
+	}
+	if !found {
+		t.Fatal("the grid publishes no headline share, so the page states no answer")
+	}
+	if parts == 0 {
+		t.Fatal("the two proven cards carry no part, so this compares zero with zero")
+	}
+	if proven != parts {
+		t.Errorf("the headline counts %d proven and the two proven cards carry %d between "+
+			"them: the page answers one question twice", proven, parts)
 	}
 }
 

@@ -268,20 +268,31 @@ func everySlotFilled(slots []string) error {
 	return nil
 }
 
-// homeProofStats answers the six spans the proof strip carries.
+// homeProofStats answers the spans the proof strip carries.
 //
 // Each one states the fact's own key in data-ze-stat, so the page says which
 // number in the snapshot it is showing and a reader can check the two against
 // each other. A span with no value is refused: a blank where a number belongs
 // reads as a measurement of nothing.
+//
+// The five RFC spans state one share and both populations it is drawn from.
+// The card published two absolute counts until 2026-09-02, and an absolute
+// count with no denominator counts obligations JUDGED and is read as
+// obligations MET (owner directive, 2026-09-01). Every one of the five is a
+// field of the ProvenShare rfc.ProvenShareOf returned, so the card cannot drift
+// from /quality/health/ or /quality/rfc-compliance/.
 func homeProofStats(facts *siteFacts) (map[string]string, error) {
 	values := map[string]struct{ key, value string }{
-		"{unit_tests}":      {"tests.unit_display", facts.Tests.UnitDisplay},
-		"{e2e_tests}":       {"tests.e2e_display", facts.Tests.E2EDisplay},
-		"{fuzz_targets}":    {"tests.fuzz_display", facts.Tests.FuzzDisplay},
-		"{interop_targets}": {"interop.target_display", facts.Interop.TargetDisplay},
-		"{rfc_must_checks}": {"rfc.gated_must_display", facts.RFC.GatedMustDisplay},
-		"{rfc_enrolled}":    {"rfc.enrolled_display", facts.RFC.EnrolledDisplay},
+		"{unit_tests}":            {"tests.unit_display", facts.Tests.UnitDisplay},
+		"{e2e_tests}":             {"tests.e2e_display", facts.Tests.E2EDisplay},
+		"{fuzz_targets}":          {"tests.fuzz_display", facts.Tests.FuzzDisplay},
+		"{interop_targets}":       {"interop.target_display", facts.Interop.TargetDisplay},
+		"{rfc_proven}":            {"rfc.proven_display", facts.RFC.ProvenDisplay},
+		"{rfc_gated_implemented}": {"rfc.gated_implemented_display", facts.RFC.GatedImplementedDisplay},
+		"{rfc_proven_percent}":    {"rfc.proven_percent", facts.RFC.ProvenPercent},
+		"{rfc_implemented}":       {"rfc.implemented_display", facts.RFC.ImplementedDisplay},
+		"{rfc_inspected}":         {"rfc.inspected_display", facts.RFC.InspectedDisplay},
+		"{rfc_gated_must}":        {"rfc.gated_must_display", facts.RFC.GatedMustDisplay},
 	}
 	spans := make(map[string]string, len(values))
 	for slot, stat := range values {

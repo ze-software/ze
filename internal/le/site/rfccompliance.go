@@ -83,7 +83,10 @@ const (
 // the build derives it once, publishes it beside the page as
 // data/rfc-compliance.json, and every figure the page shows comes from it.
 type rfcCompliance struct {
-	Gate         rfcGate     `json:"gate"`
+	Gate rfcGate `json:"gate"`
+	// Share is the published proof share, exactly as internal/le/rfc answers
+	// it. The page states it; it derives no share of its own.
+	Share        rfcShare    `json:"share"`
 	Satisfaction []rfcBucket `json:"satisfaction"`
 	Gaps         rfcGaps     `json:"gaps"`
 	Audit        rfcAudit    `json:"audit"`
@@ -92,6 +95,27 @@ type rfcCompliance struct {
 	// bucket. It is zero in a healthy tree and the page states it when it is
 	// not, because those requirements are in no published share.
 	Unmapped int `json:"unmapped-annotations,omitempty"`
+}
+
+// rfcShare is the ONE answer to "how much of what Ze implements is proven by
+// test", carried here in the shape rfc.ProvenShareOf returns it.
+//
+// Three surfaces state it and all three read that producer, so they cannot
+// disagree. Until 2026-09-02 this page answered 58.1% over a denominator that
+// dropped every {not-applicable} obligation, /quality/health/ answered 43.2%
+// over every enrolled RFC, and the home page published two absolute counts with
+// no denominator at all (owner directive, 2026-09-01).
+//
+// Percent is the producer's own rendering rather than a second formatting of
+// Proven over Gated, because a page that re-rounds the ratio can print a
+// different last digit from the producer that owns it.
+type rfcShare struct {
+	Proven         int    `json:"proven"`
+	Gated          int    `json:"gated"`
+	RFCs           int    `json:"rfcs"`
+	Inspected      int    `json:"inspected"`
+	GatedInspected int    `json:"gated-inspected"`
+	Percent        string `json:"percent"`
 }
 
 // rfcGate is the gate's verdict and the scale it judged.
@@ -418,28 +442,60 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 		return rfcCompliance{}, fmt.Errorf("the RFC gate cannot run: %s", report.CannotRun)
 	}
 
-	var gated []rfc.Requirement
+	// The carriers argument is nil because no field of a ProvenShare reads
+	// one: rfc.CoverageRows takes them to decide NightlyOnly, which the share
+	// does not count. The home page and /quality/health/ pass nil for the same
+	// reason, so the three surfaces cannot answer different numbers.
+	share, err := rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
+	if err != nil {
+		return rfcCompliance{}, err
+	}
+
+	// TWO populations, and every figure below names which one it is over.
+	//
+	// inspected is what the GATE holds: every gated MUST of an enrolled
+	// summary. It is the gate's own scale and the set the recorded audit
+	// verdicts are judged over.
+	//
+	// implemented is the set the published SHARES are taken over: the gated
+	// MUSTs of the RFCs Ze implements, which is the population
+	// rfc.ProvenShareOf uses. Holding Ze to the obligations of a document its
+	// own public row says it does not implement measures a decision rather than
+	// a defect. rfc.Implements is the one definition of that set, read here
+	// rather than restated (ai/rules/principles.md).
+	var inspected, implemented []rfc.Requirement
 	for _, requirement := range collected.Requirements {
-		if requirement.Gated() && collected.Enrolled[requirement.RFC] {
-			gated = append(gated, requirement)
+		if !requirement.Gated() {
+			continue
+		}
+		meta, held := collected.Metas[requirement.RFC]
+		if !held || !meta.Enrolled() {
+			continue
+		}
+		inspected = append(inspected, requirement)
+		if rfc.Implements(meta) {
+			implemented = append(implemented, requirement)
 		}
 	}
 	snapshot := rfcCompliance{
 		Gate: rfcGate{
 			OK:         len(report.Violations) == 0,
 			ErrorCount: len(report.Violations),
-			GatedMust:  len(gated),
+			GatedMust:  len(inspected),
 			Enrolled:   len(collected.Enrolled),
 			TestTags:   len(collected.Tags),
 			Violations: report.Violations,
 			Findings:   report.Findings,
 		},
+		Share: rfcShare{Proven: share.Proven, Gated: share.Gated, RFCs: share.RFCs,
+			Inspected: share.Inspected, GatedInspected: share.GatedInspected,
+			Percent: share.Percent()},
 		Verify: rfcGateStages(),
 	}
 	snapshot.Gate.Message = rfcGateSummary(&report)
-	snapshot.Satisfaction, snapshot.Gaps, snapshot.Unmapped = rfcBuckets(gated, collected.Tags,
-		input.Rows)
-	snapshot.Audit = rfcAuditCounts(gated, input.States, len(gated))
+	snapshot.Satisfaction, snapshot.Gaps, snapshot.Unmapped = rfcBuckets(implemented,
+		collected.Tags, input.Rows)
+	snapshot.Audit = rfcAuditCounts(inspected, input.States, len(inspected))
 	return snapshot, nil
 }
 
@@ -973,10 +1029,18 @@ var rfcStanding = []struct {
 
 // rfcBinding is the population that actually binds Ze, and how it is answered.
 //
-// Every ratio this page leads with is taken over Binding(), never over the
-// gated count: the gated count includes 834 obligations a `{not-applicable}`
-// annotation says never bound Ze, and a denominator carrying them makes the
-// answer look better than it is (owner ruling, 2026-09-01).
+// The four satisfaction shares are taken over Binding(), never over the gated
+// count: a `{not-applicable}` annotation says the obligation never bound Ze,
+// and a denominator carrying them makes those four shares describe a population
+// that does not exist (owner ruling, 2026-09-01).
+//
+// The page's HEADLINE is not one of them. rfcShare answers "how much is proven
+// by test" over every gated MUST of the RFCs Ze implements, not-applicable ones
+// included, because there the exclusion runs the other way: dropping them let
+// annotating a requirement away raise the published score (owner decision,
+// 2026-09-02). The two denominators are different populations, both are printed
+// beside their numbers, and the Out of scope card is what says how far apart
+// they are.
 type rfcBinding struct {
 	Gated       int
 	OutOfScope  int
@@ -988,13 +1052,13 @@ type rfcBinding struct {
 	Unmapped int
 }
 
-// Binding answers the binding population the way the GATE counts it: its own
-// gated total, less what the buckets put out of scope.
+// Binding answers the binding population: the gated total of the RFCs Ze
+// implements, less what the buckets put out of scope.
 //
 // Obligations is the sum of the binding buckets, so holding the bucket sum
 // against it compares a number with itself and the mismatch branch below can
-// never run (independent review, 2026-09-01). Gated comes from the gate's own
-// GatedMust count, which no bucket produced, so this subtraction is the
+// never run (independent review, 2026-09-01). Gated comes from the ProvenShare
+// the producer returned, which no bucket produced, so this subtraction is the
 // independent answer the accounting row needs.
 func (b rfcBinding) Binding() int { return b.Gated - b.OutOfScope }
 
@@ -1054,7 +1118,7 @@ func rfcBindingOf(snapshot *rfcCompliance) rfcBinding {
 	for _, bucket := range snapshot.Satisfaction {
 		counted[bucket.Key] = bucket.Count
 	}
-	split := rfcBinding{Gated: snapshot.Gate.GatedMust, Pairs: counted[rfcBothBucket],
+	split := rfcBinding{Gated: snapshot.Share.Gated, Pairs: counted[rfcBothBucket],
 		Unmapped: snapshot.Unmapped}
 	for _, bucket := range rfcSatisfaction {
 		if bucket.Binds {
@@ -1086,19 +1150,23 @@ func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 		{Label: "Gated MUSTs", Value: groupThousands(split.Gated), Overall: true,
 			Count: groupThousands(totals.Requirements) + " extracted from " +
 				groupThousands(totals.Summaries) + " summaries",
-			Note: "MUST-level requirements the gate HOLDS, across " +
-				groupThousands(snapshot.Gate.Enrolled) + " enrolled RFCs. A population, not a " +
-				"result: the shares beside it are what says how Ze stands",
+			Note: "MUST-level requirements the gate HOLDS, across the " +
+				groupThousands(snapshot.Share.RFCs) + " RFCs Ze implements, out of " +
+				groupThousands(snapshot.Share.GatedInspected) + " across the " +
+				groupThousands(snapshot.Share.Inspected) + " RFCs inspected. A population, not " +
+				"a result: the shares beside it are what says how Ze stands",
 			Tone: rfcToneNeutral,
 			Rule: "no color: a population is a scale, and a larger one is neither good news " +
 				"nor bad. It is the accounting total"},
 		{Label: "Out of scope", Value: groupThousands(split.OutOfScope), Overall: true,
 			Count: "of " + groupThousands(split.Gated) + " gated MUSTs",
 			Note: "a {not-applicable} annotation says the obligation does not bind Ze. Scope, " +
-				"not coverage: it is in no share below",
+				"not coverage: it is in none of the four shares below, though the proven share " +
+				"beside it counts it",
 			Tone: rfcToneNeutral,
 			Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 				"failure, and counting it either way would be a claim"},
+		rfcProvenShareCard(snapshot.Share),
 	}
 	// The whole is the gate's own gated total less what the buckets put out of
 	// scope, and NOT split.Obligations, which is the sum of the binding buckets
@@ -1132,6 +1200,34 @@ func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 			Tone: rfcToneNeutral,
 			Rule: "no color: a count of judgements recorded is a scale rather than an outcome, " +
 				"and the shifted and stale counts beside it are the states that need reading"})
+}
+
+// rfcProvenShareCard answers the ONE published share: how much of what Ze
+// implements is proven by a test bound to the requirement id.
+//
+// It states the producer's own percentage and both populations it is drawn
+// from, because an absolute number alone counts obligations JUDGED and is read
+// as obligations MET (owner directive, 2026-09-01). It is NOT one of the parts
+// below: its denominator carries the {not-applicable} obligations the four
+// satisfaction shares put out of scope, so adding it to them would double-count
+// the two proven buckets.
+//
+// Its numerator IS those two buckets summed, which is the relationship
+// TestTheHeadlineShareIsTheTwoProvenCardsSummed holds.
+func rfcProvenShareCard(share rfcShare) rfcCard {
+	// Overall stays false: this card is a MEASURE rather than one of the
+	// populations the shares are taken over, so it reads in the Positive
+	// movement beside the other green cards.
+	return rfcCard{Label: "Proven by test", Value: share.Percent + "%",
+		Count: groupThousands(share.Proven) + " of " + groupThousands(share.Gated) +
+			" gated MUSTs across the " + groupThousands(share.RFCs) + " RFCs Ze implements",
+		Note: "the share this site publishes everywhere: a positive and a negative test, or " +
+			"one polarity whose annotation records that no input drives the other side. Its " +
+			"denominator keeps the {not-applicable} obligations, so annotating a requirement " +
+			"away cannot raise it",
+		Tone: rfcToneOK,
+		Rule: "green at every value: a proven obligation is the outcome this gate exists to " +
+			"produce, and the number under the label is what says how far Ze has got"}
 }
 
 // rfcProofCard answers the proof ratio, which is over TAGGED UNITS and is

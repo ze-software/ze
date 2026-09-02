@@ -7,6 +7,14 @@
     "test-tags": 3595,
     "message": "rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3595 test tag(s) resolved."
   },
+  "share": {
+    "proven": 1609,
+    "gated": 2966,
+    "rfcs": 140,
+    "inspected": 140,
+    "gated-inspected": 2966,
+    "percent": "54.2"
+  },
   "satisfaction": [
     {
       "key": "both_polarities",

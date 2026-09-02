@@ -135,20 +135,36 @@ type factsRepo struct {
 // they were extracted from, the MUST-level ones, and the MUST-level ones an
 // enrolled RFC makes `./le rfc check` gate.
 //
+// Proven, GatedImplemented, Implemented, Inspected and ProvenPercent are the
+// published proof share, and every one of them is a field of the ProvenShare
+// `internal/le/rfc.ProvenShareOf` returns. Nothing here computes a numerator or
+// a denominator of its own: the home page, /quality/health/ and
+// /quality/rfc-compliance/ answer one question with one number because all
+// three read that producer (owner directive, 2026-09-01).
+//
 // Every figure here is printed EXACTLY, with no rounding, because `./le rfc
 // check` compares the same numbers. A rounded figure would put the site out of
 // agreement with its own gate.
 type factsRFC struct {
-	Enrolled            int    `json:"enrolled"`
-	EnrolledDisplay     string `json:"enrolled_display"`
-	GatedMust           int    `json:"gated_must"`
-	GatedMustDisplay    string `json:"gated_must_display"`
-	Must                int    `json:"must"`
-	MustDisplay         string `json:"must_display"`
-	Requirements        int    `json:"requirements"`
-	RequirementsDisplay string `json:"requirements_display"`
-	Summaries           int    `json:"summaries"`
-	SummariesDisplay    string `json:"summaries_display"`
+	Enrolled                int    `json:"enrolled"`
+	EnrolledDisplay         string `json:"enrolled_display"`
+	GatedImplemented        int    `json:"gated_implemented"`
+	GatedImplementedDisplay string `json:"gated_implemented_display"`
+	GatedMust               int    `json:"gated_must"`
+	GatedMustDisplay        string `json:"gated_must_display"`
+	Implemented             int    `json:"implemented"`
+	ImplementedDisplay      string `json:"implemented_display"`
+	Inspected               int    `json:"inspected"`
+	InspectedDisplay        string `json:"inspected_display"`
+	Must                    int    `json:"must"`
+	MustDisplay             string `json:"must_display"`
+	Proven                  int    `json:"proven"`
+	ProvenDisplay           string `json:"proven_display"`
+	ProvenPercent           string `json:"proven_percent"`
+	Requirements            int    `json:"requirements"`
+	RequirementsDisplay     string `json:"requirements_display"`
+	Summaries               int    `json:"summaries"`
+	SummariesDisplay        string `json:"summaries_display"`
 }
 
 // factsTests counts the four test populations the homepage proof strip shows.
@@ -361,10 +377,21 @@ func jsonInt(value any) (int, bool) {
 
 // factsFromRFCLedger counts the requirement ledger from the gate's own parse.
 //
-// The four figures are the ones ai/RFC-REQUIREMENTS.md prints in its summary
-// line, and they are derived here from the same rfc.Collect that generates that
-// line rather than parsed back out of the generated text
-// (ai/rules/evidence.md: read the producer).
+// The figures are the ones ai/RFC-REQUIREMENTS.md prints in its summary line,
+// and they are derived here from the same rfc.Collect that generates that line
+// rather than parsed back out of the generated text (ai/rules/evidence.md: read
+// the producer).
+//
+// The proof share is not counted here at all. rfc.ProvenShareOf answers it, and
+// its GatedInspected is what GatedMust states: the count this function walked
+// the requirements for until 2026-09-02 was a second declaration of the same
+// fact, and two counters over one population are a future disagreement with
+// nothing to arbitrate it (ai/rules/principles.md).
+//
+// The carriers argument is nil because no field of a ProvenShare reads one:
+// rfc.CoverageRows takes them to decide NightlyOnly, which the share does not
+// count. All three surfaces pass nil for that reason, so none of them can
+// answer a different number from the other two.
 func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	collected, err := liveRFCLedger(repository)
 	if err != nil {
@@ -373,24 +400,34 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	if len(collected.Requirements) == 0 {
 		return fmt.Errorf("the RFC ledger states no requirement, so the published RFC counts would be zero")
 	}
+	share, err := rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
+	if err != nil {
+		return err
+	}
 	summaries := map[string]bool{}
 	for _, requirement := range collected.Requirements {
 		summaries[requirement.RFC] = true
-		if !requirement.Gated() {
-			continue
-		}
-		facts.RFC.Must++
-		if collected.Enrolled[requirement.RFC] {
-			facts.RFC.GatedMust++
+		if requirement.Gated() {
+			facts.RFC.Must++
 		}
 	}
 	facts.RFC.Requirements = len(collected.Requirements)
 	facts.RFC.Summaries = len(summaries)
 	facts.RFC.Enrolled = len(collected.Enrolled)
+	facts.RFC.GatedMust = share.GatedInspected
+	facts.RFC.Inspected = share.Inspected
+	facts.RFC.Implemented = share.RFCs
+	facts.RFC.GatedImplemented = share.Gated
+	facts.RFC.Proven = share.Proven
+	facts.RFC.ProvenPercent = share.Percent()
 
 	facts.RFC.EnrolledDisplay = groupThousands(facts.RFC.Enrolled)
+	facts.RFC.GatedImplementedDisplay = groupThousands(facts.RFC.GatedImplemented)
 	facts.RFC.GatedMustDisplay = groupThousands(facts.RFC.GatedMust)
+	facts.RFC.ImplementedDisplay = groupThousands(facts.RFC.Implemented)
+	facts.RFC.InspectedDisplay = groupThousands(facts.RFC.Inspected)
 	facts.RFC.MustDisplay = groupThousands(facts.RFC.Must)
+	facts.RFC.ProvenDisplay = groupThousands(facts.RFC.Proven)
 	facts.RFC.RequirementsDisplay = groupThousands(facts.RFC.Requirements)
 	facts.RFC.SummariesDisplay = groupThousands(facts.RFC.Summaries)
 	// rfc/enrolled.txt was named here until 2026-09-01 and Collect had stopped
@@ -400,6 +437,8 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	// machine-readable data, which is worse than a stale comment
 	// (independent review; ai/rules/principles.md).
 	facts.Sources["rfc"] = "internal/le/rfc.Collect, over rfc/short/*.md"
+	facts.Sources["rfc.proven"] = "internal/le/rfc.ProvenShareOf, the one producer of the " +
+		"published proof share"
 	return nil
 }
 

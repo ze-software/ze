@@ -57,15 +57,24 @@ func homeFixtureWeeks() []string {
 }
 
 // publishedFactsSnapshot is data/site-facts.json as gh-pages 2fa8fa2ad
-// published it, cut to the six numbers the proof strip shows.
+// published it, cut to the numbers the proof strip shows.
 //
 // The VALUES are the published ones so the parity comparison is like for like.
 // A live build re-derives them from the tree and they are expected to differ,
 // which is why the facts snapshot is checked against a re-derivation rather
 // than against these.
+//
+// The five proof-share keys are the exception: that build published two
+// absolute counts and no share at all, so there is nothing to carry forward.
+// The five are internally consistent with the published ones beside them: 1,609
+// proven of 2,966 gated MUSTs over the 140 RFCs Ze implements, inside the 2,972
+// that build gated across its 171 enrolled RFCs.
 const publishedFactsSnapshot = `{
   "interop": {"target_display": "9"},
-  "rfc": {"enrolled_display": "171", "gated_must_display": "2,972"},
+  "rfc": {"enrolled_display": "171", "gated_must_display": "2,972",
+          "gated_implemented_display": "2,966", "implemented_display": "140",
+          "inspected_display": "171", "proven_display": "1,609",
+          "proven_percent": "54.2"},
   "tests": {"e2e_display": "1,700+", "fuzz_display": "78", "unit_display": "23,700+"}
 }`
 
@@ -212,27 +221,36 @@ func firstMismatch(got, want string) (string, string) {
 	return got[min(limit, len(got)):], want[min(limit, len(want)):]
 }
 
-// VALIDATES: the proof strip carries the six spans, each naming the fact it
-// shows and carrying that fact's value.
+// VALIDATES: the proof strip carries one span for each published number, each
+// naming the fact it shows and carrying that fact's value, and the RFC card
+// states its share with both populations it is drawn from.
 //
 // The attribute is what lets a reader check the number against the snapshot it
 // came from, and visibleText cannot see an attribute, so this reads the markup.
-func TestTheHomepageProofStripCarriesItsSixStatSpans(t *testing.T) {
+// PREVENTS: the card publishing an absolute count with no denominator, which
+// counts obligations JUDGED and is read as obligations MET (owner directive,
+// 2026-09-01).
+func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 	page, _ := renderHomeFixture(t)
-	for _, span := range []string{
+	spans := []string{
 		`<span data-ze-stat="tests.unit_display">23,700+</span>`,
 		`<span data-ze-stat="tests.e2e_display">1,700+</span>`,
 		`<span data-ze-stat="tests.fuzz_display">78</span>`,
 		`<span data-ze-stat="interop.target_display">9</span>`,
+		`<span data-ze-stat="rfc.proven_display">1,609</span>`,
+		`<span data-ze-stat="rfc.gated_implemented_display">2,966</span>`,
+		`<span data-ze-stat="rfc.proven_percent">54.2</span>`,
+		`<span data-ze-stat="rfc.implemented_display">140</span>`,
+		`<span data-ze-stat="rfc.inspected_display">171</span>`,
 		`<span data-ze-stat="rfc.gated_must_display">2,972</span>`,
-		`<span data-ze-stat="rfc.enrolled_display">171</span>`,
-	} {
+	}
+	for _, span := range spans {
 		if !strings.Contains(page, span) {
 			t.Errorf("the proof strip does not carry %s", span)
 		}
 	}
-	if count := strings.Count(page, `data-ze-stat=`); count != 6 {
-		t.Errorf("the homepage carries %d stat spans, want 6", count)
+	if count := strings.Count(page, `data-ze-stat=`); count != len(spans) {
+		t.Errorf("the homepage carries %d stat spans, want %d", count, len(spans))
 	}
 }
 
@@ -241,13 +259,16 @@ func TestTheHomepageProofStripCarriesItsSixStatSpans(t *testing.T) {
 func TestAFactTheSnapshotLostStopsTheHomepage(t *testing.T) {
 	paths := homeFixture(t)
 	writeArtifactFile(t, paths.Output, factsFile,
-		`{"interop":{"target_display":"9"},"rfc":{"enrolled_display":"171"},
+		`{"interop":{"target_display":"9"},
+		  "rfc":{"enrolled_display":"171","gated_must_display":"2,972",
+		         "gated_implemented_display":"2,966","implemented_display":"140",
+		         "inspected_display":"171","proven_percent":"54.2"},
 		  "tests":{"e2e_display":"1,700+","fuzz_display":"78","unit_display":"23,700+"}}`)
 	_, err := renderHome(paths)
 	if err == nil {
-		t.Fatal("a snapshot with no gated-MUST figure published a homepage with a blank")
+		t.Fatal("a snapshot with no proven count published a homepage with a blank")
 	}
-	if !strings.Contains(err.Error(), "rfc.gated_must_display") {
+	if !strings.Contains(err.Error(), "rfc.proven_display") {
 		t.Errorf("the refusal says %q, which does not name the fact it is missing", err)
 	}
 }
@@ -468,8 +489,8 @@ func TestAHomepageInputNoPageCanBeMadeFromIsRefused(t *testing.T) {
 // shape of the defect this whole spec exists to fix.
 func TestTheTemplateAndTheProducerAgreeAboutEverySlot(t *testing.T) {
 	names := homeSlotPattern.FindAllString(homeTemplate, -1)
-	if len(names) != 12 {
-		t.Errorf("the homepage template has %d slots, want 12: %v", len(names), names)
+	if len(names) != 16 {
+		t.Errorf("the homepage template has %d slots, want 16: %v", len(names), names)
 	}
 	pairs := make([]string, 0, 2*len(names))
 	for _, name := range names {

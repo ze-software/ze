@@ -1,10 +1,13 @@
 // Design: docs/architecture/testing/test-health.md -- RFC proof density
 //
-// collect_rfc.go answers Q2 for the RFC ledger: how many gated MUST
-// requirements are proven by a test PAIR, and what the rest are.
+// collect_rfc.go answers Q2 for the RFC ledger: how much of what Ze implements
+// is proven by test, and what the rest of the gated population is.
 //
-// The ledger's own summary reports "0 outstanding", which is true and reads as
-// 100%. It merges four different states. This splits them back apart.
+// The share itself is rfc.ProvenShareOf, read rather than computed here, so
+// this page, the site home page and /quality/rfc-compliance/ state one number.
+// What this file derives is the SPLIT beside it: the ledger's own summary
+// reports "0 outstanding", which is true and reads as 100%, and it merges four
+// different states. This splits them back apart.
 package testhealth
 
 import (
@@ -54,12 +57,26 @@ var annotationPatterns = func() []*regexp.Regexp {
 
 // collectRFC answers the proof-density metric and the unproven-RFC metric.
 //
-// Population: the ENROLLED ledger rows only, which is the set `le rfc check`
-// actually gates. The un-enrolled remainder is not hidden -- the ledger states
-// it in its own preamble and lists every one of those rows -- it simply is not
-// part of the partition asserted below, because nothing obliges it to be proven
-// or annotated yet.
+// Two populations, and the metric names both. The published SHARE comes from
+// rfc.ProvenShareOf and is taken over the RFCs Ze implements. The annotation
+// split below is taken over the ENROLLED ledger rows, which is the set `le rfc
+// check` actually gates. The un-enrolled remainder is not hidden -- the ledger
+// states it in its own preamble and lists every one of those rows -- it simply
+// is not part of the partition asserted below, because nothing obliges it to be
+// proven or annotated yet.
+//
+// The share was `both / gated`, summed from the rendered rollup's own columns,
+// until 2026-09-02. A number parsed back out of a generated artifact is a
+// second declaration of a fact (ai/rules/principles.md), and that one answered
+// 43.2% where /quality/rfc-compliance/ answered 58.1% for the same question.
+// Only the share moved: the rollup parse still feeds everything else here,
+// because the partition this page asserts is a property of the ledger's own
+// columns.
 func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
+	share, err := provenShare(t)
+	if err != nil {
+		return Metric{}, Metric{}, err
+	}
 	text, err := t.readText(rfcLedger)
 	if err != nil {
 		return Metric{}, Metric{}, err
@@ -143,11 +160,25 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 	}
 
 	unproven := unprovenRows(rows)
-	density := ratio(both, gated)
+	density := ratio(share.Proven, share.Gated)
 
-	return densityMetric(rows, unproven, kinds, density, floors,
+	return densityMetric(rows, unproven, kinds, density, floors, share,
 			rfcTotals{both: both, gated: gated, annotated: annotated, noTest: noTest}),
 		unprovenMetric(rows, unproven), nil
+}
+
+// provenShare answers the published proof share over this checkout.
+//
+// The carriers argument is nil because no field of a ProvenShare reads one:
+// rfc.CoverageRows takes them to decide NightlyOnly, which the share does not
+// count. The site's home page and its RFC compliance report pass nil for the
+// same reason, so the three surfaces cannot answer different numbers.
+func provenShare(t *tree) (rfc.ProvenShare, error) {
+	collected, err := rfc.Collect(t.root)
+	if err != nil {
+		return rfc.ProvenShare{}, err
+	}
+	return rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
 }
 
 // ledgerRows parses the rollup table, and refuses a table that yielded nothing.
@@ -305,15 +336,30 @@ type rfcTotals struct {
 }
 
 // densityMetric renders the headline proof-density row.
+//
+// The percentage is the producer's own rendering rather than one this file
+// formats, so the number here and the number the site publishes are the same
+// string. The detail names the population under every count it states: the
+// share is over the RFCs Ze implements, and the annotation split beside it is
+// over every enrolled RFC, which is the wider set the gate holds.
 func densityMetric(rows, unproven []ledgerRow, kinds annotationCounts, density object,
-	floors qualityFloors, totals rfcTotals,
+	floors qualityFloors, share rfc.ProvenShare, totals rfcTotals,
 ) Metric {
 	both, gated, noTest := totals.both, totals.gated, totals.noTest
 	var tb textbuf.Buffer
-	detail := tb.Str(valueText(percentOf(density))).
-		Str("% carry both polarities. Of the remaining ").Int(int64(gated - both)).Str(": ").
+	detail := tb.Str(share.Percent()).
+		Str("% of the ").Int(int64(share.Gated)).
+		Str(" gated MUSTs the ").Int(int64(share.RFCs)).
+		Str(" RFCs ze implements carry are proven by a tagged test: both polarities, or one " +
+			"polarity whose annotation records that no input drives the other side. The gate " +
+			"holds a wider set -- ").Int(int64(share.GatedInspected)).
+		Str(" gated MUSTs across ").Int(int64(share.Inspected)).
+		Str(" enrolled RFCs -- and of the ").Int(int64(gated - both)).
+		Str(" of those not proven in both polarities: ").
 		Int(int64(kinds.get("not-applicable"))).
-		Str(" not-applicable (ze deliberately does not do it, so no test is owed), ").
+		Str(" not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 " +
+			"presumes most of these need re-homing, so they stay inside the denominator " +
+			"above rather than being subtracted from it), ").
 		Int(int64(kinds.get("gap"))).
 		Str(" known gap (unimplemented, genuinely untested), ").
 		Int(int64(kinds.get("single-polarity"))).
@@ -324,7 +370,7 @@ func densityMetric(rows, unproven []ledgerRow, kinds annotationCounts, density o
 			"about. Only the gap column and that last one are untested work.").String()
 
 	tb.Reset()
-	value := tb.Int(int64(both)).Str(" / ").Int(int64(gated)).String()
+	value := tb.Int(int64(share.Proven)).Str(" / ").Int(int64(share.Gated)).String()
 
 	worst := make([]any, 0, 10)
 	for index, row := range unproven {
@@ -353,12 +399,13 @@ func densityMetric(rows, unproven []ledgerRow, kinds annotationCounts, density o
 	return Metric{
 		Key:      keyProofDensity,
 		Question: "Q2",
-		Label:    "RFC MUST requirements proven by a positive+negative test pair",
+		Label:    "RFC MUST requirements proven by test, over the RFCs ze implements",
 		Status:   floors.status(keyProofDensity, percentOf(density)),
 		Value:    value,
 		Detail:   detail,
-		Action: "Convert a {gap} or {single-polarity} annotation into a test pair. " +
-			"Not-applicable needs no test.",
+		Action: "Write a test for a {gap} requirement, or for one carrying no test and no " +
+			"annotation. A single-polarity requirement is already counted as proven, and " +
+			"not-applicable needs no test.",
 		Data: data,
 	}
 }

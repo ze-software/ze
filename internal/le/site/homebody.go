@@ -163,12 +163,15 @@ const homeTemplate = `            <section class="hero" aria-labelledby="hero-ti
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            >{rfc_must_checks} <span class="label">RFC MUST checks</span></strong
+                            >{rfc_proven} of {rfc_gated_implemented}
+                            <span class="label"
+                                >gated MUSTs proven by test ({rfc_proven_percent}%)</span
+                            ></strong
                         >
                         <ul>
-                            <li>{rfc_enrolled} RFCs inspected</li>
+                            <li>{rfc_implemented} RFCs Ze implements, {rfc_inspected} inspected</li>
+                            <li>{rfc_gated_must} gated MUSTs across everything inspected</li>
                             <li>Gaps disclosed before claims</li>
-                            <li>Tests tied to requirement IDs</li>
                         </ul>
                         <span class="proof-check">RFC requirement ledger.</span>
                     </a>
