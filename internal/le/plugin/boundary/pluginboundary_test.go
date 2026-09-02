@@ -262,13 +262,31 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 	}
 }
 
-// VALIDATES: every allowlist entry still exempts a file that exists.
+// VALIDATES: a rule that suppresses nothing over this checkout is refused.
+// PREVENTS: the accounting being wired but inert. The allowlist is empty today,
+// so the checkout test below can pass without exercising anything; this one
+// injects a rule the tree cannot satisfy and requires the refusal.
+func TestADeadAllowlistEntryIsRefused(t *testing.T) {
+	original := allowlist
+	allowlist = map[string]string{"internal/plugins/gone/": "a path this tree does not hold"}
+	t.Cleanup(func() { allowlist = original })
+
+	tree, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	if _, err := CheckCheckout(tree, scanFloor); !errors.Is(err, ErrDeadAllowlistEntry) {
+		t.Errorf("a rule matching nothing answered %v, want ErrDeadAllowlistEntry", err)
+	}
+}
+
+// VALIDATES: every allowlist entry still suppresses something.
 // PREVENTS: an exemption nobody rechecked. Each entry states that a package owns
 // the dangerous functions and needs no guard, and a dead entry keeps stating it
 // for whatever code arrives at that path next. A file-level accounting cannot
 // find this: every file the walk reads is either scanned or exempted, so it
 // balances by construction. The entries are the population, and only the walk
-// can say which of them still match something.
+// can say which of them still suppress something.
 func TestEveryAllowlistEntryStillMatchesAFile(t *testing.T) {
 	tree, err := lepath.Root()
 	if err != nil {

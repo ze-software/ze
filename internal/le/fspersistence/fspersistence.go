@@ -28,14 +28,18 @@
 package fspersistence
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/population"
 )
 
 // scanRoots are the trees walked for runtime code. internal/core (statestore,
@@ -46,14 +50,45 @@ var scanRoots = []string{"internal/plugins", "internal/component", "cmd/ze"}
 
 // dirAllowlist exempts whole subsystems whose every write is legitimately a
 // non-state file. Prefixes are matched against the repo-relative slash path.
-var dirAllowlist = []string{
-	"internal/component/config/storage/", // the storage abstraction itself
+//
+// It carries the reason as a value rather than a trailing comment. The
+// exemption accounting then prints WHY beside a rule it asks about.
+var dirAllowlist = map[string]string{
+	"internal/component/config/storage/": "the storage abstraction itself",
+}
+
+// segmentAllowlist exempts a path SEGMENT wherever it appears. A test-helper
+// package writes fixtures rather than daemon state.
+// "/mock/" sat beside "/testing/" until 2026-09-02 and suppressed nothing: no
+// mock directory exists under the scan roots, so the rule cannot fire. It
+// comes back, with a reason written then, the day one does.
+var segmentAllowlist = map[string]string{
+	"/testing/": "test-helper package: writes fixtures, not daemon state",
+}
+
+// exemptionRules is every rule the three tables hold, under one key space. The
+// accounting then asks which of them still suppress a write.
+//
+// The three key shapes cannot collide. A file key ends in .go. A directory key
+// ends in "/" and starts with a root name. A segment key starts with "/".
+func exemptionRules() map[string]string {
+	rules := make(map[string]string, len(fileAllowlist)+len(dirAllowlist)+len(segmentAllowlist))
+	for _, table := range []map[string]string{fileAllowlist, dirAllowlist, segmentAllowlist} {
+		maps.Copy(rules, table)
+	}
+	return rules
 }
 
 // fileAllowlist maps a repo-relative .go path to the reason its raw filesystem
 // writes are legitimate (kernel knob, ephemeral scratch, external artifact, or
 // config-storage machinery -- never daemon state that belongs in zefs). Add an
 // entry ONLY after confirming the write does not persist runtime state.
+//
+// An entry is owed only where it SUPPRESSES a write. Four entries were removed
+// on 2026-09-02 because their files no longer hold a write primitive at all:
+// config/cli/cmd_fmt.go, config/cli/cmd_migrate.go, imageserver/handler.go and
+// imageserver/register.go. Each still names a real file, so an existence check
+// would have passed every one of them.
 var fileAllowlist = map[string]string{
 	// --- kernel / device control interfaces (must stay raw) ---
 	"internal/plugins/iface/netlink/bridge_linux.go":                 "sysfs bridge stp_state write",
@@ -70,11 +105,9 @@ var fileAllowlist = map[string]string{
 	"internal/component/command/pipe_save.go":                        "`| save <path>` writes ONE answer to a path the operator typed, in the operator's own process. It is not daemon state and it never goes through the storage layer: the point of the operator is to put a rendering where the operator asked for it. It is refused where the daemon expands the chain, so a remote caller cannot reach this write (see the file header)",
 	"cmd/ze/ze_core_autoinit.go":                                     "writes /dev/kmsg + creates the /perm/ze store dir (zefs bootstrap)",
 	// --- ephemeral scratch (pid/socket/probe/ready files, temp stores) ---
-	"internal/plugins/imageserver/register.go": "temp zefs DB served over HTTP (MkdirTemp lifecycle)",
-	"internal/plugins/imageserver/handler.go":  "temp database.zefs built for the HTTP response",
-	"cmd/ze/hub/pidfile.go":                    "runtime pidfile",
-	"cmd/ze/hub/service_ssh.go":                "ephemeral ssh listen-address handoff file",
-	"cmd/ze/hub/main.go":                       "test-readiness signal file (path from env)",
+	"cmd/ze/hub/pidfile.go":     "runtime pidfile",
+	"cmd/ze/hub/service_ssh.go": "ephemeral ssh listen-address handoff file",
+	"cmd/ze/hub/main.go":        "test-readiness signal file (path from env)",
 	// --- artifacts produced for external consumers (not our state) ---
 	"internal/plugins/iface/dhcp/resolv_linux.go":      "system resolv.conf for libc/other daemons",
 	"internal/plugins/systemd/main.go":                 "systemd unit file consumed by systemd",
@@ -91,11 +124,9 @@ var fileAllowlist = map[string]string{
 	"internal/component/config/archive/archive.go":     "operator/external config backup artifact",
 	"internal/component/config/system/selfupdate.go":   "stages/installs/rolls-back the ze binary (a real executable file); the update-history JSON is persisted via statestore",
 	// --- config storage / editing machinery (the layer, not state) ---
-	"internal/component/config/provider.go":        "config file save/serialize machinery",
-	"internal/component/config/cli/cmd_fmt.go":     "writes formatted config back to the config file",
-	"internal/component/config/cli/cmd_migrate.go": "writes migrated config to the output file",
-	"internal/component/config/cli/cmd_edit.go":    "creates the config file / ephemeral ssh addr",
-	"internal/component/cli/editor.go":             "generic atomic-write util (config editor)",
+	"internal/component/config/provider.go":     "config file save/serialize machinery",
+	"internal/component/config/cli/cmd_edit.go": "creates the config file / ephemeral ssh addr",
+	"internal/component/cli/editor.go":          "generic atomic-write util (config editor)",
 }
 
 // osWriteFuncs are the os functions that indicate persistence. os.OpenFile is
@@ -127,8 +158,41 @@ const scanFloor = 500
 // floor is a parameter rather than a constant because a fixture tree holds a
 // handful of files: le passes scanFloor and a test passes 0.
 func Check(tree string, floor int) (Findings, error) {
+	findings, _, err := check(tree, floor)
+	return findings, err
+}
+
+// CheckCheckout is Check plus the accounting over the exemption rules
+// themselves, for a caller that is judging the real repository.
+//
+// The two are separate for the reason floor is a parameter. Over a fixture, a
+// rule that suppresses nothing means the tree does not hold that code. Over the
+// checkout it means an exemption that has stopped doing anything. Only the
+// caller knows which tree it handed over.
+func CheckCheckout(tree string, floor int) (Findings, error) {
+	findings, matched, err := check(tree, floor)
+	if err != nil {
+		return nil, err
+	}
+	coverage, err := population.Exemptions("fs-persistence allowlist", exemptionRules(), matched)
+	if err != nil {
+		return nil, err
+	}
+	if len(coverage.Unexcused) != 0 {
+		return nil, fmt.Errorf("%w: %s -- delete the rule, or correct the path it was meant to name",
+			ErrDeadAllowlistEntry, strings.Join(coverage.Unexcused, ", "))
+	}
+	return findings, nil
+}
+
+// ErrDeadAllowlistEntry names an exemption rule that suppressed no raw write in
+// the tree the walk just read.
+var ErrDeadAllowlistEntry = errors.New("an fs-persistence allowlist rule suppresses nothing")
+
+func check(tree string, floor int) (Findings, map[string]bool, error) {
 	var all Findings
 	read := 0
+	matched := make(map[string]bool, len(fileAllowlist))
 	fset := token.NewFileSet()
 
 	for _, root := range scanRoots {
@@ -146,23 +210,30 @@ func Check(tree string, floor int) (Findings, error) {
 			}
 			rel := filepath.ToSlash(relPath)
 			read++
-			if Allowlisted(rel) {
-				return nil
-			}
+			// An exempt file is scanned rather than skipped, and its writes are
+			// then dropped. Skipping would make "this rule did work" mean only
+			// "a file exists under it", which stays true for a rule whose file
+			// stopped making the raw write it was excused for.
 			found, scanErr := ScanFile(fset, path, rel)
 			if scanErr != nil {
 				return scanErr
+			}
+			if rule, exempt := AllowlistedBy(rel); exempt {
+				if len(found) != 0 {
+					matched[rule] = true
+				}
+				return nil
 			}
 			all = append(all, found...)
 			return nil
 		})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	if read < floor {
-		return nil, fmt.Errorf("the walk read %d non-test Go files under %s, below the floor of %d: this tree was not read", read, tree, floor)
+		return nil, nil, fmt.Errorf("the walk read %d non-test Go files under %s, below the floor of %d: this tree was not read", read, tree, floor)
 	}
 
 	sort.Slice(all, func(i, j int) bool {
@@ -171,26 +242,37 @@ func Check(tree string, floor int) (Findings, error) {
 		}
 		return all[i].Line < all[j].Line
 	})
-	return all, nil
+	return all, matched, nil
 }
 
 // Allowlisted reports whether a repo-relative path's raw writes are declared
 // legitimate.
 func Allowlisted(rel string) bool {
+	_, exempt := AllowlistedBy(rel)
+	return exempt
+}
+
+// AllowlistedBy answers the rule that exempts rel, and whether one does.
+//
+// It names WHICH rule because the rules are a population of their own. One that
+// suppresses no write is an exemption nobody rechecked. It keeps declaring a raw
+// write legitimate for whatever code arrives at that path next. The walk is the
+// only producer that can tell.
+func AllowlistedBy(rel string) (string, bool) {
 	if _, ok := fileAllowlist[rel]; ok {
-		return true
+		return rel, true
 	}
-	// Test-helper packages (siblings of _test.go: .../testing/, .../mock/)
-	// write fixtures, not daemon state.
-	if strings.Contains(rel, "/testing/") || strings.Contains(rel, "/mock/") {
-		return true
-	}
-	for _, prefix := range dirAllowlist {
-		if strings.HasPrefix(rel, prefix) {
-			return true
+	for segment := range segmentAllowlist {
+		if strings.Contains(rel, segment) {
+			return segment, true
 		}
 	}
-	return false
+	for prefix := range dirAllowlist {
+		if strings.HasPrefix(rel, prefix) {
+			return prefix, true
+		}
+	}
+	return "", false
 }
 
 // ScanFile answers every raw filesystem write in one file. rel is the name the

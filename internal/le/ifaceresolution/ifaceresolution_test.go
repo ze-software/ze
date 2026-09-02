@@ -104,8 +104,8 @@ func TestAMentionInProseIsNotACall(t *testing.T) {
 // PREVENTS: a file prefix exempting a sibling whose name merely starts with it.
 func TestAllowlistMatchesDirectoriesAndExactFiles(t *testing.T) {
 	cases := map[string]bool{
-		"internal/component/iface/resolve.go":                true,
-		"internal/component/iface/deep/nested/x.go":          true,
+		"internal/plugins/iface/netlink/link_linux.go":       true,
+		"internal/plugins/iface/netlink/deep/nested/x.go":    true,
 		"internal/plugins/ldp/register.go":                   true,
 		"internal/le/deployment/l2tpdiag_linux_ops.go":       true,
 		"internal/le/deployment/l2tpdiag_linux.go":           false,

@@ -8,6 +8,7 @@ package fspersistence
 
 import (
 	"encoding/json"
+	"errors"
 	"go/token"
 	"os"
 	"path/filepath"
@@ -242,5 +243,41 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 	}
 	if verbs.Actions[0].Verb != "check" || verbs.Actions[1].Verb != "selftest" {
 		t.Errorf("the verbs are %q and %q, want check and selftest", verbs.Actions[0].Verb, verbs.Actions[1].Verb)
+	}
+}
+
+// VALIDATES: every exemption rule still suppresses a raw write somewhere in this
+// checkout.
+// PREVENTS: an exemption nobody rechecked. Each rule declares that raw writes at
+// a path are legitimate, and a rule that suppresses nothing keeps declaring it
+// for whatever code arrives there next. A file-level accounting cannot find it:
+// every file the walk reads is either scanned or exempted, so it balances by
+// construction. The rules are the population, and only the walk can say which of
+// them still do work.
+func TestEveryExemptionRuleStillSuppressesAWrite(t *testing.T) {
+	tree, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	if _, err := CheckCheckout(tree, scanFloor); err != nil && errors.Is(err, ErrDeadAllowlistEntry) {
+		t.Error(err)
+	}
+}
+
+// VALIDATES: a rule that suppresses nothing over this checkout is refused.
+// PREVENTS: the accounting being wired but inert. Every real rule passes today,
+// so the test above cannot go red on its own; this one injects a rule the tree
+// cannot satisfy and requires the refusal.
+func TestADeadExemptionRuleIsRefused(t *testing.T) {
+	original := dirAllowlist
+	dirAllowlist = map[string]string{"internal/plugins/gone/": "a path this tree does not hold"}
+	t.Cleanup(func() { dirAllowlist = original })
+
+	tree, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	if _, err := CheckCheckout(tree, scanFloor); !errors.Is(err, ErrDeadAllowlistEntry) {
+		t.Errorf("a rule suppressing nothing answered %v, want ErrDeadAllowlistEntry", err)
 	}
 }

@@ -83,7 +83,16 @@ type Claim struct {
 //
 // rules maps each rule to the reason it exists. matched holds the rules the
 // walk used. A rule the walk never used comes back in Coverage.Unexcused.
+//
+// No rules at all is a valid state, and it answers a clean Coverage rather than
+// the refusal Assess gives an empty population. The two empties are different
+// facts. A walked population that came back empty is a walk that found nothing
+// and looks like a healthy tree. A rule set that is empty was WRITTEN empty, in
+// source a reader can see, and it says the gate exempts nobody.
 func Exemptions(subject string, rules map[string]string, matched map[string]bool) (Coverage, error) {
+	if len(rules) == 0 {
+		return Coverage{}, nil
+	}
 	declared := make(map[string]bool, len(rules))
 	for rule := range rules {
 		declared[rule] = true

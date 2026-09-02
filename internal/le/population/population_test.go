@@ -179,3 +179,33 @@ func TestAssessIgnoresAWalkedMemberOutsideThePopulation(t *testing.T) {
 		t.Fatalf("counts are %#v, want the claimed population alone", coverage)
 	}
 }
+
+// Goal: a gate that exempts nobody is a readable state, not a failure. Method:
+// assess an empty rule set and require a clean answer, because unlike a walked
+// population that came back empty, this one was written empty in source.
+func TestExemptionsAcceptsAGateThatExemptsNobody(t *testing.T) {
+	coverage, err := Exemptions("test", nil, nil)
+	if err != nil {
+		t.Fatalf("an empty rule set was refused: %v", err)
+	}
+	if coverage.Code != 0 || len(coverage.Unexcused) != 0 {
+		t.Fatalf("an empty rule set reported findings: %#v", coverage)
+	}
+}
+
+// Goal: a rule the walk never used is the finding. Method: declare two rules,
+// use one, and require the other to be named.
+func TestExemptionsNamesARuleTheWalkNeverUsed(t *testing.T) {
+	rules := map[string]string{"live/": "still fires", "gone/": "fires nowhere"}
+
+	coverage, err := Exemptions("test", rules, members("live/"))
+	if err != nil {
+		t.Fatalf("exemptions: %v", err)
+	}
+	if coverage.Code == 0 {
+		t.Fatalf("an unused rule passed: %#v", coverage)
+	}
+	if !slices.Equal(coverage.Unexcused, []string{"gone/"}) {
+		t.Fatalf("unexcused is %v, want [gone/]", coverage.Unexcused)
+	}
+}

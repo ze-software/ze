@@ -290,6 +290,31 @@ A count floor -- refuse below N members -- is NOT this. It catches only the empt
 case, and comparing sizes where the question is about sets is the same defect one
 level up. `plan/journal/gate-excludes-part-of-its-population.md` records both.
 
+### The exemptions are a population too
+
+<!-- source: internal/le/population/population.go -- Exemptions -->
+
+A gate that either scans a member or exempts it balances by construction. Its own
+accounting proves nothing, because every member it read fell into one of the two
+buckets by definition. `population.Exemptions` asks the other question: of the
+rules the gate declares, which ones still do work?
+
+A rule earns its place only where it SUPPRESSED something. The weaker reading,
+that a file exists under it, stays true for a rule whose file stopped doing the
+thing it was excused for. So the walk scans the exempt file and then drops the
+result, rather than skipping it, and credits the rule only when it dropped
+something.
+
+`iface-resolution`, `plugin-boundary` and `fs-persistence` each split `Check`
+from `CheckCheckout` for this. Over a fixture, a rule that suppresses nothing
+means the tree does not hold that code. Over the real checkout it means an
+exemption nobody rechecked. Only the caller knows which tree it passed.
+
+An empty rule set is a clean answer, not the refusal an empty population gets.
+The two empties are different facts. A walked population that came back empty is
+a walk that found nothing, which looks like a healthy tree. A rule set was
+written empty, in source a reader can see.
+
 ### Feature-tag structural type check
 
 <!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->

@@ -61,22 +61,23 @@ import (
 // scanned file whose path has any of these prefixes never contributes a finding
 // or a guard signal.
 //
-// An entry is owed only by an owning package the walk actually reaches, which
-// means one that is also a plugin search root. trafficstat is an owning package
-// and is NOT a root, so its entry exempted nothing from 2026-08-26 until the
-// accounting below found it. If a later generator adds that root, the gate will
-// ask for the entry back.
-var allowlist = map[string]string{
-	"internal/component/iface/": "the owning package, and a plugin search root -- its own callers of RegisterOwnedAddresses/GetBackend/SubscribeCollectNotify etc. are not a cross-process boundary.",
-}
+// It is EMPTY, and the accounting is why. An entry is owed only where it
+// SUPPRESSES something, and neither original entry did. trafficstat is an owning
+// package that is not a plugin search root, so the walk never reached it. iface
+// is a root, but no file under it calls a watched symbol or carries a guard, so
+// the exemption erased nothing there either.
+//
+// The day a subpackage of an owning package makes one of these calls, the gate
+// reports it. The entry comes back then, with a reason somebody wrote then.
+var allowlist = map[string]string{}
 
 // The two owning packages whose exported functions only reach real, shared
 // engine state in the same OS process. They are constants because the watch
 // list and the fixture must name the same package.
 //
-// The allowlist names only the one the walk reaches. An owning package that is
-// not a plugin search root contributes no file to scan. It owes no exemption,
-// and writing one anyway states a rule that can never fire.
+// Neither is in the allowlist. An owning package earns an entry only when the
+// walk reaches it AND a file under it makes one of these calls. No file does
+// today.
 const (
 	ifacePackage       = "github.com/ze-software/ze/internal/component/iface"
 	trafficstatPackage = "github.com/ze-software/ze/internal/component/trafficstat"
@@ -141,8 +142,8 @@ func Check(tree string, floor int) (Findings, error) {
 // caller that is judging the real repository.
 //
 // The two are separate for the reason floor is a parameter. Over a fixture, an
-// entry that matches nothing means the tree does not hold that path. Over the
-// checkout it means an exemption that has stopped naming anything. Only the
+// entry that suppresses nothing means the tree does not hold that code. Over the
+// checkout it means an exemption that has stopped doing anything. Only the
 // caller knows which tree it handed over.
 func CheckCheckout(tree string, floor int) (Findings, error) {
 	findings, matched, err := scan(tree, treeRoots(tree), floor)
@@ -160,9 +161,24 @@ func CheckCheckout(tree string, floor int) (Findings, error) {
 	return findings, nil
 }
 
-// ErrDeadAllowlistEntry names an allowlist entry that exempted no file in the
-// tree the walk just read.
-var ErrDeadAllowlistEntry = errors.New("a plugin-boundary allowlist entry matches no file")
+// ErrDeadAllowlistEntry names an allowlist entry that erased nothing in the tree
+// the walk just read.
+var ErrDeadAllowlistEntry = errors.New("a plugin-boundary allowlist entry suppresses nothing")
+
+// suppressed reports whether a probe scan of one exempt file produced anything
+// the exemption then erased. That is a dangerous call, or the guard signal that
+// would have covered its package.
+//
+// Both count. The allowlist doc states an exempt file contributes neither, so an
+// entry doing either job is still doing work.
+func suppressed(probe map[string]*packageScan) bool {
+	for _, found := range probe {
+		if len(found.findings) != 0 || found.guarded {
+			return true
+		}
+	}
+	return false
+}
 
 func treeRoots(tree string) []string {
 	roots := make([]string, 0, len(Roots()))
@@ -220,7 +236,18 @@ func scan(tree string, roots []string, floor int) (Findings, map[string]bool, er
 			rel := filepath.ToSlash(relPath)
 			read++
 			if prefix, exempt := AllowlistedBy(rel); exempt {
-				matched[prefix] = true
+				// The file is scanned into a throwaway map, so the exemption
+				// still erases what it finds. The entry is credited only where
+				// it erased something. Skipping outright would make "this entry
+				// did work" mean "a file exists under it", which stays true for
+				// an entry whose file stopped making the call.
+				probe := map[string]*packageScan{}
+				if err := scanFile(path, rel, watch, probe); err != nil {
+					return err
+				}
+				if suppressed(probe) {
+					matched[prefix] = true
+				}
 				return nil
 			}
 			return scanFile(path, rel, watch, packages)
@@ -382,8 +409,8 @@ func Allowlisted(rel string) bool {
 // does.
 //
 // It names WHICH entry because the entries are a population of their own. One
-// that matches no file is an exemption nobody rechecked. The walk is the only
-// producer that can tell.
+// that suppresses nothing is an exemption nobody rechecked. The walk is the
+// only producer that can tell.
 func AllowlistedBy(rel string) (string, bool) {
 	for prefix := range allowlist {
 		if strings.HasPrefix(rel, prefix) {
