@@ -756,28 +756,34 @@ One row per obligation a walk found that Ze does not meet. AC-8 requires the id,
 sentence, the producing function, and the question put to Thomas. No `{gap}`,
 `{not-applicable}` or `partial` annotation is written for any row here until he answers.
 
-### rfc5176, walked 2026-08-31: 26 of 72 sites classified, artifact NOT moved in
+### rfc5176, walked 2026-08-31, SIGNED 2026-09-01: 72 of 72 sites classified
 
-23 sites state an obligation Ze meets that the summary never declared; 23 state one Ze
-does not meet. The stem cannot sign until the second set is resolved, so the walk is
-blocked on the code rather than on more walking.
+23 sites stated an obligation Ze meets that the summary never declared; 23 stated one Ze
+did not meet. Both sets are now resolved. Commit `fe51839da` landed the CoA-path answers
+for Sections 2.3, 3.1, 3.2, 3.3 and 6.3, `rfc/short/rfc5176.md` declares 22 gated ids, and
+`rfc/extraction/rfc5176.json` signs the walk at 44 mapped, 28 excluded, ratio 0.39.
+One residual is NOT closed and is named in row 9 below: a successful `Emit` is not an
+applied change, so a CoA-ACK can still report a rate the shaper failed to program. Closing
+it changes the plugin subscriber contract, not the RADIUS listener.
 
 | # | Section | Requirement | Producer read | State |
 |---|---|---|---|---|
-| 1 | 3.4 | "the Request Authenticator field and Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero. The Message-Authenticator Attribute is calculated and inserted in the packet before the Request Authenticator is calculated" | `VerifyMessageAuthenticator` (`internal/component/radius/packet.go`), `VerifyCoARequestAuth`, both called from `coaListener.handlePacket` (`internal/component/l2tp/plugins/authradius/coa.go`) | Both halves inverted. `handlePacket` discards a CoA-Request carrying no Message-Authenticator, so no path bypasses either check, and no conformant Dynamic Authorization Client can authenticate. Verified by the main thread at both producers and against the RFC text. FIX DISPATCHED under `ai/rules/rfc-compliance.md` (conformance improvements are done and reported, never asked) |
-| 2 | 2.2 | "A NAS MUST respond to a CoA-Request including a Service-Type Attribute with an unsupported value with a CoA-NAK" | `handleCoA` (`coa.go`) | Service-Type never read; ACK returned when a Filter-Id is present |
+| 1 | 3.4 | CLOSED (`bcd764a5e`, `fe51839da`). "the Request Authenticator field and Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero. The Message-Authenticator Attribute is calculated and inserted in the packet before the Request Authenticator is calculated" | `VerifyMessageAuthenticator` (`internal/component/radius/packet.go`), `VerifyCoARequestAuth`, both called from `coaListener.handlePacket` (`internal/component/l2tp/plugins/authradius/coa.go`) | Both halves inverted. `handlePacket` discards a CoA-Request carrying no Message-Authenticator, so no path bypasses either check, and no conformant Dynamic Authorization Client can authenticate. Verified by the main thread at both producers and against the RFC text. FIX DISPATCHED under `ai/rules/rfc-compliance.md` (conformance improvements are done and reported, never asked) |
+| 2 | 2.2 | "A NAS MUST respond to a CoA-Request including a Service-Type Attribute with an unsupported value with a CoA-NAK" | `handleCoA` (`coa.go`) | CLOSED (`fe51839da`). `handlePacket` answers every CoA-Request carrying a Service-Type with a CoA-NAK and Error-Cause 405 (`RFC5176-3.2-1`) |
 | 3 | 3.2 | "Authorize Only" is an explicit OPTIONAL | -- | A MAY. `ai/rules/rfc-compliance.md` sends it to Thomas: implement, decline, or make it config. Declining still owes row 2 |
-| 4 | 2.3 | "In CoA-Request and Disconnect-Request packets, all attributes MUST be treated as mandatory" | `handleCoA`, `handleDisconnect` | Reads Filter-Id and the vendor rate/CoS VSAs only; the rest are ignored silently |
-| 5 | 3 | "a CoA-Request or Disconnect-Request MUST apply to all matching sessions" | `findSession` (`coa.go`) | Returns the first match. The Error-Cause 508 escape is also absent |
-| 6 | 3.1 | "the Dynamic Authorization Server MUST include those Proxy-State attributes in its response" | `sendResponse` (`coa.go`) | Builds a fresh packet holding at most an Error-Cause |
-| 7 | 3.3 | State attribute echo | `sendResponse` | Same producer, same omission |
-| 8 | 6.3 | "If the Event-Timestamp Attribute is not current, then the packet MUST be silently discarded" | `handlePacket` (`coa.go`) | Sends a NAK with Error-Cause 404. Section 1.3 defines silent discard as "without further processing" |
-| 9 | 2.3 | "State changes resulting from a CoA-Request MUST be atomic" | `handleCoA` (`coa.go`) | Emits on the event bus, logs a warning if the emit fails, ACKs regardless |
-| 10 | 3.3 | Termination-Action State echo | -- | Ze sends no such Access-Request |
+| 4 | 2.3 | "In CoA-Request and Disconnect-Request packets, all attributes MUST be treated as mandatory" | `handleCoA`, `handleDisconnect` | CLOSED (`fe51839da`). `unsupportedAttr` reads every attribute against `coaSupportedAttrs` or `disconnectSupportedAttrs` and NAKs 401 on the first it does not support (`RFC5176-2.3-5`) |
+| 5 | 3 | "a CoA-Request or Disconnect-Request MUST apply to all matching sessions" | `findSession` (`coa.go`) | CLOSED (`fe51839da`). `findSessions` returns every match and `oneSession` NAKs 508 on more than one (`RFC5176-2.3-7`) |
+| 6 | 3.1 | "the Dynamic Authorization Server MUST include those Proxy-State attributes in its response" | `sendResponse` (`coa.go`) | CLOSED (`fe51839da`). `sendResponse` copies every Proxy-State of the request into the response in arrival order (`RFC5176-3.1-1`) |
+| 7 | 3.3 | State attribute echo | `sendResponse` | CLOSED (`fe51839da`). The same loop copies State, unread (`RFC5176-3.3-2`) |
+| 8 | 6.3 | "If the Event-Timestamp Attribute is not current, then the packet MUST be silently discarded" | `handlePacket` (`coa.go`) | CLOSED (`fe51839da`). `eventTimestampState` grades the attribute and `handlePacket` returns without a response for the stale case; an ABSENT attribute still draws a NAK 404, which is the Section 6.3 SHOULD (`RFC5176-6.3-1`) |
+| 9 | 2.3 | "State changes resulting from a CoA-Request MUST be atomic: if the CoA-Request is successful for all matching sessions, the NAS MUST send a CoA-ACK in reply, and all requested authorization changes MUST be made" | `handleCoA` and `applySubscriberCoA` (`coa.go`); `(*shaperPlugin).onSessionRateChange` (`internal/component/l2tp/plugins/shaper/shaper.go`) | HALF CLOSED (`fe51839da`). A FAILED `Emit` now draws a CoA-NAK with Error-Cause 506. A SUCCESSFUL one still does not prove the change was made: `onSessionRateChange` returns `void` and its three failure paths (session unknown to the shaper, payload type mismatch, `applyTC` error) each log a warning and return, so the CoA-ACK is already on the wire. The signature that loses the result is `ze.EventBus.Subscribe`, whose handler is `func(payload any)`, and `events.Event[T].Subscribe` on top of it. Closing this changes the plugin subscriber contract for every consumer, which is why it stops here rather than inside the RADIUS listener |
+| 10 | 3.3 | Termination-Action State echo | -- | Ze sends no such Access-Request: the three non-test Access-Request producers each build one at authentication time, and no code names attribute 29. Excluded `feature-out-of-scope` on RFC 2865 Section 5.29's MAY, and disclosed in the RFC 5176 row of `docs/features/rfc-status.md` |
 
-Adjacent, not a MUST: `validEventTimestamp` (`coa.go`) returns false when Event-Timestamp
-is ABSENT, where Section 6.3 only says a DAS SHOULD be configurable to discard such packets.
-A conformant client that omits it is rejected.
+Adjacent, not a MUST: `eventTimestampState` (`coa.go`) grades an ABSENT Event-Timestamp as
+its own case and `handlePacket` answers it with a NAK carrying Error-Cause 404, where
+Section 6.3 only says a DAS SHOULD be configurable to discard such packets. A conformant
+client that omits it is refused. This is stricter than the RFC, so it is not a gap, and
+`rfc/short/rfc5176.md` records it as ze's answer to a port that takes unsolicited teardowns.
 
 ### rfc2865, walked 2026-08-31: 39 of 74 sites classified, artifact NOT moved in
 
@@ -860,7 +866,7 @@ does not copy them.
 | `rfc3748` | 103 in 57 sections | 75 | 28 have no honest disposition; 7 belong to `plan/spec-eap-notification-and-nak.md`, itself blocked on its D-1 and D-2 | Whether a peer that accepts a canned EAP-Success is fixed here or there. The `rfc3748` row of `rfc/enrolled.txt` also publishes a non-conformance as MET |
 | `rfc9069` | 29 in 33 sections | 7 | 22 held sites are obligations `rfc/short/rfc9069.md` declares no row for | Whether the §5.2.1 VRF/Table Name TLV is owed on the default Loc-RIB instance. That one decision resolves 10 of the 22 |
 | `rfc9582` | 14 | 0 | The summary describes a different document | Lower the public row, or re-attribute the work to `draft-ietf-sidrops-8210bis` and enrol it. Both routes hit a gate wall (R-7) |
-| `rfc5176` | 72 in 28 sections | 32 | 40 unclassified, all resolving to `mapped`; projected ratio 0.40 | Whether 20 unmet MUSTs behind `Supported for subscriber access` are implemented or the row is lowered (R-7) |
+| `rfc5176` | 72 in 28 sections | 72 | SIGNED 2026-09-01: 44 mapped, 28 excluded, ratio 0.39 | Answered by implementing. The 20 unmet MUSTs landed in `fe51839da`, so the `Supported for subscriber access` row stands. One residual is reported, not closed: see row 9 of the rfc5176 findings table |
 
 Three findings are settled and need no decision. The `rfc5176` §6.1 source-filter fail-open
 was a reachable authentication weakening and is fixed in commit `bcd764a5e`, with

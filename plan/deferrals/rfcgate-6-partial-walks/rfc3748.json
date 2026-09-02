@@ -381,7 +381,7 @@
       "quote": "To address security vulnerabilities, \"tunneled\" methods MUST support protection against man-in-the-middle attacks.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the specification author of a 'tunneled' EAP method. Ze implements EAP-TLS (RFC 5216) and EAP-MSCHAPv2 and authors no EAP method specification; neither method tunnels a second EAP method (newTLSMethod and newMSCHAPv2Method, internal/component/ike/eap/eap.go)."
+      "reason": "The role is the AUTHOR of a 'tunneled' EAP method specification, a document role rather than a wire role, and the sentence states what such a specification must say about running a second method inside the tunnel. Ze publishes no EAP method specification, and neither method it runs tunnels a second one: tlsMethod carries TLS records and no EAP packet (tlsMethod.Process, internal/component/ike/eap/eap_tls.go), and mschapv2Method carries the MS-CHAPv2 opcodes alone (mschapv2Method.Process, internal/component/ike/eap/eap_mschapv2.go). The producer that would act as the role if Ze did is the specification of such a method, and Ze holds only the implementations of RFC 5216 and draft-kamath-pppext-eap-mschapv2-02."
     },
     {
       "id": "2.2:1",
@@ -392,15 +392,15 @@
       "id": "2.3:1",
       "quote": "A pass-through authenticator implementation MUST be capable of forwarding EAP packets received from the peer with Code=2 (Response) to the backend authentication server.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds a pass-through authenticator. Ze's authenticator terminates the EAP method locally: NewSession (internal/component/ike/eap/eap.go) builds the method in process and the IKE engine has no AAA back end (no EAP-Message producer exists under internal/component/radius/)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on pass-through operation, which Ze does not offer. The sentence states that a pass-through authenticator must be capable of forwarding a Code=2 Response to the backend authentication server. RFC 3748 Section 2 states the option in its own words: 'Network Access Server (NAS) devices (e.g., a switch or access point) do not have to understand each authentication method and MAY act as a pass-through agent for a backend authentication server.  Support for pass-through is optional.' NewSession (internal/component/ike/eap/eap.go) builds the method in process and the IKE engine has no AAA back end for EAP: nothing under internal/component/radius/ produces an EAP-Message attribute, and handleResponderEAP (internal/component/ike/engine/responder_eap.go) answers from the local eap.Session alone. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "2.3:2",
       "quote": "It also MUST be capable of receiving EAP packets from the backend authentication server and forwarding EAP packets of Code=1 (Request), Code=3 (Success), and Code=4 (Failure) to the peer.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Same role: a pass-through authenticator forwarding from a backend authentication server. Ze has no backend authentication server for EAP (NewSession, internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on pass-through operation, which Ze does not offer. The sentence states that a pass-through authenticator must be capable of forwarding Code=1, Code=3 and Code=4 packets received from the backend authentication server to the peer. RFC 3748 Section 2 states the option in its own words: 'Network Access Server (NAS) devices (e.g., a switch or access point) do not have to understand each authentication method and MAY act as a pass-through agent for a backend authentication server.  Support for pass-through is optional.' NewSession (internal/component/ike/eap/eap.go) builds the method in process and the IKE engine has no AAA back end for EAP: nothing under internal/component/radius/ produces an EAP-Message attribute, and handleResponderEAP (internal/component/ike/engine/responder_eap.go) answers from the local eap.Session alone. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "2.3:3",
@@ -412,8 +412,8 @@
       "id": "2.3:4",
       "quote": "For sessions in which the authenticator acts as a pass-through, it MUST determine the outcome of the authentication solely based on the Accept/Reject indication sent by the backend authentication server; the outcome MUST NOT be determined by the contents of an EAP packet sent along with the Accept/Reject indication, or the absence of such an encapsulated EAP packet.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds a pass-through authenticator deciding on an Accept/Reject from a backend server. Ze's authenticator decides from its own method result (Session.handleMethod, internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on pass-through operation, which Ze does not offer. The sentence states that a compliant pass-through authenticator must by default forward EAP packets of any Type. RFC 3748 Section 2 states the option in its own words: 'Network Access Server (NAS) devices (e.g., a switch or access point) do not have to understand each authentication method and MAY act as a pass-through agent for a backend authentication server.  Support for pass-through is optional.' NewSession (internal/component/ike/eap/eap.go) builds the method in process and the IKE engine has no AAA back end for EAP: nothing under internal/component/radius/ produces an EAP-Message attribute, and handleResponderEAP (internal/component/ike/engine/responder_eap.go) answers from the local eap.Session alone. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "3.1:1",
@@ -426,12 +426,13 @@
       "quote": "If authentication of the link is desired, an implementation MUST specify the Authentication Protocol Configuration Option during the Link Establishment phase.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds a PPP implementation carrying EAP (Section 3.2, 'EAP Usage Within PPP'). Ze carries EAP only inside the IKEv2 SK payload (startEAPExchange, internal/component/ike/engine/fsm.go); its PPP stack under internal/component/l2tp/ negotiates no EAP authentication protocol."
+      "reason": "The role is a PPP implementation that has negotiated EAP as its LCP Authentication-Protocol (0xC227), which Section 3.2 titles 'EAP Usage Within PPP'. Ze never acts as it, and the producer that would is authMethodFromAuthProto (internal/component/l2tp/ppp/auth.go): it recognises PAP and CHAP alone and answers AuthMethodNone for every other Auth-Protocol value, 0xC227 included, so Ze's PPP falls back to the no-wire-auth phase rather than starting an EAP conversation. Ze carries EAP only inside the IKEv2 SK payload (startEAPExchange, internal/component/ike/engine/fsm.go). RFC 3748 obliges no implementation to support PPP as a lower layer: Section 2.2 lists PPP among the layers EAP 'has been run over', which is a description rather than a requirement."
     },
     {
       "id": "4:1",
       "quote": "Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers.",
-      "disposition": null
+      "disposition": "mapped",
+      "mapped-to": "RFC3748-4-5"
     },
     {
       "id": "4:2",
@@ -573,12 +574,14 @@
     {
       "id": "4.2:5",
       "quote": "A peer EAP implementation receiving a Success or Failure packet where sending one is not explicitly permitted MUST silently discard it.",
-      "disposition": null
+      "disposition": "mapped",
+      "mapped-to": "RFC3748-4.2-8"
     },
     {
       "id": "4.2:6",
       "quote": "By default, an EAP peer MUST silently discard a \"canned\" Success packet (a Success packet sent immediately upon connection).",
-      "disposition": null
+      "disposition": "mapped",
+      "mapped-to": "RFC3748-4.2-7"
     },
     {
       "id": "4.2:7",
@@ -609,7 +612,8 @@
     {
       "id": "4.2:12",
       "quote": "On the peer, after success result indications have been exchanged by both sides, a Failure packet MUST be silently discarded.",
-      "disposition": null
+      "disposition": "mapped",
+      "mapped-to": "RFC3748-4.2-9"
     },
     {
       "id": "4.2:13",
@@ -680,7 +684,9 @@
     {
       "id": "5.2:3",
       "quote": "In this case, the peer MUST silently discard Notification Requests from the point where an initial Request for that Type is answered with a Response of the same Type.",
-      "disposition": null
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "The MUST is the consequent of a MAY, and the enclosing construction is: 'An EAP method MAY indicate within its specification that Notification messages must not be sent during that method.  In this case, the peer MUST silently discard Notification Requests from the point where an initial Request for that Type is answered with a Response of the same Type.' The antecedent is false for both methods Ze runs. Neither specification exercises that MAY: the string 'Notification' appears nowhere in rfc/full/rfc5216.txt and nowhere in rfc/full/rfc2759.txt, so no method Ze offers prohibits Notification messages and the peer is never in the state this sentence describes. What Ze owes a Notification Request OUTSIDE that state is Section 5.2's opening obligation, which sites 5.2:1 and 5.2:5 relocate to plan/spec-eap-notification-and-nak.md under RFC3748-5.2-1."
     },
     {
       "id": "5.2:4",
@@ -736,29 +742,29 @@
       "id": "5.3.2:1",
       "quote": "It MUST be sent only in reply to a Request of Type 254 (Expanded Type) where the authentication Type is unacceptable.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an Expanded-Type-capable peer, which states when an Expanded Nak may be sent. Section 5 makes Type 254 support a SHOULD ('All EAP implementations MUST support Types 1-4 ... and SHOULD support Type 254'), Ze declines it, and it emits no Expanded Type packet: TypeExpandedEAP is a bare constant and NewSession refuses every type other than 13 and 26 (internal/component/ike/eap/eap.go). Section 5.7 routes such a peer to a LEGACY Nak instead, which is site 5.7:2."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states when an Expanded Nak may be sent. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.3.2:2",
       "quote": "Since the Expanded Nak Type is valid only in Responses and has very limited functionality, it MUST NOT be used as a general purpose error indication, such as for communication of error messages, or negotiation of parameters specific to a particular EAP method.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an Expanded-Type-capable peer, which states the ban on an Expanded Nak as a general error indication. Section 5 makes Type 254 support a SHOULD ('All EAP implementations MUST support Types 1-4 ... and SHOULD support Type 254'), Ze declines it, and it emits no Expanded Type packet: TypeExpandedEAP is a bare constant and NewSession refuses every type other than 13 and 26 (internal/component/ike/eap/eap.go). Section 5.7 routes such a peer to a LEGACY Nak instead, which is site 5.7:2."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states the ban on an Expanded Nak as a general error indication. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.3.2:3",
       "quote": "The Identifier field of an Expanded Nak Response MUST match the Identifier field of the Request packet that it is sent in response to.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an Expanded-Type-capable peer, which states the Expanded Nak Identifier rule. Section 5 makes Type 254 support a SHOULD ('All EAP implementations MUST support Types 1-4 ... and SHOULD support Type 254'), Ze declines it, and it emits no Expanded Type packet: TypeExpandedEAP is a bare constant and NewSession refuses every type other than 13 and 26 (internal/component/ike/eap/eap.go). Section 5.7 routes such a peer to a LEGACY Nak instead, which is site 5.7:2."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states the Expanded Nak Identifier rule. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.3.2:4",
       "quote": "The Vendor-Data field of the Nak Response MUST contain one or more authentication Types (4 or greater), all in expanded format, 8 octets per Type, or the value zero (0), also in Expanded Type format, to indicate no proposed alternative.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an Expanded-Type-capable peer, which states the Expanded Nak Vendor-Data contents. Section 5 makes Type 254 support a SHOULD ('All EAP implementations MUST support Types 1-4 ... and SHOULD support Type 254'), Ze declines it, and it emits no Expanded Type packet: TypeExpandedEAP is a bare constant and NewSession refuses every type other than 13 and 26 (internal/component/ike/eap/eap.go). Section 5.7 routes such a peer to a LEGACY Nak instead, which is site 5.7:2."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the Expanded Type (254) namespace, which Ze does not offer. The sentence states the Expanded Nak Vendor-Data contents. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' TypeExpandedEAP is a bare constant with no producer and NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.4:1",
@@ -774,8 +780,8 @@
       "id": "5.4:3",
       "quote": "An authenticator that supports only pass- through MUST allow communication with a backend authentication server that is capable of supporting MD5-Challenge, although the EAP authenticator implementation need not support MD5-Challenge itself.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an authenticator that supports only pass-through. Ze's authenticator authenticates locally (NewSession, internal/component/ike/eap/eap.go) and has no backend authentication server, so the sentence's own antecedent is false for it."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on pass-through operation, which Ze does not offer. The sentence states what an authenticator that supports only pass-through must do with an MD5-Challenge Response. RFC 3748 Section 2 states the option in its own words: 'Network Access Server (NAS) devices (e.g., a switch or access point) do not have to understand each authentication method and MAY act as a pass-through agent for a backend authentication server.  Support for pass-through is optional.' NewSession (internal/component/ike/eap/eap.go) builds the method in process and the IKE engine has no AAA back end for EAP: nothing under internal/component/radius/ produces an EAP-Message attribute, and handleResponderEAP (internal/component/ike/engine/responder_eap.go) answers from the local eap.Session alone. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.4:4",
@@ -788,64 +794,64 @@
       "id": "5.5:1",
       "quote": "A Response MUST be sent in reply to the Request.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an implementation of the EAP OTP method (Type 5), which states answering an OTP Request. Section 5's support obligation covers Types 1-4 only, so Type 5 is optional, and Ze implements it nowhere: NewSession accepts 13 and 26 alone (internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states answering an OTP Request. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.5:2",
       "quote": "The Response MUST be of Type 5 (OTP), Nak (Type 3), or Expanded Nak (Type 254).",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an implementation of the EAP OTP method (Type 5), which states the Type of the answering Response. Section 5's support obligation covers Types 1-4 only, so Type 5 is optional, and Ze implements it nowhere: NewSession accepts 13 and 26 alone (internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states the Type of the answering Response. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.5:3",
       "quote": "The EAP OTP method is intended for use with the One-Time Password system only, and MUST NOT be used to provide support for cleartext passwords.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an implementation of the EAP OTP method (Type 5), which states the ban on cleartext passwords. Section 5's support obligation covers Types 1-4 only, so Type 5 is optional, and Ze implements it nowhere: NewSession accepts 13 and 26 alone (internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states the ban on cleartext passwords. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.5:4",
       "quote": "The messages MUST NOT be null terminated.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an implementation of the EAP OTP method (Type 5), which states the message not being null terminated. Section 5's support obligation covers Types 1-4 only, so Type 5 is optional, and Ze implements it nowhere: NewSession accepts 13 and 26 alone (internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the One Time Password method (Type 5), which Ze does not offer. The sentence states the message not being null terminated. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 5 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.6:1",
       "quote": "A Response MUST be sent in reply to the Request.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an implementation of the EAP GTC method (Type 6), which states answering a GTC Request. Section 5's support obligation covers Types 1-4 only, so Type 6 is optional, and Ze implements it nowhere: NewSession accepts 13 and 26 alone (internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states answering a GTC Request. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.6:2",
       "quote": "The Response MUST be of Type 6 (GTC), Nak (Type 3), or Expanded Nak (Type 254).",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an implementation of the EAP GTC method (Type 6), which states the Type of the answering Response. Section 5's support obligation covers Types 1-4 only, so Type 6 is optional, and Ze implements it nowhere: NewSession accepts 13 and 26 alone (internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the Type of the answering Response. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.6:3",
       "quote": "The EAP GTC method is intended for use with the Token Cards supporting challenge/response authentication and MUST NOT be used to provide support for cleartext passwords in the absence of a protected tunnel with server authentication.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an implementation of the EAP GTC method (Type 6), which states the ban on cleartext passwords outside a protected tunnel. Section 5's support obligation covers Types 1-4 only, so Type 6 is optional, and Ze implements it nowhere: NewSession accepts 13 and 26 alone (internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the ban on cleartext passwords outside a protected tunnel. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.6:4",
       "quote": "The message MUST NOT be null terminated.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an implementation of the EAP GTC method (Type 6), which states the message not being null terminated. Section 5's support obligation covers Types 1-4 only, so Type 6 is optional, and Ze implements it nowhere: NewSession accepts 13 and 26 alone (internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the message not being null terminated. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.6:5",
       "quote": "A Response MUST be sent in reply to the Request with a Type field of 6 (Generic Token Card).",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds an implementation of the EAP GTC method (Type 6), which states the Type field of the answering Response. Section 5's support obligation covers Types 1-4 only, so Type 6 is optional, and Ze implements it nowhere: NewSession accepts 13 and 26 alone (internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on the Generic Token Card method (Type 6), which Ze does not offer. The sentence states the Type field of the answering Response. RFC 3748 Section 5 states the option in its own words: 'All EAP implementations MUST support Types 1-4, which are defined in this document, and SHOULD support Type 254.  Implementations MAY support other Types defined here or in future RFCs.' NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and Type 26 and refuses every other type, so no other Type is offered, and Type 6 derives no MSK, which RFC3748-7.10-3 forbids an IKEv2 conversation from using at all. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "5.7:1",
@@ -856,49 +862,53 @@
     {
       "id": "5.7:2",
       "quote": "Peers not equipped to interpret the Expanded Type MUST send a Nak as described in Section 5.3.1, and negotiate a more suitable authentication method.",
-      "disposition": null
+      "disposition": "excluded",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-eap-notification-and-nak.md",
+      "reserved-id": "RFC3748-5.3.1-1",
+      "reason": "The Nak this sentence demands IS the legacy Nak of Section 5.3.1, which it cites by number, so the obligation is the one RFC3748-5.3.1-1 reserves and site 5.3.1:3 relocates under the same id. plan/spec-eap-notification-and-nak.md implements it and its AC-6 tags this arm: a Request carrying an Expanded Type the peer cannot interpret is answered with a LEGACY Nak. It cannot be duplicate-of, because that kind requires another site to have MAPPED the id, and no site maps a relocated obligation."
     },
     {
       "id": "7.2:1",
       "quote": "In order to clearly articulate the security provided by an EAP method, EAP method specifications MUST include a Security Claims section, including the following declarations:",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of an EAP METHOD SPECIFICATION: 'EAP method specifications MUST include a Security Claims section'. It states the Security Claims section a method specification must include. Ze authors no EAP method specification; it implements EAP-TLS (RFC 5216) and EAP-MSCHAPv2 as they are specified elsewhere."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states the Security Claims section a method specification must include."
     },
     {
       "id": "7.2:2",
       "quote": "If the method derives keys, then the effective key strength MUST be estimated.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of an EAP METHOD SPECIFICATION: 'EAP method specifications MUST include a Security Claims section'. It states the effective key strength estimate. Ze authors no EAP method specification; it implements EAP-TLS (RFC 5216) and EAP-MSCHAPv2 as they are specified elsewhere."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states the effective key strength estimate."
     },
     {
       "id": "7.2:3",
       "quote": "EAP methods deriving keys MUST either provide a reference to a key hierarchy specification, or describe how Master Session Keys (MSKs) and Extended Master Session Keys (EMSKs) are to be derived.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of an EAP METHOD SPECIFICATION: 'EAP method specifications MUST include a Security Claims section'. It states the key hierarchy reference or MSK/EMSK derivation description. Ze authors no EAP method specification; it implements EAP-TLS (RFC 5216) and EAP-MSCHAPv2 as they are specified elsewhere."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states the key hierarchy reference or MSK/EMSK derivation description."
     },
     {
       "id": "7.2:4",
       "quote": "In addition to the security claims that are made, the specification MUST indicate which of the security claims detailed in Section 7.2.1 are NOT being made.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of an EAP METHOD SPECIFICATION: 'EAP method specifications MUST include a Security Claims section'. It states the claims that are NOT being made. Ze authors no EAP method specification; it implements EAP-TLS (RFC 5216) and EAP-MSCHAPv2 as they are specified elsewhere."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states the claims that are NOT being made."
     },
     {
       "id": "7.2.1:1",
       "quote": "When making this claim, a method specification MUST describe the EAP packets and fields within the EAP packet that are protected.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Section 7.2.1 is the claims vocabulary for a METHOD SPECIFICATION and this sentence binds its author, over describing the EAP packets and fields protected. Ze authors none."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. Section 7.2.1 is the claims VOCABULARY a specification writes its Security Claims section in, and this sentence states describing the EAP packets and fields protected."
     },
     {
       "id": "7.2.1:2",
       "quote": "A method making this claim MUST support identity protection (see Section 7.3).",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Section 7.2.1 is the claims vocabulary for a METHOD SPECIFICATION and this sentence binds its author, over the identity protection a claiming method must support. Ze authors none."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. Section 7.2.1 is the claims VOCABULARY a specification writes its Security Claims section in, and this sentence states the identity protection a claiming method must support."
     },
     {
       "id": "7.5:1",
@@ -928,42 +938,42 @@
       "quote": "Keying material exported by EAP methods MUST be independent of the ciphersuite negotiated to protect data.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the design of an EAP method's key derivation, which is a METHOD SPECIFICATION property. Ze's exports follow RFC 5216 Section 2.3 for EAP-TLS and draft-kamath-pppext-eap-mschapv2-02 for EAP-MSCHAPv2 (DeriveMSK, internal/component/ike/eap/mschapv2.go), and neither derivation is Ze's to state."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states that keying material a method exports must be independent of the ciphersuite negotiated to protect data, which is a property of the DERIVATION a specification defines. The two Ze runs are defined elsewhere: RFC 5216 Section 2.3 for EAP-TLS (exportEAPTLSMSK, internal/component/ike/eap/eap_tls.go) and draft-kamath-pppext-eap-mschapv2-02 for EAP-MSCHAPv2 (DeriveMSK, internal/component/ike/eap/mschapv2.go)."
     },
     {
       "id": "7.10:5",
       "quote": "Methods supporting key derivation MUST demonstrate cryptographic separation between the MSK and EMSK branches of the EAP key hierarchy.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of a key-deriving EAP METHOD SPECIFICATION, over cryptographic separation between the MSK and EMSK branches. It is a property a method's key hierarchy must be shown to have, and Ze authors no such hierarchy: it implements RFC 5216 Section 2.3 and draft-kamath-pppext-eap-mschapv2-02."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states cryptographic separation between the MSK and EMSK branches, which is a property a method's key hierarchy must be SHOWN to have. The showing is the specification's, and Ze holds the implementations of the two it runs."
     },
     {
       "id": "7.10:6",
       "quote": "Without violating a fundamental cryptographic assumption (such as the non-invertibility of a one-way function), an attacker recovering the MSK or EMSK MUST NOT be able to recover the other quantity with a level of effort less than brute force.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of a key-deriving EAP METHOD SPECIFICATION, over the non-recoverability of one key from the other. It is a property a method's key hierarchy must be shown to have, and Ze authors no such hierarchy: it implements RFC 5216 Section 2.3 and draft-kamath-pppext-eap-mschapv2-02."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states the non-recoverability of one key from the other, which is a property a method's key hierarchy must be SHOWN to have. The showing is the specification's, and Ze holds the implementations of the two it runs."
     },
     {
       "id": "7.10:7",
       "quote": "Non-overlapping substrings of the MSK MUST be cryptographically separate from each other, as defined in Section 7.2.1.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of a key-deriving EAP METHOD SPECIFICATION, over the separation of non-overlapping MSK substrings. It is a property a method's key hierarchy must be shown to have, and Ze authors no such hierarchy: it implements RFC 5216 Section 2.3 and draft-kamath-pppext-eap-mschapv2-02."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states the separation of non-overlapping MSK substrings, which is a property a method's key hierarchy must be SHOWN to have. The showing is the specification's, and Ze holds the implementations of the two it runs."
     },
     {
       "id": "7.10:8",
       "quote": "That is, knowledge of one substring MUST NOT help in recovering some other substring without breaking some hard cryptographic assumption.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of a key-deriving EAP METHOD SPECIFICATION, over the same property stated as a knowledge bound. It is a property a method's key hierarchy must be shown to have, and Ze authors no such hierarchy: it implements RFC 5216 Section 2.3 and draft-kamath-pppext-eap-mschapv2-02."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states the same property stated as a knowledge bound, which is a property a method's key hierarchy must be SHOWN to have. The showing is the specification's, and Ze holds the implementations of the two it runs."
     },
     {
       "id": "7.10:9",
       "quote": "Likewise, non-overlapping substrings of the EMSK MUST be cryptographically separate from each other, and from substrings of the MSK.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of a key-deriving EAP METHOD SPECIFICATION, over the separation of non-overlapping EMSK substrings. It is a property a method's key hierarchy must be shown to have, and Ze authors no such hierarchy: it implements RFC 5216 Section 2.3 and draft-kamath-pppext-eap-mschapv2-02."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states the separation of non-overlapping EMSK substrings, which is a property a method's key hierarchy must be SHOWN to have. The showing is the specification's, and Ze holds the implementations of the two it runs."
     },
     {
       "id": "7.10:10",
@@ -979,22 +989,22 @@
       "id": "7.13:1",
       "quote": "In practice, this implies that the AAA protocol spoken between the authenticator and authentication server MUST support per-packet authentication, integrity, and replay protection.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds the AAA protocol between an authenticator and a backend authentication server. Ze runs neither side of that link for EAP: its authenticator terminates the method in process (NewSession, internal/component/ike/eap/eap.go)."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on pass-through operation, which Ze does not offer. The sentence states that the AAA protocol spoken between an authenticator and a backend authentication server must support per-packet authentication. Section 7.13 states its own antecedent, 'in the case where the authenticator and authentication server reside on different machines', which is pass-through. RFC 3748 Section 2 states the option in its own words: 'Network Access Server (NAS) devices (e.g., a switch or access point) do not have to understand each authentication method and MAY act as a pass-through agent for a backend authentication server.  Support for pass-through is optional.' NewSession (internal/component/ike/eap/eap.go) builds the method in process and the IKE engine has no AAA back end for EAP: nothing under internal/component/radius/ produces an EAP-Message attribute, and handleResponderEAP (internal/component/ike/engine/responder_eap.go) answers from the local eap.Session alone. The absent feature is disclosed in docs/features/rfc-status.md as an implementation gap a later scope decision can revisit, never as a conformance gap."
     },
     {
       "id": "7.16:1",
       "quote": "A method supporting protected result indications MUST indicate which result indications are protected, and which are not.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of a METHOD SPECIFICATION that supports protected result indications, over which result indications are protected. Ze authors none."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states which result indications are protected, which a specification claiming protected result indications must document."
     },
     {
       "id": "7.16:2",
       "quote": "Since protected result indications require use of a key for per-packet authentication and integrity protection, methods supporting protected result indications MUST also support the \"key derivation\", \"mutual authentication\", \"integrity protection\", and \"replay protection\" claims.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of a METHOD SPECIFICATION that supports protected result indications, over the four claims a protected-result-indication method must also support. Ze authors none."
+      "reason": "The role is the AUTHOR of an EAP METHOD SPECIFICATION, which is a document role rather than a wire role: Section 7.2 addresses it as 'EAP method specifications MUST include a Security Claims section'. Ze publishes no EAP method specification. The producer that would act as the role if Ze did is the specification itself, and for the two methods Ze runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 (EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) implement what those two state, and state nothing themselves. This sentence states the four claims a protected-result-indication method must also support, which a specification claiming protected result indications must document."
     }
   ]
 }
