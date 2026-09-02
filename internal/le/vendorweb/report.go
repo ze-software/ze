@@ -54,14 +54,19 @@ type Problem struct {
 }
 
 // PackageVersion is what the registry query found about one vendored npm
-// package. Current is what MANIFEST.md records and Latest is what the registry
-// answered.
+// package. Current is what MANIFEST.md records and Latest is the newest
+// published RELEASE the registry named, across every dist-tag.
 //
-// The four states a reader sees are DERIVED from these three fields rather than
+// The five states a reader sees are DERIVED from these three fields rather than
 // stored beside them, because a stored state and the fields it summarizes can
 // disagree: no current version means the manifest did not name one, no latest
 // version means the query did not answer (and Err says why), equal versions
-// mean up to date, and anything else is an upgrade.
+// mean up to date, a later release means an upgrade, and an earlier one means
+// the tree runs ahead of every release the registry publishes.
+//
+// That last state is the prerelease the tree vendors on purpose. It is named
+// rather than folded into "up to date", because a reader who cannot see that
+// Ze runs a prerelease cannot decide when to leave it.
 type PackageVersion struct {
 	Package string `json:"package"`
 	Current string `json:"current,omitempty"`
@@ -119,8 +124,10 @@ func (r CheckReport) Text() string {
 				tb.Str("could not fetch latest version (").Str(pkg.Err).Byte(')')
 			case pkg.Current == pkg.Latest:
 				tb.Str(pkg.Current).Str(" (up to date)")
-			default:
+			case laterRelease(pkg.Latest, pkg.Current):
 				tb.Str(pkg.Current).Str(" -> ").Str(pkg.Latest).Str(" available")
+			default:
+				tb.Str(pkg.Current).Str(" (ahead of the newest release ").Str(pkg.Latest).Byte(')')
 			}
 			tb.Byte('\n')
 		}

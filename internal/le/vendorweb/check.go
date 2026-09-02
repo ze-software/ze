@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,11 +38,16 @@ const registryTimeout = 10 * time.Second
 // that lets the check gate a commit in an airgapped checkout.
 var registryClient = &http.Client{Timeout: registryTimeout}
 
-// semverRE matches the first semver triple (X.Y.Z) on a MANIFEST.md row.
-var semverRE = regexp.MustCompile(`\d+\.\d+\.\d+`)
+// semverRE matches the first semver version on a MANIFEST.md row, prerelease
+// suffix included.
+//
+// The suffix is part of the version. Without it a vendored 4.0.0-beta6 reads as
+// 4.0.0 and compares equal to the released 4.0.0. The report then prints "up to
+// date" over the one upgrade it exists to announce.
+var semverRE = regexp.MustCompile(`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?`)
 
 // extractVersionFromManifest scans the MANIFEST.md row that mentions the given
-// file name and returns the first semver triple it finds.
+// file name and returns the first semver version it finds.
 func extractVersionFromManifest(manifest, fileName string) string {
 	for line := range strings.SplitSeq(manifest, "\n") {
 		if !strings.Contains(line, fileName) {
@@ -54,11 +60,68 @@ func extractVersionFromManifest(manifest, fileName string) string {
 	return ""
 }
 
-// fetchLatestNpmVersion queries https://registry.npmjs.org/<pkg>/latest and
-// returns the "version" field from the JSON response.
-func fetchLatestNpmVersion(pkg string) (string, error) {
+// releaseTriple reads the X.Y.Z of a version and says whether it read one.
+func releaseTriple(version string) ([3]int, bool) {
+	core, _, _ := strings.Cut(version, "-")
+	parts := strings.Split(core, ".")
+	if len(parts) != 3 {
+		return [3]int{}, false
+	}
+	var triple [3]int
+	for index, part := range parts {
+		number, err := strconv.Atoi(part)
+		if err != nil {
+			return [3]int{}, false
+		}
+		triple[index] = number
+	}
+	return triple, true
+}
+
+// isPrerelease says whether a version carries a prerelease suffix.
+func isPrerelease(version string) bool {
+	return strings.Contains(version, "-")
+}
+
+// laterRelease says whether release is a later version than version. The first
+// argument MUST be a release: two prereleases of one triple have no order this
+// function can read, so it refuses rather than guess.
+//
+// A prerelease sorts BEFORE the release that shares its triple, which is what
+// makes 4.0.0 later than 4.0.0-beta6 and keeps 4.0.0 level with itself.
+func laterRelease(release, version string) bool {
+	if isPrerelease(release) {
+		return false
+	}
+	later, ok := releaseTriple(release)
+	if !ok {
+		return false
+	}
+	earlier, ok := releaseTriple(version)
+	if !ok {
+		return false
+	}
+	for index := range later {
+		if later[index] != earlier[index] {
+			return later[index] > earlier[index]
+		}
+	}
+	return isPrerelease(version)
+}
+
+// newestPublishedRelease asks the npm registry for a package's dist-tags and
+// answers the newest RELEASE among them.
+//
+// Every tag is read rather than "latest" alone, because a release does not have
+// to be tagged latest. htmx published 4.0.0 under "next" and left "latest" on
+// 2.0.10. A query for "latest" then answers a version OLDER than the one the
+// tree vendors, and the report reads as a recommendation to downgrade.
+//
+// A prerelease is skipped. The tree vendors one deliberately or not at all, and
+// a maintainer parking an alpha on a tag is not an upgrade to offer.
+func newestPublishedRelease(pkg string) (string, error) {
 	var url textbuf.Buffer
-	url.Str("https://registry.npmjs.org/").Str(pkg).Str("/latest")
+	url.Str("https://registry.npmjs.org/-/package/").Str(pkg).Str("/dist-tags")
 
 	// The bound is on the request rather than on the client alone, so a
 	// registry that accepts the connection and then stops sending cannot hold
@@ -79,13 +142,21 @@ func fetchLatestNpmVersion(pkg string) (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("npm registry returned %s", resp.Status)
 	}
-	var body struct {
-		Version string `json:"version"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	var tags map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
 		return "", err
 	}
-	return body.Version, nil
+
+	newest := ""
+	for _, version := range tags {
+		if isPrerelease(version) {
+			continue
+		}
+		if newest == "" || laterRelease(version, newest) {
+			newest = version
+		}
+	}
+	return newest, nil
 }
 
 // errorText is the text an error renders as in a report line, including the
@@ -104,11 +175,11 @@ func checkVersion(pkg, current string) PackageVersion {
 	if current == "" {
 		return PackageVersion{Package: pkg}
 	}
-	latest, err := fetchLatestNpmVersion(pkg)
-	if err != nil || latest == "" {
+	newest, err := newestPublishedRelease(pkg)
+	if err != nil || newest == "" {
 		return PackageVersion{Package: pkg, Current: current, Err: errorText(err)}
 	}
-	return PackageVersion{Package: pkg, Current: current, Latest: latest}
+	return PackageVersion{Package: pkg, Current: current, Latest: newest}
 }
 
 // checkUpdates reports newer releases of the vendored packages. This is the one

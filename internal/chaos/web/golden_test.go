@@ -723,7 +723,7 @@ const chaosPortCutoverReason = "the head loads hx-sse.min.js where it loaded htm
 // connection events the htmx 4 extension dispatches.
 const chaosStreamCutoverReason = ", every sse-swap attribute is gone with the three hidden " +
 	"peer-swap divs that only existed to carry one, and the connection banner " +
-	"listens for htmx:sse:error and htmx:after:sse:connection"
+	"listens for htmx:sse:error and htmx:sse:after:connection"
 
 // chaosErrorSurfaceReason states what the page gains for a REFUSED request.
 // htmx 4 swaps a 4xx, and the dashboard had nowhere to put one: the answer

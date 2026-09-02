@@ -52,6 +52,10 @@ const versionlessManifest = "| File | Package |\n|------|---------|\n| htmx.min.
 // reached one. It is what makes the no-network test discriminate.
 const versionedManifest = "| Asset | Version |\n|-------|---------|\n| htmx.min.js | 4.0.0 |\n"
 
+// prereleaseManifest carries the shape the tree held between 2026-08-15 and
+// 2026-09-02: a vendored prerelease, newer than every published release.
+const prereleaseManifest = "| Asset | Version |\n|-------|---------|\n| htmx.min.js | 4.0.0-beta6 |\n"
+
 // fixture builds a tree shaped like this repository's vendoring: one source
 // copy per vendored file and one consumer copy per subscriber, all matching.
 func fixture(t *testing.T) string {
@@ -312,7 +316,7 @@ func useRegistry(t *testing.T, rt http.RoundTripper) {
 // requests, so an absent line and an absent request are no longer the same
 // evidence.
 func TestCheckMakesNoRegistryCallWithoutUpdates(t *testing.T) {
-	fake := &fakeRegistry{status: http.StatusOK, body: `{"version":"9.9.9"}`}
+	fake := &fakeRegistry{status: http.StatusOK, body: `{"latest":"9.9.9"}`}
 	useRegistry(t, fake)
 
 	root := fixture(t)
@@ -343,11 +347,13 @@ func TestCheckMakesNoRegistryCallWithoutUpdates(t *testing.T) {
 	}
 }
 
-// VALIDATES: each of the four outcomes the registry query can reach renders the
-// line the script rendered for it.
+// VALIDATES: each of the five outcomes the registry query can reach renders the
+// line written for it, over the dist-tag document npm really answers.
 // PREVENTS: an upgrade nobody sees. The report is read by a person deciding
 // whether to vendor a new release, so "up to date" printed over a stale version
-// is the whole failure.
+// is the whole failure. The htmx case is the one that was measured. 4.0.0 was
+// published under "next" while "latest" stayed on 2.0.10. A query for the
+// latest tag alone printed the release the tree already had as a DOWNGRADE.
 func TestUpdateReportRendersEachOutcome(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -358,7 +364,7 @@ func TestUpdateReportRendersEachOutcome(t *testing.T) {
 		{
 			name:     "no version in the manifest",
 			manifest: versionlessManifest,
-			fake:     &fakeRegistry{status: http.StatusOK, body: `{"version":"4.0.0"}`},
+			fake:     &fakeRegistry{status: http.StatusOK, body: `{"latest":"4.0.0"}`},
 			want:     "  htmx.org: version not found in MANIFEST.md\n",
 		},
 		{
@@ -370,14 +376,26 @@ func TestUpdateReportRendersEachOutcome(t *testing.T) {
 		{
 			name:     "up to date",
 			manifest: versionedManifest,
-			fake:     &fakeRegistry{status: http.StatusOK, body: `{"version":"4.0.0"}`},
+			fake:     &fakeRegistry{status: http.StatusOK, body: `{"latest":"2.0.10","next":"4.0.0"}`},
 			want:     "  htmx.org: 4.0.0 (up to date)\n",
 		},
 		{
 			name:     "an upgrade is available",
 			manifest: versionedManifest,
-			fake:     &fakeRegistry{status: http.StatusOK, body: `{"version":"4.1.0"}`},
+			fake:     &fakeRegistry{status: http.StatusOK, body: `{"latest":"4.1.0"}`},
 			want:     "  htmx.org: 4.0.0 -> 4.1.0 available\n",
+		},
+		{
+			name:     "a release parked on a tag that is not latest",
+			manifest: prereleaseManifest,
+			fake:     &fakeRegistry{status: http.StatusOK, body: `{"latest":"2.0.10","next":"4.0.0"}`},
+			want:     "  htmx.org: 4.0.0-beta6 -> 4.0.0 available\n",
+		},
+		{
+			name:     "the tree runs ahead of every release",
+			manifest: prereleaseManifest,
+			fake:     &fakeRegistry{status: http.StatusOK, body: `{"latest":"2.0.10","next":"4.0.0-beta6"}`},
+			want:     "  htmx.org: 4.0.0-beta6 (ahead of the newest release 2.0.10)\n",
 		},
 	}
 
@@ -396,6 +414,43 @@ func TestUpdateReportRendersEachOutcome(t *testing.T) {
 				t.Errorf("the rendering does not hold %q:\n%s", tc.want, report.Text())
 			}
 		})
+	}
+}
+
+// VALIDATES: a manifest row answers the WHOLE version, prerelease suffix
+// included, and the ordering puts a prerelease before the release that shares
+// its triple.
+// PREVENTS: the silent equality that hid htmx 4. A regexp that reads only X.Y.Z
+// turns a vendored 4.0.0-beta6 into 4.0.0, which compares equal to the released
+// 4.0.0, and the report announces nothing at all.
+func TestVersionReadingKeepsThePrereleaseSuffix(t *testing.T) {
+	row := "| htmx.min.js | 4.0.0-beta6 | https://unpkg.com/htmx.org@4.0.0-beta6/dist/htmx.min.js | 2026-08-15 |\n"
+	if got := extractVersionFromManifest(row, "htmx.min.js"); got != "4.0.0-beta6" {
+		t.Errorf("manifest version = %q, want 4.0.0-beta6", got)
+	}
+
+	release := "| htmx.min.js | 4.0.0 | https://unpkg.com/htmx.org@4.0.0/dist/htmx.min.js | 2026-09-02 |\n"
+	if got := extractVersionFromManifest(release, "htmx.min.js"); got != "4.0.0" {
+		t.Errorf("manifest version = %q, want 4.0.0", got)
+	}
+
+	cases := []struct {
+		release string
+		version string
+		want    bool
+	}{
+		{release: "4.0.0", version: "4.0.0-beta6", want: true},
+		{release: "4.0.0", version: "4.0.0", want: false},
+		{release: "2.0.10", version: "4.0.0-beta6", want: false},
+		{release: "2.0.10", version: "2.0.9", want: true},
+		{release: "4.0.0", version: "3.9.9", want: true},
+		{release: "4.0.0-beta6", version: "2.0.10", want: false},
+		{release: "not.a.version", version: "4.0.0", want: false},
+	}
+	for _, tc := range cases {
+		if got := laterRelease(tc.release, tc.version); got != tc.want {
+			t.Errorf("laterRelease(%q, %q) = %v, want %v", tc.release, tc.version, got, tc.want)
+		}
 	}
 }
 

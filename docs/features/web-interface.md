@@ -22,7 +22,7 @@ Ze includes an HTTPS web interface for configuration viewing, editing, and runti
 | YANG decorators | Leaves with `ze:decorate` extension show enriched display text (e.g., ASN numbers annotated with organization name via Team Cymru DNS) |
 | Workbench UI (default) | RouterOS-style operator workbench (default since Phase 2); row-level related-tool buttons declared via `ze:related` YANG extension dispatch through the standard CommandDispatcher; CLI available as separate `/cli` tab |
 | templ rendering | Every page, panel, fragment and out-of-band swap is written in a `.templ` source and compiled to Go. No Go file in the package builds markup, so a renamed view-model field is a compile error instead of a blank panel |
-| htmx 4 | htmx 4.0.0-beta6 is embedded, with `hx-sse.min.js` for the streams. Each page loads only the assets its component graph reaches |
+| htmx 4 | htmx 4.0.0 is embedded, with `hx-sse.min.js` for the streams. Each page loads only the assets its component graph reaches |
 | Secret masking | No render path prints a value the schema marks `ze:sensitive` or `ze:bcrypt`. One predicate answers "does this leaf hold a secret", and both the display mask and the write guard read it |
 
 ## Browser Configuration Workflow

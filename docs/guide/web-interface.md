@@ -122,7 +122,7 @@ root is written into the generated Go, so a bare run rewrites every file and
 reds the check.
 
 The browser assets are vendored in `third_party/web/` and copied to each
-consumer by the same `./le repository generate` run. htmx 4.0.0-beta6 and its
+consumer by the same `./le repository generate` run. htmx 4.0.0 and its
 `hx-sse.min.js` extension serve the web interface, the looking glass and the
 chaos dashboard. `internal/le/webassets.Write` derives each page's asset set
 from its component graph, so a page loads only what it reaches.

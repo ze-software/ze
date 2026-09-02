@@ -7,15 +7,15 @@ Source of truth: files in this directory. Consumer copies are synced by `interna
 
 | Asset | Version | Source | Vendored |
 |-------|---------|--------|----------|
-| htmx.min.js | 4.0.0-beta6 | https://unpkg.com/htmx.org@4.0.0-beta6/dist/htmx.min.js | 2026-08-15 |
-| hx-sse.min.js | 4.0.0-beta6 (htmx ext) | https://unpkg.com/htmx.org@4.0.0-beta6/dist/ext/hx-sse.min.js | 2026-08-15 |
+| htmx.min.js | 4.0.0 | https://unpkg.com/htmx.org@4.0.0/dist/htmx.min.js | 2026-09-02 |
+| hx-sse.min.js | 4.0.0 (htmx ext) | https://unpkg.com/htmx.org@4.0.0/dist/ext/hx-sse.min.js | 2026-09-02 |
 | ze.svg | - | `docs/logo/ze.svg` (project logo with Exa gradient) | 2026-03-31 |
 | swagger-ui/swagger-ui.css | 5.32.2 | https://unpkg.com/swagger-ui-dist@5.32.2/swagger-ui.css | 2026-04-11 |
 | swagger-ui/swagger-ui-bundle.js | 5.32.2 | https://unpkg.com/swagger-ui-dist@5.32.2/swagger-ui-bundle.js | 2026-04-11 |
 | uplot/uPlot.min.js | 1.6.32 | https://unpkg.com/uplot@1.6.32/dist/uPlot.iife.min.js | 2026-04-22 |
 | uplot/uPlot.min.css | 1.6.32 | https://unpkg.com/uplot@1.6.32/dist/uPlot.min.css | 2026-04-22 |
 
-Both htmx files come from one npm package, `htmx.org@4.0.0-beta6`: htmx 4 holds
+Both htmx files come from one npm package, `htmx.org@4.0.0`: htmx 4 holds
 its extensions in the core package, where htmx 2 published `htmx-ext-sse`
 separately. The core keeps the name `htmx.min.js` that every page has always
 loaded, so the cutover changed the bytes behind the name rather than the name.
@@ -39,11 +39,11 @@ told to copy it.
 ## Upgrade scanner provenance
 
 Ze's native Go upgrade scanner in `internal/le/htmxupgrade/` transcribes the
-rules and behavior of htmx's 4.0.0-beta6 upgrade checker:
+rules and behavior of htmx's 4.0.0 upgrade checker:
 
-- Upstream source: https://unpkg.com/htmx.org@4.0.0-beta6/dist/scripts/upgrade-check.py
-- Upstream source SHA-256: `9633ce96b7d16d8ef2c11a6da91a6f0adcea891bec663e005249aea39df7a58b`
-- Native rule-contract SHA-256: `889b22c7c227548392f8567e65a7472beb9243516a97c399a5e35c5b6402fcf8`
+- Upstream source: https://unpkg.com/htmx.org@4.0.0/dist/scripts/upgrade-check.py
+- Upstream source SHA-256: `abcf7cc3ce3162911a1352ed7ad21aa32da09c8f9a92725ba32d7e29d3ca480b`
+- Native rule-contract SHA-256: `3e4faee901b9b437d2220b7402689f8f2af4d298dd97a6ff4dacd9c496db9a4b`
 
 The upstream source is provenance only. Ze neither vendors nor executes it.
 The compiled tables, DOM inheritance fixtures, parser boundaries, issue order,
@@ -77,3 +77,8 @@ holds, so a build that runs no generator must find them.
 `./le vendor-web check` is a stage of `./le verify current mode full` and a
 prerequisite of `./le repository generated-check`. It exits non-zero when a copy
 differs or is absent. It queries no registry, so it runs with no network.
+
+`./le vendor-web update-report` reads EVERY npm dist-tag and answers the newest
+release among them, prereleases excluded. htmx is why: 4.0.0 shipped under the
+`next` tag and `latest` stayed on 2.0.10, so a query for `latest` alone reports
+the release this tree already holds as a downgrade.

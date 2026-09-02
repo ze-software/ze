@@ -59,6 +59,7 @@ var (
 	djangoValue = regexp.MustCompile(`(?s:\{\{.*?\}\})`)
 	phpBlock    = regexp.MustCompile(`(?s:<\?(?:php)?.*?\?>)`)
 	erbBlock    = regexp.MustCompile(`(?s:<%.*?%>)`)
+	csrfValue   = regexp.MustCompile(`(?i:csrf|xsrf)`)
 	lineBreaks  = strings.NewReplacer(
 		"\r\n", "\n",
 		"\r", "\n",
@@ -404,25 +405,38 @@ func findSwapSyntax(value string) (string, string, string, bool) {
 	return "", "", "", false
 }
 
+// The tails htmx 4.0.0 writes on an inheritance finding, quoted from its
+// upgrade checker so a reader can compare them word for word. The first is the
+// whole message for a header carrier with no requesting descendant. The second
+// is appended to either message when the carrier names a token.
+const (
+	headerCarrierAdvice = " needs :inherited suffix to reach descendants " +
+		"(no request attribute in this file; if this is a base template, " +
+		"the requests are in other files)"
+	csrfAdvice = " (this looks like a CSRF token; without :inherited the header " +
+		"does not reach child elements and the server rejects the request)"
+)
+
 func checkInheritance(root *node, path string, issues *[]Issue) {
+	boosted := collectBoosted(root)
 	stack := []*node{root}
 	for len(stack) > 0 {
 		current := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		checkInheritedAttrs(current, path, issues)
+		checkInheritedAttrs(current, boosted, path, issues)
 		for _, child := range slices.Backward(current.children) {
 			stack = append(stack, child)
 		}
 	}
 }
 
-func checkInheritedAttrs(current *node, path string, issues *[]Issue) {
+func checkInheritedAttrs(current *node, boosted map[*node]bool, path string, issues *[]Issue) {
 	var tb textbuf.Buffer
 	for _, attr := range current.attrs {
 		if !inheritableAttrs[attr.name] || strings.Contains(attr.name, ":inherited") {
 			continue
 		}
-		if attr.name == "hx-boost" {
+		if attr.name == attrBoost {
 			if descendant := firstDescendantTag(current, "a", "form"); descendant != nil {
 				addIssue(issues, path, current.line, "inheritance", tb.Reset().
 					Str(attr.name).Str(" needs :inherited suffix (descendant <").
@@ -431,12 +445,92 @@ func checkInheritedAttrs(current *node, path string, issues *[]Issue) {
 			}
 			continue
 		}
-		if descendant, request := firstRequestDescendant(current); descendant != nil {
+		descendant, source := firstRequestDescendant(current, boosted)
+		if descendant != nil {
 			addIssue(issues, path, current.line, "inheritance", tb.Reset().
 				Str(attr.name).Str(" needs :inherited suffix (descendant on line ").
-				Int(int64(descendant.line)).Str(" has ").Str(request).Byte(')').String())
+				Int(int64(descendant.line)).Str(" has ").Str(source).Byte(')').
+				Str(csrfHint(attr.value)).String())
+			continue
+		}
+		if attr.name != attrHeaders {
+			continue
+		}
+		// No request attribute in this file, and hx-headers is still almost
+		// always a defect here. The htmx 2 CSRF recipe puts hx-headers on
+		// <body> in a base template, and the requests live in the child
+		// templates. A one-file scan cannot see them.
+		addIssue(issues, path, current.line, "inheritance", tb.Reset().
+			Str(attr.name).Str(headerCarrierAdvice).Str(csrfHint(attr.value)).String())
+	}
+}
+
+// csrfHint returns the warning htmx 4.0.0 appends when the carrier's value
+// holds a CSRF token, and an empty string when it does not.
+func csrfHint(value string) string {
+	if !csrfValue.MatchString(value) {
+		return ""
+	}
+	return csrfAdvice
+}
+
+// collectBoosted returns the nodes htmx 2 boosts. hx-boost was implicitly
+// inherited, so an <a href> or a <form> makes a request when any ancestor
+// turns boost on. That makes it a request source although it carries no
+// hx-get or hx-post. The walk is iterative because the tree depth is the
+// scanned file's, not this scanner's.
+func collectBoosted(root *node) map[*node]bool {
+	type frame struct {
+		current *node
+		boost   bool
+	}
+
+	boosted := make(map[*node]bool)
+	stack := []frame{{current: root}}
+	for len(stack) > 0 {
+		last := len(stack) - 1
+		current := stack[last].current
+		boost := boostState(current, stack[last].boost)
+		stack = stack[:last]
+		if boost && isBoostable(current) {
+			boosted[current] = true
+		}
+		for _, child := range slices.Backward(current.children) {
+			stack = append(stack, frame{current: child, boost: boost})
 		}
 	}
+	return boosted
+}
+
+// boostState answers whether boost is on below this node. A suffixed
+// hx-boost:inherited counts, so the name is matched before its suffix. Every
+// value other than "false" turns boost on, and a valueless attribute is one
+// of them.
+func boostState(current *node, inherited bool) bool {
+	boost := inherited
+	for _, attr := range current.attrs {
+		name, _, _ := strings.Cut(attr.name, ":")
+		if name != attrBoost {
+			continue
+		}
+		boost = strings.ToLower(strings.TrimSpace(attr.value)) != "false"
+	}
+	return boost
+}
+
+func isBoostable(current *node) bool {
+	if current.tag == "form" {
+		return true
+	}
+	if current.tag != "a" {
+		return false
+	}
+	for _, attr := range current.attrs {
+		if attr.name == "href" {
+			return true
+		}
+	}
+	return false
 }
 
 func firstDescendantTag(parent *node, tags ...string) *node {
@@ -455,7 +549,11 @@ func firstDescendantTag(parent *node, tags ...string) *node {
 	return nil
 }
 
-func firstRequestDescendant(parent *node) (*node, string) {
+// firstRequestDescendant returns the first descendant that makes a request,
+// and the reason it makes one: the request attribute it carries, or the boost
+// it inherits.
+func firstRequestDescendant(parent *node, boosted map[*node]bool) (*node, string) {
+	var tb textbuf.Buffer
 	stack := descendantStack(parent)
 	for len(stack) > 0 {
 		last := len(stack) - 1
@@ -465,6 +563,9 @@ func firstRequestDescendant(parent *node) (*node, string) {
 			if requestAttrs[attr.name] {
 				return current, attr.name
 			}
+		}
+		if boosted[current] {
+			return current, tb.Str("boosted <").Str(current.tag).Byte('>').String()
 		}
 		for _, child := range slices.Backward(current.children) {
 			stack = append(stack, child)

@@ -1,17 +1,17 @@
 // Design: docs/architecture/core-design.md -- the htmx upgrade gate, as compiled Go
 // Detail: scanner.go -- the DOM, inheritance, and text scanner that reads these rules.
 //
-// These tables transcribe htmx 4.0.0-beta6's upgrade checker. Dictionary order
+// These tables transcribe htmx 4.0.0's upgrade checker. Dictionary order
 // is observable when several findings share a line, so ordered source tables
 // remain slices. TestUpstreamScannerContractDigest guards every value and order.
 
 package htmxupgrade
 
 const (
-	upstreamScannerVersion = "4.0.0-beta6"
-	upstreamScannerURL     = "https://unpkg.com/htmx.org@4.0.0-beta6/dist/scripts/upgrade-check.py"
-	upstreamSourceSHA256   = "9633ce96b7d16d8ef2c11a6da91a6f0adcea891bec663e005249aea39df7a58b"
-	scannerContractSHA256  = "889b22c7c227548392f8567e65a7472beb9243516a97c399a5e35c5b6402fcf8"
+	upstreamScannerVersion = "4.0.0"
+	upstreamScannerURL     = "https://unpkg.com/htmx.org@4.0.0/dist/scripts/upgrade-check.py"
+	upstreamSourceSHA256   = "abcf7cc3ce3162911a1352ed7ad21aa32da09c8f9a92725ba32d7e29d3ca480b"
+	scannerContractSHA256  = "3e4faee901b9b437d2220b7402689f8f2af4d298dd97a6ff4dacd9c496db9a4b"
 )
 
 type renameRule struct {
@@ -35,11 +35,19 @@ var renamedAttrs = []renameRule{
 	{old: "hx-disabled-elt", new: "rename to hx-disable"},
 }
 
+// The two inheritable attributes checkInheritedAttrs branches on by name.
+// hx-boost reaches every <a> and <form> beneath it. hx-headers is the only
+// carrier the scanner reports with no requesting descendant.
+const (
+	attrBoost   = "hx-boost"
+	attrHeaders = "hx-headers"
+)
+
 var inheritableAttrs = map[string]bool{
-	"hx-boost":        true,
+	attrBoost:         true,
 	"hx-confirm":      true,
 	"hx-encoding":     true,
-	"hx-headers":      true,
+	attrHeaders:       true,
 	"hx-include":      true,
 	"hx-indicator":    true,
 	"hx-push-url":     true,
@@ -107,25 +115,31 @@ var removedEvents = []string{
 }
 
 var sseEventRenames = []renameRule{
-	{old: "htmx:sseOpen", new: "htmx:after:sse:connection"},
+	{old: "htmx:sseOpen", new: "htmx:sse:after:connection"},
 	{old: "htmx:sseError", new: "htmx:sse:error"},
-	{old: "htmx:sseBeforeMessage", new: "htmx:before:sse:message"},
-	{old: "htmx:sseMessage", new: "htmx:after:sse:message"},
+	{old: "htmx:sseBeforeMessage", new: "htmx:sse:before:message"},
+	{old: "htmx:sseMessage", new: "htmx:sse:after:message"},
 	{old: "htmx:sseClose", new: "htmx:sse:close"},
 }
 
+// htmx 4.0.0 dispatches one message event for each direction, so both htmx 1.x
+// send events map to the outgoing one. Naming it once has the compiler check
+// that many-to-one mapping.
+const eventWSOutgoingBefore = "htmx:ws:before:message:outgoing"
+
 var wsEventRenames = []renameRule{
-	{old: "htmx:wsOpen", new: "htmx:after:ws:connection"},
+	{old: "htmx:wsOpen", new: "htmx:ws:after:connection"},
 	{old: "htmx:wsClose", new: "htmx:ws:close"},
-	{old: "htmx:wsConfigSend", new: "htmx:before:ws:request"},
-	{old: "htmx:wsBeforeSend", new: "htmx:before:ws:request"},
-	{old: "htmx:wsAfterSend", new: "htmx:after:ws:request"},
-	{old: "htmx:wsBeforeMessage", new: "htmx:before:ws:message"},
-	{old: "htmx:wsAfterMessage", new: "htmx:after:ws:message"},
+	{old: "htmx:wsConfigSend", new: eventWSOutgoingBefore},
+	{old: "htmx:wsBeforeSend", new: eventWSOutgoingBefore},
+	{old: "htmx:wsAfterSend", new: "htmx:ws:after:message:outgoing"},
+	{old: "htmx:wsBeforeMessage", new: "htmx:ws:before:message:incoming"},
+	{old: "htmx:wsAfterMessage", new: "htmx:ws:after:message:incoming"},
 }
 
 var extensionAttrRenames = []renameRule{
 	{old: "sse-connect", new: "rename to hx-sse:connect"},
+	{old: "sse-close", new: "rename to hx-sse:close"},
 	{old: "sse-swap", new: "removed — SSE now integrates with standard htmx request pipeline"},
 	{old: "ws-connect", new: "rename to hx-ws:connect"},
 	{old: "ws-send", new: "rename to hx-ws:send"},

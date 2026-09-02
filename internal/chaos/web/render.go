@@ -355,7 +355,7 @@ document.body.addEventListener('htmx:error',function(e){var c=e.detail&&e.detail
 document.body.addEventListener('htmx:response:error',function(e){var c=e.detail&&e.detail.ctx;if(!c)return;c.target='#action-error';c.swap='innerHTML';clearTimeout(clear);clear=setTimeout(function(){action().innerHTML=''},10000)});
 document.body.addEventListener('htmx:sse:error',function(){conn().display='block'});
 document.body.addEventListener('htmx:after:request',function(e){var c=e.detail&&e.detail.ctx;if(c&&c.response&&c.response.status<400)conn().display='none'});
-document.body.addEventListener('htmx:after:sse:connection',function(){conn().display='none'});})();
+document.body.addEventListener('htmx:sse:after:connection',function(){conn().display='none'});})();
 document.body.addEventListener('htmx:before:request',function(e){var c=e.detail&&e.detail.ctx;if(!window._frozen||!c)return;if(c.sourceEvent&&c.sourceEvent.type==='every'&&c.sourceElement&&c.sourceElement.hasAttribute('data-freeze-poll'))e.preventDefault()});
 (function(){var el=document.getElementById('uptime');if(!el)return;var s=parseInt(el.dataset.start,10)||0;function fmt(t){var h=Math.floor(t/3600),m=Math.floor((t%3600)/60),sec=t%60;if(h>0)return h+'h'+m+'m'+sec+'s';if(m>0)return m+'m'+sec+'s';return sec+'s';}setInterval(function(){s++;el.textContent=fmt(s)},1000)})();
 </script>

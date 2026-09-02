@@ -270,8 +270,8 @@ func TestTextChecksKeepUpstreamPhaseAndTableOrder(t *testing.T) {
 	want := []Issue{
 		{Path: path, Line: 1, Category: "old-event", Message: `old event name "htmx:afterOnLoad" → "htmx:after:init"`},
 		{Path: path, Line: 1, Category: "old-event", Message: `old event name "htmx:timeout" → "htmx:error"`},
-		{Path: path, Line: 1, Category: "old-event", Message: `old event name "htmx:sseOpen" → "htmx:after:sse:connection"`},
-		{Path: path, Line: 1, Category: "old-event", Message: `old event name "htmx:wsOpen" → "htmx:after:ws:connection"`},
+		{Path: path, Line: 1, Category: "old-event", Message: `old event name "htmx:sseOpen" → "htmx:sse:after:connection"`},
+		{Path: path, Line: 1, Category: "old-event", Message: `old event name "htmx:wsOpen" → "htmx:ws:after:connection"`},
 		{Path: path, Line: 1, Category: "removed-event", Message: `removed event "htmx:validation:validate"`},
 		{Path: path, Line: 1, Category: "removed-event", Message: `removed event "htmx:xhr:abort"`},
 		{Path: path, Line: 1, Category: "old-api", Message: "htmx.addClass() is removed → use element.classList.add()"},
@@ -349,6 +349,134 @@ func TestEveryRequestAttributeParticipatesInInheritance(t *testing.T) {
 					Line: 1, Category: "inheritance",
 					Message: "hx-target needs :inherited suffix (descendant on line 2 has " + name + ")",
 				})
+		})
+	}
+}
+
+// The table loops above read their expectation from the table they check, so a
+// mistyped target passes them. These rows carry htmx 4.0.0's own text for the
+// rules the release retargeted. A table that drifts from the script fails here
+// rather than in the digest alone.
+func TestReleasedScriptRenamesRenderTheirNewTargets(t *testing.T) {
+	events := []renameRule{
+		{old: "htmx:sseOpen", new: "htmx:sse:after:connection"},
+		{old: "htmx:sseBeforeMessage", new: "htmx:sse:before:message"},
+		{old: "htmx:sseMessage", new: "htmx:sse:after:message"},
+		{old: "htmx:wsOpen", new: "htmx:ws:after:connection"},
+		{old: "htmx:wsConfigSend", new: "htmx:ws:before:message:outgoing"},
+		{old: "htmx:wsBeforeSend", new: "htmx:ws:before:message:outgoing"},
+		{old: "htmx:wsAfterSend", new: "htmx:ws:after:message:outgoing"},
+		{old: "htmx:wsBeforeMessage", new: "htmx:ws:before:message:incoming"},
+		{old: "htmx:wsAfterMessage", new: "htmx:ws:after:message:incoming"},
+	}
+	for _, rule := range events {
+		t.Run("event/"+rule.old, func(t *testing.T) {
+			assertFixtureIssue(t, ".js", "safe\nlisten(\""+rule.old+"\")\n", Issue{
+				Line: 2, Category: "old-event",
+				Message: `old event name "` + rule.old + `" → "` + rule.new + `"`,
+			})
+		})
+	}
+
+	assertFixtureIssue(t, ".html", "safe\n<div sse-close=\"done\"></div>\n", Issue{
+		Line: 2, Category: "ext", Message: "sse-close → rename to hx-sse:close",
+	})
+}
+
+// htmx 4.0.0 made an <a href> or a <form> under an inherited hx-boost a request
+// source. It also gave an hx-headers carrier with no requesting descendant a
+// finding of its own. Both messages gain a CSRF warning when the carrier's
+// value names a token, so each row below pins the whole rendered text.
+func TestBoostedSourcesAndHeaderCarriersFollowTheReleasedScript(t *testing.T) {
+	const csrf = " (this looks like a CSRF token; without :inherited the header " +
+		"does not reach child elements and the server rejects the request)"
+	const noRequest = "hx-headers needs :inherited suffix to reach descendants " +
+		"(no request attribute in this file; if this is a base template, " +
+		"the requests are in other files)"
+
+	cases := []struct {
+		name string
+		body string
+		want []Issue
+	}{
+		{
+			name: "boosted-anchor-is-a-request-source",
+			body: "<div hx-boost=\"true\">\n  <section hx-target=\"#out\">\n" +
+				"    <a href=\"/next\">go</a>\n  </section>\n</div>\n",
+			want: []Issue{
+				{Line: 1, Category: "inheritance", Message: "hx-boost needs :inherited suffix (descendant <a> on line 3 will no longer inherit it)"},
+				{Line: 2, Category: "inheritance", Message: "hx-target needs :inherited suffix (descendant on line 3 has boosted <a>)"},
+			},
+		},
+		{
+			name: "valueless-boost-reaches-a-form",
+			body: "<div hx-boost>\n  <div hx-swap=\"innerHTML\">\n" +
+				"    <form action=\"/save\"></form>\n  </div>\n</div>\n",
+			want: []Issue{
+				{Line: 1, Category: "inheritance", Message: "hx-boost needs :inherited suffix (descendant <form> on line 3 will no longer inherit it)"},
+				{Line: 2, Category: "inheritance", Message: "hx-swap needs :inherited suffix (descendant on line 3 has boosted <form>)"},
+			},
+		},
+		{
+			name: "boost-false-stops-the-request-source",
+			body: "<div hx-boost=\"true\">\n  <section hx-target=\"#out\">\n" +
+				"    <span hx-boost=\"false\"><a href=\"/next\">go</a></span>\n" +
+				"  </section>\n</div>\n",
+			want: []Issue{
+				{Line: 1, Category: "inheritance", Message: "hx-boost needs :inherited suffix (descendant <a> on line 3 will no longer inherit it)"},
+				{Line: 3, Category: "inheritance", Message: "hx-boost needs :inherited suffix (descendant <a> on line 3 will no longer inherit it)"},
+			},
+		},
+		{
+			name: "an-anchor-without-href-is-not-boosted",
+			body: "<div hx-boost=\"true\">\n  <section hx-target=\"#out\">\n" +
+				"    <a>no href</a>\n  </section>\n</div>\n",
+			want: []Issue{
+				{Line: 1, Category: "inheritance", Message: "hx-boost needs :inherited suffix (descendant <a> on line 3 will no longer inherit it)"},
+			},
+		},
+		{
+			name: "csrf-header-with-a-requesting-descendant",
+			body: "<body hx-headers='{\"X-CSRF-Token\": \"t\"}'>\n" +
+				"  <button hx-post=\"/save\"></button>\n</body>\n",
+			want: []Issue{
+				{Line: 1, Category: "inheritance", Message: "hx-headers needs :inherited suffix (descendant on line 2 has hx-post)" + csrf},
+			},
+		},
+		{
+			name: "csrf-header-with-no-requesting-descendant",
+			body: "<body hx-headers='{\"X-XSRF-Token\": \"t\"}'></body>\n",
+			want: []Issue{
+				{Line: 1, Category: "inheritance", Message: noRequest + csrf},
+			},
+		},
+		{
+			name: "plain-header-with-no-requesting-descendant",
+			body: "<div hx-headers='{\"X-Trace\": \"t\"}'></div>\n",
+			want: []Issue{
+				{Line: 1, Category: "inheritance", Message: noRequest},
+			},
+		},
+		{
+			name: "another-carrier-with-no-requesting-descendant-stays-silent",
+			body: "<div hx-target=\"#out\"></div>\n",
+			want: []Issue{},
+		},
+	}
+
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			path := writeFixtureFile(t, ".html", test.body)
+			issues, err := checkFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for index := range test.want {
+				test.want[index].Path = path
+			}
+			if !reflect.DeepEqual(issues, test.want) {
+				t.Fatalf("inheritance rows:\n got: %#v\nwant: %#v", issues, test.want)
+			}
 		})
 	}
 }
@@ -706,13 +834,13 @@ func TestLiveTreeMatchesItsExplanationLedger(t *testing.T) {
 }
 
 func TestUpstreamScannerContractDigest(t *testing.T) {
-	if upstreamScannerVersion != "4.0.0-beta6" {
+	if upstreamScannerVersion != "4.0.0" {
 		t.Fatalf("upstream version = %q", upstreamScannerVersion)
 	}
-	if upstreamScannerURL != "https://unpkg.com/htmx.org@4.0.0-beta6/dist/scripts/upgrade-check.py" {
+	if upstreamScannerURL != "https://unpkg.com/htmx.org@4.0.0/dist/scripts/upgrade-check.py" {
 		t.Fatalf("upstream URL = %q", upstreamScannerURL)
 	}
-	if upstreamSourceSHA256 != "9633ce96b7d16d8ef2c11a6da91a6f0adcea891bec663e005249aea39df7a58b" {
+	if upstreamSourceSHA256 != "abcf7cc3ce3162911a1352ed7ad21aa32da09c8f9a92725ba32d7e29d3ca480b" {
 		t.Fatalf("upstream source digest = %q", upstreamSourceSHA256)
 	}
 	if got := scannerContractDigest(); got != scannerContractSHA256 {

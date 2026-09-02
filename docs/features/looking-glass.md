@@ -10,7 +10,7 @@ Ze includes a built-in looking glass that exposes BGP session state and route in
 | Community search | Standard and large community filtering |
 | AS path topology graph | Server-side SVG visualization of AS path DAGs |
 | Birdwatcher REST API | Alice-LG compatible JSON endpoints under `/api/looking-glass/`. Specified in RFC 2119 terms in [Birdwatcher compatibility](../architecture/api/birdwatcher-compat.md) |
-| htmx web UI | Server-rendered HTML pages under `/lg/` with fragment updates. htmx 4.0.0-beta6 is embedded, with `hx-sse.min.js` on the peers page |
+| htmx web UI | Server-rendered HTML pages under `/lg/` with fragment updates. htmx 4.0.0 is embedded, with `hx-sse.min.js` on the peers page |
 | templ rendering | Every page and fragment is written in a `.templ` source and compiled to Go, and each view takes a typed struct. The two SVG graph builders keep their markup in Go, because every attribute they write is a coordinate the layout pass computed |
 | YANG configuration | `environment/looking-glass` block with enabled, server (ip, port), tls (default true), and token settings |
 

@@ -29,7 +29,13 @@
 #
 # Where a descendant would have been changed by the loss, it was measured in a
 # real browser against htmx 4.0.0-beta6 rather than reasoned about, and the row
-# says what was measured.
+# says what was measured. The tree vendors 4.0.0 since 2026-09-02, and no row
+# has been re-measured against it. Two differences were read out of the shipped
+# bytes: the SSE extension renamed its events, and the core gained hx-query and
+# hx-action. The core dispatches the same 33 event names in both builds, and the
+# extension still swaps an unnamed message into the connecting element and
+# dispatches a named one as a DOM event. Nothing was read that changes what a
+# row below asserts, and nothing below rests on a fresh measurement.
 
 internal/chaos/web/dashboard.go | inheritance | renderPeerRowInsert's hx-target and hx-swap serve the row's own hx-get of /peer/{id}; its one requesting descendant is the pin, which carries hx-swap="none" and answers an out-of-band row, so no target is read. Measured: the pin toggles to "pin pinned", the span stays empty and #peer-detail keeps its content
 internal/chaos/web/render.go | inheritance | two carriers. writePeerRows renders renderPeerRowInsert's twin and holds the same property. #peer-grid's hx-swap and hx-include serve its own 2s poll, which is what keeps the search and status filters across a refresh; its cells GET /peer/{id}, and handlePeerDetail reads the path value alone. Measured: a grid cell fills #peer-detail with the peer it names
