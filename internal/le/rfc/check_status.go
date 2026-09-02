@@ -189,7 +189,7 @@ func checkUnprovenSupport(requirements []Requirement, rows map[string]LedgerRow,
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is '").Str(status).
 			Str("', but rfc/short/").Str(stem).Str(".md declares no MUST-level requirement, so the claim rests on an empty checklist and nothing can contradict it. Extract the RFC's obligations (/ze-rfc ").Str(stem).
-			Str("); or, if the document genuinely imposes none, record the evidence -- `| Enrolment | non-normative |` in the summary's own Meta table, or a manual-walk extraction sign-off whose register-reason says why zero is a property of the text, over a source the derivation does not grade 'rfc2119'. A standard whose text may not be redistributed declares `| Enrolment | source-restricted |` instead").String())
+			Str("); or, if the document genuinely imposes none, record the evidence -- `| Enrolment | non-normative |` in the summary's own Meta table, or a manual-walk extraction sign-off whose register-reason says why zero is a property of the text, over a source the derivation does not grade 'rfc2119'. A standard whose text may not be redistributed can never bound this claim, and a source-restricted disposition does not excuse it: stop making the claim, with a Status of 'Unsupported' or 'Future', or `| Support | - |` for no row at all").String())
 	}
 	return errs
 }

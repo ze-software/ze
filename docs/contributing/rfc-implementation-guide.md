@@ -575,8 +575,9 @@ never sums the two, because a nightly tier is not merge-gate proof.
   generated from those tables by `./le rfc index-update`. A hand edit to one of the
   three is lost at the next run. Write `| Enrolment | <kind> |` beside
   `| Enrolment reason | <why> |`, kind one of `enrolled`, `non-normative`,
-  `backlog`, `blocked` or `source-restricted`. A summary that declares neither row
-  does not parse, so the state that used to red the gate cannot be written now.
+  `backlog`, `blocked`, `out-of-scope` or `source-restricted`. A summary that
+  declares neither row does not parse, so the state that used to red the gate
+  cannot be written now.
 
   Un-enrolment used to be the one state that carried no information. So "the RFC
   imposes nothing", "nobody extracted it" and "we do not even have the text" all
@@ -586,12 +587,16 @@ never sums the two, because a nightly tier is not merge-gate proof.
   of the DOCUMENT: its category, a missing RFC 2119 section, a keyword scan. It must
   never say the obligation does not apply to Ze. `source-restricted` is the permanent
   kind: the standard's own text cannot be redistributed, so no enrolment is ever
-  reachable. Its reason names the publishing body or the license. `backlog` and
-  `blocked` are debt, and the ledger renders them as debt.
+  reachable. Its reason names the publishing body or the license, and it excuses no
+  public support claim, because being unable to bound a claim is a reason to stop
+  making it. `out-of-scope` says the extraction is DONE and the owner declined the
+  feature, so its reason carries the decision date and its row reads `Future` or
+  `Unsupported`. `backlog` and `blocked` are debt, and the ledger renders them as
+  debt.
 
   Two related reds come from the same place. First, a public row that claims support
   over a summary with zero gated requirements. The escape is evidence that zero is
-  real: a `non-normative` or `source-restricted` disposition, or a `manual-walk`
+  real: a `non-normative` disposition, or a `manual-walk`
   extraction sign-off whose `register-reason` says why. Second, a `Support remaining`
   cell that spells a gap count immediately before MUST or SHALL must agree with the
   summary's `{gap}` count.

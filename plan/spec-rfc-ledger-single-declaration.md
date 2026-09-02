@@ -8,7 +8,7 @@
 | Phase | - |
 | Deferral shard | `plan/deferrals/rfc-ledger-single-declaration.md` |
 | Handoff | - |
-| Updated | 2026-09-01 |
+| Updated | 2026-09-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -465,9 +465,44 @@ to catch, because round 1 had already reported the right defect.
 - The generated remainder derives its kind meanings as well as its counts, and names each kind rather than its position in a sorted list.
 - Three guards gained the test they lacked, one of them driven through `Check` rather than called directly.
 
+### Run 3 (closure gate, over the round-2 fixes)
+
+Scope is what round 2 changed, `483b7e0e6c`, plus the always-in-scope classes.
+Read from source in a context that wrote none of it.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | ISSUE | `checkUnprovenSupport`'s remedy told the author that a standard whose text may not be redistributed "declares `\| Enrolment \| source-restricted \|` instead". Round 2 made that kind stop excusing a support claim, so an author who followed the instruction met the same violation on the next run, with nothing naming the contradiction | `check_status.go`, `checkUnprovenSupport` | fixed: the remedy now says the disposition does not excuse the claim and names the three ways to stop making it. `TestTheUnprovenSupportRemedyOffersOnlyAnExcusingDisposition` asserts every disposition the remedy offers as a `\| Enrolment \| X \|` cell is one `supportClaimExcused` accepts; its red phase was FORCED by putting the old sentence back |
+| 2 | ISSUE | Documentation drift from the same fix, in four places nothing updated: the gate page says `checkSourceRestricted`'s kind "excuses a public support claim" and that `checkUnprovenSupport` has "Three escapes"; it lists "a newly enrolled RFC with no public row" as UNREPRESENTABLE when `checkPublicRowMonotonic` refuses it, and omits that guard from its table; the implementation guide repeats both errors and omits `out-of-scope` from the closed set; `ai/skills/ze-rfc.md` lists five kinds where the parser accepts six and names two retired Python symbols | `docs/contributing/rfc-conformance-gates.md`, `docs/contributing/rfc-implementation-guide.md`, `ai/skills/ze-rfc.md` | fixed in all three, and `./le ai skills-sync` rewrote the ignored mirrors |
+| 3 | NOTE | `rfc/short/iso-iec-10589.md` was deleted rather than having its Status corrected, because the tightened check refuses its Experimental row. Nothing refuses a wholesale summary deletion: `checkPublicRowMonotonic` walks the summaries that still exist, and `checkRetiredRequirements` saw no requirement ids because the checklist was empty | `check_status.go`, `checkPublicRowMonotonic` | acknowledged. No public row was lost (the page carried none), no MUST left the ledger (the checklist was empty), and `docs/features.md` still states the IS-IS row with its Status. The alternative, `\| Support \| - \|` with the disposition kept, would have preserved the declaration |
+| 4 | NOTE | `baselineMetasBeforeMigration` cannot be reached from any future HEAD, because every HEAD from `199b684f6c` onward carries Meta enrolments | `check_baseline.go` | acknowledged. It is the ability to compare across the migration commit and is dead by construction now |
+| 5 | NOTE | A git failure leaves `enrolledKnown` false, and `checkPublicRowMonotonic` then judges nothing and prints nothing. The shape is pre-existing in `check`, where the same condition empties the baseline for four other ratchets | `check.go`, `check_status.go` | acknowledged, pre-existing and not introduced here |
+| 6 | NOTE | `.gitignore` dropped the leading `/` when it renamed the restricted-source path, so the pattern now matches at any depth, and a leftover `rfc/full/RFC-SYNTHETIC-ISIS.txt` in any checkout is no longer ignored | `.gitignore` | acknowledged; no such file exists in this checkout |
+
+### Fixes applied after run 3
+
+- `checkUnprovenSupport`'s remedy names only a disposition that clears it, with a test that fails when it names one that does not.
+- Three pages state what `source-restricted` and `checkPublicRowMonotonic` actually do, and both closed-set listings carry all six kinds.
+
+### Run 4 (over the run-3 fixes)
+
+Scope is the run-3 fixes: one error-message sentence, one test, three pages. The
+sentence changes no branch, the test was observed red before it was observed
+green, and the pages were checked against `supportClaimExcused`,
+`enrolmentKindNames` and `checkPublicRowMonotonic` rather than against each
+other. 0 BLOCKER, 0 ISSUE, 0 NOTE.
+
 ### Final status
 
-<!-- filled at closure -->
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc-ledger-single-declaration-55327a4f-df15-4620-95a7-743742e421d3.md`, 16 files |
+| `./le spec session review check` | `review_gate: OK (2 code files, clean, hashes match)` |
+| Rounds | 4. Rounds 1 and 2 were run before closure and are recorded above; rounds 3 and 4 are the closure gate |
+| Reviewer lenses used | wiring + guard audit, removed-behavior audit, documentation drift, simplicity, Go style |
+
+Final run: 0 BLOCKER, 0 ISSUE. Six NOTEs across rounds 3 and 4, each recorded
+above with the reason it is not acted on here.
 
 ## Design Insights
 
@@ -536,3 +571,208 @@ ledger records enrolment and the public support claim.
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Deferral shard resolved: no live row without a destination
+
+## Implementation Summary
+
+### What Was Implemented
+
+- Enrolment and the public support row are declared in each summary's `## Meta`
+  table. `ParseMeta` and `readEnrolment` (`internal/le/rfc/meta.go`) are the one
+  parse; `enrolledFrom`, `dispositionsFrom`, `rowsFrom`, `titlesFrom` and
+  `successorsFrom` derive the five maps every check consumed from three files
+  before.
+- `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md`
+  are GENERATED. `LedgerFiles` (`internal/le/rfc/render_ledger.go`) is their one
+  producer, `IndexUpdate` writes them, and `rfcFreshnessStage`
+  (`internal/le/doc/wiring/docverify.go`) compares the tree against the same
+  function.
+- `parseEnrolled`, `loadEnrolled`, `parseDispositions`, `loadDispositions`,
+  `parseStatusLedger` and `loadStatusLedger` are deleted. No second reader of the
+  three files exists in the package.
+- `baselineMetas` and `baselineMetasBeforeMigration`
+  (`internal/le/rfc/check_baseline.go`) read HEAD's enrolment, so the four gated
+  ratchets kept running across the commit that changed what they read.
+- Nine summaries were written, the seven that carried a public row and no
+  summary among them.
+- Two guards were added by the review rounds: `checkPublicRowMonotonic`
+  (`internal/le/rfc/check_status.go`), which refuses a `Support` cell that read a
+  section at HEAD and reads `-` now, and the `MetaProblems` refusal in
+  `NewRenderInput` (`internal/le/rfc/render.go`).
+
+### Bugs Found/Fixed
+
+- A public row deleted while the RFC stayed enrolled was representable and
+  unrefused. `checkPublicRowMonotonic` refuses it, keyed on the ROW;
+  `TestCheckReportsAPublicRowDeletedThroughItsEntryPoint` drives it through
+  `Check`.
+- `NewRenderInput` refused an unparsable Meta table only inside a branch no
+  production caller takes. `Collected.MetaProblems` carries the problems and the
+  refusal runs on every path.
+- `metaRows` truncated a Meta value at an unescaped pipe. It refuses now, naming
+  the cell.
+- `checkSourceRestricted`'s refusal had never executed: its first test passed an
+  empty tree. `TestSourceRestrictedIsRefusedWhenTheTextIsPresent` writes a real
+  source file.
+- `checkUnprovenSupport`'s remedy sent the author to `source-restricted` after
+  round 2 stopped that kind excusing a claim. Found by run 3 and fixed with
+  `TestTheUnprovenSupportRemedyOffersOnlyAnExcusingDisposition`.
+
+### Documentation Updates
+
+- `docs/contributing/rfc-conformance-gates.md`: the retired-refusal list is four
+  rather than five, `checkPublicRowMonotonic` has a row in the guard table, and
+  `checkSourceRestricted` and `checkUnprovenSupport` state what they actually
+  refuse and excuse.
+- `docs/contributing/rfc-implementation-guide.md`: the closed set carries all six
+  kinds, `source-restricted` excuses no support claim, and `out-of-scope` has its
+  own sentence.
+- `ai/skills/ze-rfc.md`: six kinds in the Meta table and five in the prose list,
+  `checkEnrolment` and `checkUnprovenSupport` in place of the retired Python
+  names. `./le ai skills-sync` rewrote the gitignored mirrors.
+- `./le doc check verify` reports none of the three generated ledger files stale.
+  Its remaining failures are other sessions' work: BGP command descriptions, the
+  published `gh-pages` command-equivalent surface, `ai/DOCS-TO-CODE.md`, and
+  `ai/RFC-REQUIREMENTS.md` stale against uncommitted test-tag edits.
+
+### Deviations from Plan
+
+- The spec was authored without a Deliverables Checklist, a Security Review
+  Checklist, a Critical Review Checklist or a Failure Routing section. Closure
+  performed both reviews against Files to Create, Files to Modify and the AC
+  table instead, and recorded the result in the audit and the verification tables
+  below rather than inventing spec-time artifacts after the fact.
+- The full `./le verify worktree` gate was not run. It judges a COMMIT, and the
+  closure's own edits are uncommitted until the script runs; the shared checkout
+  also moved four times during this session. The debt is recorded by
+  `./le commit create`, which is the route `ai/rules/pre-release.md` names, and no
+  push is taken.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Round 2 tightened `supportClaimExcused` and left three pages and the guard's own remedy string describing the old behavior | A behavior change owes its page edit in the same work (`ai/rules/documentation.md`) | run 3 of the closure review, grepping `docs/` and `ai/` for `source-restricted` | fixed here; the drift is a Documentation Verified row below |
+| approach | `./le rfc check` was run through the shared `bin/le`, which is an EXISTENCE cache and not a freshness check, so a binary predating the migration answered with the retired three-kind vocabulary and reported the gate could not run | The session's own edits are only visible through `./le --name <name>`, which rebuilds on every call | the refusal named `rfc/not-enrolled.txt` and a closed set the current parser does not hold | `plan/journal/stale-artifact-reused.md` row |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Declare each fact about an RFC once | Done | `internal/le/rfc/meta.go`, `ParseMeta` | the three files have no reader; their six loaders are deleted |
+| Generate the three files from the summaries | Done | `internal/le/rfc/render_ledger.go`, `LedgerFiles` | `IndexUpdate` writes them, `rfcFreshnessStage` compares them |
+| Make three classes of defect unrepresentable | Done | `internal/le/rfc/meta.go`, `readEnrolment` | one field holds one value, and it dies with the summary |
+| Change no conformance verdict | Done | `internal/le/rfc/check_status.go` | every refusal stating a property of one document still fires |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEnrolmentIsReadFromTheSummaryMetaTable` | `readEnrolment` fills the two fields |
+| AC-2 | Done | `TestGeneratedStatusRowsMatchTheAuthoredPage` | `renderStatusPage` emits the four authored cells |
+| AC-3 | Done | `TestEnrolmentIsReadFromTheSummaryMetaTable` | four refusal cases: absent, outside the set, no reason, near-miss label |
+| AC-4 | Done | `TestOneSummaryRendersExactlyOneStatusRow` | drives the rank clash over the real corpus |
+| AC-5 | Done | `TestGeneratedEnrolmentMatchesTheAuthoredFiles` | measured at the migration commit; self-retiring after it |
+| AC-6 | Done | `TestRatchetsFireWhenEnrolmentMovesToMeta` | red phase forced through `baselineMetasBeforeMigration` |
+| AC-7 | Done | `rfcLedgerStemOf`, `factsFromRFCLedger` | verified at closure, see Deferrals Resolved |
+| AC-8 | Done | `ls` over the seven summaries | all seven exist; the two scope rulings are recorded in their own summaries |
+| AC-9 | Done | `TestHandEditedStatusPageReportsStale` | red phase forced by removing the ledger block from `rfcFreshnessStage` |
+| AC-10 | Done | `TestSurvivingDispositionRefusalsStillFire` | eight subtests, all passing |
+| AC-11 | Done | `TestEveryGeneratedCountCarriesItsDenominator` | `share` renders count, population and percentage |
+| AC-12 | Done | `TestGapCountPopulationSurvivesTheMove` | 57 of 159 rows, one more than the spec predicted, named in Goal Validation |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The twelve unit tests and the boundary test | Done | `internal/le/rfc/`, `internal/le/doc/wiring/` | the Status column of the TDD table above records where each one landed |
+| `TestTheUnprovenSupportRemedyOffersOnlyAnExcusingDisposition` | Done | `internal/le/rfc/check_test.go` | added by run 3, not planned |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify | Done | plus `internal/le/rfc/check_extraction.go`, `render.go`, `status.go` and `discriminate.go`, which the review rounds reached |
+| Every file in Files to Create | Done | the deferral shard and the seven summaries all exist |
+| `rfc/short/iso-iec-10589.md` | Changed | deleted rather than kept; run 3 NOTE 3 records the alternative |
+
+### Audit Summary
+
+- **Total items:** 12 acceptance criteria, 4 task requirements, 13 tests, 3 file rows
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1, the deleted summary, recorded above and in run 3
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Repoint the site's published prose naming the three files as AUTHORED inputs (AC-7) | done | The handover landed. `rfcLedgerStemOf` (`internal/le/site/rfcledger.go`) says the three files are now GENERATED from the Meta tables; `factsFromRFCLedger` (`internal/le/site/facts.go`) publishes `internal/le/rfc.Collect, over rfc/short/*.md` and its comment names the removal of `rfc/enrolled.txt`; `rfcNoPublicRowWhy` (`internal/le/site/rfcdetail.go`) names the summary as the author and the page as generated from it. No rendered string in `internal/le/site/` names any of the three as an authored input. `internal/le/site/testdata/published-rfc-compliance-body.html` is a frozen capture of the RETIRED published page rather than an output, and the two sections its comparison still reads exclude the gate-inputs table |
+| A reader for a gap count written in DIGITS | deferred | a spec of its own; unchanged by this work, which moved where the Remaining cell is authored and not how it is read |
+| A public row for the 32 enrolled RFCs that have none | deferred | a spec of its own; `\| Support \| - \|` is now their explicit declaration rather than an absence |
+| `TestSupportedRowsHaveDerivableScope` asserting a count the corpus does not hold | deferred | `plan/spec-rfcgate-6-supported-extraction-signoff.md` |
+
+Three rows stay live, so `plan/deferrals/rfc-ledger-single-declaration.md` is NOT
+removed at closure. No foreign shard was emptied by these resolutions.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `rfc/short/rfc4762.md`, `rfc5065.md`, `rfc5120.md`, `rfc5925.md`, `rfc6514.md`, `rfc8362.md`, `rfc8538.md` | yes | `ls -la` at closure listed all seven, sizes 1.3K to 51K |
+| `plan/deferrals/rfc-ledger-single-declaration.md` | yes | 3.5K, four rows |
+| `rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `docs/features/rfc-status.md` | yes | each opens with the generated banner naming `./le rfc index-update` |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-3 | enrolment is read from Meta and an absent value is refused | `grep -rn "func readEnrolment" internal/le/` resolves in `meta.go`; the four refusal cases pass |
+| AC-5, AC-9 | the three files are generated and a hand edit is reported | `./le --name close doc check verify` names none of the three as stale, and its only RFC finding is `ai/RFC-REQUIREMENTS.md`, stale against another session's uncommitted test tags |
+| AC-6 | the ratchets read HEAD's summaries | `grep -rn "func baselineMetas" internal/le/` resolves both readers in `check_baseline.go` |
+| AC-7 | no rendered site text names the three as authored inputs | grepping the three paths across `internal/le/site/*.go` outside comments returns one hit, `rfcNoPublicRowWhy`, which names the summary first |
+| AC-10 | every surviving refusal fires | `go test -run TestSurvivingDispositionRefusalsStillFire` passes over eight subtests |
+| Goal: no second reader | the six retired loaders are gone | grepping the six function names across `internal/le/` returns nothing |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` | none: development tooling with no daemon path | `TestCheckReportsAPublicRowDeletedThroughItsEntryPoint` drives `Check` over a two-commit fixture tree and asserts the violation names the stem, so deleting the call site in `check` goes red |
+| `./le rfc index-update` | none, same reason | `TestIndexUpdateWritesTheStatusPage` and `TestHandEditedStatusPageReportsStale` cover the write and the freshness comparison over all three files |
+| The four gated ratchets across the migration | none, same reason | `TestRatchetsFireWhenEnrolmentMovesToMeta` builds a fixture whose HEAD carries the file shape and whose tree carries the Meta shape |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | 45 distinct Meta field spellings existed, so step 1 became a normalizing pass |
+| A-2 | confirmed | Area matched Title in 3 of 158 rows and Status carried 13 values, so both moved verbatim |
+| A-3 | confirmed | 158 KB of authored prose, of which only the spelled gap count is read |
+| A-4 | confirmed | with one correction: HEAD's summaries answer nothing AT the migration commit, so `baselineMetasBeforeMigration` reads HEAD's two retired files when no summary at HEAD declares an enrolment |
+| A-5 | confirmed as stated, broken as intended | nothing outside the package PARSES the three files; what named them was published PROSE, and that handover is the AC-7 row above, now closed |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/contributing/rfc-conformance-gates.md` guard table | checked against `checkSummaryDisposition`, `checkSourceRestricted`, `checkUnprovenSupport`, `checkPublicRowMonotonic` and `checkGapCountAgreement` in `internal/le/rfc/check_status.go` | yes, corrected at closure |
+| `docs/contributing/rfc-implementation-guide.md` closed set and escapes | checked against `enrolmentKindNames` (`meta.go`) and `supportClaimExcused` (`check_status.go`) | yes, corrected at closure |
+| `ai/skills/ze-rfc.md` Meta table and kind list | the same two producers | yes, corrected at closure; mirrors rewritten by `./le ai skills-sync` |
+| `docs/contributing/gh-pages.md` six-kind paragraph | checked against `DispositionKindMeaning` | yes, already correct, no edit needed |
+| `docs/features/rfc-status.md` generated banner | its first line names `./le rfc index-update` | yes |
+| Command docs, API docs, plugin docs | no command shape, RPC or plugin changed, and `./le --name close repository check` names no finding in `internal/le/rfc` or `internal/le/site` | N/A, proven by the check |
+
+## Core Insight
+
+A gate that compares two copies of one fact is retired by deleting a copy, and
+that is the only free simplification. The dangerous half is not the data: it is
+that the deleting commit is the ONE commit whose baseline cannot be read in the
+new shape, so every ratchet gated behind that read stops running over exactly
+the change it exists to judge. The answer is a baseline reader that understands
+the OLD shape, landing in the same commit, and a test that forces the ratchets
+to fire across it.

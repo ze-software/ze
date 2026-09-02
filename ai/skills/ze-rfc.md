@@ -41,7 +41,7 @@ Generate a structured implementation summary from an RFC text file.
 
    | Meta row | Value |
    |----------|-------|
-   | `Enrolment` | one of `enrolled`, `backlog`, `blocked`, `non-normative`, `source-restricted` |
+   | `Enrolment` | one of `enrolled`, `backlog`, `blocked`, `non-normative`, `out-of-scope`, `source-restricted` |
    | `Enrolment reason` | what makes that kind true. Never blank |
    | `Support` | `-` for no public row, or `<section-key> <rank>`. The keys are the sections `statusSections` declares (`internal/le/rfc/render_ledger.go`). The rank orders this RFC inside its section, because the page's reading order is authored |
    | `Support name` | the first cell, ONLY where an `rfc<number>` stem cannot derive it |
@@ -53,7 +53,7 @@ Generate a structured implementation summary from an RFC text file.
    refused: a stem in both disposition files, and a disposition naming a summary that does
    not exist. One field holds one value, and it dies with the summary that carries it.
 
-   The four kinds that are not `enrolled`:
+   The five kinds that are not `enrolled`:
 
    - `non-normative` — the DOCUMENT imposes no MUST-level obligation on any speaker. Say
      what makes that true of the TEXT: its IETF category, the absence of an RFC 2119
@@ -61,19 +61,24 @@ Generate a structured implementation summary from an RFC text file.
      That is a conformance judgement `ai/rules/rfc-compliance.md` reserves to the owner. The
      gate rejects a reason phrased that way.
    - `source-restricted` — DECISION, and the only permanent one. The standard's own text
-     cannot be redistributed, so it can never sit under `rfc/full/` and `check_enrolment`
+     cannot be redistributed, so it can never sit under `rfc/full/` and `checkEnrolment`
      can never accept an enrolment. Name the publishing body (ISO, IEC, ITU, IEEE, ANSI, ETSI)
      or the license, copyright or paywall that stops the copy. Where the text IS fetchable
-     the kind is `blocked` instead, and a fetch discharges it.
+     the kind is `blocked` instead, and a fetch discharges it. It excuses NO public support
+     claim: being unable to bound a claim is a reason to stop making it, so such a summary
+     writes `Unsupported`, `Future`, or `| Support | - |`.
+   - `out-of-scope` — DECISION. The extraction is DONE and the owner declined the feature
+     for now, so the obligations are declared in full and none is gated. Its reason carries
+     the date the decision was taken, and its public row may read only `Future` or
+     `Unsupported`.
    - `backlog` — DEBT. The extraction is owed, or its obligations are not yet proven.
    - `blocked` — DEBT. Something outside the summary prevents enrolment, most often a
      missing `rfc/full/<stem>.txt`.
 
-   `check_unproven_support` reds separately when the public row claims support and the
+   `checkUnprovenSupport` reds separately when the public row claims support and the
    summary declares zero gated requirements. Extract the obligations. Or record the
-   evidence that zero is a property of the document: a `non-normative` or
-   `source-restricted` disposition, or a `manual-walk` sign-off whose `register-reason`
-   says why.
+   evidence that zero is a property of the document: a `non-normative` disposition, or a
+   `manual-walk` sign-off whose `register-reason` says why.
 7. VERIFY: Re-read RFC and summary, check:
    - ALL wire formats captured with ASCII diagrams?
    - ALL MUST requirements listed?

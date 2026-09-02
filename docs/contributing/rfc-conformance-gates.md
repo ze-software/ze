@@ -117,28 +117,31 @@ rate boundaries.
 the private admission. Both are now written in one file: the summary declares
 its own row in its `## Meta` table, and the page is rendered from it.
 
-That retired five refusals, because each compared two copies of one fact. Each
-of the five is now UNREPRESENTABLE rather than refused:
+That retired four refusals, because each compared two copies of one fact. Each
+of the four is now UNREPRESENTABLE rather than refused:
 
 - a summary in neither disposition file
 - a stem in both
 - a disposition naming a summary that does not exist
-- a newly enrolled RFC with no public row
 - a row naming an RFC with no summary
 
-`checkStatusCompleteness` is gone, `checkSummaryDisposition` lost three of its
-branches, and `checkSupportedSignoff` lost a population it can never judge.
-Nothing was weakened: deleting a copy is the only free simplification.
+A fifth, a newly enrolled RFC with no public row, is NOT unrepresentable: one
+`Support` cell reading `-` states it. `checkStatusCompleteness` is gone, and
+`checkPublicRowMonotonic` carries that refusal now, over the same two branches.
+`checkSummaryDisposition` lost three of its branches, and `checkSupportedSignoff`
+lost a population it can never judge. Nothing was weakened: deleting a copy is
+the only free simplification, and the one refusal that was not a copy stayed.
 
 `checkStatusAgreement` still compares the claim against the admission, and it
-reaches for a row only when a `{gap}` exists. Four classes of defect sit outside
+reaches for a row only when a `{gap}` exists. Five classes of defect sit outside
 it, so each is a hard requirement rather than a HEAD comparison.
 
 | Guard | Refuses |
 |-------|---------|
 | `checkSummaryDisposition` | a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states, or that cites nothing a reviewer can check. `non-normative` is the one disposition that claims anything about conformance. Its reason rests on the document: the IETF category, an RFC 2119 / RFC 8174 / BCP 14 key-words paragraph, or a capitalized MUST/SHALL/REQUIRED scan of the source |
-| `checkSourceRestricted` | a `source-restricted` reason that names neither the body publishing the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) nor the license, copyright or paywall that stops the text being copied. The kind excuses a public support claim, so its reason carries a non-normative one's weight and is held to the same discipline. It is also the only PERMANENT disposition: where the text IS fetchable the kind is `blocked`, and a fetch discharges it |
-| `checkUnprovenSupport` | a support claim over a summary that declares ZERO gated requirements. A claim is any Status other than `Unsupported` or `Future`, an empty cell included. A claim and a checklist that agree on NOTHING is the cheapest way to look green. Three escapes exist, and each is evidence rather than assertion. They are a `non-normative` disposition whose reason states a property of the text, a `source-restricted` one, and a VALID `manual-walk` sign-off with a `register-reason`. The last one lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero |
+| `checkSourceRestricted` | a `source-restricted` reason that names neither the body publishing the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) nor the license, copyright or paywall that stops the text being copied, and the same kind written over a text that IS in the tree. It excuses no public support claim: being unable to bound a claim is a reason to stop making it, not a reason to be excused from proving it. It is the only PERMANENT disposition: where the text IS fetchable the kind is `blocked`, and a fetch discharges it |
+| `checkUnprovenSupport` | a support claim over a summary that declares ZERO gated requirements. A claim is any Status other than `Unsupported` or `Future`, an empty cell included. A claim and a checklist that agree on NOTHING is the cheapest way to look green. Two escapes exist, and each is evidence rather than assertion. They are a `non-normative` disposition whose reason states a property of the text, and a VALID `manual-walk` sign-off with a `register-reason`. The second one lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero |
+| `checkPublicRowMonotonic` | a `Support` cell that read a section at HEAD and reads `-` now, while the summary is still there, and a newly enrolled RFC that arrives with no row at all. It is keyed on the ROW, never on enrolment, because `checkSupportedSignoff` bills any row whose Status promises conformance. RFCs enrolled before it existed are grandfathered, so the count of enrolled RFCs with no row can only shrink |
 | `checkGapCountAgreement` | a Remaining cell whose spelled number, sitting immediately before MUST or SHALL, disagrees with the real `{gap}` count. The COUNT is the only fact on that page a machine can own: it says how many annotations exist, never that their classifications are right |
 
 Un-enrolment exempts only the MISSING-ROW branch of `checkStatusAgreement`. An

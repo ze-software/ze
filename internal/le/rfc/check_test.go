@@ -1461,6 +1461,43 @@ func TestOnlyANonNormativeDispositionExcusesASupportClaim(t *testing.T) {
 	}
 }
 
+// VALIDATES: the remedy this refusal prints offers only a disposition that
+// ACTUALLY clears it.
+// PREVENTS: a refusal that sends its reader to a fix which does not work. The
+// message closed by telling the author that a standard whose text may not be
+// redistributed "declares `| Enrolment | source-restricted |` instead", and the
+// round-2 fix on 2026-09-02 stopped that kind excusing a support claim. An
+// author who followed the instruction met the same violation on the next run,
+// with nothing naming the contradiction. A refusal's remedy is part of the
+// guard: a wrong one costs the reader the round trip the guard exists to save.
+func TestTheUnprovenSupportRemedyOffersOnlyAnExcusingDisposition(t *testing.T) {
+	rows := map[string]LedgerRow{selftestStem: {Status: "Partial"}}
+	stems := map[string]bool{selftestStem: true}
+
+	errs := checkUnprovenSupport(nil, rows, stems, map[string]Disposition{},
+		map[string]Extraction{}, map[string]string{})
+	if len(errs) != 1 {
+		t.Fatalf("an unproven support claim answered %d violation(s), want 1: %v", len(errs), errs)
+	}
+	offered := 0
+	for _, kind := range enrolmentKindNames() {
+		if kind == enrolmentEnrolled {
+			continue
+		}
+		cell := "`| Enrolment | " + kind + " |`"
+		if !strings.Contains(errs[0], cell) {
+			continue
+		}
+		offered++
+		if !supportClaimExcused(kind) {
+			t.Errorf("the remedy offers %s, which does not excuse a support claim:\n%s", cell, errs[0])
+		}
+	}
+	if offered == 0 {
+		t.Errorf("the remedy names no disposition at all, so the assertion above proves nothing:\n%s", errs[0])
+	}
+}
+
 // VALIDATES: a `source-restricted` reason must name what stops the text being copied, and
 // must not judge what Ze owes.
 // PREVENTS: an unfalsifiable escape. This kind excuses a public support promise, so its
