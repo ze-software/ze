@@ -489,6 +489,44 @@ func TestEmitLocalResultSeparatesAnswersAndDiagnostics(t *testing.T) {
 	if stderr != "" {
 		t.Errorf("answer stderr = %q, want empty", stderr)
 	}
+
+	// A REJECTING answer: the code is the verdict and the payload is the
+	// evidence, so both are honored (registry.LocalDataHandler). This is the
+	// combination that had no case here, and it is the one that broke:
+	// `validate config` published the diagnostics of a rejected config on
+	// stderr, where no pipe operator can reach them.
+	stderr = captureOutput(t, true, func() {
+		stdout = captureOutput(t, false, func() {
+			code = emitLocalResult("validate config bad.conf | json", "{\"valid\":false}\n", 1, nil)
+		})
+	})
+	if code != 1 {
+		t.Errorf("rejecting answer exit = %d, want 1", code)
+	}
+	if stdout != "{\"valid\":false}\n" {
+		t.Errorf("rejecting answer stdout = %q, want the payload", stdout)
+	}
+	if stderr != "" {
+		t.Errorf("rejecting answer stderr = %q, want empty", stderr)
+	}
+
+	// A handler with nothing to say returns a nil payload, which reaches here as
+	// the empty string. Its reason is already on stderr, so this writes nothing
+	// to either stream and passes the code through.
+	stderr = captureOutput(t, true, func() {
+		stdout = captureOutput(t, false, func() {
+			code = emitLocalResult("validate config", "", 1, nil)
+		})
+	})
+	if code != 1 {
+		t.Errorf("empty answer exit = %d, want 1", code)
+	}
+	if stdout != "" {
+		t.Errorf("empty answer stdout = %q, want empty", stdout)
+	}
+	if stderr != "" {
+		t.Errorf("empty answer stderr = %q, want empty", stderr)
+	}
 }
 
 // TestBuildRuntimeTree_FallbackToStatic verifies that buildRuntimeTree falls back

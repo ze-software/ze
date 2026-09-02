@@ -495,22 +495,29 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 	return 0
 }
 
-// emitLocalResult sends locally served diagnostics to stderr. Transcripts keep
-// the same command and result for successful answers and diagnostics.
+// emitLocalResult prints a locally served ANSWER on stdout and answers the exit
+// code the handler chose. Transcripts keep the same command and result.
+//
+// The ANSWER and the CODE are independent (registry.LocalDataHandler): the code
+// carries the verdict and the payload carries the evidence, so `validate config`
+// answers the diagnostics of a config it rejects AND exits 1. Routing on the
+// code sent that payload to stderr, where no pipe operator can reach it, and
+// `| json`, `| yaml` and `| table` are three renderings of one payload
+// (ai/rules/cli.md). A handler with nothing to say returned a nil payload, which
+// arrives here as the empty string: its reason is already on stderr, and
+// WriteAnswer prints nothing for it.
 func emitLocalResult(input, answer string, code int, tw *unicli.TranscriptWriter) int {
 	if tw != nil {
 		tw.Record(input, answer)
 	}
-	if code != 0 {
-		writeLocalDiagnostic(answer)
-		return code
-	}
+	// A pipe failure is a diagnostic about the operator's own chain, not an
+	// answer to their question, so it is the one local result stdout never sees.
 	if cmd.IsPipeError(answer) {
 		writeLocalDiagnostic(answer)
 		return 1
 	}
 	cmd.WriteAnswer(answer)
-	return 0
+	return code
 }
 
 func writeLocalDiagnostic(answer string) {

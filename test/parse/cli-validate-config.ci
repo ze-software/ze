@@ -1,6 +1,22 @@
 # Test: ze validate config <file> via unified verb dispatch
-# VALIDATES: validate config verb dispatches to config validate handler
+# VALIDATES: validate config verb dispatches to the validate handler and answers
+#            the verdict for the file it read.
 # PREVENTS: regression in unified verb dispatch for validate command
+#
+# The assertion reads the ANSWER, not a sentence. `validate config` is registered
+# through registry.MustRegisterLocalData with command.RenderLocalAnswer, so it
+# answers a diagnostic.ValidateResult and the pipe layer renders it
+# (ai/rules/cli.md). Until 2026-08-30 the same path was a MustRegisterLocalMeta
+# forward to `Run(["validate", ...])`, so this file pinned that printer's first
+# line, "configuration valid: <path>". Commit f0ce6a8d4b replaced the forward and
+# did not update the pin, which is the only reason this test went red: no
+# renderer was dropped, and every one of the 18 production MustRegisterLocalData
+# registrations passes the same command.RenderLocalAnswer.
+#
+# `ze config validate <file>` is a DIFFERENT command, the offline printer under
+# the `config` root, and it keeps that sentence. test/parse/cli-validate-valid.ci
+# asserts it there, as test/parse/cli-config-dump.ci does for the `ze config dump`
+# half of the same pair.
 stdin=config:terminator=EOF_STDIN
 bgp {
 	peer peer1 {
@@ -50,4 +66,5 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze validate config test.conf
 expect=exit:code=0
-expect=stdout:contains=configuration valid
+expect=stdout:pattern=valid\s+true
+expect=stdout:pattern=path\s+test\.conf
