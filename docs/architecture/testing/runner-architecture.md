@@ -266,6 +266,27 @@ that reason, and its `assert_named` guard refuses a subset still carrying a
 numeric selector: a nick had already drifted there, with firewall `"17"`
 resolving to `command-owner-firewall-root.ci` rather than to any `017-*.ci`.
 
+## Which binaries a fixture reaches
+
+A fixture runs `ze` by bare name. The runner builds its own `ze` and `ze-test`
+into a throwaway directory. It symlinks both under bare names into a shim
+directory, and prepends that directory to every child's PATH. So
+`exec.LookPath` and `exec.Command("ze", ...)` name the binary this run built.
+The shim exists because a cross-compiled binary carries its target in the file
+name. One directory holding two architectures once gave the QEMU guest the
+host's `ze`.
+
+`$ZE_REPO_ROOT/bin/ze` is not that binary and MUST NOT be used to find it.
+`.gitignore` excludes `bin/` and no verification job writes `ze` there. A
+fixture that reads it therefore fails on the CI runner. It passes on a
+developer machine that happens to hold a build, and then reports on a binary
+the run never made. `ZE_REPO_ROOT` names the source tree, and it is for reading
+TRACKED repository content: a golden config, a fixture input.
+
+<!-- source: internal/test/runner/runner.go -- setupBinShims, childPathEnv -->
+<!-- source: internal/test/fixture/ui_fixture_common.go -- uiZEBinary -->
+<!-- source: internal/test/runner/runner_exec_util.go -- zeRepoRootEnv -->
+
 ## Scratch roots
 
 The functional runner writes its per-run and per-test working directories

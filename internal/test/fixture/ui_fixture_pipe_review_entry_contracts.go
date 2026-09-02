@@ -178,18 +178,14 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 		return fmt.Errorf("create fixture working directory: %w", err)
 	}
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
-	checkout, ok := os.LookupEnv("ZE_REPO_ROOT")
-	if !ok {
-		return fmt.Errorf("ZE_REPO_ROOT is not set")
-	}
-	tools := filepath.Join(checkout, "website", "tools")
-	info, err := os.Stat(tools)
-	if err != nil {
-		return fmt.Errorf("locate primary website CLI renderer in %s: %w", tools, err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("primary website tools path is not a directory: %s", tools)
-	}
+	// The precondition that stood here stat'ed $ZE_REPO_ROOT/website/tools, the
+	// Python renderer set that commit eae282592 deleted when the site renderers
+	// moved to Go. Nothing read the directory. renderCLICatalog below is this
+	// fixture's own renderer, so the stat gated the assertions on a path that
+	// exists in no checkout. The case passed only where a developer still had
+	// the deleted tree, and a __pycache__ left behind is enough for that. The
+	// shipped renderer that replaced it is internal/le/site/catalog.go, held to
+	// these same two fields by TestEveryPublishedCatalogFieldReachesAReader.
 	destination := filepath.Join(work, "rendered-cli", "index.html")
 	if err := renderCLICatalog(destination, []map[string]any{monitorPing}); err != nil {
 		return err

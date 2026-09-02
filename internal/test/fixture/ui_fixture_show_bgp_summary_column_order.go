@@ -38,11 +38,7 @@ func init() {
 }
 
 func showBGPSummaryColumnOrder(ctx context.Context) (retErr error) {
-	root := os.Getenv("ZE_REPO_ROOT")
-	if root == "" {
-		return errors.New("ZE_REPO_ROOT is not set")
-	}
-	ze, err := uiZEBinary(root)
+	ze, err := uiZEBinary()
 	if err != nil {
 		return err
 	}

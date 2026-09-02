@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -66,14 +67,23 @@ func uiLEFeatureTags(root string, extra ...string) ([]string, error) {
 	return tags, nil
 }
 
-func uiZEBinary(root string) (string, error) {
-	path := filepath.Join(root, "bin", "ze")
-	info, err := os.Stat(path)
+// uiZEBinary answers the ze binary THIS run built. The functional runner
+// symlinks its own binaries under bare names into one directory, and prepends
+// that directory to every child's PATH. So a PATH lookup names the subject
+// under test and nothing else (Runner.setupBinShims and Runner.childPathEnv,
+// internal/test/runner/runner.go).
+//
+// $ZE_REPO_ROOT/bin/ze, which this used to read, is not that binary. In a
+// clean checkout it is not a binary at all, because .gitignore excludes bin/
+// and no verification job writes ze there. The fixture therefore failed on the
+// CI runner with "locate native ze binary: no such file or directory". It
+// passed only on a machine whose developer had built one. That case is worse.
+// The build there is whatever they compiled last, so the fixture reported on a
+// binary the run never made.
+func uiZEBinary() (string, error) {
+	path, err := exec.LookPath("ze")
 	if err != nil {
-		return "", fmt.Errorf("locate native ze binary: %w", err)
-	}
-	if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
-		return "", fmt.Errorf("native ze binary is not executable: %s", path)
+		return "", fmt.Errorf("locate the ze binary this run built, on PATH: %w", err)
 	}
 	return path, nil
 }

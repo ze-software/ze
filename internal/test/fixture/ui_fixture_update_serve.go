@@ -14,11 +14,7 @@ func runUIUpdateServe(args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("update-serve fixture requires the listener port")
 	}
-	root := os.Getenv("ZE_REPO_ROOT")
-	if root == "" {
-		return fmt.Errorf("ZE_REPO_ROOT is not set")
-	}
-	ze, err := uiZEBinary(root)
+	ze, err := uiZEBinary()
 	if err != nil {
 		return err
 	}
