@@ -125,6 +125,12 @@ type Collected struct {
 	// second copy of a fact is a future disagreement with nothing to
 	// arbitrate it (ai/rules/principles.md).
 	Metas map[string]Meta
+	// MetaProblems is the summaries whose `## Meta` table did not parse,
+	// keyed by stem. They are ABSENT from Metas, so they are out of every
+	// gated population, and this map is what stops that being silent: a
+	// consumer holding Collected can see which stems it is missing and why,
+	// without re-reading anything.
+	MetaProblems map[string]string
 	// EnrolmentReasons is why each enrolled RFC was enrolled, and Titles is
 	// each summary's own Meta title.
 	//
@@ -148,7 +154,7 @@ func Collect(tree string) (Collected, error) {
 	if err != nil {
 		return Collected{}, err
 	}
-	out := Collected{Metas: metas, Enrolled: enrolledFrom(metas),
+	out := Collected{Metas: metas, MetaProblems: metaProblems, Enrolled: enrolledFrom(metas),
 		EnrolmentReasons: enrolmentReasonsFrom(metas), Titles: titlesFrom(metas),
 		ParseByStem: map[string]string{}}
 	for _, stem := range sortedKeysOf(metaProblems) {

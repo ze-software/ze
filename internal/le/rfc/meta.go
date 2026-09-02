@@ -554,11 +554,16 @@ func summaryMetas(tree string, stems map[string]bool) (map[string]Meta, map[stri
 		if err != nil {
 			// COLLECTED, not returned. Several sessions share this checkout,
 			// so one summary somebody is midway through editing would
-			// otherwise stop `./le rfc check` and `./le rfc index-update` for
-			// everybody, and a gate nobody can run enforces nothing. The stem
-			// is absent from the map, which takes it out of the gated
-			// population -- but LOUDLY, because its error travels with the
-			// other parse errors and every driver prints them.
+			// otherwise stop `./le rfc check` for everybody, and a gate
+			// nobody can run enforces nothing. The stem is absent from the
+			// map, which takes it out of the gated population -- but LOUDLY,
+			// because its error travels with the other parse errors and
+			// every driver prints them.
+			//
+			// The WRITE is the exception and refuses: NewRenderInput would
+			// emit a ledger with that RFC missing, and `checkLedgerFresh`
+			// answers a finding rather than an error so the refusal reaches
+			// the writer without taking `check` down with it.
 			problems[stem] = err.Error()
 			continue
 		}

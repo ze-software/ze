@@ -178,8 +178,32 @@ func checkDrainFloor(tree string, enrolled map[string]bool, signed map[string]Ex
 	return []string{tb.Str("rfc/drain-budget.txt: the drain schedule requires ").Int(int64(floor)).Str(" extraction sign-off(s) by now (rate ").Str(formatRate(budget.rate)).Str("/calendar month since ").Str(budget.start.Format("2006-01-02")).Str(", capped at the ").Int(int64(len(enrolled))).Str(" enrolled RFC(s)), and there are ").Int(int64(total)).Str(" (").Str(registerPhrase(counts)).Str("; every register counts, umbrella D6), leaving ").Int(int64(backlog)).Str(" unsigned. Walk another RFC: ./le rfc extraction-create stem <stem>, then classify every site").String()}
 }
 
+// checkLedgerFresh compares the generated pages against what the render
+// produces, and answers a finding rather than an error when a summary's Meta
+// table did not parse.
+//
+// The distinction is the whole point. A stem whose Meta table is unreadable is
+// absent from the render, so the freshness comparison would report every
+// generated page stale for a reason that has nothing to do with staleness --
+// and `check` turns an error from here into `return CheckReport{}, err`, which
+// DISCARDS every finding built before it. That is a gate nobody can run, over a
+// checkout several sessions share, for one summary somebody is midway through
+// editing. `summaryMetas` collects those errors instead of aborting for exactly
+// that reason, and returning one here undid it a level up (independent review,
+// 2026-09-02).
+//
+// `Collect` already routes each problem into ParseErrors, so `check` reports
+// them by name. What is skipped is only the comparison that cannot be made.
 func checkLedgerFresh(tree string, collected Collected, rows map[string]LedgerRow,
 	dispositions map[string]Disposition) ([]string, error) {
+	if len(collected.MetaProblems) > 0 {
+		var tb textbuf.Buffer
+		return []string{tb.Str("ledger freshness was not judged: ").
+			Int(int64(len(collected.MetaProblems))).
+			Str(" summary/summaries have an unreadable `## Meta` table, so they are absent ").
+			Str("from the render and every generated page would compare stale for that reason ").
+			Str("alone. The parse errors are reported above; fix them and re-run").String()}, nil
+	}
 	input, err := NewRenderInput(tree, collected, rows, dispositions)
 	if err != nil {
 		return nil, err

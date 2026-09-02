@@ -86,21 +86,28 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 	if in.Carriers, err = carriers(tree); err != nil {
 		return RenderInput{}, err
 	}
-	metas := collected.Metas
+	metas, problems := collected.Metas, collected.MetaProblems
 	if metas == nil {
-		var problems map[string]string
 		if metas, problems, err = summaryMetas(tree, in.Stems); err != nil {
 			return RenderInput{}, err
 		}
-		// The write refuses on a parse error before it prunes anything, and
-		// this is the same class: a summary whose Meta table does not parse
-		// declares no enrolment and no row, so rendering over it would emit a
-		// ledger missing that RFC entirely.
-		if len(problems) > 0 {
-			return RenderInput{}, refuseToWrite(sortedValuesOf(problems),
-				"a summary's Meta table did not parse, so its enrolment and its public row are "+
-					"absent from this render. Fix the summary, then re-run")
-		}
+	}
+	// Refused here, OUTSIDE the branch that derives the map, and that
+	// placement is the whole point. `Collect` always returns a non-nil Metas,
+	// so every production caller takes the other branch and a guard inside
+	// this one would never run -- which is what it did until an independent
+	// review found it on 2026-09-02.
+	//
+	// A summary whose Meta table does not parse declares no enrolment and no
+	// public row, so it is absent from Metas while `Stems` still lists its
+	// file. A renderer walking Stems would publish that RFC with a zero Meta:
+	// no title, not enrolled, no disposition, no row, and all of it reading as
+	// data (ai/rules/principles.md). The write refuses on a checklist parse
+	// error for the same reason, before it prunes anything.
+	if len(problems) > 0 {
+		return RenderInput{}, refuseToWrite(sortedValuesOf(problems),
+			"a summary's Meta table did not parse, so its enrolment and its public row are "+
+				"absent from this render. Fix the summary, then re-run")
 	}
 	in.Metas = metas
 	in.Successors = successorsFrom(metas)

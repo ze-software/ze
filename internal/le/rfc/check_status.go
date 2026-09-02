@@ -55,20 +55,29 @@ func checkStatusAgreement(requirements []Requirement, rows map[string]LedgerRow,
 	return errs
 }
 
-// supportClaimExcused answers the two dispositions under which a public support
+// supportClaimExcused answers the ONE disposition under which a public support
 // claim rests on something other than an extracted checklist.
 //
-// `non-normative` says the DOCUMENT imposes no MUST, so an empty checklist is
-// the document's property rather than a hole in the extraction.
-// `source-restricted` says the document's text may not be redistributed, so no
-// checklist can ever be bounded against it and no enrolment is reachable. Both
-// are DECISIONS with a reason a reviewer can check; neither is debt.
+// `non-normative` says the DOCUMENT imposes no MUST-level obligation on any
+// speaker, so an empty checklist is a property of the text rather than a hole
+// in the extraction, and its reason must cite something a reviewer can check.
 //
-// The other two dispositions excuse nothing. `backlog` and `blocked` say the
-// extraction is owed, and a claim resting on owed work is exactly what this
-// check exists to refuse.
+// Every other disposition excuses nothing, `source-restricted` included, and
+// that one is worth saying out loud because it excused a claim until
+// 2026-09-02. The argument for it was that a text nobody may redistribute can
+// never bound a checklist, so demanding one is demanding the impossible. The
+// argument against it is stronger and is the one this repository already
+// makes everywhere else: being unable to prove a claim is a reason to stop
+// making the claim, not a reason to be excused from proving it. A standard Ze
+// implements and cannot bound is disclosed by a Status that says so, which is
+// what `Unsupported`, `Future` and a qualified `Partial` are for.
+//
+// It also had no users, which is how the hazard was found. The one summary it
+// was built for was deleted the same day, because the project's answer to a
+// restricted standard turned out to be an independent reconstruction held
+// outside the repository rather than an exemption inside it.
 func supportClaimExcused(kind string) bool {
-	return kind == dispositionNonNormative || kind == dispositionSourceRestricted
+	return kind == dispositionNonNormative
 }
 
 func nonNormativeReasonCitesDocument(reason string) bool {
@@ -448,13 +457,27 @@ func checkPublicRowMonotonic(metas, baseMetas map[string]Meta, baselineKnown boo
 	for _, stem := range sortMetaStems(metas) {
 		meta := metas[stem]
 		base, held := baseMetas[stem]
-		if !held || !meta.Enrolled() || !base.Enrolled() || !base.HasRow() || meta.HasRow() {
+		// Keyed on the ROW alone, never on enrolment. The checks this
+		// protects iterate the rows: checkSupportedSignoff bills any row
+		// whose Status promises conformance, and its own comment says why
+		// enrolment is the wrong population -- "a row can promise support
+		// for a stem nobody enrolled, and crediting would then exempt
+		// exactly the claim least covered by anything else". An enrolled-only
+		// guard left that exemption open one population narrower, and
+		// rfc/short/rfc9384.md is the live instance: `non-normative` with a
+		// row reading "Supported within BFD".
+		//
+		// A summary DELETED outright is not reached here, because the walk is
+		// over the summaries that still exist. Retiring an RFC is deleting
+		// its file, which takes its obligations with it; retiring only its
+		// public claim is what this refuses.
+		if !held || !base.HasRow() || meta.HasRow() {
 			continue
 		}
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(summaryRel).Byte('/').Str(stem).
 			Str(".md rendered a row on ").Str(statusRel).
-			Str(" at HEAD and declares `| Support | - |` now, while the RFC stays enrolled. Deleting the row retires a public claim without retiring the obligation behind it, and it takes the stem out of every check that reads the public page -- the unproven-support guard and the extraction sign-off guard among them. Restore the section, or correct the row's cells in place").String())
+			Str(" at HEAD and declares `| Support | - |` now, while the summary is still here. Deleting the row retires a public claim without retiring the obligation behind it, and it takes the stem out of every check that reads the public page -- the unproven-support guard and the extraction sign-off guard among them. Restore the section, or correct the row's cells in place. To retire the RFC itself, delete rfc/short/").String())
 	}
 	return errs
 }

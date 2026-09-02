@@ -44,7 +44,7 @@ Generate a structured implementation summary from an RFC text file.
    | `Enrolment` | one of `enrolled`, `backlog`, `blocked`, `non-normative`, `source-restricted` |
    | `Enrolment reason` | what makes that kind true. Never blank |
    | `Support` | `-` for no public row, or `<section-key> <rank>`. The keys are the sections `statusSections` declares (`internal/le/rfc/render_ledger.go`). The rank orders this RFC inside its section, because the page's reading order is authored |
-   | `Support name` | the first cell, ONLY where an `rfc<number>` stem cannot derive it. `rfc/short/iso-iec-10589.md` is the one summary that writes it |
+   | `Support name` | the first cell, ONLY where an `rfc<number>` stem cannot derive it |
    | `Support area`, `Support status`, `Support coverage` | the authored cells, moved verbatim onto the page. Required whenever `Support` names a section |
    | `Support remaining` | what is not complete, or `-`. The four-column `drafts` section has no such column, so a row there writes `-` |
 

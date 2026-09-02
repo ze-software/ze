@@ -16,6 +16,7 @@ package rfc
 import (
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -173,14 +174,9 @@ func renderNotEnrolled(metas map[string]Meta) string {
 	tb.Str("#\n")
 	tb.Str("# columns: <rfc-stem>\\t<kind>\\t<why>\n")
 	tb.Str("#\n")
-	tb.Str("# KINDS -- a closed set. The first two make a claim about the DOCUMENT and are the\n")
-	tb.Str("# only two that excuse a public support claim; the third is a scope decision; the\n")
-	tb.Str("# last two are debt.\n")
+	tb.Str("# KINDS -- a closed set. The counts run in kind order; the rows at the end run in\n")
+	tb.Str("# stem order.\n")
 	tb.Str("#\n")
-	// Derived from the closed set rather than listed here. A sixth kind added
-	// to enrolmentKinds and forgotten in a hand-written list would take rows in
-	// this file and no count line, which is the shape this whole change exists
-	// to remove.
 	for _, kind := range enrolmentKindNames() {
 		if kind == enrolmentEnrolled {
 			continue
@@ -188,28 +184,25 @@ func renderNotEnrolled(metas map[string]Meta) string {
 		tb.Str("#   ").Str(kind).Str(": ").Str(share(byKind[kind], len(stems), "summaries")).Byte('\n')
 	}
 	tb.Str("#\n")
-	tb.Str("# non-normative  The DOCUMENT imposes no MUST-level obligation on any speaker. This is the\n")
-	tb.Str("#                one kind that makes a claim about conformance, so `./le rfc check` judges\n")
-	tb.Str("#                its reason twice: the reason MUST cite the RFC's IETF category, the\n")
-	tb.Str("#                presence or absence of the RFC 2119 / RFC 8174 / BCP 14 key-words\n")
-	tb.Str("#                machinery, or a capitalised MUST/SHALL/REQUIRED scan over the source,\n")
-	tb.Str("#                and it may NOT say the obligation does not apply to Ze.\n")
-	tb.Str("# source-restricted\n")
-	tb.Str("#                DECISION, and the only permanent one. The standard's own text may not\n")
-	tb.Str("#                be redistributed, so it can never sit under rfc/full/ and check_enrolment\n")
-	tb.Str("#                can never accept an enrolment. Its reason must name the publishing body\n")
-	tb.Str("#                or the licence that stops the copy. Where the text IS fetchable, this is\n")
-	tb.Str("#                'blocked' instead, and a fetch discharges it.\n")
-	tb.Str("# out-of-scope\n")
-	tb.Str("#                DECISION. The extraction is DONE and the owner decided not to offer the\n")
-	tb.Str("#                feature for now, so the obligations are declared in full and none is\n")
-	tb.Str("#                gated. Its reason carries the date the decision was taken, and its public\n")
-	tb.Str("#                row must read 'Future' or 'Unsupported': a feature nobody chose to build\n")
-	tb.Str("#                cannot be advertised as supported. The absent FEATURE is an implementation\n")
-	tb.Str("#                gap a later scope decision revisits, never a conformance gap.\n")
-	tb.Str("# backlog        DEBT. The extraction is owed.\n")
-	tb.Str("# blocked        DEBT. Something outside the summary prevents enrolment -- most often that\n")
-	tb.Str("#                the RFC's own text is not in this repository.\n")
+	// The meanings are derived from the same closed set as the counts above,
+	// and each one is named rather than placed. A header saying "the first two
+	// are claims" is a claim about the ORDER, and the order is sorted, so a
+	// sixth kind renames every ordinal in a sentence nothing re-reads. An
+	// independent review caught exactly that on 2026-09-02, one commit after
+	// the counts stopped being hand-written.
+	for _, kind := range enrolmentKindNames() {
+		if kind == enrolmentEnrolled {
+			continue
+		}
+		meaning, held := DispositionKindMeaning(kind)
+		if !held {
+			meaning = "no meaning is recorded for this kind, which is itself a defect"
+		}
+		tb.Str("#   ").Str(kind).Str("\n")
+		for _, line := range wrapComment(meaning, 76) {
+			tb.Str("#       ").Str(line).Byte('\n')
+		}
+	}
 	tb.Str("#\n")
 	tb.Str("# backlog and blocked render as **DEBT** in ai/RFC-REQUIREMENTS.md (\"Declared not\n")
 	tb.Str("# enrolled\"). Neither asserts anything about conformance, and neither can silence a\n")
@@ -385,3 +378,26 @@ func statusPageIntro(unrowed, summaries int) string {
 // compares against it, and a caller that spelled the three paths itself could
 // name a file neither of them owns.
 func LedgerPaths() []string { return []string{enrolledRel, notEnrolledRel, statusRel} }
+
+// wrapComment breaks one sentence into lines no wider than width, without
+// breaking a word, so a derived meaning renders as a comment block rather than
+// as one line nobody can read.
+func wrapComment(text string, width int) []string {
+	var out []string
+	var line string
+	for word := range strings.FieldsSeq(text) {
+		switch {
+		case line == "":
+			line = word
+		case len(line)+1+len(word) <= width:
+			line = line + " " + word
+		default:
+			out = append(out, line)
+			line = word
+		}
+	}
+	if line != "" {
+		out = append(out, line)
+	}
+	return out
+}

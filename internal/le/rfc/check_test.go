@@ -520,8 +520,8 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	// vocabulary paragraph never defined the word, so it now reads 'Supported'.
 	// The shape is kept in the split rather than dropped, because the predicate
 	// still accepts it and a future row could reintroduce it.
-	if len(mapped) != 52 || exact != 41 || qualified != 11 || yes != 0 {
-		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 52 (41, 11, 0)",
+	if len(mapped) != 51 || exact != 40 || qualified != 11 || yes != 0 {
+		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 51 (40, 11, 0)",
 			len(mapped), exact, qualified, yes)
 	}
 	if exact+qualified+yes != len(mapped) {
@@ -1426,13 +1426,15 @@ func TestDiscriminationMeasuresChangedGoFunctionUnits(t *testing.T) {
 	}
 }
 
-// VALIDATES: a `source-restricted` summary escapes checkUnprovenSupport, and the two DEBT
-// dispositions do not.
-// PREVENTS: the escape widening into a blanket. `backlog` and `blocked` both say the
-// extraction is owed, and a public support claim resting on owed work is exactly what this
-// check exists to refuse -- so an escape keyed on "is not enrolled" would exempt the whole
-// un-enrolled population instead of the two states that are decisions.
-func TestSourceRestrictedExcusesASupportClaimAndDebtDoesNot(t *testing.T) {
+// VALIDATES: exactly ONE disposition excuses a public support claim, and it is
+// the one that states a property of the DOCUMENT.
+// PREVENTS: the escape widening into a blanket. Every other kind says the
+// extraction is owed or unreachable, and a claim resting on either is what this
+// check exists to refuse -- so an escape keyed on "is not enrolled" would exempt
+// the whole un-enrolled population. `source-restricted` sat on the excusing side
+// until 2026-09-02 and is on this side now: being unable to bound a claim is a
+// reason to stop making it, not a reason to be excused from proving it.
+func TestOnlyANonNormativeDispositionExcusesASupportClaim(t *testing.T) {
 	rows := map[string]LedgerRow{selftestStem: {Status: "Experimental"}}
 	stems := map[string]bool{selftestStem: true}
 
@@ -1440,8 +1442,8 @@ func TestSourceRestrictedExcusesASupportClaimAndDebtDoesNot(t *testing.T) {
 		kind    string
 		excused bool
 	}{
-		{dispositionSourceRestricted, true},
 		{dispositionNonNormative, true},
+		{dispositionSourceRestricted, false},
 		{dispositionBacklog, false},
 		{dispositionBlocked, false},
 	} {
@@ -1796,5 +1798,86 @@ func TestOutOfScopeMustCarryItsExtractionAndItsDate(t *testing.T) {
 				t.Errorf("the refusal does not say %q:\n%v", one.want, errs)
 			}
 		})
+	}
+}
+
+// VALIDATES: the row guard is WIRED -- it fires through Check over a real
+// checkout, not only when a test calls it directly.
+// PREVENTS: the shape an independent review found on 2026-09-02. The guard
+// itself had four unit cases and one production call site, and deleting those
+// two lines in `check` left the whole suite green. `ai/rules/evidence.md` asks
+// for a guard to be driven from its entry point precisely because a guard
+// nothing reaches is indistinguishable from one that never fires.
+//
+// The fixture is deliberately NOT enrolled. checkSupportedSignoff bills any row
+// whose Status promises conformance, enrolled or not, so the population this
+// guard has to cover is the ROW population -- which is the half the first fix
+// got wrong, and rfc/short/rfc9384.md is the live instance of it.
+func TestCheckReportsAPublicRowDeletedThroughItsEntryPoint(t *testing.T) {
+	const stem = "rfc9999"
+	declared := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
+		"| Title | Widgets |\n| Enrolment | non-normative |\n" +
+		"| Enrolment reason | Informational, and it invokes no RFC 2119 key-words machinery |\n" +
+		"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
+		"| Support status | Partial |\n| Support coverage | unit tests |\n" +
+		"| Support remaining | Zero MUST gaps. |\n\n## Compliance Checklist\n\n" +
+		"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n"
+	retired := strings.Replace(declared, "| Support | bgp-base 10 |", "| Support | - |", 1)
+	for _, cell := range []string{"| Support area | Widgets |\n",
+		"| Support status | Partial |\n", "| Support coverage | unit tests |\n",
+		"| Support remaining | Zero MUST gaps. |\n"} {
+		retired = strings.Replace(retired, cell, "", 1)
+	}
+
+	root := commitFixtureTree(t,
+		map[string]string{selftestSummaryRel: declared},
+		map[string]string{selftestSummaryRel: retired})
+
+	report, code := Check(root)
+	if code == 0 {
+		t.Fatalf("a deleted public row was not reported:\n%s", report.Text())
+	}
+	var found string
+	for _, violation := range report.Violations {
+		if strings.Contains(violation, "rendered a row") {
+			found = violation
+		}
+	}
+	if found == "" {
+		t.Fatalf("no violation names the retired row:\n%s", report.Text())
+	}
+	if !strings.Contains(found, stem) {
+		t.Errorf("the violation does not name %s:\n%s", stem, found)
+	}
+}
+
+// VALIDATES: `source-restricted` cannot be written over a source text that IS in
+// the tree, exercised against a real file rather than an empty tree path.
+// PREVENTS: a refusal that has never executed. The first test of this guard
+// passed an empty tree, so `treePath("", ...)` resolved beside the package, the
+// file never existed, and the branch was never entered -- and the corpus reaches
+// it in zero of 198 summaries, so nothing else did either.
+func TestSourceRestrictedIsRefusedWhenTheTextIsPresent(t *testing.T) {
+	root := t.TempDir()
+	writeFixtureFiles(t, root, map[string]string{
+		"rfc/full/rfc9999.txt": "A speaker MUST send the widget.\n",
+	})
+	meta := Meta{Enrolment: dispositionSourceRestricted,
+		EnrolmentReason: "Published by ISO/IEC and not freely redistributable."}
+
+	present := checkSummaryDisposition(root, map[string]Meta{"rfc9999": meta}, gatedFixture())
+	if len(present) != 1 {
+		t.Fatalf("a source-restricted claim over a text in the tree answered %d violation(s): %v",
+			len(present), present)
+	}
+	if !strings.Contains(present[0], "that text IS in this repository") {
+		t.Errorf("the refusal does not name the contradiction:\n%s", present[0])
+	}
+
+	// The same declaration over a stem whose text is genuinely absent is the
+	// state the disposition exists for, and stays silent.
+	absent := checkSummaryDisposition(root, map[string]Meta{"iso-iec-10589": meta}, gatedFixture())
+	if len(absent) != 0 {
+		t.Errorf("a standard whose text is absent was refused: %v", absent)
 	}
 }

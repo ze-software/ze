@@ -10,8 +10,11 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // TestNativeImplementationFixture replaces the retired cross-runtime oracle.
@@ -167,23 +170,69 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// this checkout. No audit verdict moved: the audit schema, its freshness and
 	// its ratchets are untouched, and what changed is which trees the gate
 	// refuses.
-	const want = "ce86633f3e1e2a24b7ab4f513ecd0d87545ef6c54793d37ca6aa29117d10f372"
-	paths, err := filepath.Glob("*.go")
+	// Re-sealed 2026-09-02, and the value moved for a reason the reader itself
+	// changed rather than for anything this package now does differently: the
+	// digest is taken over HEAD's committed blobs, so it no longer describes
+	// whatever any session happened to have uncommitted. A third review round
+	// caught the first version of this note attributing the new value to the
+	// round-2 fixes, which by construction are not in it.
+	//
+	// What the round-2 round found, recorded here because the next re-seal is
+	// where a reader looks for it: two of the FIRST round's fixes were wrong
+	// rather than incomplete.
+	// `checkPublicRowMonotonic` was keyed on enrolment and the checks it
+	// protects iterate the ROWS, so a support-promising row on a non-enrolled
+	// summary could still be retired in silence -- `rfc/short/rfc9384.md` is the
+	// live instance, `non-normative` with a row reading "Supported within BFD".
+	// It is keyed on the row now. And `NewRenderInput`'s refusal on an
+	// unparsable Meta table sat inside a branch no production caller takes,
+	// because `Collect` always returns a non-nil map; `Collected` carries its
+	// `MetaProblems` and the refusal runs on every path. The generated
+	// remainder's kind meanings are derived from the closed set beside its
+	// counts, since a header describing kinds by ordinal is a claim about a
+	// sorted order. No audit verdict moved: what changed is which trees the gate
+	// refuses and what one generated file says about itself.
+	const want = "6e4bbbe74bb184329767bc11082b1c05f2eacb936ac1907553b71e8ff5acea24"
+	// HEAD's committed bytes, never the working tree. A seal taken over the
+	// working tree states a fact about one transient moment: it passed for the
+	// session that minted it and was RED on a clean clone, because the value it
+	// recorded had absorbed whatever every other session happened to have
+	// uncommitted at that instant. This test was in that state at 8267f3e52,
+	// found by an independent review on 2026-09-02, and it is the same
+	// shared-checkout hazard the discrimination records fingerprint against
+	// HEAD to avoid (docs/contributing/rfc-conformance-gates.md, owner
+	// decision 2026-08-31).
+	//
+	// The cost is that the seal trails its own change by one commit: the author
+	// commits, this goes red on the next run, and the re-seal rides in the
+	// following commit. That is the right way round. A tripwire that fires for
+	// the author after they commit is doing its job; one that is red for
+	// everybody who did not make the change is not.
+	root, err := lepath.Root()
 	if err != nil {
-		t.Fatalf("list RFC sources: %v", err)
+		t.Skipf("resolve checkout: %v", err)
 	}
+	paths, ok := gitTreePaths(root, "internal/le/rfc", ".go")
+	if !ok {
+		t.Skip("git cannot list HEAD, so there is no committed state to seal")
+	}
+	blobs, known := gitCatBlobs(root, headRevision, paths)
+	if !known {
+		t.Skip("git cannot read HEAD's blobs, so there is no committed state to seal")
+	}
+	sort.Strings(paths)
 	digest := sha256.New()
 	for _, path := range paths {
 		if strings.HasSuffix(path, "_test.go") {
 			continue
 		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
+		content, held := blobs[path]
+		if !held {
+			t.Fatalf("HEAD lists %s and holds no blob for it", path)
 		}
 		digest.Write([]byte(filepath.Base(path)))
 		digest.Write([]byte{0})
-		digest.Write(content)
+		digest.Write([]byte(content))
 		digest.Write([]byte{0})
 	}
 	if got := hex.EncodeToString(digest.Sum(nil)); got != want {

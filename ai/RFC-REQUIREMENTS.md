@@ -602,7 +602,7 @@ Of those exclusions, 13 carry `relocated-to-spec` (`rfc7296` 12, `rfc7947` 1): t
 
 ## Enrolled without a public status row
 
-32 enrolled RFC(s) have no row in `docs/features/rfc-status.md`. Every MUST-level requirement they declare is gated, so the obligation is enforced while the public page says nothing about the RFC at all. `check_status_completeness` grandfathers the ones that predate it and refuses any NEW enrolment without a row, so this number can only shrink. It is derived from `enrolled - rows`, never listed.
+32 enrolled RFC(s) have no row in `docs/features/rfc-status.md`. Every MUST-level requirement they declare is gated, so the obligation is enforced while the public page says nothing about the RFC at all. `checkPublicRowMonotonic` grandfathers the ones that predate it and refuses any NEW enrolment without a row, so this number can only shrink. It is derived from `enrolled - rows`, never listed.
 
 | RFC | Gated requirements enforced with no public row |
 |---|---|

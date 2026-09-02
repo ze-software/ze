@@ -378,3 +378,23 @@ func TestAnUnescapedPipeInAMetaValueIsRefused(t *testing.T) {
 		t.Errorf("the escaped value came back as %q", meta.Title)
 	}
 }
+
+// VALIDATES: the Meta scan stops at PROSE between the heading and its table,
+// rather than adopting the next table it finds.
+// PREVENTS: the silent version of a missing Meta table. A summary that lost its
+// table would otherwise read a later section's -- a wire-format field column, an
+// AFI/SAFI column -- as its Meta rows, and declare an enrolment nobody wrote.
+// The refusal is the loud outcome, and nothing pinned it until an independent
+// review noticed a revert to `continue` would be invisible.
+func TestProseBetweenTheHeadingAndItsTableEndsTheMetaScan(t *testing.T) {
+	const summary = "# RFC 9999\n\n## Meta\n\nThe table for this document is still to be written.\n\n" +
+		"| AFI | SAFI | Description |\n|---|---|---|\n| 1 | 4 | Labeled IPv4 Unicast |\n"
+
+	_, err := ParseMeta(summary, "rfc9999", "rfc/short/rfc9999.md")
+	if err == nil {
+		t.Fatal("a later table was adopted as the Meta table, so the summary declared what nobody wrote")
+	}
+	if !strings.Contains(err.Error(), "carries no table") {
+		t.Errorf("the refusal does not name the cause:\n%s", err)
+	}
+}

@@ -4,9 +4,8 @@
 #
 # columns: <rfc-stem>\t<kind>\t<why>
 #
-# KINDS -- a closed set. The first two make a claim about the DOCUMENT and are the
-# only two that excuse a public support claim; the third is a scope decision; the
-# last two are debt.
+# KINDS -- a closed set. The counts run in kind order; the rows at the end run in
+# stem order.
 #
 #   backlog: 5 of 198 summaries (2.5%)
 #   blocked: 7 of 198 summaries (3.5%)
@@ -14,28 +13,22 @@
 #   out-of-scope: 2 of 198 summaries (1.0%)
 #   source-restricted: 0 of 198 summaries (0.0%)
 #
-# non-normative  The DOCUMENT imposes no MUST-level obligation on any speaker. This is the
-#                one kind that makes a claim about conformance, so `./le rfc check` judges
-#                its reason twice: the reason MUST cite the RFC's IETF category, the
-#                presence or absence of the RFC 2119 / RFC 8174 / BCP 14 key-words
-#                machinery, or a capitalised MUST/SHALL/REQUIRED scan over the source,
-#                and it may NOT say the obligation does not apply to Ze.
-# source-restricted
-#                DECISION, and the only permanent one. The standard's own text may not
-#                be redistributed, so it can never sit under rfc/full/ and check_enrolment
-#                can never accept an enrolment. Its reason must name the publishing body
-#                or the licence that stops the copy. Where the text IS fetchable, this is
-#                'blocked' instead, and a fetch discharges it.
-# out-of-scope
-#                DECISION. The extraction is DONE and the owner decided not to offer the
-#                feature for now, so the obligations are declared in full and none is
-#                gated. Its reason carries the date the decision was taken, and its public
-#                row must read 'Future' or 'Unsupported': a feature nobody chose to build
-#                cannot be advertised as supported. The absent FEATURE is an implementation
-#                gap a later scope decision revisits, never a conformance gap.
-# backlog        DEBT. The extraction is owed.
-# blocked        DEBT. Something outside the summary prevents enrolment -- most often that
-#                the RFC's own text is not in this repository.
+#   backlog
+#       the requirements have not been extracted from the document yet; this is work
+#       owed rather than a decision
+#   blocked
+#       something outside the summary stops the extraction, and it is named in the
+#       reason
+#   non-normative
+#       the document imposes no MUST-level obligation on an implementation, so there
+#       is nothing to gate
+#   out-of-scope
+#       the requirements ARE extracted and the owner decided not to offer the
+#       feature for now, so the absence is a scope decision rather than a
+#       conformance gap
+#   source-restricted
+#       the standard's own text may not be redistributed, so this repository cannot
+#       hold it and no checklist can ever be bounded against it
 #
 # backlog and blocked render as **DEBT** in ai/RFC-REQUIREMENTS.md ("Declared not
 # enrolled"). Neither asserts anything about conformance, and neither can silence a

@@ -194,9 +194,10 @@ point: both `ai/RFC-REQUIREMENTS.md` and the website's RFC pages flow through it
 so re-pointing the three loaders there keeps the two producers from diverging.
 `internal/le/site/rfccompliance.go` and `rfcdetail.go` name the three paths as
 literal strings in published prose and must be edited in the same work.
-`plan/spec-publish-the-rfc-requirement-ledger.md` is in progress over
+spec-publish-the-rfc-requirement-ledger published
 `/quality/rfc-compliance/<stem>/`, a different route from the mirror this page
-feeds.
+feeds. That spec is closed, so its file is no longer in the tree and the stem is
+written bare.
 
 ### Architectural Verification
 
@@ -401,6 +402,72 @@ Two goals are NOT validated here, and neither is silently dropped. The site's
 published prose is handed to the session that owns those files, with a row in the
 deferral shard. `TestSupportedRowsHaveDerivableScope` stays red on a number this
 spec did not move.
+
+## Review Gate
+
+Independent throughout: neither round was run by the author, and neither read the
+other's report. Round 1 judged `199b684f6`; round 2 judges whether the fixes in
+`8267f3e52` are real.
+
+### Run 1 (initial)
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | BLOCKER | A public row DELETED while its RFC stays enrolled is a representable state that nothing refuses. The commit retiring `checkStatusCompleteness` claimed `checkRetiredRequirements` covered it; that ratchet compares requirement ids and never reads a `Support` cell | `check_status.go`, `check_ratchets.go` | fixed in `8267f3e52`, `checkPublicRowMonotonic` |
+| 2 | ISSUE | `out-of-scope` skips `checkNewSummaries` entirely, and nothing checks the premise it rests on: both live users say the extraction is COMPLETE and neither has one | `check_ratchets.go`, `check_status.go` | fixed in `8267f3e52`, refused at a zero gated count |
+| 3 | ISSUE | `source-restricted` excuses a support claim and never asks whether the text is in the tree, though `sourceKeywordCount` answers exactly that | `check_status.go`, `checkSourceRestricted` | fixed in `8267f3e52` |
+| 4 | ISSUE | `metaRows` truncates a value at an unescaped pipe -- the RFC 1994 defect one level up, on the surface that now feeds the page | `meta.go`, `metaRows` | fixed in `8267f3e52`, refused |
+| 5 | ISSUE | `checkOutOfScope`'s date branch is tested only in the passing direction | `check_test.go`, `selftest_core.go` | fixed in `8267f3e52`, `TestOutOfScopeMustCarryItsExtractionAndItsDate` |
+| 6 | ISSUE | Three refusals send the author to a generated file, where a hand edit is destroyed | `checkStatusAgreement`, `checkGapCountAgreement`, `check_audit.go` | fixed in `8267f3e52` for the two in `check_status.go`; the `check_audit.go` one is another session's file and untouched |
+| 7 | ISSUE | Comments this change made wrong: the kind count in three places, and `checkSupportedSignoff`'s justification naming the public page | `meta.go`, `ledger.go`, `check.go`, `render_ledger.go` | fixed in `8267f3e52` |
+| 8 | ISSUE | One closed set still declared twice: `renderNotEnrolled` hardcodes the kinds it counts | `render_ledger.go` | fixed in `8267f3e52`, derived from `enrolmentKindNames` |
+| 9 | NOTE | Both migration-proof tests skip permanently once HEAD carries the generated files, while Goal Validation cites them as live | `render_ledger_test.go` | acknowledged; Goal Validation records what they measured |
+| 10 | NOTE | `TestOneSummaryRendersExactlyOneStatusRow`'s duplicate assertion cannot fail | `check_test.go` | fixed in `8267f3e52`, drives the rank clash instead |
+| 11 | NOTE | `metaSection` adopts a later section's table when the Meta table is absent | `meta.go` | fixed in `8267f3e52` |
+| 12 | NOTE | `successorFrom` ranges a map, so two forward labels give a nondeterministic successor | `meta.go` | fixed in `8267f3e52`, sorted and refused |
+| 13 | NOTE | `docs/features/rfc-status.md` written with no trailing newline | `render_ledger.go` | fixed in `8267f3e52` |
+| 14 | NOTE | `summaryMetas` returns the first Meta error and aborts, so one bad summary blocks the gate for every session | `meta.go` | fixed in `8267f3e52`, collected |
+| 15 | NOTE | `renderStatusPage` carries an unused loop index | `render_ledger.go` | fixed in `8267f3e52` |
+| 16 | NOTE | Hardcoded counts keep moving | `check_test.go` | acknowledged; the moving one is deferred to the spec that owns it |
+
+### Fixes applied
+
+- `checkPublicRowMonotonic` restores both branches of the retired guard, over HEAD's metas, which `check` already reads for the ratchets.
+- `out-of-scope` must declare the extraction its own reason claims, and its date branch is tested failing.
+- `source-restricted` may not be written over a source text present in the tree.
+- An unescaped pipe in a Meta value is refused rather than truncating it.
+- The generated remainder counts every kind the parser accepts.
+- `summaryMetas` collects its parse errors, so one summary mid-edit no longer stops the gate for a checkout several sessions share.
+
+### Run 2 (over the fixes)
+
+Six of the eight fixes held. Two did not, and both were narrower than their own
+rationale rather than absent -- which is the failure mode a second round exists
+to catch, because round 1 had already reported the right defect.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | BLOCKER | The restored row guard was keyed on ENROLMENT, and the checks it protects iterate the ROWS. A support-promising row on a non-enrolled summary could still be retired in silence, and `rfc/short/rfc9384.md` is the live instance: `non-normative`, with a row reading "Supported within BFD" that `checkSupportedSignoff` bills | `check_status.go`, `checkPublicRowMonotonic` | fixed, re-keyed on `base.HasRow() && !meta.HasRow()` |
+| 2 | BLOCKER | The refusal on an unparsable Meta table sat inside `if metas == nil`, and `Collect` always returns a non-nil map, so no production caller could reach it. Meanwhile `collectRequirementLedger` publishes a stem absent from that map with a zero `Meta` -- no title, not enrolled, no row, all of it reading as data | `render.go`, `NewRenderInput`; `internal/le/site/rfcledger.go` | fixed, `Collected.MetaProblems` and the refusal outside the branch |
+| 3 | ISSUE | Nothing tested that `checkPublicRowMonotonic` is CALLED. Deleting its two lines in `check` left the suite green, so the guard whose absence was round 1's blocker was removable without a red | `check.go`, `check_test.go` | fixed, `TestCheckReportsAPublicRowDeletedThroughItsEntryPoint` drives it through `Check` |
+| 4 | ISSUE | `checkSourceRestricted`'s new refusal had never executed: its test passed an empty tree, so the path resolved beside the package and never existed, and the corpus reaches it in zero of 198 summaries | `check_status.go`, `check_test.go` | fixed, `TestSourceRestrictedIsRefusedWhenTheTextIsPresent` writes a real source file |
+| 5 | ISSUE | Deriving the counts made the header's own prose wrong: it described kinds by ORDINAL ("the first two are claims") against a sorted order. The per-kind meanings below were still a hand-written five | `render_ledger.go`, `renderNotEnrolled` | fixed, meanings derived from `DispositionKindMeaning` and each kind named rather than placed |
+| 6 | ISSUE | `metaSection`'s new break-on-prose branch was untested, so a revert to `continue` was invisible | `meta.go`, `summary_test.go` | fixed, `TestProseBetweenTheHeadingAndItsTableEndsTheMetaScan` |
+| 7 | NOTE | `checkOutOfScope`'s gated count is a floor of one: a summary declaring one trivial MUST buys the exemption | `check_status.go` | acknowledged. An honest floor, not a proof, and the alternative is bounding an out-of-scope checklist's completeness, which needs an extraction sign-off it is exempt from by construction |
+| 8 | NOTE | `| Foo | bar\|` escapes the CLOSING pipe, giving a value ending in the escape with no refusal | `meta.go`, `splitMetaCells` | acknowledged, pre-existing and not introduced by this work |
+| 9 | NOTE | `checkUnprovenSupport` and `checkSupportedSignoff` still open by naming the generated page, though both route the remedy elsewhere | `check_status.go` | acknowledged, cosmetic: no author is sent to edit it |
+| 10 | NOTE | Style: a package-level `cell` shadowed inside `splitMetaCells`, `sortedValuesOf` placed in the CPython-format file, a countable loop written as a range | `meta.go`, `pyfmt.go`, `check_test.go` | acknowledged |
+
+### Fixes applied after run 2
+
+- The row guard is keyed on the row, so it covers the population `checkSupportedSignoff` bills rather than the narrower enrolled one.
+- `Collected` carries `MetaProblems`, and `NewRenderInput` refuses on them however the map arrived, which closes the site builder's silent path without editing another session's file.
+- The generated remainder derives its kind meanings as well as its counts, and names each kind rather than its position in a sorted list.
+- Three guards gained the test they lacked, one of them driven through `Check` rather than called directly.
+
+### Final status
+
+<!-- filled at closure -->
 
 ## Design Insights
 

@@ -655,7 +655,7 @@ func renderStatusBacklog(in RenderInput) []string {
 			Str(" enrolled RFC(s) have no row in `docs/features/rfc-status.md`. Every ").
 			Str("MUST-level requirement they declare is gated, so the obligation is ").
 			Str("enforced while the public page says nothing about the RFC at all. ").
-			Str("`check_status_completeness` grandfathers the ones that predate it and ").
+			Str("`checkPublicRowMonotonic` grandfathers the ones that predate it and ").
 			Str("refuses any NEW enrolment without a row, so this number can only shrink. ").
 			Str("It is derived from `enrolled - rows`, never listed.").String(),
 		"",

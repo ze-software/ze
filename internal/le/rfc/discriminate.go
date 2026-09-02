@@ -62,18 +62,6 @@ const (
 	ProofEscapeUnfounded = "escape-unfounded"
 )
 
-// Verified answers whether the tree still holds the code the red was observed
-// against. A reader outside this package publishes proof and escape apart, and
-// this is the one question that decides which.
-func (v DiscriminationVerdict) Verified() bool { return v.State == ProofVerified }
-
-// Proves answers whether this record claims a proof rather than the escape.
-//
-// RouteNoBreak is the ESCAPE and is counted apart from the two proof routes
-// wherever a count is published: a claim that no break exists is debt rather
-// than evidence.
-func (r DiscriminationRecord) Proves() bool { return r.Route != RouteNoBreak }
-
 // DiscriminationRecord is one recorded break and the tagged unit it reddened.
 //
 // Unit is the tagged unit key, so the record dies with the tag it proves:
@@ -115,6 +103,13 @@ type DiscriminationRecord struct {
 	// path at load time, never authored, so it is not part of the schema.
 	Source string `json:"-"`
 }
+
+// Proves answers whether this record claims a proof rather than the escape.
+//
+// RouteNoBreak is the ESCAPE and is counted apart from the two proof routes
+// wherever a count is published: a claim that no break exists is debt rather
+// than evidence.
+func (r DiscriminationRecord) Proves() bool { return r.Route != RouteNoBreak }
 
 // discriminationFile is one rfc/discrimination/<stem>.json: the RFC it proves
 // and the records that prove it.
@@ -551,6 +546,11 @@ type DiscriminationVerdict struct {
 	// Detail names what moved, for the violation a reader has to act on.
 	Detail string `json:"detail,omitempty"`
 }
+
+// Verified answers whether the tree still holds the code the red was observed
+// against. A reader outside this package publishes proof and escape apart, and
+// this is the one question that decides which.
+func (v DiscriminationVerdict) Verified() bool { return v.State == ProofVerified }
 
 // removable answers whether this record's TAG is gone from the tree.
 //
