@@ -597,14 +597,19 @@ one line. The multi-line form is the house style. An agent that reflows an
 example onto one line, followed by an agent that reflows it back, costs two
 diffs and tells the reader nothing.
 
-The one-line form is also a syntax error unless the last statement carries its
-semicolon. Automatic semicolon insertion fires at a newline, so a closing brace
-on the same line as the statement it closes ends the block before the statement
-ends. Measured with a built `ze config validate`:
-`attach process bgp-rr { receive [ update ] }` is refused with
-"expected ';' after receive, got RBRACE", and
-`attach process bgp-rr { receive [ update ]; }` is accepted. An operator copies
-what a guide shows, so a guide never shows the refused form.
+The one-line form parses, so the multi-line form is house style for the reader
+and not a demand of the parser. Automatic semicolon insertion fires at a
+newline, at the end of the file, and before a closing brace
+(`internal/component/config/tokenizer.go`, scan), so a closing brace on the same
+line as the statement it closes ends that statement first. Measured with a built
+`ze config validate`: `attach process bgp-rr { receive [ update-received ] }`
+and `attach process bgp-rr { receive [ update-received ]; }` are both accepted.
+
+An operator copies what a guide shows, so a guide shows the config ze can
+run. `bgp-rr` judges what a peer sent, and a plain `update` token grants both
+directions, which deadlocks it (`internal/component/bgp/plugins/rr/rr.go`,
+SetStartupSubscriptions). That is why the example above writes
+`update-received`.
 
 An inline mention inside a sentence or a table cell can stay on one line, and it
 then carries the semicolon: `internal rib { use bgp-rib; }`. Reflowing a phrase
