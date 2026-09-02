@@ -148,14 +148,49 @@ func TestBareAppendEmptyDst(t *testing.T) {
 	assert.Equal(t, "ff", string(Hex(nil, []byte{0xff})))
 }
 
+// VALIDATES: String empties the buffer, so a write after a read starts a new
+// string and the earlier read keeps its own bytes (textbuf.go, String).
+// PREVENTS: the buffer keeping its content after a read, which is what
+// strings.Builder does and what this type deliberately does not.
 func TestBufferWriteAfterString(t *testing.T) {
 	t.Parallel()
 	var b Buffer
 	s1 := b.Reset().Str("hello").String()
 	assert.Equal(t, "hello", s1)
 	s2 := b.Str(" world").String()
-	assert.Equal(t, "hello world", s2)
+	assert.Equal(t, " world", s2)
 	assert.Equal(t, "hello", s1)
+}
+
+// VALIDATES: String behaves identically at every size (owner directive,
+// 2026-09-02). Five bytes and five hundred take the same path through the same
+// assertions, so the inline and heap branches cannot disagree.
+// PREVENTS: the size-dependent contract this type shipped with, under which a
+// read-then-write site passed on a small fixture and lost its earlier text on
+// real input. A branch that keeps content at one size reddens exactly one half
+// of this table.
+func TestBufferStringEmptiesAtEverySize(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name  string
+		first string
+	}{
+		{name: "inline", first: "hello"},
+		{name: "heap", first: strings.Repeat("x", 500)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			var b Buffer
+			b.Reset()
+			first := b.Str(test.first).String()
+			assert.Equal(t, test.first, first)
+			assert.Equal(t, 0, b.Len())
+			assert.Equal(t, "", b.String())
+			second := b.Str("more").String()
+			assert.Equal(t, "more", second)
+			assert.Equal(t, test.first, first)
+		})
+	}
 }
 
 func TestBufferFreezeAfterSlice(t *testing.T) {
@@ -219,13 +254,15 @@ func TestBufferGrowNoOpWhenSufficient(t *testing.T) {
 	assert.Equal(t, "hi", got)
 }
 
+// VALIDATES: Grow after a read grows an EMPTY buffer, because String emptied
+// it, and does not resurrect the bytes the read took.
 func TestBufferGrowAfterString(t *testing.T) {
 	t.Parallel()
 	var b Buffer
 	s := b.Reset().Str("x").String()
 	assert.Equal(t, "x", s)
 	got := b.Grow(10).Str("y").String()
-	assert.Equal(t, "xy", got)
+	assert.Equal(t, "y", got)
 	assert.Equal(t, "x", s)
 }
 

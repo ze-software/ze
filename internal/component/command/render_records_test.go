@@ -331,8 +331,11 @@ func TestCountThenNDJSONMatchesTheDocumentRunner(t *testing.T) {
 			want := renderedDocumentBytes(t, chain, recordEnvelope, count)
 			var exact textbuf.Buffer
 			exact.Str(`{"count":`).Int(int64(count)).Str(`,"pipe":[{"op":"count"}]}`).Byte('\n')
-			if want != exact.String() {
-				t.Fatalf("document runner = %q, want exact top-level count and pipe metadata %q", want, exact.String())
+			// Read once: String empties the buffer, so a second read inside the
+			// message would print nothing (internal/core/textbuf, String).
+			expected := exact.String()
+			if want != expected {
+				t.Fatalf("document runner = %q, want exact top-level count and pipe metadata %q", want, expected)
 			}
 
 			forms := []struct {

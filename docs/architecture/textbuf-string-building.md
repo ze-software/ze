@@ -114,7 +114,7 @@ and `Release` return their own result instead, so a chain ends on one of them.
 | `PadLeft(s, width)` | Prepend spaces then `s` to fill `width` (rune-aware) |
 | `Repeat(s, n)` | Append `s` N times (indentation, padding) |
 | `Grow(n)` | Pre-grow capacity to avoid mid-chain reallocation |
-| `String()` | Return built string (single alloc for inline, zero-copy for heap). Does NOT freeze: writes continue safely |
+| `String()` | Return the built string and EMPTY the buffer, at every size. Does NOT freeze: a write after it starts a new string, from empty |
 | `Slice()` | Return string **zero-copy at any size**. Freezes buffer: writes panic until `Reset()` |
 | `Bytes()` | Return raw `[]byte` (shares buffer memory). For `w.Write()` or `string()` in map/switch (compiler elides alloc) |
 | `StdOut()` | Write the contents to standard output. No copy and no extraction: the write consumes the buffer, so neither `String()` nor `Slice()` is needed. Does NOT freeze. Adds no newline. Returns `error` |
@@ -132,8 +132,25 @@ and `Release` return their own result instead, so a chain ends on one of them.
 ## String() against Slice()
 
 `Slice()` does zero allocations at any size. `String()` copies inline data
-(128 bytes or less) and does zero-copy for heap data. Most strings are passed
-to a function and discarded, so `Slice()` is the default.
+(128 bytes or less) and does zero-copy for heap data. That is a cost
+difference and nothing else. Most strings are passed to a function and
+discarded, so `Slice()` is the default.
+
+`String()` EMPTIES the buffer, at every size (owner directive, 2026-09-02).
+Read it once, last. A second `String()` after more writes answers only what
+was written since the first one, where `strings.Builder` answers everything:
+
+```go
+s1 := b.String()      // b is now empty
+b.Str("more")
+s2 := b.String()      // Buffer: "more".  strings.Builder: "...more"
+```
+
+The rule holds at five bytes and at five kilobytes. Until 2026-09-02 the
+inline case kept its content while the heap case did not, so a read-then-write
+site passed on a small fixture and lost its earlier text on real input. Size
+now proves nothing, and a defect of that shape fails on the first test that
+runs it.
 
 | Result lifetime | Use | Allocations |
 |----------------|-----|-------------|
@@ -141,7 +158,7 @@ to a function and discarded, so `Slice()` is the default.
 | Stored in a struct field | `String()` | 1 (inline copy) or 0 (heap transfer) |
 | Consumed before `Reset()`/`Release()` | `Slice()` | 0 |
 | Passed to `netip.ParsePrefix()` etc. | `Slice()` | 0 (parser copies internally if needed) |
-| Buffer reused after extraction | `String()` | 1 or 0 (does not freeze buffer) |
+| Buffer reused after extraction | `String()` | 1 or 0 (does not freeze; the reuse starts from empty) |
 
 ```go
 // Slice: zero-copy, consumed immediately by ParsePrefix

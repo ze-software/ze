@@ -80,8 +80,8 @@ func StringHexUpper(data []byte) string {
 //	Hot loop (amortized): b := Get(); defer b.Release()
 //	                      for ... { use(b.Reset().Str("x").Slice()) }
 //
-// String: inline (<=128B) copies, heap (>128B) zero-copy with detach.
-// Does not freeze; writes after String are safe.
+// String: hands back the contents and EMPTIES the buffer, at every size.
+// Does not freeze; writes after String are safe and start from empty.
 //
 // Slice: always zero-copy. Freezes the buffer; writes panic until Reset.
 // Valid only until the next Reset or Release. Do not use with Get()
@@ -110,6 +110,14 @@ func StringHexUpper(data []byte) string {
 // The shape to watch is a Buffer as a struct FIELD. `[]*node` is safe and
 // `[]node` is not, and the day someone changes one to the other, nothing in
 // this package objects.
+//
+// RESET BEFORE THE FIRST WRITE. The inline array is what makes a Buffer cheaper
+// than a strings.Builder, and a zero value never reaches it: b.b is nil, the
+// first write appends to a nil slice, and the allocator hands back a heap slice
+// exactly as strings.Builder would. Only Reset, New and Get point b.b at arr.
+// So `var b Buffer` followed by b.Str(...) buys nothing over the type it
+// replaced. `var b Buffer; b.Reset()` is the whole fix, and it allocates
+// nothing.
 type Buffer struct {
 	arr    [128]byte
 	b      []byte
@@ -409,40 +417,47 @@ func (b *Buffer) Len() int { return len(b.b) }
 // does not escape).
 func (b *Buffer) Bytes() []byte { return b.b }
 
-// String returns the buffer contents. Inline data (<=128B) is copied; heap
-// data (>128B) is returned zero-copy with the heap slice detached. Unlike
-// Slice, String does NOT freeze the buffer: subsequent writes are safe
-// because inline data was copied and heap data was detached.
+// String returns the buffer contents and EMPTIES the buffer. Unlike Slice,
+// String does not freeze it: the next write starts a new string, from empty.
 //
-// READ IT ONCE, LAST. This is where Buffer differs from strings.Builder, and
-// the difference is silent. Detaching the heap slice leaves the buffer EMPTY,
-// so a second String() after further writes answers only what was written
-// since the first one, where strings.Builder answers everything:
+// READ IT ONCE, LAST. This is where Buffer differs from strings.Builder, which
+// keeps everything and answers it again on a second call:
 //
-//	s1 := b.String()      // over 128B: b is now empty
+//	s1 := b.String()      // b is now empty
 //	b.Str("more")
 //	s2 := b.String()      // Buffer: "more".  strings.Builder: "...more"
 //
-// Writing after a read is memory-safe, which is what the paragraph above
-// promises, and it is still a defect whenever the caller expected the earlier
-// bytes to still be there. The failure is CONTENT-DEPENDENT: under 128 bytes
-// the inline data is copied and the buffer keeps it, so the same code passes
-// on a small fixture and truncates on real input. Size proves nothing here.
-// Judge a call site by whether anything writes to the buffer afterwards on any
-// path, a loop that reads per iteration and a helper that appends after the
-// read included.
+// ONE size rule, and it holds at every size (owner directive, 2026-09-02). A
+// five-byte buffer empties exactly as a five-kilobyte one does. Before that
+// directive the inline case (<=128B, and only when Reset, New or Get had
+// pointed the buffer at its own array) kept its content while the heap case
+// detached, so the same code passed on a small fixture and truncated on real
+// input. Nothing now depends on how much the buffer holds, on which init it
+// got, or on how it happens to be backed. A read-then-write defect fails on
+// the first test that runs it, whatever the fixture.
 //
-// Converting a strings.Builder to a Buffer is the moment this bites, because
-// every other method carries over unchanged. Reset the buffer when reuse is
-// what you want: that is the same 128 inline bytes and no allocation.
+// Cost differs where behavior does not: inline data is copied because the array
+// is written over in place, heap data is handed to the string zero-copy. That
+// is an allocation question, never a semantic one. Use Slice when the string is
+// consumed immediately and zero-copy at every size is what you want.
+//
+// So judge a call site by whether anything writes to the buffer afterwards on
+// any path, a loop that reads per iteration and a helper that appends after the
+// read included. Converting a strings.Builder to a Buffer is the moment this
+// bites, because every other method carries over unchanged.
 func (b *Buffer) String() string {
 	if len(b.b) == 0 {
 		return ""
 	}
+	// Inline data is copied because the array is written over in place. Heap
+	// data is handed to the string, which then owns it. The two branches differ
+	// in cost and in nothing else: each leaves the buffer empty.
+	var s string
 	if unsafe.SliceData(b.b) == &b.arr[0] { //nolint:gosec // inline-backed: must copy
-		return string(b.b)
+		s = string(b.b)
+	} else {
+		s = unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // heap-backed: zero-copy, the string owns the slice
 	}
-	s := unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // heap-backed: zero-copy, string owns the slice
 	b.b = b.inlineSlice()
 	return s
 }
