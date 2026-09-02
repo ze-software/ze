@@ -14,6 +14,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const processTimeout = 15 * time.Second
@@ -411,22 +413,17 @@ func renderCLICatalog(destination string, commands []map[string]any) error {
 	if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
 		return fmt.Errorf("create rendered CLI directory: %w", err)
 	}
-	var page strings.Builder
-	page.WriteString("<!doctype html>\n<html><head><meta charset=\"utf-8\"><title>CLI catalog</title></head><body>\n")
-	page.WriteString("<main class=\"cli-catalog\">\n")
+	var page textbuf.Buffer
+	page.Str("<!doctype html>\n<html><head><meta charset=\"utf-8\"><title>CLI catalog</title></head><body>\n")
+	page.Str("<main class=\"cli-catalog\">\n")
 	for _, command := range commands {
 		name, _ := command["name"].(string)
 		if name == "" {
 			name, _ = command["command"].(string)
 		}
-		page.WriteString("<article class=\"cli-command\">")
-		page.WriteString("<h2>")
-		page.WriteString(html.EscapeString(name))
-		page.WriteString("</h2>")
+		page.Str("<article class=\"cli-command\">").Str("<h2>").Str(html.EscapeString(name)).Str("</h2>")
 		if shape, ok := command["answer-shape"].(string); ok {
-			page.WriteString("<div class=\"cli-contract-field\"><span>Answer shape</span><code>")
-			page.WriteString(html.EscapeString(shape))
-			page.WriteString("</code></div>")
+			page.Str("<div class=\"cli-contract-field\"><span>Answer shape</span><code>").Str(html.EscapeString(shape)).Str("</code></div>")
 		}
 		if rawFields, ok := command["address-fields"].([]any); ok {
 			fields := make([]string, 0, len(rawFields))
@@ -435,23 +432,19 @@ func renderCLICatalog(destination string, commands []map[string]any) error {
 					fields = append(fields, field)
 				}
 			}
-			page.WriteString("<div class=\"cli-contract-field\"><span>Address fields</span><code>")
-			page.WriteString(html.EscapeString(strings.Join(fields, ", ")))
-			page.WriteString("</code></div>")
+			page.Str("<div class=\"cli-contract-field\"><span>Address fields</span><code>").Str(html.EscapeString(strings.Join(fields, ", "))).Str("</code></div>")
 		}
 		if operators, ok := objectSlice(command["operators"]); ok {
-			page.WriteString("<ul class=\"cli-operators\">")
+			page.Str("<ul class=\"cli-operators\">")
 			for _, operator := range operators {
 				operatorName, _ := operator["name"].(string)
-				page.WriteString("<li><code>")
-				page.WriteString(html.EscapeString(operatorName))
-				page.WriteString("</code></li>")
+				page.Str("<li><code>").Str(html.EscapeString(operatorName)).Str("</code></li>")
 			}
-			page.WriteString("</ul>")
+			page.Str("</ul>")
 		}
-		page.WriteString("</article>\n")
+		page.Str("</article>\n")
 	}
-	page.WriteString("</main>\n</body></html>\n")
+	page.Str("</main>\n</body></html>\n")
 	if err := os.WriteFile(destination, []byte(page.String()), 0o600); err != nil {
 		return fmt.Errorf("write rendered primary CLI page: %w", err)
 	}

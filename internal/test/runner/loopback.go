@@ -23,6 +23,8 @@ import (
 	"net"
 	"slices"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ensureBindAddresses makes every address a fixture binds usable, or returns the
@@ -172,14 +174,13 @@ var configDelimiters = strings.NewReplacer("{", " { ", "}", " } ", ";", " ; ")
 // configTokens splits a config into words and delimiters. A `#` starts a
 // comment and ends the line.
 func configTokens(config string) []string {
-	var stripped strings.Builder
+	var stripped textbuf.Buffer
 	stripped.Grow(len(config))
 	for line := range strings.SplitSeq(config, "\n") {
 		if i := strings.IndexByte(line, '#'); i >= 0 {
 			line = line[:i]
 		}
-		stripped.WriteString(line)
-		stripped.WriteByte('\n')
+		stripped.Str(line).Byte('\n')
 	}
 	return strings.Fields(configDelimiters.Replace(stripped.String()))
 }

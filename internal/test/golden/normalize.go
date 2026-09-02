@@ -5,6 +5,8 @@ package golden
 import (
 	"html"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // normalizeHTML rewrites markup into the form a reader receives it as.
@@ -74,13 +76,13 @@ import (
 func normalizeHTML(src string) string {
 	tokens := tokenizeHTML(src)
 
-	var b strings.Builder
+	var b textbuf.Buffer
 
 	depth := 0
 
 	for i, tok := range tokens {
 		if tok.tag {
-			b.WriteString(tok.text)
+			b.Str(tok.text)
 
 			depth = preserveDepth(depth, tok)
 
@@ -88,12 +90,12 @@ func normalizeHTML(src string) string {
 		}
 
 		if depth > 0 {
-			b.WriteString(canonicalRefs(tok.text))
+			b.Str(canonicalRefs(tok.text))
 
 			continue
 		}
 
-		b.WriteString(normalizeText(canonicalRefs(tok.text), prevOf(tokens, i), nextOf(tokens, i)))
+		b.Str(normalizeText(canonicalRefs(tok.text), prevOf(tokens, i), nextOf(tokens, i)))
 	}
 
 	return b.String()
@@ -186,7 +188,7 @@ func normalizeText(text string, prev, next *htmlToken) string {
 
 // collapseSpace turns every run of whitespace into one space.
 func collapseSpace(s string) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 
 	space := false
 
@@ -198,7 +200,7 @@ func collapseSpace(s string) string {
 		}
 
 		if space {
-			b.WriteByte(' ')
+			b.Byte(' ')
 
 			space = false
 		}
@@ -207,7 +209,7 @@ func collapseSpace(s string) string {
 	}
 
 	if space {
-		b.WriteByte(' ')
+		b.Byte(' ')
 	}
 
 	return b.String()
@@ -343,23 +345,23 @@ func elementName(body string) string {
 // A tag with no closing bracket keeps none. Truncated output must read as a
 // difference, so this function never supplies a bracket the input lacks.
 func normalizeTag(raw string) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 
 	body := strings.TrimSuffix(strings.TrimSuffix(raw, ">"), "/")
 	end := raw[len(body):]
 
 	i := 1
 
-	b.WriteByte('<')
+	b.Byte('<')
 
 	if strings.HasPrefix(body[i:], "/") {
-		b.WriteByte('/')
+		b.Byte('/')
 
 		i++
 	}
 
 	name := elementName(body[i:])
-	b.WriteString(name)
+	b.Str(name)
 
 	i += len(name)
 
@@ -375,11 +377,10 @@ func normalizeTag(raw string) string {
 		attr, next := tagAttribute(body, i)
 		i = next
 
-		b.WriteByte(' ')
-		b.WriteString(attr)
+		b.Byte(' ').Str(attr)
 	}
 
-	b.WriteString(end)
+	b.Str(end)
 
 	return b.String()
 }

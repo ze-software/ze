@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -164,7 +165,7 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	if !Poll(ctx, 1000, 20*time.Millisecond, func() bool { metric, ok := flapDefaultMetric08(ctx); return ok && metric == flapBaseMetric08 }) {
 		return fmt.Errorf("timed out waiting for default route at metric %d", flapBaseMetric08)
 	}
-	var batch strings.Builder
+	var batch textbuf.Buffer
 	for i := range flapTransitions08 {
 		state := "up"
 		if i%2 == 0 {

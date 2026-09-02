@@ -311,18 +311,18 @@ func blockCommentEnd(src string, i int) int {
 // contents and the index just past it. An escape is kept as written: no escape
 // Go allows can spell a tag the raw text does not.
 func quotedLiteral(src string, i int) (string, int) {
-	var b strings.Builder
+	var b textbuf.Buffer
 
 	j := i + 1
 	for j < len(src) && src[j] != '"' && src[j] != '\n' {
 		if src[j] == '\\' && j+1 < len(src) {
-			b.WriteString(src[j : j+2])
+			b.Str(src[j : j+2])
 			j += 2
 
 			continue
 		}
 
-		b.WriteByte(src[j])
+		b.Byte(src[j])
 		j++
 	}
 

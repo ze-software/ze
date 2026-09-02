@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -155,7 +157,7 @@ func New(root string, stdout, stderr io.Writer) *Runner {
 func (runner *Runner) command(timeout time.Duration, capture bool, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	var output strings.Builder
+	var output textbuf.Buffer
 	stdout := runner.Stdout
 	if capture {
 		stdout = &output

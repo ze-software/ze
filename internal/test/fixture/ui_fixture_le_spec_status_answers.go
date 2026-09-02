@@ -13,6 +13,8 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -306,7 +308,7 @@ func uiLeSpecStatusAnswersRunCommand(ctx context.Context, dir string, env []stri
 func lineDifference(a, b []byte, limit int) string {
 	as := strings.Split(string(a), "\n")
 	bs := strings.Split(string(b), "\n")
-	var out strings.Builder
+	var out textbuf.Buffer
 	length := len(as)
 	length = max(length, len(bs))
 	for i := 0; i < length && out.Len() < limit; i++ {

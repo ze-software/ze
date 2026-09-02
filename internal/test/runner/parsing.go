@@ -608,14 +608,15 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 		}
 	}
 
-	var outBuf, errBuf strings.Builder
+	var outBuf, errBuf textbuf.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 	runErr := cmd.Run()
 
 	stdout := outBuf.String()
 	stderr := errBuf.String()
-	allOutput.WriteString(stdout + stderr)
+	allOutput.WriteString(stdout)
+	allOutput.WriteString(stderr)
 
 	exitCode := 0
 	if runErr != nil {

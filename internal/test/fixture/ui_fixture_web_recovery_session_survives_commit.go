@@ -14,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const webRecoverySessionFixture = "ui/web-recovery-session-survives-commit"
@@ -319,14 +321,12 @@ func webRecoveryHTTPClient() (*http.Client, *http.Transport) {
 }
 
 func webRecoveryEncodeForm(fields []webRecoveryField) string {
-	var encoded strings.Builder
+	var encoded textbuf.Buffer
 	for index, field := range fields {
 		if index != 0 {
-			encoded.WriteByte('&')
+			encoded.Byte('&')
 		}
-		encoded.WriteString(url.QueryEscape(field.name))
-		encoded.WriteByte('=')
-		encoded.WriteString(url.QueryEscape(field.value))
+		encoded.Str(url.QueryEscape(field.name)).Byte('=').Str(url.QueryEscape(field.value))
 	}
 	return encoded.String()
 }

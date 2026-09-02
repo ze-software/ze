@@ -27,6 +27,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -177,28 +179,28 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 }
 
 func managedConfig(routerID string, hubPort, pluginPort int, reject bool) string {
-	var builder strings.Builder
-	builder.WriteString("plugin {\n  hub {\n")
+	var builder textbuf.Buffer
+	builder.Str("plugin {\n  hub {\n")
 	fmt.Fprintf(&builder, "    client %s { host 127.0.0.1; port %d; secret %q; }\n", managedClientName, hubPort, managedToken)
 	if reject {
 		fmt.Fprintf(&builder, "    server local { ip 127.0.0.1; port %d; secret %q; }\n", pluginPort, managedServerSecret)
 	}
-	builder.WriteString("  }\n")
+	builder.Str("  }\n")
 	if reject {
-		builder.WriteString("  external managed-reject-plugin { run \"ze-test fixture managed/config-push-transactional-observer\"; encoder json; }\n")
+		builder.Str("  external managed-reject-plugin { run \"ze-test fixture managed/config-push-transactional-observer\"; encoder json; }\n")
 	}
-	builder.WriteString("}\n")
+	builder.Str("}\n")
 	fmt.Fprintf(&builder, "bgp {\n  router-id %s\n", routerID)
 	if reject {
-		builder.WriteString("  session { asn { local 1; } }\n")
-		builder.WriteString("  peer peer1 {\n")
-		builder.WriteString("    connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }\n")
-		builder.WriteString("    session { asn { remote 1; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } }\n")
-		builder.WriteString("    behavior { group-updates disable; }\n")
-		builder.WriteString("    attach process managed-reject-plugin { }\n")
-		builder.WriteString("  }\n")
+		builder.Str("  session { asn { local 1; } }\n")
+		builder.Str("  peer peer1 {\n")
+		builder.Str("    connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }\n")
+		builder.Str("    session { asn { remote 1; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } }\n")
+		builder.Str("    behavior { group-updates disable; }\n")
+		builder.Str("    attach process managed-reject-plugin { }\n")
+		builder.Str("  }\n")
 	}
-	builder.WriteString("}\n")
+	builder.Str("}\n")
 	return builder.String()
 }
 

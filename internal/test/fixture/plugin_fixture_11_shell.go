@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const recordDriverConfig = `plugin {
@@ -278,7 +280,7 @@ func (driver *recordDriver) runCLIToFile(command, path string) (string, error) {
 	process := exec.CommandContext(driver.ctx, "ze", "cli", "-c", command) //nolint:gosec // the fixture chooses the program and its arguments
 	process.Env = driver.cliEnv
 	process.Stdout = file
-	var stderr strings.Builder
+	var stderr textbuf.Buffer
 	process.Stderr = &stderr
 	runErr := process.Run()
 	closeErr := file.Close()

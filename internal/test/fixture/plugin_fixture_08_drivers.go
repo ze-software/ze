@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -81,7 +82,11 @@ func flowspecMetrics08(ctx context.Context, args []string) error {
 
 func runCommand08(ctx context.Context, check bool, name string, args ...string) (string, string, error) {
 	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
-	var stdout, stderr strings.Builder
+	var stdout textbuf.Buffer
+	// stderr stays a strings.Builder: the error path reads it twice, once for the
+	// returned string and once inside the message, and textbuf.Buffer.String()
+	// detaches heap content so the second read would answer "".
+	var stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()

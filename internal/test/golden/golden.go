@@ -32,7 +32,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -423,7 +422,7 @@ func diff(want, got []byte) string {
 	wantLines := strings.Split(string(want), "\n")
 	gotLines := strings.Split(string(got), "\n")
 
-	var b strings.Builder
+	var b textbuf.Buffer
 
 	for i := 0; i < len(wantLines) || i < len(gotLines); i++ {
 		var w, g string
@@ -439,21 +438,16 @@ func diff(want, got []byte) string {
 			continue
 		}
 
-		b.WriteString("first difference at line ")
-		b.WriteString(strconv.Itoa(i + 1))
-		b.WriteString("\n  fixture: ")
-		b.WriteString(w)
-		b.WriteString("\n  render:  ")
-		b.WriteString(g)
-		b.WriteString("\n")
+		b.Str("first difference at line ").Int(int64(i + 1))
+		b.Str("\n  fixture: ").Str(w)
+		b.Str("\n  render:  ").Str(g)
+		b.Str("\n")
 
 		break
 	}
 
-	b.WriteString("length: fixture ")
-	b.WriteString(strconv.Itoa(len(want)))
-	b.WriteString(", render ")
-	b.WriteString(strconv.Itoa(len(got)))
+	b.Str("length: fixture ").Int(int64(len(want)))
+	b.Str(", render ").Int(int64(len(got)))
 
 	return b.String()
 }

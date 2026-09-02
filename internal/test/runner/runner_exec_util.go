@@ -32,7 +32,7 @@ var errEmptyExecCommand = errors.New("empty exec command")
 // Backslash escapes are not handled; no exec= value uses one.
 func splitCommand(s string) ([]string, error) {
 	var args []string
-	var current strings.Builder
+	var current textbuf.Buffer
 	var inQuote rune
 
 	for _, r := range s {
@@ -500,10 +500,10 @@ type peerOutput struct {
 // path returns early and must report the same capture the normal tail does;
 // duplicating the loop is how the two drift.
 func collectPeerStreams(peers []peerOutput) (stdout, stderr string) {
-	var out, errOut strings.Builder
+	var out, errOut textbuf.Buffer
 	for i := range peers {
-		out.WriteString(peers[i].stdout.String())
-		errOut.WriteString(peers[i].stderr.String())
+		out.Str(peers[i].stdout.String())
+		errOut.Str(peers[i].stderr.String())
 	}
 	return out.String(), errOut.String()
 }

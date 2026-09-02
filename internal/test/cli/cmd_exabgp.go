@@ -698,7 +698,7 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary string) []string 
 }
 
 func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary string) (string, error) {
-	var config strings.Builder
+	var config textbuf.Buffer
 	for _, source := range test.configs {
 		command := exec.CommandContext(ctx, zeBinary, "exabgp", "migrate", source) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
 		output, err := command.Output()
@@ -706,7 +706,7 @@ func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary str
 			return "", fmt.Errorf("migrate %s: %w", source, err)
 		}
 		config.Write(output)
-		config.WriteByte('\n')
+		config.Byte('\n')
 	}
 	file, err := os.CreateTemp("", "ze-exabgp-native-*.conf")
 	if err != nil {
