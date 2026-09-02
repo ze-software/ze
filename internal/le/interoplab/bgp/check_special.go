@@ -34,6 +34,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"show-rib-under-frr-load":               checkShowRIBUnderFRRLoad,
 	"bgp-addpath-rail-agreement-speaker":    checkAddPathRailAgreement,
 	"bgp-addpath-readvertise-collision-frr": checkAddPathReadvertiseCollision,
+	clusterListScenario:                     checkClusterListLengthTieBreak,
 	"bgp-local-pref-strip-gobgp":            checkLocalPrefStrip,
 	"bgp-med-across-as-gobgp":               checkMEDAcrossAS,
 	"bgp-med-remove-configured-gobgp":       checkMEDRemovalConfiguration,
