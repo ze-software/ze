@@ -21,8 +21,7 @@ import (
 func BenchmarkBufMuxGetReturn(b *testing.B) {
 	m := newBufMux(4096, 128)
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		h := m.Get()
 		m.Return(h)
 	}
@@ -71,8 +70,7 @@ func BenchmarkCacheRetainRelease(b *testing.B) {
 	cache.Activate(1, 1) // One plugin consumer to keep entry alive
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		cache.Retain(1)
 		cache.Release(1)
 	}
@@ -151,8 +149,7 @@ func BenchmarkFwdPoolTryDispatch(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		pool.TryDispatch(key, fwdItem{})
 	}
 }
@@ -204,8 +201,7 @@ func BenchmarkFwdPoolTryDispatchParallel(b *testing.B) {
 func BenchmarkEnvGetDuration(b *testing.B) {
 	// env.Get checks the registration and cache, which is the hot path cost.
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		d := env.GetDuration("ze.fwd.write.deadline", 30*time.Second)
 		if d <= 0 {
 			b.Fatal("unexpected non-positive duration")
@@ -223,8 +219,7 @@ func BenchmarkPublishBusNotificationPattern(b *testing.B) {
 	direction := "received"
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		// This mirrors the exact allocation pattern in reactor_notify.go:
 		// r.publishBusNotification("bgp/update", map[string]string{
 		//     "peer": peerAddr.String(), "direction": direction,
@@ -250,8 +245,7 @@ func BenchmarkTimerResetPattern(b *testing.B) {
 	deadline.Store(clk.Now().Add(duration).UnixNano())
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		deadline.Store(clk.Now().Add(duration).UnixNano())
 	}
 }
@@ -267,8 +261,7 @@ func BenchmarkTimerResetPatternOld(b *testing.B) {
 	var mu sync.Mutex
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		mu.Lock()
 		timer.Stop()
 		timer = clk.AfterFunc(duration, noop)

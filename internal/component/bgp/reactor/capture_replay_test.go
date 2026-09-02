@@ -540,8 +540,7 @@ func BenchmarkSessionTeeCaptureDisabled(b *testing.B) {
 	s.clock = clock.RealClock{}
 	wire := make([]byte, 4096)
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		s.teeCapture(2, wire)
 	}
 }
@@ -564,8 +563,7 @@ func BenchmarkSessionTeeCaptureEnabled(b *testing.B) {
 	s.captureWriter = c
 	wire := make([]byte, 512)
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		s.teeCapture(2, wire)
 	}
 }
