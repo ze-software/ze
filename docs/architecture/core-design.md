@@ -1317,8 +1317,20 @@ filters (nil Dst, non-NEWROUTE/DELROUTE, `rtproto.IsZe()`), and fans out parsed
 (route re-assertion) and `kernel` (BGP redistribution) register as consumers. Late
 registration is supported; the handler slice is snapshotted on each event. On non-Linux,
 `subscribe()` blocks without delivering events.
+
+The watcher retries in two ways, because it has two failures. A subscription that was
+created and then died is re-created once a second, for as long as the process runs.
+The netlink library ends its receive loop on ordinary route churn, so that retry has
+no bound.
+
+A subscription the kernel refuses to create gets three attempts and then stops. The
+usual cause is a daemon without `CAP_NET_ADMIN`, and waiting never fixes that. The
+watcher then reports through the error callback that route monitoring has stopped. The
+report names the lost behavior and it names `CAP_NET_ADMIN`. `fib-kernel` logs it at
+Warn.
 <!-- source: internal/core/routewatch/routewatch.go -- Watcher, Register, deliver -->
-<!-- source: internal/core/routewatch/routewatch_linux.go -- netlink subscription -->
+<!-- source: internal/core/routewatch/routewatch_linux.go -- subscribe, subscribeSetupTries, reportSetupGaveUp -->
+<!-- source: internal/plugins/fib/kernel/monitor_linux.go -- the error callback that logs it -->
 
 ### FIB Kernel
 
