@@ -6,8 +6,8 @@ package eap
 import (
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // EAP type codes.
@@ -607,15 +607,16 @@ func desiredTypes(desired []byte) string {
 		desired = desired[:desiredTypeMax]
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
+	b.Reset()
 	for i, t := range desired {
 		if i > 0 {
-			b.WriteString(", ")
+			b.Str(", ")
 		}
-		b.WriteString(strconv.Itoa(int(t)))
+		b.Uint8(t)
 	}
 	if truncated {
-		b.WriteString(" (truncated)")
+		b.Str(" (truncated)")
 	}
 	return b.String()
 }

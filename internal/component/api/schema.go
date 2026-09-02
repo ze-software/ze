@@ -6,6 +6,8 @@ package api
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The OpenAPI 3.1 and JSON Schema vocabulary this file writes. Each constant is
@@ -219,12 +221,12 @@ func operationID(name string) string {
 	if len(words) == 0 {
 		return ""
 	}
-	var b strings.Builder
-	b.WriteString(words[0])
+	var b textbuf.Buffer
+	b.Reset()
+	b.Str(words[0])
 	for _, w := range words[1:] {
 		if w != "" {
-			b.WriteString(strings.ToUpper(w[:1]))
-			b.WriteString(w[1:])
+			b.Str(strings.ToUpper(w[:1])).Str(w[1:])
 		}
 	}
 	return b.String()

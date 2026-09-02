@@ -13,10 +13,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"unicode"
 
 	l2tpwire "github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // maxStdinBytes caps the size of the hex input read from stdin. A realistic
@@ -153,8 +153,8 @@ func cmdDecode(args []string) int {
 }
 
 func stripWhitespace(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
+	var b textbuf.Buffer
+	b.Reset(len(s))
 	for _, r := range s {
 		if !unicode.IsSpace(r) {
 			b.WriteRune(r)

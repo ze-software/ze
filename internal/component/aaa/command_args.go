@@ -3,8 +3,9 @@
 package aaa
 
 import (
-	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // CommandArgsAuthorizer is the authoritative authorization contract for typed
@@ -54,8 +55,8 @@ func CanonicalCommandTokens(command string, args []string, peer string) []string
 // CommandArgsAuthorizer.
 //
 // Args that contain whitespace, quotes, or backslashes are quoted with
-// strconv.Quote so the original argument boundaries remain visible to
-// regex-based legacy authorizers. This quoting form is a compatibility detail,
+// textbuf.Buffer.Quoted (strconv.AppendQuote) so the original argument
+// boundaries remain visible to regex-based legacy authorizers. This quoting form is a compatibility detail,
 // not the primary policy contract for typed dispatch.
 func CanonicalCommand(command string, args []string, peer string) string {
 	tokens := CanonicalCommandTokens(command, args, peer)
@@ -74,17 +75,17 @@ func CanonicalCommand(command string, args []string, peer string) string {
 		total += len(tokens) - 1
 	}
 
-	var b strings.Builder
-	b.Grow(total)
+	var b textbuf.Buffer
+	b.Reset(total)
 	for i, token := range tokens {
 		if i > 0 {
-			b.WriteByte(' ')
+			b.Byte(' ')
 		}
 		if needsQuotedToken(token) {
-			b.WriteString(strconv.Quote(token))
+			b.Quoted(token)
 			continue
 		}
-		b.WriteString(token)
+		b.Str(token)
 	}
 	return b.String()
 }

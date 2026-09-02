@@ -5,6 +5,8 @@ package api
 import (
 	"fmt"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ExecuteRequest is the domain request for command execution.
@@ -70,8 +72,9 @@ func BuildCommand(command string, params map[string]string) (string, error) {
 	if len(params) == 0 {
 		return command, nil
 	}
-	var b strings.Builder
-	b.WriteString(command)
+	var b textbuf.Buffer
+	b.Reset()
+	b.Str(command)
 	for key, val := range params {
 		if strings.ContainsAny(key, " \t\n\r") {
 			return "", fmt.Errorf("parameter key %q must not contain whitespace", key)
@@ -82,10 +85,7 @@ func BuildCommand(command string, params map[string]string) (string, error) {
 		if strings.ContainsAny(val, " \t\n\r") {
 			return "", fmt.Errorf("parameter %q must not contain whitespace", key)
 		}
-		b.WriteString(" ")
-		b.WriteString(key)
-		b.WriteString(" ")
-		b.WriteString(val)
+		b.Byte(' ').Str(key).Byte(' ').Str(val)
 	}
 	return b.String(), nil
 }

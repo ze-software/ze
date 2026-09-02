@@ -9,7 +9,6 @@ import (
 	"context"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/a-h/templ"
@@ -167,7 +166,8 @@ func (s *LGServer) renderFragment(w http.ResponseWriter, content templ.Component
 // renderToString renders a component for a caller that must post-process the
 // markup. handleUIEvents is the only one: SSE prefixes every line.
 func renderToString(content templ.Component) (string, error) {
-	var buf strings.Builder
+	var buf textbuf.Buffer
+	buf.Reset()
 	if err := content.Render(context.Background(), &buf); err != nil {
 		return "", err
 	}

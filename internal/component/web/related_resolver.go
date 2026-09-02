@@ -136,13 +136,13 @@ func (r *RelatedResolver) Resolve(tool *config.RelatedTool, contextPath []string
 // inside a command template are not expected; if present they are also
 // collapsed since command tokens are whitespace-separated.
 func collapseSpaces(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
+	var b textbuf.Buffer
+	b.Reset(len(s))
 	prevSpace := true // leading
 	for _, r := range s {
 		if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
 			if !prevSpace {
-				b.WriteByte(' ')
+				b.Byte(' ')
 				prevSpace = true
 			}
 			continue
@@ -160,18 +160,19 @@ func collapseSpaces(s string) string {
 // validation error.
 func (r *RelatedResolver) substitute(template string, contextPath []string, rowSubtree *config.Tree) (string, bool, error) {
 	var (
-		out     strings.Builder
+		out     textbuf.Buffer
 		missing bool
 		i       = 0
 	)
+	out.Reset()
 	for i < len(template) {
 		// Find next ${ marker.
 		next := strings.Index(template[i:], "${")
 		if next < 0 {
-			out.WriteString(template[i:])
+			out.Str(template[i:])
 			break
 		}
-		out.WriteString(template[i : i+next])
+		out.Str(template[i : i+next])
 		i += next + 2 // consume ${
 		end := strings.Index(template[i:], "}")
 		if end < 0 {
@@ -191,7 +192,7 @@ func (r *RelatedResolver) substitute(template string, contextPath []string, rowS
 		if err := validateResolvedValue(value); err != nil {
 			return "", false, err
 		}
-		out.WriteString(value)
+		out.Str(value)
 	}
 	return out.String(), missing, nil
 }

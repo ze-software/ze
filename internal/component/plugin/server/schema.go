@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/ipc"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // frozenSchema holds an immutable snapshot of the SchemaRegistry's handler
@@ -348,7 +348,8 @@ func findHandlerIn(handlers map[string]string, modules map[string]*Schema, path 
 // stripPredicates removes YANG predicates like [key=value] from a path.
 // Example: "bgp/peer[address=192.0.2.1]/timers" → "bgp/peer/timers".
 func stripPredicates(path string) string {
-	var result strings.Builder
+	var result textbuf.Buffer
+	result.Reset()
 	depth := 0
 	for _, c := range path {
 		if c == '[' {

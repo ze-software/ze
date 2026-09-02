@@ -335,16 +335,17 @@ func (m menuModel) View() tea.View {
 	}
 
 	level := m.currentLevel()
-	var b strings.Builder
+	var b textbuf.Buffer
+	b.Reset()
 
-	b.WriteString(menuTitleStyle.Render("ze"))
+	b.Str(menuTitleStyle.Render("ze"))
 	if len(m.stack) > 1 {
 		for i := 1; i < len(m.stack); i++ {
-			b.WriteString(" > ")
-			b.WriteString(menuBreadcrumb.Render(m.stack[i].title))
+			b.Str(" > ")
+			b.Str(menuBreadcrumb.Render(m.stack[i].title))
 		}
 	}
-	b.WriteString("\n\n")
+	b.Str("\n\n")
 
 	var visible []int
 	for i, item := range level.items {
@@ -359,8 +360,8 @@ func (m menuModel) View() tea.View {
 	end := min(m.offset+vis, len(visible))
 
 	if m.offset > 0 {
-		b.WriteString(menuHintStyle.Render("  ... more above"))
-		b.WriteByte('\n')
+		b.Str(menuHintStyle.Render("  ... more above"))
+		b.Byte('\n')
 	}
 
 	descBudget := max(m.width-menuNameColumnWidth-6, 10)
@@ -370,10 +371,10 @@ func (m menuModel) View() tea.View {
 
 		if item.header {
 			if vi > m.offset {
-				b.WriteByte('\n')
+				b.Byte('\n')
 			}
-			b.WriteString(menuSectionStyle.Render(item.name))
-			b.WriteByte('\n')
+			b.Str(menuSectionStyle.Render(item.name))
+			b.Byte('\n')
 			continue
 		}
 
@@ -399,26 +400,26 @@ func (m menuModel) View() tea.View {
 		} else {
 			tb.Str("  ").Str(menuNameStyle.Render(paddedName)).Str(menuDescStyle.Render(desc)).Str(arrow)
 		}
-		b.WriteString(tb.String())
-		b.WriteByte('\n')
+		b.Str(tb.String())
+		b.Byte('\n')
 	}
 
 	if end < len(visible) {
-		b.WriteString(menuHintStyle.Render("  ... more below"))
-		b.WriteByte('\n')
+		b.Str(menuHintStyle.Render("  ... more below"))
+		b.Byte('\n')
 	}
 
-	b.WriteByte('\n')
+	b.Byte('\n')
 	if m.filter != "" {
 		tb.Reset()
 		tb.Str("filter: ").Str(m.filter)
-		b.WriteString(menuHintStyle.Render(tb.String()))
-		b.WriteString("  ")
+		b.Str(menuHintStyle.Render(tb.String()))
+		b.Str("  ")
 	}
 	if len(m.stack) > 1 {
-		b.WriteString(menuHintStyle.Render("↑/↓ navigate • enter select • ← back • esc quit"))
+		b.Str(menuHintStyle.Render("↑/↓ navigate • enter select • ← back • esc quit"))
 	} else {
-		b.WriteString(menuHintStyle.Render("↑/↓ navigate • enter select • esc quit"))
+		b.Str(menuHintStyle.Render("↑/↓ navigate • enter select • esc quit"))
 	}
 	v := tea.NewView(b.String())
 	v.AltScreen = true

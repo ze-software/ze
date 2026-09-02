@@ -257,7 +257,8 @@ func (tc *TestCase) parseTmpfs(rest string, scanner *bufio.Scanner, lineNum *int
 	}
 
 	// Read content until terminator
-	var content strings.Builder
+	var content textbuf.Buffer
+	content.Reset()
 	found := false
 
 	for scanner.Scan() {
@@ -270,9 +271,9 @@ func (tc *TestCase) parseTmpfs(rest string, scanner *bufio.Scanner, lineNum *int
 		}
 
 		if content.Len() > 0 {
-			content.WriteString("\n")
+			content.Byte('\n')
 		}
-		content.WriteString(line)
+		content.Str(line)
 	}
 
 	if !found {

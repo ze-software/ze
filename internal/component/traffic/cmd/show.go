@@ -4,8 +4,7 @@
 package cmd
 
 import (
-	"fmt"
-	"strings"
+	"strconv"
 
 	"github.com/ze-software/ze/internal/component/traffic"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -13,18 +12,19 @@ import (
 
 // FormatQoS formats an InterfaceQoS for human-readable CLI output.
 func FormatQoS(qos traffic.InterfaceQoS) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "interface %s {\n", qos.Interface) //nolint:errcheck // buffer output
-	fmt.Fprintf(&b, "  qdisc %s", qos.Qdisc.Type)      //nolint:errcheck // buffer output
+	var b textbuf.Buffer
+	b.Reset()
+	b.Str("interface ").Str(qos.Interface).Str(" {\n")
+	b.Str("  qdisc ").Str(qos.Qdisc.Type.String())
 	if qos.Qdisc.DefaultClass != "" {
-		fmt.Fprintf(&b, " default %s", qos.Qdisc.DefaultClass) //nolint:errcheck // buffer output
+		b.Str(" default ").Str(qos.Qdisc.DefaultClass)
 	}
-	b.WriteString(" {\n")
+	b.Str(" {\n")
 	for _, c := range qos.Qdisc.Classes {
 		formatClass(&b, &c)
 	}
-	b.WriteString("  }\n")
-	b.WriteString("}\n")
+	b.Str("  }\n")
+	b.Str("}\n")
 	return b.String()
 }
 
@@ -33,31 +33,32 @@ func formatQoSMap(m map[string]traffic.InterfaceQoS) string {
 	if len(m) == 0 {
 		return "No traffic control configured."
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
+	b.Reset()
 	first := true
 	for _, qos := range m {
 		if !first {
-			b.WriteByte('\n')
+			b.Byte('\n')
 		}
-		b.WriteString(FormatQoS(qos))
+		b.Str(FormatQoS(qos))
 		first = false
 	}
 	return b.String()
 }
 
-func formatClass(b *strings.Builder, c *traffic.TrafficClass) {
-	fmt.Fprintf(b, "    class %s {\n", c.Name) //nolint:errcheck // output
+func formatClass(b *textbuf.Buffer, c *traffic.TrafficClass) {
+	b.Str("    class ").Str(c.Name).Str(" {\n")
 	if c.Rate > 0 {
-		fmt.Fprintf(b, "      rate %s;\n", formatRate(c.Rate)) //nolint:errcheck // output
+		b.Str("      rate ").Str(formatRate(c.Rate)).Str(";\n")
 	}
 	if c.Ceil > 0 {
-		fmt.Fprintf(b, "      ceil %s;\n", formatRate(c.Ceil)) //nolint:errcheck // output
+		b.Str("      ceil ").Str(formatRate(c.Ceil)).Str(";\n")
 	}
-	fmt.Fprintf(b, "      priority %d;\n", c.Priority) //nolint:errcheck // output
+	b.Str("      priority ").Uint8(c.Priority).Str(";\n")
 	for _, f := range c.Filters {
-		fmt.Fprintf(b, "      match %s 0x%x;\n", f.Type, f.Value) //nolint:errcheck // output
+		b.Str("      match ").Str(f.Type.String()).Str(" 0x").Str(strconv.FormatUint(uint64(f.Value), 16)).Str(";\n")
 	}
-	b.WriteString("    }\n")
+	b.Str("    }\n")
 }
 
 func formatRate(bps uint64) string {

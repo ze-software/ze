@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -53,12 +52,12 @@ func execCLI(command string) (string, error) {
 		return "", fmt.Errorf("vpp cli: write: %w", err)
 	}
 
-	var sb strings.Builder
+	var sb textbuf.Buffer
+	sb.Reset()
 	scanner := bufio.NewScanner(conn)
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for scanner.Scan() {
-		sb.WriteString(scanner.Text())
-		sb.WriteByte('\n')
+		sb.Str(scanner.Text()).Byte('\n')
 	}
 	if err := scanner.Err(); err != nil {
 		if _, ok := errors.AsType[net.Error](err); ok {
