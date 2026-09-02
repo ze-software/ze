@@ -11,6 +11,16 @@
 # VALIDATES: spec-fib-depth-4-srv6 AC-3 -- SRv6 route withdrawn
 # VALIDATES: spec-fib-depth-4-srv6 AC-4 -- zero SID means no encap (plain route)
 # PREVENTS: SRv6SID field lost in sysrib -> fib-kernel event delivery
+#
+# This test programs a real kernel route through fib-kernel over netlink, so it
+# needs CAP_NET_ADMIN and not merely Linux. Unprivileged, the daemon logs
+# "add route failed ... operation not permitted" and routewatch cannot open its
+# netlink socket, and the case burned its whole budget on that before timing
+# out. caps=net-admin turns that into an honest skip in the merge gate and
+# routes the coverage to the QEMU guest, which runs as root
+# (docs/architecture/testing/ci-format.md, "Choosing between needs-linux,
+# caps=, and skip-os").
+option=needs-linux:caps=net-admin
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
