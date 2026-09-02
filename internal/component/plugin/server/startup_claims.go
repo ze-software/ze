@@ -117,7 +117,7 @@ func (s *Server) prospectivePlugins() []prospectivePlugin {
 	// Same name resolution hasConfiguredPlugin uses: the config name, plus every
 	// word of the run/use spelling (`use bgp-rs`, `run ze plugin bgp-adj-rib-in`).
 	addConfig := func(p plugin.PluginConfig) {
-		add(p.Name, strings.Fields(p.Run)...)
+		add(p.Name, implementationNames(p)...)
 	}
 
 	if s.config != nil {
@@ -147,6 +147,19 @@ func (s *Server) prospectivePlugins() []prospectivePlugin {
 		return strings.Compare(a.process, b.process)
 	})
 	return out
+}
+
+// implementationNames returns the compile-time registry names one plugin config
+// can resolve to: every word of its run/use spelling. The operator names the
+// PROCESS and the spelling names the IMPLEMENTATION, so
+// `internal rs { use bgp-rs }` gives PluginConfig{Name: "rs", Run: "bgp-rs"} and
+// only "bgp-rs" is a registry key. A registry lookup that starts from a process
+// name needs this, because the process name alone finds nothing whenever the
+// operator renamed the implementation. Two callers have it: the role claim
+// (claimsForPlugin) and the session-ready declaration (declaresSessionReady,
+// events.go).
+func implementationNames(p plugin.PluginConfig) []string {
+	return strings.Fields(p.Run)
 }
 
 // claimsForPlugin returns the exclusive roles a plugin declares. A runtime

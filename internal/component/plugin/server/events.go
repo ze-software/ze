@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 var errServerNotConfiguredForPlugins = errors.New("server not configured for plugins")
@@ -86,14 +88,24 @@ func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 	return jsonResult, nil
 }
 
-// declaresSessionReady reports whether a RUNNING process declared
-// PluginRegistration.SignalsSessionReady at Stage 1, which is the only route an
-// external plugin has to that declaration.
+// declaresSessionReady reports whether a RUNNING process declares that it
+// reports `plugin session ready`, under either route to that declaration: the
+// Stage-1 declare-registration an external plugin sends, or the compile-time
+// Registration an in-tree plugin files at init().
+//
+// The two routes are both needed because the caller asks by PROCESS name, and a
+// process name is not a registry key. `plugin { internal rs { use bgp-rs } }`
+// gives the operator's alias to the process and files the registration under
+// `bgp-rs`, so a lookup by "rs" finds nothing and the peer that attaches it
+// sends its End-of-RIB while bgp-rs is still replaying (RFC 4724 Section 4).
+// implementationNames resolves the alias, and it is the resolution
+// claimsForPlugin already uses for the same reason (startup_claims.go).
 //
 // Installed as registry.SetRuntimeSessionReady so the reactor reaches the answer
 // without importing this package. It is consulted only for a name the
-// compile-time registry does not hold, so an in-tree plugin's answer always comes
-// from its own Registration and this method never contradicts it.
+// compile-time registry does not hold, which is every alias and every external
+// process; a plugin attached under its own registry name is answered by that
+// registration before this method is reached.
 //
 // False for a process that is not running: a process the server cannot see sends
 // no report, and waiting for one would hold every peer that attaches it to the
@@ -107,6 +119,14 @@ func (s *Server) declaresSessionReady(process string) bool {
 	if proc == nil {
 		return false
 	}
-	reg := proc.Registration()
-	return reg != nil && reg.SignalsSessionReady
+	if reg := proc.Registration(); reg != nil && reg.SignalsSessionReady {
+		return true
+	}
+
+	for _, name := range implementationNames(proc.Config()) {
+		if impl := registry.Lookup(name); impl != nil && impl.SignalsSessionReady {
+			return true
+		}
+	}
+	return false
 }

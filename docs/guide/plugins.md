@@ -1028,12 +1028,18 @@ A plugin that decides on the peer-up event whether a peer may receive traffic de
 
 A plugin whose routes belong to a peer's INITIAL routing update declares `SignalsSessionReady: true` and dispatches `request peer <addr> plugin session ready` once those routes are out. The engine holds that peer's End-of-RIB until the report arrives, so the marker means the initial routing update completed (RFC 4724 Section 4).
 
-The declaration is voluntary. It says WHEN your routes belong, not what you may send, so a plugin that pushes routes on its own schedule declares nothing and is never waited for. An external plugin is registered nowhere in this tree, so it never declares and never has to: binding it with `send [ update ]` costs the peer no delay.
+The declaration is voluntary. It says WHEN your routes belong, not what you may send, so a plugin that pushes routes on its own schedule declares nothing and is never waited for, and binding it with `send [ update ]` costs the peer no delay.
+
+An external plugin has the same declaration under a different name. It is registered nowhere in this tree, so it declares `signals-session-ready` in its Stage-1 `declare-registration` instead, and the engine reads it off the running process. Declaring nothing stays the default there too.
+
+The name you are waited for under is the one the operator wrote in `attach process <name>`, whatever your plugin is called. `plugin { internal rs { use bgp-rs } }` runs the process as `rs`, and the engine resolves that alias back to the `bgp-rs` registration before it asks whether you declared. Your report carries the process name, so it is credited to `rs` as well.
 
 Three facts have to hold before a peer waits for your process, and each one is something you can check in your own config. The peer grants the route-push rail, with `send [ update ]` or `send [ raw ]`. The plugin declares the field. The peer grants `receive [ state ]`, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is not waited for. A binding with `send [ update ]` and no `receive [ state ]` is therefore free of the wait rather than stalled by it.
 
 Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working". A process that never reports only delays that peer's End-of-RIB to `apiSyncTimeout` (2s), which logs a WARN naming the peer and the silent processes.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady -->
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
+<!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.waitForAPISync -->
 

@@ -1537,9 +1537,25 @@ its plugin unable to push into that update and unable to report it. Naming such
 a binding held the peer's End-of-RIB to the full `apiSyncTimeout` on every
 establishment.
 
+**The declaration is looked up under the PROCESS name, and a process name is a
+registry key only when the operator did not rename the implementation.** A peer
+names its processes with the `attach process <name>` key, and
+`plugin { internal rs { use bgp-rs } }` runs that process as `rs` while the
+compile-time registration is filed under `bgp-rs`. `registry.SignalsSessionReady`
+answers from the registration when the name is one it holds, and hands every
+other name to the runtime seam the plugin server installs
+(`(*Server).declaresSessionReady`). The seam owns the running processes, so it
+reads the Stage-1 declaration off the process and resolves the alias through the
+run/use spelling, which is the same resolution `claimsForPlugin` performs for a
+role claim. Without that resolution every aliased binding answered "declares
+nothing" and was dropped from the barrier, and the alias form is what the
+repository's own scenarios use.
+
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters at Established -->
 <!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding.MayPushRoutes, ProcessBinding.ReceivesPeerState -->
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady, registry.SignalsSessionReady -->
+<!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
+<!-- source: internal/component/plugin/server/startup_claims.go -- implementationNames -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, drainAndCloseQueueGate -->
 <!-- source: internal/component/bgp/reactor/api_sync.go -- apiSyncTimeout -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.waitForAPISync, Peer.initialSyncEOROwed -->

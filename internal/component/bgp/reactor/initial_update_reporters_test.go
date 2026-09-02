@@ -166,6 +166,33 @@ func TestInitialUpdateReportersReadsTheRuntimeDeclaration(t *testing.T) {
 	require.Empty(t, other.initialUpdateReporters())
 }
 
+// VALIDATES: the name the declaration is looked up under is the name the
+// binding carries, which is the operator's `attach process <name>` key and the
+// same name the barrier holds and credits reports to.
+// PREVENTS: the two namespaces being read as one here. A process name is a
+// registry key only when the operator did not rename the implementation:
+// `internal rs { use bgp-rs }` runs the process as "rs" and files the
+// registration under "bgp-rs". This package must keep asking under the process
+// name, because that is what a report carries; resolving it to the
+// implementation is the plugin server's job, and its own red is
+// TestDeclaresSessionReadyResolvesTheProcessAlias
+// (internal/component/plugin/server/events_session_ready_test.go).
+func TestInitialUpdateReportersAsksUnderTheProcessName(t *testing.T) {
+	const alias = "test-aliased-session-ready-process"
+
+	var asked []string
+	registry.SetRuntimeSessionReady(func(process string) bool {
+		asked = append(asked, process)
+		return process == alias
+	})
+	t.Cleanup(func() { registry.SetRuntimeSessionReady(nil) })
+
+	peer := peerWithBindings(sendUpdateBinding(alias, true))
+	require.Equal(t, []string{alias}, peer.initialUpdateReporters())
+	require.Equal(t, []string{alias}, asked,
+		"the declaration must be asked for under the name the barrier will hold")
+}
+
 // VALIDATES: ReceivesPeerState answers for the state event alone.
 // PREVENTS: reading any receive grant as the peer-up grant, which would put a
 // process that only takes UPDATEs into the barrier and stall the peer.

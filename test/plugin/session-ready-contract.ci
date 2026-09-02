@@ -1,0 +1,124 @@
+# Test: a peer waits for an in-tree plugin it attaches under an OPERATOR ALIAS.
+#
+# VALIDATES: RFC 4724 Section 4 -- "the End-of-RIB marker MUST be sent by a BGP
+#            speaker to its peer once it completes the initial routing update
+#            (including the case when there is no update to send) for an address
+#            family after the BGP session is established". The barrier that
+#            holds that marker is populated from the plugin's declaration
+#            (registry.Registration.SignalsSessionReady), and the peer names its
+#            processes by the name the OPERATOR chose, not by the name the
+#            registry filed.
+#
+# PREVENTS: the declaration being looked up in the wrong namespace.
+#           `plugin { internal ribout { use bgp-rib } }` runs the process as
+#           "ribout" while the registration lives under "bgp-rib", so a lookup
+#           by the process name found nothing and answered "declares nothing".
+#           Every aliased binding of a declaring plugin was dropped from the
+#           barrier, and the marker then claimed an initial routing update that
+#           bgp-rib had not finished. The alias form is what the repository's
+#           own scenarios use (82 `internal rs`, 86 `internal adj-rib-in`), so
+#           the barrier was empty on nearly every peer that had one.
+#
+# HOW THE ASSERTIONS DISCRIMINATE. An EMPTY barrier says nothing at all:
+# sendInitialRoutes calls Peer.waitForAPISync only when the barrier names a
+# process (the needsAPIWait branch, peer_initial_sync.go), so a dropped
+# declaration is silent on this rail and only the marker goes out. The two
+# assertions therefore read the wait's own two outcomes
+# (internal/component/bgp/reactor/peer.go):
+#   "API sync complete"   -- the barrier was armed AND every named process
+#                            reported. bgp-rib is the only process attached
+#                            here, so this line names it by construction, and
+#                            it cannot be reached with an empty barrier.
+#   "api sync timed out"  -- armed, and somebody never reported. Rejected: a
+#                            barrier that only times out is the stall this
+#                            contract exists to remove, and it would otherwise
+#                            satisfy nothing above while looking like progress.
+# Measured on 2026-09-02 with the alias resolution removed from
+# (*Server).declaresSessionReady: this file FAILS with `stderr does not contain
+# "API sync complete"`, and the daemon logs bgp-rib's report arriving against an
+# EMPTY barrier -- `plugin session ready from a process this peer's barrier does
+# not name ... process=ribout barrier=[]` -- immediately before it sends the
+# marker. With the resolution in place the same run logs `waiting for API sync
+# expected=1`, then `API sync complete`, then `sent EOR`, in that order.
+#
+# WHY THE ALIAS IS NOT THE PLUGIN NAME. "ribout" is an arbitrary operator word.
+# A file that wrote `internal bgp-rib { use bgp-rib }` would pass on the broken
+# build too, because the process name is then a registry key by coincidence.
+#
+# The debug level is set for one subsystem only: those three lines are Debug,
+# because an armed barrier that completes is the ordinary case and says nothing
+# an operator must act on. The timeout arm is the one that logs at Warn.
+option=env:var=ze.log.bgp.routes:value=debug
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+# ze's initial-sync End-of-RIB for ipv4/unicast, the legacy encoding RFC 7606
+# Section 5.2 names: a completely empty UPDATE. It is sent after the barrier
+# releases, which is what the stderr lines below pin.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal ribout {
+		use bgp-rib
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		# The three facts Peer.initialUpdateReporters needs. The peer GRANTS the
+		# route-push rail with `send [ update ]`, bgp-rib DECLARES
+		# SignalsSessionReady, and `receive [ state ]` TELLS the process the
+		# session came up, which is the event its report answers. Deleting any
+		# one of them empties the barrier and reddens this file.
+		attach process ribout {
+			receive [ update state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration.
+#
+# No `expect=exit:code=0` here, deliberately. That directive puts the runner on
+# the branch that WAITS for the daemon to exit by itself (runner_exec.go, the
+# `rec.ExpectExitCode != nil && fgProc != nil` case), and nothing in this file
+# asks the daemon to stop: there is no fixture process and no observer, only a
+# peer that reads one message. Measured 2026-09-02: with the exit expectation
+# this file consumed the whole 20s budget times the parallel headroom and was
+# reported as a timeout, while the daemon had done its work in under a second.
+# Without it the runner waits for the peer, stops the daemon, and judges the
+# stderr lines over what it collected.
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=stderr:contains=API sync complete
+reject=stderr:pattern=api sync timed out
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=ZE-OBSERVER-FAIL

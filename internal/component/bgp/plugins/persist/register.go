@@ -14,7 +14,11 @@ func init() {
 	reg := registry.Registration{
 		Name:        "bgp-persist",
 		Description: "Route Persistence",
-		RunEngine:   RunPersistServer,
+		// The peer-up replay of the routes stored for this peer is part of its
+		// initial routing update, and signalSessionReady reports when they are
+		// out, after this plugin's own End-of-RIB (server.go).
+		SignalsSessionReady: true,
+		RunEngine:           RunPersistServer,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetPersistLogger(slogutil.Logger(loggerName))
 		},

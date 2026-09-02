@@ -705,14 +705,23 @@ func (p *Peer) resetAPISync(expected []string) {
 // peer. It credits the report to the process that SENT it, and releases
 // waitForAPISync once every process this peer waits for has reported.
 //
-// A report from a process the barrier does not name is not credited. That
-// process owes this peer's initial routing update nothing, so crediting it would
-// release the End-of-RIB on behalf of a process that is still writing routes,
-// and the marker would claim a completion that has not happened (RFC 4724
-// Section 4). bgp-adj-rib-in reports on every peer-up, including for the peers
-// that attach it for events alone, so this is a reachable report rather than a
-// theoretical one. A second report from the same process is not credited for the
-// same reason, which is why the record is a SET and not a count.
+// A report from a process the barrier does not name is not credited, and the
+// line says only that: the barrier holds the names it holds, and the sender is
+// not one of them. Crediting it would release the End-of-RIB on behalf of a
+// process that is still writing routes, and the marker would claim a completion
+// that has not happened (RFC 4724 Section 4). A second report from the same
+// process is not credited for the same reason, which is why the record is a SET
+// and not a count.
+//
+// The line does NOT say the sender pushes no route into this update, because
+// this function cannot know that. Two different situations reach it. The
+// ordinary one is bgp-adj-rib-in, which reports on every peer-up including for
+// the peers that attach it for events alone. The other is a barrier that MISSED
+// a process which does push: a declaration looked up under a name the registry
+// does not hold used to answer false for every process an operator attached
+// under an alias, and this line read as confirmation. It stays at Debug because
+// the ordinary case is one line per peer-up on a common config, and the name
+// beside the barrier's own names is what tells the two apart.
 //
 // An unnamed sender is refused and says so: the barrier's population is a set of
 // process names, so nothing else can be matched against it, and reading a miss
@@ -736,8 +745,8 @@ func (p *Peer) SignalAPIReady(sender plugin.Sender) {
 	defer p.mu.Unlock()
 
 	if !slices.Contains(p.apiSyncExpected, process) {
-		routesLogger().Debug("plugin session ready from a process this peer does not wait for; it pushes no route into this initial routing update",
-			"peer", p.settings.Address.String(), "process", process)
+		routesLogger().Debug("plugin session ready from a process this peer's barrier does not name, so the report is not credited",
+			"peer", p.settings.Address.String(), "process", process, "barrier", p.apiSyncExpected)
 		return
 	}
 	if _, reported := p.apiSyncSignalled[process]; reported {

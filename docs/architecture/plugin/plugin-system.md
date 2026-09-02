@@ -277,7 +277,19 @@ same process is not credited twice. A process the barrier does not name is
 refused, so a plugin the peer attaches for events alone cannot release the
 marker on behalf of one that still owes routes.
 
+The lookup crosses two namespaces, and the plugin server is what joins them. A
+peer names its processes with the `attach process <name>` key, so
+`plugin { internal rs { use bgp-rs } }` asks under "rs" while the registration
+is filed under "bgp-rs". `registry.SignalsSessionReady` answers from the
+registration for a name it holds and hands every other name to the runtime seam,
+`(*Server).declaresSessionReady`. The seam reads the Stage-1 declaration off the
+running process, which is the external plugin's route, and resolves the alias
+through the run/use spelling, which is the resolution `claimsForPlugin` already
+uses. An unresolved alias answers "declares nothing", which empties the barrier
+for that peer.
+
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady, registry.SignalsSessionReady -->
+<!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.SignalAPIReady, Peer.waitForAPISync -->
 

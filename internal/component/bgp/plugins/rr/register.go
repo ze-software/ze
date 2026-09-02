@@ -15,7 +15,12 @@ func init() {
 		Description:  "Route Reflector",
 		RFCs:         []string{"4456"},
 		Dependencies: []string{"bgp-adj-rib-in"},
-		RunEngine:    runRouteReflector,
+		// The peer-up replay reflects the stored adj-rib-in into the client that
+		// establishes, which is that client's initial routing update, and
+		// signalSessionReady reports when it is out, after this plugin's own
+		// End-of-RIB (rr.go).
+		SignalsSessionReady: true,
+		RunEngine:           runRouteReflector,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
