@@ -695,3 +695,64 @@ func newTestPeerSettingsWithPrefix(maximum, warning uint32) *PeerSettings {
 	}
 	return ps
 }
+
+// TestPrefixLimitsResolveOncePerSession verifies that the enforcement config a
+// session answers from is the "afi/safi" config resolved into family keys at
+// construction, and that the resolution keeps what the name walk it replaced
+// answered: the maximum, the warning read under the SAME spelling that stated
+// the maximum, and nothing at all for a family the config names wrongly.
+//
+// VALIDATES: prefixConfigLookup answers from prefixCounts.limits, so the
+// receive path no longer walks PrefixMaximum and converts each key per UPDATE.
+// PREVENTS: the resolution dropping a family, inventing a maximum for one that
+// states none, or pairing a warning with the wrong family.
+func TestPrefixLimitsResolveOncePerSession(t *testing.T) {
+	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)
+	ps.PrefixMaximum = map[string]uint32{
+		"ipv4/unicast": 100,
+		"ipv6/unicast": 200,
+		"not-a-family": 300,
+	}
+	ps.PrefixWarning = map[string]uint32{
+		"ipv4/unicast": 90,
+		"not-a-family": 250,
+	}
+	s := NewSession(ps)
+
+	maximum, warning, hasMax := s.prefixConfigLookup(ipv4UKey)
+	assert.True(t, hasMax, "ipv4/unicast states a maximum")
+	assert.Equal(t, uint32(100), maximum)
+	assert.Equal(t, uint32(90), warning)
+
+	maximum, warning, hasMax = s.prefixConfigLookup(ipv6UKey)
+	assert.True(t, hasMax, "ipv6/unicast states a maximum")
+	assert.Equal(t, uint32(200), maximum)
+	assert.Equal(t, uint32(0), warning, "ipv6/unicast states no warning")
+
+	// A family the config spells wrongly resolves to nothing, so it cannot be
+	// counted as a limit anywhere. Two recognized names are configured, so the
+	// unrecognized third is the only entry that can be missing.
+	assert.Len(t, s.prefixCounts.limits, 2,
+		"an unrecognized family name resolves to no limit")
+}
+
+// TestPrefixLimitsZeroMaximumStillEnforces verifies that a family stating
+// `maximum 0` keeps the enforcement it has: presence in the config is the
+// hasMax answer, and zero is a maximum of zero rather than an absent limit.
+//
+// VALIDATES: the resolved map preserves the presence-versus-value distinction
+// the name walk made by returning hasMax=true for any configured entry.
+// PREVENTS: `maximum 0` silently becoming "no maximum", which would accept
+// every prefix from a peer an operator meant to accept none from.
+func TestPrefixLimitsZeroMaximumStillEnforces(t *testing.T) {
+	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)
+	ps.PrefixMaximum = map[string]uint32{"ipv4/unicast": 0}
+	s := NewSession(ps)
+
+	maximum, _, hasMax := s.prefixConfigLookup(ipv4UKey)
+	assert.True(t, hasMax, "a configured family states a maximum whatever its value")
+	assert.Equal(t, uint32(0), maximum)
+
+	_, _, hasMax = s.prefixConfigLookup(ipv6UKey)
+	assert.False(t, hasMax, "an unconfigured family states no maximum")
+}

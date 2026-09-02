@@ -241,6 +241,21 @@ type prefixCounts struct {
 	// session is built: reading the mode by family name per UPDATE would build a
 	// string on the wire path (ai/rules/performance.md).
 	installed map[uint32]bool
+
+	// limits holds each family's enforcement configuration under the uint32 key
+	// the receive path carries. Resolved ONCE for the same reason installed is:
+	// PrefixMaximum and PrefixWarning are keyed by "afi/safi" name, so answering
+	// from them per UPDATE meant walking the name map and converting every key
+	// until one matched. Nil when no family states a maximum.
+	limits map[uint32]prefixLimit
+}
+
+// prefixLimit is one family's resolved enforcement configuration. A family is
+// present in prefixCounts.limits if and only if it states a maximum, so
+// presence IS the hasMax answer prefixConfigLookup returns.
+type prefixLimit struct {
+	maximum uint32
+	warning uint32
 }
 
 // newPrefixCounts builds the per-session prefix tally from the peer settings.
@@ -249,6 +264,7 @@ func newPrefixCounts(settings *PeerSettings) *prefixCounts {
 		counts:    make(map[uint32]int64),
 		warned:    make(map[uint32]bool),
 		installed: installedPrefixFamilies(settings),
+		limits:    prefixLimits(settings),
 	}
 	if pc.installed != nil {
 		pc.sets = make(map[uint32]map[string]struct{}, len(pc.installed))
@@ -287,6 +303,30 @@ func installedPrefixFamilies(settings *PeerSettings) map[uint32]bool {
 			out = make(map[uint32]bool)
 		}
 		out[fk] = true
+	}
+	return out
+}
+
+// prefixLimits resolves the "afi/safi" enforcement config into the uint32 family
+// keys the receive path carries, or nil when no family states a maximum. A
+// family's warning is read under the SAME config spelling that stated its
+// maximum, so a warning written under a different spelling keeps the zero the
+// name walk gave it.
+//
+// An unrecognized family name is reported here, once for the session, rather
+// than on every lookup that walked past it.
+func prefixLimits(settings *PeerSettings) map[uint32]prefixLimit {
+	var out map[uint32]prefixLimit
+	for fam, maximum := range settings.PrefixMaximum {
+		fk, ok := familyKeyString(fam)
+		if !ok {
+			sessionLogger().Warn("prefix-maximum: unrecognized family in config", "family", fam)
+			continue
+		}
+		if out == nil {
+			out = make(map[uint32]prefixLimit, len(settings.PrefixMaximum))
+		}
+		out[fk] = prefixLimit{maximum: maximum, warning: settings.PrefixWarning[fam]}
 	}
 	return out
 }
@@ -420,7 +460,10 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 		return nil, false
 	}
 
-	hasLimits := len(s.settings.PrefixMaximum) > 0
+	// The resolved limits, not the raw config map: a family whose name the
+	// config spells wrong resolves to nothing, and prefixConfigLookup would
+	// answer hasMax=false for it anyway.
+	hasLimits := len(s.prefixCounts.limits) > 0
 
 	// Snapshot aggregate prefix count before this UPDATE for anomaly detection.
 	totalBefore := s.prefixCounts.totalCount()
@@ -702,24 +745,17 @@ func (s *Session) mpAddPathReceive(fam family.Family) bool {
 	return mode == capability.AddPathReceive || mode == capability.AddPathBoth
 }
 
-// prefixConfigLookup resolves a uint32 family key against PrefixMaximum/PrefixWarning config maps.
-// Config maps are keyed by "afi/safi" strings; this helper converts the numeric key to string
-// only when a config lookup is needed (cold path).
+// prefixConfigLookup answers a uint32 family key from the limits the session
+// resolved once at construction (prefixLimits). It sits on the receive path: an
+// installed announce section reads the maximum before it inserts, and the settle
+// loop reaches it again through applyPrefixCheck or applyPrefixDelta, so walking
+// the name-keyed config map here was two linear scans per UPDATE per family.
 func (s *Session) prefixConfigLookup(fk uint32) (maximum, warning uint32, hasMax bool) {
-	for fam, max := range s.settings.PrefixMaximum {
-		k, ok := familyKeyString(fam)
-		if !ok {
-			sessionLogger().Warn("prefix-maximum: unrecognized family in config", "family", fam)
-			continue
-		}
-		if k == fk {
-			maximum = max
-			hasMax = true
-			warning = s.settings.PrefixWarning[fam]
-			return maximum, warning, hasMax
-		}
+	limit, ok := s.prefixCounts.limits[fk]
+	if !ok {
+		return 0, 0, false
 	}
-	return 0, 0, false
+	return limit.maximum, limit.warning, true
 }
 
 // familyString converts a uint32 family key back to "afi/safi" string for display/metrics.
