@@ -171,8 +171,16 @@ func rfcDetailEyebrow(entry *rfcLedgerStem) string {
 //
 // SCALE first, then STANDING, as on the index and for the same reason: the
 // population the gate holds, the part of it that does not bind Ze, then the
-// shares that partition what does. The shares are built by rfcStandingCards, so
-// this page and the index cannot publish different partitions of one idea.
+// shares that partition the whole of it. The shares are built by
+// rfcStandingCards, so this page and the index cannot publish different
+// partitions of one idea.
+//
+// The shares were over `gated - not-applicable` until 2026-09-02, and on a page
+// about ONE RFC that subtraction was at its worst: a summary whose obligations
+// are all annotated published four shares of nothing, and every other page
+// quietly measured itself against a denominator its own scale card did not
+// state. They are over the gated count now, with the not-applicable obligations
+// as a named share (owner decision, 2026-09-02).
 func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 	coverage := &entry.Coverage
 	proof := rfcProofCountsOf(entry)
@@ -187,12 +195,13 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 		{Label: "Out of scope", Value: groupThousands(coverage.NotApplicable),
 			Count: "of " + groupThousands(coverage.Gated) + " gated MUSTs",
 			Note: "a {not-applicable} annotation says the obligation does not bind Ze. Scope, " +
-				"not coverage: it is in no share below",
+				"not coverage, and it is the Not applicable share below: it stays in the " +
+				"denominator every share on this page is taken over",
 			Tone: rfcToneNeutral,
 			Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 				"failure, and counting it either way would be a claim"},
 	}
-	cards = append(cards, rfcStandingCards(coverage.Binding(), coverage.Bucket)...)
+	cards = append(cards, rfcStandingCards(coverage.Gated, coverage.Bucket)...)
 	return append(cards,
 		rfcProofCard(coverage.Proven(), coverage.Units, coverage.Escapes, coverage.Stale, ""),
 		rfcCard{Label: "Audit verdicts", Value: groupThousands(coverage.Audited),
@@ -248,13 +257,13 @@ func rfcAuditTone(entry *rfcLedgerStem, proof rfcProofCounts) string {
 // summary's own numbers.
 func rfcOverviewHTML(entry *rfcLedgerStem) string {
 	cards := rfcDetailCards(entry)
-	return rfcCardsHTML(cards, entry.Coverage.Binding()) + rfcToneLegendHTML(cards)
+	return rfcCardsHTML(cards, entry.Coverage.Gated) + rfcToneLegendHTML(cards)
 }
 
 // rfcOverviewMirror states the same cards as a table.
 func rfcOverviewMirror(entry *rfcLedgerStem) string {
 	cards := rfcDetailCards(entry)
-	return rfcCardsMirror(cards, entry.Coverage.Binding()) + "\n" + rfcToneLegendMirror(cards)
+	return rfcCardsMirror(cards, entry.Coverage.Gated) + "\n" + rfcToneLegendMirror(cards)
 }
 
 // rfcGlanceFacts answers the at-a-glance rows, as (term, value) pairs already
@@ -273,7 +282,6 @@ func rfcGlanceFacts(entry *rfcLedgerStem) [][2]string {
 		{rfcEnrolmentLabel, html.EscapeString(rfcEnrolmentState(entry))},
 		{"Requirements", strconv.Itoa(entry.Coverage.Requirements)},
 		{"Gated MUST-level", strconv.Itoa(entry.Coverage.Gated)},
-		{"Obligations that bind Ze", strconv.Itoa(entry.Coverage.Binding())},
 		{"Not applicable, so out of scope", strconv.Itoa(entry.Coverage.NotApplicable)},
 		{rfcDeclaredGapsLabel, strconv.Itoa(entry.Coverage.Gaps)},
 		{"Gated with no test", strconv.Itoa(entry.Coverage.Missing)},

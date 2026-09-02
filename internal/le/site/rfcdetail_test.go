@@ -1091,7 +1091,7 @@ func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
 	if len(cards) == 0 {
 		t.Fatal("the page renders no card")
 	}
-	whole := entry.Coverage.Binding()
+	whole := entry.Coverage.Gated
 	if !strings.Contains(page, rfcCardsHTML(cards, whole)) {
 		t.Error("the page does not carry the markup rfcCardsHTML answers for its own cards")
 	}
@@ -2349,9 +2349,12 @@ func TestEveryStemPageAccountsForItsGatedRequirements(t *testing.T) {
 		if parts == 0 {
 			t.Errorf("%s publishes no card marked as a part of its population", entry.Stem)
 		}
-		if sum != entry.Coverage.Binding() {
-			t.Errorf("%s: its %d share cards add to %d and its binding population is %d",
-				entry.Stem, parts, sum, entry.Coverage.Binding())
+		// The GATED count, every bucket included. It was `gated -
+		// not-applicable` until 2026-09-02, so a summary whose obligations are
+		// all annotated published four shares of a population of zero.
+		if sum != entry.Coverage.Gated {
+			t.Errorf("%s: its %d share cards add to %d and its gated population is %d",
+				entry.Stem, parts, sum, entry.Coverage.Gated)
 		}
 		for name, rendering := range map[string]string{
 			"page": rfcDetailBody(entry), "mirror": rfcDetailMirror(entry),
@@ -2379,26 +2382,38 @@ func TestEveryStemPageAccountsForItsGatedRequirements(t *testing.T) {
 // was unreachable (independent review, 2026-09-01). The method is a split whose
 // gated total does not agree with its buckets.
 func TestTheIndexAccountingRowCanSayTheBucketingIsIncomplete(t *testing.T) {
+	// 100 gated, of which 10 are out of scope: since 2026-09-02 the buckets
+	// have to account for all 100, because the out-of-scope ones are a bucket
+	// rather than a subtraction.
 	split := rfcBinding{Gated: 100, OutOfScope: 10, Obligations: 85}
-	if got := split.Binding(); got != 90 {
-		t.Fatalf("the binding population reads %d, want 90", got)
-	}
-	if note := rfcAccountedNote(split, 85); !strings.Contains(note, "incomplete") {
-		t.Errorf("85 of 90 accounted reads %q, which does not say the bucketing is incomplete",
+	if note := rfcAccountedNote(split, 95); !strings.Contains(note, "incomplete") {
+		t.Errorf("95 of 100 accounted reads %q, which does not say the bucketing is incomplete",
 			note)
 	}
-	if note := rfcAccountedNote(split, 90); strings.Contains(note, "incomplete") {
-		t.Errorf("90 of 90 accounted reads %q, which calls a complete bucketing incomplete", note)
+	if note := rfcAccountedNote(split, 100); strings.Contains(note, "incomplete") {
+		t.Errorf("100 of 100 accounted reads %q, which calls a complete bucketing incomplete",
+			note)
+	}
+	// 90 was the denominator this page used until 2026-09-02, when the ten
+	// out-of-scope obligations were subtracted rather than bucketed. Accounting
+	// for 90 of the 100 is a shortfall now, and a note calling it complete is
+	// what reinstating that subtraction would look like from here.
+	// Fatal, because it is the premise of every expectation below it: if the ten
+	// out-of-scope obligations are subtracted again, the note is answering about
+	// 90 and the rest of this test is checking the wrong denominator.
+	if note := rfcAccountedNote(split, 90); !strings.Contains(note, "incomplete") {
+		t.Fatalf("90 of 100 accounted reads %q, which is the old binding denominator "+
+			"being read as a complete bucketing", note)
 	}
 	// The one cause the page can name. A shortfall with no unmapped annotation
 	// behind it says only that the buckets are short, because this page does
 	// not know what else could have caused one.
 	unmapped := rfcBinding{Gated: 100, OutOfScope: 10, Obligations: 85, Unmapped: 5}
-	note := rfcAccountedNote(unmapped, 85)
+	note := rfcAccountedNote(unmapped, 95)
 	if !strings.Contains(note, "no bucket for") {
 		t.Errorf("5 requirements are in no bucket and the note does not say why: %q", note)
 	}
-	if strings.Contains(rfcAccountedNote(split, 85), "no bucket for") {
+	if strings.Contains(rfcAccountedNote(split, 95), "no bucket for") {
 		t.Error("a shortfall with no unmapped annotation behind it claims one")
 	}
 }

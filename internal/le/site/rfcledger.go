@@ -98,10 +98,10 @@ type rfcLedgerCoverage struct {
 	GatedGaps int `json:"gated-gaps"`
 	// NotApplicable counts the gated requirements whose `{not-applicable}`
 	// annotation says the obligation does not bind Ze at all. It is SCOPE, and
-	// it is subtracted from the gated count to answer the population that does
-	// bind: an obligation that never bound Ze is not a coverage achievement,
-	// and leaving it in the denominator flatters every ratio above it (owner
-	// ruling, 2026-09-01).
+	// it is a NAMED share of the gated population rather than a subtraction
+	// from it: taking it out of the denominator was how annotating an
+	// obligation away raised every ratio above it, and a reader could not see
+	// what had left (owner decision, 2026-09-02).
 	NotApplicable int `json:"out-of-scope"`
 	// SinglePolarity counts the gated requirements a `{single-polarity}`
 	// annotation excuses from one direction. Those DO bind.
@@ -138,10 +138,6 @@ type rfcLedgerCoverage struct {
 	// checked.
 	Stale int `json:"stale-records"`
 }
-
-// Binding answers the obligations that bind Ze: the gated population less the
-// requirements whose annotation says the obligation does not apply to Ze.
-func (c rfcLedgerCoverage) Binding() int { return c.Gated - c.NotApplicable }
 
 // NoTest answers the binding obligations no test carries: the declared gaps and
 // the unexcused misses. A gap states a reason and supplies no evidence, so it

@@ -219,7 +219,7 @@ func TestTheRFCCompliancePageIsLabelledByItsOwnHeading(t *testing.T) {
 	if !strings.Contains(page, `id="rfc-compliance-title"`) {
 		t.Error(`aria-labeledby names rfc-compliance-title, which the page does not carry`)
 	}
-	if !strings.Contains(page, `<div class="rfc-tape" role="img" aria-label="How the obligations that bind Ze are answered">`) {
+	if !strings.Contains(page, `<div class="rfc-tape" role="img" aria-label="How every gated MUST is answered">`) {
 		t.Error("the satisfaction tape carries no label, so a screen reader meets an unnamed image")
 	}
 }
@@ -243,11 +243,17 @@ func TestTheHeadlineCardsCarryThePublishedNumbers(t *testing.T) {
 				card.Label, card.Value, card.Count, card.Note)
 		}
 	}
+	// Every share over the GATED count, the not-applicable obligations
+	// included. They were over 2,127, the gated count less those 839, until
+	// 2026-09-02: each share here was larger for no reason a reader could see,
+	// and the fifth card did not exist.
 	for _, figure := range []string{
 		"Gated MUSTs2,966", "Out of scope839",
-		"Tested both ways58.3%1,239 of 2,127 binding obligations",
-		"No test at all24.4%518 of 2,127 binding obligations",
-		"One polarity plus reason17.4%370 of 2,127 binding obligations",
+		"Proven by test54.2%1,609 of 2,966 gated MUSTs",
+		"Tested both ways41.8%1,239 of 2,966 gated MUSTs",
+		"One polarity plus reason12.5%370 of 2,966 gated MUSTs",
+		"No test at all17.5%518 of 2,966 gated MUSTs",
+		"Not applicable28.3%839 of 2,966 gated MUSTs",
 	} {
 		if !strings.Contains(text, figure) {
 			t.Errorf("the card grid does not read %q", figure)
@@ -464,7 +470,9 @@ func TestTheRFCComplianceMirrorReadsAsThePublishedMirror(t *testing.T) {
 		"| Resolved test tags | 3,595 |",
 		"| Declared gaps | 518 |",
 		"| RFCs with declared gaps | 80 |",
-		"| Positive and negative tests | 1,239 | 58.3% | `positive tag + negative tag` |",
+		"| Positive and negative tests | 1,239 | 41.8% | `positive tag + negative tag` |",
+		"| Not applicable | 839 | 28.3% | `{not-applicable} annotation`: " +
+			"the obligation does not bind Ze, so it is scope rather than coverage |",
 		"| Partial | 59 |",
 		"- **RFC 1350:** RFC1350-2-3 unmet",
 		"| `DRAFT-IETF-BESS-MUP-SAFI` | 37 | Partial |",
@@ -1045,24 +1053,30 @@ func TestTheBucketTableAccountsForEveryGatedRequirement(t *testing.T) {
 		t.Fatalf("the split answers %d binding and %d out of scope, the buckets carry %d and %d",
 			split.Obligations, split.OutOfScope, binding, scope)
 	}
-	if !strings.Contains(text, rfcBindingLabel+groupThousands(binding)) {
-		t.Errorf("the table carries no %q row reading %s", rfcBindingLabel, groupThousands(binding))
-	}
+	// ONE total row now, over the gated population. There was a second one
+	// above it, "Obligations that bind Ze", and the shares were taken over
+	// THAT: the not-applicable row sat below the subtotal it had been
+	// subtracted out of, so a reader adding the rows above landed on a
+	// denominator the table had already left (owner decision, 2026-09-02).
 	if !strings.Contains(text, rfcGatedLabel+groupThousands(snapshot.Share.Gated)) {
 		t.Errorf("the table carries no %q row reading %s", rfcGatedLabel,
 			groupThousands(snapshot.Share.Gated))
 	}
-	if !strings.Contains(text, "every obligation that binds Ze falls in exactly one bucket") {
-		t.Error("the page never says the buckets account for the binding population")
+	if strings.Contains(text, "Obligations that bind Ze") {
+		t.Error("the table still publishes the binding subtotal the shares were taken over")
 	}
-	if !strings.Contains(text, "the accounting total: "+groupThousands(binding)+
-		" that bind Ze plus "+groupThousands(scope)+" that do not") {
-		t.Error("the page never states the gated count as the sum of the two populations")
+	if !strings.Contains(text, "every gated MUST falls in exactly one bucket above, the "+
+		groupThousands(scope)+" that do not bind Ze included") {
+		t.Error("the page never says the buckets account for the whole gated population")
+	}
+	if !strings.Contains(text, "the denominator of every share above it") {
+		t.Error("the accounting total does not name itself as the denominator of the shares")
 	}
 	mirror := mirrorOf(t, paths)
 	for _, want := range []string{
-		"| **" + rfcBindingLabel + "** | **" + groupThousands(binding) + "** |",
 		"| **" + rfcGatedLabel + "** | **" + groupThousands(snapshot.Share.Gated) + "** |",
+		"| Not applicable | " + groupThousands(scope) + " | " +
+			rfcPercentText(scope, snapshot.Share.Gated) + " |",
 	} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the mirror carries no row %q", want)
@@ -1088,27 +1102,28 @@ func TestTheBucketTableAccountsForEveryGatedRequirement(t *testing.T) {
 		if !strings.Contains(rfcComplianceStyle, ".rfc-tape-"+bucket.Key+" {") {
 			t.Errorf(".rfc-tape-%s has no color rule, so that bucket renders blank", bucket.Key)
 		}
-		if !bucket.Binds || snapshotCount(&snapshot, bucket.Key) == 0 {
+		if snapshotCount(&snapshot, bucket.Key) == 0 {
 			continue
 		}
 		if !strings.Contains(text, bucket.Label+": "+groupThousands(snapshotCount(&snapshot, bucket.Key))) {
 			t.Errorf("the tape key does not name %q with its count", bucket.Label)
 		}
 	}
-	// The bar is the binding population, so the page says in words what it
-	// leaves out. A proportion whose population a reader cannot name is the
-	// shape this whole pass exists to remove.
+	// The bar is the whole gated population, so the page says in words what
+	// the not-applicable segment of it is. It said what the bar LEFT OUT until
+	// 2026-09-02, and leaving them out was the concealment (owner decision).
 	if scope > 0 && !strings.Contains(text, groupThousands(scope)+
-		" further gated MUSTs are {not-applicable}") {
-		t.Error("the tape never says which obligations it leaves out")
+		" of them are {not-applicable}") {
+		t.Error("the tape never says what its not-applicable segment is")
 	}
 	for _, bucket := range rfcSatisfaction {
-		if bucket.Binds {
+		if snapshotCount(&snapshot, bucket.Key) == 0 {
 			continue
 		}
-		if strings.Contains(page[tape:strings.Index(page[tape:], "</div>")+tape],
+		if !strings.Contains(page[tape:strings.Index(page[tape:], "</div>")+tape],
 			"rfc-tape-"+bucket.Key) {
-			t.Errorf("the bar carries %q, which does not bind Ze", bucket.Label)
+			t.Errorf("the bar carries no segment for %q, so those obligations are not in the "+
+				"picture the tape draws", bucket.Label)
 		}
 	}
 }
@@ -1214,12 +1229,17 @@ func TestEveryCardStatesTheRuleBehindItsColor(t *testing.T) {
 }
 
 // VALIDATES: AC-35 -- a ratio LEADS and a population FOLLOWS, and every ratio
-// is taken over the obligations that bind Ze.
+// on the page NAMES the gated population it is taken over.
 //
 // The page led with "Gated MUSTs 3,256", a count of obligations JUDGED that
-// reads as a count of obligations MET, and 834 of that number never bound Ze at
-// all. The owner called the arrangement deceptive on 2026-09-01. This holds the
-// order and the denominator, which are the two things that made it so.
+// reads as a count of obligations MET. The owner called the arrangement
+// deceptive on 2026-09-01. This holds the order and the denominator, which are
+// the two things that made it so.
+//
+// The denominator was `gated - not-applicable` until 2026-09-02 and this test
+// held every ratio AGAINST the gated count. That is reversed: taking those
+// obligations out was itself the concealment, so the shares are over the gated
+// count and each one says so.
 func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 	snapshot := publishedRFCCompliance(t)
 	cards := rfcComplianceCards(&snapshot, twoStemLedger())
@@ -1246,8 +1266,9 @@ func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 		}
 	}
 
-	// Every ratio's denominator is the binding population, never the gated
-	// count. 839 of the fixture's 2,966 gated MUSTs are {not-applicable}.
+	// Every ratio's denominator is the gated population, and 839 of the
+	// fixture's 2,966 gated MUSTs are {not-applicable}, so a share taken over
+	// the old binding total would read differently and fail below.
 	split := rfcBindingOf(&snapshot)
 	if split.OutOfScope == 0 {
 		t.Fatal("the fixture carries no out-of-scope obligation, so this proves nothing")
@@ -1259,26 +1280,24 @@ func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 		t.Errorf("%d binding plus %d out of scope plus %d unmapped is not the %d gated",
 			split.Obligations, split.OutOfScope, split.Unmapped, split.Gated)
 	}
+	// Every percentage card states its own denominator, and it is the gated
+	// count on all of them: the five partition shares and the headline share
+	// alike. The proof ratio is the one card over a different population, and
+	// it names that population in the same cell.
 	for _, card := range cards {
 		if !strings.HasSuffix(card.Value, "%") {
 			continue
 		}
-		// The headline share is the ONE exception, and it is deliberate: its
-		// denominator is every gated MUST of the RFCs Ze implements, the
-		// {not-applicable} ones included, because dropping them let annotating
-		// a requirement away raise the published score (owner decision,
-		// 2026-09-02). It states that denominator on the card, which is why the
-		// exemption is safe.
-		if card.Label == "Proven by test" {
-			if !strings.Contains(card.Count, "of "+groupThousands(split.Gated)+" gated MUSTs") {
-				t.Errorf("the headline share reads %q, which does not name its own "+
-					"denominator", card.Count)
+		if card.Label == "Proven by a recorded break" {
+			if !strings.Contains(card.Count, "tagged units") {
+				t.Errorf("the proof ratio reads %q, which does not name its own population",
+					card.Count)
 			}
 			continue
 		}
-		if strings.Contains(card.Note, "of "+groupThousands(split.Gated)+" ") {
-			t.Errorf("the %s ratio is taken over the gated count, which carries %d "+
-				"obligations that do not bind Ze", card.Label, split.OutOfScope)
+		if !strings.Contains(card.Count, "of "+groupThousands(split.Gated)+" gated MUSTs") {
+			t.Errorf("the %s share reads %q, which does not name the gated population it is "+
+				"taken over", card.Label, card.Count)
 		}
 	}
 
@@ -1293,13 +1312,13 @@ func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 		t.Errorf("the out-of-scope card reads %q, want %s", scope.Value,
 			groupThousands(split.OutOfScope))
 	}
-	// The note has to place this set on BOTH sides: out of the four
-	// satisfaction shares, and inside the headline share's denominator. Saying
-	// only "in no share below" was true until 2026-09-02 and is now the
-	// sentence a reader would use to explain a difference that is really there.
+	// The note points at the share this set IS, and says it stays in the
+	// denominator. It said "in no share below" until 2026-09-02, and then "in
+	// none of the four shares below": both described an arrangement where these
+	// obligations left the page, which is the arrangement the owner removed.
 	if !strings.Contains(scope.Note, "does not bind Ze") ||
-		!strings.Contains(scope.Note, "in none of the four shares below") ||
-		!strings.Contains(scope.Note, "proven share beside it counts it") {
+		!strings.Contains(scope.Note, "it is the Not applicable share below") ||
+		!strings.Contains(scope.Note, "stays in the denominator") {
 		t.Errorf("the out-of-scope card does not say what it is: %q", scope.Note)
 	}
 	if scope.Tone != rfcToneNeutral {
@@ -1326,15 +1345,13 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 			grouped[key] = group.Label
 		}
 	}
+	// EVERY bucket, whether or not the obligation binds Ze. A bucket in no
+	// group left the denominator with it until 2026-09-02, which is how the
+	// not-applicable obligations vanished from the page.
 	for _, bucket := range rfcSatisfaction {
-		_, held := grouped[bucket.Key]
-		if bucket.Binds && !held {
-			t.Errorf("%s binds Ze and is in no ratio card, so the shares do not add up",
+		if _, held := grouped[bucket.Key]; !held {
+			t.Errorf("%s is in no ratio card, so the shares do not add up to the gated count",
 				bucket.Key)
-		}
-		if !bucket.Binds && held {
-			t.Errorf("%s does not bind Ze and is inside %q, which inflates that share",
-				bucket.Key, grouped[bucket.Key])
 		}
 	}
 
@@ -1347,8 +1364,8 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 		cards []rfcCard
 		whole int
 	}{
-		"index":  {rfcComplianceCards(&snapshot, twoStemLedger()), split.Binding()},
-		"detail": {rfcDetailCards(&entry), entry.Coverage.Binding()},
+		"index":  {rfcComplianceCards(&snapshot, twoStemLedger()), split.Gated},
+		"detail": {rfcDetailCards(&entry), entry.Coverage.Gated},
 	} {
 		parts, sum := 0, 0
 		for _, card := range one.cards {
@@ -1358,7 +1375,7 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 			parts++
 			sum += card.Part
 			if !strings.HasSuffix(card.Count, "of "+groupThousands(one.whole)+
-				" binding obligations") {
+				" gated MUSTs") {
 				t.Errorf("the %s %s card does not name its denominator: %q", name, card.Label,
 					card.Count)
 			}
@@ -1370,10 +1387,10 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 		// Counting the cards marked as parts is not the arithmetic. It was all
 		// this test did, and the producer's own note did the same, so an
 		// annotation kind that lost its bucket reddened nothing on the index
-		// (independent review, 2026-09-02). The whole is the gate's gated total
-		// less out-of-scope, which no bucket produced.
+		// (independent review, 2026-09-02). The whole is the gated count the
+		// producer answered, which no bucket here produced.
 		if sum != one.whole {
-			t.Errorf("the %s grid's %d share cards add to %d and its binding population is %d",
+			t.Errorf("the %s grid's %d share cards add to %d and its gated population is %d",
 				name, parts, sum, one.whole)
 		}
 		if note := rfcPartitionNote(one.cards, one.whole); !strings.Contains(note,
@@ -1383,7 +1400,13 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 		// The proof ratio is over tagged units, so it must never be counted in.
 		for _, card := range one.cards {
 			if card.Label == "Proven by a recorded break" && card.Partition {
-				t.Errorf("the %s proof ratio is marked as a part of the binding population",
+				t.Errorf("the %s proof ratio is marked as a part of the gated population",
+					name)
+			}
+			// The headline is two of the parts added together, so counting it
+			// again would put the same obligations in the sum twice.
+			if card.Label == "Proven by test" && card.Partition {
+				t.Errorf("the %s headline share is marked as a part, and it is two of them",
 					name)
 			}
 		}
@@ -1398,9 +1421,10 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 // published answers (owner directive, 2026-09-01).
 //
 // The METHOD is the card values rather than the snapshot, because a reader adds
-// what the page shows. The two shares are over the binding population and the
-// headline is over the gated one, so their PERCENTAGES do not add: what has to
-// hold is the count behind them.
+// what the page shows. Since 2026-09-02 all three are over the same gated
+// denominator, so what has to hold is the COUNT: two shares printed to one
+// decimal can add to a tenth more than the headline printed the same way, and
+// the fixture is such a case (41.8 + 12.5 against 54.2).
 func TestTheHeadlineShareIsTheTwoProvenCardsSummed(t *testing.T) {
 	snapshot := publishedRFCCompliance(t)
 	cards := rfcComplianceCards(&snapshot, twoStemLedger())
