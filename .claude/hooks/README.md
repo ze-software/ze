@@ -66,12 +66,13 @@ check's row cannot survive it.
 
 ## PreToolUse: Bash (`internal/le/hookruntime/bash.go`)
 
-<!-- source: internal/le/hookruntime/bash.go -- bashWorktreeCopy, bashDestructiveGit, bashRootBuild, bashLossyPipe, bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch, bashTestDeletion, bashGovernedWrite -->
+<!-- source: internal/le/hookruntime/bash.go -- bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe, bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch, bashTestDeletion, bashGovernedWrite -->
 
 | Check | Enforces | What it refuses |
 |---|---|---|
 | `bashWorktreeCopy` | `ai/INSTRUCTIONS.md` prohibition, no rule point | A file copy out of a worktree into the main tree. A worktree agent lands its work by committing, and a direct copy overwrites whatever another session left uncommitted at the destination. |
 | `bashDestructiveGit` | `git-safety.md` | Every git verb that discards work or publishes it. Committing and pushing are allowed through the prepared script alone, because sessions share one index. |
+| `bashBranchMove` | `git-safety.md` | Every git verb that creates, switches, renames, deletes or integrates a branch. Which branch a session works on is the user's choice, and a session that moves it lands the work where the user is not looking. |
 | `bashRootBuild` | build hygiene, no rule point | A Go compile that names no output path. Without `-o` the binary lands in the working directory under the package name. |
 | `bashLossyPipe` | `commands.md` | Piping an expensive command through a filter that drops output. The part a filter removes is usually the part that says why the run failed. |
 | `bashRawHeavy` | `commands.md` | A heavy job typed raw, outside job admission. One machine carries several sessions, and an unadmitted job oversubscribes it. |
