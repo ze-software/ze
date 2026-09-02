@@ -1478,6 +1478,44 @@ func TestPositionalErrorNamesTheOneOpenDefinition(t *testing.T) {
 	assert.NotContains(t, resp.Error, "valid keywords", "a bare value slot has no keyword to offer")
 }
 
+// TestMissingMandatoryOutranksAnUnplaceableToken drives the refusal an operator
+// reads when a call omits a mandatory value AND carries a keyword group the
+// command's own grammar declares while its argument definitions do not hold it.
+//
+// VALIDATES: `show policy test peer <selector> update <hex>` is refused for the
+// direction it omits. Two tokens sit against one open definition, so no token
+// can be named as the direction the operator meant, and the missing argument is
+// the only fault the dispatcher can state.
+// PREVENTS: `invalid value "update", expected one of: import, export`, which
+// refuses a token the operator typed correctly and leaves the fault they made
+// unnamed. The opposite polarity is
+// TestPositionalErrorNamesTheOneOpenDefinition, where one token stands against
+// one open definition and the value refusal is the answer.
+func TestMissingMandatoryOutranksAnUnplaceableToken(t *testing.T) {
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d := NewDispatcher()
+	d.RegisterWithOptions("show policy test peer", handler, "Policy dry run", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "selector", Kind: command.ArgString, Mandatory: true},
+			{Name: "direction", Kind: command.ArgEnum, EnumValues: []string{"import", "export"}, Mandatory: true},
+		},
+	})
+
+	resp, err := d.Dispatch(nil, "show policy test peer test-peer update FFFF")
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Contains(t, resp.Error, "required argument missing: direction")
+	assert.NotContains(t, resp.Error, "invalid value", "the handler's own keyword is not a refused value")
+
+	accepted, err := d.Dispatch(nil, "show policy test peer test-peer export update FFFF")
+	require.NoError(t, err, "the documented form still reaches the handler")
+	assert.Equal(t, plugin.StatusDone, accepted.Status)
+}
+
 // TestPositionalErrorSkipsAFilledDefinition proves the keyword list drops a
 // definition that already holds a value.
 //

@@ -1,4 +1,5 @@
-# Test: show metrics name <name> dispatches to the metrics-query handler
+# Test: show metrics name <name> dispatches to the metrics-query handler, and
+# the bare form is refused for the name the model requires
 # Exercises: dispatch-command -> ze-show:metrics-query -> handleShowMetricsQuery
 # Verifies the R9 rename `show metrics name <name>` (was `show metrics-query`)
 # resolves to its handler end-to-end. The plugin harness has no Prometheus
@@ -6,6 +7,18 @@
 # named form returns {metric, series, count} status=done. Either outcome proves
 # the renamed command reaches its handler -- a broken rename would 404 / reach
 # no handler. The happy-path metric filtering is unit-tested separately. Native.
+#
+# VALIDATES: `leaf name ... mandatory true` (ze-cli-show-cmd.yang) is what the
+# daemon enforces, so `show metrics name` with no name is refused by the
+# dispatcher and never reaches the handler.
+# PREVENTS: the fixture asserting that the bare form reaches the handler, which
+# is the opposite of what the command model declares.
+#
+# The refusal is asserted on the DAEMON's own log line rather than on the
+# observer alone: an observer's verdict travels as plugin stderr the daemon
+# relays, and the daemon is on its way down by the time a failing observer
+# writes it (plan/journal/green-that-could-not-have-been-red.md, the 2026-08-29
+# row on `Observe` / `ReportFailure`).
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -61,3 +74,5 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
+expect=stderr:pattern=required argument missing: name
+reject=stderr:pattern=ZE-OBSERVER-FAIL

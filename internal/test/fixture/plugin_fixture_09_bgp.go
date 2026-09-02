@@ -431,25 +431,37 @@ func metricsNameShow09(ctx context.Context, _ []string) error {
 			return fmt.Errorf("ze never sent its initial-sync End-of-Rib")
 		}
 		got := ""
-		for _, command := range []string{"show metrics name go_goroutines", "show metrics name"} {
-			r := dispatch09(ctx, p, command)
-			switch {
-			case done09(r):
-				data := map09(r.data)
-				if _, ok := data["series"]; !ok {
-					return fmt.Errorf("metrics-name: %q bad shape %s", command, r.text)
-				}
-				if _, ok := data["metric"]; !ok {
-					return fmt.Errorf("metrics-name: %q bad shape %s", command, r.text)
-				}
-				got = statusDone
-			case r.status == statusError && strings.Contains(r.text, "metrics not available"):
-				got = "no-registry"
-			default:
-				return fmt.Errorf("metrics-name: %q did not reach handler: %s", command, r.text)
+		named := dispatch09(ctx, p, "show metrics name go_goroutines")
+		switch {
+		case done09(named):
+			data := map09(named.data)
+			if _, ok := data["series"]; !ok {
+				return fmt.Errorf("metrics-name: named form bad shape %s", named.text)
 			}
+			if _, ok := data["metric"]; !ok {
+				return fmt.Errorf("metrics-name: named form bad shape %s", named.text)
+			}
+			got = statusDone
+		case named.status == statusError && strings.Contains(named.text, "metrics not available"):
+			got = "no-registry"
+		default:
+			return fmt.Errorf("metrics-name: named form did not reach handler: %s", named.text)
 		}
 		fmt.Fprintf(os.Stderr, "OK: show metrics name reaches handler (%s)\n", got)
+
+		// The metric name is `mandatory true` on the model
+		// (internal/component/cmd/show/yang/ze-cli-show-cmd.yang), so the bare
+		// form is refused by the dispatcher and never reaches the handler. The
+		// handler's own "usage:" answer serves a caller that is not the command
+		// tree, and asking for it here would assert the opposite of the model.
+		bare := dispatch09(ctx, p, "show metrics name")
+		if bare.status != statusError {
+			return fmt.Errorf("metrics-name: the bare form answered %q, want the model's refusal", bare.status)
+		}
+		if !strings.Contains(bare.text, "required argument missing: name") {
+			return fmt.Errorf("metrics-name: the bare form was refused for something else: %s", bare.text)
+		}
+		fmt.Fprintln(os.Stderr, "OK: show metrics name with no name is refused for the name it needs")
 		return nil
 	})
 }

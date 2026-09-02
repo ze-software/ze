@@ -1089,6 +1089,12 @@ const selectorLeaf = "selector"
 // ArgDefs. Unmatched args pass through to the handler.
 // Phase 3 (mandatory check): ArgDefs with Mandatory=true must have been matched.
 //
+// Phase 3 answers BEFORE phase 2's refusal whenever the call left more tokens
+// over than it left definitions open. The refusals are ordered, not the phases:
+// a missing mandatory argument is what the model itself says is wrong with the
+// call, while a token no definition accepts is a bad value only if the
+// dispatcher can say which definition it was typed for.
+//
 // It returns the leaf a LONE spare positional token filled, keyed by leaf name,
 // or nil. Dispatch needs that answer for the terminal-noun selector shape (see
 // the fences there), and this is the only place a positional token is bound to a
@@ -1134,21 +1140,21 @@ func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[st
 		}
 	}
 
-	// Phase 2: positional matching for unconsumed args.
+	// Phase 2: positional matching for unconsumed args. A token no open
+	// definition accepts is kept rather than refused here, because whether it is
+	// a bad value or a keyword the handler reads is a question the definitions
+	// alone cannot answer, and a later token can still fill a definition this
+	// one could not.
 	var lone map[string]string
+	unplaced := make([]string, 0, len(args))
 	for i, arg := range args {
 		if consumed[i] {
 			continue
 		}
 		def := positionalDef(arg, defs, matched)
 		if def == nil {
-			// No unmatched def can hold this token. With nothing left to fill,
-			// the token is the handler's business and passes through; with defs
-			// still open, it is a value none of them accepts.
-			if unmatchedDefCount(defs, matched) == 0 {
-				continue
-			}
-			return nil, positionalError(arg, defs, matched)
+			unplaced = append(unplaced, arg)
+			continue
 		}
 		matched[def.Name] = true
 		if spare == 1 {
@@ -1156,11 +1162,30 @@ func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[st
 		}
 	}
 
+	// A token that filled no definition is a bad VALUE only when every such
+	// token can be attributed to a definition of its own: as many tokens left
+	// over as definitions still open, or fewer. More tokens than open
+	// definitions means at least one of them is a value for nothing, so it is
+	// the keyword half of a group the command's own grammar declares and this
+	// validator does not hold (`update <hex>` on `show policy test peer`). The
+	// dispatcher then has no ground to name any token as the fault, and the
+	// missing mandatory argument below is what is certainly wrong with the call.
+	open := unmatchedDefCount(defs, matched)
+	if len(unplaced) > 0 && open > 0 && len(unplaced) <= open {
+		return nil, positionalError(unplaced[0], defs, matched)
+	}
+
 	// Phase 3: mandatory check.
 	for i := range defs {
 		if defs[i].Mandatory && !matched[defs[i].Name] {
 			return lone, fmt.Errorf("required argument missing: %s", defs[i].Name)
 		}
+	}
+
+	// Every mandatory definition is filled, so a token left over is the only
+	// fault the call has, and naming it is the whole answer.
+	if len(unplaced) > 0 && open > 0 {
+		return nil, positionalError(unplaced[0], defs, matched)
 	}
 
 	return lone, nil
@@ -1250,7 +1275,9 @@ func firstFlagToken(args []string) string {
 
 // positionalError builds an error for a token no OPEN definition accepts. Its
 // caller has already found at least one definition still waiting for a value,
-// so the list below is never empty.
+// so the list below is never empty, and it has already established that the
+// token can be attributed to one: the caller counts the tokens it could not
+// place against the definitions still open (validateCommandArgs).
 //
 // A definition that is still open is the one the operator's token was meant
 // for, so when exactly one is open the error is that definition's own refusal.

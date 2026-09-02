@@ -140,6 +140,18 @@ registers with `cmdregistry.MustRegisterLocalData(path, handler, meta,
 command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
 `| yaml` and `| table` be three renderings of one payload.
 
+The handler returns a payload AND an exit code, and the two are independent. The
+code carries the verdict, the payload carries the evidence, and `validate config`
+is the command that needs both: it answers the diagnostics of a configuration it
+rejects and exits 1. The answer therefore goes to stdout whatever the code is,
+because a payload on stderr is a payload no pipe operator can reach. A handler
+with nothing to say writes its reason to stderr itself and returns a nil payload,
+which prints nothing. The one local result stdout never sees is a pipe error,
+which is a diagnostic about the operator's own chain rather than an answer to
+their question.
+<!-- source: internal/component/cli/client/main.go -- emitLocalResult -->
+<!-- source: internal/component/command/registry/registry.go -- LocalDataHandler -->
+
 This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
 local-data command has no daemon side at all, registers no RPC, and therefore
@@ -1270,6 +1282,19 @@ Operational commands declare their argument types as YANG leaves inside
    between tokenize and handler call (two-phase: keyword extraction, then
    positional matching).
 
+A command carries more grammar than its ArgDefs hold. A modifier group states a
+keyword and a value the HANDLER parses, so the dispatcher meets tokens that
+belong to no definition of its own, and it MUST NOT read one of them as a bad
+value. `validateCommandArgs` counts the tokens it could not place against the
+definitions still open. As many tokens as open definitions, or fewer: each token
+can be attributed to a definition, so the first one is refused by that
+definition's own message (`invalid value "not-an-ip", does not match expected
+pattern`). More tokens than open definitions: at least one token is a value for
+nothing, so a missing mandatory argument is reported instead
+(`show policy test peer test-peer update <hex>` answers `required argument
+missing: direction`, and not a complaint about the `update` keyword the handler
+reads).
+
 A leaf's own `description` reaches no surface. `argDefFor`
 (`config/yang/command.go`) reads the leaf's `type` and its `mandatory`
 statement, and `command.ArgDef` carries no description field. State what an
@@ -1429,9 +1454,8 @@ same pair, in the declaration form their own registration uses.
 | `command.Node.Help` | the `ze:help` extension | the LONG explanation of that one command |
 
 Neither is derived from the other, and no reader shortens either one to guess
-at the other. The summary is authored short because it is a summary. One reader
-clamps it, and it answers a display constraint: the interactive completion pane
-cuts the summary to the width its terminal gives it.
+at the other. The summary is authored short because it is a summary. No reader
+cuts it: every surface prints the summary whole.
 
 `mergeYANGEntry` (`internal/component/config/yang/command.go`) writes both, and
 `mergeHelpText` decides each field on its own when several modules contribute
@@ -1483,9 +1507,8 @@ its source, which is the only way to read a package Go forbids importing.
 
 #### Which surface renders which field
 
-Every surface that shows a command on ONE line reads the summary. Every one of
-them prints it whole, except the interactive completion pane, which has a
-terminal width to fit. Only a surface that shows ONE command reads the long
+Every surface that shows a command on ONE line reads the summary, and every one
+of them prints it whole. Only a surface that shows ONE command reads the long
 explanation: the help page in the terminal, and the two published detail
 surfaces.
 
@@ -1494,8 +1517,8 @@ surfaces.
 | The per-command help page | `commandHelpPage`, rendered by `helpfmt.(*Page).WriteTo` | `Description` on the header line, then `Help` in the body block, then the child rows. A node states its own two texts whether or not it has children |
 | A help page's child rows | `command.HelpEntries` | `Description` |
 | A completion candidate | `command.TreeCompleter.matchChildren`, `choiceSuggestions` | `Description` |
-| The interactive completion pane | `internal/component/cli` `Model.renderDropdownBox` | `Description`, cut to the column the terminal width leaves and closed with `...`. This is the one clamp the code keeps, because it answers a display constraint rather than guessing at a shorter text |
-| The interactive completion hint | `internal/component/cli` `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `Description`, whole |
+| The interactive completion pane | `internal/component/cli` `Model.renderDropdownBox` | nothing. A menu row is the command name alone, and a name wider than the box is clamped to the frame |
+| The interactive message line | `internal/component/cli` `Model.warningText`, `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `Description`, whole, for the candidate the menu has selected |
 | A shell-completion record | `internal/plugins/completion` `writeCompletionRecord` | `Description` |
 | The `ze help command` table row | `printCommandTable` | `Description` |
 | `ze help command --verbose` | `printCommandVerbose` | `Description`, then `Help` |
@@ -1520,11 +1543,12 @@ that declares no explanation carries NO `description` key, never an empty one.
 
 The shell-completion record is `name`, tab, `description`, newline. A summary
 carrying a tab or a newline is FOLDED to single spaces there, never cut.
-Folding answers the format's one-line constraint and loses no word. The TUI
-completion pane folds for the same reason, and clamps to the column width its
-terminal gives it. That clamp is the only cut any surface makes, and it answers
-a display constraint. No surface cuts at a sentence, at a newline, or at a fixed
-character count to guess a shorter text.
+Folding answers the format's one-line constraint and loses no word.
+
+NO surface cuts a summary. The TUI completion pane held the last cut in Ze, and
+it went with the description column that sized it. A menu row is the command
+name alone. The selected candidate's summary is on message line 2, whole
+(`docs/architecture/cli/error-surface.md`).
 
 <!-- source: internal/component/command/help.go -- HelpEntries, describeChildren -->
 <!-- source: internal/component/plugin/server/schema.go -- RegisteredRPC, RegisterRPCs -->
@@ -1534,7 +1558,7 @@ character count to guess a shorter text.
 <!-- source: internal/component/command/registry/registry.go -- Meta, ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
 <!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
-<!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox -->
+<!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox, (Model).warningText -->
 <!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
 <!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
 <!-- source: internal/component/mcp/tools.go -- CommandInfo, buildToolDef, commandText -->
