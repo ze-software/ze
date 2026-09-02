@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -71,14 +72,12 @@ func endSummary(root string, paths lepath.SessionPaths, at time.Time, query gitQ
 		preserved = preserveState(string(content), 2)
 	}
 	newSnapshot := snapshotText(report, at)
-	var state strings.Builder
-	_, _ = state.WriteString("# Session State\n\n")
-	_, _ = state.WriteString(newSnapshot)
+	var state textbuf.Buffer
+	state.Reset().Str("# Session State\n\n").Str(newSnapshot)
 	if preserved != "" {
-		_, _ = state.WriteString("\n\n---\n")
-		_, _ = state.WriteString(preserved)
+		state.Str("\n\n---\n").Str(preserved)
 	}
-	_ = state.WriteByte('\n')
+	state.Byte('\n')
 	if err := writeAtomic(statePath, []byte(state.String()), 0o644, ".session-state-*"); err != nil {
 		return report, fmt.Errorf("write session state %q: %w", filepath.ToSlash(stateRel), err)
 	}
@@ -116,22 +115,22 @@ func stateFile(paths lepath.SessionPaths, spec string) string {
 }
 
 func snapshotText(report SummaryReport, at time.Time) string {
-	var text strings.Builder
-	_, _ = fmt.Fprintf(&text, "## Session: %s\n\n", at.Format(time.RFC3339))
-	_, _ = fmt.Fprintf(&text, "Branch: `%s`\n", report.Branch)
+	var text textbuf.Buffer
+	text.Reset().Str("## Session: ").Str(at.Format(time.RFC3339)).Str("\n\n")
+	text.Str("Branch: `").Str(report.Branch).Str("`\n")
 	if report.LastCommit != "" {
-		_, _ = fmt.Fprintf(&text, "Last commit: %s\n", report.LastCommit)
+		text.Str("Last commit: ").Str(report.LastCommit).Byte('\n')
 	}
 	if report.Spec != "" {
-		_, _ = fmt.Fprintf(&text, "Spec: `%s`\n", report.Spec)
+		text.Str("Spec: `").Str(report.Spec).Str("`\n")
 	}
 	appendPaths := func(heading string, paths []string) {
 		if len(paths) == 0 {
 			return
 		}
-		_, _ = fmt.Fprintf(&text, "\n%s:\n", heading)
+		text.Byte('\n').Str(heading).Str(":\n")
 		for _, path := range paths {
-			_, _ = fmt.Fprintf(&text, "- `%s`\n", path)
+			text.Str("- `").Str(path).Str("`\n")
 		}
 	}
 	appendPaths("Uncommitted", report.Uncommitted)

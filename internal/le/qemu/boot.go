@@ -258,7 +258,9 @@ func (h *Hugepages) ssh(port int, query string) (string, string, error) {
 		"-o", "ConnectTimeout=5",
 		target, query)
 
-	var out, stderr strings.Builder
+	var out, stderr textbuf.Buffer
+	out.Reset()
+	stderr.Reset()
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	err := cmd.Run()

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/ai"
 	"github.com/ze-software/ze/internal/le/commit"
 	"github.com/ze-software/ze/internal/le/docstocode"
@@ -276,7 +277,8 @@ func hookPreCompact(ctx context, errOut io.Writer) int {
 }
 
 func stripStopMarkup(text string) string {
-	var out strings.Builder
+	var out textbuf.Buffer
+	out.Reset()
 	fence := false
 	fenceLength := 0
 	pending := make([]string, 0)
@@ -303,16 +305,18 @@ func stripStopMarkup(text string) string {
 		if strings.Count(line, "`")%2 == 0 {
 			line = regexp.MustCompile("`[^`]*`").ReplaceAllString(line, "")
 		}
-		out.WriteString(line)
-		out.WriteByte('\n')
+		out.Str(line).Byte('\n')
 	}
 	if fence {
-		out.WriteString(strings.Join(pending, "\n"))
+		out.Join(pending, "\n")
 	}
-	if strings.TrimSpace(out.String()) == "" {
+	// String detaches the heap slice over 128 bytes, so the buffer is read once
+	// and the result is what both branches below answer with.
+	stripped := out.String()
+	if strings.TrimSpace(stripped) == "" {
 		return text
 	}
-	return out.String()
+	return stripped
 }
 
 func hookStop(ctx context, errOut io.Writer) int {
@@ -443,19 +447,23 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 		branch = strings.TrimSpace(string(body))
 	}
 	cancelBranch()
-	var text strings.Builder
-	fmt.Fprintf(&text, "Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:\n- Zero-copy, buffer-first encoding: WriteTo(buf, off) int -- no make/append in encoding\n- Registration pattern: init() in register.go, never direct imports between components\n- YANG required for all RPCs -- no command module category\n- Lazy over eager: pass raw bytes, offset iterators, no intermediate structs\n- JSON keys: kebab-case\n- Goroutines: long-lived workers on channels, never per-event\n- Rules: ai/rules/\n- Branch: %s\n", branch)
+	var text textbuf.Buffer
+	text.Reset().Str("Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:\n- Zero-copy, buffer-first encoding: WriteTo(buf, off) int -- no make/append in encoding\n- Registration pattern: init() in register.go, never direct imports between components\n- YANG required for all RPCs -- no command module category\n- Lazy over eager: pass raw bytes, offset iterators, no intermediate structs\n- JSON keys: kebab-case\n- Goroutines: long-lived workers on channels, never per-event\n- Rules: ai/rules/\n- Branch: ").Str(branch).Byte('\n')
 	if id != "" {
 		paths, err := lepath.SessionForID(ctx.root, id)
 		if err == nil {
 			claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+id))
 			if claim != "" && claim != specUnassigned {
-				fmt.Fprintf(&text, "\nSpec claimed by the session that spawned you: plan/%s\nRead it before acting. Its acceptance criteria are what your work is judged against.\n", claim)
+				text.Str("\nSpec claimed by the session that spawned you: plan/").Str(claim).
+					Str("\nRead it before acting. Its acceptance criteria are what your work is judged against.\n")
 			}
-			fmt.Fprintf(&text, "\nParent session ID: %s\nParent session scratch: %s\nSet CLAUDE_CODE_SESSION_ID=%s for every Bash tool call. The Bash PreToolUse hook adds this prefix to the command.\n", id, paths.Scratch, id)
+			text.Str("\nParent session ID: ").Str(id).
+				Str("\nParent session scratch: ").Str(paths.Scratch).
+				Str("\nSet CLAUDE_CODE_SESSION_ID=").Str(id).
+				Str(" for every Bash tool call. The Bash PreToolUse hook adds this prefix to the command.\n")
 		}
 	}
-	text.WriteString("\nYou are a subagent under ai/rules/planning.md. Report grounded facts, read routed rules before acting, never weaken tests, and write scratch only under ./le session scratch ensure.\n")
+	text.Str("\nYou are a subagent under ai/rules/planning.md. Report grounded facts, read routed rules before acting, never weaken tests, and write scratch only under ./le session scratch ensure.\n")
 	response := map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": "SubagentStart", "additionalContext": text.String()}}
 	_ = json.NewEncoder(out).Encode(response)
 	return 0

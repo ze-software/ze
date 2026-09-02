@@ -1,7 +1,6 @@
 package sourcerewrite
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -9,6 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/rules"
 )
 
@@ -54,15 +54,16 @@ type rulesReformatReport struct {
 }
 
 func (r rulesReformatReport) Text() string {
-	var b strings.Builder
+	var b textbuf.Buffer
+	b.Reset()
 	verb := "migrated"
 	if r.DryRun {
 		verb = "WOULD migrate"
 	}
 	for _, file := range r.Files {
-		fmt.Fprintf(&b, "%s %s\n", verb, file)
+		b.Str(verb).Byte(' ').Str(file).Byte('\n')
 	}
-	fmt.Fprintf(&b, "\n%d migrated, %d already conform / skipped\n", r.Changed, r.Skipped)
+	b.Byte('\n').Int(int64(r.Changed)).Str(" migrated, ").Int(int64(r.Skipped)).Str(" already conform / skipped\n")
 	return b.String()
 }
 

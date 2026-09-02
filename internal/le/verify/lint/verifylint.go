@@ -106,7 +106,8 @@ func (r Report) Text() string {
 	if r.Code == 0 {
 		return ""
 	}
-	var out strings.Builder
+	var out textbuf.Buffer
+	out.Reset()
 	if err := declareLintFailureGroup(&out, r.FailingPaths); err != nil {
 		return ""
 	}
@@ -598,7 +599,8 @@ func parseConfigTags(config []byte) ([]string, error) {
 }
 
 func deriveTaglessConfig(config []byte) ([]byte, error) {
-	var output strings.Builder
+	var output textbuf.Buffer
+	output.Reset()
 	dropping := false
 	foundRun := false
 	scanner := bufio.NewScanner(bytes.NewReader(config))
@@ -612,11 +614,10 @@ func deriveTaglessConfig(config []byte) ([]byte, error) {
 			continue
 		}
 		dropping = false
-		output.WriteString(line)
-		output.WriteByte('\n')
+		output.Str(line).Byte('\n')
 		if line == "run:" {
 			foundRun = true
-			output.WriteString("  relative-path-mode: gitroot\n")
+			output.Str("  relative-path-mode: gitroot\n")
 		}
 	}
 	if err := scanner.Err(); err != nil {

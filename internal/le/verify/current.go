@@ -4,8 +4,8 @@ package verify
 import (
 	"context"
 	"errors"
-	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
@@ -25,10 +25,10 @@ type stageList struct {
 
 // Text renders native stage names one per line for CI sharding.
 func (l stageList) Text() string {
-	var text strings.Builder
+	var text textbuf.Buffer
+	text.Reset()
 	for _, identity := range l.Stages {
-		text.WriteString(identity.Name)
-		text.WriteByte('\n')
+		text.Str(identity.Name).Byte('\n')
 	}
 	return text.String()
 }

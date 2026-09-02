@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -178,31 +180,30 @@ func (m *replaceMatcher) groupedOpcodes() [][]replaceOpcode {
 func unifiedTextDiff(before, after, fromFile, toFile string) string {
 	a, b := splitDiffLines(before), splitDiffLines(after)
 	matcher := newReplaceMatcher(a, b)
-	var output strings.Builder
+	var output textbuf.Buffer
+	output.Reset()
 	for _, group := range matcher.groupedOpcodes() {
 		if output.Len() == 0 {
-			fmt.Fprintf(&output, "--- %s\n+++ %s\n", fromFile, toFile)
+			output.Str("--- ").Str(fromFile).Str("\n+++ ").Str(toFile).Byte('\n')
 		}
 		first, last := group[0], group[len(group)-1]
-		fmt.Fprintf(&output, "@@ -%s +%s @@\n", replaceUnifiedRange(first.i1, last.i2), replaceUnifiedRange(first.j1, last.j2))
+		output.Str("@@ -").Str(replaceUnifiedRange(first.i1, last.i2)).
+			Str(" +").Str(replaceUnifiedRange(first.j1, last.j2)).Str(" @@\n")
 		for _, code := range group {
 			if code.tag == replaceEqual {
 				for _, line := range a[code.i1:code.i2] {
-					output.WriteByte(' ')
-					output.WriteString(line)
+					output.Byte(' ').Str(line)
 				}
 				continue
 			}
 			if code.tag == replaceChanged || code.tag == replaceDeleted {
 				for _, line := range a[code.i1:code.i2] {
-					output.WriteByte('-')
-					output.WriteString(line)
+					output.Byte('-').Str(line)
 				}
 			}
 			if code.tag == replaceChanged || code.tag == replaceInserted {
 				for _, line := range b[code.j1:code.j2] {
-					output.WriteByte('+')
-					output.WriteString(line)
+					output.Byte('+').Str(line)
 				}
 			}
 		}

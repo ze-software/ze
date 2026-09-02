@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -44,11 +45,11 @@ func (r ReapReport) Text() string {
 	if r.MissingRoot {
 		return "session-reap: no tmp/session, nothing to do\n"
 	}
-	var text strings.Builder
+	var text textbuf.Buffer
+	text.Reset()
 	if r.Dry {
 		for _, path := range r.Paths {
-			text.WriteString(path)
-			text.WriteByte('\n')
+			text.Str(path).Byte('\n')
 		}
 	}
 	verb := "Removed"
@@ -63,8 +64,9 @@ func (r ReapReport) Text() string {
 	if r.RemovedMarkers == 1 {
 		marker = "marker"
 	}
-	fmt.Fprintf(&text, "session-reap: %s %d dead session %s and %d %s; kept %d running.\n",
-		verb, r.RemovedDirs, directory, r.RemovedMarkers, marker, r.Kept)
+	text.Str("session-reap: ").Str(verb).Byte(' ').Int(int64(r.RemovedDirs)).
+		Str(" dead session ").Str(directory).Str(" and ").Int(int64(r.RemovedMarkers)).
+		Byte(' ').Str(marker).Str("; kept ").Int(int64(r.Kept)).Str(" running.\n")
 	return text.String()
 }
 
@@ -155,15 +157,15 @@ func reap(root, configDir, ownID string, dry bool, ops reapOps) (ReapReport, err
 	for sid := range pins {
 		live[sid] = true
 	}
-	var argv strings.Builder
+	var argv textbuf.Buffer
+	argv.Reset()
 	var oldest time.Time
 	cliRunning := false
 	for _, process := range processes {
 		for _, argument := range process.Argv {
-			argv.WriteString(argument)
-			argv.WriteByte(0)
+			argv.Str(argument).Byte(0)
 		}
-		argv.WriteByte('\n')
+		argv.Byte('\n')
 		if process.CLI {
 			cliRunning = true
 			if oldest.IsZero() || process.StartedAt.Before(oldest) {
@@ -474,7 +476,8 @@ func scanProcessesWithPS() ([]processFact, error) {
 }
 
 func processPathToken(value string) string {
-	var token strings.Builder
+	var token textbuf.Buffer
+	token.Reset()
 	separator := false
 	for _, character := range strings.TrimSpace(value) {
 		safe := character >= 'a' && character <= 'z' ||
@@ -483,7 +486,7 @@ func processPathToken(value string) string {
 			character == '.' || character == '_' || character == '-'
 		if safe {
 			if separator {
-				token.WriteByte('_')
+				token.Byte('_')
 			}
 			token.WriteRune(character)
 			separator = false

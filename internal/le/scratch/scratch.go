@@ -80,13 +80,13 @@ func (r Report) Text() string {
 			return ""
 		}
 	}
-	var text strings.Builder
+	var text textbuf.Buffer
+	text.Reset()
 	for _, result := range r.Results {
 		if result.Stderr {
 			continue
 		}
-		text.WriteString(result.Line)
-		text.WriteByte('\n')
+		text.Str(result.Line).Byte('\n')
 	}
 	return text.String()
 }

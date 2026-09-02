@@ -6,8 +6,9 @@ package sourcerewrite
 import (
 	"html"
 	"strconv"
-	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ActivitySeries is one measured series over a window: added source lines, or
@@ -137,7 +138,8 @@ func measureSeries(values map[time.Time]int, start, today time.Time) ActivitySer
 // commit, are marked rather than dropped: the grid is a rectangle of whole
 // weeks, and a missing cell would shift every later day by one square.
 func measureCells(weeks [][]time.Time, start, today time.Time, repoStart *time.Time, lines, commits ActivitySeries) string {
-	var cells strings.Builder
+	var cells textbuf.Buffer
+	cells.Reset()
 	for _, week := range weeks {
 		for _, day := range week {
 			added, committed := lines.daily[day], commits.daily[day]
@@ -155,18 +157,18 @@ func measureCells(weeks [][]time.Time, start, today time.Time, repoStart *time.T
 			label := html.EscapeString(day.Format("Mon 02 Jan 2006"))
 			addedText, committedText := displayNumber(added), displayNumber(committed)
 			level := strconv.Itoa(activityLevel(added, lines.Thresholds))
-			cells.WriteString(`<div class="` + classes +
-				`" data-date="` + day.Format("2006-01-02") +
-				`" data-date-label="` + label +
-				`" data-lines="` + strconv.Itoa(added) +
-				`" data-lines-display="` + addedText +
-				`" data-lines-level="` + level +
-				`" data-commits="` + strconv.Itoa(committed) +
-				`" data-commits-display="` + committedText +
-				`" data-commits-level="` + strconv.Itoa(activityLevel(committed, commits.Thresholds)) +
-				`" data-level="` + level +
-				`" aria-label="` + label + `: ` + addedText + ` lines added, ` + committedText +
-				` commits" tabindex="0"></div>` + "\n")
+			cells.Str(`<div class="`).Str(classes).
+				Str(`" data-date="`).Str(day.Format("2006-01-02")).
+				Str(`" data-date-label="`).Str(label).
+				Str(`" data-lines="`).Int(int64(added)).
+				Str(`" data-lines-display="`).Str(addedText).
+				Str(`" data-lines-level="`).Str(level).
+				Str(`" data-commits="`).Int(int64(committed)).
+				Str(`" data-commits-display="`).Str(committedText).
+				Str(`" data-commits-level="`).Int(int64(activityLevel(committed, commits.Thresholds))).
+				Str(`" data-level="`).Str(level).
+				Str(`" aria-label="`).Str(label).Str(`: `).Str(addedText).Str(` lines added, `).Str(committedText).
+				Str(` commits" tabindex="0"></div>` + "\n")
 		}
 	}
 	return cells.String()

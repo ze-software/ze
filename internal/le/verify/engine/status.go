@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/job"
 )
 
@@ -66,13 +67,13 @@ type Certificate struct {
 
 // Text renders the status file byte for byte in its established format.
 func (c Certificate) Text() string {
-	var text strings.Builder
-	_, _ = fmt.Fprintf(&text, "exit=%d\n", c.Exit)
-	_, _ = fmt.Fprintf(&text, "timestamp=%s\n", c.Timestamp)
-	_, _ = fmt.Fprintf(&text, "mode=%s\n", c.Mode)
-	_, _ = fmt.Fprintf(&text, "skipped=%s\n", c.Skipped)
-	_, _ = fmt.Fprintf(&text, "git_sha=%s\n", c.GitSHA)
-	_, _ = fmt.Fprintf(&text, "tree_hash=%s\n", c.TreeHash)
+	var text textbuf.Buffer
+	text.Reset().Str("exit=").Int(int64(c.Exit)).Byte('\n')
+	text.Str("timestamp=").Str(c.Timestamp).Byte('\n')
+	text.Str("mode=").Str(c.Mode).Byte('\n')
+	text.Str("skipped=").Str(c.Skipped).Byte('\n')
+	text.Str("git_sha=").Str(c.GitSHA).Byte('\n')
+	text.Str("tree_hash=").Str(c.TreeHash).Byte('\n')
 	return text.String()
 }
 
@@ -140,13 +141,14 @@ func manifestText(start, end map[string]string) string {
 	}
 	sort.Strings(paths)
 
-	var text strings.Builder
+	var text textbuf.Buffer
+	text.Reset()
 	for _, rel := range paths {
 		fingerprint := start[rel]
 		if end[rel] != fingerprint {
 			fingerprint = movedDuringRun
 		}
-		_, _ = fmt.Fprintf(&text, "%s %s\n", fingerprint, rel)
+		text.Str(fingerprint).Byte(' ').Str(rel).Byte('\n')
 	}
 	return text.String()
 }

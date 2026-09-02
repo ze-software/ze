@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/runlog"
 )
 
@@ -27,13 +27,12 @@ type FailureSummary struct {
 
 // Text renders the established failure-index block.
 func (s FailureSummary) Text() string {
-	var text strings.Builder
-	fmt.Fprintf(&text, "\n### Stage: %s\n", s.Stage)
-	fmt.Fprintf(&text, "Full log: %s\n\n", s.FullLog)
-	text.WriteString("Key lines:\n")
+	var text textbuf.Buffer
+	text.Reset().Str("\n### Stage: ").Str(s.Stage).Byte('\n')
+	text.Str("Full log: ").Str(s.FullLog).Str("\n\n")
+	text.Str("Key lines:\n")
 	for _, line := range s.KeyLines {
-		text.WriteString(line)
-		text.WriteByte('\n')
+		text.Str(line).Byte('\n')
 	}
 	return text.String()
 }

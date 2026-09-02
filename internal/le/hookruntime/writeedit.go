@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/testweakened"
 )
 
@@ -154,7 +155,8 @@ func writePointOverwrite(ctx context) *verdict {
 }
 
 func visibleMarkdown(text string) string {
-	var visible strings.Builder
+	var visible textbuf.Buffer
+	visible.Reset()
 	fence := false
 	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -166,8 +168,7 @@ func visibleMarkdown(text string) string {
 			continue
 		}
 		line = regexp.MustCompile("`[^`]*`").ReplaceAllString(line, "")
-		visible.WriteString(line)
-		visible.WriteByte('\n')
+		visible.Str(line).Byte('\n')
 	}
 	return visible.String()
 }

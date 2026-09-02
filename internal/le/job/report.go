@@ -8,10 +8,7 @@
 
 package job
 
-import (
-	"strconv"
-	"strings"
-)
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // Report contains the answer from one admitted job.
 //
@@ -60,17 +57,11 @@ func (r Report) Text() string {
 		return ""
 	}
 
-	var text strings.Builder
-	text.WriteString("job ")
-	text.WriteString(r.Label)
-	text.WriteString(": exit ")
-	text.WriteString(strconv.Itoa(r.Code))
-	text.WriteString(", log ")
-	text.WriteString(r.Log)
-	text.WriteByte('\n')
+	var text textbuf.Buffer
+	text.Reset().Str("job ").Str(r.Label).Str(": exit ").Int(int64(r.Code)).
+		Str(", log ").Str(r.Log).Byte('\n')
 	for _, line := range r.KeyLines {
-		text.WriteString(line)
-		text.WriteByte('\n')
+		text.Str(line).Byte('\n')
 	}
 	return text.String()
 }

@@ -77,6 +77,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -947,14 +949,10 @@ func writeDropLog(opts selectorOptions, gainedOverOne, droppedFromClosure []stri
 	if opts.dropLog == "" {
 		return
 	}
-	var body strings.Builder
-	_, _ = body.WriteString("# selected-at-depth-")
-	_, _ = body.WriteString(strconv.Itoa(opts.depth))
-	_, _ = body.WriteString("-but-not-at-depth-1\n")
+	var body textbuf.Buffer
+	body.Reset().Str("# selected-at-depth-").Int(int64(opts.depth)).Str("-but-not-at-depth-1\n")
 	writeDropSection(&body, gainedOverOne)
-	_, _ = body.WriteString("# dropped-beyond-depth-")
-	_, _ = body.WriteString(strconv.Itoa(opts.depth))
-	_, _ = body.WriteString("\n")
+	body.Str("# dropped-beyond-depth-").Int(int64(opts.depth)).Byte('\n')
 	writeDropSection(&body, droppedFromClosure)
 
 	if opts.dropLog == "-" {
@@ -966,10 +964,9 @@ func writeDropLog(opts selectorOptions, gainedOverOne, droppedFromClosure []stri
 	}
 }
 
-func writeDropSection(body *strings.Builder, importPaths []string) {
+func writeDropSection(body *textbuf.Buffer, importPaths []string) {
 	for _, importPath := range importPaths {
-		_, _ = body.WriteString(importPath)
-		_, _ = body.WriteString("\n")
+		body.Str(importPath).Byte('\n')
 	}
 }
 

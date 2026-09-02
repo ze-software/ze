@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -197,14 +198,15 @@ func standardContent(input map[string]any) string {
 		return value
 	}
 	edits, _ := input["edits"].([]any)
-	var joined strings.Builder
+	var joined textbuf.Buffer
+	joined.Reset()
 	for _, raw := range edits {
 		edit, _ := raw.(map[string]any)
 		value, _ := edit["new_string"].(string)
 		if joined.Len() != 0 {
-			joined.WriteByte('\n')
+			joined.Byte('\n')
 		}
-		joined.WriteString(value)
+		joined.Str(value)
 	}
 	return joined.String()
 }

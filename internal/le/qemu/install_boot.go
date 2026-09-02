@@ -109,7 +109,12 @@ func (server *installHTTPServer) Stop() error {
 }
 
 type installSerial struct {
-	mu      sync.Mutex
+	mu sync.Mutex
+	// text stays a strings.Builder. snapshot() reads it while the reader
+	// goroutine keeps appending, and textbuf.Buffer.String() detaches the heap
+	// slice above 128 bytes: every poll after the first would then answer with
+	// the bytes read since the previous poll rather than the whole serial log,
+	// so expect() would miss a needle that arrived earlier.
 	text    strings.Builder
 	changed chan struct{}
 	failure chan error

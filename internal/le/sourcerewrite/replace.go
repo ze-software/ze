@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // replaceReport contains the preview shared by preview and apply mode.
@@ -119,15 +121,16 @@ func expandRegexReplacement(pattern *regexp.Regexp, source, replacement string, 
 // pythonReplacementTemplate converts the backreferences accepted by re.sub to
 // regexp.Expand's $-form. Ordinary escaped characters retain the Python spelling.
 func pythonReplacementTemplate(pattern *regexp.Regexp, replacement string) (string, error) {
-	var out strings.Builder
+	var out textbuf.Buffer
+	out.Reset()
 	for i := 0; i < len(replacement); i++ {
 		ch := replacement[i]
 		if ch == '$' {
-			out.WriteString("$$")
+			out.Str("$$")
 			continue
 		}
 		if ch != '\\' {
-			out.WriteByte(ch)
+			out.Byte(ch)
 			continue
 		}
 		if i+1 >= len(replacement) {
@@ -137,13 +140,13 @@ func pythonReplacementTemplate(pattern *regexp.Regexp, replacement string) (stri
 		next := replacement[i]
 		switch next {
 		case '\\':
-			out.WriteByte('\\')
+			out.Byte('\\')
 		case 'n':
-			out.WriteByte('\n')
+			out.Byte('\n')
 		case 'r':
-			out.WriteByte('\r')
+			out.Byte('\r')
 		case 't':
-			out.WriteByte('\t')
+			out.Byte('\t')
 		case 'g':
 			if i+1 >= len(replacement) || replacement[i+1] != '<' {
 				return "", replaceInputError{fmt.Errorf("invalid replacement: missing < after \\g")}
@@ -156,9 +159,7 @@ func pythonReplacementTemplate(pattern *regexp.Regexp, replacement string) (stri
 			if !validReplacementGroup(pattern, name) {
 				return "", replaceInputError{fmt.Errorf("invalid replacement: unknown group %q", name)}
 			}
-			out.WriteString("${")
-			out.WriteString(name)
-			out.WriteByte('}')
+			out.Str("${").Str(name).Byte('}')
 			i += end + 2
 		default:
 			if next >= '0' && next <= '9' {
@@ -170,15 +171,14 @@ func pythonReplacementTemplate(pattern *regexp.Regexp, replacement string) (stri
 				if !validReplacementGroup(pattern, name) {
 					return "", replaceInputError{fmt.Errorf("invalid replacement: unknown group %q", name)}
 				}
-				out.WriteByte('$')
-				out.WriteString(name)
+				out.Byte('$').Str(name)
 			} else {
 				// Python currently retains unknown ASCII-letter escapes only as an
 				// error. Punctuation escapes mean the punctuation itself.
 				if (next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') {
 					return "", replaceInputError{fmt.Errorf("invalid replacement: bad escape \\%c", next)}
 				}
-				out.WriteByte(next)
+				out.Byte(next)
 			}
 		}
 	}

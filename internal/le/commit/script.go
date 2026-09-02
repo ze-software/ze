@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -265,18 +267,19 @@ func parseShellWords(raw string) []string {
 			continue
 		}
 		raw = raw[1:]
-		var word strings.Builder
+		var word textbuf.Buffer
+		word.Reset()
 		for raw != "" {
 			at := strings.IndexByte(raw, '\'')
 			if at < 0 {
-				word.WriteString(raw)
+				word.Str(raw)
 				raw = ""
 				break
 			}
-			word.WriteString(raw[:at])
+			word.Str(raw[:at])
 			raw = raw[at+1:]
 			if strings.HasPrefix(raw, `"'"'`) {
-				word.WriteByte('\'')
+				word.Byte('\'')
 				raw = raw[4:]
 				continue
 			}

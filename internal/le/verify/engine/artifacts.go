@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -148,35 +150,35 @@ func declaredGroups(root string, stage StageReport) ([]artifactGroup, bool) {
 }
 
 func failureIndexText(index artifactIndex) string {
-	var text strings.Builder
-	fmt.Fprintf(&text, "# Ze verify failure index\n")
-	fmt.Fprintf(&text, "Generated: %s\n", index.GeneratedAt)
-	fmt.Fprintf(&text, "Mode: %s\n", index.Mode)
-	fmt.Fprintf(&text, "Run directory: %s\n", index.RunDir)
-	fmt.Fprintf(&text, "Combined log: %s\n\n", index.CombinedLog)
+	var text textbuf.Buffer
+	text.Reset().Str("# Ze verify failure index\n")
+	text.Str("Generated: ").Str(index.GeneratedAt).Byte('\n')
+	text.Str("Mode: ").Str(index.Mode).Byte('\n')
+	text.Str("Run directory: ").Str(index.RunDir).Byte('\n')
+	text.Str("Combined log: ").Str(index.CombinedLog).Str("\n\n")
 	failed := 0
 	for _, stage := range index.Stages {
 		if stage.ExitCode == 0 {
 			continue
 		}
 		failed++
-		fmt.Fprintf(&text, "## Stage: %s\n", stage.Stage)
-		fmt.Fprintf(&text, "Exit: %d\n", stage.ExitCode)
-		fmt.Fprintf(&text, "Detail log: %s\n\n", stage.DetailLog)
+		text.Str("## Stage: ").Str(stage.Stage).Byte('\n')
+		text.Str("Exit: ").Int(int64(stage.ExitCode)).Byte('\n')
+		text.Str("Detail log: ").Str(stage.DetailLog).Str("\n\n")
 		for index := range stage.Groups {
 			group := &stage.Groups[index]
-			fmt.Fprintf(&text, "### Group: %s\n", group.GroupID)
-			fmt.Fprintf(&text, "Stage: %s\n", group.Stage)
-			fmt.Fprintf(&text, "Kind: %s\n", group.Kind)
-			fmt.Fprintf(&text, "Related: %s\n", strings.Join(group.Related, ", "))
-			fmt.Fprintf(&text, "Summary: %s\n", group.Summary)
-			fmt.Fprintf(&text, "Rerun: %s\n", group.Rerun)
-			fmt.Fprintf(&text, "Detail log: %s\n", group.DetailLog)
-			fmt.Fprintf(&text, "Parallel: %s\n\n", group.Parallel)
+			text.Str("### Group: ").Str(group.GroupID).Byte('\n')
+			text.Str("Stage: ").Str(group.Stage).Byte('\n')
+			text.Str("Kind: ").Str(group.Kind).Byte('\n')
+			text.Str("Related: ").Join(group.Related, ", ").Byte('\n')
+			text.Str("Summary: ").Str(group.Summary).Byte('\n')
+			text.Str("Rerun: ").Str(group.Rerun).Byte('\n')
+			text.Str("Detail log: ").Str(group.DetailLog).Byte('\n')
+			text.Str("Parallel: ").Str(group.Parallel).Str("\n\n")
 		}
 	}
 	if failed == 0 {
-		text.WriteString("No failures.\n")
+		text.Str("No failures.\n")
 	}
 	return text.String()
 }

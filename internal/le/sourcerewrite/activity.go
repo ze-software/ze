@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -409,18 +411,18 @@ func isActivitySourcePath(path string, options ActivityOptions) bool {
 }
 
 func fnmatch(pattern, value string) bool {
-	var expression strings.Builder
-	expression.WriteByte('^')
+	var expression textbuf.Buffer
+	expression.Reset().Byte('^')
 	for index := 0; index < len(pattern); index++ {
 		switch pattern[index] {
 		case '*':
-			expression.WriteString(".*")
+			expression.Str(".*")
 		case '?':
-			expression.WriteByte('.')
+			expression.Byte('.')
 		case '[':
 			end := strings.IndexByte(pattern[index+1:], ']')
 			if end < 0 {
-				expression.WriteString(`\[`)
+				expression.Str(`\[`)
 				continue
 			}
 			end += index + 1
@@ -428,15 +430,13 @@ func fnmatch(pattern, value string) bool {
 			if strings.HasPrefix(class, "!") {
 				class = "^" + class[1:]
 			}
-			expression.WriteByte('[')
-			expression.WriteString(class)
-			expression.WriteByte(']')
+			expression.Byte('[').Str(class).Byte(']')
 			index = end
 		default:
-			expression.WriteString(regexp.QuoteMeta(string(pattern[index])))
+			expression.Str(regexp.QuoteMeta(string(pattern[index])))
 		}
 	}
-	expression.WriteByte('$')
+	expression.Byte('$')
 	matched, err := regexp.MatchString(expression.String(), value)
 	return err == nil && matched
 }
@@ -684,7 +684,8 @@ func weeksBetween(start, end time.Time) [][]time.Time {
 func monthLabels(weeks [][]time.Time) string {
 	seen := make(map[string]bool)
 	lastColumn := -10
-	var out strings.Builder
+	var out textbuf.Buffer
+	out.Reset()
 	for column, week := range weeks {
 		label := ""
 		for _, day := range week {
@@ -701,7 +702,8 @@ func monthLabels(weeks [][]time.Time) string {
 			label, lastColumn = week[0].Format("Jan"), 1
 			seen[week[0].Format("2006-01")] = true
 		}
-		fmt.Fprintf(&out, `<span class="month-label" style="grid-column:%d">%s</span>`+"\n", column+1, label)
+		out.Str(`<span class="month-label" style="grid-column:`).Int(int64(column + 1)).
+			Str(`">`).Str(label).Str(`</span>` + "\n")
 	}
 	return out.String()
 }
@@ -725,9 +727,11 @@ func renderTopDays(values map[time.Time]int, empty string) string {
 		return `<tr><td colspan="2">` + html.EscapeString(empty) + `</td></tr>`
 	}
 	rows = rows[:min(10, len(rows))]
-	var out strings.Builder
+	var out textbuf.Buffer
+	out.Reset()
 	for _, item := range rows {
-		fmt.Fprintf(&out, "<tr><td>%s</td><td>%s</td></tr>\n", item.day.Format("Mon 02 Jan 2006"), displayNumber(item.value))
+		out.Str("<tr><td>").Str(item.day.Format("Mon 02 Jan 2006")).
+			Str("</td><td>").Str(displayNumber(item.value)).Str("</td></tr>\n")
 	}
 	return out.String()
 }

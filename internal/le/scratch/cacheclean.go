@@ -68,7 +68,8 @@ type CleanReport struct {
 // Text renders one line for each cache. Freed and free are gibibytes, because
 // the number a person acts on is whether the disk has room for a build.
 func (r CleanReport) Text() string {
-	var text strings.Builder
+	var text textbuf.Buffer
+	text.Reset()
 	for _, cache := range r.Caches {
 		var line textbuf.Buffer
 		line.PadRight(cache.Name, 9)
@@ -81,8 +82,7 @@ func (r CleanReport) Text() string {
 			line.PadRight(cache.Path, 48).Str(" freed ").Str(gibibytes(cache.Freed)).
 				Str(", free ").Str(gibibytes(int64(cache.FreeAfter))) //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
 		}
-		text.WriteString(line.String())
-		text.WriteByte('\n')
+		text.Str(line.String()).Byte('\n')
 	}
 	return text.String()
 }

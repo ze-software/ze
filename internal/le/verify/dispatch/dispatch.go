@@ -97,7 +97,8 @@ func dispatch(
 	}
 
 	result.Registered = true
-	var output strings.Builder
+	var output textbuf.Buffer
+	output.Reset()
 	result.Code = leroot.Run(
 		identity.Command,
 		leroot.Answer(handler),

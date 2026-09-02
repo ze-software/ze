@@ -131,7 +131,11 @@ func sendSerial(stdin io.Writer, command string) error {
 type serialStream struct {
 	chunks   <-chan []byte
 	failures <-chan error
-	seen     strings.Builder
+	// seen stays a strings.Builder. expect() reads it once per loop and keeps
+	// appending chunks when the pattern is absent, and textbuf.Buffer.String()
+	// detaches the heap slice above 128 bytes, which would drop the text read
+	// before the current chunk and hide a pattern spanning two chunks.
+	seen strings.Builder
 }
 
 func newSerialStream(ctx context.Context, stdout io.Reader) *serialStream {

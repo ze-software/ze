@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -48,17 +50,18 @@ type expectationRewriteReport struct {
 }
 
 func (r expectationRewriteReport) Text() string {
-	var b strings.Builder
+	var b textbuf.Buffer
+	b.Reset()
 	verb := "would reorder"
 	if r.Write {
 		verb = "reordered"
 	}
 	for _, file := range r.Files {
 		if file.Changed > 0 {
-			fmt.Fprintf(&b, "%s: %s %d expectation(s)\n", file.File, verb, file.Changed)
+			b.Str(file.File).Str(": ").Str(verb).Byte(' ').Int(int64(file.Changed)).Str(" expectation(s)\n")
 		}
 	}
-	fmt.Fprintf(&b, "total: %d expectation(s), %d left alone\n", r.Changed, r.LeftAlone)
+	b.Str("total: ").Int(int64(r.Changed)).Str(" expectation(s), ").Int(int64(r.LeftAlone)).Str(" left alone\n")
 	return b.String()
 }
 

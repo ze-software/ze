@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (
@@ -218,7 +220,8 @@ func bashRootBuild(ctx context) *verdict {
 
 func shellWords(text string) []string {
 	words := make([]string, 0, 16)
-	var word strings.Builder
+	var word textbuf.Buffer
+	word.Reset()
 	quote := rune(0)
 	escaped := false
 	flush := func() {
