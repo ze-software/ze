@@ -3,6 +3,12 @@ name: evidence-nightly
 # Scheduled heavy evidence stays outside the merge gate. Every job is advisory,
 # and each expensive proof has its own runner so one infrastructure failure is
 # not attributed to another suite.
+#
+# Advisory means these jobs gate no merge. It does NOT mean they may fail
+# quietly: every job carried `continue-on-error: true` until 2026-09-02, so the
+# workflow reported success while five of its six jobs failed, and the run this
+# ledger cites as interop evidence had not passed in a week. A job that fails
+# now says so.
 on:
   schedule:
     - cron: "17 3 * * *"
@@ -14,7 +20,6 @@ permissions:
 jobs:
   fuzz:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -28,7 +33,6 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -68,7 +72,6 @@ jobs:
   # keeps a container-lab failure distinct from kernel integration evidence.
   interop:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -84,7 +87,6 @@ jobs:
   # scheduled and advisory, never part of a merge gate.
   ipsec-interop:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -108,7 +110,6 @@ jobs:
   # these lines, not by anything about the tests.
   l2tp-interop:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -125,7 +126,6 @@ jobs:
   # support in the runner's kernel.
   pppoe-interop:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
