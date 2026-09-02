@@ -33,6 +33,42 @@ named as the escape it is and never counted as a proof, a verdict that is not
 `enforced` is named under its requirement id, and a gated MUST with no test is
 listed rather than absorbed into a percentage.
 
+## The gate's own answer
+
+`./le rfc check` gives one of three answers, and its exit code says which.
+
+| Exit | Answer | The page opens with |
+|------|--------|---------------------|
+| 0 | Clean: every gated MUST of every enrolled RFC is covered | `rfc-requirements OK:` |
+| 2 | Violations, each named on a `  * ` line of its own | `rfc-requirements: <n> violation(s)` |
+| 2 | The gate cannot READ the tree, so it judged nothing | `rfc-requirements: cannot run:` |
+
+The third answer shares an exit code with the second on purpose. A gate that
+never ran MUST NOT render as a pass (`ai/rules/principles.md`).
+
+`CheckReport` (`internal/le/rfc/check.go`) is the ONE payload behind all three.
+`| json`, `| yaml` and `| table` render that object. `CheckReport.Text` renders
+the page a person reads. So `| json` answers an OBJECT and never a list of
+violation strings. The shape does not change with the verdict, and the counts,
+the evidence split and the audit figures stay reachable while the gate is red.
+`violations` carries one string for each bullet the page lists, in the same
+order.
+
+The six `discrimination-*` keys render even at zero. They are published debt,
+and an absent key would read as "this gate has no such stage".
+
+`CheckReport.Text` takes a POINTER receiver, so `checkAnswer`
+(`internal/le/rfc/actions.go`) returns a pointer. `leroot.Prose` is matched by a
+type assertion, a value carries no pointer-receiver method, and the dispatcher
+then falls through to the generic table renderer. That shipped for weeks: the
+gate found every violation and still exited 2, and it showed the page to nobody.
+
+`test/ui/le-rfc-answers.ci` holds the three answers to this contract. It seeds
+ONE gated MUST that no test tags into an isolated export of HEAD. The gate MUST
+name that requirement and exit 2. The same export without the seed MUST NOT
+name it. A count read off the working checkout is met by whatever backlog is
+standing, so the seed is what makes the case able to fail.
+
 ## The ratchets
 
 `./le rfc check` reads the WORKING TREE to judge coverage, and a tree cannot

@@ -1,8 +1,15 @@
-# Test: the built le binary answers the RFC extraction envelope, audit
+# Test: the built le binary answers the RFC extraction envelope, the
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
-# re-seal, and requirement ledger over the real checkout. All five actions and
-# every supported rendering are exercised through the developer-facing binary;
-# the two writers run against isolated exports of HEAD.
+# conformance check, the audit re-seal and the requirement ledger. Every action
+# the rfc listing names and every supported rendering are exercised through the
+# developer-facing binary; the writers run against isolated exports of HEAD.
+#
+# The check is judged on its CONTRACT and never on this checkout's violation
+# count. It has three answers -- clean, violations, and a tree it could not read
+# -- and each is driven from a tree the fixture owns. The discriminating case
+# seeds ONE gated MUST that no test tags into an export of HEAD and requires the
+# gate to name that requirement and exit 2, because a count read off the shared
+# checkout is met by whatever backlog is standing that day.
 #
 # VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7, AC-8 and AC-11 over the real
 # tree and the artifact a developer runs.
