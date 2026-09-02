@@ -192,7 +192,25 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// counts, since a header describing kinds by ordinal is a claim about a
 	// sorted order. No audit verdict moved: what changed is which trees the gate
 	// refuses and what one generated file says about itself.
-	const want = "6e4bbbe74bb184329767bc11082b1c05f2eacb936ac1907553b71e8ff5acea24"
+	//
+	// Re-sealed 2026-09-02, for four commits: the second refusal arm on
+	// checkUnprovenSupport and the Proof cell it publishes beside every public
+	// row, ProvenShareOf as the one producer of the published proof share, the
+	// textbuf conversion of check_audit.go, and one dead Reset in meta.go.
+	//
+	// No verdict moved, and `./le rfc reseal` says so independently: nothing is
+	// in the shifted state. What the gate reports is other sessions' work and
+	// predates these commits -- two RFC 7606 audit verdicts stale against a
+	// func-scoped change in check_rfc.go, which reseal REFUSES because a human
+	// must re-read them; three discrimination records whose tagged units moved;
+	// an rfc8671 extraction sign-off that bounds nothing; and MUST-level rows in
+	// rfc5798 and rfc8671 carrying neither a test nor an annotation.
+	//
+	// The new arm is what makes the last of those visible rather than green: a
+	// row promising Supported over a checklist with zero both-polarity proofs is
+	// refused now, where the old arm only refused a row over an EMPTY checklist.
+	// Seven summaries said Supported over zero proofs and now say Partial.
+	const want = "4b859caffc361d436844a8bc917ef119d3541ead1200577574d6dcf110875330"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
