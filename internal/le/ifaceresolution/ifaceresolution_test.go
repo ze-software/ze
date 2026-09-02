@@ -8,10 +8,13 @@ package ifaceresolution
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // tree writes files under a temporary directory and answers it.
@@ -115,8 +118,8 @@ func TestAllowlistMatchesDirectoriesAndExactFiles(t *testing.T) {
 		"internal/component/bgp/reactor/reactor.go":          false,
 	}
 	for path, want := range cases {
-		if got := allowed(path); got != want {
-			t.Errorf("allowed(%q) = %v, want %v", path, got, want)
+		if _, got := allowedBy(path); got != want {
+			t.Errorf("allowedBy(%q) = %v, want %v", path, got, want)
 		}
 	}
 }
@@ -201,6 +204,22 @@ func TestAnswerRefusesAnArgument(t *testing.T) {
 	payload, code := Answer([]string{"internal"})
 	if code != 1 || payload != nil {
 		t.Errorf("a stray argument answers (%v, %d), want (nil, 1)", payload, code)
+	}
+}
+
+// VALIDATES: every allowlist entry still exempts a file that exists.
+// PREVENTS: an exemption nobody rechecked. Each entry states that direct kernel
+// resolution is legitimate at a path, and a dead entry keeps stating it for
+// whatever code arrives at that path next, with nobody having judged it. The
+// walk is the only producer that can say which entries are still doing
+// something, which is why this asks the real checkout rather than a fixture.
+func TestEveryAllowlistEntryStillMatchesAFile(t *testing.T) {
+	tree, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	if _, err := CheckCheckout(tree, scanFloor); err != nil && errors.Is(err, ErrDeadAllowlistEntry) {
+		t.Error(err)
 	}
 }
 

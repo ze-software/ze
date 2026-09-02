@@ -19,6 +19,7 @@ package ifaceresolution
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/population"
 )
 
 // name is the word this command is typed as, and the prefix its own messages
@@ -106,20 +108,25 @@ func stripComment(line string) string {
 	return line
 }
 
-// allowed reports whether rel is exempt. A directory entry (trailing "/")
-// matches any file beneath it; a file entry matches only that exact path, so a
-// file prefix cannot accidentally exempt a sibling like "register.go2.go".
-func allowed(rel string) bool {
+// allowedBy answers the allowlist entry that exempts rel, and whether one does.
+// A directory entry (trailing "/") matches any file beneath it; a file entry
+// matches only that exact path, so a file prefix cannot accidentally exempt a
+// sibling like "register.go2.go".
+//
+// It answers WHICH entry rather than a bare yes, because the entries are a
+// population of their own: one that matches no file is an exemption nobody
+// rechecked, and the walk is the only thing that can tell.
+func allowedBy(rel string) (string, bool) {
 	for prefix := range allowlist {
 		if strings.HasSuffix(prefix, "/") {
 			if strings.HasPrefix(rel, prefix) {
-				return true
+				return prefix, true
 			}
 		} else if rel == prefix {
-			return true
+			return prefix, true
 		}
 	}
-	return false
+	return "", false
 }
 
 // Check scans tree and answers every direct kernel resolution site outside the
@@ -136,8 +143,32 @@ func allowed(rel string) bool {
 // judge, and saying so is the whole difference between a clean tree and an
 // unread one.
 func Check(tree string, floor int) (Findings, error) {
+	findings, _, err := check(tree, floor)
+	return findings, err
+}
+
+// CheckCheckout is Check plus the accounting over the allowlist itself, for a
+// caller that is judging the real repository.
+//
+// The two are separate because the allowlist is written for THIS tree. A unit
+// test scanning a fixture legitimately matches almost none of it, so a dead
+// entry means "wrong tree" there and "unjustified exemption" here, and only the
+// caller knows which tree it handed over.
+func CheckCheckout(tree string, floor int) (Findings, error) {
+	findings, matched, err := check(tree, floor)
+	if err != nil {
+		return nil, err
+	}
+	if err := verifyAllowlistIsLive(matched); err != nil {
+		return nil, err
+	}
+	return findings, nil
+}
+
+func check(tree string, floor int) (Findings, map[string]bool, error) {
 	var findings Findings
 	scanned := 0
+	matched := make(map[string]bool, len(allowlist))
 
 	for _, root := range roots {
 		dir := filepath.Join(tree, root)
@@ -164,7 +195,8 @@ func Check(tree string, floor int) (Findings, error) {
 			}
 			rel = filepath.ToSlash(rel)
 			scanned++
-			if allowed(rel) {
+			if prefix, exempt := allowedBy(rel); exempt {
+				matched[prefix] = true
 				return nil
 			}
 			sites, scanErr := scanFile(path, rel)
@@ -175,13 +207,13 @@ func Check(tree string, floor int) (Findings, error) {
 			return nil
 		})
 		if walkErr != nil {
-			return nil, fmt.Errorf("scan error in %s: %w", root, walkErr)
+			return nil, nil, fmt.Errorf("scan error in %s: %w", root, walkErr)
 		}
 	}
 
 	if scanned < floor {
 		var tb textbuf.Buffer
-		return nil, errScannedTooLittle(tb.Str("only ").Int(int64(scanned)).
+		return nil, nil, errScannedTooLittle(tb.Str("only ").Int(int64(scanned)).
 			Str(" Go files scanned under cmd, internal and pkg (floor ").Int(int64(floor)).
 			Str("): this is not the tree the gate was asked to judge, so it judged almost nothing").String())
 	}
@@ -192,7 +224,7 @@ func Check(tree string, floor int) (Findings, error) {
 		}
 		return findings[i].Line < findings[j].Line
 	})
-	return findings, nil
+	return findings, matched, nil
 }
 
 // errScannedTooLittle is the floor's error, spelled as a type so a caller can
@@ -200,6 +232,43 @@ func Check(tree string, floor int) (Findings, error) {
 type errScannedTooLittle string
 
 func (e errScannedTooLittle) Error() string { return string(e) }
+
+// ErrDeadAllowlistEntry names an allowlist entry that exempted no file in the
+// tree the walk just read.
+var ErrDeadAllowlistEntry = errors.New("an iface-resolution allowlist entry matches no file")
+
+// verifyAllowlistIsLive accounts for the allowlist itself.
+//
+// The entries are a population, and the walk is the only producer that can say
+// which of them still do anything. A file-level accounting cannot: every file
+// the walk read was either scanned or exempted, so it balances by construction
+// and proves nothing.
+//
+// A dead entry is not a tidiness matter. It states that direct kernel
+// resolution is legitimate at a path, and it keeps stating that for whatever
+// code arrives at that path next, with nobody having judged it.
+func verifyAllowlistIsLive(matched map[string]bool) error {
+	entries := make(map[string]bool, len(allowlist))
+	for prefix := range allowlist {
+		entries[prefix] = true
+	}
+	claim := population.Claim{
+		Subject:         "iface-resolution allowlist",
+		Population:      entries,
+		Walked:          matched,
+		UnexcusedReason: "MATCHES NO FILE UNDER cmd, internal OR pkg",
+	}
+	coverage, err := claim.Assess()
+	if err != nil {
+		return err
+	}
+	if len(coverage.Unexcused) == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return fmt.Errorf("%w: %s -- delete the entry, or correct the path it was meant to name",
+		ErrDeadAllowlistEntry, tb.Join(coverage.Unexcused, ", ").String())
+}
 
 // scanFile answers every direct resolution site in one file.
 func scanFile(path, rel string) (Findings, error) {
@@ -243,7 +312,10 @@ func Answer(args []string) (any, int) {
 		return nil, 2
 	}
 
-	findings, err := Check(tree, scanFloor)
+	// CheckCheckout rather than Check: this caller resolved the real repository
+	// root, so an allowlist entry matching nothing here is an exemption that has
+	// stopped naming anything, not a fixture that never held the file.
+	findings, err := CheckCheckout(tree, scanFloor)
 	if err != nil {
 		// 2 rather than 1: the script answered 2 for a scan that did not
 		// complete, which is a different fact from a tree holding a violation.
