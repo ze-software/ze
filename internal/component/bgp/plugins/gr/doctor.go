@@ -8,6 +8,7 @@ package gr
 import (
 	"strings"
 
+	zeplugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -62,7 +63,7 @@ func checkGRInProcess(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 	// destination however many other copies run as children. Reading each `run`
 	// line on its own reported that arrangement as blind, which it is not.
 	for i := range ctx.Plugins {
-		if internalIsPlugin(ctx.Plugins[i].Internal, ctx.Plugins[i].Run, grPluginName) {
+		if internalIsPlugin(ctx.Plugins[i], grPluginName) {
 			return nil
 		}
 	}
@@ -87,17 +88,22 @@ func checkGRInProcess(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 }
 
 // internalIsPlugin reports whether an in-process plugin entry is the named
-// bundled plugin. ExtractPluginsFromTree (config/loader.go) stores the `use`
-// value in Run, and MarkInternalPlugin marks the "ze.<name>" spelling of `run`
-// internal while leaving that spelling in Run, so both spellings name the same
-// engine and both must match.
-func internalIsPlugin(internal bool, run, name string) bool {
-	return internal && strings.TrimPrefix(run, "ze.") == name
+// bundled plugin. Which registry row a process config names is answered once,
+// by plugin.RegistryName, so `use bgp-gr`, `run ze.bgp-gr` and a bare
+// `internal bgp-gr { }` all name the same engine here.
+func internalIsPlugin(p zeplugin.PluginConfig, name string) bool {
+	return p.Internal && zeplugin.RegistryName(p) == name
 }
 
 // runTargetsPlugin reports whether a `run` command line launches the named
-// bundled plugin. It matches the `plugin <name>` verb pair, so it holds for
-// "ze plugin bgp-gr" and for any path-qualified spelling of the same binary.
+// bundled plugin as a SEPARATE PROCESS, which is a different question from the
+// one plugin.RegistryName answers. That function reads the identity the engine
+// runs the plugin under, and it takes ResolvePlugin's `ze plugin <name>` form,
+// where parts[0] must be exactly "ze". This check has to catch the arrangement
+// whatever binary path spells it, because a path-qualified `/usr/bin/ze plugin
+// bgp-gr` forks the engine out of the daemon exactly as `ze plugin bgp-gr`
+// does, and the LLGR egress filter is blind either way. So it matches the
+// `plugin <name>` verb pair anywhere in the command line.
 // The "ze.<name>" spelling never reaches here: MarkInternalPlugin
 // (config/loader.go) resolves it to an internal plugin.
 func runTargetsPlugin(run, name string) bool {

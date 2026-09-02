@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -282,24 +281,22 @@ func (s *Server) ConfigPath() string {
 	return s.config.ConfigPath
 }
 
-// hasConfiguredPlugin returns true if a plugin with the given name is in the
-// server's configured plugin list. Used by stage 1 dependency validation.
-// hasConfiguredPlugin checks whether a plugin with the given registry name is
-// already explicitly configured. Matches by config name OR by checking if the
-// Run command invokes the plugin (e.g., config name "adj-rib-in" with
-// Run "ze plugin bgp-adj-rib-in" matches registry name "bgp-adj-rib-in").
+// hasConfiguredPlugin reports whether the operator already configured a process
+// for the given REGISTRY name. Stage-1 dependency validation and the auto-loader
+// both ask it before they start a plugin, so a false answer for a plugin that IS
+// configured launches a second instance of it.
+//
+// It is the reverse direction of plugin.RegistryNames, and it reads the same
+// answer: the process name plus the implementation the run/use spelling
+// resolves to. `plugin { external adj-rib-in { run ze plugin bgp-adj-rib-in } }`
+// therefore answers true for "bgp-adj-rib-in", and so does the `ze.` spelling of
+// the same implementation.
 func (s *Server) hasConfiguredPlugin(name string) bool {
 	if name == "" || s.config == nil {
 		return false
 	}
 	for _, p := range s.config.Plugins {
-		if p.Name == name {
-			return true
-		}
-		// External plugins: config name may differ from registry name.
-		// Check if the run command invokes this exact plugin name.
-		// Use word-level matching to avoid "bgp-rib" falsely matching "bgp".
-		if p.Run != "" && slices.Contains(strings.Fields(p.Run), name) {
+		if slices.Contains(plugin.RegistryNames(p), name) {
 			return true
 		}
 	}

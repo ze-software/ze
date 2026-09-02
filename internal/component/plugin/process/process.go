@@ -499,18 +499,11 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 // startInternal starts an internal plugin as a goroutine with a single net.Pipe.
 // Creates a MuxPluginConn for bidirectional YANG RPC protocol.
 func (p *Process) startInternal() error {
-	name := p.config.Name
-	// Use the Run value as the runner lookup name. For "use" configs, Run is
-	// the bare plugin name (e.g., "bgp-rib"). For "run" configs, Run is a
-	// command string (e.g., "ze.bgp-rs" or "ze plugin bgp-rs") that needs
-	// resolution. Try direct registry lookup first, then ResolvePlugin.
-	if p.config.Run != "" {
-		if plugin.IsInternalPlugin(p.config.Run) {
-			name = p.config.Run
-		} else if res, err := plugin.ResolvePlugin(p.config.Run); err == nil && res.Type == plugin.PluginTypeInternal {
-			name = res.Name
-		}
-	}
+	// Which registry row this process config names is one question with one
+	// answer, and plugin.RegistryName is it: `use bgp-rib`, `run ze.bgp-rib` and
+	// `run ze plugin bgp-rib` each name the same runner, and a config with no
+	// spelling is filed under the process name.
+	name := plugin.RegistryName(p.config)
 
 	runner := plugin.GetInternalPluginRunner(name)
 	if runner == nil {

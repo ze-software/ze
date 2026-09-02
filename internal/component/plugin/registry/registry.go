@@ -275,11 +275,13 @@ var (
 	plugins = make(map[string]*Registration)
 	mu      sync.RWMutex
 
-	// runtimeSessionReady answers SignalsSessionReady for a process this binary
-	// holds no compile-time Registration for, which is every EXTERNAL plugin.
-	// The plugin server installs it once at startup and it reads the Stage-1
-	// declaration off the running process, so the fact is declared ONCE, by the
-	// plugin, and this is a seam onto it rather than a second copy of it.
+	// runtimeSessionReady answers SignalsSessionReady for a process name this
+	// map does not hold: every EXTERNAL plugin, and every in-tree plugin the
+	// operator attached under an alias. The plugin server installs it once at
+	// startup. It reads the Stage-1 declaration off the running process and
+	// resolves the alias to the implementation the registry filed, so the fact
+	// is declared ONCE, by the plugin, and this is a seam onto it rather than a
+	// second copy of it.
 	//
 	// Nil until the server installs it, and nil in every binary that runs no
 	// plugin server. A nil seam answers false, which is the same answer an
@@ -737,14 +739,23 @@ func RequiresPeerUpBarrier(name string) bool {
 	return reg.PeerUpBarrier
 }
 
-// SignalsSessionReady reports whether a registered plugin declares
-// Registration.SignalsSessionReady. Returns false for an unregistered name,
-// which is where every EXTERNAL plugin lands: an external process is registered
-// nowhere in this tree, so it never declares, and the owner made the
-// declaration voluntary on 2026-09-02 precisely so a third-party plugin with no
-// reason to report is not made to. False is also the answer that keeps this
-// safe, because a plugin that will never report would otherwise delay every
-// peer that attaches it to the End-of-RIB timeout.
+// SignalsSessionReady reports whether the plugin behind a name declares
+// Registration.SignalsSessionReady.
+//
+// The caller holds a PROCESS name, and a process name is a registry key only
+// when the operator did not rename the implementation. `internal rs
+// { use bgp-rs }` files the registration under "bgp-rs" and runs the process as
+// "rs", so a name this map does not hold is not an answer: it is a question for
+// the runtime seam, which owns the running processes and resolves the alias
+// (SetRuntimeSessionReady, and (*Server).declaresSessionReady behind it). An
+// EXTERNAL process arrives there too, because it is registered nowhere in this
+// tree and declares at Stage 1 instead.
+//
+// False when no seam is installed, and false when the seam finds no
+// declaration. The owner made the declaration voluntary on 2026-09-02, so a
+// third-party plugin with no reason to report is not made to, and false is the
+// answer that keeps this safe: a plugin that will never report would otherwise
+// delay every peer that attaches it to the End-of-RIB timeout.
 func SignalsSessionReady(name string) bool {
 	mu.RLock()
 	reg := plugins[name]

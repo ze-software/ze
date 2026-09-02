@@ -609,11 +609,18 @@ func TestDispatchAnswersRequestThatStoppedTheServer(t *testing.T) {
 //
 //	short names (e.g., "adj-rib-in") and registry uses full names ("bgp-adj-rib-in").
 func TestHasConfiguredPluginRunCommand(t *testing.T) {
+	// A registered name is what makes the `ze.` spelling resolvable, and a
+	// throwaway one keeps the case independent of which features this binary was
+	// built with (registerSessionReadyPlugin restores the registry on cleanup).
+	const dottedImplementation = "test-has-configured-plugin-implementation"
+	registerSessionReadyPlugin(t, dottedImplementation, false)
+
 	s := &Server{
 		config: &ServerConfig{
 			Plugins: []plugin.PluginConfig{
 				{Name: "adj-rib-in", Run: "ze plugin bgp-adj-rib-in", Encoder: "json"},
 				{Name: "rpki-decorator", Run: "ze plugin bgp-rpki-decorator", Encoder: "json"},
+				{Name: "ribout", Run: "ze." + dottedImplementation, Encoder: "json"},
 				{Name: "my-custom-plugin", Encoder: "json", Internal: true},
 			},
 		},
@@ -626,6 +633,8 @@ func TestHasConfiguredPluginRunCommand(t *testing.T) {
 	// Registry name match via Run command
 	assert.True(t, s.hasConfiguredPlugin("bgp-adj-rib-in"), "registry name in Run command should match")
 	assert.True(t, s.hasConfiguredPlugin("bgp-rpki-decorator"), "registry name in Run command should match")
+	assert.True(t, s.hasConfiguredPlugin(dottedImplementation),
+		"the ze. spelling names the same implementation, and answering false here starts a second copy of it")
 
 	// No match
 	assert.False(t, s.hasConfiguredPlugin("bgp-nonexistent"), "non-existent plugin should not match")

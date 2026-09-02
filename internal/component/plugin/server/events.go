@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
@@ -88,7 +89,7 @@ func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 	return jsonResult, nil
 }
 
-// declaresSessionReady reports whether a RUNNING process declares that it
+// declaresSessionReady reports whether a REGISTERED process declares that it
 // reports `plugin session ready`, under either route to that declaration: the
 // Stage-1 declare-registration an external plugin sends, or the compile-time
 // Registration an in-tree plugin files at init().
@@ -98,7 +99,7 @@ func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 // gives the operator's alias to the process and files the registration under
 // `bgp-rs`, so a lookup by "rs" finds nothing and the peer that attaches it
 // sends its End-of-RIB while bgp-rs is still replaying (RFC 4724 Section 4).
-// implementationNames resolves the alias, and it is the resolution
+// plugin.RegistryNames resolves the alias, and it is the resolution
 // claimsForPlugin already uses for the same reason (startup_claims.go).
 //
 // Installed as registry.SetRuntimeSessionReady so the reactor reaches the answer
@@ -107,9 +108,14 @@ func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 // process; a plugin attached under its own registry name is answered by that
 // registration before this method is reached.
 //
-// False for a process that is not running: a process the server cannot see sends
-// no report, and waiting for one would hold every peer that attaches it to the
-// api-sync timeout.
+// False for a name the process manager does not hold: nothing was ever started
+// under it, so no report can arrive, and waiting for one would hold every peer
+// that attaches it to the api-sync timeout. A process that WAS registered and
+// has since died still answers true, because the answer is read off the config
+// and the declaration rather than off the process state. That direction is the
+// loud one: the peer waits out apiSyncTimeout and logs the silent process,
+// where the other direction would send a marker claiming an initial routing
+// update nobody produced.
 func (s *Server) declaresSessionReady(process string) bool {
 	pm := s.procManager.Load()
 	if pm == nil {
@@ -123,7 +129,7 @@ func (s *Server) declaresSessionReady(process string) bool {
 		return true
 	}
 
-	for _, name := range implementationNames(proc.Config()) {
+	for _, name := range plugin.RegistryNames(proc.Config()) {
 		if impl := registry.Lookup(name); impl != nil && impl.SignalsSessionReady {
 			return true
 		}

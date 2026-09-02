@@ -100,3 +100,33 @@ func TestDeclaresSessionReadyReadsTheStageOneDeclaration(t *testing.T) {
 	assert.True(t, s.declaresSessionReady("external-reporter"),
 		"the Stage-1 declaration is the external plugin's route to the barrier")
 }
+
+// TestDeclaresSessionReadyResolvesEveryInternalSpelling holds the barrier's
+// answer steady across the spellings an operator can legally write for one
+// in-tree implementation.
+//
+// VALIDATES: `run ze.<plugin>` and `run ze plugin <plugin>` name the same
+// registration as `use <plugin>`, so a peer that attaches either one waits for
+// that process before it sends its End-of-RIB (RFC 4724 Section 4).
+// PREVENTS: the `ze.` spelling answering "declares nothing". One config value
+// carries three legal forms -- `plugin { external X { run ze.bgp-rib } }`,
+// `plugin { internal X { use ze.bgp-rib } }` and an inline
+// `attach process X { run ze.bgp-rib }` (extractInlinePluginsFromMap,
+// internal/component/bgp/config/plugins.go) -- and each one lands in
+// PluginConfig.Run as "ze.bgp-rib". A lookup that reads the word whole finds no
+// registration, empties the barrier, and lets the marker claim an initial
+// routing update that has not finished, which is the defect the alias
+// resolution above fixed for the bare spelling.
+func TestDeclaresSessionReadyResolvesEveryInternalSpelling(t *testing.T) {
+	const declaring = "test-session-ready-spelling-implementation"
+	registerSessionReadyPlugin(t, declaring, true)
+
+	s := sessionReadyTestServer()
+	runningProcess(s, "dotted", "ze."+declaring)
+	runningProcess(s, "verbed", "ze plugin "+declaring)
+
+	assert.True(t, s.declaresSessionReady("dotted"),
+		"the ze. prefix names an in-tree implementation and must resolve to its registration")
+	assert.True(t, s.declaresSessionReady("verbed"),
+		"the ze plugin verb pair names the same implementation")
+}

@@ -41,6 +41,33 @@
 # marker. With the resolution in place the same run logs `waiting for API sync
 # expected=1`, then `API sync complete`, then `sent EOR`, in that order.
 #
+# WHY THE ASSERTIONS ARE LOG LINES AND NOT AN ORDERED PAIR OF WIRE MESSAGES.
+# The stronger form of this test would hold a route in the RIB before the
+# session comes up, then assert the UPDATE at seq=1 and the marker at seq=2. That
+# pins RFC 4724 Section 4 on the wire instead of in the daemon's log. It is not
+# reachable in this scenario, and each reason below was read at its producer on
+# 2026-09-02.
+#
+# bgp-rib puts NOTHING before the marker on a peer's FIRST session.
+# (*RIBManager).collectPeerUpReplay (bgp/plugins/rib/rib_replay.go) returns nil
+# while seenBefore is false, so the Adj-RIB-Out replay starts at the SECOND
+# establishment of the same peer. This file establishes once by construction, and
+# the routes a second establishment would replay are the ones the first session
+# sent, of which there are none.
+#
+# No directive holds a peer down while another producer fills that RIB. ze-peer
+# takes file, asn, bind, conn_map, await_eor, linger, silent, tcp_connections,
+# open, update, timeout and env (internal/test/peer/expect.go), and not one of
+# them delays the connection. `peer pause` acts on a session that is already up
+# (api-peer-pause-resume.ci asserts that peer's End-of-RIB first), and the peer
+# model carries no admin-down leaf that would hold the session in config.
+#
+# The one producer that CAN put a route in before a first establishment is the
+# redistribute rail, with a static route in the config, and it is the wrong
+# witness. redistribute-orchestrator does not declare SignalsSessionReady, so its
+# route is not held behind this barrier: it can leave before or after the marker,
+# and an ordered pair over it would pin a guarantee ze does not make.
+#
 # WHY THE ALIAS IS NOT THE PLUGIN NAME. "ribout" is an arbitrary operator word.
 # A file that wrote `internal bgp-rib { use bgp-rib }` would pass on the broken
 # build too, because the process name is then a registry key by coincidence.

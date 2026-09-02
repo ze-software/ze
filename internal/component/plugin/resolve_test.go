@@ -1,10 +1,13 @@
 package plugin
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // TestResolvePlugin verifies plugin string resolution.
@@ -179,4 +182,83 @@ func TestInternalPluginRegistry(t *testing.T) {
 	t.Run("unknown", func(t *testing.T) {
 		assert.False(t, IsInternalPlugin("unknown"))
 	})
+}
+
+// TestRegistryNames pins the one rule that answers which registry row a process
+// configuration names.
+//
+// VALIDATES: every legal spelling of an in-tree implementation resolves to that
+// implementation, and an external command line leaves the process name as the
+// answer.
+// PREVENTS: a caller growing its own reading of PluginConfig.Run. Four of them
+// had one before this function existed, and they disagreed about the `ze.`
+// prefix: the session-ready barrier answered "declares nothing" for
+// `run ze.bgp-rib`, which let a peer's End-of-RIB claim an initial routing
+// update the plugin had not finished (RFC 4724 Section 4).
+func TestRegistryNames(t *testing.T) {
+	// A throwaway registration keeps every case independent of the feature tags
+	// this binary was built with. The registry is restored when the test ends.
+	const implementation = "test-registry-names-implementation"
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        implementation,
+		Description: "registry-name resolution test fixture",
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+	}))
+
+	tests := []struct {
+		name      string
+		config    PluginConfig
+		wantNames []string
+		wantName  string
+	}{
+		{
+			name:      "bare_registry_name",
+			config:    PluginConfig{Name: implementation},
+			wantNames: []string{implementation},
+			wantName:  implementation,
+		},
+		{
+			name:      "use_spelling_under_an_alias",
+			config:    PluginConfig{Name: "ribout", Run: implementation},
+			wantNames: []string{implementation, "ribout"},
+			wantName:  implementation,
+		},
+		{
+			name:      "ze_dot_spelling_under_an_alias",
+			config:    PluginConfig{Name: "ribout", Run: "ze." + implementation},
+			wantNames: []string{implementation, "ribout"},
+			wantName:  implementation,
+		},
+		{
+			name:      "ze_plugin_verb_pair",
+			config:    PluginConfig{Name: "ribout", Run: "ze plugin " + implementation},
+			wantNames: []string{implementation, "ribout"},
+			wantName:  implementation,
+		},
+		{
+			name:      "external_command_line",
+			config:    PluginConfig{Name: "watcher", Run: "/usr/bin/watcher --verbose"},
+			wantNames: []string{"watcher"},
+			wantName:  "watcher",
+		},
+		{
+			// The registry holds no row for it, so the process name is the answer
+			// and startInternal reports "unknown internal plugin" rather than
+			// starting something else.
+			name:      "ze_dot_spelling_of_no_registered_plugin",
+			config:    PluginConfig{Name: "ribout", Run: "ze.not-a-plugin"},
+			wantNames: []string{"ribout"},
+			wantName:  "ribout",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.wantNames, RegistryNames(tt.config))
+			assert.Equal(t, tt.wantName, RegistryName(tt.config))
+		})
+	}
 }

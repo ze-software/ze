@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -221,4 +222,56 @@ func deriveName(parts []string) string {
 // Uses the registry as single source of truth.
 func IsInternalPlugin(name string) bool {
 	return registry.Has(name)
+}
+
+// RegistryNames returns the registry names one plugin config can name, the
+// implementation first and the process name second.
+//
+// The operator names the PROCESS and the run/use spelling names the
+// IMPLEMENTATION, so `plugin { internal rs { use bgp-rs } }` gives
+// PluginConfig{Name: "rs", Run: "bgp-rs"} and only "bgp-rs" is a registry key. A
+// lookup that starts from the process name alone finds nothing whenever the
+// operator renamed the implementation, and the caller then reads the absence as
+// "this plugin declares nothing".
+//
+// ResolvePlugin owns every legal spelling, which is why this function is one
+// call: `use bgp-rib`, `use ze.bgp-rib`, `run ze.bgp-rib` and
+// `run ze plugin bgp-rib` all answer "bgp-rib". An external command line
+// answers the binary's base name, which the registry does not hold, and that is
+// what leaves the process name as the answer for a genuinely external plugin.
+//
+// The process name stays in the list because a config that carries no spelling
+// is filed under it: `plugin { internal bgp-rib { } }`, and every auto-loaded
+// plugin, for which getConfigPathPlugins (config/loader.go) builds
+// PluginConfig{Name: <registry name>} with no Run.
+//
+// The names are CANDIDATES, so a caller that needs the one row the registry
+// holds calls RegistryName rather than this.
+func RegistryNames(p PluginConfig) []string {
+	var names []string
+	if p.Run != "" {
+		if resolved, err := ResolvePlugin(p.Run); err == nil && resolved.Name != "" {
+			names = append(names, resolved.Name)
+		}
+	}
+	if p.Name != "" && !slices.Contains(names, p.Name) {
+		names = append(names, p.Name)
+	}
+	return names
+}
+
+// RegistryName returns the ONE registry row a plugin config names: the first
+// candidate RegistryNames offers that the registry holds.
+//
+// It falls back to the process name when the registry holds no candidate, which
+// is the external case: Run is a command line there, not a registry name, so
+// there is no row to find and the process name is the only identity the config
+// has.
+func RegistryName(p PluginConfig) string {
+	for _, name := range RegistryNames(p) {
+		if registry.Has(name) {
+			return name
+		}
+	}
+	return p.Name
 }
