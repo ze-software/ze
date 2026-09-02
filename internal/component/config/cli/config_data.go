@@ -80,9 +80,22 @@ func dataDump(args []string) (any, int) {
 			stripPrivate = true
 			continue
 		}
-		if !strings.HasPrefix(arg, "-") && configPath == "" {
-			configPath = arg
+		if configPath != "" {
+			continue
 		}
+		// `-` is the PATH that means stdin, not an option, so it is taken
+		// before the leading-dash test below can drop it with the flags
+		// (ai/rules/cli.md: "- means stdin or stdout"). Reading it as an
+		// option left `show config dump -` reporting the path missing, and
+		// the command had no way to be piped into at all.
+		if cliio.IsStdin(arg) {
+			configPath = arg
+			continue
+		}
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		configPath = arg
 	}
 	if configPath == "" {
 		fmt.Fprintln(os.Stderr, "error: missing config file (use - for stdin)")

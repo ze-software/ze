@@ -66,6 +66,14 @@ expect=stdout:contains=router-id 1.2.3.4
 cmd=foreground:seq=5:exec=ze config fmt -:stdin=cfg:exit=0
 expect=stdout:contains=router-id 1.2.3.4
 
+# The DATA spelling of the same pair, `show config dump -`, cannot be tested in
+# this suite: `runExecCommands` (internal/test/runner/runner_exec.go) splits an
+# exec line with strings.Fields, so the quotes around a `ze cli -c "..."` value
+# reach the binary as literal characters and the command never matches a
+# local-data handler (plan/journal/delegation-hands-the-callee-a-different-argv.md,
+# 2026-08-31). It lives in test/parse/cli-config-dump-stdin.ci, whose suite uses
+# the quote-aware splitCommand.
+
 # The double-stdin guard (AC-9) and the literal stdin fd cannot be exercised here
 # (see the HARNESS NOTE at the top of this file): the runner rewrites "-" to a temp
 # file. They are proven by unit tests cmd_import_test.go (TestImportDoubleStdin) and

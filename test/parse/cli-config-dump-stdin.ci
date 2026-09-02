@@ -1,0 +1,59 @@
+# Test: `show config dump -` reads the configuration from stdin.
+#
+# VALIDATES: the "-" token reaches the config path of the DATA spelling of the
+#            dump command, so an operator can pipe a configuration into it and
+#            render the answer with any format operator.
+# PREVENTS: the argument scan reading "-" as an option and dropping it with the
+#           flags. dataDump (internal/component/config/cli/config_data.go) tested
+#           only for a leading dash, so `show config dump -` answered
+#           "error: missing config file (use - for stdin)" and exited 1, while
+#           `ze config dump -` beside it worked. The four .ci cases that used
+#           this command to read a config back were red for that reason, and
+#           docs/architecture/testing/ci-format.md recommends the same command as
+#           the readback for strengthening an accept-only test.
+#
+# The "-" sits INSIDE the `-c` value rather than in its own argv slot, so the
+# runner's "-" to temp-file rewrite (internal/test/runner/parsing.go) does not
+# see it: the payload reaches the process on the real stdin fd.
+#
+# test/ui/dash-stdio.ci covers the `ze config <sub> -` PRINTER half of the same
+# pair. This case cannot live beside it: the ui suite splits an exec line with
+# strings.Fields, so the quotes around a `ze cli -c "..."` value survive into the
+# argv (plan/journal/delegation-hands-the-callee-a-different-argv.md, 2026-08-31).
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer edge1 {
+		connection {
+			remote {
+				ip 1.1.1.1
+			}
+			local {
+				ip 2.2.2.2
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze cli -c "show config dump - | json":stdin=config
+expect=exit:code=0
+expect=stdout:pattern="router-id": "1.2.3.4"
+expect=stdout:pattern="remote": "65001"
+
+# The same read with the strip-private flag beside it: the flag is recognized and
+# the "-" is still the path, so one does not consume the other.
+cmd=foreground:seq=2:exec=ze cli -c "show config dump --strip-private - | json":stdin=config
+expect=exit:code=0
+expect=stdout:pattern="router-id": "1.2.3.4"
