@@ -1,4 +1,11 @@
 # Build environment for Ze runtime and installer kernels.
+#
+# python3 is a KERNEL build dependency, not a Ze one. Several in-tree header
+# generators are Python scripts, and the arm64 runtime build reaches one of them
+# through drivers/gpu/drm/msm, whose Makefile runs gen_header.py. Without it the
+# build dies at GENHDR with "/bin/sh: 1: python3: not found", after twenty
+# minutes of compiling. The amd64 build never selects that driver, which is why
+# the nightly stayed green while an arm64 build could not finish.
 FROM golang:1.27-bookworm AS builder
 
 WORKDIR /src
@@ -24,6 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         kmod \
         zstd \
         patch \
+        python3 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /ze-kernel-builder /usr/local/bin/ze-kernel-builder
