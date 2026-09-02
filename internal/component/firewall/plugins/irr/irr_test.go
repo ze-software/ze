@@ -475,3 +475,147 @@ func TestReconfigureToAnotherServerKeepsFetchedPrefixes(t *testing.T) {
 		t.Fatalf("the refresh did not query the server the reload named: %+v", entry)
 	}
 }
+
+// panickingBackend panics instead of returning an error. A scheduled refresh
+// programs what it learned through the backend, so this puts a panic on the
+// tick's path. It stands in for a parser that crashes on a malformed answer,
+// which cannot be injected directly: see the SCOPE note on
+// TestRefreshAllSurvivesPanic.
+type panickingBackend struct{}
+
+func (panickingBackend) Apply([]firewall.Table) error { panic("backend panic under refresh") }
+
+func (panickingBackend) ListTables() ([]firewall.Table, error) { return nil, nil }
+
+func (panickingBackend) GetCounters(string) ([]firewall.ChainCounters, error) { return nil, nil }
+
+func (panickingBackend) Close() error { return nil }
+
+// usePanickingBackend installs it for this test alone, under the test's own
+// name because a backend registration is global.
+func usePanickingBackend(t *testing.T) {
+	t.Helper()
+	name := "panicking-" + t.Name()
+	if err := firewall.RegisterBackend(name, func() (firewall.Backend, error) { return panickingBackend{}, nil }); err != nil {
+		t.Fatalf("RegisterBackend: %v", err)
+	}
+	if err := firewall.LoadBackend(name); err != nil {
+		t.Fatalf("LoadBackend: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = firewall.RegisterTables("firewall-irr", nil)
+		if err := firewall.CloseBackend(); err != nil {
+			t.Errorf("CloseBackend: %v", err)
+		}
+	})
+}
+
+// VALIDATES: a panic under a scheduled refresh costs that tick and nothing
+// more, and leaves the loop able to run the next one.
+// PREVENTS: the firewall-irr process dying on a panic under refreshLoop, which
+// runs in a goroutine this plugin starts itself. The SDK's dispatch recovery
+// covers commands and bridge callbacks, not this one
+// (pkg/plugin/sdk/sdk_dispatch.go), so an unguarded panic here ends the process.
+// The manager respawns it, but a panic that repeats crash-loops into the
+// respawn limit, and the registry then holds back every table naming an IRR set.
+// SCOPE: this proves the APPLY half, because the panic comes from Backend.Apply.
+// The FETCH half, where a malformed whois or PeeringDB answer reaches a parser,
+// is not proven here and it is not claimed, although the same guard covers it.
+// store.New takes a concrete *irr.IRR (internal/component/resolve/irr/store), so
+// a panicking client cannot be injected without an interface seam built for this
+// test alone. A recover narrowed to applyTables would leave the fetch unguarded
+// and this test would still pass.
+func TestRefreshAllSurvivesPanic(t *testing.T) {
+	addr := fakeIRRWhois(t, map[string]string{
+		"!a4AS-TEST": "A1\n10.0.0.0/24\nC\n",
+	})
+	plug := &irrPlugin{
+		prefixStore: store.New(irr.NewIRR(addr), nil, ""),
+		config: &irrConfig{
+			Server: addr,
+			refs:   []irrRef{{Name: "AS-TEST", IsASSet: true, TableName: "ze_wan"}},
+		},
+		stopCh: make(chan struct{}),
+	}
+	usePanickingBackend(t)
+	reg := bindCountingOutcomes(t)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("a panic escaped the scheduled refresh and would have taken the plugin down: %v", r)
+		}
+	}()
+	plug.refreshAll()
+
+	// A tick that left the guard set is a loop that never refreshes again, which
+	// is the same outcome by a slower route.
+	if plug.refreshing.Load() {
+		t.Error("the in-flight guard stayed set after a panic: no later tick can run")
+	}
+	if entry := plug.prefixStore.Get("AS-TEST"); entry == nil || len(entry.IPv4) != 1 {
+		t.Errorf("the fetch before the panic was lost: %+v", entry)
+	}
+
+	// A recovered tick that counts nothing is a tick no dashboard can see. The
+	// crash it replaced was visible in ze_plugin_restarts_total.
+	if got := reg.count("panic"); got != 1 {
+		t.Errorf("outcomes under label panic = %d, want 1", got)
+	}
+}
+
+// countingOutcomes counts ze_firewall_irr_refresh_outcomes_total by label and
+// nops every other instrument, so a test can assert which outcome a tick
+// recorded. The firewall component has its own countingRegistry for the same
+// job, unexported there and covering a different metric.
+type countingOutcomes struct {
+	metrics.NopRegistry
+	mu     sync.Mutex
+	counts map[string]int
+}
+
+func (c *countingOutcomes) CounterVec(name, help string, labels []string) metrics.CounterVec {
+	if name != "ze_firewall_irr_refresh_outcomes_total" {
+		return c.NopRegistry.CounterVec(name, help, labels)
+	}
+	return outcomeVec{c}
+}
+
+func (c *countingOutcomes) count(label string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.counts[label]
+}
+
+type outcomeVec struct{ reg *countingOutcomes }
+
+func (v outcomeVec) With(labels ...string) metrics.Counter {
+	if len(labels) == 0 {
+		return metrics.NopRegistry{}.Counter("", "")
+	}
+	return outcomeCounter{v.reg, labels[0]}
+}
+
+func (outcomeVec) Delete(...string) bool { return false }
+
+type outcomeCounter struct {
+	reg   *countingOutcomes
+	label string
+}
+
+func (o outcomeCounter) Inc() {
+	o.reg.mu.Lock()
+	defer o.reg.mu.Unlock()
+	o.reg.counts[o.label]++
+}
+
+func (outcomeCounter) Add(float64) {}
+
+// bindCountingOutcomes points the plugin's metrics at a counter this test reads.
+func bindCountingOutcomes(t *testing.T) *countingOutcomes {
+	t.Helper()
+	prev := irrMetricsPtr.Load()
+	t.Cleanup(func() { irrMetricsPtr.Store(prev) })
+	reg := &countingOutcomes{counts: make(map[string]int)}
+	setMetricsRegistry(reg)
+	return reg
+}

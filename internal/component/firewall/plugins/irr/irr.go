@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"runtime/debug"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -327,11 +328,43 @@ func (plug *irrPlugin) refreshLoop(intervalSec uint32, stop chan struct{}) {
 	}
 }
 
+// refreshAll runs one tick of refreshLoop, and is its only caller. Both ways a
+// scheduled refresh can fail end here, because a tick has nowhere to report to
+// and the loop must outlive every fetch.
+//
+// The returned error is dropped on purpose. refreshAllNow has already logged
+// each reference that failed and kept its cached prefixes, and no operator is
+// waiting on this tick. Returning it would only end the loop that is meant to
+// retry.
+//
+// The recover covers the same tick. Refresh parses whatever the IRR whois
+// server and PeeringDB return (internal/component/resolve/irr), so a malformed
+// answer is upstream input reaching a parser. Unguarded, such a panic unwinds a
+// goroutine this plugin started itself, which the SDK's dispatch recovery does
+// not cover (pkg/plugin/sdk/sdk_dispatch.go), and takes the whole firewall-irr
+// process with it. The process manager respawns it, but an answer that panics
+// every time crash-loops into the respawn limit, and the registry then holds
+// back every table naming an IRR set. One lost tick costs nothing by
+// comparison: the cache is what the firewall enforces, and it is still there on
+// the next one.
 func (plug *irrPlugin) refreshAll() {
 	if !plug.refreshing.CompareAndSwap(false, true) {
 		return
 	}
 	defer plug.refreshing.Store(false)
+	defer func() {
+		if r := recover(); r != nil {
+			// Count it as well as log it. The per-reference outcomes above are
+			// recorded as each reference completes, so a panic in the fetch of the
+			// first one leaves the counter flat, which reads exactly like
+			// refresh-interval 0. Unrecovered, that same condition crash-looped the
+			// plugin and showed up in ze_plugin_restarts_total; recovering it must
+			// not trade a loud signal for a silent one.
+			incRefreshOutcome("panic")
+			logger().Error("firewall-irr: panic during scheduled refresh, keeping the cached prefixes",
+				"panic", r, "stack", string(debug.Stack()))
+		}
+	}()
 	_ = plug.refreshAllNow()
 }
 

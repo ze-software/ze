@@ -456,6 +456,11 @@ preserve the last-good cache, log the reason, and count under the
 answer never replaces a cached prefix list, because a filter built from an empty
 list drops everything the operator wrote it to accept.
 
+A scheduled refresh that panics is caught, so it costs that tick rather than the
+plugin process, and counts under the same metric's `panic` label. Alert on it:
+`error` and `empty` report an upstream condition, `panic` reports a defect in
+ze, and the cached prefixes stay in force until it is fixed.
+
 `show firewall irr` reports each entry as `ok`, `stale`, or `missing`, and gives
 `data-age-seconds` for cached entries and `stale-since` for stale ones.
 `ze doctor` reports the same condition with two codes:
