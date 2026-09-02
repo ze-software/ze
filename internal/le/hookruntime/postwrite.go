@@ -72,7 +72,11 @@ func postFormatGo(ctx context) *verdict {
 	if binary, err := exec.LookPath("golangci-lint"); err == nil {
 		relative, _ := filepath.Rel(module, absolutePath(ctx))
 		timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), 60*time.Second)
-		command := exec.CommandContext(timeout, binary, "run", "--new-from-rev=HEAD", "--timeout=30s", "./"+filepath.ToSlash(filepath.Dir(relative))+"/...") //nolint:gosec // golangci-lint from PATH, run on the package the developer just edited
+		// --allow-serial-runners waits for golangci-lint's machine-wide lock inside
+		// the 60s budget above. The default gives up after five seconds and prints
+		// "parallel golangci-lint is running", which the issue count below then
+		// reported to the author as a lint failure in the file they just edited.
+		command := exec.CommandContext(timeout, binary, "run", "--allow-serial-runners", "--new-from-rev=HEAD", "--timeout=30s", "./"+filepath.ToSlash(filepath.Dir(relative))+"/...") //nolint:gosec // golangci-lint from PATH, run on the package the developer just edited
 		command.Dir = module
 		output, _ := command.CombinedOutput()
 		cancel()

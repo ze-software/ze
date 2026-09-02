@@ -57,7 +57,7 @@ func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 		{
 			name: "lint uses argv parallelism and only the memory ceiling",
 			verb: "lint",
-			argv: []string{"golangci-lint", "run", "-j", "8", "./internal/chaos/..."},
+			argv: []string{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./internal/chaos/..."},
 			overrides: []string{
 				"GOCACHE=" + cache,
 				"GOLANGCI_LINT_CACHE=" + lintCache,

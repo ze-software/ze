@@ -209,26 +209,26 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 	}
 
 	wantCommands := [][]string{
-		{"golangci-lint", "run", "-j", "8", "./..."},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "integration", "./..."},
-		{"golangci-lint", "run", "-j", "8", "./pkg/p02"},
-		{"golangci-lint", "run", "-j", "8", "./pkg/p03"},
-		{"golangci-lint", "run", "-j", "8", "./pkg/p04"},
-		{"golangci-lint", "run", "-j", "8", "./pkg/p05"},
-		{"golangci-lint", "run", "-j", "8", "./pkg/p06"},
-		{"golangci-lint", "run", "-j", "8", "./pkg/p07"},
-		{"golangci-lint", "run", "-j", "8", "./pkg/p08"},
-		{"golangci-lint", "run", "-j", "8", "./pkg/p09"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "debug,race,live,stress,maprib,fleetperf,zetest,gokrazy,ze_test,ze_perf,ze_analyze,ze_chaos,ze_le,integration,ze_docvalid_fixture", "./pkg/p10"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_distro", "./pkg/p11"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_appliance", "./pkg/p12"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_setup", "./pkg/p13"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_distro,ze_appliance,ze_setup", "./pkg/p14"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_installer,ze_installer_fault", "./pkg/p15"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_installer", "./pkg/p16"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "tinygo", "./pkg/p17"},
-		{"golangci-lint", "run", "-j", "8", "-c", plan.TaglessConfig, "--build-tags", "ze_a,ze_b,ze_setup", "./pkg/p18"},
-		{"golangci-lint", "run", "-j", "8", "-c", plan.TaglessConfig, "--build-tags", "ze_core", "./pkg/p19"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./..."},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "--build-tags", "integration", "./..."},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./pkg/p02"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./pkg/p03"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./pkg/p04"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./pkg/p05"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./pkg/p06"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./pkg/p07"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./pkg/p08"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "./pkg/p09"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "--build-tags", "debug,race,live,stress,maprib,fleetperf,zetest,gokrazy,ze_test,ze_perf,ze_analyze,ze_chaos,ze_le,integration,ze_docvalid_fixture", "./pkg/p10"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "--build-tags", "ze_distro", "./pkg/p11"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "--build-tags", "ze_appliance", "./pkg/p12"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "--build-tags", "ze_setup", "./pkg/p13"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "--build-tags", "ze_distro,ze_appliance,ze_setup", "./pkg/p14"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "--build-tags", "ze_installer,ze_installer_fault", "./pkg/p15"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "--build-tags", "ze_installer", "./pkg/p16"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "--build-tags", "tinygo", "./pkg/p17"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "-c", plan.TaglessConfig, "--build-tags", "ze_a,ze_b,ze_setup", "./pkg/p18"},
+		{"golangci-lint", "run", "-j", "8", "--allow-serial-runners", "-c", plan.TaglessConfig, "--build-tags", "ze_core", "./pkg/p19"},
 	}
 	for index := range plan.Passes {
 		pass := &plan.Passes[index]
@@ -353,7 +353,7 @@ func TestScopedRunParsesPackagesAndNeverBroadensToTheTree(t *testing.T) {
 		if pass.Skipped {
 			continue
 		}
-		if len(pass.Command) < 4 || !reflect.DeepEqual(pass.Command[:4], []string{lintProgram, "run", "-j", "8"}) {
+		if len(pass.Command) < 5 || !reflect.DeepEqual(pass.Command[:5], []string{lintProgram, "run", "-j", "8", allowSerial}) {
 			t.Errorf("%s lost the native concurrency argv: %q", pass.Name, pass.Command)
 		}
 		if !slices.Contains(pass.Environment, "GOMEMLIMIT=9GiB") ||

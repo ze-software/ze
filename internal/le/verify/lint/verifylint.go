@@ -26,8 +26,14 @@ import (
 )
 
 const (
-	configName     = ".golangci.yml"
-	lintProgram    = "golangci-lint"
+	configName  = ".golangci.yml"
+	lintProgram = "golangci-lint"
+	// allowSerial makes golangci-lint WAIT for its machine-wide lock. Without
+	// it the child gives up after five seconds and exits "parallel golangci-lint
+	// is running". Several sessions share this checkout, so a sibling lint made
+	// every pass here exit that way with nothing linted, and the stage reported
+	// findings it never collected.
+	allowSerial    = "--allow-serial-runners"
 	listProgram    = "go"
 	trackedProgram = "git"
 	taglessDir     = "tmp/lint-flavors"
@@ -432,7 +438,7 @@ func (r *Runner) passPlan(flavor Flavor, scope []string, skipped bool) PassPlan 
 			plan.Packages[index] = packageText.Reset().Str("./").Str(name).String()
 		}
 	}
-	plan.Command = []string{lintProgram, "run", "-j", strconv.Itoa(r.toolchain.Procs)}
+	plan.Command = []string{lintProgram, "run", "-j", strconv.Itoa(r.toolchain.Procs), allowSerial}
 	if len(flavor.Without) != 0 {
 		plan.Command = append(plan.Command, "-c", "")
 	}

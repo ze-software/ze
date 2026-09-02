@@ -245,6 +245,21 @@ set. `./le verify lint run` therefore runs more than one.
 | 2 | `GOOS=linux`, plus `integration` | every kernel-facing `//go:build integration` test |
 | 3..N | one for each row of `FLAVORS` (`internal/le/verify/lint.Answer`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
 
+### Waiting for the linter's own lock
+
+<!-- source: internal/le/verify/lint/verifylint.go -- passPlan, allowSerial -->
+
+golangci-lint takes one lock for the whole machine, at
+`$TMPDIR/golangci-lint.lock`. Several sessions share this checkout, so a second
+linter is normal here. Every command line Ze builds therefore carries
+`--allow-serial-runners`, which makes the child WAIT for that lock. Without it
+the child gives up after five seconds and exits `parallel golangci-lint is
+running`, and the stage turns that into a red that names no file.
+
+A pass that waits prints nothing while it waits. A whole-tree pass holds the
+lock for about ten minutes on this workstation, so a pass behind one can stay
+silent for that long. That is the linter in a queue, not a hang.
+
 Each flavor pass lints only the packages holding a file the two passes above do
 not load. That package set is DERIVED from the tree with `go list` on every run.
 A hand-written list drifts the moment somebody adds a `//go:build debug`

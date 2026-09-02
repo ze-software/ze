@@ -51,7 +51,10 @@ type Action struct {
 func (g Action) Argv(tc gotoolchain.Toolchain) []string {
 	switch g.kind {
 	case commandLint:
-		return []string{"golangci-lint", "run", "-j", strconv.Itoa(tc.Procs), chaosPackages}
+		// --allow-serial-runners waits for golangci-lint's machine-wide lock. The
+		// default gives up after five seconds, so a sibling session's lint turned
+		// this run into a red that linted nothing.
+		return []string{"golangci-lint", "run", "-j", strconv.Itoa(tc.Procs), "--allow-serial-runners", chaosPackages}
 	case commandUnit:
 		return tc.GoTest(gotoolchain.TestOptions{Race: true}, chaosPackages)
 	case commandCLI:
