@@ -88,8 +88,9 @@ structured for the GitHub wiki renderer. Key files:
 ### Phase 5: Commit
 
 16. **Prepare the wiki commit with the native commit action.** Run
-`ZE_REPO_ROOT=../wiki ./le commit create` from the main checkout, name every
-changed or new wiki path with its own `file` keyword, and use this message:
+`ZE_REPO_ROOT=../wiki ./le commit create` from the main checkout, name the
+changed and new wiki paths with `file` keywords or one `file-list` naming a file
+that holds one path per line, and use this message:
 
 ```
 docs(wiki): sync wiki with <old-short>..<new-short> (<N> commits)
@@ -103,6 +104,19 @@ Co-Authored-By: Claude <model> <noreply@anthropic.com>
 
 Run the generated commit script yourself.
 
+18. **Push, and keep the history linear.** The wiki has one line of commits and
+no merge commits. Another machine may have pushed its own sync while yours was
+running, so `git push` can be rejected as a non-fast-forward. Fetch and rebase
+onto `origin/master`; never merge. The wiki lives on branch `github`, which
+tracks `refs/heads/master`, so the rebase is `git rebase origin/master` and the
+push is a plain `git push`.
+
+```bash
+git -C ../wiki fetch origin
+git -C ../wiki rebase origin/master
+git -C ../wiki push
+```
+
 17. **In-tree docs/ changes** are in the main repo working tree. Do not commit them; the user handles that separately (or via `/ze-commit`). Report which `docs/` files were changed so the user knows.
 
 ## Rules
@@ -114,6 +128,7 @@ Run the generated commit script yourself.
 - **Preserve existing content.** Only add or modify sections relevant to the delta.
 - **Match the wiki's tone.** Pre-alpha banner, short paragraphs, tables for reference, code blocks for config examples. No em dashes.
 - **Be exhaustive.** Check every page in the checklist (step 7). A feature that only updates the topic page but not feature-inventory.md, plugins.md, status.md, and command-reference.md is incomplete.
+- **The wiki history is linear.** Never merge into it, and never flatten it. When the remote has moved, rebase your sync commits onto `origin/master` and resolve each page against the source rather than by taking a side.
 - **llms files are generated, never hand-edited.** Always regenerate with `go run bin/gen-llms-txt.go` after all edits.
 
 ## Scope Decisions
@@ -142,4 +157,5 @@ Run the generated commit script yourself.
 | Commit touches code you cannot read | Use `git show <hash> --stat` and source files. Note uncertainty. |
 | Wiki page does not exist for a new feature | Create it. Add to `_Sidebar.md`. |
 | Feature was added then modified in the same delta | Document the final state only. |
+| `git push` rejected as non-fast-forward | Another machine pushed its own sync. `git fetch origin` then `git rebase origin/master`. Do not merge. Where two runs describe the same code, resolve against the source, and keep the further `.source-commit`. |
 | `go run bin/gen-llms-txt.go` fails | Check that `_Sidebar.md` links are valid slugs. Fix broken links first. |
