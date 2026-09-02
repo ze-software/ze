@@ -572,6 +572,13 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.running.Store(true)
 
+	// Hold the door open for the reactor's initial-sync barrier, which asks
+	// whether a process declared it reports `plugin session ready`. An external
+	// plugin declares that at Stage 1 and appears in no compile-time registry,
+	// so this server is the only thing that can answer for it
+	// (declaresSessionReady, events.go).
+	registry.SetRuntimeSessionReady(s.declaresSessionReady)
+
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins
 	// Phase 2: Auto-load plugins for config paths (ConfigRoots matching)

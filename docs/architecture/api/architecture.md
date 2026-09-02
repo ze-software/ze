@@ -236,8 +236,8 @@ share one filter, `filterPermittedPeers`.
 Raw is gated on `send [ raw ]`, a word of its own. It carries a whole BGP message
 the caller chose, so no other send type describes it and `send [ update ]` does
 not imply it. Until 2026-08-30 it was gated on ATTACHMENT alone, which left a
-raw-capable binding invisible to the count that holds a peer's End-of-RIB behind
-the routes its processes push.
+raw-capable binding invisible to the barrier that holds a peer's End-of-RIB
+behind the routes its processes push.
 <!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendOrigin, filterPermittedPeers -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel, SendRawMessage -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate -->
@@ -1490,16 +1490,21 @@ plugin-injected route belongs to that update.
 1. **Session establishment:** `setState` closes the queueing gate
    (`sendingInitialRoutes`) and marks the marker owed (`initialSyncEOROwed`) in
    the same call that publishes Established.
-2. **Engine counts the route-pushing bindings:** every `attach process` binding
-   `ProcessBinding.MayPushRoutes` reports true for, which is `send [ update ]`,
-   `send [ raw ]`, or the `*` wildcard. A binding that only receives events is
-   not counted.
-3. **resetAPISync(count):** the peer stores that count as the number of ready
-   signals it expects for this session.
+2. **Engine names the processes that report:** `Peer.initialUpdateReporters`
+   keeps an `attach process` binding when three facts hold together. The peer
+   GRANTS it a route-push rail, which is `send [ update ]`, `send [ raw ]`, or
+   the `*` wildcard (`ProcessBinding.MayPushRoutes`). The plugin DECLARES
+   `Registration.SignalsSessionReady`. The peer TELLS it the session came up,
+   through `receive [ state ]` or the `*` wildcard
+   (`ProcessBinding.ReceivesPeerState`).
+3. **resetAPISync(names):** the peer stores those NAMES as the reports it
+   expects for this session, and credits each report to the process that sent
+   it. Names rather than a count, because a count is fungible: a process the
+   peer attaches for events alone would answer for one that still owes routes.
 4. **Plugins do their peer-up work:** bgp-rib replays the routes it stored for
    this peer after "state up".
-5. **Each counted plugin signals ready:** `"peer <addr> plugin session ready"`.
-   A plugin with nothing to send signals too, on every peer-up: the barrier
+5. **Each named process reports ready:** `"peer <addr> plugin session ready"`.
+   A plugin with nothing to send reports too, on every peer-up: the barrier
    cannot tell "finished with nothing to send" from "still working".
 6. **SignalPeerAPIReady:** the engine routes the signal to the peer, which
    counts it and closes `apiSyncReady` when the last one arrives.
@@ -1517,8 +1522,24 @@ plugin-injected route belongs to that update.
     server) is suppressed while `shouldQueue()` OR `initialSyncEOROwed` is true.
     The caller is told the marker was handled, the suppression is logged, and
     the peer's own `sendInitialRoutes` marker covers the family.
-<!-- source: internal/component/bgp/reactor/peer_run.go -- the route-pushing binding count at Established -->
-<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding.MayPushRoutes -->
+The declaration in step 2 is VOLUNTARY (owner directive, 2026-09-02). A plugin
+declares it when its routes belong to the peer's initial routing update and it
+reports when they are out. A plugin that pushes routes on its own schedule
+declares nothing and is never waited for, and so does every external plugin,
+which is registered nowhere in this tree. The in-tree declarers are `bgp-rib`,
+`bgp-rs`, `bgp-adj-rib-in`, `bgp-watchdog`, `bgp-persist` and `bgp-rr`; each
+replays into an establishing peer and reports at the end of that replay.
+
+Declaring is not enough on its own, which is why the peer-state grant is the
+third fact. A process reports FROM the peer-up event, the only moment it can
+know an initial routing update started, so a binding with no state grant leaves
+its plugin unable to push into that update and unable to report it. Naming such
+a binding held the peer's End-of-RIB to the full `apiSyncTimeout` on every
+establishment.
+
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters at Established -->
+<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding.MayPushRoutes, ProcessBinding.ReceivesPeerState -->
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady, registry.SignalsSessionReady -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, drainAndCloseQueueGate -->
 <!-- source: internal/component/bgp/reactor/api_sync.go -- apiSyncTimeout -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.waitForAPISync, Peer.initialSyncEOROwed -->

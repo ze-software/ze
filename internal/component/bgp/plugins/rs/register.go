@@ -47,7 +47,12 @@ func init() {
 		// until this plugin has taken delivery of the peer-up event, so a peer
 		// that waits for the End-of-RIB before sending cannot land in that window.
 		PeerUpBarrier: true,
-		RunEngine:     RunRouteServer,
+		// The route-server replay to a client that establishes is that client's
+		// initial routing update, and sendEOR reports when it is out
+		// (server_handlers.go). Distinct from PeerUpBarrier above: that one says
+		// this plugin has REGISTERED the peer, this one says its ROUTES are out.
+		SignalsSessionReady: true,
+		RunEngine:           RunRouteServer,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

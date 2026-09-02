@@ -40,8 +40,8 @@ func init() {
 // then the marker. RFC 4724 Section 4 owes the marker once the initial routing
 // update completes, and the owner ruled on 2026-08-30 that a plugin-injected
 // route belongs to that update, so the marker MUST wait for this process. The
-// binding in the .ci grants `send [ raw ]` and nothing else, so the only reason
-// the daemon counts this process at all is the raw rail.
+// binding in the .ci grants `send [ raw ]` and no other send word, so the raw
+// arm of ProcessBinding.MayPushRoutes is what puts this process in the barrier.
 //
 // It waits for ESTABLISHMENT rather than for eor-sent, which is the opposite of
 // what the announce fixtures beside it do. Those take the marker as their
@@ -54,7 +54,13 @@ func init() {
 // timeout rather than the barrier decide the order, and the test would then pass
 // against a daemon that never waited.
 func initialSyncBarrierRaw(ctx context.Context, _ []string) error {
-	return Observe(ctx, "raw-injector", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	// The Stage-1 declaration is what puts this process in the peer's
+	// initial-sync barrier. It is the only route an external plugin has to
+	// that declaration: nothing in the daemon's compile-time registry names
+	// this process, so without it the barrier would be empty and the marker
+	// would race the injection this fixture exists to order.
+	reg := sdk.Registration{SignalsSessionReady: true}
+	return Observe(ctx, "raw-injector", reg, func(ctx context.Context, plugin *sdk.Plugin) error {
 		established := Poll(ctx, 400, 5*time.Millisecond, func() bool {
 			return plugin01PeerCounter(ctx, plugin, "*", "connections-established") >= 1
 		})

@@ -51,6 +51,7 @@ Optional metadata:
 | `SendTypes` | `[]string` | Send types this plugin enables, such as `enhanced-refresh` |
 | `Claims` | `[]string` | Exclusive runtime roles this plugin takes over from another plugin's default |
 | `PeerUpBarrier` | `bool` | The plugin registers the peer on the peer-up event, so End-of-RIB waits for it |
+| `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out, so End-of-RIB waits for that report |
 | `YANG` | `string` | YANG schema content |
 | `FilterTypes` | `[]string` | YANG filter list names this plugin owns, such as `prefix-list`. Names are globally unique; a duplicate aborts startup |
 | `DoctorChecks` | `[]DoctorCheckDef` | Doctor readiness checks. `Component` is set from `Name` |
@@ -218,11 +219,11 @@ The count is taken over the delivery set rather than the registry. A plugin that
 declares the barrier but subscribes to no state events never takes delivery, so
 counting it would cost every peer the full timeout.
 
-The barrier is separate from the API-sync wait. `apiSync` counts plugins that
-send routes and carries a 500 ms IPC grace for external ones. Barrier plugins
-only register. A peer whose only barrier plugin is in-process does not block on
-the wait: state-event delivery is synchronous, so the acknowledgement has landed
-on the FSM callback goroutine by the time `sendInitialRoutes` is spawned.
+The barrier is separate from the API-sync wait below. This one says a plugin has
+REGISTERED the peer; that one says a plugin's ROUTES are out. A peer whose only
+barrier plugin is in-process does not block on the wait: state-event delivery is
+synchronous, so the acknowledgement has landed on the FSM callback goroutine by
+the time `sendInitialRoutes` is spawned.
 
 The wait is bounded. A plugin that never acknowledges delays the marker to
 `peerUpBarrierTimeout` (2 s), which releases it with a WARN naming the peer and
@@ -235,6 +236,50 @@ replay, so its withdrawals never reach the peer.
 
 <!-- source: internal/component/bgp/server/events.go -- countPeerUpBarrier -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier -->
+
+## Session-ready reports
+
+A plugin whose routes belong to a peer's INITIAL routing update declares
+`SignalsSessionReady: true` and dispatches
+`request peer <addr> plugin session ready` when those routes are out. The engine
+holds that peer's End-of-RIB until the report arrives, so the marker means what
+RFC 4724 Section 4 says it means.
+
+| Step | What |
+|------|------|
+| The plugin declares | `SignalsSessionReady: true` in its `registry.Registration` |
+| The engine names | `Peer.initialUpdateReporters` keeps a binding when the peer grants the route-push rail, the plugin declares, and the peer grants `receive [ state ]` |
+| The plugin reports | One `plugin session ready` per establishment, from its peer-up handler, sent even when it had nothing to replay |
+| The peer waits | `Peer.waitForAPISync` runs after `sendInitialRoutes` writes what it owns, and before the End-of-RIB |
+
+The declaration is VOLUNTARY (owner directive, 2026-09-02). Declaring says WHEN
+this plugin's routes belong, not what it may send: a plugin that pushes on its
+own schedule is not part of the initial update, declares nothing, and is never
+waited for. Every EXTERNAL plugin lands there too, because an external process is
+registered nowhere in this tree.
+
+The in-tree declarers are `bgp-rib`, `bgp-rs`, `bgp-adj-rib-in`, `bgp-watchdog`,
+`bgp-persist` and `bgp-rr`, each of which replays into an establishing peer and
+reports at the end of that replay. `bgp-gr` does not declare: it coordinates the
+RIB and puts no route of its own into the establishing peer's update.
+`redistribute-orchestrator` does not declare either, because its late-join replay
+is a request onto the redistribute event bus with a 30 s TTL and no completion
+event, so there is no moment at which it can say its routes are out.
+
+The peer-state grant is the third fact for the same reason the peer-up barrier
+counts over the delivery set. A process reports FROM the peer-up event, so a
+binding the peer never tells about the session can neither push into that
+session's initial update nor report it, and naming it would cost that peer the
+full `apiSyncTimeout` on every establishment.
+
+The report is credited to the process that SENT it, and a second report from the
+same process is not credited twice. A process the barrier does not name is
+refused, so a plugin the peer attaches for events alone cannot release the
+marker on behalf of one that still owes routes.
+
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady, registry.SignalsSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.SignalAPIReady, Peer.waitForAPISync -->
 
 ## Cross-boundary value types
 

@@ -89,6 +89,24 @@ type Registration struct {
 	// logs a WARN naming the peer and the shortfall.
 	PeerUpBarrier bool
 
+	// SignalsSessionReady declares that this plugin puts routes into a peer's
+	// INITIAL routing update and reports `plugin session ready` once they are
+	// out. The engine holds that peer's End-of-RIB for every declaring plugin
+	// the peer attaches with a route-push grant (reactor/peer_run.go, which
+	// states what the marker then means).
+	//
+	// The declaration is VOLUNTARY (owner directive, 2026-09-02), so it says
+	// WHEN this plugin's routes belong rather than what it may send. A plugin
+	// that pushes on its own schedule is not part of the initial update and
+	// stays uncounted; it owes no report and is never waited for.
+	//
+	// A declaring plugin reports from the peer-up event, the only moment it can
+	// know an initial routing update started, so the engine intersects this
+	// with the peer's `receive [ state ]` grant. A binding the peer never tells
+	// about the session can neither push into that update nor report, and
+	// counting it would delay every such peer's End-of-RIB to the timeout.
+	SignalsSessionReady bool
+
 	YANG string // YANG schema content (empty if none)
 
 	// FilterTypes lists the YANG filter list names this plugin owns (e.g.,
@@ -256,6 +274,17 @@ var (
 	// plugins is the global plugin registry, populated during init().
 	plugins = make(map[string]*Registration)
 	mu      sync.RWMutex
+
+	// runtimeSessionReady answers SignalsSessionReady for a process this binary
+	// holds no compile-time Registration for, which is every EXTERNAL plugin.
+	// The plugin server installs it once at startup and it reads the Stage-1
+	// declaration off the running process, so the fact is declared ONCE, by the
+	// plugin, and this is a seam onto it rather than a second copy of it.
+	//
+	// Nil until the server installs it, and nil in every binary that runs no
+	// plugin server. A nil seam answers false, which is the same answer an
+	// undeclared process gets: nothing is waited for that cannot report.
+	runtimeSessionReady func(process string) bool
 
 	// builtinFamilies maps family names to source names for engine-builtin families
 	// (e.g., ipv4/unicast) that are not registered through the plugin system.
@@ -708,6 +737,43 @@ func RequiresPeerUpBarrier(name string) bool {
 	return reg.PeerUpBarrier
 }
 
+// SignalsSessionReady reports whether a registered plugin declares
+// Registration.SignalsSessionReady. Returns false for an unregistered name,
+// which is where every EXTERNAL plugin lands: an external process is registered
+// nowhere in this tree, so it never declares, and the owner made the
+// declaration voluntary on 2026-09-02 precisely so a third-party plugin with no
+// reason to report is not made to. False is also the answer that keeps this
+// safe, because a plugin that will never report would otherwise delay every
+// peer that attaches it to the End-of-RIB timeout.
+func SignalsSessionReady(name string) bool {
+	mu.RLock()
+	reg := plugins[name]
+	runtime := runtimeSessionReady
+	mu.RUnlock()
+
+	if reg != nil {
+		return reg.SignalsSessionReady
+	}
+	if runtime == nil {
+		return false
+	}
+	return runtime(name)
+}
+
+// SetRuntimeSessionReady installs the seam that answers SignalsSessionReady for
+// an external process, which declares through Stage 1 rather than through a
+// compile-time Registration. The plugin server owns the running processes, so it
+// owns the answer; this package only holds the door open for the reactor, which
+// cannot import it.
+//
+// Called once at server startup. Passing nil removes the seam, which returns
+// every external process to "declares nothing".
+func SetRuntimeSessionReady(fn func(process string) bool) {
+	mu.Lock()
+	defer mu.Unlock()
+	runtimeSessionReady = fn
+}
+
 // rpcHandlers holds RPC method handlers registered by plugins via AddRPCHandlers.
 // Separate from Registration.RPCHandlers to allow registration from packages that
 // cannot be imported by the plugin's register.go without creating cycles.
@@ -926,6 +992,9 @@ func Reset() {
 	clear(setupResults)
 	eventBusInstance = nil
 	ntpSyncProvider = nil
+	// Cleared with the registry it belongs to: a seam surviving Reset answers
+	// for a plugin server the next test never started.
+	runtimeSessionReady = nil
 }
 
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 )
@@ -445,34 +446,18 @@ func (p *Peer) runOnce() error {
 
 			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
 
-			// Reset per-session API sync: NAME the bindings that may push a
-			// route onto this peer's wire. They signal "plugin session ready"
-			// when their initial routes are out, and this peer's End-of-RIB
-			// waits for all of them (RFC 4724 Section 4: the marker is sent once
-			// the initial routing update completes).
+			// Reset per-session API sync: NAME the processes whose routes
+			// belong to this peer's INITIAL routing update. Each reports
+			// "plugin session ready" once its routes are out, and this peer's
+			// End-of-RIB waits for all of them (RFC 4724 Section 4: the marker
+			// is sent once the initial routing update completes).
 			//
 			// The names travel, not their count. Every plugin can dispatch that
 			// signal, and several do it for a peer that grants them no send word
 			// at all, so a barrier holding a count releases on the wrong
 			// plugin's word (Peer.SignalAPIReady). The names are also what the
 			// timeout diagnostic prints when one of them never reports.
-			//
-			// MayPushRoutes reads BOTH rails that reach the wire, which is what
-			// closes the undercount this count used to carry. Every rail that
-			// BUILDS an UPDATE is gated on `send [ update ]` -- the six
-			// selector-resolving commands, ForwardUpdate, ForwardUpdatesDirect
-			// and RelayStoredRoute (send_permission.go). ze-bgp:peer-raw carries
-			// a message the caller built and is gated on `send [ raw ]`, the word
-			// the owner added on 2026-08-30. Before that word existed the rail
-			// was gated on attachment alone, so a hand-built UPDATE from a bare
-			// `attach process X { }` binding sat outside this barrier entirely.
-			var routePushers []string
-			for _, binding := range p.settings.ProcessBindings {
-				if binding.MayPushRoutes() {
-					routePushers = append(routePushers, binding.PluginName)
-				}
-			}
-			p.resetAPISync(routePushers)
+			p.resetAPISync(p.initialUpdateReporters())
 
 			// Reset the peer-up barrier for this session BEFORE plugins are
 			// notified below: the dispatcher raises its expected count and the
@@ -767,4 +752,40 @@ func (p *Peer) holdDownAfterPrefixTeardown(fam string) {
 			}
 		}
 	}
+}
+
+// initialUpdateReporters names the processes whose routes belong to this peer's
+// INITIAL routing update, so its End-of-RIB waits for each of them to report
+// (RFC 4724 Section 4).
+//
+// Three facts have to hold together, and each one alone admits a process that
+// can never report:
+//
+//   - The peer GRANTS the process a route-push rail, by `send [ update ]` for a
+//     message ze builds or `send [ raw ]` for one the process built
+//     (MayPushRoutes). Without it nothing the process does reaches this wire.
+//   - The plugin DECLARES that its routes belong to the initial update and that
+//     it reports when they are out (registry.SignalsSessionReady). The owner
+//     made this voluntary on 2026-09-02: a plugin that pushes on its own
+//     schedule, and every external plugin, declares nothing and is not waited
+//     for. Its routes were never part of the update the marker describes.
+//   - The peer TELLS the process the session came up (ReceivesPeerState). The
+//     report answers the peer-up event, so a binding with no state grant leaves
+//     the plugin unable to push into this update and unable to report it.
+//
+// The reactor learns no plugin name here: the grant is config, the declaration
+// is a registry lookup on the name the binding already carries, and nothing in
+// this package interprets either (ai/rules/plugins.md).
+func (p *Peer) initialUpdateReporters() []string {
+	var reporters []string
+	for _, binding := range p.settings.ProcessBindings {
+		if !binding.MayPushRoutes() || !binding.ReceivesPeerState() {
+			continue
+		}
+		if !registry.SignalsSessionReady(binding.PluginName) {
+			continue
+		}
+		reporters = append(reporters, binding.PluginName)
+	}
+	return reporters
 }

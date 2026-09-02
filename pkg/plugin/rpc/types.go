@@ -317,6 +317,18 @@ type DeclareRegistrationInput struct {
 	// opaque to the engine: the claiming plugin and the standing-down plugin
 	// agree on the spelling. Same shape as EventTypes/SendTypes.
 	Claims []string `json:"claims,omitempty"`
+
+	// SignalsSessionReady declares that this plugin puts routes into a peer's
+	// INITIAL routing update and dispatches `plugin session ready` once they
+	// are out. A peer that attaches the plugin with `send [ update ]` or
+	// `send [ raw ]` and grants it `receive [ state ]` then holds its
+	// End-of-RIB for that report.
+	//
+	// The declaration is VOLUNTARY (owner directive, 2026-09-02) and it is how
+	// an EXTERNAL plugin opts in: an external process is in no compile-time
+	// registry, so this field is its only route. A plugin that pushes routes on
+	// its own schedule leaves it false, owes no report, and is never waited for.
+	SignalsSessionReady bool `json:"signals-session-ready,omitempty"`
 }
 
 // PipeDecl declares a pipe alias for one of the plugin's own commands. An alias

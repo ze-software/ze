@@ -51,6 +51,12 @@ bgp {
 	
 		attach process add-remove {
 			send update
+			# The peer-up event. The process announces its whole set into this
+			# peer's INITIAL routing update and reports when it is out, so the
+			# End-of-RIB below waits for it. A process the peer never tells
+			# about the session is not waited for, and the marker then arrives
+			# in the middle of the announces (Peer.initialUpdateReporters).
+			receive [ state ]
 		}
 	}
 }

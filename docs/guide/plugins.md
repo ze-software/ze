@@ -1020,9 +1020,22 @@ So the engine RETRACTS the claim, per event, for the peers it does not cover. Ea
 
 A plugin that decides on the peer-up event whether a peer may receive traffic declares `PeerUpBarrier: true`. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".
 
-`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is a separate counter from the API-sync wait, which counts plugins that send routes: merging them would let a route sender's signal satisfy a registrar's obligation.
+`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is separate from the session-ready wait below: merging them would let a route sender's report satisfy a registrar's obligation.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
+
+## Session-Ready Report
+
+A plugin whose routes belong to a peer's INITIAL routing update declares `SignalsSessionReady: true` and dispatches `request peer <addr> plugin session ready` once those routes are out. The engine holds that peer's End-of-RIB until the report arrives, so the marker means the initial routing update completed (RFC 4724 Section 4).
+
+The declaration is voluntary. It says WHEN your routes belong, not what you may send, so a plugin that pushes routes on its own schedule declares nothing and is never waited for. An external plugin is registered nowhere in this tree, so it never declares and never has to: binding it with `send [ update ]` costs the peer no delay.
+
+Three facts have to hold before a peer waits for your process, and each one is something you can check in your own config. The peer grants the route-push rail, with `send [ update ]` or `send [ raw ]`. The plugin declares the field. The peer grants `receive [ state ]`, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is not waited for. A binding with `send [ update ]` and no `receive [ state ]` is therefore free of the wait rather than stalled by it.
+
+Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working". A process that never reports only delays that peer's End-of-RIB to `apiSyncTimeout` (2s), which logs a WARN naming the peer and the silent processes.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.waitForAPISync -->
 
 ## Startup Timing
 

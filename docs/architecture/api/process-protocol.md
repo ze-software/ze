@@ -279,6 +279,34 @@ and merges the response into the base map. Proxy enrichers are cleaned up via
 <!-- source: pkg/plugin/rpc/types.go -- EnricherDecl -->
 <!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, validateEnricherDecls -->
 
+**Session-Ready Declaration (Stage 1):**
+
+A plugin CAN set `signals-session-ready` in its `declare-registration` to state
+that its routes belong to a peer's INITIAL routing update and that it dispatches
+`request peer <addr> plugin session ready` once they are out. The engine then
+holds that peer's End-of-RIB for the report, so the marker means what RFC 4724
+Section 4 says it means.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `signals-session-ready` | bool | The plugin reports when its share of a peer's initial routing update is out |
+
+The declaration is VOLUNTARY (owner directive, 2026-09-02) and it is the only
+route an external plugin has to it: an external process appears in no
+compile-time registry, so a plugin that leaves the field false is never waited
+for and owes no report. Declaring is a claim about WHEN this plugin's routes
+belong, not about what it may send.
+
+Three facts have to hold before a peer waits for the process, so declaring alone
+does not arm the wait. The peer grants `send [ update ]` or `send [ raw ]`, the
+plugin declares, and the peer grants `receive [ state ]`. The last one is the
+peer telling the process its session started, which is what the report answers:
+a process the peer never tells cannot push into that session's initial update.
+
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
+<!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
+
 **Pipe Alias Declaration (Stage 1):**
 
 A plugin CAN include a `pipes` list in its `declare-registration` to name a CLI

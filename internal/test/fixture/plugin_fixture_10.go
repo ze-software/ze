@@ -48,8 +48,21 @@ func init() {
 		"plugin/peer-selector-name-and-ip":   {pluginName: "peer-selector", scenario: fixture10PeerSelectorNameIP},
 		"plugin/ping-show":                   {pluginName: "ping-show-test", scenario: fixture10PingShow},
 		"plugin/pki-certificate-export-show": {pluginName: "pki-export-show-test", scenario: fixture10PKIExport},
-		"plugin/plugin-announce":             {pluginName: pluginNameAddRemove, scenario: fixture10PluginAnnounce},
-		"plugin/plugin-attributes":           {pluginName: pluginNameAddRemove, scenario: fixture10PluginAttributes},
+		// Both declare SignalsSessionReady because both push their whole route
+		// set into the peer's INITIAL routing update, and the .ci expects the
+		// End-of-RIB marker AFTER those routes. Without the declaration the
+		// peer waits for nobody and the marker races the announces, which
+		// plugin-attributes.ci caught as an out-of-order marker.
+		"plugin/plugin-announce": {
+			pluginName:   pluginNameAddRemove,
+			registration: sdk.Registration{SignalsSessionReady: true},
+			scenario:     fixture10PluginAnnounce,
+		},
+		"plugin/plugin-attributes": {
+			pluginName:   pluginNameAddRemove,
+			registration: sdk.Registration{SignalsSessionReady: true},
+			scenario:     fixture10PluginAttributes,
+		},
 		"plugin/plugin-command-completion": {
 			pluginName: "completion-test",
 			registration: sdk.Registration{Commands: []sdk.CommandDecl{
@@ -793,7 +806,26 @@ func fixture10PluginAnnounce(ctx context.Context, plugin *sdk.Plugin) error {
 			return err
 		}
 	}
+	if err := fixture10SessionReady(ctx, plugin); err != nil {
+		return err
+	}
 	return fixture10Quiesce(ctx, plugin)
+}
+
+// fixture10SessionReady reports that this process has finished the routes it
+// owes the peer's INITIAL routing update, which releases the End-of-RIB the peer
+// is holding for it.
+//
+// Owed by every fixture here that declares sdk.Registration.SignalsSessionReady:
+// the declaration arms the wait and this is what ends it, so a fixture that
+// declares and never reports costs its peer the full api-sync timeout.
+//
+// The peer is named by address because the barrier is per peer and the report
+// credits one process on one peer (Reactor.SignalPeerAPIReady). Both scenarios
+// that use it run a single peer at 127.0.0.1.
+func fixture10SessionReady(ctx context.Context, plugin *sdk.Plugin) error {
+	reply := fixture10Call(ctx, plugin, "request peer 127.0.0.1 plugin session ready")
+	return reply.requireDone("request peer 127.0.0.1 plugin session ready")
 }
 
 func fixture10PluginAttributes(ctx context.Context, plugin *sdk.Plugin) error {
@@ -806,6 +838,9 @@ func fixture10PluginAttributes(ctx context.Context, plugin *sdk.Plugin) error {
 		if err := fixture10Update(ctx, plugin, "*", command); err != nil {
 			return err
 		}
+	}
+	if err := fixture10SessionReady(ctx, plugin); err != nil {
+		return err
 	}
 	return fixture10Quiesce(ctx, plugin)
 }

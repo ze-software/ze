@@ -52,6 +52,11 @@ bgp {
 	
 		attach process add-remove {
 			send [ update ]
+			# The peer-up event, which is what lets this process be part of the
+			# peer's INITIAL routing update: it declares SignalsSessionReady and
+			# reports when its announces are out, so the End-of-RIB waits for
+			# them (Peer.initialUpdateReporters).
+			receive [ state ]
 		}
 	}
 }

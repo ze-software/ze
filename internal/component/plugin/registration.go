@@ -81,6 +81,13 @@ type PluginRegistration struct {
 	// callback. See registry.Registration.Claims.
 	Claims []string
 
+	// SignalsSessionReady is the Stage-1 half of the session-ready
+	// declaration, and the only route an external plugin has to it. See
+	// registry.Registration.SignalsSessionReady, which is the compile-time
+	// half, and rpc.DeclareRegistrationInput.SignalsSessionReady for what the
+	// plugin is claiming.
+	SignalsSessionReady bool
+
 	// YANG schema declarations (Hub Architecture)
 	PluginSchema *PluginSchemaDecl // YANG schema declaration for this plugin
 

@@ -21,6 +21,9 @@ func pluginSetup() {
 		ConfigRoots:  []string{configRootBGP},
 		Dependencies: []string{configRootBGP},
 		RunEngine:    runWatchdogPlugin,
+		// A peer-up resends this peer's announced pool, and the resend reports
+		// when it is out (watchdog.go).
+		SignalsSessionReady: true,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return 0
 		},

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-16 |
+| Phase | 4/4 |
+| Updated | 2026-09-02 |
 
 ## Post-Compaction Recovery
 
@@ -261,12 +261,12 @@ D does not have.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `bgp-rib` is the ONLY production emitter of the ready signal. | Grep of the literal `plugin session ready` across `internal/`, `pkg/`, `cmd/`, `test/`, `docs/`. Only non-test hits that DISPATCH are `rib_replay.go` and `:283`. | Every count in the Blast Radius table is wrong. | Re-grep at implementation start; also grep the external SDK and python plugins for the RPC name `session-peer-ready`. | unvalidated |
-| A-2 | The counted set is decided by per-peer CONFIG, not by any plugin declaration. | `peer_run.go` reads `p.settings.ProcessBindings`; `reactor/config.go` builds them solely from the peer tree's `process` map. | Option A/D may already have a partial home. | Read `peer_settings.go` and confirm no registry field feeds `SendUpdate`. | unvalidated |
-| A-3 | A peer with `[bgp-gr, bgp-rib]` burns the full 2s despite `5c4421541`, because `count >= expected` (`peer.go`) needs 2 signals and only 1 arrives. | `peer.go` read; no bgp-gr signaller found by grep. | The blast radius shrinks by 10 peers and the "not fixed by 5c4421541" claim is false. | Run `test/plugin/gr-mark-stale.ci` with `option=env:var=ze.log.bgp.routes:value=debug` and read the log for `waiting for API sync expected=2` followed by `API sync timeout` rather than `API sync complete`. **NOT run for this skeleton.** | unvalidated |
-| A-4 | `bgp-route-refresh` cannot send a route, so `send [ update ]` on it is vacuous. | `register.go` (capa/decoder registration), `route_refresh.go` (`RunRouteRefreshPlugin`, no-op `OnConfigure`, no send path). | Q4's premise collapses and the validator is fine as written. | Grep the package for any reactor send/announce call. | unvalidated |
-| A-5 | RFC 4724 sets no EOR deadline, so no option here is an RFC violation on the latency axis. | `rfc/short/rfc4724.md`, `:415` ([RECOMMENDED], Section 2). | Option B/D's latency is a conformance issue, not just a cost. | Re-read `rfc/short/rfc4724.md` Sections 2 and 4. | unvalidated |
-| A-6 | The 500ms floor is deliberate and covers external plugins not tracked by apiSync. | Comment `peer_initial_sync.go`. Note per `ai/rules/evidence.md` this is a COMMENT, i.e. its author's belief, not a decision record. | Q5's framing is wrong. | Search `plan/learned/` and `plan/deferrals.md` for the decision that introduced the 500ms sleep before treating the comment as intent. | unvalidated |
+| A-1 | `bgp-rib` is the ONLY production emitter of the ready signal. | Grep of the literal `plugin session ready` across `internal/`, `pkg/`, `cmd/`, `test/`, `docs/`. Only non-test hits that DISPATCH are `rib_replay.go` and `:283`. | Every count in the Blast Radius table is wrong. | Re-grep at implementation start; also grep the external SDK and python plugins for the RPC name `session-peer-ready`. | **broken** (2026-09-02). Four in-tree emitters: `bgp-rib` (`rib_replay.go`), `bgp-rs` (`rs/server_handlers.go`), `bgp-adj-rib-in` (`adj_rib_in/rib.go`), `bgp-watchdog` (`watchdog/watchdog.go`). |
+| A-2 | The counted set is decided by per-peer CONFIG, not by any plugin declaration. | `peer_run.go` reads `p.settings.ProcessBindings`; `reactor/config.go` builds them solely from the peer tree's `process` map. | Option A/D may already have a partial home. | Read `peer_settings.go` and confirm no registry field feeds `SendUpdate`. | **confirmed at read, then CHANGED by this spec.** `Registration.PeerUpBarrier` was the partial home the row anticipated: a voluntary declaration the engine intersects with the delivery set. This spec adds its sibling. |
+| A-3 | A peer with `[bgp-gr, bgp-rib]` burns the full 2s despite `5c4421541`, because `count >= expected` (`peer.go`) needs 2 signals and only 1 arrives. | `peer.go` read; no bgp-gr signaller found by grep. | The blast radius shrinks by 10 peers and the "not fixed by 5c4421541" claim is false. | Run `test/plugin/gr-mark-stale.ci` ... **NOT run for this skeleton.** | **confirmed, in the equivalent shape.** `./le functional plugin` before the change logged the stall four times: `api sync timed out ... silent=adj-rib-in` on three peers and `silent=bgpls-withdraw` on one. Same mechanism, a barrier naming a process that never reports. |
+| A-4 | `bgp-route-refresh` cannot send a route, so `send [ update ]` on it is vacuous. | `register.go` (capa/decoder registration), `route_refresh.go` (`RunRouteRefreshPlugin`, no-op `OnConfigure`, no send path). | Q4's premise collapses and the validator is fine as written. | Grep the package for any reactor send/announce call. | **confirmed, and MOOT.** No config in the repository binds `bgp-route-refresh` with a route-push grant any more: `test/plugin/api-route-refresh.ci` now satisfies `validatePeerProcessCaps` through `bgp-rib`. Q4 has no case left to decide. |
+| A-5 | RFC 4724 sets no EOR deadline, so no option here is an RFC violation on the latency axis. | `rfc/short/rfc4724.md`, `:415` ([RECOMMENDED], Section 2). | Option B/D's latency is a conformance issue, not just a cost. | Re-read `rfc/short/rfc4724.md` Sections 2 and 4. | unvalidated. Not re-read against `rfc/full/`, and no claim in this implementation rests on it: the change makes the marker later for nobody. |
+| A-6 | The 500ms floor is deliberate and covers external plugins not tracked by apiSync. | Comment `peer_initial_sync.go`. Note per `ai/rules/evidence.md` this is a COMMENT, i.e. its author's belief, not a decision record. | Q5's framing is wrong. | Search `plan/learned/` and `plan/deferrals.md` for the decision that introduced the 500ms sleep. | **broken, and MOOT.** The floor is gone. `sendInitialRoutes` takes ONE bounded wait and no unconditional sleep (`peer_initial_sync.go`, the comment at the `needsAPIWait` branch records why). Q5 has nothing left to decide. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -458,12 +458,30 @@ almost every config that arms the wait.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| (none yet: Status is `skeleton`, Q1 is open) | A / B / C / D above | Recorded for Thomas, not chosen here. |
+| **Option A**, declaration VOLUNTARY (Thomas, 2026-09-02) | A / B / C / D above | "count only plugins that declare they will signal ... but do not enforce it on other plugin which may have no reason to do". |
+| The barrier needs THREE facts, not one | declaration alone | Declaration alone leaves `bgp-adj-rib-in` counted on a peer it is never told about, which is the stall being removed. The peer must also GRANT the route-push rail and DELIVER the peer-up event, because the report answers that event. |
+| The declaration has two transports, one meaning | registry only | An external plugin is in no compile-time registry. `Registration.SignalsSessionReady` is the in-tree route, `DeclareRegistrationInput.SignalsSessionReady` the Stage-1 route, and `registry.SetRuntimeSessionReady` is the seam that gives the reactor one answer. Same shape as `Claims`, which is already declared both ways. |
+| Q2 needed no work | raise Debug to Warn | `391fcee8d1` already did it, and better than asked: `waitForAPISync` Warns naming the peer and the SILENT PROCESS NAMES, which is the shortfall rather than a count of it. |
+
+### Per-plugin verdicts (owner asked for one per in-tree plugin that can be bound `send [ update ]`)
+
+| Plugin | Declares | Reason |
+|--------|----------|--------|
+| `bgp-rib` | yes | Adj-RIB-Out replay on the down-to-up edge IS the initial update; already reported (`rib_replay.go`). |
+| `bgp-rs` | yes | Route-server replay to an establishing client; already reported (`server_handlers.go`). |
+| `bgp-adj-rib-in` | yes | Peer-up replay of stored routes; already reported (`rib.go`). |
+| `bgp-watchdog` | yes | Resends the peer's announced pool on peer-up; already reported (`watchdog.go`). |
+| `bgp-persist` | yes, **and gained the report** | `replayForPeer` replays the stored ribOut and sends its own EOR on peer-up, and never reported. Added at both completion points, and at neither generation abort. |
+| `bgp-rr` | yes, **and gained the report** | `replayForPeer` drives the adj-rib-in replay and sends its own EOR on peer-up, and never reported. Added as a deferred report on every path out, generation-checked the way `sendEOR` is. |
+| `bgp-gr` | no | Puts no route of its own into the establishing peer's update. It dispatches `request bgp rib retain/mark-stale/purge-stale/release-routes`, which act on routes RECEIVED from that peer and reach OTHER peers, on down and timer edges. |
+| `redistribute-orchestrator` | no | Its late-join replay is a request onto the redistribute event bus, answered by producers on their own schedule under a 30s TTL (`replay.go`), with no completion event. There is no moment at which it can say its routes are out. |
+| `exabgp-bridge` | no | Bridges an external ExaBGP-compatible process that announces on its own schedule; the bridge cannot know when that process is finished. |
+| `bgp-route-refresh` | no | A capability decoder with no send path (A-4), and no config binds it with a route-push grant any more. |
 
 ## Known Limitations
-- This skeleton characterises and recommends. It decides nothing.
-- The `[bgp-gr, bgp-rib]` claim (A-3) is read from the producer, not reproduced. It is the first thing to run.
-- Only in-repo configs were scanned. Operator configs in the wild may bind other plugins with `send [ update ]`; the counted set is open by construction.
+- **`test/plugin/api-raw.ci` is RED in 2 of 5 post-change runs and this change exposed it.** The `raw-test` fixture waits for establishment, then dispatches `peer peer1 raw hex ...`, and the dispatch answers `not connected`. The peer's two expectations are ze's own KEEPALIVE and the End-of-RIB, and an injected KEEPALIVE is byte-identical to ze's own, so the peer completes and closes before the injection lands. The 2.5s stall used to hold the session open past that race. Two defects sit under it: the assertion cannot tell the injected frame from ze's own, and the fixture races the peer's completion. Not repaired here: it would be the FOURTH test-scaffolding repair in one session, which `ai/rules/pre-release.md` stops.
+- Only in-repo configs were scanned. Operator configs in the wild may bind other plugins with a route-push grant; a third-party plugin that pushes into the initial update and does not declare is not waited for, which is Option A's accepted cost (R-1).
+- A-5 was not re-read against `rfc/full/rfc4724.txt`. No claim in this implementation rests on it.
 
 ## RFC Documentation
 
@@ -474,16 +492,26 @@ recording that the deferral is a local policy choice and not an RFC deadline.
 ## Implementation Summary
 
 ### What Was Implemented
-- Nothing. Status `skeleton`.
+- `registry.Registration.SignalsSessionReady` and `registry.SignalsSessionReady(name)`, the compile-time half of the declaration, modelled on `PeerUpBarrier` / `RequiresPeerUpBarrier`.
+- `rpc.DeclareRegistrationInput.SignalsSessionReady` (= `sdk.Registration`), `plugin.PluginRegistration.SignalsSessionReady`, `registrationFromRPC`, `(*Server).declaresSessionReady` and `registry.SetRuntimeSessionReady`: the Stage-1 half, which is the only route an external plugin has.
+- `ProcessBinding.ReceivesPeerState` and `Peer.initialUpdateReporters`, which replace the bare `MayPushRoutes` walk at Established.
+- Declarations on `bgp-rib`, `bgp-rs`, `bgp-adj-rib-in`, `bgp-watchdog`; declarations AND new reports on `bgp-persist` and `bgp-rr`.
+- Three fixtures declare and report: `plugin/initial-sync-barrier-raw`, `plugin/plugin-announce`, `plugin/plugin-attributes`, each with `receive [ state ]` added to its binding.
 
 ### Bugs Found/Fixed
-- None fixed here. Two characterised: the counter/signaller mismatch (this spec's subject) and the vacuous `send [ update ]` permission on `bgp-route-refresh` (Q4).
+- The stall itself. Before: `./le functional plugin` logged `api sync timed out ... silent=adj-rib-in` on three peers and `silent=bgpls-withdraw` on one. After: zero, across four runs.
+- Suite: 643/650 best after, against 634/650 with the change reverted and rebuilt.
 
 ### Documentation Updates
-- None yet.
+- `docs/architecture/api/architecture.md` (API Sync Protocol steps 2-3-5, plus the declaration and grant paragraphs and three source anchors).
+- `docs/architecture/plugin/plugin-system.md` (Registration Fields row, a new "Session-ready reports" section, and the stale `apiSync counts plugins ... 500 ms IPC grace` paragraph).
+- `docs/guide/plugins.md` (new "Session-Ready Report" section written for a plugin author).
+- `docs/architecture/api/process-protocol.md` (Stage-1 `signals-session-ready`).
 
 ### Deviations from Plan
-- None.
+- Q3 and Q5 were already answered by the tree and needed no decision. The barrier holds NAMES and dedups by process (`391fcee8d1`), so a duplicate report cannot fill another slot; the 500ms floor no longer exists.
+- Q4 has no case left to decide (A-4).
+- NOT DONE: `test/plugin/api-raw.ci` fails in 2 of 5 post-change runs. See Known Limitations.
 
 ## Implementation Audit
 
@@ -517,8 +545,12 @@ recording that the deferral is a local policy choice and not an RFC deadline.
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| The counted set and the signalling set agree, or differ only by an explicit declaration | functional test | `test/plugin/session-ready-contract.ci` (to be written) |
-| A non-signalling counted plugin is operator-visible | functional test | log assertion on the Warn from the timeout path |
+| The counted set and the signalling set agree, or differ only by an explicit declaration | functional test + unit | `test/plugin/initial-sync-barrier-raw.ci` proves a DECLARING external process is waited for (all three facts load-bearing, stated in its header). `TestInitialUpdateReporters` pins the predicate over 8 shapes and went RED on 4 of them when the predicate was reverted to bare `MayPushRoutes`. |
+| The stall the spec exists to remove is gone | suite log | `./le functional plugin` before: four `api sync timed out; these processes never reported ... silent=adj-rib-in` (three peers) and `silent=bgpls-withdraw` (one). After: that string appears zero times in four consecutive runs. Suite 643/650 against a 634/650 baseline measured with `peer_run.go` reverted to HEAD and rebuilt. |
+| A non-signalling counted plugin is operator-visible | source | `Peer.waitForAPISync` Warns with `silent=` from `Peer.apiSyncSilent()`. Already true before this work (`391fcee8d1`), which is why Q2 needed no change. |
+| The marker still follows the routes it claims | suite log | `out-of-order marker accepted in silence`: 0 in both pre-change runs, 2 per run after the barrier narrowed, 0 in both runs after the three fixtures declared and reported. |
+
+**A test was NOT written for `bgp-persist` and `bgp-rr`'s new reports.** `./le functional reload` is 40/40 and carries `test/reload/persist-across-restart.ci`, and `plugin/rr-basic` passes, but neither asserts the report. Both plugins were previously counted and stalled, so the reports restore an ordering nothing pins.
 
 ## Review Gate
 

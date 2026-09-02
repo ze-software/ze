@@ -484,6 +484,11 @@ func (rr *routeReflector) replayForPeer(peerAddr string, gen uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
+	// Report on every path out, including the failed replay below: each one
+	// ends what this plugin owes the peer's initial routing update, and the
+	// End-of-RIB is held until it arrives (signalSessionReady).
+	defer rr.signalSessionReady(peerAddr, gen)
+
 	// Full replay from adj-rib-in index 0.
 	status, data, err := rr.dispatchCommand(ctx, "request bgp adj-rib-in replay", peerAddr, "0")
 	if err != nil || status != statusDone {
@@ -550,6 +555,36 @@ func (rr *routeReflector) sendEOR(peerAddr string, gen uint64) {
 		rr.updateRoute(peerAddr, rrEORCmd(fam))
 	}
 	logger().Info("sent EOR", "peer", peerAddr, "families", families)
+}
+
+// signalSessionReady tells the engine this plugin has finished the routes it
+// owes the peer's INITIAL routing update.
+//
+// This plugin declares registry.Registration.SignalsSessionReady, so a peer that
+// attaches it with a route-push grant holds its End-of-RIB until this report
+// arrives (reactor/peer_run.go).
+//
+// The generation is checked the way sendEOR checks it: a replay whose peer has
+// since re-established belongs to a session the barrier no longer describes, so
+// reporting for it would release the CURRENT session's End-of-RIB on work done
+// for the previous one. The replay running for that session reports instead.
+func (rr *routeReflector) signalSessionReady(peerAddr string, gen uint64) {
+	rr.mu.RLock()
+	p := rr.peers[peerAddr]
+	stale := p == nil || p.ReplayGen != gen
+	rr.mu.RUnlock()
+	if stale {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	defer cancel()
+	var tb textbuf.Buffer
+	command := tb.Str("request peer ").Str(peerAddr).Str(" plugin session ready").String()
+	if _, _, err := rr.plugin.DispatchCommand(ctx, command); err != nil {
+		logger().Warn("plugin session ready failed; this peer's end-of-rib waits out the api sync timeout",
+			"peer", peerAddr, "error", err)
+	}
 }
 
 // parseReplayResponse extracts last-index and replayed count from a replay response.

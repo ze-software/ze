@@ -14,10 +14,14 @@
 #           marker then went out at establishment and the injected route arrived
 #           after a marker that had already claimed the update was complete.
 #
-# WHY RAW IS THE RAIL HERE. The attach block below grants `send [ raw ]` and
-# nothing else, so the ONLY reason ze counts this process is the raw arm of
-# MayPushRoutes. Remove that arm and the count is zero, the barrier never runs,
-# and seq=1 below is diffed against the marker instead of the route.
+# WHY RAW IS THE RAIL HERE. The attach block below grants `send [ raw ]` and no
+# other send word, so the raw arm of MayPushRoutes is what puts this process in
+# the barrier. Remove that arm and the barrier is empty, it never runs, and seq=1
+# below is diffed against the marker instead of the route. The block also grants
+# `receive [ state ]` and the fixture declares SignalsSessionReady at Stage 1,
+# which are the other two facts the barrier needs (Peer.initialUpdateReporters);
+# deleting either one empties the barrier the same way, so all three are load-
+# bearing and each is a separate red.
 #
 # NON-VACUITY. The observer waits for ESTABLISHMENT, not for eor-sent, which is
 # the opposite of what mup-ipv4-announce.ci and plugin-nexthop.ci do: those take
@@ -74,6 +78,13 @@ bgp {
 
 		attach process raw-injector {
 			send [ raw ]
+			# The peer-up event, which is how this peer tells the process its
+			# session started. A process the peer never tells cannot put a route
+			# into that session's INITIAL routing update, so the barrier does not
+			# wait for one (Peer.initialUpdateReporters). The send list is still
+			# `raw` and nothing else, so the raw arm of MayPushRoutes is still the
+			# only reason this process reaches the wire at all.
+			receive [ state ]
 		}
 	}
 }

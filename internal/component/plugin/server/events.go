@@ -85,3 +85,28 @@ func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 
 	return jsonResult, nil
 }
+
+// declaresSessionReady reports whether a RUNNING process declared
+// PluginRegistration.SignalsSessionReady at Stage 1, which is the only route an
+// external plugin has to that declaration.
+//
+// Installed as registry.SetRuntimeSessionReady so the reactor reaches the answer
+// without importing this package. It is consulted only for a name the
+// compile-time registry does not hold, so an in-tree plugin's answer always comes
+// from its own Registration and this method never contradicts it.
+//
+// False for a process that is not running: a process the server cannot see sends
+// no report, and waiting for one would hold every peer that attaches it to the
+// api-sync timeout.
+func (s *Server) declaresSessionReady(process string) bool {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return false
+	}
+	proc := pm.GetProcess(process)
+	if proc == nil {
+		return false
+	}
+	reg := proc.Registration()
+	return reg != nil && reg.SignalsSessionReady
+}

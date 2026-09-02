@@ -634,6 +634,7 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 		families := ps.peerFamilies(peerAddr)
 		ps.mu.RUnlock()
 		ps.sendEOR(peerAddr, families)
+		ps.signalSessionReady(peerAddr)
 		return
 	}
 
@@ -665,6 +666,30 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 	}
 
 	ps.sendEOR(peerAddr, families)
+	ps.signalSessionReady(peerAddr)
+}
+
+// signalSessionReady tells the engine this plugin has finished the routes it
+// owes the peer's INITIAL routing update.
+//
+// This plugin declares registry.Registration.SignalsSessionReady, so a peer
+// that attaches it with a route-push grant holds its End-of-RIB until this
+// report arrives (reactor/peer_run.go). Sent from the two paths replayForPeer
+// COMPLETES on, and from neither generation abort: an abort means a newer
+// establishment already started its own replay, and that replay owns the report
+// for the session the barrier now belongs to.
+func (ps *PersistServer) signalSessionReady(peerAddr string) {
+	if ps.plugin == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	defer cancel()
+	var tb textbuf.Buffer
+	command := tb.Str("request peer ").Str(peerAddr).Str(" plugin session ready").String()
+	if _, _, err := ps.plugin.DispatchCommand(ctx, command); err != nil {
+		persistLogger().Warn("plugin session ready failed; this peer's end-of-rib waits out the api sync timeout",
+			"peer", peerAddr, "error", err)
+	}
 }
 
 // peerFamilies returns the negotiated families for a peer. Caller must hold ps.mu (read).

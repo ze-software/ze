@@ -592,6 +592,22 @@ func (b *ProcessBinding) MayPushRoutes() bool {
 	return b.MaySend(bgpevents.SendUpdate) || b.MaySend(bgpevents.SendRaw)
 }
 
+// ReceivesPeerState reports whether this binding delivers the peer's state
+// events to the process, by the wildcard or by naming the type. Direction does
+// not narrow it: a state event has one direction and any grant of the type
+// carries it (parseOneReceiveFlag, config.go).
+//
+// The peer-up event is the only thing that tells a process a session started,
+// so it is what a process needs before it can push a route into that session's
+// INITIAL routing update, and before it can report those routes are out. The
+// initial-sync barrier reads it for that reason (peer_run.go).
+func (b *ProcessBinding) ReceivesPeerState() bool {
+	if b.ReceiveAll {
+		return true
+	}
+	return b.Receive[bgpevents.EventState] != events.DirUnspecified
+}
+
 // AutoLoadReceiveTypes returns the granted event types no base token names,
 // sorted. The plugin server maps each to the plugin that produces it, so
 // `receive [ update-rpki ]` starts bgp-rpki-decorator. The direction a type
