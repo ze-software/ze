@@ -41,20 +41,6 @@ func TestCleanCachesUsesTheToolchainCachePath(t *testing.T) {
 	}
 }
 
-// VALIDATES: free space is read for a cache directory the toolchain has not
-// created yet.
-// PREVENTS: a first run on a fresh checkout refusing because the cache is absent.
-func TestFreeBytesWalksUpToAnExistingPath(t *testing.T) {
-	absent := filepath.Join(t.TempDir(), "cache", "go-cache")
-	free, err := freeBytes(absent)
-	if err != nil {
-		t.Fatalf("free bytes: %v", err)
-	}
-	if free == 0 {
-		t.Error("free bytes = 0 on a temporary directory's device")
-	}
-}
-
 // VALIDATES: the ambient lookup runs with no inherited GOCACHE.
 // PREVENTS: le's own override being reported as the machine default, which
 // would empty one cache twice and leave the other full.

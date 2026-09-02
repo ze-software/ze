@@ -18,16 +18,13 @@ package scratch
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"golang.org/x/sys/unix"
-
+	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
@@ -130,7 +127,7 @@ func (r CleanReport) verdict() int {
 // checkout, because the checkout and the cache are on different filesystems.
 func cleanCache(ctx context.Context, name, path string) CacheClean {
 	cache := CacheClean{Name: name, Path: path}
-	before, err := freeBytes(path)
+	before, err := diskspace.Free(path)
 	if err != nil {
 		cache.Error = err.Error()
 		return cache
@@ -142,7 +139,7 @@ func cleanCache(ctx context.Context, name, path string) CacheClean {
 		return cache
 	}
 
-	after, err := freeBytes(path)
+	after, err := diskspace.Free(path)
 	if err != nil {
 		cache.Error = err.Error()
 		return cache
@@ -193,28 +190,6 @@ func withoutGoCache(environ []string) []string {
 		kept = append(kept, entry)
 	}
 	return kept
-}
-
-// freeBytes answers the space available on the filesystem that holds path. It
-// walks up to the first path that exists, so a cache directory the toolchain
-// has not created yet still reports its device.
-func freeBytes(path string) (uint64, error) {
-	probe := path
-	for {
-		var stat unix.Statfs_t
-		err := unix.Statfs(probe, &stat)
-		if err == nil {
-			return stat.Bavail * uint64(stat.Bsize), nil //nolint:gosec // Statfs_t.Bsize is uint32 on darwin and int64 on linux, and a block size is positive on both
-		}
-		if !errors.Is(err, os.ErrNotExist) {
-			return 0, fmt.Errorf("statfs %s: %w", probe, err)
-		}
-		parent := filepath.Dir(probe)
-		if parent == probe {
-			return 0, fmt.Errorf("statfs %s: %w", probe, err)
-		}
-		probe = parent
-	}
 }
 
 // gibibytes renders a byte count in the unit a disk is discussed in.

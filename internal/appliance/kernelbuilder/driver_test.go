@@ -131,6 +131,11 @@ func TestRunDockerArgvAndOwnershipRepair(t *testing.T) {
 	if err := validateRequest(&req); err != nil {
 		t.Fatal(err)
 	}
+	// No container store on this host, so the space guard reports that it did
+	// not run and the reclaim step is skipped. Both are covered on their own in
+	// space_test.go; pinning them here keeps this test's call count a fact about
+	// runDocker rather than about the machine it runs on.
+	pinHostWithoutAContainerStore(t)
 	old := runCommand
 	t.Cleanup(func() { runCommand = old })
 	var calls [][]string
@@ -163,6 +168,7 @@ func TestRunDockerArgvAndOwnershipRepair(t *testing.T) {
 func TestRunDockerRepairsOwnershipAfterFailure(t *testing.T) {
 	root := t.TempDir()
 	req := Request{Root: root, Version: "7.1.1", Arch: "amd64", Profile: "qemu", Target: "installer", SourceDir: "configs", OutputDir: "out", BuilderDir: "tools/kernel-builder", CommonDir: "common", Modules: "no", Fragments: []string{"configs/kernel.config"}, Image: "fixture", Stdout: os.Stdout, Stderr: os.Stderr}
+	pinHostWithoutAContainerStore(t)
 	old := runCommand
 	t.Cleanup(func() { runCommand = old })
 	calls := 0

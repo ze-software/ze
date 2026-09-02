@@ -246,6 +246,13 @@ var commandAvailable = func(name string) bool {
 
 func runDocker(ctx context.Context, req Request) error {
 	platform := dockerPlatforms[req.Arch]
+	// Before the image build, which itself writes gigabytes. A kernel build
+	// that starts on a nearly full host does not fail cleanly: it fills the
+	// sparse disk backing the container runtime, and the error that surfaces
+	// names a content blob rather than the disk (plan/journal/full-disk-false-red.md).
+	if err := checkKernelBuildSpace(req, pathExists); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(hostOutputPath(req), 0o750); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
@@ -290,6 +297,13 @@ func runDocker(ctx context.Context, req Request) error {
 	repairCtx, cancelRepair := context.WithTimeout(context.WithoutCancel(ctx), ownershipRepairTimeout)
 	defer cancelRepair()
 	repairErr := repairOwnership(repairCtx, req, platform)
+	// Pass or fail. A failed build leaves the largest tree behind, so the run
+	// that most needs the space returned is the one that did not finish. The
+	// context is the detached one, so a canceled build still discards.
+	home, homeErr := os.UserHomeDir()
+	if homeErr == nil {
+		reclaimBuildSpace(repairCtx, req, dockerStoreHostPath(home, pathExists))
+	}
 	if buildErr != nil {
 		if repairErr != nil {
 			return fmt.Errorf("kernel container failed: %w (ownership repair also failed: %w)", buildErr, repairErr)
