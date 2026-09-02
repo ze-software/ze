@@ -19,11 +19,19 @@ import (
 )
 
 // ledgerRow is one coverage row of the RFC ledger's rollup table.
+//
+// annotated and noTest are READ from the ledger's own columns rather than
+// derived by subtracting both from gated. The two are not the same number
+// whenever the gate is red: a gated MUST with no test and no annotation is in
+// the remainder and in neither column, so `gated - both` counts it as an
+// annotation that does not exist (ai/rules/principles.md, declare once).
 type ledgerRow struct {
-	rfc   string
-	gated int
-	both  int
-	state string
+	rfc       string
+	gated     int
+	both      int
+	annotated int
+	noTest    int
+	state     string
 }
 
 // annotationPattern answers the pattern that finds one annotation kind on a
@@ -94,10 +102,12 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 	}
 	rows = enrolled
 
-	gated, both := 0, 0
+	gated, both, annotated, noTest := 0, 0, 0, 0
 	for _, row := range rows {
 		gated += row.gated
 		both += row.both
+		annotated += row.annotated
+		noTest += row.noTest
 	}
 	if gated == 0 {
 		return Metric{}, Metric{}, collectErrorf(
@@ -110,19 +120,33 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 		return Metric{}, Metric{}, err
 	}
 
-	annotated := gated - both
+	// The cross-check is the ledger's Annotated COLUMN against the live count
+	// over rfc/short. Two derivations of one population, from two files, which
+	// is a real disagreement to arbitrate. Comparing against `gated - both`
+	// instead compared the split against a different population -- the
+	// remainder holds every gated MUST with no test as well -- so a red gate
+	// made this refuse and took the whole page down with it.
 	splitTotal := kinds.total()
 	if splitTotal != annotated {
 		return Metric{}, Metric{}, collectErrorf(
-			"annotation split %s sums to %d, but the ledger's remainder is %d (%d gated - %d "+
-				"proven). The page must not present a non-partition as one; the two sources have diverged",
-			pythonDict(kinds), splitTotal, annotated, gated, both)
+			"annotation split %s sums to %d, but the ledger's Annotated column sums to %d "+
+				"across %d gated requirement(s). The page must not present a non-partition as "+
+				"one; the two sources have diverged",
+			pythonDict(kinds), splitTotal, annotated, gated)
+	}
+	if annotated+noTest+both != gated {
+		return Metric{}, Metric{}, collectErrorf(
+			"the ledger's own columns do not partition its gated population: %d both + %d "+
+				"annotated + %d with no test is not %d gated. One polarity is counted "+
+				"nowhere here, so the page would publish a remainder it cannot account for",
+			both, annotated, noTest, gated)
 	}
 
 	unproven := unprovenRows(rows)
 	density := ratio(both, gated)
 
-	return densityMetric(rows, unproven, kinds, density, floors, both, gated, annotated),
+	return densityMetric(rows, unproven, kinds, density, floors,
+			rfcTotals{both: both, gated: gated, annotated: annotated, noTest: noTest}),
 		unprovenMetric(rows, unproven), nil
 }
 
@@ -139,8 +163,14 @@ func ledgerRows(text string) ([]ledgerRow, error) {
 		if gatedErr != nil || bothErr != nil {
 			continue
 		}
+		annotated, annotatedErr := strconv.Atoi(match[5])
+		noTest, noTestErr := strconv.Atoi(match[6])
+		if annotatedErr != nil || noTestErr != nil {
+			continue
+		}
 		rows = append(rows, ledgerRow{
-			rfc: match[1], gated: gated, both: both, state: strings.TrimSpace(match[9]),
+			rfc: match[1], gated: gated, both: both, annotated: annotated,
+			noTest: noTest, state: strings.TrimSpace(match[9]),
 		})
 	}
 	if len(rows) == 0 {
@@ -261,21 +291,37 @@ func unprovenRows(rows []ledgerRow) []ledgerRow {
 	return unproven
 }
 
+// rfcTotals is the enrolled population, summed from the ledger's own columns.
+//
+// noTest is carried rather than left out of the sentence: a gated MUST that
+// nothing tests and nothing excuses is the weakest state on this page, and a
+// detail line that named only the annotations would present the remainder as
+// though every row in it had a reason.
+type rfcTotals struct {
+	both      int
+	gated     int
+	annotated int
+	noTest    int
+}
+
 // densityMetric renders the headline proof-density row.
 func densityMetric(rows, unproven []ledgerRow, kinds annotationCounts, density object,
-	floors qualityFloors, both, gated, annotated int,
+	floors qualityFloors, totals rfcTotals,
 ) Metric {
+	both, gated, noTest := totals.both, totals.gated, totals.noTest
 	var tb textbuf.Buffer
 	detail := tb.Str(valueText(percentOf(density))).
-		Str("% carry both polarities. Of the remaining ").Int(int64(annotated)).Str(": ").
+		Str("% carry both polarities. Of the remaining ").Int(int64(gated - both)).Str(": ").
 		Int(int64(kinds.get("not-applicable"))).
 		Str(" not-applicable (ze deliberately does not do it, so no test is owed), ").
 		Int(int64(kinds.get("gap"))).
-		Str(" known gap (unimplemented, genuinely untested), and ").
+		Str(" known gap (unimplemented, genuinely untested), ").
 		Int(int64(kinds.get("single-polarity"))).
 		Str(" single-polarity -- those DO have a passing tagged test, just one side of the " +
-			"pair, and the RFC gate fails if that test is missing. Only the gap column is " +
-			"untested work.").String()
+			"pair, and the RFC gate fails if that test is missing -- and ").
+		Int(int64(noTest)).
+		Str(" with no test and no annotation at all, which is what `./le rfc check` is red " +
+			"about. Only the gap column and that last one are untested work.").String()
 
 	tb.Reset()
 	value := tb.Int(int64(both)).Str(" / ").Int(int64(gated)).String()
@@ -299,6 +345,7 @@ func densityMetric(rows, unproven []ledgerRow, kinds annotationCounts, density o
 	data := object{}
 	data.set("proof_density", density)
 	data.set("annotations", annotations)
+	data.set("gated_without_any_test", noTest)
 	data.set("rfcs_total", len(rows))
 	data.set("rfcs_without_any_proof", len(unproven))
 	data.set("worst", worst)

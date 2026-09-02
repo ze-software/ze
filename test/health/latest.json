@@ -3,24 +3,29 @@
     {
       "action": "Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.",
       "annotations": {
-        "gap": 503,
-        "not-applicable": 840,
-        "single-polarity": 364
+        "gap": 501,
+        "not-applicable": 834,
+        "single-polarity": 370
       },
-      "detail": "42.6% carry both polarities. Of the remaining 1707: 840 not-applicable (ze deliberately does not do it, so no test is owed), 503 known gap (unimplemented, genuinely untested), and 364 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
+      "detail": "43.2% carry both polarities. Of the remaining 1853: 834 not-applicable (ze deliberately does not do it, so no test is owed), 501 known gap (unimplemented, genuinely untested), 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- and 148 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work.",
+      "gated_without_any_test": 148,
       "key": "rfc-proof-density",
       "label": "RFC MUST requirements proven by a positive+negative test pair",
       "proof_density": {
-        "denominator": 2976,
-        "numerator": 1269,
-        "percent": 42.6
+        "denominator": 3264,
+        "numerator": 1411,
+        "percent": 43.2
       },
       "question": "Q2",
-      "rfcs_total": 170,
-      "rfcs_without_any_proof": 34,
-      "status": "ok",
-      "value": "1269 / 2976",
+      "rfcs_total": 179,
+      "rfcs_without_any_proof": 37,
+      "status": "warn",
+      "value": "1411 / 3264",
       "worst": [
+        {
+          "gated": 55,
+          "rfc": "rfc5798"
+        },
         {
           "gated": 38,
           "rfc": "rfc7871"
@@ -28,6 +33,10 @@
         {
           "gated": 34,
           "rfc": "rfc2132"
+        },
+        {
+          "gated": 34,
+          "rfc": "rfc4302"
         },
         {
           "gated": 23,
@@ -52,14 +61,6 @@
         {
           "gated": 13,
           "rfc": "rfc2003"
-        },
-        {
-          "gated": 13,
-          "rfc": "rfc9514"
-        },
-        {
-          "gated": 12,
-          "rfc": "rfc9085"
         }
       ]
     },
@@ -71,11 +72,13 @@
       "question": "Q2",
       "status": "warn",
       "unproven": {
-        "denominator": 170,
-        "numerator": 34,
-        "percent": 20.0
+        "denominator": 179,
+        "numerator": 37,
+        "percent": 20.7
       },
       "unproven_rfcs": [
+        "draft-abraitis-bgp-version-capability",
+        "draft-ietf-idr-linklocal-capability",
         "rfc2003",
         "rfc2132",
         "rfc2473",
@@ -86,6 +89,7 @@
         "rfc3032",
         "rfc3786",
         "rfc4213",
+        "rfc4302",
         "rfc4364",
         "rfc4555",
         "rfc4576",
@@ -93,6 +97,7 @@
         "rfc4761",
         "rfc4862",
         "rfc5561",
+        "rfc5798",
         "rfc6071",
         "rfc6397",
         "rfc6482",
@@ -105,19 +110,18 @@
         "rfc8097",
         "rfc8571",
         "rfc8956",
-        "rfc9069",
         "rfc9085",
         "rfc9086",
         "rfc9319",
         "rfc9514"
       ],
-      "value": "34 / 170"
+      "value": "37 / 179"
     },
     {
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 26649,
+        "denominator": 27296,
         "numerator": 132,
         "percent": 0.5
       },
@@ -125,7 +129,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "132 / 26649 (floor 132)",
+      "value": "132 / 27296 (floor 132)",
       "worst": [
         {
           "file": "internal/chaos/chaos_test.go",
@@ -184,18 +188,18 @@
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
         "bench_funcs": 132,
-        "ci_files": 1795,
+        "ci_files": 1809,
         "et_files": 166,
         "fuzz_funcs": 79,
-        "test_files": 3590,
-        "test_funcs": 26680
+        "test_files": 3668,
+        "test_funcs": 27327
       },
-      "detail": "3590 Go test files, 79 fuzz targets, 132 benchmarks, 1795 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "3668 Go test files, 79 fuzz targets, 132 benchmarks, 1809 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "26680 test functions"
+      "value": "27327 test functions"
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",
@@ -215,13 +219,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 3590,
-        "numerator": 1272,
+        "denominator": 3668,
+        "numerator": 1299,
         "percent": 35.4
       },
       "question": "Q2",
       "status": "ok",
-      "value": "1272 / 3590",
+      "value": "1299 / 3668",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -295,10 +299,10 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 608,
+          "packages": 611,
           "with_ci": 31,
           "with_fuzz": 31,
-          "with_rfc_tag": 99
+          "with_rfc_tag": 101
         }
       },
       "detail": "A technique adopted only forward from its introduction shows here as a step: recent buckets carry it, older ones never do.",

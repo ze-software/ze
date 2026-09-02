@@ -699,3 +699,60 @@ func TestTheCheckReportRendersEachVerdictOnce(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: the rollup's Annotated and No test counts are READ from their own
+// columns, so a gated MUST with no test and no annotation lands in the No test
+// column and in no other.
+// PREVENTS: the defect this replaced. The annotated count was derived as
+// `gated - both`, which is the whole remainder, so every untested and
+// unannotated requirement was counted as an annotation that does not exist.
+// The split cross-check then refused and took the entire page down whenever
+// `./le rfc check` was red -- which is exactly when the page is worth reading.
+func TestTheLedgerRollupIsReadFromItsAnnotatedAndNoTestColumns(t *testing.T) {
+	// Columns, in the order ai/RFC-REQUIREMENTS.md declares them: RFC, Gated,
+	// Both, One polarity, Annotated, No test, Outstanding, Nightly-only, State.
+	table := "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | Nightly-only | State |\n" +
+		"|---|---|---|---|---|---|---|---|---|\n" +
+		"| `rfc9001` | 8 | 2 | 0 | 4 | 2 | 0 | 0 | **enrolled** |\n" +
+		"| `rfc9002` | 3 | 3 | 0 | 0 | 0 | 0 | 0 | **enrolled** |\n" +
+		"| `rfc9003` | 5 | 0 | 0 | 5 | 0 | 0 | 0 | **backlog** |\n" +
+		"| not a row | 1 | 1 |\n"
+
+	rows, err := ledgerRows(table)
+	if err != nil {
+		t.Fatalf("the rollup was refused: %v", err)
+	}
+	if len(rows) != 3 {
+		t.Fatalf("the rollup parsed to %d row(s), want 3", len(rows))
+	}
+
+	first := rows[0]
+	if first.rfc != "rfc9001" {
+		t.Fatalf("the first row is %q, want rfc9001", first.rfc)
+	}
+	// The row that tells the two readings apart: `gated - both` is 6 and the
+	// Annotated column says 4, because 2 requirements carry no test at all.
+	if first.annotated != 4 {
+		t.Errorf("the annotated count is %d, want 4 -- it is derived from gated minus both, not read",
+			first.annotated)
+	}
+	if first.noTest != 2 {
+		t.Errorf("the no-test count is %d, want 2", first.noTest)
+	}
+	if first.both+first.annotated+first.noTest != first.gated {
+		t.Errorf("%d both + %d annotated + %d with no test is not %d gated, so the columns do not partition the row",
+			first.both, first.annotated, first.noTest, first.gated)
+	}
+	// A fully proven row leaves both columns at zero, and zero here is a real
+	// count rather than an unread cell.
+	if rows[1].annotated != 0 || rows[1].noTest != 0 {
+		t.Errorf("a fully proven row reads annotated=%d no-test=%d, want 0 and 0",
+			rows[1].annotated, rows[1].noTest)
+	}
+	// State is read too: collectRFC keeps only the enrolled rows, and a backlog
+	// row counted into the population would be measured against a gate that
+	// does not run over it.
+	if rows[2].state != "**backlog**" {
+		t.Errorf("the third row's state is %q, want **backlog**", rows[2].state)
+	}
+}
