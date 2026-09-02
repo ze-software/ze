@@ -8,6 +8,8 @@ import (
 	"encoding/binary"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -83,32 +85,28 @@ func formatASPathTokens(asns []uint32) string {
 	if len(asns) == 0 {
 		return "[]"
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	if len(asns) > 1 {
-		b.WriteByte('[')
+		b.Byte('[')
 	}
 	for i, asn := range asns {
 		if i > 0 {
-			b.WriteByte(' ')
+			b.Byte(' ')
 		}
-		b.WriteString(strconv.FormatUint(uint64(asn), 10))
+		b.Uint32(asn)
 	}
 	if len(asns) > 1 {
-		b.WriteByte(']')
+		b.Byte(']')
 	}
 	return b.String()
 }
 
 func buildDirectiveDelta(mode removeMode, asPathValue string, asPathChanged bool) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	if asPathChanged {
-		b.WriteString("as-path ")
-		b.WriteString(asPathValue)
-		b.WriteByte(' ')
+		b.Str("as-path ").Str(asPathValue).Byte(' ')
 	}
-	b.WriteString(removePrivateASDirective)
-	b.WriteByte(' ')
-	b.WriteString(mode.String())
+	b.Str(removePrivateASDirective).Byte(' ').Str(mode.String())
 	return b.String()
 }
 

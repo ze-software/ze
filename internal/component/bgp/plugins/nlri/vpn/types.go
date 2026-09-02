@@ -9,11 +9,10 @@ package vpn
 import (
 	"encoding/binary"
 	"net/netip"
-	"strconv"
-	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Type aliases for nlri types used by VPN.
@@ -254,22 +253,16 @@ func (v *VPN) Len() int {
 // String returns command-style format for API round-trip compatibility.
 // Format: rd <rd> prefix <prefix> [label <labels>] [path-id <id>].
 func (v *VPN) String() string {
-	var sb strings.Builder
-	sb.WriteString("rd ")
-	sb.WriteString(v.rd.String())
-	sb.WriteString(" prefix ")
-	sb.WriteString(v.prefix.String())
+	var sb textbuf.Buffer
+	sb.Str("rd ").Str(v.rd.String()).Str(" prefix ").Str(v.prefix.String())
 	if len(v.labels) > 0 {
-		sb.WriteString(" label ")
-		sb.WriteString(strconv.FormatUint(uint64(v.labels[0]), 10))
+		sb.Str(" label ").Uint32(v.labels[0])
 		for _, l := range v.labels[1:] {
-			sb.WriteString(",")
-			sb.WriteString(strconv.FormatUint(uint64(l), 10))
+			sb.Byte(',').Uint32(l)
 		}
 	}
 	if v.pathID != 0 {
-		sb.WriteString(" path-id ")
-		sb.WriteString(strconv.FormatUint(uint64(v.pathID), 10))
+		sb.Str(" path-id ").Uint32(v.pathID)
 	}
 	return sb.String()
 }

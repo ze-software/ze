@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // notificationErrorNames maps NOTIFICATION error codes to names (RFC 4271 Section 4.5).
@@ -83,8 +84,8 @@ func formatNotificationHuman(result map[string]any) string {
 		return "NOTIFICATION (no data)"
 	}
 
-	var sb strings.Builder
-	sb.WriteString("NOTIFICATION\n")
+	var sb textbuf.Buffer
+	sb.Str("NOTIFICATION\n")
 	if code, ok := notif["error-code"].(int); ok {
 		name, _ := notif["error-name"].(string)
 		fmt.Fprintf(&sb, "  Error Code:    %d (%s)\n", code, name) //nolint:errcheck // buffer output

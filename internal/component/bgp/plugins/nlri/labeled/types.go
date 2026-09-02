@@ -7,10 +7,10 @@ package labeled
 import (
 	"fmt"
 	"net/netip"
-	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Type aliases for shared nlri types.
@@ -150,19 +150,18 @@ func (l *LabeledUnicast) WriteTo(buf []byte, off int) int {
 // String returns command-style format for API round-trip compatibility.
 // Format: prefix <prefix> [label <labels>] [path-id <id>].
 func (l *LabeledUnicast) String() string {
-	var sb strings.Builder
-	sb.WriteString("prefix ")
-	sb.WriteString(l.prefix.String())
+	var sb textbuf.Buffer
+	sb.Str("prefix ").Str(l.prefix.String())
 	if len(l.labels) > 0 {
-		sb.WriteString(" label ")
+		sb.Str(" label ")
 		fmt.Fprintf(&sb, "%d", l.labels[0]) //nolint:errcheck // buffer output
 		for _, lbl := range l.labels[1:] {
-			sb.WriteString(",")
+			sb.Byte(',')
 			fmt.Fprintf(&sb, "%d", lbl) //nolint:errcheck // buffer output
 		}
 	}
 	if l.pathID != 0 {
-		sb.WriteString(" path-id ")
+		sb.Str(" path-id ")
 		fmt.Fprintf(&sb, "%d", l.pathID) //nolint:errcheck // buffer output
 	}
 	return sb.String()

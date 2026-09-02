@@ -11,10 +11,10 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -103,12 +103,12 @@ func llgrResultToPeerCap(r *llgrResult) *llgrPeerCap {
 
 // formatLLGRText formats LLGR capability as human-readable text.
 func formatLLGRText(r *llgrResult) string {
-	var sb strings.Builder
-	sb.WriteString("long-lived-graceful-restart")
+	var sb textbuf.Buffer
+	sb.Str("long-lived-graceful-restart")
 	for _, f := range r.Families {
 		fmt.Fprintf(&sb, " afi=%d/safi=%d llst=%d", f.AFI, f.SAFI, f.LLST) //nolint:errcheck // buffer output
 		if f.ForwardState {
-			sb.WriteString("(F)")
+			sb.Str("(F)")
 		}
 	}
 	return sb.String()

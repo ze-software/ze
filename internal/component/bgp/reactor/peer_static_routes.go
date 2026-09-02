@@ -7,7 +7,6 @@ import (
 	"net/netip"
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -307,9 +306,9 @@ func routeGroupKey(r *StaticRoute) string {
 		prefixKey = r.Prefix.String()
 	}
 	var b keyBuilder
-	b.Grow(128)
+	b.Reset() // 128 inline bytes, the size the key was grown to before
 	if r.NextHop.IsSelf() {
-		b.WriteString("self")
+		b.Str("self")
 	} else {
 		b.Addr(r.NextHop.Addr)
 	}
@@ -326,11 +325,11 @@ func routeGroupKey(r *StaticRoute) string {
 	b.Sep()
 	b.Hex(r.ExtCommunityBytes)
 	b.Sep()
-	b.WriteString(r.RD)
+	b.Str(r.RD)
 	b.Sep()
 	b.Bool(r.Prefix.Addr().Is4())
 	b.Sep()
-	b.WriteString(prefixKey)
+	b.Str(prefixKey)
 	b.Sep()
 	b.uint32Slice(r.ASPath)
 	b.Sep()
@@ -387,48 +386,32 @@ func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
 	return result
 }
 
-type keyBuilder struct{ strings.Builder }
+// keyBuilder writes a route grouping key. Uint, Addr, Hex and Bool come from
+// the embedded textbuf.Buffer and produce the same bytes the hand-rolled
+// helpers did: base-10 digits, netip.Addr.AppendTo, lower-case hex, and
+// "true"/"false".
+type keyBuilder struct{ textbuf.Buffer }
 
-func (b *keyBuilder) Sep()          { b.WriteByte('|') }
-func (b *keyBuilder) Uint(v uint64) { var buf [20]byte; b.Write(textbuf.Uint(buf[:0], v)) }
-func (b *keyBuilder) Addr(addr netip.Addr) {
-	var buf [39]byte
-	b.Write(textbuf.Addr(buf[:0], addr))
-}
-func (b *keyBuilder) Hex(data []byte) { var buf [64]byte; b.Write(textbuf.Hex(buf[:0], data)) }
-
-func (b *keyBuilder) Bool(v bool) {
-	if v {
-		b.WriteString("true")
-	} else {
-		b.WriteString("false")
-	}
-}
+func (b *keyBuilder) Sep() { b.Byte('|') }
 
 func (b *keyBuilder) uint32Slice(s []uint32) {
-	b.WriteByte('[')
+	b.Byte('[')
 	for i, v := range s {
 		if i > 0 {
-			b.WriteByte(' ')
+			b.Byte(' ')
 		}
-		b.Uint(uint64(v))
+		b.Uint32(v)
 	}
-	b.WriteByte(']')
+	b.Byte(']')
 }
 
 func (b *keyBuilder) largeComms(lcs [][3]uint32) {
-	b.WriteByte('[')
+	b.Byte('[')
 	for i, lc := range lcs {
 		if i > 0 {
-			b.WriteByte(' ')
+			b.Byte(' ')
 		}
-		b.WriteByte('[')
-		b.Uint(uint64(lc[0]))
-		b.WriteByte(' ')
-		b.Uint(uint64(lc[1]))
-		b.WriteByte(' ')
-		b.Uint(uint64(lc[2]))
-		b.WriteByte(']')
+		b.Byte('[').Uint32(lc[0]).Byte(' ').Uint32(lc[1]).Byte(' ').Uint32(lc[2]).Byte(']')
 	}
-	b.WriteByte(']')
+	b.Byte(']')
 }

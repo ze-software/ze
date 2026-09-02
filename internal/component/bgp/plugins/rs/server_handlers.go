@@ -213,7 +213,7 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 		return
 	}
 	excludeSel := selector.ExcludeAddr(addr)
-	var buf strings.Builder
+	var buf textbuf.Buffer
 
 	for g, nlris := range byGroup {
 		// Map iteration is unordered, so without this the same peer-down emits a
@@ -226,20 +226,17 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 
 			buf.Reset()
 			if g.wireForm {
-				buf.WriteString("update hex nlri ")
-				buf.WriteString(g.fam)
+				buf.Str("update hex nlri ").Str(g.fam)
 				if g.addPath {
 					// RFC 7911 Section 3: tells the receiving sizer that each
 					// NLRI opens with a 4-octet path identifier.
-					buf.WriteString(" addpath")
+					buf.Str(" addpath")
 				}
 			} else {
-				buf.WriteString("update text nlri ")
-				buf.WriteString(g.fam)
+				buf.Str("update text nlri ").Str(g.fam)
 			}
 			for _, p := range batch {
-				buf.WriteString(" del ")
-				buf.WriteString(p)
+				buf.Str(" del ").Str(p)
 			}
 			rs.updateRouteSel(excludeSel, buf.String())
 		}

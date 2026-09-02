@@ -109,8 +109,8 @@ func formatLabeledText(jsonStr string) string {
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
 		return jsonStr
 	}
-	var sb strings.Builder
-	sb.WriteString(result.Prefix)
+	var sb textbuf.Buffer
+	sb.Str(result.Prefix)
 	for i, l := range result.Labels {
 		if i == 0 {
 			fmt.Fprintf(&sb, " label=%d", l) //nolint:errcheck // buffer output
