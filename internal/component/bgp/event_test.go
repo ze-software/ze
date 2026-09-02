@@ -434,3 +434,68 @@ func BenchmarkGetRawNLRIBytes_HexDecode(b *testing.B) {
 		_ = event.GetRawNLRIBytes(family.IPv4Unicast)
 	}
 }
+
+// TestGetPeerRouterID_Boundaries drives the accessor over the edges of what an
+// event can carry in remote.router-id: absent, present and valid, an IPv6
+// address, and a string that is not an address at all.
+//
+// VALIDATES: RFC 4271 Section 4.2 defines a BGP Identifier as a 32-bit value
+// spelled as an IPv4 address, so the accessor converts a dotted quad and
+// nothing else. Zero is the answer for "the event states none", which is what
+// RFC 4271 Section 9.1.2.2 step f) reads as "no identifier to compare"; RFC
+// 6286 Section 2.2 forbids a real identifier of zero, so no peer is confused
+// with one.
+// PREVENTS: a partial parse turning an unusable string into a number, which
+// would enter best-path selection as a real identifier and decide step f)
+// against a peer whose identifier ze never read.
+func TestGetPeerRouterID_Boundaries(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  uint32
+	}{
+		{
+			name:  "absent leaves no identifier",
+			input: `{"type":"bgp","bgp":{"peer":{"remote":{"address":"192.168.1.1","as":64512}}}}`,
+			want:  0,
+		},
+		{
+			name:  "dotted quad reads as the 32-bit value",
+			input: `{"type":"bgp","bgp":{"peer":{"remote":{"address":"192.168.1.1","as":64512,"router-id":"10.0.0.9"}}}}`,
+			want:  0x0A000009,
+		},
+		{
+			name:  "lowest usable identifier",
+			input: `{"type":"bgp","bgp":{"peer":{"remote":{"address":"192.168.1.1","as":64512,"router-id":"0.0.0.1"}}}}`,
+			want:  1,
+		},
+		{
+			name:  "highest identifier does not overflow",
+			input: `{"type":"bgp","bgp":{"peer":{"remote":{"address":"192.168.1.1","as":64512,"router-id":"255.255.255.255"}}}}`,
+			want:  0xFFFFFFFF,
+		},
+		{
+			name:  "an IPv6 address is not a BGP Identifier",
+			input: `{"type":"bgp","bgp":{"peer":{"remote":{"address":"2001:db8::1","as":64512,"router-id":"2001:db8::1"}}}}`,
+			want:  0,
+		},
+		{
+			name:  "a string that is not an address yields none",
+			input: `{"type":"bgp","bgp":{"peer":{"remote":{"address":"192.168.1.1","as":64512,"router-id":"10.0.0"}}}}`,
+			want:  0,
+		},
+		{
+			name:  "the top-level router-id is this speaker's and is not read",
+			input: `{"type":"bgp","bgp":{"peer":{"router-id":"192.0.2.254","remote":{"address":"192.168.1.1","as":64512}}}}`,
+			want:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			event, err := ParseEvent([]byte(tt.input))
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, event.GetPeerRouterID())
+		})
+	}
+}
