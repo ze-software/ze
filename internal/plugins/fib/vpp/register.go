@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -61,8 +62,14 @@ func runFibVPPPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("fib-vpp", conn)
 	defer func() { _ = p.Close() }()
 
+	// The event bus delivers Connected and Reconnected on its own goroutines,
+	// and the "show fib vpp" handler answers on another, so the state a
+	// reconnect rewrites is guarded. Safe for concurrent use.
+	var fibMu sync.Mutex
 	var tableID uint32
-	var fib *fibVPP     // shared across OnStarted and OnExecuteCommand
+	var fib *fibVPP
+	var runCancel context.CancelFunc
+
 	var vppUnsub func() // VPP reconnect subscription cleanup
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -74,7 +81,9 @@ func runFibVPPPlugin(conn net.Conn) int {
 			if err != nil {
 				return fmt.Errorf("fib-vpp: parse config: %w", err)
 			}
+			fibMu.Lock()
 			tableID = parsed.tableID
+			fibMu.Unlock()
 		}
 		return nil
 	})
@@ -106,60 +115,69 @@ func runFibVPPPlugin(conn net.Conn) int {
 	})
 
 	p.OnStarted(func(ctx context.Context) error {
-		var runCancel context.CancelFunc
-
-		initBackend := func() {
+		// newBackend returns a COMPLETE fibVPP. The MPLS and SRv6 backends are
+		// attached before the value is published, so a reader can never see a
+		// fibVPP whose backends are still nil.
+		newBackend := func(table uint32) *fibVPP {
 			connector := vppcomp.GetActiveConnector()
 			if connector == nil {
 				lg.Warn("fib-vpp: VPP connector not available, using noop backend")
-				fib = newFibVPP(&mockBackend{})
-				return
+				return newFibVPP(&mockBackend{})
 			}
 			ch, err := connector.NewChannel()
 			if err != nil {
 				lg.Warn("fib-vpp: GoVPP channel failed, using noop backend", "error", err)
-				fib = newFibVPP(&mockBackend{})
-				return
+				return newFibVPP(&mockBackend{})
 			}
-			backend := newGovppBackend(ch, tableID)
-			fib = newFibVPP(backend)
-			fib.mplsBackend = newGovppMPLSBackend(ch, tableID)
-			fib.srv6Backend = newGovppSRv6Backend(ch, tableID)
+			f := newFibVPP(newGovppBackend(ch, table))
+			f.mplsBackend = newGovppMPLSBackend(ch, table)
+			f.srv6Backend = newGovppSRv6Backend(ch, table)
+			return f
 		}
 
-		startFib := func() {
+		// restart builds a backend against the current connector, cancels the
+		// run loop the previous one owned, and runs the new one. The build
+		// comes first so the old loop keeps serving until the replacement is
+		// ready. Each new fibVPP asks sysrib to replay the whole table, so a
+		// reconnect reprograms every route the noop backend swallowed.
+		restart := func() {
+			fibMu.Lock()
+			defer fibMu.Unlock()
+
+			next := newBackend(tableID)
 			if runCancel != nil {
 				runCancel()
 			}
 			var runCtx context.Context
 			runCtx, runCancel = context.WithCancel(ctx)
-			go fib.run(runCtx, false)
+			fib = next
+			go next.run(runCtx, false)
 		}
-
-		initBackend()
 
 		eb := getEventBus()
 		if eb != nil {
 			onVPPReady := events.AsString(func(event string) {
 				lg.Info("fib-vpp: VPP ready, reinitializing backend", "event", event)
-				initBackend()
-				startFib()
+				restart()
 			})
 			unsub1 := eb.Subscribe(vppevents.Namespace, vppevents.EventConnected, onVPPReady)
 			unsub2 := eb.Subscribe(vppevents.Namespace, vppevents.EventReconnected, onVPPReady)
 			vppUnsub = func() { unsub1(); unsub2() }
 		}
 
-		startFib()
+		restart()
 		return nil
 	})
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "show fib vpp" {
-			if fib == nil {
+			fibMu.Lock()
+			f := fib
+			fibMu.Unlock()
+			if f == nil {
 				return "done", "[]", nil
 			}
-			return "done", fib.showInstalled(), nil
+			return "done", f.showInstalled(), nil
 		}
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})
