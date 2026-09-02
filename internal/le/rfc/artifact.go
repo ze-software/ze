@@ -270,15 +270,122 @@ type ExtractionSection struct {
 // section wrongly. The widest real title in rfc/extraction/ is 47 characters.
 const sectionTitleMax = 60
 
+// sectionNarrationArticles are the words a narrating sentence puts after its
+// verb. "Read THE ECN section" is an account of the walk; "Constructing THE
+// Next Hop field" is a name, and the two are told apart by the tense of the
+// word before the article, never by this list alone.
+var sectionNarrationArticles = map[string]bool{
+	"the": true, "a": true, "an": true, "its": true,
+	"this": true, "these": true, "every": true, "each": true,
+}
+
+// sectionNarrationIrregulars are the irregular past tenses a reviewer writes
+// when narrating what they did to a section. A regular one ends in "ed" and
+// needs no list.
+var sectionNarrationIrregulars = map[string]bool{
+	"read": true, "took": true, "left": true, "found": true, "saw": true,
+	"went": true, "held": true, "kept": true, "chose": true, "wrote": true,
+	"understood": true, "sought": true, "brought": true,
+}
+
+// narratesTheWalk answers whether a lead is an account of what the reviewer did
+// rather than the section's name.
+//
+// The shape is a past-tense verb followed by an article: "Read the ECN
+// section", "Walked the nonce section". Both halves are load-bearing. Past
+// tense alone refuses real titles -- "Deprecated MRT Types", "Combined mode
+// algorithms", "Failed authentication" -- and an article alone refuses the
+// gerund titles an RFC is full of: "Constructing the Next Hop field", "Using
+// the cache", "Rekeying the IKE SA". No title in the 1,038 this checkout
+// derives is past tense followed by an article, and 17 of the narrating leads
+// are.
+//
+// It is a grammatical shape and not a list of observed strings, so a reviewer
+// who writes "Checked the ..." or "Skipped the ..." tomorrow is refused by the
+// same rule that refuses "Walked" today.
+func narratesTheWalk(lead string) bool {
+	words := strings.Fields(lead)
+	if len(words) < 2 {
+		return false
+	}
+	first := strings.ToLower(words[0])
+	if !sectionNarrationArticles[strings.ToLower(strings.Trim(words[1], ",;:"))] {
+		return false
+	}
+	return sectionNarrationIrregulars[first] ||
+		(strings.HasSuffix(first, "ed") && !strings.HasSuffix(first, "ing"))
+}
+
+// sectionNotASection is how a record says the numbered section does not exist
+// in the source. It is a verdict about the register, never a name.
+const sectionNotASection = "not a section"
+
+// sectionPartDeterminers and sectionPartNouns are the two halves of a lead
+// whose SUBJECT is the document part rather than the topic: "The section gives
+// KEYMAT and three ordering bullets", "One paragraph introducing the four usage
+// scenarios below it".
+//
+// A section's name says what the section is ABOUT. A sentence whose subject is
+// the section is the reviewer describing it from outside, and printing it as
+// the name tells a reader the RFC contains a section called "The section
+// shows...".
+var (
+	sectionPartDeterminers = map[string]bool{
+		"the": true, "one": true, "a": true, "an": true, "this": true,
+	}
+	sectionPartNouns = map[string]bool{
+		"section": true, "introduction": true, "paragraph": true, "heading": true,
+		"chapter": true, "appendix": true, "abstract": true, "preamble": true,
+	}
+)
+
+// describesTheDocumentPart answers whether the lead takes the document part as
+// its subject.
+//
+// Three words at least. "The section" alone is a name for want of a better one
+// and says nothing false; "The section gives KEYMAT" is a sentence about it.
+// Real titles that open with an article keep their own subject -- "The Route
+// Target Attribute", "The Echo Function and Asymmetry" -- and are untouched,
+// because the word after the article is the topic rather than a part of the
+// document.
+func describesTheDocumentPart(lead string) bool {
+	words := strings.Fields(lead)
+	if len(words) < 3 {
+		return false
+	}
+	return sectionPartDeterminers[strings.ToLower(words[0])] &&
+		sectionPartNouns[strings.ToLower(strings.Trim(words[1], ",;:"))]
+}
+
 // Title answers the section's own name, taken from the opening sentence of the
 // reason, and the empty string where the record states none.
 //
 // A caller that prints a section number owes the reader the name beside it: the
-// number alone is a place to go and look up.
+// number alone is a place to go and look up. The empty string is what a caller
+// falls back on, so a lead this cannot read as a name is refused rather than
+// published as one.
+//
+// The derivation is a CONVENTION, not a declaration. No record carries a title
+// field; the convention is that a reviewer opens the reason with the section's
+// name, and 1,015 of the 1,038 leads this checkout derives do. Where one wrote
+// prose instead, the page published that prose as the section's name: rfc7296
+// section 2.10 read "Walked the nonce section" and rfc1035 section 25 read "NOT
+// A SECTION", both live on the artifact until 2026-09-02 (independent review).
+// Three shapes are refused here, and each is the reviewer speaking about their
+// own walk rather than naming the section.
 func (s ExtractionSection) Title() string {
 	lead, _, _ := strings.Cut(strings.TrimSpace(s.Reason), ". ")
 	lead = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(lead), "."))
 	if lead == "" || len(lead) > sectionTitleMax {
+		return ""
+	}
+	if narratesTheWalk(lead) {
+		return ""
+	}
+	if strings.HasPrefix(strings.ToLower(lead), sectionNotASection) {
+		return ""
+	}
+	if describesTheDocumentPart(lead) {
 		return ""
 	}
 	return lead

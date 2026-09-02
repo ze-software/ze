@@ -106,7 +106,18 @@ type rfcLedgerCoverage struct {
 	// SinglePolarity counts the gated requirements a `{single-polarity}`
 	// annotation excuses from one direction. Those DO bind.
 	SinglePolarity int `json:"excused-one-polarity"`
-	Tags           int `json:"tags"`
+	// UnmappedAnnotations counts the gated requirements whose annotation kind
+	// this page has no bucket for.
+	//
+	// It is the arithmetic hole made visible. The three counters above split
+	// the gate's own Annotated total, and a kind none of them claims would
+	// otherwise vanish from the shares while the gate went on counting it: the
+	// cards would sum to less than their whole and the page would say they add
+	// to 100% (independent review, 2026-09-02). A hole that is counted is a
+	// hole the page can disclose and a test can find; a hole that is skipped is
+	// neither.
+	UnmappedAnnotations int `json:"unmapped-annotations,omitempty"`
+	Tags                int `json:"tags"`
 	// Units counts the tagged units, which is what a discrimination record is
 	// keyed on. Tags counts tag occurrences, and two tags in one function share
 	// a unit, so the two are different numbers and only Units is the
@@ -503,12 +514,15 @@ func rfcLedgerCoverageOf(bucket rfc.CoverageRow, requirements []rfcLedgerRequire
 			coverage.Gaps++
 		}
 		if requirement.Gated && requirement.Annotation != nil {
-			switch requirement.Annotation.Kind {
-			case rfc.AnnotationGap:
+			bucket, known := rfcAnnotationBucket(requirement.Annotation.Kind)
+			switch {
+			case !known:
+				coverage.UnmappedAnnotations++
+			case bucket == rfcGapBucket:
 				coverage.GatedGaps++
-			case rfc.AnnotationNotApplicable:
+			case bucket == rfcNotApplyBucket:
 				coverage.NotApplicable++
-			case rfc.AnnotationSinglePolarity:
+			case bucket == rfcSingleBucket:
 				coverage.SinglePolarity++
 			}
 		}

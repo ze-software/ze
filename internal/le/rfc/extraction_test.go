@@ -859,35 +859,103 @@ func TestASectionTitleIsTheOpeningSentenceOfItsReason(t *testing.T) {
 	}
 }
 
-// VALIDATES: over the real corpus, a section title stays a title.
+// VALIDATES: no section title the artifact publishes is a sentence about the
+// walk rather than the section's own name.
 //
-// The method is every record this checkout carries, so a reviewer who writes a
-// reason in another shape is caught here rather than on a published page.
+// The two assertions this replaces were `!HasSuffix(title, ".")` and a length
+// bound, and Title() trims the period and returns empty past the bound, so
+// neither branch could ever run: the test restated the producer and passed
+// while rfc7296 section 2.10 published "Walked the nonce section" as the
+// section's name and rfc1035 section 25 published "NOT A SECTION" (independent
+// review, 2026-09-02).
+//
+// It asserts what a title is NOT. Delete any one refusal from Title() and the
+// walk below goes red on the sections that refusal covers.
 func TestEveryDerivedSectionTitleReadsAsATitle(t *testing.T) {
 	extractions, err := LoadExtractions(checkoutRoot(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	titled := 0
+	titled, refused := 0, 0
 	for stem, extraction := range extractions {
 		for _, section := range extraction.Sections {
 			title := section.Title()
 			if title == "" {
+				if leadOf(section.Reason) != "" {
+					refused++
+				}
 				continue
 			}
 			titled++
-			if strings.HasSuffix(title, ".") {
-				t.Errorf("%s section %s titles as %q, which keeps its full stop",
+			if narratesTheWalk(title) {
+				t.Errorf("%s section %s is named %q, which is an account of the walk",
 					stem, section.ID, title)
 			}
-			if len(title) > sectionTitleMax {
-				t.Errorf("%s section %s titles as %q, %d characters",
-					stem, section.ID, title, len(title))
+			if strings.HasPrefix(strings.ToLower(title), sectionNotASection) {
+				t.Errorf("%s section %s is named %q, which denies the section exists",
+					stem, section.ID, title)
+			}
+			if describesTheDocumentPart(title) {
+				t.Errorf("%s section %s is named %q, a sentence whose subject is the "+
+					"document part", stem, section.ID, title)
 			}
 		}
 	}
 	if titled == 0 {
 		t.Fatal("no section of this checkout derives a title, so this proves nothing")
 	}
-	t.Logf("%d section(s) carry a derived title", titled)
+	if refused == 0 {
+		t.Fatal("no lead of this checkout is refused, so the refusals prove nothing")
+	}
+	t.Logf("%d section(s) carry a derived title, %d lead(s) refused", titled, refused)
+}
+
+// leadOf is the opening sentence Title() reads, without the refusals. The test
+// above needs it to tell a section that states no reason from one whose reason
+// was refused as a name.
+func leadOf(reason string) string {
+	lead, _, _ := strings.Cut(strings.TrimSpace(reason), ". ")
+	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(lead), "."))
+}
+
+// VALIDATES: where the line falls between a section's name and a sentence about
+// it, on the corpus's own leads.
+//
+// Every string below is a real lead from rfc/extraction/, and the pairs are
+// chosen so that no single rule change can satisfy both columns. A gerund takes
+// an article and stays a title; a past tense without one stays a title; an
+// article after a past tense does not. This is what stops a refusal from being
+// widened until it eats real names, which the corpus-wide walk alone cannot
+// catch.
+func TestTheTitleLineFallsBetweenANameAndASentence(t *testing.T) {
+	for _, want := range []struct {
+		lead  string
+		title bool
+	}{
+		{"Walked the nonce section", false},
+		{"Read the Notify payload section and its field list", false},
+		{"NOT A SECTION", false},
+		{"Not a section of RFC 2759", false},
+		{"The section gives KEYMAT and three ordering bullets", false},
+		{"One paragraph introducing the four usage scenarios below it", false},
+		{"Constructing the Next Hop field", true},
+		{"Using the cache", true},
+		{"Rekeying the IKE SA", true},
+		{"Deprecated MRT Types", true},
+		{"Failed authentication with no retry allowed", true},
+		{"Combined mode algorithms", true},
+		{"The Route Target Attribute", true},
+		{"The Echo Function and Asymmetry", true},
+		{"Security Considerations", true},
+		{"Section 10, Contributors and Acknowledgments", true},
+	} {
+		got := ExtractionSection{Reason: want.lead + ". The rest of the reason."}.Title()
+		if want.title && got != want.lead {
+			t.Errorf("%q is a section name and the deriver refused it", want.lead)
+		}
+		if !want.title && got != "" {
+			t.Errorf("%q is a sentence about the section and the deriver named it %q",
+				want.lead, got)
+		}
+	}
 }

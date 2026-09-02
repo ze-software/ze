@@ -182,10 +182,31 @@ var rfcSatisfaction = []struct {
 		Condition: "{not-applicable} annotation", Binds: false},
 }
 
-// rfcAnnotationBuckets maps an annotation kind to the bucket it satisfies.
-var rfcAnnotationBuckets = map[string]string{
-	rfc.AnnotationNotApplicable: rfcNotApplyBucket, rfc.AnnotationGap: rfcGapBucket,
-	rfc.AnnotationSinglePolarity: rfcSingleBucket,
+// rfcAnnotationBucket answers the bucket one annotation kind satisfies, and
+// whether this page knows the kind at all.
+//
+// It is the ONE mapping. The index counts buckets over the whole corpus and a
+// stem page splits its own Annotated total by kind, and both read this, so the
+// two cannot disagree about what an annotation means. It was a map beside a
+// second switch in rfcLedgerCoverageOf until 2026-09-02, and the switch had no
+// default: a kind added to rfc.AnnotationKinds and not given a bucket fell out
+// of every counter while the gate went on counting it, so the shares summed to
+// less than their whole with every test green (independent review).
+//
+// The second return is the refusal. A caller MUST NOT read the empty string as
+// a bucket: an unknown kind is a mapping this page has not been taught, and it
+// is counted as one rather than dropped (ai/rules/principles.md).
+func rfcAnnotationBucket(kind string) (string, bool) {
+	switch kind {
+	case rfc.AnnotationNotApplicable:
+		return rfcNotApplyBucket, true
+	case rfc.AnnotationGap:
+		return rfcGapBucket, true
+	case rfc.AnnotationSinglePolarity:
+		return rfcSingleBucket, true
+	default:
+		return "", false
+	}
 }
 
 // rfcStatusOrder is the order the gap-disclosure table lists a public status
@@ -453,7 +474,10 @@ func rfcBuckets(gated []rfc.Requirement, tags []rfc.Tag,
 	var gapOrder []string
 	for _, requirement := range gated {
 		counts[rfcBucketOf(requirement, polarities[requirement.RID])]++
-		if requirement.Annotation == nil || rfcAnnotationBuckets[requirement.Annotation.Kind] != rfcGapBucket {
+		if requirement.Annotation == nil {
+			continue
+		}
+		if bucket, _ := rfcAnnotationBucket(requirement.Annotation.Kind); bucket != rfcGapBucket {
 			continue
 		}
 		if gapCounts[requirement.RFC] == 0 {
@@ -473,7 +497,7 @@ func rfcBuckets(gated []rfc.Requirement, tags []rfc.Tag,
 // decides on its own; otherwise the tagged polarities do.
 func rfcBucketOf(requirement rfc.Requirement, polarities map[string]bool) string {
 	if requirement.Annotation != nil {
-		if bucket, named := rfcAnnotationBuckets[requirement.Annotation.Kind]; named {
+		if bucket, known := rfcAnnotationBucket(requirement.Annotation.Kind); known {
 			return bucket
 		}
 	}
@@ -639,6 +663,13 @@ type rfcCard struct {
 	// tagged units, a different population, and a card that let itself be added
 	// to the others would answer a number that means nothing.
 	Partition bool
+	// Part is the numerator behind Value on a partition card, so the sum a
+	// reader is told to make is one the page can make first.
+	//
+	// Value is a percentage and Count is a sentence, and rfcPartitionNote read
+	// neither: it counted how many cards were MARKED as parts and said they add
+	// to 100% whatever they added to (independent review, 2026-09-02).
+	Part int
 }
 
 // rfcCardGroups are the four movements a card grid reads in: the scale, then
@@ -731,7 +762,13 @@ func rfcOrDash(value string) string {
 	return value
 }
 
-// rfcPartitionNote says which cards add up, and to what.
+// rfcPartitionNote says which cards add up, to what, and whether they do.
+//
+// It counted how many cards were MARKED as a part and then said they add to
+// 100%, without reading one of their values: the sentence was true by
+// assertion, and a partition that had lost a share published it unchanged
+// (independent review, 2026-09-02). It now sums Part and states the shortfall
+// where there is one.
 //
 // A reader who adds the shares this page shows must land somewhere they can
 // name. Showing two parts of a four-part split and leaving 3.3% unexplained is
@@ -739,19 +776,28 @@ func rfcOrDash(value string) string {
 // note states the whole, and it states that the proof ratio is over a different
 // population so nobody adds it in.
 func rfcPartitionNote(cards []rfcCard, whole int) string {
-	parts := 0
+	parts, sum := 0, 0
 	for _, card := range cards {
-		if card.Partition {
-			parts++
+		if !card.Partition {
+			continue
 		}
+		parts++
+		sum += card.Part
 	}
 	if parts == 0 || whole == 0 {
 		return "No card above is a share of a population, so there is nothing to add up."
 	}
+	tail := " Proven by a recorded break is a share of TAGGED UNITS, a different " +
+		"population, so it is not one of them."
+	if sum != whole {
+		return "The " + plural(parts, "share") + " marked as a part above account for " +
+			groupThousands(sum) + " of the " + groupThousands(whole) +
+			" obligations that bind Ze, so " + groupThousands(whole-sum) +
+			" fall in none of them: they do NOT add to 100%." + tail
+	}
 	return "The " + plural(parts, "share") + " marked as a part above " +
 		"are the whole of the " + groupThousands(whole) +
-		" obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of " +
-		"TAGGED UNITS, a different population, so it is not one of them."
+		" obligations that bind Ze: they add to 100%." + tail
 }
 
 // rfcToneFor answers the tone a count takes: zero is good news, and anything
@@ -806,7 +852,7 @@ func rfcToneLegendMirror(cards []rfcCard) string {
 // rfcCardGrid renders the four headline numbers and the gate's wiring.
 func rfcCardGrid(snapshot *rfcCompliance, ledger rfcLedger) string {
 	cards := rfcComplianceCards(snapshot, ledger)
-	return rfcCardsHTML(cards, rfcBindingOf(snapshot).Obligations) +
+	return rfcCardsHTML(cards, rfcBindingOf(snapshot).Binding()) +
 		rfcToneLegendHTML(cards) + "\n"
 }
 
@@ -960,7 +1006,7 @@ func rfcStandingCards(whole int, countOf func(string) int) []rfcCard {
 			Value: rfcPercentText(part, whole),
 			Count: groupThousands(part) + " of " + groupThousands(whole) +
 				" binding obligations",
-			Note: group.Meaning, Tone: tone, Rule: group.Rule, Partition: true})
+			Note: group.Meaning, Tone: tone, Rule: group.Rule, Partition: true, Part: part})
 	}
 	return cards
 }
@@ -1017,7 +1063,13 @@ func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 			Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 				"failure, and counting it either way would be a claim"},
 	}
-	cards = append(cards, rfcStandingCards(split.Obligations, func(key string) int {
+	// The whole is the gate's own gated total less what the buckets put out of
+	// scope, and NOT split.Obligations, which is the sum of the binding buckets
+	// the parts are drawn from. Passing that sum made the partition note
+	// compare a number with itself, the same tautology rfcAccountedNote carried
+	// (independent review, 2026-09-01 and 2026-09-02). The two are equal today
+	// and the note is what says so.
+	cards = append(cards, rfcStandingCards(split.Binding(), func(key string) int {
 		for _, bucket := range snapshot.Satisfaction {
 			if bucket.Key == key {
 				return bucket.Count
@@ -1430,7 +1482,7 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 		rfcGateVerdictText(snapshot) + " Reproduce it with `" + snapshot.Verify.Command +
 		"`. The gate's own line reads `" + snapshot.Gate.Message + "`.\n\n")
 	cards := rfcComplianceCards(snapshot, ledger)
-	mirror.WriteString(rfcCardsMirror(cards, rfcBindingOf(snapshot).Obligations) + "\n" +
+	mirror.WriteString(rfcCardsMirror(cards, rfcBindingOf(snapshot).Binding()) + "\n" +
 		rfcToneLegendMirror(cards) + "\n")
 	mirror.WriteString("| Metric | Value |\n|---|---:|\n")
 	for _, row := range []struct {

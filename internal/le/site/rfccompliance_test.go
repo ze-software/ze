@@ -525,42 +525,58 @@ func TestTheRFCComplianceProducerClaimsItsPublishedRoute(t *testing.T) {
 	}
 }
 
-// VALIDATES: every annotation kind the corpus carries has a bucket on the page.
+// VALIDATES: every annotation kind the VOCABULARY declares has a bucket on the
+// page, and so does every kind the corpus carries.
 //
-// The bucket keys spell three annotation kinds that internal/le/rfc parses and
-// does not export. A fourth kind would otherwise fall into the tag-derived
-// buckets and be published as an unexcused requirement, which reads as a
-// compliance claim the summaries do not make (ai/rules/rfc-compliance.md). The
-// method is to ask the parser what kinds this tree actually holds.
-func TestEveryAnnotationKindTheCorpusCarriesHasABucket(t *testing.T) {
+// The union is the population, and walking either alone leaves a hole. The
+// corpus alone passes a kind added to rfc.AnnotationKinds that no summary has
+// used yet, which is precisely the moment the page is wrong and nobody has
+// noticed (independent review, 2026-09-02). The vocabulary alone would pass a
+// kind a summary carries that the parser's own set does not name.
+//
+// A kind with no bucket does not fall into the tag-derived buckets and get
+// published as unexcused: rfcLedgerCoverageOf counts it as an unmapped
+// annotation, so the shares no longer silently sum to less than their whole.
+// This test is what keeps that counter at zero.
+func TestEveryAnnotationKindHasABucket(t *testing.T) {
 	collected, err := rfc.Collect(repositoryRoot(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	seen := map[string]bool{}
+	kinds := map[string]string{}
+	for _, kind := range rfc.AnnotationKinds() {
+		kinds[kind] = "the vocabulary declares it"
+	}
+	corpus := 0
 	for _, requirement := range collected.Requirements {
 		if requirement.Annotation == nil {
 			continue
 		}
-		seen[requirement.Annotation.Kind] = true
+		corpus++
+		kinds[requirement.Annotation.Kind] = "a summary carries it"
 	}
-	if len(seen) == 0 {
-		t.Fatal("no requirement of this tree carries an annotation, so this proves nothing")
+	if corpus == 0 {
+		t.Fatal("no requirement of this tree carries an annotation, so the corpus half proves nothing")
+	}
+	if len(rfc.AnnotationKinds()) == 0 {
+		t.Fatal("the vocabulary declares no annotation kind, so the vocabulary half proves nothing")
 	}
 	buckets := map[string]bool{}
 	for _, bucket := range rfcSatisfaction {
 		buckets[bucket.Key] = true
 	}
-	for kind := range seen {
-		bucket, named := rfcAnnotationBuckets[kind]
-		if !named {
-			t.Errorf("annotation kind %q falls in no bucket, so the page counts it as unexcused", kind)
+	for kind, source := range kinds {
+		bucket, known := rfcAnnotationBucket(kind)
+		if !known {
+			t.Errorf("annotation kind %q (%s) falls in no bucket, so every share that "+
+				"partitions the binding population loses it", kind, source)
 			continue
 		}
 		if !buckets[bucket] {
 			t.Errorf("annotation kind %q maps to bucket %q, which the page does not list", kind, bucket)
 		}
 	}
+	t.Logf("%d annotation kind(s) mapped", len(kinds))
 }
 
 // VALIDATES: the snapshot this checkout answers agrees with itself.

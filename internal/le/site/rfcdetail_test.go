@@ -2320,6 +2320,39 @@ func TestEveryStemPageAccountsForItsGatedRequirements(t *testing.T) {
 					entry.Stem, bucket.Count, bucket.Label, len(bucket.IDs))
 			}
 		}
+		// The CARDS partition the binding population by splitting the gate's
+		// Annotated total into its three annotation kinds. Annotated comes from
+		// rfc.CoverageRows and the three come from this page's own walk over
+		// annotation kinds, so this compares two producers rather than a number
+		// with itself, and it is what the card sum rests on.
+		split := entry.Coverage.NotApplicable + entry.Coverage.GatedGaps +
+			entry.Coverage.SinglePolarity
+		if split != entry.Coverage.Annotated {
+			t.Errorf("%s: the gate counts %d annotated and the kinds account for %d "+
+				"(%d out of scope, %d gaps, %d single-polarity), so the cards cannot "+
+				"partition the binding population",
+				entry.Stem, entry.Coverage.Annotated, split, entry.Coverage.NotApplicable,
+				entry.Coverage.GatedGaps, entry.Coverage.SinglePolarity)
+		}
+		if entry.Coverage.UnmappedAnnotations != 0 {
+			t.Errorf("%s carries %d requirement(s) whose annotation kind has no bucket",
+				entry.Stem, entry.Coverage.UnmappedAnnotations)
+		}
+		cards := rfcDetailCards(entry)
+		sum, parts := 0, 0
+		for _, card := range cards {
+			if card.Partition {
+				parts++
+				sum += card.Part
+			}
+		}
+		if parts == 0 {
+			t.Errorf("%s publishes no card marked as a part of its population", entry.Stem)
+		}
+		if sum != entry.Coverage.Binding() {
+			t.Errorf("%s: its %d share cards add to %d and its binding population is %d",
+				entry.Stem, parts, sum, entry.Coverage.Binding())
+		}
 		for name, rendering := range map[string]string{
 			"page": rfcDetailBody(entry), "mirror": rfcDetailMirror(entry),
 		} {
@@ -2507,4 +2540,44 @@ func TestAnUnenrolledPageNeverClaimsTheGateHoldsIt(t *testing.T) {
 	}
 	t.Logf("%d enrolled and %d declined summaries carry MUST-level requirements",
 		enrolled, declined)
+}
+
+// VALIDATES: the partition sentence reads the shares it claims add up.
+//
+// It said "they add to 100%" after counting how many cards were MARKED as a
+// part, never reading one of their values, so a partition that had lost a
+// share published the same sentence (independent review, 2026-09-02). The two
+// cases below are the whole of what the sentence can say, and neither is
+// reachable from the other.
+func TestThePartitionSentenceReadsTheSharesItAddsUp(t *testing.T) {
+	complete := []rfcCard{
+		{Label: "Proven", Partition: true, Part: 60},
+		{Label: "Excused", Partition: true, Part: 40},
+		{Label: "Proven by a recorded break", Part: 999},
+	}
+	note := rfcPartitionNote(complete, 100)
+	if !strings.Contains(note, "they add to 100%") {
+		t.Errorf("a partition that adds up is not stated as one: %q", note)
+	}
+	if strings.Contains(note, "fall in none") {
+		t.Errorf("a partition that adds up is reported short: %q", note)
+	}
+
+	// One share short, which is what an annotation kind with no bucket does.
+	short := []rfcCard{
+		{Label: "Proven", Partition: true, Part: 60},
+		{Label: "Excused", Partition: true, Part: 33},
+	}
+	note = rfcPartitionNote(short, 100)
+	if !strings.Contains(note, "do NOT add to 100%") {
+		t.Errorf("7 obligations fall in no share and the note claims a partition: %q", note)
+	}
+	for _, want := range []string{"account for 93", "of the 100", "7 fall in none"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("the shortfall sentence does not carry %q: %q", want, note)
+		}
+	}
+	if note == rfcPartitionNote(complete, 100) {
+		t.Error("a partition that adds up and one that does not read the same")
+	}
 }
