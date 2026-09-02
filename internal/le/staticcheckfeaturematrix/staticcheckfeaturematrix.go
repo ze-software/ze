@@ -17,6 +17,13 @@
 // answer, an answer that cannot be read, and an answer naming a tag the
 // manifest does not declare each judge the whole matrix, because a guard that
 // cannot read its input must not return a valid-looking narrow answer.
+//
+// A run can also be CUT. `check part <index> of <count>` judges the rows dealt
+// to one piece, and the pieces together judge every row the scope left. CI runs
+// one piece per shard, because one Staticcheck run type-checks the whole module
+// once per row and the 38 rows took 23m36s in one job. The cut is a DEAL over
+// the derived rows (Part), never an assignment written by hand, so a tag added
+// to the manifest is judged by one piece for free.
 
 package staticcheckfeaturematrix
 
@@ -268,6 +275,36 @@ func validateScoped(rows Matrix) error {
 			floor, minMatrixRows)
 	}
 	return nil
+}
+
+// Part answers the rows of one piece of a run that was cut into count pieces.
+// Both numbers are counted from one, so an undivided run is part 1 of 1 and
+// gets every row back.
+//
+// The rows are DEALT round-robin rather than cut into contiguous blocks. Two
+// facts make that the right shape. all_features is the widest row and core_only
+// the narrowest, and they are always the first two, so a contiguous first block
+// carries both the most and the least expensive work. And a scoped run keeps
+// those two plus one row per reached tag, so a contiguous cut would put a small
+// scoped matrix entirely in the first piece and leave the rest with nothing.
+//
+// Dealing also keeps the partition derived from the matrix: a tag added to
+// feature-gates.txt gains its row in rowsForTags and lands in one piece here,
+// with nothing to assign by hand.
+func (m Matrix) Part(index, count int) (Matrix, error) {
+	if count < 1 {
+		return nil, fmt.Errorf("the matrix is cut into %d pieces, want at least 1", count)
+	}
+	if index < 1 || index > count {
+		return nil, fmt.Errorf("part %d is outside the 1 to %d the run was cut into", index, count)
+	}
+	part := make(Matrix, 0, len(m)/count+1)
+	for position, row := range m {
+		if position%count == index-1 {
+			part = append(part, row)
+		}
+	}
+	return part, nil
 }
 
 // readFeatureTags answers the feature tags the manifest declares, sorted and

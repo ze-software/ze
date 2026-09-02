@@ -4,7 +4,26 @@
 // at run time.
 package verifyengine
 
-import "strings"
+import (
+	"slices"
+	"strconv"
+	"strings"
+)
+
+// staticcheckParts is the number of pieces the Staticcheck feature matrix is
+// cut into, one stage per piece.
+//
+// One Staticcheck run type-checks the whole module once per matrix row, and the
+// matrix has held 38 rows since 2026-07-24, so the undivided stage measured
+// 23m36s in CI (run 33450825487) against its own 25-minute bound and hit that
+// bound on nearly every other run. Six pieces put 6 or 7 rows in a stage.
+//
+// Six is the shard count `.github/workflows/verify.yml` runs. That workflow
+// deals this list round robin, so six CONSECUTIVE stages always land on six
+// different shards. Coverage does not depend on the two numbers agreeing: every
+// piece runs exactly once whatever the shard count is, and only the balance
+// does.
+const staticcheckParts = 6
 
 // Identity names one native root/action invocation.
 type Identity struct {
@@ -38,6 +57,18 @@ func Structural(mode string) map[string]bool {
 	return named
 }
 
+// staticcheckStages returns one stage per piece of the Staticcheck feature
+// matrix. The rows each piece judges are dealt by the matrix itself, so a
+// feature gate added to `feature-gates.txt` needs nothing here.
+func staticcheckStages() []Stage {
+	stages := make([]Stage, 0, staticcheckParts)
+	for part := 1; part <= staticcheckParts; part++ {
+		stages = append(stages, structural("staticcheck-feature-matrix", "check",
+			"part", strconv.Itoa(part), "of", strconv.Itoa(staticcheckParts)))
+	}
+	return stages
+}
+
 // fullStages returns the native verification actions in execution order.
 func fullStages() []Stage {
 	stages := []Stage{
@@ -53,7 +84,8 @@ func fullStages() []Stage {
 		stage("config claims"),
 		stage("test-sensitivity", "check"),
 		stage("test-weakened", "check"),
-		structural("staticcheck-feature-matrix", "check"),
+	}
+	stages = slices.Concat(stages, staticcheckStages(), []Stage{
 		structural("repository tracked-build", "check"),
 		stage("platform-vet", "darwin", "freebsd"),
 		structural("doc wiring"),
@@ -84,7 +116,7 @@ func fullStages() []Stage {
 		stage("verify deps", "alloc"),
 		stage("functional", "gating"),
 		stage("functional", "exabgp-test"),
-	}
+	})
 	return stages
 }
 

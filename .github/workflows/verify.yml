@@ -18,6 +18,10 @@ jobs:
     strategy:
       # A red shard must not cancel siblings whose stages have not run yet.
       fail-fast: false
+      # This count is also the number of pieces the Staticcheck feature matrix
+      # is cut into (staticcheckParts, internal/le/verify/engine/stages.go), so
+      # each of its pieces runs on a shard of its own. Change one and
+      # TestEachShardRunsOnePieceOfTheStaticcheckMatrix reports the other.
       matrix:
         shard: [1, 2, 3, 4, 5, 6]
     env:

@@ -73,8 +73,12 @@ row is a full-module analysis. `scopeFeatureMatrix`
 or omits a tag the change reached, so a change local to `ze_ssh` judges 3 rows
 rather than 38. `all_features` and `core_only` judge the combinations Ze ships
 and are never subtracted. Running the target on its own, with
-`ZE_VERIFY_SCOPE_TAGS` unset, judges every row. The rules, the four inputs that
-widen the scope back to 38, and the measured cost are
+`ZE_VERIFY_SCOPE_TAGS` unset, judges every row.
+
+Those rows are also CUT across six stages, `check part 1 of 6` through
+`check part 6 of 6`. `Matrix.Part` deals them round robin, so each row is judged
+by one piece and CI runs the six pieces on six shards. The rules, the four
+inputs that widen the scope back to 38, and the measured cost are
 [`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
 
 Suite selection is NOT scoped: every functional suite runs on every verify,

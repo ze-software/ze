@@ -260,6 +260,26 @@ A pass that waits prints nothing while it waits. A whole-tree pass holds the
 lock for about ten minutes on this workstation, so a pass behind one can stay
 silent for that long. That is the linter in a queue, not a hang.
 
+### The slot a lint holds
+
+<!-- source: internal/le/verify/lint/actions.go -- runHere, jobArgv -->
+<!-- source: internal/le/job/registry.go -- shares -->
+
+`./le verify lint run` claims the `lint` label in the shared job registry
+(`internal/le/job`) before it plans anything. A lint uses cores allocated for
+the whole machine, so admission decides how many run at once, and it prints
+`[lint] waiting: <holder> running` while it queues.
+
+A second session asking for the SAME work over the SAME tree does not queue. It
+attaches: it replays the running lint's output, takes that run's verdict, and
+the tree is linted once for both. `[lint] attaching to the lint already running
+for this tree` is that answer. A full run and a scoped run are different work,
+so they never share a verdict.
+
+The findings a shared verdict names are read back out of the replay, so an
+attached red still says which files it was about. A red that names no file is
+charged to every commit in the checkout.
+
 Each flavor pass lints only the packages holding a file the two passes above do
 not load. That package set is DERIVED from the tree with `go list` on every run.
 A hand-written list drifts the moment somebody adds a `//go:build debug`
@@ -347,10 +367,16 @@ Inside a verify run the stage judges only the rows the change set can move: the
 distro all-on and bare-core rows, plus one row per feature tag the change
 reached. Typing the target yourself judges every row, because only a verify run
 publishes the feature-tag answer it scopes by. What widens the scope back to
-every row is `../architecture/testing/verify-freshness-scope.md`. Rerun the stage
-directly:
+every row is `../architecture/testing/verify-freshness-scope.md`.
+
+A verify run also CUTS those rows. It runs six stages,
+`check part 1 of 6` through `check part 6 of 6`, and each one judges the rows
+dealt to its piece. CI deals the stage list to its shards round robin, so the
+six pieces run on six shards rather than on one job's clock. Each piece names
+the rows it judged in its own log. Rerun one piece, or the whole matrix:
 
 ```sh
+./le staticcheck-feature-matrix check part 3 of 6
 ./le staticcheck-feature-matrix check
 ```
 

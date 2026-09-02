@@ -1,6 +1,44 @@
 package verifyengine
 
-import "testing"
+import (
+	"strconv"
+	"testing"
+)
+
+// VALIDATES: the Staticcheck feature matrix runs as staticcheckParts stages,
+// one per piece, consecutive in the population, in both modes.
+// PREVENTS: two pieces landing on one CI shard, which puts most of the matrix
+// back on a single job's clock. `.github/workflows/verify.yml` deals the stage
+// list round robin, so consecutive stages reach different shards and separated
+// ones can collide.
+func TestTheStaticcheckMatrixRunsOnePiecePerStage(t *testing.T) {
+	for _, mode := range []string{Mode, ChangedMode} {
+		var positions []int
+		for index, one := range StagesForMode(mode) {
+			if one.Identity.Command != "staticcheck-feature-matrix" {
+				continue
+			}
+			positions = append(positions, index)
+			want := []string{"check", "part", strconv.Itoa(len(positions)), "of", strconv.Itoa(staticcheckParts)}
+			for argument := range want {
+				if argument >= len(one.Identity.Args) || one.Identity.Args[argument] != want[argument] {
+					t.Errorf("mode %q stage %q carries args %q, want %q",
+						mode, one.Identity.Name, one.Identity.Args, want)
+					break
+				}
+			}
+		}
+		if len(positions) != staticcheckParts {
+			t.Fatalf("mode %q runs %d matrix pieces, want %d", mode, len(positions), staticcheckParts)
+		}
+		for piece := 1; piece < len(positions); piece++ {
+			if positions[piece] != positions[piece-1]+1 {
+				t.Errorf("mode %q separates matrix piece %d from its predecessor: positions %v",
+					mode, piece+1, positions)
+			}
+		}
+	}
+}
 
 // VALIDATES: the structural set is non-empty in both modes, names only stages
 // that run, and never marks a stage structural in the cheaper mode alone.

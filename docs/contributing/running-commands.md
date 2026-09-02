@@ -104,6 +104,20 @@ any scope that subtracts one of them. `./le staticcheck-feature-matrix check`
 typed on its own judges every row, because only a verify run publishes the
 feature-tag answer that `ZE_VERIFY_SCOPE_TAGS` (`ScopeTagsKey`) names.
 
+Whatever rows the scope leaves are then CUT across six stages,
+`check part 1 of 6` through `check part 6 of 6` (`staticcheckParts`,
+`internal/le/verify/engine/stages.go`). `Matrix.Part` deals the rows round robin,
+so each row is judged by exactly one piece and the pieces together judge them
+all. A CI red names the piece it came from, and that command reproduces it:
+
+```
+./le staticcheck-feature-matrix check part 3 of 6
+```
+
+A piece dealt no row says so and passes: its rows are judged by a sibling piece
+of the same run. One run is bounded at 90 seconds for each row it judges, so the
+bound follows the size of the piece.
+
 Suite selection is not scoped: every functional suite runs on every verify,
 whatever the change set says. `go list -deps ./cmd/ze` links most of the module,
 so no static signal attributes a `.ci` file to a Go package.

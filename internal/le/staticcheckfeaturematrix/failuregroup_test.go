@@ -19,7 +19,7 @@ import (
 // sessions, and the one that fails when Text goes back to rendering nothing.
 func TestAFailingRunNamesTheFilesItsDiagnosticsCite(t *testing.T) {
 	v := Verdict{
-		Rows: 12,
+		Part: 3, Parts: 6, Rows: 2, Names: []string{"all_features", "without_ze_ssh"},
 		Diagnostics: []string{
 			"internal/component/bgp/reactor/peer.go:120:2: this value of err is never used (SA4006)",
 			"internal/core/family/family.go:12:1: unreachable code (SA4006)",
@@ -49,7 +49,7 @@ func TestAFailingRunNamesTheFilesItsDiagnosticsCite(t *testing.T) {
 // broken vendor tree fails every row before staticcheck emits one finding, and
 // the stage log held nothing at all.
 func TestARunThatDiedBeforeDiagnosingStillSaysWhy(t *testing.T) {
-	v := Verdict{Tool: "go: inconsistent vendoring in /repo:\n\tgithub.com/x/y@v1: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt\n"}
+	v := Verdict{Part: 1, Parts: 6, Rows: 2, Names: []string{"all_features", "without_ze_ssh"}, Tool: "go: inconsistent vendoring in /repo:\n\tgithub.com/x/y@v1: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt\n"}
 
 	text := v.Text()
 
@@ -69,13 +69,13 @@ func TestARunThatDiedBeforeDiagnosingStillSaysWhy(t *testing.T) {
 // failure, so a green run that declared one would charge a red to the commits
 // whose files it named.
 func TestAPassingRunDeclaresNoGroup(t *testing.T) {
-	text := Verdict{Rows: 12, Passed: true}.Text()
+	text := Verdict{Part: 1, Parts: 1, Rows: 2, Names: []string{"all_features", "core_only"}, Passed: true}.Text()
 
 	if strings.Contains(text, "VERIFY FAILURE GROUP:") {
 		t.Fatalf("a green run declared a failure group:\n%s", text)
 	}
-	if !strings.Contains(text, "checked 12 rows") {
-		t.Fatalf("a green run stopped reporting its row count:\n%s", text)
+	if !strings.Contains(text, "checked 2 row(s): all_features, core_only") {
+		t.Fatalf("a green run stopped reporting the rows it judged:\n%s", text)
 	}
 }
 

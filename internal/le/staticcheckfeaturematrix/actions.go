@@ -10,6 +10,8 @@ package staticcheckfeaturematrix
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
@@ -21,8 +23,16 @@ const area = "staticcheck-feature-matrix"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "the tree type-checks in every feature-tag combination Ze can be built in, so a package compiled out of the default build is still judged",
-		Answer: runCheck},
+	leaction.Action{
+		Verb: "check",
+		Why: "the tree type-checks in every feature-tag combination Ze can be built in, so a package compiled out of the default build is still judged; " +
+			"part <index> of <count> judges one piece of the rows, and the pieces together judge every row",
+		Parameters: []leaction.Parameter{
+			{Keyword: "part", Value: "index"},
+			{Keyword: "of", Value: "count"},
+		},
+		AnswerArgs: runCheck,
+	},
 	leaction.Action{
 		// No Make target names this one: it is the script's --print-matrix, and
 		// it exists so a reader can see WHICH combinations a run judges without
@@ -59,7 +69,12 @@ func runRows() (any, int) {
 // The three codes stay apart: 0 for a tree that type-checks in every judged
 // combination, 1 for one that does not, and 2 for a matrix that could not be
 // judged at all. A caller that reads them apart keeps reading them apart.
-func runCheck() (any, int) {
+func runCheck(args leaction.Arguments) (any, int) {
+	index, count, err := partFrom(args)
+	if err != nil {
+		reportFailure(err)
+		return nil, 2
+	}
 	tree, err := lepath.Root()
 	if err != nil {
 		reportFailure(err)
@@ -72,13 +87,26 @@ func runCheck() (any, int) {
 	}
 	reportNotice(notice)
 
-	deadline, err := Deadline()
+	rows, err := matrix.Part(index, count)
+	if err != nil {
+		reportFailure(err)
+		return nil, 2
+	}
+	if len(rows) == 0 {
+		// Fewer rows than pieces, which a scoped run reaches: this piece has
+		// nothing of its own, and every row it might have held is judged by a
+		// sibling piece of the same run.
+		return Verdict{Part: index, Parts: count, Passed: true}, 0
+	}
+
+	deadline, err := Deadline(len(rows))
 	if err != nil {
 		reportFailure(err)
 		return nil, 2
 	}
 
-	verdict, judged, err := Judge(tree, matrix, deadline)
+	verdict, judged, err := Judge(tree, rows, deadline)
+	verdict.Part, verdict.Parts = index, count
 	if err != nil {
 		reportFailure(err)
 		if verdict.Tool != "" {
@@ -93,6 +121,44 @@ func runCheck() (any, int) {
 		return verdict, 1
 	}
 	return verdict, 0
+}
+
+// partFrom answers the piece of the matrix this invocation judges.
+//
+// An invocation that names neither keyword judges part 1 of 1, which is every
+// row: the whole matrix IS one piece, so no number here stands for "the caller
+// said nothing". Naming one keyword without the other is refused, because
+// "part 3" alone cannot say how many pieces the rows were dealt into, and a
+// guess would silently judge the wrong subset.
+func partFrom(args leaction.Arguments) (int, int, error) {
+	declaredIndex, hasIndex := args["part"]
+	declaredCount, hasCount := args["of"]
+	if !hasIndex && !hasCount {
+		return 1, 1, nil
+	}
+	if hasIndex != hasCount {
+		return 0, 0, fmt.Errorf(
+			"a cut run needs both keywords: check part <index> of <count>; matrix could not be judged")
+	}
+	index, err := wholeNumber("part", declaredIndex)
+	if err != nil {
+		return 0, 0, err
+	}
+	count, err := wholeNumber("of", declaredCount)
+	if err != nil {
+		return 0, 0, err
+	}
+	return index, count, nil
+}
+
+// wholeNumber reads one keyword's value as a counting number.
+func wholeNumber(keyword, declared string) (int, error) {
+	value, err := strconv.Atoi(strings.TrimSpace(declared))
+	if err != nil || value < 1 {
+		return 0, fmt.Errorf("%s needs a whole number of 1 or more, got %q; matrix could not be judged",
+			keyword, declared)
+	}
+	return value, nil
 }
 
 // derive resolves the checkout and answers the rows this run judges.

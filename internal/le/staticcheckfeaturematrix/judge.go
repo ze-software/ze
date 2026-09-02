@@ -31,33 +31,57 @@ import (
 // keyword and no value of its own.
 const DeadlineKey = "ze.staticcheck.deadline"
 
-// defaultDeadline bounds one Staticcheck run over the whole matrix. A run past
-// it is a hung process rather than a slow one.
-const defaultDeadline = 25 * time.Minute
+// deadlinePerRow bounds ONE row of the matrix. A run past its bound is a hung
+// process rather than a slow one.
+//
+// The bound is per row because a run's SIZE is a choice: `check` on its own
+// judges every row, a verify run judges the rows its change set can move, and a
+// CI piece judges the rows dealt to it. One flat bound over all three either
+// strangles the widest run or stops detecting a hang in the narrowest. The flat
+// 25 minutes this replaces was set on 2026-08-17 against a matrix that reached
+// 38 rows on 2026-07-24, and CI run 33450825487 measured 23m36s inside it.
+//
+// 90s is about two and a half times the widest cost one row has been measured
+// at: 23m36s over 38 rows is 37.3s a row in CI, and a cold local run of
+// 1142.63s over the same rows is 30.1s a row. That leaves a shared runner room
+// to be slow and still calls a stuck Staticcheck stuck.
+const deadlinePerRow = 90 * time.Second
 
 var deadlineEntry = env.MustRegister(env.EnvEntry{
-	Key:         DeadlineKey,
-	Type:        "duration",
-	Default:     defaultDeadline.String(),
-	Description: "how long one Staticcheck run over the feature matrix may take before the matrix is declared unjudgeable",
+	Key:  DeadlineKey,
+	Type: "duration",
+	// No default value: an unset key derives the bound from the number of rows
+	// the run judges, which a fixed string cannot state.
+	Default:     "",
+	Description: "an absolute bound on one Staticcheck run over the feature matrix; unset allows 90s per judged row before the matrix is declared unjudgeable",
 	// Private keeps the key out of `ze env list`. It bounds a build-host tool
 	// and an operator has nothing to do with it.
 	Private: true,
 })
 
-// Deadline answers the bound one Staticcheck run may take, and the reason a
-// declared value could not be used.
-func Deadline() (time.Duration, error) { return DeadlineFrom(env.Get(deadlineEntry.Key)) }
+// Deadline answers the bound one Staticcheck run over rows may take, and the
+// reason a declared value could not be used.
+func Deadline(rows int) (time.Duration, error) {
+	return DeadlineFrom(env.Get(deadlineEntry.Key), rows)
+}
 
 // DeadlineFrom is the parse, apart from where the value came from.
 //
 // It is exported for the same reason DeriveScoped is: env.Get caches the whole
 // environment on its first call, so a test that sets the variable afterwards
 // would be reading a value that is no longer there.
-func DeadlineFrom(declared string) (time.Duration, error) {
+//
+// A declared value is ABSOLUTE and bounds the run whatever its size, because a
+// person who names a duration is bounding the wall clock they are waiting on.
+func DeadlineFrom(declared string, rows int) (time.Duration, error) {
+	if rows < 1 {
+		var tb textbuf.Buffer
+		return 0, errors.New(tb.Str("a deadline needs at least one row to judge, got ").
+			Int(int64(rows)).Str("; matrix could not be judged").String())
+	}
 	raw := strings.TrimSpace(declared)
 	if raw == "" {
-		return defaultDeadline, nil
+		return time.Duration(rows) * deadlinePerRow, nil
 	}
 	parsed, err := time.ParseDuration(raw)
 	if err != nil || parsed <= 0 {
@@ -114,6 +138,7 @@ func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, e
 
 	verdict := Verdict{
 		Rows:        len(matrix),
+		Names:       matrix.Names(),
 		Diagnostics: splitLines(toolStdout.String()),
 		Tool:        toolStderr.String(),
 	}

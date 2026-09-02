@@ -25,6 +25,28 @@ Those N+2 rows are what the target judges when it is typed on its own. Inside a
 verify run it judges only the rows the change set can move, keeping the distro
 all-on and bare-core rows always: `docs/architecture/testing/verify-freshness-scope.md`.
 
+### One matrix, six pieces
+
+A verify run does not judge those rows in one stage. `check part <index> of
+<count>` judges the rows dealt to one piece, and the stage population runs six
+pieces (`staticcheckParts`, `internal/le/verify/engine/stages.go`). CI deals the
+stage list to its shards round robin, so the six pieces run on six different
+shards. Every piece runs on every verify, so the whole matrix is still judged.
+
+The deal is round robin over the DERIVED rows (`Matrix.Part`), never an
+assignment written by hand, so a feature gate added to `feature-gates.txt` lands
+in one piece for free. Each piece names the rows it judged in its own log, which
+is the only log a reader of one shard has. Typing
+`./le staticcheck-feature-matrix check` with no part judges every row, as before.
+
+One Staticcheck run is bounded at 90 seconds for each row it judges
+(`deadlinePerRow`, `internal/le/staticcheckfeaturematrix/judge.go`), so a 7-row
+piece gets 10m30s and an undivided 38-row run gets 57m. The flat 25 minutes this
+replaces bounded the whole matrix: CI run 33450825487 measured 23m36s inside it
+and most other runs exceeded it, which reported a slow gate as an unjudgeable
+one. `ZE_STATICCHECK_DEADLINE` still names an absolute bound for a run of any
+size.
+
 Staticcheck stops after package and test-variant type checking.
 `./le repository tracked-build check` supplies committed-tree final-link proof for
 its six tracked configurations, not for every shipped build flavor. Keep both

@@ -354,6 +354,35 @@ func TestVerifyShardsCoverEveryNativeStage(t *testing.T) {
 	}
 }
 
+// TestEachShardRunsOnePieceOfTheStaticcheckMatrix holds the two counts that were
+// chosen for each other in agreement: the pieces the matrix is cut into
+// (verifyengine.staticcheckParts) and the shards this workflow runs.
+//
+// One Staticcheck run type-checks the whole module once per matrix row, and the
+// undivided stage took 23m36s of a job. Two pieces on one shard put most of that
+// back on one clock, which is the pressure the cut exists to remove. Coverage is
+// not what this guards: the test above already proves every piece runs, and
+// internal/le/staticcheckfeaturematrix proves the pieces hold every row.
+func TestEachShardRunsOnePieceOfTheStaticcheckMatrix(t *testing.T) {
+	indices := shardIndices(t, workflowSource(t, "verify.yml"))
+	pieces := map[int]int{}
+	for number, stage := range verifyengine.StagesForMode(verifyengine.Mode) {
+		if stage.Identity.Command != "staticcheck-feature-matrix" {
+			continue
+		}
+		pieces[(number+1)%len(indices)]++
+	}
+	if len(pieces) == 0 {
+		t.Fatal("the full verifier runs no piece of the Staticcheck feature matrix")
+	}
+	for shard, count := range pieces {
+		if count != 1 {
+			t.Errorf("shard %d runs %d pieces of the Staticcheck matrix, want 1: "+
+				"the cut has more pieces than this workflow has shards", shard, count)
+		}
+	}
+}
+
 func TestVerifyShardRunsNativeActionsAndContinuesAfterFailures(t *testing.T) {
 	source := workflowSource(t, "verify.yml")
 	for _, required := range []string{

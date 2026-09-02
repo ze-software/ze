@@ -61,10 +61,27 @@ func (m Matrix) Text() string {
 	return string(rendered)
 }
 
+// Names answers the row names in the order Staticcheck is asked about them, so
+// a reader of ONE piece's log can tell which combinations that piece covered.
+func (m Matrix) Names() []string {
+	names := make([]string, 0, len(m))
+	for _, row := range m {
+		names = append(names, row.Name)
+	}
+	return names
+}
+
 // Verdict is what one Staticcheck run over the matrix said.
 type Verdict struct {
+	// Part and Parts name the piece of the matrix this run judged. A run that
+	// was not cut is part 1 of 1, so neither field is ever a zero standing for
+	// "nobody set this".
+	Part  int `json:"part"`
+	Parts int `json:"parts"`
 	// Rows is how many feature-tag combinations were judged.
 	Rows int `json:"rows"`
+	// Names are the combinations this run judged, one per judged row.
+	Names []string `json:"names,omitempty"`
 	// Diagnostics are Staticcheck's own stdout lines, one per entry. A
 	// type-check failure names its file, line and column here.
 	Diagnostics []string `json:"diagnostics,omitempty"`
@@ -92,22 +109,50 @@ func (v Verdict) Text() string {
 		tb.Str(line).Byte('\n')
 	}
 	if v.Passed {
-		tb.Str("staticcheck feature matrix: checked ").Int(int64(v.Rows)).Str(" rows\n")
+		tb.Str("staticcheck feature matrix: part ").Int(int64(v.Part)).Str(" of ").Int(int64(v.Parts))
+		if v.Rows == 0 {
+			// A piece with no row is not a piece that judged nothing by
+			// accident: the matrix in hand holds fewer rows than the run was
+			// cut into, and every row it does hold is judged by another piece.
+			return tb.Str(" was dealt no row; the matrix is smaller than the number of parts\n").String()
+		}
+		tb.Str(" checked ").Int(int64(v.Rows)).Str(" row(s): ").Join(v.Names, ", ").Byte('\n')
 
 		return tb.String()
 	}
+	// A red is read one piece at a time, in that shard's log alone, so the scope
+	// of the run that produced it is stated beside the diagnostics.
+	tb.Str("staticcheck feature matrix: part ").Int(int64(v.Part)).Str(" of ").Int(int64(v.Parts)).
+		Str(" judged ").Int(int64(v.Rows)).Str(" row(s): ").Join(v.Names, ", ").Byte('\n')
 	if trimmed := strings.TrimSpace(v.Tool); trimmed != "" {
 		tb.Str(trimmed).Byte('\n')
 	}
 
 	var group strings.Builder
-	if err := failuregroup.Declare(&group, "files:staticcheck-feature-matrix/check", "files",
+	if err := failuregroup.Declare(&group, "files:"+v.stage(), "files",
 		"staticcheck could not type-check the feature matrix; these files hold the diagnostics",
-		"./le staticcheck-feature-matrix check", v.failingPaths()); err == nil {
+		v.rerun(), v.failingPaths()); err == nil {
 		tb.Str(group.String())
 	}
 
 	return tb.String()
+}
+
+// stage answers the identity of the run that produced this verdict, which is the
+// stage name the verify population gave the piece. Each piece declares its own
+// group, so a red is charged to the piece that found it and never to a sibling.
+func (v Verdict) stage() string {
+	var tb textbuf.Buffer
+	return tb.Str("staticcheck-feature-matrix/check/part/").Int(int64(v.Part)).
+		Str("/of/").Int(int64(v.Parts)).String()
+}
+
+// rerun answers the command that judges this piece again, and nothing else. A
+// reader of one shard's log has that piece's rows and no other.
+func (v Verdict) rerun() string {
+	var tb textbuf.Buffer
+	return tb.Str("./le staticcheck-feature-matrix check part ").Int(int64(v.Part)).
+		Str(" of ").Int(int64(v.Parts)).String()
 }
 
 // failingPaths answers the source files the run's own output named, so a red

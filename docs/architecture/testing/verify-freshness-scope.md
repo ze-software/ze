@@ -28,6 +28,8 @@ The verify runner resolves the selection once and publishes its package and feat
 
 `internal/le/staticcheckfeaturematrix.Answer` retains the all-features and core-only rows, plus the feature-omission rows the selected tags can affect. A negated build constraint counts as a use of the tag because that file compiles in the omission row.
 
+The retained rows are then cut across six stages, `check part 1 of 6` through `check part 6 of 6`. The scope decides WHICH rows a run judges; the cut decides WHICH STAGE judges each of them. `Matrix.Part` deals the rows round robin, so a scoped run of three rows puts one row in each of three pieces and the other three pieces report that they were dealt none.
+
 One producer answers the change set: `Scope.resolveSelector` (`internal/le/changed/selector.go`). `internal/le/changed/changed.go` holds no selection logic and only dispatches between the two routes to it. A direct `./le verify lint run` or `./le test-unit all` outside a verify run has no published answer, so it selects its own (2.4 to 2.9s measured). Both routes reach the same producer. The import graph is built with `ze_core` and every tag in `feature-gates.txt`, so a `//go:build ze_<feature>` importer is selected: one file under `internal/component/ssh` selects `./cmd/ze`, `./cmd/ze/hub` and `./internal/component/ssh`, and the feature answer is `ze_ssh` alone. The reverse walk stops at two levels of importers, and `./le changed scope drop-log FILE` records which packages that bound dropped.
 
 ### What each changed path selects

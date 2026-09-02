@@ -11,11 +11,14 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 // manifestTags is a small feature manifest the derivation cases are built on.
@@ -126,6 +129,144 @@ func TestTheSubtractionNeverDropsAShippedCombination(t *testing.T) {
 	}
 }
 
+// VALIDATES: cutting a matrix into pieces deals every row to exactly one piece,
+// for every matrix the manifest can produce and every count CI can be cut into.
+// PREVENTS: a row no piece claims. That row is coverage which vanished with
+// nothing red: the pieces all pass, the gate reads green, and the combination
+// nobody type-checked is the one that breaks.
+func TestEveryRowIsDealtToExactlyOnePiece(t *testing.T) {
+	// The row set the assertion reads is DERIVED, never listed: one matrix per
+	// tag count, so a manifest of any size is covered rather than today's.
+	for tagCount := 1; tagCount <= 40; tagCount++ {
+		tags := make([]string, 0, tagCount)
+		for index := range tagCount {
+			tags = append(tags, "ze_f"+strconv.Itoa(index))
+		}
+		matrix, err := buildMatrix(tags)
+		if err != nil {
+			t.Fatalf("build a matrix of %d tags: %v", tagCount, err)
+		}
+
+		for count := 1; count <= 12; count++ {
+			claimed := make(map[string]int, len(matrix))
+			for index := 1; index <= count; index++ {
+				piece, err := matrix.Part(index, count)
+				if err != nil {
+					t.Fatalf("%d tags cut %d ways, part %d: %v", tagCount, count, index, err)
+				}
+				for _, row := range piece {
+					claimed[row.Name]++
+				}
+			}
+			for _, row := range matrix {
+				if claimed[row.Name] != 1 {
+					t.Errorf("%d tags cut %d ways: row %q is judged by %d pieces, want 1",
+						tagCount, count, row.Name, claimed[row.Name])
+				}
+			}
+			if len(claimed) != len(matrix) {
+				t.Errorf("%d tags cut %d ways: the pieces judge %d distinct rows, want %d",
+					tagCount, count, len(claimed), len(matrix))
+			}
+		}
+	}
+}
+
+// VALIDATES: this checkout's own matrix is dealt whole across the pieces the
+// verify population runs, and an undivided run still judges every row.
+// PREVENTS: a partition proven only over synthetic tags, which would pass while
+// the rows this repository really judges went uncovered.
+func TestThisCheckoutIsDealtWholeAcrossItsPieces(t *testing.T) {
+	tree, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the repository root: %v", err)
+	}
+	matrix, _, err := DeriveScoped(tree, "")
+	if err != nil {
+		t.Fatalf("the matrix could not be derived: %v", err)
+	}
+
+	whole, err := matrix.Part(1, 1)
+	if err != nil {
+		t.Fatalf("an undivided run: %v", err)
+	}
+	if len(whole) != len(matrix) {
+		t.Errorf("an undivided run judges %d of %d rows", len(whole), len(matrix))
+	}
+
+	// The count is the verify population's, read from the stage that runs it,
+	// so a change to either side is caught rather than assumed.
+	count := 0
+	for _, identity := range verifyengine.StagesForMode(verifyengine.Mode) {
+		if identity.Identity.Command == area {
+			count++
+		}
+	}
+	if count < 2 {
+		t.Fatalf("the verify population runs %d pieces of the matrix, want the cut it declares", count)
+	}
+
+	claimed := make(map[string]int, len(matrix))
+	widest := 0
+	for index := 1; index <= count; index++ {
+		piece, err := matrix.Part(index, count)
+		if err != nil {
+			t.Fatalf("part %d of %d: %v", index, count, err)
+		}
+		if len(piece) > widest {
+			widest = len(piece)
+		}
+		for _, row := range piece {
+			claimed[row.Name]++
+		}
+	}
+	for _, row := range matrix {
+		if claimed[row.Name] != 1 {
+			t.Errorf("row %q is judged by %d of the %d pieces, want 1", row.Name, claimed[row.Name], count)
+		}
+	}
+	if widest*count < len(matrix) {
+		t.Errorf("%d pieces of at most %d rows cannot hold %d rows", count, widest, len(matrix))
+	}
+}
+
+// VALIDATES: the part grammar takes both keywords or neither, and refuses a
+// value that is not a counting number.
+// PREVENTS: `check part 3` judging a piece of a cut nobody declared, which
+// judges a subset of the rows while reading as a whole run.
+func TestThePartGrammarNeedsBothKeywords(t *testing.T) {
+	index, count, err := partFrom(leaction.Arguments{})
+	if err != nil || index != 1 || count != 1 {
+		t.Errorf("an uncut run answers (%d, %d, %v), want part 1 of 1", index, count, err)
+	}
+	if index, count, err := partFrom(leaction.Arguments{"part": "3", "of": "6"}); err != nil || index != 3 || count != 6 {
+		t.Errorf("`part 3 of 6` answers (%d, %d, %v)", index, count, err)
+	}
+
+	for name, args := range map[string]leaction.Arguments{
+		"an index with no count": {"part": "3"},
+		"a count with no index":  {"of": "6"},
+		"an index of zero":       {"part": "0", "of": "6"},
+		"a negative index":       {"part": "-1", "of": "6"},
+		"a count of zero":        {"part": "1", "of": "0"},
+		"a word for an index":    {"part": "first", "of": "6"},
+	} {
+		if _, _, err := partFrom(args); err == nil {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+
+	// A piece outside the cut is refused by the deal itself, so no caller can
+	// ask for part 7 of 6 and receive an empty run that reads as a pass.
+	rows, err := buildMatrix(manifestTags)
+	if err != nil {
+		t.Fatalf("build the matrix: %v", err)
+	}
+	if _, err := rows.Part(7, 6); err == nil {
+		t.Error("part 7 of 6 was accepted")
+	}
+}
+
 // VALIDATES: a manifest line the reader cannot understand is an ERROR.
 // PREVENTS: a malformed manifest shrinking the matrix silently, which is the
 // same false green as a matrix nobody ran.
@@ -190,15 +331,26 @@ func TestTheRenderingIsCheckedAgainstItsRows(t *testing.T) {
 // PREVENTS: a run bounded by a value nobody could parse, which would either
 // never end or end at once with no verdict.
 func TestABadDeadlineIsRefused(t *testing.T) {
-	if got, err := DeadlineFrom(""); err != nil || got != defaultDeadline {
-		t.Errorf("an unset deadline answers (%v, %v), want the default", got, err)
+	// An unset key scales with the work: the bound a 38-row run gets is not the
+	// bound a 7-row piece of it gets.
+	if got, err := DeadlineFrom("", 38); err != nil || got != 38*deadlinePerRow {
+		t.Errorf("an unset deadline over 38 rows answers (%v, %v), want %v", got, err, 38*deadlinePerRow)
 	}
-	if got, err := DeadlineFrom("  90s "); err != nil || got != 90*time.Second {
+	if got, err := DeadlineFrom("", 7); err != nil || got != 7*deadlinePerRow {
+		t.Errorf("an unset deadline over 7 rows answers (%v, %v), want %v", got, err, 7*deadlinePerRow)
+	}
+	// A declared value is absolute, so the same string bounds both sizes.
+	if got, err := DeadlineFrom("  90s ", 38); err != nil || got != 90*time.Second {
 		t.Errorf("a declared deadline answers (%v, %v), want 90s", got, err)
+	}
+	// A run with no row to judge is refused rather than bounded at zero, which
+	// would end at once and report no verdict.
+	if _, err := DeadlineFrom("", 0); err == nil {
+		t.Error("a deadline over zero rows was accepted")
 	}
 
 	for _, bad := range []string{"nope", "-1s", "0"} {
-		if _, err := DeadlineFrom(bad); err == nil {
+		if _, err := DeadlineFrom(bad, 38); err == nil {
 			t.Errorf("the deadline %q was accepted", bad)
 			continue
 		} else if !strings.Contains(err.Error(), "matrix could not be judged") {
@@ -208,7 +360,7 @@ func TestABadDeadlineIsRefused(t *testing.T) {
 
 	// The env route reads the same parse, so an unset variable answers the
 	// default rather than a refusal.
-	if got, err := Deadline(); err != nil || got <= 0 {
+	if got, err := Deadline(38); err != nil || got <= 0 {
 		t.Errorf("the env route answers (%v, %v), want a positive duration", got, err)
 	}
 }
@@ -246,17 +398,39 @@ func TestBothAnswersAreStructuredData(t *testing.T) {
 // PREVENTS: a failing run whose page still reads as a pass, which is what a
 // reader acts on.
 func TestThePagesCarryTheirVerdicts(t *testing.T) {
-	passed := Verdict{Rows: 38, Passed: true}.Text()
-	if passed != "staticcheck feature matrix: checked 38 rows\n" {
+	passed := Verdict{Part: 2, Parts: 6, Rows: 2, Names: []string{"core_only", "without_ze_ssh"}, Passed: true}.Text()
+	if passed != "staticcheck feature matrix: part 2 of 6 checked 2 row(s): core_only, without_ze_ssh\n" {
 		t.Errorf("the passing page is %q", passed)
 	}
 
-	failed := Verdict{Rows: 38, Diagnostics: []string{"a.go:1:1: undefined: x"}}.Text()
+	// A piece with no row says so. Its rows are judged by a sibling piece of the
+	// same run, and a reader of this log alone can see which fact it is.
+	empty := Verdict{Part: 5, Parts: 6, Passed: true}.Text()
+	if !strings.Contains(empty, "part 5 of 6 was dealt no row") {
+		t.Errorf("an empty piece reports %q", empty)
+	}
+
+	failed := Verdict{
+		Part: 1, Parts: 6, Rows: 1, Names: []string{"all_features"},
+		Diagnostics: []string{"a.go:1:1: undefined: x"},
+	}.Text()
 	if strings.Contains(failed, "checked") {
 		t.Errorf("a failing page still reports a check:\n%s", failed)
 	}
 	if !strings.Contains(failed, "a.go:1:1: undefined: x") {
 		t.Errorf("the failing page does not carry its diagnostic:\n%s", failed)
+	}
+	// The scope of a red is read in one shard's log, with no sibling beside it.
+	if !strings.Contains(failed, "part 1 of 6 judged 1 row(s): all_features") {
+		t.Errorf("the failing page does not name the piece it judged:\n%s", failed)
+	}
+	// The failure group repeats the piece, so the rerun a reader is handed
+	// judges the rows that failed rather than the whole matrix.
+	if !strings.Contains(failed, `"rerun":"./le staticcheck-feature-matrix check part 1 of 6"`) {
+		t.Errorf("the failure group does not rerun this piece:\n%s", failed)
+	}
+	if !strings.Contains(failed, `"group-id":"files:staticcheck-feature-matrix/check/part/1/of/6"`) {
+		t.Errorf("the failure group does not identify this piece:\n%s", failed)
 	}
 
 	scoped := Notice{Scoped: true, Reached: 2, Judged: 4, Total: 38}.Text()
