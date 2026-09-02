@@ -1,11 +1,12 @@
 // Design: docs/architecture/core-design.md -- the functional area
-// Detail: run.go -- the run the bare command reaches
+// Detail: run.go -- the run the `gating` action reaches
 // Overview: suites.go -- the table every row here is derived from
 //
 // Every action is derived from the suite table, so dispatch, listing, help, and
-// completion share one command surface. A bare `le functional` runs the gating
-// suites. `le functional list` returns the complete suite catalog, including
-// suites that do not run in the aggregate.
+// completion share one command surface. A bare `le functional` answers the
+// complete suite catalog, which is what `le functional list` answers, including
+// suites that do not run in the aggregate. `le functional gating` runs the
+// gating suites.
 //
 // One isolated binary set serves an invocation and is built lazily. The label
 // and chaos decision are derived before the first suite runs.
@@ -26,6 +27,13 @@ import (
 // rather than a flag, because the rendering is a pipe operator and the tree is
 // the checkout (ai/rules/cli.md).
 const listVerb = "list"
+
+// gatingVerb runs the gating suites, which is what a bare `le functional` used
+// to start. It names a RUN LIST and not a suite, so it is dispatched beside the
+// suite table rather than added to it. A table row would put it in the catalog,
+// in the rerun lines, and in the evidence tiers. Every reader derives those
+// from that same table (catalog.go).
+const gatingVerb = "gating"
 
 // session is one invocation of the functional area: the toolchain it derived,
 // and the isolated binary set it builds at most once.
@@ -124,23 +132,51 @@ func (s *session) runExaBGP() (any, int) {
 	return runExaBGP(context.Background(), s.tc.Root, nil)
 }
 
-// Actions answers the command surface as data.
+// areaVerbs are the two keywords Answer reads before the suite table. The table
+// cannot hold them, because `gating` sweeps the suites and a sweepable `gating`
+// would sweep itself. Declaring them here stops the listing and the help hint
+// from disagreeing about what they do.
+func areaVerbs() []leaction.Row {
+	return []leaction.Row{
+		{Verb: listVerb, Why: "every suite and its budget"},
+		{Verb: gatingVerb, Why: "every gating suite, under its own budget"},
+	}
+}
 
-func Actions() leaction.List { return table(&session{}).Actions() }
+// Actions answers the command surface as data, and is what a bare command
+// line prints. The two area verbs come first because they are the two a reader
+// who typed the area name is looking for.
+func Actions() leaction.List {
+	suites := table(&session{}).Actions()
+	return leaction.List{
+		Area:    Area,
+		Actions: append(areaVerbs(), suites.Actions...),
+	}
+}
 
 // Subs is the one-line hint help renders under the command.
 //
-// The hint shows the shape of a verb instead of all 32 verbs.
-// This area differs because leaction usually derives a hint by naming every action.
-// A list of 32 names is not a useful hint. The next keyword reveals those names.
+// The hint shows the shape of a suite verb instead of all 32 verbs. This area
+// differs because leaction usually derives a hint by naming every action. A
+// list of 32 names is not a useful hint. The next keyword reveals those names.
 func Subs() string {
 	var tb textbuf.Buffer
-	return tb.Str(listVerb).Str(" (every suite and its budget) | <suite>-test | ").
-		Str("exabgp-test").String()
+	for _, verb := range areaVerbs() {
+		tb.Str(verb.Verb).Str(" (").Str(verb.Why).Str(") | ")
+	}
+	return tb.Str("<suite>-test | exabgp-test").String()
 }
 
 // Answer is the `le functional` command.
 func Answer(args []string) (any, int) {
+	// A bare command line answers the verbs and builds nothing (owner directive,
+	// 2026-09-02). A developer who types the area name starts no run and waits
+	// on no toolchain probe. The listing names `gating` as the run that name
+	// used to start. `list` keeps the suite table, which answers what a suite
+	// costs.
+	if len(args) == 0 {
+		return Actions(), 0
+	}
 	if len(args) == 1 && args[0] == listVerb {
 		return Catalog(), 0
 	}
@@ -156,7 +192,7 @@ func Answer(args []string) (any, int) {
 		return nil, 1
 	}
 
-	if len(args) == 0 {
+	if len(args) == 1 && args[0] == gatingVerb {
 		return runGating(tc)
 	}
 

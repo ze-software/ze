@@ -269,7 +269,7 @@ plugin {
 
 ### Functional Tests
 ```bash
-./le functional       # All functional tests
+./le functional gating        # All functional tests
 ze-test bgp encode --list     # List N/TOTAL, id, and name
 ze-test bgp encode 1 2 3      # Run specific tests
 ze-test bgp encode --start 42 # Resume at id 42

@@ -78,7 +78,7 @@ misleading message. Each is a general trap.
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 
-`./le setup` reports `kvm-access` as `present`, `pending`, `missing`, or
+`./le setup check` reports `kvm-access` as `present`, `pending`, `missing`, or
 `n/a`. `pending` means the user is in the `kvm` group but the running session
 predates it. That difference is the difference between "run this" and "log back
 in".

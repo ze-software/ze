@@ -279,8 +279,11 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	// empty-prefix row credited ANY .ci anywhere under internal/, pkg/ or test/
 	// as verify evidence, which made two silent evasions possible: move a
 	// tagged .ci out of a run suite or into the gitignored incubator.
+	// `gating` and not the bare name: the bare name lists the suites and runs
+	// none of them. The verb runs exactly the population these rows are built
+	// from, because FunctionalSuites is functional.GatingNames.
 	out = append(out, suiteCarriers(kindFunctional, ciSuffix, "ci",
-		"./le functional", "./le verify current mode full (functional stage", suites)...)
+		"./le functional gating", "./le verify current mode full (functional stage", suites)...)
 	// `.et` is the cheapest verify-tier non-unit carrier available, and it
 	// costs one row: it is .ci semantics exactly, and only test/editor/ is
 	// walked for it.

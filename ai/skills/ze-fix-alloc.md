@@ -23,7 +23,7 @@ See also: `/ze-find-alloc` (find allocations to fix)
 5. Read callers of the function to understand how the result is used
 6. Apply the appropriate fix pattern (see below)
 7. Update any page from step 3 that this change made wrong, in the same diff, before you verify
-8. Run `./le verify lint run && ./le test-unit` to verify
+8. Run `./le verify lint run && ./le test-unit all` to verify
 
 ## Pre-Flight Checks
 
@@ -184,7 +184,7 @@ After making changes:
 
 1. **Compile:** `go build ./...`
 2. **Lint:** `./le verify lint run`
-3. **Test:** `./le test-unit`
+3. **Test:** `./le test-unit all`
 4. **Check for Pack() deprecation:** If ALL callers now use WriteTo, add deprecation comment to Pack()
 5. **Documentation:** the pages from instruction 3 describe the code as it now stands, and the diff carries those edits (`ai/rules/documentation.md`)
 

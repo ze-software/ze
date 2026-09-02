@@ -29,7 +29,7 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"discovery-index/check", "test-health/check", "site facts/check",
 		"htmx-upgrade/check", "verify deps/evidence-vet", "hook-check/unit",
 		"verify deps/vulnerability", "verify deps/unit-cached",
-		"verify deps/unit-race-changed", "verify deps/alloc", "functional",
+		"verify deps/unit-race-changed", "verify deps/alloc", "functional/gating",
 		"functional/exabgp-test",
 	}
 	stages := fullStages()
@@ -57,7 +57,6 @@ func TestEveryActionStageCarriesExplicitArgsOrIsBare(t *testing.T) {
 		"iface-resolution": true,
 		"config claims":    true,
 		"doc wiring":       true,
-		"functional":       true,
 	}
 	for _, current := range fullStages() {
 		if len(current.Identity.Args) != 0 || bare[current.Identity.Name] {

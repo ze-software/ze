@@ -7,7 +7,7 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 ## First-time setup
 
 ```sh
-./le setup
+./le setup install
 ./le verify current mode full
 ```
 
@@ -115,7 +115,7 @@ Run a full suite:
 ```sh
 ./le functional encode
 ./le functional plugin
-./le functional
+./le functional gating
 ./le functional exabgp-test
 ```
 

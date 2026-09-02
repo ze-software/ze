@@ -16,6 +16,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/leaction"
 )
 
 // recorder is a Shell that answers from a table and records every argv.
@@ -63,6 +65,52 @@ func rootShell(present ...string) *recorder {
 		rec.present[name] = true
 	}
 	return rec
+}
+
+// --- The command surface ----------------------------------------------------
+
+// TestBareCommandListsAndInstallsNothing pins the split the owner ordered on
+// 2026-09-02.
+// VALIDATES: `le setup` answers the action listing, and `install` is still the
+// row that carries the install run the bare name used to start.
+// PREVENTS: a developer who typed the area name to see what the area holds
+// finding that it has begun writing to the machine.
+func TestBareCommandListsAndInstallsNothing(t *testing.T) {
+	result, code := Answer(nil)
+	if code != 0 {
+		t.Fatalf("the bare command answered %d, want 0", code)
+	}
+	// A run answers *Report, so any other type here means the machine was read
+	// or written before this test could stop it.
+	listing, ok := result.(leaction.List)
+	if !ok {
+		t.Fatalf("the bare command returned %T, want leaction.List", result)
+	}
+	if listing.Area != area {
+		t.Errorf("the listing names area %q, want %q", listing.Area, area)
+	}
+	if !reflect.DeepEqual(listing, Actions()) {
+		t.Error("the bare command answers something other than the action listing")
+	}
+
+	install, found := leaction.Row{}, false
+	for _, row := range listing.Actions {
+		if row.Verb == installVerb {
+			install, found = row, true
+		}
+	}
+	switch {
+	case !found:
+		t.Fatalf("the listing does not name %q, so the run has no word left", installVerb)
+	case !install.Writes:
+		t.Errorf("%q is listed as a read, and it installs tools and rewrites vendor/", installVerb)
+	}
+
+	// The listing and the help hint are two surfaces on one command, and the
+	// reader who typed `--help` never sees the listing, so both name the run.
+	if !strings.Contains(Subs(), installVerb) {
+		t.Errorf("the help hint is %q, and it must name %q", Subs(), installVerb)
+	}
 }
 
 // --- The report vocabulary --------------------------------------------------

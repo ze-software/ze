@@ -13,7 +13,7 @@ There are two routes to one server, and they give the same answers.
 
 1. The agent LSP tool, when the harness serves it. Load it with
    `ToolSearch query="select:LSP"`.
-2. The `gopls` command line, from any context that has a shell. `./le setup`
+2. The `gopls` command line, from any context that has a shell. `./le setup install`
    installs `gopls` and puts it on PATH (`requiredTools`,
    `internal/le/setup/tools.go`).
 

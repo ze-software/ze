@@ -54,7 +54,7 @@ Never trade their model down for cost; cut their NUMBER instead
    - Run `go test ./...` to verify the specific fix.
 6. **Confirm the fix is at the source, not the symptom:** before accepting any fix, re-read its Diagnosis. If the change makes the test pass by editing the test, renaming a symbol, or special-casing the failing input rather than correcting the traced root cause, reject it and return to step 5. Changing a test to match broken code is never the fix (`ai/rules/testing.md`).
 7. **Update the pages the fix made wrong, in this diff (BLOCKING, `ai/rules/documentation.md`):** the pages are the ones step 3 read. Two things get repaired here. A page the fix made wrong, and a page step 3 found wrong about the code. Neither waits for closure.
-8. **Run full verification:** `./le verify lint run && ./le test-unit && ./le functional` -- the fix must not break anything else
+8. **Run full verification:** `./le verify lint run && ./le test-unit all && ./le functional gating` -- the fix must not break anything else
 9. **Report back** on each fixed failure. Give the Diagnosis (symptom, root-cause function, owning layer). Give the correct hypothesis, the `[source]` fix chosen over the `[workaround]`, the page updated, and the full suite green
 
 ## Fallback

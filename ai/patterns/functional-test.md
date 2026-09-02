@@ -71,7 +71,7 @@ line per test plus periodic progress.
 | `test/l2tp-wire/` | `ze-test l2tp-wire [--all|--start N|N...]` | `./le functional l2tp-wire` |
 | `test/exabgp-compat/` | `ze-test exabgp [--all|--start N|N...]` | `./le functional exabgp-test` |
 
-Gated suites (in `./le functional`): encode, plugin, parse, decode, reload,
+Gated suites (in `./le functional gating`): encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, web, install. Non-gated suites
 (run manually): static, traffic, flow-export, vpp, l2tp-wire, chaos, chaos-web, exabgp.
 
@@ -267,8 +267,8 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 ## Running Tests
 
 ```bash
-./le functional                 # All gated functional tests
-./le test-unit                  # Component-group unit tests
+./le functional gating          # All gated functional tests
+./le test-unit all              # Component-group unit tests
 ./le verify current mode full   # Full current-checkout verification
 ```
 
@@ -283,5 +283,5 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 [ ] If testing JSON: expect=json with all non-volatile fields
 [ ] If testing CLI: expect=exit:code + expect=stdout:contains
 [ ] If testing error: expect=stderr:contains or pattern
-[ ] Test runs successfully with ./le functional
+[ ] Test runs successfully with ./le functional gating
 ```

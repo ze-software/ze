@@ -301,6 +301,19 @@ func commandExpensive(segment string) bool {
 	return false
 }
 
+// beforeRedirection answers the words up to the first redirection. The
+// tokenizer keeps `2>&1` and `>` as words of their own. A caller counting what
+// follows an area name would therefore read `le functional 2>&1` as a command
+// carrying a verb. It would then refuse a listing as the 24-suite run.
+func beforeRedirection(words []string) []string {
+	for i, word := range words {
+		if strings.ContainsAny(word, "<>") {
+			return words[:i]
+		}
+	}
+	return words
+}
+
 // heavyArea answers whether the le area the words name runs tests, a build, or
 // the verification gate. An area name is two words since the command grouping,
 // so the two-word name is read before the one-word name: `le verify status` and
@@ -312,6 +325,7 @@ func commandExpensive(segment string) bool {
 // verify` still runs the gate on its bare name, which is why the exemption
 // names the two areas rather than the shape.
 func heavyArea(words []string) bool {
+	words = beforeRedirection(words)
 	if len(words) == 0 {
 		return false
 	}

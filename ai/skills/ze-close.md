@@ -62,8 +62,8 @@ judges work, so it must not be the context that produced it.
 
 ## Precondition
 
-The implementation is complete and `./le verify lint run && ./le test-unit &&
-./le functional` is green (`/ze-implement` steps 1-10). If feature code is
+The implementation is complete and `./le verify lint run && ./le test-unit all &&
+./le functional gating` is green (`/ze-implement` steps 1-10). If feature code is
 still missing, go back: this skill does not implement.
 
 Two entry statuses are valid, `in-progress` and `verification`, and they differ

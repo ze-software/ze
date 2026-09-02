@@ -52,25 +52,31 @@ func TestTablePinsEveryUnitGroup(t *testing.T) {
 		t.Fatalf("unit group table differs:\n got: %#v\nwant: %#v", got, want)
 	}
 
+	// The listing carries one row for each group, then `all`, which runs them
+	// and is therefore not one of them (actions.go, Actions).
 	list := Actions()
-	if list.Area != Area || len(list.Actions) != len(want) {
-		t.Fatalf("action population is area %q with %d rows, want %q with %d", list.Area, len(list.Actions), Area, len(want))
+	if list.Area != Area || len(list.Actions) != len(want)+1 {
+		t.Fatalf("action population is area %q with %d rows, want %q with %d", list.Area, len(list.Actions), Area, len(want)+1)
 	}
 	for index, row := range list.Actions {
-		if row.Verb != want[index].Verb || row.Why != want[index].Why {
+		if index < len(want) && (row.Verb != want[index].Verb || row.Why != want[index].Why) {
 			t.Errorf("action %d differs: %#v", index, row)
 		}
 		if row.Writes {
 			t.Errorf("action %s claims to write", row.Verb)
 		}
 	}
+	last := list.Actions[len(list.Actions)-1]
+	if last.Verb != allVerb || last.Why == "" {
+		t.Errorf("the listing ends with %#v, want %q and a reason", last, allVerb)
+	}
 }
 
-// TestBareSweepDerivesEveryDefaultFromTheActionTable protects the action
-// population and order.
-// VALIDATES: bare `le test-unit` runs every table action exactly once.
+// TestAllExpandsToEveryActionOfTheTable protects the action population and
+// order behind the one word that runs them.
+// VALIDATES: `le test-unit all` runs every table action exactly once.
 // PREVENTS: omitting an action or appending one twice.
-func TestBareSweepDerivesEveryDefaultFromTheActionTable(t *testing.T) {
+func TestAllExpandsToEveryActionOfTheTable(t *testing.T) {
 	called := make([]string, 0, 2)
 	command := leaction.New("fixture",
 		leaction.Action{
@@ -91,26 +97,75 @@ func TestBareSweepDerivesEveryDefaultFromTheActionTable(t *testing.T) {
 		},
 	)
 
-	answer, code := sweep(nil, command)
+	answer, code := sweep([]string{allVerb}, command)
 	if code != 6 {
-		t.Fatalf("bare sweep answered %d, want 6", code)
+		t.Fatalf("all sweep answered %d, want 6", code)
 	}
 	if !reflect.DeepEqual(called, []string{"one", "two"}) {
-		t.Fatalf("bare sweep calls differ: got %q, want [one two]", called)
+		t.Fatalf("all sweep calls differ: got %q, want [one two]", called)
 	}
 	report, ok := answer.(leaction.Sweep)
 	if !ok {
-		t.Fatalf("bare sweep returned %T, want leaction.Sweep", answer)
+		t.Fatalf("all sweep returned %T, want leaction.Sweep", answer)
 	}
 	if len(report.Ran) != 2 || report.Ran[0].Verb != "one" || report.Ran[1].Verb != "two" {
 		t.Errorf("structured sweep differs: %#v", report)
 	}
 }
 
+// TestBareCommandListsAndRunsNothing proves that typing the area name reads the
+// surface instead of starting a test run.
+// VALIDATES: `le test-unit` answers the listing, reaches neither the checkout
+// nor the toolchain nor the process runner, and names `all` as the run.
+// PREVENTS: a developer opening the help and waiting on six race-instrumented
+// suites (owner directive, 2026-09-02).
+func TestBareCommandListsAndRunsNothing(t *testing.T) {
+	resolveRoot := func() (string, error) {
+		t.Error("the bare command read the checkout")
+		return "/checkout", nil
+	}
+	loadToolchain := func(string) (gotoolchain.Toolchain, error) {
+		t.Error("the bare command resolved the toolchain")
+		return fixtureToolchain(), nil
+	}
+	run := func(string, []string, string, []string) (gaterun.ActionReport, int) {
+		t.Error("the bare command started a process")
+		return gaterun.ActionReport{}, 0
+	}
+
+	result, code := answer(nil, resolveRoot, loadToolchain, run)
+	if code != 0 {
+		t.Fatalf("the bare command answered %d, want 0", code)
+	}
+	listing, ok := result.(leaction.List)
+	if !ok {
+		t.Fatalf("the bare command returned %T, want leaction.List", result)
+	}
+	verbs := make([]string, 0, len(listing.Actions))
+	for _, row := range listing.Actions {
+		verbs = append(verbs, row.Verb)
+	}
+	want := append(groupVerbs(), allVerb)
+	if !reflect.DeepEqual(verbs, want) {
+		t.Fatalf("the listing names %q, want %q", verbs, want)
+	}
+	for _, row := range listing.Actions {
+		if row.Why == "" {
+			t.Errorf("action %q states no reason, so the listing renders it blank", row.Verb)
+		}
+	}
+
+	// The listing and the help hint are two surfaces on one command, and the
+	// reader who typed `--help` never sees the listing, so both name the run.
+	if !strings.HasSuffix(Subs(), "| "+allVerb) {
+		t.Errorf("the help hint is %q, and it must end by naming %q", Subs(), allVerb)
+	}
+}
+
 // TestNamedSweepPreservesSelectionOrder proves that an explicit selection is
 // neither expanded to the default nor deduplicated.
 // VALIDATES: selected test-unit actions retain their order and repetitions.
-// PREVENTS: applying the bare-command expansion or deduplication to named actions.
+// PREVENTS: applying the `all` expansion or deduplication to named actions.
 func TestNamedSweepPreservesSelectionOrder(t *testing.T) {
 	tc := fixtureToolchain()
 	rows := table(tc, func(name string, argv []string, _ string, _ []string) (gaterun.ActionReport, int) {
@@ -223,7 +278,7 @@ func TestSweepRunsEveryGroupAndReturnsTheFirstFailure(t *testing.T) {
 	}
 
 	result, code := answer(
-		nil,
+		[]string{allVerb},
 		func() (string, error) { return tc.Root, nil },
 		func(string) (gotoolchain.Toolchain, error) { return tc, nil },
 		run,

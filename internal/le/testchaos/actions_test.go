@@ -121,8 +121,8 @@ func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 	}
 }
 
-// TestAggregateRunUsesTableOrderAndFirstFailureCode proves the bare-area
-// behavior. All three tools run, and the first failing tool owns the result.
+// TestAggregateRunUsesTableOrderAndFirstFailureCode proves what `all` runs.
+// All three tools run, and the first failing tool owns the result.
 func TestAggregateRunUsesTableOrderAndFirstFailureCode(t *testing.T) {
 	tc := chaosFixtureToolchain(t)
 	codes := map[string]int{"lint": 3, "unit": 0, "cli-unit": 9}
@@ -133,7 +133,7 @@ func TestAggregateRunUsesTableOrderAndFirstFailureCode(t *testing.T) {
 		return gaterun.ActionReport{Action: action, Command: slices.Clone(argv), Code: code}, code
 	}
 
-	answer, code := answerWith(tc, run, nil)
+	answer, code := answerWith(tc, run, []string{allVerb})
 	if code != 3 {
 		t.Errorf("aggregate code = %d, want first failing code 3", code)
 	}
@@ -211,9 +211,10 @@ func TestNamedToolFailureKeepsItsReportAndCode(t *testing.T) {
 	}
 }
 
-// TestAreaMetadataDeclaresExactlyThreeActions pins the public command surface.
-func TestAreaMetadataDeclaresExactlyThreeActions(t *testing.T) {
-	wantVerbs := []string{"lint", "unit", "cli-unit"}
+// TestAreaMetadataDeclaresThreeToolsAndTheRunThatSweepsThem pins the public
+// command surface: the three tools of the table, then the word that runs them.
+func TestAreaMetadataDeclaresThreeToolsAndTheRunThatSweepsThem(t *testing.T) {
+	wantVerbs := []string{"lint", "unit", "cli-unit", allVerb}
 	listing := Actions()
 	if listing.Area != Area {
 		t.Errorf("area = %q, want %q", listing.Area, Area)
@@ -228,6 +229,50 @@ func TestAreaMetadataDeclaresExactlyThreeActions(t *testing.T) {
 		if row.Writes {
 			t.Errorf("action %q says that it writes", row.Verb)
 		}
+	}
+}
+
+// TestBareCommandListsAndRunsNothing proves that typing the area name reads the
+// surface instead of starting the chaos suites.
+// VALIDATES: `le test-chaos` answers the listing, resolves no toolchain, and
+// names `all` as the run.
+// PREVENTS: a developer opening the help and waiting on a race-instrumented
+// simulator run (owner directive, 2026-09-02).
+func TestBareCommandListsAndRunsNothing(t *testing.T) {
+	// A checkout with no feature manifest is what gotoolchain.New refuses, so a
+	// bare command that answered 0 here reached no toolchain at all.
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.test/chaos\n"), 0o600); err != nil {
+		t.Fatalf("write fixture go.mod: %v", err)
+	}
+	t.Setenv("ZE_REPO_ROOT", root)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	result, code := Answer(nil)
+	if code != 0 {
+		t.Fatalf("the bare command answered %d, want 0", code)
+	}
+	listing, ok := result.(leaction.List)
+	if !ok {
+		t.Fatalf("the bare command returned %T, want leaction.List", result)
+	}
+	want := []string{"lint", "unit", "cli-unit", allVerb}
+	verbs := make([]string, 0, len(listing.Actions))
+	for _, row := range listing.Actions {
+		verbs = append(verbs, row.Verb)
+		if row.Why == "" {
+			t.Errorf("action %q states no reason, so the listing renders it blank", row.Verb)
+		}
+	}
+	if !slices.Equal(verbs, want) {
+		t.Fatalf("the listing names %q, want %q", verbs, want)
+	}
+
+	// The listing and the help hint are two surfaces on one command, and the
+	// reader who typed `--help` never sees the listing, so both name the run.
+	if !strings.HasSuffix(Subs(), "| "+allVerb) {
+		t.Errorf("the help hint is %q, and it must end by naming %q", Subs(), allVerb)
 	}
 }
 

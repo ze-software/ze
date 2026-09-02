@@ -11,6 +11,7 @@ package functional
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/test/runner"
 )
@@ -486,6 +488,83 @@ func TestPreparePropagatesSessionResolutionFailure(t *testing.T) {
 	}
 	if set != (BinarySet{}) {
 		t.Errorf("Prepare returned a binary set after resolver failure: %#v", set)
+	}
+}
+
+// TestBareCommandAnswersTheVerbsAndGatingRunsTheSuites pins both halves of the
+// split the owner ordered on 2026-09-02.
+// VALIDATES: `le functional` answers the area's verbs with `gating` among them
+// and builds nothing, `le functional list` still answers the suite catalog,
+// and `le functional gating` reaches runGating.
+// PREVENTS: a developer who typed the area name starting the 24-suite release
+// run, and one who typed it to learn the run reading a table that never names
+// the keyword that performs it.
+func TestBareCommandAnswersTheVerbsAndGatingRunsTheSuites(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"),
+		[]byte("module example.test/functional\n\ngo 1.26\ntoolchain go1.26.6\n"), 0o600); err != nil {
+		t.Fatalf("write fixture go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "feature-gates.txt"),
+		[]byte("ze_bgp internal/component/bgp\n"), 0o600); err != nil {
+		t.Fatalf("write fixture feature manifest: %v", err)
+	}
+	t.Setenv("ZE_REPO_ROOT", root)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	// The refusal path of runGating: a run list this area cannot resolve. It
+	// answers no report at all, which nothing else in this command produces, so
+	// reaching it is what proves `gating` runs the suites.
+	saved := Gating
+	Gating = []string{"no-such-suite"}
+	defer func() { Gating = saved }()
+
+	bare, code := Answer(nil)
+	if code != 0 {
+		t.Fatalf("the bare command answered %d, want 0", code)
+	}
+	listing, ok := bare.(leaction.List)
+	if !ok {
+		t.Fatalf("the bare command returned %T, want leaction.List", bare)
+	}
+	if !reflect.DeepEqual(listing, Actions()) {
+		t.Error("the bare command answers something other than the area's verbs")
+	}
+	// A reader who typed the area name is looking for these two verbs, so they
+	// lead the listing.
+	if len(listing.Actions) < 2 ||
+		listing.Actions[0].Verb != listVerb || listing.Actions[1].Verb != gatingVerb {
+		t.Errorf("the listing opens with %v, want %q then %q",
+			listing.Actions, listVerb, gatingVerb)
+	}
+	for _, suite := range Suites {
+		if !slices.ContainsFunc(listing.Actions, func(row leaction.Row) bool {
+			return row.Verb == suite.Name
+		}) {
+			t.Errorf("the listing omits the %q suite", suite.Name)
+		}
+	}
+
+	// `list` answers a different question, what each suite costs, and keeps the
+	// catalog it always answered.
+	listed, listCode := Answer([]string{listVerb})
+	if listCode != 0 || !reflect.DeepEqual(listed, Catalog()) {
+		t.Errorf("`%s` answered (%d, %T), want the suite catalog", listVerb, listCode, listed)
+	}
+
+	report, gatingCode := Answer([]string{gatingVerb})
+	if gatingCode == 0 {
+		t.Error("`gating` accepted a run list naming no suite, so it never reached the run")
+	}
+	if report != nil {
+		t.Errorf("`gating` answered %v for a run that never started, want no report at all", report)
+	}
+
+	// The listing and the help hint are two surfaces on one command. The reader
+	// who typed `--help` never sees the listing, so the hint names the run too.
+	if !strings.Contains(Subs(), gatingVerb) {
+		t.Errorf("the help hint is %q, and it must name %q", Subs(), gatingVerb)
 	}
 }
 

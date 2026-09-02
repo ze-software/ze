@@ -860,7 +860,7 @@ expect=exit:code=0
 | Config parsing | `test/parse/` | `ze-test bgp parse` |
 | Plugin behavior | `test/plugin/` | `ze-test bgp plugin` |
 | ExaBGP compat | `test/exabgp/` | `./le functional exabgp-test` |
-| Integration | `test/integration/` | `./le functional` |
+| Integration | `test/integration/` | `./le functional gating` |
 | Unit tests | `internal/**/*_test.go` | `./le test-unit bgp` and the other native groups |
 | Fuzz tests | Various | `./le fuzz run` |
 | Chaos tests | Various | `./le test-chaos unit` |
@@ -871,7 +871,7 @@ expect=exit:code=0
 |---------|--------------|
 | `./le verify current mode full` | Static gates, Linux/amd64 SCA, unit, functional, and ExaBGP checks |
 | `./le test-unit bgp` | Race-instrumented BGP unit group |
-| `./le functional` | All release-gate `.ci` suites |
+| `./le functional gating` | All release-gate `.ci` suites |
 | `./le verify lint run` | golangci-lint over every Go build flavor |
 | `./le fuzz run` | Every discovered Go fuzz target |
 | `./le functional exabgp-test` | ExaBGP compatibility suite |

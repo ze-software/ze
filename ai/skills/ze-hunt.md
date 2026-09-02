@@ -191,7 +191,7 @@ Grep catches the recorded *shapes*. To find unknown bugs, escalate:
 - `go run github.com/sivchari/gomu/cmd/gomu run --workers 2 --timeout 120 --threshold 0 --output json --incremental=false --fail-on-gate=false <dir>`: surviving mutants reveal untested logic. Start with wire codecs, FSMs, and RIB code.
 - `./le fuzz` on wire, NLRI, and attribute decoders with an MRT-seeded corpus.
 - `./le integration interop` and `./le functional exabgp-test` for differential testing against FRR, BIRD, and ExaBGP.
-- `go test -race -count=20 ./internal/component/bgp/reactor/...` plus `./le test-chaos` for concurrency.
+- `go test -race -count=20 ./internal/component/bgp/reactor/...` plus `./le test-chaos all` for concurrency.
 
 For a large scope, run the independent hunts as parallel subagents (one per
 subsystem or per hunt) and have a second agent adversarially verify each

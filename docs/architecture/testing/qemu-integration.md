@@ -20,7 +20,7 @@ On Linux the invoking user has to be in the `kvm` group. `/dev/kvm` is
 `root:kvm` 0660, so a user outside the group gets no run rather than a slow one:
 QEMU exits with `Could not access KVM kernel module: Permission denied` and the
 caller reports the generic "did not reach SSH within the timeout", which reads
-as flakiness. `./le setup` checks this as `kvm-access` and applies
+as flakiness. `./le setup install` checks this as `kvm-access` and applies
 `sudo usermod -aG kvm $USER`. The new group only reaches a new login, so use
 `sg kvm -c '<command>'` in an existing shell. A host with no `/dev/kvm` reports
 `n/a` and runs under TCG.
@@ -50,7 +50,7 @@ registration.
 
 | Host | Behavior |
 |------|----------|
-| `GOOS != linux` | The runner sets `SkipReason` and the test reports SKIP, never FAIL. `./le verify worktree` and `./le functional` stay green on darwin without running the test |
+| `GOOS != linux` | The runner sets `SkipReason` and the test reports SKIP, never FAIL. `./le verify worktree` and `./le functional gating` stay green on darwin without running the test |
 | `GOOS == linux`, inside the VM | The option is inert, so the same `.ci` test runs for real against the Linux kernel |
 
 <!-- source: internal/test/runner/record_parse.go -- the needs-linux option -->

@@ -18,10 +18,11 @@
 //	proto-json-tags  apply explicit proto json_name options to generated Go
 //	web-test         initialize an isolated config and run the local web server
 
-// THE BARE COMMAND RUNS INSTALL. This is what `./le setup` has always done and
-// what every document that names it means. `le functional` made the same
-// choice for the same reason. This area has one long run, so it must not show a
-// list to the operator who starts that run.
+// THE BARE COMMAND LISTS THE ACTIONS AND RUNS NOTHING. `setup install` is the
+// install run that the bare name used to start. A developer types an area name
+// to read what it holds, and this area holds one long run that changes the
+// machine, so the bare name must answer with the table rather than start it
+// (owner directive, 2026-09-02).
 
 package setup
 
@@ -104,11 +105,9 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le setup` command. A bare command is the install run.
+// Answer is the `le setup` command. Every command line reaches the action
+// table, which answers the listing for a bare one (leaction.Area.Answer).
 func Answer(args []string) (any, int) {
-	if len(args) == 0 {
-		return run(false, true)
-	}
 	return actions.Answer(args)
 }
 

@@ -186,7 +186,7 @@ var portedProducers = []portedProducer{
 
 	// Functional suites. The verb is the suite name; the area's own table is
 	// derived from internal/le/functional/suites.go.
-	{Target: "ze-functional-test", Area: "functional", Note: "the bare area runs the gating suites"},
+	{Target: "ze-functional-test", Area: "functional", Verb: "gating", Note: "the bare area lists the suites, so the gating run is named"},
 	{Target: "ze-functional-encode-test", Area: "functional", Verb: "encode"},
 	{Target: "ze-functional-plugin-test", Area: "functional", Verb: "plugin"},
 	{Target: "ze-functional-parse-test", Area: "functional", Verb: "parse"},

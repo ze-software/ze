@@ -38,4 +38,5 @@ the file, and carry no row for it.
 
 | Test | Reason |
 |------|--------|
-| TestSRPolicySplitViaRegistry | It asserted one thing: that a caller reaching SplitSRPolicy through nlrisplit.Split on the registered family gets the NLRI back. Every other test in split_test.go now makes that call, because the walk takes a visitor and the slice form comes from Split, so the single case it covered is covered seven times over by tests that also assert the framing. Nothing left the suite. |
+| TestBareSweepDerivesEveryDefaultFromTheActionTable | It asserted that a bare `le test-unit` expands to every verb of the action table. The bare command stopped sweeping, so the name states behavior the command no longer has. The body is unchanged and reads `all`, which is where that expansion moved, under the name TestAllExpandsToEveryActionOfTheTable. Nothing left the suite. |
+| TestAreaMetadataDeclaresExactlyThreeActions | It pinned `le test-chaos` at exactly three actions, and the listing now carries those three tools plus the `all` that sweeps them. TestAreaMetadataDeclaresThreeToolsAndTheRunThatSweepsThem asserts the same three rows and the fourth, so the count is still pinned and one more fact is. Nothing left the suite. |

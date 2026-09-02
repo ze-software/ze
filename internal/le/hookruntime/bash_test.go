@@ -213,6 +213,8 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 		{"ze-le-verify-status", `ze le verify status check | tail -1`, false},
 		{"functional-run", `./le functional gating | tail -5`, true},
 		{"functional-listing", `./le functional | head -20`, false},
+		{"functional-listing-redirected", `./le functional 2>&1 | head -20`, false},
+		{"functional-run-redirected", `./le functional gating 2>&1 | tail -5`, true},
 		{"unit-run", `./le test-unit all | tail -5`, true},
 		{"unit-listing", `./le test-unit | head -20`, false},
 	}

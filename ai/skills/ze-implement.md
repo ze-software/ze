@@ -97,7 +97,7 @@ A handoff carries four things:
 |------|---------|
 | Files changed | one line per file, in the digest format `.claude/rules/post-compaction.md` already defines: `` - `path/to/file.go` (380L): what it holds. Key: `Run()`, `handleOpen()`. Uses `wire.SessionBuffer`. `` |
 | Acceptance criteria covered | each AC-N this phase now satisfies, with the test name or command that is its evidence |
-| Verified green | the exact targets run and their result (`./le test-unit`, the wiring test name, the phase's Verify line from the spec) |
+| Verified green | the exact targets run and their result (`./le test-unit all`, the wiring test name, the phase's Verify line from the spec) |
 | Do not assume | what the next phase must NOT take for granted. A stub still standing, an A-N still `unvalidated`, a gate not yet run, a file left untouched |
 
 ### Work-package size (BLOCKING)
@@ -193,7 +193,7 @@ actions. `./le verify worktree` is the pre-commit GATE
 5. **Implement feature phases:** Follow the spec's **Implementation Phases** section in order, filling in the stubs created in step 4. For each phase:
    - Write the tests listed for that phase (TDD — test must fail before implementation)
    - Implement minimal code to pass
-   - Run `./le test-unit` until green
+   - Run `./le test-unit all` until green
    - Confirm the wiring test from step 4 now passes (or progresses) after each phase
    - Update the **Risks & Assumptions** tables: flip A-N statuses as evidence arrives;
      when an assumption breaks mid-phase, add the Mistake Log row immediately and STOP
@@ -209,7 +209,7 @@ actions. `./le verify worktree` is the pre-commit GATE
      `/ze-close` step 4 CHECKS these pages. It is not where they get written, and a phase that
      changed behavior and touched no page has to say why in its report.
    - Move to next phase
-6. **Run full verification:** `./le verify lint run && ./le test-unit && ./le functional`
+6. **Run full verification:** `./le verify lint run && ./le test-unit all && ./le functional gating`
 7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
@@ -226,7 +226,7 @@ actions. `./le verify worktree` is the pre-commit GATE
    - **YANG validation:** If YANG leaves were added, verify each has maximum native constraints (`range`, `length`, `pattern`, `enumeration`). If native is insufficient, verify a custom validator with `CompleteFn` exists per `ai/patterns/config-option.md`. A leaf with `type string` and no constraint is a red flag.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 8. **Fix every issue found** in the review. For each fix apply `ai/rules/completion.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
-9. **Re-run verification:** `./le verify lint run && ./le test-unit && ./le functional`
+9. **Re-run verification:** `./le verify lint run && ./le test-unit all && ./le functional gating`
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Bounding the loop").
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
     steps 7-9 find nothing, every target is green, AND you have read the whole
