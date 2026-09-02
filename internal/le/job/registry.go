@@ -218,14 +218,30 @@ func (a *Admission) scanAndClaim(job *pending) outcome {
 // A value that cannot be measured matches no value. It also does not match an
 // unmeasured value from another job. An unmeasured tree is not a matching tree,
 // and an unmeasured key is not a matching key.
+//
+// The asker's tree is measured again here when it waited, because the holder
+// wrote a hash taken at its own claim and the asker still carries one taken
+// before its wait. On a checkout several sessions work, something changes
+// during almost every wait, so comparing those two answers "different tree" for
+// a job that is doing identical work and sharing would never happen after a
+// wait. take measures again too, and only for the job it admits, which is too
+// late to decide this.
+//
+// The measurement costs three git calls, so the key is compared FIRST. A job
+// waiting behind unrelated work cannot share whatever its tree says, and it
+// pays nothing.
 func (a *Admission) shares(job *pending, held entry) bool {
 	if !job.mayAttach || held.state != "running" || held.label != job.label {
 		return false
 	}
-	if job.tree == "" || job.tree == Unknown || held.tree != job.tree {
+	if job.key == "" || job.key == Unknown || held.key != job.key {
 		return false
 	}
-	if job.key == "" || job.key == Unknown || held.key != job.key {
+	if job.treeStale {
+		job.tree = TreeHash(a.Root)
+		job.treeStale = false
+	}
+	if job.tree == "" || job.tree == Unknown || held.tree != job.tree {
 		return false
 	}
 	return true

@@ -349,7 +349,7 @@ func TestMakesNoExecuteModesTakeNoSlot(t *testing.T) {
 func TestALabelThatIsNotAPathComponentIsRefused(t *testing.T) {
 	adm := &Admission{Root: t.TempDir(), Slots: 1, Stall: StallDefault}
 	for _, label := range []string{"", "../escape", "a/b", "dotted.name"} {
-		if _, err := adm.admit(label, []string{"true"}); err == nil {
+		if _, err := adm.Admit(label, []string{"true"}); err == nil {
 			t.Errorf("the label %q was accepted", label)
 		}
 	}
@@ -491,7 +491,7 @@ func TestReleaseRecordsTheVerdictWhereAFollowerFindsIt(t *testing.T) {
 	root := fixtureRepo(t)
 	adm := admission(t, root)
 
-	ticket, err := adm.admit("held", []string{"true"})
+	ticket, err := adm.Admit("held", []string{"true"})
 	if err != nil {
 		t.Fatalf("admit: %v", err)
 	}
@@ -747,4 +747,68 @@ func read(t *testing.T, path string) string {
 		return ""
 	}
 	return string(body)
+}
+
+// A job that waits carries a tree hash taken before its wait, and the holder it
+// finds wrote one taken at its claim. Several sessions work this checkout, so
+// something changes during almost every wait. Comparing the two recorded hashes
+// answers "different tree" for two jobs doing identical work, and sharing stops
+// happening for exactly the jobs it exists to serve.
+func TestAWaiterMeasuresItsTreeAgainBeforeItDeclinesToShare(t *testing.T) {
+	root := fixtureRepo(t)
+	admission, err := NewIn(root)
+	if err != nil {
+		t.Fatalf("admission: %v", err)
+	}
+	held := entry{state: "running", label: "shared", key: "same-work", tree: TreeHash(root)}
+	waited := &pending{
+		label: "shared", key: "same-work", mayAttach: true,
+		tree: "the-hash-this-job-took-before-it-waited", treeStale: true,
+	}
+
+	if !admission.shares(waited, held) {
+		t.Fatal("a waiter did not share a running job doing its own work on its own tree")
+	}
+	if waited.tree != held.tree {
+		t.Fatalf("the waiter still carries %q, want the tree it measured again", waited.tree)
+	}
+}
+
+// The refresh above must not become a way in. A job whose work differs shares
+// nothing whatever the tree says, and measuring the tree for it would spend
+// three git calls per poll on an answer that is already no.
+func TestADifferentWorkKeyDeclinesWithoutMeasuringTheTree(t *testing.T) {
+	root := fixtureRepo(t)
+	admission, err := NewIn(root)
+	if err != nil {
+		t.Fatalf("admission: %v", err)
+	}
+	held := entry{state: "running", label: "shared", key: "other-work", tree: TreeHash(root)}
+	waited := &pending{
+		label: "shared", key: "same-work", mayAttach: true,
+		tree: "the-hash-this-job-took-before-it-waited", treeStale: true,
+	}
+
+	if admission.shares(waited, held) {
+		t.Fatal("a job shared a run of different work")
+	}
+	if !waited.treeStale {
+		t.Fatal("the tree was measured for a job whose key had already answered no")
+	}
+}
+
+// A job that did NOT wait holds a current hash. A holder on another tree is a
+// holder judging something else, and that stays true after the change above.
+func TestAJobThatDidNotWaitStillDeclinesAHolderOnAnotherTree(t *testing.T) {
+	root := fixtureRepo(t)
+	admission, err := NewIn(root)
+	if err != nil {
+		t.Fatalf("admission: %v", err)
+	}
+	held := entry{state: "running", label: "shared", key: "same-work", tree: "another-tree"}
+	fresh := &pending{label: "shared", key: "same-work", mayAttach: true, tree: TreeHash(root)}
+
+	if admission.shares(fresh, held) {
+		t.Fatal("a job shared a run judging a different tree")
+	}
 }
