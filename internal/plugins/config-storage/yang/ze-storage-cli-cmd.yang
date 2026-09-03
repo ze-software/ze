@@ -14,6 +14,8 @@ module ze-storage-cli-cmd {
         container data {
             config false;
             description "ZeFS blob store keys and content.";
+            ze:help "This is the raw store the daemon persists into, keyed by blob rather than by
+                     config path. Use show config to read the configuration itself.";
 
             container list {
                 config false;

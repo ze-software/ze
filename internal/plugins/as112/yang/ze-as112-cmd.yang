@@ -32,6 +32,8 @@ served zone count, and the current SOA serial.";
         container as112 {
             config false;
             description "AS112 operational actions.";
+            ze:help "AS112 answers reverse-DNS queries for private address space, so these act on a
+                     sink service rather than on a routing session.";
 
             container healthcheck {
                 config false;

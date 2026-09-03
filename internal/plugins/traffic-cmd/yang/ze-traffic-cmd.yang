@@ -18,6 +18,8 @@ module ze-traffic-cmd {
         container traffic {
             config false;
             description "Traffic subsystem: QoS control and byte-usage accounting.";
+            ze:help "Two different things share this noun: QoS decides how packets are scheduled, and
+                     usage accounting counts bytes per subscriber. Neither one reads the other.";
 
             container control {
                 config false;

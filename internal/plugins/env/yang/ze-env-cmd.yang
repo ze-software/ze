@@ -13,6 +13,8 @@ module ze-env-cmd {
         container env {
             config false;
             description "Ze environment variable inspection.";
+            ze:help "It reports the variables Ze itself registered, with the value in force. A variable
+                     the process inherited but Ze never declared is not listed.";
 
             container list {
                 config false;

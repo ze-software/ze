@@ -35,6 +35,8 @@ module ze-traffic-stat-cmd {
         container traffic {
             config false;
             description "Traffic subsystem: QoS control and byte-usage accounting.";
+            ze:help "Monitoring is a live feed and starts empty, so it reports what happens from now on.
+                     The accumulated totals are under show traffic.";
 
             container stat {
                 config false;

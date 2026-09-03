@@ -100,6 +100,8 @@ duration, and node count.";
         container isis {
             config false;
             description "Reset IS-IS runtime state without reconfiguring.";
+            ze:help "Adjacencies drop and counters zero. The configuration is untouched, so the router
+                     rebuilds the same adjacencies it had.";
 
             container adjacency {
                 config false;

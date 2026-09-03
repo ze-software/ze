@@ -206,6 +206,10 @@ Options (R/V6/E/N/AF), the list sizes, the last NSM event, and the timers.";
                     config false;
                     ze:command "ze-show:ospfv3-spf";
                     description "Show the OSPFv3 (IPv6) per-area SPF run history.";
+                    ze:help "The history is read from the IPv6 unicast engine alone. Another
+                             address family is not covered here. A router that runs no OSPFv3
+                             engine answers an empty list rather than an error. That reads the
+                             same as a router whose engine has run no SPF yet.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospfv3-spf-detail";
@@ -309,6 +313,10 @@ appears under the AS-external view and not here.";
                     config false;
                     ze:command "ze-show:ospf-database-opaque-link";
                     description "Show only link-local opaque-LSAs (Type 9, RFC 5250).";
+                    ze:help "RFC 5250 Section 3 gives link-state type-9 a link-local scope. A
+                             type-9 opaque LSA is not flooded beyond the local subnetwork. This
+                             view is therefore per link. No other link holds an LSA listed here,
+                             and no router past the local segment holds one.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospf-database-opaque-link-detail";
@@ -322,6 +330,10 @@ generic type, length and hex view (spec-ospf-ext-14).";
                     config false;
                     ze:command "ze-show:ospf-database-opaque-area";
                     description "Show only area-scope opaque-LSAs (Type 10, RFC 5250).";
+                    ze:help "RFC 5250 Section 3 gives link-state type-10 an area-local scope: a
+                             type-10 opaque LSA is not flooded beyond the borders of its area.
+                             So this view is per area, and an area border router does not carry
+                             what it lists into the backbone.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospf-database-opaque-area-detail";
@@ -335,6 +347,12 @@ generic type, length and hex view (spec-ospf-ext-14).";
                     config false;
                     ze:command "ze-show:ospf-database-opaque-as";
                     description "Show only AS-scope opaque-LSAs (Type 11, RFC 5250).";
+                    ze:help "RFC 5250 Section 3 floods link-state type-11 throughout the
+                             autonomous system. It takes the scope of an AS-external (type-5)
+                             LSA. A type-11 opaque LSA reaches every transit area. It is not
+                             flooded into a stub area or an NSSA. A router does not originate
+                             one into a connected stub area or NSSA. One received from a
+                             neighbor inside such an area is rejected.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospf-database-opaque-as-detail";
@@ -427,6 +445,9 @@ not-synchronized after having been synchronized.";
         container ospf {
             config false;
             description "Reset OSPF runtime state without reconfiguring.";
+            ze:help "The subcommands drop adjacencies, zero counters or restart the process. None of
+                     them edits the configuration, so a cleared router rebuilds the same state it held
+                     before.";
 
             container process {
                 config false;
@@ -457,6 +478,8 @@ not-synchronized after having been synchronized.";
         container ospf {
             config false;
             description "OSPFv2 operational actions (RFC 2328).";
+            ze:help "The actions run against the live process and change no configuration. A router
+                     restarted after one of them comes back to the state its config describes.";
 
             container graceful-restart {
                 config false;
@@ -480,12 +503,19 @@ normally.";
         container ip {
             config false;
             description "IPv4 OSPF debug commands.";
+            ze:help "These act on OSPFv2 alone. The OSPFv3 equivalents are under debug ipv6, and the
+                     controls that hold for both families are under debug ospf.";
             container ospf {
                 config false;
                 description "OSPFv2 debug commands.";
+                ze:help "The scope is the IPv4 address family. A router that also runs OSPFv3 keeps that
+                         instance untouched by anything here.";
                 container inject {
                     config false;
                     description "Inject crafted OSPFv2 LSAs for testing.";
+                    ze:help "Injection is refused until debug ospf inject is enabled, so the command cannot
+                             fire on a router nobody armed. It exists to drive a decoder against an LSA a real
+                             neighbor is unlikely to send.";
                     container opaque {
                         config false;
                         ze:command "ze-debug:ospf-inject";
@@ -589,12 +619,19 @@ pair the origination used.";
         container ipv6 {
             config false;
             description "IPv6 OSPF debug commands.";
+            ze:help "These act on OSPFv3 alone. The OSPFv2 equivalents are under debug ip, and the
+                     controls that hold for both families are under debug ospf.";
             container ospf {
                 config false;
                 description "OSPFv3 debug commands.";
+                ze:help "The scope is the IPv6 address family. A router that also runs OSPFv2 keeps that
+                         instance untouched by anything here.";
                 container inject {
                     config false;
                     description "Inject crafted OSPFv3 LSAs for testing.";
+                    ze:help "Injection is refused until debug ospf inject is enabled, so the command cannot
+                             fire on a router nobody armed. It exists to drive a decoder against an LSA a real
+                             neighbor is unlikely to send.";
                     container lsa {
                         config false;
                         ze:command "ze-debug:ospfv3-inject";
@@ -676,9 +713,13 @@ other scope is withdrawn from the backbone area store.";
         container ospf {
             config false;
             description "Address-family-independent OSPF debug controls.";
+            ze:help "What is set here holds for OSPFv2 and OSPFv3 together. A control that binds one
+                     family alone lives under debug ip or debug ipv6.";
             container inject {
                 config false;
                 description "Enable or disable OSPF debug LSA injection.";
+                ze:help "It is the arming switch both injection commands read. Injection stays refused
+                         while it is off, so a router is never one typo away from a crafted LSA.";
                 container enable {
                     config false;
                     ze:command "ze-debug:ospf-inject-enable";

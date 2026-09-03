@@ -14,6 +14,8 @@ module ze-ldp-cmd {
         container ldp {
             config false;
             description "LDP neighbors and label bindings.";
+            ze:help "A binding can exist for a neighbor that is not the next hop, because LDP
+                     distributes labels regardless of which one the routing table chose.";
 
             container neighbor {
                 config false;

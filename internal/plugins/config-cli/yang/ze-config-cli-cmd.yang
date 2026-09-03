@@ -18,6 +18,8 @@ module ze-config-cli-cmd {
         container config {
             config false;
             description "Inspect, compare, and format configuration.";
+            ze:help "Everything here reads. Nothing under show config applies a change, so it is safe
+                     against a production router.";
 
             container dump {
                 config false;

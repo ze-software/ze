@@ -13,6 +13,8 @@ module ze-mpls-cmd {
         container mpls {
             config false;
             description "MPLS forwarding table and label operations.";
+            ze:help "This is the forwarding state the dataplane uses. The protocol that installed a
+                     label lives under show ldp or show rsvp-te.";
 
             container forwarding {
                 config false;

@@ -11,6 +11,8 @@ module ze-storage-cmd {
         container storage {
             config false;
             description "Storage device health and diagnostics.";
+            ze:help "This reads the physical device through SMART. It is unrelated to show data, which
+                     reads the blob store Ze keeps on top of it.";
             container smart {
                 config false;
                 ze:command "ze-show:storage-smart";

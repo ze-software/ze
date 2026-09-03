@@ -13,6 +13,8 @@ module ze-log-cmd {
         container log {
             config false;
             description "View log entries and current levels.";
+            ze:help "The entries are what the daemon buffered, so the view starts at the last restart.
+                     The level shown is what is live now, which can differ from the configured one.";
 
             container levels {
                 config false;
@@ -56,6 +58,8 @@ entries first. Useful when you cannot access the log file directly.";
         container log {
             config false;
             description "Runtime log operations.";
+            ze:help "These act on the running daemon. A level set here is lost on restart, and the
+                     configuration decides what a fresh process starts with.";
 
             container level {
                 config false;

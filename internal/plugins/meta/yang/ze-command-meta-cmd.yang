@@ -36,6 +36,9 @@ events are available before subscribing.";
         container command {
             config false;
             description "Command discovery and completion.";
+            ze:help "The answers are built from the registries this binary links. A command
+                     absent here is one the build did not include, and not one an operator
+                     misspelled.";
 
             container list {
                 config false;
@@ -66,6 +69,8 @@ editor, but also callable for scripting.";
     container plugin {
         config false;
         description "Configure how events are delivered to your plugin session.";
+        ze:help "The settings bind to the session that issues them, so another plugin session is
+                 unaffected. They are lost when that session ends.";
 
         container encoding {
             config false;

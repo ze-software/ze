@@ -41,6 +41,9 @@ BORR. Only send this after the peer has finished re-advertising.";
             container clear {
                 config false;
                 description "Non-disruptive peer refresh.";
+                ze:help "The session stays established, so no route is withdrawn while it runs. RFC 2918
+                         Section 4 permits the request only toward a peer that advertised the Route Refresh
+                         Capability.";
 
                 container soft {
                     config false;

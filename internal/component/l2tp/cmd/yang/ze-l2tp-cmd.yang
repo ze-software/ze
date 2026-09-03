@@ -58,6 +58,8 @@ session count, and uptime.";
             container tunnel {
                 config false;
                 description "Show full detail for one L2TP tunnel.";
+                ze:help "It takes a single tunnel and prints everything the daemon holds for it, including
+                         the sessions it carries.";
 
                 container id {
                     config false;
@@ -93,6 +95,8 @@ subscriber login, and uptime.";
             container session {
                 config false;
                 description "Show full detail for one L2TP session.";
+                ze:help "It takes a single session and prints everything the daemon holds for it. The list
+                         of sessions is show l2tp session with no identifier.";
 
                 container id {
                     config false;
@@ -194,10 +198,15 @@ moving.";
         container l2tp {
             config false;
             description "Tear down L2TP tunnels and sessions.";
+            ze:help "A tunnel torn down takes every session it carries with it, so clear l2tp tunnel
+                     is the wider of the two. Neither one edits the configuration, and a peer that is
+                     configured to reconnect will.";
 
             container tunnel {
                 config false;
                 description "Tear down L2TP tunnels.";
+                ze:help "Every session the tunnel carries goes with it. Use clear l2tp session to drop one
+                         call and leave the tunnel up.";
 
                 container id {
                     config false;
@@ -220,6 +229,8 @@ session is disconnected. Use with care during maintenance.";
             container session {
                 config false;
                 description "Tear down L2TP sessions.";
+                ze:help "The tunnel that carried the session stays open. The peer can place a new
+                         call, and it does not negotiate the tunnel again.";
 
                 container id {
                     config false;
@@ -255,14 +266,21 @@ tunnels stay up. Use with care.";
         container l2tp {
             config false;
             description "L2TP operator actions (RFC 2661).";
+            ze:help "These drive the protocol on the live daemon. Nothing here writes configuration, so
+                     the actions are lost across a restart.";
 
             container outgoing-call {
                 config false;
                 description "Place an LNS-side outgoing call toward a remote.";
+                ze:help "Ze acts as the LNS and asks the LAC to dial, which is the OCRQ direction of RFC
+                         2661. The remote must already be configured: this command selects one, it does not
+                         define one.";
 
                 container remote {
                     config false;
                     description "Select the configured remote to dial.";
+                    ze:help "The name is one the configuration already declares. An unknown name is refused
+                             rather than dialed, so a typo cannot open a call to an unintended peer.";
 
                     container called {
                         config false;

@@ -12,6 +12,8 @@ module ze-schema-cli-cmd {
         container schema {
             config false;
             description "Discover registered YANG schemas, RPCs, and events.";
+            ze:help "What is listed comes from the registries this binary links, so the answer depends
+                     on the build and on which plugins loaded.";
 
             container list {
                 config false;

@@ -18,6 +18,9 @@ module ze-flowexport-cmd {
         container flow {
             config false;
             description "Flow observability: NetFlow/IPFIX export status and the recent-flow ring.";
+            ze:help "The ring is bounded and in memory, so it holds recent flows rather than a history.
+                     Export status says whether the collector is being reached, which is separate from
+                     whether flows are being seen.";
 
             container export {
                 config false;

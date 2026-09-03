@@ -14,6 +14,8 @@ module ze-iface-monitor-cmd {
         container system {
             config false;
             description "System-level event streams.";
+            ze:help "A stream is a live feed and it starts empty. It reports what happens from
+                     now on. It never reports what happened before the command was typed.";
 
             container netlink {
                 config false;

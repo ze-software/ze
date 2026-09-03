@@ -12,6 +12,9 @@ module ze-ddos-cmd {
         container ddos {
             config false;
             description "Distributed denial-of-service detection and mitigation subsystem.";
+            ze:help "Detection and mitigation are separate. A detected attack is reported even
+                     when no mitigation is armed. An attack listed here does not prove that
+                     traffic is dropped.";
 
             container status {
                 config false;

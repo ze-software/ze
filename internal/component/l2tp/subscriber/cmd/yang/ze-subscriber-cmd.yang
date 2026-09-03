@@ -23,6 +23,8 @@ is the quick way to see how many subscribers are online.";
             container id {
                 config false;
                 description "Select one subscriber session by ID.";
+                ze:help "The ID names one subscriber session. It is not the L2TP session identifier, which
+                         show l2tp session takes.";
 
                 container detail {
                     config false;

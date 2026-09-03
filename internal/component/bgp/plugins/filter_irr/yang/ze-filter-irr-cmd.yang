@@ -56,6 +56,9 @@ prefix would be accepted or rejected, and which entry matches.";
             container irr {
                 config false;
                 description "IRR prefix-list refresh commands.";
+                ze:help "The fetch reaches an external IRR database over the network, so it can fail for a
+                         reason unrelated to BGP. A failed refresh keeps the previous prefix list rather
+                         than emptying it, so no route is accidentally accepted.";
 
                 container all {
                     config false;

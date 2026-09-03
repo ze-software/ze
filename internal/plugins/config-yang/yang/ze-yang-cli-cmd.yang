@@ -12,6 +12,8 @@ module ze-yang-cli-cmd {
         container yang {
             config false;
             description "YANG model tree visualization and documentation.";
+            ze:help "It renders the schema this binary carries, so it describes what the daemon will
+                     accept rather than what is configured now.";
 
             container tree {
                 config false;

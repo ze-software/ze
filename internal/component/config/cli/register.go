@@ -100,7 +100,12 @@ func init() {
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalMeta("show config graph", func(args []string) int {
 		return Run(append([]string{"graph"}, args...))
-	}, registry.Meta{Description: "Show how components and peers depend on each other (DOT graph format)."})
+	}, registry.Meta{
+		Description: "Show how components and peers depend on each other, as JSON.",
+		LongHelp: "It takes a config file path, or - to read the file on stdin. Inactive blocks are " +
+			"pruned before the graph is built, so a deactivated peer contributes no edge and the " +
+			"answer describes the config as it would run.",
+	})
 
 	// Storage-backed shortcuts: resolve the blob store lazily at dispatch.
 	registry.MustRegisterLocalData("show config history", dataHistory, registry.Meta{

@@ -13,6 +13,8 @@ module ze-rsvp-te-cmd {
         container rsvp-te {
             config false;
             description "RSVP-TE LSPs, tunnels, and bandwidth reservations.";
+            ze:help "A reservation here is what RSVP-TE signalled, which is a control-plane promise.
+                     It is not a measurement of the traffic actually crossing the LSP.";
 
             container lsp {
                 config false;

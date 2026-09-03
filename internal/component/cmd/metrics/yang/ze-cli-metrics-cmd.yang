@@ -12,6 +12,9 @@ module ze-cli-metrics-cmd {
         container metrics {
             config false;
             description "Access Prometheus metrics and internal pool stats.";
+            ze:help "The metrics are the same series the Prometheus endpoint publishes, read here
+                     without an HTTP client. The pool statistics are internal to Ze and are not
+                     exported over that endpoint.";
 
             container values {
                 config false;

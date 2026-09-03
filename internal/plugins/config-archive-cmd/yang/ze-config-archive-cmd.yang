@@ -11,6 +11,8 @@ module ze-config-archive-cmd {
         container config {
             config false;
             description "Configuration snapshot and archiving.";
+            ze:help "A snapshot records the configuration as it stands and does not apply anything.
+                     Restoring one is a separate action.";
 
             container archive {
                 config false;

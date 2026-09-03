@@ -13,6 +13,9 @@ module ze-bfd-cmd {
         container bfd {
             config false;
             description "BFD session state and timer configuration.";
+            ze:help "The timers reported are the negotiated ones and not the configured ones.
+                     BFD takes the slower of the two peers' intervals. A session can therefore
+                     run slower than this router asked for.";
 
             container sessions {
                 config false;
@@ -25,6 +28,8 @@ tx/rx intervals, and detect multiplier.";
             container session {
                 config false;
                 description "Show one BFD session selected by peer address.";
+                ze:help "The address selects a single session. A router with several sessions to one peer
+                         over different links reports each of them separately.";
 
                 container address {
                     config false;

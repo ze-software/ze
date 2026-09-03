@@ -12,6 +12,8 @@ module ze-host-set-cmd {
         container system {
             config false;
             description "System-level runtime tunables.";
+            ze:help "These change the running host and are not written to the configuration, so a
+                     reboot returns the machine to what its config describes.";
 
             container file-descriptors {
                 config false;

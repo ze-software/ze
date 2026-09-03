@@ -46,10 +46,15 @@ prefix-list for the given ASN or AS-SET.";
         container firewall {
             config false;
             description "Firewall operational updates.";
+            ze:help "These refresh data the firewall uses and do not edit a rule. A rule an operator
+                     wrote stays as written.";
 
             container irr {
                 config false;
                 description "IRR prefix-list fetch and refresh commands.";
+                ze:help "The fetch reaches an external IRR database over the network, so it can fail for a
+                         reason that has nothing to do with the firewall. A failed refresh leaves the
+                         previous prefix list in place rather than emptying it.";
 
                 container all {
                     config false;
@@ -89,6 +94,8 @@ to the zefs cache.";
             // Repeat the canonical description owned by ze-firewall-cmd.yang
             // verbatim so the command-tree merge does not warn on a mismatch.
             description "Firewall rules and groups (nftables).";
+            ze:help "Clearing removes cached IRR state Ze installed and leaves the configured rules
+                     alone, so the next refresh reinstalls them. A rule added outside Ze is untouched.";
 
             container irr {
                 config false;

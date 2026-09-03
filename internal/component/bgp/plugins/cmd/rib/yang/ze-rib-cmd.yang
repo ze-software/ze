@@ -66,10 +66,15 @@ Use this to verify RPF checks would pass for a given source.";
         container bgp {
             config false;
             description "BGP operational state.";
+            ze:help "The subcommands reset what the session holds and leave the configuration alone. A
+                     cleared peer renegotiates and relearns rather than reloading its config.";
 
             container rib {
                 config false;
                 description "Clear and re-advertise RIB entries.";
+                ze:help "The two directions are separate: in re-reads what the peer sent, and out resends
+                         what Ze advertised. Neither changes a policy, so a route a filter rejects stays
+                         rejected after the clear.";
 
                 container in {
                     config false;
@@ -100,10 +105,15 @@ down the session. Selector: IP, name, AS pattern, glob, or *.";
         container bgp {
             config false;
             description "BGP operational actions.";
+            ze:help "These act on the live sessions. Nothing here writes configuration, so a restart
+                     returns the daemon to what its config describes.";
 
             container rib {
                 config false;
                 description "Request BGP RIB actions.";
+                ze:help "The actions inject or withdraw a route directly, without a peer having announced
+                         it. A route added this way is not in the configuration and does not survive a
+                         restart.";
 
                 container inject {
                     config false;

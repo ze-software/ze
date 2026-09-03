@@ -76,6 +76,9 @@ module ze-plugin-callback {
 
     rpc encode-nlri {
         description "Engine requests NLRI encoding from the plugin.";
+        ze:help "The plugin answers one hex string, which the engine writes to the wire as
+the NLRI body. A plugin that registers no OnEncodeNLRI handler cannot answer,
+so the family it claims stays unencodable and the engine has nothing to send.";
         input {
             leaf family {
                 type string;
@@ -97,6 +100,10 @@ module ze-plugin-callback {
 
     rpc decode-nlri {
         description "Engine requests NLRI decoding from the plugin.";
+        ze:help "The plugin answers a value, and the SDK marshals it ONCE into the json
+field rather than encoding a string that holds encoded JSON. This is the
+receive direction of encode-nlri, and a plugin that claims a family declares
+both or the family works in one direction only.";
         input {
             leaf family {
                 type string;
@@ -119,6 +126,9 @@ module ze-plugin-callback {
 
     rpc decode-capability {
         description "Engine requests capability decoding from the plugin.";
+        ze:help "The engine passes the numeric capability code and the option bytes as hex,
+so a plugin decodes a code the engine itself does not know. The answer is
+marshaled once into the json field, the shape decode-nlri also uses.";
         input {
             leaf code {
                 type uint8;
@@ -143,6 +153,11 @@ module ze-plugin-callback {
 
     rpc execute-command {
         description "Engine requests the plugin to execute a command.";
+        ze:help "The serial correlates the answer with this request. The engine can have
+several requests in flight on one connection. A handler CAN answer with
+records, which is a walk and not a built value. Over the socket that arrives
+as a head, its records and a terminator. Over the direct bridge it collapses
+to the single document the record path would have carried.";
         input {
             leaf serial {
                 type string;

@@ -12,6 +12,8 @@ module ze-rr-cmd {
         container rr {
             config false;
             description "Route reflector status and client peers.";
+            ze:help "A client is a peer this router reflects for, which is a configured relationship
+                     rather than something negotiated with the peer.";
 
             container status {
                 config false;

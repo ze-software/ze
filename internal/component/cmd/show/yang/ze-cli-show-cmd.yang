@@ -20,6 +20,9 @@ module ze-cli-show-cmd {
     container show {
         config false;
         description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Nothing under show changes state, so every one of them is safe against a router
+                 carrying traffic. The verbs that do change something are clear, request, set,
+                 delete, create and update.";
 
         container version {
             config false;
@@ -50,6 +53,9 @@ running config alone.";
         container runtime {
             config false;
             description "Go runtime internals of the daemon process.";
+            ze:help "This reports the process rather than the protocol: goroutines, heap and garbage
+                     collection. It is for diagnosing the daemon itself, and it says nothing about a
+                     peer or a route.";
 
             container memory {
                 config false;
@@ -64,6 +70,8 @@ process memory (RSS/VSZ) use 'show system memory'.";
         container system {
             config false;
             description "Daemon process and runtime diagnostics.";
+            ze:help "This reports the daemon and the host it runs on, not the protocols it speaks. A
+                     peer, a route or an interface is under its own noun.";
 
             container memory {
                 config false;
@@ -103,6 +111,9 @@ darwin, along with platform-specific capabilities.";
             container subsystem {
                 config false;
                 description "Subsystem lifecycle and state.";
+                ze:help "A subsystem is a registered component of the daemon. What is listed
+                         depends on the build and on the plugins that loaded. It does not
+                         depend on the configuration alone.";
 
                 container list {
                     config false;
@@ -323,6 +334,9 @@ filters are ANDed. More targeted than the full metrics dump.";
         container event {
             config false;
             description "Internal event history and namespace discovery.";
+            ze:help "The history is what the daemon kept in memory, so it starts at the last restart
+                     and it is bounded. A namespace listed here is one some component registered, not
+                     one an operator declared.";
 
             container recent {
                 config false;

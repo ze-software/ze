@@ -13,10 +13,14 @@ module ze-vpp-cmd {
             config false;
             ze:backend "vpp";
             description "VPP dataplane tracing and runtime statistics.";
+            ze:help "These read the VPP dataplane rather than the kernel, so a router forwarding in the
+                     kernel has nothing to report here.";
 
             container trace {
                 config false;
                 description "Capture and inspect VPP dataplane packet traces.";
+                ze:help "A trace is armed, filled by traffic, and then read. It costs the dataplane while
+                         it is armed, so it is a diagnostic tool rather than something to leave running.";
 
                 container start {
                     config false;

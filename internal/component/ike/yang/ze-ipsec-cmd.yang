@@ -15,10 +15,15 @@ module ze-ipsec-cmd {
         container vpn {
             config false;
             description "VPN tunnel state (IPsec).";
+            ze:help "It reads what is established now. Use monitor vpn to watch the transitions that
+                     led there.";
 
             container ipsec {
                 config false;
                 description "IPsec SAs, tunnels, and peer connections.";
+                ze:help "The three views are different layers of one tunnel. The peer is the IKE
+                         session. The tunnel is the negotiated pair, and the SA is what the
+                         kernel installed.";
 
                 container sa {
                     config false;
@@ -88,6 +93,8 @@ is not drift.";
                 container peer {
                     config false;
                     description "IPsec peer detail.";
+                    ze:help "This is the IKE layer, so it reports the negotiation and the authentication rather
+                             than the traffic selectors the kernel enforces.";
 
                     container name {
                         config false;
@@ -112,10 +119,14 @@ traffic selectors, and byte counts.";
         container vpn {
             config false;
             description "VPN tunnel clearing operations.";
+            ze:help "Clearing stops the security association and leaves the configuration alone.
+                     A tunnel configured to re-establish WILL negotiate a new SA.";
 
             container ipsec {
                 config false;
                 description "IPsec SA teardown.";
+                ze:help "The SA is removed from the kernel and from Ze. Traffic that matched its
+                         selector is no longer encrypted, and it does not revert to plaintext.";
 
                 container sa {
                     config false;
@@ -136,6 +147,8 @@ automatically if the config is still active.";
         container vpn {
             config false;
             description "VPN event streams.";
+            ze:help "The stream follows the tunnel while it negotiates, rekeys and stops. It is
+                     a live feed, and show vpn gives the current-state view.";
 
             container ipsec {
                 config false;

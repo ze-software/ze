@@ -30,6 +30,9 @@ macvlan device that carries the virtual MAC.";
             container interface {
                 config false;
                 description "Show the VRRP virtual routers hosted on one interface.";
+                ze:help "One interface can host several virtual routers. Each one has its own
+                         VRID and its own election. This view can therefore report more than
+                         one state for one link.";
 
                 container name {
                     config false;
@@ -60,6 +63,8 @@ timers in microseconds (a VRRPv3 skew is sub-millisecond).";
         container vrrp {
             config false;
             description "Reset VRRP runtime counters.";
+            ze:help "Only the counters are zeroed. The election is untouched, so a master stays master
+                     and no failover is provoked by clearing them.";
 
             container statistics {
                 config false;

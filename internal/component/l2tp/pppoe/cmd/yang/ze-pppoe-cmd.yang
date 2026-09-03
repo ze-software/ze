@@ -31,6 +31,8 @@ login, uptime, and assigned addresses.";
             container session {
                 config false;
                 description "Show full detail for one PPPoE session.";
+                ze:help "It takes a single session and prints everything the daemon holds for it. The list
+                         of sessions is show pppoe session with no identifier.";
 
                 container id {
                     config false;

@@ -11,6 +11,8 @@ module ze-aaa-cmd {
         container aaa {
             config false;
             description "Authentication, authorization, and accounting state.";
+            ze:help "The view covers the AAA clients Ze talks to, RADIUS and TACACS+, rather than the
+                     operator accounts on the box.";
             container accounting {
                 config false;
                 ze:command "ze-show:aaa-accounting";

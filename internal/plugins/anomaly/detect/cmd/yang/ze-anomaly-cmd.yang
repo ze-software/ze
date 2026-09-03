@@ -12,6 +12,9 @@ module ze-anomaly-cmd {
         container anomaly {
             config false;
             description "Behavioral anomaly detection and response subsystem.";
+            ze:help "Detection and response are separate: the detector reports what it sees, and a
+                     responder acts on it only where one is configured. A detected anomaly is not
+                     itself a mitigation.";
 
             container detect {
                 config false;

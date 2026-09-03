@@ -14,6 +14,8 @@ module ze-bmp-cmd {
         container bmp {
             config false;
             description "BMP monitoring sessions, peers, and routes.";
+            ze:help "BMP is an outbound feed to a collector, so a session here is Ze reporting to a
+                     station and never a routing peer.";
 
             container sessions {
                 config false;

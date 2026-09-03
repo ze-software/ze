@@ -14,10 +14,15 @@ module ze-update-firmware-cmd {
         container system {
             config false;
             description "System firmware lifecycle management.";
+            ze:help "The lifecycle is check, download, apply and rollback. Rollback depends on the
+                     previous binary still being on disk, which apply is what puts there.";
 
             container firmware {
                 config false;
                 description "Check, download, apply, and rollback firmware.";
+                ze:help "Apply hard-links the running binary aside before it renames the new one in, and
+                         that saved copy is exactly what rollback renames back. A rollback after the copy
+                         is gone has nothing to restore.";
 
                 container check {
                     config false;

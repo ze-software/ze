@@ -12,6 +12,8 @@ module ze-pki-cmd {
         container pki {
             config false;
             description "TLS certificates and CA trust store.";
+            ze:help "These are the certificates Ze itself presents and trusts for its own listeners
+                     and clients. They are not the certificates a peer presents over BGP or IPsec.";
             container certificates {
                 config false;
                 ze:command "ze-show:pki-certificates";
@@ -22,6 +24,8 @@ Check here to find certificates approaching expiration.";
             container certificate {
                 config false;
                 description "Inspect a specific certificate in detail or export forms.";
+                ze:help "The detail view decodes the certificate for a reader. An export form writes it in
+                         a shape another program consumes, and the two answer the same certificate.";
                 container name {
                     config false;
                     ze:command "ze-show:pki-certificate";
@@ -48,6 +52,8 @@ Check here to find certificates approaching expiration.";
                     container bundle {
                         config false;
                         description "Export forms that carry more than the certificate.";
+                        ze:help "A bundle carries the chain, so it holds the issuers a verifier needs and not the
+                                 leaf alone. Use the plain PEM export when only the certificate is wanted.";
 
                         container pem {
                             config false;

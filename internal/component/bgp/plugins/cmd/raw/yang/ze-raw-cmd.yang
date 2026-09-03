@@ -13,6 +13,8 @@ module ze-raw-cmd {
         // a summary naming raw byte injection alone is false for the other
         // three. ze-cli-announce-cmd records that this module owns the text.
         description "Act on selected BGP peer sessions.";
+        ze:help "The selector picks the sessions. A selector that matches no session acts on
+                 nothing, and it does not act on every peer.";
 
         container raw {
             config false;
