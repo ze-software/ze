@@ -8,6 +8,7 @@ directives ## Directives
   the-main-thread-supervises-and-verifies-what-comes-back
   a-phase-may-continue-in-the-agent-that-ran-the-one-before
   brief-every-subagent-with-its-spec-phase-and-rules
+  give-a-phase-an-agent-that-can-produce-its-artifact
   an-oversized-package-is-re-cut-never-trimmed
   record-and-home-every-scope-reduction
 work-phases ## Work Phases, Models and the Review Loop
