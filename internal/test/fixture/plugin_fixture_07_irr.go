@@ -82,6 +82,10 @@ func firewallIRRColdCache07(ctx context.Context, p *sdk.Plugin) error {
 	if wan.status != statusDone || !strings.Contains(dumped, "from-as-test") || !strings.Contains(dumped, "from-as-test_v6") {
 		return fmt.Errorf("wan ruleset incomplete after IRR update: %s", dumped)
 	}
+	// The .ci asserts this exact line. Returning nil silently made the test
+	// unpassable: every check above can succeed and the run still fails on a
+	// pattern nobody writes.
+	fmt.Fprintln(os.Stderr, "lan stayed programmed, and the update brought wan back")
 	return nil
 }
 
@@ -200,6 +204,9 @@ func firewallIRRTableTermCommit07(ctx context.Context, p *sdk.Plugin) error {
 			return fmt.Errorf("term %s missing from kernel ruleset: %s", term, dumped)
 		}
 	}
+	// The .ci asserts this exact line; see firewallIRRColdCache07 for why a
+	// silent success is a test that cannot pass.
+	fmt.Fprintln(os.Stderr, "both table terms and their IPv6 twins are in the kernel ruleset")
 	return nil
 }
 
