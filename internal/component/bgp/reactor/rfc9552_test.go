@@ -21,6 +21,16 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+
+	// The BGP-LS Attribute is RECOGNIZED because the ls plugin registers it:
+	// attribute.RegisterName(29, "BGP_LS") in its init (plugins/nlri/ls/register.go).
+	// Recognition is what stops publishBase stripping it under RFC 4271 Section 5,
+	// which requires an unrecognized non-transitive attribute to be dropped rather
+	// than propagated. A shipped ze links the plugin through the generated
+	// composition root (plugin/all/all_ze_bgp.go); a reactor test binary links
+	// nothing, so without this import the test asks the receive path to keep an
+	// attribute that, in THAT binary, ze correctly holds no meaning for.
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
 )
 
 // bgplsAttrCode is the BGP-LS Attribute, RFC 9552 §5.3 ("assigned value 29 by IANA").
