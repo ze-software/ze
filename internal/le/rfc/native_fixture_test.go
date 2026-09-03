@@ -210,7 +210,27 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// row promising Supported over a checklist with zero both-polarity proofs is
 	// refused now, where the old arm only refused a row over an EMPTY checklist.
 	// Seven summaries said Supported over zero proofs and now say Partial.
-	const want = "4b859caffc361d436844a8bc917ef119d3541ead1200577574d6dcf110875330"
+	//
+	// Re-sealed 2026-09-03, for two commits, and both WIDEN the closed
+	// annotation vocabulary rather than change what any check decides:
+	// {lower-layer}, for an obligation a layer under Ze performs, and
+	// {feature-declined}, for one whose condition is false because Ze declined
+	// the OPTIONAL feature it hangs on. Each arrives with its own refusal,
+	// checkLowerLayerProducer and checkFeatureDeclined, and the corpus test
+	// beside this one now reads its population from AnnotationKinds(), so both
+	// were held to the share rule on the day they were written.
+	//
+	// One published verdict moved, and the commit that moved it says so: rfc4552
+	// reads Partial, because two RFC 4552 obligations Ze does not meet are
+	// disclosed now rather than absent.
+	//
+	// `./le rfc reseal` re-stamped five RFC 7606 verdicts on this run and
+	// refused two. None of the five is this package's doing: each is mechanical,
+	// the unit fingerprints are byte-identical, and what moved is the file hash
+	// of session_validate_test.go under another session's edit. The two
+	// refusals are the same pair the 2026-09-02 note names, still waiting on the
+	// human RFC re-read that reseal will not do for them.
+	const want = "9242b1968d44b9acff0107139eb170679559b95a1bc789a1c9e753f4eb84dbcf"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
