@@ -1,48 +1,44 @@
-# Test: a refresh that cannot reach the registries stores nothing and leaves the
-# previous answer standing, on the daemon and on the host.
+# Test: a refresh reads the delegation sources an operator configured, stores
+# what they answer, and a later refresh whose sources went dark stores nothing
+# and leaves that answer standing.
 #
-# VALIDATES: spec-rir-seed-embed-and-zefs-refresh AC-5 and AC-7, and user
-#            story 3.
-#            AC-5 -- `update resolve rir` with the registries out of reach
-#                    reports an error naming the delegation file it could not
-#                    read, stores nothing, and the copy stored before it is byte
-#                    for byte as it was.
-#            AC-7 -- a stored copy dated after the shipped seed answers
-#                    `show resolve rir` inside the daemon AND `ze resolve rir` on
-#                    the host, while the daemon holds the store file open.
-# PREVENTS:  a refresh that reports success having stored nothing, and a partial
-#            table replacing a whole one. Either turns every AS number one
-#            silent registry holds into "nobody holds this".
+# VALIDATES: spec-rir-delegation-source-override AC-2, AC-6, AC-7 and AC-10,
+#            and spec-rir-seed-embed-and-zefs-refresh AC-5 and AC-7.
+#            AC-10 -- `update resolve rir` against configured sources fetches,
+#                     stores, and answers the key, the range count and the date.
+#            AC-2 --  the lookup then answers the registry those sources named,
+#                     which is neither the shipped seed's nor the copy stored
+#                     before the refresh.
+#            AC-7 --  the stored table's Source lines name the URLs that run
+#                     actually read.
+#            AC-6 --  a refresh whose source does not answer reports the file it
+#                     could not read, stores nothing, and the previous table is
+#                     byte for byte as it was.
+# PREVENTS:  a refresh that reports success having stored nothing, a partial
+#            table replacing a whole one, and a stored table whose header claims
+#            the registries' own files while its ranges came from a mirror.
 #
-# WHAT IS NOT PROVEN HERE, and why. AC-4 is the successful refresh: five
-# registries answer, the table is stored, and the answer carries the key, the
-# range count and the date. A functional test MUST NOT reach the five public
-# delegation files, they are tens of megabytes each, and Ze publishes no way to
-# point the fetch somewhere else. So the successful path is proven by unit tests
-# that serve their own registry bodies in process, over the two functions that
-# do the work: TestUpdateResolveRIRWritesTheStoredCopy
-# (internal/component/resolve/cmd/rir_test.go) drives the registered handler and
-# reads the stored key back, and TestWriteFetchesEveryRegistryAndWritesTheTable
-# (internal/le/ianaasn/ianaasn_test.go) drives the same fetch through the
-# generator. What THIS file adds is the operator's own path: a real daemon, a
-# real store on disk, and the failure an operator will actually meet.
+# The successful refresh is proven HERE, over the operator's own path, which it
+# was not until the delegation-source setting existed. The registries are a
+# server on loopback that the config names, so the run reads five files it owns
+# rather than tens of megabytes from the five public ones. The failure half then
+# takes that server away, which is a registry going dark as an operator meets
+# it.
 #
-# The registries are put out of reach by pointing the daemon's proxy setting at
-# a closed port. That is the operating system's HTTP proxy configuration, which
-# net/http honors, and not a Ze surface: no config leaf and no Ze environment
-# variable redirects the delegation fetch, and this test does not add one.
-#
-# The stored copy hands AS15169 to APNIC, where the shipped seed hands it to
-# ARIN. The disagreement is deliberate: a lookup reading the wrong source names
-# the wrong registry, which an assertion sees, rather than returning nothing,
-# which it might not.
+# Three sources can answer, and each names a different registry on purpose: the
+# shipped seed says ARIN, the copy stored before the refresh says APNIC, and the
+# local server says LACNIC. A lookup reading the wrong one therefore names the
+# wrong registry, which an assertion sees, rather than returning nothing, which
+# it might not.
 #
 # DISCRIMINATOR: invert the date comparison in preferStoredDelegation
 # (internal/component/resolve/irr/stored.go) and the first two assertions fail,
 # because the seed's ARIN answers where the stored copy's APNIC is required.
-# Let the refresh report success without storing and the third fails.
+# Ignore the configured sources in handleRIRRefresh and the refresh reads the
+# public registries, which this run cannot reach. Let a failed refresh report
+# success and the last three fail.
 #
-# The timeout is DECLARED. This file starts one daemon and launches `ze` seven
+# The timeout is DECLARED. This file starts one daemon and launches `ze` nine
 # times, which is a few seconds on an idle host and more when parallel agents
 # share it.
 option=timeout:value=120s
@@ -51,6 +47,9 @@ cmd=foreground:seq=1:exec=ze-test fixture plugin/resolve-rir-refresh
 expect=exit:code=0
 expect=stderr:contains=OK: the daemon answers from the stored copy, which is newer than the shipped seed
 expect=stderr:contains=OK: the host reads the same stored copy while the daemon holds the file open
+expect=stderr:contains=OK: a refresh reads the configured sources and stores what they answer
+expect=stderr:contains=OK: the lookup answers from the table that refresh stored
+expect=stderr:contains=OK: the stored table names the URLs it was built from
 expect=stderr:contains=OK: a refresh that cannot reach a registry fails and names the file
 expect=stderr:contains=OK: the copy stored before the failed refresh still answers
 expect=stderr:contains=OK: the failed refresh left the stored table byte for byte as it was

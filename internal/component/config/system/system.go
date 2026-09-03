@@ -31,6 +31,12 @@ type SystemConfig struct {
 	PeeringDBURL    string
 	PeeringDBMargin uint8
 
+	// Delegation file URLs, keyed by the registry token the delegation files
+	// themselves write (from system { rir { delegation-source ... } }).
+	// A registry with no entry is read from the file that registry publishes,
+	// so an empty map is the behavior of a daemon nobody configured.
+	RIRDelegationSources map[string]string
+
 	// Hardware tuning (from system { tuning {} }).
 	Tuning TuningSystemConfig
 
@@ -254,6 +260,10 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 		sc.UpdateSelfUpdate = extractSelfUpdateConfig(uc)
 	}
 
+	if rir := sys.GetContainer("rir"); rir != nil {
+		sc.RIRDelegationSources = extractDelegationSources(rir)
+	}
+
 	pdb := sys.GetContainer("peeringdb")
 	if pdb == nil {
 		return sc
@@ -271,6 +281,37 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 	}
 
 	return sc
+}
+
+// extractDelegationSources reads the per-registry delegation file URLs an
+// operator committed. The key is the registry token, so a source names which
+// of the five files it replaces, and a registry nobody named keeps the file
+// that registry publishes.
+//
+// A block with no url names no source, so it is passed over rather than
+// stored as an empty URL: a refresh reading "" would fetch nothing and report
+// the registry unreadable, where the operator wrote no source at all.
+func extractDelegationSources(rir *config.Tree) map[string]string {
+	entries := rir.GetList("delegation-source")
+	if len(entries) == 0 {
+		return nil
+	}
+
+	sources := make(map[string]string, len(entries))
+	for registry, entry := range entries {
+		if registry == "" {
+			continue
+		}
+		url, ok := entry.Get("url")
+		if !ok || url == "" {
+			continue
+		}
+		sources[registry] = url
+	}
+	if len(sources) == 0 {
+		return nil
+	}
+	return sources
 }
 
 func extractTuning(sys *config.Tree) TuningSystemConfig {

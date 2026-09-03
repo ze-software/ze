@@ -6,11 +6,18 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	// The editor parses against the REGISTERED YANG modules, and a module no
+	// binary imported leaves every block it declares unknown, which the
+	// lenient parse then drops in silence. The daemon registers this one
+	// through the composition root; this test binary registers it here.
+	_ "github.com/ze-software/ze/internal/component/config/system/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
@@ -249,5 +256,242 @@ func TestRefreshStoresNothingWhenNoRecordIsParsed(t *testing.T) {
 	}
 	if _, ok := statestore.Get(zefs.KeyRIRDelegation.Pattern); ok {
 		t.Error("a refresh that read no record stored a table")
+	}
+}
+
+// writeDelegationConfig writes a config file the refresh reads back at command
+// time. It is a whole config rather than a fragment, because the editor parses
+// it against the YANG schema, so a block the schema refuses fails here.
+func writeDelegationConfig(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config %s: %v", path, err)
+	}
+}
+
+// TestRefreshReadsTheSourcesCommittedAfterStartup proves a delegation source
+// committed after the daemon started reaches the next refresh, with no restart
+// (AC-8, A-1). Goal: SystemConfig is built once at startup and is never
+// re-applied to the resolvers, so the refresh MUST read the config tree when
+// it RUNS rather than take a value injected at startup. Method: start a plugin
+// server on a config that names no source, commit one into that file, run the
+// refresh, and require the fetch to ask the committed URL for that registry's
+// delegation file.
+func TestRefreshReadsTheSourcesCommittedAfterStartup(t *testing.T) {
+	const mirror = "http://127.0.0.1:8080/delegated-ripencc-extended-latest"
+
+	registerTempStore(t)
+
+	configPath := filepath.Join(t.TempDir(), "ze.conf")
+	writeDelegationConfig(t, configPath, "system {\n\thost router1;\n}\n")
+
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{ConfigPath: configPath}, nil)
+	if err != nil {
+		t.Fatalf("plugin server: %v", err)
+	}
+
+	// The commit lands AFTER the server started, which is the case A-1 names.
+	writeDelegationConfig(t, configPath, "system {\n\thost router1;\n\trir {\n\t\tdelegation-source ripencc {\n\t\t\turl \""+mirror+"\";\n\t\t}\n\t}\n}\n")
+
+	var asked []string
+	useDelegationFetch(t, func(_ context.Context, delegationURL string) (io.ReadCloser, error) {
+		asked = append(asked, delegationURL)
+		return io.NopCloser(strings.NewReader(fixtureDelegation)), nil
+	})
+
+	resp, err := handlerFor(t, "ze-update:resolve-rir")(&pluginserver.CommandContext{Server: srv}, nil)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+	if resp.Status != plugin.StatusDone {
+		t.Fatalf("status %q, error %q", resp.Status, resp.Error)
+	}
+	if !slices.Contains(asked, mirror) {
+		t.Errorf("the refresh read %v, and none of them is the committed source %q", asked, mirror)
+	}
+	for _, delegationURL := range asked {
+		if strings.Contains(delegationURL, "ftp.ripe.net") {
+			t.Errorf("the refresh read RIPE's published file %q while a source was committed for it", delegationURL)
+		}
+	}
+}
+
+// TestRefreshStopsWhenTheConfigCannotBeRead proves the refresh tells an
+// unreadable config from an unconfigured one (ai/rules/principles.md). Goal:
+// an operator who committed a mirror MUST NOT be served the five published
+// files because the tree could not be read, so the run stops and names the
+// file it could not open. Method: point the server at a config path that does
+// not exist, serve every registry so nothing else can fail, and require the
+// refresh to fetch nothing and report the config.
+// TestRefreshNamesAConfiguredSourceItCannotRead proves a mirror that does not
+// answer stops the run, names the file, and leaves the stored table whole
+// (AC-6). Goal: an operator whose mirror is down keeps the answer they had,
+// and is told which URL failed rather than that "a refresh failed".
+//
+// VALIDATES: the refresh reports the configured URL it could not read, stores
+// nothing, and the previously stored table is byte for byte as it was.
+// PREVENTS: a half-written table, and an error an operator cannot act on
+// because it does not say which of the five files was unreachable.
+func TestRefreshNamesAConfiguredSourceItCannotRead(t *testing.T) {
+	const mirror = "http://127.0.0.1:9/delegated-arin-extended-latest"
+
+	registerTempStore(t)
+
+	configPath := filepath.Join(t.TempDir(), "ze.conf")
+	writeDelegationConfig(t, configPath, "system {\n\thost router1;\n\trir {\n\t\tdelegation-source arin {\n\t\t\turl \""+mirror+"\";\n\t\t}\n\t}\n}\n")
+
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{ConfigPath: configPath}, nil)
+	if err != nil {
+		t.Fatalf("plugin server: %v", err)
+	}
+
+	// A table is stored first, so the assertion is about what a failed refresh
+	// LEAVES rather than about an empty store.
+	useDelegationFetch(t, serveDelegation(fixtureDelegation))
+	if resp, refreshErr := handlerFor(t, "ze-update:resolve-rir")(&pluginserver.CommandContext{Server: srv}, nil); refreshErr != nil || resp.Status != plugin.StatusDone {
+		t.Fatalf("the first refresh did not store: %v, %q", refreshErr, resp.Error)
+	}
+	stored, held := statestore.Get(zefs.KeyRIRDelegation.Pattern)
+	if !held {
+		t.Fatal("the first refresh stored nothing")
+	}
+
+	useDelegationFetch(t, func(_ context.Context, delegationURL string) (io.ReadCloser, error) {
+		if delegationURL == mirror {
+			return nil, errors.New("connection refused")
+		}
+		return io.NopCloser(strings.NewReader(fixtureDelegation)), nil
+	})
+
+	resp, err := handlerFor(t, "ze-update:resolve-rir")(&pluginserver.CommandContext{Server: srv}, nil)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+	if resp.Status != plugin.StatusError {
+		t.Fatalf("status %q, want an error for a mirror that does not answer", resp.Status)
+	}
+	if !strings.Contains(resp.Error, mirror) {
+		t.Errorf("error %q does not name the file it could not read", resp.Error)
+	}
+
+	after, stillHeld := statestore.Get(zefs.KeyRIRDelegation.Pattern)
+	if !stillHeld {
+		t.Fatal("the failed refresh removed the stored table")
+	}
+	if !bytes.Equal(stored, after) {
+		t.Error("the failed refresh changed the stored table")
+	}
+}
+
+// TestRefreshRefusesASourceTheFetchRuleRefuses proves the refresh applies the
+// fetch rule to every configured source before it reads a byte (AC-4). Goal:
+// the leaf's ze:validate refuses such a URL at commit time, and this proves
+// the SECOND guard, the one that meets a config which reached the tree another
+// way -- a file written by an older binary, or a backup taken before the rule
+// existed. Method: write a source on plain HTTP off the box, run the refresh,
+// and require it to name the URL and fetch nothing.
+//
+// VALIDATES: handleRIRRefresh refuses the source itself, rather than trusting
+// that the editor already did.
+// PREVENTS: a delegation table read over an unauthenticated transport from a
+// host the operator does not own, which decides which registry Ze names as
+// holding an AS number.
+func TestRefreshRefusesASourceTheFetchRuleRefuses(t *testing.T) {
+	const mirror = "http://mirror.example.com/delegated-lacnic-extended-latest"
+
+	registerTempStore(t)
+
+	configPath := filepath.Join(t.TempDir(), "ze.conf")
+	writeDelegationConfig(t, configPath,
+		"system {\n\thost router1;\n\trir {\n\t\tdelegation-source lacnic {\n\t\t\turl \""+mirror+"\";\n\t\t}\n\t}\n}\n")
+
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{ConfigPath: configPath}, nil)
+	if err != nil {
+		t.Fatalf("plugin server: %v", err)
+	}
+
+	fetched := false
+	useDelegationFetch(t, func(_ context.Context, _ string) (io.ReadCloser, error) {
+		fetched = true
+		return io.NopCloser(strings.NewReader(fixtureDelegation)), nil
+	})
+
+	resp, err := handlerFor(t, "ze-update:resolve-rir")(&pluginserver.CommandContext{Server: srv}, nil)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+	if resp.Status != plugin.StatusError {
+		t.Fatalf("status %q, want %q: a plain-http source off the box was read", resp.Status, plugin.StatusError)
+	}
+	if !strings.Contains(resp.Error, mirror) {
+		t.Errorf("the error does not name the source it refused: %q", resp.Error)
+	}
+	if !strings.Contains(resp.Error, "lacnic") {
+		t.Errorf("the error does not name the registry the source belongs to: %q", resp.Error)
+	}
+	if fetched {
+		t.Error("the refresh read a delegation file after refusing one of its sources")
+	}
+}
+
+func TestRefreshStopsWhenTheConfigCannotBeRead(t *testing.T) {
+	registerTempStore(t)
+
+	configPath := filepath.Join(t.TempDir(), "absent.conf")
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{ConfigPath: configPath}, nil)
+	if err != nil {
+		t.Fatalf("plugin server: %v", err)
+	}
+
+	fetched := false
+	useDelegationFetch(t, func(_ context.Context, _ string) (io.ReadCloser, error) {
+		fetched = true
+		return io.NopCloser(strings.NewReader(fixtureDelegation)), nil
+	})
+
+	resp, err := handlerFor(t, "ze-update:resolve-rir")(&pluginserver.CommandContext{Server: srv}, nil)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+	if resp.Status != plugin.StatusError {
+		t.Fatalf("status %q, want %q: an unreadable config was read as an unconfigured one", resp.Status, plugin.StatusError)
+	}
+	if !strings.Contains(resp.Error, configPath) {
+		t.Errorf("the error does not name the config it could not read: %q", resp.Error)
+	}
+	if fetched {
+		t.Error("the refresh fetched a delegation file before it knew where to read it from")
+	}
+}
+
+// TestTheConfigFileSourceReachesTheRefreshReader proves the whole read the
+// refresh performs: the YANG accepts the block, the parser builds the keyed
+// list, and the extraction answers the URL under its registry token (AC-2).
+// Goal: the editor parses leniently, so a block the schema refuses is dropped
+// in silence and every later assertion would read as "no source committed".
+// This test is where that shows. Method: write a config naming one registry,
+// read it through the same function the handler calls, and require the one
+// source and no other.
+func TestTheConfigFileSourceReachesTheRefreshReader(t *testing.T) {
+	const mirror = "https://mirror.example.net/delegated-lacnic-extended-latest"
+
+	configPath := filepath.Join(t.TempDir(), "ze.conf")
+	writeDelegationConfig(t, configPath,
+		"system {\n\trir {\n\t\tdelegation-source lacnic {\n\t\t\turl \""+mirror+"\";\n\t\t}\n\t}\n}\n")
+
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{ConfigPath: configPath}, nil)
+	if err != nil {
+		t.Fatalf("plugin server: %v", err)
+	}
+
+	sources, err := configuredDelegationSources(&pluginserver.CommandContext{Server: srv})
+	if err != nil {
+		t.Fatalf("read the committed sources: %v", err)
+	}
+	if sources["lacnic"] != mirror {
+		t.Errorf("lacnic reads from %q, want the committed %q", sources["lacnic"], mirror)
+	}
+	if len(sources) != 1 {
+		t.Errorf("the config names one source and the reader answers %v", sources)
 	}
 }

@@ -563,7 +563,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | EventBus, event, pub/sub, subscribe, emit | `pkg/ze/eventbus.go`, `ai/rules/plugins.md` (EventBus Typed Payloads), `internal/core/events/typed.go` |
 | DirectBridge, bridge, direct call, typed handler | `pkg/plugin/rpc/bridge.go`, `ai/rules/plugins.md` (DirectBridge), `plan/learned/DESIGN-HISTORY.md` "Plugin system: architecture" |
 | BFD, bidirectional forwarding | `docs/architecture/bfd.md` |
-| resolve, origin, pipe, pipe operator | `docs/architecture/resolve.md`, `ai/rules/cli.md` |
+| resolve, origin, pipe, pipe operator, ASN to registry, RIR delegation, delegation source, mirror the registry files | `docs/architecture/resolve.md`, `ai/rules/cli.md`, `internal/component/config/system/yang/ze-system-conf.yang` (`system/rir/delegation-source`) |
 | MCP, model context protocol | `docs/architecture/mcp/`, `internal/component/mcp/` |
 | self-update, manifest, auto-update | `docs/architecture/appliance/self-update.md`, `docs/guide/self-update.md` |
 | ASPA, path verification, RTR | `docs/guide/rpki.md` (ASPA Path Verification), `internal/component/bgp/plugins/rpki/`, `docs/features/rfc-status.md` (draft-ietf-sidrops-aspa-verification) |

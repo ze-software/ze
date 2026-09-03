@@ -59,31 +59,88 @@ const (
 	WhoisLACNIC  = "whois.lacnic.net"
 )
 
+// Registry tokens, as the delegation files themselves write them. Every table
+// below is keyed by one, an operator names a source by one, and the YANG
+// enumeration offers the same five, so the token is declared here once rather
+// than spelled again in each map.
+const (
+	registryRIPE    = "ripencc"
+	registryARIN    = "arin"
+	registryAPNIC   = "apnic"
+	registryAFRINIC = "afrinic"
+	registryLACNIC  = "lacnic"
+)
+
 // rirWhois maps delegation file registry names to interned whois servers.
 var rirWhois = map[string]string{
-	"ripencc": WhoisRIPE,
-	"arin":    WhoisARIN,
-	"apnic":   WhoisAPNIC,
-	"afrinic": WhoisAFRINIC,
-	"lacnic":  WhoisLACNIC,
+	registryRIPE:    WhoisRIPE,
+	registryARIN:    WhoisARIN,
+	registryAPNIC:   WhoisAPNIC,
+	registryAFRINIC: WhoisAFRINIC,
+	registryLACNIC:  WhoisLACNIC,
 }
 
 // rirNames maps delegation file registry names to interned canonical names.
 var rirNames = map[string]string{
-	"ripencc": RIRRIPE,
-	"arin":    RIRARIN,
-	"apnic":   RIRAPNIC,
-	"afrinic": RIRAFRINIC,
-	"lacnic":  RIRLACNIC,
+	registryRIPE:    RIRRIPE,
+	registryARIN:    RIRARIN,
+	registryAPNIC:   RIRAPNIC,
+	registryAFRINIC: RIRAFRINIC,
+	registryLACNIC:  RIRLACNIC,
 }
 
-// Delegation file URLs for each RIR.
-var rirDelegationURLs = []string{
-	"https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-extended-latest",
-	"https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest",
-	"https://ftp.apnic.net/pub/stats/apnic/delegated-apnic-extended-latest",
-	"https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-extended-latest",
-	"https://ftp.lacnic.net/pub/stats/lacnic/delegated-lacnic-extended-latest",
+// publishedDelegation names the file each registry publishes, in the order a
+// refresh reads them.
+//
+// The token is carried beside the URL rather than left implicit in its path,
+// because an operator names a source BY registry and a run has to say which
+// of the five a URL replaces (system { rir { delegation-source } }).
+var publishedDelegation = []struct {
+	token string
+	url   string
+}{
+	{registryRIPE, "https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-extended-latest"},
+	{registryARIN, "https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest"},
+	{registryAPNIC, "https://ftp.apnic.net/pub/stats/apnic/delegated-apnic-extended-latest"},
+	{registryAFRINIC, "https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-extended-latest"},
+	{registryLACNIC, "https://ftp.lacnic.net/pub/stats/lacnic/delegated-lacnic-extended-latest"},
+}
+
+// delegationSourceURLs answers the URL a run reads for each registry: the one
+// an operator named for it, and the file that registry publishes otherwise.
+//
+// A source keyed by a token no registry spells is an ERROR rather than a
+// source nobody reads. An operator who misspells a registry has named no
+// mirror, and a run that quietly read all five published files would report
+// success over data they never asked for (ai/rules/principles.md).
+func delegationSourceURLs(sources map[string]string) ([]string, error) {
+	for token := range sources {
+		if _, known := rirNames[token]; !known {
+			return nil, fmt.Errorf("delegation source names %q, which no registry spells: %s",
+				token, strings.Join(registryTokens(), ", "))
+		}
+	}
+
+	urls := make([]string, 0, len(publishedDelegation))
+	for _, published := range publishedDelegation {
+		if configured, named := sources[published.token]; named {
+			urls = append(urls, configured)
+			continue
+		}
+		urls = append(urls, published.url)
+	}
+	return urls, nil
+}
+
+// registryTokens answers the five tokens, sorted, for a message that has to
+// name what a caller could have written instead.
+func registryTokens() []string {
+	tokens := make([]string, 0, len(publishedDelegation))
+	for _, published := range publishedDelegation {
+		tokens = append(tokens, published.token)
+	}
+	slices.Sort(tokens)
+	return tokens
 }
 
 // RIREntry describes an ASN range allocated to a Regional Internet Registry.
@@ -162,6 +219,12 @@ type DelegationTable struct {
 	// Ranges are sorted by Start and never overlap, which is the precondition
 	// the lookup's binary search needs.
 	Ranges []RIREntry
+	// Sources are the URLs this table was read from, in registry order. They
+	// are the table's PROVENANCE: an operator who points a registry at a
+	// mirror can read back which file each range came from, and a table that
+	// claimed the registries' own URLs while reading a mirror would be a lie
+	// the header tells.
+	Sources []string
 }
 
 // delegationTableHeader opens every table file. The file is data, met by a
@@ -203,6 +266,10 @@ func parseDelegationTable(r io.Reader) (DelegationTable, error) {
 		}
 
 		if text[0] == '#' {
+			if source, named := sourceStamp(text); named {
+				table.Sources = append(table.Sources, source)
+				continue
+			}
 			stamp, dated := generationStamp(text)
 			if !dated {
 				continue
@@ -257,6 +324,9 @@ func RenderDelegationTable(table DelegationTable) ([]byte, error) {
 	if len(table.Ranges) == 0 {
 		return nil, errors.New("delegation table: no range")
 	}
+	if len(table.Sources) == 0 {
+		return nil, errors.New("delegation table: no source, so the file would not say where its ranges were read from")
+	}
 
 	// A range line is two AS numbers of ten digits at most, the longest token,
 	// two spaces and a newline. Asking for the whole file once keeps the
@@ -268,7 +338,7 @@ func RenderDelegationTable(table DelegationTable) ([]byte, error) {
 
 	out.Str(delegationTableHeader)
 	out.Str("# Generated: ").Str(table.Generated.Format(time.DateOnly)).Byte('\n')
-	for _, source := range rirDelegationURLs {
+	for _, source := range table.Sources {
 		out.Str("# Source: ").Str(source).Byte('\n')
 	}
 
@@ -314,6 +384,20 @@ func parseRIRTable(r io.Reader) (*rirTable, error) {
 		return nil, err
 	}
 	return &rirTable{entries: table.Ranges, generated: table.Generated}, nil
+}
+
+// sourceStamp reads the Source: value out of a comment line, and reports
+// whether the line carries one.
+//
+// The parser keeps these rather than passing over them, so a table read back
+// still says where it came from: RenderDelegationTable writes what this reads,
+// and a stored copy's provenance survives a parse.
+func sourceStamp(comment string) (string, bool) {
+	value, ok := strings.CutPrefix(strings.TrimSpace(strings.TrimPrefix(comment, "#")), "Source:")
+	if !ok {
+		return "", false
+	}
+	return strings.TrimSpace(value), true
 }
 
 // generationStamp reads the Generated: value out of a comment line, and
@@ -406,14 +490,24 @@ var delegationClient = &http.Client{Timeout: fetchTimeout}
 // empty table is not a smaller answer, it is every AS number becoming
 // unanswerable (AC-6).
 //
-// A nil fetch reads the five files over HTTPS.
-func FetchDelegationTable(ctx context.Context, fetch DelegationFetch) (DelegationTable, int, error) {
+// The sources map names, per registry token, a URL to read instead of the file
+// that registry publishes. A registry with no entry is read from its published
+// file, so a nil map is the daemon nobody configured, and a token no registry
+// spells is an error rather than a source nobody reads.
+//
+// A nil fetch reads the files over HTTPS.
+func FetchDelegationTable(ctx context.Context, sources map[string]string, fetch DelegationFetch) (DelegationTable, int, error) {
 	if fetch == nil {
 		fetch = httpDelegationFetch
 	}
 
+	urls, err := delegationSourceURLs(sources)
+	if err != nil {
+		return DelegationTable{}, 0, err
+	}
+
 	var records []RIREntry
-	for _, delegationURL := range rirDelegationURLs {
+	for _, delegationURL := range urls {
 		entries, err := fetchDelegationRecords(ctx, fetch, delegationURL)
 		if err != nil {
 			return DelegationTable{}, 0, err
@@ -434,8 +528,10 @@ func FetchDelegationTable(ctx context.Context, fetch DelegationFetch) (Delegatio
 		return DelegationTable{}, 0, err
 	}
 
+	// The URLs this run read travel with the table, so the file it becomes
+	// says where its ranges came from rather than where they usually come from.
 	// The registries answered now, so now is the date this data was collected.
-	return DelegationTable{Generated: time.Now().UTC(), Ranges: ranges}, len(records), nil
+	return DelegationTable{Generated: time.Now().UTC(), Ranges: ranges, Sources: urls}, len(records), nil
 }
 
 // fetchDelegationRecords reads the ASN records out of one registry's file.

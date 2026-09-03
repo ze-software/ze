@@ -69,10 +69,20 @@ hardening against fingerprinting.
 
 ## The URL rule, and the way it was got wrong
 
-`ValidateUpdateCheckURL` requires HTTPS. Plain HTTP is accepted only for
-`127.0.0.1` and for localhost, and localhost must be spelled
-`http://localhost/`, `http://localhost:` or exactly `http://localhost`. A
-`HasPrefix("http://localhost")` test accepts `http://localhost.evil.com`.
+`ValidateUpdateCheckURL` requires HTTPS. Plain HTTP is accepted only from the
+host itself: `127.0.0.1`, `::1` and `localhost`. The rule is
+`config.ValidateFetchURL`, which every URL Ze reads a file from answers to, so
+the update manifest and a RIR delegation mirror are held to one rule rather
+than to two spellings of it.
+
+The host is compared after parsing, never by prefix. A prefix test reads
+`http://127.0.0.1.example.com` as loopback, which is a host the operator does
+not own. This function carried that test until 2026-09-03, on the `127.0.0.1`
+branch, and it guards a self-update manifest's download URL as well as the
+`update-check` leaf. A port is part of the address rather than of the host, so
+`http://127.0.0.1:8080` is the same host as `http://127.0.0.1`.
+<!-- source: internal/component/config/validators.go -- ValidateFetchURL -->
+<!-- source: internal/component/config/system/update.go -- ValidateUpdateCheckURL -->
 
 **The reload path validates too.** It did not at first, so a SIGHUP could
 install an HTTP URL that the initial load would have refused.

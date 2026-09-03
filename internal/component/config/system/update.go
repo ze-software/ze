@@ -5,7 +5,6 @@ package system
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/version"
@@ -70,21 +70,18 @@ func newUpdateChecker(url string, intervalSecs uint32) *UpdateChecker {
 }
 
 // ValidateUpdateCheckURL returns an error if the URL is not acceptable.
-// HTTPS is required; HTTP is permitted only for 127.0.0.1 and localhost.
+// HTTPS is required; HTTP is permitted only from the host itself.
+//
+// The rule is config.ValidateFetchURL, which every URL Ze reads a file from
+// answers to. This function held its own copy until 2026-09-03, and that copy
+// compared the host by PREFIX: "http://127.0.0.1.example.com/" passed it, and
+// reached this function from a self-update manifest's download URL
+// (selfupdate.go) as well as from the operator's own leaf.
 func ValidateUpdateCheckURL(rawURL string) error {
-	if rawURL == "" {
-		return errors.New("update-check url is empty")
+	if err := config.ValidateFetchURL(rawURL); err != nil {
+		return fmt.Errorf("update-check url: %w", err)
 	}
-	if strings.HasPrefix(rawURL, "https://") {
-		return nil
-	}
-	if strings.HasPrefix(rawURL, "http://127.0.0.1") ||
-		rawURL == "http://localhost" ||
-		strings.HasPrefix(rawURL, "http://localhost/") ||
-		strings.HasPrefix(rawURL, "http://localhost:") {
-		return nil
-	}
-	return fmt.Errorf("update-check url must use HTTPS: %s", rawURL)
+	return nil
 }
 
 // Start begins the periodic check loop. Safe to call once.

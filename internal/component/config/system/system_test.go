@@ -295,3 +295,50 @@ func TestExtractSystemConfig_CommitRevisions_OutOfRange(t *testing.T) {
 	sc := system.ExtractSystemConfig(tree)
 	assert.Equal(t, uint16(0), sc.CommitRevisions)
 }
+
+// TestDelegationSourcesAreExtractedFromTheTree proves a per-registry
+// delegation URL an operator committed reaches SystemConfig (AC-2). Goal: the
+// URL written under system { rir { delegation-source <token> { url } } } is
+// what a refresh later reads, keyed by the registry token the delegation files
+// themselves use. Method: build the tree the parser builds for two registries,
+// extract it, and require both URLs under their tokens.
+func TestDelegationSourcesAreExtractedFromTheTree(t *testing.T) {
+	const ripe = "http://127.0.0.1:8080/delegated-ripencc-extended-latest"
+	const arin = "https://mirror.example.net/delegated-arin-extended-latest"
+
+	tree := config.NewTree()
+	rir := tree.GetOrCreateContainer("system").GetOrCreateContainer("rir")
+
+	ripeEntry := config.NewTree()
+	ripeEntry.Set("url", ripe)
+	rir.AddListEntry("delegation-source", "ripencc", ripeEntry)
+
+	arinEntry := config.NewTree()
+	arinEntry.Set("url", arin)
+	rir.AddListEntry("delegation-source", "arin", arinEntry)
+
+	sources := system.ExtractSystemConfig(tree).RIRDelegationSources
+	if len(sources) != 2 {
+		t.Fatalf("the extraction answers %d sources, want the two committed: %v", len(sources), sources)
+	}
+	if sources["ripencc"] != ripe {
+		t.Errorf("ripencc reads from %q, want %q", sources["ripencc"], ripe)
+	}
+	if sources["arin"] != arin {
+		t.Errorf("arin reads from %q, want %q", sources["arin"], arin)
+	}
+}
+
+// TestNoDelegationSourceLeavesTheSourcesEmpty proves an absent setting stays
+// absent (AC-1). Goal: a daemon nobody configured MUST fetch exactly the five
+// published files, and the empty answer here is what keeps it there. Method:
+// extract a tree carrying a system block and no rir container.
+func TestNoDelegationSourceLeavesTheSourcesEmpty(t *testing.T) {
+	tree := config.NewTree()
+	tree.GetOrCreateContainer("system").Set("host", "router1")
+
+	sources := system.ExtractSystemConfig(tree).RIRDelegationSources
+	if len(sources) != 0 {
+		t.Errorf("an unconfigured system answers %v, and it MUST name no source", sources)
+	}
+}

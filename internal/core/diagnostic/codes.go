@@ -28,6 +28,7 @@ const (
 	codeDoctorMPLSDisabled            = "doctor-mpls-disabled"
 	codeDoctorMPLSUnavailable         = "doctor-mpls-unavailable"
 	codeDoctorMPLSUnknown             = "doctor-mpls-unknown"
+	codeDoctorRIRSourceRefused        = "doctor-rir-source-refused"
 	codeDoctorWriteDestination        = "doctor-write-destination"
 )
 
@@ -627,6 +628,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bgp-md5"},
 	},
 	{
+		Code:  "doctor-bgp-peer-no-role",
+		Title: "eBGP peers declare no RFC 9234 role",
+		Description: "One or more eBGP peers carry no `role { import ... }` block. A declared role states the " +
+			"relationship the session carries, and Ze then requires the peer's filter chains to name a filter " +
+			"that can refuse a path through a transit provider (RFC 7454 Section 9). A peer with no role " +
+			"declares no relationship, so nothing is implied and nothing is required: the session is accepted " +
+			"and runs with whatever filters it names. This is a warning so the omission is visible rather than " +
+			"silent. Remedy: declare `role { import provider|customer|peer|rs|rs-client }` on each peer, which " +
+			"also enables the RFC 9234 Only-To-Customer leak protection, or leave it out deliberately.",
+		Examples: []string{exampleDoctorJSON, "ze explain doctor-bgp-peer-no-role"},
+	},
+	{
 		Code:        "doctor-tacacs-unreachable",
 		Title:       "TACACS+ servers unreachable",
 		Description: "No configured TACACS+ authentication server accepted a TCP connection within the probe timeout.",
@@ -825,5 +838,11 @@ var builtinCodes = []CodeMeta{
 		Description:  "The doctor could not build the list of config roots this build delivers, so it did not check whether the configured subtrees reach anything. This is reported rather than passed over: a check that cannot see its subject has cleared nothing.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-config-claims-unavailable"},
 		RelatedCodes: []string{codeDoctorConfigRootUnclaimed},
+	},
+	{
+		Code:        codeDoctorRIRSourceRefused,
+		Title:       "RIR delegation source will not be read",
+		Description: "A `system/rir/delegation-source` block names a URL that `update resolve rir` refuses, so that registry's file is never fetched and the ASN-to-registry table stays as it is. A source is read over HTTPS, or over plain HTTP only when its host is the router itself; the host is compared after parsing, so a name that merely starts with 127.0.0.1 is not loopback. The config editor refuses such a URL at commit time, so a running config carrying one came from an older binary, a restored backup, or an edit made outside the editor.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-rir-source-refused"},
 	},
 }

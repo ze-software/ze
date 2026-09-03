@@ -509,6 +509,19 @@ func TestSelfUpdateDownloadURLValidation(t *testing.T) {
 		t.Errorf("HTTP localhost should be accepted: %v", err)
 	}
 
+	// A host that merely BEGINS with a loopback spelling is not loopback. The
+	// rule compared it by prefix until 2026-09-03, so an update host serving a
+	// manifest could name either of these and have the binary fetched over
+	// plain HTTP from a host it chose.
+	for _, lookalike := range []string{
+		"http://127.0.0.1.example.com/ze",
+		"http://localhost.example.com/ze",
+	} {
+		if _, err := su.resolveDownloadURL(extendedManifest{DownloadURL: lookalike}); err == nil {
+			t.Errorf("%q was accepted as loopback", lookalike)
+		}
+	}
+
 	// Empty URL should derive from config
 	url, err := su.resolveDownloadURL(extendedManifest{})
 	if err != nil {

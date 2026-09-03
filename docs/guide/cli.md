@@ -137,6 +137,13 @@ date is later than the shipped table's. The refresh is all or nothing: a
 registry that does not answer leaves the previous table in place and the error
 names the file it could not read. The same lookup runs on the host with no
 daemon, as `ze resolve rir <asn>`.
+
+An appliance behind a mirror names where each file is read from, under
+`system/rir`, one `delegation-source` block per registry. A registry with no
+block is read from the file it publishes, so mirroring one blocked registry
+takes one block. A mirror is HTTPS, or plain HTTP when it runs on the router
+itself.
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
 <!-- source: internal/component/resolve/irr/stored.go -- preferStoredDelegation -->
 <!-- source: internal/component/resolve/cmd/rir.go -- handleRIRASN, handleRIRRefresh -->
 

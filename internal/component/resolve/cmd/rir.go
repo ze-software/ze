@@ -12,8 +12,12 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
@@ -72,12 +76,40 @@ func handleRIRRefresh(cc *pluginserver.CommandContext, args []string) (*plugin.R
 		return errResponse("update resolve rir: unexpected arguments")
 	}
 
+	// The sources an operator committed are read HERE, when the command runs.
+	// Ze builds SystemConfig once at startup and never re-applies it to the
+	// resolvers, so a source committed after the daemon started would go
+	// unread until a restart. prefix_update.go opens the tree at command time
+	// for the same reason.
+	//
+	// A config file that will not open stops the refresh. An operator who
+	// named a mirror MUST NOT be served the five published files because the
+	// tree could not be read, which is what an empty answer here would mean
+	// (ai/rules/principles.md).
+	sources, err := configuredDelegationSources(cc)
+	if err != nil {
+		var tb textbuf.Buffer
+		return errResponse(tb.Str("update resolve rir: ").Err(err).String())
+	}
+
+	// Every configured URL answers to the fetch rule before a byte is read.
+	// The leaf's own ze:validate refuses one at commit time, and this refuses
+	// one that reached the tree another way: a config written by an older
+	// binary, or restored from a backup taken before the rule existed.
+	for registry, source := range sources {
+		if err := config.ValidateFetchURL(source); err != nil {
+			var tb textbuf.Buffer
+			return errResponse(tb.Str("update resolve rir: the ").Str(registry).
+				Str(" delegation source is refused: ").Err(err).String())
+		}
+	}
+
 	// The fetch also answers how many records the five files yielded before the
 	// collapse. That number sizes a GENERATION run, and `./le iana-asn write`
 	// publishes it for a developer refreshing the shipped seed. What an
 	// operator asks of a refresh is what the table now holds, which is the
 	// range count below.
-	table, _, err := irr.FetchDelegationTable(refreshContext(cc), delegationFetch)
+	table, _, err := irr.FetchDelegationTable(refreshContext(cc), sources, delegationFetch)
 	if err != nil {
 		var tb textbuf.Buffer
 		return errResponse(tb.Str("update resolve rir: ").Err(err).String())
@@ -106,6 +138,41 @@ func handleRIRRefresh(cc *pluginserver.CommandContext, args []string) (*plugin.R
 			"generated": table.Generated.Format(time.DateOnly),
 		},
 	}, nil
+}
+
+// configuredDelegationSources answers the delegation file URLs an operator
+// committed, keyed by registry token, read from the config tree as it stands
+// NOW.
+//
+// The ERROR is what separates two answers no map can tell apart. A process
+// that carries no config file has nothing to read and names no source, which
+// is the daemon reading the five published files as it always has. A config
+// file that exists and will not open answers an error, so the refresh stops
+// rather than reading the published files as if that were what the operator
+// asked for.
+//
+// "No source named" is an ANSWER, so it travels as an empty map beside a nil
+// error rather than as a nil one. A nil value beside a nil error asks the
+// caller to read absence as data, which is the shape `nilnil` refuses.
+func configuredDelegationSources(cc *pluginserver.CommandContext) (map[string]string, error) {
+	none := map[string]string{}
+
+	if cc == nil || cc.Server == nil {
+		return none, nil
+	}
+
+	configPath := cc.Server.ConfigPath()
+	if configPath == "" {
+		return none, nil
+	}
+
+	ed, err := cli.NewEditor(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("read the config at %s: %w", configPath, err)
+	}
+	defer func() { _ = ed.Close() }()
+
+	return system.ExtractSystemConfig(ed.Tree()).RIRDelegationSources, nil
 }
 
 // refreshContext answers the context the fetch runs under. A command arriving

@@ -41,6 +41,54 @@ func TestLoadConfigRefusesAnInvalidCustomValidatorValue(t *testing.T) {
 	}
 }
 
+// TestLoadConfigRefusesADelegationSourceOffTheBox drives the delegation-source
+// rule from the entry point an operator reaches, rather than from the
+// validator function. The goal is that `ze:validate "delegation-source-url"`
+// RUNS: the annotation is spelled the same whether the walk visits its section
+// or not, and `system` was outside validatedSections until 2026-09-03, which
+// made every rule under it inert while its unit test stayed green.
+//
+// Method: load a config naming a mirror on plain HTTP off the box, which the
+// leaf's own `pattern "https?://.+"` accepts, so only the custom validator can
+// refuse it. Drop "system" from validatedSections and this goes red.
+func TestLoadConfigRefusesADelegationSourceOffTheBox(t *testing.T) {
+	const src = `system {
+	rir {
+		delegation-source ripencc {
+			url "http://mirror.example.com/delegated-ripencc-extended-latest";
+		}
+	}
+}
+`
+	_, err := LoadConfig(src, "test.conf", nil)
+	if err == nil {
+		t.Fatal("LoadConfig accepted a delegation source the fetch rule refuses")
+	}
+	msg := err.Error()
+	for _, want := range []string{"system", "delegation source", "mirror.example.com"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error does not name %q: %s", want, msg)
+		}
+	}
+}
+
+// TestLoadConfigAcceptsALoopbackDelegationSource is the other half: plain HTTP
+// from the host itself is what an on-box mirror and the functional test both
+// need, so the walk MUST NOT refuse it.
+func TestLoadConfigAcceptsALoopbackDelegationSource(t *testing.T) {
+	const src = `system {
+	rir {
+		delegation-source ripencc {
+			url "http://127.0.0.1:8080/delegated-ripencc-extended-latest";
+		}
+	}
+}
+`
+	if _, err := LoadConfig(src, "test.conf", nil); err != nil {
+		t.Fatalf("LoadConfig refused a loopback delegation source: %v", err)
+	}
+}
+
 // TestLoadConfigAcceptsAValidConfigUnchanged is AC-4: a config whose values every
 // registered validator accepts still loads, and loads to the tree it always did.
 // The interface section is in validatedSections and carries a mac-address

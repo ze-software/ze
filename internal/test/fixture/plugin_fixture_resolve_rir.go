@@ -12,12 +12,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -43,17 +46,78 @@ const (
 // read the table".
 const resolveRIRUndelegatedASN = "4294967294"
 
+// resolveRIRRefreshedRegistry is what the local registry server delegates
+// resolveRIRSeedASN to. It is a third registry, different from the shipped
+// seed's ARIN and from the stored copy's APNIC, so each of the three sources a
+// lookup can read names a different registry and no answer is ambiguous.
+const (
+	resolveRIRRefreshedRegistry = irr.RIRLACNIC
+	resolveRIRRefreshedWhois    = irr.WhoisLACNIC
+)
+
+// resolveRIRDelegationBody is what the local registry server answers for every
+// delegation file: one record handing resolveRIRSeedASN to LACNIC.
+const resolveRIRDelegationBody = "lacnic|BR|asn|" + resolveRIRSeedASN + "|1|20260101|allocated\n"
+
 // resolveRIRConfig is a daemon that does nothing but answer commands: one
 // administrator and an ephemeral SSH listener. No BGP peer is configured,
 // because the delegation table is read from data and never from a session.
-func resolveRIRConfig() string {
-	return `system {
+//
+// A non-empty base names a delegation source for each of the five registries,
+// which is what lets a refresh run without reaching the public registries.
+func resolveRIRConfig(base string) string {
+	var config textbuf.Buffer
+	config.Str(`system {
 	authentication { user ` + resolveRIRUser + ` { password "` + extra1AdminHash + `"; } }
-}
+`)
+	if base != "" {
+		config.Str("\trir {\n")
+		for _, token := range []string{"ripencc", "arin", "apnic", "afrinic", "lacnic"} {
+			config.Str("\t\tdelegation-source ").Str(token).Str(" { url \"").
+				Str(base).Str("/delegated-").Str(token).Str("-extended-latest\"; }\n")
+		}
+		config.Str("\t}\n")
+	}
+	return config.String() + `}
 environment {
 	ssh { enabled true; server main { ip 127.0.0.1; port 0; } }
 }
 `
+}
+
+// serveDelegationFiles answers every request with the delegation body until the
+// server is closed.
+//
+// LIFETIME: it runs until resolveRIRRegistryServer's stop function closes the
+// server, which every caller defers, and Serve then returns. The scenario
+// process exits at the end of the run either way.
+func serveDelegationFiles(server *http.Server, listener net.Listener) {
+	_ = server.Serve(listener)
+}
+
+// resolveRIRRegistryServer serves every delegation file over loopback, and
+// answers the base URL a config points at it plus the function that stops it.
+//
+// Plain HTTP is what the fetch rule allows from the host itself
+// (config.ValidateFetchURL), and it is the only reason this scenario can prove
+// a SUCCESSFUL refresh: a functional test must not read tens of megabytes from
+// the five public registries.
+func resolveRIRRegistryServer(ctx context.Context) (string, func(), error) {
+	var listen net.ListenConfig
+	listener, err := listen.Listen(ctx, "tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", nil, fmt.Errorf("listen for the delegation server: %w", err)
+	}
+
+	server := &http.Server{
+		ReadHeaderTimeout: 5 * time.Second,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(resolveRIRDelegationBody))
+		}),
+	}
+	go serveDelegationFiles(server, listener)
+
+	return "http://" + listener.Addr().String(), func() { _ = server.Close() }, nil
 }
 
 // resolveRIRLookup proves an operator reaches the ASN-to-registry answer on
@@ -92,7 +156,9 @@ func resolveRIRLookup(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stderr, "OK: an AS number in no delegated range exits non-zero and says which answer it is")
 
-	daemon, port, err := extra1RunDaemonIn(ctx, workDir, "resolve-rir-lookup.conf", extra1DaemonLog, resolveRIRConfig(), map[string]string{
+	// No delegation source: this scenario reads the shipped seed, and a source
+	// would be a file it never fetches.
+	daemon, port, err := extra1RunDaemonIn(ctx, workDir, "resolve-rir-lookup.conf", extra1DaemonLog, resolveRIRConfig(""), map[string]string{
 		envConfigDir: workDir,
 	})
 	if err != nil {
@@ -124,17 +190,20 @@ func resolveRIRLookup(ctx context.Context, args []string) error {
 	return nil
 }
 
-// resolveRIRRefresh proves what a refresh does when the registries are out of
-// reach: it stores nothing, it names the file it could not read, and the copy
-// stored before it keeps answering, on the daemon and on the host.
+// resolveRIRRefresh proves both halves of a refresh over the operator's own
+// path: one that reads the five sources the config names and stores what they
+// answer, and one whose registries stopped answering, which stores nothing,
+// names the file it could not read, and leaves the previous copy answering.
 //
-// The registries are put out of reach by pointing the daemon's proxy
-// configuration at a closed port. That is the operating system's own HTTP
-// proxy setting, honored by net/http, and NOT a Ze surface: a functional test
-// MUST NOT reach the five public delegation files, and Ze offers no way to
-// redirect them. What a refresh does when all five DO answer is proven by unit
-// tests over irr.FetchDelegationTable and handleRIRRefresh, which serve their
-// own registry bodies in process.
+// The registries are a server on loopback, named by the delegation-source
+// setting. That setting is what makes this scenario possible: a functional
+// test MUST NOT read tens of megabytes from the five public delegation files,
+// and until it existed the successful path had unit coverage alone.
+//
+// Three sources can answer a lookup here, and each names a different registry
+// on purpose: the shipped seed says ARIN, the copy this fixture stores first
+// says APNIC, and the local server says LACNIC. A lookup reading the wrong one
+// therefore names the wrong registry rather than answering nothing.
 func resolveRIRRefresh(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("resolve-rir-refresh takes no arguments: %q", args)
@@ -146,16 +215,18 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 	}
 	defer os.RemoveAll(workDir) //nolint:errcheck // fixture cleanup, and the directory is this run's own
 
-	stored, err := resolveRIRStoreCopy(filepath.Join(workDir, "database.zefs"))
-	if err != nil {
+	if err := resolveRIRStoreCopy(filepath.Join(workDir, "database.zefs")); err != nil {
 		return err
 	}
 
-	daemon, port, err := extra1RunDaemonIn(ctx, workDir, "resolve-rir-refresh.conf", extra1DaemonLog, resolveRIRConfig(), map[string]string{
-		envConfigDir:  workDir,
-		"HTTPS_PROXY": "http://127.0.0.1:1",
-		"HTTP_PROXY":  "http://127.0.0.1:1",
-		"NO_PROXY":    "",
+	base, stopRegistries, err := resolveRIRRegistryServer(ctx)
+	if err != nil {
+		return err
+	}
+	defer stopRegistries()
+
+	daemon, port, err := extra1RunDaemonIn(ctx, workDir, "resolve-rir-refresh.conf", extra1DaemonLog, resolveRIRConfig(base), map[string]string{
+		envConfigDir: workDir,
 	})
 	if err != nil {
 		return err
@@ -178,7 +249,49 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stderr, "OK: the host reads the same stored copy while the daemon holds the file open")
 
-	output, err := extra1CLI(ctx, configDir, port, resolveRIRUser, resolveRIRPassword, "update resolve rir")
+	// The refresh reads the five sources the config names, which are the local
+	// server rather than the public registries. This is the whole point of the
+	// delegation-source setting: a successful refresh is reachable in a test.
+	output, err := extra1CLI(ctx, configDir, port, resolveRIRUser, resolveRIRPassword, "update resolve rir | json")
+	if err != nil {
+		return fmt.Errorf("update resolve rir against the local registries failed (%w): %s", err, output)
+	}
+	var refreshed struct {
+		Key       string `json:"key"`
+		Ranges    int    `json:"ranges"`
+		Generated string `json:"generated"`
+	}
+	if err := json.Unmarshal([]byte(output), &refreshed); err != nil {
+		return fmt.Errorf("the refresh answered no JSON object (%w): %s", err, output)
+	}
+	if refreshed.Key != zefs.KeyRIRDelegation.Pattern || refreshed.Ranges == 0 || refreshed.Generated == "" {
+		return fmt.Errorf("the refresh answered %+v, want the key, a range count and the date it stored", refreshed)
+	}
+	fmt.Fprintln(os.Stderr, "OK: a refresh reads the configured sources and stores what they answer")
+
+	if err := resolveRIRDaemonAnswers(ctx, configDir, port, resolveRIRRefreshedRegistry, resolveRIRRefreshedWhois); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, "OK: the lookup answers from the table that refresh stored")
+
+	refreshedCopy, err := resolveRIRStoreCopyBytes(filepath.Join(workDir, "database.zefs"))
+	if err != nil {
+		return err
+	}
+	if !bytes.Contains(refreshedCopy, []byte("# Source: "+base+"/delegated-")) {
+		return fmt.Errorf("the stored table does not name the sources it was read from")
+	}
+	fmt.Fprintln(os.Stderr, "OK: the stored table names the URLs it was built from")
+
+	// The registries stop answering, and the next refresh has to leave what the
+	// last one stored exactly as it is.
+	stopRegistries()
+	stored, err := resolveRIRStoreCopyBytes(filepath.Join(workDir, "database.zefs"))
+	if err != nil {
+		return err
+	}
+
+	output, err = extra1CLI(ctx, configDir, port, resolveRIRUser, resolveRIRPassword, "update resolve rir")
 	if err == nil {
 		return fmt.Errorf("update resolve rir reported success with the registries out of reach: %s", output)
 	}
@@ -187,7 +300,7 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stderr, "OK: a refresh that cannot reach a registry fails and names the file")
 
-	if err := resolveRIRDaemonAnswers(ctx, configDir, port, irr.RIRAPNIC, irr.WhoisAPNIC); err != nil {
+	if err := resolveRIRDaemonAnswers(ctx, configDir, port, resolveRIRRefreshedRegistry, resolveRIRRefreshedWhois); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: the copy stored before the failed refresh still answers")
@@ -202,15 +315,34 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 	return nil
 }
 
-// resolveRIRStoreCopy writes a delegation table into a fresh managed store and
-// answers the bytes it wrote.
+// resolveRIRStoreCopyBytes answers the delegation table a store holds, so a
+// later run can be compared against it byte for byte.
+func resolveRIRStoreCopyBytes(path string) ([]byte, error) {
+	store, err := zefs.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open the store at %s: %w", path, err)
+	}
+	defer func() { _ = store.Close() }()
+
+	blob, err := store.ReadFile(zefs.KeyRIRDelegation.Pattern)
+	if err != nil {
+		return nil, fmt.Errorf("read the stored delegation table: %w", err)
+	}
+	return bytes.Clone(blob), nil
+}
+
+// resolveRIRStoreCopy writes a delegation table into a fresh managed store.
+//
+// The bytes it wrote are not answered, because the run that compares them is
+// the one AFTER the successful refresh: resolveRIRStoreCopyBytes reads back
+// what the store holds at the moment the comparison starts.
 //
 // The table is dated TOMORROW so it beats the shipped seed whenever that seed
 // was last refreshed: the lookup prefers the stored copy only when its date is
 // strictly later, and a fixed date would start losing the day the seed passed
 // it. It hands the ASN the seed gives ARIN to APNIC instead, so which source
 // answered is visible in the answer itself.
-func resolveRIRStoreCopy(path string) ([]byte, error) {
+func resolveRIRStoreCopy(path string) error {
 	table, err := irr.RenderDelegationTable(irr.DelegationTable{
 		Generated: time.Now().UTC().AddDate(0, 0, 1),
 		Ranges: []irr.RIREntry{{
@@ -219,23 +351,24 @@ func resolveRIRStoreCopy(path string) ([]byte, error) {
 			RIR:   irr.RIRAPNIC,
 			Whois: irr.WhoisAPNIC,
 		}},
+		// This table came from this fixture rather than from a registry, and
+		// its provenance says so: naming the five published files here would
+		// be the lie the Source lines exist to prevent.
+		Sources: []string{"ze-test fixture plugin/resolve-rir-refresh"},
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	store, err := zefs.Create(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := store.WriteFile(zefs.KeyRIRDelegation.Pattern, table, 0); err != nil {
 		_ = store.Close()
-		return nil, err
+		return err
 	}
-	if err := store.Close(); err != nil {
-		return nil, err
-	}
-	return table, nil
+	return store.Close()
 }
 
 // resolveRIRStoredCopyUnchanged reads the delegation key back and compares it

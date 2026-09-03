@@ -255,6 +255,20 @@ func eachRegistryOnce(t *testing.T) (map[string]string, []irr.RIREntry) {
 	return bodies, want
 }
 
+// sourceLines answers the URLs a written table names as its provenance, one
+// per Source comment, in the order the file carries them.
+func sourceLines(table string) []string {
+	var sources []string
+	for line := range strings.SplitSeq(table, "\n") {
+		url, named := strings.CutPrefix(strings.TrimSpace(line), "# Source:")
+		if !named {
+			continue
+		}
+		sources = append(sources, strings.TrimSpace(url))
+	}
+	return sources
+}
+
 // VALIDATES: a whole run writes the file the irr package renders for the
 // ranges the five registries declared, under a header carrying the generation
 // date and one Source line for each file (AC-11).
@@ -293,8 +307,14 @@ func TestWriteEmitsAFileTheIRRParserReads(t *testing.T) {
 	// The run stamps the table from its own clock, so a run that crosses
 	// midnight UTC writes the next day's date. Both readings are accepted here,
 	// and no other file is.
+	// The Source lines are the table's provenance, and the run reads them from
+	// the registries it fetched. They are taken from the written file rather
+	// than restated here, so this test compares the RANGES and the shape while
+	// the count of those lines is asserted above.
+	sources := sourceLines(string(body))
+
 	for _, stamp := range []time.Time{before, after} {
-		rendered, renderErr := irr.RenderDelegationTable(irr.DelegationTable{Generated: stamp, Ranges: want})
+		rendered, renderErr := irr.RenderDelegationTable(irr.DelegationTable{Generated: stamp, Ranges: want, Sources: sources})
 		if renderErr != nil {
 			t.Fatalf("RenderDelegationTable: %v", renderErr)
 		}

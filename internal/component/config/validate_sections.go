@@ -46,6 +46,16 @@ var ErrCustomValidation = errors.New("config validation failed")
 // 2001:db8::1 against `ze:validate "ipv4-address"`. The parse, install and ui
 // suites carry the 22 service-bearing configs in the tree and stay green.
 //
+// `system` was added on 2026-09-03 with the RIR delegation-source leaf, and its
+// blast radius is that one leaf. It is the ONLY `ze:validate` the resolved
+// model lands under `system`: ze-system-conf.yang declares it and uses no
+// grouping, and the four other conf modules that contribute to the section --
+// authz, radius, tacacs and ssh -- declare none, so `system` was absent from
+// ValidatorSectionCoverage().Declaring until this leaf existed. The name it
+// carries, `delegation-source-url`, is a pure form check over the value in
+// hand, reading no registry and depending on no startup order, so none of the
+// three defects below reaches it.
+//
 // `static` is the same shape and is NOT added here, because nothing has walked
 // its configs to measure what its two prefix validators would newly refuse.
 //
@@ -68,7 +78,7 @@ var ErrCustomValidation = errors.New("config validation failed")
 var validatedSections = []string{
 	sectionInterface, "sysctl", "fib", sectionPlugin, sectionWeb, "ssh", "dns",
 	sectionTelemetry, sectionLookingGlass, "mcp", "managed", "vpp",
-	"vpn", "pki", "l2tp", "isis", "ospf", "service",
+	"vpn", "pki", "l2tp", "isis", "ospf", "service", "system",
 }
 
 // SectionValidationError is one failure the walk found, paired with the

@@ -1,0 +1,47 @@
+# Test: `ze config validate` refuses a RIR delegation source on plain HTTP off
+# the box, and accepts one on the router itself.
+#
+# VALIDATES: spec-rir-delegation-source-override AC-4 and AC-5.
+#            AC-4 -- a source whose scheme is plain HTTP and whose host is not
+#                    loopback is refused before any byte is fetched, and the
+#                    message names the URL and the rule.
+#            AC-5 -- a source whose host is 127.0.0.1 over plain HTTP is
+#                    accepted, which is what an on-box mirror needs.
+# PREVENTS:  a `ze:validate` that never runs. The leaf's own
+#            `pattern "https?://.+"` accepts both URLs below, so only
+#            ValidateFetchURL separates them, and it runs only while `system`
+#            is one of the sections ValidateCustomSections walks. An annotation
+#            outside that list is spelled exactly like one inside it and
+#            refuses nothing, which is how the first config here loaded clean
+#            until 2026-09-03.
+#
+# DISCRIMINATOR: drop "system" from validatedSections
+# (internal/component/config/validate_sections.go) and step 1 exits 0.
+
+stdin=offbox:terminator=EOF_OFFBOX
+system {
+	rir {
+		delegation-source ripencc {
+			url "http://mirror.example.com/delegated-ripencc-extended-latest";
+		}
+	}
+}
+EOF_OFFBOX
+
+stdin=onbox:terminator=EOF_ONBOX
+system {
+	rir {
+		delegation-source ripencc {
+			url "http://127.0.0.1:8080/delegated-ripencc-extended-latest";
+		}
+	}
+}
+EOF_ONBOX
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=offbox
+expect=exit:code=1
+expect=stdout:contains=delegation source
+expect=stdout:contains=mirror.example.com
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=onbox
+expect=exit:code=0

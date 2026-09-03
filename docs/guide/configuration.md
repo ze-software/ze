@@ -932,6 +932,32 @@ Use `resolve peeringdb max-prefix <asn>` to look up prefix limits, then apply th
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement; internal/component/bgp/yang/ze-bgp-conf.yang -- prefix config -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- peeringdb config -->
 
+### RIR Delegation Sources
+
+`update resolve rir` refreshes the ASN-to-registry table from the five registry
+delegation files. Name a URL per registry to read a mirror instead:
+
+```
+system {
+    rir {
+        delegation-source ripencc { url "https://mirror.example.com/delegated-ripencc-extended-latest"; }
+        delegation-source arin { url "https://mirror.example.com/delegated-arin-extended-latest"; }
+    }
+}
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `delegation-source <registry>` | the registry's own file | One block per registry, keyed by `ripencc`, `arin`, `apnic`, `afrinic` or `lacnic`. |
+| `url` | none | Where that registry's delegation file is read from. HTTPS, or plain HTTP when the host is the router itself. |
+
+A registry with no block is read from the file it publishes, so mirroring one
+blocked registry takes one block rather than five. The sources are read when
+`update resolve rir` runs, so a block committed after startup needs no restart,
+and the stored table records the URLs that run read.
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
+<!-- source: internal/component/config/validators.go -- ValidateFetchURL -->
+
 ## Hardware Tuning
 
 Ze can apply hardware tuning at startup and on config commit. Tuning operations are Linux-only and require root or `CAP_SYS_ADMIN`.
@@ -1244,6 +1270,87 @@ bgp {
 
 <!-- source: internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang -- as-path-list YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/config.go -- parseAsPathLists -->
+
+### Reject-ASN Filter
+
+Named reject-asn lists live under `bgp { policy { reject-asn NAME { ... } } }`.
+A list names the ASNs that must not appear in the AS_PATH of a route exchanged
+with a peer, and the keyword each ASN is written under says where in the path it
+is unacceptable. A route matching any of them is rejected and the session stays
+up.
+
+```
+bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 3356 ]
+            origin [ 65535 ]
+        }
+        reject-asn SHAPES {
+            regex [ "^3356 174 " ]
+        }
+    }
+
+    peer peer-a {
+        filter {
+            import [ NO-TRANSIT ]
+            export [ NO-TRANSIT ]
+        }
+    }
+}
+```
+
+A list carries seven keywords.
+
+| Keyword | Rejects the ASN where it is |
+|---------|-----------------------------|
+| `direct` | the peer you are talking to, prepends collapsed |
+| `indirect` | anywhere it is NOT that peer: transit plus origin |
+| `transit` | past the peer and not the last |
+| `origin` | the last: it announced the route |
+| `anywhere` | at any position |
+| `nth <n>` | at collapsed position n, counted from you, 1-based |
+| `regex` | matched by a Go RE2 pattern over the whole space-separated AS-path string |
+
+Six of them are plain leaf-lists. `nth` takes a number, so it is written
+`nth 2 [ 3491 ];`. The ASN leaf-lists are `uint32` and an `nth` index is bounded
+1..255, so a word written where a number belongs and an index outside the range
+are both refused by the schema. Also refused at load: a list that names nothing
+at all, an `nth` entry with no ASN, a pattern that does not compile, and a
+pattern longer than 512 characters.
+
+`nth` counts RUNS, not tokens: a run of consecutive identical ASNs advances the
+count once, wherever it sits. Otherwise a peer could move your rule by
+prepending.
+
+`direct` means the peer that SENT the route, prepends collapsed, and not the
+first ASN in the path. `nth 1` is the positional question instead: in
+`[3356 65001]` from AS65001, 3356 is at `nth 1` and is not `direct`. `indirect`
+is the everyday choice: reject a route you reached THROUGH one of these ASNs,
+while peering with one of them directly stays fine. An export chain is told the
+destination peer rather than the sender, so nothing is `direct` there and
+`indirect` covers the whole path.
+
+The same ASN under two keywords unions rather than replacing, so `indirect` plus
+`direct` is `anywhere`. A chain names a list by its bare name, or as
+`reject-asn:NAME`, or as `bgp-filter-path-asn:NAME`.
+
+In the config editor, Tab inside a `reject-asn` list offers all seven keywords
+with what each one covers, and Tab on any ASN leaf-list offers the well-known
+transit-free ASNs with their network names. **Both are suggestions and neither is a constraint:** every
+uint32 is accepted, including an ASN Ze has never heard of. Ze ships no ASN set
+that any filter reads, so a network dropped from that list keeps working and a
+network added to it changes nothing until you type the number.
+
+To get the well-known set into a config without typing 15 numbers, run
+`show bgp reject-asn known transit-free`. It prints one `indirect [ ... ];` line to
+paste inside a `reject-asn` list, with the sources and the curated date as
+comments. `show bgp reject-asn` then lists what each configured list holds, with
+the network name for each ASN it recognizes.
+
+<!-- source: internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang -- reject-asn YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/config.go -- parseRejectASNLists, positionsByKey -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/curated.go -- curatedTransitFree -->
 
 ### Community Match Filter
 

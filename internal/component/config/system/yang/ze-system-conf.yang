@@ -104,6 +104,50 @@ module ze-system-conf {
             }
         }
 
+        // Where the RIR delegation table is read from
+        container rir {
+            description "Regional Internet Registry delegation table settings.";
+            ze:help "The container holds one delegation-source block per registry.
+                     `update resolve rir` reads the delegation file of every
+                     registry, and a block names where one of the five is read
+                     from.";
+
+            list delegation-source {
+                key "registry";
+                description "Per-registry source of the delegation file.";
+                ze:help "One block names one registry and the URL its delegation
+                         file is read from. A registry with no block is read from
+                         the file that registry publishes, so mirroring one
+                         registry takes one block.";
+
+                leaf registry {
+                    type enumeration {
+                        enum ripencc { description "RIPE NCC."; }
+                        enum arin { description "ARIN."; }
+                        enum apnic { description "APNIC."; }
+                        enum afrinic { description "AFRINIC."; }
+                        enum lacnic { description "LACNIC."; }
+                    }
+                    description "Registry whose delegation file this block names.";
+                    ze:help "The token is the list key, and it is the name the
+                             delegation files themselves write: ripencc, arin,
+                             apnic, afrinic and lacnic.";
+                }
+
+                leaf url {
+                    type string {
+                        length "1..1024";
+                        pattern "https?://.+";
+                    }
+                    ze:validate "delegation-source-url";
+                    description "URL Ze reads this registry's delegation file from.";
+                    ze:help "Ze reads the file with one GET, and the URL carries the
+                             scheme, the host and the path of that one file. A
+                             mirror publishes five files, so it takes five blocks.";
+                }
+            }
+        }
+
         // Hardware tuning (Linux only, requires root/CAP_SYS_ADMIN)
         container tuning {
             description "Runtime hardware tuning applied at startup and on config commit";

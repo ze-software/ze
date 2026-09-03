@@ -53,7 +53,10 @@ const outputFile = "internal/component/resolve/irr/rir-delegation.txt"
 //
 // A nil fetch reads the five files over HTTPS.
 func Write(ctx context.Context, root string, fetch irr.DelegationFetch) (WriteReport, error) {
-	delegation, records, err := irr.FetchDelegationTable(ctx, fetch)
+	// No source override: a build host carries no operator config, and the
+	// table this writes ships to every appliance, so it is read from the
+	// registries themselves.
+	delegation, records, err := irr.FetchDelegationTable(ctx, nil, fetch)
 	if err != nil {
 		return WriteReport{}, err
 	}

@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"io"
 	"slices"
 	"strings"
 	"testing"
@@ -202,13 +203,83 @@ func TestWhoisForASN(t *testing.T) {
 
 // VALIDATES: FetchDelegationTable returns an error for an unreachable server.
 // PREVENTS: silent empty table on network failure.
-func TestFetchDelegationTableUnreachable(t *testing.T) {
-	// Save and restore original URLs.
-	origURLs := rirDelegationURLs
-	rirDelegationURLs = []string{"http://127.0.0.1:1/nonexistent"}
-	defer func() { rirDelegationURLs = origURLs }()
+// VALIDATES: a source configured for one registry replaces that registry's
+// file and leaves the other four published (AC-2).
+// PREVENTS: an all-or-nothing setting, where mirroring the one registry a
+// network blocks would mean restating four URLs Ze already knows.
+func TestOneConfiguredSourceLeavesTheOtherFourPublished(t *testing.T) {
+	got, err := delegationSourceURLs(map[string]string{"ripencc": "http://127.0.0.1:9/ripe"})
+	if err != nil {
+		t.Fatalf("delegationSourceURLs: %v", err)
+	}
 
-	_, _, err := FetchDelegationTable(context.Background(), nil)
+	if len(got) != len(publishedDelegation) {
+		t.Fatalf("the run reads %d files, want %d", len(got), len(publishedDelegation))
+	}
+	if got[0] != "http://127.0.0.1:9/ripe" {
+		t.Errorf("RIPE is read from %q, want the configured source", got[0])
+	}
+	for i, published := range publishedDelegation[1:] {
+		if got[i+1] != published.url {
+			t.Errorf("%s is read from %q, want its published file %q", published.token, got[i+1], published.url)
+		}
+	}
+}
+
+// VALIDATES: a source keyed by a token no registry spells is an error, and the
+// message names the tokens that exist (AC-3).
+// PREVENTS: a misspelled registry silently naming no mirror, where the run
+// would read all five published files and report success over data the
+// operator did not ask for.
+func TestAnUnknownRegistryTokenIsRefused(t *testing.T) {
+	_, err := delegationSourceURLs(map[string]string{"ripe": "https://mirror.example.com/ripe"})
+	if err == nil {
+		t.Fatal("delegationSourceURLs accepted a token no registry spells")
+	}
+	if !strings.Contains(err.Error(), "ripe") || !strings.Contains(err.Error(), "ripencc") {
+		t.Errorf("error %q names neither what was written nor what exists", err)
+	}
+}
+
+// VALIDATES: the table a fetch answers carries the URLs that run read, and the
+// rendered file names them (AC-7).
+// PREVENTS: a stored table whose header claims the registries' own files while
+// its ranges came from a mirror. The provenance would then be a lie the file
+// tells, and an operator auditing where an answer came from would read it.
+func TestTheStoredTableNamesTheURLsItWasBuiltFrom(t *testing.T) {
+	const record = "arin|US|asn|1|10|20260101|allocated\n"
+	fetch := func(_ context.Context, _ string) (io.ReadCloser, error) {
+		return io.NopCloser(strings.NewReader(record)), nil
+	}
+
+	table, _, err := FetchDelegationTable(context.Background(),
+		map[string]string{"arin": "http://127.0.0.1:9/arin"}, fetch)
+	if err != nil {
+		t.Fatalf("FetchDelegationTable: %v", err)
+	}
+
+	if !slices.Contains(table.Sources, "http://127.0.0.1:9/arin") {
+		t.Errorf("the table names %v, and none of them is the configured source", table.Sources)
+	}
+
+	body, err := RenderDelegationTable(table)
+	if err != nil {
+		t.Fatalf("RenderDelegationTable: %v", err)
+	}
+	if !strings.Contains(string(body), "# Source: http://127.0.0.1:9/arin\n") {
+		t.Errorf("the rendered header does not name the configured source:\n%s", body)
+	}
+}
+
+func TestFetchDelegationTableUnreachable(t *testing.T) {
+	// Every registry is pointed at a closed port through the sources argument,
+	// so the run reaches nothing and no package variable is mutated.
+	unreachable := make(map[string]string, len(registryTokens()))
+	for _, token := range registryTokens() {
+		unreachable[token] = "http://127.0.0.1:1/nonexistent"
+	}
+
+	_, _, err := FetchDelegationTable(context.Background(), unreachable, nil)
 	if err == nil {
 		t.Fatal("expected error for unreachable server")
 	}
@@ -544,6 +615,7 @@ func TestARenderedTableParsesBackToWhatItHeld(t *testing.T) {
 			{Start: 10, End: 10, RIR: RIRRIPE, Whois: WhoisRIPE},
 			{Start: 4294967290, End: 4294967295, RIR: RIRLACNIC, Whois: WhoisLACNIC},
 		},
+		Sources: []string{"https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest"},
 	}
 
 	body, err := RenderDelegationTable(want)
@@ -569,12 +641,18 @@ func TestARenderedTableParsesBackToWhatItHeld(t *testing.T) {
 // PREVENTS: a file whose header says nothing about where its data came from,
 // and a silent change of the line format the shipped seed is written in.
 func TestTheRenderedTableIsByteExact(t *testing.T) {
+	published, err := delegationSourceURLs(nil)
+	if err != nil {
+		t.Fatalf("delegationSourceURLs: %v", err)
+	}
+
 	body, err := RenderDelegationTable(DelegationTable{
 		Generated: time.Date(2026, 8, 26, 0, 0, 0, 0, time.UTC),
 		Ranges: []RIREntry{
 			{Start: 1, End: 9, RIR: RIRRIPE, Whois: WhoisRIPE},
 			{Start: 10, End: 11, RIR: RIRARIN, Whois: WhoisARIN},
 		},
+		Sources: published,
 	})
 	if err != nil {
 		t.Fatalf("RenderDelegationTable: %v", err)
@@ -602,23 +680,27 @@ func TestTheRenderedTableIsByteExact(t *testing.T) {
 // (ai/rules/principles.md).
 func TestARenderRefusesWhatTheParserRefuses(t *testing.T) {
 	dated := time.Date(2026, 8, 16, 0, 0, 0, 0, time.UTC)
+	// Every case but the provenance one names a source, so each refusal is the
+	// one its name says rather than the missing-source guard firing first.
+	read := []string{"https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest"}
 	tests := []struct {
 		name   string
 		table  DelegationTable
 		wantIn string
 	}{
-		{"no generation date", DelegationTable{Ranges: []RIREntry{{Start: 1, End: 9, RIR: RIRARIN}}}, "no generation date"},
-		{"no range at all", DelegationTable{Generated: dated}, "no range"},
-		{"end before start", DelegationTable{Generated: dated, Ranges: []RIREntry{{Start: 9, End: 1, RIR: RIRARIN}}}, "ends below its start"},
-		{"out of order", DelegationTable{Generated: dated, Ranges: []RIREntry{
+		{"no generation date", DelegationTable{Sources: read, Ranges: []RIREntry{{Start: 1, End: 9, RIR: RIRARIN}}}, "no generation date"},
+		{"no range at all", DelegationTable{Generated: dated, Sources: read}, "no range"},
+		{"no source at all", DelegationTable{Generated: dated, Ranges: []RIREntry{{Start: 1, End: 9, RIR: RIRARIN}}}, "no source"},
+		{"end before start", DelegationTable{Generated: dated, Sources: read, Ranges: []RIREntry{{Start: 9, End: 1, RIR: RIRARIN}}}, "ends below its start"},
+		{"out of order", DelegationTable{Generated: dated, Sources: read, Ranges: []RIREntry{
 			{Start: 10, End: 20, RIR: RIRARIN},
 			{Start: 5, End: 6, RIR: RIRARIN},
 		}}, "starts at or before AS20"},
-		{"overlapping ranges", DelegationTable{Generated: dated, Ranges: []RIREntry{
+		{"overlapping ranges", DelegationTable{Generated: dated, Sources: read, Ranges: []RIREntry{
 			{Start: 10, End: 20, RIR: RIRARIN},
 			{Start: 15, End: 25, RIR: RIRRIPE},
 		}}, "starts at or before AS20"},
-		{"unknown registry", DelegationTable{Generated: dated, Ranges: []RIREntry{{Start: 1, End: 9, RIR: "BOGUS"}}}, "BOGUS"},
+		{"unknown registry", DelegationTable{Generated: dated, Sources: read, Ranges: []RIREntry{{Start: 1, End: 9, RIR: "BOGUS"}}}, "BOGUS"},
 	}
 
 	for _, tt := range tests {

@@ -1231,7 +1231,14 @@ parser refuses, and a run that read no ASN record each store nothing, report
 which one it was, and leave the previous table answering. A run that could not
 store reports an error and never reports success.
 
-<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh -->
+Each file is read from the registry that publishes it, unless `system/rir` names
+a URL for that registry. A mirror is read over HTTPS, or over plain HTTP when it
+is the host itself. The sources are read when the command runs, so one committed
+after the daemon started needs no restart, and the stored table's `Source:` lines
+name the URLs that run actually read.
+
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh, configuredDelegationSources -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
 
 ### clear vpn ipsec sa
 
@@ -2235,7 +2242,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 |---------|--------|---------|
 | `show bgp reject-asn` | read-only | Every reject-asn list: each ASN with its effective position set, the network the curated table names for it, and the peers that name the list on import and on export |
 | `show bgp reject-asn name <name>` | read-only | The same answer for one list |
-| `show bgp reject-asn known transit-free` | read-only | Print the well-known transit-free ASNs as a `via [ ... ];` block to paste inside a `reject-asn` list, with the sources and the curated date as comments <!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- handleCommand, showRejectASN, showRejectASNName, showKnownTransitFree --> |
+| `show bgp reject-asn known transit-free` | read-only | Print the well-known transit-free ASNs as an `indirect [ ... ];` block to paste inside a `reject-asn` list, with the sources and the curated date as comments <!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- handleCommand, showRejectASN, showRejectASNName, showKnownTransitFree --> |
 
 An ASN the curated table does not know is listed with an EMPTY annotation. It is
 never omitted and never guessed: an operator has to make a policy decision about

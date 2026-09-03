@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"net/url"
 	"regexp"
 	"slices"
 	"sort"
@@ -739,6 +740,73 @@ func unimplementedVRFValidator() yang.CustomValidator {
 			return errors.New("vrf is not implemented: ze creates no VRF device and enslaves no interface, " +
 				"so traffic on this unit uses the main routing table and the isolation this leaf names is not in force; " +
 				"remove the leaf")
+		},
+	}
+}
+
+// loopbackFetchHosts are the hosts Ze reads over plain HTTP: the loopback
+// address and the name that resolves to it. A mirror on the box itself, and a
+// test server, are the two things they exist for.
+var loopbackFetchHosts = []string{"127.0.0.1", "::1", "localhost"}
+
+// ValidateFetchURL answers whether Ze will read a file from this URL.
+//
+// HTTPS anywhere, and plain HTTP only from the host itself. What the rule
+// protects is the ANSWER: a file Ze fetches decides operator-visible facts,
+// so a transport nobody authenticates MUST NOT carry it off the box.
+//
+// The host is compared after parsing, never by prefix. A prefix test reads
+// "http://127.0.0.1.example.com/" as loopback, which is a host the operator
+// does not own, and it was the shape this rule carried until 2026-09-03
+// (plan/journal/guard-added-to-one-half-of-a-pair.md).
+//
+// A port is part of the address and not of the host, so "http://127.0.0.1:8080"
+// is the same host as "http://127.0.0.1".
+func ValidateFetchURL(rawURL string) error {
+	if rawURL == "" {
+		return errors.New("the url is empty")
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("%q is not a url: %w", rawURL, err)
+	}
+
+	switch parsed.Scheme {
+	case "https":
+		if parsed.Host == "" {
+			return fmt.Errorf("%q names no host", rawURL)
+		}
+		return nil
+	case "http":
+		if slices.Contains(loopbackFetchHosts, parsed.Hostname()) {
+			return nil
+		}
+		return fmt.Errorf("%q reads %s over plain http: use https, or read from %s",
+			rawURL, parsed.Hostname(), strings.Join(loopbackFetchHosts, ", "))
+	default:
+		return fmt.Errorf("%q uses the %q scheme: use https, or http from %s",
+			rawURL, parsed.Scheme, strings.Join(loopbackFetchHosts, ", "))
+	}
+}
+
+// DelegationSourceValidator refuses a RIR delegation source Ze will not read.
+//
+// The URL names one registry's delegation file, and that file decides which
+// registry Ze reports as holding an AS number. So it is held to the fetch rule
+// above rather than to the leaf's own pattern, which can say "http or https"
+// and cannot say "plain http from this host alone".
+func DelegationSourceValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(_ string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if err := ValidateFetchURL(str); err != nil {
+				return fmt.Errorf("delegation source: %w", err)
+			}
+			return nil
 		},
 	}
 }

@@ -28,9 +28,13 @@ and is constructed explicitly at hub startup.
 
 Hub startup creates a single `Resolvers` struct with one shared DNS instance.
 Cymru receives a TXT resolver function wired to the DNS resolver. PeeringDB
-and IRR are created independently with their configured server addresses.
+takes the URL `system/peeringdb/url` declares. The IRR client takes an empty
+server and falls back to `whois.radb.net`: no config leaf reaches the hub's IRR
+resolver, and `bgp/policy/irr` configures the filter plugin's own client rather
+than this one.
 
-<!-- source: cmd/ze/hub/main.go -- newResolvers function -->
+<!-- source: cmd/ze/hub/main_system.go -- newResolvers -->
+<!-- source: internal/component/resolve/irr/client.go -- NewIRR -->
 
 ## Consumers
 
@@ -196,6 +200,48 @@ the collapse, the date and the render all belong to the `irr` package, and both
 callers reach them through `irr.FetchDelegationTable`. Two copies of that
 recipe existed until 2026-09-02, and each held a guard the other lacked.
 <!-- source: internal/component/resolve/irr/rir.go -- FetchDelegationTable, RenderDelegationTable -->
+
+### Where the files are read from
+
+Each registry publishes its own delegation file, and `system/rir` names a URL
+to read instead, per registry:
+
+```
+system {
+    rir {
+        delegation-source ripencc { url "https://mirror.example.com/delegated-ripencc-extended-latest"; }
+    }
+}
+```
+
+A registry with no block is read from the file it publishes, so mirroring the
+one registry a network blocks takes one block rather than five. The key is the
+token the delegation files themselves write: `ripencc`, `arin`, `apnic`,
+`afrinic`, `lacnic`. A source keyed by anything else is an error rather than a
+source nobody reads.
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
+<!-- source: internal/component/resolve/irr/rir.go -- delegationSourceURLs -->
+
+A source is HTTPS, or plain HTTP from the host itself. What the rule protects is
+the ANSWER: this table decides which registry Ze reports as holding an AS
+number, so a transport nobody authenticates must not carry it off the box. The
+host is compared after parsing rather than by prefix, so
+`http://127.0.0.1.example.com` is not loopback. The same rule guards the
+self-update URLs, and it carried that prefix test until 2026-09-03.
+<!-- source: internal/component/config/validators.go -- ValidateFetchURL, DelegationSourceValidator -->
+<!-- source: internal/component/config/system/update.go -- ValidateUpdateCheckURL -->
+
+The sources are read from the config tree when the command RUNS, not at
+startup. `SystemConfig` is built once and never re-applied to the resolvers, so
+a source read at startup would serve a stale mirror until a restart. A config
+file that will not open stops the refresh rather than falling back to the
+published files, because an operator who named a mirror did not ask for them.
+<!-- source: internal/component/resolve/cmd/rir.go -- configuredDelegationSources -->
+
+The URLs a run read travel with the table it built, and the file it stores names
+them in its `Source:` lines. A stored table therefore says where its ranges came
+from, rather than where they usually come from.
+<!-- source: internal/component/resolve/irr/rir.go -- DelegationTable, RenderDelegationTable -->
 
 ### Which source answers
 

@@ -382,3 +382,57 @@ func TestAddressFamilyValidator_Complete(t *testing.T) {
 	assert.Contains(t, values, "ipv4/unicast")
 	assert.Contains(t, values, "ipv6/unicast")
 }
+
+// VALIDATES: ValidateFetchURL accepts plain HTTP only for the host itself, and
+// compares that host after parsing rather than by prefix.
+// PREVENTS: the shape this rule carried until 2026-09-03. It tested
+// strings.HasPrefix(url, "http://127.0.0.1"), so "http://127.0.0.1.example.com"
+// passed as loopback, and that rule also guards a self-update manifest's
+// download URL (system.ValidateUpdateCheckURL).
+func TestALoopbackPlainHTTPURLIsAcceptedAndALookalikeIsNot(t *testing.T) {
+	accepted := []string{
+		"https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-extended-latest",
+		"https://example.com:8443/delegated",
+		"http://127.0.0.1/delegated",
+		"http://127.0.0.1:8080/delegated",
+		"http://localhost:9000/delegated",
+		"http://[::1]:9000/delegated",
+	}
+	for _, rawURL := range accepted {
+		assert.NoError(t, ValidateFetchURL(rawURL), "expected %q to be read", rawURL)
+	}
+
+	refused := []string{
+		"",
+		"http://127.0.0.1.example.com/delegated",
+		"http://localhost.example.com/delegated",
+		"http://127.0.0.1@example.com/delegated",
+		"http://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-extended-latest",
+		"ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-extended-latest",
+		"file:///etc/passwd",
+		"https://",
+	}
+	for _, rawURL := range refused {
+		assert.Error(t, ValidateFetchURL(rawURL), "expected %q to be refused", rawURL)
+	}
+}
+
+// VALIDATES: the delegation-source validator refuses a URL the fetch rule
+// refuses, and names the leaf it is refusing for.
+// PREVENTS: a mirror an operator commits over plain HTTP off the box, which
+// would let an unauthenticated answer decide which registry Ze reports as
+// holding an AS number.
+func TestDelegationSourceValidatorRefusesWhatTheFetchRuleRefuses(t *testing.T) {
+	v := DelegationSourceValidator()
+	require.NotNil(t, v.ValidateFn)
+
+	require.NoError(t, v.ValidateFn("system/rir/delegation-source/url",
+		"https://mirror.example.com/delegated-ripencc-extended-latest"))
+
+	err := v.ValidateFn("system/rir/delegation-source/url",
+		"http://mirror.example.com/delegated-ripencc-extended-latest")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "delegation source")
+
+	assert.Error(t, v.ValidateFn("system/rir/delegation-source/url", 42))
+}
