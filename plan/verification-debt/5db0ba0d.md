@@ -7,3 +7,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 |------|---------|---------|-----------|--------|--------|
 | 2026-09-03 | 5db0ba0d | docs(plan): close the spec that measured the RFC extraction drain | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-03 | 5db0ba0d | docs(plan): remove the closed RFC drain quota spec | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-03 | 5db0ba0d | docs(plan): drop the resurrected pending-sync spec | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
