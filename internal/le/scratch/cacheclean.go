@@ -9,10 +9,12 @@
 // gotoolchain.Overrides points GOCACHE at cache/go-cache. A bare `go` command
 // typed outside le writes the ambient cache, which is the machine default.
 //
-// The cost of not having this action is recorded: a full cache disk was read
-// as a code defect four times (plan/journal/full-disk-false-red.md). The
-// checkout path hides it, because cache/ is a symlink onto another filesystem,
-// so `df` on the checkout answers about the wrong device. The free space this
+// The cost of not having this action is recorded in
+// plan/journal/full-disk-false-red.md, one row for each time a full cache disk
+// was read as a code defect. That file is the count, because a copy of it here
+// goes stale on the next row. The checkout path hides the disk, because cache/
+// is a symlink onto another filesystem, so `df` on the checkout answers about
+// the wrong device. The free space this
 // action prints is read with statfs on the cache path itself.
 package scratch
 

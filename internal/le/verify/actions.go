@@ -100,7 +100,9 @@ func signalContext() (context.Context, context.CancelFunc) {
 	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 }
 
-// Text renders lifecycle diagnostics in the same order as the Python producer.
+// Text renders the lifecycle diagnostics in the order the run produced them,
+// which ends with the verdict line: it is written by the last deferred call, so
+// every branch that can move Report.Code has already run when it renders.
 func (r Report) Text() string {
 	if len(r.Diagnostics) == 0 {
 		return ""

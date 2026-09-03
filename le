@@ -21,7 +21,7 @@ build_le() {
 	# exists` from the dangling link and no build at all. Prove the directory is
 	# usable rather than assuming the layout, and say so when it is not, because
 	# a cache silently in the wrong place is the shape of the full-disk false
-	# reds this repository has already paid for four times.
+	# reds this repository records in plan/journal/full-disk-false-red.md.
 	GOCACHE=$root/cache/go-cache
 	if ! mkdir -p "$GOCACHE" 2>/dev/null; then
 		GOCACHE=$root/tmp/go-cache

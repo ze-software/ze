@@ -1,12 +1,14 @@
 // VALIDATES: commit selection, detached creation, stale cleanup, KEEP, red-log
-// preservation, cleanup errors, and interruption match the verify_worktree.py
-// lifecycle while every verification stage is an injected in-process call. Also
-// that a whole checkout and a ref read run under separate deadlines, that a
-// deadline verify chose is reported as such, and that a failed add leaves no
-// worktree behind, locked or not.
+// preservation, cleanup errors, and interruption, while every verification stage
+// is an injected in-process call. Also that a whole checkout and a ref read run
+// under separate deadlines, that a deadline verify chose is reported as such,
+// that a failed add leaves no worktree behind, locked or not, that the worktree
+// shares the checkout's Go build cache, and that the printed verdict is the
+// status the process exits with.
 // PREVENTS: a mutable branch, missing runner result, or failed cleanup being
-// reported as a verified commit, and a checkout aborted by the bound meant for
-// git plumbing being reported as a git failure.
+// reported as a verified commit; a checkout aborted by the bound meant for git
+// plumbing being reported as a git failure; and a run a full device defeated
+// answering with the status a red answers.
 package verify
 
 import (
@@ -18,9 +20,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
@@ -141,7 +145,7 @@ func TestBranchPostconditionRefusesAnAttachedWorktree(t *testing.T) {
 			return commandResult{}, nil
 		}
 	}
-	deps := dependencies{git: fakeGit, now: func() time.Time { return time.Unix(0, 0) }, pid: func() int { return 1 }, alive: func(int) bool { return true }}
+	deps := dependencies{git: fakeGit, now: func() time.Time { return time.Unix(0, 0) }, pid: func() int { return 1 }, alive: func(int) bool { return true }, logs: saveLogs}
 
 	report := run(context.Background(), root, Options{}, passingRunner, deps)
 	if report.Failure == nil || report.Failure.Kind != "branch-refusal" || report.Code == 0 {
@@ -230,7 +234,7 @@ func TestKeepLeavesWorktreeRegistrationAndOwnerMarker(t *testing.T) {
 	}
 }
 
-func TestRedRunPreservesLogsAndPythonDiagnosticOrder(t *testing.T) {
+func TestRedRunPreservesLogsAndReportsTheVerdictLast(t *testing.T) {
 	repo := newFixtureRepo(t)
 	calls := 0
 	runner := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
@@ -257,11 +261,14 @@ func TestRedRunPreservesLogsAndPythonDiagnosticOrder(t *testing.T) {
 		t.Fatalf("saved log lacks failure output: %s", combined)
 	}
 	text := report.Text()
+	// The verdict is LAST, after the log save that can still move it. It used to
+	// be printed before, and the run of 2026-09-03 printed exit=2 and did not
+	// exit 2 (plan/journal/full-disk-false-red.md).
 	ordered := []string{
 		"verify-worktree: " + shortSHA(report.Commit) + " -> ",
 		"verify-worktree: native full",
-		"verify-worktree: full exit=1",
 		"verify-worktree: logs saved to ",
+		"verify-worktree: full exit=1",
 	}
 	position := -1
 	for _, message := range ordered {
@@ -285,7 +292,7 @@ func TestCleanupFailureOverridesAFalseGreenAndIsReported(t *testing.T) {
 		}
 		return runGit(ctx, timeout, root, args...)
 	}
-	deps := dependencies{git: git, now: time.Now, pid: os.Getpid, alive: processAlive}
+	deps := dependencies{git: git, now: time.Now, pid: os.Getpid, alive: processAlive, logs: saveLogs}
 
 	report := run(context.Background(), repo.root, Options{}, passingRunner, deps)
 	if report.Code == 0 || report.Failure == nil || report.Failure.Kind != "cleanup" {
@@ -368,7 +375,7 @@ func TestGitBoundsSeparateAWholeCheckoutFromARefRead(t *testing.T) {
 			return commandResult{}, nil
 		}
 	}
-	deps := dependencies{git: fakeGit, now: func() time.Time { return time.Unix(0, 0) }, pid: func() int { return 1 }, alive: func(int) bool { return false }}
+	deps := dependencies{git: fakeGit, now: func() time.Time { return time.Unix(0, 0) }, pid: func() int { return 1 }, alive: func(int) bool { return false }, logs: saveLogs}
 
 	report := run(context.Background(), root, Options{}, passingRunner, deps)
 	if report.Failure == nil || report.Failure.Kind != "branch-refusal" {
@@ -448,7 +455,7 @@ func TestATimedOutAddIsNamedAsSuchAndReclaimsTheWorktree(t *testing.T) {
 			return commandResult{}, nil
 		}
 	}
-	deps := dependencies{git: fakeGit, now: time.Now, pid: func() int { return 1 }, alive: func(int) bool { return false }}
+	deps := dependencies{git: fakeGit, now: time.Now, pid: func() int { return 1 }, alive: func(int) bool { return false }, logs: saveLogs}
 
 	report := run(context.Background(), root, Options{}, passingRunner, deps)
 	if report.Code == 0 || report.Failure == nil || report.Failure.Kind != "worktree-add-timeout" {
@@ -494,7 +501,7 @@ func TestARefusedAddReportsGitAndReclaimsNothing(t *testing.T) {
 			return commandResult{}, nil
 		}
 	}
-	deps := dependencies{git: fakeGit, now: time.Now, pid: func() int { return 1 }, alive: func(int) bool { return false }}
+	deps := dependencies{git: fakeGit, now: time.Now, pid: func() int { return 1 }, alive: func(int) bool { return false }, logs: saveLogs}
 
 	report := run(context.Background(), root, Options{}, passingRunner, deps)
 	if report.Failure == nil || report.Failure.Kind != "worktree-add" {
@@ -533,5 +540,206 @@ func TestAWorktreeLockedByAnUnfinishedAddIsRemoved(t *testing.T) {
 	}
 	if strings.Contains(repo.git(t, "worktree", "list", "--porcelain"), path) {
 		t.Errorf("locked registration survived cleanup: %s", path)
+	}
+}
+
+// TestAWorktreeSharesTheCheckoutBuildCache proves the extracted worktree links
+// its cache to the one shared target, so GOCACHE for the run names that target
+// and no private Go build cache is built inside the worktree. It asserts the
+// link and the resolved GOCACHE path only. Two concurrent runs over one cache
+// are NOT exercised here (spec-fixit-full-disk-verdict, Known Limitations).
+func TestAWorktreeSharesTheCheckoutBuildCache(t *testing.T) {
+	cacheHome := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	shared := filepath.Join(cacheHome, "ze")
+	repo := newFixtureRepo(t)
+
+	report := Run(context.Background(), repo.root, Options{Keep: true}, passingRunner)
+	if report.Code != 0 {
+		t.Fatalf("report = %#v", report)
+	}
+	link := filepath.Join(report.Worktree, "cache")
+	info, err := os.Lstat(link)
+	if err != nil {
+		t.Fatalf("worktree cache: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("worktree cache is %s, want a symlink to %s", info.Mode(), shared)
+	}
+	target, err := os.Readlink(link)
+	if err != nil || target != shared {
+		t.Fatalf("worktree cache -> %q (%v), want %q", target, err, shared)
+	}
+	cache := gotoolchain.GoCache(report.Worktree)
+	if err := os.MkdirAll(cache, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := filepath.EvalSymlinks(cache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sharedCache, err := filepath.EvalSymlinks(filepath.Join(shared, "go-cache"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved != sharedCache {
+		t.Fatalf("GOCACHE resolves to %s, want the shared cache %s", resolved, sharedCache)
+	}
+	if !strings.Contains(report.Text(), "shared build cache") {
+		t.Fatalf("the run never reported the cache link: %s", report.Text())
+	}
+}
+
+// failingRunner answers a red for the first stage and green for the rest, which
+// is the shortest way to reach the log-save branch.
+func failingRunner() verifyengine.ActionRunner {
+	calls := 0
+	return func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		calls++
+		result := verifyengine.ActionResult{
+			Identity: identity, Registered: true, Completed: true, Output: "stage marker",
+		}
+		if calls == 1 {
+			result.Code = 9
+		}
+		return result
+	}
+}
+
+// realDeps is what Run injects, so a test overrides one seam and keeps the rest.
+func realDeps() dependencies {
+	return dependencies{git: runGit, now: time.Now, pid: os.Getpid, alive: processAlive, logs: saveLogs}
+}
+
+// verdictLine answers the last line the run printed, which is where the verdict
+// belongs: every branch that can move report.Code has already run.
+func verdictLine(t *testing.T, report Report) string {
+	t.Helper()
+	if len(report.Diagnostics) == 0 {
+		t.Fatal("the run printed no diagnostics at all")
+	}
+	return report.Diagnostics[len(report.Diagnostics)-1]
+}
+
+// TestADefeatedRunIsUnjudgedRatherThanFailed proves a full device is classified
+// by its typed error at the write site that holds it, and answers the unjudged
+// status rather than the status a red answers.
+func TestADefeatedRunIsUnjudgedRatherThanFailed(t *testing.T) {
+	repo := newFixtureRepo(t)
+	deps := realDeps()
+	deps.logs = func(string, string, string) (string, error) {
+		return "", fmt.Errorf("copy stage logs: %w", syscall.ENOSPC)
+	}
+
+	report := run(context.Background(), repo.root, Options{}, failingRunner(), deps)
+	if report.Code != verifyengine.Unjudged {
+		t.Fatalf("defeated run exited %d, want %d: it judged nothing", report.Code, verifyengine.Unjudged)
+	}
+	if report.Failure == nil || report.Failure.Kind != "log-save" {
+		t.Fatalf("failure = %#v, want the log-save failure that defeated the run", report.Failure)
+	}
+	want := fmt.Sprintf("verify-worktree: full exit=%d", verifyengine.Unjudged)
+	if verdictLine(t, report) != want {
+		t.Fatalf("verdict line = %q, want %q", verdictLine(t, report), want)
+	}
+}
+
+// TestARealFailureStaysAFailure proves the classifier reads the typed error and
+// nothing else: a red keeps exit 1, and so does a log save that failed for any
+// reason other than a full device.
+func TestARealFailureStaysAFailure(t *testing.T) {
+	repo := newFixtureRepo(t)
+
+	red := run(context.Background(), repo.root, Options{}, failingRunner(), realDeps())
+	if red.Code != 1 || red.Logs == "" {
+		t.Fatalf("red run = %#v, want exit 1 with saved logs", red)
+	}
+
+	deps := realDeps()
+	deps.logs = func(string, string, string) (string, error) {
+		return "", fmt.Errorf("copy stage logs: %w", syscall.EACCES)
+	}
+	refused := run(context.Background(), repo.root, Options{}, failingRunner(), deps)
+	if refused.Code != 1 {
+		t.Fatalf("a refused log save exited %d, want 1: the device was not full", refused.Code)
+	}
+}
+
+// TestThePrintedVerdictIsTheCodeTheRunExitsWith proves the line states the
+// status the process answers, in every outcome, including the two branches that
+// move report.Code after the stages have run.
+func TestThePrintedVerdictIsTheCodeTheRunExitsWith(t *testing.T) {
+	prunes := 0
+	failingPrune := func(ctx context.Context, timeout time.Duration, root string, args ...string) (commandResult, error) {
+		if len(args) >= 2 && args[0] == "worktree" && args[1] == "prune" {
+			prunes++
+			if prunes == 2 {
+				return commandResult{Code: 7, Output: "prune refused"}, nil
+			}
+		}
+		return runGit(ctx, timeout, root, args...)
+	}
+	defeated := func(string, string, string) (string, error) {
+		return "", fmt.Errorf("copy stage logs: %w", syscall.ENOSPC)
+	}
+
+	for _, test := range []struct {
+		name    string
+		runner  verifyengine.ActionRunner
+		prepare func(*dependencies)
+		want    int
+	}{
+		{name: "every stage green", runner: passingRunner, prepare: func(*dependencies) {}, want: 0},
+		{name: "a stage failed", runner: failingRunner(), prepare: func(*dependencies) {}, want: 1},
+		{name: "the device filled", runner: failingRunner(),
+			prepare: func(deps *dependencies) { deps.logs = defeated }, want: verifyengine.Unjudged},
+		{name: "cleanup failed after the stages", runner: passingRunner,
+			prepare: func(deps *dependencies) { deps.git = failingPrune }, want: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := newFixtureRepo(t)
+			deps := realDeps()
+			test.prepare(&deps)
+
+			report := run(context.Background(), repo.root, Options{}, test.runner, deps)
+			if report.Code != test.want {
+				t.Fatalf("run exited %d, want %d", report.Code, test.want)
+			}
+			want := fmt.Sprintf("verify-worktree: full exit=%d", report.Code)
+			if verdictLine(t, report) != want {
+				t.Fatalf("verdict line = %q, want %q", verdictLine(t, report), want)
+			}
+		})
+	}
+}
+
+// TestARunWithEveryStageGreenIsUnchanged proves a run with disk to spare calls
+// every stage in order, exits zero, and leaves no worktree behind.
+func TestARunWithEveryStageGreenIsUnchanged(t *testing.T) {
+	repo := newFixtureRepo(t)
+	var called []string
+	runner := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		called = append(called, identity.Name)
+		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
+	}
+
+	report := Run(context.Background(), repo.root, Options{}, runner)
+	if report.Code != 0 || report.Failure != nil {
+		t.Fatalf("green run = %#v", report)
+	}
+	stages := verifyengine.StagesForMode(verifyengine.Mode)
+	if len(called) != len(stages) {
+		t.Fatalf("called %d stages, want %d", len(called), len(stages))
+	}
+	for index := range stages {
+		if called[index] != stages[index].Identity.Name {
+			t.Fatalf("stage %d = %q, want %q", index, called[index], stages[index].Identity.Name)
+		}
+	}
+	if _, err := os.Stat(report.Worktree); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("green worktree remains: %v", err)
+	}
+	if verdictLine(t, report) != "verify-worktree: full exit=0" {
+		t.Fatalf("verdict line = %q", verdictLine(t, report))
 	}
 }

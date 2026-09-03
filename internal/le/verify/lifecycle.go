@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
+	"github.com/ze-software/ze/internal/le/scratch"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -62,6 +63,24 @@ type CleanupFailure struct {
 	Message   string `json:"message"`
 }
 
+// PreservedWorktree is one abandoned worktree the sweep left in place, with what
+// an operator needs to decide whether to remove it by hand: where it is, how old
+// it is, how much disk it holds, and the shape of the work it carries.
+//
+// Measured is false when the tree would not read, and AgeSeconds and SizeBytes
+// carry nothing then. SizeFloor says the entry budget stopped the walk, so
+// SizeBytes is a lower bound rather than the total.
+type PreservedWorktree struct {
+	Path       string `json:"path"`
+	Measured   bool   `json:"measured"`
+	AgeSeconds int64  `json:"age-seconds"`
+	SizeBytes  uint64 `json:"size-bytes"`
+	SizeFloor  bool   `json:"size-floor,omitempty"`
+	Modified   int    `json:"modified"`
+	Untracked  int    `json:"untracked"`
+	Deleted    int    `json:"deleted"`
+}
+
 // Report is the complete lifecycle and action verdict.
 type Report struct {
 	Action      string                `json:"action"`
@@ -70,6 +89,7 @@ type Report struct {
 	Code        int                   `json:"code"`
 	Kept        bool                  `json:"kept"`
 	Swept       []string              `json:"swept,omitempty"`
+	Preserved   []PreservedWorktree   `json:"preserved,omitempty"`
 	Diagnostics []string              `json:"diagnostics"`
 	Logs        string                `json:"logs,omitempty"`
 	Verify      *verifyengine.Report  `json:"verify,omitempty"`
@@ -93,20 +113,37 @@ type dependencies struct {
 	now   func() time.Time
 	pid   func() int
 	alive func(int) bool
+	logs  logSaver
 }
+
+// logSaver copies a red run's stage logs out of the worktree before the
+// worktree is removed. It is a dependency because the device error it meets is
+// what decides the run's verdict, and a test cannot fill a device.
+type logSaver func(root, worktree, name string) (string, error)
 
 // Run resolves Options.Commit, creates a detached worktree, runs every native
 // stage, preserves red logs, and removes and prunes the worktree unless Keep is
 // set. Git is the only subprocess boundary.
 func Run(ctx context.Context, root string, options Options, actions verifyengine.ActionRunner) Report {
 	return run(ctx, root, options, actions, dependencies{
-		git: runGit, now: time.Now, pid: os.Getpid, alive: processAlive,
+		git: runGit, now: time.Now, pid: os.Getpid, alive: processAlive, logs: saveLogs,
 	})
 }
 
 func run(ctx context.Context, root string, options Options, actions verifyengine.ActionRunner, deps dependencies) (report Report) {
 	report = Report{Action: actionName, Code: 1, Diagnostics: []string{}, Cleanup: []CleanupFailure{}}
 	var text textbuf.Buffer
+
+	// The verdict line is written by the FIRST defer registered, so it is the
+	// LAST one to run: every branch that can still move report.Code, the
+	// cleanup defer below included, has already run when it renders. A line
+	// printed before those branches is a snapshot they contradict, and the run
+	// of 2026-09-03 printed exit=2 and did not exit 2.
+	defer func() {
+		report.Diagnostics = append(report.Diagnostics, text.Reset().Str("verify-worktree: ").
+			Str(verifyengine.Mode).Str(" exit=").Int(int64(report.Code)).String())
+	}()
+
 	revision := strings.TrimSpace(options.Commit)
 	if revision == "" {
 		revision = "HEAD"
@@ -123,21 +160,23 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 
 	base := filepath.Join(root, "tmp", "verify-worktree")
 	if err := os.MkdirAll(base, 0o750); err != nil {
+		report.Code = defeatedCode(report.Code, err)
 		report.Failure = &verifyengine.Failure{Kind: "worktree-setup",
 			Message: text.Reset().Str("create worktree directory: ").Err(err).String()}
 		return report
 	}
 
-	swept, sweepDiagnostics, sweepFailures := sweepAbandoned(ctx, root, base, deps)
-	report.Swept = swept
-	report.Diagnostics = append(report.Diagnostics, sweepDiagnostics...)
-	for _, path := range swept {
+	swept := sweepAbandoned(ctx, root, base, deps)
+	report.Swept = swept.Removed
+	report.Preserved = swept.Preserved
+	report.Diagnostics = append(report.Diagnostics, swept.Diagnostics...)
+	for _, path := range swept.Removed {
 		report.Diagnostics = append(report.Diagnostics, text.Reset().
 			Str("verify-worktree: swept abandoned ").Str(filepath.Base(path)).String())
 	}
-	if len(sweepFailures) != 0 {
-		report.Cleanup = append(report.Cleanup, sweepFailures...)
-		report.Failure = &verifyengine.Failure{Kind: "stale-worktree-cleanup", Message: cleanupMessage(sweepFailures)}
+	if len(swept.Failures) != 0 {
+		report.Cleanup = append(report.Cleanup, swept.Failures...)
+		report.Failure = &verifyengine.Failure{Kind: "stale-worktree-cleanup", Message: cleanupMessage(swept.Failures)}
 		return report
 	}
 	if prune := pruneWorktrees(ctx, root, deps.git); prune != nil {
@@ -173,7 +212,12 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		}
 		report.Cleanup = removeWorktree(context.WithoutCancel(ctx), root, path, deps.git)
 		if len(report.Cleanup) != 0 {
-			report.Code = 1
+			// A worktree left on disk is a lifecycle failure and never a verdict
+			// on the tree, so it MUST NOT promote a run that judged nothing into
+			// one that judged and failed.
+			if report.Code != verifyengine.Unjudged {
+				report.Code = 1
+			}
 			report.Failure = &verifyengine.Failure{Kind: "cleanup", Message: cleanupMessage(report.Cleanup)}
 			for _, failure := range report.Cleanup {
 				report.Diagnostics = append(report.Diagnostics, text.Reset().
@@ -200,26 +244,26 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	}
 
 	if err := os.Mkdir(filepath.Join(path, "tmp"), 0o750); err != nil && !errors.Is(err, os.ErrExist) {
+		report.Code = defeatedCode(report.Code, err)
 		report.Failure = &verifyengine.Failure{Kind: "worktree-setup",
 			Message: text.Reset().Str("create worktree tmp: ").Err(err).String()}
 		return report
 	}
 	if err := os.WriteFile(ownerMarker(path),
 		text.Reset().Int(int64(deps.pid())).Byte('\n').Bytes(), 0o600); err != nil {
+		report.Code = defeatedCode(report.Code, err)
 		report.Failure = &verifyengine.Failure{Kind: "owner-marker",
 			Message: text.Reset().Str("write owner marker: ").Err(err).String()}
 		return report
 	}
-
 	report.Diagnostics = append(report.Diagnostics,
+		sharedCacheLink(path),
 		text.Reset().Str("verify-worktree: ").Str(shortSHA(sha)).Str(" -> ").Str(path).String(),
 		text.Reset().Str("verify-worktree: native ").Str(verifyengine.Mode).String(),
 	)
 	verification := verifyengine.Run(ctx, path, sha, actions)
 	report.Verify = &verification
 	report.Code = verification.Code
-	report.Diagnostics = append(report.Diagnostics, text.Reset().Str("verify-worktree: ").
-		Str(verifyengine.Mode).Str(" exit=").Int(int64(report.Code)).String())
 	if verification.Failure != nil {
 		report.Failure = verification.Failure
 	} else if verification.Code != 0 {
@@ -231,10 +275,10 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		}
 	}
 	if verification.Code != 0 {
-		logs, logErr := saveLogs(root, path, filepath.Base(path))
+		logs, logErr := deps.logs(root, path, filepath.Base(path))
 		switch {
 		case logErr != nil:
-			report.Code = 1
+			report.Code = defeatedCode(report.Code, logErr)
 			report.Failure = &verifyengine.Failure{Kind: "log-save", Message: logErr.Error()}
 			report.Diagnostics = append(report.Diagnostics,
 				text.Reset().Str("verify-worktree: save logs failed: ").Err(logErr).String())
@@ -290,6 +334,41 @@ func addFailure(sha string, result commandResult, err error) (verifyengine.Failu
 		Str(": ").Str(strings.TrimSpace(result.Output)).String()
 	failure := verifyengine.Failure{Kind: "worktree-add", Message: commandFailure("git worktree add", result, err)}
 	return failure, diagnostic
+}
+
+// defeatedCode answers the status a lifecycle write failure earns, given the
+// status the run carries so far.
+//
+// A full device defeated the run rather than judging the tree, so it reports
+// UNJUDGED, and a run that already judged nothing stays unjudged: neither
+// learned anything about the tree, and neither MUST answer with the code a red
+// carries. Anything else is the lifecycle failing around a run that did judge.
+func defeatedCode(current int, err error) int {
+	if verifyengine.Defeated(err) {
+		return verifyengine.Unjudged
+	}
+	if current == verifyengine.Unjudged {
+		return verifyengine.Unjudged
+	}
+	return 1
+}
+
+// sharedCacheLink points the worktree's cache at the checkout's shared Go build
+// cache and answers the line that reports what it did.
+//
+// Without the link the toolchain override resolves GOCACHE to
+// <worktree>/cache/go-cache (internal/le/gotoolchain, GoCache and Overrides),
+// so every run compiles from cold into a private cache, measured at 7.4 GiB on
+// 2026-09-03, and then deletes it unread. The link is an optimization and never
+// a correctness input, so a cache that cannot be linked is REPORTED and the run
+// continues against a cold one rather than refusing to start.
+func sharedCacheLink(path string) string {
+	var text textbuf.Buffer
+	result, err := scratch.New(path, os.Environ()).EnsureCache(false)
+	if err != nil {
+		return text.Str("verify-worktree: shared build cache: ").Err(err).String()
+	}
+	return text.Str("verify-worktree: shared build cache: ").Str(result.Line).String()
 }
 
 func worktreePath(root, sha, stamp string) string {

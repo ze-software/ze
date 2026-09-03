@@ -59,7 +59,12 @@ One producer answers the change set: `Scope.resolveSelector` (`internal/le/chang
 
 Native `./le` actions are the public interface, while Go-to-Go paths call their package functions. Heavy verification enters through `./le job run label <label> command <argv...>` or the `verify-lock` action rather than starting another copy behind the admission registry.
 
-<!-- source: internal/le/verify/engine/run.go -- ActionResult, RunMode -->
+A run has four outcomes, not three. 0 certifies the tree, 1 says a stage judged it and found it wrong, 2 says the run itself broke, and 3 (`Unjudged`) says the run reached no verdict at all. A stage answers 2 when it could not judge its own subject, which `le staticcheck-feature-matrix check` does for an empty package population, and `runCode` carries that outcome up as `Unjudged` instead of flattening it to 1. A stage that judged the tree and found it wrong outranks it, because that stage did reach a verdict. A full device is the second route to `Unjudged`, recognized by `Defeated` with `errors.Is(err, syscall.ENOSPC)` at each write site that holds the typed error: no stage output reaches a `Report`, so text matching cannot see it at all. `CheckCertificate` stales on any non-zero exit, so an unjudged run can never read as fresh.
+
+The lifecycle prints its verdict from the first deferred call, which makes it the last line of the run. Every branch that can still move `Report.Code`, the deferred cleanup included, has run by then. `verify worktree` also links the extracted worktree's `cache/` to the shared per-user target before any stage starts, so GOCACHE resolves out of tree and the run does not build a private Go build cache it will delete unread.
+
+<!-- source: internal/le/verify/engine/run.go -- ActionResult, RunMode, Unjudged, Defeated -->
+<!-- source: internal/le/verify/lifecycle.go -- run, sharedCacheLink -->
 <!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verify/lock/register.go -- Answer -->
 

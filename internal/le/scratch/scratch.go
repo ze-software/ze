@@ -153,18 +153,39 @@ func (m *Manager) cacheTarget() (string, error) {
 
 // Ensure creates or repairs the links without converting real paths.
 func (m *Manager) Ensure(repointCache bool) (Report, int) {
-	cacheTarget, err := m.cacheTarget()
+	cache, err := m.EnsureCache(repointCache)
 	if err != nil {
 		return failureReport(cacheName, err), 1
 	}
 	results := []Result{
 		m.ensureSymlink(filepath.Join(m.Root, tmpName), m.scratchTarget(), true),
-		m.ensureSymlink(filepath.Join(m.Root, cacheName), cacheTarget, repointCache),
+		cache,
 	}
 	if err := m.ensureSentinel(); err != nil {
 		results = append(results, errorResult(tmpName, err))
 	}
 	return Report{Results: results}, verdict(results)
+}
+
+// EnsureCache creates or repairs the cache link alone and leaves tmp untouched.
+//
+// A detached verify worktree needs this entry point rather than Ensure. GOCACHE
+// resolves to <root>/cache/go-cache (internal/le/gotoolchain, GoCache), so a
+// worktree with no cache link builds a private Go build cache from cold, which
+// measured 7.4 GiB on 2026-09-03 against a 0.6 GiB source tree. The cache target
+// is per-USER and ignores the root (cacheTarget), so the link reaches the same
+// cache the checkout already fills. tmp MUST NOT be linked with it: scratchTarget
+// hashes the root, and the worktree's own tmp/verify is where the run writes the
+// stage logs it later copies out.
+//
+// Safe to call on a path that already holds the link, which is what a second run
+// in the same worktree finds.
+func (m *Manager) EnsureCache(repointCache bool) (Result, error) {
+	target, err := m.cacheTarget()
+	if err != nil {
+		return Result{}, err
+	}
+	return m.ensureSymlink(filepath.Join(m.Root, cacheName), target, repointCache), nil
 }
 
 // Migrate selectively moves tmp artifacts and moves the whole cache directory.

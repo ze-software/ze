@@ -1,6 +1,6 @@
 # Running Development Commands
 
-<!-- source: internal/le/gotoolchain, internal/le/changed, internal/le/functional, internal/le/session, internal/le/job, internal/le/hookruntime -->
+<!-- source: internal/le/gotoolchain, internal/le/changed, internal/le/functional, internal/le/session, internal/le/job, internal/le/hookruntime, internal/le/verify, internal/le/scratch -->
 
 How the `./le` action surface, the session scratch tree, and the Bash guard
 behave. The obligations that follow from this page are `ai/rules/commands.md`.
@@ -200,9 +200,10 @@ other session in this checkout pays for it.
 
 ## When the disk is full
 
-A full cache disk has been read as a code defect four times
-(`plan/journal/full-disk-false-red.md`). It arrives as a wave of unrelated
-failures:
+A full cache disk is read as a code defect often enough to have its own class
+file. `plan/journal/full-disk-false-red.md` carries one row for each occurrence,
+and that file is the count: no page repeats it, because a copy goes stale on the
+next row. It arrives as a wave of unrelated failures:
 
 - Packages that do not import each other fail to build.
 - The linker says `mapping output file failed: no space left on device`.
@@ -242,6 +243,73 @@ env GOCACHE="$PWD/cache/go-cache" go clean -cache  # the checkout cache
 
 Nothing caps either cache, so both grow until the disk fills. The clean costs
 recompilation, which makes the next run slow once.
+
+### A verify worktree shares that cache
+
+`./le verify worktree` extracts a detached worktree under `tmp/verify-worktree`
+and links its `cache/` to the same per-user target the checkout uses, before any
+stage runs (`internal/le/verify`, `sharedCacheLink`, calling `EnsureCache` in
+`internal/le/scratch`). `tmp/` is NOT linked with it: that one is per-checkout,
+and the worktree's own `tmp/verify` is where the run writes the stage logs it
+copies out afterwards.
+
+Without that link `Overrides` resolves GOCACHE to `<worktree>/cache/go-cache`
+(`internal/le/gotoolchain/gotoolchain.go`), so each run compiled from cold into a
+private cache and deleted it unread. Two worktrees measured on 2026-09-03 held
+7.4 GiB and 6.7 GiB of private cache against a 0.6 GiB source tree, which is
+about 90 percent of each worktree, rebuilt once per run.
+
+The run prints what it did with the link, and the line names the shared path:
+
+```
+verify-worktree: shared build cache: created  cache -> /Users/thomas/Unix/cache/ze
+```
+
+A cache that cannot be linked is reported on that line and the run continues
+against a cold one. The link is speed and disk, never correctness.
+
+### What the gate is holding
+
+A verify worktree that carries uncommitted changes is never deleted, whoever
+abandoned it (`sweepAbandoned`, `internal/le/verify/cleanup.go`). The run names
+each one it kept, with the path, the age, the disk it holds, and the shape of
+its dirt:
+
+```
+verify-worktree: 20260903T091500-p123-r1-abcdef012345 was abandoned but holds
+uncommitted changes, so it is left alone: /path/to/it, 8h12m0s old, 8.3G,
+0 modified, 0 untracked, 264 deleted
+```
+
+The shape decides what to do. Modified or untracked content exists only there,
+so removing the worktree destroys it. Deletions alone are a tree somebody
+emptied, and git restores every one of them from the commit the worktree is
+detached at. Remove one by hand with `git worktree remove --force <path>` after
+reading that line, never on a schedule.
+
+### A run that judged nothing
+
+`./le verify worktree` answers five statuses, and they are not interchangeable:
+
+| Status | Meaning |
+|--------|---------|
+| 0 | Every stage ran and the tree passed |
+| 1 | A stage judged the tree and found it wrong |
+| 2 | The run itself broke before it could judge |
+| 3 | The run reached no verdict: a stage could not judge its subject, or a full device defeated the run |
+| 130 | An interrupt stopped the run between stages |
+
+A full device is recognized by its typed error at the write site, never by
+matching text (`Defeated`, `internal/le/verify/engine/run.go`). Status 3 says
+the tree was never cleared, so it is neither a pass to build on nor a red to
+debug: free the device and run it again.
+
+The verdict line is the LAST line the run prints, and it states the status the
+process exits with:
+
+```
+verify-worktree: full exit=3
+```
 
 ## Session binaries
 

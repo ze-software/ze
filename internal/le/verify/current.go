@@ -73,10 +73,21 @@ func currentHere(args leaction.Arguments) (any, int) {
 	ctx, stop := signalContext()
 	defer stop()
 	report := runCurrent(ctx, root, mode, actionRunner())
-	if report.Failure != nil && report.Code == 2 {
+	if report.Failure != nil && withoutStageLog(report.Code) {
 		leaction.ReportError(errors.New(report.Failure.Message))
 	}
 	return report, report.Code
+}
+
+// withoutStageLog reports whether a run's status leaves the reader no stage log
+// to open. A stage that judged the tree and found it wrong wrote one, and its
+// reason is in there. A run that broke, or one that reached no verdict at all,
+// wrote nothing a reader can go to, so its reason belongs on stderr.
+func withoutStageLog(code int) bool {
+	if code == 2 {
+		return true
+	}
+	return code == verifyengine.Unjudged
 }
 
 func listHere(args leaction.Arguments) (any, int) {

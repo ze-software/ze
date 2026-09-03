@@ -41,9 +41,13 @@ func TestPythonInvalidCommitDiagnosticParityWithoutVerifyBody(t *testing.T) {
 	if called {
 		t.Fatal("invalid commit invoked the verification body")
 	}
-	want := "verify-worktree: not-a-commit does not name a commit\n"
+	// The verdict line follows every outcome, this one included: a reader who
+	// sees the refusal also sees the status the process exits with
+	// (spec-fixit-full-disk-verdict, AC-6). The Python producer printed the
+	// refusal alone, and that is the one diagnostic this port does not copy.
+	want := "verify-worktree: not-a-commit does not name a commit\nverify-worktree: full exit=1\n"
 	if got := report.Text(); got != want {
-		t.Fatalf("diagnostic = %q, want Python lifecycle diagnostic %q", got, want)
+		t.Fatalf("diagnostic = %q, want %q", got, want)
 	}
 }
 
@@ -66,7 +70,7 @@ func TestPythonAddFailureDiagnosticNamesShortCommitWithoutVerifyBody(t *testing.
 	deps := dependencies{
 		git: fakeGit,
 		now: func() time.Time { return time.Date(2026, 8, 22, 13, 8, 18, 0, time.UTC) },
-		pid: func() int { return 1 }, alive: func(int) bool { return true },
+		pid: func() int { return 1 }, alive: func(int) bool { return true }, logs: saveLogs,
 	}
 	called := false
 	runner := func(context.Context, string, verifyengine.Identity) verifyengine.ActionResult {

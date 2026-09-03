@@ -6,10 +6,10 @@
 // (internal/appliance/kernelbuilder). A second copy of statfs would be a second
 // answer to one question.
 //
-// The cost of not asking is recorded: a full disk was read as a code defect six
-// times (plan/journal/full-disk-false-red.md), and on the sixth it also
-// corrupted the container runtime's image store, because the sparse file
-// backing that runtime could no longer grow.
+// The cost of not asking is recorded in plan/journal/full-disk-false-red.md,
+// one row for each time a full disk was read as a code defect. On the row dated
+// 2026-09-02 it also corrupted the container runtime's image store, because the
+// sparse file backing that runtime could no longer grow.
 package diskspace
 
 import (

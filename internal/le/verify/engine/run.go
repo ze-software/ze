@@ -3,11 +3,13 @@ package verifyengine
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -21,7 +23,53 @@ const (
 	ChangedMode = "changed"
 	// Interrupted is the shell-compatible status for an interrupt signal.
 	Interrupted = 130
+	// Unjudged is the status of a run that reached no verdict about the tree.
+	// It is neither a pass nor a red, and the three codes it sits beside are
+	// taken: 0 certifies the tree, 1 says a stage judged it and found it wrong,
+	// and 2 says the run itself broke. A caller that reads them apart keeps
+	// reading them apart.
+	Unjudged = 3
+	// stageUnjudged is the status an ACTION answers when it could not judge its
+	// own subject. It is the convention across le actions, and
+	// `le staticcheck-feature-matrix check` is the stage that answers it for the
+	// full population (internal/le/staticcheckfeaturematrix, runCheck).
+	stageUnjudged = 2
 )
+
+// Defeated reports whether err is a full device.
+//
+// A device with no space left defeats a run rather than telling it anything
+// about the tree: nothing the run wrote survived, so it cleared nothing. It is
+// recognized at the write site that holds the typed error, never by matching
+// text, because no stage output reaches a Report: validateResult records only
+// "action exited N", StageReport carries no output field, and Report.Console is
+// `json:"-"`.
+func Defeated(err error) bool { return errors.Is(err, syscall.ENOSPC) }
+
+// runCode folds one stage's status into the run's.
+//
+// A stage that could not judge its subject is UNJUDGED rather than failed,
+// because flattening it reports a verdict the run never reached. A failure
+// outranks it: a stage that found the tree wrong DID judge the tree.
+func runCode(current, stage int) int {
+	if current == 1 {
+		return 1
+	}
+	if stage == stageUnjudged {
+		return Unjudged
+	}
+	return 1
+}
+
+// brokenCode answers the status a verification write failure earns. A full
+// device defeated the run before it could record what it saw, so the run judged
+// nothing; any other write failure is the run itself breaking.
+func brokenCode(err error) int {
+	if Defeated(err) {
+		return Unjudged
+	}
+	return 2
+}
 
 // Failure is one structured reason a run could not certify its commit.
 type Failure struct {
@@ -106,6 +154,7 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 	start := job.SnapshotTree(root)
 	started := now()
 	logFailure := func(err error) Report {
+		report.Code = brokenCode(err)
 		report.Failure = failure("log-setup", "", messageWithError("create verify log directory: ", err))
 		if _, statusErr := WriteCertificate(root, WriteRequest{
 			Exit: report.Code, Mode: report.Mode, Skipped: SkippedSuites(),
@@ -166,15 +215,15 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 			combined.Bytes()[stageStart:],
 			0o600,
 		); err != nil {
-			report.Code = 2
+			report.Code = brokenCode(err)
 			report.Failure = failure("log-write", current.Identity.Name,
 				messageWithError("write stage log: ", err))
 			report.Stages = append(report.Stages, stageReport)
 			break
 		}
 		report.Stages = append(report.Stages, stageReport)
-		if stageReport.Code != 0 && report.Code == 0 {
-			report.Code = 1
+		if stageReport.Code != 0 {
+			report.Code = runCode(report.Code, stageReport.Code)
 		}
 		if stageReport.Failure != nil && stageReport.Failure.Kind != "stage-failed" {
 			report.Code = 2
@@ -190,14 +239,14 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 
 	report.Completed = len(report.Stages) == len(stages) && report.Failure == nil
 	if err := os.WriteFile(filepath.Join(logDir, "ze-verify.log"), combined.Bytes(), 0o600); err != nil {
-		report.Code = 2
+		report.Code = brokenCode(err)
 		report.Completed = false
 		report.Failure = failure("log-write", "",
 			messageWithError("write combined verify log: ", err))
 	}
 	report.Console = combined.String()
 	if err := writeRunArtifacts(root, report, started); err != nil {
-		report.Code = 2
+		report.Code = brokenCode(err)
 		report.Completed = false
 		report.Failure = failure("artifact-write", "", err.Error())
 	}
@@ -205,7 +254,7 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 		Exit: report.Code, Mode: report.Mode, Skipped: SkippedSuites(),
 		GitSHA: commit, Start: start, At: now(),
 	}); err != nil {
-		report.Code = 2
+		report.Code = brokenCode(err)
 		report.Completed = false
 		report.Failure = failure("status-write", "", err.Error())
 	}

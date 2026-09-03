@@ -27,7 +27,7 @@ var actions = leaction.New(area,
 		" device`, or when a whole suite goes red at once. cache/ is a symlink" +
 		" onto another filesystem, so `df` on the checkout answers about the" +
 		" wrong device and a full cache disk reads as a code defect" +
-		" (plan/journal/full-disk-false-red.md, four occurrences)",
+		" (plan/journal/full-disk-false-red.md)",
 		Writes: true,
 		Answer: runCacheClean},
 	leaction.Action{Verb: "migrate", Why: "the same cutover for a checkout whose tmp/ or cache/ is still a REAL" +
