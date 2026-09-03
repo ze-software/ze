@@ -75,7 +75,7 @@ add the annotation to the new files.
 | `internal/component/ike/cmd` | `// Design: docs/architecture/ike/ipsec-10-cli-diag.md - IKE CLI and diagnostics` |
 | `internal/component/ike/crypto` | `// Design: docs/architecture/ike/ipsec-6-ikev2-crypto.md - IKEv2 cryptography` |
 | `internal/component/ike/dataplane` | `// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md - Child SA and XFRM dataplane` |
-| `internal/component/ike/eap` | `// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md - EAP authentication` |
+| `internal/core/eap` | `// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md - EAP authentication` |
 | `internal/component/ike/engine` | `// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md - IKEv2 exchange engine` |
 | `internal/component/ike/ipsec` | `// Design: docs/architecture/ike/ipsec-3-data-model.md - IPsec data model` |
 | `internal/component/ike/transport` | `// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md - IKE transport and NAT traversal` |

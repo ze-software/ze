@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/ike/eap"
+	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -23,7 +23,7 @@ import (
 // sendEAPResponsePacket -> buildEAPResponse -> sendRaw.
 //
 // They carry no `RFC requirement:` tag. The RFC proofs for Types 2 and 3 live in
-// internal/component/ike/eap; these prove reachability.
+// internal/core/eap; these prove reachability.
 
 const (
 	// eapwIdentity and eapwPassword are the EAP-MSCHAPv2 credentials both ends of

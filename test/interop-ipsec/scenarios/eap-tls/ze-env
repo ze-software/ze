@@ -21,7 +21,7 @@
 # there is no replacement, and no supported way to reach this peer over TLS 1.2.
 #
 # What ze now does instead is report the refusal: exportEAPTLSMSK
-# (internal/component/ike/eap) names the peer, the negotiated version, RFC 7627
+# (internal/core/eap) names the peer, the negotiated version, RFC 7627
 # and the operator's answers, and handleEAPResponse
 # (internal/component/ike/engine) logs it.
 #

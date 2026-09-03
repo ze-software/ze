@@ -423,7 +423,7 @@ judges a tree in which no gated plugin registers.
 
 ```
 tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
-./le job run label unit-pkg quiet command go test -race -tags "$tags" ./internal/component/ike/eap
+./le job run label unit-pkg quiet command go test -race -tags "$tags" ./internal/core/eap
 ./le job run label unit-pkg quiet command go test -race -tags "$tags" -run TestEAPTLS ./internal/component/ike/...
 ```
 
@@ -440,7 +440,7 @@ to twenty failure lines from it, each with its line number.
 ```
 job unit-pkg: exit 1, log tmp/session/2026-09-01-abc/scratch/job-unit-pkg.log
 412:--- FAIL: TestEAPIdentity (0.00s)
-418:FAIL	github.com/ze-software/ze/internal/component/ike/eap	0.310s
+418:FAIL	github.com/ze-software/ze/internal/core/eap	0.310s
 ```
 
 Which lines those are is one declaration, `internal/le/runlog`, shared with the

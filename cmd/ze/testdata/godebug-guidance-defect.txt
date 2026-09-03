@@ -36,7 +36,7 @@ defect's own text. Two earlier versions of the predicate went GREEN here.
 //
 // TLS 1.3 needs none of this: the export is always available and RFC 9190
 // supersedes RFC 5216. Ze implements and prefers that path
-// (internal/component/ike/eap, exportEAPTLSMSK selects by negotiated version).
+// (internal/core/eap, exportEAPTLSMSK selects by negotiated version).
 
 package main
 

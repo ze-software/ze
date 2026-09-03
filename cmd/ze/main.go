@@ -37,13 +37,13 @@
 // string that is on the page (cmd/ze/godebug_guidance_test.go).
 //
 // An operator who meets such a peer has three answers, and ze names all three in
-// the error it logs (internal/component/ike/eap, eapTLS12ExportRefused): move the
+// the error it logs (internal/core/eap, eapTLS12ExportRefused): move the
 // peer to TLS 1.3, add RFC 7627 to its TLS 1.2 stack, or configure another EAP
 // method.
 //
 // TLS 1.3 needs none of this: the export is always available and RFC 9190
 // supersedes RFC 5216. Ze implements and prefers that path
-// (internal/component/ike/eap, exportEAPTLSMSK selects by negotiated version).
+// (internal/core/eap, exportEAPTLSMSK selects by negotiated version).
 
 package main
 

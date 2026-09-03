@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **Ze implements RFC 9190 (EAP-TLS 1.3) without admitting to it, and no gate
 watches the part it does implement.**
 
-`exportEAPTLSMSK` (`internal/component/ike/eap/eap_tls.go`) already selects the
+`exportEAPTLSMSK` (`internal/core/eap/eap_tls.go`) already selects the
 RFC 9190 label, the Type-Code context and the 128-octet export length when the
 negotiated version is TLS 1.3. Interop scenario `eap-tls13` exercises exactly
 that path against strongSwan and passes. But `rfc/enrolled.txt` has no row,
@@ -70,10 +70,10 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/eap/eap_tls.go` - `exportEAPTLSMSK` selects the RFC
+- [ ] `internal/core/eap/eap_tls.go` - `exportEAPTLSMSK` selects the RFC
   9190 label, context and length on TLS 1.3; `tlsMethod.Process` drives the
   authenticator; `tlsFragmenter` handles RFC 5216 Section 2.1.5 fragmentation.
-- [ ] `internal/component/ike/eap/peer.go` - the peer side, `startTLSClient` and
+- [ ] `internal/core/eap/peer.go` - the peer side, `startTLSClient` and
   `readAndSendTLS`.
 - [ ] `rfc/not-enrolled.txt` - carries the `backlog` row and its evidence.
 
@@ -176,7 +176,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEAPTLS13SendsProtectedSuccessIndication` | `internal/component/ike/eap/rfc9190_test.go` | AC-1 | done, phase 1 |
+| `TestEAPTLS13SendsProtectedSuccessIndication` | `internal/core/eap/rfc9190_test.go` | AC-1 | done, phase 1 |
 | `TestEAPTLS13RefusedClientGetsNoSuccessIndication` | same | AC-1 negative (RFC9190-2.5-2) | done, phase 1 |
 | `TestEAPTLS13RequiresProtectedSuccessIndication` | same | AC-2 | not started. The peer answers the indication without decrypting it. The published RFC puts no obligation on the peer; errata 7577 proposes one and is Reported, not Verified |
 | `TestEAPTLS12SendsNoProtectedSuccessIndication` | same | AC-3 | done, phase 1 |
@@ -201,14 +201,14 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | a resumption scenario | same | strongSwan | AC-4 against a real peer | |
 
 ## Files to Modify
-- `internal/component/ike/eap/eap_tls.go` - the indication on the authenticator, and resumption.
-- `internal/component/ike/eap/peer.go` - the indication on the peer.
+- `internal/core/eap/eap_tls.go` - the indication on the authenticator, and resumption.
+- `internal/core/eap/peer.go` - the indication on the peer.
 - `rfc/enrolled.txt`, `rfc/not-enrolled.txt` - move the row at the end.
 - `docs/features/rfc-status.md` - the public row.
 
 ## Files to Create
 - `rfc/extraction/rfc9190.json` - the hand-classified sign-off enrolment requires.
-- `internal/component/ike/eap/rfc9190_test.go` - created, phase 1.
+- `internal/core/eap/rfc9190_test.go` - created, phase 1.
 - `test/interop-ipsec/scenarios/responder-eap-tls13/` - created, phase 1. The
   first scenario in the lab with Ze in the EAP-TLS SERVER role. eap-tls and eap-tls13 both
   put strongSwan there, which is why a wire-visible violation on Ze's

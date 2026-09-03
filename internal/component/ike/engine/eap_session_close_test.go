@@ -24,14 +24,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/ike/eap"
+	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 )
 
 // eapTLSEngineFrame is the frame a parked EAP-TLS engine goroutine carries on
 // either side. Counting frames names the goroutine under test exactly, where
 // runtime.NumGoroutine would only give a delta above the test binary's noise.
-const eapTLSEngineFrame = "ike/eap.(*eapTLSTransport).Read"
+const eapTLSEngineFrame = "core/eap.(*eapTLSTransport).Read"
 
 func countEAPTLSEngines() int {
 	buf := make([]byte, 1<<16)

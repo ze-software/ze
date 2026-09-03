@@ -1724,7 +1724,7 @@ scratch and rewrote the file complete in one `Write`.
    file, so a file-header edit is not read as touching every tagged test in it.
 
 **Recurrence, 2026-08-12, `spec-ipsec-rfc9190` phase 1.** Identical shape, on a new
-`internal/component/ike/eap/rfc9190_test.go` whose header comment carries the tags.
+`internal/core/eap/rfc9190_test.go` whose header comment carries the tags.
 It cost two move-and-rewrite cycles rather than two edits. A third block, same
 guard, refused removing a dead `maxRounds` parameter from `driveEAPTLSFlight`
 (`rfc5216_success_flight_test.go`) that `unparam` had started reporting: the

@@ -26,12 +26,12 @@ deleted, so this file is the tracker.
 **The problem.** RFC 3748 Section 4.2 (`rfc/full/rfc3748.txt`, the Success and Failure
 packet format) states that the Identifier field "MUST match the Identifier field of the
 Response packet that it is sent in response to". `Session.failure`
-(`internal/component/ike/eap/eap.go`) increments `s.identifier` and THEN stamps the
+(`internal/core/eap/eap.go`) increments `s.identifier` and THEN stamps the
 packet, and the `CodeSuccess` arm of `Session.handleMethod` does the same, so both
 terminal packets carry the response Identifier plus one.
 
 **Why it went unseen.** `PeerSession.Process`
-(`internal/component/ike/eap/peer.go`) switches on `request.Code` alone and never
+(`internal/core/eap/peer.go`) switches on `request.Code` alone and never
 compares the Identifier, so Ze talking to Ze agrees with itself. A peer that enforces
 Section 4.2 discards both the EAP-Failure and, by the same producer, the EAP-Success.
 
@@ -50,7 +50,7 @@ decision and is the only thing holding this spec open.**
 The sender-side violation is fixed. `Session.failure` now takes the packet it
 answers and stamps that Identifier, and the `result.Done` arm of
 `Session.handleMethod` assigns `response.Identifier` instead of incrementing
-(`internal/component/ike/eap/eap.go`). All five `failure` call sites were audited
+(`internal/core/eap/eap.go`). All five `failure` call sites were audited
 in the same sweep and every one had the answered Response in scope, so no producer
 was left behind. A Request still increments, because it opens a new exchange, and
 `TestRequestIdentifierStillIncrements` pins that boundary: freezing the Identifier
@@ -65,7 +65,7 @@ obligation binds the SENDER, so a negative case would need a receiver that
 discards a mismatched terminal packet, which is step 4 below and not something
 Section 4.2 asks of a sender.
 
-Five tests, in `internal/component/ike/eap/rfc3748_identifier_test.go`. Both
+Five tests, in `internal/core/eap/rfc3748_identifier_test.go`. Both
 halves mutation-verified at package scope with no `-run` filter. **The first round
 had four tests and was not enough**: reverting the Success arm alone passed the
 entire package, because every test drove a Failure. `doneMethod` and
@@ -83,7 +83,7 @@ caught a `docs/features/rfc-status.md` disagreement.
 match the Request it answers?**
 
 It does not today. It switches on `request.Code` alone
-(`internal/component/ike/eap/peer.go`), which is exactly why ze talking to ze
+(`internal/core/eap/peer.go`), which is exactly why ze talking to ze
 never noticed the sender-side bug for as long as it lived.
 
 This is NOT a conformance question. RFC 3748 Section 4.2 binds the sender, and ze
@@ -117,7 +117,7 @@ gated row to an enrolled RFC without both polarities reds `./le rfc check`.
 ## A second item, same file, same layer
 
 **A NAK after the EAP-TLS alert loses the reported cause.** `Session.handleMethod`
-(`internal/component/ike/eap/eap.go`) returns `s.failure()` for `TypeNAK` before
+(`internal/core/eap/eap.go`) returns `s.failure()` for `TypeNAK` before
 `tlsMethod.Process` runs, so the cause parked on `tlsMethod.alertSent` is never
 consulted and the operator sees no reason for the rejection.
 

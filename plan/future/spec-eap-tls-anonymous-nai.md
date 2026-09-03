@@ -49,11 +49,11 @@ unproven and honest. RFC 9190 is not enrolled, so no ratchet fires.
 
 `startEAPExchange` (`internal/component/ike/engine/fsm.go`) takes
 `sa.PeerCfg.Auth.LocalID`, falling back to `sa.PeerName`.
-`NewPeerSessionTLS` (`internal/component/ike/eap/peer.go`) sends that value
+`NewPeerSessionTLS` (`internal/core/eap/peer.go`) sends that value
 verbatim in the Identity Response.
 
 **The server half is already conformant.** `Session.handleIdentity`
-(`internal/component/ike/eap/eap.go`) stores whatever arrives and starts the
+(`internal/core/eap/eap.go`) stores whatever arrives and starts the
 method: no lookup, no length check, an empty identity accepted. So
 `RFC9190-2.1.8-1` is satisfied on the responder side today.
 
@@ -70,7 +70,7 @@ Ze's IKE identity. The anonymous NAI needs its own leaf beside it in
 value as ID_FQDN and never as ID_RFC822_ADDR, so operators are pushed toward FQDN
 or IP values, and there is usually no `@realm` to keep. RFC 7542 Section 2.2
 defines no conformant NAI without a realm. `stripDomain`
-(`internal/component/ike/eap/mschapv2.go`) splits on a backslash rather than `@`,
+(`internal/core/eap/mschapv2.go`) splits on a backslash rather than `@`,
 so no existing helper does this.
 
 **A no-config version is possible and is NOT sufficient:** sending `@realm` when

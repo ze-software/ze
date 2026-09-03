@@ -11,7 +11,7 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/ze-software/ze/internal/component/ike/eap"
+	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -283,7 +283,7 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 		// reads "authentication failed" and nothing else. The EAP-TLS MSK export
 		// refusal is the case that matters: it names the peer, the negotiated TLS
 		// version, RFC 7627 and what to change (exportEAPTLSMSK,
-		// internal/component/ike/eap). The initiator half already logs its
+		// internal/core/eap). The initiator half already logs its
 		// equivalent in handleEAPResponse (fsm.go).
 		if err := sess.Err(); err != nil {
 			log.Warn("ike: EAP authentication failed", "peer", sa.PeerName, "error", err)

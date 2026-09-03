@@ -187,7 +187,7 @@ string, a path or a command. Ze sends the Notification Response on the same
 round, because `PeerResult` carries `Notified` beside `Response`.
 
 <!-- source: internal/component/ike/engine/fsm.go -- handleEAPResponse -->
-<!-- source: internal/component/ike/eap/peer.go -- PeerResult, peerDiscard, notificationResponse -->
+<!-- source: internal/core/eap/peer.go -- PeerResult, peerDiscard, notificationResponse -->
 
 <!-- source: internal/component/ike/engine/remote_id.go -- remote identity matching -->
 <!-- source: internal/component/ike/engine/notify_error.go -- error notification emission -->

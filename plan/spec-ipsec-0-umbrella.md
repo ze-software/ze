@@ -414,7 +414,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `internal/component/ike/wire/` -- IKEv2 packet codec (header, all payload types)
 - `internal/component/ike/crypto/` -- DH, PRF, encryption, integrity, SKEYSEED, proposal negotiation
 - `internal/component/ike/engine/` -- FSM, exchanges, authentication, retransmission, DPD, rekeying
-- `internal/component/ike/eap/` -- EAP framework, EAP-TLS, EAP-MSCHAPv2
+- `internal/core/eap/` -- EAP framework, EAP-TLS, EAP-MSCHAPv2
 - `internal/component/ike/dataplane/` -- SA/SP installer interface + XFRM netlink backend + VPP backend
 - `internal/component/ike/transport/` -- UDP socket management, NAT-T, port 500/4500
 - `internal/component/iface/xfrm.go` -- XFRMSpec, XFRMInfo types
@@ -469,7 +469,7 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
 
 9. **Phase: EAP + NAT-T (ipsec-9)** -- EAP-TLS, EAP-MSCHAPv2, virtual IP, NAT detection, UDP encap
    - Tests: `TestIKEv2EAPExchange`, `ipsec-eap-auth.ci`
-   - Files: `internal/component/ike/eap/`, `internal/component/ike/transport/` (extend)
+   - Files: `internal/core/eap/`, `internal/component/ike/transport/` (extend)
    - Verify: Windows client authenticates via EAP, virtual IP assigned, NAT-T works
 
 10. **Phase: CLI and Diagnostics (ipsec-10)** -- show/clear/monitor commands, web page, health, metrics

@@ -4,7 +4,7 @@
 #
 # Two unprivileged ze instances negotiate IKEv2 over loopback, exactly as
 # ipsec-sa-installed.ci does. The responder is the EAP-TLS authenticator and the
-# initiator is the EAP-TLS peer, so both halves of internal/component/ike/eap run
+# initiator is the EAP-TLS peer, so both halves of internal/core/eap run
 # in real daemons. That is what this test adds over the unit tests: they drive
 # the handshake through an in-memory transport, where the ClientHello is already
 # buffered when the drain runs, and the defect needs a real goroutine scheduling

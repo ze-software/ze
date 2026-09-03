@@ -16,7 +16,7 @@ import (
 const testLog = `ok  	github.com/ze-software/ze/internal/core/env	0.012s
 --- FAIL: TestEAPIdentity (0.00s)
     eap_test.go:41: identity was empty
-FAIL	github.com/ze-software/ze/internal/component/ike/eap	0.310s
+FAIL	github.com/ze-software/ze/internal/core/eap	0.310s
 ok  	github.com/ze-software/ze/internal/core/textbuf	0.004s
 panic: send on closed channel
 `
@@ -29,7 +29,7 @@ func TestTheFailureLinesCarryTheLineTheyCameFrom(t *testing.T) {
 
 	want := []string{
 		"2:--- FAIL: TestEAPIdentity (0.00s)",
-		"4:FAIL\tgithub.com/ze-software/ze/internal/component/ike/eap\t0.310s",
+		"4:FAIL\tgithub.com/ze-software/ze/internal/core/eap\t0.310s",
 		"6:panic: send on closed channel",
 	}
 	if len(lines) != len(want) {

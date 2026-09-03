@@ -110,7 +110,7 @@ func TestBuildTag_Gate12_AbsentBinaryDropsSymbols(t *testing.T) {
 		"internal/component/ike/ipsec",
 		"internal/component/ike/cmd",
 		"internal/component/ike/crypto",
-		"internal/component/ike/eap",
+		"internal/core/eap",
 		"internal/component/ike/wire",
 		"internal/component/ike/transport",
 		// Phase 7 (ze_l2tp + ze_radius): the whole BNG subtree (including

@@ -13,7 +13,7 @@ The IPsec stack is split across several packages:
 | `internal/component/ike/wire` | IKEv2 wire format codec for RFC 7296 payloads |
 | `internal/component/ike/crypto` | DH groups, PRFs, integrity, encryption, and key derivation |
 | `internal/component/ike/transport` | UDP transport with NAT-T keepalives and port 4500 encapsulation |
-| `internal/component/ike/eap` | EAP-MSCHAPv2, EAP-TLS and EAP MD5-Challenge authentication |
+| `internal/core/eap` | EAP-MSCHAPv2, EAP-TLS and EAP MD5-Challenge authentication |
 | `internal/component/ike/engine` | IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, and INFORMATIONAL state machines for initiator and responder roles, rekeying, and DPD |
 | `internal/component/ike/ipsec` | YANG schema, configuration, and validation |
 | `internal/component/ike/dataplane` | XFRM policy and state programming through netlink |
@@ -373,7 +373,7 @@ The EAP peer validates the authenticator's certificate chain against that trust
 anchor. EAP-TLS has no server hostname, so the check validates the chain without
 DNS-name matching.
 
-<!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
+<!-- source: internal/core/eap/peer.go -- verifyServerChain, startTLSClient -->
 
 ## EAP method negotiation
 
@@ -395,7 +395,7 @@ When Ze is the EAP server and the client refuses the offered method, the
 `ike: EAP authentication failed` line names the types the client asked for and
 the type Ze offered.
 
-<!-- source: internal/component/ike/eap/peer.go -- handleRequest, nakResponse, notificationResponse -->
+<!-- source: internal/core/eap/peer.go -- handleRequest, nakResponse, notificationResponse -->
 <!-- source: internal/component/ike/engine/fsm.go -- handleEAPResponse -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- the EAP authentication failed line -->
 
@@ -426,8 +426,8 @@ the same `certificate` and `ca-certificate` every other EAP mode needs. Select i
 when the client runs no other method, and prefer `eap-tls` or `eap-mschapv2`
 everywhere else.
 
-<!-- source: internal/component/ike/eap/eap_md5challenge.go -- md5ChallengeMethod, md5ChallengeResponse -->
-<!-- source: internal/component/ike/eap/peer.go -- handleMD5ChallengeRequest -->
+<!-- source: internal/core/eap/eap_md5challenge.go -- md5ChallengeMethod, md5ChallengeResponse -->
+<!-- source: internal/core/eap/peer.go -- handleMD5ChallengeRequest -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- eapMethodType, warnKeylessEAPModes, eapAuthSecret -->
 
 ## EAP-TLS with TLS 1.3
@@ -446,7 +446,7 @@ Ze issues no TLS session ticket. It builds one TLS configuration for each EAP se
 Go keys ticket encryption on that instance. No other session can redeem a ticket minted in
 one. EAP-TLS session resumption is therefore not available.
 
-<!-- source: internal/component/ike/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
+<!-- source: internal/core/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
 
 ## EAP-TLS with TLS 1.2 needs RFC 7627
 
@@ -473,7 +473,7 @@ environment. Go 1.27 removed the `tlsunsafeekm` GODEBUG setting that once lifted
 removed setting carrying its old value is a fatal error that the Go runtime raises before
 the daemon starts, so setting it stops ze rather than reaching the peer.
 
-<!-- source: internal/component/ike/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
+<!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
 
 ## Denial-of-service protection
 

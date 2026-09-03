@@ -4,7 +4,7 @@ Ze drives EAP-MSCHAPv2 and EAP-TLS from the initiator seat, against an
 authenticator such as strongSwan. The responder half is described in
 `docs/architecture/ike/ipsec-14-responder.md`.
 
-<!-- source: internal/component/ike/eap/peer.go -- PeerSession, NewPeerSession, NewPeerSessionTLS, Process -->
+<!-- source: internal/core/eap/peer.go -- PeerSession, NewPeerSession, NewPeerSessionTLS, Process -->
 <!-- source: internal/component/ike/engine/fsm.go -- startEAPExchange, handleEAPResponse, buildPeerTLSConfig -->
 <!-- source: internal/component/ike/engine/auth.go -- buildAuthRequest, buildEAPResponse, buildEAPAuthMessage -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- computeEAPAuth, eapAuthSecret -->
@@ -47,16 +47,16 @@ so the multi-round EAP loop is a state rather than a flag.
 peer-side buffered total are both capped. An unbounded reassembler is a memory
 exhaustion path an unauthenticated peer can drive.
 
-<!-- source: internal/component/ike/eap/eap_tls.go -- tlsFragmenter.reassemble, eapTLSMaxReassembly, eapTLSMaxPeerBuffered -->
+<!-- source: internal/core/eap/eap_tls.go -- tlsFragmenter.reassemble, eapTLSMaxReassembly, eapTLSMaxPeerBuffered -->
 
 **A trust anchor must be checked, not assumed.** The peer verifies the server
 chain against the configured roots through an explicit callback.
 
-<!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, PeerTLSConfig -->
+<!-- source: internal/core/eap/peer.go -- verifyServerChain, PeerTLSConfig -->
 
 **A round-trip cap keeps a broken authenticator from looping forever.**
 
-<!-- source: internal/component/ike/eap/peer.go -- maxEAPRounds -->
+<!-- source: internal/core/eap/peer.go -- maxEAPRounds -->
 
 **An MS-CHAPv2 Success packet is a claim, not a proof.** The peer recomputes the
 Authenticator Response from the Authenticator Challenge and the NT-Response it
@@ -65,7 +65,7 @@ on every other shape, the packet with no Message included. A peer that only
 checks that 40 characters parse as hexadecimal authenticates against any
 responder at all.
 
-<!-- source: internal/component/ike/eap/peer.go -- handleMSCHAPv2Success, parseAuthenticatorResponse -->
+<!-- source: internal/core/eap/peer.go -- handleMSCHAPv2Success, parseAuthenticatorResponse -->
 
 **An EAP-Success is a claim too, and the peer reads it only after the method
 conversation concluded.** RFC 3748 Section 4.2 makes the peer discard a Success
@@ -90,8 +90,8 @@ look identical on the wire: each sends nothing and each ends no exchange. The
 caller logs `ike: EAP packet discarded` with the Code, so an operator whose peer
 is being fed forged EAP-Success packets learns it.
 
-<!-- source: internal/component/ike/eap/peer.go -- PeerSession.Process, peerStateMethodDone, peerDiscard -->
-<!-- source: internal/component/ike/eap/eap.go -- Session.Process -->
+<!-- source: internal/core/eap/peer.go -- PeerSession.Process, peerStateMethodDone, peerDiscard -->
+<!-- source: internal/core/eap/eap.go -- Session.Process -->
 
 ## Proof
 
@@ -126,6 +126,6 @@ encoded Response. `test/ipsec/ipsec-eap-nak-unacceptable-type.ci` reads it from
 ze's own authenticator, which logs `the peer refused type 13 with a Nak asking
 for type 26`.
 
-<!-- source: internal/component/ike/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
-<!-- source: internal/component/ike/eap/peer.go -- naks, nakResponse -->
+<!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
+<!-- source: internal/core/eap/peer.go -- naks, nakResponse -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkEAPNakMethodNegotiation, eapNakFacts -->

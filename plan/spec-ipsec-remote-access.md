@@ -14,7 +14,7 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `rfc/short/rfc7296.md` Section 2.19 + 3.15 (Configuration payload), `rfc/short/rfc5216.md`
 4. `internal/component/ike/engine/register.go` (dispatch + admission), `reconcile.go` (PeerSession),
-   `responder_eap.go`, `internal/component/ike/eap/{eap.go,pool.go}`,
+   `responder_eap.go`, `internal/core/eap/{eap.go,pool.go}`,
    `internal/component/ike/wire/payload_cp.go`
 
 ## Task
@@ -468,10 +468,10 @@ gates exists. This spec owns both.
 - [ ] `internal/component/ike/engine/responder.go` - `newResponderSA` (:25), `isEAPMode` (:49)
 - [ ] `internal/component/ike/engine/responder_eap.go` - `eapMethodConfig` (:22),
   `startResponderEAP` (:88), `handleResponderEAP` (:164)
-- [ ] `internal/component/ike/eap/eap.go` - `Session`, `MethodConfig` (:156), `Begin` (:163),
+- [ ] `internal/core/eap/eap.go` - `Session`, `MethodConfig` (:156), `Begin` (:163),
   `handleIdentity` (:205), `Identity()` (:192)
-- [ ] `internal/component/ike/eap/eap_mschapv2.go` - `newMSCHAPv2Method` (:38), `Start` (:48)
-- [ ] `internal/component/ike/eap/pool.go` - `NewPool` (:35), `Allocate` (:89), `Release` (:126)
+- [ ] `internal/core/eap/eap_mschapv2.go` - `newMSCHAPv2Method` (:38), `Start` (:48)
+- [ ] `internal/core/eap/pool.go` - `NewPool` (:35), `Allocate` (:89), `Release` (:126)
 - [ ] `internal/component/ike/wire/payload_cp.go` - complete CP codec, zero callers
 - [ ] `internal/component/ike/ipsec/types.go` - `RemoteAccessConfig` (:420), `EAPUser` (:399)
 - [ ] `test/interop-ipsec/scenarios/responder-eap-mschapv2/` - the shape that works today
@@ -668,8 +668,8 @@ redden the half named.
 - `internal/component/ike/engine/reconcile.go` - dynamic session creation and reaping
 - `internal/component/ike/engine/responder_eap.go` - per-user credential resolution
 - `internal/component/ike/engine/responder.go` / `fsm.go` - CP request stash, CFG_REPLY, TS narrowing
-- `internal/component/ike/eap/eap.go` - `MethodConfig` per-user resolver (additive)
-- `internal/component/ike/eap/eap_mschapv2.go` - accept the resolved credential
+- `internal/core/eap/eap.go` - `MethodConfig` per-user resolver (additive)
+- `internal/core/eap/eap_mschapv2.go` - accept the resolved credential
 - `internal/component/ike/ipsec/validate.go` - `ValidateRemoteAccess` PKI-aware (inherited item 4)
 - `internal/component/ike/engine/config.go` - pass the candidate PKI closures through
 
@@ -705,7 +705,7 @@ redden the half named.
 
 ## Files to Create
 - `internal/component/ike/engine/remote_access.go` + `_test.go`
-- `internal/component/ike/eap/eap_user.go` + `_test.go` (or additive in `eap.go`)
+- `internal/core/eap/eap_user.go` + `_test.go` (or additive in `eap.go`) <!-- doc-links: ignore (a file this spec plans and has not written; the 2026-09-03 move of the package to internal/core/eap renamed the citation, and the citation baseline is shrink-only) -->
 - `test/reload/test-tx-ipsec-remote-access-pki.ci`
 - `test/interop-ipsec/scenarios/remote-access-eap-mschapv2/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 - `test/interop-ipsec/scenarios/remote-access-eap-tls/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->

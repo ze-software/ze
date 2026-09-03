@@ -67,7 +67,7 @@ functions:
 | Config parse | **exists** | FUNCTION `parseVirtualIPPool`, `internal/component/ike/ipsec/config.go`; FUNCTION `parseRemoteAccess`, `:474` |
 | Config struct | **exists** -- `VirtualIPPool{Name, Range, Range6, DNS, Domain}` | `internal/component/ike/ipsec/types.go` |
 | Validation | **exists and is wired** -- IPv4 `/8../30`, IPv6 `/48../126` | FUNCTION `validatePoolPrefix`, `internal/component/ike/ipsec/validate.go`, called from FUNCTION `ValidateRemoteAccess`, `:190`, reached from `internal/component/ike/engine/config.go` |
-| Address pool | **exists, mutex-safe, with `Allocate`, `Release`, `Available`** | `internal/component/ike/eap/pool.go`, `:126`, `:191` |
+| Address pool | **exists, mutex-safe, with `Allocate`, `Release`, `Available`** | `internal/core/eap/pool.go`, `:126`, `:191` |
 | Pool construction | **exists and RUNS on every config apply** | `internal/component/ike/engine/register.go`, inside FUNCTION `runEngine`'s `OnConfigure` closure |
 | Pool consumption | **NONE.** The object is explicitly discarded | **`internal/component/ike/engine/register.go`: `_ = ipPool`** |
 | Notify constants | **exist, zero referents each** | `NotifyInternalAddressFailure = 36` and `NotifyFailedCPRequired = 37`, `internal/component/ike/wire/payload_notify.go` |
@@ -666,7 +666,7 @@ A default would make the zero value a wrong answer.
 `range6` is inconsistent with the no-abbreviation convention, but it is existing surface
 and renaming it is out of scope for the rows. Flagged, not changed.
 
-### 7.4 Pool: `internal/component/ike/eap/pool.go`
+### 7.4 Pool: `internal/core/eap/pool.go`
 
 | Id | Finding | Site | Design |
 |----|---------|------|--------|
@@ -690,7 +690,7 @@ allocates from this pool.
 | `internal/component/ike/engine/responder_eap.go` | `startResponderEAP` signature at `:116` carries the held CP request; `handleResponderEAP` walk at `:201-209` gains a CP case |
 | `internal/component/ike/engine/register.go` | `_ = ipPool` at `:393` replaced by real wiring |
 | `internal/component/ike/wire/payload_cp.go` | D1, D2, D3, D4, D6, D7 |
-| `internal/component/ike/eap/pool.go` | P2, P3, P4, P5, P6 |
+| `internal/core/eap/pool.go` | P2, P3, P4, P5, P6 |
 | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` | `container configuration-payload`; `leaf dns` → `leaf-list dns` |
 | `internal/component/ike/ipsec/config.go`, `types.go`, `validate.go` | parse, hold and validate the new leaves; the multi-pool decision |
 | `internal/core/diagnostic/codes.go` | a `doctor-ipsec-virtual-ip-pool` code (`ai/rules/repo-maintenance.md`: the pool is a config-declared resource) |
@@ -856,7 +856,7 @@ will fail `./le rfc check` with an error naming the file.
 |------|-------|-------|
 | `internal/component/ike/wire/rfc7296_cp_test.go` (new) | codec | `3.15.1-1..-4`, `1.7-1` codec halves; the R-bit defect |
 | `internal/component/ike/engine/cp_test.go` (new) | engine | `2.19-*`, `4-2`, `4-3`, `2.20-1`, `3.15.1-5..-7`; the spec names `TestConfigurationPayloadExchange` here |
-| `internal/component/ike/eap/pool_test.go` (exists) | pool | P4 boundary, P6 prefix, quota and release |
+| `internal/core/eap/pool_test.go` (exists) | pool | P4 boundary, P6 prefix, quota and release |
 | `test/ipsec/ipsec-remote-access-cp.ci` (new) | functional | the operator path end to end |
 | `test/interop-ipsec/scenarios/remote-access-cp/` (new) | interop | goal validation only, **no tags** |
 

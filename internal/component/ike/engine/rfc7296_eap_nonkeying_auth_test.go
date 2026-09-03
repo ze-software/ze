@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/crypto"
-	"github.com/ze-software/ze/internal/component/ike/eap"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 // nonKeyingEAPSecret is the shared secret both halves of the MD5-Challenge fixture

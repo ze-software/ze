@@ -78,7 +78,7 @@
       "id": "8.1",
       "sites": 0,
       "disposition": "walked",
-      "reason": "GenerateNTResponse(). Pseudocode composing ChallengeHash, NtPasswordHash and ChallengeResponse into the 24-octet NT-Response. Indicative throughout. GenerateNTResponse (internal/component/ike/eap/mschapv2.go) is the same composition in the same order."
+      "reason": "GenerateNTResponse(). Pseudocode composing ChallengeHash, NtPasswordHash and ChallengeResponse into the 24-octet NT-Response. Indicative throughout. GenerateNTResponse (internal/core/eap/mschapv2.go) is the same composition in the same order."
     },
     {
       "id": "8.2",
@@ -120,13 +120,13 @@
       "id": "8.7",
       "sites": 0,
       "disposition": "walked",
-      "reason": "GenerateAuthenticatorResponse(). The Magic1 and Magic2 constants and the two SHA-1 passes that produce the 20-octet value the S= field carries. Indicative. GenerateAuthenticatorResponse (internal/component/ike/eap/mschapv2.go) implements it and the authenticator calls it in handleResponse."
+      "reason": "GenerateAuthenticatorResponse(). The Magic1 and Magic2 constants and the two SHA-1 passes that produce the 20-octet value the S= field carries. Indicative. GenerateAuthenticatorResponse (internal/core/eap/mschapv2.go) implements it and the authenticator calls it in handleResponse."
     },
     {
       "id": "8.8",
       "sites": 0,
       "disposition": "walked",
-      "reason": "CheckAuthenticatorResponse(). The procedure section 5 points at: recompute the authenticator response from the peer's own inputs and compare. Pseudocode, so no site; the obligation to RUN it is stated in section 5 and mapped there as RFC2759-x-7. Ze has no implementation of this routine: the peer's handleMSCHAPv2Success (internal/component/ike/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse."
+      "reason": "CheckAuthenticatorResponse(). The procedure section 5 points at: recompute the authenticator response from the peer's own inputs and compare. Pseudocode, so no site; the obligation to RUN it is stated in section 5 and mapped there as RFC2759-x-7. Ze has no implementation of this routine: the peer's handleMSCHAPv2Success (internal/core/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse."
     },
     {
       "id": "8.9",
@@ -216,7 +216,7 @@
       "id": "9.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-10 and RFC2759-x-4 tests drive (internal/component/ike/eap/mschapv2_test.go). Its column-0 lines are what the section splitter reads as the seven numeric pseudo-sections below."
+      "reason": "Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-10 and RFC2759-x-4 tests drive (internal/core/eap/mschapv2_test.go). Its column-0 lines are what the section splitter reads as the seven numeric pseudo-sections below."
     },
     {
       "id": "55",
@@ -309,21 +309,21 @@
       "quote": "16 octets: Peer-Challenge 8 octets: Reserved, must be zero 24 octets: NT-Response 1 octet : Flags",
       "disposition": "mapped",
       "mapped-to": "RFC2759-x-1",
-      "reason": "The Response packet's Value sub-format list, which the splitter fuses into one site. Its only obligation is 'Reserved, must be zero' on the 8 octets between Peer-Challenge and NT-Response, which is RFC2759-x-1. The three remaining entries are field lengths: the 16-octet Peer-Challenge is RFC2759-x-9, the 24-octet NT-Response has no separate row, and the 1-octet Flags field carries its own rule in site 4:2. The authenticator enforces the zero-Reserved rule in handleResponse (internal/component/ike/eap/eap_mschapv2.go), which walks td[21:29] and fails on any non-zero octet; both polarities are tagged in internal/component/ike/eap/eap_mschapv2_test.go."
+      "reason": "The Response packet's Value sub-format list, which the splitter fuses into one site. Its only obligation is 'Reserved, must be zero' on the 8 octets between Peer-Challenge and NT-Response, which is RFC2759-x-1. The three remaining entries are field lengths: the 16-octet Peer-Challenge is RFC2759-x-9, the 24-octet NT-Response has no separate row, and the 1-octet Flags field carries its own rule in site 4:2. The authenticator enforces the zero-Reserved rule in handleResponse (internal/core/eap/eap_mschapv2.go), which walks td[21:29] and fails on any non-zero octet; both polarities are tagged in internal/core/eap/eap_mschapv2_test.go."
     },
     {
       "id": "4:2",
       "quote": "The Flag field is reserved for future use and MUST be zero.",
       "disposition": "mapped",
       "mapped-to": "RFC2759-x-2",
-      "reason": "The Flags rule, stated at MUST level and captured as RFC2759-x-2. handleResponse (internal/component/ike/eap/eap_mschapv2.go) rejects a Response whose td[53] is non-zero, and both polarities are tagged in internal/component/ike/eap/eap_mschapv2_test.go."
+      "reason": "The Flags rule, stated at MUST level and captured as RFC2759-x-2. handleResponse (internal/core/eap/eap_mschapv2.go) rejects a Response whose td[53] is non-zero, and both polarities are tagged in internal/core/eap/eap_mschapv2_test.go."
     },
     {
       "id": "5:1",
       "quote": "The hexadecimal digits A-F (if present) MUST be uppercase.",
       "disposition": "mapped",
       "mapped-to": "RFC2759-x-5",
-      "reason": "The case rule on the 40 hexadecimal digits of the S= field, captured as RFC2759-x-5. sendSuccess (internal/component/ike/eap/eap_mschapv2.go) builds the field through strings.ToUpper, so no code path can emit lowercase; the summary records that as a single-polarity annotation and the positive assertion is tagged in internal/component/ike/eap/eap_mschapv2_test.go."
+      "reason": "The case rule on the 40 hexadecimal digits of the S= field, captured as RFC2759-x-5. sendSuccess (internal/core/eap/eap_mschapv2.go) builds the field through strings.ToUpper, so no code path can emit lowercase; the summary records that as a single-polarity annotation and the positive assertion is tagged in internal/core/eap/eap_mschapv2_test.go."
     },
     {
       "id": "5:2",
@@ -331,28 +331,28 @@
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
       "mapped-to": "RFC2759-x-7",
-      "reason": "The Success-packet verification duty is stated in two sentences: this one names the act and site 5:3 names the consequence. rfc/short/rfc2759.md carries them as one row, RFC2759-x-7, whose declared text is the consequence sentence and whose annotation covers both halves ('never computes the expected Authenticator Response to compare or disconnect on mismatch'). Site 5:3 maps that row. Ze meets neither half: handleMSCHAPv2Success (internal/component/ike/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse. Raised as an ask under AC-8 of plan/spec-rfcgate-6-supported-extraction-signoff.md, not annotated here."
+      "reason": "The Success-packet verification duty is stated in two sentences: this one names the act and site 5:3 names the consequence. rfc/short/rfc2759.md carries them as one row, RFC2759-x-7, whose declared text is the consequence sentence and whose annotation covers both halves ('never computes the expected Authenticator Response to compare or disconnect on mismatch'). Site 5:3 maps that row. Ze meets neither half: handleMSCHAPv2Success (internal/core/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse. Raised as an ask under AC-8 of plan/spec-rfcgate-6-supported-extraction-signoff.md, not annotated here."
     },
     {
       "id": "5:3",
       "quote": "If the authenticator response is either missing or incorrect, the peer MUST end the session.",
       "disposition": "mapped",
       "mapped-to": "RFC2759-x-7",
-      "reason": "The peer's duty to end the session when the authenticator response is missing or incorrect, captured as RFC2759-x-7. Ze plays this peer role in production: internal/component/ike/engine/fsm.go builds an eap.NewPeerSession(eap.TypeMSCHAPv2, ...) when it authenticates with EAP. handleMSCHAPv2Success (internal/component/ike/eap/peer.go) is the producer and it does not implement the obligation, so the summary carries a gap annotation and no test tag. That gap is a void answer under ai/rules/rfc-compliance.md and is re-raised as an ask rather than cited."
+      "reason": "The peer's duty to end the session when the authenticator response is missing or incorrect, captured as RFC2759-x-7. Ze plays this peer role in production: internal/component/ike/engine/fsm.go builds an eap.NewPeerSession(eap.TypeMSCHAPv2, ...) when it authenticates with EAP. handleMSCHAPv2Success (internal/core/eap/peer.go) is the producer and it does not implement the obligation, so the summary carries a gap annotation and no test tag. That gap is a void answer under ai/rules/rfc-compliance.md and is re-raised as an ask rather than cited."
     },
     {
       "id": "6:1",
       "quote": "This field MUST be exactly 32 octets long and MUST be present.",
       "disposition": "mapped",
       "mapped-to": "RFC2759-x-6",
-      "reason": "The C= field rule of the Failure packet, captured as RFC2759-x-6. Ze emits no MS-CHAPv2 Failure packet at all: sendFailure (internal/component/ike/eap/eap_mschapv2.go) returns ErrMethodFailed and the session ends with an EAP-Failure, so the field this sentence constrains is never built. The summary carries a gap annotation and no test tag, and that gap is a void answer re-raised as an ask."
+      "reason": "The C= field rule of the Failure packet, captured as RFC2759-x-6. Ze emits no MS-CHAPv2 Failure packet at all: sendFailure (internal/core/eap/eap_mschapv2.go) returns ErrMethodFailed and the session ends with an EAP-Failure, so the field this sentence constrains is never built. The summary carries a gap annotation and no test tag, and that gap is a void answer re-raised as an ask."
     },
     {
       "id": "7:1",
       "quote": "Reserved 8 octets, must be zero.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the peer that performs the MS-CHAPv2 password change, a role ze plays in neither direction. Section 7 makes the role optional in its own text: 'This packet type is supported by recent versions of Windows NT 4.0, Windows 95 and Windows 98. It is not supported by Windows NT 3.5, Windows NT 3.51, or early versions', and the packet 'should be sent only if the authenticator reports ERROR_PASSWD_EXPIRED (E=648)'. Ze never reports E=648, because sendFailure (internal/component/ike/eap/eap_mschapv2.go) ends the method with ErrMethodFailed and builds no MS-CHAPv2 Failure packet. Ze never sends or accepts Code 7 either: the authenticator's Process and the peer's handleMSCHAPv2Request (internal/component/ike/eap/peer.go) each switch on Challenge, Response and Success alone and refuse every other opcode, and the PPP path states the same scope at internal/component/l2tp/ppp/mschapv2.go:25. Nothing in ze builds or parses the packet whose Reserved field this sentence constrains."
+      "reason": "Binds the peer that performs the MS-CHAPv2 password change, a role ze plays in neither direction. Section 7 makes the role optional in its own text: 'This packet type is supported by recent versions of Windows NT 4.0, Windows 95 and Windows 98. It is not supported by Windows NT 3.5, Windows NT 3.51, or early versions', and the packet 'should be sent only if the authenticator reports ERROR_PASSWD_EXPIRED (E=648)'. Ze never reports E=648, because sendFailure (internal/core/eap/eap_mschapv2.go) ends the method with ErrMethodFailed and builds no MS-CHAPv2 Failure packet. Ze never sends or accepts Code 7 either: the authenticator's Process and the peer's handleMSCHAPv2Request (internal/core/eap/peer.go) each switch on Challenge, Response and Success alone and refuse every other opcode, and the PPP path states the same scope at internal/component/l2tp/ppp/mschapv2.go:25. Nothing in ze builds or parses the packet whose Reserved field this sentence constrains."
     },
     {
       "id": "14:1",

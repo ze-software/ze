@@ -795,7 +795,6 @@ plan/spec-ipsec-opaque-selector-port-mask.md	scripts/dev/reapply-updater-fixes.p
 plan/spec-ipsec-opaque-selector-port-mask.md	test/ipsec/ipsec-show-sa-port-opaque.ci
 plan/spec-ipsec-opaque-selector-port-mask.md	test/ipsec/ipsec-ts-port-opaque-reject.ci
 plan/spec-ipsec-opaque-selector-port-mask.md	test/ipsec/ipsec-ts-port-opaque.ci
-plan/spec-ipsec-remote-access.md	internal/component/ike/eap/eap_user.go
 plan/spec-ipsec-remote-access.md	internal/component/ike/engine/remote_access.go
 plan/spec-ipsec-remote-access.md	plan/deferrals/fixit-ipsec-verify-siblings.md
 plan/spec-ipsec-remote-access.md	plan/deferrals/rfcgate-1b-rfc7296-pilot.md

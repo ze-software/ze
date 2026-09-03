@@ -87,7 +87,7 @@ repointed here, or this spec is folded into that one and deleted. Implementing b
 an answer. Neither is implementing this one while the rows in the other stay live.
 
 **A false conformance claim is on the ledger today (OPEN OWNER DECISION, OI-2).** Two tests
-in `internal/component/ike/eap/pool_test.go` carry an `RFC requirement: RFC3948-5.1-1` tag.
+in `internal/core/eap/pool_test.go` carry an `RFC requirement: RFC3948-5.1-1` tag.
 `TestVirtualIPPoolNeverHandsOneAddressTwice` is tagged positive and its claim reads "ze
 prevents the RFC 3948 Section 5.1 conflict the way the section recommends: the gateway
 assigns each client a locally unique address instead of carrying the address the client
@@ -171,7 +171,7 @@ road-warrior access usable.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/ike/eap/pool.go` - `NewPool` parses an IPv4 CIDR and an optional
+- [ ] `internal/core/eap/pool.go` - `NewPool` parses an IPv4 CIDR and an optional
   IPv6 CIDR, excludes network and broadcast for IPv4, and bounds an IPv6 prefix itself.
   `Pool.Allocate` returns an `AllocateResult` carrying IPv4, IPv6, split DNS lists and a
   search domain, refuses with `ErrPoolExhausted`, and rolls back an IPv4 lease when the IPv6
@@ -271,7 +271,7 @@ road-warrior access usable.
 | Engine ↔ kernel | narrowed traffic selectors installed as XFRM policy and state | No |
 
 ### Integration Points
-- `eap.Pool` (`internal/component/ike/eap/pool.go`) - the allocator, called for the first
+- `eap.Pool` (`internal/core/eap/pool.go`) - the allocator, called for the first
   time from production code.
 - `wire.PayloadCP` (`internal/component/ike/wire/payload_cp.go`) - the codec, used for the
   first time from production code.
@@ -296,7 +296,7 @@ road-warrior access usable.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `Pool.Allocate` is correct and needs no repair before it is called | read of `internal/component/ike/eap/pool.go`: `allocateV4` scans for a free offset, `allocateV6` rebuilds the address through `addressForHost`, `releaseV6Locked` rejects an address the pool would not have leased | the first real caller hands out a duplicate or an out-of-range address | a concurrency test under `-race` driving `Allocate` from many goroutines and asserting no duplicate | unvalidated |
+| A-1 | `Pool.Allocate` is correct and needs no repair before it is called | read of `internal/core/eap/pool.go`: `allocateV4` scans for a free offset, `allocateV6` rebuilds the address through `addressForHost`, `releaseV6Locked` rejects an address the pool would not have leased | the first real caller hands out a duplicate or an out-of-range address | a concurrency test under `-race` driving `Allocate` from many goroutines and asserting no duplicate | unvalidated |
 | A-2 | `PayloadCP.ReadFrom` is safe against a hostile CFG_REQUEST | read of `internal/component/ike/wire/payload_cp.go`: it bounds each attribute against the buffer and returns `ErrTruncated` | an unauthenticated peer drives unbounded allocation through the attribute list | a fuzz or table test driving oversized, truncated and remnant-carrying payloads | unvalidated |
 | A-3 | The reply can be inserted in `buildAuthResponse` without disturbing payload ordering rules | `docs/architecture/ike/ipsec-14-responder.md` and the RFC 7296 Section 2.19 requirement that CP precede SA | the reply lands after SA and a conforming peer rejects it | a test asserting the CP payload index is strictly less than the SA payload index in both flows | unvalidated |
 | A-4 | One pool per daemon is enough for the first landing | `parseVirtualIPPool` already takes `pools[0]` only, so multi-pool is not a regression | an operator with two pools gets silent selection of one | a config test asserting a second pool is refused at commit rather than dropped | unvalidated |
@@ -401,7 +401,7 @@ road-warrior access usable.
 | `TestIKESATeardownReturnsLease` | `internal/component/ike/engine/cp_lease_test.go` | AC-10, AC-11 | |
 | `TestNoLeaseBeforeAuthentication` | `internal/component/ike/engine/cp_test.go` | AC-20, R-4 | |
 | `TestSiteToSitePeerUnaffected` | `internal/component/ike/engine/cp_test.go` | AC-16, R-7 | |
-| `TestAllocateConcurrentNoDuplicate` | `internal/component/ike/eap/pool_test.go` | AC-17, A-1 | |
+| `TestAllocateConcurrentNoDuplicate` | `internal/core/eap/pool_test.go` | AC-17, A-1 | |
 | `TestSecondPoolRefusedAtCommit` | `internal/component/ike/ipsec/config_test.go` | AC-19, A-4 | |
 | `TestShowSAReportsLeasedAddress` | `internal/component/ike/engine/show_test.go` | story 4 | |
 
@@ -664,7 +664,7 @@ them.
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 - [ ] OI-1 answered by Thomas: this spec or `plan/spec-ipsec-remote-access.md` owns the Configuration payload work
-- [ ] OI-2 answered by Thomas: the two `RFC3948-5.1-1` tags in `internal/component/ike/eap/pool_test.go` are narrowed to what their bodies check, with the approval row in `test/rfc-changed.md`
+- [ ] OI-2 answered by Thomas: the two `RFC3948-5.1-1` tags in `internal/core/eap/pool_test.go` are narrowed to what their bodies check, with the approval row in `test/rfc-changed.md`
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-20 all demonstrated

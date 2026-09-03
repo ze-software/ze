@@ -39,13 +39,13 @@ precondition of that enrolment.
 
 ### Current behavior
 
-`verifyServerChain` (`internal/component/ike/eap/peer.go`) calls
+`verifyServerChain` (`internal/core/eap/peer.go`) calls
 `certs[0].Verify(opts)`. It passes no certificate revocation list and consults no
 OCSP responder. `startTLSClient` in the same file sets no `VerifyConnection`
 callback, so nothing later inspects the chain either.
 
 The server side does not check revocation either: `newTLSMethod`
-(`internal/component/ike/eap/eap_tls.go`) sets
+(`internal/core/eap/eap_tls.go`) sets
 `ClientAuth: tls.RequireAndVerifyClientCert`, and Go's verification of a client
 chain performs no revocation check.
 

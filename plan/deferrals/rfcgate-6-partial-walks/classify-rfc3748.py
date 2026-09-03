@@ -74,9 +74,9 @@ OTHER_TYPES_OPTIONAL = (
 
 # The scope decision every feature-out-of-scope reason here names, and the
 # producer that shows it. NewSession is the one gate on which EAP methods exist.
-NEWSESSION = ("NewSession (internal/component/ike/eap/eap.go) builds a method for Type 13 and "
+NEWSESSION = ("NewSession (internal/core/eap/eap.go) builds a method for Type 13 and "
               "Type 26 and refuses every other type, so no other Type is offered")
-LOCAL_ONLY = ("NewSession (internal/component/ike/eap/eap.go) builds the method in process and "
+LOCAL_ONLY = ("NewSession (internal/core/eap/eap.go) builds the method in process and "
               "the IKE engine has no AAA back end for EAP: nothing under "
               "internal/component/radius/ produces an EAP-Message attribute, and "
               "handleResponderEAP (internal/component/ike/engine/responder_eap.go) answers from "
@@ -115,9 +115,9 @@ excl("2.1:4", "binds-another-role",
      "than a wire role, and the sentence states what such a specification must say about "
      "running a second method inside the tunnel. Ze publishes no EAP method specification, and "
      "neither method it runs tunnels a second one: tlsMethod carries TLS records and no EAP "
-     "packet (tlsMethod.Process, internal/component/ike/eap/eap_tls.go), and mschapv2Method "
+     "packet (tlsMethod.Process, internal/core/eap/eap_tls.go), and mschapv2Method "
      "carries the MS-CHAPv2 opcodes alone (mschapv2Method.Process, "
-     "internal/component/ike/eap/eap_mschapv2.go). The producer that would act as the role if "
+     "internal/core/eap/eap_mschapv2.go). The producer that would act as the role if "
      "Ze did is the specification of such a method, and Ze holds only the implementations of "
      "RFC 5216 and draft-kamath-pppext-eap-mschapv2-02.")
 # 2.2:1 left null: see RESIDUAL.
@@ -203,7 +203,7 @@ excl("4.2:15", "advisory-in-context",
      "having the peer authenticate to it in situations where limited access is offered (e.g., "
      "guest access).  In this case, the authenticator MUST send a Success packet.' Ze's "
      "authenticator offers no guest access: every path to a Success runs through a completed "
-     "method (Session.handleMethod, internal/component/ike/eap/eap.go).")
+     "method (Session.handleMethod, internal/core/eap/eap.go).")
 mapped("4.2:16", "RFC3748-4.2-4")
 
 excl("4.3:1", "advisory-in-context",
@@ -250,7 +250,7 @@ reloc("5.3.1:2", "RFC3748-5.3.1-3",
       "The legacy Nak Identifier rule is owed by " + SPEC + ", which reserves this id.")
 reloc("5.3.1:3", "RFC3748-5.3.1-1",
       "Ze's peer answers an unacceptable Type with an error rather than a Nak "
-      "(PeerSession.handleRequest, internal/component/ike/eap/peer.go). " + SPEC +
+      "(PeerSession.handleRequest, internal/core/eap/peer.go). " + SPEC +
       " implements the Nak and reserves this id.")
 reloc("5.3.1:4", "RFC3748-5.3.1-2",
       "The legacy Nak Type-Data contents are owed by " + SPEC + ", which reserves this id.")
@@ -261,7 +261,7 @@ for sid, what in (("5.3.2:1", "when an Expanded Nak may be sent"),
                   ("5.3.2:4", "the Expanded Nak Vendor-Data contents")):
     scope(sid, "the Expanded Type (254) namespace", what, OTHER_TYPES_OPTIONAL,
           "TypeExpandedEAP is a bare constant with no producer and " + NEWSESSION +
-          " (internal/component/ike/eap/eap.go). Section 5.7 routes a peer that cannot "
+          " (internal/core/eap/eap.go). Section 5.7 routes a peer that cannot "
           "interpret an Expanded Type to the LEGACY Nak of Section 5.3.1 instead, which is "
           "site 5.7:2, so declining Type 254 leaves Ze a conformant answer rather than none")
 
@@ -308,7 +308,7 @@ AUTHOR = (
     "Security Claims section'. Ze publishes no EAP method specification. The producer that "
     "would act as the role if Ze did is the specification itself, and for the two methods Ze "
     "runs those documents are RFC 5216 (EAP-TLS) and draft-kamath-pppext-eap-mschapv2-02 "
-    "(EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/component/ike/eap/eap.go) "
+    "(EAP-MSCHAPv2); newTLSMethod and newMSCHAPv2Method (internal/core/eap/eap.go) "
     "implement what those two state, and state nothing themselves.")
 
 for sid, what in (("7.2:1", "the Security Claims section a method specification must include"),
@@ -332,8 +332,8 @@ excl("7.10:4", "binds-another-role", AUTHOR + " This sentence states that keying
      "method exports must be independent of the ciphersuite negotiated to protect data, which "
      "is a property of the DERIVATION a specification defines. The two Ze runs are defined "
      "elsewhere: RFC 5216 Section 2.3 for EAP-TLS (exportEAPTLSMSK, "
-     "internal/component/ike/eap/eap_tls.go) and draft-kamath-pppext-eap-mschapv2-02 for "
-     "EAP-MSCHAPv2 (DeriveMSK, internal/component/ike/eap/mschapv2.go).")
+     "internal/core/eap/eap_tls.go) and draft-kamath-pppext-eap-mschapv2-02 for "
+     "EAP-MSCHAPv2 (DeriveMSK, internal/core/eap/mschapv2.go).")
 for sid, what in (("7.10:5", "cryptographic separation between the MSK and EMSK branches"),
                   ("7.10:6", "the non-recoverability of one key from the other"),
                   ("7.10:7", "the separation of non-overlapping MSK substrings"),
@@ -474,7 +474,7 @@ RESIDUAL = {
                        "internal/component/ike/engine/eap_auth.go) and never a data-protecting "
                        "key. The Child SA keys come from the IKEv2 KEYMAT derivation"),
     "7.10:10":("row",  "Vacuously MET: Ze derives no EMSK anywhere under "
-                       "internal/component/ike/eap, which is the same fact RFC3748-7.10-2 "
+                       "internal/core/eap, which is the same fact RFC3748-7.10-2 "
                        "already records as not-applicable. The row this site needs states the "
                        "confinement rather than the size"),
     "7.10:11":("row",  "MET: when one party discards the key state the IKEv2 AUTH verification "

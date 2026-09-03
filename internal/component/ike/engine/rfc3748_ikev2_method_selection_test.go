@@ -29,7 +29,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/ike/eap"
+	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 )

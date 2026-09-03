@@ -49,7 +49,7 @@ Each was found by a walk and each was red-probed before the fix. None is committ
 | Area | Files | What it fixes |
 |---|---|---|
 | RADIUS | `internal/component/radius/`, `internal/component/l2tp/plugins/authradius/` | six RFC 2865 defects, listed below |
-| MS-CHAPv2 | `internal/component/ike/eap/peer.go`, `eap.go`, `eap_mschapv2.go` | the peer never verified the authenticator response; plus the Failure packet work via a grown `MethodResult` |
+| MS-CHAPv2 | `internal/core/eap/peer.go`, `eap.go`, `eap_mschapv2.go` | the peer never verified the authenticator response; plus the Failure packet work via a grown `MethodResult` |
 | BMP | `internal/component/bgp/plugins/bmp/sender.go` | the O flag was left set on a Statistics Report (RFC 8671 Section 6.2) |
 | BGP roles | `internal/component/bgp/server/validate.go`, `validate_test.go` | the RFC 9234 fail-open |
 | RFC 7607 | `internal/component/bgp/message/rfc7607*`, `session_open_as.go` | AS 0 processing, mid-TDD when the session ended |
@@ -70,7 +70,7 @@ The spec argued that a walk finds obligations no checklist carried. It did.
   otherwise tries the next backend, so enabling MFA on the RADIUS server handed the login
   to the local password database. Same shape as the RFC 8907 finding that motivated the spec.
 - **MS-CHAPv2 mutual authentication absent.** `handleMSCHAPv2Success`
-  (`internal/component/ike/eap/peer.go`) checked only that 40 characters parse as hex,
+  (`internal/core/eap/peer.go`) checked only that 40 characters parse as hex,
   never recomputed, never compared, and fell through to ACK Success when the Message was
   absent. `GenerateAuthenticatorResponse` existed but the peer never called it.
 - **RADIUS Request Authenticator reused** across servers in `(*Client).SendToServers`,
@@ -201,7 +201,7 @@ once, so each needs its tests in the same commit.
 
 DONE, uncommitted, and the whole `internal/component/ike/...` tree passes
 (`go test ./internal/component/ike/...`, exit 0, `engine` included). No mutation marker
-survives; `grep -rn MUTATION internal/component/ike/eap/` is empty.
+survives; `grep -rn MUTATION internal/core/eap/` is empty.
 
 - `MethodResult` (`eap.go`) grew `FinalRequest *Packet`, read before `Err` by
   `Session.handleMethod` and handled by the new `Session.finalRequest`. A nil pointer is
@@ -220,7 +220,7 @@ survives; `grep -rn MUTATION internal/component/ike/eap/` is empty.
   with OpCode 4, park `fmt.Errorf("%w: %w", ErrEAPFailure, failure)` on `pendingErr`, and
   refuse a `C=` field that is absent or not 32 hex digits (`errFailureChallenge`).
   `internal/component/ike/engine/responder_eap.go` is UNCHANGED and still correct.
-- Tags: `internal/component/ike/eap/rfc2759_failure_packet_test.go` (new, untracked)
+- Tags: `internal/core/eap/rfc2759_failure_packet_test.go` (new, untracked)
   carries x-6 and x-12 in both polarities. RED and GREEN both recorded, including a
   mutation run that reddened each.
 - The `{gap}` removal in `rfc/short/rfc2759.md` was swept into another session's commit

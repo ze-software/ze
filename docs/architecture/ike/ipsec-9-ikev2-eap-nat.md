@@ -5,10 +5,10 @@ warrior client uses the IKEv2 client built into its operating system, and those
 default to EAP. NAT traversal is the other half: without it an IPsec tunnel
 fails whenever either peer sits behind a NAT device.
 
-<!-- source: internal/component/ike/eap/eap.go -- Session, Method, MethodResult, Packet -->
-<!-- source: internal/component/ike/eap/eap_mschapv2.go -- EAP-MSCHAPv2 method -->
-<!-- source: internal/component/ike/eap/eap_md5challenge.go -- EAP MD5-Challenge method -->
-<!-- source: internal/component/ike/eap/eap_tls.go -- tlsMethod, tlsFragmenter, exportEAPTLSMSK -->
+<!-- source: internal/core/eap/eap.go -- Session, Method, MethodResult, Packet -->
+<!-- source: internal/core/eap/eap_mschapv2.go -- EAP-MSCHAPv2 method -->
+<!-- source: internal/core/eap/eap_md5challenge.go -- EAP MD5-Challenge method -->
+<!-- source: internal/core/eap/eap_tls.go -- tlsMethod, tlsFragmenter, exportEAPTLSMSK -->
 <!-- source: internal/component/ike/transport/nat.go -- NATDetectionHash, DetectNAT, AddNonESPMarker, StripNonESPMarker -->
 <!-- source: internal/component/ike/transport/keepalive.go -- Keepalive -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- computeEAPAuth, eapAuthSecret, computeAuthFromSharedSecret, verifyAuthFromSharedSecret, newEAPSession -->
@@ -82,8 +82,8 @@ fails whenever either peer sits behind a NAT device.
   hostapd and strongSwan both exclude the null, and including it fails interop.
 - RFC 1320 defines MD4, which MS-CHAPv2 needs for the NT password hash.
 
-<!-- source: internal/component/ike/eap/mschapv2.go -- ntPasswordHash, GenerateNTResponse, GenerateAuthenticatorResponse, DeriveMSK -->
-<!-- source: internal/component/ike/eap/md4.go -- md4Sum -->
+<!-- source: internal/core/eap/mschapv2.go -- ntPasswordHash, GenerateNTResponse, GenerateAuthenticatorResponse, DeriveMSK -->
+<!-- source: internal/core/eap/md4.go -- md4Sum -->
 
 ## The two packets the framework composes
 
@@ -120,8 +120,8 @@ proposed alternative", and ze always holds the method the operator configured,
 so naming it turns a refusal into the negotiation the section intends. A
 Type-254 Request draws this same packet.
 
-<!-- source: internal/component/ike/eap/peer.go -- handleRequest, notificationResponse, nakResponse, naks -->
-<!-- source: internal/component/ike/eap/eap.go -- TypeNotification, TypeNAK, typeAuthenticationLow, typeAuthenticationHigh -->
+<!-- source: internal/core/eap/peer.go -- handleRequest, notificationResponse, nakResponse, naks -->
+<!-- source: internal/core/eap/eap.go -- TypeNotification, TypeNAK, typeAuthenticationLow, typeAuthenticationHigh -->
 
 ## Decisions
 
@@ -158,8 +158,8 @@ gets about why. Discarding them, which this did until 2026-09-01, left an
 operator reading "authentication failed" with no way to learn that the far end
 wanted a method ze does not run.
 
-<!-- source: internal/component/ike/eap/peer.go -- handleRequest, commitMethod, methodCommitted -->
-<!-- source: internal/component/ike/eap/eap.go -- Session.nakRefused, nakRefusal -->
+<!-- source: internal/core/eap/peer.go -- handleRequest, commitMethod, methodCommitted -->
+<!-- source: internal/core/eap/eap.go -- Session.nakRefused, nakRefusal -->
 
 **EAP-TLS runs Go's `crypto/tls` over a custom `net.Conn`.** The transport pipes
 TLS records through EAP request and response packets. Implementing TLS again was
@@ -168,7 +168,7 @@ rejected.
 **The virtual IP pool allocates sequentially from the CIDR base.** Random
 allocation buys nothing here and makes debugging harder.
 
-<!-- source: internal/component/ike/eap/pool.go -- Pool, Allocate, Release -->
+<!-- source: internal/core/eap/pool.go -- Pool, Allocate, Release -->
 
 **NAT detection hashes compare in constant time.** The comparison is not
 security sensitive, because a SHA-1 NAT detection hash is public. The
@@ -218,9 +218,9 @@ Failure packet with the OpCode alone so that round exists, and reports the E=
 error code when the EAP-Failure arrives. A peer that ended the conversation on
 the Failure packet would leave the authenticator no round to meet Section 4.2 in.
 
-<!-- source: internal/component/ike/eap/eap.go -- MethodResult, Session.handleMethod, Session.failure -->
-<!-- source: internal/component/ike/eap/eap_tls.go -- tlsMethod.Process, tlsMethod.Close -->
-<!-- source: internal/component/ike/eap/peer.go -- PeerSession.handleTLSRequest, readAndSendTLS -->
+<!-- source: internal/core/eap/eap.go -- MethodResult, Session.handleMethod, Session.failure -->
+<!-- source: internal/core/eap/eap_tls.go -- tlsMethod.Process, tlsMethod.Close -->
+<!-- source: internal/core/eap/peer.go -- PeerSession.handleTLSRequest, readAndSendTLS -->
 
 ## NAT traversal
 

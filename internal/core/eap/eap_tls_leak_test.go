@@ -23,7 +23,7 @@ import (
 // The TLS engine reaches it through Conn.HandshakeContext on both sides, so one
 // pattern counts the authenticator's runTLSServer and the peer's handshake
 // goroutine alike.
-const eapTLSEngineFrame = "ike/eap.(*eapTLSTransport).Read"
+const eapTLSEngineFrame = "core/eap.(*eapTLSTransport).Read"
 
 // countEAPTLSEngines reports how many goroutines are inside the EAP-TLS
 // transport read.

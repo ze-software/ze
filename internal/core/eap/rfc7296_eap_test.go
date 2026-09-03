@@ -9,8 +9,6 @@ package eap
 import (
 	"encoding/binary"
 	"testing"
-
-	"github.com/ze-software/ze/internal/component/ike/wire"
 )
 
 // eapfmtNewMSCHAPv2Server returns an authenticator-side MS-CHAPv2 method that builds
@@ -19,29 +17,11 @@ func eapfmtNewMSCHAPv2Server(password string) *mschapv2Method {
 	return &mschapv2Method{password: password}
 }
 
-// eapfmtWireOctets encodes a packet the way the engine bridges do, then writes the
-// result as a wire EAP payload and returns those octets. The responder bridge keeps
-// octet 0, octet 1, and octet 4 onward (engine/responder_eap.go:90-95). The initiator
-// bridge keeps octet 1 and octet 4 onward, and it always sets the code to Response
-// (engine/auth.go:147-152). Neither bridge keeps the two length octets. The bridges
-// are engine code and stay outside this test.
-func eapfmtWireOctets(t *testing.T, p *Packet) []byte {
-	t.Helper()
-	enc := p.Encode()
-	if len(enc) < 4 {
-		t.Fatalf("Encode produced %d octets, want at least 4", len(enc))
-	}
-	payload := &wire.PayloadEAP{Code: enc[0], Identifier: enc[1], EAPData: enc[4:]}
-	buf := make([]byte, payload.Len())
-	n := payload.WriteTo(buf, 0)
-	return buf[:n]
-}
-
 // RFC requirement: RFC7296-3.16-1 positive -- the peer copies the request Identifier into
 // every response it builds (peer.go:139 for Identity, peer.go:225 for the MS-CHAPv2
 // Challenge, peer.go:248 for the MS-CHAPv2 Success acknowledgement). Packet.Encode
-// places that value in octet 1 (eap.go:56), and PayloadEAP.WriteTo puts it in octet 1
-// of the wire payload (payload_eap.go:26).
+// places that value in octet 1 (eap.go:56). The IKE payload that carries those octets
+// is asserted in internal/component/ike/wire/payload_eap_carrier_test.go.
 // RFC requirement: RFC7296-3.16-1 negative -- the value is read from the request rather than
 // counted. The three request identifiers below are 200, 7, and 91, so a round counter
 // or a constant fails every round.
@@ -61,12 +41,6 @@ func TestEapfmtResponseIdentifierMatchesRequest(t *testing.T) {
 	}
 	if res.Response.Identifier != identityReq.Identifier {
 		t.Fatalf("identity response identifier %d, want %d", res.Response.Identifier, identityReq.Identifier)
-	}
-
-	// The identifier survives the encoder and the wire payload writer.
-	octets := eapfmtWireOctets(t, res.Response)
-	if octets[1] != identityReq.Identifier {
-		t.Fatalf("wire octet 1 is %d, want %d", octets[1], identityReq.Identifier)
 	}
 
 	// Round 2: MS-CHAPv2 Challenge with a lower identifier than round 1.
@@ -109,9 +83,8 @@ func TestEapfmtResponseIdentifierMatchesRequest(t *testing.T) {
 
 // RFC requirement: RFC7296-3.16-3 positive -- Packet.Encode gives a Success or a Failure a
 // four-octet buffer with the length octets set to 4 (eap.go:45-52). It copies neither
-// Type nor TypeData into that buffer. The responder bridge forwards octet 4 onward as
-// the payload body, which is empty here. PayloadEAP.WriteTo then emits four octets and
-// a Length of four (payload_eap.go:27-30).
+// Type nor TypeData into that buffer. What the IKE payload does with those four octets
+// is asserted in internal/component/ike/wire/payload_eap_carrier_test.go.
 // RFC requirement: RFC7296-3.16-3 negative -- the four-octet result belongs to the code, and
 // the Request below keeps its Type octet.
 func TestEapfmtSuccessAndFailureCarryNoTypeField(t *testing.T) {
@@ -127,14 +100,6 @@ func TestEapfmtSuccessAndFailureCarryNoTypeField(t *testing.T) {
 		}
 		if len(enc[4:]) != 0 {
 			t.Fatalf("code %d: body forwarded to the payload is %x, want empty", code, enc[4:])
-		}
-
-		octets := eapfmtWireOctets(t, p)
-		if len(octets) != 4 {
-			t.Fatalf("code %d: wire payload holds %d octets, want 4", code, len(octets))
-		}
-		if got := binary.BigEndian.Uint16(octets[2:4]); got != 4 {
-			t.Fatalf("code %d: wire EAP Length %d, want 4", code, got)
 		}
 	}
 

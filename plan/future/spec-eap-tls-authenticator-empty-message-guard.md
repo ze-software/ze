@@ -17,7 +17,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 message, in a round where RFC 5216 sanctions neither.**
 
 The peer answers the Start with a bare flags octet. `tlsMethod.Process`
-(`internal/component/ike/eap/eap_tls.go`) reaches its last branch with no engine output and
+(`internal/core/eap/eap_tls.go`) reaches its last branch with no engine output and
 replies with `TypeData: []byte{0}`, which is the fragment-acknowledgement form. The peer
 can repeat this, and Ze answers each round the same way until the stale-handshake reaper
 ends the exchange.
@@ -49,11 +49,11 @@ this spec is the question that decision left open.
 ## Current Behavior (MANDATORY)
 
 **Source files read on 2026-08-10:**
-- [ ] `internal/component/ike/eap/eap_tls.go` - `tlsMethod.Start` sends the Start with the S
+- [ ] `internal/core/eap/eap_tls.go` - `tlsMethod.Start` sends the Start with the S
   flag and no data. `tlsMethod.Process` dispatches the peer's answer through six branches in
   this order. The fragment acknowledgement, the alert reply, reassembly, the handshake
   error, the completed handshake, and last the empty branch that returns `[]byte{0}`
-- [ ] `internal/component/ike/eap/eap.go` - `Session.handleMethod` calls `Process` and turns
+- [ ] `internal/core/eap/eap.go` - `Session.handleMethod` calls `Process` and turns
   its `MethodResult` into the outbound packet or into an EAP-Failure
 
 **Behavior to preserve:**
@@ -105,7 +105,7 @@ the operator through the existing IKE path.
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers | Yes | The refusal is returned as `MethodResult.Err`, the one channel `handleMethod` reads |
-| No unintended coupling | Yes | The change stays inside `internal/component/ike/eap` |
+| No unintended coupling | Yes | The change stays inside `internal/core/eap` |
 | No duplicated functionality | Yes | It replaces a branch rather than adding a parallel one |
 | Zero-copy preserved where applicable | N-A | No buffer ownership changes |
 | Registration over hardcoding | N-A | No new command, view, family or handler |
@@ -164,8 +164,8 @@ the operator through the existing IKE path.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEAPTLSProcessRefusesUnsanctionedEmptyMessage` | `internal/component/ike/eap/eap_tls_empty_message_test.go` | AC-1 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `TestEAPTLSProcessStillAcknowledgesAnMFlaggedMessage` | `internal/component/ike/eap/eap_tls_empty_message_test.go` | AC-2 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestEAPTLSProcessRefusesUnsanctionedEmptyMessage` | `internal/core/eap/eap_tls_empty_message_test.go` | AC-1 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestEAPTLSProcessStillAcknowledgesAnMFlaggedMessage` | `internal/core/eap/eap_tls_empty_message_test.go` | AC-2 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | `TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess` | existing | AC-3, unchanged | |
 | `TestEAPTLSProcessRefusesUnboundedPeerBuffer` | existing | AC-5, unchanged | |
 
@@ -198,15 +198,15 @@ ze-to-ze test cannot replace it for a wire-form claim.
 
 ## Files to Modify
 
-- `internal/component/ike/eap/eap_tls.go` - refuse the unsanctioned empty message in the
+- `internal/core/eap/eap_tls.go` - refuse the unsanctioned empty message in the
   last branch of `tlsMethod.Process`, and update the branch comment that documents the
   acknowledgement
-- `internal/component/ike/eap/peer.go` - only if the test seam for the misbehaving peer
+- `internal/core/eap/peer.go` - only if the test seam for the misbehaving peer
   lands here
 
 ## Files to Create
 
-- `internal/component/ike/eap/eap_tls_empty_message_test.go` - the unit tests above <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- `internal/core/eap/eap_tls_empty_message_test.go` - the unit tests above <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 - `test/ipsec/ipsec-eap-tls-empty-answer.ci` - the functional test above <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 
 ### Integration Checklist
@@ -248,7 +248,7 @@ metadata and no daemon comparison claim.
    - Verify: both fail because `Process` still answers with a bare acknowledgement
 2. **Phase: The refusal** - replace the branch, keeping `eapTLSMaxPeerBuffered` reachable.
    - Tests: the two above, plus the four existing tests named in the TDD plan
-   - Files: `internal/component/ike/eap/eap_tls.go`
+   - Files: `internal/core/eap/eap_tls.go`
    - Verify: the new tests pass, no existing eap test goes red, scenario eap-tls still completes
 
 ### Critical Review Checklist
@@ -265,7 +265,7 @@ metadata and no daemon comparison claim.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The refusal in `tlsMethod.Process` | `go test -race ./internal/component/ike/eap` |
+| The refusal in `tlsMethod.Process` | `go test -race ./internal/core/eap` |
 | The functional test | `./le functional ipsec` |
 | The interop regression | `./le integration interop-ipsec IPSEC_INTEROP_SCENARIO=eap-tls` |
 
