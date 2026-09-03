@@ -1,9 +1,16 @@
 # RADIUS admin AAA
 
-Ze authenticates operator logins (SSH, web, MCP) against RADIUS servers
+Ze authenticates operator logins (SSH and web) against RADIUS servers
 (RFC 2865) when the `system.authentication.radius` block is present. Local
 bcrypt users keep working as the fallback so an unreachable server cannot lock
 you out of the device.
+
+MCP is not on this path. The MCP server authenticates a request against a
+bearer-token digest or an OAuth JWT and never builds an AAA request, so a
+RADIUS operator cannot log in to it.
+
+<!-- source: internal/component/mcp/bearer.go -- bearerAuthenticator.Authenticate -->
+<!-- source: internal/component/mcp/oauth.go -- oauthAuthenticator.Authenticate -->
 
 This is the operator/admin login path. It is separate from the L2TP
 **subscriber** RADIUS path (`l2tp.auth.radius`), which authenticates PPP
@@ -59,7 +66,7 @@ system {
 
 ## Authentication flow
 
-1. SSH/web/MCP client connects with username + password.
+1. An SSH or web client connects with username + password.
 2. The daemon's AAA chain calls the RADIUS backend first (priority 50; TACACS+
    is priority 100, local bcrypt is priority 200).
 3. The backend builds an Access-Request with User-Name, the hidden
@@ -79,9 +86,11 @@ system {
    is NOT tried. This prevents a wrong password against RADIUS from succeeding
    via a stale local hash.
 6. **Access-Challenge** -- treated as an Access-Reject, and the chain stops.
-   Admin login sends one Access-Request and has no path back to the operator
-   for a second one, so ze does not support challenge/response here (RFC 2865
-   §4.4).
+   Admin login sends one Access-Request and reads one answer, so ze does not
+   support challenge/response here (RFC 2865 §4.4). This is how the transports
+   are wired, not a limit of SSH: ze registers password and public-key auth
+   only, and SSH keyboard-interactive, which does have a round trip back to the
+   operator, is not registered.
 7. **Timeout / all servers unreachable** -- treated as an infrastructure error,
    so the chain falls through to the next backend (local bcrypt). An
    unreachable RADIUS server never locks the operator out.
