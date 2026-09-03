@@ -2,189 +2,424 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
-| Depends | - |
+| Status | ready |
+| Scope | protocol |
+| Depends | plan/spec-radius-admin-chap.md |
 | Phase | - |
-| Updated | 2026-07-08 |
+| Deferral shard | - |
+| Handoff | - |
+| Updated | 2026-09-03 |
 
-> **SKELETON.** Created at closure of `radius-admin-backend` per user request
-> (deferred assumption A-3: PAP-only MVP). Needs a full `/ze-spec` research pass
-> before promotion to `ready`. Section content below is a sketch, not a design.
-> EAP is substantially larger than CHAP; this may split into its own multi-phase spec.
+Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file.
-2. `.claude/rules/planning.md` -- workflow rules.
-3. `plan/learned/NNN-radius-admin-backend.md` -- the PAP admin backend this extends.
-4. Source: `internal/component/radius/authenticator.go`, `internal/component/radius/packet.go`, `internal/component/radius/dict.go`.
+2. `internal/component/radius/authenticator.go` -- `(*radiusAuthenticator).Authenticate`, single-shot today.
+3. `internal/component/radius/packet.go` -- `verifyResponseMessageAuthenticator` and `VerifyCoAMessageAuthenticator`, the two verifiers; there is no signer.
+4. `internal/component/ike/eap/peer.go` -- `NewPeerSession`, `(*PeerSession).Process`, `PeerResult`. This is the EAP peer this spec drives.
+5. `plan/spec-radius-admin-chap.md` -- the `auth-method` leaf this extends.
 
 ## Task
 
-Add **EAP** (RFC 3579, RADIUS support for EAP; Access-Challenge round trips,
-EAP-Message + Message-Authenticator attributes) as an admin-login auth method
-for the RADIUS admin backend. Deferred from the `radius-admin-backend` MVP.
+Ze's RADIUS admin backend sends one Access-Request and reads one answer. An
+Access-Challenge is treated as an Access-Reject. That closes off every EAP
+method, which is what most RADIUS deployments are actually configured for.
 
-**Open design question (resolve first):** EAP is a multi-round-trip method with
-Access-Challenge; the current admin backend is single-shot (Access-Request →
-Accept/Reject). EAP requires a state machine and a way to relay EAP frames
-between the login client and the RADIUS server. Determine which EAP methods are
-in scope (EAP-TLS, EAP-TTLS, PEAP, EAP-MSCHAPv2) and how EAP frames reach the
-backend from the SSH/web/MCP transport (which does not natively carry EAP). This
-likely needs a transport-level design decision before any RADIUS code.
+**The peer already exists.** `internal/component/ike/eap` implements the EAP
+peer role with MD5-Challenge, MSCHAPv2 and TLS, driven through
+`(*PeerSession).Process`, which takes an EAP Request and returns the peer's
+Response. IKEv2 is its only caller today. Its non-test code imports
+`internal/core/textbuf` and nothing else in the tree, so it is already a leaf
+package sitting in the wrong tier.
+
+**Ze answers EAP on the operator's behalf.** The operator types a password into
+SSH or the web login. Ze holds that password, so it acts as the EAP peer itself
+rather than relaying EAP frames to a client that does not speak EAP. Nothing in
+the login transport changes, and the path works over SSH and web alike. An
+earlier reading of this spec assumed SSH keyboard-interactive was a
+prerequisite. It is not, and that reading is superseded.
+
+What is missing is the RADIUS half:
+
+1. RFC 3579 is not enrolled and `rfc/full/rfc3579.txt` is absent.
+2. EAP-Message, attribute 79, is not in `internal/component/radius/dict.go`.
+   `AttrMessageAuthenticator` at 80 is.
+3. Nothing SIGNS an outbound Message-Authenticator. `packet.go` holds two
+   verifiers and no signer.
+4. `Authenticate` calls `(*Client).SendToServers` once and has no State loop.
+
+**Design decisions (owner, 2026-09-03).** The EAP peer moves to
+`internal/core/eap`, so RADIUS does not depend on IKE. The methods offered are
+MD5-Challenge and MSCHAPv2, both password-driven and both already implemented.
+EAP-TLS is out of scope: it needs an operator certificate and key, which is a
+different credential model and a different config surface.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/guide/radius.md` -- the shipped PAP admin backend.
-  → Constraint: EAP must not change the PAP default or the profile-mapping path.
+- [x] `docs/guide/radius.md` -- the shipped admin backend, its chain semantics and
+  its Access-Challenge branch.
+  → Constraint: the Access-Challenge branch stops being a rejection for the EAP
+  methods and stays a rejection for PAP and CHAP.
+- [x] `ai/rules/architecture.md` -- tier is dependency direction.
+  → Decision: the EAP peer belongs in `internal/core/`, which is where a leaf
+  with no component dependency belongs. `./le tier check` is the gate.
+- [x] `docs/research/l2tpv2-ze-integration.md` -- named as the design document by
+  `internal/component/radius/config.go`, a file this spec edits.
+  → Constraint: it describes the L2TP SUBSCRIBER path and says nothing about
+  admin login, so it constrains this spec only by keeping the two paths separate.
 
-### RFC Summaries
-- [ ] `rfc/short/rfc2865.md` -- base RADIUS; Access-Challenge (code 11).
-- [ ] `rfc/short/rfc3579.md` -- RADIUS EAP (EAP-Message attr 79, Message-Authenticator attr 80). Create via `/ze-rfc` if missing.
-  → Constraint: every EAP Access-Request/Challenge MUST carry a Message-Authenticator (HMAC-MD5); the client already has `VerifyMessageAuthenticator` (`packet.go`).
+### RFC Summaries (Scope: protocol)
+- [x] RFC 3579 Section 3.1 -- EAP-Message, attribute 79. "If multiple
+  EAP-Message attributes are contained within an Access-Request or
+  Access-Challenge packet, they MUST be in order and they MUST be consecutive
+  attributes", and "Multiple EAP packets MUST NOT be encoded within EAP-Message
+  attributes contained within a single Access-Challenge, Access-Accept,
+  Access-Reject or Access-Request packet."
+  → Constraint: one EAP packet per RADIUS packet, split at 253 octets into
+  consecutive attributes, reassembled by concatenation on the way in.
+- [x] RFC 3579 Section 3.1 -- "Therefore the Message-Authenticator attribute
+  MUST be used to protect all Access-Request, Access-Challenge, Access-Accept,
+  and Access-Reject packets containing an EAP-Message attribute", and "A NAS
+  supporting the EAP-Message attribute MUST calculate the correct value of the
+  Message-Authenticator and MUST silently discard the packet if it does not
+  match the value sent."
+  → Constraint: ze signs every EAP Access-Request and discards any reply whose
+  Message-Authenticator does not verify. Discard, not reject: a discarded reply
+  leaves the request outstanding for retransmission.
+- [x] RFC 3579 Section 3.2 -- "Message-Authenticator = HMAC-MD5 (Type,
+  Identifier, Length, Request Authenticator, Attributes)", and "When the message
+  integrity check is calculated the signature string should be considered to be
+  sixteen octets of zero."
+  → Constraint: the signer writes 16 zero octets, computes over the whole
+  packet, then overwrites them.
+- [x] RFC 2865 Section 5.24 -- State. "This Attribute is available to be sent by
+  the server to the client in an Access-Challenge and MUST be sent unmodified
+  from the client to the server in the new Access-Request reply to that
+  challenge", and "the client MUST NOT interpret the attribute locally. A packet
+  must have only zero or one State Attribute."
+  → Constraint: State is copied byte for byte and never parsed, and a reply
+  carrying two State attributes is malformed.
+- [x] RFC 3748 -- already enrolled, with the peer role gated. `rfc/short/rfc3748.md`
+  carries the packet format, the Identifier and Type rules, one method per
+  conversation, and four silent discards.
+  → Constraint: the peer's obligations are met by the existing package. This
+  spec adds no EAP-layer behavior and must not weaken what that ledger proves.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (to be completed during /ze-spec)
-- [ ] `internal/component/radius/authenticator.go` -- single-shot PAP; EAP needs a challenge loop.
-- [ ] `internal/component/radius/packet.go` -- `VerifyMessageAuthenticator`, `CodeAccessChallenge`.
-- [ ] `internal/component/radius/dict.go` -- `AttrMessageAuthenticator` (80); EAP-Message (79) is NOT yet defined.
+**Source files read:**
+- [x] `internal/component/radius/authenticator.go` -- `(*radiusAuthenticator).Authenticate`
+  builds one packet, calls `(*Client).SendToServers` once, and switches on the
+  reply code. `CodeAccessChallenge` falls to the rejection branch.
+- [x] `internal/component/radius/packet.go` -- `VerifyCoAMessageAuthenticator`
+  and `verifyResponseMessageAuthenticator` both VERIFY. Neither signs, and
+  neither is reusable as a signer: they compare with `hmac.Equal`.
+- [x] `internal/component/radius/dict.go` -- `AttrState`, `AttrMessageAuthenticator`
+  and `CodeAccessChallenge` exist. Attribute 79 does not, and no `EAP` symbol
+  names a RADIUS attribute; the only EAP spelling is `ErrorCauseInvalidEAPPacket`.
+- [x] `internal/component/ike/eap/peer.go` -- `NewPeerSession(method uint8,
+  identity, password string)` builds a peer for ONE method, which it NAKs
+  toward. `(*PeerSession).Process` takes a `*Packet` and returns a `PeerResult`.
+  `maxEAPRounds` already bounds the conversation and `ErrTooManyRounds` reports
+  the bound.
+- [x] `internal/component/ike/eap/eap.go` -- `DecodePacket` and `(*Packet).Encode`
+  are the EAP wire boundary this spec encapsulates.
+- [x] `internal/component/ike/eap/` imports -- non-test code names
+  `internal/core/textbuf` only. `internal/component/ike/wire` appears in test
+  files alone (`rfc7296_eap_test.go`, `eap_mschapv2_empty_response_test.go`).
 
-**Behavior to preserve:** PAP path, profile mapping, chain semantics, L2TP path.
+**Behavior to preserve:** PAP and CHAP unchanged, including their treatment of
+an Access-Challenge as a rejection; profile mapping; the fall-through on an
+unreachable server; every RFC 3748 obligation the EAP peer already proves; the
+IKEv2 caller of that peer.
 
-**Behavior to change:** add an EAP method with Access-Challenge round trips.
+**Behavior to change:** a bounded Access-Challenge loop for the two EAP methods,
+and the attribute plumbing RFC 3579 requires around it.
 
-## Data Flow (MANDATORY)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Operator login when the admin auth method is configured as EAP (transport relay TBD).
+An operator SSH or web login, exactly as for PAP and CHAP. The plaintext
+password reaches `(*radiusAuthenticator).Authenticate` in `authz.AuthRequest`.
 
 ### Transformation Path
-1. Resolve auth method (PAP default, EAP if configured).
-2. EAP: relay EAP frames in EAP-Message; loop on Access-Challenge until Accept/Reject.
-3. Verify Message-Authenticator on every server response.
+1. `ExtractConfig` reads `auth-method` as `eap-md5` or `eap-mschapv2`.
+2. `Authenticate` builds an `eap.PeerSession` for that method from the username
+   and password.
+3. The first Access-Request carries the peer's EAP-Response/Identity in
+   EAP-Message attributes, plus a Message-Authenticator computed over the whole
+   packet with the signature field zeroed.
+4. On Access-Challenge: verify the reply's Message-Authenticator, discard on
+   mismatch, concatenate its EAP-Message attributes into one EAP packet, feed it
+   to `(*PeerSession).Process`, and send the response in a new Access-Request
+   carrying the State attribute unmodified.
+5. On Access-Accept or Access-Reject: verify the Message-Authenticator, then
+   hand the reply to the existing profile-mapping and rejection branches, which
+   do not change.
+6. The loop is bounded by the peer's own `maxEAPRounds` and by the
+   authenticator's existing time budget.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Login transport ↔ EAP frames | relay mechanism (TBD) | [ ] |
-| Backend ↔ RADIUS server | EAP-Message + Message-Authenticator | [ ] |
+| Config tree → method selection | `auth-method` enum gains two values | [ ] |
+| Authenticator → EAP peer | `eap.NewPeerSession` and `(*PeerSession).Process` | [ ] |
+| EAP packet → RADIUS attributes | split at 253 octets into consecutive EAP-Message attributes | [ ] |
+| RADIUS attributes → EAP packet | concatenate consecutive EAP-Message values | [ ] |
+| Authenticator → server, per round | Message-Authenticator signed over the whole packet | [ ] |
 
 ### Integration Points
-- `internal/component/radius/authenticator.go` -- EAP state machine.
-- `internal/component/radius/dict.go` -- EAP-Message attribute.
-- Login transport (SSH/web/MCP) -- EAP relay (design decision).
+- `internal/core/eap/` -- the moved EAP peer package.
+- `internal/component/ike/` -- its import path updated by the move.
+- `internal/component/radius/dict.go` -- `AttrEAPMessage`.
+- `internal/component/radius/packet.go` -- the Message-Authenticator signer.
+- `internal/component/radius/authenticator.go` -- the challenge loop.
+- `internal/component/radius/yang/ze-radius-conf.yang` -- two enum values.
+
+### Architectural Verification
+The move puts a package with no component dependency in the tier that has none,
+which `./le tier check` enforces. Nothing gains a central switch: the method
+enum is the one switch, with one arm per credential, and the EAP arms select a
+peer method rather than adding a code path per method.
 
 ## Risks & Assumptions
 
 ### Assumptions
-| ID | Assumption | Basis | If wrong | Validated by | Status |
-|----|-----------|-------|----------|--------------|--------|
-| A-1 | The login transport can relay EAP frames | none yet | EAP admin auth is infeasible over this transport | design review | unvalidated |
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | The EAP peer's non-test code has no component dependency, so the move is mechanical | its imports name `internal/core/textbuf` only | The move needs a larger untangle | read at the producer | confirmed |
+| A-2 | `(*PeerSession).Process` is transport-neutral and needs only the EAP packet | its parameter is `*Packet`, decoded by `DecodePacket` | The peer would need a carrier abstraction | read at the producer | confirmed |
+| A-3 | Ze holds the password when `Authenticate` runs | `request.Password` reaches the attribute list today | The whole spec is N/A | read at the producer | confirmed |
+| A-4 | The two `ike/wire` test references can be re-homed without losing what they assert | both are test files naming `wire.PayloadEAP` | The IKE-carrier assertions must stay in IKE, splitting the test files | AC-12 | unvalidated |
+| A-5 | `maxEAPRounds` bounds the RADIUS conversation adequately | the peer counts every `Process` call | An unbounded server could stall the login inside the time budget | AC-9 | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | EAP scope explodes (methods, TLS, state machine) | design review | Scope to one method (e.g. EAP-MSCHAPv2) or defer entirely |
-| R-2 | No EAP transport in SSH/web/MCP login | design review | May require a new front end; document as out of scope |
+| R-1 | The package move collides with another session working in IKE | a conflicting edit under `internal/component/ike/` | Do the move as its own commit, first, and land it before the RADIUS work |
+| R-2 | The RFC 3748 ledger's tagged tests break on the import path change | `./le rfc check` names rfc3748 rows | The move changes no behavior, so a red there is a path fix, not a conformance fix |
+| R-3 | A server that never concludes holds the login open | a login that neither accepts nor rejects | The peer's round cap and the authenticator's time budget both bound it |
+| R-4 | The signer and the verifier disagree about which octets are covered | Message-Authenticator mismatches against a real server | The interop scenario against FreeRADIUS is the proof; a mock that shares ze's code would not be |
 
-## Wiring Test (MANDATORY)
+## Blast Radius
+
+Three areas. `internal/core/eap` is new and is the old package moved. Every
+importer under `internal/component/ike/` changes its import path and nothing
+else. `internal/component/radius` gains an attribute, a signer and a loop. The
+IKEv2 behavior is unchanged, and the RFC 3748 ledger must stay green through the
+move.
+
+## Wiring Test (MANDATORY -- NOT deferrable)
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `auth-method eap` configured | → | Access-Request carries EAP-Message + Message-Authenticator | `TestRadiusEapFirstRequest` |
+| `auth-method eap-mschapv2` in the config tree | → | the first Access-Request carries EAP-Message and Message-Authenticator | `TestRadiusAdminEapReachesTheWire` |
+
+The wiring test drives the config tree, so a leaf that parses and never reaches
+the authenticator fails it.
 
 ## Acceptance Criteria
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Admin auth method = EAP | Access-Request carries EAP-Message + Message-Authenticator |
-| AC-2 | Server Access-Challenge | backend relays and continues the EAP exchange |
-| AC-3 | Final Access-Accept | same profile mapping as PAP |
-| AC-4 | Method unset | PAP remains the default; no behavior change |
+| AC-1 | `auth-method` absent, `pap`, or `chap` | No EAP-Message and no EAP behavior; the Access-Challenge branch still rejects |
+| AC-2 | `auth-method eap-md5` or `eap-mschapv2` | The first Access-Request carries the peer's EAP-Response/Identity in EAP-Message attributes |
+| AC-3 | Any Access-Request carrying EAP-Message | It carries a Message-Authenticator, computed per RFC 3579 Section 3.2 with the signature field zeroed during the HMAC |
+| AC-4 | An EAP packet longer than 253 octets | It is split into consecutive EAP-Message attributes, in order, with no other attribute between them |
+| AC-5 | A reply carrying several EAP-Message attributes | Their values are concatenated into one EAP packet before decoding |
+| AC-6 | An Access-Challenge whose Message-Authenticator does not verify | The reply is silently discarded, per RFC 3579 Section 3.1. It is not treated as a rejection |
+| AC-7 | An Access-Challenge carrying State | The next Access-Request carries that State byte for byte, and ze never parses it |
+| AC-8 | An Access-Challenge with no State | The next Access-Request carries no State attribute |
+| AC-9 | A server that challenges without concluding | The login ends with an error once the peer's round cap or the time budget is reached, and the chain falls through to the next backend |
+| AC-10 | A completed EAP exchange ending in Access-Accept | Profiles map exactly as the PAP path maps them, and the session is tagged `source=radius` |
+| AC-11 | An Access-Reject at any round | The chain stops, as it does for PAP |
+| AC-12 | After the package move | `./le tier check` passes, every IKE test still passes, and the RFC 3748 ledger is unchanged |
+| AC-13 | A single RADIUS packet | It carries at most one EAP packet, per RFC 3579 Section 3.1 |
 
-## End-to-End User Stories (MANDATORY)
+## End-to-End User Stories
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Configures EAP admin auth and logs in | login → EAP exchange → Accept → profiles | functional `.ci` (to be designed) |
+| 1 | Sets `auth-method eap-mschapv2` and logs in over SSH | login → EAP identity → challenge → response → Access-Accept → profiles | `test/plugin/aaa-radius-eap.ci` |
+| 2 | Sets `auth-method eap-md5` and logs in over the web UI | same, over the web login form | `test/plugin/aaa-radius-eap.ci` |
+| 3 | Changes nothing and logs in | PAP, unchanged | `test/plugin/aaa-radius-admin.ci`, still green |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRadiusEapFirstRequest` | `internal/component/radius/authenticator_test.go` | AC-1 | |
-| `TestRadiusEapChallengeLoop` | `internal/component/radius/authenticator_test.go` | AC-2 | |
+| `TestEAPMessageSplitsAtTheAttributeLimit` | `internal/component/radius/eap_test.go` | AC-4 | |
+| `TestEAPMessageConcatenatesOnTheWayIn` | `internal/component/radius/eap_test.go` | AC-5 | |
+| `TestSignMessageAuthenticatorMatchesRFC3579` | `internal/component/radius/packet_test.go` | AC-3 | |
+| `TestSignAndVerifyMessageAuthenticatorAgree` | `internal/component/radius/packet_test.go` | AC-3 | |
+| `TestRadiusAdminEapChallengeLoopCarriesState` | `internal/component/radius/authenticator_test.go` | AC-7, AC-8 | |
+| `TestRadiusAdminEapDiscardsUnauthenticatedChallenge` | `internal/component/radius/authenticator_test.go` | AC-6 | |
+| `TestRadiusAdminEapStopsAtTheRoundCap` | `internal/component/radius/authenticator_test.go` | AC-9 | |
+| `TestRadiusAdminEapOneEAPPacketPerRadiusPacket` | `internal/component/radius/authenticator_test.go` | AC-13 | |
+| `TestRadiusAdminEapReachesTheWire` | `internal/component/radius/aaa_test.go` | Wiring, AC-2 | |
+| `TestExtractConfigAuthMethodEap` | `internal/component/radius/config_test.go` | AC-1 | |
+
+### Boundary Tests (numeric inputs)
+| Input | Boundary | Expected |
+|-------|----------|----------|
+| EAP packet of 253 octets | one attribute exactly | one EAP-Message, Length 255 |
+| EAP packet of 254 octets | one octet over | two consecutive EAP-Message attributes, 253 and 1 |
+| EAP packet of 0 octets | empty | refused before the packet is built; an empty EAP-Message is not sent |
+| Message-Authenticator | Length 18 | 16 octets of HMAC after the two header octets |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `aaa-radius-eap` | `test/plugin/aaa-radius-eap.ci` | EAP admin login accepted | |
+| `aaa-radius-eap` | `test/plugin/aaa-radius-eap.ci` | EAP admin login accepted over a full challenge exchange, log shows `source=radius` | |
 
-## RFC Documentation
-- RFC 3579 (RADIUS EAP): ensure `rfc/short/rfc3579.md` exists and covers EAP-Message + Message-Authenticator.
+### Interop Tests (Scope: protocol)
+| Scenario | Peer implementation | Asserts |
+|----------|--------------------|---------|
+| `radius-admin-eap-freeradius` | FreeRADIUS configured for EAP-MSCHAPv2 | A real server accepts ze's Message-Authenticator, its EAP-Message framing and its State handling. A mock built from ze's own encoder would prove none of these |
 
 ## Files to Modify
-- `internal/component/radius/authenticator.go` -- EAP state machine.
-- `internal/component/radius/dict.go` -- EAP-Message attribute (79).
-- `internal/component/radius/yang/ze-radius-conf.yang` -- `auth-method` leaf (shared with CHAP spec).
+- `internal/component/ike/**` -- import paths only, from the move.
+- `internal/component/radius/dict.go` -- `AttrEAPMessage`.
+- `internal/component/radius/packet.go` -- the Message-Authenticator signer.
+- `internal/component/radius/authenticator.go` -- the challenge loop.
+- `internal/component/radius/config.go` -- two more `auth-method` values.
+- `internal/component/radius/yang/ze-radius-conf.yang` -- two more enum values.
+- `docs/guide/radius.md` -- the methods, the Access-Challenge behavior, the chain.
+- `rfc/enrolled.txt` -- rfc3579.
 
 ## Files to Create
+- `internal/core/eap/` -- the moved package.
+- `internal/component/radius/eap.go` -- EAP-Message split and concatenation.
+- `internal/component/radius/eap_test.go`.
+- `rfc/full/rfc3579.txt`, `rfc/short/rfc3579.md`.
 - `test/plugin/aaa-radius-eap.ci`.
+- `test/interop/scenarios/radius-admin-eap-freeradius/`.
+
+### Integration Checklist
+- [ ] `./le tier check` passes after the move.
+- [ ] Both new enum values complete in the CLI schema.
+- [ ] The signer has a non-test caller.
+- [ ] `./le repository generate` re-run for the moved package.
+
+### Documentation Update Checklist (BLOCKING)
+- [ ] `docs/guide/radius.md` -- the two methods, and the Access-Challenge
+      paragraph, which currently states an unconditional rejection.
+- [ ] `docs/features.md` -- the RADIUS row.
+- [ ] `docs/features/rfc-status.md` -- regenerated from `rfc/short/`.
+- [ ] `ai/CODE-TO-DOCS.md` / `ai/DOCS-TO-CODE.md` -- regenerated for the move.
+- [ ] Any page naming `internal/component/ike/eap` by path.
 
 ## Implementation Steps
 
 ### Implementation Phases
-1. **Phase: Research** -- resolve the EAP-transport-relay design question and method scope.
-2. **Phase: Attributes** -- EAP-Message; reuse Message-Authenticator.
-3. **Phase: State machine** -- Access-Challenge loop.
-4. **Phase: Tests + docs.**
+1. **Phase: The move, alone.** `internal/component/ike/eap` to
+   `internal/core/eap`, import paths updated, the two test references to
+   `ike/wire` re-homed. No behavior change. Its own commit, landed before
+   anything else, because it touches a component another session works in.
+2. **Phase: RFC 3579 enrolment.** Fetch the text, run the enrolment walk, produce
+   `rfc/short/rfc3579.md` with requirement ids for the obligations quoted above.
+3. **Phase: The signer.** Message-Authenticator signing, proven against a vector
+   the producer did not compute, and proven to agree with the existing verifier.
+4. **Phase: The attribute.** EAP-Message split and concatenation, with the
+   boundary cases above.
+5. **Phase: Wiring first, then the loop.** The config-driven wiring test RED
+   before the loop exists, then the challenge loop.
+6. **Phase: Failure paths.** Unverified reply discarded, round cap, no State.
+7. **Phase: Functional and interop.**
+8. **Phase: Docs.**
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Correctness | PAP default unchanged; Message-Authenticator verified on every response |
-| L2TP untouched | no change under `l2tp/plugins/authradius/` |
+| The move changed nothing | The IKE tests and the RFC 3748 ledger are as green as they were before it |
+| Signer coverage | The HMAC is over Type, Identifier, Length, Request Authenticator and every attribute, with the signature octets zeroed |
+| Discard, not reject | An unverified reply leaves the request outstanding; it does not stop the chain |
+| State opacity | State is copied, never parsed, and never logged |
+| One EAP packet per RADIUS packet | Asserted, not assumed |
+| PAP and CHAP untouched | Their attribute lists and their Access-Challenge handling are unchanged |
+
+### Deliverables Checklist
+| Deliverable | Verification method | Status |
+|-------------|--------------------|--------|
+| EAP peer in `internal/core/eap` | `./le tier check` | |
+| RFC 3579 enrolled | `rfc/short/rfc3579.md` exists and `./le rfc check` reads it | |
+| Message-Authenticator signer | `TestSignMessageAuthenticatorMatchesRFC3579` | |
+| EAP-Message framing | `TestEAPMessageSplitsAtTheAttributeLimit` | |
+| Challenge loop | `TestRadiusAdminEapChallengeLoopCarriesState` | |
+| Wiring from config to wire | `TestRadiusAdminEapReachesTheWire` | |
+| Functional proof | `test/plugin/aaa-radius-eap.ci` | |
+| Interop proof | `radius-admin-eap-freeradius` scenario | |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Message-Authenticator | present + verified on all EAP packets (RFC 3579) |
-| Method downgrade | EAP cannot be downgraded to a weaker method silently |
+| Fail closed | An unverified Message-Authenticator discards; it never falls through to a success path |
+| Secret handling | The shared secret and the password never reach a log line or an error string |
+| State handling | Never interpreted, never persisted, never logged |
+| Unbounded work | The round cap and the time budget both hold, and neither can be disabled by the server |
+| Downgrade | A server cannot move a configured EAP method back to PAP, and the peer NAKs toward its configured method rather than accepting any offered one |
+| Memory | An EAP packet reassembled from attributes is bounded by the RADIUS packet length, which the decoder already bounds |
 
-## Review Gate
+### Failure Routing
+| Failure | Route |
+|---------|-------|
+| Message-Authenticator mismatch | Silent discard (RFC 3579 Section 3.1); the request stays outstanding |
+| Round cap reached | Error from `Authenticate`; the chain tries the next backend |
+| Server does not support EAP-Message | It returns Access-Reject (RFC 3579 Section 3.1); the chain stops, as for any reject |
+| Unknown `auth-method` word | Refused at config load by the YANG enum |
 
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
+## Design Insights
 
-### Run 1 (initial)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+The skeleton assumed EAP needed a transport that carries EAP frames, and
+concluded a new front end was required. The premise was wrong in both
+directions: ze does not relay, it answers, and the peer that answers is already
+written and already gated against RFC 3748. What was actually missing was
+RADIUS-side plumbing that fits in one file plus a loop.
 
-### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+## Key Design Decisions
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+| Decision | Why | What it forecloses |
+|----------|-----|--------------------|
+| Ze acts as the EAP peer | It holds the password, and the login transport carries no EAP | A client-supplied credential ze cannot see, such as a smartcard, cannot be used |
+| Move the peer to `internal/core/eap` | It is a leaf with no component dependency; RADIUS must not depend on IKE | A one-commit blast radius across IKE |
+| MD5-Challenge and MSCHAPv2 only | Both are password-driven and already implemented | EAP-TLS, which needs an operator certificate and its own config |
+| Two enum values, not a method sub-leaf | The credential is one switch with one arm each, which is how RFC 2865 Section 4.1 reads | Negotiating among several acceptable methods |
+| Discard an unverified reply | RFC 3579 Section 3.1 says discard | Reporting the mismatch as a rejection, which would stop the chain on a forged packet |
 
-### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+## Known Limitations
+
+- EAP-TLS is implemented in the peer and not offered here. Enabling it is a
+  later spec with its own config for the operator certificate and key.
+- The peer NAKs toward one configured method. Ze does not negotiate among
+  several acceptable methods.
+
+## RFC Documentation (Scope: protocol)
+- RFC 3579 Sections 3.1 and 3.2, enrolled by this spec.
+- RFC 2865 Section 5.24, already enrolled.
+- RFC 3748, already enrolled; this spec adds no EAP-layer behavior and must
+  leave that ledger unchanged.
 
 ## Checklist
 
+### Pre-Spec Verification (before the design is presented)
+- [x] The EAP peer's API and its dependency set were read, not inferred.
+- [x] The RFC 3579 text was read, not a summary.
+- [x] The package placement and the method set were put to the owner and he
+      answered.
+
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-4 demonstrated
-- [ ] EAP transport-relay design question resolved
+- [ ] AC-1..AC-13 demonstrated
+- [ ] Wiring test RED before the loop, GREEN after
+- [ ] Interop scenario passes against FreeRADIUS
+- [ ] `./le tier check` passes
 - [ ] `./le verify worktree` passes
 
 ### TDD
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+### Closure
+- [ ] Deferral rows naming this spec resolved
+- [ ] Citations repointed
