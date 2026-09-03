@@ -115,3 +115,12 @@ gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
 # from Go design headers and source anchors.
 /ai/DOCS-TO-CODE.md
 /ai/CODE-TO-DOCS.md
+
+# The daemon's meta store sits beside the config file
+# (storage.pointer.go, filepath.Join(filepath.Dir(configPath), "meta", ...)),
+# so a run whose config path is inside the checkout writes runtime state into
+# the source tree. meta/ca holds a REAL PKI root private key that
+# pki.LoadOrGenerateRoot mints on first use, so a stray one must never be
+# committable. Ignored wherever it lands, and regenerated on demand.
+meta/ca/
+**/hub/meta/

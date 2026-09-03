@@ -96,7 +96,16 @@ bgp {
 }
 ```
 
-The `role { import rs }` leaf makes both `filter` chains mandatory: a declared RFC 9234 role obliges each bound chain to name a filter that can refuse a path through a transit provider (RFC 7454 Section 9), and `rs` binds both. Write `inactive: import NO-TRANSIT` in place of the active ref to record that this session runs without the check.
+The `role { import rs }` leaf makes both `filter` chains mandatory: a declared RFC 9234 role obliges each bound chain to name a filter that can refuse a path through a transit provider (RFC 7454 Section 9), and `rs` binds both. To run a session without the check, name the filter with the `inactive:` member prefix. The chain records the decision, and the filter never executes:
+
+```
+filter {
+    import [ inactive:NO-TRANSIT ]
+    export [ inactive:NO-TRANSIT ]
+}
+```
+
+The prefix goes on the member, inside the brackets. A separate `inactive: import NO-TRANSIT` statement deactivates a member the chain already carries; where the chain carries none, it deactivates the whole leaf, which leaves no chain and Ze refuses the config. See [config deactivation](config-deactivate.md) for both forms.
 
 A member inherits the group's whole settings, its `attach process` blocks and its per-peer plugin config included. A static peer whose address falls inside the range keeps its own session and its own settings. See [BGP peering](bgp-peering.md) for the group leaves and the reload rules.
 

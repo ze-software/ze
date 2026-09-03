@@ -122,9 +122,22 @@ bgp {
 
 The `role { import rs }` leaf is what makes the two `filter` chains mandatory. A
 declared RFC 9234 role obliges the bound chains to name a filter that can refuse a
-path through a transit provider, and `rs` binds both. Write `inactive: import
-NO-TRANSIT` in place of the active ref to record that this session runs without the
-check. See [bgp-role.md](bgp-role.md).
+path through a transit provider, and `rs` binds both. To run a session without the
+check, name the filter with the `inactive:` member prefix. The chain records the
+decision, and the filter never executes:
+
+```
+filter {
+    import [ inactive:NO-TRANSIT ]
+    export [ inactive:NO-TRANSIT ]
+}
+```
+
+The prefix goes on the member, inside the brackets. A separate `inactive: import
+NO-TRANSIT` statement deactivates a member the chain already carries; where the
+chain carries none, it deactivates the whole leaf, which leaves no chain and Ze
+refuses the config. See [config-deactivate.md](config-deactivate.md) for both
+forms, and [bgp-role.md](bgp-role.md) for the roles that bind.
 
 `ip dynamic` is valid at group level only. A peer that states it is refused. Two more statements are required, and the configuration is refused without them: at least one `range`, and an explicit `connect false`. Ze only accepts on a dynamic group and never dials one, so an absent `connect` leaf, which YANG defaults to true, is refused rather than corrected.
 

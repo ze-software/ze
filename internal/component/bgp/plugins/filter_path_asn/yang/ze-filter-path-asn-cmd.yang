@@ -42,11 +42,12 @@ annotation.";
                         config false;
                         ze:command "ze-show:reject-asn-known-transit-free";
                         description "Print the curated transit-free ASNs as a config block.";
-                        ze:help "Prints the well-known transit-free ASNs as one `asn [ ... ];` line to
-paste under a position block, with the sources and the curated date as
-comments. Ze acts on no ASN it was not configured with, so this command
-is how the set reaches a config. After the paste the config holds the
-numbers, and a later change to the curated table cannot alter it.";
+                        ze:help "Prints the well-known transit-free ASNs as one `indirect [ ... ];`
+line to paste directly under `reject-asn NAME { }`, with the sources and
+the curated date as comments. Ze acts on no ASN it was not configured
+with, so this command is how the set reaches a config. After the paste
+the config holds the numbers, and a later change to the curated table
+cannot alter it.";
                     }
                 }
             }
