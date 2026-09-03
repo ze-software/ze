@@ -11,6 +11,7 @@ package runner
 
 import (
 	"bytes"
+	"github.com/ze-software/ze/internal/test/tmpfs"
 	"go/ast"
 	"go/importer"
 	"go/parser"
@@ -613,26 +614,26 @@ func TestSelfStopGraceStaysInsideTheBudget(t *testing.T) {
 func TestTmpfsRequestsDaemonShutdown(t *testing.T) {
 	cases := []struct {
 		name  string
-		files map[string][]byte
+		files map[string]tmpfs.File
 		want  bool
 	}{
 		{"no tmpfs at all", nil, false},
 		{
 			"observer dispatches it",
-			map[string][]byte{"obs.run": []byte("dispatch(api, 'request shutdown')\n")},
+			map[string]tmpfs.File{"obs.run": {Content: []byte("dispatch(api, 'request shutdown')\n")}},
 			true,
 		},
 		{
 			"second file carries it",
-			map[string][]byte{
-				"helper.py": []byte("def noop():\n    return None\n"),
-				"obs.run":   []byte("api._call_engine('x', {'command': 'request shutdown'})\n"),
+			map[string]tmpfs.File{
+				"helper.py": {Content: []byte("def noop():\n    return None\n")},
+				"obs.run":   {Content: []byte("api._call_engine('x', {'command': 'request shutdown'})\n")},
 			},
 			true,
 		},
 		{
 			"observer never stops the daemon",
-			map[string][]byte{"obs.run": []byte("dispatch(api, 'show bgp')\n")},
+			map[string]tmpfs.File{"obs.run": {Content: []byte("dispatch(api, 'show bgp')\n")}},
 			false,
 		},
 	}

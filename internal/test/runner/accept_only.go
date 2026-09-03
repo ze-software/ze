@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
 // acceptOnlyBaselinePath is the repo-relative path of the accept-only ratchet
@@ -119,9 +120,9 @@ func isAcceptOnly(r *Record) bool {
 }
 
 // tmpfsHasErrExit reports whether any embedded tmpfs file enables shell errexit.
-func tmpfsHasErrExit(files map[string][]byte) bool {
-	for _, content := range files {
-		if setEnableErrExit.Match(content) {
+func tmpfsHasErrExit(files map[string]tmpfs.File) bool {
+	for _, file := range files {
+		if setEnableErrExit.Match(file.Content) {
 			return true
 		}
 	}

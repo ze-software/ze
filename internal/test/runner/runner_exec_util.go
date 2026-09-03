@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
 var errEmptyExecCommand = errors.New("empty exec command")
@@ -802,9 +803,9 @@ const requestShutdownMarker = "request shutdown"
 
 // tmpfsRequestsDaemonShutdown reports whether any embedded tmpfs file asks the
 // daemon to stop. It reads the same tmpfs contents tmpfsHasErrExit does.
-func tmpfsRequestsDaemonShutdown(files map[string][]byte) bool {
-	for _, content := range files {
-		if bytes.Contains(content, []byte(requestShutdownMarker)) {
+func tmpfsRequestsDaemonShutdown(files map[string]tmpfs.File) bool {
+	for _, file := range files {
+		if bytes.Contains(file.Content, []byte(requestShutdownMarker)) {
 			return true
 		}
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/test/testcond"
+	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
 // TestPerProcessSyncWriter verifies that multiple ze-peer processes get
@@ -410,10 +411,10 @@ func TestConfigLocalBindAddresses(t *testing.T) {
 // VALIDATES: both config sources a .ci carries are checked.
 // PREVENTS: a rewrite target's local address reaching the daemon unchecked.
 func TestConfigLocalBindAddressesFromTmpfs(t *testing.T) {
-	conf := &Record{TmpfsFiles: map[string][]byte{"config2.conf": []byte(bgpConfigWithLocal(absentULA))}}
+	conf := &Record{TmpfsFiles: map[string]tmpfs.File{"config2.conf": {Content: []byte(bgpConfigWithLocal(absentULA))}}}
 	require.Error(t, ensureBindAddresses(conf), "an embedded .conf declares bind addresses")
 
-	script := &Record{TmpfsFiles: map[string][]byte{"driver.py": []byte(bgpConfigWithLocal(absentULA))}}
+	script := &Record{TmpfsFiles: map[string]tmpfs.File{"driver.py": {Content: []byte(bgpConfigWithLocal(absentULA))}}}
 	assert.NoError(t, ensureBindAddresses(script), "a tmpfs script is not config")
 }
 

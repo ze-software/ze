@@ -143,9 +143,13 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 
 	// Store Tmpfs files if any
 	if len(v.Files) > 0 {
-		r.TmpfsFiles = make(map[string][]byte)
+		r.TmpfsFiles = make(map[string]tmpfs.File, len(v.Files))
 		for _, f := range v.Files {
-			r.TmpfsFiles[f.Path] = f.Content
+			// The whole file, not its bytes. Flattening here is what dropped a
+			// declared `mode=<octal>`, because the orchestrated path rebuilds a
+			// Tmpfs from this map and had nothing but the path to derive a mode
+			// from (runner_exec.go).
+			r.TmpfsFiles[f.Path] = *f
 		}
 	}
 

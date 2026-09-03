@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/tmpfs"
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
@@ -196,8 +197,13 @@ type Record struct {
 	RejectStdoutRegex    []string // reject=stdout:pattern=PATTERN (regex)
 
 	// Tmpfs embedded files
-	TmpfsFiles   map[string][]byte // path -> content from tmpfs= blocks
-	TmpfsTempDir string            // temp directory for tmpfs files, empty when the record declares none (set during execution)
+	// TmpfsFiles maps a path to the file the tmpfs= block declared, MODE
+	// included. It held content alone until 2026-09-03, and the mode was
+	// dropped at this boundary, so the orchestrated path re-derived one from
+	// the file extension and a declared `mode=<octal>` reached disk only when
+	// it happened to agree.
+	TmpfsFiles   map[string]tmpfs.File
+	TmpfsTempDir string // temp directory for tmpfs files, empty when the record declares none (set during execution)
 
 	// WorkDir is the directory every child of this test runs in, set during
 	// execution and removed when the test ends. It exists for every record,

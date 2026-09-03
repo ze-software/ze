@@ -27,6 +27,29 @@ import (
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
+// tmpfsForRecord rebuilds the record's tmpfs with $PORT expanded, which is why
+// the orchestrated path cannot simply reuse the parsed one: the port is not
+// known until the record is scheduled.
+//
+// It is a function rather than three lines inside runTest because the mode is
+// what the rebuild used to lose. AddFile derives a mode from the path's
+// EXTENSION, so a shim a test puts on PATH under a bare name (`wg`, `ip`) came
+// out 0644 however its block was written, and nothing could observe that until
+// the loop was reachable on its own.
+func tmpfsForRecord(rec *Record) *tmpfs.Tmpfs {
+	v := tmpfs.New()
+	for path, file := range rec.TmpfsFiles {
+		// Expand $PORT2 before $PORT in tmpfs content (scripts, configs)
+		s := string(file.Content)
+		s = strings.ReplaceAll(s, "$PORT2", strconv.Itoa(rec.Port+1))
+		s = strings.ReplaceAll(s, "$PORT", strconv.Itoa(rec.Port))
+		// AddFileMode, not AddFile: the record already carries the mode the
+		// block declared, and deriving one here would discard it.
+		v.AddFileMode(path, []byte(s), file.Mode)
+	}
+	return v
+}
+
 // stepKindExpect is the trace.StepResult kind for an assertion step, and
 // zeTestVerbPeer is the `ze-test peer` verb that drives the BGP peer.
 const (
@@ -106,14 +129,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Set up Tmpfs files in that same directory when the record declares any
 	// (needed by both paths).
 	if len(rec.TmpfsFiles) > 0 || len(rec.EngineSteps) > 0 {
-		v := tmpfs.New()
-		for path, content := range rec.TmpfsFiles {
-			// Expand $PORT2 before $PORT in tmpfs content (scripts, configs)
-			s := string(content)
-			s = strings.ReplaceAll(s, "$PORT2", strconv.Itoa(rec.Port+1))
-			s = strings.ReplaceAll(s, "$PORT", strconv.Itoa(rec.Port))
-			v.AddFile(path, []byte(s))
-		}
+		v := tmpfsForRecord(rec)
 		if len(rec.EngineSteps) > 0 {
 			// Contract with the .ci-declared external executor plugin:
 			// run "ze-test engine-steps ./engine-steps.json" (engine_steps.go).

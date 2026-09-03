@@ -120,7 +120,7 @@ func embeddedConfigs(rec *Record) []string {
 	}
 	for _, path := range slices.Sorted(maps.Keys(rec.TmpfsFiles)) {
 		if strings.HasSuffix(path, ".conf") {
-			configs = append(configs, string(rec.TmpfsFiles[path]))
+			configs = append(configs, string(rec.TmpfsFiles[path].Content))
 		}
 	}
 	return configs

@@ -68,9 +68,18 @@ func New() *Tmpfs {
 
 // AddFile adds a file to the Tmpfs with default mode based on extension.
 func (v *Tmpfs) AddFile(path string, content []byte) {
+	v.AddFileMode(path, content, defaultModeForPath(path))
+}
+
+// AddFileMode adds a file under the mode the caller states, for a caller that
+// already knows one. A `.ci` writing `tmpfs=<path>:mode=<octal>` states it, and
+// deriving it from the path again would lose that: defaultModeForPath reads the
+// EXTENSION, so an extensionless shim a test puts on PATH (`wg`, `ip`) can never
+// be made executable by any name it is given.
+func (v *Tmpfs) AddFileMode(path string, content []byte, mode fs.FileMode) {
 	v.Files = append(v.Files, &File{
 		Path:    path,
-		Mode:    defaultModeForPath(path),
+		Mode:    mode,
 		Content: content,
 	})
 }

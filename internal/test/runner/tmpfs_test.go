@@ -88,7 +88,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 
 	require.NotNil(t, r.TmpfsFiles, "TmpfsFiles should be populated")
 	assert.Contains(t, r.TmpfsFiles, "peer.conf")
-	assert.Contains(t, string(r.TmpfsFiles["peer.conf"]), "local-as 65533")
+	assert.Contains(t, string(r.TmpfsFiles["peer.conf"].Content), "local-as 65533")
 
 	// Verify other lines were parsed
 	assert.Equal(t, "65533", r.Extra["asn"])
@@ -196,4 +196,73 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 	assert.Empty(t, r.TmpfsFiles)
 	// Config should still be parsed from option:file
 	assert.Equal(t, confFile, r.ConfigFile)
+}
+
+// TestOrchestratedSuiteHonorsTmpfsMode is the sibling of the parse-suite test
+// above, for the path every other suite takes. The orchestrated runner cannot
+// reuse the parsed tmpfs, because $PORT is unknown until the record is
+// scheduled, so it rebuilds one; the rebuild is where a declared mode was lost.
+//
+// The executable file is named `wg`, with no extension, on purpose. A rebuild
+// that derives the mode from the path would give `driver.sh` 0755 by accident
+// and pass, so an extensionless name is the only shape that can tell the
+// declared mode from a derived one. It is also the real case: a fixture shims a
+// binary on PATH under the name the code under test looks up.
+//
+// VALIDATES: the mode a tmpfs= block declares survives parse and the
+// orchestrated rebuild, and reaches disk.
+// PREVENTS: Record.TmpfsFiles flattening to content alone, which dropped the
+// mode at the parse boundary and left tmpfsForRecord nothing but the path to
+// derive one from.
+func TestOrchestratedSuiteHonorsTmpfsMode(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	ciContent := `tmpfs=wg:mode=755:terminator=EOF_WG
+#!/bin/sh
+exit 0
+EOF_WG
+
+tmpfs=helper.sh:terminator=EOF_SH
+#!/bin/sh
+exit 0
+EOF_SH
+
+tmpfs=router.conf:terminator=EOF_CONF
+bgp {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=./wg
+expect=exit:code=0
+`
+	ciFile := filepath.Join(tmpDir, "orchestrated-mode.ci")
+	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+
+	et := NewEncodingTests(tmpDir)
+	rec, err := et.parseAndAdd(ciFile)
+	require.NoError(t, err)
+
+	// The parse boundary keeps it.
+	require.Contains(t, rec.TmpfsFiles, "wg")
+	assert.NotZero(t, rec.TmpfsFiles["wg"].Mode&0o100,
+		"the record must carry the mode the block declared, not just its bytes")
+
+	// And the rebuild the orchestrated runner performs keeps it too.
+	workDir := t.TempDir()
+	require.NoError(t, tmpfsForRecord(rec).WriteTo(workDir))
+
+	shim, err := os.Stat(filepath.Join(workDir, "wg"))
+	require.NoError(t, err)
+	assert.NotZero(t, shim.Mode().Perm()&0o100,
+		"a mode=755 shim with no extension must be executable, which is the whole point of naming it wg")
+
+	// Two controls, so the assertion above cannot pass by making everything
+	// executable: the derived default still applies where nothing was declared.
+	helper, err := os.Stat(filepath.Join(workDir, "helper.sh"))
+	require.NoError(t, err)
+	assert.NotZero(t, helper.Mode().Perm()&0o100, "a .sh path keeps its executable default")
+
+	conf, err := os.Stat(filepath.Join(workDir, "router.conf"))
+	require.NoError(t, err)
+	assert.Zero(t, conf.Mode().Perm()&0o111, "a block with no mode= and no executable extension stays non-executable")
 }
