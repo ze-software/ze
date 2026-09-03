@@ -28,6 +28,22 @@ To scope a run to one package and keep the tags, read the tag list out of
 tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
 ```
 
+## What `./le test-unit all` covers
+
+`all` runs `./...` under the feature tag set and the race detector, then each
+group whose own build tags compile its test files out of that run. Today that
+second part is the `installer` group, because `internal/install`'s tests carry
+`ze_installer` and no feature-tag run selects them.
+
+The six named verbs (`bgp`, `core`, `plugins`, `config`, `cli`, `installer`) are
+targeted SUBSETS, for iterating inside the one you changed. A green group says
+nothing about the rest of the tree. Neither did `all` until 2026-09-03, when it
+swept those six verbs and nothing else: a session that ran it read green over
+every other component and over all of `internal/le`, `internal/appliance`,
+`internal/test`, `pkg` and `cmd`.
+
+`./le test-unit` typed alone lists the verbs and starts no run.
+
 ## A functional suite is not the runner binary
 
 `./le functional <suite>` builds an isolated bare-named binary pair into the

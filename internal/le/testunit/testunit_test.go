@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,9 +15,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 const fixtureTags = "ze_core ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web"
@@ -66,50 +69,227 @@ func TestTablePinsEveryUnitGroup(t *testing.T) {
 			t.Errorf("action %s claims to write", row.Verb)
 		}
 	}
+	// The reason `all` prints is what a session reads before deciding the run
+	// covers its work, so it is pinned here with the group reasons above it.
+	wantWhy := "the whole checkout race-instrumented, then each group above whose build tags hide its tests from that run"
 	last := list.Actions[len(list.Actions)-1]
-	if last.Verb != allVerb || last.Why == "" {
-		t.Errorf("the listing ends with %#v, want %q and a reason", last, allVerb)
+	if last.Verb != allVerb || last.Why != wantWhy {
+		t.Errorf("the listing ends with %#v, want %q reasoned %q", last, allVerb, wantWhy)
 	}
 }
 
-// TestAllExpandsToEveryActionOfTheTable protects the action population and
-// order behind the one word that runs them.
-// VALIDATES: `le test-unit all` runs every table action exactly once.
-// PREVENTS: omitting an action or appending one twice.
-func TestAllExpandsToEveryActionOfTheTable(t *testing.T) {
-	called := make([]string, 0, 2)
-	command := leaction.New("fixture",
-		leaction.Action{
-			Verb: "one",
-			Why:  "first fixture action",
-			Answer: func() (any, int) {
-				called = append(called, "one")
-				return "one report", 0
-			},
-		},
-		leaction.Action{
-			Verb: "two",
-			Why:  "second fixture action",
-			Answer: func() (any, int) {
-				called = append(called, "two")
-				return "two report", 6
-			},
-		},
-	)
+// TestAllSweepsTheCheckoutThenTheTagGuardedGroups pins the population behind
+// the one word a session runs and then reads as "the unit tests passed".
+// VALIDATES: `all` runs the whole checkout, then each group whose own build
+// tags compile its test files out of that run.
+// PREVENTS: `all` narrowing to a list of component prefixes, which is the shape
+// that answered green over every package outside them.
+func TestAllSweepsTheCheckoutThenTheTagGuardedGroups(t *testing.T) {
+	want := []Group{
+		{Verb: "tree", Pattern: "./...", Race: true,
+			Why: "every package of the checkout, race-instrumented, under the feature tag set"},
+		{Verb: "installer", Pattern: "./internal/install/...", Tags: []string{"ze_installer"}, GOOS: "linux",
+			Why: "the installer initrd's own logic behind the ze_installer tag: bootstrap, console, fault, rescue, initrd (~10s)"},
+	}
+	got := allGroups()
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("the all sweep differs:\n got: %#v\nwant: %#v", got, want)
+	}
 
-	answer, code := sweep([]string{allVerb}, command)
-	if code != 6 {
-		t.Fatalf("all sweep answered %d, want 6", code)
+	// A group naming a tag outside the feature manifest compiles its own test
+	// files out of the whole-checkout run, so that run says nothing about them
+	// and the sweep carries the group as well. Deriving the set from Tags is
+	// what keeps a new tag-guarded group in the sweep with nobody remembering
+	// to put it there.
+	for _, group := range Table() {
+		if len(group.Tags) == 0 {
+			continue
+		}
+		if !slices.ContainsFunc(got, func(row Group) bool { return row.Verb == group.Verb }) {
+			t.Errorf("group %q hides its tests behind %q, and the all sweep does not run it", group.Verb, group.Tags)
+		}
 	}
-	if !reflect.DeepEqual(called, []string{"one", "two"}) {
-		t.Fatalf("all sweep calls differ: got %q, want [one two]", called)
+}
+
+// TestAllCoversEveryGoDirectoryOfTheCheckout compares the population `all` runs
+// against the directories the checkout holds, so a package no pattern selects
+// is a red rather than a silent pass.
+// VALIDATES: every Go source directory of the checkout is inside a pattern the
+// `all` sweep runs.
+// PREVENTS: `le test-unit all` answering green over packages it never compiled.
+// Six component prefixes did that to 38 of the 43 components, to every package
+// under internal/le, internal/appliance, internal/test, pkg and cmd, and it
+// took a spec whose two packages were outside all six to notice
+// (plan/journal/gate-excludes-part-of-its-population.md, 2026-09-03).
+func TestAllCoversEveryGoDirectoryOfTheCheckout(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("locate the checkout: %v", err)
 	}
-	report, ok := answer.(leaction.Sweep)
+	scratch := filepath.Join(root, "tmp")
+
+	rows := allGroups()
+	patterns := make([]string, 0, len(rows))
+	for _, group := range rows {
+		patterns = append(patterns, group.Pattern)
+	}
+
+	seen := make(map[string]bool, goDirectoryFloor)
+	uncovered := make([]string, 0)
+	walk := func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if path == root {
+				return nil
+			}
+			// No pattern selects any of these, so their absence from the sweep
+			// is not a hole. The go command itself skips a vendor directory, a
+			// testdata directory, and any name starting with a dot or an
+			// underscore. The checkout's tmp is the session scratch tree
+			// (internal/le/scratch), which holds build output rather than
+			// source and costs a walk of every artifact every session wrote.
+			name := entry.Name()
+			if path == scratch || name == "vendor" || name == "testdata" ||
+				strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(entry.Name()) != ".go" {
+			return nil
+		}
+		directory, err := filepath.Rel(root, filepath.Dir(path))
+		if err != nil {
+			return err
+		}
+		directory = filepath.ToSlash(directory)
+		if seen[directory] {
+			return nil
+		}
+		seen[directory] = true
+		if !covered(patterns, directory) {
+			uncovered = append(uncovered, directory)
+		}
+		return nil
+	}
+	if err := filepath.WalkDir(root, walk); err != nil {
+		t.Fatalf("walk the checkout: %v", err)
+	}
+
+	// A walk that found nothing would report every pattern as sufficient, so
+	// the floor is what stops this test passing over an empty population.
+	if len(seen) < goDirectoryFloor {
+		t.Fatalf("the walk found %d Go directories under %s, want at least %d: this is not the checkout", len(seen), root, goDirectoryFloor)
+	}
+	if len(uncovered) != 0 {
+		slices.Sort(uncovered)
+		t.Errorf("`le test-unit all` selects none of these %d Go directories, so it answers green without compiling them:\n%s",
+			len(uncovered), strings.Join(uncovered, "\n"))
+	}
+}
+
+// goDirectoryFloor is the smallest Go directory count this checkout can hold.
+// It was 9026 on 2026-09-03 and only grows, so the floor is a fifth of that.
+const goDirectoryFloor = 1800
+
+// covered answers whether any `go test` package pattern selects a directory,
+// both spelled relative to the module root. A pattern ending in `...` selects
+// the directory it names and every directory under it.
+func covered(patterns []string, directory string) bool {
+	for _, pattern := range patterns {
+		prefix := strings.TrimSuffix(strings.TrimPrefix(pattern, "./"), "...")
+		prefix = strings.TrimSuffix(prefix, "/")
+		if prefix == "" || directory == prefix || strings.HasPrefix(directory, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// TestAllRunsTheCheckoutThenTheTagGuardedGroups drives the word a session types
+// down to the process runner and reads the argv that arrives there.
+// VALIDATES: `le test-unit all` issues one whole-checkout race command, then one
+// command for each group whose build tags hide its tests from it, and answers
+// the first failure's own code.
+// PREVENTS: `all` running a list of component prefixes, which compiled five of
+// the 43 components and nothing under internal/le, cmd or pkg, and still
+// answered green (plan/journal/gate-excludes-part-of-its-population.md).
+func TestAllRunsTheCheckoutThenTheTagGuardedGroups(t *testing.T) {
+	tc := fixtureToolchain()
+	type command struct {
+		verb string
+		argv []string
+	}
+	issued := make([]command, 0, 2)
+	run := func(verb string, argv []string, _ string, _ []string) (gaterun.ActionReport, int) {
+		issued = append(issued, command{verb: verb, argv: slices.Clone(argv)})
+		code := 0
+		if verb == "installer" {
+			code = 5
+		}
+		return gaterun.ActionReport{Action: verb, Command: argv, Code: code}, code
+	}
+
+	result, code := answer(
+		[]string{allVerb},
+		func() (string, error) { return tc.Root, nil },
+		func(string) (gotoolchain.Toolchain, error) { return tc, nil },
+		run,
+	)
+	if code != 5 {
+		t.Fatalf("all answered %d, want the failing group's 5", code)
+	}
+
+	// The tag set is spelled out rather than asked of the toolchain, so this
+	// assertion is about the argv this package builds.
+	// TestFixtureTagsMatchTheFeatureManifest keeps that spelling current.
+	installer := []string{"go", "test", "-timeout", "20m", "-tags", "ze_core ze_installer", "./internal/install/..."}
+	if runtime.GOOS != "linux" {
+		installer = []string{"go", "vet", "-tags", "ze_core ze_installer", "./internal/install/..."}
+	}
+	want := []command{
+		{verb: "tree", argv: []string{"go", "test", "-timeout", "20m", "-tags", fixtureTags, "-race", "./..."}},
+		{verb: "installer", argv: installer},
+	}
+	if !reflect.DeepEqual(issued, want) {
+		t.Fatalf("the commands all issued differ:\n got: %#v\nwant: %#v", issued, want)
+	}
+
+	outer, ok := result.(leaction.Sweep)
 	if !ok {
-		t.Fatalf("all sweep returned %T, want leaction.Sweep", answer)
+		t.Fatalf("all returned %T, want leaction.Sweep", result)
 	}
-	if len(report.Ran) != 2 || report.Ran[0].Verb != "one" || report.Ran[1].Verb != "two" {
-		t.Errorf("structured sweep differs: %#v", report)
+	if len(outer.Ran) != 1 || outer.Ran[0].Verb != allVerb || !reflect.DeepEqual(outer.Failed, []string{allVerb}) {
+		t.Fatalf("the outer sweep differs: %#v", outer)
+	}
+	inner, ok := outer.Ran[0].Answer.(leaction.Sweep)
+	if !ok {
+		t.Fatalf("the all row answered %T, want the sweep of what it ran", outer.Ran[0].Answer)
+	}
+	if !reflect.DeepEqual(inner.Failed, []string{"installer"}) {
+		t.Errorf("the inner sweep failed %q, want the group that failed named", inner.Failed)
+	}
+}
+
+// TestFixtureTagsMatchTheFeatureManifest keeps the argv assertions in this file
+// honest. Each of them spells the tag set as fixtureTags rather than asking the
+// toolchain to build it, which is what makes them assertions about the argv
+// this package produces. That holds only while the fixture is the set the
+// checkout declares, and feature-gates.txt is where it is declared.
+func TestFixtureTagsMatchTheFeatureManifest(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("locate the checkout: %v", err)
+	}
+	features, err := featuretags.DaemonTags(root)
+	if err != nil {
+		t.Fatalf("read the feature manifest: %v", err)
+	}
+	want := strings.Join(append([]string{"ze_core"}, features...), " ")
+	if fixtureTags != want {
+		t.Errorf("fixtureTags is stale against feature-gates.txt:\n got: %q\nwant: %q", fixtureTags, want)
 	}
 }
 
@@ -178,7 +358,7 @@ func TestNamedSweepPreservesSelectionOrder(t *testing.T) {
 		return gaterun.ActionReport{Action: name, Command: argv}, 0
 	})
 
-	if _, code := sweep(selected, command); code != 0 {
+	if _, code := command.Sweep(selected, leaction.RunEveryAction); code != 0 {
 		t.Fatalf("named sweep answered %d", code)
 	}
 	want := []string{Table()[2].Verb, Table()[0].Verb, Table()[2].Verb}
@@ -259,8 +439,9 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 	}
 }
 
-// TestSweepRunsEveryGroupAndReturnsTheFirstFailure pins the sweep contract: all
-// selected groups run, while the first non-zero status wins.
+// TestSweepRunsEveryGroupAndReturnsTheFirstFailure pins the sweep contract: every
+// selected group runs, and the first non-zero status wins. It names the groups
+// rather than typing `all`, which runs the whole checkout instead of them.
 func TestSweepRunsEveryGroupAndReturnsTheFirstFailure(t *testing.T) {
 	tc := fixtureToolchain()
 	codes := map[string]int{
@@ -278,7 +459,7 @@ func TestSweepRunsEveryGroupAndReturnsTheFirstFailure(t *testing.T) {
 	}
 
 	result, code := answer(
-		[]string{allVerb},
+		groupVerbs(),
 		func() (string, error) { return tc.Root, nil },
 		func(string) (gotoolchain.Toolchain, error) { return tc, nil },
 		run,

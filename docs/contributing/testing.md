@@ -46,8 +46,10 @@ machine.
 | `./le test-unit config` | Config parsing and YANG | about 20 seconds |
 | `./le test-unit cli` | CLI component | about 10 seconds |
 | `./le test-unit installer` | Installer initrd logic behind the `ze_installer` tag | about 10 seconds |
+| `./le test-unit all` | The whole checkout, then the groups their build tags hide from it | minutes: it is every package under `-race` |
 
-Pick the group matching your change.
+Pick the group matching your change. Each group is a subset of `all`, so a
+green group says nothing about the rest of the tree.
 
 The `installer` group runs the tests on Linux. On another host `go test`
 cross-compiles a Linux binary it cannot start, so the group runs `go vet`

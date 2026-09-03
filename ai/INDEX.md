@@ -338,7 +338,7 @@ all render it.
 | `./le test-chaos` | `internal/le/testchaos.Answer` | chaos simulator tests, reduced-tag CLI tests, and lint |
 | `./le test-health` | `internal/le/testhealth.Answer` | the project's testing state as one generated page: what is measured, what is ratcheted, and which structural facts are gated |
 | `./le test-sensitivity` | `internal/le/testsensitivity.Answer` | no more tests than the committed floor pass unconditionally or sit behind a build tag nothing supplies, which no count of tests can reveal |
-| `./le test-unit` | `internal/le/testunit.Answer` | the five race-instrumented component-group Go test suites, and the installer initrd behind its own tag |
+| `./le test-unit` | `internal/le/testunit.Answer` | the five race-instrumented component-group Go test suites, the installer initrd behind its own tag, and `all`: the whole checkout under the race detector |
 | `./le test-weakened` | `internal/le/testweakened.Answer` | detect and record test weakenings against a commit baseline |
 | `./le tier` | `internal/le/tier.Answer` | module-tier placement: a config-driven engine lives in internal/component/ when a feature depends on it and in internal/plugins/ otherwise, internal/core/ imports neither, and no always-on package imports a compile-out-able feature |
 | `./le token-economy` | `internal/le/tokeneconomy.Answer` | where this repository's sessions spend their tokens: API calls, the context carried at each one, the size histogram and a capped-context counterfactual, read from the machine-local transcript store |

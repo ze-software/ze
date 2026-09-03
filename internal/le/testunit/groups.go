@@ -1,8 +1,12 @@
 // Design: docs/architecture/core-design.md -- component-group unit actions.
 // Detail: actions.go -- command dispatch and subprocess execution.
 //
-// Package testunit runs the six Go test groups: five race-instrumented
-// component groups, and the installer initrd behind the ze_installer tag.
+// Package testunit runs the Go unit tests two ways: six named component-group
+// subsets, and `all` over the whole checkout.
+//
+// A named group is the targeted subset a developer runs while working inside
+// it. The `all` verb runs every package of the checkout, then each group whose
+// own build tags compile its test files out of that run.
 package testunit
 
 import (
@@ -85,6 +89,39 @@ var groups = [...]Group{
 func Table() []Group {
 	rows := make([]Group, len(groups))
 	copy(rows, groups[:])
+	return rows
+}
+
+// tree is the population `all` runs first: every package of the checkout. It is
+// not a row of the table, because each named group is a subset of it and a
+// sweep carrying both would compile those packages twice. Its verb names the
+// run in the report and in the `==>` banner rather than being a word a
+// developer types, because a targeted subset is what the named verbs are for.
+var tree = Group{
+	Verb:    "tree",
+	Pattern: "./...",
+	Why:     "every package of the checkout, race-instrumented, under the feature tag set",
+	Race:    true,
+}
+
+// allGroups returns the groups the `all` verb runs, in execution order: the
+// whole checkout, then every group whose own build tags compile its test files
+// out of that run.
+//
+// The second part is DERIVED from Tags rather than named. A group carrying a
+// tag outside the feature manifest joins the sweep by declaring that tag, and a
+// group the whole-checkout run already reads is never compiled a second time.
+func allGroups() []Group {
+	rows := make([]Group, 0, len(groups)+1)
+	rows = append(rows, tree)
+	// The range is over the array's address: ranging the array itself copies
+	// every row before the loop starts.
+	for _, group := range &groups {
+		if len(group.Tags) == 0 {
+			continue
+		}
+		rows = append(rows, group)
+	}
 	return rows
 }
 

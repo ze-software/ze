@@ -623,7 +623,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/testhealth` | renders the project's testing state as one generated Markdown page, and gates the facts on it whose change is an EVENT |  |
 | `internal/le/testhelper` | owns long-running stdout producers used by protocol tests |  |
 | `internal/le/testsensitivity` | finds tests that cannot do their job, which no count of tests can reveal: 1 |  |
-| `internal/le/testunit` | runs the six Go test groups: five race-instrumented component groups, and the installer initrd behind the ze_installer tag |  |
+| `internal/le/testunit` | runs the Go unit tests two ways: six named component-group subsets, and `all` over the whole checkout |  |
 | `internal/le/testweakened` | detect committed and proposed test weakenings and enforce their ledgers |  |
 | `internal/le/textrepr` | renders quoted strings and lists for diagnostics |  |
 | `internal/le/tier` | provides the reverse-dependency audit and module-tier placement gate |  |

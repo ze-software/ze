@@ -1,41 +1,71 @@
 // Design: docs/architecture/core-design.md -- the unit-test area as one command
-// Overview: groups.go -- the six package groups and their order
+// Overview: groups.go -- the named package groups, and what `all` sweeps
 //
-// A bare `le test-unit` lists the groups and runs nothing. `le test-unit all`
-// runs all six. Named actions run in command-line order, and every sweep
-// returns the first failure's exit code.
+// A bare `le test-unit` lists the actions and runs nothing. `le test-unit all`
+// runs the whole checkout, then each group whose build tags hide its tests from
+// that run. Named actions run in command-line order, and every sweep returns
+// the first failure's exit code.
 package testunit
 
 import (
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-// allVerb runs every group of the table. It is dispatched beside the table
-// rather than declared in it, because a table row would appear in its own
-// expansion and would sweep itself.
+// allVerb is the word that runs the whole checkout. It is an action beside the
+// six groups rather than a row of the table, because it names no component
+// group: it runs the population those groups are subsets of.
 const allVerb = "all"
+
+// allWhy is the reason the listing and the help print for that word.
+const allWhy = "the whole checkout race-instrumented, then each group above whose build tags hide its tests from that run"
 
 type actionRunner func(string, []string, string, []string) (gaterun.ActionReport, int)
 type rootResolver func() (string, error)
 
 type toolchainLoader func(string) (gotoolchain.Toolchain, error)
 
-// table derives dispatch, listing, and help from the group table.
+// table derives dispatch, listing, and help from the group table, with `all`
+// appended as the action that runs the whole checkout.
 func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
-	groups := Table()
-	actions := make([]leaction.Action, 0, len(groups))
-	for _, group := range groups {
+	actions := actionsFor(tc, Table(), run)
+	actions = append(actions, leaction.Action{
+		Verb:   allVerb,
+		Why:    allWhy,
+		Answer: allRunner(tc, run),
+	})
+	return leaction.New(Area, actions...)
+}
+
+// actionsFor turns a group population into the actions that run it. The spare
+// slot is for the `all` action its first caller appends.
+func actionsFor(tc gotoolchain.Toolchain, rows []Group, run actionRunner) []leaction.Action {
+	actions := make([]leaction.Action, 0, len(rows)+1)
+	for _, group := range rows {
 		actions = append(actions, leaction.Action{
 			Verb:   group.Verb,
 			Why:    group.Why,
 			Answer: runner(tc, group, run),
 		})
 	}
-	return leaction.New(Area, actions...)
+	return actions
+}
+
+// allRunner runs the whole checkout, then every group whose build tags hide its
+// tests from that run. It sweeps an area of its own, so each command is
+// reported by name and the first failure's code is answered, which is what a
+// named multi-action selection already does.
+func allRunner(tc gotoolchain.Toolchain, run actionRunner) func() (any, int) {
+	return func() (any, int) {
+		actions := actionsFor(tc, allGroups(), run)
+		verbs := make([]string, 0, len(actions))
+		for _, action := range actions {
+			verbs = append(verbs, action.Verb)
+		}
+		return leaction.New(Area, actions...).Sweep(verbs, leaction.RunEveryAction)
+	}
 }
 
 // runner executes one group with the race detector's cgo requirement and the
@@ -51,23 +81,16 @@ func metadataOnly() leaction.Area {
 	return table(gotoolchain.Toolchain{}, gaterun.Run)
 }
 
-// Actions returns the command surface as structured data. The listing carries
-// `all` beside the groups, because that is where a bare command line lands and
-// where every other action states its reason.
+// Actions returns the command surface as structured data. `all` is one of the
+// area's actions, so the listing carries it beside the groups, with the reason
+// every other action states.
 func Actions() leaction.List {
-	list := metadataOnly().Actions()
-	list.Actions = append(list.Actions, leaction.Row{
-		Verb: allVerb,
-		Why:  "every group above, in table order, whatever any of them answers",
-	})
-	return list
+	return metadataOnly().Actions()
 }
 
-// Subs returns the one-line action hint for command help. `all` is appended as
-// a bare word so the hint stays a verb table a reader can complete against.
+// Subs returns the one-line action hint for command help.
 func Subs() string {
-	var tb textbuf.Buffer
-	return tb.Str(metadataOnly().Subs()).Str(" | ").Str(allVerb).String()
+	return metadataOnly().Subs()
 }
 
 // Answer is the `le test-unit` command.
@@ -97,25 +120,5 @@ func answer(args []string, resolveRoot rootResolver, loadToolchain toolchainLoad
 		return nil, 1
 	}
 
-	return sweep(args, table(tc, run))
-}
-
-// sweep expands `all` into the same action table that dispatches every named
-// selection, so the run list and the listing cannot disagree about which groups
-// "all" means. The expansion happens in place, which keeps `all` a word the
-// area holds wherever a developer types it. Gate identities remain metadata and
-// are never passed back through verb matching.
-func sweep(args []string, command leaction.Area) (any, int) {
-	rows := command.Actions().Actions
-	selected := make([]string, 0, len(args))
-	for _, name := range args {
-		if name != allVerb {
-			selected = append(selected, name)
-			continue
-		}
-		for _, row := range rows {
-			selected = append(selected, row.Verb)
-		}
-	}
-	return command.Sweep(selected, leaction.RunEveryAction)
+	return table(tc, run).Sweep(args, leaction.RunEveryAction)
 }

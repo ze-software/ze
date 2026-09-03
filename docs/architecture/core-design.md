@@ -103,6 +103,24 @@ so a ratchet that started a mutation run or an interop scenario would put that
 cost on every session in the checkout. A gate area MAY therefore carry a verb
 that executes, and the ratchet it feeds MUST NOT.
 
+**`le test-unit` runs Go tests two ways, and only one of them is a verdict about
+the checkout.** The six named verbs are targeted subsets a developer runs while
+working inside one of them: `bgp`, `core`, `plugins`, `config`, `cli` and
+`installer`. `all` runs `./...`, so a package outside every named group is
+compiled and its tests run. It then runs each group whose own build tags compile
+its test files out of that pass, which `allGroups` derives from the group's
+`Tags` field rather than from a second list. Today that is `installer`: every
+`_test.go` under `internal/install/` carries `ze_installer`, so the whole-checkout
+pass compiles those packages with the files excluded and says nothing about them.
+
+A named group is a SUBSET of `./...`, never a share of it. `all` swept the six
+named verbs until 2026-09-03, which left every component but five, and all of
+`internal/le`, `internal/appliance`, `internal/test`, `pkg` and `cmd`, outside
+every pattern it ran. A session that typed it and read green had tested none of
+them. `TestAllCoversEveryGoDirectoryOfTheCheckout` walks the checkout and refuses
+a population that leaves a Go directory out, so the day a component is created is
+the day `all` covers it.
+
 **The closed vocabularies the gate reads are EXPORTED, and every publisher of a
 verdict reads them rather than spelling one.** The polarities, the annotation
 kinds, the five audit verdicts with the sentence each one means, the four
@@ -116,6 +134,7 @@ set, which is where the verdict vocabulary drifted before the schema existed.
 The retired auxiliary tooling tree has no current role. Data fixtures live
 under the `testdata/` directory of the Go package that owns them.
 
+<!-- source: internal/le/testunit/groups.go -- allGroups -->
 <!-- source: internal/le/rfc/check.go -- Check -->
 <!-- source: internal/le/rfc/discriminate_action.go -- recordDiscrimination -->
 <!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch, usageSections, helpNode -->

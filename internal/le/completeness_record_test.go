@@ -179,6 +179,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-unit-plugins-test", Area: "test-unit", Verb: "plugins"},
 	{Target: "ze-unit-config-test", Area: "test-unit", Verb: "config"},
 	{Target: "ze-unit-cli-test", Area: "test-unit", Verb: "cli"},
+	{Target: "ze-unit-test", Area: "test-unit", Verb: "all", Note: "the verb runs the whole checkout under the race detector, which is the package population this target passed as ZE_PACKAGES, and then the installer group its own build tags hide from that run"},
 	{Target: "ze-unit-hook-test", Area: "hook-check", Verb: "unit"},
 	{Target: "ze-unit-test-changed", Area: "verify deps", Verb: "unit-race-changed", Note: "the stage races the changed groups and the rest complement; `le changed packages` is the derivation the target shelled out for"},
 	{Target: "ze-unit-installer-test", Area: "test-unit", Verb: "installer", Note: "the group carries the target's own GOOS=linux and ze_core ze_installer tags, runs the tests on Linux and type-checks them elsewhere, and is in the bare sweep as the target was a prerequisite of ze-unit-test; `le qemu all-tests` runs them for real off Linux"},
@@ -563,10 +564,6 @@ var retiredProducers = []retiredProducer{
 	{
 		Target: "ze-netns-plugin-test",
 		Reason: "absorbed: the three capability-needing plugin cases run in the privileged QEMU guest that allTestsRun.Execute drives (internal/le/qemu/alltests.go, the plugin row of vmSuites), so no host-side netns wrapper remains",
-	},
-	{
-		Target: "ze-unit-test",
-		Reason: "absorbed: the whole-tree race pass is the five component groups a bare `le test-unit` sweeps (internal/le/testunit.sweep) beside the full non-race pass of `le verify deps unit-cached`, so one ZE_PACKAGES command has no separate identity",
 	},
 	{
 		Target: "ze-unit-rest-test",
