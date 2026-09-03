@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -109,12 +110,12 @@ func waitFixtureProcess(ctx context.Context, process *fixtureProcess, timeout ti
 	}
 }
 
+// vppWorkPaths creates the scratch directory that holds the stub socket. It
+// uses the system temporary directory rather than the runner's work directory,
+// because the runner nests that one inside the checkout and an AF_UNIX path is
+// limited to 108 bytes.
 func vppWorkPaths(prefix string) (string, string, string, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", "", "", err
-	}
-	dir, err := os.MkdirTemp(cwd, prefix)
+	dir, err := os.MkdirTemp("", prefix)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -146,20 +147,30 @@ func startVPPZe(ctx context.Context, config string, values map[string]string) (*
 	return startFixtureProcess(ctx, miscEnvironment(values), config, "ze", "-")
 }
 
-func vppLogMatches(path string, predicate func(map[string]any) bool) bool {
+// vppLogMatches reports whether any line of the stub log satisfies the
+// predicate. A log the stub has not created yet is not a match and not an
+// error, because the caller polls for it. Every other failure is an error, so
+// that an unreadable log is never read as an absent message.
+func vppLogMatches(path string, predicate func(map[string]any) bool) (bool, error) {
 	file, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
 	if err != nil {
-		return false
+		return false, fmt.Errorf("open stub log %s: %w", path, err)
 	}
 	defer file.Close() //nolint:errcheck // read-only fixture evidence
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		var entry map[string]any
 		if json.Unmarshal(scanner.Bytes(), &entry) == nil && predicate(entry) {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	if err := scanner.Err(); err != nil {
+		return false, fmt.Errorf("read stub log %s: %w", path, err)
+	}
+	return false, nil
 }
 
 func vppBootDriver(ctx context.Context, args []string) error {
@@ -184,11 +195,17 @@ func vppBootDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	var scanErr error
 	seen := Poll(ctx, 50, 100*time.Millisecond, func() bool {
-		return vppLogMatches(log, func(entry map[string]any) bool { return entry["msg"] == "sockclnt_create" })
+		matched, err := vppLogMatches(log, func(entry map[string]any) bool { return entry["msg"] == "sockclnt_create" })
+		scanErr = err
+		return matched || err != nil
 	})
 	connected := Poll(ctx, 50, 100*time.Millisecond, func() bool { return strings.Contains(ze.output.String(), "GoVPP connected") })
 	stopFixtureProcess(ze, 3*time.Second)
+	if scanErr != nil {
+		return scanErr
+	}
 	if !seen {
 		return errors.New("stub did not log sockclnt_create")
 	}
@@ -208,7 +225,7 @@ func vppRouteConfig(socket string, mpls, observer bool) string {
 	process := ""
 	if observer {
 		plugin = "plugin { external lookup-test { run \"ze-test fixture vpp/vpp-fib-route-lookup-observer\"; encoder json; } }\n"
-		process = "process lookup-test { }"
+		process = "attach process lookup-test { }"
 	}
 	fib := "\nfib { vpp { enabled true; } }\n"
 	if observer {
@@ -262,8 +279,9 @@ func runVPPRouteProgramming(ctx context.Context, args []string, mpls bool) error
 	if mpls {
 		prefix = "10.30.0.0/24"
 	}
+	var scanErr error
 	ok := Poll(ctx, 120, 100*time.Millisecond, func() bool {
-		return vppLogMatches(log, func(entry map[string]any) bool {
+		matched, err := vppLogMatches(log, func(entry map[string]any) bool {
 			if entry["msg"] != "ip_route_add_del" {
 				return false
 			}
@@ -282,8 +300,13 @@ func runVPPRouteProgramming(ctx context.Context, args []string, mpls bool) error
 			}
 			return false
 		})
+		scanErr = err
+		return matched || err != nil
 	})
 	stopFixtureProcess(ze, 3*time.Second)
+	if scanErr != nil {
+		return scanErr
+	}
 	if !ok {
 		if data, readErr := os.ReadFile(log); readErr == nil { //nolint:gosec // the path is the fixture's own scratch file
 			fmt.Fprintf(os.Stderr, "--- stub log ---\n%s--- end ---\n", data)

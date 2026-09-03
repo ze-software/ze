@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -46,10 +48,17 @@ func init() {
 	Register("plugin/vpp-loopback-reapply", plugin16VPPReapply)
 }
 
-func plugin16ReadVPPLog(path string) []plugin16VPPEntry {
+// plugin16ReadVPPLog reads the entries the stub has written so far. A log the
+// stub has not created yet is empty and not an error, because the caller polls
+// for it. Every other failure is an error, so that an unreadable log is never
+// read as a message the plugin failed to send.
+func plugin16ReadVPPLog(path string) ([]plugin16VPPEntry, error) {
 	file, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("open stub log %s: %w", path, err)
 	}
 	defer file.Close() //nolint:errcheck // fixture teardown
 	entries := make([]plugin16VPPEntry, 0, 16)
@@ -57,17 +66,26 @@ func plugin16ReadVPPLog(path string) []plugin16VPPEntry {
 	for scanner.Scan() {
 		var entry plugin16VPPEntry
 		if json.Unmarshal(scanner.Bytes(), &entry) != nil {
+			// The stub appends while this runs, so the last line can be half
+			// written. Stop here and let the next poll read it whole.
 			break
 		}
 		entries = append(entries, entry)
 	}
-	return entries
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("read stub log %s: %w", path, err)
+	}
+	return entries, nil
 }
 
-func plugin16WaitVPPMessage(ctx context.Context, path, name string, attempts int) []plugin16VPPEntry {
+func plugin16WaitVPPMessage(ctx context.Context, path, name string, attempts int) ([]plugin16VPPEntry, error) {
 	var entries []plugin16VPPEntry
+	var readErr error
 	Poll(ctx, attempts, 50*time.Millisecond, func() bool {
-		entries = plugin16ReadVPPLog(path)
+		entries, readErr = plugin16ReadVPPLog(path)
+		if readErr != nil {
+			return true
+		}
 		for _, entry := range entries {
 			if entry.Message == name {
 				return true
@@ -75,7 +93,7 @@ func plugin16WaitVPPMessage(ctx context.Context, path, name string, attempts int
 		}
 		return false
 	})
-	return entries
+	return entries, readErr
 }
 
 func plugin16StartProcess(cmd *exec.Cmd) (<-chan error, error) {
@@ -179,13 +197,15 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 		logFile.Close() //nolint:errcheck // fixture teardown
 		return fmt.Errorf("start ze: %w", err)
 	}
-	var entries []plugin16VPPEntry
 	defer func() {
 		plugin16StopProcess(ze, zeDone)
 		logFile.Close() //nolint:errcheck // fixture teardown
 	}()
 
-	entries = plugin16WaitVPPMessage(ctx, requestLog, "create_loopback", 800)
+	entries, err := plugin16WaitVPPMessage(ctx, requestLog, "create_loopback", 800)
+	if err != nil {
+		return err
+	}
 	foundCreate := false
 	for _, entry := range entries {
 		if entry.Message == "create_loopback" {
@@ -202,7 +222,10 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	if err := ze.Process.Signal(syscall.SIGHUP); err != nil {
 		return fmt.Errorf("reload ze: %w", err)
 	}
-	entries = plugin16WaitVPPMessage(ctx, requestLog, "sw_interface_add_del_address", 800)
+	entries, err = plugin16WaitVPPMessage(ctx, requestLog, "sw_interface_add_del_address", 800)
+	if err != nil {
+		return err
+	}
 
 	creates := make([]plugin16VPPEntry, 0, 2)
 	adds := make([]plugin16VPPEntry, 0, 2)
