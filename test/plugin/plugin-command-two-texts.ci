@@ -1,0 +1,80 @@
+# Test: a plugin's two help texts survive the Stage 1 declaration intact
+#
+# VALIDATES: a CommandDecl carrying description and long-help reaches the
+#            registry a plugin can read with each text under its own key, a
+#            command declaring only a summary keeps it, and no entry carries
+#            the key retired on 2026-09-03.
+# PREVENTS: the crossing MergeCommandPaths used to copy across, where a
+#           half-filled node took the wrong half, and the silent decode of a
+#           retired key to the zero value, which would leave a reader unable to
+#           tell an empty summary from a command that declares none
+#           (ai/rules/principles.md).
+#
+# SCOPE, measured rather than assumed. The fixture asks for `system command
+# list` from inside the plugin process, and that answer is served from the
+# registry copy `ze-plugin-callback:share-registry` pushed to the plugin at
+# stage 4. It is NOT the answer commandRows (internal/component/plugin/server/
+# system.go) builds for an operator's client: crossing Description and LongHelp
+# in either branch of commandRows leaves this test green, while changing the
+# text the plugin DECLARES turns it red. So this test binds the declaration to
+# the plugin-visible registry and nothing further.
+#
+# The operator-facing half of the same claim is covered by
+# test/ui/command-help-both-texts.ci and test/ui/command-help-explanation-box.ci,
+# which drive the real client and were each forced red at their own renderer.
+# plan/journal/green-that-could-not-have-been-red.md carries the finding that
+# these are two producers of one answer.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# The fixture registers one command with both texts and one with the summary
+# alone, then reads its own entries back out of the shared registry.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external two-texts-test {
+        run "ze-test fixture plugin/plugin-command-two-texts"
+        encoder json
+    }
+}
+
+bgp {
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

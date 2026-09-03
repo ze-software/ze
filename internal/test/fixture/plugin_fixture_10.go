@@ -71,6 +71,17 @@ func init() {
 			}},
 			setup: fixture10CompletionSetup, scenario: fixture10CommandCompletion,
 		},
+		// One command declares both texts and one declares the summary alone,
+		// so the answer proves each half reaches its own surface AND that an
+		// absent long text is not read as an absent summary.
+		"plugin/plugin-command-two-texts": {
+			pluginName: "two-texts-test",
+			registration: sdk.Registration{Commands: []sdk.CommandDecl{
+				{Name: cmdShowTestTwoTextsBoth, Description: twoTextsSummary, LongHelp: twoTextsLong},
+				{Name: cmdShowTestTwoTextsSummary, Description: twoTextsSummaryOnly},
+			}},
+			setup: fixture10TwoTextsSetup, scenario: fixture10CommandTwoTexts,
+		},
 	}
 	// Each closure keeps its own copy of the driver, so the value is copied
 	// deliberately rather than indexed.
@@ -893,6 +904,90 @@ func fixture10CommandCompletion(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("completion entries: visible=%d hidden=%d, want one each", visibleCount, hiddenCount)
 	}
 	fmt.Fprintln(os.Stderr, "OK: plugin commands in system command list, hidden flag correct, no duplicates")
+	return nil
+}
+
+// The two texts a plugin declares, and the summary of the command that
+// declares no explanation. Each one is distinctive, so an assertion that finds
+// it in the wrong field names a real crossing rather than a coincidence.
+const (
+	twoTextsSummary     = "Report the two-text fixture counters."
+	twoTextsLong        = "A counter is reset when the plugin restarts, so a gap in the series is a restart rather than a loss."
+	twoTextsSummaryOnly = "Report the fixture counters that declare no explanation."
+)
+
+func fixture10TwoTextsSetup(plugin *sdk.Plugin) {
+	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
+		switch command {
+		case cmdShowTestTwoTextsBoth:
+			return statusDone, map[string]any{"result": "both-ok"}, nil
+		case cmdShowTestTwoTextsSummary:
+			return statusDone, map[string]any{"result": "summary-ok"}, nil
+		default:
+			return statusError, nil, fmt.Errorf("unknown command %q", command)
+		}
+	})
+}
+
+// fixture10CommandTwoTexts proves a plugin's two help texts each reach the
+// surface that reads them, and that the key retired on 2026-09-03 is gone.
+//
+// VALIDATES: the summary rides under `description` and the explanation under
+// `long-help`, a command declaring no explanation still carries its summary,
+// and no row carries the retired `help` key.
+// PREVENTS: the crossing MergeCommandPaths used to copy across, where one field
+// took the other's text, and a silent decode of a retired key to the zero value
+// (ai/rules/principles.md).
+func fixture10CommandTwoTexts(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
+		return err
+	}
+	data, err := fixture10Object(fixture10Call(ctx, plugin, "system command list"), "system command list")
+	if err != nil {
+		return err
+	}
+	commands, ok := data["commands"].([]any)
+	if !ok || len(commands) < 100 {
+		return fmt.Errorf("system command list: too few commands or wrong shape: %T len=%d", data["commands"], len(commands))
+	}
+
+	var bothSeen, summarySeen int
+	for _, raw := range commands {
+		command, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		// The retired key is refused on every row, not only on the two this
+		// fixture declares: one row carrying it means the daemon and the client
+		// disagree about the wire.
+		if _, retired := command["help"]; retired {
+			return fmt.Errorf("row %v carries the retired key \"help\"; the summary is published under \"description\"", command["value"])
+		}
+		switch command["value"] {
+		case cmdShowTestTwoTextsBoth:
+			bothSeen++
+			if got, _ := command["description"].(string); got != twoTextsSummary {
+				return fmt.Errorf("description = %q, want the declared summary %q", got, twoTextsSummary)
+			}
+			if got, _ := command["long-help"].(string); got != twoTextsLong {
+				return fmt.Errorf("long-help = %q, want the declared explanation %q", got, twoTextsLong)
+			}
+		case cmdShowTestTwoTextsSummary:
+			summarySeen++
+			if got, _ := command["description"].(string); got != twoTextsSummaryOnly {
+				return fmt.Errorf("description = %q, want the declared summary %q", got, twoTextsSummaryOnly)
+			}
+			// The zero value of the explanation must not be read as an absent
+			// summary: the row keeps its description and simply states none.
+			if got, _ := command["long-help"].(string); got != "" {
+				return fmt.Errorf("long-help = %q, want none for a command that declares none", got)
+			}
+		}
+	}
+	if bothSeen != 1 || summarySeen != 1 {
+		return fmt.Errorf("rows found: both=%d summary-only=%d, want one each", bothSeen, summarySeen)
+	}
+	fmt.Fprintln(os.Stderr, "OK: each declared text reached its own key, and no row carries the retired one")
 	return nil
 }
 

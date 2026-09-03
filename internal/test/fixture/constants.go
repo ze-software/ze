@@ -191,6 +191,8 @@ const (
 	cmdShowPipehelpCounters      = "show pipehelp counters"
 	cmdShowTestCompletionHidden  = "show test-completion hidden"
 	cmdShowTestCompletionVisible = "show test-completion visible"
+	cmdShowTestTwoTextsBoth      = "show test-twotexts both"
+	cmdShowTestTwoTextsSummary   = "show test-twotexts summary"
 	cmdShowVersion               = "show version"
 	cmdWatchdogWithdrawDNSR      = "request bgp watchdog withdraw dnsr"
 	flagFragment                 = "--fragment"
