@@ -231,7 +231,7 @@ is out of scope) and testing each stem for `rfc/extraction/<stem>.json`,
 | Rows whose Status cell reads `Yes` (RFC 1997) | 1 |
 | **Total rows claiming support** | **50** |
 | Already signed off (`rfc2545`, `rfc3765`, `rfc4486`, `rfc5301`) | 4 |
-| **In scope** | **46**, of which 2 (`rfc2918`, `rfc4760`) are delivered by `plan/spec-fixit-rfc-drain-quota-never-armed.md`, leaving **44** for this spec |
+| **In scope** | **46**, of which 2 (`rfc2918`, `rfc4760`) are delivered by `spec-fixit-rfc-drain-quota-never-armed`, leaving **44** for this spec |
 
 **A scope-qualified `Supported` is in scope.** "Supported on Linux", "Supported for
 subscriber access" and "Supported within BMP sender scope" each promise the RFC is met
@@ -254,7 +254,7 @@ These need a walk and nothing else.
 | 1 - authentication and cryptography | `rfc2865`, `rfc2866`, `rfc2869`, `rfc5176`, `rfc2759`, `rfc3748`, `rfc4301`, `rfc4303`, `rfc3948` |
 | 2 - session establishment, identity, liveness | `rfc6286`, `rfc5492`, `rfc9234`, `rfc8203`, `rfc9003`, `rfc7947` |
 | 3 - monitoring, export, validation feeds | `rfc8671`, `rfc9069`, `rfc6396`, `rfc6811`, `rfc9582` |
-| 4 - BGP wire core, families, attributes | `rfc7313`, `rfc7911`, `rfc8654`, `rfc8950`, `rfc5549`, `rfc1997`, `rfc4360`, `rfc8092`, `rfc4456`, `rfc4364`, `rfc3032`, `rfc4761`. `rfc4760` and `rfc2918` belong to this tier and are signed by `plan/spec-fixit-rfc-drain-quota-never-armed.md`, so this spec does NOT walk them: a second walk over a signed stem trips the exclusion ratchet |
+| 4 - BGP wire core, families, attributes | `rfc7313`, `rfc7911`, `rfc8654`, `rfc8950`, `rfc5549`, `rfc1997`, `rfc4360`, `rfc8092`, `rfc4456`, `rfc4364`, `rfc3032`, `rfc4761`. `rfc4760` and `rfc2918` belong to this tier and are signed by `spec-fixit-rfc-drain-quota-never-armed`, so this spec does NOT walk them: a second walk over a signed stem trips the exclusion ratchet |
 | 5 - provisioning, DNS, file transfer | `rfc7534`, `rfc7535`, `rfc4578`, `rfc1350`, `rfc2347` |
 
 ### Class B: no summary, no source text, no disposition (7)
@@ -399,10 +399,10 @@ text, or `checkUnprovenSupport` refuses it.
 | A-5 | Adding `checkSupportedSignoff` after the 46 land leaves the gate green | the check's population is exactly the 46 plus the 4 already signed, PROVIDED the check uses its own narrow predicate | the gate reds on landing and blocks unrelated commits | land the check in the final phase only, and run `./le verify worktree` on the commit that adds it | **conditional, and the condition was nearly missed** |
 | A-6 | The new check MUST NOT reuse `statusIsSupportClaim` | read 2026-08-31 at the producer: `statusIsSupportClaim` (`internal/le/rfc/check_status.go`) returns true for every status except the literals `Unsupported` and `Future`, so it passes `Partial` (64 rows), `Experimental` (29) and `Not supported` (1) -- 144 of 152 rows, not 50 | reusing it makes the check's population 144, the gate reds on ~143 rows at landing, and A-5 is false | a second predicate with a distinct name beside it, and `TestCheckSupportedSignoffIgnoresUnsupportedAndFuture` asserts `Partial` and `Experimental` produce nothing, which a test covering only the two literals would not catch | **confirmed; Files to Modify corrected** |
 | A-7 | `./le rfc check` reaching exit 0 is not the only gate the new check must satisfy | `runRealTreeSelftest` (`internal/le/rfc/selftest_core.go`) asserts `code == 0` from `Check` over the ACTUAL checkout, so a check wired into `check()` before its data lands reds `./le rfc selftest` as well | wiring the check early blocks every session committing in this shared checkout | Phase 1 writes the check and tests it LEAF-DIRECTLY with hand-built maps, and does not call it from `check()`. Phase 8 wires it | **confirmed** |
-| A-8 | `rfc2918` and `rfc4760` are delivered by another live spec, not by this one | `plan/spec-fixit-rfc-drain-quota-never-armed.md` (session `rfc-drain`) is signing `rfc1877`, `rfc2918`, `rfc4760`, `rfc5880`; three artifacts are already on disk untracked and `./le rfc extraction-status` backlog moved 165 -> 162 | a second walk over a signed stem trips the exclusion ratchet and costs a `resign-reason` | this spec walks 44 stems; Tier 4 and Phase 5 name the two exclusions. Re-confirm at closure that both are signed | **confirmed by direct message and by `rfc/extraction/` on disk** |
+| A-8 | `rfc2918` and `rfc4760` are delivered by another live spec, not by this one | `spec-fixit-rfc-drain-quota-never-armed` (session `rfc-drain`) is signing `rfc1877`, `rfc2918`, `rfc4760`, `rfc5880`; three artifacts are already on disk untracked and `./le rfc extraction-status` backlog moved 165 -> 162 | a second walk over a signed stem trips the exclusion ratchet and costs a `resign-reason` | this spec walks 44 stems; Tier 4 and Phase 5 name the two exclusions. Re-confirm at closure that both are signed | **confirmed by direct message and by `rfc/extraction/` on disk** |
 | A-10 | The scope is a ROW count, and the check's population is a STEM map; they are not the same number | measured 2026-08-31 by `TestSupportedRowsHaveDerivableScope`, which asserts both: 50 support-promising ROWS in the eight RFC tables (37 exact, 12 qualified, 1 `Yes`), and 53 support-promising STEMS in the whole keyed map. `53 = 50 - 1 + 4`: minus `rfc2759`, whose promise a later `Partial` row overwrites, plus the four promises in the ninth table | a count-bearing AC states the wrong denominator and the Phase 8 population is a surprise | both numbers are asserted mechanically by that test, so neither can drift unnoticed | **confirmed; AC-11 and AC-12 added** |
 | A-11 | The seventh planned unit test would be a third copy of a fact the package already declares twice | `TestCreditIsScopedToTheEnrolledSet` (`internal/le/rfc/extraction_test.go`) drives `credited` with hand-built maps and asserts an enrolled stem counts while an unenrolled one does not; `TestACompletedSignOffIsNeverSilentlyUncounted` (`internal/le/rfc/extraction_create_test.go`) pins the six-versus-seven discrepancy by name and asserts `credited` and `uncredited` partition the valid set. Both verified present 2026-08-31 | a third declaration of one fact, which `ai/rules/principles.md` bans: every fact is declared once and every other surface derives from it | the TDD row now points at the two existing tests instead of naming a new one | **confirmed; TDD plan corrected** |
-| A-9 | `rate 0` holds in `rfc/drain-budget.txt` for the life of this spec | AC-9 asserts it | `plan/spec-fixit-rfc-drain-quota-never-armed.md` exists to ARM that rate and is awaiting Thomas's answer. If he arms it, AC-9 becomes false through no act of this spec | AC-9 is rewritten to say this spec does not CHANGE the rate, rather than that the rate is 0 | **at risk from the concurrent spec** |
+| A-9 | `rate 0` holds in `rfc/drain-budget.txt` for the life of this spec | AC-9 asserts it | `spec-fixit-rfc-drain-quota-never-armed` exists to ARM that rate and is awaiting Thomas's answer. If he arms it, AC-9 becomes false through no act of this spec | AC-9 is rewritten to say this spec does not CHANGE the rate, rather than that the rate is 0 | **at risk from the concurrent spec** |
 
 **A-1 as re-derived in phase 1 (2026-08-30).** The 53-row scope table is confirmed: the
 eight RFC tables carry 39 rows reading exactly `Supported`, 13 scope-qualified
@@ -468,7 +468,7 @@ tables above, so this note records the delta and changes no count in place.
 | AC-6 | A test tree carries a `Supported` ledger row whose stem has no valid sign-off | `./le rfc check` reports a violation naming the stem, the row's Status, and the missing artifact path |
 | AC-7 | A test tree carries a `Supported` ledger row naming an RFC with no `rfc/short/` summary | `./le rfc check` reports a violation naming the stem, closing the hole `checkUnprovenSupport` discloses in its own error text |
 | AC-8 | A walk finds an obligation Ze does not meet | the phase report names the requirement id, quotes the RFC sentence, names the producing function, and records the question put to Thomas. No `{gap}`, `{not-applicable}` or `partial` annotation is written for it without his answer |
-| AC-9 | `rfc/drain-budget.txt` is read at closure | this spec has not CHANGED it. Arming the quota belongs to `plan/spec-fixit-rfc-drain-quota-never-armed.md`, which may land a non-zero `rate` while this spec runs, so the assertion is on this spec's diff and not on the file's value (A-9) |
+| AC-9 | `rfc/drain-budget.txt` is read at closure | this spec has not CHANGED it. Arming the quota belongs to `spec-fixit-rfc-drain-quota-never-armed`, which may land a non-zero `rate` while this spec runs, so the assertion is on this spec's diff and not on the file's value (A-9) |
 | AC-10 | `ai/RFC-REQUIREMENTS.md` is read at closure | it is regenerated, and its per-RFC exclusion ratio is present for all 46 new sign-offs |
 
 ## End-to-End User Stories
@@ -725,7 +725,7 @@ tables above, so this note records the delta and changes no count in place.
   unbounded, and each already discloses to a reader that the RFC is not fully met, so a
   missing checklist line there is incomplete disclosure rather than a false promise. They
   remain covered by row D4 of `plan/deferrals/rfcgate-0-umbrella.md`.
-- **It does not arm `rfc/drain-budget.txt`.** This spec leaves the rate alone; `plan/spec-fixit-rfc-drain-quota-never-armed.md` owns arming it. Arming it is a one-line
+- **It does not arm `rfc/drain-budget.txt`.** This spec leaves the rate alone; `spec-fixit-rfc-drain-quota-never-armed` owns arming it. Arming it is a one-line
   owner edit and the natural follow-on once this spec measures real throughput per tier,
   which is what owner decision D5 said the first batch was for. The measurement each
   phase report carries (stems per session, obligations found per stem) is the input to
@@ -863,7 +863,7 @@ does not copy them.
 
 | Stem | Sites | Classified | Why it cannot sign | Owner decision owed |
 |------|-------|------------|--------------------|---------------------|
-| `rfc3748` | 103 in 57 sections | 75 | 28 have no honest disposition; 7 belong to `plan/spec-eap-notification-and-nak.md`, itself blocked on its D-1 and D-2 | Whether a peer that accepts a canned EAP-Success is fixed here or there. The `rfc3748` row of `rfc/enrolled.txt` also publishes a non-conformance as MET |
+| `rfc3748` | 103 in 57 sections | 75 | 28 have no honest disposition; 7 belong to `spec-eap-notification-and-nak`, itself blocked on its D-1 and D-2 | Whether a peer that accepts a canned EAP-Success is fixed here or there. The `rfc3748` row of `rfc/enrolled.txt` also publishes a non-conformance as MET |
 | `rfc9069` | 29 in 33 sections | 7 | 22 held sites are obligations `rfc/short/rfc9069.md` declares no row for | Whether the §5.2.1 VRF/Table Name TLV is owed on the default Loc-RIB instance. That one decision resolves 10 of the 22 |
 | `rfc9582` | 14 | 0 | The summary describes a different document | Lower the public row, or re-attribute the work to `draft-ietf-sidrops-8210bis` and enrol it. Both routes hit a gate wall (R-7) |
 | `rfc5176` | 72 in 28 sections | 72 | SIGNED 2026-09-01: 44 mapped, 28 excluded, ratio 0.39 | Answered by implementing. The 20 unmet MUSTs landed in `fe51839da`, so the `Supported for subscriber access` row stands. One residual is reported, not closed: see row 9 of the rfc5176 findings table |

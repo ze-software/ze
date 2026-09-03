@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | done |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Deferral shard | `-` (create `plan/deferrals/fixit-rfc-drain-quota-never-armed.md` on the first deferral) |
 | Handoff | - |
-| Updated | 2026-08-31 |
+| Updated | 2026-09-03 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -531,3 +531,176 @@ comment is owed. The four walks classify existing RFC text and add no requiremen
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Four RFC extraction sign-offs walked end to end and landed: `rfc/extraction/rfc1877.json` (`manual-walk`, 0 sites, 6 sections), `rfc/extraction/rfc2918.json` (`prose`, 5 sites, 10 sections), `rfc/extraction/rfc4760.json` (`rfc2119`, 9 sites, 15 sections), `rfc/extraction/rfc5880.json` (`rfc2119`, 128 sites, 53 sections). Registers, site counts and section counts match the WP-2 table exactly.
+- Eight unit tests over the drain arithmetic, which had none: `TestRFCCheckReportsTheDrainFloorViolation` in `internal/le/rfc/check_test.go`, and `TestRequiredFloorExcludesTheIncompleteMonth`, `TestRequiredFloorClampsTheAnniversaryToTheShortMonth`, `TestRequiredFloorCapsAtTheEnrolledSet`, `TestParseDrainBudgetRefusesAnAbsentFile`, `TestParseDrainBudgetRefusesAStemRow`, `TestParseDrainBudgetRefusesANegativeRate` and `TestTheDrainFloorRefusesARateTheEnrolledSetCannotMeet` in `internal/le/rfc/extraction_test.go`.
+- The measurement, the proposed rate, the floor table and the owner ruling recorded in the WP-2 section above, in `rfc/drain-budget.txt`'s comment, and in `docs/contributing/rfc-conformance-gates.md` "The drain schedule".
+- `rfc/drain-budget.txt`: `start` moved from 2026-07-29 to 2026-08-31. `rate` unchanged at 0 by owner ruling.
+- No production code changed. `requiredFloor`, `parseDrainBudget` and `checkDrainFloor` (`internal/le/rfc/check_extraction.go`) matched the hand-computed calendar in every case, so A-3 needed no repair.
+
+### Bugs Found/Fixed
+- `rfc/short/rfc2918.md` tagged `RFC2918-3-4` `[MUST]` over text reading "Reserved field MUST be ignored by the receiver", while RFC 2918 Section 3 states one modal over both conjuncts ("Should be set to 0 by the sender and ignored by the receiver"). Raised to Thomas as a which-way question because `Requirement.Gated` (`internal/le/rfc/rfc.go`) reads that tag, so correcting it changes what the gate demands. He ruled retag. The row now reads `[SHOULD]`, and `TestRFC2918ReservedOctetIgnoredOnReceive` and `TestRFC2918ReservedOctetDoesNotExemptTheMessage` (`internal/component/bgp/reactor/rfc2918_reserved_field_test.go`) bind it in both polarities. Journal row: `plan/journal/claim-outlives-the-evidence-it-cites.md`, 2026-08-31.
+- `rfc/short/rfc1877.md` attributes an observation to "RFC 1877 Section 3", a section RFC 1877 does not have. Recorded, not fixed: AC-8 barred this spec from editing `rfc/short/`. Journal row: `plan/journal/reference-checked-claim-unchecked.md`, 2026-08-31.
+- One `goimports` finding in `internal/le/rfc/carriers.go` that `gofmt -l` cannot see. Recorded, not fixed: the fix restales the digest `TestNativeImplementationFixture` pins, and that constant was red from a second session's in-flight file. Journal row: `plan/journal/lint-contract-not-applied.md`, 2026-08-31.
+- Closure found `plan/spec-rfcgate-6-supported-extraction-signoff.md` citing a spec that commit `c6473c287f` removed. `./le spec citation` was red at HEAD over it. Fixed here, in the same file and the same edit as this spec's own six citations: the citation is now the bare stem. Journal row appended to `plan/journal/closure-deletes-a-cited-document.md`.
+
+### Documentation Updates
+- `docs/contributing/rfc-conformance-gates.md`, "The drain schedule": states the ruling, the trigger in Thomas's words, why coverage and sign-off measure different things, and that the arithmetic now carries unit tests. Landed in commits `3f6d6f6650` and `9b343858a7`, with the code.
+- `rfc/drain-budget.txt`'s comment carries the measurement, the ruling and the trigger, so the policy file states its own status.
+- `./le spec citation anchors spec plan/spec-fixit-rfc-drain-quota-never-armed.md` exits 0 and names no page, so no `<!-- source: -->` anchor points at anything this spec changed (Documentation Update Checklist row 16).
+- `rfc/extraction/README.md` does not quote `rate 0`: a grep for it over that file returns nothing (row 17).
+
+### Deviations from Plan
+- **AC-9 and AC-10 do not apply.** Both are conditioned on "the rate is armed". Thomas ruled on 2026-08-31 that the rate STAYS at 0 until the first enrolled RFC reaches 100% coverage, so no rate was armed and no document had to stop saying the schedule is inert. The Deliverables rows "The quota is armed" and "No document still says the schedule is inert" invert with that ruling: `rate 0` is the current fact, and the documents that state it are correct.
+- **The Deliverables row "signed 10, backlog 161" was true when the walks landed and is now stale by other work.** `./le rfc extraction-status` reads `signed 55, backlog 126, enrolled 181` on 2026-09-03, because `spec-rfcgate-6-supported-extraction-signoff` has been draining concurrently. The four artifacts this spec owns are on disk and credited.
+- **One `rfc/short/` level moved, at the owner's answer.** AC-8 bars lowering a level to make a walk finish. `RFC2918-3-4` moved MUST to SHOULD because the tag disagreed with the RFC's own single modal, raised as a which-way question and ruled by Thomas. It was not lowered to finish the walk.
+- The unit tests landed in commit `50dea2b2e`, carried by another session, because both sessions had edited `check_test.go` and `extraction_test.go` and git commits whole files.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed a walk's cost is dominated by classification, so the rate would be set from the classification column | Neither classification nor the defect tail governs. The two sum to 27.1 minutes against 36.0 minutes of end-to-end work, and the residue is reading the RFC and the summary, which no walk stamped | Every walk reported the same gap without being asked | The rate is proposed from end-to-end wall clock. The three-column table above keeps all three numbers so the next measurement can be compared against this one |
+| approach | The spec planned to hand Thomas one rate and expected an arming decision | He ruled on the SCHEDULE rather than the number: the rate waits on the first RFC at 100% coverage, which measures something these four walks did not measure | WP-3 | The measurement, the proposal and the trigger are all recorded in `rfc/drain-budget.txt` and `docs/contributing/rfc-conformance-gates.md`, so whoever arms it re-measures nothing |
+| escalation | Closure found a dangling citation another spec's closure left at HEAD. This is the fifteenth row in `plan/journal/closure-deletes-a-cited-document.md` | The 2026-08-10 closure step exists and is correct; it is the population that is wrong. `/ze-close` step 6d greps `plan/*.md`, which is what `speccitation.Scan` reads, while `./le doc check links` reads every tracked file | `./le spec citation` red at HEAD before this closure touched anything | Fixed in this closure because it was one token in a file already being edited. The gate blind spot itself is unfixed and the journal row says so |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Measure: four representative RFCs walked end to end, timed | Done | `rfc/extraction/rfc1877.json`, `rfc2918.json`, `rfc4760.json`, `rfc5880.json`; timings in the WP-2 table | Spread 2.0x end to end, inside A-1's 4x threshold |
+| Prove the arithmetic: `requiredFloor`, `parseDrainBudget` and `checkDrainFloor` under test | Done | `internal/le/rfc/extraction_test.go`, `internal/le/rfc/check_test.go` | 8 tests, all passing |
+| Put one number to Thomas | Done | "Proposal (as put to the owner)" above; his ruling recorded in "Owner ruling, 2026-08-31" | Rate 2 proposed from the slowest walk. "Leave it at 0" was never offered as an option |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFCCheckReportsTheDrainFloorViolation` (`internal/le/rfc/check_test.go`) | Driven from `rfc.Check`, the entry point, not from `checkDrainFloor` |
+| AC-2 | Done | `TestRequiredFloorExcludesTheIncompleteMonth` (`internal/le/rfc/extraction_test.go`) | 6 hand-computed calendar cases |
+| AC-3 | Done | `TestRequiredFloorClampsTheAnniversaryToTheShortMonth` (`internal/le/rfc/extraction_test.go`) | 11 cases, leap February and the December month-13 derivation included |
+| AC-4 | Done | `TestRequiredFloorCapsAtTheEnrolledSet` (`internal/le/rfc/extraction_test.go`) | Asserts the cap at the call site, so a backlog cap is caught |
+| AC-5 | Done | Four artifacts on disk; `./le rfc extraction-status` credits them | `signed` rose 6 to 10 and `backlog` fell 165 to 161 when they landed. Now 55 and 126 through other work |
+| AC-6 | Done | The WP-2 four-walk table | Classification and defect tail as separate columns, plus end to end, and the 2.0x spread stated |
+| AC-7 | Done | "Proposal (as put to the owner)" and "Owner ruling, 2026-08-31" | One rate, both floor tables, the one-line diff. No "leave it at 0" option |
+| AC-8 | Done | Exclusion kinds across the four artifacts are `not-a-requirement` (3) and `duplicate-of` (35); no `{gap}`, no `{not-applicable}`, no `binds-another-role` | The one level that moved, `RFC2918-3-4`, moved on an owner ruling to match the RFC's own modal, not to finish a walk |
+| AC-9 | N-A | Owner ruling, 2026-08-31 | Conditioned on "the rate is armed". No rate was armed |
+| AC-10 | N-A | Owner ruling, 2026-08-31 | Same condition |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRFCCheckReportsTheDrainFloorViolation` | PASS | `internal/le/rfc/check_test.go` | Armed fixture planted beside the inert one; `checkFixtureTree` still defaults to `rate 0` |
+| `TestRequiredFloorExcludesTheIncompleteMonth` | PASS | `internal/le/rfc/extraction_test.go` | |
+| `TestRequiredFloorClampsTheAnniversaryToTheShortMonth` | PASS | `internal/le/rfc/extraction_test.go` | |
+| `TestRequiredFloorCapsAtTheEnrolledSet` | PASS | `internal/le/rfc/extraction_test.go` | |
+| `TestParseDrainBudgetRefusesAnAbsentFile` | PASS | `internal/le/rfc/extraction_test.go` | Drives `checkDrainFloor` too, so the refusal is proven to reach the gate |
+| `TestParseDrainBudgetRefusesAStemRow` | PASS | `internal/le/rfc/extraction_test.go` | 4 cases |
+| `TestParseDrainBudgetRefusesANegativeRate` | PASS | `internal/le/rfc/extraction_test.go` | Asserts 0 stays valid |
+| `TestTheDrainFloorRefusesARateTheEnrolledSetCannotMeet` | PASS | `internal/le/rfc/extraction_test.go` | Asserts a rate equal to the enrolled count is accepted |
+| `TestRFCCheckRunsOverTheRealCheckout` | PASS (existing) | `internal/le/rfc/check_test.go` | Unchanged by this spec |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `rfc/drain-budget.txt` | Changed | `start` moved to 2026-08-31; `rate` held at 0 by ruling; comment carries the measurement and the trigger |
+| `internal/le/rfc/check_test.go` | Changed | Second fixture added beside the inert one |
+| `internal/le/rfc/extraction_test.go` | Changed | 7 arithmetic and parser cases |
+| `docs/contributing/rfc-conformance-gates.md` | Changed | "The drain schedule" rewritten |
+| `plan/deferrals/rfcgate-0-umbrella.md` | Changed | D5 row updated to MEASURED AND RULED |
+| `plan/spec-rfcgate-6-supported-extraction-signoff.md` | Changed | Six citations of this spec restated as the bare stem at closure |
+| `plan/spec-followup-rfc-enrollment.md` | Not changed | It holds the re-homed D5 row by NAME, and the D5 row itself lives in the umbrella shard, which is where the ruling was recorded. A grep for `rate 0` over that spec returns nothing, so it states nothing the ruling made wrong |
+| `rfc/extraction/rfc1877.json`, `rfc2918.json`, `rfc4760.json`, `rfc5880.json` | Created | |
+
+### Audit Summary
+- **Total items:** 10 AC plus 3 task requirements plus 9 tests, so 22
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (AC-9 and AC-10, both N-A under the owner ruling, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Supply the measurement D5 waited on, so the quota stops being unmeasurable | Functional (four real sign-offs, not an estimate) | Four artifacts on disk with registers `manual-walk`, `prose` and `rfc2119` twice, over sources spanning 7.4 KB to 110 KB. The WP-2 table carries three timings per walk and the 2.0x spread. `./le rfc extraction-status` credited them, moving `signed` 6 to 10 |
+| Prove the arithmetic before the day it matters | Functional | 8 tests. `go test ./internal/le/rfc/` over them reports `ok github.com/ze-software/ze/internal/le/rfc 0.474s`. Their discrimination was forced by a mutation battery over `check_extraction.go`: the month decrement, the anniversary clamp, the `min(drainable, ...)` cap, a cap at the remaining backlog, an absent file parsed as a zero budget, an unknown key accepted, a negative rate accepted, and the unmeetable-rate refusal removed. Every mutation was caught |
+| Put one number to Thomas and close the D5 risk | Owner ruling, recorded in three places | "Owner ruling, 2026-08-31" above; `rfc/drain-budget.txt`'s comment; `docs/contributing/rfc-conformance-gates.md` "The drain schedule". The D5 row in `plan/deferrals/rfcgate-0-umbrella.md` now reads MEASURED AND RULED. The risk it carried was a quota that never arms for want of a measurement; the measurement exists, and the arming condition is a named trigger rather than silence |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| This spec's own shard `plan/deferrals/fixit-rfc-drain-quota-never-armed.md` | never created | The spec metadata reads `-` and no deferral was opened. No file under `plan/deferrals/` carries this stem |
+| `plan/deferrals/rfcgate-0-umbrella.md`, D5 (arming the drain quota) | deferred, re-homed and re-characterised | Destination stays `plan/spec-followup-rfc-enrollment.md`. The row is updated in place: the measurement it waited on now exists, and the arming condition is Thomas's stated trigger, the first RFC at 100% coverage. It stays live because the quota is still unarmed, so that shard is NOT removed |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-rfc-drain-quota-never-armed-f89390ec-889f-4a7a-8172-1e2cfd108a12.md` (11 files, verdict=clean) |
+| `./le spec session review check` | clean: "OK (2 code files, clean, hashes match)" |
+| Rounds | 1 |
+| Reviewer lenses used | wiring plus logic (the drain producers and their call site), guard discipline (fail-closed on an unreadable policy), test integrity (assertion coverage, fixture isolation, mutation discrimination), documentation drift, simplicity and size |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `./le spec citation` red at HEAD: a spec that commit `c6473c287f` removed is still cited, and commit B would have added six more dangling citations from this spec, so the gate this closure owes could not go green | `plan/spec-rfcgate-6-supported-extraction-signoff.md`, seven citations in one file | All seven restated as the bare stem. `./le spec citation` now exits 0: "OK (210 specs, 51 baselined dangling, 10 line-token WARN)". Journal row appended to `plan/journal/closure-deletes-a-cited-document.md` |
+
+Notes recorded, not blocking: the Deliverables rows "The quota is armed" and "No document still says the schedule is inert" invert under the owner ruling, and "signed 10, backlog 161" is stale by other sessions' draining. All three are record facts, entered in Deviations. The A-9 row of `plan/spec-rfcgate-6-supported-extraction-signoff.md` still says this spec is awaiting Thomas's answer; the answer arrived and holds `rate 0`, which CONFIRMS their assumption. That row belongs to a live spec and its author resolves it at their own closure, so it is reported rather than edited here.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `rfc/extraction/rfc1877.json` | Yes | `ls -la` reports 5.6K |
+| `rfc/extraction/rfc2918.json` | Yes | `ls -la` reports 7.4K |
+| `rfc/extraction/rfc4760.json` | Yes | `ls -la` reports 12K |
+| `rfc/extraction/rfc5880.json` | Yes | `ls -la` reports 65K |
+| `internal/le/rfc/check_test.go` | Yes | holds `TestRFCCheckReportsTheDrainFloorViolation` |
+| `internal/le/rfc/extraction_test.go` | Yes | holds the seven new test functions |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The drain floor can red `./le rfc check` | `--- PASS: TestRFCCheckReportsTheDrainFloorViolation (0.06s)` |
+| AC-2 | The incomplete month is excluded | `--- PASS: TestRequiredFloorExcludesTheIncompleteMonth (0.00s)` |
+| AC-3 | The anniversary clamps in a short month | `--- PASS: TestRequiredFloorClampsTheAnniversaryToTheShortMonth (0.00s)` |
+| AC-4 | The floor caps at the enrolled set, not the backlog | `--- PASS: TestRequiredFloorCapsAtTheEnrolledSet (0.00s)`, and `checkDrainFloor` (`internal/le/rfc/check_extraction.go`) passes `len(enrolled)` as the `drainable` argument, read from source |
+| AC-5 | Four artifacts, every site and section classified | Registers and counts read back from the JSON: `rfc1877 manual-walk` 0 sites and 6 sections, `rfc2918 prose` 5 and 10, `rfc4760 rfc2119` 9 and 15, `rfc5880 rfc2119` 128 and 53. `./le rfc check` raises no extraction finding against any of the four |
+| AC-6 | Two timings per walk, spread stated | The WP-2 table: classification and defect tail as separate columns, end to end alongside, "The spread is 2.0x end to end" |
+| AC-7 | One rate, both floor tables, the one-line diff, no opt-out offered | "Proposal (as put to the owner)" carries all four. "Leave the rate at 0" appears nowhere as an option; the owner chose the schedule himself |
+| AC-8 | No `{gap}`, no `{not-applicable}`, no level lowered to finish | Exclusion kinds across all four artifacts are `not-a-requirement` (3) and `duplicate-of` (35) only |
+| AC-9, AC-10 | N-A | `rfc/drain-budget.txt` reads `rate 0`; both ACs are conditioned on an armed rate |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` over a fixture with a non-zero rate and an under-quota corpus | `TestRFCCheckReportsTheDrainFloorViolation` (Go, not `.ci`: `./le rfc check` is a development action with no daemon path) | Yes. It calls `Check(root)` and asserts exit code 2 with exactly one violation naming the floor, the rate, the start date, the enrolled cap, the credited total, the register split, the remaining backlog and the walk command |
+| `./le rfc check` over the real checkout | `TestRFCCheckRunsOverTheRealCheckout` | Yes. `./le rfc check` run on 2026-09-03 exits 2 with 125 violations and NOT ONE names the drain floor, which is the inert schedule behaving as ruled |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | End-to-end spread 2.0x (6.2 to 12.4 minutes), inside the 4x threshold |
+| A-2 | broken | Classification plus tail is 27.1 minutes against 36.0 end to end, and the tail exceeded classification in two walks of four. Mistake Log row entered; the rate is proposed from end-to-end wall clock |
+| A-3 | confirmed | `requiredFloor` matched the hand-computed calendar in all 17 cases across AC-2 and AC-3, leap February and the December month-13 derivation included. No production change was needed |
+| A-4 | confirmed | Thomas answered on 2026-08-31. He ruled the rate stays at 0 and named the trigger, and `start` moved to the ruling date |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 16, changed files referenced by doc source anchors | `./le spec citation anchors spec plan/spec-fixit-rfc-drain-quota-never-armed.md` exits 0 and names no page | Yes |
+| Row 17, docs quoting `rate 0` | `docs/contributing/rfc-conformance-gates.md` "The drain schedule" states the ruling, the trigger and the unit tests. `rfc/extraction/README.md` quotes no rate at all | Yes |
+| Rows 1 to 15 | No user-facing feature, config, CLI, API, plugin, wire format, SDK, RFC level, test infrastructure, comparison, architecture, route metadata, metric or registered inventory changed. `./le rfc check` behavior is unchanged, because the rate is still 0 | Yes |
+
+## Core Insight
+
+A forcing function that ships inert has two failure modes, and this spec found that only one of them is about the number. The first is D5's: nobody measures, so nobody can arm it, and it decays. The second is what the owner ruling exposed. The measurement this spec took costs a SIGN-OFF, which bounds what a summary missed. The trigger Thomas named costs COVERAGE, which is every gated requirement proven in both polarities. A corpus can be fully signed off and prove nothing, so the first number does not bound the second, and a rate derived from it would be a claim about the wrong quantity. Before you arm a quota, check that the thing you timed is the thing the quota will demand.
