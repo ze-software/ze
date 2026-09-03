@@ -71,6 +71,19 @@ This is a consolidation skeleton created from verified deferral survivors (backl
   The LSP tool is gopls, so it grounds Go and nothing else. A subject the gate cannot
   read still takes the older any-source bar, and the gate warns that it did.
   Proven by the `design-gate` fixture section, which fails on the pre-change gates.
+
+  **RETIRED, and this claim did not survive the retirement (recorded 2026-09-03 at
+  closure).** Commit `eae2825926` replaced the Python hooks with Go, and the T-4
+  behaviour above did not come across. `writeDesignEvidence`
+  (`internal/le/hookruntime/writeedit.go`) clears on ANY `.lsp-invoked-<id>` marker,
+  and failing that on ANY `.source-read-*-<id>` glob hit. It reads no `## Files to
+  Modify`, demands no per-kind evidence, and runs no per-kind clock. That is exactly
+  the WIDENED state this paragraph says was replaced. The fixtures did not catch it
+  because they never invoked the gate: `categoryDesignGate`
+  (`internal/le/hookcheck/fixtures.go`) evaluates `strings.Cut(value, ":")` and
+  passes when the two halves match, a string compared with itself. Fifty-two green
+  fixtures therefore say nothing about the producer. T-5's daemon-scoped `.ci`
+  demand is absent from `hookValidateSpec` for the same reason.
   An adversarial review (2026-08-07) defeated the first version four ways: an LSP-only
   session grounded a Python spec, a cheap kind stood in for an expensive one beside it,
   a fresh kind renewed a stale one, and a `### Checklist` row became a subject. Each has
@@ -174,7 +187,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 | `.ci` runs `ze generate wireguard keypair` | → | `RunWgKeypair` | `test/parse/cli-generate-wireguard-keypair.ci` |
 | unit test shims `wg` on PATH | → | `RunWgKeypair` genkey -> pubkey pipe | `TestRunWgKeypair_PipesGenkeyIntoPubkey` |
 | a Read of a hook / model / tool | → | `mark-source-read.sh` kind markers | `mark-source-read-writes-*` fixtures |
-| a spec Write | → | `c_design_without_lsp` subject match | `design-gate-*` fixtures |
+| a spec Write | → | `writeDesignEvidence` any-evidence check (`c_design_without_lsp` is retired) | `design-gate-*` fixtures, which compare a string with itself and never invoke the gate |
 
 **Still not wired, and named so it is not mistaken for done:** the env-knob,
 cli-dispatch, chaos, and gRPC-over-wire work items in `## Task` have no test and
@@ -221,7 +234,7 @@ phase uncovered.
 | `interface-errors-show.ci` | `test/plugin/` | AC-5: find the links with errors or drops | done |
 | `cli-generate-wireguard-keypair.ci` | `test/parse/` | AC-6: the offline CLI command resolves and rejects arguments | done |
 | `interface-rate-show.ci` (corrected) | `test/plugin/` | AC-8: its assertion had pinned the aliasing defect | done |
-| `design-gate` fixtures | `internal/le/` | T-4: an agent writes a spec about a hook, a model or the daemon; the gate asks for that subject and refuses the rest. A hook has no `.ci`, so its driving surface is the fixture suite | done |
+| `design-gate` fixtures | `internal/le/` | T-4: an agent writes a spec about a hook, a model or the daemon; the gate asks for that subject and refuses the rest. A hook has no `.ci`, so its driving surface is the fixture suite | **NOT done today.** The subject match was lost in the Go rewrite `eae2825926`, and the fixtures survive by name: they compare a synthetic string with itself rather than invoking the gate |
 
 Every one is proven by mutation: each was re-run with the behaviour under test
 broken at the producer and observed to FAIL. The interface pair needs no
@@ -536,8 +549,12 @@ is deliberately NOT in this commit.
 
 ## Deferrals Resolved
 
-The shard is `plan/deferrals/finish-ci-coverage.md`. It is NOT removed: two rows
-are still live, so the shard outlives this spec (`ai/rules/planning.md`).
+The shard is `plan/deferrals/finish-ci-coverage.md`. It is NOT removed: ONE row is
+still live, so the shard outlives this spec (`ai/rules/planning.md`). The count was
+two until 2026-09-03, when the tmpfs `mode=` row was fixed and closed. The row that
+remains, four readers asserting a config shape `Tree.ToMap` does not emit, is
+separable rather than an acceptance criterion of this spec: it names four components
+no AC of this spec touches, and it is homed at `plan/spec-review-typed-config-decode.md`.
 
 | Row (from the deferral shard) | Final Status | Destination or evidence |
 |-------------------------------|--------------|-------------------------|
