@@ -2,7 +2,7 @@
 // RFC: rfc/short/rfc2866.md -- Accounting-Request contents (Sections 4.1, 5)
 // RFC: rfc/short/rfc2865.md -- Framed-IP-Address (Section 5.8)
 // RFC: rfc/short/rfc2869.md -- NAS-Port-Id (Section 5.17), Gigawords (Section 5.1),
-// interim interval precedence (Section 2.1)
+// interim interval precedence (Section 2.1), Event-Timestamp (Section 5.3)
 // Related: handler.go -- RADIUS auth handler shares the client
 // Related: nasportid.go -- NAS-Port-Id template resolution
 
@@ -24,6 +24,10 @@ import (
 )
 
 var acctGetStats = iface.GetStats
+
+// acctNow reads the clock that stamps Event-Timestamp. A test replaces it so
+// the encoded seconds are exact rather than a window around the real clock.
+var acctNow = time.Now
 
 // acctSession tracks per-session accounting state.
 //
@@ -255,7 +259,14 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 	var attrs []radius.Attr
 	attrs = radius.AppendTextAttr(attrs, radius.AttrUserName, sess.username)
 
+	// RFC 2869 Section 5.3: "This attribute is included in an
+	// Accounting-Request packet to record the time that this event occurred on
+	// the NAS, in seconds since January 1, 1970 00:00 UTC." The same section
+	// gives the Value field as "four octets encoding an unsigned integer",
+	// which is what AttrUint32 writes. The uint32 conversion is the RFC's own
+	// width, so the attribute wraps in 2106 as every RADIUS client does.
 	attrs = append(attrs,
+		radius.Attr{Type: radius.AttrEventTimestamp, Value: radius.AttrUint32(uint32(acctNow().Unix()))},
 		radius.Attr{Type: radius.AttrAcctStatusType, Value: radius.AttrUint32(uint32(statusType))},
 		radius.Attr{Type: radius.AttrAcctSessionID, Value: radius.AttrString(sess.acctSessID)},
 		radius.Attr{Type: radius.AttrServiceType, Value: radius.AttrUint32(radius.ServiceTypeFramed)},

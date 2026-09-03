@@ -452,3 +452,31 @@ func assertAttrUint32(t *testing.T, pkt *radius.Packet, attrType uint8, want uin
 		t.Errorf("attr %d: got %d, want %d", attrType, got, want)
 	}
 }
+
+// TestAcctPacketCarriesEventTimestamp covers AC-1.
+//
+// RFC 2869 Section 5.3: "The Value field is four octets encoding an unsigned
+// integer with the number of seconds since January 1, 1970 00:00 UTC." The
+// same section gives Length 6, which is Type + Length + those four octets.
+func TestAcctPacketCarriesEventTimestamp(t *testing.T) {
+	saved := acctNow
+	acctNow = func() time.Time { return time.Unix(1756900000, 0) }
+	defer func() { acctNow = saved }()
+
+	acct := newRADIUSAcct()
+	sess := &acctSession{username: "grace", acctSessID: "1-7-1"}
+
+	for _, statusType := range []uint8{radius.AcctStatusStart, radius.AcctStatusInterimUpdate, radius.AcctStatusStop} {
+		pkt := acct.buildAcctPacket(sess, "nas1", nil, statusType, 0)
+		v := pkt.FindAttr(radius.AttrEventTimestamp)
+		if v == nil {
+			t.Fatalf("status-type %d: no Event-Timestamp attribute", statusType)
+		}
+		if len(v) != 4 {
+			t.Fatalf("status-type %d: Event-Timestamp value is %d octets, want 4", statusType, len(v))
+		}
+		if got := binary.BigEndian.Uint32(v); got != 1756900000 {
+			t.Errorf("status-type %d: Event-Timestamp = %d, want 1756900000", statusType, got)
+		}
+	}
+}

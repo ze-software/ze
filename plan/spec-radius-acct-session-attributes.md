@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 (phases 1-3 of this session) |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-03 |

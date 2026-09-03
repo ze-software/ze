@@ -17,3 +17,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-03 | 5db0ba0d | spec(radius): emit all four accounting attributes, no knob | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-03 | 5db0ba0d | rfc: enrol RFC 3579, RADIUS support for EAP | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-03 | 5db0ba0d | spec(radius): let an operator suppress an accounting attribute | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-03 | 5db0ba0d | feat(radius): stamp Event-Timestamp on subscriber accounting records | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-03 | 5db0ba0d | feat(radius): stamp Event-Timestamp on subscriber accounting records | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

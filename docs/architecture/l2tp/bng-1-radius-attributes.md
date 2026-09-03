@@ -55,6 +55,18 @@ Access-Accept value alone. The `acct-interval` leaf carries its own YANG range,
 which is the same 60 to 3600 seconds. A configured value arrives inside the
 range, or the commit fails.
 
+## What every Accounting-Request carries
+
+Ze emits the session attributes below on every subscriber Accounting-Request.
+None of them has a config leaf: the owner ruled them unconditional on
+2026-09-03, so an operator cannot suppress one.
+
+| Attribute | Type | Records | Value |
+|-----------|------|---------|-------|
+| Event-Timestamp | 55 | Start, Interim, Stop | Four octets, seconds since 1970-01-01 00:00 UTC (RFC 2869 Section 5.3) |
+
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket, acctNow -->
+
 **Framed-IP-Netmask is not applied to the PPP interface.** PPP is point to
 point, so the netmask only matters for delegated-prefix routing. That belongs
 with the IPv6 pool work, not here.
