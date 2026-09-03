@@ -727,42 +727,35 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				if arg != "-" {
 					continue
 				}
-				var tmpFile *os.File
-				var err error
-				if rec.TmpfsTempDir != "" {
-					// Write config to tmpfs dir so relative plugin paths work. The
-					// first ze daemon's config keeps the fixed name ze-bgp.conf so
-					// tests that rewrite the daemon config (action=rewrite:dest=
-					// ze-bgp.conf), restart a second `ze -` against the same file, or
-					// assert on rollback/ze-bgp-*.conf versions all address the file
-					// the daemon actually reads. A SECOND concurrent ze daemon in the
-					// same test uses a DISTINCT stdin block (e.g. an IKE responder +
-					// initiator pair), so it gets a per-block file and does not clobber
-					// the first daemon's config -- without which a two-daemon test can
-					// never form a distinct pair (both load whichever config was
-					// written last). Reusing the same block (a restart) reuses its file.
-					configName := zeConfigFileName(rec, cmd.Stdin)
-					configPath := filepath.Join(rec.TmpfsTempDir, configName)
-					tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
-				} else {
-					configDir, mkdirErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-config-*")
-					if mkdirErr != nil {
-						rec.Error = fmt.Errorf("create temp config dir: %w", mkdirErr)
-						return false
-					}
-					tmpFilesToClean = append(tmpFilesToClean, configDir)
-					// Fix B: this branch handles a tmpfs-less ze (e.g. `ze config
-					// validate -`). MkdirTemp is 0700-root, so a credential-dropped
-					// ze cannot read its own config -- chown the dir to the target
-					// user, mirroring the chownTree done for TmpfsTempDir.
-					if netnsMode && netnsHasUID {
-						if chErr := chownTree(configDir, netnsUID, netnsGID); chErr != nil {
-							rec.Error = fmt.Errorf("chown temp config dir for netns child: %w", chErr)
-							return false
-						}
-					}
-					tmpFile, err = os.Create(filepath.Join(configDir, zeDefaultConfigName)) //nolint:gosec // test runner, path from temp dir
-				}
+				// Write the config into the directory the child RUNS in, so a
+				// fixture that rewrites it by BARE NAME addresses the file the
+				// daemon actually reads: action=rewrite:dest=ze-bgp.conf, a
+				// second `ze -` restarted against the same file, an assertion on
+				// rollback/ze-bgp-*.conf, and a native fixture that writes
+				// ze-bgp.conf and then SIGHUPs.
+				//
+				// It was TmpfsTempDir, with an else arm that put the config in a
+				// fresh MkdirTemp "ze-config-*" instead. That field is set only
+				// when the .ci declares tmpfs files, and a .ci can declare a
+				// `stdin=` config block without declaring any, so those tests got
+				// the else arm: the daemon read /tmp/ze-config-<random>/ze-bgp.conf
+				// while their fixture wrote ze-bgp.conf in the work directory. The
+				// SIGHUP then reloaded the ORIGINAL config and logged "sighup
+				// reload complete" having changed nothing, which is what
+				// static-reload-add, -remove and -empty-section-withdraws were
+				// reporting. WorkDir is set for every record and is already
+				// chowned for a credential-dropped child, so the else arm's own
+				// chown goes with it.
+				//
+				// The first ze daemon's config keeps the fixed name ze-bgp.conf. A
+				// SECOND concurrent ze daemon in the same test uses a DISTINCT
+				// stdin block (e.g. an IKE responder + initiator pair), so it gets
+				// a per-block file and does not clobber the first daemon's config
+				// -- without which a two-daemon test can never form a distinct
+				// pair (both load whichever config was written last). Reusing the
+				// same block (a restart) reuses its file.
+				configName := zeConfigFileName(rec, cmd.Stdin)
+				tmpFile, err := os.Create(filepath.Join(rec.WorkDir, configName)) //nolint:gosec // test runner, path from the per-test work directory
 				if err != nil {
 					rec.Error = fmt.Errorf("create temp config file: %w", err)
 					return false
