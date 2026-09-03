@@ -15,7 +15,19 @@ build_le() {
 		tags=$tags,$feature_tags
 	fi
 
+	# cache/ is a SYMLINK onto another filesystem on the development hosts, so
+	# it resolves for them and dangles anywhere the checkout is shared without
+	# it: a QEMU guest that mounts only /workspace gets `mkdir cache: file
+	# exists` from the dangling link and no build at all. Prove the directory is
+	# usable rather than assuming the layout, and say so when it is not, because
+	# a cache silently in the wrong place is the shape of the full-disk false
+	# reds this repository has already paid for four times.
 	GOCACHE=$root/cache/go-cache
+	if ! mkdir -p "$GOCACHE" 2>/dev/null; then
+		GOCACHE=$root/tmp/go-cache
+		mkdir -p "$GOCACHE"
+		echo "le: $root/cache is not usable here, building through $GOCACHE" >&2
+	fi
 	GOLANGCI_LINT_CACHE=$root/tmp/golangci-lint-cache
 	CGO_ENABLED=0
 	export GOCACHE GOLANGCI_LINT_CACHE CGO_ENABLED
@@ -112,6 +124,34 @@ warn_when_stale() {
 	echo "le: bin/le is older than committed sources; refresh it with './le --update'" >&2
 }
 
+# True when $1 is a binary this kernel can exec, judged by its magic bytes.
+#
+# Four bytes settle it: ELF opens 7f 45 4c 46, and a Mach-O opens cf fa ed fe
+# or its byte-swapped and universal forms. `od` is POSIX and is in busybox, so
+# this answers inside an Alpine guest as well as on the development hosts.
+#
+# An OS this does not know about answers TRUE, deliberately. The question here
+# is whether a cached binary is for another platform, and an unrecognised pair
+# is not evidence that it is: refusing one would rebuild on every call for no
+# reason. The failure that matters is the one this catches.
+le_runs_here() {
+	magic=$(od -An -tx1 -N4 "$1" 2>/dev/null | tr -d ' \n')
+	case $(uname -s) in
+	Linux)
+		[ "$magic" = "7f454c46" ]
+		;;
+	Darwin)
+		case $magic in
+		cffaedfe | feedfacf | cafebabe | bebafeca) return 0 ;;
+		*) return 1 ;;
+		esac
+		;;
+	*)
+		return 0
+		;;
+	esac
+}
+
 # A build name becomes one path component, so it accepts letters, digits, dot,
 # underscore and hyphen, it is never empty, and `..` is refused on top of that.
 # A rejected name is never repaired into something safe.
@@ -182,6 +222,16 @@ else
 	# because a peer session's unfinished edit would then break every call in
 	# every session. --update picks a change up on demand, and --name builds a
 	# session its own binary. Deleting this one never does: peers execute it.
+	#
+	# The cache is per PLATFORM as well as per existence, and it has to be. A
+	# QEMU guest mounts this checkout at /workspace and finds a bin/le the HOST
+	# built, so `exec` gets ENOEXEC, the shell falls back to reading the Mach-O
+	# header as a script, and the answer is `line 1: not found` followed by a
+	# syntax error. The format is read from the file rather than stamped beside
+	# it, so an existing binary needs no rebuild to be judged.
+	if [ -x "$binary" ] && ! le_runs_here "$binary"; then
+		binary=$root/bin/le-$(uname -s)-$(uname -m)/le
+	fi
 	if [ ! -x "$binary" ]; then
 		build_le "$binary"
 	elif [ -n "$update" ]; then
