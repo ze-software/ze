@@ -10,6 +10,7 @@
 package runner
 
 import (
+	"context"
 	"os/exec"
 	"testing"
 	"time"
@@ -162,4 +163,70 @@ func TestTeardownToleratesStoppedProcess(t *testing.T) {
 	withinDeadline(t, "terminateGracefully on stopped process", func() {
 		terminateGracefully(proc)
 	})
+}
+
+// TestBackgroundLifetimeStopsTheProcess drives the declared lifetime a
+// cmd=background:timeout= asks for.
+//
+// VALIDATES: a background command's timeout= is its LIFETIME, so the process is
+// stopped that long after it starts. cmd=background has documented timeout=DUR
+// in its own format comment since it was written, and nothing read it, so an
+// author who declared one got silence.
+// PREVENTS: the accepted-and-discarded shape this file's own resolveOrchestratedTimeout
+// comment names: an option that is worse than a rejected one, because the .ci
+// reads as if the lifetime were set.
+//
+// The controls are what make it discriminate. A command with NO timeout must
+// survive, or the test would pass against a runner that killed every background
+// process; and an unparseable one must survive too, rather than being read as
+// "stop immediately".
+func TestBackgroundLifetimeStopsTheProcess(t *testing.T) {
+	stopped := startSleeper(t)
+	startBackgroundLifetime(t.Context(), RunCommand{Timeout: "150ms"}, stopped)
+
+	survivor := startSleeper(t)
+	startBackgroundLifetime(t.Context(), RunCommand{}, survivor)
+
+	unparseable := startSleeper(t)
+	startBackgroundLifetime(t.Context(), RunCommand{Timeout: "not-a-duration"}, unparseable)
+
+	done := make(chan error, 1)
+	go func() { done <- stopped.Wait() }()
+	select {
+	case <-done:
+	case <-time.After(teardownTestDeadline):
+		t.Fatal("a background command that declared timeout=150ms was never stopped")
+	}
+
+	// The two controls are still running, so their declared silence was honored.
+	for name, proc := range map[string]*exec.Cmd{"no timeout": survivor, "unparseable timeout": unparseable} {
+		if proc.ProcessState != nil {
+			t.Errorf("the %q control was stopped, so the lifetime applies where none was declared", name)
+		}
+		_ = proc.Process.Kill()
+		_ = proc.Wait()
+	}
+}
+
+// TestBackgroundLifetimeEndsWithTheTest verifies the timer follows the test
+// context, so a run that finishes first leaves no goroutine waiting to kill a
+// process teardown has already reaped.
+//
+// VALIDATES: the lifetime timer is cancelled by the context.
+// PREVENTS: a leaked goroutine per background command in every test that
+// declares a lifetime longer than its own run.
+func TestBackgroundLifetimeEndsWithTheTest(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	proc := startSleeper(t)
+	startBackgroundLifetime(ctx, RunCommand{Timeout: "1h"}, proc)
+	cancel()
+
+	// The process must outlive the cancelled timer: cancellation stops the
+	// timer, it does not fire it.
+	time.Sleep(50 * time.Millisecond)
+	if proc.ProcessState != nil {
+		t.Error("a cancelled lifetime killed the process instead of standing down")
+	}
+	_ = proc.Process.Kill()
+	_ = proc.Wait()
 }

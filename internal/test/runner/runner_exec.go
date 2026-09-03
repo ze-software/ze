@@ -27,6 +27,33 @@ import (
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
+// startBackgroundLifetime stops a background process once its declared
+// timeout= has passed, and does nothing when it declares none.
+//
+// The timer is bound to the test context, so a test that ends first cancels it
+// rather than leaving a goroutine waiting on a process the teardown already
+// reaped. Kill rather than a signal: the point is a peer that STOPS ANSWERING,
+// which is what a liveness check exists to detect, and a graceful stop would
+// let the daemon say goodbye on the wire and prove nothing.
+func startBackgroundLifetime(ctx context.Context, cmd RunCommand, proc *exec.Cmd) {
+	if cmd.Timeout == "" || proc == nil || proc.Process == nil {
+		return
+	}
+	lifetime, err := time.ParseDuration(cmd.Timeout)
+	if err != nil || lifetime <= 0 {
+		return
+	}
+	go func() {
+		timer := time.NewTimer(lifetime)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+		case <-timer.C:
+			_ = proc.Process.Kill()
+		}
+	}()
+}
+
 // tmpfsForRecord rebuilds the record's tmpfs with $PORT expanded, which is why
 // the orchestrated path cannot simply reuse the parsed one: the port is not
 // known until the record is scheduled.
@@ -964,6 +991,20 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			if cmd.Name != "" {
 				namedBg[cmd.Name] = proc
 			}
+			// A background command's timeout= is its LIFETIME: the process is
+			// stopped that long after it starts. cmd=background documents
+			// timeout=DUR in its own format comment (record_parse_cmd.go) and
+			// nothing read it, so an author who wrote one got silence. On a
+			// FOREGROUND command the same word means something else, the whole
+			// test budget (resolveOrchestratedTimeout), and that meaning is
+			// unchanged.
+			//
+			// It is the controlled death a two-daemon test needs. cmd=stop can
+			// only fire between cmd= steps, so it cannot reach a peer while a
+			// foreground daemon is still running its own step; a declared
+			// lifetime can, and the assertions stay on the foreground process
+			// where expect=stderr: reads them.
+			startBackgroundLifetime(testCtx, cmd, proc)
 			switch {
 			case isZePeerExec(execStr):
 				// Wait for ze-peer to be ready (listening) instead of a fixed
