@@ -29,3 +29,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-03 | 5db0ba0d | feat(radius): give the admin backend a CHAP credential beside PAP | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-03 | 5db0ba0d | fix(bmp): the Loc-RIB emulated peer takes its identity from config | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-03 | 5db0ba0d | fix(bmp): the Loc-RIB emulated peer takes its identity from config | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-03 | 5db0ba0d | spec(radius): prove RADIUS against a server ze did not write | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
