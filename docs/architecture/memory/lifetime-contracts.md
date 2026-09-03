@@ -69,6 +69,17 @@ bytes gets a new index, never a rebased one.
 <!-- source: internal/component/bgp/types/rawmessage.go -- RawMessage.IsAsyncSafe borrow-vs-owned boundary -->
 <!-- source: internal/component/bgp/reactor/session.go -- ReturnReadBuffer receive-buffer recycle/poison point -->
 
+**Whatever reads the bytes runs before whatever frees them.** A release path
+that both walks a payload and returns its buffer must walk first: the moment
+`ReturnReadBuffer` runs, the slot is available to another goroutine's
+`getReadBuf`, so a walk placed after it reads whichever UPDATE won the pool. The
+recent-update cache shipped the wrong order until 2026-09-03, and its eviction
+released RFC 7911 Path Identifiers by parsing a body it had already given back.
+The order is asserted in source rather than at runtime, because the failure is
+an interleaving no assertion can schedule
+(`TestEvictionWalksTheBodyBeforeItFreesTheBuffer`).
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- evictLocked, Delete -->
+
 ### B. attrpool Handle — never copies
 Attribute bytes are interned once and shared (refcounted) across thousands of
 routes; copying on retain would destroy the dedup memory win. `Get` returns a

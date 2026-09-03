@@ -592,10 +592,18 @@ func (c *RecentUpdateCache) ackEntryLocked(id uint64, e *cacheEntry) {
 // (forward_path_id.go fwdReleaseWithdrawnPathIDs).
 // Updates highestFullyAcked for gap detection.
 // Must be called with c.mu held.
+//
+// The identifier walk MUST run BEFORE any buffer goes back to the pool.
+// fwdReleaseWithdrawnPathIDs parses the entry's Withdrawn Routes and MP_UNREACH
+// sections, and those are slices into poolBuf. A returned slot is immediately
+// available to another goroutine's getReadBuf, so freeing first leaves the walk
+// reading whatever the next UPDATE wrote there: the wrong identifiers are
+// released, and the paths this UPDATE really withdrew leak for the session's
+// life. TestEvictionWalksTheBodyBeforeItFreesTheBuffer holds the order.
 func (c *RecentUpdateCache) evictLocked(id uint64, e *cacheEntry) {
+	fwdReleaseWithdrawnPathIDs(e.update.WireUpdate)
 	ReturnReadBuffer(e.update.poolBuf)
 	e.update.returnFwdHandles()
-	fwdReleaseWithdrawnPathIDs(e.update.WireUpdate)
 	c.entries.Delete(id)
 	if id > c.highestFullyAcked {
 		c.highestFullyAcked = id
@@ -650,16 +658,17 @@ func (c *RecentUpdateCache) Contains(id uint64) bool {
 
 // Delete removes an update from the cache and returns its buffer to pool. It
 // frees ze's Path Identifiers for the paths the UPDATE withdrew as well, for the
-// reason evictLocked does.
+// reason evictLocked does, and in the order evictLocked states: the walk reads
+// slices into poolBuf, so the buffer stays owned until the walk finishes.
 // Returns true if the entry was found and deleted.
 func (c *RecentUpdateCache) Delete(id uint64) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if e, ok := c.entries.Get(id); ok {
+		fwdReleaseWithdrawnPathIDs(e.update.WireUpdate)
 		ReturnReadBuffer(e.update.poolBuf)
 		e.update.returnFwdHandles()
-		fwdReleaseWithdrawnPathIDs(e.update.WireUpdate)
 		c.entries.Delete(id)
 		return true
 	}
