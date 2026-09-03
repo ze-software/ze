@@ -37,29 +37,25 @@ const (
 	// demonstrated that six of six is achievable on a fast host, so demanding
 	// it would trade a flaky test for a permanently red one.
 	flapWanted08 = flapRounds08 / 2
-	// flapCommitLead08 is how long the burst waits after the SIGHUP, and it
-	// decides whether the scenario is built at all. The reload must reach
-	// reconcileDHCP and take dhcpMu before the burst starts, and it must still
-	// be holding it when the burst lands. There is no counter that says "the
-	// apply is running" (`ze_iface_*` publishes owned devices, coalescing,
-	// worker blocks and resyncs, and nothing about config applies), so the
-	// lead is timing and the round loop's retries cover a miss.
+	// flapCommitLead08 is how long the burst waits after the SIGHUP. The reload
+	// must reach reconcileDHCP and take dhcpMu before the burst starts, and it
+	// must still be holding it when the burst lands. There is no counter that
+	// says "the apply is running", so the lead is timing and the round loop's
+	// retries cover a miss.
 	//
-	// It is one second, the value chosen when forty DHCP clients held the lock
-	// for a measured 1.1 to 3.3 s, and IT NO LONGER WORKS. On the arm64 QEMU VM
-	// on 2026-09-03, zero of six attempts overlapped. 100 ms was tried on the
-	// same host and also produced zero of six, so the miss is NOT a lead that
-	// is merely too long, and this constant is not the knob that fixes it. It
-	// is named and gathered here so the next attempt starts from a measurement
-	// rather than from a literal buried in the round loop.
+	// One second, the value chosen when forty DHCP clients held the lock for a
+	// measured 1.1 to 3.3 s, and it is still the right value: the stop side of
+	// reconcileDHCP waits on each client in turn (`DHCPClient.Stop`,
+	// `internal/plugins/iface/dhcp/dhcp_linux.go`, closes the stop channel and
+	// then blocks on done), and nothing has moved that work out from under the
+	// lock since it was measured.
 	//
-	// What is still unknown is whether the reload takes dhcpMu at all on this
-	// host or takes it for a window shorter than either lead. Nothing here can
-	// answer that: `ze_iface_*` publishes owned devices, coalescing, worker
-	// blocks and resyncs, and nothing about config applies, and per-round
-	// stderr from this fixture does not reach the run output (the pre-loop
-	// FLAP line does, the ones inside the loop do not), so the next attempt
-	// needs a keep-alive VM and the daemon's own log.
+	// 100 ms was tried on 2026-09-03 and produced the same "zero of six
+	// overlapped" as one second did. That was not the lead. It was the fixture
+	// reading `ze_iface_link_worker_blocked_total{name="zeflapv0"}`, a series
+	// that stays flat through a real overlap; see flapBlocked08 for why. Do not
+	// reach for this constant first when the overlap count is zero. Read
+	// whether the counter can see the block at all.
 	flapCommitLead08 = time.Second
 )
 
@@ -156,12 +152,51 @@ func namedCounter08(body, metric, name string) float64 {
 	return value
 }
 
+// totalCounter08 sums every series of a counter, whatever its labels. Use it
+// for a fact about the DAEMON rather than about one interface.
+func totalCounter08(body, metric string) float64 {
+	pattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(metric) + `(?:\{[^}]*\})? ([0-9.e+\-]+)$`)
+	total := 0.0
+	for _, match := range pattern.FindAllStringSubmatch(body, -1) {
+		value, err := strconv.ParseFloat(match[1], 64)
+		if err == nil {
+			total += value
+		}
+	}
+	return total
+}
+
 func flapCounter08(ctx context.Context, port, metric string) (float64, error) {
 	body, err := scrape08(ctx, port)
 	if err != nil {
 		return 0, err
 	}
 	return namedCounter08(body, metric, flapDevice08), nil
+}
+
+// flapBlocked08 reads whether the link worker WAITED for the config commit, and
+// it must sum every series rather than read `name="zeflapv0"`.
+//
+// The worker labels the block with the name on the queue entry it was about to
+// handle (`countLinkWorkerBlocked(key.ifaceName)`,
+// `internal/component/iface/register.go`), and the entry that meets a held lock
+// is almost never the burst. The rate tracker pushes a carrier resync every
+// second (`pushResync`, `internal/component/iface/link_queue.go`) and that key
+// carries NO interface name, so it counts under `name=""`. A commit holding
+// dhcpMu for the measured 1.1 to 3.3 s is therefore met first by a resync: the
+// worker blocks on THAT, the 101 transitions coalesce into one pending carrier
+// entry behind it, and by the time the worker reaches that entry the commit has
+// released the lock and nothing is counted for zeflapv0 at all.
+//
+// So `{name="zeflapv0"}` reads zero through a genuine overlap. Reading it was
+// the defect: the run reported "0 of 3 wanted rounds overlapped" four times on
+// a daemon that was holding the lock exactly as the test intended.
+func flapBlocked08(ctx context.Context, port string) (float64, error) {
+	body, err := scrape08(ctx, port)
+	if err != nil {
+		return 0, err
+	}
+	return totalCounter08(body, "ze_iface_link_worker_blocked_total"), nil
 }
 
 func flapCommit08(pid int) error {
@@ -256,7 +291,7 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		if err != nil {
 			return err
 		}
-		blockedBefore, err := flapCounter08(ctx, port, "ze_iface_link_worker_blocked_total")
+		blockedBefore, err := flapBlocked08(ctx, port)
 		if err != nil {
 			return err
 		}
@@ -271,7 +306,7 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		if _, _, err := runCommand08(ctx, true, "ip", "-force", "-batch", "flap.batch"); err != nil {
 			return err
 		}
-		blockedNow, err := flapCounter08(ctx, port, "ze_iface_link_worker_blocked_total")
+		blockedNow, err := flapBlocked08(ctx, port)
 		if err != nil {
 			return err
 		}
