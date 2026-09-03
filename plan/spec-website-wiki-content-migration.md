@@ -213,3 +213,69 @@ Website content work — no daemon feature; existing test suite and website buil
 - [x] Tests FAIL was N/A for pure content pages; renderer tests guarded regressions
 - [x] Tests PASS (`test_render_doc.py` 11/11, `test_render_llms.py` 4/4, link check clean)
 - [x] `./le verify worktree` N/A — no change in this repo; website build (`./update-website.sh`) green
+
+## Implementation Summary
+
+Closed 2026-09-03, six weeks after the work landed, by an independent review that
+did not write it. The delay is the finding: the spec was marked `done` on
+2026-07-22 and carried no `## Review Gate`, so nothing had ever checked it.
+
+The CONTENT the spec moved is all present and reachable. What is gone is the
+tooling it was written against. `tools/page_registry.py`,
+`tools/render-llms-txt.py`, `tools/check-page-links.py`, their two test files and
+`update-website.sh` no longer exist; `spec-site-renderers-in-go` replaced them
+with `internal/le/site/`. So this spec's own `## Verification` section names
+commands that cannot be run today, and the closure evidence below is stated
+against the producers that exist NOW rather than reconstructed against the ones
+that did.
+
+The `usage/` family was renamed `use-cases/`, and the old addresses survive:
+`retiredUseCaseRoute` (`internal/le/site/redirect.go`) keeps them, asserted by
+`redirect_test.go`.
+
+## Goal Validation
+
+The goal was that the wiki stays its own source of truth, referenced rather than
+republished, so no answer is stated twice with two dates on it.
+
+| Goal | Evidence |
+|------|----------|
+| The wiki is referenced, not copied | `writeLLMSFullWiki` (`internal/le/site/llmsfull.go`) emits a title, a URL and a one-line summary per page and no body, reading committed `website/data/wiki.json`. Its own prose states the reason: "It is referenced here rather than copied, so nothing below states an answer twice with two dates on it" |
+| The documentation hub and the guide sets exist | `website/docs/docs.md` renders the hub, and the BGP, operations, automation and plugin guide sets are published under `gh-pages/guides/` |
+| The six worked examples exist | `website/use-cases/` carries route-server, transit-edge-rpki, flowspec-injection, chaos-tested-peering, as-path-topology and exabgp-migration |
+| Generated reference stays generated | `internal/le/site/commands.go` reads the live command registry; `catalog.go` and `config.go` do the same for the plugin, RFC and configuration references |
+| The site builds | `./le site build`, which also writes `llms.txt`, `sitemap.xml` and the search index |
+
+That evidence is produced by code written AFTER this spec, which is the honest
+statement of what closure can claim here: the goal holds today, and the artifact
+that proves it is not the one the spec built.
+
+## Deferrals Resolved
+
+None. The spec has no deferral shard, and no open row in `plan/deferrals/` names
+an acceptance criterion of it.
+
+## Review Gate
+
+Independent closure review, 2026-09-03, by a reader that did not write the spec
+(`ai/rules/planning.md`: independence is a property of the context). It walked
+all nine acceptance criteria to their producers, checked whether the tree had
+moved under them, looked for a goal-validation table, checked the page that
+describes the behaviour, and looked for a deferral shard.
+
+0 BLOCKER, 0 ISSUE against the PRODUCT. Every acceptance criterion has a live
+producer. The findings were all artifact: no Review Gate, no closure sections, no
+Goal Validation table, and a `## Verification` block naming retired commands.
+This section and the two above are that gap filled.
+
+One NOTE, acted on rather than recorded: two citations named this spec by full
+path and would have dangled when closure removes the file. `website/AI.md` and
+the comment above `writeLLMSFullWiki` now name the bare stem, which is the form
+`plan/spec-site-renderers-in-go.md` already used. Both sit outside the
+`plan/`-rooted scanner in `internal/le/spec/citation/speccitation.go`, so the
+citation gate would have stayed green while the rot was real.
+
+## Pre-Commit Verification
+
+No product code changes in this closure, so no gate is owed over it
+(`ai/rules/pre-release.md`). The two citation edits are comments and prose.

@@ -334,7 +334,7 @@ and a menu whose dropdown order runs a usage section before an evaluation one.
 
 The last section of `llms-full.txt` REFERENCES the Ze wiki: one title, one
 public URL and one summary for each page, and no page body. The wiki stays its
-own source of truth (`plan/spec-website-wiki-content-migration.md`,
+own source of truth (`spec-website-wiki-content-migration`,
 2026-07-22). It is read from the committed `data/wiki.json`, so the build never
 opens a wiki checkout and a machine without the sibling directory writes the
 same artifact. `./le site wiki update` refreshes that file from a checkout and

@@ -431,7 +431,7 @@ func mirrorTitle(text, route string) string {
 // writeLLMSFullWiki writes the wiki reference section.
 //
 // It REFERENCES the wiki and does not republish it: one title, one public URL
-// and one summary for each page. plan/spec-website-wiki-content-migration.md
+// and one summary for each page. spec-website-wiki-content-migration
 // settled that on 2026-07-22, and a reader shown two copies of one answer has
 // to work out which one is current.
 //
