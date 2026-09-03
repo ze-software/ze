@@ -41,27 +41,36 @@ func TestBackgroundZeGetsReadinessEnv(t *testing.T) {
 	// command and poll daemon.pid/daemon.ready; before the fix, background ze
 	// got neither and every such test timed out.
 	// Foreground behavior is unchanged (still armed).
+	// The directory is the one the CHILD runs in (Record.WorkDir), which every
+	// record has since 2026-08-28. It was Record.TmpfsTempDir until 2026-09-03,
+	// and that field is set only when the .ci declares files, so the 1503 .ci
+	// files that declare none armed nothing and their fixtures polled a
+	// daemon.pid nobody wrote (plan/journal/guard-added-to-one-half-of-a-pair.md).
 	tests := []struct {
-		name         string
-		mode         string
-		binName      string
-		tmpfsTempDir string
-		want         bool
+		name    string
+		mode    string
+		binName string
+		workDir string
+		want    bool
 	}{
-		{name: "background ze with tmpfs", mode: "background", binName: "ze", tmpfsTempDir: "/tmp/x", want: true},
-		{name: "foreground ze with tmpfs", mode: modeForeground, binName: "ze", tmpfsTempDir: "/tmp/x", want: true},
-		{name: "background ze without tmpfs", mode: "background", binName: "ze", tmpfsTempDir: "", want: false},
-		{name: "foreground ze without tmpfs", mode: modeForeground, binName: "ze", tmpfsTempDir: "", want: false},
-		{name: "background ze-peer", mode: "background", binName: binNameZePeer, tmpfsTempDir: "/tmp/x", want: false},
-		{name: "background native helper", mode: "background", binName: "ze-test", tmpfsTempDir: "/tmp/x", want: false},
-		{name: "foreground native helper", mode: modeForeground, binName: "ze-test", tmpfsTempDir: "/tmp/x", want: false},
+		{name: "background ze with a work directory", mode: "background", binName: "ze", workDir: "/tmp/x", want: true},
+		{name: "foreground ze with a work directory", mode: modeForeground, binName: "ze", workDir: "/tmp/x", want: true},
+		{name: "background ze-peer", mode: "background", binName: binNameZePeer, workDir: "/tmp/x", want: false},
+		{name: "background native helper", mode: "background", binName: "ze-test", workDir: "/tmp/x", want: false},
+		{name: "foreground native helper", mode: modeForeground, binName: "ze-test", workDir: "/tmp/x", want: false},
+		// Defensive only. Every record carries a WorkDir, so an empty one means
+		// the runner failed to make it; arming a path rooted at "" would write
+		// daemon.ready into whatever directory the runner happens to sit in,
+		// which is the repository root this whole change exists to keep clean.
+		{name: "background ze with no work directory", mode: "background", binName: "ze", workDir: "", want: false},
+		{name: "foreground ze with no work directory", mode: modeForeground, binName: "ze", workDir: "", want: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := zeReadyFileEnabled(tt.mode, tt.binName, tt.tmpfsTempDir); got != tt.want {
+			if got := zeReadyFileEnabled(tt.mode, tt.binName, tt.workDir); got != tt.want {
 				t.Fatalf("zeReadyFileEnabled(%q, %q, %q) = %v, want %v",
-					tt.mode, tt.binName, tt.tmpfsTempDir, got, tt.want)
+					tt.mode, tt.binName, tt.workDir, got, tt.want)
 			}
 		})
 	}
