@@ -37,6 +37,30 @@ const (
 	// demonstrated that six of six is achievable on a fast host, so demanding
 	// it would trade a flaky test for a permanently red one.
 	flapWanted08 = flapRounds08 / 2
+	// flapCommitLead08 is how long the burst waits after the SIGHUP, and it
+	// decides whether the scenario is built at all. The reload must reach
+	// reconcileDHCP and take dhcpMu before the burst starts, and it must still
+	// be holding it when the burst lands. There is no counter that says "the
+	// apply is running" (`ze_iface_*` publishes owned devices, coalescing,
+	// worker blocks and resyncs, and nothing about config applies), so the
+	// lead is timing and the round loop's retries cover a miss.
+	//
+	// It is one second, the value chosen when forty DHCP clients held the lock
+	// for a measured 1.1 to 3.3 s, and IT NO LONGER WORKS. On the arm64 QEMU VM
+	// on 2026-09-03, zero of six attempts overlapped. 100 ms was tried on the
+	// same host and also produced zero of six, so the miss is NOT a lead that
+	// is merely too long, and this constant is not the knob that fixes it. It
+	// is named and gathered here so the next attempt starts from a measurement
+	// rather than from a literal buried in the round loop.
+	//
+	// What is still unknown is whether the reload takes dhcpMu at all on this
+	// host or takes it for a window shorter than either lead. Nothing here can
+	// answer that: `ze_iface_*` publishes owned devices, coalescing, worker
+	// blocks and resyncs, and nothing about config applies, and per-round
+	// stderr from this fixture does not reach the run output (the pre-loop
+	// FLAP line does, the ones inside the loop do not), so the next attempt
+	// needs a keep-alive VM and the daemon's own log.
+	flapCommitLead08 = time.Second
 )
 
 func init() {
@@ -242,7 +266,7 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(time.Second):
+		case <-time.After(flapCommitLead08):
 		}
 		if _, _, err := runCommand08(ctx, true, "ip", "-force", "-batch", "flap.batch"); err != nil {
 			return err
@@ -266,8 +290,22 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		}
 		pressure := pressureNow - pressureBefore
 		pressures = append(pressures, pressure)
-		if pressure <= 0 {
-			return fmt.Errorf("round %d: coalesced counter did not move; burst never outran worker", round)
+		// The coalescing assertion belongs to a round that OVERLAPPED, and to
+		// no other. `overlapped` reads the daemon's own
+		// ze_iface_link_worker_blocked_total, so it says whether the worker was
+		// ever held; a round where it was not is a round where the burst had
+		// nothing to outrun, and demanding coalescing of it fails the test for
+		// the scenario not happening rather than for the product regressing.
+		// That is what a faster daemon met: rounds 0 to 3 overlapped and round
+		// 4 did not, and the run died there instead of retrying, which is the
+		// bounded-retry design the comment below already describes.
+		//
+		// An overlapped round with no coalescing IS a product signal and still
+		// fails here: the worker was held, events arrived, and the queue did
+		// not fold them. The scenario-never-built case is caught once, at the
+		// end, by `stalled < flapWanted08`, which names the cause.
+		if overlapped && pressure <= 0 {
+			return fmt.Errorf("round %d: worker was blocked and the coalesced counter did not move; the queue did not fold events it held", round)
 		}
 		// Counting is the ONLY thing the overlap gates. The rest of the round,
 		// above all the recovery below, runs either way: an early `continue`

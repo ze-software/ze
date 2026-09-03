@@ -33,6 +33,17 @@
 #      quietly vacuous the day the drain keeps up, and a queue under no
 #      pressure says nothing about a queue that drops. Measured 85-100 per
 #      round on the arm64 QEMU VM.
+#      This is asserted of a round that OVERLAPPED a commit, and of no other.
+#      ze_iface_link_worker_blocked_total says whether the worker was ever
+#      held; a round where it was not is a round where the burst had nothing
+#      to outrun, and demanding coalescing of it fails the test for the
+#      scenario not happening rather than for the product regressing. That is
+#      what a faster daemon met on 2026-09-03: rounds 0 to 3 overlapped, round
+#      4 did not, and the run died there rather than spending one of the
+#      retries the round loop already budgets. A round that DID overlap and
+#      still coalesced nothing fails, because the queue held events and did
+#      not fold them. The scenario-never-built case is caught once, at the
+#      end, by the wanted-rounds check, which names that cause in its message.
 #   3. ze_iface_carrier_resyncs_total{name=zeflapv0} never moves
 #      No transition was lost: the event path alone carried the link to its
 #      final state. This is the assertion the dropping producer fails.
