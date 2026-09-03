@@ -222,10 +222,14 @@ func vppRouteConfig(socket string, mpls, observer bool) string {
 		families += " ipv4/mpls-label { prefix { maximum 10000; } }"
 	}
 	plugin := ""
-	process := ""
+	// The RIB is fed by peer-scoped events only: runRIBPlugin drops an event
+	// that carries no peer address. A peer attaching no process therefore
+	// stores no route and emits no best-change, so fib-vpp has nothing to
+	// program and the stub log stays empty.
+	process := "attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }"
 	if observer {
 		plugin = "plugin { external lookup-test { run \"ze-test fixture vpp/vpp-fib-route-lookup-observer\"; encoder json; } }\n"
-		process = "attach process lookup-test { }"
+		process += " attach process lookup-test { }"
 	}
 	fib := "\nfib { vpp { enabled true; } }\n"
 	if observer {
