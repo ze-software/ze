@@ -335,10 +335,15 @@ Access-Request and every accounting record of one session carry the same text
 and a billing system can join them. The text is resolved once per session, so a
 config reload does not move it mid-session.
 
-Three templates are refused when the config is committed: one naming a
+Four templates are refused when the config is committed: one naming a
 placeholder that does not exist, one longer than 253 characters (the largest
-value a RADIUS attribute can carry), and one using `{nas-id}` with no
-`nas-identifier` set. Unset sends no attribute.
+value a RADIUS attribute can carry), one using `{nas-id}` with no
+`nas-identifier` set, and one whose widest resolution passes 253 octets because
+the `nas-identifier` it expands is long. The last is a separate check because
+`{nas-id}` is nine characters that expand to a name the config does not bound.
+Unset sends no attribute.
+
+<!-- source: internal/component/l2tp/plugins/authradius/nasportid.go -- validateNASPortIDFormat, validateNASPortIDResolution -->
 
 `acct-interval` is the interim accounting cadence in seconds, and it has no
 default. RFC 2869 Section 2.1 states that a locally configured value on the NAS

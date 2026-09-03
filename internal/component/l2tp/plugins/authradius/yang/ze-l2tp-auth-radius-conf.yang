@@ -8,8 +8,19 @@ module ze-l2tp-auth-radius-conf {
         "RADIUS authentication and accounting for L2TP PPP sessions.";
 
     container l2tp {
+        // Repeat the canonical description owned by ze-l2tp-conf.yang verbatim,
+        // so the tree merge does not warn on a mismatch. This module only
+        // attaches its own subtree to the shared node.
+        description "L2TPv2 tunnel subsystem settings (RFC 2661).";
+
         container auth {
+            description "PPP authentication for L2TP subscriber sessions.";
+
             container radius {
+                description "Authenticate and account subscriber sessions against a RADIUS server.";
+                ze:help "Authentication and accounting are separate exchanges to the same
+                         server. A session is authorized by an Access-Accept, and the
+                         Accounting-Request packets that follow report its traffic.";
                 leaf source-address {
                     type zt:ipv4-address;
                     description "Source IPv4 address for outbound RADIUS packets.";
@@ -24,11 +35,13 @@ module ze-l2tp-auth-radius-conf {
                     ze:help "Ze sends the NAS-Port-Id attribute (RFC 2869 Section 5.17) in an
 Access-Request packet and in an Accounting-Request packet. The placeholders are
 {nas-id}, {tunnel-id} and {session-id}. Ze copies every other character. All three
-values are known before the session has an interface, so one session sends one text in
-its Access-Request and in all its accounting records, and a billing system can join
-them. The 253-octet limit is the largest value a RADIUS attribute can carry (RFC 2865
-Section 5). The commit refuses an unknown placeholder, and it refuses a {nas-id} when
-nas-identifier is unset. An unset leaf sends no attribute.";
+values are known before the session has an interface. One session therefore sends one
+text in its Access-Request and in all its accounting records. A billing system can
+join them on it. The 253-octet limit is the largest value a RADIUS attribute can carry (RFC 2865
+Section 5). The commit refuses an unknown placeholder, it refuses a {nas-id} when
+nas-identifier is unset, and it refuses a template whose widest resolution passes 253
+octets because the nas-identifier it expands is long. An unset leaf sends no
+attribute.";
                 }
                 leaf timeout {
                     type uint8 { range "1..30"; }
@@ -74,6 +87,11 @@ answer while this leaf is true.";
                 list server {
                     key "name";
                     ordered-by user;
+                    description "One RADIUS server Ze sends requests to, tried in the order written.";
+                    ze:help "The operator orders the list. Ze tries the first entry, and moves to
+                             the next one when that server does not answer. Write the closest
+                             server first.";
+
                     leaf name {
                         type string;
                         description "Logical name for this RADIUS server entry.";

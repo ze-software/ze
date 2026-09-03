@@ -69,7 +69,7 @@ Design constraints Ze has that osvbng does not:
 
 **Behavior to preserve:**
 - Per-session `Acct-Interim-Interval` override honoured within clamp [60, 3600]s.
-- Start/Stop semantics and packet content unchanged (packet content evolution is `plan/spec-radius-subscriber-attributes.md`).
+- Start/Stop semantics and packet content unchanged (packet content evolution is spec-radius-subscriber-attributes (closed 2026-09-03)).
 - Interims for a session keep firing at (approximately) the configured interval; spreading may shift phase, not rate.
 
 **Behavior to change:**
@@ -187,7 +187,7 @@ Design constraints Ze has that osvbng does not:
 
 ## Known Limitations
 - Skeleton only: acceptance criteria and tests above are provisional placeholders to be refined during DESIGN.
-- Packet content (attributes) is out of scope: `plan/spec-radius-subscriber-attributes.md`.
+- Packet content (attributes) is out of scope: spec-radius-subscriber-attributes (closed 2026-09-03).
 
 ## Implementation Summary
 ### What Was Implemented

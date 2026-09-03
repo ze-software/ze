@@ -85,6 +85,12 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 		if strings.Contains(format, "{nas-id}") && cfg.NASIdentifier == "" {
 			return nil, fmt.Errorf("%s: nas-port-id-format uses {nas-id} but nas-identifier is not set", Name)
 		}
+		// The template fits the attribute; what it RESOLVES to has to fit too.
+		// nas-identifier has no length bound, so {nas-id} can carry a template
+		// of nine characters past the limit a value can reach.
+		if err := validateNASPortIDResolution(format, cfg.NASIdentifier); err != nil {
+			return nil, fmt.Errorf("%s: nas-port-id-format: %w", Name, err)
+		}
 		cfg.NASPortIDFormat = format
 	}
 

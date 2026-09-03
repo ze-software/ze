@@ -47,7 +47,7 @@ Corroboration from outside the code: `plan/journal/silent-fall-through.md`
 records pppd 2.5.1 giving up after nine IPv6CP Configure-Requests against Ze.
 
 The sibling half is already recorded as limitation L-1 of
-`plan/spec-radius-subscriber-attributes.md`: `session_run.go` passes a nil
+spec-radius-subscriber-attributes (closed 2026-09-03): `session_run.go` passes a nil
 prefix allocator and `l2tp.GetPrefixHandler` has no caller, so the DHCPv6-PD
 server that the RA's M and O flags point subscribers at can delegate nothing.
 

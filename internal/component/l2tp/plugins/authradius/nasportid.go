@@ -8,6 +8,7 @@ package l2tpauthradius
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 
@@ -134,4 +135,31 @@ func nasPortIDAttrFromText(value string) (radius.Attr, bool) {
 		return radius.Attr{}, false
 	}
 	return radius.Attr{Type: radius.AttrNASPortID, Value: radius.AttrString(value)}, true
+}
+
+// validateNASPortIDResolution refuses a format whose widest resolution cannot
+// fit a RADIUS attribute value. This is a different bound from the one
+// validateNASPortIDFormat applies: that one measures the TEMPLATE, and a
+// template is shorter than what it resolves to. `{nas-id}` is nine characters
+// that expand to the whole NAS-Identifier, which the YANG leaf does not bound,
+// and `{tunnel-id}` and `{session-id}` each expand to as many as five digits.
+// Without this check an operator commits a template that passes every other
+// guard, and then finds no NAS-Port-Id in any packet, because
+// nasPortIDAttrFromText drops the over-long value at the moment of emission and
+// says nothing.
+//
+// The widest resolution is the one to measure: the tunnel and session
+// identifiers are uint16, so 65535 is the longest text either can produce, and
+// a format that fits at that width fits at every other.
+func validateNASPortIDResolution(format, nasID string) error {
+	widest := resolveNASPortID(format, nasPortIDFacts{
+		nasID:     nasID,
+		tunnelID:  math.MaxUint16,
+		sessionID: math.MaxUint16,
+	})
+	if len(widest) > maxNASPortIDLen {
+		return fmt.Errorf("resolves to %d octets for nas-identifier %q, past the %d-octet maximum of a RADIUS attribute value",
+			len(widest), nasID, maxNASPortIDLen)
+	}
+	return nil
 }

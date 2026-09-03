@@ -191,8 +191,15 @@ func TestNASPortIDEmptyResolutionOmitted(t *testing.T) {
 }
 
 func nasPortIDConfigTree(format string) map[string]any {
+	return nasPortIDConfigTreeWithNASID("lns1", format)
+}
+
+// nasPortIDConfigTreeWithNASID builds the same tree with a caller-chosen
+// NAS-Identifier, so a test can push the RESOLVED value past the attribute
+// limit while the template itself stays short.
+func nasPortIDConfigTreeWithNASID(nasID, format string) map[string]any {
 	radiusBlock := map[string]any{
-		"nas-identifier": "lns1",
+		"nas-identifier": nasID,
 		"server": []any{
 			map[string]any{"name": "radius1", "address": "10.0.0.1", "shared-key": "secret123"},
 		},
@@ -306,5 +313,47 @@ func TestNASPortIDLengthBoundary(t *testing.T) {
 				t.Fatalf("value length: got %d, want %d", len(vals[0]), tc.length)
 			}
 		})
+	}
+}
+
+// RFC 2865 Section 5: an attribute value is at most 253 octets. The template is
+// bounded separately and is not the same bound, because {nas-id} expands to a
+// nas-identifier the YANG leaf does not bound. A template that resolves past
+// 253 is refused at commit time: at run time nasPortIDAttrFromText drops the
+// value, and the operator sees no NAS-Port-Id and no diagnostic.
+func TestParseConfigRejectsResolutionPastAttributeLimit(t *testing.T) {
+	// The widest resolution of "{nas-id}-{tunnel-id}" is the nas-identifier, one
+	// hyphen, and the five digits of the largest uint16 tunnel id.
+	for _, tc := range []struct {
+		name     string
+		nasIDLen int
+		accept   bool
+	}{
+		{"widest resolution is exactly 253 octets", maxNASPortIDLen - len("-65535"), true},
+		{"widest resolution is 254 octets", maxNASPortIDLen - len("-65535") + 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			nasID := strings.Repeat("n", tc.nasIDLen)
+			_, err := parseConfigFromTree(nasPortIDConfigTreeWithNASID(nasID, "{nas-id}-{tunnel-id}"))
+			if tc.accept && err != nil {
+				t.Fatalf("nas-identifier of %d characters rejected: %v", tc.nasIDLen, err)
+			}
+			if !tc.accept && err == nil {
+				t.Fatalf("nas-identifier of %d characters accepted; the resolved value cannot fit an attribute", tc.nasIDLen)
+			}
+		})
+	}
+}
+
+// The refusal above is the refusal of an over-long RESOLUTION and not of every
+// {nas-id} template: an ordinary nas-identifier still commits, so a check that
+// rejected the placeholder outright would fail here.
+func TestParseConfigAcceptsOrdinaryNASIDResolution(t *testing.T) {
+	cfg, err := parseConfigFromTree(nasPortIDConfigTreeWithNASID("lns1", "{nas-id}-{tunnel-id}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.NASPortIDFormat != "{nas-id}-{tunnel-id}" {
+		t.Fatalf("NASPortIDFormat = %q", cfg.NASPortIDFormat)
 	}
 }
