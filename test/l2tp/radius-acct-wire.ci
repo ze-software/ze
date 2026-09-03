@@ -29,6 +29,17 @@
 # writes one decoded line per received packet to radius-rx.log and the LAC peer
 # reads those lines back, comparing the reported Framed-IP-Address against the
 # address it itself negotiated over IPCP.
+#
+# The session authenticates with CHAP-MD5, and the `auth-method` leaf below is
+# NOT what selects it. The peer sends the RFC 2661 Section 4.4.5 proxy LCP AVPs,
+# so ze takes the proxy short-circuit and EvaluateProxyLCP
+# (internal/component/l2tp/ppp/proxy.go) reads the method from the LCP
+# Authentication-Protocol option in the LAC's Last-Sent CONFREQ, which the peer
+# fixture writes. The leaf drives the path that negotiates LCP directly, which
+# this test never takes. The exchange must reach a credential: RFC 2865
+# Section 4.1 says "An Access-Request MUST contain either a User-Password or a
+# CHAP-Password or a State", so a session that authenticated with nothing sends
+# no Access-Request at all and this test has no attributes to read.
 
 
 

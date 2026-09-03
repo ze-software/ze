@@ -62,7 +62,16 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 	}
 	fmt.Printf("OK: ICRP received, ze session id %d on tunnel %d\n", state.zeSID, state.localTID)
 	peerOptions := append([]byte{1, 4, 0x05, 0xdc}, []byte{5, 6, 0x11, 0x22, 0x33, 0x44}...)
-	lacOptions := append([]byte{1, 4, 0x05, 0xdc}, []byte{5, 6, 0x55, 0x66, 0x77, 0x88}...)
+	// RFC 2661 Section 4.4.5 carries the LAC's Last-Sent LCP CONFREQ in AVP 27,
+	// and EvaluateProxyLCP (internal/component/l2tp/ppp/proxy.go) reads the
+	// authentication protocol from that AVP alone: the `l2tp auth-method` leaf
+	// is not consulted on the proxy path. The LCP Authentication-Protocol
+	// option (type 3) names CHAP (0xc223) with Algorithm 5, which RFC 1994
+	// Section 4.1 makes MD5, so ze authenticates the peer over the tunnel and
+	// can build an Access-Request that carries a credential. RFC 2865
+	// Section 4.1 admits no Access-Request without one.
+	lacOptions := append([]byte{1, 4, 0x05, 0xdc}, []byte{3, 5, 0xc2, 0x23, 0x05}...)
+	lacOptions = append(lacOptions, 5, 6, 0x55, 0x66, 0x77, 0x88)
 	iccn := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(12)), tunnelL2TPAVP(true, 24, tunnelL2TPU32(10000000))...)
 	iccn = append(iccn, tunnelL2TPAVP(true, 19, tunnelL2TPU32(2))...)
 	iccn = append(iccn, tunnelL2TPAVP(false, 26, peerOptions)...)
@@ -199,6 +208,9 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 		return nil
 	}
 	body := payload[6 : 2+length]
+	if protocol == 0xc223 {
+		return peer.answerCHAP(code, identifier, body)
+	}
 	if protocol == 0xc021 {
 		switch code {
 		case 9:
@@ -236,6 +248,51 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 		}
 	case 4:
 		return errors.New("ze rejected IPCP IP-Address option")
+	}
+	return nil
+}
+
+// tunnelCHAPPeerName is the subscriber identity the peer puts in the Name
+// field of its CHAP Response. ze copies that name into User-Name, and RFC 2865
+// Section 5 says "Text of length zero (0) MUST NOT be sent", so the name must
+// not be empty.
+const tunnelCHAPPeerName = "subscriber@ze"
+
+// tunnelCHAPPeerSecret is the CHAP secret this peer shares with the
+// authenticator. The RADIUS mock accepts every Access-Request, so no component
+// recomputes the digest: what the test proves is that a credential reaches the
+// wire, not that a particular secret is right.
+const tunnelCHAPPeerSecret = "chapsecret"
+
+// answerCHAP plays the peer half of the RFC 1994 three-way handshake that ze
+// drives as authenticator (runCHAPAuthPhase,
+// internal/component/l2tp/ppp/chap.go). Code 1 is Challenge, code 3 Success
+// and code 4 Failure; body is the CHAP packet after its 4-byte header, which
+// for a Challenge is Value-Size, Value and Name.
+func (peer *tunnelAccountingPeer) answerCHAP(code, identifier byte, body []byte) error {
+	switch code {
+	case 1:
+		if len(body) < 1 {
+			return errors.New("CHAP Challenge carried no Value-Size")
+		}
+		size := int(body[0])
+		if 1+size > len(body) {
+			return errors.New("CHAP Challenge Value-Size overruns the packet")
+		}
+		// RFC 1994 Section 4.1: the Response Value is "the one-way hash
+		// calculated over a stream of octets consisting of the Identifier,
+		// followed by (concatenated with) the "secret", followed by
+		// (concatenated with) the Challenge Value". Algorithm 5 makes that
+		// hash MD5.
+		digest := md5.Sum( //nolint:gosec // RFC 1994 CHAP Algorithm 5 is MD5
+			append(append([]byte{identifier}, tunnelCHAPPeerSecret...), body[1:1+size]...))
+		response := append([]byte{byte(len(digest))}, digest[:]...)
+		peer.sendPPP(0xc223, tunnelPPPControl(2, identifier, append(response, tunnelCHAPPeerName...)))
+		fmt.Printf("OK: CHAP Response sent for challenge identifier %d as %s\n", identifier, tunnelCHAPPeerName)
+	case 3:
+		fmt.Println("OK: CHAP Success received")
+	case 4:
+		return fmt.Errorf("ze refused the CHAP Response: %s", body)
 	}
 	return nil
 }
