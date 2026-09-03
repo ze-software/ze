@@ -2,16 +2,23 @@
 // RFC: rfc/short/rfc2865.md -- Access-Request/Accept/Reject, User-Password (5.2)
 //
 // A minimal RFC 2865 RADIUS authentication server for functional tests. It
-// answers Access-Request with Access-Accept for a configured user (decoding the
-// hidden User-Password per Section 5.2), optionally attaching Filter-Id reply
-// attributes so the admin backend's profile mapping can be exercised, and
-// Access-Reject otherwise. It reuses the production radius wire package so the
-// test exercises the real encode/decode path.
+// answers Access-Request with Access-Accept for a configured user and
+// Access-Reject otherwise, optionally attaching Filter-Id reply attributes so
+// the admin backend's profile mapping can be exercised. It reuses the
+// production radius wire package so the test exercises the real encode/decode
+// path.
+//
+// It verifies either credential RFC 2865 Section 4.1 permits: a User-Password,
+// decoded per Section 5.2, or a CHAP-Password, verified per Section 2.2 against
+// the cleartext password it holds. A request carrying both is rejected, because
+// Section 4.1 states that "An Access-Request MUST NOT contain both a
+// User-Password and a CHAP-Password."
 
 package radius
 
 import (
 	"crypto/md5" //nolint:gosec // RFC 2865 Section 5.2 mandates MD5 for User-Password
+	"crypto/subtle"
 	"encoding/binary"
 	"flag"
 	"log/slog"
@@ -122,23 +129,79 @@ func handleRequest(data, key []byte, users userList, logPackets bool) []byte {
 	}
 
 	name := string(pkt.FindAttr(radius.AttrUserName))
-	pass := decodeUserPassword(pkt.FindAttr(radius.AttrUserPassword), key, pkt.Authenticator)
+	userPassword := pkt.FindAttr(radius.AttrUserPassword)
+	chapPassword := pkt.FindAttr(radius.AttrCHAPPassword)
 
 	code := uint8(radius.CodeAccessReject)
 	var reply []radius.Attr
-	for _, u := range users {
-		if u.name == name && u.pass == pass {
-			code = radius.CodeAccessAccept
-			for _, p := range u.profiles {
-				reply = append(reply, radius.Attr{Type: radius.AttrFilterID, Value: []byte(p)})
+	method := "pap"
+	switch {
+	case userPassword != nil && chapPassword != nil:
+		// RFC 2865 Section 4.1: "An Access-Request MUST NOT contain both a
+		// User-Password and a CHAP-Password." A request carrying both is
+		// malformed, so it is rejected without reading either credential. This
+		// is what makes the mock able to fail a client that APPENDS the CHAP
+		// credential to the PAP one instead of selecting between them.
+		method = "both"
+	case chapPassword != nil:
+		method = "chap"
+		// RFC 2865 Section 5.3: "The CHAP challenge value is found in the
+		// CHAP-Challenge Attribute (60) if present in the packet, otherwise in
+		// the Request Authenticator field."
+		challenge := pkt.FindAttr(radius.AttrCHAPChallenge)
+		if challenge == nil {
+			challenge = pkt.Authenticator[:]
+		}
+		for _, u := range users {
+			if u.name == name && verifyCHAP(chapPassword, u.pass, challenge) {
+				code = radius.CodeAccessAccept
+				reply = profileAttrs(u)
+				break
 			}
-			break
+		}
+	default:
+		pass := decodeUserPassword(userPassword, key, pkt.Authenticator)
+		for _, u := range users {
+			if u.name == name && u.pass == pass {
+				code = radius.CodeAccessAccept
+				reply = profileAttrs(u)
+				break
+			}
 		}
 	}
 	if logPackets {
-		slog.Info("radius-mock: Access-Request", "user", name, "reply", codeName(code))
+		slog.Info("radius-mock: Access-Request", "user", name, "method", method, "reply", codeName(code))
 	}
 	return buildResponse(code, pkt.Identifier, pkt.Authenticator, reply, key)
+}
+
+// profileAttrs returns the Filter-Id attributes an Access-Accept carries for a
+// user, one per profile name.
+func profileAttrs(u mockUser) []radius.Attr {
+	reply := make([]radius.Attr, 0, len(u.profiles))
+	for _, p := range u.profiles {
+		reply = append(reply, radius.Attr{Type: radius.AttrFilterID, Value: []byte(p)})
+	}
+	return reply
+}
+
+// verifyCHAP performs the check RFC 2865 Section 2.2 gives the server: it
+// "encrypts the challenge using MD5 on the CHAP ID octet, that password, and
+// the CHAP challenge ... and compares that result to the CHAP-Password".
+//
+// The comparison is constant-time so the mock does not model a server that
+// leaks the response one octet at a time.
+func verifyCHAP(chapPassword []byte, password string, challenge []byte) bool {
+	// RFC 2865 Section 5.3: Length 19, so the value is one CHAP Ident octet
+	// followed by a 16-octet String.
+	if len(chapPassword) != 17 {
+		return false
+	}
+	h := md5.New() //nolint:gosec // RFC 2865 Section 2.2 mandates MD5
+	h.Write(chapPassword[:1])
+	h.Write([]byte(password))
+	h.Write(challenge)
+	return subtle.ConstantTimeCompare(h.Sum(nil), chapPassword[1:]) == 1
 }
 
 func codeName(code uint8) string {

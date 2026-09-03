@@ -7,6 +7,10 @@ module ze-radius-conf {
 
     description "RADIUS admin-authentication configuration for Ze (RFC 2865)";
 
+    revision 2026-09-03 {
+        description "Add auth-method: PAP or CHAP credential on the Access-Request";
+    }
+
     revision 2026-07-08 {
         description "Initial revision: system/authentication/radius admin backend";
     }
@@ -80,6 +84,37 @@ module ze-radius-conf {
                 leaf source-address {
                     type zt:ip-address;
                     description "Source IP for outbound RADIUS requests";
+                }
+
+                leaf auth-method {
+                    type enumeration {
+                        enum pap {
+                            description
+                                "Send the password in a User-Password attribute, hidden with the shared secret (RFC 2865 Section 5.2).";
+                        }
+                        enum chap {
+                            description
+                                "Send MD5(identifier, password, challenge) in a CHAP-Password attribute, with the challenge in CHAP-Challenge (RFC 2865 Sections 5.3 and 5.40).";
+                        }
+                    }
+                    default "pap";
+                    description
+                        "Credential the Access-Request carries for an operator login.";
+                    ze:help
+                        "RFC 2865 Section 4.1 permits one of the two and never
+                         both, so ze sends exactly one credential attribute.
+                         Select chap only when the RADIUS server holds the
+                         operator password in cleartext. RFC 2865 Section 2.2
+                         states that 'CHAP requires that the user's password be
+                         available in cleartext to the server so that it can
+                         encrypt the CHAP challenge and compare that to the CHAP
+                         response. If the password is not available in cleartext
+                         to the RADIUS server then the server MUST send an
+                         Access-Reject to the client.' A server that stores
+                         password hashes cannot verify CHAP and rejects every
+                         login. With pap the password is recoverable from a
+                         captured request by anyone who holds the shared secret,
+                         because Section 5.2 hides it with a reversible XOR.";
                 }
 
                 leaf profile-attribute {

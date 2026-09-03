@@ -33,6 +33,7 @@ type extra1Daemon struct {
 
 func init() {
 	Register("plugin/aaa-radius-admin", extra1RadiusAdmin)
+	Register("plugin/aaa-radius-chap", extra1RadiusChap)
 	Register("plugin/aaa-radius-fallback", extra1RadiusFallback)
 	Register("plugin/answer-unknown-command", extra1AnswerUnknownCommand)
 	Register("plugin/as112-probe-anycast-not-loopback", extra1AS112ProbeAnycast)
@@ -302,6 +303,19 @@ func extra1StartRadiusMock(ctx context.Context) (*extra1RadiusMock, string, erro
 		return nil, "", fmt.Errorf("RADIUS mock did not report address: %s", logContents)
 	}
 	return mock, address, nil
+}
+
+// contents returns what the RADIUS mock has logged so far, so a fixture can
+// assert on the credential the server actually read.
+func (m *extra1RadiusMock) contents() string {
+	if m == nil {
+		return ""
+	}
+	body, err := os.ReadFile(filepath.Join(m.work, "mock.log")) //nolint:gosec // the path is the fixture's own scratch file
+	if err != nil {
+		return ""
+	}
+	return string(body)
 }
 
 func extra1StopRadiusMock(mock *extra1RadiusMock) {

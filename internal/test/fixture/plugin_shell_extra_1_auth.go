@@ -181,3 +181,86 @@ environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
 	fmt.Fprintln(os.Stderr, "OK: a command that exists is not reported as unknown")
 	return nil
 }
+
+// extra1RadiusChap logs an operator in over SSH with `auth-method chap`, so the
+// credential is verified by a server that computes the digest itself rather
+// than by ze checking its own arithmetic.
+//
+// The mock rejects an Access-Request carrying both a User-Password and a
+// CHAP-Password (RFC 2865 Section 4.1), so a green run also proves the PAP
+// credential is absent: a builder that appended instead of selecting would fail
+// the login here.
+func extra1RadiusChap(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("aaa-radius-chap takes no arguments: %q", args)
+	}
+	if err := extra1TouchReady(); err != nil {
+		return err
+	}
+	mock, address, err := extra1StartRadiusMock(ctx)
+	if err != nil {
+		return err
+	}
+	defer extra1StopRadiusMock(mock)
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "mock at %s\n", address)
+	config := fmt.Sprintf(`bgp {
+	peer peer1 {
+		connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65533; remote 65533; } }
+	}
+}
+system {
+	authentication {
+		radius {
+			server %s { port %s; key "ze-mock-key"; }
+			timeout 2;
+			auth-method chap;
+		}
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
+`, host, port)
+	daemon, sshPort, err := extra1RunDaemon(ctx, "aaa-radius-chap.conf", config, nil)
+	if err != nil {
+		return err
+	}
+	defer daemon.stop()
+	fmt.Fprintf(os.Stderr, "ssh on :%s\n", sshPort)
+	configDir, err := extra1InitCLI(ctx, sshPort)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(configDir) //nolint:errcheck // fixture cleanup
+	if err := extra1Wait(ctx, 500*time.Millisecond); err != nil {
+		return err
+	}
+	if output, err := extra1CLI(ctx, configDir, sshPort, "admin", "testpass", "show bgp"); err != nil {
+		return fmt.Errorf("show bgp via RADIUS CHAP auth: %w\nOUTPUT: %s\nMOCK: %s\n%s",
+			err, output, mock.contents(), daemon.contents())
+	}
+	fmt.Fprintln(os.Stderr, "OK: show bgp ran via RADIUS CHAP auth")
+	if err := extra1Wait(ctx, 300*time.Millisecond); err != nil {
+		return err
+	}
+	if !Poll(ctx, 20, 100*time.Millisecond, func() bool {
+		return strings.Contains(daemon.contents(), "auth success") && strings.Contains(daemon.contents(), "source=radius")
+	}) {
+		return fmt.Errorf("daemon did not record RADIUS authentication: %s", daemon.contents())
+	}
+	if !strings.Contains(mock.contents(), "method=chap") {
+		return fmt.Errorf("the server did not read a CHAP credential: %s", mock.contents())
+	}
+	if strings.Contains(mock.contents(), "method=pap") || strings.Contains(mock.contents(), "method=both") {
+		return fmt.Errorf("a PAP credential reached the server under auth-method chap: %s", mock.contents())
+	}
+	fmt.Fprint(os.Stderr, mock.contents())
+	fmt.Fprint(os.Stderr, daemon.contents())
+	return nil
+}

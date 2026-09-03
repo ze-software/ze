@@ -30,6 +30,7 @@ type ExtractedConfig struct {
 	SourceAddress   net.IP
 	ProfileAttr     uint8    // Access-Accept reply attribute carrying profile names
 	DefaultProfiles []string // profiles applied when the reply carries no ProfileAttr
+	AuthMethod      AuthMethod
 }
 
 // HasServers reports whether at least one RADIUS server is configured.
@@ -113,6 +114,15 @@ func ExtractConfig(tree *config.Tree) (ExtractedConfig, error) {
 	if v, ok := radiusTree.Get("profile-attribute"); ok {
 		cfg.ProfileAttr = profileAttrType(v)
 	}
+	// An empty value is an absent leaf, exactly as source-address reads it
+	// above, and it leaves the PAP default in place.
+	if v, ok := radiusTree.Get("auth-method"); ok && v != "" {
+		method, err := parseAuthMethod(v)
+		if err != nil {
+			return ExtractedConfig{}, err
+		}
+		cfg.AuthMethod = method
+	}
 	cfg.DefaultProfiles = radiusTree.GetSlice("default-profile")
 
 	return cfg, nil
@@ -127,4 +137,50 @@ func ExtractConfig(tree *config.Tree) (ExtractedConfig, error) {
 // filter list for this user", which is what a ze authorization profile is.
 func profileAttrType(_ string) uint8 {
 	return AttrFilterID
+}
+
+// AuthMethod names the credential an Access-Request carries for an operator
+// login. RFC 2865 Section 4.1: "An Access-Request MUST contain either a
+// User-Password or a CHAP-Password or a State.  An Access-Request MUST NOT
+// contain both a User-Password and a CHAP-Password." The two values are
+// therefore exclusive, and the authenticator builds one of them.
+//
+// The zero value is AuthMethodPAP, which is the YANG default and the behavior
+// ze shipped before the auth-method leaf existed.
+type AuthMethod uint8
+
+const (
+	// AuthMethodPAP sends User-Password, hidden per RFC 2865 Section 5.2.
+	AuthMethodPAP AuthMethod = iota
+	// AuthMethodCHAP sends CHAP-Password and CHAP-Challenge, RFC 2865
+	// Sections 5.3 and 5.40.
+	AuthMethodCHAP
+)
+
+// String names the method as the YANG enum spells it.
+func (m AuthMethod) String() string {
+	if m == AuthMethodCHAP {
+		return "chap"
+	}
+	return "pap"
+}
+
+// parseAuthMethod maps the YANG auth-method enum to a typed method.
+//
+// An unknown word is refused rather than defaulted. The YANG enumeration
+// already rejects it at config load, so this is the paired check on the other
+// side of that boundary: a config reaching here with a word the schema does not
+// define means the two disagree, and picking a credential for the operator
+// would send one he did not choose. ExtractConfig returns the error, Build logs
+// it and contributes nothing, and login falls through to the local backend.
+func parseAuthMethod(s string) (AuthMethod, error) {
+	switch s {
+	case "pap":
+		return AuthMethodPAP, nil
+	case "chap":
+		return AuthMethodCHAP, nil
+	default:
+		return AuthMethodPAP, fmt.Errorf(
+			"radius: auth-method %q is not pap or chap", s)
+	}
 }

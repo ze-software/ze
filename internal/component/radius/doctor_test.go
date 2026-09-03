@@ -60,3 +60,57 @@ func TestRadiusAdminDoctorReachable(t *testing.T) {
 func TestRadiusAdminDoctorRegistered(t *testing.T) {
 	assert.Contains(t, diagnostic.DoctorCheckNames(), "radius-admin-unreachable")
 }
+
+// TestRadiusAdminDoctorProbeStaysPap drives the real probe, not the seam, so it
+// reads what radiusAdminReachable actually sends and what it makes of the
+// answer.
+//
+// VALIDATES: AC-7 -- with `auth-method chap` configured, the doctor probe still
+// carries the fixed PAP credential, and a server that answers Access-Reject
+// still reads as reachable. The probe tests reachability and the shared secret,
+// which a rejection answers as well as an acceptance does.
+// PREVENTS: the probe following the configured method onto a CHAP-only path, so
+// a server that stores hashes would read as unreachable and raise
+// doctor-radius-admin-unreachable on a working deployment. And a probe that
+// took the verdict for the answer, which would raise the same false warning
+// against any server that rejects the fixed ze-doctor credential -- that is
+// every correctly configured server.
+func TestRadiusAdminDoctorProbeStaysPap(t *testing.T) {
+	key := []byte("testing123")
+
+	chapConfig := func(t *testing.T, addr string) ExtractedConfig {
+		t.Helper()
+		host, port, err := net.SplitHostPort(addr)
+		require.NoError(t, err)
+		inner := config.NewTree()
+		entry := config.NewTree()
+		entry.Set("key", string(key))
+		entry.Set("port", port)
+		inner.AddListEntry("server", host, entry)
+		inner.Set("auth-method", "chap")
+		cfg, err := ExtractConfig(radiusTree(inner))
+		require.NoError(t, err)
+		require.Equal(t, AuthMethodCHAP, cfg.AuthMethod)
+		return cfg
+	}
+
+	// A server that rejects the probe is still reachable: the verdict is not the
+	// answer the check reads.
+	rejecting := newReplyServer(t, key, CodeAccessReject, nil)
+	defer rejecting.close()
+	cfg := chapConfig(t, rejecting.addr)
+	assert.True(t, radiusAdminReachable(cfg.Servers[0], cfg.SourceAddress, 2*time.Second),
+		"a server that answers verifiably is reachable, whatever verdict it returns")
+
+	// The probe's own attributes: PAP, and the fixed ze-doctor credential.
+	capturing := newRequestCaptureServer(t, key, nil)
+	defer capturing.close()
+	cfg = chapConfig(t, capturing.addr)
+	assert.True(t, radiusAdminReachable(cfg.Servers[0], cfg.SourceAddress, 2*time.Second))
+
+	req := capturing.captured(t)
+	assert.Equal(t, []byte("ze-doctor"), req.FindAttr(AttrUserName))
+	assert.NotNil(t, req.FindAttr(AttrUserPassword), "the probe stays PAP")
+	assert.Nil(t, req.FindAttr(AttrCHAPPassword))
+	assert.Nil(t, req.FindAttr(AttrCHAPChallenge))
+}

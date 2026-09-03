@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-09-03 |
+| Updated | 2026-09-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -183,7 +183,7 @@ builder lives beside the authenticator that uses it.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Ze holds the operator's plaintext password when `Authenticate` runs | `(*radiusAuthenticator).Authenticate` puts `request.Password` straight into an `AttrUserPassword` value | The whole spec is N/A | read at the producer | confirmed |
 | A-2 | `EncodeCHAPPassword` builds the 17-octet value and nothing else, so the digest is new code | `EncodeCHAPPassword` writes the identifier then copies the response | Less new code than planned | read at the producer | confirmed |
-| A-3 | The doctor probe does not need the method, because a reject still proves reachability and a correct shared secret | `radiusAdminReachable` verifies the Response Authenticator, not the verdict | The probe would false-negative on a CHAP-only server | AC-7 | unvalidated |
+| A-3 | The doctor probe does not need the method, because a reject still proves reachability and a correct shared secret | `radiusAdminReachable` verifies the Response Authenticator, not the verdict | The probe would false-negative on a CHAP-only server | AC-7 | confirmed by `TestRadiusAdminDoctorProbeStaysPap`, which drives `radiusAdminReachable` against a server answering Access-Reject |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -232,13 +232,19 @@ and never reaches the authenticator fails it.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRadiusAdminChapAttributes` | `internal/component/radius/authenticator_test.go` | AC-3, AC-4 | |
-| `TestRadiusAdminChapResponseDigest` | `internal/component/radius/chap_test.go` | AC-5 | |
-| `TestRadiusAdminChapChallengeIsFreshPerLogin` | `internal/component/radius/authenticator_test.go` | AC-6 | |
-| `TestRadiusAdminPapIsTheDefault` | `internal/component/radius/authenticator_test.go` | AC-1, AC-2 | |
-| `TestRadiusAdminChapFailsClosedOnRandomError` | `internal/component/radius/chap_test.go` | AC-9 | |
-| `TestExtractConfigAuthMethod` | `internal/component/radius/config_test.go` | AC-8 | |
-| `TestRadiusAdminChapReachesTheWire` | `internal/component/radius/aaa_test.go` | Wiring | |
+| `TestRadiusAdminChapAttributes` | `internal/component/radius/authenticator_test.go` | AC-3, AC-4 | green |
+| `TestRadiusAdminChapResponseDigest` | `internal/component/radius/chap_test.go` | AC-5 | green |
+| `TestRadiusAdminChapCredentialShape` | `internal/component/radius/chap_test.go` | boundary widths | green |
+| `TestRadiusAdminChapChallengeIsFreshPerLogin` | `internal/component/radius/authenticator_test.go` | AC-6 | green |
+| `TestRadiusAdminPapIsTheDefault` | `internal/component/radius/authenticator_test.go` | AC-1, AC-2 | green |
+| `TestRadiusAdminChapProfileMapping` | `internal/component/radius/authenticator_test.go` | AC-10 | green |
+| `TestRadiusAdminUnknownAuthMethodSendsNothing` | `internal/component/radius/authenticator_test.go` | the switch's default guard | green |
+| `TestRadiusAdminChapFailsClosedOnRandomError` | `internal/component/radius/chap_test.go` | AC-9 | green |
+| `TestRadiusAdminDoctorProbeStaysPap` | `internal/component/radius/doctor_test.go` | AC-7 | green |
+| `TestExtractConfigAuthMethod` | `internal/component/radius/config_test.go` | AC-8, extraction side | green |
+| `TestRadiusAuthMethodEnum` | `internal/component/config/radius_auth_method_enum_test.go` | AC-8, schema side | green |
+| `TestAdminAccessRequestCarriesExactlyOneCredential` | `internal/component/radius/rfc2865_walk_test.go` | RFC2865-4.1-3, RFC2865-4.1-4, both arms | green |
+| `TestRadiusAdminChapReachesTheWire` | `internal/component/radius/aaa_test.go` | Wiring | green |
 
 ### Boundary Tests (numeric inputs)
 | Input | Boundary | Expected |
@@ -250,7 +256,7 @@ and never reaches the authenticator fails it.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `aaa-radius-chap` | `test/plugin/aaa-radius-chap.ci` | CHAP admin login accepted, log shows `source=radius` | |
+| `aaa-radius-chap` | `test/plugin/aaa-radius-chap.ci` | CHAP admin login accepted, log shows `source=radius` | green, and RED under the reverted branch |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Peer implementation | Asserts |
@@ -360,10 +366,54 @@ not a default.
   vendor-specific attributes, and neither RFC is enrolled.
 
 ## RFC Documentation (Scope: protocol)
-- RFC 2865 Sections 2.2, 4.1, 5.3 and 5.40. `rfc/short/rfc2865.md` carries
-  CHAP-Password and CHAP-Challenge as attribute-table rows and has no
-  `[RFC2865-5.3-N]` requirement id; the extraction is re-run so the CHAP
-  obligations carry ids and tagged tests.
+- RFC 2865 Sections 2.2, 4.1, 5.3 and 5.40.
+- **The extraction was NOT re-run, and the CHAP obligations that bind ze already
+  carry ids.** The two are `RFC2865-4.1-3` ("An Access-Request MUST contain
+  either a User-Password or a CHAP-Password or a State") and `RFC2865-4.1-4`
+  ("An Access-Request MUST NOT contain both"). Sections 5.3 and 5.40 state a
+  wire format rather than an obligation, and Section 2.2's one MUST addresses
+  the RADIUS server, which ze is not on this path.
+  `TestAdminAccessRequestCarriesExactlyOneCredential` now drives both arms and
+  carries both tags, and each has a fresh discrimination record in
+  `rfc/discrimination/rfc2865.json` under a break of
+  `(*radiusAuthenticator).credential`.
+- The YANG enum refusal is tagged `RFC7950-9.6-1` in both polarities, with
+  records in `rfc/discrimination/rfc7950.json` under a break of
+  `validateEnumeration`.
+- `rfc/requirements/rfc2865.md`, `rfc/requirements/rfc7950.md` and
+  `ai/RFC-REQUIREMENTS.md` are stale against these new tags.
+  `./le rfc index-update` regenerates all of them at once and would fold in
+  three other sessions' in-flight rows, so it was NOT run here.
+
+## Implementation Notes
+
+**Where the AC-5 vector came from.** `TestRadiusAdminChapResponseDigest` asserts
+`f30a3da4592d46dfe5358518dc83b689` for identifier `0x16`, password `Hello` and
+challenge `01..10`. It was computed twice outside this package and outside Go:
+by `python3 -c "hashlib.md5(...)"` and by `printf ... | openssl dgst -md5`. Both
+agree, so the test cannot agree with a wrong producer.
+
+**How the random source is injectable.** `radiusAuthenticator` carries one
+`random io.Reader` field, set to `crypto/rand.Reader` in
+`newRadiusAuthenticator`. It is never nil, so there is no default-on-nil branch,
+and a test in the same package assigns it to force the failure. No option, no
+interface, no constructor parameter: the smallest shape that lets AC-9 drive the
+failure from `Authenticate` rather than from the helper.
+
+**The interop scenario is NOT built, and the directory was deliberately not
+created.** `test/interop/scenarios/` belongs to the BGP suite:
+`interoplab.Discover` (`internal/le/interoplab/discover.go`) joins every
+directory there against the BGP checker registry and returns
+`scenario <name> has no Go checker` for one that is missing, so an empty
+`radius-admin-chap-freeradius/` would break `./le integration interop` outright.
+The repository holds no FreeRADIUS lab of any kind: no `Dockerfile.freeradius`,
+no RADIUS package under `internal/le/interoplab/`, and no `./le integration`
+verb for it. `plan/future/spec-radius-admin-interop-freeradius.md` (skeleton,
+2026-07-08) exists for that build and calls it "a distinct infrastructure
+build". The nearest honest proof is `test/plugin/aaa-radius-chap.ci`, which
+drives a real SSH login through the production wire path against a server that
+computes the digest itself from the cleartext password and rejects a request
+carrying both credentials.
 
 ## Checklist
 

@@ -3,6 +3,7 @@ package radius
 import (
 	"context"
 	"log/slog"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -72,4 +73,42 @@ func TestRadiusBuildDegradesOnClientInitFailure(t *testing.T) {
 	require.NoError(t, err, "client-init failure must NOT fail the bundle build")
 	assert.Nil(t, contrib.Authenticator, "degraded backend contributes no authenticator")
 	assert.Nil(t, contrib.Close)
+}
+
+// TestRadiusAdminChapReachesTheWire is the wiring test: it drives the CONFIG
+// TREE, not the credential builder, so a leaf that parses correctly and never
+// reaches the authenticator fails here.
+//
+// VALIDATES: `auth-method chap` under system/authentication/radius produces an
+// Access-Request carrying CHAP-Password, through ExtractConfig, radiusBackend
+// .Build and the real UDP client.
+// PREVENTS: the leaf being read into ExtractedConfig and dropped on the way to
+// newRadiusAuthenticator, which every unit test that constructs the
+// authenticator directly would still pass.
+func TestRadiusAdminChapReachesTheWire(t *testing.T) {
+	key := []byte("testing123")
+	srv := newRequestCaptureServer(t, key, []Attr{{Type: AttrFilterID, Value: []byte("admin")}})
+	defer srv.close()
+	host, port, err := net.SplitHostPort(srv.addr)
+	require.NoError(t, err)
+
+	inner := config.NewTree()
+	server := config.NewTree()
+	server.Set("key", string(key))
+	server.Set("port", port)
+	inner.AddListEntry("server", host, server)
+	inner.Set("auth-method", "chap")
+
+	contrib, err := radiusBackend{}.Build(buildParamsWithTree(radiusTree(inner), nil))
+	require.NoError(t, err)
+	require.NotNil(t, contrib.Authenticator)
+	t.Cleanup(func() { _ = contrib.Close() })
+
+	res, err := contrib.Authenticator.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	require.NoError(t, err)
+	assert.True(t, res.Authenticated)
+
+	req := srv.captured(t)
+	assert.Nil(t, req.FindAttr(AttrUserPassword))
+	verifyCHAPAsServer(t, req, "Hello")
 }

@@ -10,7 +10,9 @@ package radius
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"time"
@@ -36,8 +38,13 @@ type radiusAuthenticator struct {
 	sourceIP        net.IP
 	profileAttr     uint8
 	defaultProfiles []string
+	method          AuthMethod
 	budget          time.Duration
 	logger          *slog.Logger
+	// random supplies the CHAP challenge and identifier. It is always
+	// crypto/rand.Reader outside tests, which set it to force the
+	// generation failure the credential branch must fail closed on.
+	random io.Reader
 }
 
 // newRadiusAuthenticator builds an authenticator from the extracted config.
@@ -56,8 +63,10 @@ func newRadiusAuthenticator(client *Client, cfg ExtractedConfig, nasID string, l
 		sourceIP:        cfg.SourceAddress,
 		profileAttr:     profileAttr,
 		defaultProfiles: cfg.DefaultProfiles,
+		method:          cfg.AuthMethod,
 		budget:          authBudget(cfg),
 		logger:          logger,
+		random:          rand.Reader,
 	}
 }
 
@@ -82,8 +91,10 @@ func authBudget(cfg ExtractedConfig) time.Duration {
 	return budget
 }
 
-// Authenticate performs PAP (RFC 2865 User-Password) authentication against
-// the configured RADIUS servers.
+// Authenticate authenticates against the configured RADIUS servers with the
+// credential the auth-method leaf selects: PAP (RFC 2865 User-Password,
+// Section 5.2) or CHAP (CHAP-Password and CHAP-Challenge, Sections 5.3 and
+// 5.40).
 //
 // Returns:
 //   - (success, nil) on Access-Accept, Profiles mapped from the reply
@@ -91,23 +102,28 @@ func authBudget(cfg ExtractedConfig) time.Duration {
 //   - (zero, ErrAuthRejected) on an Access-Accept that resolves to no profile
 //     names, whether the reply carried none and no default is configured, or the
 //     names it carried were all empty
-//   - (zero, other error) on timeout/socket/unexpected-code so the chain tries
-//     the next backend (local fallback)
+//   - (zero, other error) on timeout/socket/unexpected-code, or on a CHAP
+//     challenge that could not be generated, so the chain tries the next
+//     backend (local fallback)
 func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
 	auth, err := RandomAuthenticator()
 	if err != nil {
 		return aaa.AuthResult{}, fmt.Errorf("radius: random authenticator: %w", err)
 	}
 
-	// RFC 2865 Section 4.1: an Access-Request MUST carry NAS-IP-Address or
-	// NAS-Identifier. The password is placed in cleartext here; the client
-	// XOR-hides it per-server (Section 5.2) inside Exchange, so it never
-	// reaches the wire in the clear.
-	attrs := []Attr{
-		{Type: AttrUserPassword, Value: []byte(request.Password)},
-		{Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)},
-		{Type: AttrNASIdentifier, Value: AttrString(a.nasID)},
+	credential, err := a.credential(request.Password)
+	if err != nil {
+		return aaa.AuthResult{}, err
 	}
+
+	// RFC 2865 Section 4.1: an Access-Request MUST carry NAS-IP-Address or
+	// NAS-Identifier.
+	attrs := make([]Attr, 0, len(credential)+4)
+	attrs = append(attrs, credential...)
+	attrs = append(attrs,
+		Attr{Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)},
+		Attr{Type: AttrNASIdentifier, Value: AttrString(a.nasID)},
+	)
 	// RFC 2865 Section 5: "Text of length zero (0) MUST NOT be sent; omit the
 	// entire attribute instead." A login carrying no name would otherwise put a
 	// zero-length User-Name on the wire. Section 4.1 makes User-Name a SHOULD,
@@ -206,6 +222,31 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
 	default:
 		return aaa.AuthResult{}, fmt.Errorf("radius: unexpected response code %d", resp.Code)
+	}
+}
+
+// credential builds the one credential attribute set the Access-Request
+// carries. RFC 2865 Section 4.1: "An Access-Request MUST contain either a
+// User-Password or a CHAP-Password or a State.  An Access-Request MUST NOT
+// contain both a User-Password and a CHAP-Password." This selects; it never
+// appends, so no path can emit both.
+//
+// PAP puts the password here in cleartext, and the client XOR-hides it
+// per-server (Section 5.2) inside Exchange, so it never reaches the wire in the
+// clear. CHAP hashes it here and the password never leaves this process.
+//
+// A method the two constants do not name is refused rather than defaulted: an
+// Access-Request carrying no credential violates Section 4.1, and one carrying
+// a credential the operator did not choose is worse than a failed login, which
+// the chain answers by trying the next backend.
+func (a *radiusAuthenticator) credential(password string) ([]Attr, error) {
+	switch a.method {
+	case AuthMethodPAP:
+		return []Attr{{Type: AttrUserPassword, Value: []byte(password)}}, nil
+	case AuthMethodCHAP:
+		return chapCredential(a.random, password)
+	default:
+		return nil, fmt.Errorf("radius: unknown auth method %d", uint8(a.method))
 	}
 }
 

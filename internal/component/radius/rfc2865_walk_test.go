@@ -672,6 +672,18 @@ func (c *requestCaptureServer) captured(t *testing.T) *Packet {
 	}
 }
 
+// noRequest fails when anything reached the server. It is the assertion a
+// fail-closed path owes: "the login errored" is also true of a login that sent
+// a predictable credential and then failed for another reason.
+func (c *requestCaptureServer) noRequest(t *testing.T) {
+	t.Helper()
+	select {
+	case raw := <-c.requests:
+		t.Fatalf("a request reached the server that must never have been sent: %x", raw)
+	case <-time.After(300 * time.Millisecond):
+	}
+}
+
 // silentThenReplyServer drops the first request and answers every later one, so
 // the client is forced to retransmit to the same address.
 type silentThenReplyServer struct {

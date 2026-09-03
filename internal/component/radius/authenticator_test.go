@@ -1,8 +1,12 @@
 package radius
 
 import (
+	"bytes"
+	"crypto/md5" //nolint:gosec // RFC 2865 Section 2.2 mandates MD5 for the CHAP response
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -313,4 +317,199 @@ func TestRadiusClassIsNotInterpretedLocally(t *testing.T) {
 	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "pw"})
 	require.ErrorIs(t, err, aaa.ErrAuthRejected)
 	assert.Empty(t, res.Profiles)
+}
+
+// fixedRandom supplies a deterministic CHAP seed: one identifier octet then a
+// filled challenge.
+func fixedRandom(identifier, challengeFill byte) io.Reader {
+	seed := make([]byte, chapSeedLen)
+	seed[0] = identifier
+	for i := 1; i < len(seed); i++ {
+		seed[i] = challengeFill
+	}
+	return bytes.NewReader(seed)
+}
+
+// verifyCHAPAsServer is the verification RFC 2865 Section 2.2 gives the SERVER,
+// written here from the RFC text rather than by calling the producer: it looks
+// up the password, hashes the CHAP ID octet, that password and the CHAP
+// challenge, and compares the result to the CHAP-Password.
+func verifyCHAPAsServer(t *testing.T, req *Packet, password string) {
+	t.Helper()
+	chapPassword := req.FindAttr(AttrCHAPPassword)
+	require.Len(t, chapPassword, 17, "RFC 2865 Section 5.3: CHAP Ident plus a 16-octet String")
+	challenge := req.FindAttr(AttrCHAPChallenge)
+	require.Len(t, challenge, 16)
+
+	h := md5.New() //nolint:gosec // RFC 2865 Section 2.2 mandates MD5
+	h.Write(chapPassword[:1])
+	h.Write([]byte(password))
+	h.Write(challenge)
+	assert.Equal(t, hex.EncodeToString(h.Sum(nil)), hex.EncodeToString(chapPassword[1:]),
+		"a server verifying per RFC 2865 Section 2.2 must reproduce the CHAP-Password")
+}
+
+// TestRadiusAdminPapIsTheDefault pins the credential an operator who never
+// touched auth-method keeps getting.
+//
+// VALIDATES: AC-1 and AC-2 -- an absent auth-method and an explicit `pap` both
+// send User-Password, and neither sends a CHAP attribute.
+// PREVENTS: the CHAP branch changing the shipped default, which would break
+// every deployment whose RADIUS server stores password hashes.
+func TestRadiusAdminPapIsTheDefault(t *testing.T) {
+	// The zero value of AuthMethod is PAP, which is what an absent leaf leaves
+	// in ExtractedConfig; AuthMethodPAP is what an explicit `pap` parses to.
+	cases := []struct {
+		name   string
+		method AuthMethod
+	}{
+		{"auth-method absent", ExtractedConfig{}.AuthMethod},
+		{"auth-method pap", AuthMethodPAP},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			method := tt.method
+			key := []byte("testing123")
+			srv := newRequestCaptureServer(t, key, []Attr{{Type: AttrFilterID, Value: []byte("admin")}})
+			defer srv.close()
+
+			a := testAuthenticator(t, srv.addr, key, ExtractedConfig{ProfileAttr: AttrFilterID, AuthMethod: method})
+			res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+			require.NoError(t, err)
+			assert.True(t, res.Authenticated)
+
+			req := srv.captured(t)
+			assert.NotNil(t, req.FindAttr(AttrUserPassword), "PAP carries User-Password")
+			assert.Nil(t, req.FindAttr(AttrCHAPPassword))
+			assert.Nil(t, req.FindAttr(AttrCHAPChallenge))
+		})
+	}
+}
+
+// TestRadiusAdminChapAttributes asserts what a CHAP Access-Request carries and,
+// as importantly, what it does not.
+//
+// VALIDATES: AC-3 -- CHAP-Password (Type 3, Length 19) and CHAP-Challenge
+// (Type 60, 16 octets) are on the request, and the digest verifies the way a
+// server verifies it. AC-4 -- the request carries NO User-Password.
+// PREVENTS: a builder that APPENDS the CHAP credential to the PAP one. RFC 2865
+// Section 4.1: "An Access-Request MUST NOT contain both a User-Password and a
+// CHAP-Password." Both attributes present would still authenticate against a
+// permissive server, so only the absence assertion catches it.
+//
+// TestAdminAccessRequestCarriesExactlyOneCredential (rfc2865_walk_test.go)
+// carries the same requirement on the PAP arm. This is the CHAP arm, which no
+// test could reach before auth-method existed.
+//
+// RFC requirement: RFC2865-4.1-4 positive -- an Access-Request built for
+// auth-method chap carries a CHAP-Password and no User-Password, so the two
+// credentials are never both present.
+func TestRadiusAdminChapAttributes(t *testing.T) {
+	key := []byte("testing123")
+	srv := newRequestCaptureServer(t, key, []Attr{{Type: AttrFilterID, Value: []byte("admin")}})
+	defer srv.close()
+
+	a := testAuthenticator(t, srv.addr, key, ExtractedConfig{
+		ProfileAttr: AttrFilterID, AuthMethod: AuthMethodCHAP,
+	})
+	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	require.NoError(t, err)
+	assert.True(t, res.Authenticated)
+
+	req := srv.captured(t)
+	assert.Nil(t, req.FindAttr(AttrUserPassword),
+		"RFC 2865 Section 4.1 forbids User-Password beside CHAP-Password")
+	require.Len(t, req.FindAttr(AttrCHAPPassword), 17)
+	require.Len(t, req.FindAttr(AttrCHAPChallenge), 16)
+	verifyCHAPAsServer(t, req, "Hello")
+
+	// The rest of the request is what the PAP path already sends.
+	assert.Equal(t, []byte("alice"), req.FindAttr(AttrUserName))
+	assert.Equal(t, AttrUint32(serviceTypeLogin), req.FindAttr(AttrServiceType))
+	assert.Equal(t, []byte("ze-test"), req.FindAttr(AttrNASIdentifier))
+}
+
+// TestRadiusAdminChapChallengeIsFreshPerLogin proves the challenge is drawn per
+// login rather than once per authenticator.
+//
+// VALIDATES: AC-6 -- two successive logins carry a different challenge and a
+// different identifier.
+// PREVENTS: a challenge cached in the authenticator, which makes every login
+// produce the same CHAP-Password and turns a captured request into a replayable
+// credential.
+func TestRadiusAdminChapChallengeIsFreshPerLogin(t *testing.T) {
+	key := []byte("testing123")
+	srv := newRequestCaptureServer(t, key, []Attr{{Type: AttrFilterID, Value: []byte("admin")}})
+	defer srv.close()
+
+	a := testAuthenticator(t, srv.addr, key, ExtractedConfig{
+		ProfileAttr: AttrFilterID, AuthMethod: AuthMethodCHAP,
+	})
+	_, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	require.NoError(t, err)
+	first := srv.captured(t)
+	_, err = a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	require.NoError(t, err)
+	second := srv.captured(t)
+
+	firstPassword, secondPassword := first.FindAttr(AttrCHAPPassword), second.FindAttr(AttrCHAPPassword)
+	// Required before the identifier is read: a missing attribute is a failure to
+	// report, and indexing it instead would kill the test binary and take every
+	// later test in the package with it.
+	require.Len(t, firstPassword, 17)
+	require.Len(t, secondPassword, 17)
+
+	assert.NotEqual(t, first.FindAttr(AttrCHAPChallenge), second.FindAttr(AttrCHAPChallenge),
+		"each login draws its own challenge")
+	assert.NotEqual(t, firstPassword[0], secondPassword[0],
+		"each login draws its own CHAP Identifier")
+}
+
+// TestRadiusAdminChapProfileMapping checks that selecting CHAP changes the
+// credential and nothing else.
+//
+// VALIDATES: AC-10 -- an Access-Accept carrying Filter-Id maps to profiles
+// exactly as it does on the PAP path, and the session is tagged source=radius.
+// PREVENTS: the credential branch being wired somewhere that also changes the
+// reply handling.
+func TestRadiusAdminChapProfileMapping(t *testing.T) {
+	key := []byte("testing123")
+	reply := []Attr{
+		{Type: AttrFilterID, Value: []byte("netops")},
+		{Type: AttrFilterID, Value: []byte("read-only")},
+	}
+	srv := newRequestCaptureServer(t, key, reply)
+	defer srv.close()
+
+	a := testAuthenticator(t, srv.addr, key, ExtractedConfig{
+		ProfileAttr: AttrFilterID, AuthMethod: AuthMethodCHAP, DefaultProfiles: []string{"fallback"},
+	})
+	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	require.NoError(t, err)
+	assert.True(t, res.Authenticated)
+	assert.Equal(t, []string{"netops", "read-only"}, res.Profiles)
+	assert.Equal(t, "radius", res.Source)
+}
+
+// TestRadiusAdminUnknownAuthMethodSendsNothing states the guard on the switch
+// that selects the credential. A method neither constant names cannot be built
+// by ExtractConfig, so this covers the one remaining producer: a future caller
+// of newRadiusAuthenticator that sets the field itself.
+//
+// VALIDATES: an unknown method aborts the login and sends no packet.
+// PREVENTS: an Access-Request with no credential attribute at all, which RFC
+// 2865 Section 4.1 forbids and a server answers with a reject that reads to the
+// operator like a wrong password.
+func TestRadiusAdminUnknownAuthMethodSendsNothing(t *testing.T) {
+	key := []byte("testing123")
+	srv := newRequestCaptureServer(t, key, nil)
+	defer srv.close()
+
+	a := testAuthenticator(t, srv.addr, key, ExtractedConfig{
+		ProfileAttr: AttrFilterID, AuthMethod: AuthMethod(9),
+	})
+	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	require.Error(t, err)
+	assert.False(t, res.Authenticated)
+	srv.noRequest(t)
 }

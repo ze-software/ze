@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7950",
+  "records": [
+    {
+      "rid": "RFC7950-9.6-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum",
+      "unit-sha": "21f0956c926e79ff",
+      "claim-sha": "053c04dbb46594ae",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator.go::validateEnumeration",
+      "producer-sha": "a947d5562bbda847",
+      "break": "body of validateEnumeration replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.6-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum",
+      "unit-sha": "21f0956c926e79ff",
+      "claim-sha": "b0184564691ceb8f",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator.go::validateEnumeration",
+      "producer-sha": "a947d5562bbda847",
+      "break": "body of validateEnumeration replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

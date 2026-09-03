@@ -1,0 +1,12 @@
+# Test: RADIUS admin authentication over CHAP succeeds over SSH
+# VALIDATES: `auth-method chap` sends CHAP-Password and CHAP-Challenge, a server
+# that computes the digest itself accepts them, and Filter-Id still maps admin
+# authorization.
+# PREVENTS: a CHAP digest ze verifies only against its own arithmetic, and a
+# request carrying both credentials, which RFC 2865 Section 4.1 forbids and the
+# mock rejects.
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/aaa-radius-chap:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=auth success.*source=radius
+expect=stderr:pattern=method=chap

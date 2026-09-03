@@ -156,3 +156,46 @@ func TestRadiusSecretNotLogged(t *testing.T) {
 	}
 	assert.NotContains(t, buf.String(), secret, "shared secret must never be logged")
 }
+
+// TestExtractConfigAuthMethod covers the extraction side of the auth-method
+// leaf. The schema side, where an unknown word is refused at config load with
+// the leaf path and the permitted values, is
+// TestRadiusAuthMethodEnumRefusesUnknownValue in internal/component/config.
+//
+// VALIDATES: AC-1 and AC-2 -- an absent leaf and an explicit `pap` both extract
+// to AuthMethodPAP. AC-3 -- `chap` extracts to AuthMethodCHAP. AC-8 -- a word
+// the schema does not define fails the whole extraction rather than silently
+// selecting a credential the operator did not choose.
+// PREVENTS: an unknown auth-method defaulting to PAP behind an operator who
+// wrote `chap` with a typo, which would send the password in a recoverable form
+// while the config file says otherwise.
+func TestExtractConfigAuthMethod(t *testing.T) {
+	withMethod := func(value string) *config.Tree {
+		inner := config.NewTree()
+		srv := config.NewTree()
+		srv.Set("key", "secret")
+		inner.AddListEntry("server", "10.0.0.1", srv)
+		if value != "" {
+			inner.Set("auth-method", value)
+		}
+		return radiusTree(inner)
+	}
+
+	cfg, err := ExtractConfig(withMethod(""))
+	require.NoError(t, err)
+	assert.Equal(t, AuthMethodPAP, cfg.AuthMethod, "an absent leaf keeps the shipped PAP behavior")
+
+	cfg, err = ExtractConfig(withMethod("pap"))
+	require.NoError(t, err)
+	assert.Equal(t, AuthMethodPAP, cfg.AuthMethod)
+
+	cfg, err = ExtractConfig(withMethod("chap"))
+	require.NoError(t, err)
+	assert.Equal(t, AuthMethodCHAP, cfg.AuthMethod)
+	assert.Equal(t, "chap", cfg.AuthMethod.String())
+
+	_, err = ExtractConfig(withMethod("mschapv2"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mschapv2")
+	assert.Contains(t, err.Error(), "pap or chap")
+}
