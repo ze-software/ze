@@ -516,6 +516,8 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 		}
 		// Withdrawals only decrement and never trigger enforcement.
 		// Without limits, applyPrefixDelta just counts for anomaly detection.
+		// A withdrawal is taken at face value here, for the reason and with the
+		// consequence applyPrefixDelta states.
 		if delta < 0 || !hasLimits {
 			s.applyPrefixDelta(sec.fk, delta)
 			continue
@@ -768,6 +770,32 @@ func familyString(fk uint32) string {
 
 // applyPrefixDelta adjusts a family's prefix count without checking thresholds.
 // Used for withdrawals which only decrement and never trigger enforcement.
+//
+// KNOWN LIMITATION, accepted by the owner on 2026-09-03. Under the default
+// `count offered` this decrements for every withdrawn NLRI, whether or not the
+// family ever held it, so a peer that withdraws prefixes it never announced
+// lowers the count while the Adj-RIB-In keeps what it has. Repeated, that lets
+// the peer sit above its configured `maximum`.
+//
+// Ze accepts it, because no conformant peer produces it and the RFC gives the
+// receiver nothing to enforce with. RFC 4271 Section 1.1 defines the subject of
+// a withdrawal as "A previously advertised feasible route that is no longer
+// available for use", and Section 4.3 says each withdrawn route "is identified
+// by its destination (expressed as an IP prefix), which unambiguously
+// identifies the route in the context of the BGP speaker - BGP speaker
+// connection to which it has been previously advertised." Section 9 scopes the
+// receiver's obligation to the same set: "the previously advertised routes,
+// whose destinations (expressed as IP prefixes) are contained in this field,
+// SHALL be removed from the Adj-RIB-In." A withdrawal naming anything else
+// removes nothing, and no error, NOTIFICATION or counting rule is prescribed
+// for it.
+//
+// So `offered` is a tally of announcements minus withdrawals, and it is NOT a
+// measure of what the peer is holding in the RIB. An operator who needs the
+// maximum to bound the RIB against a peer that breaks the rule above states
+// `count installed` for the family, which counts a SET and therefore cannot be
+// moved by a withdrawal of something the set does not hold
+// (applyInstalledPrefixSection).
 func (s *Session) applyPrefixDelta(fk uint32, delta int64) {
 	current := s.prefixCounts.add(fk, delta)
 
