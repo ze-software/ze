@@ -241,6 +241,10 @@ Duplicate entry keys are rejected. Validation runs before the entry is created, 
 Navigating to a non-existent list entry (e.g., `/show/bgp/peer/london/` when `london` has not been created) redirects to the root view with an error notification.
 <!-- source: internal/component/web/fragment.go -- HandleFragment, isListEntryPath check -->
 
+A field check reads one value. A commit runs the whole-config validator, the same one `ze config validate` runs, over the config the commit is about to write. This includes the BGP peer pipeline, so a peer the daemon would refuse blocks the commit while the config is still on the screen. The refusal appears in the commit modal as `Commit failed:` with the validator's message, and nothing is written.
+<!-- source: internal/component/cli/editor_commit.go -- validateStagedTree -->
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
+
 ### Notifications
 
 Error notifications appear as toasts in the top-right corner with a 30-second countdown. Click the countdown to pause (for screenshots). Click the close button to dismiss immediately.

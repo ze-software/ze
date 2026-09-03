@@ -139,11 +139,6 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		}
 	}
 
-	// Create backup before overwriting config.conf.
-	if err := e.createBackup(string(committedData), guard); err != nil {
-		return nil, fmt.Errorf("backup: %w", err)
-	}
-
 	// Fail closed if a secret leaf holds the display placeholder: a masked
 	// `show config` pasted back must never clobber the stored secret. The guard
 	// reads config.LeafHoldsSecret, so ze:sensitive counts as well as ze:bcrypt.
@@ -160,6 +155,16 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 	myEntries = dropPlaintextPasswordEntries(myEntries)
+
+	if err := e.validateStagedTree(committedTree); err != nil {
+		return nil, err
+	}
+
+	// Create backup before overwriting config.conf. It runs after the checks
+	// above so a refused commit leaves no backup of a config it did not change.
+	if err := e.createBackup(string(committedData), guard); err != nil {
+		return nil, fmt.Errorf("backup: %w", err)
+	}
 
 	// Write committed tree to config.conf.
 	now := time.Now()
@@ -324,6 +329,10 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 	}
 	myEntries = dropPlaintextPasswordEntries(myEntries)
 
+	if err := e.validateStagedTree(committedTree); err != nil {
+		return nil, "", err
+	}
+
 	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, myOps, e.session.User, stamp, e.schema)
 	committedOutput := config.FormatSchemaStamp() + config.SerializeSetWithMeta(committedTree, commitMeta, e.schema)
 	if _, err := storage.WriteCandidateVersionWithGuard(e.store, guard, e.originalPath, []byte(committedOutput), stamp); err != nil {
@@ -338,6 +347,35 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 	e.dirty.Store(true)
 
 	return &CommitResult{Applied: applied, MigrationWarning: migrationWarning}, committedOutput, nil
+}
+
+// validateStagedTree runs the injected pre-commit validator over the tree the
+// commit is about to write. Both CommitSession and CommitSessionCandidate call
+// it, immediately before they stage anything.
+//
+// SaveDraft validates a DIFFERENT tree: the shared draft base plus this
+// session's entries. A commit writes the COMMITTED file plus this session's
+// entries. The two agree only while no other session holds a saved draft, so
+// the draft check can answer about a config that is never written while the
+// config that IS written goes unchecked. Validating here makes the checked
+// config and the staged config the same tree.
+//
+// A nil validator is a GUARD, not an empty branch left by accident. The SSH CLI
+// editor injects nothing and validates through Model.validator instead
+// (internal/component/cli/validator.go, ValidateTransition), so nil means "this
+// caller validates elsewhere" and MUST stay a no-op. The web editor injects
+// config/cli.ValidateContent (cmd/ze/hub/editor_adapter.go, newEditorFactory),
+// which is how the web reaches infra.ValidateBGPPeers. With the BGP engine
+// compiled out that seam is nil and the peer pipeline reports nothing, so the
+// commit behaves exactly as it did before this check existed.
+func (e *Editor) validateStagedTree(tree *config.Tree) error {
+	if e.preCommitValidate == nil {
+		return nil
+	}
+	if err := e.preCommitValidate(config.Serialize(tree, e.schema)); err != nil {
+		return fmt.Errorf("validation: %w", err)
+	}
+	return nil
 }
 
 func (e *Editor) cleanupCommittedSession() {

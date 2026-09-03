@@ -324,9 +324,11 @@ func (e *Editor) SetArchiveNotifier(fn archive.Notifier) {
 	e.onArchive = fn
 }
 
-// SetPreCommitValidate sets a function called during SaveDraft to validate
-// the candidate config before writing. If the function returns an error,
-// the save is rejected and the draft is not written.
+// SetPreCommitValidate sets a function that validates a candidate config
+// before it is written. It runs at each of the two writes, over the tree that
+// write is about to persist: in SaveDraft over the draft tree, and in
+// CommitSession and CommitSessionCandidate over the committed tree
+// (validateStagedTree). An error rejects that write and nothing is persisted.
 func (e *Editor) SetPreCommitValidate(fn func(candidate string) error) {
 	e.preCommitValidate = fn
 }

@@ -338,14 +338,26 @@ A rule that must see a peer's role AND its filter chains at the same time lives
 there, and nowhere else can: the role is one plugin's leaf and the chains are
 another's, and only the peer pipeline holds both.
 
-Four doors reach it, so one rule answers on every path an operator takes:
+Five doors reach it, so one rule answers on every path an operator takes:
 daemon startup and reload through `CreateReactorFromTree`, `ze config validate`
-and `ze doctor` through `infra.ValidateBGPPeers`, and the config editor's
-`commit` through the same seam.
+and `ze doctor` through `infra.ValidateBGPPeers`, the SSH config editor's
+`commit` through `bgpPeerErrors`, and the web editor's commit through the
+pre-commit validator the daemon injects into every editor it hands out
+(`newEditorFactory` passes `config/cli.ValidateContent`, which calls the same
+seam).
+
+The editor door runs the check over the tree the commit is about to WRITE, not
+over the draft. `Editor.SaveDraft` validates the shared draft base plus this
+session's entries; a commit writes the committed file plus this session's
+entries. The two agree only while no other session holds a saved draft, so
+`validateStagedTree` runs at each of the two commit writes and makes the checked
+config and the staged config the same config.
 
 <!-- source: internal/component/bgp/config/peers.go -- peersAndDynamicGroups, validatePeerProcessCaps, validateLeakFilterObligations -->
 <!-- source: internal/component/config/infra/bgp.go -- ValidateBGPPeers -->
 <!-- source: internal/component/cli/validator.go -- bgpPeerErrors -->
+<!-- source: internal/component/cli/editor_commit.go -- validateStagedTree -->
+<!-- source: cmd/ze/hub/editor_adapter.go -- newEditorFactory -->
 
 ### Claim Completeness Gate
 
