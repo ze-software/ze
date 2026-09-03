@@ -1,6 +1,6 @@
 # Test: ze "-" means stdin (read) / stdout (write) across filename-accepting commands
 # VALIDATES: migrated commands ACCEPT the "-" token and produce correct output.
-# Design: plan/spec-cli-dash-stdio.md
+# Design: docs/guide/command-reference.md -- the "-" stdin alias, the stdin-once guard, and the commands that reject it
 #
 # HARNESS NOTE (load-bearing): the .ci runner materializes a `stdin=` payload for
 # a `ze <cmd> -` step into a TEMP FILE and rewrites the "-" arg to that path

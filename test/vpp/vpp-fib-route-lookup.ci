@@ -1,4 +1,4 @@
-# Design: plan/spec-vpp-fib-query.md -- VPP FIB route lookup via IPRouteLookupV2
+# Design: docs/features/interfaces.md -- VPP FIB route lookup via IPRouteLookupV2
 #
 # Test: VPP backend RouteLookup dispatches IPRouteLookupV2 to the stub.
 #
