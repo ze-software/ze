@@ -224,7 +224,7 @@ func TestFixtureCatalogExactPopulationAndContent(t *testing.T) {
 		identities[identity] = struct{}{}
 		names[fixture.name]++
 	}
-	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 314, 0: 186, 1: 13, 2: 94}) {
+	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 323, 0: 186, 1: 13, 2: 94}) {
 		t.Fatalf("fixture exit populations = %v", exitCounts)
 	}
 	wantMessages := map[string]int{"contains": 102, "not-contains": 14, "equals": 6, "suffix": 3}

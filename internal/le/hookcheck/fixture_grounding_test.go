@@ -1,12 +1,10 @@
 package hookcheck
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"slices"
-	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/hookruntime"
 )
 
 // ungroundedCategories are the fixture categories whose verdict RESTATES the
@@ -16,34 +14,37 @@ import (
 // It is a ratchet, not an allowance. A category may leave this list, never join
 // it, and a category that leaves must not come back.
 //
-// The list exists because that failure has already happened once and nothing
-// saw it. `eae2825926` replaced the Python hooks with Go, and the design-gate
-// behaviour did not come across: writeDesignEvidence
-// (internal/le/hookruntime/writeedit.go) now clears on ANY LSP marker, or
-// failing that ANY source-read marker, with no per-kind demand. The 52
-// design-gate fixtures stayed green throughout, because their verdict is
-// `strings.Cut(value, ":")` compared with itself and never calls the gate.
-// plan/spec-finish-ci-coverage.md cited those fixtures as its proof, and the
-// hook-source-drift digest did not help: it says the producer MOVED, and a
-// deliberate rewrite re-baselines it, which is exactly when a simulation
-// silently stops matching.
+// Grounded means ONE thing: the verdict reaches hookruntime, the package that
+// runs in the hook. It does not mean the verdict calls a function. The first
+// version of this guard counted any non-string-library call as grounding and
+// reported five bound categories; every one of those five called a copy of the
+// producer's rule living in THIS package (sourceKind, safeSessionID,
+// journalCells and two more). A copy drifts exactly like an inline
+// restatement, so the true count was zero of twenty-five.
+//
+// The failure this prevents has already happened. `eae2825926` replaced the
+// Python hooks with Go, and two design fixtures did not come across: the
+// design-gate category claimed writeDesignEvidence matches the KIND of source
+// read against the kind of file written, and design-ref claimed a hook demands
+// a `// Design:` header. The gate matches no kinds, and no hook demands that
+// header. Fifty-two design-gate fixtures stayed green throughout, and
+// plan/spec-finish-ci-coverage.md cited them as its proof.
 //
 //nolint:gochecknoglobals // a ratchet baseline is data, and it is read by one test
 var ungroundedCategories = []string{
-	categoryCISleepMarker,
 	categoryCommitGate,
 	categoryDelegation,
 	categoryDelegationReminder,
 	categoryDesignGate,
 	categoryDesignRef,
 	categoryDraftIncubator,
-	categoryFormatAlloc,
+	categoryJournalRowShape,
+	categoryMarkSourceRead,
 	categoryPhaseGates,
 	categoryRFCChangedLedger,
-	categoryRFCLanguage,
 	categoryRFCTestGuard,
-	categoryRenderedRule,
 	categoryScriptWeakeningArms,
+	categorySessionID,
 	categorySessionState,
 	categorySessionStateLocation,
 	categorySubagentContext,
@@ -52,67 +53,32 @@ var ungroundedCategories = []string{
 	categoryWeakenedHatch,
 }
 
-// Twenty of twenty-five, measured on 2026-09-03 when this guard was written.
-// Five categories call their producer and cannot drift: mark-source-read asks
-// sourceKind, governed-doc-edit asks governedWrite, session-id asks
-// safeSessionID, and raw-job-admission and journal-row-shape do the same. The
-// other twenty describe a rule the producer is supposed to follow, and nothing
-// makes the producer follow it.
-
-// groundedByConstruction are the identifiers that do NOT ground a verdict: the
-// standard-library string and regexp work any restatement is built from. A
-// verdict calling only these has reimplemented its producer's rule inline.
-//
-//nolint:gochecknoglobals // read by one test
-var groundedByConstruction = []string{
-	"Contains", "HasSuffix", "HasPrefix", "Cut", "TrimSpace", "EqualFold",
-	"Split", "Fields", "Index", "Count", "ReplaceAll", "ToLower", "ToUpper",
-	"MatchString", "len", "append",
-}
-
 // TestEveryFixtureCategoryReachesItsProducer holds the rule that a fixture
 // naming a producer must ASK it, because a fixture that restates the rule
 // cannot go red when the producer stops following it.
 //
-// VALIDATES: categoryVerdict's case for each category calls something other
-// than string matching, so the fixtures are bound to the code they describe.
+// VALIDATES: each category is either bound through hookruntime.Probe, which
+// runs the check itself, or named on the ungroundedCategories baseline. There
+// is no third state.
 // PREVENTS: the design-gate failure recorded in
 // plan/journal/refactor-removes-feature.md, where a migration kept 52 fixture
-// names, dropped the behaviour they exercised, and left a green suite that a
+// names, dropped the behavior they exercised, and left a green suite that a
 // spec cited as proof.
-//
-// It reads this package's own source, which is the only way to see whether a
-// verdict CALLS the producer: no runtime observation can distinguish a correct
-// simulation from a correct producer.
 func TestEveryFixtureCategoryReachesItsProducer(t *testing.T) {
-	calls := categoryVerdictCalls(t)
-
 	for _, category := range &fixtureCategories {
-		called, seen := calls[category.name]
-		if !seen {
-			t.Errorf("category %q has a row in fixtureCategories and no case in categoryVerdict, "+
-				"so its fixtures assert nothing", category.name)
-			continue
-		}
-		grounded := false
-		for _, name := range called {
-			if !slices.Contains(groundedByConstruction, name) {
-				grounded = true
-				break
-			}
-		}
+		_, bound := categoryProbes[category.name]
 		listed := slices.Contains(ungroundedCategories, category.name)
 		switch {
-		case grounded && listed:
-			t.Errorf("category %q now calls its producer, so remove it from ungroundedCategories: "+
+		case bound && listed:
+			t.Errorf("category %q now asks its producer, so remove it from ungroundedCategories: "+
 				"the ratchet only tightens", category.name)
-		case !grounded && !listed:
-			t.Errorf("category %q decides its verdict with string matching alone (%v), so it restates "+
-				"%s rather than asking it. A fixture that restates its producer cannot go red when the "+
-				"producer stops following the rule, which is how 52 design-gate fixtures stayed green "+
-				"through a rewrite that dropped what they proved. Call the producer, or state why not by "+
-				"adding the category to ungroundedCategories with a reason",
-				category.name, called, category.evidence)
+		case !bound && !listed:
+			t.Errorf("category %q decides its verdict without reaching hookruntime, so it restates "+
+				"%s rather than asking it. A restatement cannot go red when the producer stops "+
+				"following the rule, which is how 52 design-gate fixtures stayed green through a "+
+				"rewrite that dropped what they proved. Add a categoryProbes entry, or state why "+
+				"none is possible by adding the category to ungroundedCategories",
+				category.name, category.evidence)
 		}
 	}
 
@@ -124,81 +90,35 @@ func TestEveryFixtureCategoryReachesItsProducer(t *testing.T) {
 	}
 }
 
-// categoryVerdictCalls maps each case of categoryVerdict to the function names
-// its body calls. A case that calls nothing yields an empty slice, which is
-// still an answer: it decides on the value alone.
-func categoryVerdictCalls(t *testing.T) map[string][]string {
-	t.Helper()
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "fixtures.go", nil, 0)
-	if err != nil {
-		t.Fatalf("parse fixtures.go: %v", err)
-	}
-
-	out := map[string][]string{}
-	ast.Inspect(file, func(n ast.Node) bool {
-		fn, ok := n.(*ast.FuncDecl)
-		if !ok || fn.Name.Name != "categoryVerdict" {
-			return true
+// TestEveryProbeNamesARegisteredCheck fails when a probe names a check that
+// hookruntime does not register. Without it a renamed producer would leave the
+// probe answering "not found", which reads as a refusal and would fail the
+// selftest with a message about the fixture rather than about the rename.
+func TestEveryProbeNamesARegisteredCheck(t *testing.T) {
+	for category, probe := range categoryProbes {
+		_, _, found := hookruntime.Probe(probe.check, hookruntime.Payload{ToolName: probe.tool})
+		if !found {
+			t.Errorf("category %q probes %q, which hookruntime registers under no name: "+
+				"the producer was renamed or moved out of nativeHookActions", category, probe.check)
 		}
-		ast.Inspect(fn.Body, func(inner ast.Node) bool {
-			clause, ok := inner.(*ast.CaseClause)
-			if !ok {
-				return true
-			}
-			var names []string
-			ast.Inspect(clause, func(node ast.Node) bool {
-				call, ok := node.(*ast.CallExpr)
-				if !ok {
-					return true
-				}
-				switch fun := call.Fun.(type) {
-				case *ast.Ident:
-					names = append(names, fun.Name)
-				case *ast.SelectorExpr:
-					names = append(names, fun.Sel.Name)
-				}
-				return true
-			})
-			for _, expr := range clause.List {
-				ident, ok := expr.(*ast.Ident)
-				if !ok {
-					continue
-				}
-				out[categoryConstantValue(t, file, ident.Name)] = names
-			}
-			return true
-		})
-		return false
-	})
-	if len(out) == 0 {
-		t.Fatal("categoryVerdict has no case clauses, so this guard reads nothing")
 	}
-	return out
 }
 
-// categoryConstantValue resolves a category constant's identifier to its string
-// value, so the map is keyed by the same name fixtureCategories carries.
-func categoryConstantValue(t *testing.T, file *ast.File, ident string) string {
-	t.Helper()
-	var value string
-	ast.Inspect(file, func(n ast.Node) bool {
-		spec, ok := n.(*ast.ValueSpec)
-		if !ok {
-			return true
+// TestEveryProbeSeparatesItsAllowFromItsRefusal runs each bound category's two
+// values through the real check and fails when the producer does not tell them
+// apart. checkFixtureCategory makes the same call at selftest time; this runs
+// it in the unit gate, where the failure names the category.
+func TestEveryProbeSeparatesItsAllowFromItsRefusal(t *testing.T) {
+	for _, category := range &fixtureCategories {
+		probe, bound := categoryProbes[category.name]
+		if !bound {
+			continue
 		}
-		for i, name := range spec.Names {
-			if name.Name != ident || i >= len(spec.Values) {
-				continue
-			}
-			if lit, ok := spec.Values[i].(*ast.BasicLit); ok {
-				value = strings.Trim(lit.Value, `"`)
-			}
+		if !probeVerdict(probe, category.allow) {
+			t.Errorf("category %q: %s refused the value the fixtures call allowed", category.name, probe.check)
 		}
-		return true
-	})
-	if value == "" {
-		t.Fatalf("cannot resolve category constant %q to its string value", ident)
+		if probeVerdict(probe, category.refuse) {
+			t.Errorf("category %q: %s allowed the value the fixtures call refused", category.name, probe.check)
+		}
 	}
-	return value
 }

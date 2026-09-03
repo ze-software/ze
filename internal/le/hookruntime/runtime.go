@@ -14,6 +14,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
+	goruntime "runtime"
 	"slices"
 	"strings"
 
@@ -106,6 +108,75 @@ var nativeHookActions = map[string]hookAction{
 	},
 }
 
+// newContext resolves the checkout root and turns one payload into the context
+// every check reads. It reports false when the root cannot be resolved, which
+// is the fail-open case: no check can judge a path it cannot locate.
+func newContext(payload Payload) (context, bool) {
+	if payload.ToolInput == nil {
+		payload.ToolInput = map[string]any{}
+	}
+	root := os.Getenv("CLAUDE_PROJECT_DIR")
+	if root == "" {
+		resolved, err := lepath.Root()
+		if err != nil {
+			return context{}, false
+		}
+		root = resolved
+	}
+	return context{
+		root:       root,
+		tool:       payload.ToolName,
+		input:      payload.ToolInput,
+		path:       stringInput(payload.ToolInput, "file_path"),
+		content:    standardContent(payload.ToolInput),
+		transcript: payload.TranscriptPath,
+		payload:    payload,
+	}, true
+}
+
+// checkName is the Go function name of one registered check, without its
+// package path. It is DERIVED from nativeHookActions rather than listed beside
+// it, so a renamed check renames its probe and no second list can disagree.
+func checkName(check hookCheck) string {
+	full := goruntime.FuncForPC(reflect.ValueOf(check).Pointer()).Name()
+	if index := strings.LastIndex(full, "."); index >= 0 {
+		return full[index+1:]
+	}
+	return full
+}
+
+// Probe runs ONE named check over a synthetic payload and reports its verdict
+// code, its message, and whether a check of that name is registered.
+//
+// It exists so the fixture population in internal/le/hookcheck can ask the
+// producer for a verdict instead of restating the producer's rule beside it. A
+// restatement stays green when the producer's rule moves, which is how a
+// fixture category came to claim that writeDesignEvidence matches the kind of
+// source read against the kind of file being written. It never has.
+//
+// Probe runs the named check ALONE. Running the whole chain would let a
+// different check's refusal answer for the one under test, and the probe would
+// then pass while the check it names does nothing.
+func Probe(check string, payload Payload) (code int, message string, found bool) {
+	ctx, ok := newContext(payload)
+	if !ok {
+		return 0, "", false
+	}
+	for _, action := range nativeHookActions {
+		for _, candidate := range action.checks {
+			if checkName(candidate) != check {
+				continue
+			}
+			result := candidate(ctx)
+			if result == nil {
+				return 0, "", true
+			}
+			return result.code, result.message, true
+		}
+	}
+	return 0, "", false
+}
+
 // Run reads one hook payload and writes the hook protocol response. Hooks fail
 // open on malformed input and unexpected internal errors, preserving the hook
 // protocol contract.
@@ -125,25 +196,9 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 		}
 		return 0
 	}
-	if payload.ToolInput == nil {
-		payload.ToolInput = map[string]any{}
-	}
-	root := os.Getenv("CLAUDE_PROJECT_DIR")
-	if root == "" {
-		resolved, err := lepath.Root()
-		if err != nil {
-			return 0
-		}
-		root = resolved
-	}
-	ctx := context{
-		root:       root,
-		tool:       payload.ToolName,
-		input:      payload.ToolInput,
-		path:       stringInput(payload.ToolInput, "file_path"),
-		content:    standardContent(payload.ToolInput),
-		transcript: payload.TranscriptPath,
-		payload:    payload,
+	ctx, ok := newContext(payload)
+	if !ok {
+		return 0
 	}
 
 	var results []verdict

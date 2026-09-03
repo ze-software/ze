@@ -13,42 +13,38 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/hookruntime"
 )
 
 var (
-	rfcLanguagePattern   = regexp.MustCompile(`\b(?:MUST|MUST NOT|SHOULD|SHOULD NOT|MAY)\b`)
-	deferralPattern      = regexp.MustCompile(`(?i)\b(?:defer|deferred|later)\b`)
-	governedWritePattern = regexp.MustCompile(`(?:>|>>|\btee\b|\bcp\b|\bsed\s+-i\b)`)
-	sleepMarkerPattern   = regexp.MustCompile(
-		`# sleep\((?:timer|poll-interval|no-signal)\):\s*\S`,
-	)
+	deferralPattern = regexp.MustCompile(`(?i)\b(?:defer|deferred|later)\b`)
 )
 
 const (
-	fixtureSitesExpected       = 456
-	fixtureChecksExpected      = 607
-	fixtureUniqueNamesExpected = 606
-	fixtureCategoriesExpected  = 25
+	fixtureSitesExpected       = 457
+	fixtureChecksExpected      = 616
+	fixtureUniqueNamesExpected = 615
+	fixtureCategoriesExpected  = 26
 )
 
 var (
 	fixtureSiteDigest = [sha256.Size]byte{
-		0xa3, 0xd9, 0x13, 0x1c, 0x90, 0x11, 0xb8, 0xde,
-		0x1b, 0xeb, 0x33, 0x3c, 0x92, 0x7e, 0x1e, 0xab,
-		0x0f, 0x9c, 0xf8, 0x2c, 0x27, 0xfd, 0x53, 0xb5,
-		0x47, 0x87, 0x15, 0x50, 0x17, 0xbd, 0xa2, 0x75,
+		0x15, 0x1b, 0xb0, 0xdb, 0x86, 0xc5, 0xa5, 0x24,
+		0x53, 0x32, 0x1f, 0x35, 0x59, 0x93, 0xc3, 0xcf,
+		0x8d, 0x49, 0x64, 0xf3, 0x98, 0xda, 0xfa, 0xb4,
+		0x24, 0x05, 0x5c, 0xa8, 0xf7, 0xb5, 0x7a, 0xfb,
 	}
 	fixtureCatalogDigest = [sha256.Size]byte{
-		0x94, 0x22, 0x6a, 0x4b, 0xb2, 0xae, 0xf9, 0xef,
-		0x5b, 0xfb, 0xe1, 0xd2, 0x90, 0x12, 0x25, 0x05,
-		0x2b, 0x5f, 0x63, 0xa2, 0xbb, 0xac, 0x10, 0x02,
-		0xc8, 0x4b, 0x56, 0x46, 0xe1, 0x2d, 0xcb, 0xe3,
+		0xf7, 0x6d, 0x2a, 0xb4, 0xfc, 0x49, 0xea, 0x51,
+		0x62, 0x37, 0x32, 0xa3, 0x9c, 0x3d, 0xc3, 0xdc,
+		0x80, 0x46, 0x4a, 0x88, 0x59, 0xee, 0x06, 0x16,
+		0xd9, 0x99, 0x78, 0x11, 0x87, 0xb1, 0x14, 0x2a,
 	}
 	fixtureCategoryDigest = [sha256.Size]byte{
-		0x11, 0x5e, 0xef, 0x79, 0x05, 0x58, 0x9e, 0x40,
-		0xa2, 0xca, 0x7a, 0x49, 0x4f, 0x66, 0x92, 0xef,
-		0xb2, 0x17, 0x13, 0x0e, 0xc3, 0x29, 0xf3, 0x91,
-		0x5f, 0xb8, 0x9e, 0x6b, 0x4a, 0x6e, 0x53, 0x62,
+		0xc7, 0x61, 0xa4, 0xcc, 0x07, 0x6d, 0x71, 0xb5,
+		0xdb, 0x10, 0x30, 0xaf, 0xf2, 0x37, 0x71, 0x39,
+		0xf6, 0xb1, 0x05, 0xc1, 0x2d, 0xb1, 0x5f, 0xb3,
+		0x7f, 0x34, 0xaf, 0x31, 0xd1, 0xed, 0xa8, 0xc7,
 	}
 	fixtureBoundaryDigest = [sha256.Size]byte{
 		0x5f, 0xe8, 0x52, 0x9b, 0xf0, 0x53, 0x49, 0xb9,
@@ -57,10 +53,10 @@ var (
 		0xe0, 0x5b, 0x55, 0x96, 0xd8, 0xf4, 0xf5, 0xfd,
 	}
 	hookSourcesDigest = [sha256.Size]byte{
-		0x4d, 0x30, 0x25, 0x1e, 0x7a, 0xbb, 0xf2, 0x83,
-		0xbd, 0x33, 0x98, 0x48, 0x61, 0x81, 0xf9, 0xbf,
-		0xff, 0xd6, 0xcf, 0xd3, 0x72, 0xe8, 0x1d, 0xd4,
-		0x4e, 0x3e, 0xb8, 0x01, 0x1e, 0xcb, 0x41, 0x8b,
+		0xf1, 0x17, 0xb9, 0x78, 0xf7, 0xf1, 0x68, 0x2d,
+		0x64, 0xd9, 0x86, 0x89, 0x12, 0x13, 0x8c, 0x94,
+		0xf2, 0x6d, 0xb3, 0x57, 0x92, 0xfe, 0x7e, 0x43,
+		0x94, 0x7b, 0x48, 0x8f, 0x31, 0x97, 0x45, 0x13,
 	}
 )
 
@@ -103,7 +99,7 @@ type fixtureCategory struct {
 
 var fixtureCategories = [...]fixtureCategory{
 	{categoryFormatAlloc, "run_format_alloc", hookWriteEditFile, "func writeGoPatterns(", "return fmt.Errorf(\"x\")", "return fmt.\u0053printf(\"%d\", n)"},
-	{categoryDesignRef, "run_design_ref", hookWriteEditFile, "func writeDesignEvidence(", "// Design: docs/x.md\npackage x", "package x"},
+	{categoryDesignRef, "run_design_ref", "internal/le/consistency/consistency.go", "func (c *checker) checkDesignRefs(", "// Design: docs/x.md\npackage x", "package x"},
 	{categoryTestFirst, "run_test_first", hookWriteEditFile, "func writeSpecStatus(", "foo_test.go", "foo.go"},
 	{categoryRenderedRule, "run_rendered_rule", hookWriteEditFile, "func writeRenderedRule(", "ai/rules/points/commands/x.md", "ai/rules/commands.md"},
 	{categoryRFCLanguage, "run_rfc_language", hookWriteEditFile, "func writePointLanguage(", "The caller MUST stop.", "The caller stops."},
@@ -116,7 +112,7 @@ var fixtureCategories = [...]fixtureCategory{
 	{categoryDraftIncubator, "run_draft_incubator", hookWriteEditFile, writeWeakeningAnchor, "test/unit/x_test.go", "test/draft/x_test.go"},
 	{categoryGovernedDocEdit, "run_governed_doc_edit", hookBashFile, "func bashGovernedWrite(", "cat plan/spec-x.md", "echo x > plan/spec-x.md"},
 	{categoryMarkSourceRead, "run_mark_source_read", hookLifecycleFile, "func hookSourceRead(", "internal/x.go", "docs/x.md"},
-	{categoryDesignGate, "run_design_gate", hookWriteEditFile, "func writeDesignEvidence(", "go:go", "go:script"},
+	{categoryDesignGate, "run_design_gate", hookWriteEditFile, "func writeDesignEvidence(", "source-read", "no-source-read"},
 	{categoryDelegation, "run_delegation", hookLifecycleFile, "func hookStop(", "spawned", "not-spawned"},
 	{categorySessionState, "run_session_state", hookLifecycleFile, "func hookEndSummary(", "## Phase 4 handoff\nkept", "## Snapshot\nonly"},
 	{categorySessionStateLocation, "run_session_state_location", hookLifecycleFile, "func stateFile(", "tmp/session/2026-08-25-id/state/session-state-x-id.md", "tmp/session/shared/state/x.md"},
@@ -127,6 +123,7 @@ var fixtureCategories = [...]fixtureCategory{
 	{categoryJournalRowShape, "run_journal_row_shape", "internal/le/hookruntime/postwrite.go", "func postJournal(", "| 2026-08-22 | spec-x | hooks | symptom | fix |", "| 2026-08-22 | spec-x | hooks | broken |"},
 	{categoryScriptWeakeningArms, "run_script_weakening_arms", hookWriteEditFile, writeWeakeningAnchor, "self.assertEqual(1, f())", "@pytest.mark.xfail\nself.assertEqual(1, f())"},
 	{categoryCISleepMarker, "run_ci_sleep_marker", hookWriteEditFile, "func writeCISleep(", "# sleep(timer): tracker ticks\ntime.sleep(2)", "time.sleep(2)"},
+	{categoryYangDescription, "run_yang_description", hookWriteEditFile, "func writeYangDescription(", yangProbeAllow, yangProbeRefuse},
 }
 
 type fixtureProducerBoundary struct {
@@ -407,19 +404,90 @@ func producerBoundaryDigest(boundaries []fixtureProducerBoundary) [sha256.Size]b
 	return sha256.Sum256([]byte(tb.String()))
 }
 
+// yangProbeAllow and yangProbeRefuse are the two YANG bodies the description
+// gate must separate: a summary inside the bounds, and one past the 96-character
+// cap writeYangDescription enforces.
+const (
+	yangProbeAllow  = "leaf a {\n  description \"A short summary.\";\n}"
+	yangProbeRefuse = "leaf a {\n  description \"" +
+		"A summary written far past the ninety-six character cap so the gate has something it must refuse here.\";\n}"
+)
+
+// categoryProbe binds one fixture category to the check that PRODUCES its
+// verdict. check is the Go function name registered in hookruntime's
+// nativeHookActions, resolved there rather than listed twice. tool is the
+// Claude tool the payload claims, file the path it carries, and slot the
+// payload field the category's allow/refuse value fills. wrap is a format
+// string with one %s when the producer needs the value inside a larger
+// document; an empty wrap passes the value through.
+type categoryProbe struct {
+	check string
+	tool  string
+	file  string
+	slot  string
+	wrap  string
+}
+
+const (
+	slotContent = "content"
+	slotPath    = "path"
+	slotCommand = "command"
+)
+
+// categoryProbes is the set of categories whose verdict asks hookruntime
+// instead of restating it. A category is here or on the ungroundedCategories
+// baseline in fixture_grounding_test.go, and that test refuses a third state.
+//
+// Absent categories are the ones no synthetic payload can decide. Three shapes
+// account for every one of them: a check that reads session markers or state
+// files from the running checkout (design-gate, test-first, delegation,
+// session-state), a check that reads the real file from disk rather than the
+// payload content (journal-row-shape, through journal.ValidateFile), and a
+// category whose producer is not a hook at all (design-ref, commit-gate).
+//
+//nolint:gochecknoglobals // fixture data, read by the category probes
+var categoryProbes = map[string]categoryProbe{
+	categoryFormatAlloc:     {check: "writeGoPatterns", tool: "Write", file: "internal/probe/probe.go", slot: slotContent},
+	categoryRenderedRule:    {check: "writeRenderedRule", tool: "Write", slot: slotPath},
+	categoryRFCLanguage:     {check: "writePointLanguage", tool: "Write", file: "ai/rules/points/probe/probe/probe.md", slot: slotContent, wrap: "---\nkind: directive\nstage:\n---\n%s\n"},
+	categoryCISleepMarker:   {check: "writeCISleep", tool: "Write", file: "./test/probe/probe.ci", slot: slotContent},
+	categoryGovernedDocEdit: {check: "bashGovernedWrite", tool: "Bash", slot: slotCommand},
+	categoryRawJobAdmission: {check: "bashRawHeavy", tool: "Bash", slot: slotCommand},
+	categoryYangDescription: {check: "writeYangDescription", tool: "Write", file: "internal/plugins/probe/yang/probe.yang", slot: slotContent},
+}
+
+// probeVerdict asks the producing check whether it allows this value. It
+// reports false when the check refuses, and false when no check of that name is
+// registered, so a renamed producer fails the selftest rather than passing it
+// silently. TestEveryProbeNamesARegisteredCheck reports the name itself.
+func probeVerdict(probe categoryProbe, value string) bool {
+	if probe.wrap != "" {
+		value = fmt.Sprintf(probe.wrap, value)
+	}
+	input := map[string]any{}
+	switch probe.slot {
+	case slotContent:
+		input["file_path"] = probe.file
+		input["content"] = value
+	case slotPath:
+		input["file_path"] = value
+		input["content"] = "probe"
+	case slotCommand:
+		input["command"] = value
+	}
+	code, _, found := hookruntime.Probe(probe.check, hookruntime.Payload{ToolName: probe.tool, ToolInput: input})
+	return found && code == 0
+}
+
 func categoryVerdict(category, value string) bool {
+	if probe, bound := categoryProbes[category]; bound {
+		return probeVerdict(probe, value)
+	}
 	switch category {
-	case categoryFormatAlloc:
-		return !strings.Contains(value, "fmt.Sprintf") &&
-			!strings.Contains(value, "strconv.Format")
 	case categoryDesignRef:
 		return strings.Contains(value, "// Design:")
 	case categoryTestFirst:
 		return strings.HasSuffix(value, "_test.go")
-	case categoryRenderedRule:
-		return strings.Contains(value, "/points/")
-	case categoryRFCLanguage:
-		return rfcLanguagePattern.MatchString(value)
 	case categoryValidateSpec:
 		return strings.Contains(value, "## Risks & Assumptions") &&
 			strings.Contains(value, "## Critical Review Checklist")
@@ -435,13 +503,10 @@ func categoryVerdict(category, value string) bool {
 		return strings.HasSuffix(value, "::TestRFC")
 	case categoryDraftIncubator:
 		return !strings.Contains(value, "/draft/")
-	case categoryGovernedDocEdit:
-		return !governedWrite(value)
 	case categoryMarkSourceRead:
 		return sourceKind(value) != ""
 	case categoryDesignGate:
-		left, right, ok := strings.Cut(value, ":")
-		return ok && left == right
+		return value == "source-read"
 	case categoryDelegation:
 		return value == "spawned"
 	case categorySessionState:
@@ -457,15 +522,11 @@ func categoryVerdict(category, value string) bool {
 			strings.Contains(value, planningRule)
 	case categoryPhaseGates:
 		return strings.HasPrefix(value, "/ze-")
-	case categoryRawJobAdmission:
-		return strings.HasPrefix(value, "make ") || !rawJob(value)
 	case categoryJournalRowShape:
 		return journalCells(value) == 5
 	case categoryScriptWeakeningArms:
 		return !strings.Contains(value, "@pytest.mark.xfail") &&
 			!strings.Contains(value, "@unittest.expectedFailure")
-	case categoryCISleepMarker:
-		return !strings.Contains(value, "time.sleep(") || sleepMarkerPattern.MatchString(value)
 	default:
 		return false
 	}
@@ -476,12 +537,6 @@ func safeSessionID(value string) bool {
 		return false
 	}
 	return value != ""
-}
-
-func governedWrite(command string) bool {
-	writes := governedWritePattern.MatchString(command)
-	return writes &&
-		(strings.Contains(command, "plan/") || strings.Contains(command, "ai/rules/"))
 }
 
 func sourceKind(path string) string {
@@ -536,6 +591,7 @@ const (
 	categoryRawJobAdmission      = "raw-job-admission"
 	categoryScriptWeakeningArms  = "script-weakening-arms"
 	categoryCISleepMarker        = "ci-sleep-marker"
+	categoryYangDescription      = "yang-description"
 	categorySessionStateLocation = "session-state-location"
 	categorySessionState         = "session-state"
 	categoryMarkSourceRead       = "mark-source-read"

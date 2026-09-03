@@ -462,6 +462,11 @@ var fixtureSites = [...]fixtureSite{
 	{category: categoryScriptWeakeningArms, name: "script-arm-population-is-the-two-declared-shapes", expectedExit: -1},
 	{category: categoryCISleepMarker, generator: fixtureNameGenerator{prefix: "ci-sleep-", suffix: "", labels: []string{"bare-sleep-block", "vague-comment-block", "invented-kind-block", "empty-reason-block", "marker-above-pass", "marker-trailing-pass", "poll-interval-pass", "commented-out-sleep-pass", "no-sleep-pass"}}, expectedExit: -1},
 	{category: categoryCISleepMarker, name: "ci-sleep-non-ci-path-untouched", expectedExit: 0},
+	// The YANG help gate landed in 3065c18cdb with no fixture population, which
+	// is why hookSourcesDigest went stale: the population stopped describing the
+	// producer. One site per bound writeYangDescription refuses, named for the
+	// bound each one crosses (writeedit.go judgeYangSummary).
+	{category: categoryYangDescription, generator: fixtureNameGenerator{prefix: "yang-description-", suffix: "", labels: []string{"over-char-cap", "over-word-cap", "help-restates-description", "no-full-stop", "carries-a-semicolon", "within-bounds-pass", "module-description-ignored", "revision-description-ignored", "unparseable-not-judged"}}, expectedExit: -1},
 }
 
 var fixtureCatalog = expandFixtureSites(fixtureSites[:])
