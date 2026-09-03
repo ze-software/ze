@@ -170,26 +170,43 @@ var escapeReasons = map[string]bool{
 // escapeReasonNames answers them sorted, for a refusal message.
 func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 
-// annotationKinds are the three `{...}` kinds that say something about Ze's
+// annotationKinds are the four `{...}` kinds that say something about Ze's
 // COVERAGE. SupersededKind is named apart because it says something about the
 // DOCUMENT, and the two registers must never share a slot: had superseded
 // joined this set, marking a requirement would have EVICTED its {gap} and a
 // document's obsolescence would have become a way out of the gated population.
-// The three annotation kinds a checklist line can carry. Named, because
+// The four annotation kinds a checklist line can carry. Named, because
 // AnnotationSinglePolarity is read in three places -- the parser that demands a
 // polarity beside it, the coverage rule that treats it as complete cover, and
 // the audit schema that lets one test carry an `enforced` verdict -- and a
 // literal spelled three times is a rule three files can disagree about.
+//
+// AnnotationLowerLayer says a layer UNDER Ze performs the behavior, on state Ze
+// installs into that layer. The owner ruling of 2026-08-31 counts such a
+// requirement MET and asks for a test at the boundary Ze owns; this kind is for
+// the requirements where that boundary carries nothing the behavior reads, so
+// there is no value to assert. Sixteen RFC 4302 obligations are the case it was
+// added for (2026-09-03): Linux XFRM builds every AH packet, and no field of
+// the SA Ze installs decides that the RESERVED field is zero.
+//
+// It is not a softer {not-applicable}. That one says the obligation never bound
+// Ze; this one says it binds, is met, and is not proven BY ZE -- so it stays
+// inside the gated denominator and out of the proven numerator
+// (provenshare.go), exactly where {gap} sits. What stops it becoming the next
+// blanket exemption is that its reason CLAIMS A FACT the gate checks: the layer
+// and, as `<path>.go::<Symbol>`, the producer that installs into it.
 const (
 	AnnotationNotApplicable  = "not-applicable"
 	AnnotationGap            = "gap"
 	AnnotationSinglePolarity = "single-polarity"
+	AnnotationLowerLayer     = "lower-layer"
 )
 
 var annotationKinds = map[string]bool{
 	AnnotationNotApplicable:  true,
 	AnnotationGap:            true,
 	AnnotationSinglePolarity: true,
+	AnnotationLowerLayer:     true,
 }
 
 // AnnotationKinds answers them sorted.
@@ -330,9 +347,21 @@ func isParseError(err error) bool {
 
 // Annotation is a `{kind: reason}` marker on a requirement line: why this
 // requirement owes less than a positive and a negative test.
+// Annotation is one coverage disposition a checklist line carries.
+//
+// Polarity, Layer and Producer are each read by ONE kind and empty on every
+// other: the parser fills them where that kind's format demands them, so a
+// reader that has the kind never re-parses the reason to recover them.
 type Annotation struct {
 	Kind     string `json:"kind"`
 	Polarity string `json:"polarity,omitempty"`
+	// Layer names what performs the behavior under Ze, and Producer is the
+	// `<path>.go::<Symbol>` that installs into that layer. Both are
+	// {lower-layer}'s alone, and checkLowerLayerProducer holds Producer against
+	// the tree: a layer claim nothing here can falsify is the blanket exemption
+	// this kind exists to avoid being.
+	Layer    string `json:"layer,omitempty"`
+	Producer string `json:"producer,omitempty"`
 	Reason   string `json:"reason"`
 }
 

@@ -12,6 +12,19 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// annotationBarsATest answers the kinds whose claim is contradicted by a tagged
+// test on the same requirement.
+//
+// Each of the three says NO test carries this id, for a different reason: the
+// obligation does not bind Ze, Ze does not meet it, or a layer under Ze meets
+// it and Ze's own boundary holds nothing to assert. A tag falsifies all three
+// the same way, so the annotation is stale rather than the tag being wrong. It
+// is also what keeps {lower-layer} out of the proven numerator by more than
+// bookkeeping: a requirement Ze can prove is one this annotation may not cover.
+func annotationBarsATest(kind string) bool {
+	return kind == AnnotationNotApplicable || kind == AnnotationGap || kind == AnnotationLowerLayer
+}
+
 // evaluate answers one finding per coverage violation, in the PARTS it had
 // before it formatted them.
 //
@@ -53,7 +66,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 				Str(" has a ticked checkbox. The box is a template marker, not coverage state -- a tick is a claim, and this gate exists because claims are what rot. Untick it; coverage comes from the test tags").String()))
 		}
 		annotation := req.Annotation
-		if annotation != nil && (annotation.Kind == AnnotationNotApplicable || annotation.Kind == AnnotationGap) {
+		if annotation != nil && annotationBarsATest(annotation.Kind) {
 			if len(found) > 0 {
 				locations := make([]string, 0, len(found))
 				for _, tag := range found {
@@ -212,4 +225,73 @@ func checkSuperseded(tree string, requirements []Requirement, successors map[str
 		}
 	}
 	return errs
+}
+
+// checkLowerLayerProducer holds every {lower-layer} annotation against the
+// tree it names.
+//
+// The kind's whole defense against becoming a second {not-applicable} is that
+// its reason claims a FACT rather than a judgement: a layer performs the
+// behavior, and this function in this repository installs into that layer. A
+// producer nobody can find says neither, so the annotation is refused here and
+// not merely at the parser, which can only see that the words are there.
+//
+// The refusal is by NAME, not by line: a producer that moved keeps its name and
+// passes, a producer that was deleted or renamed fails, and that is the event
+// this check exists to catch. Reading the file rather than the symbol index is
+// what makes it cheap enough to run over every summary on every gate.
+func checkLowerLayerProducer(reader *sourceReader, requirements []Requirement) []string {
+	var errs []string
+	for _, req := range requirements {
+		if req.Annotation == nil || req.Annotation.Kind != AnnotationLowerLayer {
+			continue
+		}
+		where := requirementWhere(req)
+		parts := producerRE.FindStringSubmatch(req.Annotation.Producer)
+		if parts == nil {
+			// The parser fills Producer or refuses the line, so this arm is
+			// reached only by a requirement built in code. It REFUSES rather
+			// than skipping: a missing producer is the one state this kind may
+			// not hold, and passing it silently is how a guard stops guarding
+			// (ai/rules/principles.md).
+			var tb textbuf.Buffer
+			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
+				Str(" is annotated {lower-layer} and names no producer. ").
+				Str(lowerLayerFormat).String())
+			continue
+		}
+		path, symbol := parts[1], parts[3]
+		content := reader.read(path)
+		if content == nil {
+			var tb textbuf.Buffer
+			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
+				Str(" is annotated {lower-layer: ").Str(req.Annotation.Layer).
+				Str("} and names the producer ").Str(req.Annotation.Producer).
+				Str(", whose file this checkout does not carry. The kind rests on a producer a reader can open: name the file that installs into ").
+				Str(req.Annotation.Layer).Str(", or the annotation claims what nothing here can show").String())
+			continue
+		}
+		if !declaresFunction(*content, symbol) {
+			var tb textbuf.Buffer
+			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
+				Str(" is annotated {lower-layer: ").Str(req.Annotation.Layer).
+				Str("} and names the producer ").Str(req.Annotation.Producer).
+				Str(", but ").Str(path).Str(" declares no ").Str(symbol).
+				Str(". The producer was renamed or deleted under the annotation: name the function that installs into ").
+				Str(req.Annotation.Layer).Str(" today").String())
+		}
+	}
+	return errs
+}
+
+// declaresFunction answers whether a Go file declares a top-level function of
+// this name. A method matches on its own name, because that is the name
+// funcNameIn reads and the receiver is not part of it.
+func declaresFunction(content, name string) bool {
+	for _, unit := range FunctionUnits(content) {
+		if unit.Name == name {
+			return true
+		}
+	}
+	return false
 }

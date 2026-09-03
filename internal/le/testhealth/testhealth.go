@@ -110,10 +110,6 @@ const rfcTableHeader = "| RFC | Gated | Both | One polarity | Annotated | No tes
 // both narrowed by the same filter and still balanced.
 const rfcStateEnrolled = "**enrolled**"
 
-// annotationKinds are the three coverage annotations the split partitions the
-// ledger's remainder into, in the order the first match wins in.
-var annotationKinds = [...]string{"not-applicable", "gap", "single-polarity"}
-
 // The patterns the collectors read their inputs with.
 var (
 	// rfcRow is one coverage row of the ledger's rollup table.

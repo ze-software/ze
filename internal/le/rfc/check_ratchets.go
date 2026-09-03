@@ -345,7 +345,7 @@ func checkNewSummaries(deriver *Deriver, stems, baselineStems, enrolled map[stri
 		if gated[stem] > 0 {
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str("rfc/short/").Str(stem).Str(".md is new and declares ").Int(int64(gated[stem])).
-				Str(" gated MUST-level requirement(s), but does not declare `| Enrolment | enrolled |` -- so none of them is checked. Enroll it in its own Meta table (see .claude/skills/ze-rfc/SKILL.md), classifying each requirement as tested, {single-polarity}, {gap} or {not-applicable}").String())
+				Str(" gated MUST-level requirement(s), but does not declare `| Enrolment | enrolled |` -- so none of them is checked. Enroll it in its own Meta table (see .claude/skills/ze-rfc/SKILL.md), classifying each requirement as tested, {single-polarity}, {gap}, {lower-layer} or {not-applicable}").String())
 			continue
 		}
 		inventory, err := deriver.Inventory(stem, gated[stem])

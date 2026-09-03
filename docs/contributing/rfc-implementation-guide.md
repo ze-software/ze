@@ -511,8 +511,12 @@ inside a `terminator=` block):
   test; a one-sided test passes on blanket accept or blanket reject. If a
   requirement is genuinely testable only one way, annotate its summary line
   `{single-polarity: positive|negative; why}` instead. `{gap: why; ref}` and
-  `{not-applicable: why}` cover deliberate divergence and inapplicability, each
-  with a reason (a bare annotation is rejected).
+  `{not-applicable: why}` cover deliberate divergence and inapplicability, and
+  `{lower-layer: <layer>; <path>.go::<Symbol> ...}` covers a behavior a layer
+  under Ze performs on state Ze installs, where Ze's own boundary carries no
+  value to assert. Each needs a reason (a bare annotation is rejected), and the
+  last one needs the layer and the producer its gate checks
+  (`docs/contributing/rfc-conformance-gates.md`).
 - **Place the tag inline at the table case** when one function covers many
   requirements. One id per line, polarity mandatory. The tag is the only authored
   half of the binding, so it dies with the test.

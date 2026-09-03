@@ -178,11 +178,66 @@ it, so each is a hard requirement rather than a HEAD comparison.
 | `checkSourceRestricted` | a `source-restricted` reason that names neither the body publishing the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) nor the license, copyright or paywall that stops the text being copied, and the same kind written over a text that IS in the tree. It excuses no public support claim: being unable to bound a claim is a reason to stop making it, not a reason to be excused from proving it. It is the only PERMANENT disposition: where the text IS fetchable the kind is `blocked`, and a fetch discharges it |
 | `checkUnprovenSupport` | two shapes of a claim nothing behind it can contradict. A support claim over a summary that declares ZERO gated requirements, where a claim is any Status other than `Unsupported` or `Future`, an empty cell included: a claim and a checklist that agree on NOTHING is the cheapest way to look green. Two escapes exist there, and each is evidence rather than assertion. They are a `non-normative` disposition whose reason states a property of the text, and a VALID `manual-walk` sign-off with a `register-reason`. The second one lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero. The other shape is a row PROMISING conformance -- `Supported`, alone or with a scope after it -- over gated requirements of which not one carries a both-polarity test. Neither escape reaches it, because both answer whether the DOCUMENT imposes a MUST rather than whether Ze meets one, and `Partial` is the row that states what is true |
 | `checkPublicRowMonotonic` | a `Support` cell that read a section at HEAD and reads `-` now, while the summary is still there, and a newly enrolled RFC that arrives with no row at all. It is keyed on the ROW, never on enrolment, because `checkSupportedSignoff` bills any row whose Status promises conformance. RFCs enrolled before it existed are grandfathered, so the count of enrolled RFCs with no row can only shrink |
+| `checkLowerLayerProducer` | a `{lower-layer}` annotation whose producer this checkout cannot show: the file is absent, or it declares no function of that name. The kind rests on a fact a reader can open, and a producer that was renamed or deleted under the annotation is the event this catches |
 | `checkGapCountAgreement` | a Remaining cell whose spelled number, sitting immediately before MUST or SHALL, disagrees with the real `{gap}` count. The COUNT is the only fact on that page a machine can own: it says how many annotations exist, never that their classifications are right |
 
 Un-enrolment exempts only the MISSING-ROW branch of `checkStatusAgreement`. An
 un-enrolled RFC with no row makes no public claim to contradict; one that HAS a
 row was contradicting its own row in public.
+
+## The lower-layer annotation
+
+`{lower-layer}` says a layer UNDER Ze performs the behavior, on state Ze
+installs into that layer. The owner ruling of 2026-08-31 counts such a
+requirement MET and asks for a test at the boundary Ze owns. This kind is for
+the requirements where that boundary carries nothing the behavior reads, so no
+value exists to assert. Sixteen RFC 4302 obligations are the case it was added
+for: Linux XFRM builds every AH packet, and no field of the SA Ze installs
+decides that the RESERVED field is zero.
+
+```
+- [ ] [RFC4302-2.3-1] [MUST] The RESERVED field MUST be set to zero by the sender (§2.3) {lower-layer: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the AH SA and the kernel's AH output builds every header, so no value Ze writes decides this field}
+```
+
+The reason states two facts, and the gate checks both:
+
+| Fact | Written as | Checked by |
+|------|-----------|------------|
+| The LAYER that performs the behavior | the head, before the `;` | `parseLowerLayer` refuses an empty head, and a reason with no `;` at all |
+| The PRODUCER in Ze that installs into that layer | `<path>.go::<Symbol>` anywhere in the reason | `parseLowerLayer` refuses a reason naming none; `checkLowerLayerProducer` then refuses one the tree cannot show |
+
+That producer demand is the whole difference from `{not-applicable}`. That kind
+asserts a judgement nothing in the tree can contradict, which is how it grew to
+915 sites the owner ruling presumes are mostly wrong. This kind claims a fact,
+and a rename or a deletion under it turns the gate red.
+
+Four rules decide whether it is the right kind:
+
+- **The obligation BINDS Ze.** A requirement addressed to a role Ze never fills
+  is `{not-applicable}`, and that label is presumed wrong before it is written.
+- **A layer under Ze performs it, on state Ze installs.** Where NO layer
+  performs it, nothing is met and the honest kind is `{gap}`.
+- **Ze's own boundary carries nothing to assert.** Where Ze installs a value the
+  behavior reads, the requirement owes a TEST over that value, at the boundary
+  Ze owns, and this annotation is refused beside it: a tagged test on a
+  `{lower-layer}` row makes the annotation stale, exactly as it does on a
+  `{gap}` or a `{not-applicable}` one.
+- **It is not a conformance rollup.** A requirement whose content is "implement
+  all of this document" is met by the other rows and not by a layer, so this
+  kind would launder a whole document behind one claim.
+
+It stays INSIDE the gated denominator and OUT of the proven numerator
+(`ProvenShareOf`, `internal/le/rfc/provenshare.go`): the requirement is met, and
+it is not proven BY ZE. Annotating a row may not move the published share by a
+point. On the site it is its own bucket, `lower_layer`, labeled `Met below Ze`
+and colored neutral, because an obligation met below Ze is neither a test Ze
+wrote nor work Ze owes.
+
+It cannot take a `{gap}`'s slot. It lives in the coverage register, where one
+line carries ONE disposition, so a line carrying both is refused rather than
+silently relabeled. That is the same reason `{superseded}` was kept out of the
+register: a way out of the gated population must not be creatable by writing a
+second marker beside the one already there.
 
 ## The superseded marker
 

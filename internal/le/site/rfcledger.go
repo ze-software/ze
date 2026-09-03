@@ -106,6 +106,12 @@ type rfcLedgerCoverage struct {
 	// SinglePolarity counts the gated requirements a `{single-polarity}`
 	// annotation excuses from one direction. Those DO bind.
 	SinglePolarity int `json:"excused-one-polarity"`
+	// LowerLayer counts the gated requirements a `{lower-layer}` annotation
+	// says a layer under Ze performs, on state Ze installs into it. Those DO
+	// bind and they are MET, and no test of Ze's proves one: the annotation
+	// names the layer and the producer instead, so the count sits beside the
+	// proven shares rather than inside them.
+	LowerLayer int `json:"met-below"`
 	// UnmappedAnnotations counts the gated requirements whose annotation kind
 	// this page has no bucket for.
 	//
@@ -520,6 +526,8 @@ func rfcLedgerCoverageOf(bucket rfc.CoverageRow, requirements []rfcLedgerRequire
 				coverage.NotApplicable++
 			case bucket == rfcSingleBucket:
 				coverage.SinglePolarity++
+			case bucket == rfcLowerLayerBucket:
+				coverage.LowerLayer++
 			}
 		}
 		if requirement.Audit != nil {

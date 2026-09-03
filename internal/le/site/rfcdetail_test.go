@@ -2321,18 +2321,30 @@ func TestEveryStemPageAccountsForItsGatedRequirements(t *testing.T) {
 			}
 		}
 		// The CARDS partition the binding population by splitting the gate's
-		// Annotated total into its three annotation kinds. Annotated comes from
-		// rfc.CoverageRows and the three come from this page's own walk over
+		// Annotated total into the annotation kinds. Annotated comes from
+		// rfc.CoverageRows and the parts come from this page's own walk over
 		// annotation kinds, so this compares two producers rather than a number
 		// with itself, and it is what the card sum rests on.
-		split := entry.Coverage.NotApplicable + entry.Coverage.GatedGaps +
-			entry.Coverage.SinglePolarity
+		//
+		// The parts are READ from the vocabulary. Spelling three of them here
+		// left the fourth kind out of the sum when it arrived, and the failure
+		// named the page rather than this line (2026-09-03). A kind with no
+		// bucket is TestEveryAnnotationKindHasABucket's failure, so it is
+		// skipped here rather than counted as a hole twice.
+		split, counted := 0, make([]string, 0, len(rfc.AnnotationKinds()))
+		for _, kind := range rfc.AnnotationKinds() {
+			bucket, known := rfcAnnotationBucket(kind)
+			if !known {
+				continue
+			}
+			held := entry.Coverage.Bucket(bucket)
+			split += held
+			counted = append(counted, strconv.Itoa(held)+" "+kind)
+		}
 		if split != entry.Coverage.Annotated {
 			t.Errorf("%s: the gate counts %d annotated and the kinds account for %d "+
-				"(%d out of scope, %d gaps, %d single-polarity), so the cards cannot "+
-				"partition the binding population",
-				entry.Stem, entry.Coverage.Annotated, split, entry.Coverage.NotApplicable,
-				entry.Coverage.GatedGaps, entry.Coverage.SinglePolarity)
+				"(%s), so the cards cannot partition the binding population",
+				entry.Stem, entry.Coverage.Annotated, split, strings.Join(counted, ", "))
 		}
 		if entry.Coverage.UnmappedAnnotations != 0 {
 			t.Errorf("%s carries %d requirement(s) whose annotation kind has no bucket",

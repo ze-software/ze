@@ -190,11 +190,14 @@ branch: `ParseMeta` refuses a summary with no `| Enrolment |` row and refuses a
 kind with no reason, and `loadRequirementLedger` refuses the state by name at
 the artifact boundary rather than printing a placeholder for it.
 
-**Every ratio is taken over the obligations that BIND Ze**, which is the gated
-population less the `{not-applicable}` set. That set is scope rather than
-coverage: the obligation never bound Ze, so counting it in a denominator
-flatters every share above it. It is reported as its own card, in words that say
-so, with the neutral tone. The gated count keeps its place below the ratios as
+**Every ratio is taken over the GATED population**, and no annotation takes an
+obligation out of that denominator. `{not-applicable}` is scope rather than
+coverage, so it is a named slice with a neutral card of its own rather than a
+subtraction: removing it flattered every share above it, and the owner ruled
+against that on 2026-09-02. `{lower-layer}` is a second neutral slice, added on
+2026-09-03: the obligation binds Ze and a layer under Ze meets it, on state Ze
+installs, so it is neither proven by Ze nor work Ze owes
+(`docs/contributing/rfc-conformance-gates.md`). The gated count keeps its place below the ratios as
 the accounting total it is, and the bucket table states it as the sum of the two
 populations. The page led with that count until 2026-09-01, when the owner
 called the arrangement deceptive: a count of obligations judged reads as a count

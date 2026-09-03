@@ -120,7 +120,69 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 		}
 		return &Annotation{Kind: kind, Polarity: polarity, Reason: why}, nil
 	}
+	if kind == AnnotationLowerLayer {
+		return parseLowerLayer(rest, where)
+	}
 	return &Annotation{Kind: kind, Reason: rest}, nil
+}
+
+// producerRE reads the `<path>.go::<Symbol>` a {lower-layer} reason must name.
+// The symbol half takes a method's receiver too, because the producer that
+// installs into a layer is as often `(*installer).apply` as a plain function.
+var producerRE = regexp.MustCompile(`([\w./-]+\.go)::(\(\*?[A-Za-z_]\w*\)\.)?([A-Za-z_]\w*)`)
+
+// lowerLayerFormat is the one format sentence every {lower-layer} refusal ends
+// with, so an author reading any of them is shown the same shape.
+const lowerLayerFormat = "Format: {lower-layer: <layer>; <path>.go::<Symbol> installs <what>, and <layer> performs the behavior}"
+
+// parseLowerLayer reads `{lower-layer: <layer>; why}` and demands both facts
+// the kind rests on.
+//
+// The layer says WHO performs the behavior and the producer says what Ze puts
+// there for it, as `<path>.go::<Symbol>`. Neither is decoration: a kind that
+// says "something under us does this" with nothing named is assertable rather
+// than checkable, which is how {not-applicable} became a set of 915 judgements
+// no reader can check (owner ruling, 2026-08-31). checkLowerLayerProducer then
+// holds the producer against the tree, so the claim can go stale and be found.
+func parseLowerLayer(rest, where string) (*Annotation, error) {
+	var tb textbuf.Buffer
+	layer, why, found := strings.Cut(rest, ";")
+	layer = strings.TrimSpace(layer)
+	why = strings.TrimSpace(why)
+	if !found || layer == "" || why == "" {
+		return nil, parseErr(tb.Str(where).
+			Str(": {lower-layer} needs the layer that performs the behavior, then a reason. ").
+			Str(lowerLayerFormat))
+	}
+	producer := producerRE.FindString(why)
+	if producer == "" {
+		return nil, parseErr(tb.Str(where).
+			Str(": {lower-layer} names no producer, so nothing in this tree can falsify it. ").
+			Str("Name the function that installs into ").Str(layer).
+			Str(", as <path>.go::<Symbol>. ").Str(lowerLayerFormat))
+	}
+	// A test names no producer. It is the one shape that would satisfy the
+	// demand above while installing nothing into any layer, and the kind rests
+	// on what Ze PUTS THERE.
+	if strings.HasSuffix(producerFile(producer), "_test.go") {
+		return nil, parseErr(tb.Str(where).
+			Str(": {lower-layer} names the test ").Str(producer).
+			Str(" as its producer. A test installs nothing into ").Str(layer).
+			Str("; name the code that does. ").Str(lowerLayerFormat))
+	}
+	// Reason keeps the WHOLE body, layer included. Layer and Producer are views
+	// of it rather than fields carved out of it, so every renderer that prints
+	// `{kind} reason` publishes both facts with no knowledge of this kind, and
+	// the site cannot lose the layer on its way to a page.
+	return &Annotation{Kind: AnnotationLowerLayer, Layer: layer, Producer: producer,
+		Reason: strings.TrimSpace(rest)}, nil
+}
+
+// producerFile answers the path half of a `<path>.go::<Symbol>` key, and the
+// whole string when it carries no separator.
+func producerFile(producer string) string {
+	path, _, _ := strings.Cut(producer, "::")
+	return path
 }
 
 // parseSuccessor reads `{superseded: restated RFC9568-5.2.3-2; why}` and its

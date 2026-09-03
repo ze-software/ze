@@ -27,7 +27,10 @@ type ProvenShare struct {
 	// has no input to drive it.
 	Proven int
 	// Gated counts every gated requirement of the RFCs Ze implements. A
-	// not-applicable requirement STAYS in this denominator.
+	// not-applicable requirement STAYS in this denominator, and so does a
+	// lower-layer one: that requirement is MET, by a layer under Ze, and it is
+	// not proven BY ZE, so it belongs in neither the numerator nor a smaller
+	// denominator. Annotating one may not move this share by a point.
 	Gated int
 	// RFCs is how many enrolled RFCs Ze implements, and Inspected is how many
 	// it has enrolled at all. GatedInspected is the obligation count across

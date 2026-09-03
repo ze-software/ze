@@ -45,7 +45,18 @@ func annotationPattern(kind string) *regexp.Regexp {
 	return regexp.MustCompile(tb.Str(`\{`).Str(regexp.QuoteMeta(kind)).Str(`[:}]`).String())
 }
 
-// annotationPatterns is the three kinds, compiled once, in the order the first
+// annotationKinds are the coverage annotations the split partitions the
+// ledger's remainder into, READ from the vocabulary rather than restated here.
+//
+// It was a literal array of three until 2026-09-03, and the fourth kind
+// (`lower-layer`) would have gone uncounted: the split would no longer have
+// summed to the ledger's Annotated column, and collectRFC refuses that
+// divergence, so the whole page would have gone down rather than published a
+// non-partition. A list beside a registry is a future disagreement with nothing
+// to arbitrate it (ai/rules/principles.md).
+var annotationKinds = rfc.AnnotationKinds()
+
+// annotationPatterns is those kinds, compiled once, in the order the first
 // match wins in.
 var annotationPatterns = func() []*regexp.Regexp {
 	out := make([]*regexp.Regexp, 0, len(annotationKinds))
@@ -356,15 +367,19 @@ func densityMetric(rows, unproven []ledgerRow, kinds annotationCounts, density o
 		Str(" gated MUSTs across ").Int(int64(share.Inspected)).
 		Str(" enrolled RFCs -- and of the ").Int(int64(gated - both)).
 		Str(" of those not proven in both polarities: ").
-		Int(int64(kinds.get("not-applicable"))).
+		Int(int64(kinds.get(rfc.AnnotationNotApplicable))).
 		Str(" not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 " +
 			"presumes most of these need re-homing, so they stay inside the denominator " +
 			"above rather than being subtracted from it), ").
-		Int(int64(kinds.get("gap"))).
+		Int(int64(kinds.get(rfc.AnnotationGap))).
 		Str(" known gap (unimplemented, genuinely untested), ").
-		Int(int64(kinds.get("single-polarity"))).
+		Int(int64(kinds.get(rfc.AnnotationSinglePolarity))).
 		Str(" single-polarity -- those DO have a passing tagged test, just one side of the " +
-			"pair, and the RFC gate fails if that test is missing -- and ").
+			"pair, and the RFC gate fails if that test is missing -- ").
+		Int(int64(kinds.get(rfc.AnnotationLowerLayer))).
+		Str(" met by a layer under ze on state ze installs, which the annotation names with " +
+			"the producer that installs it: those are MET and are not proven by ze, so they " +
+			"count in the denominator above and never in the share, and ").
 		Int(int64(noTest)).
 		Str(" with no test and no annotation at all, which is what `./le rfc check` is red " +
 			"about. Only the gap column and that last one are untested work.").String()

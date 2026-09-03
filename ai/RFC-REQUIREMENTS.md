@@ -27,7 +27,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 
 ## Coverage by RFC
 
-385 MUST-level requirement(s) still owe work across 185 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
+371 MUST-level requirement(s) still owe work across 185 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
 
 **Nightly-only** (2 requirement(s)) counts what is proven ONLY by evidence no `./le verify current mode full` stage runs -- today, interop scenarios, which are scheduled and advisory. **Both** and **One polarity** are the polarity view: they answer which polarities exist, not which pipeline runs them, so a nightly-only requirement is counted there too. **Nightly-only** is the tier view over the same rows -- an overlapping subset marker naming which of them no merge-gate stage proves, never a total to sum with the others.
 
@@ -209,10 +209,10 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 | `rfc5082` | 4 | 3 | 0 | 0 | 1 | 1 | 0 | **enrolled** |
 | `rfc8671` | 10 | 7 | 0 | 2 | 1 | 1 | 0 | **enrolled** |
 | `draft-abraitis-bgp-version-capability` | 11 | 0 | 0 | 0 | 11 | 11 | 0 | **enrolled** |
+| `rfc4302` | 34 | 8 | 0 | 14 | 12 | 12 | 0 | **enrolled** |
 | `draft-ietf-idr-linklocal-capability` | 13 | 0 | 0 | 0 | 13 | 13 | 0 | **enrolled** |
 | `rfc3748` | 61 | 33 | 0 | 13 | 15 | 15 | 0 | **enrolled** |
 | `rfc5282` | 19 | 1 | 0 | 0 | 18 | 18 | 0 | **enrolled** |
-| `rfc4302` | 34 | 8 | 0 | 0 | 26 | 26 | 0 | **enrolled** |
 | `rfc5798` | 55 | 0 | 0 | 0 | 55 | 55 | 0 | **enrolled**, superseded by RFC9568 |
 | `rfc1035` | 27 | 25 | 0 | 0 | 2 | 2 | 0 | backlog |
 | `draft-ietf-sidrops-8210bis` | 10 | 0 | 0 | 4 | 6 | 6 | 0 | backlog |
@@ -399,7 +399,7 @@ One row per requirement whose verdict is anything other than a fresh `enforced`.
 
 A tag names a requirement and a polarity, and then states in prose what its test demonstrates. No gate can read that sentence, so a test that asserts less than its tag claims counts as evidence everywhere else on this page. A record under `rfc/discrimination/` replaces reading it: it names a break of the producing code, and it stores the observation that the tagged unit went RED under that break and green again after it. `./le rfc check` replays the fingerprints on every run and refuses a record whose unit, claim or producer has moved since.
 
-Proven: 136 (mutant 3, revert 133). Escaped: 0. Unproven backlog: 3864 of 3997 tagged unit(s) on a gated requirement of an enrolled RFC. 3 further record(s) sit outside that population, on a requirement no gate obliges: an un-enrolled RFC, or a level below MUST. They are counted in the totals above and not in the backlog, so the two figures are two populations rather than one arithmetic.
+Proven: 152 (mutant 13, revert 139). Escaped: 0. Unproven backlog: 3848 of 3997 tagged unit(s) on a gated requirement of an enrolled RFC. 3 further record(s) sit outside that population, on a requirement no gate obliges: an un-enrolled RFC, or a level below MUST. They are counted in the totals above and not in the backlog, so the two figures are two populations rather than one arithmetic.
 
 The backlog is grandfathered, as the extraction backlog is. The obligation is CHANGE-SCOPED: a tagged unit that is new against git HEAD owes its proof in the change that added it, and `./le rfc check` reports that figure as `owed`. It is absent from this page on purpose. `owed` is a fact about a commit boundary rather than about this tree, so a page carrying it would go stale when nothing in the tree had changed.
 

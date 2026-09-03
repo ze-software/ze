@@ -24,8 +24,8 @@ Generate a structured implementation summary from an RFC text file.
    must be enrolled in the same change** (`check_new_summaries`): writing obligations down
    and gating none of them is how a compliance claim rots. Enrolling does not mean every
    MUST is met — classify each honestly as tested, `{single-polarity}`, `{gap}` (with a
-   non-"Supported" `Support status` row in the summary's own `## Meta` table) or
-   `{not-applicable}`. The gate also fails a new summary that does not parse, or that
+   non-"Supported" `Support status` row in the summary's own `## Meta` table),
+   `{lower-layer}` or `{not-applicable}`. The gate also fails a new summary that does not parse, or that
    captures zero requirements while
    `rfc/full/<stem>.txt` contains MUST-level keywords. **Enrolling a stem that was not
    enrolled at HEAD also requires an extraction sign-off** (`rfc/extraction/<stem>.json`);
@@ -311,6 +311,7 @@ rejected by `./le rfc check`.
 - [ ] [RFC5303-3-1] [MUST] <text> (§3) {not-applicable: Ze does not implement IS-IS mesh groups}
 - [ ] [RFC7606-5.1-1] [MUST] <text> (§5.1) {gap: Ze emits MP_UNREACH first, MP_REACH last; docs/architecture/wire/mp-nlri-ordering.md}
 - [ ] [RFC7606-4-1] [MUST] <text> (§4) {single-polarity: negative; no conforming input exists to assert positively}
+- [ ] [RFC4302-2.3-1] [MUST] <text> (§2.3) {lower-layer: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the AH SA and the kernel builds every header, so no value Ze writes decides this field}
 ```
 
 | Annotation | Meaning | Gate behavior |
@@ -318,13 +319,32 @@ rejected by `./le rfc check`.
 | `{not-applicable: why}` | Not applicable to Ze (protocol not implemented, role not played) | Passes. MUST NOT coexist with any test tag |
 | `{gap: why; ref}` | Known, deliberate divergence | Passes, but MUST be disclosed in that RFC's public row, which is declared by the `Support status` and `Support remaining` rows of its own `## Meta` table. Not a place to hide an accident |
 | `{single-polarity: positive\|negative; why}` | Genuinely testable only one way | Requires tags of that polarity only, instead of the usual pair |
+| `{lower-layer: <layer>; <path>.go::<Symbol> ...}` | A layer under Ze performs the behavior, on state Ze installs into it, and Ze's own boundary carries no value to assert | Passes. MUST NOT coexist with any test tag. The reason MUST name the layer and the producer, and `./le rfc check` refuses a producer this tree cannot show |
 
 **These are not escape hatches.** If a requirement has no test because nobody wrote one
-yet, that is not `not-applicable` — write the test, or leave the RFC un-enrolled. Both
-`{not-applicable}` and `{gap}` FAIL the gate the moment a test tags the requirement
-(a stale annotation is a lie the ratchet catches).
+yet, that is not `not-applicable` — write the test, or leave the RFC un-enrolled.
+`{not-applicable}`, `{gap}` and `{lower-layer}` each FAIL the gate the moment a test tags
+the requirement (a stale annotation is a lie the ratchet catches).
 
-**Writing any of the three is Thomas's call, not yours** (owner directive 2026-07-27,
+**When to reach for `{lower-layer}`, and when not to.** Four questions decide it, in this
+order. Does the obligation BIND Ze? If it binds no role Ze fills, the kind is
+`{not-applicable}`, and that label is presumed wrong before you write it. Does a layer
+under Ze actually PERFORM the behavior? If no layer performs it, nothing is met and the
+honest kind is `{gap}`. Does Ze install a value the behavior READS? If it does, the
+requirement owes a TEST asserting that value at the boundary Ze owns, which is what the
+owner ruling of 2026-08-31 demands, and this annotation is refused beside that test.
+Only when the behavior happens below Ze and Ze's own boundary holds nothing to assert is
+this the kind. A conformance rollup ("implement all of this document") never is: it is met
+by the other rows, not by a layer.
+
+The reason MUST name the LAYER before the `;` and the PRODUCER as `<path>.go::<Symbol>`
+after it, and READ that producer before you name it. The producer demand is the whole
+difference from `{not-applicable}`: a judgement nobody can check is what grew that kind to
+915 sites the owner ruling presumes are mostly wrong. A `{lower-layer}` row stays in the
+gated denominator and out of the proven share, so annotating one may not move the
+published percentage by a point.
+
+**Writing any of the four is Thomas's call, not yours** (owner directive 2026-07-27,
 `ai/rules/rfc-compliance.md` "Implement Full Compliance. Ask Thomas Only Before Doing LESS").
 Implementing the requirement fully and proving it with a tagged test is always an
 available answer, and when it is reachable you take it WITHOUT asking. Choosing an
@@ -375,9 +395,9 @@ word would collide with the requirement tables.
 | `unresolved; why` | the successor's text is not in this repository | that text is ABSENT |
 
 **This marker is a fact about the DOCUMENT, never about coverage.** It composes with
-`{not-applicable}`, `{gap}` and `{single-polarity}` instead of replacing one. It lowers
+`{not-applicable}`, `{gap}`, `{single-polarity}` and `{lower-layer}` instead of replacing one. It lowers
 nothing. A marked requirement stays gated, stays counted and stays ratcheted.
-Writing one is therefore NOT the owner-reserved judgement the three annotations above
+Writing one is therefore NOT the owner-reserved judgement the four annotations above
 are. It records where the IETF put the obligation, and it says nothing about what Ze
 owes.
 
@@ -520,7 +540,7 @@ Step-by-step, pseudocode if RFC provides it.
   test is added, moved, deleted, or re-tagged: `ai/RFC-REQUIREMENTS.md` and every changed
   file under `rfc/requirements/`. The per-RFC file records `file:line`, and `./le rfc check`
   fails on a stale index and on a stale per-RFC file
-- Never annotate `{not-applicable}` / `{gap}` to reach green. Write the test, or leave
+- Never annotate `{not-applicable}` / `{gap}` / `{lower-layer}` to reach green. Write the test, or leave
   the RFC un-enrolled and say so
 - Enrolment (`| Enrolment | enrolled |` in the summary's `## Meta` table) means "every
   MUST here is CLASSIFIED": tested, or annotated with a reason that names what is

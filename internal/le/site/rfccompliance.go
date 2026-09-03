@@ -45,6 +45,11 @@ const (
 	rfcOneSideBucket  = "one_polarity_unexcused"
 	rfcMissingBucket  = "missing_unexcused"
 	rfcNotApplyBucket = "not_applicable"
+	// rfcLowerLayerBucket is the obligation a layer under Ze performs, on state
+	// Ze installs into it. It BINDS, unlike not-applicable, and it is not proven
+	// by Ze, unlike the two green buckets: its own slice is the only place a
+	// reader can see both facts at once.
+	rfcLowerLayerBucket = "lower_layer"
 	// rfcUnmappedBucket is where a gated requirement goes when it carries an
 	// annotation this page has no bucket for. It is deliberately NOT one of
 	// rfcSatisfaction, so nothing publishes it as a share: it leaves a hole in
@@ -82,6 +87,9 @@ const (
 	// legend and the bucket table each name it, and a label spelled three times
 	// is a sentence that stops matching the card it describes.
 	rfcNotApplyLabel = "Not applicable"
+	// The label the lower-layer bucket carries, spelled once for the same
+	// reason.
+	rfcLowerLayerLabel = "Met below Ze"
 	// rfcIssuesShown bounds the open issues the page inlines. A gate that goes
 	// red on a bad merge answers thousands of diagnostics, and a page is not a
 	// log file.
@@ -240,6 +248,8 @@ var rfcSatisfaction = []struct {
 		Condition: "no tag, no annotation", Binds: true},
 	{Key: rfcNotApplyBucket, Label: rfcNotApplyLabel, Short: rfcNotApplyLabel,
 		Condition: "{not-applicable} annotation", Binds: false},
+	{Key: rfcLowerLayerBucket, Label: rfcLowerLayerLabel, Short: rfcLowerLayerLabel,
+		Condition: "{lower-layer} annotation + named producer", Binds: true},
 }
 
 // rfcAnnotationBucket answers the bucket one annotation kind satisfies, and
@@ -264,6 +274,8 @@ func rfcAnnotationBucket(kind string) (string, bool) {
 		return rfcGapBucket, true
 	case rfc.AnnotationSinglePolarity:
 		return rfcSingleBucket, true
+	case rfc.AnnotationLowerLayer:
+		return rfcLowerLayerBucket, true
 	default:
 		return "", false
 	}
@@ -1076,6 +1088,13 @@ var rfcStanding = []struct {
 			"test is owed for it. It stays in the denominator every share here is taken over",
 		Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 			"failure, and counting it either way would be a claim"},
+	{Label: rfcLowerLayerLabel, Keys: []string{rfcLowerLayerBucket}, Tone: rfcToneNeutral,
+		Meaning: "a {lower-layer} annotation says a layer under Ze performs the behavior, on " +
+			"state Ze installs into that layer, and names the producer that installs it. The " +
+			"obligation binds Ze and is met; Ze proves none of it, because its own boundary " +
+			"carries no value the behavior reads",
+		Rule: "no color: an obligation met below Ze is neither a test Ze wrote nor work Ze " +
+			"owes, and the two green shares above are what says how much Ze proves itself"},
 }
 
 // rfcBinding is the gated population of the RFCs Ze implements, and how it is
@@ -1125,6 +1144,8 @@ func (c rfcLedgerCoverage) Bucket(key string) int {
 		return c.Missing
 	case rfcNotApplyBucket:
 		return c.NotApplicable
+	case rfcLowerLayerBucket:
+		return c.LowerLayer
 	default:
 		return 0
 	}
@@ -1793,6 +1814,7 @@ const rfcComplianceStyle = `<style>
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
