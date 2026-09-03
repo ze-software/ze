@@ -10,6 +10,10 @@ module ze-ddos-flowtriq-conf {
 
   augment "/dd:ddos" {
     container flowtriq {
+      description "Feed detected attacks to the FlowTriq reporting service.";
+      ze:help "It reports and mitigates nothing on its own. The traffic still needs a
+               responder under flowspec or local to be stopped.";
+
       leaf enabled {
         type boolean;
         default false;

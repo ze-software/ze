@@ -10,7 +10,16 @@ module ze-l2tp-shaper-conf {
          when sessions come up. Supports TBF and HTB qdiscs.";
 
     container l2tp {
+        // Repeat the canonical description owned by ze-l2tp-conf.yang verbatim,
+        // so the tree merge does not warn on a mismatch. This module only
+        // attaches its own subtree to the shared node.
+        description "L2TPv2 tunnel subsystem settings (RFC 2661).";
+
         container shaper {
+            description "Traffic shaping applied to each L2TP subscriber interface.";
+            ze:help "Ze installs the queueing discipline on the pppN interface when the
+                     session starts. A rate changed here reaches the sessions that start
+                     after the change. A running session keeps the rate it was given.";
             leaf qdisc-type {
                 type enumeration {
                     enum tbf {

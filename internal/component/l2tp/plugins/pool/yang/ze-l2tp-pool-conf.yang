@@ -10,8 +10,20 @@ module ze-l2tp-pool-conf {
          bitmap-backed pools. Releases on session-down.";
 
     container l2tp {
+        // Repeat the canonical description owned by ze-l2tp-conf.yang verbatim,
+        // so the tree merge does not warn on a mismatch. This module only
+        // attaches its own subtree to the shared node.
+        description "L2TPv2 tunnel subsystem settings (RFC 2661).";
+
         container pool {
+            description "Address and prefix pools handed to L2TP PPP sessions.";
+            ze:help "A pool is bitmap-backed, so an address is released when the session
+                     goes down and is handed to the next session that asks.";
+
             container ipv4 {
+                description "The IPv4 range and the DNS servers a PPP session receives.";
+                ze:help "The gateway is the NAS-side address every session sees as its IPCP
+                         peer, and it MUST NOT fall inside the start-to-end range.";
                 leaf gateway {
                     type zt:ipv4-address;
                     mandatory true;

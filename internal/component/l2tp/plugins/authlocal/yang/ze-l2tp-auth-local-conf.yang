@@ -9,10 +9,23 @@ module ze-l2tp-auth-local-conf {
          (permissive default for testing/development).";
 
     container l2tp {
+        // Repeat the canonical description owned by ze-l2tp-conf.yang verbatim,
+        // so the tree merge does not warn on a mismatch. This module only
+        // attaches its own subtree to the shared node.
+        description "L2TPv2 tunnel subsystem settings (RFC 2661).";
+
         container auth {
+            description "PPP authentication for L2TP subscriber sessions.";
+
             container local {
+                description "Authenticate a subscriber against users declared in this config.";
+                ze:help "Ze accepts every session when no user is declared here, which is a
+                         permissive default meant for development. Declare one user and every
+                         session is then checked against the list.";
+
                 list user {
                     key "name";
+                    description "One subscriber account, keyed by its PPP username.";
                     leaf name {
                         type string;
                         description "PPP username.";

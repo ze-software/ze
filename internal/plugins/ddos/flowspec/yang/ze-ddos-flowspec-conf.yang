@@ -14,6 +14,11 @@ module ze-ddos-flowspec-conf {
 
   augment "/dd:ddos" {
     container flowspec {
+      description "Answer a detected attack by announcing a BGP FlowSpec rule.";
+      ze:help "The rule is announced to a peer, so the traffic is dropped upstream and
+               never reaches this router. It needs a peer that accepts FlowSpec, which
+               is what separates it from the local responder.";
+
       leaf response-level {
         type enumeration {
           enum alert;

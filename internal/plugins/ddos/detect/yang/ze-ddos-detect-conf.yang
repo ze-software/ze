@@ -16,6 +16,11 @@ module ze-ddos-detect-conf {
     description "Distributed denial-of-service detection and mitigation subsystem.";
 
     container detect {
+      description "Detect a volumetric attack from the traffic Ze already sees.";
+      ze:help "Detection is separate from mitigation: this container decides that an
+               attack is happening and emits an event. A responder under flowspec or
+               local is what acts on that event, and none is armed by default.";
+
     leaf enabled {
       type boolean;
       default false;

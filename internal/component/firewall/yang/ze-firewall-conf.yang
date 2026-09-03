@@ -234,6 +234,10 @@ module ze-firewall-conf {
         }
         container reject {
             presence "Reject the packet";
+            description "Drop the packet and answer the sender with an ICMP or TCP reset.";
+            ze:help "The sender learns at once rather than waiting for a timeout, and the
+                     reply costs one packet per dropped packet. Use a drop term when the
+                     sender SHOULD learn nothing.";
             leaf with {
                 type reject-type;
                 description "Reject response type";
@@ -263,6 +267,10 @@ module ze-firewall-conf {
         }
         container snat {
             presence "Source NAT";
+            description "Rewrite the source address of a packet leaving this router.";
+            ze:help "The reply is translated back on the same conntrack entry. A flow that
+                     started before the rule was installed keeps its old translation. It
+                     changes when that entry expires.";
             leaf to {
                 type nat-spec;
                 mandatory true;
@@ -271,6 +279,10 @@ module ze-firewall-conf {
         }
         container dnat {
             presence "Destination NAT";
+            description "Rewrite the destination address of a packet arriving at this router.";
+            ze:help "Translation happens before the routing decision. The packet is then
+                     forwarded toward the rewritten address, and not toward the address
+                     the sender wrote.";
             leaf to {
                 type nat-spec;
                 mandatory true;
@@ -303,6 +315,9 @@ module ze-firewall-conf {
         }
         container redirect {
             presence "Redirect to local port";
+            description "Send the packet to a port on this router instead of its destination.";
+            ze:help "It is a destination NAT whose target is this machine, so the local
+                     service sees the original source address and can answer it.";
             leaf to {
                 type zt:port;
                 mandatory true;
@@ -370,6 +385,10 @@ module ze-firewall-conf {
         }
         container log {
             presence "Log the packet";
+            description "Record the packet and go on evaluating the term.";
+            ze:help "Logging does not decide the packet, so the term still needs an accept
+                     or a drop beside it. A rule that logs every packet of a busy link
+                     costs the kernel a line per packet.";
             leaf prefix {
                 type string {
                     length "0..127";
@@ -383,6 +402,10 @@ module ze-firewall-conf {
         }
         container limit-rate {
             presence "Rate limit";
+            description "Match only while the packet rate stays under a stated limit.";
+            ze:help "Traffic past the limit stops matching the term, so it falls through to
+                     what follows rather than being dropped here. Put the drop in the next
+                     term when that is what you want.";
             leaf rate {
                 type rate-spec;
                 mandatory true;

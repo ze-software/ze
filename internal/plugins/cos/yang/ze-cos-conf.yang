@@ -190,44 +190,100 @@ every QoS leaf disappears from the interfaces.";
 
         list ethernet {
             key "name";
-            leaf name { type string; }
+            // The canonical node is owned by ze-iface-conf.yang. This module only
+            // attaches the class-of-service leaves to it, and states the same fact
+            // in wording the prose ratchet accepts.
+            description "Physical or virtual Ethernet interface.";
+
+            leaf name {
+                type string;
+                description "OS interface name, such as eth0 or ens3. It must match a kernel interface that exists.";
+            }
             uses cos-interface-leaves;
+
             list unit {
                 key "name";
-                leaf name { type zt:node-name; }
+                description "Logical interface unit.";
+
+                leaf name {
+                    type zt:node-name;
+                    description "Unit name, in lowercase alphanumeric characters and hyphens.";
+                }
                 uses cos-unit-leaves;
             }
         }
 
         list dummy {
             key "name";
-            leaf name { type string; }
+            // The canonical node is owned by ze-iface-conf.yang. This module only
+            // attaches the class-of-service leaves to it, and states the same fact
+            // in wording the prose ratchet accepts.
+            description "Dummy interface, which behaves like a loopback.";
+
+            leaf name {
+                type string;
+                description "Dummy interface name, such as dummy0. Ze creates the interface at apply time.";
+            }
             uses cos-interface-leaves;
+
             list unit {
                 key "name";
-                leaf name { type zt:node-name; }
+                description "Logical interface unit.";
+
+                leaf name {
+                    type zt:node-name;
+                    description "Unit name, in lowercase alphanumeric characters and hyphens.";
+                }
                 uses cos-unit-leaves;
             }
         }
 
         list veth {
             key "name";
-            leaf name { type string; }
+            // The canonical node is owned by ze-iface-conf.yang. This module only
+            // attaches the class-of-service leaves to it, and states the same fact
+            // in wording the prose ratchet accepts.
+            description "Virtual ethernet pair interface";
+
+            leaf name {
+                type string;
+                description "Veth interface name, such as veth0. Ze creates the pair at apply time.";
+            }
             uses cos-interface-leaves;
+
             list unit {
                 key "name";
-                leaf name { type zt:node-name; }
+                description "Logical interface unit.";
+
+                leaf name {
+                    type zt:node-name;
+                    description "Unit name, in lowercase alphanumeric characters and hyphens.";
+                }
                 uses cos-unit-leaves;
             }
         }
 
         list bridge {
             key "name";
-            leaf name { type string; }
+            // The canonical node is owned by ze-iface-conf.yang. This module only
+            // attaches the class-of-service leaves to it, and states the same fact
+            // in wording the prose ratchet accepts.
+            description "Linux bridge interface, which forwards Ethernet frames between member ports at L2.";
+
+            leaf name {
+                type string;
+                description "Bridge interface name, such as br0. Ze creates the bridge at apply time.";
+            }
             uses cos-interface-leaves;
+
             list unit {
                 key "name";
-                leaf name { type zt:node-name; }
+                description "Logical interface unit.";
+
+                leaf name {
+                    type zt:node-name;
+                    description "Unit name, in lowercase alphanumeric characters and hyphens.";
+                }
                 uses cos-unit-leaves;
             }
         }

@@ -73,6 +73,8 @@ module ze-static-conf {
                     description "What to do with matching packets.";
 
                     case forward {
+                        description "Send the packet on toward a next hop.";
+
                         container next {
                             description
                                 "Forward action. Contains gateway and interface
@@ -138,15 +140,27 @@ module ze-static-conf {
                     }
 
                     case discard {
+                        description "Drop the packet and tell the sender nothing.";
+
                         container blackhole {
                             presence "Silently discard matching packets.";
+                            description "Drop the packet and send no ICMP message to the sender.";
+                            ze:help "The sender sees a timeout rather than a refusal, so a traceroute
+                                     stops at this hop with no reply. Use reject when the sender
+                                     SHOULD learn the destination is unreachable.";
                         }
                     }
 
                     case unreachable {
+                        description "Drop the packet and answer the sender.";
+
                         container reject {
                             presence
                                 "Discard and reply ICMP unreachable.";
+                            description "Drop the packet and send an ICMP unreachable to the sender.";
+                            ze:help "The sender learns at once rather than waiting for a timeout, which
+                                     is what separates this from blackhole. The reply itself costs a
+                                     packet per dropped packet.";
                         }
                     }
                 }

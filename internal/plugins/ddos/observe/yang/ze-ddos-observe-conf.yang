@@ -10,6 +10,10 @@ module ze-ddos-observe-conf {
 
   augment "/dd:ddos" {
     container observe {
+      description "Keep a ring of recent incidents for an operator to read back.";
+      ze:help "The ring is bounded and in memory, so it holds recent incidents and not a
+               history, and a restart empties it.";
+
       leaf incident-ring-size {
         type uint32 { range "1..100000"; }
         default 1000;

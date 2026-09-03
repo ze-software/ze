@@ -18,9 +18,15 @@ module ze-ospf-conf {
     grouping ospf-af-topology {
         container areas {
             description "OSPFv3 areas for this address family.";
+            ze:help "RFC 5838 section 1 maps each address family to a separate Instance ID
+and a separate OSPFv3 instance. Ze starts one engine instance for each configured family.
+An area declared here belongs to that instance alone.";
             list area {
                 key "area-id";
                 description "Per-area OSPFv3 configuration.";
+                ze:help "The list is keyed by area-id. All routers in an area MUST agree on
+the configuration of that area. RFC 2328 Appendix C.2 states that a disagreement stops an
+adjacency from forming between two routers.";
                 leaf area-id {
                     type string {
                         pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
@@ -38,6 +44,10 @@ names the backbone area.";
                     }
                     default "normal";
                     description "Area type.";
+                    ze:help "RFC 5340 Appendix C.2 excludes every AS-external-LSA from a
+stub area and from an NSSA. A router inside a stub area reaches an external destination
+through the default inter-area route alone. The backbone MUST NOT be a stub area or an
+NSSA, and a virtual link MUST NOT cross either one.";
                 }
                 list virtual-link {
                     key "remote-router-id";
@@ -52,28 +62,83 @@ NSSA.";
                         }
                         ze:validate "ospf-router-id";
                         description "Router ID of the far virtual-link endpoint (a 32-bit OSPFv3 Router ID, RFC 5340 section 2.11).";
+                        ze:help "RFC 2328 Appendix C.4 defines a virtual link by the Router
+ID of the other endpoint and by the transit area it crosses. The far router MUST configure
+the matching link back to this router, or the link stays down.";
                     }
-                    leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval on the virtual link."; }
-                    leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval on the virtual link."; }
-                    leaf retransmit-interval { type uint16 { range "1..65535"; } default 5; units seconds; description "LSA retransmit interval on the virtual link."; }
-                    leaf transmit-delay { type uint16 { range "1..3600"; } default 1; units seconds; description "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be > 0)."; }
+                    leaf hello-interval {
+                        type uint16 { range "1..65535"; }
+                        default 10;
+                        units seconds;
+                        description "Hello interval on the virtual link.";
+                        ze:help "RFC 2328 Section 10.5 drops a received Hello whose
+HelloInterval does not match the value configured on the receiving interface. The two
+endpoints of the virtual link MUST hold the same value.";
+                    }
+                    leaf dead-interval {
+                        type uint16 { range "1..65535"; }
+                        default 40;
+                        units seconds;
+                        description "Router-dead interval on the virtual link.";
+                        ze:help "Ze declares the far endpoint dead after this long with no
+Hello. RFC 2328 Section 10.5 drops a received Hello whose RouterDeadInterval does not
+match, so the two endpoints MUST hold the same value.";
+                    }
+                    leaf retransmit-interval {
+                        type uint16 { range "1..65535"; }
+                        default 5;
+                        units seconds;
+                        description "LSA retransmit interval on the virtual link.";
+                        ze:help "RFC 2328 Appendix C.4 requires RxmtInterval on a virtual
+link. Set it well over the round-trip delay between the two routers. That delay is hard to
+estimate across a transit area, so a value that is too large is the safer error.";
+                    }
+                    leaf transmit-delay {
+                        type uint16 { range "1..3600"; }
+                        default 1;
+                        units seconds;
+                        description "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be > 0).";
+                        ze:help "RFC 2328 Appendix C.3 defines InfTransDelay. Ze adds this
+value to the age of every LSA in a Link State Update before it sends the packet.";
+                    }
                 }
             }
         }
         container interfaces {
             description "OSPFv3-enabled interfaces for this address family.";
+            ze:help "RFC 5838 section 2.4 requires a router that takes part in an address
+family to discard a Hello whose AF-bit is clear. The base IPv6-unicast family is the one
+exception. An interface listed here takes part in this family only.";
             list interface {
                 key "name";
                 description "Per-interface OSPFv3 configuration.";
-                leaf name { type string { length "1..255"; } description "Interface name."; }
+                ze:help "The list is keyed by the interface name. The same interface CAN
+appear in the list of another address family, with its own cost and its own
+adjacencies.";
+                leaf name {
+                    type string { length "1..255"; }
+                    description "Interface name.";
+                    ze:help "The value MUST be the system interface name, for example eth0.
+Ze binds the OSPFv3 socket to that interface, and it maps a received packet back to the
+interface by its ifindex.";
+                }
                 leaf area {
                     type string {
                         pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
                     }
                     ze:validate "ospf-area-id";
                     description "Declared area this interface belongs to.";
+                    ze:help "Ze enrolls the interface only when the areas container declares
+this area-id. An interface belongs to one area, which RFC 2328 Appendix C.3 names Area
+ID.";
                 }
-                leaf enabled { type boolean; default true; description "OSPFv3 enabled on this interface."; }
+                leaf enabled {
+                    type boolean;
+                    default true;
+                    description "OSPFv3 enabled on this interface.";
+                    ze:help "A false value drops the interface from the OSPFv3 instance. Ze
+then sends no Hello on the link, and this router advertises no link for it.";
+                }
                 leaf network-type {
                     type enumeration {
                         enum broadcast;
@@ -88,9 +153,32 @@ elects a DR and a BDR over a configured neighbor list, with unicast Hellos and p
 Hellos (RFC 5340). point-to-multipoint treats the link as a set of point-to-point links,
 with one /128 host route for each neighbor and no DR.";
                 }
-                leaf cost { type uint16 { range "1..65535"; } description "Interface output cost."; }
-                leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval."; }
-                leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval."; }
+                leaf cost {
+                    type uint16 { range "1..65535"; }
+                    description "Interface output cost.";
+                    ze:help "RFC 2328 Appendix C.3 requires an interface output cost of more
+than 0, and Ze advertises the value as the cost of this link. An absent leaf takes cost 1,
+whatever the speed of the link is.";
+                }
+                leaf hello-interval {
+                    type uint16 { range "1..65535"; }
+                    default 10;
+                    units seconds;
+                    description "Hello interval.";
+                    ze:help "RFC 2328 Section 10.5 drops a received Hello whose
+HelloInterval does not match the configured value, so every router on the link MUST hold
+the same value. A smaller value detects a failure faster and sends more protocol
+traffic.";
+                }
+                leaf dead-interval {
+                    type uint16 { range "1..65535"; }
+                    default 40;
+                    units seconds;
+                    description "Router-dead interval.";
+                    ze:help "Ze declares the neighbor dead after this long with no Hello.
+RFC 2328 Section 10.5 drops a received Hello whose RouterDeadInterval does not match.
+Appendix C.3 gives 4 times the hello-interval as the sample value.";
+                }
                 leaf poll-interval {
                     type uint16 { range "1..65535"; }
                     default 120;
@@ -111,7 +199,14 @@ that stays silent (RFC 2328 Appendix C.5).";
                     ze:help "RFC 2328 Appendix C.6 defines the neighbor list. The list is
 required for network-type nbma and for the non-broadcast point-to-multipoint variant. Ze
 keys an IPv6 neighbor by Router ID.";
-                    leaf router-id { type string { pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})"; } ze:validate "ospf-router-id"; description "Neighbor OSPFv3 Router ID."; }
+                    leaf router-id {
+                        type string { pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})"; }
+                        ze:validate "ospf-router-id";
+                        description "Neighbor OSPFv3 Router ID.";
+                        ze:help "RFC 5340 section 2.11 states that neighbors on a link are
+always identified by their OSPF Router ID in OSPF for IPv6. The IPv4 model keys a neighbor
+on an NBMA link by its address instead.";
+                    }
                     leaf link-local {
                         type string;
                         ze:validate "ipv6-address";
@@ -127,13 +222,28 @@ it from the first Hello of the neighbor when this leaf is absent.";
 and never elects it.";
                     }
                 }
-                leaf passive { type boolean; default false; description "Advertise the interface but form no adjacency."; }
+                leaf passive {
+                    type boolean;
+                    default false;
+                    description "Advertise the interface but form no adjacency.";
+                    ze:help "Ze gives a passive interface no sender, so it sends no Hello
+and forms no adjacency. The interface stays enrolled in its area, so this router keeps
+advertising the link.";
+                }
                 container ldp-sync {
                     description "LDP-IGP synchronization of the IPv6 family.";
                     ze:help "RFC 5443 and RFC 6138 define LDP-IGP synchronization. The
 IPv6 family reuses the address-family-neutral state machine on the shared interface
 model.";
-                    leaf enable { type boolean; default false; description "Enable LDP-IGP synchronization on this interface."; }
+                    leaf enable {
+                        type boolean;
+                        default false;
+                        description "Enable LDP-IGP synchronization on this interface.";
+                        ze:help "RFC 5443 section 1 states that a blackhole exists when one
+link on the shortest path carries no LDP session. A false value leaves the cost of the
+link unchanged while LDP converges. Traffic can then be lost on a link whose label
+bindings do not exist yet.";
+                    }
                     leaf holddown {
                         type uint16 { range "0..65535"; }
                         default 0;
@@ -158,6 +268,10 @@ outbound SA share one key.";
                     leaf spi {
                         type uint32 { range "256..4294967295"; }
                         description "Security Parameters Index (RFC 4303 §2.1 reserves 0..255).";
+                        ze:help "RFC 4552 section 7 gives the inbound SA and the outbound SA
+the same SPI, because a manually keyed group negotiates nothing. Give each protected
+interface its own SPI. The kernel identifies the state by the destination, the SPI and the
+protocol, so two interfaces that share an SPI collide.";
                     }
                     leaf protocol {
                         type enumeration {
@@ -178,6 +292,10 @@ authentication with it. ah is RFC 4302, and an implementation MAY support it.";
                         }
                         default "sha256";
                         description "HMAC-SHA integrity algorithm.";
+                        ze:help "The value sets the length the key leaf takes: 40 hex
+characters for sha1, 64 for sha256, 96 for sha384, and 128 for sha512. Both routers MUST
+configure the same algorithm. RFC 4552 section 3 requires the receiver to discard a packet
+that fails the check, with no message.";
                     }
                     leaf key {
                         type string {
@@ -231,10 +349,39 @@ takes 32 hex characters, and aes256 takes 64.";
 container enables it, a Full adjacency opens an IPv6 single-hop BFD session over the
 link-local pair. A failure that BFD detects declares the neighbor down much faster than
 the router-dead interval does.";
-                    leaf enabled { type boolean; default false; description "Enable single-hop BFD failure detection on this interface."; }
-                    leaf min-tx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval)."; }
-                    leaf min-rx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval)."; }
-                    leaf multiplier { type uint8 { range "1..255"; } default 3; description "BFD detection multiplier (RFC 5880 Detect Mult)."; }
+                    leaf enabled {
+                        type boolean;
+                        default false;
+                        description "Enable single-hop BFD failure detection on this interface.";
+                        ze:help "A BFD session that goes Down or AdminDown declares the
+OSPFv3 neighbor down at once. Without BFD, Ze waits for the router-dead interval, which is
+40 seconds by default.";
+                    }
+                    leaf min-tx {
+                        type uint32 { range "1..10000"; }
+                        default 50;
+                        units milliseconds;
+                        description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval).";
+                        ze:help "RFC 5880 section 6.8.4 takes the agreed transmit interval
+as the greater of this value and the Required Min RX Interval of the far system.";
+                    }
+                    leaf min-rx {
+                        type uint32 { range "1..10000"; }
+                        default 50;
+                        units milliseconds;
+                        description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval).";
+                        ze:help "The far system sends no faster than this value. RFC 5880
+section 6.8.4 takes the agreed interval as the greater of this value and the Desired Min
+TX Interval of the far system.";
+                    }
+                    leaf multiplier {
+                        type uint8 { range "1..255"; }
+                        default 3;
+                        description "BFD detection multiplier (RFC 5880 Detect Mult).";
+                        ze:help "RFC 5880 section 6.8.4 states that Detect Mult is the
+number of packets that have to be missed in a row to declare the session down. The
+detection time is this value multiplied by the agreed transmit interval.";
+                    }
                 }
             }
         }
@@ -264,7 +411,13 @@ configured SRGB and the configured SRLB.";
                 ze:help "The SRGB is the contiguous global MPLS label range this node owns,
 which a Prefix-SID index maps into (RFC 8665 section 3.2). The SRGB MUST NOT overlap the
 SRLB, the LDP label space, or the RSVP-TE label space.";
-                leaf lower-bound { type uint32 { range "16..1048575"; } description "First MPLS label of the SRGB (inclusive)."; }
+                leaf lower-bound {
+                    type uint32 { range "16..1048575"; }
+                    description "First MPLS label of the SRGB (inclusive).";
+                    ze:help "Ze reads the SRGB only when lower-bound and upper-bound are
+both set, and it drops the range when upper-bound is less than lower-bound. The size of
+the block is upper-bound minus lower-bound plus one.";
+                }
                 leaf upper-bound {
                     type uint32 { range "16..1048575"; }
                     description "Last MPLS label of the SRGB, inclusive.";
@@ -276,7 +429,13 @@ SRLB, the LDP label space, or the RSVP-TE label space.";
                 ze:help "The SRLB is the local MPLS label range that Ze allocates an
 Adjacency-SID from (RFC 8665 section 3.3). The SRLB MUST NOT overlap the SRGB, the LDP
 label space, or the RSVP-TE label space.";
-                leaf lower-bound { type uint32 { range "16..1048575"; } description "First MPLS label of the SRLB (inclusive)."; }
+                leaf lower-bound {
+                    type uint32 { range "16..1048575"; }
+                    description "First MPLS label of the SRLB (inclusive).";
+                    ze:help "Ze reads the SRLB only when lower-bound and upper-bound are
+both set, and it drops the range when upper-bound is less than lower-bound. The size of
+the block is upper-bound minus lower-bound plus one.";
+                }
                 leaf upper-bound {
                     type uint32 { range "16..1048575"; }
                     description "Last MPLS label of the SRLB, inclusive.";
@@ -288,14 +447,26 @@ label space, or the RSVP-TE label space.";
                 description "Prefix-SIDs Ze advertises for the local prefixes.";
                 ze:help "The local prefix is usually the loopback. Each Prefix-SID carries
 a SID index into the SRGB of this node (RFC 8665 section 5).";
-                leaf prefix { type zt:ip-prefix; description "The local prefix (host loopback for a node-SID)."; }
+                leaf prefix {
+                    type zt:ip-prefix;
+                    description "The local prefix (host loopback for a node-SID).";
+                    ze:help "Ze takes the key of the list as the prefix when this leaf is
+absent. Ze drops the entry when the value is not a valid prefix.";
+                }
                 leaf index {
                     type uint32;
                     description "SID index into the SRGB.";
                     ze:help "The MPLS label is the SRGB base plus this index. The index
 MUST be less than the total size of the SRGB.";
                 }
-                leaf node-sid { type boolean; default true; description "Mark this as a node Prefix-SID (sets the N-Flag on the Extended Prefix TLV)."; }
+                leaf node-sid {
+                    type boolean;
+                    default true;
+                    description "Mark this as a node Prefix-SID (sets the N-Flag on the Extended Prefix TLV).";
+                    ze:help "RFC 7684 section 2.1 sets the N-Flag when the prefix identifies
+the advertising router, which is usually a loopback host address. A receiver MUST ignore
+the flag when the prefix length is not a host prefix.";
+                }
                 leaf no-php {
                     type boolean;
                     default false;
@@ -322,6 +493,9 @@ section 3.4). An unset leaf advertises no TLV.";
 
     container ospf {
         description "OSPFv2 routing instance configuration.";
+        ze:help "The presence of this container starts the OSPFv2 engine, which RFC 2328
+defines. The address-family container adds the OSPFv3 families of RFC 5340, and each one
+runs as a separate engine instance.";
         ze:config-root "ospf";
 
         // RFC 2328 Appendix C.1: Router ID is a 32-bit AS-unique identifier.
@@ -348,6 +522,8 @@ highest loopback IPv4 address first, then the highest interface IPv4 address.";
             type uint8 { range "1..32"; }
             default 8;
             description "Maximum ECMP paths per prefix.";
+            ze:help "SPF keeps at most this many equal-cost next-hops for one prefix, and it
+drops the rest. Ze uses 8 when the leaf is absent.";
         }
 
         leaf opaque {
@@ -412,6 +588,9 @@ OSPFv3 gets base-LFA next-hop selection only, because an SR repair label is IPv4
                 type boolean;
                 default false;
                 description "Enable LFA / TI-LFA fast-reroute backup computation and install.";
+                ze:help "RFC 5286 section 3.6 selects at most one alternate next-hop for
+each primary next-hop. A false leaf computes no alternate, so a link failure waits for the
+SPF run and the FIB update.";
             }
             leaf mode {
                 type enumeration {
@@ -420,19 +599,49 @@ OSPFv3 gets base-LFA next-hop selection only, because an SR repair label is IPv4
                 }
                 default lfa;
                 description "Backup computation mode: base LFA, or LFA with a TI-LFA SR-repair fallback.";
+                ze:help "ti-lfa builds a repair list from the Prefix-SID and the
+Adjacency-SID of the repair path, so it needs segment-routing. lfa uses a directly
+connected loop-free neighbor alone, and it protects no prefix that has none.";
             }
             leaf node-protection {
                 type boolean;
                 default true;
                 description "Prefer node-protecting alternates over link-only alternates (RFC 5286 Section 3.6).";
+                ze:help "RFC 5286 section 3.2 gives Inequality 3 for a node-protecting
+alternate N against a primary neighbor E for destination D. Distance_opt(N, D) MUST be
+less than Distance_opt(N, E) plus Distance_opt(E, D). Section 3.6 takes a link-protecting
+alternate when no node-protecting one exists.";
             }
         }
 
         container default-information {
             description "Default-route origination as an AS-external LSA.";
-            leaf originate { type boolean; default false; description "Originate a default Type 5 LSA."; }
-            leaf always { type boolean; default false; description "Originate even without a default in the RIB."; }
-            leaf metric { type uint32 { range "0..16777215"; } default 1; description "Default LSA metric."; }
+            ze:help "Ze originates one Type 5 AS-external LSA for 0.0.0.0/0 (RFC 2328
+section 12.4.4). The origination makes this router an AS boundary router, which sets the
+E-bit in its Router-LSA.";
+            leaf originate {
+                type boolean;
+                default false;
+                description "Originate a default Type 5 LSA.";
+                ze:help "Ze originates the LSA only while the Loc-RIB holds a default route
+that OSPF did not learn. Ze purges the LSA when that route goes away. The always leaf
+removes the condition.";
+            }
+            leaf always {
+                type boolean;
+                default false;
+                description "Originate even without a default in the RIB.";
+                ze:help "Ze then originates the default LSA whatever the Loc-RIB holds. A
+false value needs a non-OSPF default in the Loc-RIB first.";
+            }
+            leaf metric {
+                type uint32 { range "0..16777215"; }
+                default 1;
+                description "Default LSA metric.";
+                ze:help "The value is the metric of the Type 5 default LSA, and the field is
+24 bits wide. With metric-type type-2, the router that advertises the smallest metric
+attracts the traffic of the whole AS.";
+            }
             leaf metric-type {
                 type enumeration {
                     enum type-1;
@@ -440,16 +649,57 @@ OSPFv3 gets base-LFA next-hop selection only, because an SR repair label is IPv4
                 }
                 default "type-2";
                 description "External metric type for the default route.";
+                ze:help "RFC 2328 section 2.3 adds the distance to the ASBR for a Type 1
+metric. A Type 2 metric is compared alone, and the internal distance only breaks a tie.";
             }
         }
 
         container timers {
             description "SPF and LSA throttle timers.";
-            leaf spf-delay-ms { type uint32 { range "0..600000"; } default 50; units ms; description "Initial SPF delay."; }
-            leaf spf-hold-ms { type uint32 { range "0..600000"; } default 200; units ms; description "SPF hold floor."; }
-            leaf spf-max-hold-ms { type uint32 { range "0..600000"; } default 5000; units ms; description "SPF max hold."; }
-            leaf min-ls-interval-ms { type uint32 { range "0..600000"; } default 5000; units ms; description "Minimum interval between LSA reoriginations."; }
-            leaf min-ls-arrival-ms { type uint32 { range "0..600000"; } default 1000; units ms; description "Minimum arrival interval for accepting a new LSA instance."; }
+            ze:help "Ze holds the SPF run back after a topology change, so one burst of LSAs
+costs one run. The three spf leaves shape that backoff. The two ls leaves bound how often
+one LSA is originated and accepted.";
+            leaf spf-delay-ms {
+                type uint32 { range "0..600000"; }
+                default 50;
+                units ms;
+                description "Initial SPF delay.";
+                ze:help "Ze waits this long after the first change before it runs SPF. The
+delay returns to this value when no change arrived for spf-max-hold-ms.";
+            }
+            leaf spf-hold-ms {
+                type uint32 { range "0..600000"; }
+                default 200;
+                units ms;
+                description "SPF hold floor.";
+                ze:help "A second change inside the backoff window raises the delay to this
+floor. Each further change doubles the delay, up to spf-max-hold-ms.";
+            }
+            leaf spf-max-hold-ms {
+                type uint32 { range "0..600000"; }
+                default 5000;
+                units ms;
+                description "SPF max hold.";
+                ze:help "The doubling stops at this value. A gap longer than this value
+between two changes resets the delay to spf-delay-ms.";
+            }
+            leaf min-ls-interval-ms {
+                type uint32 { range "0..600000"; }
+                default 5000;
+                units ms;
+                description "Minimum interval between LSA reoriginations.";
+                ze:help "RFC 2328 Appendix B names the value MinLSInterval and sets it to 5
+seconds. It is the minimum time between two distinct originations of one LSA.";
+            }
+            leaf min-ls-arrival-ms {
+                type uint32 { range "0..600000"; }
+                default 1000;
+                units ms;
+                description "Minimum arrival interval for accepting a new LSA instance.";
+                ze:help "RFC 2328 Appendix B names the value MinLSArrival and sets it to 1
+second. Ze discards a new instance of one LSA that arrives sooner than this after the last
+accepted instance.";
+            }
         }
 
         container max-metric {
@@ -457,7 +707,14 @@ OSPFv3 gets base-LFA next-hop selection only, because an SR repair label is IPv4
             ze:help "RFC 6987 defines the stub router. Ze originates the Router-LSA with
 MaxLinkMetric, so transit traffic avoids this router.";
             container router-lsa {
-                leaf always { type boolean; default false; description "Always advertise as a stub router."; }
+                leaf always {
+                    type boolean;
+                    default false;
+                    description "Always advertise as a stub router.";
+                    ze:help "Ze sets every non-stub link of its Router-LSA to MaxLinkMetric,
+which RFC 6987 section 3 defines as 0xffff. A stub link keeps its cost, so a directly
+connected prefix of this router stays reachable.";
+                }
                 leaf on-startup { type uint32 { range "0..86400"; } units seconds; description "Advertise as a stub router for N seconds after startup (0 disables)."; }
                 leaf on-shutdown { type uint32 { range "0..86400"; } units seconds; description "Advertise as a stub router for N seconds during a graceful shutdown (0 disables)."; }
             }
@@ -523,7 +780,15 @@ this router age out during the restart.";
                 description "Helper role of this router.";
                 ze:help "In this role Ze holds the adjacency to a restarting neighbor and
 stops LSDB churn for the grace period of that neighbor.";
-                leaf support { type boolean; default true; description "RFC 3623 Appendix B.2 RestartHelperSupport: act as a helper for a restarting neighbor."; }
+                leaf support {
+                    type boolean;
+                    default true;
+                    description "RFC 3623 Appendix B.2 RestartHelperSupport: act as a helper for a restarting neighbor.";
+                    ze:help "RFC 3623 section 3.1 enters helper mode on two conditions. This
+router MUST hold a Full adjacency with the restarting router. The database MUST NOT have
+changed since that router restarted. A false value refuses helper mode, so the restart
+drops the adjacency.";
+                }
                 leaf strict-lsa-checking {
                     type boolean;
                     default true;
@@ -539,7 +804,10 @@ when it installs a changed LSA that would flood to the restarting router.";
 
         list redistribute {
             key "source";
-            description "Route sources redistributed as AS-external LSAs.";
+            description "Per-source metric, metric type and tag for redistribution into OSPF.";
+            ze:help "This list starts no import. The generic redistribute container enables
+the import, with a rule of the shape destination ospf import <source>. A source with no
+entry here takes metric 20 and metric-type type-2.";
             leaf source {
                 type enumeration {
                     enum connected;
@@ -548,9 +816,17 @@ when it installs a changed LSA that would flood to the restarting router.";
                     enum bgp;
                     enum isis;
                 }
-                description "Route source to import.";
+                description "Route source this entry applies to.";
+                ze:help "The value is the key of the list. Ze reads the entry when it
+originates the AS-external LSA for a route that carries this source label.";
             }
-            leaf metric { type uint32 { range "0..16777215"; } default 20; description "Injected metric."; }
+            leaf metric {
+                type uint32 { range "0..16777215"; }
+                default 20;
+                description "Injected metric.";
+                ze:help "Ze writes the value into the metric field of the AS-external LSA,
+which is 24 bits wide. A source with no entry in this list takes 20.";
+            }
             leaf metric-type {
                 type enumeration {
                     enum type-1;
@@ -558,15 +834,30 @@ when it installs a changed LSA that would flood to the restarting router.";
                 }
                 default "type-2";
                 description "External metric type.";
+                ze:help "RFC 2328 section 2.3 states that a Type 1 external metric is in the
+same units as the OSPF cost. A Type 2 metric is an order of magnitude larger than any
+internal path. A Type 1 route always wins over a Type 2 route.";
             }
-            leaf tag { type uint32; default 0; description "External route tag."; }
+            leaf tag {
+                type uint32;
+                default 0;
+                description "External route tag.";
+                ze:help "RFC 2328 Appendix A.4.5 states that the External Route Tag is not
+used by the OSPF protocol itself. It carries information between AS boundary routers, and
+a policy on another router CAN match it.";
+            }
         }
 
         container areas {
             description "OSPF areas.";
+            ze:help "RFC 2328 section 3 states that each area runs a separate copy of the
+link-state algorithm, so each area holds its own link-state database. A router connected
+to two or more areas is an area border router.";
             list area {
                 key "area-id";
                 description "Per-area configuration.";
+                ze:help "The list is keyed by area-id. Ze holds one link-state database for
+each area this router joins. An interface joins the area that its area leaf names.";
                 leaf area-id {
                     type string {
                         pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
@@ -594,9 +885,19 @@ and the NSSA specification state what each type does.";
                     ze:help "Ze keeps the default summary the area requires, and suppresses
 every other Type 3 summary.";
                 }
-                leaf default-cost { type uint32 { range "0..16777215"; } default 1; description "Default summary metric for stub/NSSA areas."; }
+                leaf default-cost {
+                    type uint32 { range "0..16777215"; }
+                    default 1;
+                    description "Default summary metric for stub/NSSA areas.";
+                    ze:help "RFC 2328 Appendix C.2 names the value StubDefaultCost. It is
+the cost of the default summary-LSA this router advertises into the area. The value
+applies only when this router is an area border router of a stub area or an NSSA.";
+                }
                 container nssa {
                     description "NSSA-specific configuration (applies when area-type is nssa).";
+                    ze:help "RFC 3101 section 1.3 lets an NSSA import an external route in a
+limited fashion, which a stub area cannot do. The area carries such a route as a Type 7
+LSA, and the elected translator rewrites it into a Type 5 LSA.";
                     leaf translate-role {
                         type enumeration {
                             enum candidate;
@@ -626,14 +927,32 @@ border router always originates the required default route.";
                 }
                 container authentication {
                     description "Area-level authentication defaults.";
-                    leaf key-chain { type string { length "1..63"; } description "Default key chain inherited by interfaces."; }
+                    ze:help "An interface whose authentication mode is inherit takes the key
+chain of its area. An interface that names its own key chain overrides this default.";
+                    leaf key-chain {
+                        type string { length "1..63"; }
+                        description "Default key chain inherited by interfaces.";
+                        ze:help "The value MUST name an entry of the key-chains list. Ze
+leaves the interface unauthenticated when the name matches no entry.";
+                    }
                 }
                 container ranges {
                     description "Inter-area summary ranges.";
+                    ze:help "RFC 2328 Appendix C.2 advertises at most one summary-LSA for
+each address range outside the area. A network that no range covers keeps its own
+summary-LSA.";
                     list range {
                         key "prefix";
                         description "One area summary range.";
-                        leaf prefix { type zt:prefix-ipv4; description "IPv4 aggregate prefix, for example 10.0.0.0/16."; }
+                        ze:help "The list is keyed by the prefix. Ze advertises one Type 3
+summary-LSA for the range, and it suppresses the summary-LSA of every network the range
+covers.";
+                        leaf prefix {
+                            type zt:prefix-ipv4;
+                            description "IPv4 aggregate prefix, for example 10.0.0.0/16.";
+                            ze:help "Ze masks the value before it advertises the range, so
+any host bit of the prefix is dropped.";
+                        }
                         leaf advertise {
                             type enumeration {
                                 enum advertise;
@@ -641,8 +960,16 @@ border router always originates the required default route.";
                             }
                             default "advertise";
                             description "Advertise the aggregate or suppress specifics.";
+                            ze:help "RFC 2328 section 12.4.3 suppresses the Type 3
+summary-LSA when the status is DoNotAdvertise, and the component networks then stay hidden
+from the other areas. The value advertise sends one summary-LSA for the range instead.";
                         }
-                        leaf cost { type uint32 { range "0..16777215"; } description "Override cost for the aggregate Type 3 LSA."; }
+                        leaf cost {
+                            type uint32 { range "0..16777215"; }
+                            description "Override cost for the aggregate Type 3 LSA.";
+                            ze:help "RFC 2328 section 12.4.3 gives the range the largest
+cost of any component network. This leaf replaces that cost with a fixed value.";
+                        }
                     }
                 }
                 list virtual-link {
@@ -658,29 +985,84 @@ NSSA.";
                         }
                         ze:validate "ospf-router-id";
                         description "Router ID of the far virtual-link endpoint (the other area-border router).";
+                        ze:help "RFC 2328 Appendix C.4 defines a virtual link by the Router
+ID of the other endpoint and by the transit area it crosses. The far router MUST configure
+the matching link back to this router, or the link stays down.";
                     }
-                    leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval on the virtual link."; }
-                    leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval on the virtual link."; }
-                    leaf retransmit-interval { type uint16 { range "1..65535"; } default 5; units seconds; description "LSA retransmit interval on the virtual link."; }
-                    leaf transmit-delay { type uint16 { range "1..3600"; } default 1; units seconds; description "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0)."; }
+                    leaf hello-interval {
+                        type uint16 { range "1..65535"; }
+                        default 10;
+                        units seconds;
+                        description "Hello interval on the virtual link.";
+                        ze:help "RFC 2328 Section 10.5 drops a received Hello whose
+HelloInterval does not match the value configured on the receiving interface. The two
+endpoints of the virtual link MUST hold the same value.";
+                    }
+                    leaf dead-interval {
+                        type uint16 { range "1..65535"; }
+                        default 40;
+                        units seconds;
+                        description "Router-dead interval on the virtual link.";
+                        ze:help "Ze declares the far endpoint dead after this long with no
+Hello. RFC 2328 Section 10.5 drops a received Hello whose RouterDeadInterval does not
+match, so the two endpoints MUST hold the same value.";
+                    }
+                    leaf retransmit-interval {
+                        type uint16 { range "1..65535"; }
+                        default 5;
+                        units seconds;
+                        description "LSA retransmit interval on the virtual link.";
+                        ze:help "RFC 2328 Appendix C.4 requires RxmtInterval on a virtual
+link. Set it well over the round-trip delay between the two routers. That delay is hard to
+estimate across a transit area, so a value that is too large is the safer error.";
+                    }
+                    leaf transmit-delay {
+                        type uint16 { range "1..3600"; }
+                        default 1;
+                        units seconds;
+                        description "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0).";
+                        ze:help "RFC 2328 Appendix C.3 defines InfTransDelay. Ze adds this
+value to the age of every LSA in a Link State Update before it sends the packet.";
+                    }
                 }
             }
         }
 
         container interfaces {
             description "OSPF-enabled interfaces.";
+            ze:help "RFC 2328 Appendix C.3 states that some of these parameters describe the
+attached network, so they MUST be consistent across every router on that network. The
+hello-interval, the dead-interval and the authentication are the three that stop an
+adjacency when they differ.";
             list interface {
                 key "name";
                 description "Per-interface OSPF configuration.";
-                leaf name { type string { length "1..255"; } description "Interface name."; }
+                ze:help "The list is keyed by the interface name. Ze enrolls an entry only
+when its enabled leaf is true and the areas container declares its area.";
+                leaf name {
+                    type string { length "1..255"; }
+                    description "Interface name.";
+                    ze:help "The value MUST be the system interface name, for example eth0.
+Ze binds the OSPF socket to that interface, and it maps a received packet back to the
+interface by its ifindex.";
+                }
                 leaf area {
                     type string {
                         pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
                     }
                     ze:validate "ospf-area-id";
                     description "Declared area this interface belongs to.";
+                    ze:help "Ze enrolls the interface only when the areas container declares
+this area-id. An interface belongs to one area, which RFC 2328 Appendix C.3 names Area
+ID.";
                 }
-                leaf enabled { type boolean; default true; description "OSPF enabled on this interface."; }
+                leaf enabled {
+                    type boolean;
+                    default true;
+                    description "OSPF enabled on this interface.";
+                    ze:help "A false value drops the interface from the OSPF instance. Ze
+then sends no Hello on the link, and this router advertises no link for it.";
+                }
                 leaf network-type {
                     type enumeration {
                         enum broadcast;
@@ -696,9 +1078,32 @@ elects a DR and a BDR over a configured neighbor list, with unicast Hellos and p
 Hellos (RFC 2328). point-to-multipoint treats the link as a set of point-to-point links,
 with one host route for each neighbor and no DR.";
                 }
-                leaf cost { type uint16 { range "1..65535"; } description "Interface output cost."; }
-                leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval."; }
-                leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval."; }
+                leaf cost {
+                    type uint16 { range "1..65535"; }
+                    description "Interface output cost.";
+                    ze:help "RFC 2328 Appendix C.3 requires an interface output cost of
+more than 0. Ze advertises the value as the cost of this link in its Router-LSA. An absent
+leaf takes cost 1, whatever the speed of the link is.";
+                }
+                leaf hello-interval {
+                    type uint16 { range "1..65535"; }
+                    default 10;
+                    units seconds;
+                    description "Hello interval.";
+                    ze:help "RFC 2328 Section 10.5 drops a received Hello whose
+HelloInterval does not match the configured value, so every router on the link MUST hold
+the same value. A smaller value detects a failure faster and sends more protocol
+traffic.";
+                }
+                leaf dead-interval {
+                    type uint16 { range "1..65535"; }
+                    default 40;
+                    units seconds;
+                    description "Router-dead interval.";
+                    ze:help "Ze declares the neighbor dead after this long with no Hello.
+RFC 2328 Section 10.5 drops a received Hello whose RouterDeadInterval does not match.
+Appendix C.3 gives 4 times the hello-interval as the sample value.";
+                }
                 leaf poll-interval {
                     type uint16 { range "1..65535"; }
                     default 120;
@@ -718,7 +1123,14 @@ that stays silent (RFC 2328 Appendix C.5).";
                     description "A statically configured NBMA neighbor.";
                     ze:help "RFC 2328 Appendix C.6 defines the neighbor list. The list is
 required for network-type nbma and for the non-broadcast point-to-multipoint variant.";
-                    leaf address { type string; ze:validate "ipv4-address"; description "Neighbor IPv4 interface address (the unicast Hello destination)."; }
+                    leaf address {
+                        type string;
+                        ze:validate "ipv4-address";
+                        description "Neighbor IPv4 interface address (the unicast Hello destination).";
+                        ze:help "RFC 2328 Appendix C.5 lists each NBMA neighbor by its IP
+interface address on the network. The address is the key of this list, and Ze sends the
+unicast Hello to it.";
+                    }
                     leaf priority {
                         type uint8 { range "0..255"; }
                         default 0;
@@ -727,10 +1139,39 @@ required for network-type nbma and for the non-broadcast point-to-multipoint var
 and never elects it.";
                     }
                 }
-                leaf passive { type boolean; default false; description "Advertise the interface but form no adjacency."; }
-                leaf mtu-ignore { type boolean; default false; description "Skip DD MTU mismatch rejection."; }
-                leaf retransmit-interval { type uint16 { range "1..65535"; } default 5; units seconds; description "LSA retransmit interval."; }
-                leaf transmit-delay { type uint16 { range "1..3600"; } default 1; units seconds; description "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0)."; }
+                leaf passive {
+                    type boolean;
+                    default false;
+                    description "Advertise the interface but form no adjacency.";
+                    ze:help "Ze gives a passive interface no sender, so it sends no Hello
+and forms no adjacency. The interface stays enrolled in its area, so this router keeps
+advertising the link.";
+                }
+                leaf mtu-ignore {
+                    type boolean;
+                    default false;
+                    description "Skip DD MTU mismatch rejection.";
+                    ze:help "RFC 2328 Section 10.6 rejects a Database Description packet
+whose Interface MTU is larger than the receiving interface accepts without fragmentation.
+A true value skips that check, so the adjacency reaches Full across an MTU mismatch.";
+                }
+                leaf retransmit-interval {
+                    type uint16 { range "1..65535"; }
+                    default 5;
+                    units seconds;
+                    description "LSA retransmit interval.";
+                    ze:help "RFC 2328 Appendix C.3 names the value RxmtInterval, and it also
+paces the retransmission of a Database Description packet and a Link State Request. Set it
+well over the round-trip delay on the link, or needless retransmissions result.";
+                }
+                leaf transmit-delay {
+                    type uint16 { range "1..3600"; }
+                    default 1;
+                    units seconds;
+                    description "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0).";
+                    ze:help "RFC 2328 Appendix C.3 defines InfTransDelay. Ze adds this value
+to the age of every LSA in a Link State Update before it sends the packet on this link.";
+                }
                 leaf-list instance-id {
                     type uint8 { range "0..255"; }
                     description "Multi-Instance Instance IDs this interface takes part in.";
@@ -744,6 +1185,9 @@ Ze discards a received packet whose Instance ID matches none of the listed value
                 }
                 container authentication {
                     description "Per-interface authentication settings.";
+                    ze:help "RFC 2328 Appendix C.3 states that the AuType MUST be the same
+for all routers attached to the network. Ze takes the AuType from the algorithm of the
+keys in the resolved chain.";
                     leaf mode {
                         type enumeration {
                             enum inherit;
@@ -759,7 +1203,13 @@ Ze discards a received packet whose Instance ID matches none of the listed value
                         description "Authentication mode of this interface.";
                         ze:help "The value inherit takes the area default.";
                     }
-                    leaf key-chain { type string { length "1..63"; } description "Key chain reference."; }
+                    leaf key-chain {
+                        type string { length "1..63"; }
+                        description "Key chain reference.";
+                        ze:help "The value MUST name an entry of the key-chains list. Ze
+takes the area chain instead when the mode leaf is inherit, even when this leaf names a
+chain.";
+                    }
                 }
                 container ldp-sync {
                     description "LDP-IGP synchronization of this interface.";
@@ -767,7 +1217,15 @@ Ze discards a received packet whose Instance ID matches none of the listed value
 a point-to-point link at maximum cost, and withholds the transit link of a broadcast link
 that is not a cut edge, until LDP is synchronized. Transit traffic is then not
 black-holed before the label bindings exist.";
-                    leaf enable { type boolean; default false; description "Enable LDP-IGP synchronization on this interface."; }
+                    leaf enable {
+                        type boolean;
+                        default false;
+                        description "Enable LDP-IGP synchronization on this interface.";
+                        ze:help "RFC 5443 section 1 states that a blackhole exists when one
+link on the shortest path carries no LDP session. A false value leaves the cost of the
+link unchanged while LDP converges. Traffic can then be lost on a link whose label
+bindings do not exist yet.";
+                    }
                     leaf holddown {
                         type uint16 { range "0..65535"; }
                         default 0;
@@ -785,7 +1243,14 @@ permitted and not advised.";
 them in a Type 10 opaque TE LSA, and in a Type 10 or a Type 11 LSA for an inter-as link.
 The container needs the top-level opaque leaf. The TE metric is independent of the
 cost.";
-                    leaf enable { type boolean; default false; description "Advertise a TE Link LSA for this interface."; }
+                    leaf enable {
+                        type boolean;
+                        default false;
+                        description "Advertise a TE Link LSA for this interface.";
+                        ze:help "Ze originates one Type 10 opaque LSA for each active TE
+link, and that LSA carries one Link TLV (RFC 3630 section 2.4.2). Ze skips a link with no
+usable Link Type and Link ID, for example a broadcast link with no DR yet.";
+                    }
                     leaf te-metric {
                         type uint32 { range "0..4294967295"; }
                         description "Traffic Engineering metric of this link.";
@@ -796,6 +1261,9 @@ independent of the OSPF cost, and an unset leaf takes the cost.";
                         type uint64;
                         units bytes/second;
                         description "RFC 3630 sec 2.5.6 Maximum Bandwidth (true link capacity) in bytes/second.";
+                        ze:help "RFC 3630 section 2.5.6 carries the value in IEEE floating
+point form, in a four-octet sub-TLV of type 6. An unset max-reservable-bandwidth takes
+this value (section 2.5.7).";
                     }
                     leaf max-reservable-bandwidth {
                         type uint64;
@@ -821,6 +1289,9 @@ The container needs remote-as, and at least one remote-asbr address.";
                             type zt:asn;
                             mandatory true;
                             description "RFC 5392 sec 3.3.1 Remote AS Number of the neighboring AS the link connects to.";
+                            ze:help "RFC 5392 section 3.3.1 makes the Remote AS Number
+sub-TLV REQUIRED in a Link TLV that advertises an inter-AS TE link. The sub-TLV is type 21
+and four octets wide, so it carries a 4-byte AS number.";
                         }
                         leaf remote-asbr-ipv4 {
                             type zt:ipv4-address;
@@ -852,10 +1323,39 @@ AS.";
                     ze:help "RFC 5880 and RFC 5881 define single-hop BFD. When this
 container enables it, a Full adjacency opens a single-hop BFD session. A failure that BFD
 detects declares the neighbor down much faster than the router-dead interval does.";
-                    leaf enabled { type boolean; default false; description "Enable single-hop BFD failure detection on this interface."; }
-                    leaf min-tx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval)."; }
-                    leaf min-rx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval)."; }
-                    leaf multiplier { type uint8 { range "1..255"; } default 3; description "BFD detection multiplier (RFC 5880 Detect Mult)."; }
+                    leaf enabled {
+                        type boolean;
+                        default false;
+                        description "Enable single-hop BFD failure detection on this interface.";
+                        ze:help "A BFD session that goes Down or AdminDown declares the OSPF
+neighbor down at once. Without BFD, Ze waits for the router-dead interval, which is 40
+seconds by default.";
+                    }
+                    leaf min-tx {
+                        type uint32 { range "1..10000"; }
+                        default 50;
+                        units milliseconds;
+                        description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval).";
+                        ze:help "RFC 5880 section 6.8.4 takes the agreed transmit interval
+as the greater of this value and the Required Min RX Interval of the far system.";
+                    }
+                    leaf min-rx {
+                        type uint32 { range "1..10000"; }
+                        default 50;
+                        units milliseconds;
+                        description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval).";
+                        ze:help "The far system sends no faster than this value. RFC 5880
+section 6.8.4 takes the agreed interval as the greater of this value and the Desired Min
+TX Interval of the far system.";
+                    }
+                    leaf multiplier {
+                        type uint8 { range "1..255"; }
+                        default 3;
+                        description "BFD detection multiplier (RFC 5880 Detect Mult).";
+                        ze:help "RFC 5880 section 6.8.4 states that Detect Mult is the
+number of packets that have to be missed in a row to declare the session down. The
+detection time is this value multiplied by the agreed transmit interval.";
+                    }
                 }
             }
         }
@@ -863,7 +1363,15 @@ detects declares the neighbor down much faster than the router-dead interval doe
         list key-chains {
             key "name";
             description "Named authentication key chains for hitless rotation.";
-            leaf name { type string { length "1..63"; } description "Key-chain name."; }
+            ze:help "A chain rotates the signing key and the adjacency stays up. Ze refuses
+a chain whose send-lifetime windows leave a gap, because the signing coverage would then
+lapse.";
+            leaf name {
+                type string { length "1..63"; }
+                description "Key-chain name.";
+                ze:help "The value is the key of the list. An interface key-chain leaf, or
+an area one, names this chain to use its keys.";
+            }
             leaf extended-sequence {
                 type boolean;
                 default false;
@@ -874,7 +1382,15 @@ sequence number of 64 bits. The leaf applies to the HMAC-SHA algorithms.";
             list key {
                 key "key-id";
                 description "Keys in this chain.";
-                leaf key-id { type uint32; description "Key identifier."; }
+                ze:help "The list is keyed by key-id. Ze picks the key that signs from the
+send-lifetime windows, and it verifies a received packet against every key of the chain.";
+                leaf key-id {
+                    type uint32;
+                    description "Key identifier.";
+                    ze:help "AuType 2 carries the Key ID in one octet, so Ze refuses a value
+of more than 255 for an md5 key or an hmac-sha key. The extended-sequence leaf removes
+that bound. AuType 1 carries no Key ID on the wire.";
+                }
                 leaf algorithm {
                     type enumeration {
                         enum simple;
@@ -886,16 +1402,35 @@ sequence number of 64 bits. The leaf applies to the HMAC-SHA algorithms.";
                     }
                     default "md5";
                     description "Authentication algorithm.";
+                    ze:help "simple is AuType 1, which sends a cleartext password. The md5
+value and the hmac-sha values are AuType 2, which sends a digest. The extended-sequence
+leaf turns AuType 2 into AuType 3.";
                 }
                 leaf secret {
                     type string { length "1..255"; }
                     ze:sensitive;
                     description "Shared secret, masked and $9$-encoded at rest.";
+                    ze:help "Ze masks the value in every output, and it stores the $9$ form
+at rest. A simple-password secret is at most 8 octets, which RFC 2328 Appendix D sets as
+the width of the authentication field.";
                 }
                 container send-lifetime {
-                    description "When this key may be used to sign.";
-                    leaf start { type string { length "1..64"; } description "RFC3339 start timestamp."; }
-                    leaf end { type string { length "1..64"; } description "RFC3339 end timestamp."; }
+                    description "Window in which Ze can use this key to sign a packet.";
+                    ze:help "Ze signs with the key whose window covers the current time.
+When two windows cover it, the latest-starting key wins. When every window has expired, Ze
+keeps the most-recently-starting key rather than sending an unauthenticated packet.";
+                    leaf start {
+                        type string { length "1..64"; }
+                        description "RFC3339 start timestamp.";
+                        ze:help "The value is an RFC 3339 timestamp, for example
+2026-01-01T00:00:00Z. An absent leaf leaves the window open with no start bound.";
+                    }
+                    leaf end {
+                        type string { length "1..64"; }
+                        description "RFC3339 end timestamp.";
+                        ze:help "The value is an RFC 3339 timestamp. An absent leaf leaves
+the window open with no end bound, so this key signs until a later key starts.";
+                    }
                 }
                 container accept-lifetime {
                     description "When this key is accepted on receive.";
@@ -925,6 +1460,8 @@ IPv6-unicast range as 0 to 31.";
             }
             container ipv6-unicast {
                 description "IPv6-unicast OSPFv3 address family (RFC 5838 §2.1: Instance ID 0-31).";
+                ze:help "The ipv6 container is the bare spelling of this same family. Ze
+maps both names to the IPv6-unicast family, so configure one of the two.";
                 leaf instance-id {
                     type uint8 { range "0..31"; }
                     default 0;

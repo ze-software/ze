@@ -13,6 +13,11 @@ module ze-ddos-local-conf {
 
   augment "/dd:ddos" {
     container local {
+      description "Answer a detected attack with a firewall rule on this router.";
+      ze:help "The rule drops the traffic where it arrives, so the link into this router
+               still carries the attack. Announce a FlowSpec rule instead to have it
+               dropped upstream.";
+
       leaf response-level {
         type enumeration {
           enum alert;

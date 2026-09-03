@@ -186,6 +186,7 @@ module ze-bfd-conf {
             leaf vrf {
                 type string;
                 default "default";
+                description "Routing instance the session runs in. The default instance is named default.";
             }
             leaf profile {
                 type string;
@@ -207,6 +208,7 @@ module ze-bfd-conf {
 
             leaf peer {
                 type string;
+                description "Address of the remote system this session runs to.";
             }
             leaf local {
                 type string;
@@ -215,6 +217,7 @@ module ze-bfd-conf {
             leaf vrf {
                 type string;
                 default "default";
+                description "Routing instance the session runs in. The default instance is named default.";
             }
             leaf min-ttl {
                 type uint8;
@@ -225,10 +228,14 @@ module ze-bfd-conf {
             }
             leaf profile {
                 type string;
+                description "Name of the timer profile this session takes its intervals from.";
             }
             leaf shutdown {
                 type boolean;
                 default false;
+                description "Hold the session administratively down and keep its configuration.";
+                ze:help "The session stays configured and stops sending control packets, so a
+                         peer sees it go down. Delete the list entry to remove it instead.";
             }
         }
     }
