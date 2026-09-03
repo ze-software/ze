@@ -1,7 +1,8 @@
 // VALIDATES: one reading of the AS_PATH attribute out of the policy filter text
 // format, against the writer that produces that format.
 // PREVENTS: brackets left on a multi-ASN path; a single ASN read together with
-// the attribute that follows it; a reader that drifts from
+// the attribute that follows it; padding a plugin delta writes inside the
+// brackets read back as part of the ASN list; a reader that drifts from
 // (*attribute.ASPath).AppendText when the writer changes shape.
 
 package filtertext
@@ -59,6 +60,26 @@ func TestASPath(t *testing.T) {
 			name:       "bracketed list before med",
 			updateText: "as-path [65001 65002] med 100 nlri ipv4/unicast add 10.0.0.0/24",
 			want:       "65001 65002",
+		},
+		{
+			name:       "padded brackets",
+			updateText: "origin igp as-path [ 65001 65002 ] next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24",
+			want:       "65001 65002",
+		},
+		{
+			name:       "padded brackets around one ASN",
+			updateText: "origin igp as-path [ 65001 ] next-hop 1.1.1.1",
+			want:       "65001",
+		},
+		{
+			name:       "empty brackets",
+			updateText: "origin igp as-path [] next-hop 1.1.1.1",
+			want:       "",
+		},
+		{
+			name:       "brackets holding only spaces",
+			updateText: "origin igp as-path [   ] next-hop 1.1.1.1",
+			want:       "",
 		},
 	}
 

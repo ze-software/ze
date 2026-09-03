@@ -6,6 +6,7 @@ package reactor
 
 import (
 	"net/netip"
+	"reflect"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -31,6 +32,11 @@ import (
 // family. A filter plugin that needs to inspect non-CIDR NLRI bytes MUST
 // declare `raw=true` in its `FilterRegistration` and parse the wire payload
 // from `FilterUpdateInput.Raw`.
+//
+// The "as-path" token carries the AS path information the route traversed, not
+// the AS_PATH attribute as encoded: on a session that did not negotiate the
+// four-octet AS capability the two are different (RFC 6793 Section 4.2.3, and
+// asPathForFilter below).
 //
 // Returns buf unchanged if attrs is nil and wireUpdate has no NLRI sections.
 // Attrs-only output (no nlri tokens) is valid when wireUpdate is nil or
@@ -162,6 +168,9 @@ var attrNameToCode = map[string]attribute.AttributeCode{
 // space-separated "<name> <value>" pairs. Only attributes named in declared
 // are included. If declared is empty, all parseable attributes are included.
 // Returns buf unchanged when attrs is nil.
+//
+// The "as-path" pair carries the AS path information rather than the AS_PATH
+// attribute: see asPathForFilter.
 func AppendAttrsForFilter(buf []byte, attrs *attribute.AttributesWire, declared []string) []byte {
 	if attrs == nil {
 		return buf
@@ -175,13 +184,110 @@ func AppendAttrsForFilter(buf []byte, attrs *attribute.AttributesWire, declared 
 		if !ok {
 			continue
 		}
-		parsed, err := attrs.Get(code)
-		if err != nil || parsed == nil {
+		parsed := attrForFilter(attrs, code)
+		if parsed == nil {
 			continue
 		}
 		buf, first = appendSingleAttr(buf, parsed, first)
 	}
 	return buf
+}
+
+// attrForFilter returns the attribute to RENDER for one filter-text attribute
+// code, and nil when the UPDATE does not carry it or its wire bytes do not
+// parse. Both arms of AppendAttrsForFilter go through here, so a filter that
+// declares its attributes and a filter that takes them all read one subject.
+func attrForFilter(attrs *attribute.AttributesWire, code attribute.AttributeCode) attribute.Attribute {
+	parsed, err := attrs.Get(code)
+	if err != nil || parsed == nil {
+		return nil
+	}
+	if code != attribute.AttrASPath {
+		return parsed
+	}
+	return asPathForFilter(attrs, parsed)
+}
+
+// asPathForFilter returns the AS path a filter must judge: the AS numbers the
+// route really traversed, whatever ASN width the session negotiated.
+//
+// A peer that did not negotiate the four-octet AS capability sends a two-octet
+// AS_PATH holding AS_TRANS (23456) wherever a four-octet AS number belongs, and
+// sends the real numbers in AS4_PATH. Rendering AS_PATH alone therefore shows
+// every text-mode filter the ENCODING instead of the path, so a rule naming a
+// four-octet ASN accepts the route it exists to reject.
+//
+// RFC 6793 Section 4.2.3: "If the AS4_PATH attribute is also received, both of
+// the attributes will be used to construct the exact AS path information, and
+// therefore the information carried by both of the attributes will be
+// considered for AS path loop detection."
+//
+// attribute.MergeAS4Path owns the construction, including the AS-number-count
+// comparison that ignores an AS4_PATH longer than the AS_PATH. Presence is read
+// from the span bitset, which takes no lock, no scan and no parse, so the
+// common path (a four-octet session carrying no AS4_PATH) costs one bit test
+// and allocates nothing.
+//
+// Four branches return the encoded AS_PATH instead of a reconstruction, and a
+// reader MUST be able to tell them apart:
+//
+//   - AS4_PATH ABSENT is the legitimate answer. The AS_PATH already carries the
+//     AS path information, and nothing is logged.
+//   - A MALFORMED AS4_PATH is the peer's doing, and RFC 6793 Section 6 decides
+//     it: "A NEW BGP speaker that receives a malformed AS4_PATH attribute in an
+//     UPDATE message from an OLD BGP speaker MUST discard the attribute and
+//     continue processing the UPDATE message. The error SHOULD be logged
+//     locally for analysis." Ze discards it and logs it.
+//   - The two type assertions and the index read are GUARD MISSES. No peer can
+//     reach them: attrs.Get answers AttrASPath with *attribute.ASPath and
+//     AttrAS4Path with *attribute.AS4Path by construction (knownAttrParsers,
+//     internal/core/bgp/attribute/wire.go), and the index verdict Has reads is
+//     the immutable one Get already passed in attrForFilter. Reaching one is a
+//     Ze defect, so each one speaks. Silence would put the AS_TRANS subject
+//     this function exists to remove back on the branch nobody looks at, and
+//     nothing else would ever report it.
+//
+// A miss degrades to the encoded path and MUST NOT drop the route: the filter
+// chain still runs, and the log line is what tells an operator that its verdict
+// was taken on the wrong subject. Every line goes through fwdLogger, so
+// ze.log.bgp.reactor.forward damps a peer that repeats a malformed AS4_PATH.
+func asPathForFilter(attrs *attribute.AttributesWire, parsed attribute.Attribute) attribute.Attribute {
+	present, err := attrs.Has(attribute.AttrAS4Path)
+	if err != nil {
+		fwdLogger().Warn("filter text: AS path reconstruction skipped, attribute index unreadable",
+			"error", err)
+		return parsed
+	}
+	if !present {
+		return parsed
+	}
+
+	asPath, ok := parsed.(*attribute.ASPath)
+	if !ok {
+		fwdLogger().Warn("filter text: AS path reconstruction skipped, AS_PATH parsed to an unexpected type",
+			"type", reflect.TypeOf(parsed))
+		return parsed
+	}
+
+	as4Parsed, err := attrs.Get(attribute.AttrAS4Path)
+	if err != nil {
+		// RFC 6793 Section 6: "A NEW BGP speaker that receives a malformed
+		// AS4_PATH attribute in an UPDATE message from an OLD BGP speaker MUST
+		// discard the attribute and continue processing the UPDATE message.
+		// The error SHOULD be logged locally for analysis."
+		fwdLogger().Warn("filter text: malformed AS4_PATH discarded, filters judge the encoded AS_PATH",
+			"error", err)
+		return parsed
+	}
+
+	as4Path, ok := as4Parsed.(*attribute.AS4Path)
+	if !ok {
+		fwdLogger().Warn("filter text: AS path reconstruction skipped, AS4_PATH parsed to an unexpected type",
+			"type", reflect.TypeOf(as4Parsed))
+		return parsed
+	}
+
+	return attribute.MergeAS4Path(asPath, as4Path)
 }
 
 // appendAllAttrs appends all known attributes from wire in a stable order.
@@ -193,9 +299,8 @@ func appendAllAttrs(buf []byte, attrs *attribute.AttributesWire) []byte {
 	}
 	first := true
 	for _, name := range order {
-		code := attrNameToCode[name]
-		parsed, err := attrs.Get(code)
-		if err != nil || parsed == nil {
+		parsed := attrForFilter(attrs, attrNameToCode[name])
+		if parsed == nil {
 			continue
 		}
 		buf, first = appendSingleAttr(buf, parsed, first)

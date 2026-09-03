@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -103,6 +104,33 @@ func TestCountASPathHops(t *testing.T) {
 			got := countASPathHops(tt.asPath)
 			if got != tt.want {
 				t.Errorf("countASPathHops(%q) = %d, want %d", tt.asPath, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestCountASPathHopsThroughReader counts the hops of an update text whose
+// as-path brackets carry padding, which a plugin delta can write and the wire
+// producer never does. It drives the whole caller path, filtertext.ASPath then
+// countASPathHops, because the padding is the reader's to remove and a count
+// taken over it rejects a route the limit accepts.
+func TestCountASPathHopsThroughReader(t *testing.T) {
+	tests := []struct {
+		name       string
+		updateText string
+		want       int
+	}{
+		{"padded_brackets", "origin igp as-path [ 65001 65002 ] next-hop 10.0.0.1", 2},
+		{"unpadded_brackets", "origin igp as-path [65001 65002] next-hop 10.0.0.1", 2},
+		{"padded_brackets_one_asn", "origin igp as-path [ 65001 ] next-hop 10.0.0.1", 1},
+		{"brackets_holding_only_spaces", "origin igp as-path [   ] next-hop 10.0.0.1", 0},
+		{"empty_brackets", "origin igp as-path [] next-hop 10.0.0.1", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := countASPathHops(filtertext.ASPath(tt.updateText))
+			if got != tt.want {
+				t.Errorf("countASPathHops(filtertext.ASPath(%q)) = %d, want %d", tt.updateText, got, tt.want)
 			}
 		})
 	}

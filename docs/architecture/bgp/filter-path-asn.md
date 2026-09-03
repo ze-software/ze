@@ -125,6 +125,22 @@ the first ASN is a member and the peer is the server.
 `pathShape` measures the run and `positionAt` judges each index against it
 (`internal/component/bgp/plugins/filter_path_asn/match.go`).
 
+## The path a list judges
+
+A list judges the AS numbers the route traversed, not the AS_PATH attribute as
+it arrived on the wire.
+
+A peer that did not negotiate the four-octet AS capability sends an AS_PATH that
+holds AS_TRANS (23456) wherever a four-octet AS number belongs, and sends the
+real numbers in the AS4_PATH attribute (RFC 6793 Section 4.2.2). The reactor
+reconstructs one path from the two before any filter sees the subject
+(RFC 6793 Section 4.2.3). So `indirect [ 199524 ]` rejects a route that reached
+AS199524 through such a peer, AS_TRANS is not a value an operator lists, and the
+format has no second `as4-path` keyword to write a rule against.
+
+<!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter, attrForFilter -->
+<!-- source: internal/core/bgp/attribute/as4.go -- MergeAS4Path -->
+
 ## The two arms of a list
 
 A list is one reject set with two arms, and a route matching either is rejected.
@@ -139,8 +155,12 @@ The zero-allocation guarantee covers the position arm. A list carrying patterns
 pays RE2's cost for them, which is stated rather than hidden.
 
 A pattern sees the same flattened string every other reader of the format sees,
-so it reaches an AS_SET member and no bracket appears in the subject. That is
-why an anchored pattern such as `^3356 174 ` keeps working at any path length.
+so it reaches an AS_SET member, it reaches a four-octet ASN reconstructed from
+AS4_PATH, and no bracket appears in the subject. The subject
+is the ASNs separated by single spaces, and it carries no trailing space. So an
+anchored pattern that ends in a space, such as `^3356 174 `, misses the path
+`[3356 174]`, whose subject is `3356 174`. Write the boundary as an alternation,
+`^3356 174( |$)`, to match that path and every longer one that starts with it.
 
 ## What the parse refuses
 
@@ -269,7 +289,7 @@ handlers and the config schema. Each answers structured data, so `| json`,
 |---------|---------|
 | `show bgp reject-asn` | every list: each ASN once, with the effective position set, the curated annotation, and the peers that name the list on import and on export |
 | `show bgp reject-asn name <name>` | the same record for one list |
-| `show bgp reject-asn known transit-free` | the curated set as a pasteable `asn [ ... ];` block, with the sources and the curated date as comments |
+| `show bgp reject-asn known transit-free` | the curated set as a pasteable `indirect [ ... ];` block that goes directly under `reject-asn NAME { }`, with the sources and the curated date as comments |
 
 **The listing prints the effective set, not the blocks.** An operator who wrote
 3356 under `indirect` and under `direct` has ONE rule, and the filter acts on the
@@ -312,16 +332,16 @@ answers which peer and which ASN. Peer identity stays out of the labels, because
 a peer address there would grow the series count with the session count.
 
 Every label value is a compile-time constant, so the series count is fixed at
-two directions times seven slots, whatever an operator configures. Every child
+two directions times eight slots, whatever an operator configures. Every child
 is resolved once in `buildMetrics` and every series exists at 0 from startup, so
 the reject path costs one atomic load and an increment, and an alert on a rate
 does not wait for a series to appear.
 
-`rejectSlot` is numerically equal to the `position` constants for its first four
-values, so a hit converts to its slot with no lookup table. The `unspecified`
-slot is never a real reject: `positionAt` answers direct, transit or origin
-for every index, so a series that moves off zero says `positionAt` returned the
-value that is not a place.
+`rejectSlot` is numerically equal to the `position` constants for its first five
+values, `slotUnspecified` through `slotNth`. A hit therefore converts to its slot
+with no lookup table. The `unspecified` slot is never a real reject: `positionAt`
+answers direct, transit or origin for every index, so a series that moves off
+zero says `positionAt` returned the value that is not a place.
 
 A pattern match reads `reason="listed-asn"` beside `position="regex"`. Both arms
 of a list are the operator's listing, and the position label is what separates

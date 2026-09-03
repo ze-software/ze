@@ -836,6 +836,24 @@ are loaded, so the dispatcher may not yet know about the target command.
 registry after every phase completes, so the dispatch is guaranteed to resolve.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go — OnStarted vs OnAllPluginsReady -->
 
+### The AS Path in the Filter Text Protocol
+
+The `as-path` pair of `FilterUpdateInput.Update` carries the AS path
+information, not the AS_PATH attribute as it arrived on the wire.
+
+A peer that did not negotiate the four-octet AS capability sends an AS_PATH that
+holds AS_TRANS (23456) wherever a four-octet AS number belongs, and sends the
+real numbers in the AS4_PATH attribute (RFC 6793 Section 4.2.2). The engine
+reconstructs one path from the two before it renders the text (RFC 6793
+Section 4.2.3), so every text-mode filter reads the AS numbers the route
+traversed on every session. There is no `as4-path` token: one attribute name
+carries one fact.
+
+A filter that must see the AS_PATH and AS4_PATH attributes as encoded MUST
+declare `raw=true` and read the wire payload from `FilterUpdateInput.Raw`.
+<!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter, attrForFilter -->
+<!-- source: internal/core/bgp/attribute/as4.go -- MergeAS4Path -->
+
 ### Non-CIDR Families in the Filter Text Protocol
 
 The engine's filter text protocol (`FilterUpdateInput.Update`) inlines NLRI

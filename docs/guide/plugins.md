@@ -642,15 +642,25 @@ Two properties of it are load-bearing for a pattern you write:
   AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE and AS_CONFED_SET all contribute
   their ASNs in order. A pattern therefore cannot ask which segment an ASN came
   from, and an ASN inside an AS_SET is matched like any other.
+- **It is the path the route traversed, not the AS_PATH attribute as encoded.**
+  A peer that did not negotiate the four-octet AS capability puts AS_TRANS
+  (23456) in AS_PATH wherever a four-octet AS number belongs and sends the real
+  numbers in AS4_PATH. The reactor reconstructs one path from the two before any
+  filter sees the text (RFC 6793 Section 4.2.3), so a pattern and a hop count
+  read the real AS numbers and never AS_TRANS.
 - **A route with no AS_PATH gives the empty string**, and a route with one ASN
   gives that ASN alone. The producer writes one ASN unbracketed (`as-path
   65001`) and several in brackets (`as-path [65001 65002]`), and the reader
-  strips the brackets, so a pattern never sees one.
+  strips the brackets, so a pattern never sees one. A plugin that rewrites the
+  AS path can pad the inside of the brackets, `as-path [ 65001 65002 ]`, and the
+  reader trims that padding too. A pattern and a hop count therefore read the
+  same list whether the path came off the wire or out of a plugin.
 
 <!-- source: internal/component/bgp/plugins/filter_aspath/filter_aspath.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath -->
 <!-- source: internal/component/bgp/filtertext/aspath.go -- ASPath -->
 <!-- source: internal/core/bgp/attribute/text_append.go -- AppendText -->
+<!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter -->
 
 ### Reject-ASN Filter (`bgp-filter-path-asn`)
 
