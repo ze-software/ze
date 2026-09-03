@@ -46,15 +46,21 @@ import (
 // peer's own keepalives/routes, which writeMu serializes regardless.
 func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override []byte) {
 	facts := peer.forwardFacts()
-	// nil facts (peer not established -- peer_forward_facts.go:35) and an empty
-	// export chain are legitimate ACCEPTS: absent preconditions, not guard
-	// misses. A not-established peer has no session on which a route reaches the
-	// wire; a peer with no export filters has no export policy to run. Keep the
-	// zero-cost skip for both.
-	if facts == nil || len(facts.exportFilters) == 0 {
+	// nil facts (peer not established -- peer_forward_facts.go:35) and a chain
+	// with no ref that can execute are legitimate ACCEPTS: absent preconditions,
+	// not guard misses. A not-established peer has no session on which a route
+	// reaches the wire; a chain that is empty, or that holds only deactivated
+	// refs, applies no export policy, because PolicyFilterChain skips a ref
+	// marked Inactive (filter_chain.go). Keep the zero-cost skip for both.
+	//
+	// Reading the raw length here would fail closed below on a chain the
+	// operator switched off, while reactorForwardRS forwards the same route for
+	// the same peer: one rail honors the opt-out and the other blackholes on it.
+	// hasActiveFilter (forward_rs.go) is the one predicate both rails ask.
+	if facts == nil || !hasActiveFilter(facts.exportFilters) {
 		return false, nil
 	}
-	// facts present AND export filters configured: this peer HAS an export
+	// facts present AND an ACTIVE export filter: this peer HAS an export
 	// policy whose purpose is to reject. A nil API server means the filter
 	// engine that enforces it is absent -- a guard MISS, not an accept. Fail
 	// closed and speak, exactly as policyFilterFunc (filter_chain.go:368-371:

@@ -705,8 +705,9 @@ Three forwarding paths exist. The **reactor RS fast path** (rs-gap-1) runs
 inline in `notifyMessageReceiver` on the session read goroutine, after cache
 Add but before `deliverChan` enqueue. It calls the egress pipeline directly
 (`reactorForwardRS` in `forward_rs.go`), bypassing plugin dispatch, bgp-rs
-workers, and ForwardCached entirely. Peers with `ExportFilters` fall back to
-the plugin path via `FastPathSkipped` on `RawMessage`. Enabled per peer group
+workers, and ForwardCached entirely. Peers with an ACTIVE export filter fall
+back to the plugin path via `FastPathSkipped` on `RawMessage`. A chain of only
+deactivated refs applies no policy, so that peer keeps the fast path. Enabled per peer group
 via `PeerSettings.RSFastPath`.
 
 Two consumer categories. **Forwarders** (route server, route reflector, future
@@ -779,8 +780,9 @@ code position:
    resolved via `filter { import [...] }` config), which the reactor binds as ONE
    ordered step at `filterapi.FilterStagePeerChain` (300) -- so it sorts **after**
    every in-process filter, including OTC. It runs `PolicyFilterChain` with
-   `direction="import"` only when the peer has configured import filters and the
-   API server is present (text serialization is gated to that case). `Reject`
+   `direction="import"` only when the peer has an ACTIVE import filter and the
+   API server is present (text serialization is gated to that case). A chain of
+   only deactivated refs runs nothing, so it accepts. `Reject`
    drops the route; `Teardown` closes the session (import only); a raw override or
    a `Modify` text delta is converted to wire-attribute mods (`ModAccumulator`)
    and rebuilds the cached `WireUpdate` via the same `buildModifiedPayload`

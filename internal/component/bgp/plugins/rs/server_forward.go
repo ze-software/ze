@@ -14,7 +14,7 @@ import (
 )
 
 // batchForwardUpdateSkipped forwards a cached UPDATE to only the peers that
-// the reactor fast path skipped (those with ExportFilters). Called when
+// the reactor fast path skipped (those with an ACTIVE export filter). Called when
 // ReactorForwarded is true and FastPathSkipped is non-empty.
 func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool, skipped []netip.AddrPort) {
 	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})

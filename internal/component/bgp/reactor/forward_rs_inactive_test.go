@@ -95,3 +95,53 @@ func TestReactorForwardRSDeactivatedExportFilterKeepsTheFastPath(t *testing.T) {
 	assert.Equal(t, dst, dispatched[0].peer)
 	mu.Unlock()
 }
+
+// TestExportFilterForBodyDeactivatedChainAcceptsWithoutAPIServer holds the
+// egress rail to the same rule as the fast path: a chain of only deactivated
+// refs applies no policy, so there is no policy for a missing API server to
+// fail closed on.
+//
+// VALIDATES: an all-`inactive:` export chain takes the legitimate-accept branch,
+// the one an empty chain takes, rather than the r.api == nil fail-closed branch.
+// PREVENTS: the two rails disagreeing about the same peer -- reactorForwardRS
+// forwarding the route while exportFilterForBody suppresses it, which
+// blackholes the operator who recorded a filter and switched it off.
+func TestExportFilterForBodyDeactivatedChainAcceptsWithoutAPIServer(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	peer := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
+	peer.settings.ExportFilters = frefs("inactive:bgp-rs:test-filter")
+	peer.refreshForwardFacts()
+
+	r := &Reactor{}
+
+	suppress, override := r.exportFilterForBody(peer, []byte{0, 0, 0, 0})
+	assert.False(t, suppress, "a deactivated ref applies no policy, so nothing suppresses the route")
+	assert.Nil(t, override, "no filter ran, so no filter rewrote the body")
+}
+
+// TestRunIngressPolicyChainDeactivatedChainAcceptsWithoutAPIServer is the
+// import half of the pair above.
+//
+// VALIDATES: an all-`inactive:` import chain takes the legitimate-accept branch
+// rather than the r.api == nil fail-closed branch that drops the route.
+// PREVENTS: an operator's opt-out dropping every inbound route on a daemon that
+// runs no API server, while the route-server rail forwards the same route for
+// the same peer.
+func TestRunIngressPolicyChainDeactivatedChainAcceptsWithoutAPIServer(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	peer := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
+	peer.settings.ImportFilters = frefs("inactive:bgp-rs:test-filter")
+
+	payload := []byte{0, 0, 0, 0}
+	wu := wireu.NewWireUpdate(payload, ctxID)
+
+	r := &Reactor{}
+
+	res := r.runIngressPolicyChain(peer, netip.MustParseAddr("10.0.0.1"), 65001, wu, payload)
+	assert.True(t, res.accept, "a deactivated ref applies no policy, so the route is accepted")
+	assert.False(t, res.teardown, "no filter ran, so no filter asked for a teardown")
+}

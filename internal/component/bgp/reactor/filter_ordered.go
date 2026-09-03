@@ -137,8 +137,8 @@ func buildOrderedEgressSteps() []orderedEgressStep {
 // runIngressPolicyChain runs the peer's configured import policy chain (the
 // external text/RPC filters) as one ordered ingress step. It is the former
 // System 2 block, unchanged in semantics: it serializes the current payload to
-// text only when the peer has import filters and the API server is present (the
-// hot-path gate), runs PolicyFilterChain, and maps the aggregate result to the
+// text only when the peer has an ACTIVE import filter and the API server is
+// present (the hot-path gate), runs PolicyFilterChain, and maps the aggregate result to the
 // common ingressStepResult (teardown / reject / raw override / text-delta modify).
 // peer may be nil (peer disconnected) -- then the step is a no-op accept.
 func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS uint32, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult {
@@ -150,13 +150,18 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 	// transition-queue change can process an UPDATE while the establishment callback still
 	// runs on the drainer goroutine, so the read must go through the accessor.
 	filters := peer.ImportFilters()
-	// No import policy configured is a legitimate accept (an absent precondition,
-	// not a guard miss): nothing to run.
-	if len(filters) == 0 {
+	// No chain that can execute is a legitimate accept (an absent precondition,
+	// not a guard miss): a chain that is empty, or that holds only deactivated
+	// refs, runs nothing, because PolicyFilterChain skips a ref marked Inactive
+	// (filter_chain.go). Reading the raw length here would fail closed below on
+	// a chain the operator switched off and drop every inbound route, while
+	// reactorForwardRS forwards for the same peer (hasActiveFilter,
+	// forward_rs.go).
+	if !hasActiveFilter(filters) {
 		return ingressStepResult{accept: true}
 	}
-	// Import filters configured but the API server (the filter engine that
-	// enforces them) is absent: a guard MISS, not an accept. An import filter is
+	// An ACTIVE import filter but the API server (the filter engine that
+	// enforces it) is absent: a guard MISS, not an accept. An import filter is
 	// a guard whose purpose is to reject (it can be security/ACL policy), so
 	// silently accepting unfiltered inbound routes is the fail-open. Deny AND
 	// speak, matching policyFilterFunc (filter_chain.go:368-371: Warn +
@@ -244,18 +249,18 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 // runEgressPolicyChain runs the destination peer's configured export policy chain
 // (external text/RPC filters) as one ordered egress step. It is the former export
 // PolicyFilterChain block from forwardUpdateCore, unchanged in semantics: it
-// serializes the ORIGINAL update to text only when the peer has export filters and
-// the API server is present, runs PolicyFilterChain, and maps the result to a full
+// serializes the ORIGINAL update to text only when the peer has an ACTIVE export
+// filter and the API server is present, runs PolicyFilterChain, and maps the result to a full
 // wire override (raw or text-delta). Reject -> accept == false (suppress this peer).
 // Teardown is import-only and never fires on export. Unlike ingress, this reads the
 // original payload: egress in-process filters defer their edits into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
 func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, wireUpdate *wireu.WireUpdate) egressStepResult {
-	// No export policy configured is a legitimate accept (an absent precondition,
-	// not a guard miss). The r.api == nil MISS (with filters present) is handled
-	// by the shared body runEgressPolicyChainASN4, so the fail-closed guard lives
-	// in exactly one place and never double-warns.
-	if len(exportFilters) == 0 {
+	// No chain that can execute is a legitimate accept (an absent precondition,
+	// not a guard miss). The r.api == nil MISS (with an active filter present) is
+	// handled by the shared body runEgressPolicyChainASN4, so the fail-closed
+	// guard lives in exactly one place and never double-warns.
+	if !hasActiveFilter(exportFilters) {
 		return egressStepResult{accept: true}
 	}
 	// A forwarded wire is still in the SOURCE peer's encoding, so the AS_PATH
@@ -283,13 +288,16 @@ func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, dest
 // originated one silently dropped every FilterModify text delta, leaking
 // RFC 6996 private ASNs to EBGP peers (spec-fixit-private-asn-leak).
 func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
-	// No export policy configured is a legitimate accept (an absent precondition,
-	// not a guard miss): nothing to run.
-	if len(exportFilters) == 0 {
+	// No chain that can execute is a legitimate accept (an absent precondition,
+	// not a guard miss): a chain that is empty, or that holds only deactivated
+	// refs, runs nothing, because PolicyFilterChain skips a ref marked Inactive
+	// (filter_chain.go). This is the forwarded rail's half of the rule
+	// exportFilterForBody applies to originated routes.
+	if !hasActiveFilter(exportFilters) {
 		return egressStepResult{accept: true}
 	}
-	// Export filters configured but the API server (the filter engine that
-	// enforces them) is absent: a guard MISS, not an accept. An export chain is a
+	// An ACTIVE export filter but the API server (the filter engine that
+	// enforces it) is absent: a guard MISS, not an accept. An export chain is a
 	// guard whose purpose is to reject; silently accepting sends the route
 	// UNFILTERED and leaks whatever the policy exists to strip (e.g. RFC 6996
 	// private ASNs). Deny AND speak, matching policyFilterFunc
