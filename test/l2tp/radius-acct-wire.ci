@@ -47,8 +47,7 @@ stdin=config:terminator=EOF_CONF
 l2tp {
     enabled true
     shared-secret s3cr3t
-    auth-method none
-    allow-no-auth true
+    auth-method chap-md5
     auth {
         radius {
             nas-identifier lns1
@@ -93,6 +92,8 @@ cmd=background:seq=2:exec=ze -:stdin=config
 # happy path takes about 5s.
 cmd=foreground:seq=3:exec=ze-test fixture l2tp/radius-acct-wire $PORT:timeout=90s:exit=0
 expect=exit:code=0
+expect=stdout:pattern=OK: CHAP Response sent for challenge identifier [0-9]+ as subscriber@ze
+expect=stdout:contains=OK: CHAP Success received
 expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.7.10
 expect=stdout:contains=OK: Access-Request NAS-Port-Id resolved from the template as
 expect=stdout:pattern=NAS-Port-Id resolved from the template as lns1:[0-9]+\.[0-9]+
