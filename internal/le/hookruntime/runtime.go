@@ -9,6 +9,7 @@
 package hookruntime
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -109,13 +110,18 @@ var nativeHookActions = map[string]hookAction{
 }
 
 // newContext resolves the checkout root and turns one payload into the context
-// every check reads. It reports false when the root cannot be resolved, which
-// is the fail-open case: no check can judge a path it cannot locate.
-func newContext(payload Payload) (context, bool) {
+// every check reads. A non-empty root argument REPLACES that resolution, which
+// is how a probe puts a check over a throwaway tree it built rather than over
+// the checkout the session is working in. It reports false when the root cannot
+// be resolved, which is the fail-open case: no check can judge a path it cannot
+// locate.
+func newContext(payload Payload, root string) (context, bool) {
 	if payload.ToolInput == nil {
 		payload.ToolInput = map[string]any{}
 	}
-	root := os.Getenv("CLAUDE_PROJECT_DIR")
+	if root == "" {
+		root = os.Getenv("CLAUDE_PROJECT_DIR")
+	}
 	if root == "" {
 		resolved, err := lepath.Root()
 		if err != nil {
@@ -157,8 +163,8 @@ func checkName(check hookCheck) string {
 // Probe runs the named check ALONE. Running the whole chain would let a
 // different check's refusal answer for the one under test, and the probe would
 // then pass while the check it names does nothing.
-func Probe(check string, payload Payload) (code int, message string, found bool) {
-	ctx, ok := newContext(payload)
+func Probe(check string, payload Payload, root string) (code int, message string, found bool) {
+	ctx, ok := newContext(payload, root)
 	if !ok {
 		return 0, "", false
 	}
@@ -175,6 +181,29 @@ func Probe(check string, payload Payload) (code int, message string, found bool)
 		}
 	}
 	return 0, "", false
+}
+
+// ProbeLifecycle runs ONE lifecycle hook over a synthetic payload and reports
+// its exit code, everything it wrote, and whether a hook of that name is
+// served. It is the sibling of Probe for the hooks that are not checks in
+// nativeHookActions: session-start, the stop gate, the end-of-session
+// summaries, the marker writers and validate-spec.
+//
+// Those hooks answer with TEXT rather than a verdict, so a probe judges what
+// they wrote as well as what they returned. Both streams come back joined,
+// because a hook is free to choose either one and a probe that read only stderr
+// would score a hook that reported on stdout as silent.
+//
+// found is what keeps a RENAMED hook from reading as a refusal: an unserved
+// kind exits 2, which is the same answer a hook gives when it blocks.
+func ProbeLifecycle(kind string, payload Payload, root string) (code int, output string, found bool) {
+	ctx, ok := newContext(payload, root)
+	if !ok {
+		return 0, "", false
+	}
+	var out, errOut bytes.Buffer
+	code, found = runLifecycleHook(kind, ctx, &out, &errOut)
+	return code, out.String() + errOut.String(), found
 }
 
 // Run reads one hook payload and writes the hook protocol response. Hooks fail
@@ -196,7 +225,7 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 		}
 		return 0
 	}
-	ctx, ok := newContext(payload)
+	ctx, ok := newContext(payload, "")
 	if !ok {
 		return 0
 	}
@@ -213,12 +242,12 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 			}
 		}
 	} else {
-		switch kind {
-		case "session-id":
-			return runSessionID(ctx, out, errOut)
-		default:
-			return runLifecycleHook(kind, ctx, out, errOut)
+		code, known := runLifecycleHook(kind, ctx, out, errOut)
+		if !known {
+			fmt.Fprintf(errOut, "unknown hook runtime %q\n", kind) //nolint:errcheck // hook protocol
+			return 2
 		}
+		return code
 	}
 
 	worst := 0

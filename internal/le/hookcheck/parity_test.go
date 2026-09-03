@@ -102,10 +102,18 @@ func TestBashNativeStatementBoundariesMatchDispatcher(t *testing.T) {
 func TestEveryBehavioralCategoryDiscriminates(t *testing.T) {
 	for _, category := range fixtureCategories {
 		t.Run(category.name, func(t *testing.T) {
-			if !categoryVerdict(category.name, category.allow) {
+			allowed, err := categoryVerdict(category.name, category.allow)
+			switch {
+			case err != nil:
+				t.Errorf("the allow probe could not run: %v", err)
+			case !allowed:
 				t.Errorf("allow probe was refused: %q", category.allow)
 			}
-			if categoryVerdict(category.name, category.refuse) {
+			refused, err := categoryVerdict(category.name, category.refuse)
+			switch {
+			case err != nil:
+				t.Errorf("the refusal probe could not run: %v", err)
+			case refused:
 				t.Errorf("refusal probe was allowed: %q", category.refuse)
 			}
 		})

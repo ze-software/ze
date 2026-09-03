@@ -30,43 +30,48 @@ import (
 // rather than a slow one. Both callers already treat a git error as no answer.
 const gitTimeout = 60 * time.Second
 
-func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) int {
+// runLifecycleHook runs one lifecycle hook and reports its exit code and
+// whether a hook of that name is served. The caller renders the refusal for a
+// name nothing serves, so the served set stays declared once, in this switch,
+// and a probe can ask whether a kind exists without matching a message.
+func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) (int, bool) {
 	switch kind {
 	case "session-start":
-		return hookSessionStart(ctx, out)
+		return hookSessionStart(ctx, out), true
 	case "compaction-reminder":
-		return hookCompactionReminder(ctx, errOut)
+		hookCompactionReminder(ctx, errOut)
+	case "session-id":
+		return runSessionID(ctx, out, errOut), true
 	case "verify-claim-reminder":
 		fmt.Fprintln(out, "Reminder: verify a claim about code by reading the function that PRODUCES it, not the caller. Unread means unverified. Cite file + symbol.") //nolint:errcheck // hook protocol
 	case "delegation-reminder":
 		fmt.Fprintln(out, "Reminder: delegation is pre-approved. For 2+ independent tasks, parallelize with subagents; no permission request is needed.") //nolint:errcheck // hook protocol
 	case "block-until-lsp":
-		return hookUntilLSP(ctx, errOut)
+		return hookUntilLSP(ctx, errOut), true
 	case "pre-compact-save":
-		return hookPreCompact(ctx, errOut)
+		hookPreCompact(ctx, errOut)
 	case "block-premature-stop":
-		return hookStop(ctx, errOut)
+		return hookStop(ctx, errOut), true
 	case "rule-coverage-report":
-		return hookRuleCoverage(ctx, errOut)
+		return hookRuleCoverage(ctx, errOut), true
 	case "session-end-summary":
-		return hookEndSummary(ctx, errOut)
+		hookEndSummary(ctx, errOut)
 	case "session-end-deferrals":
-		return hookDeferrals(ctx, errOut)
+		return hookDeferrals(ctx, errOut), true
 	case "subagent-context":
-		return hookSubagentContext(ctx, out)
+		return hookSubagentContext(ctx, out), true
 	case "mark-lsp-invoked":
-		return writeSessionMarker(ctx, ".lsp-invoked-", "")
+		return writeSessionMarker(ctx, ".lsp-invoked-", ""), true
 	case "mark-source-read":
-		return hookSourceRead(ctx)
+		return hookSourceRead(ctx), true
 	case "mark-agent-spawned":
-		return writeSessionMarker(ctx, ".agent-spawned-", "")
+		return writeSessionMarker(ctx, ".agent-spawned-", ""), true
 	case "validate-spec":
-		return hookValidateSpec(ctx, errOut)
+		return hookValidateSpec(ctx, errOut), true
 	default:
-		fmt.Fprintf(errOut, "unknown hook runtime %q\n", kind) //nolint:errcheck // hook protocol
-		return 2
+		return 0, false
 	}
-	return 0
+	return 0, true
 }
 
 func writeSessionMarker(ctx context, prefix, body string) int {
@@ -227,21 +232,22 @@ func readFirstLine(path string) string {
 	return strings.TrimSpace(line)
 }
 
-func hookCompactionReminder(ctx context, errOut io.Writer) int {
+// hookCompactionReminder writes the post-compaction reminder. It cannot
+// refuse anything, so it answers no exit code.
+func hookCompactionReminder(ctx context, errOut io.Writer) {
 	message := ctx.payload.Prompt
 	if message == "" {
 		message = ctx.payload.LastMessage
 	}
 	lower := strings.ToLower(message)
 	if !strings.Contains(lower, "continued from a previous conversation") {
-		return 0
+		return
 	}
 	if !anyContains(lower, "ran out of context", "context compaction") {
-		return 0
+		return
 	}
 	_ = writeSessionMarker(ctx, ".compaction-detected-", time.Now().Format(time.RFC3339))
 	fmt.Fprintln(errOut, "⚠ Context compaction detected. Read this session's digest before continuing, then verify every carried claim against source.") //nolint:errcheck // hook protocol
-	return 0
 }
 
 func stateFile(ctx context) string {
@@ -258,22 +264,23 @@ func stateFile(ctx context) string {
 	return filepath.Join(ctx.root, paths.Dir, "state", name)
 }
 
-func hookPreCompact(ctx context, errOut io.Writer) int {
+// hookPreCompact appends a pre-compaction snapshot to the session state file.
+// It cannot refuse anything, so it answers no exit code.
+func hookPreCompact(ctx context, errOut io.Writer) {
 	path := stateFile(ctx)
 	if path == "" {
-		return 0
+		return
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return 0
+		return
 	}
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // the session state path is built from the checkout root
 	if err != nil {
-		return 0
+		return
 	}
 	fmt.Fprintf(file, "\n## Pre-compaction snapshot %s\n\nContext was compacted. Re-read current source before trusting earlier conclusions.\n", time.Now().Format(time.RFC3339)) //nolint:errcheck // state record
 	_ = file.Close()
 	fmt.Fprintf(errOut, "Session state saved to %s\n", path) //nolint:errcheck // hook protocol
-	return 0
 }
 
 func stripStopMarkup(text string) string {
@@ -399,16 +406,18 @@ func hookRuleCoverage(ctx context, errOut io.Writer) int {
 	}
 	return 0
 }
-func hookEndSummary(ctx context, errOut io.Writer) int {
+
+// hookEndSummary rewrites the session recovery snapshot. It cannot refuse
+// anything, so it answers no exit code.
+func hookEndSummary(ctx context, errOut io.Writer) {
 	paths, err := lepath.ResolveSession(ctx.root, false)
 	if err != nil {
 		fmt.Fprintln(errOut, "session-end-summary: native summary failed; recovery snapshot not updated") //nolint:errcheck // hook protocol
-		return 0
+		return
 	}
 	if _, err := session.EndSummary(ctx.root, paths, time.Now()); err != nil {
 		fmt.Fprintln(errOut, "session-end-summary: native summary failed; recovery snapshot not updated") //nolint:errcheck // hook protocol
 	}
-	return 0
 }
 
 func hookDeferrals(ctx context, errOut io.Writer) int {
