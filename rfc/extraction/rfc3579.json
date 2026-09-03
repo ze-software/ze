@@ -1,0 +1,654 @@
+{
+ "schema-version": 1,
+ "stem": "rfc3579",
+ "register": "rfc2119",
+ "source-path": "rfc/full/rfc3579.txt",
+ "source-sha": "af4e5a944b99ad93",
+ "signed-off": "2026-09-03",
+ "reviewer": "ze-work agent, plan/spec-radius-admin-eap.md phase 2, rfc3579",
+ "sections": [
+  {
+   "id": "front",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "front-matter",
+   "reason": "Title block, Status of this Memo, copyright notice, Abstract and table of contents. The Abstract says what the memo adds to RADIUS and binds no speaker."
+  },
+  {
+   "id": "1",
+   "sites": 3,
+   "disposition": "walked",
+   "reason": "Introduction. States what RADIUS and EAP are, and carries the RFC 2865 rule that a NAS must not implement the attributes for a service it cannot offer, in its EAP form."
+  },
+  {
+   "id": "1.1",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Specification of Requirements. The RFC 2119 key-words paragraph. No obligation of its own."
+  },
+  {
+   "id": "1.2",
+   "sites": 2,
+   "disposition": "walked",
+   "reason": "Terminology. Defines authenticator, peer, authentication server, silently discard, displayable message, NAS, service and session. Two of those definitions carry obligations, sites 1.2:1 and 1.2:2; 'silently discard' carries two SHOULDs captured as RFC3579-1.2-3."
+  },
+  {
+   "id": "2",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "RADIUS Support for EAP. Says why the pass-through architecture exists and that a NAS may mix local authentication with pass-through, which is the MAY captured as RFC3579-2-1."
+  },
+  {
+   "id": "2.1",
+   "sites": 8,
+   "disposition": "walked",
+   "reason": "Protocol Overview. The conversation itself: who sends the first EAP-Request, how the NAS encapsulates a Response, what ends the conversation, EAP-Start, and the User-Name copying rule that lets a non-EAP-aware proxy forward the request."
+  },
+  {
+   "id": "2.2",
+   "sites": 3,
+   "disposition": "walked",
+   "reason": "Invalid Packets. The NAS header validation, the Error-Cause 202 branch, and the RADIUS server's fatal and non-fatal error handling. The DoS advice at the end is written as 'it is advisable' and 'is recommended' in lower case, and binds nobody."
+  },
+  {
+   "id": "2.3",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Retransmission. Describes how Session-Timeout in an Access-Challenge sets the EAP retransmission timer for that one EAP-Request. Indicative prose, no obligation."
+  },
+  {
+   "id": "2.4",
+   "sites": 1,
+   "disposition": "walked",
+   "reason": "Fragmentation. One obligation, on the RADIUS server, not to exceed a Framed-MTU the NAS supplied. The NAS half is written as 'may be included'."
+  },
+  {
+   "id": "2.5",
+   "sites": 1,
+   "disposition": "walked",
+   "reason": "Alternative Uses. RADIUS-encapsulated EAP between a RADIUS server and a security server. One obligation, on the RADIUS server."
+  },
+  {
+   "id": "2.6",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Usage Guidelines. A heading over 2.6.1 to 2.6.5 with no body text of its own."
+  },
+  {
+   "id": "2.6.1",
+   "sites": 1,
+   "disposition": "walked",
+   "reason": "Identifier Space. One obligation, on RADIUS server implementations, to keep the EAP Identifier spaces of distinct sessions apart."
+  },
+  {
+   "id": "2.6.2",
+   "sites": 1,
+   "disposition": "walked",
+   "reason": "Role Reversal. Says role reversal is not supported, with the obligation on the RADIUS server to reject an Access-Request encapsulating an EAP-Request, and a SHOULD on the same actor about the Nak it includes."
+  },
+  {
+   "id": "2.6.3",
+   "sites": 3,
+   "disposition": "walked",
+   "reason": "Conflicting Messages. Three NAS obligations, all captured, plus the SHOULD list of combinations a RADIUS server is told not to send."
+  },
+  {
+   "id": "2.6.4",
+   "sites": 1,
+   "disposition": "walked",
+   "reason": "Priority. One NAS obligation about the order in which attributes and the Accept/Reject indication are processed."
+  },
+  {
+   "id": "2.6.5",
+   "sites": 2,
+   "disposition": "walked",
+   "reason": "Displayable Messages. The RADIUS server's encapsulation obligation, the exclusion of Reply-Message from any EAP-bearing message, and the NAS SHOULD to discard a Reply-Message rather than translate it."
+  },
+  {
+   "id": "3",
+   "sites": 2,
+   "disposition": "walked",
+   "reason": "Attributes. The NAS identification attributes an Access-Request carries, and the RADIUS server's obligation to echo User-Name."
+  },
+  {
+   "id": "3.1",
+   "sites": 6,
+   "disposition": "walked",
+   "reason": "EAP-Message. The attribute format, the ordering and single-EAP-packet rules, the Message-Authenticator protection rule, and the calculate-and-discard obligations on each of the two roles."
+  },
+  {
+   "id": "3.2",
+   "sites": 3,
+   "disposition": "walked",
+   "reason": "Message-Authenticator. The attribute format and the HMAC-MD5 construction. The construction itself is written without an RFC 2119 keyword, so the site scan does not see it, and it is declared here as an unsourced id: 'MUST calculate the correct value' at sites 3.1:4 and 3.1:6 has no meaning without the formula this section states.",
+   "unsourced-ids": [
+    "RFC3579-3.2-1"
+   ]
+  },
+  {
+   "id": "3.3",
+   "sites": 1,
+   "disposition": "walked",
+   "reason": "Table of Attributes. One obligation in the body, that neither attribute appears in an Accounting-Request. The table rows, its three notes and its legend are the section '0' the site scan derives."
+  },
+  {
+   "id": "0",
+   "sites": 3,
+   "disposition": "walked",
+   "reason": "The Section 3.3 Table of Attributes itself: the per-packet-type counts, Notes 1 to 3, and the legend that defines the cell values. Note 1 carries two obligations and the legend carries none."
+  },
+  {
+   "id": "4",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Security Considerations. A heading over 4.1 to 4.3 with no body text of its own."
+  },
+  {
+   "id": "4.1",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Security Requirements. The ten-item threat list and the statement that confidentiality, data origin authentication, integrity and replay protection are needed. Written in indicative prose with no keyword."
+  },
+  {
+   "id": "4.2",
+   "sites": 4,
+   "disposition": "walked",
+   "reason": "Security Protocol. The IPsec profile for RADIUS: the transforms that must be supported, the zero-length shared secret where ESP with a non-null transform carries the traffic, and the IKE mode and identity payload advice."
+  },
+  {
+   "id": "4.3",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Security Issues. A heading and the list of the ten vulnerabilities 4.3.1 to 4.3.10 expand."
+  },
+  {
+   "id": "4.3.1",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Privacy Issues. One SHOULD, to protect RADIUS with IPsec ESP, restating Section 4.2's advice."
+  },
+  {
+   "id": "4.3.2",
+   "sites": 1,
+   "disposition": "walked",
+   "reason": "Spoofing and Hijacking. The SHOULD to use Message-Authenticator in an Access-Request with no User-Password, captured as RFC3579-4.3.2-1, and the restatement of the Section 3.1 protection rule."
+  },
+  {
+   "id": "4.3.3",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Dictionary Attacks. Quotes RFC 2865's shared-secret advice and recommends IPsec ESP. The quoted SHOULD belongs to RFC 2865."
+  },
+  {
+   "id": "4.3.4",
+   "sites": 1,
+   "disposition": "walked",
+   "reason": "Known Plaintext Attacks. Explains the User-Password keystream reuse problem and states one obligation, that an EAP NAS's shared secret is not reused by a NAS using User-Password."
+  },
+  {
+   "id": "4.3.5",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Replay Attacks. Describes what RADIUS does and does not give for replay protection. Indicative prose, no obligation."
+  },
+  {
+   "id": "4.3.6",
+   "sites": 8,
+   "disposition": "walked",
+   "reason": "Negotiation Attacks. The downgrade rules: what the authenticating peer must do when EAP was expected, what the NAS must attempt, and what the RADIUS server or proxy must answer."
+  },
+  {
+   "id": "4.3.7",
+   "sites": 1,
+   "disposition": "walked",
+   "reason": "Impersonation. Quotes RFC 2865 Section 3 on choosing the shared secret by source address, and states SHOULDs on RADIUS proxies. Ze is neither the RADIUS server nor a proxy."
+  },
+  {
+   "id": "4.3.8",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Man in the Middle Attacks. One SHOULD, that EAP methods incorporate their own per-packet integrity protection. That obligation is on the EAP method, which RFC 3748 and the method's own RFC govern."
+  },
+  {
+   "id": "4.3.9",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Separation of Authenticator and Authentication Server. Explains what mutual authentication means when the two are on different hosts, and that the MSK must reach the authenticator. The key transport mechanism is stated to be out of scope for this document."
+  },
+  {
+   "id": "4.3.10",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Multiple Databases. Recommends consolidating the security server's and the RADIUS server's user stores. No obligation, and the actor is the deployment."
+  },
+  {
+   "id": "5",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "iana",
+   "reason": "IANA Considerations. 'This specification does not create any new registries, or define any new RADIUS attributes or values.'"
+  },
+  {
+   "id": "6",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "references",
+   "reason": "References. A heading over 6.1 and 6.2."
+  },
+  {
+   "id": "6.1",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "references",
+   "reason": "Normative References: RFC 1321, 2104, 2119, 2279, 2284, 2401, 2406, 2409, 2486, 2865, 2988, 3162, 3280 and 3576."
+  },
+  {
+   "id": "6.2",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "references",
+   "reason": "Informative References, and the non-RFC citations IEEE802, IEEE8021X, MD5Attack, Masters and NASREQ."
+  }
+ ],
+ "sites": [
+  {
+   "id": "1:1",
+   "quote": "As noted in [RFC2865], a Network Access Server (NAS) that does not implement a given service MUST NOT implement the RADIUS attributes for that service.",
+   "disposition": "excluded",
+   "excluded-kind": "cross-document",
+   "reason": "The sentence opens 'As noted in [RFC2865]' and restates RFC 2865 Section 1.1. The obligation belongs to RFC 2865, whose summary carries it as RFC2865-1.1-1."
+  },
+  {
+   "id": "1:2",
+   "quote": "This implies that a NAS that is unable to offer EAP service MUST NOT implement the RADIUS attributes for EAP.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-1-1",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. This document's own EAP-specific statement of the RFC 2865 rule quoted in the preceding sentence. Captured as RFC3579-1-1 at [MUST NOT]."
+  },
+  {
+   "id": "1:3",
+   "quote": "A NAS MUST treat a RADIUS Access-Accept requesting an unavailable service as an Access-Reject instead.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-1-2",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Captured as RFC3579-1-2 at [MUST]. Ze already rejects an Access-Accept whose Service-Type is not the Login-User it asked for (AcceptedServiceType, internal/component/radius/authenticator.go); the EAP form of the rule is unbuilt."
+  },
+  {
+   "id": "1.2:1",
+   "quote": "displayable message This is interpreted to be a human readable string of characters, and MUST NOT affect operation of the protocol.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-1.2-1",
+   "reason": "Binds whichever party renders a displayable message. In ze's admin login that party is ze, which holds the operator's session. Captured as RFC3579-1.2-1 at [MUST NOT]."
+  },
+  {
+   "id": "1.2:2",
+   "quote": "The message encoding MUST follow the UTF-8 transformation format [RFC2279].",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-1.2-2",
+   "reason": "Same actor as site 1.2:1: the encoding rule for the message ze would render. Captured as RFC3579-1.2-2 at [MUST]."
+  },
+  {
+   "id": "2.1:1",
+   "quote": "On receiving a valid Access-Request packet containing EAP-Message attribute(s), a RADIUS server compliant with this specification and wishing to authenticate with EAP MUST respond with an Access-Challenge packet containing EAP-Message attribute(s).",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The sentence names 'a RADIUS server compliant with this specification and wishing to authenticate with EAP' as the actor."
+  },
+  {
+   "id": "2.1:2",
+   "quote": "If the RADIUS server does not support EAP or does not wish to authenticate with EAP, it MUST respond with an Access-Reject.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is the RADIUS server that does not support EAP."
+  },
+  {
+   "id": "2.1:3",
+   "quote": "Reception of a RADIUS Access-Reject packet MUST result in the NAS denying access to the authenticating peer.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.1-1",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Captured as RFC3579-2.1-1 at [MUST]. (*radiusAuthenticator).Authenticate returns aaa.ErrAuthRejected on CodeAccessReject today; the EAP conversation the rule ends does not exist."
+  },
+  {
+   "id": "2.1:4",
+   "quote": "The NAS MUST NOT \"manufacture\" a Success or Failure packet as the result of a timeout.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.1-2",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Captured as RFC3579-2.1-2 at [MUST NOT]."
+  },
+  {
+   "id": "2.1:5",
+   "quote": "In order to permit non-EAP aware RADIUS proxies to forward the Access-Request packet, if the NAS initially sends an EAP-Request/Identity message to the peer, the NAS MUST copy the contents of the Type-Data field of the EAP-Response/Identity received from the peer into the User-Name attribute and MUST include the Type-Data field of the EAP-Response/Identity in the User-Name attribute in every subsequent Access-Request.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.1-3",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Two obligations in one sentence, copy the identity into User-Name and repeat it in every subsequent Access-Request, kept as one requirement because they govern one value across one conversation. Captured as RFC3579-2.1-3 at [MUST]."
+  },
+  {
+   "id": "2.1:6",
+   "quote": "If the realm is determined based on the peer identity, the local RADIUS server MUST respond with a RADIUS Access-Challenge including an EAP-Message attribute encapsulating an EAP-Request/Identity packet.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is 'the local RADIUS server' deciding a realm from the peer identity."
+  },
+  {
+   "id": "2.1:7",
+   "quote": "If an Access-Request is sent to a RADIUS server which does not support the EAP-Message attribute, then an Access-Reject MUST be sent in response.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The Access-Reject is sent by the RADIUS server that does not support the EAP-Message attribute. The NAS half of the same paragraph, denying access on that reject, is site 2.1:8."
+  },
+  {
+   "id": "2.1:8",
+   "quote": "On receiving an Access-Reject, the NAS MUST deny access to the authenticating peer.",
+   "disposition": "excluded",
+   "excluded-kind": "duplicate-of",
+   "mapped-to": "RFC3579-2.1-1",
+   "reason": "Restates site 2.1:3, 'Reception of a RADIUS Access-Reject packet MUST result in the NAS denying access to the authenticating peer', for the particular reject an EAP-incapable server sends. It adds no obligation RFC3579-2.1-1 does not already carry."
+  },
+  {
+   "id": "2.2:1",
+   "quote": "While acting as a pass-through, the NAS MUST validate the EAP header fields (Code, Identifier, Length) prior to forwarding an EAP packet to or from the RADIUS server.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.2-1",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Ze does not pass EAP through to a separate peer, but it does move EAP packets between the RADIUS server and an EAP peer, and that peer being in the same process does not remove the NAS-side header check. Captured as RFC3579-2.2-1 at [MUST]."
+  },
+  {
+   "id": "2.2:2",
+   "quote": "A RADIUS server determining that a fatal error has occurred MUST send an Access-Reject containing an EAP-Message attribute encapsulating EAP-Failure.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is 'A RADIUS server determining that a fatal error has occurred'."
+  },
+  {
+   "id": "2.2:3",
+   "quote": "If so, a new EAP-Response packet, if available, MUST be sent to the RADIUS server within an Access-Request, and the EAP-Message attribute(s) included within the Access-Challenge are silently discarded.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.2-2",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. The sentence sits inside the paragraph describing what 'A NAS compliant with this specification' does on an Access-Challenge carrying Error-Cause 202. Captured as RFC3579-2.2-2 at [MUST]."
+  },
+  {
+   "id": "2.4:1",
+   "quote": "A RADIUS server having received a Framed-MTU attribute in an Access-Request packet MUST NOT send any subsequent packet in this EAP conversation containing EAP-Message attributes whose values, when concatenated, exceed the length specified by the Framed-MTU value, taking the link type (specified by the NAS-Port-Type attribute) into account.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is 'A RADIUS server having received a Framed-MTU attribute'. The NAS half of Section 2.4, supplying Framed-MTU, is written as 'may be included' and states no obligation."
+  },
+  {
+   "id": "2.5:1",
+   "quote": "This means that the RADIUS server MUST add these attributes prior to sending an Access-Accept message to the NAS.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. Section 2.5 describes a RADIUS server talking to a security server, and the actor is the RADIUS server adding the missing Access-Accept attributes."
+  },
+  {
+   "id": "2.6.1:1",
+   "quote": "RADIUS server implementations MUST be able to distinguish between EAP packets with the same Identifier existing within distinct sessions, originating on the same NAS.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is 'RADIUS server implementations' keeping EAP Identifier spaces apart per session."
+  },
+  {
+   "id": "2.6.2:1",
+   "quote": "A RADIUS server MUST respond to an Access-Request encapsulating an EAP-Request with an Access-Reject.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is the RADIUS server refusing a role-reversed Access-Request that encapsulates an EAP-Request."
+  },
+  {
+   "id": "2.6.3:1",
+   "quote": "The NAS MUST make its access control decision based solely on the RADIUS Packet Type (Access-Accept/Access-Reject).",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.6.3-1",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Captured as RFC3579-2.6.3-1 at [MUST]."
+  },
+  {
+   "id": "2.6.3:2",
+   "quote": "The access control decision MUST NOT be based on the contents of the EAP packet encapsulated in one or more EAP-Message attributes, if present.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.6.3-2",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. The prohibition that pairs with site 2.6.3:1, kept as its own requirement because a NAS can satisfy one and fail the other. Captured as RFC3579-2.6.3-2 at [MUST NOT]."
+  },
+  {
+   "id": "2.6.3:3",
+   "quote": "Since the responsibility for avoiding conflicts lies with the RADIUS server, the NAS MUST NOT \"manufacture\" EAP packets in order to correct contradictory messages that it receives.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.6.3-3",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Distinct from site 2.1:4, which forbids manufacturing a Success or Failure on a timeout; this one forbids manufacturing any EAP packet to repair a contradictory reply. Captured as RFC3579-2.6.3-3 at [MUST NOT]."
+  },
+  {
+   "id": "2.6.4:1",
+   "quote": "In order to ensure the correct processing of RADIUS packets, the NAS MUST first process the attributes, including the EAP-Message attribute(s), prior to processing the Accept/Reject indication.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.6.4-1",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Captured as RFC3579-2.6.4-1 at [MUST]."
+  },
+  {
+   "id": "2.6.5:1",
+   "quote": "When sending a displayable message to a NAS during an EAP conversation, the RADIUS server MUST encapsulate displayable messages within EAP-Message/EAP-Request/Notification attribute(s).",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is the RADIUS server sending a displayable message to a NAS."
+  },
+  {
+   "id": "2.6.5:2",
+   "quote": "Reply-Message attribute(s) MUST NOT be included in any RADIUS message containing an EAP-Message attribute.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-2.6.5-1",
+   "reason": "Binds the sender of any RADIUS message, which for ze is the Access-Request it builds. Captured as RFC3579-2.6.5-1 at [MUST NOT]."
+  },
+  {
+   "id": "3:1",
+   "quote": "The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets, and either NAS-Identifier, NAS-IP-Address or NAS-IPv6-Address attributes MUST be included.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-3-1",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. The MUST half, one of NAS-Identifier, NAS-IP-Address or NAS-IPv6-Address, is captured as RFC3579-3-1. The SHOULD half of the same sentence, NAS-Port or NAS-Port-Id, is RFC3579-3-2 and carries no coverage obligation."
+  },
+  {
+   "id": "3:2",
+   "quote": "In order to permit forwarding of the Access-Reply by EAP-unaware proxies, if a User-Name attribute was included in an Access-Request, the RADIUS server MUST include the User-Name attribute in subsequent Access-Accept packets.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is the RADIUS server echoing User-Name into its Access-Accept."
+  },
+  {
+   "id": "3.1:1",
+   "quote": "If multiple EAP-Message attributes are contained within an Access-Request or Access-Challenge packet, they MUST be in order and they MUST be consecutive attributes in the Access-Request or Access-Challenge packet.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-3.1-1",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Binds every builder of an Access-Request or Access-Challenge; ze builds the Access-Request half. Captured as RFC3579-3.1-1 at [MUST]."
+  },
+  {
+   "id": "3.1:2",
+   "quote": "Multiple EAP packets MUST NOT be encoded within EAP-Message attributes contained within a single Access-Challenge, Access-Accept, Access-Reject or Access-Request packet.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-3.1-2",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Binds the builder of any of the four packet types; ze builds the Access-Request. Captured as RFC3579-3.1-2 at [MUST NOT]."
+  },
+  {
+   "id": "3.1:3",
+   "quote": "Therefore the Message-Authenticator attribute MUST be used to protect all Access-Request, Access-Challenge, Access-Accept, and Access-Reject packets containing an EAP-Message attribute.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-3.1-3",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Captured as RFC3579-3.1-3 at [MUST]. This is the obligation that needs the signer internal/component/radius/packet.go does not have."
+  },
+  {
+   "id": "3.1:4",
+   "quote": "A RADIUS server supporting the EAP-Message attribute MUST calculate the correct value of the Message-Authenticator and MUST silently discard the packet if it does not match the value sent.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is 'A RADIUS server supporting the EAP-Message attribute'. The NAS form of the same check is site 3.1:6."
+  },
+  {
+   "id": "3.1:5",
+   "quote": "A RADIUS server not supporting the EAP-Message attribute MUST return an Access-Reject if it receives an Access-Request containing an EAP-Message attribute.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is 'A RADIUS server not supporting the EAP-Message attribute'."
+  },
+  {
+   "id": "3.1:6",
+   "quote": "A NAS supporting the EAP-Message attribute MUST calculate the correct value of the Message-Authenticator and MUST silently discard the packet if it does not match the value sent.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-3.1-4",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Captured as RFC3579-3.1-4 at [MUST]. Ze recomputes and compares a Message-Authenticator that a response carries (verifyResponseMessageAuthenticator, internal/component/radius/packet.go, called from (*Client).dispatchResponse), which is the receive side this requirement names; it supports no EAP-Message attribute, so the condition the sentence opens with is not yet true of ze."
+  },
+  {
+   "id": "3.2:1",
+   "quote": "It MUST be used in any Access-Request, Access-Accept, Access-Reject or Access-Challenge that includes an EAP-Message attribute.",
+   "disposition": "excluded",
+   "excluded-kind": "duplicate-of",
+   "mapped-to": "RFC3579-3.1-3",
+   "reason": "Restates site 3.1:3 from the Message-Authenticator side: the attribute is mandatory in any of the four packet types that includes an EAP-Message. It adds no obligation RFC3579-3.1-3 does not already carry."
+  },
+  {
+   "id": "3.2:2",
+   "quote": "A RADIUS server receiving an Access-Request with a Message-Authenticator attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is 'A RADIUS server receiving an Access-Request with a Message-Authenticator attribute present'."
+  },
+  {
+   "id": "3.2:3",
+   "quote": "A RADIUS client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.",
+   "disposition": "excluded",
+   "excluded-kind": "duplicate-of",
+   "mapped-to": "RFC3579-3.1-4",
+   "reason": "Restates site 3.1:6 for a RADIUS client rather than for a NAS supporting EAP-Message: recompute the Message-Authenticator of a received Access-Accept, Access-Reject or Access-Challenge and silently discard on a mismatch. One behaviour, one code path in ze (verifyResponseMessageAuthenticator), so it maps to the same requirement."
+  },
+  {
+   "id": "3.3:1",
+   "quote": "The EAP-Message and Message-Authenticator attributes specified in this document MUST NOT be present in an Accounting-Request.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-3.3-1",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Binds whoever builds an Accounting-Request, which ze does (internal/component/l2tp/plugins/authradius/acct.go). Captured as RFC3579-3.3-1 at [MUST NOT]."
+  },
+  {
+   "id": "0:1",
+   "quote": "[Note 1] An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-3.3-2",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Note 1 of the Section 3.3 Table of Attributes, binding the builder of an Access-Request. Captured as RFC3579-3.3-2 at [MUST NOT], cited as (Section 3.3 Note 1)."
+  },
+  {
+   "id": "0:2",
+   "quote": "If any packet type contains an EAP-Message attribute it MUST also contain a Message-Authenticator.",
+   "disposition": "excluded",
+   "excluded-kind": "duplicate-of",
+   "mapped-to": "RFC3579-3.1-3",
+   "reason": "Note 1 restates site 3.1:3, 'If any packet type contains an EAP-Message attribute it MUST also contain a Message-Authenticator'. It adds no obligation RFC3579-3.1-3 does not already carry."
+  },
+  {
+   "id": "0:3",
+   "quote": "0 This attribute MUST NOT be present. 0+ Zero or more instances of this attribute MAY be present. 0-1 Zero or one instance of this attribute MAY be present. 1 Exactly one instance of this attribute MUST be present. 1+ One or more of these attributes MUST be present.",
+   "disposition": "excluded",
+   "excluded-kind": "not-a-requirement",
+   "reason": "The legend of the Section 3.3 table, defining what the cells 0, 0+, 0-1, 1 and 1+ mean. The keywords describe the notation, not a speaker's behaviour; the obligations the table expresses are carried by Note 1 and by the attribute sections."
+  },
+  {
+   "id": "4.2:1",
+   "quote": "In this case, a shared secret of zero length MUST be assumed.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-4.2-1",
+   "reason": "Binds both ends of a RADIUS association carried over IPsec ESP, so it binds ze as the RADIUS client. Captured as RFC3579-4.2-1 at [MUST]."
+  },
+  {
+   "id": "4.2:2",
+   "quote": "However, a RADIUS server that cannot know whether incoming traffic is IPsec-protected MUST be configured with a non-null RADIUS shared secret.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is 'a RADIUS server that cannot know whether incoming traffic is IPsec-protected'. The client-side half of the same paragraph is site 4.2:1."
+  },
+  {
+   "id": "4.2:3",
+   "quote": "When IPsec ESP is used with RADIUS, per-packet authentication, integrity and replay protection MUST be used. 3DES-CBC MUST be supported as an encryption transform and AES-CBC SHOULD be supported.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-4.2-2",
+   "reason": "Binds any implementation of this specification that runs RADIUS over IPsec ESP, which is a role ze would fill on the client side. Captured as RFC3579-4.2-2 at [MUST]; the 'AES-CBC SHOULD be supported' half of the same site is RFC3579-4.2-5."
+  },
+  {
+   "id": "4.2:4",
+   "quote": "HMAC-SHA1-96 MUST be supported as an authentication transform.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-4.2-3",
+   "reason": "Same actor as site 4.2:3, a separate transform obligation. Captured as RFC3579-4.2-3 at [MUST]."
+  },
+  {
+   "id": "4.3.2:1",
+   "quote": "To provide stronger security, the Message-Authenticator attribute MUST be used in all RADIUS packets containing an EAP-Message attribute.",
+   "disposition": "excluded",
+   "excluded-kind": "duplicate-of",
+   "mapped-to": "RFC3579-3.1-3",
+   "reason": "The Security Issues restatement of site 3.1:3, 'the Message-Authenticator attribute MUST be used in all RADIUS packets containing an EAP-Message attribute'. It adds no obligation RFC3579-3.1-3 does not already carry."
+  },
+  {
+   "id": "4.3.4:1",
+   "quote": "Where RADIUS shared secrets are configured, the RADIUS shared secret used by a NAS supporting EAP MUST NOT be reused by a NAS utilizing the User-Password attribute, since improper shared secret hygiene could lead to compromise of hidden attributes.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-4.3.4-1",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Ze holds both secrets: the admin backend's under system/authentication/radius and the subscriber backend's under the L2TP auth-radius plugin, so it is the party that can tell reuse apart. Captured as RFC3579-4.3.4-1 at [MUST NOT]."
+  },
+  {
+   "id": "4.3.6:1",
+   "quote": "Should the NAS not be able to negotiate EAP, or should the EAP-Request sent by the NAS be of a different EAP type than what is expected, the authenticating peer MUST disconnect.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-4.3.6-1",
+   "reason": "Binds the authenticating peer. Ze fills that role: for admin login it answers EAP itself, on the operator's behalf (owner decision, 2026-09-03, plan/spec-radius-admin-eap.md), and its EAP peer is internal/core/eap. Captured as RFC3579-4.3.6-1 at [MUST]."
+  },
+  {
+   "id": "4.3.6:2",
+   "quote": "An authenticating peer expecting EAP to be negotiated for a session MUST NOT negotiate a weaker method, such as CHAP or PAP.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-4.3.6-2",
+   "reason": "Same peer role as site 4.3.6:1. The admin backend's auth-method leaf is where a fall back from EAP to CHAP or PAP would be visible. Captured as RFC3579-4.3.6-2 at [MUST NOT]."
+  },
+  {
+   "id": "4.3.6:3",
+   "quote": "In such cases, if any peers of the NAS MUST do EAP, then the NAS MUST attempt to negotiate EAP for every session.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-4.3.6-3",
+   "reason": "Binds the NAS, the role ze plays: ze is the RADIUS client (internal/component/radius/client.go) and the device the operator logs in to. Ze's PPP NAS is internal/component/l2tp/ppp, which offers PAP, CHAP-MD5 and MS-CHAPv2. Captured as RFC3579-4.3.6-3 at [MUST]."
+  },
+  {
+   "id": "4.3.6:4",
+   "quote": "However, if CHAP has been negotiated but EAP is required, the RADIUS server MUST respond with an Access-Reject, rather than an Access-Challenge/EAP-Message/EAP-Request packet.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is the RADIUS server answering a CHAP Access-Request where EAP is required."
+  },
+  {
+   "id": "4.3.6:5",
+   "quote": "The authenticating peer MUST refuse to renegotiate authentication, even if the renegotiation is from CHAP to EAP.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-4.3.6-4",
+   "reason": "Binds the authenticating peer, the role ze fills for admin login. Captured as RFC3579-4.3.6-4 at [MUST]."
+  },
+  {
+   "id": "4.3.6:6",
+   "quote": "If EAP is negotiated but is not supported by the RADIUS proxy or server, then the server or proxy MUST respond with an Access-Reject.",
+   "disposition": "excluded",
+   "excluded-kind": "binds-another-role",
+   "reason": "Binds the RADIUS authentication server. Ze never acts as one: NewClient (internal/component/radius/client.go) binds an ephemeral UDP socket with no service port, and (*Client).readLoop dispatches a datagram only against a waiter that (*Client).Exchange registered for one of ze's own outstanding requests, so no Access-Request receive path exists in the tree. If ze ran a RADIUS server the listener would live beside that producer. The actor is 'the server or proxy' that does not support EAP. Ze is neither a RADIUS server nor a RADIUS proxy: it forwards no other party's RADIUS packet."
+  },
+  {
+   "id": "4.3.6:7",
+   "quote": "In these cases, a PPP NAS MUST send an LCP-Terminate and disconnect the peer.",
+   "disposition": "mapped",
+   "mapped-to": "RFC3579-4.3.6-5",
+   "reason": "Binds a PPP NAS, which ze is (internal/component/l2tp/ppp, the LNS side). Captured as RFC3579-4.3.6-5 at [MUST]."
+  },
+  {
+   "id": "4.3.6:8",
+   "quote": "An EAP-capable authenticating peer MUST refuse to renegotiate the authentication protocol if EAP had initially been negotiated.",
+   "disposition": "excluded",
+   "excluded-kind": "duplicate-of",
+   "mapped-to": "RFC3579-4.3.6-4",
+   "reason": "Restates site 4.3.6:5 one paragraph later, for an EAP-capable peer rather than for the peer generally. It adds no obligation RFC3579-4.3.6-4 does not already carry."
+  },
+  {
+   "id": "4.3.7:1",
+   "quote": "A RADIUS server MUST use the source IP address of the RADIUS UDP packet to decide which shared secret to use, so that RADIUS requests can be proxied.",
+   "disposition": "excluded",
+   "excluded-kind": "cross-document",
+   "reason": "The sentence is the body of a block quotation introduced by '[RFC2865] Section 3 states:'. The obligation belongs to RFC 2865, whose summary is rfc/short/rfc2865.md, and it binds the RADIUS server in any case."
+  }
+ ],
+ "register-reason": "Informational, with an RFC 2119 key-words paragraph at Section 1.1 and capitalised MUST-level keywords through Sections 1, 1.2, 2.1, 2.2, 2.4, 2.5, 2.6.1 to 2.6.5, 3, 3.1, 3.2, 3.3, 4.2, 4.3.2, 4.3.4, 4.3.6 and 4.3.7. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}
