@@ -46,7 +46,8 @@ module ze-policyroute-conf {
 
                 leaf order {
                     type uint32;
-                    description
+                    description "Evaluation order of this rule, lower values first.";
+                    ze:help
                         "Evaluation order (lower values first). Rules with
                          equal order are sorted by name. If omitted,
                          defaults to 0.";
@@ -81,11 +82,12 @@ module ze-policyroute-conf {
 
                     leaf protocol {
                         type fw:protocol-name;
-                        description
-                            "L4 protocol to match. The value set is the one
-                             every firewall backend can lower, so a spelling
-                             outside it is refused at commit rather than at the
-                             next firewall reconcile.";
+                        description "L4 protocol to match.";
+                        ze:help
+                            "The value set is the one every firewall backend can
+                             lower, so a spelling outside it is refused at commit
+                             rather than at the next firewall reconcile.";
+
                     }
 
                     leaf tcp-flags {
@@ -113,20 +115,24 @@ module ze-policyroute-conf {
                         type uint32 {
                             range "1..999|3000..max";
                         }
-                        description
-                            "Route matching packets via this kernel routing
-                             table. Range 1000-2999 is reserved for ze
-                             internal use (VRF and policy-routing auto tables).";
+                        description "Route matching packets through this kernel routing table.";
+                        ze:help
+                            "Ze routes each matching packet through the kernel
+                             routing table with this number. Range 1000-2999 is
+                             reserved for ze internal use, which covers the VRF
+                             tables and the policy-routing tables Ze allocates.";
                     }
 
                     leaf next-hop {
                         type string;
                         ze:validate "ipv4-address|ipv6-address";
-                        description
-                            "Redirect matching packets to this next-hop.
-                             Ze auto-allocates a kernel routing table
-                             from range 2000-2999 and manages the default
-                             route, fwmark, and ip rule internally.";
+                        description "Redirect matching packets to this next-hop.";
+                        ze:help
+                            "Ze allocates a kernel routing table from range
+                             2000-2999 for this next-hop. Ze then manages the
+                             default route, the fwmark, and the ip rule in that
+                             table internally.";
+
                     }
 
                     leaf tcp-mss {

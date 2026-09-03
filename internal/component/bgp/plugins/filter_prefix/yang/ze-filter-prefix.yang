@@ -19,10 +19,10 @@ module ze-filter-prefix {
         list prefix-list {
             ze:filter;
             key "name";
-            description "Named prefix-list filter instance.
-                         Each list contains an ordered set of match entries.
-                         Entries are evaluated in order; first match wins.
-                         No match = implicit deny.";
+            description "Named prefix-list filter instance.";
+            ze:help "Each list holds an ordered set of match entries. Ze evaluates
+                     the entries in order, and the first match wins. A route prefix
+                     that matches no entry is denied.";
 
             leaf name {
                 type string;
@@ -63,10 +63,11 @@ module ze-filter-prefix {
                 leaf action {
                     type enumeration {
                         enum accept {
-                            description "Accept route prefixes matching this entry";
+                            description "Accept route prefixes matching this entry.";
                         }
                         enum reject {
-                            description "Reject route prefixes matching this entry";
+                            description "Reject route prefixes matching this entry.";
+
                         }
                     }
                     default accept;

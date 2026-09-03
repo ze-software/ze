@@ -3,6 +3,7 @@ module ze-ddos-detect-conf {
   prefix ddos-detect;
 
   import ze-types { prefix zt; }
+  import ze-extensions { prefix ze; }
 
   description "DDoS detector configuration. Owns the top-level `ddos` container;
                the `detect` subtree configures the detector. Sibling subtrees
@@ -58,22 +59,32 @@ module ze-ddos-detect-conf {
     leaf bps-trigger-enable {
       type boolean;
       default true;
-      description "Enable the bandwidth (BPS) trigger alongside the PPS threshold. When false only the packet-rate threshold can trigger detection.";
+      description "Enable the bandwidth (BPS) trigger beside the PPS threshold.";
+      ze:help "Enable the bandwidth (BPS) trigger alongside the PPS threshold. When this leaf is false, only the
+          packet-rate threshold can trigger detection.";
     }
     leaf bps-threshold-multiplier {
       type zt:decimal-2 { range "1.00..100.00"; }
       default "3.00";
-      description "Baseline p99 multiplier for the bandwidth (BPS) trigger. Catches low-PPS/high-bandwidth amplification (NTP/memcached/CLDAP) that the packet-rate threshold misses.";
+      description "Baseline p99 multiplier for the bandwidth (BPS) trigger.";
+      ze:help "Baseline p99 multiplier for the bandwidth (BPS) trigger. The trigger catches low-PPS, high-bandwidth
+          amplification, such as NTP, memcached and CLDAP, that the packet-rate threshold misses.";
     }
     leaf bps-floor {
       type uint64 { range "1..max"; }
       default 50000000;
-      description "Minimum bandwidth in bits/sec below which the BPS trigger is inert (default 50 Mbps). Expressed in bits/sec (operator unit); the detector's internal rate is bytes/sec and converts.";
+      description "Minimum bandwidth in bits/sec below which the BPS trigger is inert.";
+      ze:help "Minimum bandwidth in bits/sec below which the BPS trigger is inert. The default is 50 Mbps. The
+          value is expressed in bits/sec, which is the operator unit. The detector's internal rate is
+          bytes/sec, and it converts the value.";
     }
     leaf characterize-enable {
       type boolean;
       default true;
-      description "Run Stage-2 flow characterization (classify family + narrowest vector from the flow-export recent-flow ring, emit AttackCharacterized). When false the detector still emits the coarse AttackDetected target from traffic-usage.";
+      description "Run Stage-2 flow characterization on a detected attack.";
+      ze:help "Run Stage-2 flow characterization. The stage classifies the family and the narrowest vector from the
+          flow-export recent-flow ring, and emits AttackCharacterized. When this leaf is false, the detector
+          still emits the coarse AttackDetected target from traffic-usage.";
     }
     leaf top-n-sources {
       type uint16 { range "1..100"; }
@@ -83,38 +94,45 @@ module ze-ddos-detect-conf {
     leaf characterize-window {
       type uint16 { range "1..60"; }
       default 10;
-      description "Seconds of recent flows to consider when characterizing; flows last seen before this window are ignored. Flows without a timestamp are always kept.";
+      description "Seconds of recent flows to consider when characterizing an attack.";
+      ze:help "Seconds of recent flows to consider when characterizing. Flows last seen before this window are
+          ignored. Flows with no timestamp are always kept.";
     }
     leaf characterize-timeout {
       type uint16 { range "50..5000"; }
       default 2000;
-      description "Milliseconds budget for the on-trigger traffic-usage and flow-recent queries; on timeout the detector falls back to the best available target.";
+      description "Milliseconds budget for the on-trigger queries.";
+      ze:help "Milliseconds budget for the on-trigger traffic-usage and flow-recent queries. On timeout, the
+          detector falls back to the best available target.";
     }
     leaf entropy-threshold {
       type zt:decimal-2 { range "0.00..16.00"; }
       default "2.00";
-      description "Source-address Shannon entropy (bits) at or above which an attack is logged as distributed/spoofed. 0 = a single source; higher = more sources.";
+      description "Source-address Shannon entropy in bits that marks an attack distributed.";
+      ze:help "Source-address Shannon entropy (bits) at or above which an attack is logged as distributed or
+          spoofed. A value of 0 is a single source, and a higher value is more sources.";
     }
     container policy {
-      description "Allow/deny traffic policy applied to detected attacks, indexed by
-                   prefix and evaluated longest-prefix-match (most specific wins), NOT
-                   config order. Replaces the removed per-responder allowlists: the
-                   detector enforces it once and encodes the exempt/mitigate decision on
-                   the emitted event so the responders honor it without reading config.";
+      description "Allow and deny traffic policy applied to a detected attack.";
+      ze:help "Allow/deny traffic policy applied to detected attacks, indexed by prefix. Ze evaluates the policy by
+          longest-prefix match, where the most specific rule wins, and not by config order. The policy
+          replaces the removed per-responder allowlists. The detector enforces it once and encodes the exempt
+          or mitigate decision on the emitted event, so the responders obey it with no config read.";
       leaf default-action {
         type enumeration {
           enum allow;
           enum deny;
         }
         default deny;
-        description "Disposition when no rule matches: deny = defend (detection +
-                     mitigation); allow = exempt from detection entirely.";
+        description "Disposition when no rule matches the attack.";
+        ze:help "Disposition when no rule matches. deny means defend, which is detection plus mitigation. allow means
+            exempt from detection entirely.";
       }
       list rule {
         key "prefix";
-        description "One allow/deny rule matched against an attack, keyed by prefix.
-                     Precedence is longest-prefix-match, so a /24 rule beats a covering
-                     /16 without any ordering.";
+        description "One allow or deny rule matched against an attack, keyed by prefix.";
+        ze:help "One allow/deny rule matched against an attack, keyed by prefix. Precedence is longest-prefix match,
+            so a /24 rule beats a covering /16 with no ordering.";
         leaf prefix {
           type zt:ip-prefix;
           description "IPv4/IPv6 prefix this rule matches (the rule's identity).";
@@ -134,9 +152,9 @@ module ze-ddos-detect-conf {
             enum any;
           }
           default any;
-          description "Whether the prefix matches the attack source, the victim
-                       destination, or either. Source rules take effect once the attack
-                       sources are characterized.";
+          description "Whether the prefix matches the attack source, the destination, or either.";
+          ze:help "Whether the prefix matches the attack source, the victim destination, or either. A source rule takes
+              effect once the attack sources are characterized.";
         }
         leaf scope {
           type enumeration {
@@ -144,9 +162,9 @@ module ze-ddos-detect-conf {
             enum mitigation;
           }
           default mitigation;
-          description "Stage the action governs: mitigation = detect and record but (for
-                       allow) do not block; detection = (for allow) suppress the incident
-                       entirely.";
+          description "Stage the action governs, mitigation or detection.";
+          ze:help "Stage the action governs. mitigation means detect and record, and for allow it does not block.
+              detection means that for allow the incident is suppressed entirely.";
         }
       }
     }

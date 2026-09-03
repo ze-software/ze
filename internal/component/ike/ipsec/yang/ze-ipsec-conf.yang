@@ -13,19 +13,15 @@ module ze-ipsec-conf {
 
     typedef encryption-algo {
         type enumeration {
-            enum aes128 { description "AES-CBC-128 (RFC 3602)"; }
-            enum aes256 { description "AES-CBC-256 (RFC 3602)"; }
-            enum aes128gcm { description "AES-GCM-128, 16-byte ICV (RFC 4106)"; }
-            enum aes256gcm { description "AES-GCM-256, 16-byte ICV (RFC 4106)"; }
+            enum aes128 { description "AES-CBC-128 (RFC 3602)."; }
+            enum aes256 { description "AES-CBC-256 (RFC 3602)."; }
+            enum aes128gcm { description "AES-GCM-128, 16-byte ICV (RFC 4106)."; }
+            enum aes256gcm { description "AES-GCM-256, 16-byte ICV (RFC 4106)."; }
             enum chacha20poly1305 {
-                description "ChaCha20-Poly1305 AEAD (RFC 7634). No build carries a
-                    transform for it, so a proposal that names it is refused at commit.
-                    The refusal lists the algorithms the build does implement.";
+                description "ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it.";
             }
             enum 3des {
-                description "Triple-DES-CBC (RFC 2451), deprecated. No build carries a
-                    transform for it, so a proposal that names it is refused at commit.
-                    The refusal lists the algorithms the build does implement.";
+                description "Triple-DES-CBC (RFC 2451), deprecated. No build implements it.";
             }
         }
     }
@@ -33,13 +29,11 @@ module ze-ipsec-conf {
     typedef hash-algo {
         type enumeration {
             enum sha1 {
-                description "HMAC-SHA-1-96 (RFC 2404). No build carries a transform for
-                    it, so a proposal that names it is refused at commit. The refusal
-                    lists the algorithms the build does implement.";
+                description "HMAC-SHA-1-96 (RFC 2404). No build implements it.";
             }
-            enum sha256 { description "HMAC-SHA-256-128 (RFC 4868)"; }
-            enum sha384 { description "HMAC-SHA-384-192 (RFC 4868)"; }
-            enum sha512 { description "HMAC-SHA-512-256 (RFC 4868)"; }
+            enum sha256 { description "HMAC-SHA-256-128 (RFC 4868)."; }
+            enum sha384 { description "HMAC-SHA-384-192 (RFC 4868)."; }
+            enum sha512 { description "HMAC-SHA-512-256 (RFC 4868)."; }
         }
     }
 
@@ -57,7 +51,8 @@ module ze-ipsec-conf {
             leaf cookie-threshold {
                 type uint32;
                 default 0;
-                description
+                description "Number of half-open IKE SAs tolerated before a COOKIE challenge.";
+                ze:help
                     "Number of half-open IKE SAs tolerated before an inbound
                      IKE_SA_INIT must answer a COOKIE challenge. RFC 7296
                      Section 2.6 makes the challenge the answer to state and CPU
@@ -97,7 +92,8 @@ module ze-ipsec-conf {
                 list proposal {
                     key "number";
                     max-elements 255;
-                    description "ESP proposal. Lower number = higher priority. One group
+                    description "ESP proposal, where a lower number is a higher priority.";
+                    ze:help "ESP proposal. Lower number = higher priority. One group
                         offers at most 255 proposals, because RFC 7296 Section 3.3.1
                         numbers them in one octet.";
 
@@ -112,15 +108,23 @@ module ze-ipsec-conf {
                         type encryption-algo;
                         mandatory true;
                         description "Encryption algorithm.";
+                        ze:help "No build carries a transform for chacha20poly1305
+                            or 3des, so a proposal that names one is refused at
+                            commit. The refusal lists the algorithms the build does
+                            implement.";
                     }
 
                     leaf hash {
                         type hash-algo;
-                        description "Integrity algorithm. It is required beside a
+                        description "Integrity algorithm.";
+                        ze:help "Integrity algorithm. It is required beside a
                             non-AEAD cipher, and refused beside an AEAD cipher. RFC 7296
                             Section 3.3 gives an AEAD cipher its own integrity, so an ESP
                             proposal offers the integrity transform NONE. An ESP proposal
-                            carries no PRF transform, so this leaf never names one.";
+                            carries no PRF transform, so this leaf never names one.
+                            No build carries a transform for sha1, so a proposal that
+                            names it is refused at commit. The refusal lists the
+                            algorithms the build does implement.";
                     }
                 }
             }
@@ -194,7 +198,8 @@ module ze-ipsec-conf {
                 list proposal {
                     key "number";
                     max-elements 255;
-                    description "IKE proposal. Lower number = higher priority. One group
+                    description "IKE proposal, where a lower number is a higher priority.";
+                    ze:help "IKE proposal. Lower number = higher priority. One group
                         offers at most 255 proposals, because RFC 7296 Section 3.3.1
                         numbers them in one octet.";
 
@@ -209,17 +214,25 @@ module ze-ipsec-conf {
                         type encryption-algo;
                         mandatory true;
                         description "Encryption algorithm.";
+                        ze:help "No build carries a transform for chacha20poly1305
+                            or 3des, so a proposal that names one is refused at
+                            commit. The refusal lists the algorithms the build does
+                            implement.";
                     }
 
                     leaf hash {
                         type hash-algo;
                         mandatory true;
-                        description "PRF and integrity algorithm. It is required beside
+                        description "PRF and integrity algorithm.";
+                        ze:help "It is required beside
                             every cipher, and an AEAD cipher is no exception. RFC 7296
                             Section 3.3.3 makes the PRF a mandatory transform for an IKE
                             proposal, and this leaf names it. An ESP proposal reads the
                             same leaf as integrity alone, and refuses it beside an AEAD
-                            cipher.";
+                            cipher.
+                            No build carries a transform for sha1, so a proposal that
+                            names it is refused at commit. The refusal lists the
+                            algorithms the build does implement.";
                     }
 
                     leaf dh-group {
@@ -255,26 +268,25 @@ module ze-ipsec-conf {
                             enum eap-tls;
                             enum eap-mschapv2;
                             enum eap-md5 {
-                                description "EAP MD5-Challenge, Type 4 (RFC 3748
-                                    Section 5.4). It establishes no shared key, and
-                                    RFC 7296 Section 2.16 discourages such a method:
-                                    EAP methods that do not establish a shared key
-                                    SHOULD NOT be used, as they are subject to a number
-                                    of man-in-the-middle attacks. The IKEv2 AUTH
-                                    payloads are then keyed by SK_pi and SK_pr instead
-                                    of by an EAP MSK. The method authenticates the
-                                    client to Ze and tells the client nothing about Ze.
-                                    The daemon writes one warning when this mode is
-                                    adopted. Use eap-tls or eap-mschapv2 unless the
-                                    client runs no other method.";
+                                description "EAP MD5-Challenge, Type 4 (RFC 3748 Section 5.4).";
                             }
                         }
                         mandatory true;
                         description "EAP authentication method.";
+                        ze:help "eap-md5 establishes no shared key, and RFC 7296
+                            Section 2.16 discourages such a method: EAP methods that do
+                            not establish a shared key SHOULD NOT be used, as they are
+                            subject to a number of man-in-the-middle attacks. The IKEv2
+                            AUTH payloads are then keyed by SK_pi and SK_pr instead of
+                            by an EAP MSK. The method authenticates the client to Ze and
+                            tells the client nothing about Ze. The daemon writes one
+                            warning when this mode is adopted. Use eap-tls or
+                            eap-mschapv2 unless the client runs no other method.";
                     }
 
                     container x509 {
-                        description "Server certificate references for EAP. Ze parses
+                        description "Server certificate references for EAP.";
+                        ze:help "Server certificate references for EAP. Ze parses
                             both leaves and no component reads them today, so neither
                             takes effect. Ze also leaves both unchecked, so a name that
                             no PKI store entry carries still commits here. The enforced
@@ -296,7 +308,8 @@ module ze-ipsec-conf {
 
                 list pool {
                     key "name";
-                    description "Virtual IP pool for client address assignment (IKEv2 Configuration Payload, RFC 7296 Section 2.19).";
+                    description "Virtual IP pool for client address assignment.";
+                    ze:help "Virtual IP pool for client address assignment (IKEv2 Configuration Payload, RFC 7296 Section 2.19).";
 
                     leaf name {
                         type string;
@@ -395,13 +408,13 @@ module ze-ipsec-conf {
                                 description "Encapsulate the whole packet (RFC 4301 tunnel mode).";
                             }
                             enum transport {
-                                description "Protect the payload and keep the outer IP header
-                                    (RFC 4301 transport mode). Ze proposes it with the
-                                    USE_TRANSPORT_MODE notification of RFC 7296 Section 1.3.1.";
+                                description "Protect the payload and keep the outer IP header (RFC 4301 transport mode).";
                             }
+
                         }
                         default tunnel;
-                        description
+                        description "Encapsulation mode for this peer's Child SAs.";
+                        ze:help
                             "Encapsulation mode for this peer's Child SAs.
 
                              RFC 7296 Section 1.3.1 states the default itself: 'Except when
@@ -421,7 +434,8 @@ module ze-ipsec-conf {
                     leaf transport-required {
                         type boolean;
                         default false;
-                        description
+                        description "Delete the SA when the peer declines transport mode.";
+                        ze:help
                             "Whether a peer that declines transport mode is unacceptable.
 
                              RFC 7296 Section 1.3.1: 'If the responder declines the request, the
@@ -441,7 +455,8 @@ module ze-ipsec-conf {
                             range "101..2147483647";
                         }
                         default 2000;
-                        description
+                        description "Rank of this peer's Security Policy Database entries, lowest searched first.";
+                        ze:help
                             "Where this peer's Security Policy Database entries sit in the
                              operator's ordering of that database. A LOWER value is searched
                              FIRST, in Ze and in the Linux kernel.
@@ -469,7 +484,8 @@ module ze-ipsec-conf {
 
                     list traffic-selector {
                         key "number";
-                        description
+                        description "The traffic this peer's Child SAs carry.";
+                        ze:help
                             "The traffic this peer's Child SAs carry, and the policy RFC 7296
                              Section 2.9 narrows a peer's proposal against.
 
@@ -510,7 +526,8 @@ module ze-ipsec-conf {
                                     }
                                 }
                                 default any;
-                                description
+                                description "Local port of the selector.";
+                                ze:help
                                     "Local port of the selector.
 
                                      RFC 7296 Section 3.13.1 requires the port fields to be 0 and
@@ -541,16 +558,18 @@ module ze-ipsec-conf {
                                     }
                                 }
                                 default any;
-                                description
-                                    "Remote port of the selector. It follows the same rule as the
-                                     local port: a value other than any needs the protocol leaf.";
+                                description "Remote port of the selector.";
+                                ze:help
+                                    "It follows the same rule as the local port: a value other
+                                     than any needs the protocol leaf.";
                             }
                         }
 
                         leaf protocol {
                             type uint8;
                             default 0;
-                            description
+                            description "IP protocol number the selector matches.";
+                            ze:help
                                 "IP protocol number the selector matches, such as 6 for TCP and
                                  17 for UDP. Zero matches every protocol, which is RFC 7296
                                  Section 3.13.1's 'protocol 0'.";
@@ -567,23 +586,21 @@ module ze-ipsec-conf {
                                 enum eap-tls;
                                 enum eap-mschapv2;
                                 enum eap-md5 {
-                                    description "EAP MD5-Challenge, Type 4 (RFC 3748
-                                        Section 5.4). It establishes no shared key, and
-                                        RFC 7296 Section 2.16 discourages such a method:
-                                        EAP methods that do not establish a shared key
-                                        SHOULD NOT be used, as they are subject to a
-                                        number of man-in-the-middle attacks. The IKEv2
-                                        AUTH payloads are then keyed by SK_pi and SK_pr
-                                        instead of by an EAP MSK. The method
-                                        authenticates this peer to the far end and tells
-                                        this peer nothing about the far end. The daemon
-                                        writes one warning when this mode is adopted.
-                                        Use eap-tls or eap-mschapv2 unless the far end
-                                        runs no other method.";
+                                    description "EAP MD5-Challenge, Type 4 (RFC 3748 Section 5.4).";
                                 }
                             }
                             mandatory true;
                             description "Authentication mode.";
+                            ze:help "eap-md5 establishes no shared key, and RFC 7296
+                                Section 2.16 discourages such a method: EAP methods that
+                                do not establish a shared key SHOULD NOT be used, as
+                                they are subject to a number of man-in-the-middle
+                                attacks. The IKEv2 AUTH payloads are then keyed by SK_pi
+                                and SK_pr instead of by an EAP MSK. The method
+                                authenticates this peer to the far end and tells this
+                                peer nothing about the far end. The daemon writes one
+                                warning when this mode is adopted. Use eap-tls or
+                                eap-mschapv2 unless the far end runs no other method.";
                         }
 
                         leaf pre-shared-secret {
@@ -598,8 +615,9 @@ module ze-ipsec-conf {
                                 enum hex;
                             }
                             default ascii;
-                            description
-                                "How to read the pre-shared-secret value. RFC 7296
+                            description "How to read the pre-shared-secret value.";
+                            ze:help
+                                "RFC 7296
                                  Section 2.15 requires the management interface to
                                  accept both an ASCII string and a hex encoding of
                                  the shared secret. Set this to hex to supply the
@@ -621,7 +639,8 @@ module ze-ipsec-conf {
 
                         leaf remote-id {
                             type string;
-                            description "Identity the remote endpoint must assert. When it is set,
+                            description "Identity the remote endpoint must assert.";
+                            ze:help "When it is set,
                                 Ze refuses an IKE_AUTH whose ID payload names another identity.
                                 Comparable types are ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN,
                                 ID_RFC822_ADDR, ID_KEY_ID, and ID_DER_ASN1_DN, and an address value
@@ -660,7 +679,8 @@ module ze-ipsec-conf {
                                 enum key-id;
                                 enum der-asn1-dn;
                             }
-                            description
+                            description "The one IKE ID type the remote endpoint CAN assert.";
+                            ze:help
                                 "The one IKE ID type the remote endpoint CAN assert, and when
                                  absent any type Ze CAN compare, which is the historical behavior.
                                  When it is set Ze refuses every other type, so a peer asserting
@@ -680,7 +700,8 @@ module ze-ipsec-conf {
                         leaf certificate-count {
                             type uint8 { range "1..4"; }
                             default 4;
-                            description
+                            description "The most X.509 certificates Ze sends to this peer and accepts from it.";
+                            ze:help
                                 "The most X.509 certificates Ze sends for this peer, and the most it
                                  accepts from it. RFC 7296 Section 3.6 requires an implementation be
                                  capable of being configured to send and accept up to four. The
@@ -696,9 +717,9 @@ module ze-ipsec-conf {
                         leaf hash-and-url {
                             type boolean;
                             default false;
-                            description
-                                "Use the Hash and URL certificate encodings of RFC 7296 Section 3.6.
-                                 When it is true Ze sends its certificate as a SHA-1 hash plus
+                            description "Use the Hash and URL certificate encodings of RFC 7296 Section 3.6.";
+                            ze:help
+                                "When it is true Ze sends its certificate as a SHA-1 hash plus
                                  certificate-url, advertises HTTP_CERT_LOOKUP_SUPPORTED, and
                                  resolves a peer's Hash and URL payload.
 
@@ -715,7 +736,8 @@ module ze-ipsec-conf {
 
                         leaf certificate-url {
                             type string;
-                            description
+                            description "The http URL at which this device publishes its own certificate.";
+                            ze:help
                                 "The http URL at which this device's own certificate is published,
                                  sent beside the SHA-1 hash when hash-and-url is true. RFC 7296
                                  Section 3.6 requires support for the http scheme.";
@@ -723,7 +745,8 @@ module ze-ipsec-conf {
 
                         leaf-list certificate-url-allow {
                             type zt:ip-prefix;
-                            description
+                            description "Extra destinations a certificate URL from this peer CAN resolve to.";
+                            ze:help
                                 "Destinations a certificate URL received from this peer CAN resolve
                                  to, beyond the fetcher's defaults. The fetcher refuses loopback,
                                  private, link-local and multicast addresses, and the cloud metadata
@@ -734,7 +757,8 @@ module ze-ipsec-conf {
 
                         leaf ca-certificate {
                             type string;
-                            description "Name of the CA certificate in the PKI store. Required for
+                            description "Name of the CA certificate in the PKI store.";
+                            ze:help "Name of the CA certificate in the PKI store. Required for
                                 every EAP mode and for X.509. It is the trust anchor the remote
                                 certificate must chain to, through any intermediate certificates the
                                 peer sends. Without it any self-signed certificate would
@@ -745,7 +769,8 @@ module ze-ipsec-conf {
 
                         leaf certificate {
                             type string;
-                            description "Name of the device certificate in the PKI store. Required for
+                            description "Name of the device certificate in the PKI store.";
+                            ze:help "Name of the device certificate in the PKI store. Required for
                                 every EAP mode, because RFC 7296 Section 2.16 makes the responder sign
                                 its AUTH with a public key. Also used by X.509 mode. Ze sends this
                                 certificate first, then the intermediate certificate the PKI entry
@@ -753,7 +778,8 @@ module ze-ipsec-conf {
                         }
 
                         container x509 {
-                            description "X.509 certificate references (deprecated, use
+                            description "X.509 certificate references, deprecated in favor of the direct leaves.";
+                            ze:help "X.509 certificate references (deprecated, use
                                 the direct leaves). Ze reads a leaf here only when the
                                 direct leaf of the same name is empty. A name set here
                                 therefore meets the same requirement the direct leaf
@@ -762,18 +788,19 @@ module ze-ipsec-conf {
 
                             leaf ca-certificate {
                                 type string;
-                                description "Name of the CA certificate in the PKI store.
-                                    Ze reads it only when the direct ca-certificate leaf
-                                    is empty. It then satisfies the trust anchor that
+                                description "Name of the CA certificate in the PKI store.";
+                                ze:help "Ze reads it only when the direct ca-certificate
+                                    leaf is empty. It then satisfies the trust anchor that
                                     every EAP mode and X.509 require.";
                             }
 
                             leaf certificate {
                                 type string;
-                                description "Name of the device certificate in the PKI
-                                    store. Ze reads it only when the direct certificate
+                                description "Name of the device certificate in the PKI store.";
+                                ze:help "Ze reads it only when the direct certificate
                                     leaf is empty. It then satisfies the certificate that
                                     every EAP mode and X.509 require.";
+
                             }
                         }
                     }

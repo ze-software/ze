@@ -3,6 +3,7 @@ module ze-sysctl-conf {
     prefix sysctl;
 
     import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
 
     description
         "Sysctl configuration for Ze.
@@ -19,9 +20,8 @@ module ze-sysctl-conf {
 
         list setting {
             key "name";
-            description
-                "A kernel tunable to set persistently.
-                 Uses kernel-native naming (e.g., net.ipv4.conf.all.forwarding).";
+            description "A kernel tunable that Ze sets persistently.";
+            ze:help "The name uses kernel-native naming, for example net.ipv4.conf.all.forwarding.";
 
             leaf name {
                 type string;
@@ -38,10 +38,8 @@ module ze-sysctl-conf {
         list profile {
             key "name";
             max-elements 50;
-            description
-                "User-defined sysctl profile: a named collection of
-                 kernel tunables applied together to interface units.
-                 Overrides built-in profiles with the same name.";
+            description "A named collection of kernel tunables that Ze applies together to interface units.";
+            ze:help "A user-defined profile overrides a built-in profile that has the same name.";
 
             leaf name {
                 type zt:node-name;

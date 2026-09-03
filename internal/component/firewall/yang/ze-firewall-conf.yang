@@ -176,22 +176,22 @@ module ze-firewall-conf {
         }
         leaf input-interface {
             type string;
-            description "Input interface name. A trailing asterisk
-                         (e.g. 'l2tp*') matches any interface whose
-                         name begins with the given prefix.";
+            description "Input interface name, with a trailing asterisk for a prefix match.";
+            ze:help "Input interface name. A trailing asterisk, for example 'l2tp*', matches any interface whose name
+                begins with the given prefix.";
         }
         leaf output-interface {
             type string;
-            description "Output interface name. A trailing asterisk
-                         (e.g. 'veth*') matches any interface whose
-                         name begins with the given prefix.";
+            description "Output interface name, with a trailing asterisk for a prefix match.";
+            ze:help "Output interface name. A trailing asterisk, for example 'veth*', matches any interface whose name
+                begins with the given prefix.";
         }
         leaf connection-state {
             type connection-state;
             ze:backend "nft";
-            description "Connection tracking state(s). Conntrack-driven;
-                         requires a backend that integrates with the kernel
-                         nf_conntrack module.";
+            description "Connection tracking state(s) the rule matches.";
+            ze:help "Connection tracking state(s). The match is conntrack-driven, and it requires a backend that
+                integrates with the kernel nf_conntrack module.";
         }
         leaf connection-mark {
             type mark-value;
@@ -209,17 +209,15 @@ module ze-firewall-conf {
         }
         leaf icmp-type {
             type string;
-            description "ICMPv4 type. Accepts symbolic names from
-                         nftables (echo-request, echo-reply,
-                         destination-unreachable, time-exceeded, ...)
-                         or a numeric byte value 0..255.";
+            description "ICMPv4 type, as an nftables symbolic name or a byte value 0..255.";
+            ze:help "ICMPv4 type. It accepts symbolic names from nftables, such as echo-request, echo-reply,
+                destination-unreachable and time-exceeded. It also accepts a numeric byte value 0..255.";
         }
         leaf icmpv6-type {
             type string;
-            description "ICMPv6 type. Accepts symbolic names from
-                         nftables (echo-request, nd-neighbor-solicit,
-                         packet-too-big, ...) or a numeric byte value
-                         0..255.";
+            description "ICMPv6 type, as an nftables symbolic name or a byte value 0..255.";
+            ze:help "ICMPv6 type. It accepts symbolic names from nftables, such as echo-request, nd-neighbor-solicit and
+                packet-too-big. It also accepts a numeric byte value 0..255.";
         }
     }
 
@@ -251,10 +249,9 @@ module ze-firewall-conf {
         }
         container exclude {
             presence "Skip NAT for matching traffic";
-            description "In a NAT chain term, skip NAT for matching
-                         traffic. Lowers to the same `return` verdict
-                         the operator could have written directly;
-                         the keyword exists for VyOS-config parity.";
+            description "In a NAT chain term, skip NAT for the matching traffic.";
+            ze:help "In a NAT chain term, skip NAT for matching traffic. It lowers to the same `return` verdict the
+                operator could have written directly. The keyword exists for VyOS-config parity.";
         }
         leaf jump {
             type string;
@@ -282,10 +279,10 @@ module ze-firewall-conf {
         }
         container masquerade {
             presence "Masquerade outgoing traffic";
-            description "Masquerade (source NAT with outgoing interface address).
-                         Optionally restrict source port range with port-range,
-                         or set randomization/persistence flags. Port mapping
-                         and flags are mutually exclusive.";
+            description "Masquerade, which is source NAT with the outgoing interface address.";
+            ze:help "Masquerade (source NAT with outgoing interface address). Restrict the source port range with
+                port-range, or set the randomization and persistence flags. Port mapping and flags are mutually
+                exclusive.";
             leaf port-range {
                 type string;
                 description "Source port or port range (e.g. 1024-65535)";
@@ -320,9 +317,9 @@ module ze-firewall-conf {
         container flow-offload {
             presence "Hardware flow offload";
             ze:backend "nft";
-            description "Hardware / software flow offload via an nftables
-                         flowtable. The VPP dataplane is itself the fast
-                         path and does not expose a flowtable surface.";
+            description "Hardware or software flow offload through an nftables flowtable.";
+            ze:help "Hardware or software flow offload through an nftables flowtable. The VPP dataplane is itself the
+                fast path, and it does not expose a flowtable surface.";
             leaf flowtable {
                 type string;
                 mandatory true;
@@ -332,10 +329,9 @@ module ze-firewall-conf {
         container mark-set {
             presence "Set packet mark";
             ze:backend "nft";
-            description "Write the kernel skb mark. Different backends
-                         carry per-packet metadata differently; the VPP
-                         classifier's equivalent uses opaque keys via
-                         ClassifyAddDelSession.";
+            description "Write the kernel skb mark.";
+            ze:help "Write the kernel skb mark. Different backends carry per-packet metadata differently. The VPP
+                classifier's equivalent uses opaque keys through ClassifyAddDelSession.";
             leaf value {
                 type mark-value;
                 mandatory true;
@@ -364,9 +360,9 @@ module ze-firewall-conf {
         }
         container counter {
             presence "Enable per-rule counter";
-            description "Anonymous per-rule counter. A non-empty `name`
-                         leaf is reserved for a future named-counter
-                         feature and is rejected at verify today.";
+            description "Anonymous per-rule counter.";
+            ze:help "Anonymous per-rule counter. A non-empty `name` leaf is reserved for a future named-counter feature,
+                and verify rejects it today.";
             leaf name {
                 type string;
                 description "Counter name (reserved; non-empty values reject at verify)";
@@ -400,43 +396,38 @@ module ze-firewall-conf {
     }
 
     container firewall {
-        description "Ze-managed nftables firewall tables.
-                     Table names are bare in config; ze_ prefix added by component.";
+        description "Ze-managed nftables firewall tables.";
+        ze:help "Ze-managed nftables firewall tables. Table names are bare in config, and the component adds the ze_
+            prefix.";
 
         leaf backend {
             type string;
             default "nft";
-            description "Firewall backend implementation. Default is nft
-                         (nftables via libnftnl). Future backends can declare
-                         themselves via firewall.RegisterBackend. The
-                         ze:backend YANG extension on feature nodes declares
-                         per-feature backend support so the commit-time gate
-                         rejects configs that try to use unsupported
-                         primitives.";
+            description "Firewall backend implementation, nft by default.";
+            ze:help "Firewall backend implementation. The default is nft, which is nftables through libnftnl. A future
+                backend can declare itself through firewall.RegisterBackend. The ze:backend YANG extension on
+                feature nodes declares per-feature backend support, so the commit-time gate rejects a config that
+                uses an unsupported primitive.";
         }
 
         leaf flush-on-shutdown {
             type boolean;
             default "true";
-            description "Remove ze-owned nftables tables from the kernel when the
-                         ze process stops in an orderly way (SIGTERM), default
-                         true, so a stopped daemon leaves no rules behind. Set
-                         false to use ze as a one-shot provisioner: program the
-                         rules, let the process exit, and leave them running in
-                         the kernel (like nft -f). Keys off how the process
-                         exits; unrelated to BGP graceful restart. A crash never
-                         runs the shutdown path, so tables always persist across
-                         a crash regardless of this setting. Governs every ze
-                         table producer (firewall, control-plane-protection,
-                         policy-routes, ddos-local), which share one backend.";
+            description "Remove ze-owned nftables tables when the ze process stops in an orderly way.";
+            ze:help "Remove ze-owned nftables tables from the kernel when the ze process stops in an orderly way
+                (SIGTERM). The default is true, so a stopped daemon leaves no rules behind. Set the leaf to false to
+                use ze as a one-shot provisioner: program the rules, let the process exit, and leave them running in
+                the kernel, like nft -f. The leaf keys off how the process exits, and it is unrelated to BGP
+                graceful restart. A crash never runs the shutdown path, so tables always persist across a crash
+                whatever this leaf holds. The leaf governs every ze table producer (firewall,
+                control-plane-protection, policy-routes, ddos-local), which share one backend.";
         }
 
         container global-options {
-            description "Network security defaults mapped to kernel sysctls.
-                         Provides VyOS-compatible keyword toggles for common
-                         settings. At apply time each keyword translates to a
-                         sysctl key/value pair emitted to the sysctl plugin.
-                         Explicit sysctl settings always override these.";
+            description "Network security defaults mapped to kernel sysctls.";
+            ze:help "Network security defaults mapped to kernel sysctls. The container provides VyOS-compatible keyword
+                toggles for common settings. At apply time each keyword translates to a sysctl key and value pair
+                emitted to the sysctl plugin. An explicit sysctl setting always overrides these.";
 
             leaf all-ping {
                 type enumeration {
@@ -460,8 +451,9 @@ module ze-firewall-conf {
                         description "Ignore broadcast ICMP echo (icmp_echo_ignore_broadcasts=1)";
                     }
                 }
-                description "Control broadcast ICMP echo responses.
-                             Inverted sysctl: enable sets icmp_echo_ignore_broadcasts to 0.";
+                description "Control broadcast ICMP echo responses.";
+                ze:help "Control broadcast ICMP echo responses. The sysctl is inverted, so enable sets
+                    icmp_echo_ignore_broadcasts to 0.";
             }
 
             leaf syn-cookies {
@@ -668,14 +660,10 @@ module ze-firewall-conf {
                 list element {
                     key "value";
                     ordered-by user;
-                    description "Static set elements. The value form is
-                                 interpreted per set type: ipv4 / ipv6
-                                 accepts addresses or prefixes (when
-                                 flags-interval is set); inet-service
-                                 accepts port numbers; mark accepts a
-                                 numeric or 0x-prefixed value; ether
-                                 accepts aa:bb:cc:dd:ee:ff; ifname
-                                 accepts an interface name.";
+                    description "Static set elements, whose value form follows the set type.";
+                    ze:help "Static set elements. The value form is interpreted per set type. ipv4 and ipv6 accept addresses, or
+                        prefixes when flags-interval is set. inet-service accepts port numbers. mark accepts a numeric or
+                        0x-prefixed value. ether accepts aa:bb:cc:dd:ee:ff. ifname accepts an interface name.";
 
                     leaf value {
                         type string;
@@ -693,9 +681,9 @@ module ze-firewall-conf {
             list flowtable {
                 key "name";
                 ze:backend "nft";
-                description "Hardware offload flowtable. nftables-specific;
-                             the VPP dataplane is itself the fast path and
-                             does not expose a flowtable surface.";
+                description "Hardware offload flowtable, which is nftables-specific.";
+                ze:help "Hardware offload flowtable. The flowtable is nftables-specific. The VPP dataplane is itself the fast
+                    path, and it does not expose a flowtable surface.";
 
                 leaf name {
                     type string {

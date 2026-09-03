@@ -16,17 +16,18 @@ module ze-pppoe-conf {
     }
 
     container pppoe {
-        description "PPPoE access concentrator settings (RFC 2516).
-                     Presence of this block with any content implies the
-                     subsystem is enabled. Use 'enabled false' to disable
-                     explicitly, or 'enabled true' as a filler when no
-                     other settings are needed.";
+        description "PPPoE access concentrator settings (RFC 2516).";
+        ze:help "This block with any content in it enables the subsystem.
+                 Use 'enabled false' to disable it explicitly. Use
+                 'enabled true' as a filler when no other settings are
+                 needed.";
 
         leaf enabled {
             type boolean;
             default true;
-            description "Enable PPPoE subsystem. Defaults to true when the
-                         pppoe block is present; set to false to disable.";
+            description "Enable the PPPoE subsystem.";
+            ze:help "The default is true when the pppoe block is present.
+                     Set it to false to disable the subsystem.";
         }
 
         leaf ac-name {
@@ -37,9 +38,9 @@ module ze-pppoe-conf {
 
         leaf-list service-name {
             type string;
-            description "Accepted Service-Name values. Empty list means accept any
-                         Service-Name (RFC 2516 Section 5.1). Per-interface
-                         service-name overrides this global list.";
+            description "Accepted Service-Name values (RFC 2516 Section 5.1).";
+            ze:help "An empty list accepts any Service-Name. The per-interface
+                     service-name list overrides this global list.";
         }
 
         leaf auth-method {
@@ -51,22 +52,25 @@ module ze-pppoe-conf {
             }
             default "chap-md5";
             description
-                "PPP Auth-Protocol method the access concentrator advertises
-                 in its LCP Configure-Request (RFC 1661 Section 6.2) for every
-                 subscriber that completes PPPoE discovery. The credential is
-                 verified by the auth handler (l2tp-auth-local or
-                 l2tp-auth-radius). The default requires CHAP-MD5 (RFC 1994).
-                 Set to none only together with allow-no-auth true.";
+                "PPP Auth-Protocol method the access concentrator advertises in LCP.";
+            ze:help
+                "The access concentrator advertises the method in its LCP
+                 Configure-Request (RFC 1661 Section 6.2), for every subscriber
+                 that completes PPPoE discovery. The auth handler verifies the
+                 credential (l2tp-auth-local or l2tp-auth-radius). The default
+                 requires CHAP-MD5 (RFC 1994). Set it to none only together
+                 with allow-no-auth true.";
         }
 
         leaf allow-no-auth {
             type boolean;
             default false;
             description
-                "Accept a subscriber whose LCP negotiation ends with no
-                 Auth-Protocol option. The default is false, so a client that
-                 rejects the configured method is disconnected instead of
-                 being admitted unauthenticated.";
+                "Accept a subscriber whose LCP negotiation ends with no Auth-Protocol option.";
+            ze:help
+                "The default is false. A client that rejects the configured
+                 method is then disconnected, and it is never admitted
+                 unauthenticated.";
         }
 
         leaf cookie-timeout {
@@ -81,8 +85,9 @@ module ze-pppoe-conf {
         leaf max-sessions {
             type uint16;
             default 65535;
-            description "Maximum concurrent PPPoE sessions per interface.
-                         Limited by the 16-bit session ID range (1-65535).";
+            description "Maximum concurrent PPPoE sessions per interface.";
+            ze:help "The 16-bit session ID range limits the count to 1 through
+                     65535.";
         }
 
         leaf padi-rate-limit {
@@ -96,8 +101,8 @@ module ze-pppoe-conf {
 
         list interface {
             key "name";
-            description "Access interfaces on which PPPoE discovery listens.
-                         Each interface gets an independent session ID space.";
+            description "Access interfaces on which PPPoE discovery listens.";
+            ze:help "Each interface has an independent session ID space.";
 
             leaf name {
                 type string;

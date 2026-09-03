@@ -3,6 +3,7 @@ module ze-rs-conf {
     prefix rs;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
 
     description "BGP route server plugin configuration for Ze";
 
@@ -26,8 +27,9 @@ module ze-rs-conf {
                     range "1..1000000";
                 }
                 default 4096;
-                description "Per-source-peer worker channel capacity.
-                             Env var ze.bgp.route-server.worker-queue-size overrides this value.";
+                description "Worker channel capacity per source peer, overridden by ze.bgp.route-server.worker-queue-size.";
+                ze:help "Per-source-peer worker channel capacity. The ze.bgp.route-server.worker-queue-size environment
+                    variable overrides this value.";
             }
         }
     }
@@ -40,10 +42,10 @@ module ze-rs-conf {
         leaf rs-client {
             type boolean;
             default false;
-            description "Mark this peer as an RS-client for transparent AS-path forwarding.
-                         RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH
-                         or any other transitive attribute. When true, the reactor skips
-                         AS-path prepending for this peer on the forwarding path.";
+            description "Mark this peer as an RS-client for transparent AS-path forwarding.";
+            ze:help "Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route
+                server MUST NOT modify AS_PATH or any other transitive attribute. When this leaf is true, the
+                reactor skips AS-path prepending for this peer on the forwarding path.";
         }
     }
 
@@ -54,9 +56,10 @@ module ze-rs-conf {
         leaf rs-fast-path {
             type boolean;
             default false;
-            description "Forward received UPDATEs directly inside the reactor for RS-client peers,
-                         bypassing the plugin dispatch chain. Lower latency for route server
-                         forwarding. Peers with export filters are excluded and use the normal path.";
+            description "Forward a received UPDATE inside the reactor for an RS-client peer.";
+            ze:help "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin
+                dispatch chain. This path gives lower latency for route server forwarding. A peer with an export
+                filter is excluded and uses the normal path.";
         }
     }
 

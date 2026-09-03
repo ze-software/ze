@@ -2,6 +2,8 @@ module ze-fib-conf {
     namespace "urn:ze:fib:conf";
     prefix fib;
 
+    import ze-extensions { prefix ze; }
+
     description
         "FIB configuration for Ze.
          Contains the kernel backend configuration for route programming.
@@ -21,9 +23,11 @@ module ze-fib-conf {
                 type boolean;
                 default false;
                 description
-                    "Remove all ze-installed routes when the plugin stops.
-                     When false (default), routes persist in the kernel
-                     after shutdown for graceful restart support.";
+                    "Remove every ze-installed route when the plugin stops.";
+                ze:help
+                    "When true, the plugin removes every route it installed as it
+                     stops. The default false keeps those routes in the kernel
+                     after shutdown, which supports graceful restart.";
             }
 
             leaf sweep-delay {
@@ -31,8 +35,11 @@ module ze-fib-conf {
                 default 30;
                 units seconds;
                 description
-                    "Time to wait after startup before sweeping stale routes.
-                     Allows BGP reconvergence to refresh matching routes.";
+                    "Time to wait after startup before Ze sweeps stale routes.";
+                ze:help
+                    "The delay lets BGP reconverge and refresh the matching routes
+                     before Ze removes the stale ones. The default is 30 seconds.";
+
             }
         }
     }

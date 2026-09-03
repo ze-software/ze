@@ -4,6 +4,7 @@ module ze-anomaly-shape-conf {
 
   import ze-types { prefix zt; }
   import ze-anomaly-detect-conf { prefix ad; }
+  import ze-extensions { prefix ze; }
 
   description "Anomaly responder (shape) configuration. Augments the shared
                `anomaly` container (owned by ze-anomaly-detect-conf) with the
@@ -17,7 +18,9 @@ module ze-anomaly-shape-conf {
       leaf mode {
         type enumeration { enum shadow; enum armed; }
         default shadow;
-        description "shadow (default): log the would-be action, install nothing. armed: install live per-source firewall actions.";
+        description "Responder mode: shadow or armed.";
+        ze:help "shadow, the default, logs the action it would take and installs
+                 nothing. armed installs live per-source firewall actions.";
       }
       leaf action {
         type enumeration { enum limit; enum drop; }
@@ -42,7 +45,9 @@ module ze-anomaly-shape-conf {
       leaf auto-revert-ttl {
         type uint16 { range "5..3600"; }
         default 300;
-        description "Seconds after the last signal before an armed action auto-reverts, regardless of any clear event (safety ceiling).";
+        description "Seconds after the last signal before an armed action reverts by itself.";
+        ze:help "This ceiling holds whether or not a clear event arrives, so an
+                 armed action can never stay in place indefinitely.";
       }
       leaf blast-radius-cap {
         type uint16 { range "1..1024"; }
@@ -56,7 +61,9 @@ module ze-anomaly-shape-conf {
       }
       leaf-list allowlist {
         type zt:ip-prefix;
-        description "Protected source prefixes that are never armed (self-lockout guard for management / control-plane sources).";
+        description "Protected source prefixes that ze never arms an action against.";
+        ze:help "The list guards against self-lockout, for management sources
+                 and control-plane sources.";
       }
     }
   }

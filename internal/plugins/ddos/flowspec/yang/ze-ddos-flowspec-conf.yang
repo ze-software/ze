@@ -3,6 +3,7 @@ module ze-ddos-flowspec-conf {
   prefix ddos-flowspec;
 
   import ze-ddos-detect-conf { prefix dd; }
+  import ze-extensions { prefix ze; }
 
   description "FlowSpec (upstream announce) mitigation configuration. Augments the
                shared `ddos` container (owned by ze-ddos-detect-conf) with the
@@ -27,11 +28,23 @@ module ze-ddos-flowspec-conf {
           enum discard;
         }
         mandatory true;
-        description "FlowSpec traffic-action. Mandatory, with no default because neither drop nor rate-limit is universally safe: discard announces an RFC 8955 traffic-rate of 0 (drops the characterized attack flow); rate-limit announces a byte rate and requires an explicit rate-limit-bytes. A rate-limit-bytes of 0 is a valid choice and is equivalent to discard on the wire.";
+        description "FlowSpec traffic-action: discard or rate-limit. Mandatory, with no default.";
+        ze:help "Neither discard nor rate-limit is universally safe, so this leaf
+                 has no default. discard announces an RFC 8955 traffic-rate of 0,
+                 which drops the characterized attack flow. rate-limit announces
+                 a byte rate, and it requires an explicit rate-limit-bytes. A
+                 rate-limit-bytes of 0 is a valid choice, and it is equivalent to
+                 discard on the wire.";
       }
       leaf rate-limit-bytes {
         type uint64 { range "0..max"; }
-        description "Bytes per second announced in the RFC 8955 traffic-rate extended community. Required (and validated) when action is rate-limit; there is no default because no rate is universally safe. A value of 0 is valid and encodes the same traffic-rate-0 as discard. Not used when action is discard. Set it to the per-flow rate you are willing to pass to the victim during mitigation.";
+        description "Bytes per second announced in the RFC 8955 traffic-rate extended community.";
+        ze:help "This leaf is required, and validated, when action is rate-limit.
+                 It has no default, because no rate is universally safe. A value
+                 of 0 is valid, and it encodes the same traffic-rate-0 as
+                 discard. Ze does not read the leaf when action is discard. Set
+                 it to the per-flow rate you accept toward the victim during
+                 mitigation.";
       }
       leaf hold-down {
         type uint32 { range "1..86400"; }
@@ -71,12 +84,21 @@ module ze-ddos-flowspec-conf {
       leaf blackhole-fallback {
         type boolean;
         default false;
-        description "When true, a critical-severity AttackDetected (peak >= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.";
+        description "Announce an immediate upstream discard on a critical-severity AttackDetected.";
+        ze:help "When true, a critical-severity AttackDetected (a peak of 5x the
+                 threshold or more) engages an immediate upstream discard, in the
+                 style of RTBH, and it does not wait for characterization. When
+                 false, the default, ze announces the upstream rule only from
+                 AttackCharacterized. The rule is then precise before the box
+                 goes blind behind the filter.";
       }
       leaf confidence-min {
         type uint8 { range "0..100"; }
         default 0;
-        description "Minimum incident confidence (0-100) required to announce an upstream rule from a characterized attack. 0 (default) disables the gate. The blackhole-fallback fast path is never gated (AttackDetected carries no confidence).";
+        description "Minimum incident confidence (0-100) to announce an upstream rule from a characterized attack.";
+        ze:help "The default is 0, which accepts any confidence. The
+                 blackhole-fallback fast path never applies this minimum,
+                 because AttackDetected carries no confidence.";
       }
     }
   }

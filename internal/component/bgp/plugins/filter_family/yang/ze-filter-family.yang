@@ -23,34 +23,36 @@ module ze-filter-family {
 
             leaf name {
                 type string;
-                description "Filter instance name (referenced in peer filter chains
-                             as bgp-filter-family:NAME).";
+                description "Filter instance name, used in a peer filter chain.";
+                ze:help "A peer filter chain names this instance as bgp-filter-family:NAME,
+where NAME is the value of this leaf.";
             }
 
             leaf family {
                 type zt:address-family;
                 mandatory true;
-                description "Address family to match, e.g. ipv4/flowspec. An UPDATE
-                             with no MP_REACH/MP_UNREACH attribute is treated as
-                             ipv4/unicast.";
+                description "Address family to match, for example ipv4/flowspec.";
+                ze:help "Ze treats an UPDATE with no MP_REACH attribute and no MP_UNREACH
+attribute as ipv4/unicast.";
             }
 
             leaf action {
                 type enumeration {
                     enum remove {
-                        description "Strip the matched family's MP_REACH/MP_UNREACH
-                                     NLRI from the UPDATE (import and export). If the
-                                     removal empties the UPDATE, the whole UPDATE is
-                                     dropped for that peer.";
+                        description "Strip the MP_REACH NLRI and the MP_UNREACH NLRI of the matched family.";
                     }
                     enum tear-down {
-                        description "Send a BGP NOTIFICATION (Cease / Connection
-                                     Rejected) and close the session when the family
-                                     is present in a received UPDATE. Import only.";
+                        description "Close the session with a BGP NOTIFICATION when a received UPDATE carries the family.";
                     }
                 }
                 mandatory true;
                 description "Action to apply when the family matches.";
+                ze:help "remove strips the MP_REACH NLRI and the MP_UNREACH NLRI of the
+matched family from the UPDATE, on import and on export. If that removal empties the
+UPDATE, Ze drops the whole UPDATE for that peer.
+
+tear-down sends a BGP NOTIFICATION that carries the Cease code and the Connection
+Rejected subcode, then closes the session. tear-down acts on import only.";
             }
         }
     }

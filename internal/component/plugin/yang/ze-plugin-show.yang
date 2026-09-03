@@ -2,14 +2,7 @@ module ze-plugin-show {
     namespace "urn:ze:plugin:show";
     prefix plugshow;
     import ze-extensions { prefix ze; }
-    description "show plugins command tree. Owned by internal/component/plugin because the handler reads the internal plugin registry. See ai/rules/plugins.md.
-
-Named ze-plugin-show rather than ze-plugin-cmd because internal/core/ipc/yang
-already declares a module of that name, under the same namespace, for the
-plugin help, command and session trees. Two modules sharing a namespace is the
-collision YANG namespaces exist to prevent, and a loader can accept it quietly
-rather than refusing, which leaves nobody able to say which module a node came
-from.";
+    description "show plugins command tree. Owned by internal/component/plugin because the handler reads the internal plugin registry. See ai/rules/plugins.md. Named ze-plugin-show rather than ze-plugin-cmd because internal/core/ipc/yang already declares a module of that name, under the same namespace, for the plugin help, command and session trees. Two modules sharing a namespace is the collision YANG namespaces exist to prevent, and a loader can accept it quietly rather than refusing, which leaves nobody able to say which module a node came from.";
     revision 2026-08-31 { description "Carry the setup outcome each plugin recorded from its own init() on the show plugins rows."; }
     revision 2026-08-30 { description "Declare show plugins, the command that replaces the root plugin-listing flag."; }
 

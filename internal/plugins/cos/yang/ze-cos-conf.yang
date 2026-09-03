@@ -16,32 +16,43 @@ module ze-cos-conf {
     }
 
     container class-of-service {
-        description "Named class-of-service profiles";
+        description "Named class-of-service profiles.";
+        ze:help "A profile maps the 3-bit PCP field of an 802.1Q header to an internal
+priority, in the ingress direction and in the egress direction. An interface leaf and a
+unit leaf name the profile they use.";
 
         list ieee-802.1p {
             key "name";
-            description
-                "An 802.1p QoS profile. Defines the mapping between the
-                 3-bit PCP field in the 802.1Q header and internal
-                 priorities, for both ingress and egress directions.";
+            description "An 802.1p QoS profile.";
+            ze:help "The profile defines the mapping between the 3-bit PCP field in the
+802.1Q header and the internal priorities. It covers the ingress direction and the
+egress direction.";
 
             leaf name {
                 type zt:node-name;
-                description "Profile name (lowercase alphanumeric and hyphens)";
+                description "Name of this profile, in lowercase letters, digits and hyphens.";
+                ze:help "The name is the list key. The class-of-service leaf of an
+interface, and of a unit, names one profile.";
             }
 
             container ingress {
-                description "PCP-to-priority mapping for received tagged frames";
+                description "PCP-to-priority mapping of a received tagged frame.";
+                ze:help "Ze reads this mapping when it takes the internal priority of a
+frame it receives.";
 
                 list pcp {
                     key "value";
-                    description "Map a received PCP value to an internal priority";
+                    description "Map one received PCP value to an internal priority.";
+                    ze:help "The list key is the PCP value, so the list holds at most one
+entry for each of the eight values.";
 
                     leaf value {
                         type uint8 {
                             range "0..7";
                         }
-                        description "PCP value in the received 802.1Q header (IEEE 802.1Q, 3 bits)";
+                        description "PCP value in the 802.1Q header of the received frame.";
+                        ze:help "IEEE 802.1Q defines the Priority Code Point field, which
+is 3 bits wide and holds a value from 0 to 7.";
                     }
 
                     leaf priority {
@@ -49,23 +60,29 @@ module ze-cos-conf {
                             range "0..7";
                         }
                         mandatory true;
-                        description "Internal priority assigned to matching frames";
+                        description "Internal priority Ze gives to a matching frame.";
+                        ze:help "The value runs from 0 to 7.";
                     }
                 }
             }
 
             container egress {
-                description "Priority-to-PCP mapping for transmitted tagged frames";
+                description "Priority-to-PCP mapping of a transmitted tagged frame.";
+                ze:help "Ze reads this mapping when it stamps the PCP field of a frame it
+transmits.";
 
                 list priority {
                     key "value";
-                    description "Map an internal priority to a transmitted PCP value";
+                    description "Map one internal priority to a transmitted PCP value.";
+                    ze:help "The list key is the internal priority, so the list holds at
+most one entry for each of the eight priorities.";
 
                     leaf value {
                         type uint8 {
                             range "0..7";
                         }
-                        description "Internal priority of the outgoing packet";
+                        description "Internal priority of the outgoing packet.";
+                        ze:help "The value runs from 0 to 7.";
                     }
 
                     leaf pcp {
@@ -73,7 +90,9 @@ module ze-cos-conf {
                             range "0..7";
                         }
                         mandatory true;
-                        description "PCP value stamped in the 802.1Q header (IEEE 802.1Q, 3 bits)";
+                        description "PCP value Ze stamps in the 802.1Q header.";
+                        ze:help "IEEE 802.1Q defines the Priority Code Point field, which
+is 3 bits wide and holds a value from 0 to 7.";
                     }
                 }
             }
@@ -87,15 +106,17 @@ module ze-cos-conf {
 
         list ingress-qos-map {
             key "pcp";
-            description "Map the 802.1p PCP value of received tagged frames
-                         to an internal priority. Requires vlan-id. Frames
-                         whose PCP has no entry keep priority 0.";
+            description "Map the 802.1p PCP value of a received tagged frame to an internal priority.";
+            ze:help "The map needs vlan-id. A frame whose PCP value has no entry keeps
+priority 0.";
 
             leaf pcp {
                 type uint8 {
                     range "0..7";
                 }
-                description "PCP value in the received 802.1Q header (IEEE 802.1Q, 3 bits)";
+                description "PCP value in the 802.1Q header of the received frame.";
+                ze:help "IEEE 802.1Q defines the Priority Code Point field, which is
+3 bits wide and holds a value from 0 to 7.";
             }
 
             leaf priority {
@@ -103,22 +124,23 @@ module ze-cos-conf {
                     range "0..7";
                 }
                 mandatory true;
-                description "Internal priority assigned to matching frames";
+                description "Internal priority Ze gives to a matching frame.";
+                ze:help "The value runs from 0 to 7.";
             }
         }
 
         list egress-qos-map {
             key "priority";
-            description "Map the internal priority of outgoing packets to
-                         the 802.1p PCP value stamped in the 802.1Q header.
-                         Requires vlan-id. Priorities with no entry are
-                         sent with PCP 0.";
+            description "Map the internal priority of an outgoing packet to the 802.1p PCP value.";
+            ze:help "Ze stamps the PCP value in the 802.1Q header. The map needs vlan-id.
+Ze sends a priority with no entry as PCP 0.";
 
             leaf priority {
                 type uint8 {
                     range "0..7";
                 }
-                description "Internal priority of the outgoing packet";
+                description "Internal priority of the outgoing packet.";
+                ze:help "The value runs from 0 to 7.";
             }
 
             leaf pcp {
@@ -126,7 +148,9 @@ module ze-cos-conf {
                     range "0..7";
                 }
                 mandatory true;
-                description "PCP value stamped in the 802.1Q header (IEEE 802.1Q, 3 bits)";
+                description "PCP value Ze stamps in the 802.1Q header.";
+                ze:help "IEEE 802.1Q defines the Priority Code Point field, which is
+3 bits wide and holds a value from 0 to 7.";
             }
         }
     }
@@ -138,8 +162,9 @@ module ze-cos-conf {
 
         leaf class-of-service {
             type string;
-            description "Per-unit override: profile name or 'none' to
-                         opt out of inheritance from the parent interface.";
+            description "Class-of-service profile of this unit.";
+            ze:help "The value is the name of a profile. The value 'none' stops the unit
+from inheriting the profile of the parent interface.";
         }
 
         uses qos-maps;
@@ -151,18 +176,17 @@ module ze-cos-conf {
 
         leaf class-of-service {
             type string;
-            description "Name of a class-of-service ieee-802.1p profile, or
-                         'none' to explicitly disable inheritance. When set
-                         on the interface, all VLAN units inherit the profile
-                         unless overridden per-unit.";
+            description "Name of a class-of-service ieee-802.1p profile, or 'none'.";
+            ze:help "The value 'none' disables inheritance. When this leaf is set on the
+interface, every VLAN unit inherits the profile. A unit that sets its own profile keeps
+that one.";
         }
     }
 
     container interface {
-        description "Interface-level class-of-service bindings and inline
-                     QoS maps (container-merge with ze-iface-conf).
-                     Removing the cos plugin removes all QoS surface
-                     from interfaces.";
+        description "Interface-level class-of-service bindings and inline QoS maps.";
+        ze:help "This container merges into ze-iface-conf. Remove the cos plugin and
+every QoS leaf disappears from the interfaces.";
 
         list ethernet {
             key "name";

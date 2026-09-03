@@ -12,25 +12,36 @@ module ze-lg-conf {
     }
 
     container environment {
-        description "Environment settings for looking glass";
+        description "Environment settings for the looking glass.";
+        ze:help "The looking-glass container under it carries every looking glass
+                 setting: the enable switch, the listen endpoints, the TLS switch and
+                 the bearer token.";
 
         container looking-glass {
-            description "Looking glass HTTP server settings";
+            description "Looking glass HTTP server settings.";
+            ze:help "The container holds the enable switch, the listen endpoints, the
+                     TLS switch and the bearer token.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable looking glass";
+                description "Enable the looking glass.";
+                ze:help "The looking glass does not start while this leaf is false,
+                         and false is the default.";
             }
 
             list server {
                 key "name";
                 ze:listener;
-                description "Looking glass listen endpoints";
+                description "Looking glass listen endpoints.";
+                ze:help "Each entry names one listen endpoint. The default endpoint
+                         is 0.0.0.0 on port 8443.";
 
                 leaf name {
                     type string;
-                    description "Server instance name";
+                    description "Server instance name.";
+                    ze:help "The name is the list key, so each server entry carries a
+                             different one.";
                 }
 
                 uses zt:listener {
@@ -46,22 +57,24 @@ module ze-lg-conf {
             leaf tls {
                 type boolean;
                 default true;
-                description "Enable TLS (requires blob storage for certificates).
-                             Default true: the looking glass binds 0.0.0.0 and
-                             publishes route data. Set false to serve plaintext,
-                             for example behind a TLS-terminating proxy.
-                             Override with the ze.looking-glass.tls variable.";
+                description "Enable TLS. Override with the ze.looking-glass.tls variable.";
+                ze:help "TLS needs blob storage for the certificates. The default
+                         true holds because the looking glass binds 0.0.0.0 and
+                         publishes route data. Set it to false to serve plaintext,
+                         for example when a proxy in front of Ze serves TLS.";
+
             }
 
             leaf token {
                 type string;
                 ze:sensitive;
-                description "Bearer token that gates every /api/ and /lg/ route.
-                             Compared constant-time (sha256 +
-                             subtle.ConstantTimeCompare). Empty leaves the
-                             looking glass open, which is the default: a looking
-                             glass is a public read-only surface. Override with
-                             the ze.looking-glass.token variable.";
+                description "Bearer token checked on every /api/ and /lg/ route (ze.looking-glass.token).";
+
+                ze:help "Ze compares the token in constant time, with sha256 and
+                         subtle.ConstantTimeCompare. An empty token leaves the
+                         looking glass open, and that is the default: a looking
+                         glass is a public read-only surface.";
+
             }
         }
     }

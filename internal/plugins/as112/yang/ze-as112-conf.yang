@@ -24,35 +24,43 @@ module ze-as112-conf {
     }
 
     container service {
-        description "Service settings";
+        description "Service settings.";
+        ze:help "The container holds the settings of each service Ze runs, and the
+                 as112 container under it configures the AS112 node.";
 
         container as112 {
-            description "AS112 anycast DNS node";
+            description "AS112 anycast DNS node.";
+            ze:help "The container holds the enable switch, the address family, the
+                     node identification strings, the access list, the BGP settings
+                     and the secure listeners.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable the AS112 anycast DNS node";
+                description "Enable the AS112 anycast DNS node.";
+                ze:help "The AS112 node does not start while this leaf is false, and
+                         false is the default.";
             }
 
             leaf address-family {
                 type enumeration {
                     enum both {
-                        description "Serve on both IPv4 and IPv6 anycast addresses (default)";
+                        description "Serve on both IPv4 and IPv6 anycast addresses. This is the default.";
                     }
                     enum ipv4-only {
-                        description "Serve on the two IPv4 anycast addresses only";
+                        description "Serve on the two IPv4 anycast addresses only.";
                     }
                     enum ipv6-only {
-                        description "Serve on the two IPv6 anycast addresses only";
+                        description "Serve on the two IPv6 anycast addresses only.";
                     }
                 }
                 default "both";
                 description
-                    "Restrict the service to one address family (RFC 7534
-                     Section 3.4 / RFC 7535 Section 3.1 single-stack option).
-                     The anycast addresses themselves are fixed constants,
-                     never operator-typed.";
+                    "Restrict the service to one address family.";
+                ze:help
+                    "RFC 7534 Section 3.4 and RFC 7535 Section 3.1 give the
+                     single-stack option. The anycast addresses themselves are
+                     fixed constants, and an operator never types one.";
             }
 
             leaf hostname {
@@ -60,10 +68,11 @@ module ze-as112-conf {
                     length "0..63";
                 }
                 description
-                    "Node identification string surfaced in the
-                     HOSTNAME.AS112.NET/ARPA TXT answers (RFC 7534 Section
-                     3.5), so operators can tell which anycast instance
-                     answered a given query. Empty omits the TXT string.";
+                    "Node identification string in the HOSTNAME.AS112.NET/ARPA TXT answers.";
+                ze:help
+                    "RFC 7534 Section 3.5 defines those answers. The string tells
+                     an operator which anycast instance answered a query. An empty
+                     value omits the TXT string.";
             }
 
             leaf facility {
@@ -71,9 +80,10 @@ module ze-as112-conf {
                     length "0..100";
                 }
                 description
-                    "Facility/site name surfaced alongside location in the
-                     HOSTNAME.AS112.NET/ARPA TXT answers, e.g. 'Example
-                     Datacenter'.";
+                    "Facility name in the HOSTNAME.AS112.NET/ARPA TXT answers.";
+                ze:help
+                    "The facility name is the name of the site, for example
+                     'Example Datacenter'. It is surfaced beside the location.";
             }
 
             leaf location {
@@ -81,78 +91,89 @@ module ze-as112-conf {
                     length "0..100";
                 }
                 description
-                    "City/country surfaced alongside facility in the
-                     HOSTNAME.AS112.NET/ARPA TXT answers, e.g. 'London, UK'.";
+                    "City and country in the HOSTNAME.AS112.NET/ARPA TXT answers.";
+                ze:help
+                    "The location is surfaced beside the facility, for example
+                     'London, UK'.";
             }
 
             leaf-list allow-from {
                 type zt:ip-prefix;
                 description
-                    "Optional client-source access list. Empty/unset (default)
-                     answers every source, matching standard AS112 public-sink
-                     behavior. When non-empty, only queries whose source IP is
-                     contained in one of these prefixes are answered; all
-                     others are silently dropped (no response). Loopback/
-                     on-box sources are always implicitly permitted regardless
-                     of this list, so the 'request as112 healthcheck' probe is
-                     never blocked. Setting this makes the node non-public --
-                     correct for a local-use mirror, wrong for a
-                     globally-reachable AS112 contributor.";
+                    "Client-source access list of the queries the node answers.";
+                ze:help
+                    "An empty list, which is the default, answers every source and
+                     matches the standard AS112 public-sink behavior. With one
+                     prefix or more, the node answers a query only when its source
+                     IP is inside one of those prefixes. It drops every other query
+                     and sends no response.
+                     A loopback source and an on-box source are always permitted,
+                     whatever this list holds, so the 'request as112 healthcheck'
+                     probe is never blocked.
+                     A set list makes the node non-public. That is correct for a
+                     local-use mirror, and wrong for an AS112 contributor the whole
+                     internet reaches.";
             }
 
             leaf asn {
                 type zt:asn;
                 default 112;
                 description
-                    "Origin AS the AS112 covering prefixes carry when
-                     redistributed into BGP (redistribute { destination bgp {
-                     import as112 } }). Defaults to the well-known AS112 number
-                     112 (RFC 7534 Section 3.2): the redistribute source models
-                     an AS112 virtual router. Set an operator ASN or an RFC 6996
-                     private-use ASN to originate under a coordinated or
-                     local-use AS instead. Ignored unless 'import as112' is
-                     configured under redistribute.";
+                    "Origin AS the AS112 covering prefixes carry when redistributed into BGP.";
+                ze:help
+                    "The redistribute statement is `redistribute { destination bgp
+                     { import as112 } }`. The default is the well-known AS112
+                     number 112 (RFC 7534 Section 3.2), because the redistribute
+                     source models an AS112 virtual router. Set an operator ASN, or
+                     an RFC 6996 private-use ASN, to originate under a coordinated
+                     AS or a local-use AS instead. Ze ignores this leaf unless
+                     'import as112' is configured under redistribute.";
             }
 
             leaf-list community {
                 type string;
                 max-elements 32;
                 description
-                    "Optional BGP communities attached to the redistributed
-                     AS112 covering prefixes. Accepts AA:NN standard communities
-                     (RFC 1997) and well-known names such as no-export or nopeer
-                     (RFC 3765) -- the values RFC 7534 Section 3.4 recommends for
-                     restricting AS112 route propagation. Typed 'string' rather
-                     than the AA:NN-only ze-types community pattern so well-known
-                     names are accepted; every value is validated by the
-                     canonical community parser at config time. Ignored unless
-                     'import as112' is configured under redistribute.";
+                    "BGP communities attached to the redistributed AS112 covering prefixes.";
+                ze:help
+                    "The leaf takes an AA:NN standard community (RFC 1997) and a
+                     well-known name such as no-export or nopeer (RFC 3765). Those
+                     are the values RFC 7534 Section 3.4 recommends to restrict
+                     AS112 route propagation.
+                     The type is 'string' rather than the AA:NN-only ze-types
+                     community pattern, so a well-known name is accepted. The
+                     canonical community parser validates every value at config
+                     time. Ze ignores this leaf unless 'import as112' is configured
+                     under redistribute.";
             }
 
             leaf watchdog {
                 type boolean;
                 default true;
                 description
-                    "Health-gate the BGP announcement on DNS serving state (RFC
-                     7534 Section 3.3: do not advertise the service prefix while
-                     the name server is not running). When true (default) the
-                     covering prefixes are announced only while the as112 node is
-                     serving, and withdrawn when serving is lost, the service is
-                     disabled, or the node shuts down. false announces as soon as
-                     enabled and imported, without the serving-state gate.
-                     Ignored unless 'import as112' is configured under
-                     redistribute.";
+                    "Announce the covering prefixes only while the node serves DNS.";
+                ze:help
+                    "RFC 7534 Section 3.3 states that a node does not advertise the
+                     service prefix while the name server is not running. With true,
+                     which is the default, Ze announces the covering prefixes only
+                     while the as112 node serves. Ze withdraws them when serving is
+                     lost, when the service is disabled, and when the node shuts
+                     down. With false, Ze announces as soon as the node is enabled
+                     and imported, with no serving-state gate. Ze ignores this leaf
+                     unless 'import as112' is configured under redistribute.";
             }
 
             container tls {
                 description
-                    "DNS-over-TLS (DoT, RFC 7858) listener and the certificate
-                     material shared with DoH. When enabled the DoT listener
-                     binds the fixed anycast addresses (and loopback) on
-                     'listen-port'. When cert-file/key-file are unset an
-                     ephemeral self-signed certificate is used, which strict
-                     clients cannot validate -- supply operator PEM for a
-                     publicly trusted node.";
+                    "DNS-over-TLS listener, and the certificate material it shares with DoH.";
+                ze:help
+                    "RFC 7858 defines DNS-over-TLS (DoT). When it is enabled, the
+                     DoT listener binds the fixed anycast addresses and the
+                     loopback address on 'listen-port'.
+                     When cert-file and key-file are both unset, Ze uses an
+                     ephemeral self-signed certificate, which a strict client
+                     cannot validate. Supply an operator PEM file for a node the
+                     public trusts.";
 
                 leaf enabled {
                     type boolean;
@@ -164,16 +185,18 @@ module ze-as112-conf {
                     type zt:port;
                     default 853;
                     description
-                        "TCP port for the DoT listener; the RFC 7858 well-known
-                         'domain-s' port is 853.";
+                        "TCP port for the DoT listener.";
+                    ze:help
+                        "The RFC 7858 well-known 'domain-s' port is 853.";
                 }
 
                 leaf cert-file {
                     type string;
                     description
-                        "Path to the PEM server certificate presented on DoT and
-                         DoH. Unset (together with key-file) selects an ephemeral
-                         self-signed certificate.";
+                        "Path to the PEM server certificate presented on DoT and DoH.";
+                    ze:help
+                        "When this leaf and key-file are both unset, Ze uses an
+                         ephemeral self-signed certificate.";
                 }
 
                 leaf key-file {
@@ -190,23 +213,26 @@ module ze-as112-conf {
                         pattern '[A-Za-z0-9._-]+';
                     }
                     description
-                        "Name of the certificate in the PKI store to serve on DoT
-                         and DoH. The listeners send the leaf certificate and
-                         every intermediate certificate the store entry holds.
-                         This leaf and cert-file/key-file are mutually exclusive;
-                         setting both is a configuration error.
-                         The PKI store lives in the hub process, so a geodns or
-                         as112 plugin started as an external process cannot
-                         resolve the name: the secure listeners then do not start
-                         and the error is logged. Cleartext DNS is unaffected.";
+                        "Name of the PKI store certificate served on DoT and DoH.";
+                    ze:help
+                        "The listeners send the leaf certificate and every
+                         intermediate certificate the store entry holds.
+                         This leaf excludes cert-file and key-file. Setting both is
+                         a configuration error.
+                         The PKI store lives in the hub process, so a geodns plugin
+                         or an as112 plugin started as an external process cannot
+                         resolve the name. The secure listeners then do not start,
+                         and Ze logs the error. Cleartext DNS still runs.";
                 }
             }
 
             container doh {
                 description
-                    "DNS-over-HTTPS (DoH, RFC 8484) listener. It reuses the tls
-                     container's certificate material and binds the fixed anycast
-                     addresses (and loopback) on 'listen-port' at 'path'.";
+                    "DNS-over-HTTPS listener (RFC 8484).";
+                ze:help
+                    "The listener reuses the certificate material of the tls
+                     container. It binds the fixed anycast addresses and the
+                     loopback address on 'listen-port', at 'path'.";
 
                 leaf enabled {
                     type boolean;
@@ -224,8 +250,10 @@ module ze-as112-conf {
                     type string;
                     default "/dns-query";
                     description
-                        "HTTP request path the DoH endpoint answers on (RFC 8484
-                         URI Template); defaults to /dns-query.";
+                        "HTTP request path the DoH endpoint answers on.";
+                    ze:help
+                        "RFC 8484 defines the URI Template. The default path is
+                         /dns-query.";
                 }
             }
 
@@ -251,15 +279,18 @@ module ze-as112-conf {
                 config false;
                 ze:listener;
                 description
-                    "Presence-only anchor: as112 always occupies port 53
-                     on its fixed IPv4 anycast addresses while enabled.
-                     The Go-level default (RegisterListenerDefault) fills
-                     in the representative address, since this list is
-                     never populated by any operator-facing command.";
+                    "Presence-only anchor for port 53 on the fixed IPv4 anycast addresses.";
+                ze:help
+                    "as112 always occupies port 53 on its fixed IPv4 anycast
+                     addresses while it is enabled. The Go-level default,
+                     RegisterListenerDefault, fills in the representative address,
+                     because no operator-facing command populates this list.";
 
                 leaf name {
                     type string;
-                    description "Fixed entry name";
+                    description "Fixed entry name.";
+                    ze:help "The name is the list key. No operator-facing command
+                             writes this list, so it carries one fixed entry.";
                 }
 
                 uses zt:listener {
@@ -277,12 +308,17 @@ module ze-as112-conf {
                 config false;
                 ze:listener;
                 description
-                    "Presence-only anchor: as112 always occupies port 53
-                     on its fixed IPv6 anycast addresses while enabled.";
+                    "Presence-only anchor for port 53 on the fixed IPv6 anycast addresses.";
+                ze:help
+                    "as112 always occupies port 53 on its fixed IPv6 anycast
+                     addresses while it is enabled.";
+
 
                 leaf name {
                     type string;
-                    description "Fixed entry name";
+                    description "Fixed entry name.";
+                    ze:help "The name is the list key. No operator-facing command
+                             writes this list, so it carries one fixed entry.";
                 }
 
                 uses zt:listener {

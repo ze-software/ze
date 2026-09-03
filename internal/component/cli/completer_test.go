@@ -827,3 +827,57 @@ func completionTexts(completions []Completion) []string {
 	}
 	return texts
 }
+
+// TestConfigCompletionCarriesBothTexts covers what a config node hands the two
+// help surfaces of the interactive CLI.
+//
+// VALIDATES: AC-11 — a config leaf declaring a description and a ze:help
+// produces a completion whose Description is the summary and whose LongHelp is
+// the explanation.
+// PREVENTS: the ze:help of a config node staying unread, which left the ? box
+// with nothing the one-line row had not already shown.
+func TestConfigCompletionCarriesBothTexts(t *testing.T) {
+	c := NewCompleter()
+
+	comp := completionNamed(t, c.Complete("set router-id", []string{"bgp"}), "router-id")
+
+	assert.NotEmpty(t, comp.Description, "the menu row reads the summary")
+	assert.Contains(t, comp.LongHelp, "RFC 6286",
+		"the ? box reads the ze:help the leaf declares")
+	assert.NotEqual(t, comp.Description, comp.LongHelp,
+		"neither text is derived from the other")
+}
+
+// TestConfigCompletionRowIsNotTheParagraph holds the menu row to what one line
+// can show.
+//
+// VALIDATES: AC-9 — the row text of a config leaf declaring both texts is the
+// short one, and it fits the 96 columns the overlay allows.
+// PREVENTS: the defect an operator reported, a four-line paragraph on the
+// one-line message row.
+func TestConfigCompletionRowIsNotTheParagraph(t *testing.T) {
+	const rowWidthMax = 96
+
+	c := NewCompleter()
+
+	comp := completionNamed(t, c.Complete("set router-id", []string{"bgp"}), "router-id")
+
+	assert.LessOrEqual(t, len(comp.Description), rowWidthMax,
+		"the row holds the summary, and the summary fits one row")
+	assert.NotContains(t, comp.Description, "\n", "the row is one line")
+	assert.NotContains(t, comp.LongHelp, comp.Description,
+		"the explanation is a separate text, not the row with more after it")
+}
+
+// completionNamed returns the one completion carrying text, and fails the test
+// when the list holds none.
+func completionNamed(t *testing.T, completions []Completion, text string) Completion {
+	t.Helper()
+	for _, c := range completions {
+		if c.Text == text {
+			return c
+		}
+	}
+	t.Fatalf("no completion named %q in %v", text, completionTexts(completions))
+	return Completion{}
+}

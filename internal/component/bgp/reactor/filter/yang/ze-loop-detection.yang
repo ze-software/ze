@@ -18,8 +18,9 @@ module ze-loop-detection {
         list loop-detection {
             ze:filter;
             key "name";
-            description "Named loop detection filter instance.
-                         Configures AS loop and cluster-list loop detection per-peer.";
+            description "Named loop detection filter instance.";
+            ze:help "The instance configures AS loop detection and cluster-list
+                     loop detection, for each peer that references it.";
 
             leaf name {
                 type string;
@@ -31,14 +32,16 @@ module ze-loop-detection {
                     range "0..10";
                 }
                 default 0;
-                description "Number of own-AS occurrences to allow in AS_PATH before rejecting.
-                             0 means reject on first occurrence (default, RFC 4271 Section 9).";
+                description "Own-AS occurrences permitted in AS_PATH before ze rejects the route.";
+                ze:help "The default is 0, which rejects the route on the first
+                         occurrence (RFC 4271 Section 9).";
             }
 
             leaf cluster-id {
                 type zt:ipv4-address;
-                description "Override Router ID for CLUSTER_LIST loop detection.
-                             If not set, uses the BGP Router ID (RFC 4456 Section 7).";
+                description "Override Router ID for CLUSTER_LIST loop detection.";
+                ze:help "When this leaf is unset, ze uses the BGP Router ID
+                         (RFC 4456 Section 7).";
             }
         }
     }

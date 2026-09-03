@@ -2,6 +2,7 @@ module ze-firewall-irr {
     namespace "urn:ze:firewall-irr";
     prefix fwirr;
 
+    import ze-extensions { prefix ze; }
     import ze-firewall-conf { prefix fw; }
 
     description "IRR-based source/destination address filtering for the firewall.
@@ -40,19 +41,19 @@ module ze-firewall-irr {
                 }
                 default "0";
                 units "seconds";
-                description "Seconds between automatic IRR re-queries.
-                             0 (default) disables automatic refresh; the operator
-                             must use 'update firewall irr' manually. A value in
-                             60..86400 enables periodic refresh with fail-closed
-                             semantics (failed refresh preserves last-good cache).";
+                description "Seconds between automatic IRR re-queries.";
+                ze:help "The default 0 disables the automatic refresh, and the
+                         operator then runs 'update firewall irr' by hand. A value
+                         in 60..86400 starts the periodic refresh. That refresh
+                         fails closed: a failed query keeps the last-good cache.";
             }
 
             list interface {
                 key "name";
-                description "Per-interface AS-SET binding for ingress source
-                             validation. Packets arriving on this interface with
-                             source addresses not in the AS-SET's IRR-resolved
-                             prefixes are dropped.";
+                description "Per-interface AS-SET binding for ingress source validation.";
+                ze:help "Ze drops a packet that arrives on this interface when its
+                         source address is not in the IRR-resolved prefixes of the
+                         AS-SET.";
 
                 leaf name {
                     type string {
@@ -69,10 +70,11 @@ module ze-firewall-irr {
                         pattern '[A-Za-z0-9:._-]+';
                     }
                     mandatory true;
-                    description "AS-SET whose IRR-resolved prefixes form the
-                                 allowed source-address set for this interface.
-                                 Requires cached prefix data; config commit
-                                 rejects if no cached data exists.";
+                    description "AS-SET whose IRR-resolved prefixes are the allowed source addresses.";
+                    ze:help "The prefixes the IRR resolves for this AS-SET form the
+                             allowed source-address set of the interface. The match
+                             needs cached prefix data. A config commit is refused
+                             when no cached data exists.";
                 }
             }
         }
@@ -83,10 +85,10 @@ module ze-firewall-irr {
             type uint32 {
                 range "1..4294967294";
             }
-            description "Match source address against IRR-resolved prefixes for
-                         this ASN. Requires cached prefix data (run 'update
-                         firewall irr asn <N>' first). Config commit rejects
-                         if no cached data exists.";
+            description "Match the source address against the IRR-resolved prefixes of this ASN.";
+            ze:help "The match needs cached prefix data, so run 'update firewall
+                     irr asn <N>' first. A config commit is refused when no cached
+                     data exists.";
         }
 
         leaf source-as-set {
@@ -94,18 +96,21 @@ module ze-firewall-irr {
                 length "1..255";
                 pattern '[A-Za-z0-9:._-]+';
             }
-            description "Match source address against IRR-resolved prefixes for
-                         this AS-SET. Requires cached prefix data (run 'update
-                         firewall irr as-set <name>' first). Config commit
-                         rejects if no cached data exists.";
+            description "Match the source address against the IRR-resolved prefixes of this AS-SET.";
+            ze:help "The match needs cached prefix data, so run 'update firewall
+                     irr as-set <name>' first. A config commit is refused when no
+                     cached data exists.";
         }
 
         leaf destination-asn {
             type uint32 {
                 range "1..4294967294";
             }
-            description "Match destination address against IRR-resolved prefixes
-                         for this ASN. Same caching semantics as source-asn.";
+            description "Match the destination address against the IRR-resolved prefixes of this ASN.";
+            ze:help "The cache rule is the one source-asn states. The match needs
+                     cached prefix data, so run 'update firewall irr asn <N>'
+                     first. A config commit is refused when no cached data
+                     exists.";
         }
 
         leaf destination-as-set {
@@ -113,8 +118,12 @@ module ze-firewall-irr {
                 length "1..255";
                 pattern '[A-Za-z0-9:._-]+';
             }
-            description "Match destination address against IRR-resolved prefixes
-                         for this AS-SET. Same caching semantics as source-as-set.";
+            description "Match the destination address against the IRR-resolved prefixes of this AS-SET.";
+            ze:help "The cache rule is the one source-as-set states. The match
+                     needs cached prefix data, so run 'update firewall irr as-set
+                     <name>' first. A config commit is refused when no cached data
+                     exists.";
+
         }
     }
 }

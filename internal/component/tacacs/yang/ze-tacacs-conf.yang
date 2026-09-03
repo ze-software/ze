@@ -89,12 +89,12 @@ module ze-tacacs-conf {
                 leaf-list profile {
                     type string;
                     min-elements 1;
-                    description "Ze authorization profile name(s). At least one is
-                                 required: a level mapped to no profiles would
-                                 authenticate the user while granting nothing, and
-                                 authorization reads an empty profile set as 'no
-                                 opinion' rather than 'deny'. To deny a privilege
-                                 level, leave it out of the mapping entirely.";
+                    description "Ze authorization profiles for this privilege level. At least one is required.";
+                    ze:help "A level mapped to no profiles would authenticate the
+                             user and grant nothing. Authorization reads an empty
+                             profile set as 'no opinion' rather than 'deny'. To
+                             deny a privilege level, leave the level out of the
+                             mapping.";
                 }
             }
         }

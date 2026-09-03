@@ -28,9 +28,15 @@ type EditSession struct {
 }
 
 // Completion represents a single completion suggestion.
+//
+// Description is the one-line summary the menu row shows. LongHelp is the long
+// explanation the ? box shows, and it is empty when the node declares none. The
+// two texts are declared separately, in the YANG description statement and the
+// ze:help extension, and neither is derived from the other.
 type Completion struct {
 	Text        string
 	Description string
+	LongHelp    string
 	Type        string
 }
 

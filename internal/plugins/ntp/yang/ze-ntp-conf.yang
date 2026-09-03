@@ -2,6 +2,8 @@ module ze-ntp-conf {
     namespace "urn:ze:ntp:conf";
     prefix ntp;
 
+    import ze-extensions { prefix ze; }
+
     description "NTP client configuration for Ze";
 
     revision 2026-01-01 {
@@ -9,15 +11,21 @@ module ze-ntp-conf {
     }
 
     container environment {
-        description "Environment settings for NTP client";
+        description "Environment settings of the NTP client.";
+        ze:help "The environment tree holds the settings of the services Ze runs, beside
+the routing configuration rather than inside it.";
 
         container ntp {
-            description "NTP client settings";
+            description "Settings of the NTP client.";
+            ze:help "The presence of these settings does not start the client. Set the
+enabled leaf to true.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable NTP time synchronization";
+                description "Synchronize the system clock with an NTP server.";
+                ze:help "The default is false, so Ze leaves the system clock alone until
+this leaf is true.";
             }
 
             leaf interval {
@@ -25,7 +33,8 @@ module ze-ntp-conf {
                     range "60..86400";
                 }
                 default 3600;
-                description "Sync interval in seconds";
+                description "Seconds between two clock synchronizations.";
+                ze:help "The range is 60 to 86400 seconds, and the default is 3600.";
             }
 
             leaf max-step {
@@ -33,9 +42,10 @@ module ze-ntp-conf {
                     range "0..86400";
                 }
                 default 3600;
-                description
-                    "Maximum accepted NTP clock step in seconds. A value
-                     of 0 explicitly allows unlimited steps.";
+                description "Largest clock step in seconds that Ze accepts.";
+                ze:help "Ze refuses a step larger than this value, which keeps a wrong
+server answer from moving the clock far. A value of 0 removes the limit, so Ze accepts
+a step of any size.";
             }
 
             leaf slew-threshold {
@@ -43,30 +53,39 @@ module ze-ntp-conf {
                     range "0..1000";
                 }
                 default 128;
-                description
-                    "Maximum offset in milliseconds for gradual clock slew
-                     via Adjtimex. Offsets above this threshold use Settimeofday
-                     (step). A value of 0 disables slew (always step).";
+                description "Maximum offset in milliseconds for a gradual clock slew.";
+                ze:help "Ze corrects an offset up to this threshold with Adjtimex, which slews
+the clock gradually. Ze corrects a larger offset with Settimeofday, which steps the
+clock. A value of 0 disables the slew, so Ze always steps the clock.";
             }
 
             leaf persist-path {
                 type string;
                 default "/perm/ze/timefile";
-                description "Path to save time on shutdown for recovery";
+                description "Path of the file that holds the time across a restart.";
+                ze:help "Ze writes the current time to this file at shutdown, and reads it
+at startup. The stored time gives the clock a sane value before the first NTP answer
+arrives.";
             }
 
             list server {
                 key "name";
-                description "NTP server pool entries";
+                description "The NTP servers Ze queries.";
+                ze:help "The list key is the name leaf, so one entry exists for each
+server.";
 
                 leaf name {
                     type string;
-                    description "Server entry name (used as key)";
+                    description "Name of this server entry, which is the list key.";
+                    ze:help "The name identifies the entry in the configuration. It is not
+the address Ze queries, which the address leaf holds.";
                 }
 
                 leaf address {
                     type string;
-                    description "NTP server hostname or IP address";
+                    description "Hostname or IP address of the NTP server.";
+                    ze:help "The value is an IPv4 address, an IPv6 address, or a
+hostname.";
                 }
             }
         }

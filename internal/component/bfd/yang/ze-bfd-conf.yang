@@ -29,40 +29,31 @@ module ze-bfd-conf {
 
         leaf persist-dir {
             type string;
-            description
-                "DEPRECATED (retained for back-compat; scheduled for
-                 removal). The value is no longer interpreted as a
-                 directory: TX sequence numbers for Meticulous Keyed
-                 authentication now persist to the shared managed state
-                 store (database.zefs) instead of a loose file. A
-                 non-empty value still opts a session into persistence.
-                 RFC 5880 Section 6.7.3 requires the sequence to survive
-                 process restarts; without this leaf set, Meticulous
-                 sessions still work at runtime but a fresh process loses
-                 its sequence floor until the peer's replay window slides
-                 forward.";
+            description "DEPRECATED. A non-empty value opts a session into sequence persistence.";
+            ze:help "DEPRECATED, retained for back-compat and scheduled for removal. The value is no longer interpreted
+                as a directory. TX sequence numbers for Meticulous Keyed authentication now persist to the shared
+                managed state store (database.zefs), instead of a loose file. A non-empty value still opts a session
+                into persistence. RFC 5880 Section 6.7.3 requires the sequence to survive process restarts. Without
+                this leaf set, Meticulous sessions still work at runtime, but a fresh process loses its sequence
+                floor until the peer's replay window slides forward.";
         }
 
         leaf bind-v6 {
             type boolean;
             default false;
-            description
-                "When true, the BFD plugin also binds an IPv6 socket
-                 (::0) alongside the IPv4 socket for every (vrf, mode)
-                 loop. The paired sockets share the same RX channel
-                 via a transport.Dual wrapper and send routes by
-                 destination address family. Stage 2b
-                 (spec-bfd-2b-ipv6-transport) ships this leaf; pinned
-                 IPv6 sessions require it to be set explicitly so
-                 operators who do not need v6 do not open a second
-                 socket per loop.";
+            description "Bind an IPv6 socket beside the IPv4 socket on every loop.";
+            ze:help "When this leaf is true, the BFD plugin also binds an IPv6 socket (::0) alongside the IPv4 socket for
+                every (vrf, mode) loop. The paired sockets share the same RX channel through a transport.Dual
+                wrapper, and send routes by destination address family. Stage 2b (spec-bfd-2b-ipv6-transport) ships
+                this leaf. A pinned IPv6 session requires the leaf to be set explicitly, so an operator who does not
+                need IPv6 does not open a second socket per loop.";
         }
 
         list profile {
             key "name";
-            description
-                "Reusable timer and feature profile. Sessions reference
-                 a profile by name and inherit every field below.";
+            description "Reusable timer and feature profile.";
+            ze:help "Reusable timer and feature profile. Sessions reference a profile by name and inherit every field
+                below.";
 
             leaf name {
                 type string;
@@ -74,18 +65,16 @@ module ze-bfd-conf {
                     range "1..255";
                 }
                 default 3;
-                description
-                    "Number of consecutive missed Control packets that
-                     trigger a Down transition. RFC 5880 Section 6.8.4.";
+                description "Consecutive missed Control packets that trigger a Down transition.";
+                ze:help "Number of consecutive missed Control packets that trigger a Down transition. RFC 5880 Section 6.8.4.";
             }
 
             leaf desired-min-tx-us {
                 type uint32;
                 default 300000;
-                description
-                    "Local target transmit rate in microseconds. The
-                     slow-start floor of 1 000 000 us applies while the
-                     session is not Up, per RFC 5880 Section 6.8.3.";
+                description "Local target transmit rate in microseconds.";
+                ze:help "Local target transmit rate in microseconds. The slow-start floor of 1 000 000 us applies while the
+                    session is not Up, per RFC 5880 Section 6.8.3.";
             }
 
             leaf required-min-rx-us {
@@ -99,60 +88,40 @@ module ze-bfd-conf {
             leaf passive {
                 type boolean;
                 default false;
-                description
-                    "Active (default) transmits from session creation.
-                     Passive transmits nothing until a Control packet
-                     arrives from the peer. RFC 5883 Section 4.3.";
+                description "Wait for a peer Control packet before this session transmits.";
+                ze:help "Active, which is the default, transmits from session creation. Passive transmits nothing until a
+                    Control packet arrives from the peer. RFC 5883 Section 4.3.";
             }
 
             container echo {
                 presence "enables BFD Echo mode on sessions using this profile";
-                description
-                    "RFC 5880 Section 6.4 / RFC 5881 Section 5 Echo
-                     mode. Single-hop only -- RFC 5883 Section 4
-                     explicitly prohibits multi-hop echo, and the
-                     parser rejects echo on a multi-hop session. When
-                     active, the engine sends echo packets on UDP
-                     port 3785 at the peer's advertised
-                     RequiredMinEchoRxInterval and slows its async
-                     Control TX to the peer's RequiredMinRxInterval.";
+                description "BFD Echo mode (RFC 5880 Section 6.4, RFC 5881 Section 5).";
+                ze:help "RFC 5880 Section 6.4 / RFC 5881 Section 5 Echo mode. Echo mode is single-hop only, because RFC 5883
+                    Section 4 explicitly prohibits multi-hop echo, and the parser rejects echo on a multi-hop session.
+                    When echo is active, the engine sends echo packets on UDP port 3785 at the peer's advertised
+                    RequiredMinEchoRxInterval. The engine then slows its async Control TX to the peer's
+                    RequiredMinRxInterval.";
 
                 leaf desired-min-echo-tx-us {
                     type uint32;
                     default 50000;
-                    description
-                        "Local target echo transmit rate in
-                         microseconds. The effective echo rate is
-                         max(local desired, peer RequiredMinEchoRx).";
+                    description "Local target echo transmit rate in microseconds.";
+                    ze:help "Local target echo transmit rate in microseconds. The effective echo rate is max(local desired, peer
+                        RequiredMinEchoRx).";
                 }
             }
 
             container auth {
                 presence "enables authentication on sessions using this profile";
-                description
-                    "RFC 5880 Section 6.7 authentication parameters.
-                     Sessions inheriting this profile sign every
-                     outgoing Control packet with the configured type
-                     and verify incoming packets using the same key.
-                     There is no default type: authentication runs
-                     only on the type the operator names here.";
+                description "Authentication parameters (RFC 5880 Section 6.7).";
+                ze:help "RFC 5880 Section 6.7 authentication parameters. Sessions inheriting this profile sign every outgoing
+                    Control packet with the configured type, and verify incoming packets with the same key. There is no
+                    default type, and authentication runs only on the type the operator names here.";
 
                 leaf type {
                     type enumeration {
                         enum simple-password {
-                            description
-                                "RFC 5880 Section 6.7.2 Simple Password.
-                                 The password travels in clear in every
-                                 Control packet and the section never
-                                 changes, so it protects against a
-                                 misconfigured neighbour and against
-                                 nothing else. It does not protect
-                                 against a listener on the path, who
-                                 reads the password from one packet, and
-                                 it carries no Sequence Number, so a
-                                 captured packet can be replayed. Choose
-                                 a keyed type wherever the path is not
-                                 already trusted.";
+                            description "RFC 5880 Section 6.7.2 Simple Password, sent in clear in every Control packet.";
                         }
                         enum keyed-md5 {
                             description "RFC 5880 Section 6.7.3 Keyed MD5.";
@@ -168,10 +137,13 @@ module ze-bfd-conf {
                         }
                     }
                     mandatory true;
-                    description
-                        "Authentication type. There is no default: the
-                         operator names the type, and simple-password is
-                         never selected on their behalf.";
+                    description "Authentication type, which the operator must name.";
+                    ze:help "Authentication type. There is no default. The operator names the type, and simple-password is never
+                        selected on their behalf. simple-password is RFC 5880 Section 6.7.2 Simple Password. The password
+                        travels in clear in every Control packet and the section never changes, so it protects against a
+                        misconfigured peer and against nothing else. It does not protect against a listener on the path, who
+                        reads the password from one packet, and it carries no Sequence Number, so a captured packet can be
+                        replayed. Choose a keyed type wherever the path is not already trusted.";
                 }
 
                 leaf key-id {
@@ -184,25 +156,20 @@ module ze-bfd-conf {
                     type string;
                     mandatory true;
                     ze:sensitive;
-                    description
-                        "Shared secret. Redacted from `ze config show`
-                         output. MD5 variants use the first 16 bytes of
-                         the secret, SHA1 variants the first 20, and
-                         both pad a shorter secret with zeros. The
-                         simple-password type carries the secret itself
-                         on the wire, so it must be 1 to 16 bytes and a
-                         longer one is refused at parse time (RFC 5880
-                         Section 6.7.2).";
+                    description "Shared secret, redacted from `ze config show` output.";
+                    ze:help "Shared secret. Redacted from `ze config show` output. MD5 variants use the first 16 bytes of the
+                        secret, SHA1 variants the first 20, and both pad a shorter secret with zeros. The simple-password
+                        type carries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused
+                        at parse time (RFC 5880 Section 6.7.2).";
                 }
             }
         }
 
         list single-hop-session {
             key "peer vrf interface";
-            description
-                "Per-link BFD session (RFC 5881). Port 3784, TTL=255.
-                 Protocol clients should NOT use this list; they call
-                 the plugin Service interface at runtime.";
+            description "Per-link BFD session on port 3784 with TTL 255 (RFC 5881).";
+            ze:help "Per-link BFD session (RFC 5881). Port 3784, TTL=255. A protocol client MUST NOT use this list. A
+                protocol client calls the plugin Service interface at runtime.";
 
             leaf peer {
                 type string;

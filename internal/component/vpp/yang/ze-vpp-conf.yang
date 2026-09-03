@@ -2,6 +2,8 @@ module ze-vpp-conf {
     namespace "urn:ze:vpp:conf";
     prefix zvpp;
 
+    import ze-extensions { prefix ze; }
+
     description
         "VPP (Vector Packet Processing) lifecycle configuration for Ze.
          Manages VPP process startup, DPDK NIC binding, GoVPP connection,
@@ -17,23 +19,19 @@ module ze-vpp-conf {
         leaf enabled {
             type boolean;
             default false;
-            description
-                "Enable VPP integration. When true, ze manages VPP
-                 lifecycle: generates startup.conf, binds DPDK NICs,
-                 starts VPP process, connects via GoVPP.";
+            description "Enable VPP integration, so Ze manages the VPP lifecycle.";
+            ze:help "Enable VPP integration. When this leaf is true, Ze manages the VPP lifecycle. Ze generates
+                startup.conf, binds the DPDK NICs, starts the VPP process, and connects through GoVPP.";
         }
 
         leaf external {
             type boolean;
             default false;
-            description
-                "When true, ze does NOT exec or supervise the VPP
-                 process, generate startup.conf, or bind DPDK NICs;
-                 the external supervisor owns all of that. Ze only
-                 connects via GoVPP to api-socket. Use this for
-                 systemd-managed VPP, container sidecar deployments,
-                 or the `ze-test vpp` stub harness. Default: false
-                 (ze owns VPP lifecycle).";
+            description "Let an external supervisor own the VPP process, false by default.";
+            ze:help "When this leaf is true, Ze does not exec or supervise the VPP process, generate startup.conf, or
+                bind DPDK NICs. The external supervisor owns all of that. Ze only connects through GoVPP to
+                api-socket. Use this leaf for systemd-managed VPP, for a container sidecar deployment, or for the
+                `ze-test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.";
         }
 
         leaf api-socket {
@@ -64,15 +62,12 @@ module ze-vpp-conf {
                 type string {
                     pattern '[0-9]+ms';
                 }
-                description
-                    "Fixed sleep between VPP main-loop polls, expressed in whole
-                     milliseconds (the only accepted unit), e.g. 10ms. Emitted
-                     as unix { poll-sleep-usec N } in startup.conf (1ms = 1000
-                     microseconds). Omit for VPP's default (no sleep: workers
-                     busy-poll at 100% CPU) for lowest latency. Set a non-zero
-                     value up to 100ms on shared or dev hosts to trade latency
-                     for idle CPU. An explicit 0ms is emitted and equals the
-                     default.";
+                description "Fixed sleep between VPP main-loop polls, in whole milliseconds.";
+                ze:help "Fixed sleep between VPP main-loop polls, expressed in whole milliseconds, which is the only accepted
+                    unit, for example 10ms. Ze emits it as unix { poll-sleep-usec N } in startup.conf, where 1ms is 1000
+                    microseconds. Omit the leaf for VPP's default, where the workers busy-poll at 100% CPU with no
+                    sleep, and the latency is lowest. Set a non-zero value up to 100ms on a shared or dev host, to trade
+                    latency for idle CPU. An explicit 0ms is emitted and equals the default.";
             }
         }
 
@@ -162,17 +157,16 @@ module ze-vpp-conf {
                     range "1..3600";
                 }
                 default 30;
-                description
-                    "Stats polling interval in seconds. Controls how often
-                     ze reads VPP's stats segment for Prometheus metrics.";
+                description "Stats polling interval in seconds.";
+                ze:help "Stats polling interval in seconds. The interval controls how often Ze reads VPP's stats segment for
+                    Prometheus metrics.";
             }
         }
 
         container lcp {
-            description
-                "Linux Control Plane plugin. Creates TAP mirrors
-                 in Linux for VPP interfaces, enabling routing daemons
-                 (ze BGP) to use Linux TCP on VPP-managed NICs.";
+            description "Linux Control Plane plugin settings.";
+            ze:help "Linux Control Plane plugin. The plugin creates TAP mirrors in Linux for VPP interfaces. A routing
+                daemon such as ze BGP can then use Linux TCP on a VPP-managed NIC.";
 
             leaf enabled {
                 type boolean;
@@ -206,19 +200,17 @@ module ze-vpp-conf {
         }
 
         container plugins {
-            description
-                "Optional VPP plugin enablement. startup.conf uses
-                 'plugin default { disable }', so only the always-on
-                 plugins (dpdk, plus linux-cp when lcp is enabled) and
-                 the plugins toggled on here are loaded.";
+            description "Optional VPP plugins to load.";
+            ze:help "Optional VPP plugin enablement. startup.conf uses 'plugin default { disable }', so Ze loads only the
+                always-on plugins and the plugins toggled on here. The always-on plugins are dpdk, plus linux-cp
+                when lcp is enabled.";
 
             leaf wireguard {
                 type boolean;
                 default false;
-                description
-                    "Load wireguard_plugin.so so the vpp interface
-                     backend can program WireGuard tunnels (interface
-                     wireguard under backend vpp).";
+                description "Load wireguard_plugin.so for the vpp interface backend.";
+                ze:help "Load wireguard_plugin.so so the vpp interface backend can program WireGuard tunnels. The tunnels are
+                    configured as interface wireguard under backend vpp.";
             }
         }
     }

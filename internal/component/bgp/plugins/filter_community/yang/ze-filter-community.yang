@@ -22,32 +22,59 @@ module ze-filter-community {
     // Named community definitions under bgp { community { } }
     augment "/bgp:bgp" {
         container community {
-            description "Named community definitions referenced by filter rules";
+            description "Named community definitions referenced by filter rules.";
+            ze:help "A filter rule names a set from this container rather than
+                     repeating the community values. The three lists hold standard,
+                     large and extended communities.";
 
             list standard {
                 key "name";
-                leaf name { type string; description "Community set name"; }
+                leaf name {
+                    type string;
+                    description "Community set name.";
+                    ze:help "The name is the list key, and a filter rule names this
+                             set by it.";
+                }
+
                 leaf-list value {
                     type string;
-                    description "Standard community values (ASN:value format)";
+                    description "Standard community values, in ASN:value format.";
+                    ze:help "A standard community is two 16-bit numbers, written
+                             ASN:value (RFC 1997).";
                 }
             }
 
             list large {
                 key "name";
-                leaf name { type string; description "Community set name"; }
+                leaf name {
+                    type string;
+                    description "Community set name.";
+                    ze:help "The name is the list key, and a filter rule names this
+                             set by it.";
+                }
+
                 leaf-list value {
                     type string;
-                    description "Large community values (GA:LD1:LD2 format)";
+                    description "Large community values, in GA:LD1:LD2 format.";
+                    ze:help "A large community is three 32-bit numbers, written
+                             GA:LD1:LD2 (RFC 8092).";
                 }
             }
 
             list extended {
                 key "name";
-                leaf name { type string; description "Community set name"; }
+                leaf name {
+                    type string;
+                    description "Community set name.";
+                    ze:help "The name is the list key, and a filter rule names this
+                             set by it.";
+                }
+
                 leaf-list value {
                     type string;
-                    description "Extended community values";
+                    description "Extended community values.";
+                    ze:help "An extended community is eight octets, and its type
+                             decides how Ze reads the value (RFC 4360).";
                 }
             }
         }
@@ -57,74 +84,87 @@ module ze-filter-community {
     // Augmented into the existing filter container at bgp, group, and peer levels.
     grouping community-filter-fields {
         container ingress {
-            description "Ingress direction filters";
+            description "Ingress direction filters.";
+            ze:help "The container holds the filters Ze runs over a route it receives
+                     from this peer.";
 
             container community {
-                description "Community filter for ingress";
+                description "Community filter for ingress.";
+                ze:help "The container holds the tag list, the strip list, and the
+                         RFC 8195, RFC 7454 and RFC 7999 leaves.";
 
                 leaf-list tag {
                     type string;
                     ze:cumulative;
-                    description "Named communities to add on ingress";
+                    description "Named communities to add on ingress.";
+                    ze:help "Each value names a set in the bgp community container.
+                             Ze adds every community of that set to the route.";
                 }
 
                 leaf-list strip {
                     type string;
                     ze:cumulative;
-                    description "Named communities to remove on ingress";
+                    description "Named communities to remove on ingress.";
+                    ze:help "Each value names a set in the bgp community container.
+                             Ze removes every community of that set from the route.";
                 }
 
                 leaf relation-tag {
                     type boolean;
                     default "false";
                     description
-                      "Write the RFC 8195 Section 3.2 relation-to-origin large
-                       community on each route received from this peer. The
-                       Global Administrator is the session local AS. The
-                       parameter comes from what the peer IS to us: 2 for a
-                       customer, 3 for a peer, 4 for a provider. A route-server
-                       or route-server-client session writes nothing, because
-                       RFC 7947 requires transparency there. An iBGP session
-                       writes nothing. Its sender is inside the local AS and has
-                       no such relation.";
+                      "Write the relation-to-origin large community of RFC 8195 on each route from this peer.";
+
+                    ze:help
+                      "RFC 8195 Section 3.2 defines the community. The Global
+                       Administrator is the session local AS. The parameter comes
+                       from what the peer IS to us: 2 for a customer, 3 for a
+                       peer, 4 for a provider. A route-server session and a
+                       route-server-client session write nothing, because RFC 7947
+                       requires transparency there. An iBGP session writes nothing.
+                       Its sender is inside the local AS and has no such
+                       relation.";
                 }
 
                 leaf relation-function {
                     type uint32;
                     default 3;
                     description
-                      "Function number of the relation tag. RFC 8195 Section 3.2
-                       leaves this number to each AS and gives 3 as its example.
-                       The number is a local convention, not a protocol
-                       constant. Change it here when the AS already uses 3 for
-                       something else.";
+                      "Function number of the relation tag.";
+                    ze:help
+                      "RFC 8195 Section 3.2 leaves this number to each AS and gives
+                       3 as its example. The number is a local convention, not a
+                       protocol constant. Change it here when the AS already uses 3
+                       for something else.";
                 }
 
                 leaf scrub-own-ga {
                     type boolean;
                     default "false";
                     description
-                      "Remove inbound communities whose Global Administrator is
-                       the local AS. Only the function numbers listed in
-                       scrub-keep-function survive. RFC 7454 Section 11. It
-                       covers standard and large communities. It runs on eBGP
-                       sessions only. On an iBGP session an own-AS value is this
-                       network's own signal to itself. Well-known communities are
-                       never reached, so NO_EXPORT, NO_ADVERTISE and BLACKHOLE
-                       always survive.";
+                      "Remove inbound communities whose Global Administrator is the local AS.";
+                    ze:help
+                      "Only the function numbers listed in scrub-keep-function
+                       survive. RFC 7454 Section 11 asks for the scrub. It covers
+                       standard and large communities. It runs on eBGP sessions
+                       only. On an iBGP session an own-AS value is this network's
+                       own signal to itself. Well-known communities are never
+                       reached, so NO_EXPORT, NO_ADVERTISE and BLACKHOLE always
+                       survive.";
                 }
 
                 leaf-list scrub-keep-function {
                     type uint32;
                     ze:cumulative;
                     description
-                      "Function numbers a peer may send with the local AS as the
-                       Global Administrator. This is RFC 7454 Section 11
-                       carve-out for what customers and peers use as a signaling
-                       mechanism. An empty list keeps nothing. The relation-tag
-                       function number is never kept, whatever this list says: a
-                       kept relation function would let a peer state its own
-                       relation to this AS.";
+                      "Function numbers a peer can send with the local AS as the Global Administrator.";
+                    ze:help
+                      "The list is RFC 7454 Section 11's exception for what
+                       customers and peers use to signal. An empty list keeps
+
+                       nothing. The relation-tag function number is never kept,
+                       whatever this list says: a kept relation function would let
+                       a peer state its own relation to this AS.";
                 }
 
                 leaf blackhole-propagation {
@@ -141,31 +181,41 @@ module ze-filter-community {
                     }
                     default "none";
                     description
-                      "Community to add to a route received carrying BLACKHOLE
-                       (65535:666). It stops the prefix propagating outside the
-                       local AS. RFC 7999 Section 3.2. The choice between the two
-                       follows the operator routing policy, so neither is forced.
-                       This adds the community. It does not discard traffic.";
+                      "Community to add to a route that carries BLACKHOLE (65535:666).";
+                    ze:help
+                      "The community stops the prefix propagating outside the local
+                       AS, which RFC 7999 Section 3.2 asks for. The choice between
+                       the two values is the operator routing policy, so neither is
+                       forced. This leaf adds the community. It does not discard
+                       traffic.";
+
                 }
             }
         }
 
         container egress {
-            description "Egress direction filters";
+            description "Egress direction filters.";
+            ze:help "The container holds the filters Ze runs over a route it sends to
+                     this peer.";
 
             container community {
-                description "Community filter for egress";
+                description "Community filter for egress.";
+                ze:help "The container holds the tag list and the strip list.";
 
                 leaf-list tag {
                     type string;
                     ze:cumulative;
-                    description "Named communities to add on egress";
+                    description "Named communities to add on egress.";
+                    ze:help "Each value names a set in the bgp community container.
+                             Ze adds every community of that set to the route.";
                 }
 
                 leaf-list strip {
                     type string;
                     ze:cumulative;
-                    description "Named communities to remove on egress";
+                    description "Named communities to remove on egress.";
+                    ze:help "Each value names a set in the bgp community container.
+                             Ze removes every community of that set from the route.";
                 }
             }
         }

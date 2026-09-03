@@ -42,63 +42,56 @@ module ze-filter-modify {
         list modify {
             ze:filter;
             key "name";
-            description "Named route attribute modifier instance.
-                         Only declared leaves are modified; undeclared
-                         attributes are preserved unchanged. Multiple
-                         attributes can be changed in a single modifier.";
+            description "Named route attribute modifier instance.";
+            ze:help "Ze modifies only the declared leaves, and keeps every undeclared
+attribute unchanged. One modifier can change several attributes.";
 
             leaf name {
                 type string;
-                description "Modifier instance name (referenced in peer filter
-                             chains as modify:NAME).";
+                description "Modifier instance name, used in a peer filter chain.";
+                ze:help "A peer filter chain names this instance as modify:NAME, where
+NAME is the value of this leaf.";
             }
 
             container match {
-                description "Condition a route meets before the operations
-                             apply. A route that meets none of the stated values
-                             passes through UNCHANGED, not rejected: the chain
-                             drops a rejected route, and a conditional modifier
-                             exists so the routes it does not touch keep
-                             flowing.
-                             An absent match container applies the operations to
-                             every route that reaches the modifier.
-                             Values across the three leaf-lists are
-                             alternatives: any one present in the route
-                             satisfies the condition.";
+                description "Condition a route meets before the operations apply.";
+                ze:help "A route that meets none of the stated values passes through
+unchanged, and Ze does not reject it. The chain drops a rejected route, and a
+conditional modifier exists so that the routes it does not touch keep flowing. An
+absent match container applies the operations to every route that reaches the modifier.
+The values across the three leaf-lists are alternatives, so one value present in the
+route satisfies the condition.";
 
                 leaf-list community {
                     type string;
-                    description "Apply only to a route whose COMMUNITIES
-                                 attribute (RFC 1997, type 8) carries this
-                                 value.
-                                 ASN:VAL (e.g. 65001:666), or a well-known name
-                                 (blackhole, no-export, no-advertise,
-                                 no-export-subconfed, nopeer). The two spellings
-                                 of a well-known value are equivalent: 65535:666
-                                 and blackhole select the same community, which
-                                 RFC 7999 registers and RFC 7999 Section 4 names
-                                 with that suggested keyword.";
+                    description "Apply only to a route whose COMMUNITIES attribute carries this value.";
+                    ze:help "The COMMUNITIES attribute is RFC 1997, type 8. The value takes
+the form ASN:VAL, for example 65001:666, or a well-known name. The well-known names are
+blackhole, no-export, no-advertise, no-export-subconfed and nopeer. The two spellings
+of a well-known value are equivalent, so 65535:666 and blackhole select the same
+community. RFC 7999 registers that community, and RFC 7999 Section 4 names it with that
+suggested keyword.";
                 }
 
                 leaf-list large-community {
                     type string;
-                    description "Apply only to a route whose LARGE COMMUNITIES
-                                 attribute (RFC 8092, type 32) carries this
-                                 value. GA:LD1:LD2 (e.g. 65001:100:200).";
+                    description "Apply only to a route whose LARGE COMMUNITIES attribute carries this value.";
+                    ze:help "The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value
+takes the form GA:LD1:LD2, for example 65001:100:200.";
                 }
 
                 leaf-list extended-community {
                     type string;
-                    description "Apply only to a route whose EXTENDED
-                                 COMMUNITIES attribute (RFC 4360, type 16)
-                                 carries this value. target:ASN:NN,
-                                 origin:ASN:NN, or a hex string.";
+                    description "Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.";
+                    ze:help "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The
+value takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string.";
                 }
             }
 
             container set {
-                description "Attributes to set on matching routes.
-                             Only present leaves are applied.";
+                description "Attributes Ze sets on a matching route.";
+                ze:help "Ze applies only the leaves that are present in this container,
+and keeps every other attribute unchanged.";
 
                 leaf local-preference {
                     type uint32;
@@ -113,13 +106,13 @@ module ze-filter-modify {
                 leaf origin {
                     type enumeration {
                         enum igp {
-                            description "IGP origin";
+                            description "The route started inside the local AS.";
                         }
                         enum egp {
-                            description "EGP origin";
+                            description "The route came from the retired EGP protocol.";
                         }
                         enum incomplete {
-                            description "Incomplete origin";
+                            description "The route came from another source, such as redistribution.";
                         }
                     }
                     description "Set ORIGIN attribute (RFC 4271 type 1).";
@@ -127,18 +120,19 @@ module ze-filter-modify {
 
                 leaf next-hop {
                     type zt:ip-address;
-                    description "Set NEXT_HOP attribute (RFC 4271 type 3).
-                                 IPv4 address only (IPv6 next-hop is in MP_REACH).";
+                    description "Set the NEXT_HOP attribute of the route.";
+                    ze:help "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address
+only. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not
+set one.";
                 }
 
                 leaf as-path-prepend {
                     type uint8 {
                         range "1..32";
                     }
-                    description "Prepend local AS to AS_PATH this many times.
-                                 The actual ASN prepended is the peer's local-as
-                                 (from session config). Range 1-32 prevents
-                                 excessive path inflation.";
+                    description "Prepend the local AS to AS_PATH this many times.";
+                    ze:help "Ze prepends the local-as of the peer, which the session config
+holds. The range 1 to 32 stops the path from growing without a limit.";
                 }
 
                 leaf-list community-add {
@@ -173,40 +167,32 @@ module ze-filter-modify {
             }
 
             container del {
-                description "Attributes to delete from matching routes.
-                             Only present leaves are applied.";
+                description "Attributes Ze deletes from a matching route.";
+                ze:help "Ze applies only the leaves that are present in this container,
+and keeps every other attribute unchanged.";
 
                 leaf med {
                     type empty;
-                    description "Remove the MULTI_EXIT_DISC attribute (RFC 4271
-                                 type 4) from the route.
-                                 RFC 4271 Section 5.1.4 requires a mechanism,
-                                 based on local configuration, that removes
-                                 MULTI_EXIT_DISC from a route, and requires the
-                                 removal to happen before the route reaches
-                                 Decision Process phases 1 and 2. The del med
-                                 operation is that mechanism, so it applies on
-                                 an IMPORT chain only: the route enters the
-                                 decision process with no metric. On an export
-                                 chain it is refused with a log line, because
-                                 Section 9.1.2.2 states that a comparison on
-                                 MULTI_EXIT_DISC followed by advertisement
-                                 without it causes route loops.
-                                 Mutually exclusive with set med, increment med
-                                 and decrement med.
-                                 A metric received from one neighboring AS is
-                                 already kept off another one without any
-                                 configuration (RFC 4271 Section 5.1.4), so del
-                                 med is for the operator who wants the metric
-                                 gone from the route itself.";
+                    description "Remove the MULTI_EXIT_DISC attribute (RFC 4271 type 4) from the route.";
+                    ze:help "RFC 4271 Section 5.1.4 requires a mechanism, based on local
+configuration, that removes MULTI_EXIT_DISC from a route. The same section requires the
+removal to happen before the route reaches Decision Process phase 1 and phase 2. The
+del med operation is that mechanism, so it applies on an IMPORT chain only, and the
+route enters the decision process with no metric. Ze refuses del med on an export chain
+and writes a log line, because Section 9.1.2.2 states that a comparison on
+MULTI_EXIT_DISC followed by advertisement without it causes route loops. del med is
+mutually exclusive with set med, increment med and decrement med. Ze already keeps a
+metric received from one neighboring AS off another one with no configuration (RFC 4271
+Section 5.1.4), so del med is for the operator who wants the metric removed from the
+route itself.";
                 }
             }
 
             container increment {
-                description "Attributes to increment on matching routes.
-                             Adds the specified value to the current attribute
-                             value. Saturates at uint32 max (4294967295).
-                             Mutually exclusive with set for the same attribute.";
+                description "Attributes to increment on a matching route.";
+                ze:help "Ze adds the stated value to the current value of the attribute.
+The result saturates at the uint32 maximum, 4294967295. increment is mutually exclusive
+with set for the same attribute.";
 
                 leaf local-preference {
                     type uint32 {
@@ -231,10 +217,10 @@ module ze-filter-modify {
             }
 
             container decrement {
-                description "Attributes to decrement on matching routes.
-                             Subtracts the specified value from the current
-                             attribute value. Floors at 0 (no underflow).
-                             Mutually exclusive with set for the same attribute.";
+                description "Attributes to decrement on a matching route.";
+                ze:help "Ze subtracts the stated value from the current value of the
+attribute. The result floors at 0, so it never underflows. decrement is mutually
+exclusive with set for the same attribute.";
 
                 leaf local-preference {
                     type uint32 {

@@ -2,6 +2,8 @@ module ze-rib-conf {
     namespace "urn:ze:rib:conf";
     prefix rib;
 
+    import ze-extensions { prefix ze; }
+
     description
         "System RIB configuration for Ze.
          Admin distance settings control cross-protocol route selection.
@@ -16,10 +18,8 @@ module ze-rib-conf {
         description "System RIB configuration.";
 
         container admin-distance {
-            description
-                "Administrative distance per protocol.
-                 Lower value wins. Used by the system RIB to select
-                 the best route across protocols.";
+            description "Administrative distance per protocol.";
+            ze:help "The lower value wins. The system RIB uses the distance to select the best route across protocols.";
 
             leaf connected {
                 type uint8;

@@ -20,15 +20,15 @@ module ze-l2tp-auth-radius-conf {
                 }
                 leaf nas-port-id-format {
                     type string { length "1..253"; }
-                    description "Template for the NAS-Port-Id attribute (RFC 2869
-Section 5.17) sent in Access-Request and Accounting-Request packets. The
-placeholders are {nas-id}, {tunnel-id} and {session-id}; every other character is
-copied. All three are known before the session has an interface, so one session
-sends one text in its Access-Request and in all its accounting records, and a
-billing system can join them. The 253-octet limit is the largest value a RADIUS
-attribute can carry (RFC 2865 Section 5). An unknown placeholder, and a {nas-id}
-with no nas-identifier set, are both refused when the config is committed. Unset
-sends no attribute.";
+                    description "Template for the NAS-Port-Id attribute sent in RADIUS requests.";
+                    ze:help "Ze sends the NAS-Port-Id attribute (RFC 2869 Section 5.17) in an
+Access-Request packet and in an Accounting-Request packet. The placeholders are
+{nas-id}, {tunnel-id} and {session-id}. Ze copies every other character. All three
+values are known before the session has an interface, so one session sends one text in
+its Access-Request and in all its accounting records, and a billing system can join
+them. The 253-octet limit is the largest value a RADIUS attribute can carry (RFC 2865
+Section 5). The commit refuses an unknown placeholder, and it refuses a {nas-id} when
+nas-identifier is unset. An unset leaf sends no attribute.";
                 }
                 leaf timeout {
                     type uint8 { range "1..30"; }
@@ -42,34 +42,34 @@ sends no attribute.";
                 }
                 leaf acct-interval {
                     type uint16 { range "60..3600"; }
-                    description "Accounting interim-update interval in seconds.
-RFC 2869 Section 2.1 states that a locally configured value on the NAS MUST
-override the value found in an Access-Accept. A leaf that is set pins the cadence
-of every session, and the Acct-Interim-Interval attribute (type 85) of an
-Access-Accept then changes nothing. This leaf has no default. An unset leaf
-is the absent case, and it lets each Access-Accept set that session's cadence.
-A session runs at 300 seconds when neither side states an interval.";
+                    description "Accounting interim-update interval in seconds.";
+                    ze:help "RFC 2869 Section 2.1 states that a locally configured value on
+the NAS MUST override the value found in an Access-Accept. A leaf that is set pins the
+cadence of every session, and the Acct-Interim-Interval attribute (type 85) of an
+Access-Accept then changes nothing. This leaf has no default. An unset leaf is the
+absent case, and it lets each Access-Accept set the cadence of that session. A session
+runs at 300 seconds when neither side states an interval.";
                 }
                 leaf coa-port {
                     type uint16 { range "1..65535"; }
-                    description "UDP port for the RADIUS CoA/Disconnect listener
-(RFC 5176), commonly 3799. Deliberately has no default: leaving it unset keeps
-the listener off, so an existing deployment does not start accepting CoA on
-upgrade. Requests are accepted only from the configured RADIUS server addresses.";
+                    description "UDP port of the RADIUS CoA and Disconnect listener, usually 3799.";
+                    ze:help "The listener implements RFC 5176. This leaf has no default on
+purpose. An unset leaf keeps the listener off, so an existing deployment does not start
+to accept CoA on upgrade. Ze accepts a request only from a configured RADIUS server
+address.";
                 }
                 leaf require-message-authenticator {
                     type boolean;
                     default false;
-                    description "Discard a CoA-Request or a Disconnect-Request
-that carries no Message-Authenticator attribute. RFC 5176 Section 3.4 makes the
-attribute optional, so the default is false and a request without one is
-processed after its Request Authenticator verifies against the shared secret.
-Set this leaf to true when every Dynamic Authorization Client sends the
-attribute. The attribute is an HMAC-MD5 keyed with the shared secret, and it is
-the mitigation for the Blast-RADIUS class of attack (CVE-2024-3596), which
-forges a RADIUS/UDP packet with a chosen-prefix MD5 collision against the
-authenticator. A client that sends no attribute gets no answer while this leaf
-is true.";
+                    description "Discard a CoA-Request or a Disconnect-Request that carries no Message-Authenticator.";
+                    ze:help "RFC 5176 Section 3.4 makes the Message-Authenticator attribute
+optional, so the default is false. Ze then processes a request without the attribute
+once its Request Authenticator verifies against the shared secret. Set this leaf to
+true when every Dynamic Authorization Client sends the attribute. The attribute is an
+HMAC-MD5 keyed with the shared secret, and it is the mitigation for the Blast-RADIUS
+class of attack (CVE-2024-3596), which forges a RADIUS UDP packet with a chosen-prefix
+MD5 collision against the authenticator. A client that sends no attribute gets no
+answer while this leaf is true.";
                 }
                 list server {
                     key "name";
@@ -93,10 +93,10 @@ is true.";
                             length "1..max";
                         }
                         ze:sensitive;
-                        description
-                            "RADIUS shared secret. RFC 2865 Section 3 states the
-                             secret MUST NOT be empty (length 0), since an empty
-                             secret allows packets to be trivially forged.";
+                        description "RADIUS shared secret.";
+                        ze:help "RFC 2865 Section 3 states that the secret MUST NOT be
+empty, that is length 0, because an empty secret makes a forged packet easy to
+build.";
                     }
                 }
             }

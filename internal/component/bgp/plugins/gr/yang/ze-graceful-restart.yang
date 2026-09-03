@@ -3,6 +3,7 @@ module ze-graceful-restart {
     prefix gr;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
 
     description
         "Graceful Restart capability plugin for Ze (RFC 4724, code 64;
@@ -35,11 +36,10 @@ module ze-graceful-restart {
                     range "0..16777215";
                 }
                 units "seconds";
-                description
-                    "Long-Lived Stale Time in seconds (RFC 9494 Section 3).
-                     When set, LLGR capability (code 71) is advertised.
-                     Maximum value is 16777215 (24-bit field, ~194 days).
-                     Applied to all negotiated address families for the peer.";
+                description "Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).";
+                ze:help "Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR
+                    capability (code 71). The maximum value is 16777215, because the field is 24 bits, which is about
+                    194 days. Ze applies the value to every negotiated address family of the peer.";
             }
         }
     }

@@ -30,12 +30,10 @@ module ze-geodns-conf {
             list listener {
                 key "name";
                 ze:listener;
-                description
-                    "UDP+TCP listen endpoints. Each named entry binds one IP
-                     (IPv4 or IPv6) and port; repeat with the same port for a
-                     dual-stack pair. Defaults to 127.0.0.1:5300 and ::1:5300
-                     when no entry is configured. The ze:listener marking
-                     enables config-time port-conflict detection across services.";
+                description "UDP and TCP listen endpoints for geodns.";
+                ze:help "UDP+TCP listen endpoints. Each named entry binds one IP (IPv4 or IPv6) and one port. Repeat the same
+                    port for a dual-stack pair. Ze defaults to 127.0.0.1:5300 and ::1:5300 when no entry is configured.
+                    The ze:listener marking enables config-time port-conflict detection across services.";
 
                 leaf name {
                     type string {
@@ -59,7 +57,9 @@ module ze-geodns-conf {
                     range "1..2147483647";
                 }
                 default 300;
-                description "Default record TTL (seconds) when a host omits its own. 1..2147483647 (RFC 2181 section 8); a zero default is not allowed.";
+                description "Default record TTL in seconds when a host omits its own.";
+                ze:help "Default record TTL (seconds) when a host omits its own. The range is 1 to 2147483647 (RFC 2181
+                    section 8). A zero default is not allowed.";
             }
 
             leaf client-ip-source {
@@ -82,7 +82,9 @@ module ze-geodns-conf {
                 type string {
                     length "1..255";
                 }
-                description "Zones served (FQDN). A query name must be one of these or a name inside one, compared label by label. A name outside every zone draws REFUSED.";
+                description "Zones served, as fully qualified domain names.";
+                ze:help "Zones served (FQDN). A query name must be one of these, or a name inside one, compared label by
+                    label. A name outside every zone draws REFUSED.";
             }
 
             leaf-list nameserver {
@@ -146,7 +148,9 @@ module ze-geodns-conf {
                         range "0..2147483647";
                     }
                     default 300;
-                    description "SOA minimum / negative-cache TTL seconds. 0..2147483647: the field is stamped as the SOA record's own TTL, so the RFC 2181 section 8 TTL range bounds it.";
+                    description "SOA minimum, the negative-cache TTL in seconds.";
+                    ze:help "SOA minimum, the negative-cache TTL in seconds. The range is 0 to 2147483647. The field is stamped
+                        as the SOA record's own TTL, so the RFC 2181 section 8 TTL range bounds it.";
                 }
             }
 
@@ -215,9 +219,9 @@ module ze-geodns-conf {
 
             list source {
                 key "prefix";
-                description
-                    "Maps a client-IP prefix to a host-set. Longest prefix wins;
-                     0.0.0.0/0 and ::/0 are the catch-all (external) default.";
+                description "Maps a client-IP prefix to a host-set.";
+                ze:help "Maps a client-IP prefix to a host-set. The longest prefix wins. 0.0.0.0/0 and ::/0 are the catch-all
+                    external default.";
 
                 leaf prefix {
                     type zt:ip-prefix;
@@ -232,12 +236,11 @@ module ze-geodns-conf {
             }
 
             container tls {
-                description
-                    "DNS-over-TLS (DoT, RFC 7858) listener and the certificate
-                     material shared with DoH. When enabled the DoT listener
-                     binds the configured listener IPs on 'listen-port'. When
-                     cert-file/key-file are unset an ephemeral self-signed
-                     certificate is used, which strict clients cannot validate.";
+                description "DNS-over-TLS listener and the certificate material shared with DoH.";
+                ze:help "DNS-over-TLS (DoT, RFC 7858) listener and the certificate material shared with DoH. When the
+                    listener is enabled, DoT binds the configured listener IPs on 'listen-port'. When cert-file and
+                    key-file are unset, Ze uses an ephemeral self-signed certificate, which a strict client cannot
+                    validate.";
 
                 leaf enabled {
                     type boolean;
@@ -255,10 +258,9 @@ module ze-geodns-conf {
 
                 leaf cert-file {
                     type string;
-                    description
-                        "Path to the PEM server certificate presented on DoT and
-                         DoH. Unset (together with key-file) selects an ephemeral
-                         self-signed certificate.";
+                    description "Path to the PEM server certificate presented on DoT and DoH.";
+                    ze:help "Path to the PEM server certificate presented on DoT and DoH. Leave this leaf and key-file unset to
+                        select an ephemeral self-signed certificate.";
                 }
 
                 leaf key-file {
@@ -274,24 +276,19 @@ module ze-geodns-conf {
                         length "1..255";
                         pattern '[A-Za-z0-9._-]+';
                     }
-                    description
-                        "Name of the certificate in the PKI store to serve on DoT
-                         and DoH. The listeners send the leaf certificate and
-                         every intermediate certificate the store entry holds.
-                         This leaf and cert-file/key-file are mutually exclusive;
-                         setting both is a configuration error.
-                         The PKI store lives in the hub process, so a geodns
-                         plugin started as an external process cannot resolve the
-                         name: the secure listeners then do not start and the
-                         error is logged. Cleartext DNS is unaffected.";
+                    description "Name of the PKI store certificate to serve on DoT and DoH.";
+                    ze:help "Name of the certificate in the PKI store to serve on DoT and DoH. The listeners send the leaf
+                        certificate and every intermediate certificate the store entry holds. This leaf and
+                        cert-file/key-file are mutually exclusive, and setting both is a configuration error. The PKI store
+                        lives in the hub process, so a geodns plugin started as an external process cannot resolve the name.
+                        The secure listeners then do not start, and Ze logs the error. Cleartext DNS is unaffected.";
                 }
             }
 
             container doh {
-                description
-                    "DNS-over-HTTPS (DoH, RFC 8484) listener. It reuses the tls
-                     container's certificate material and binds the configured
-                     listener IPs on 'listen-port' at 'path'.";
+                description "DNS-over-HTTPS listener (DoH, RFC 8484).";
+                ze:help "DNS-over-HTTPS (DoH, RFC 8484) listener. It reuses the tls container's certificate material. It
+                    binds the configured listener IPs on 'listen-port' at 'path'.";
 
                 leaf enabled {
                     type boolean;

@@ -44,10 +44,9 @@ module ze-copp-conf {
                 type uint16 {
                     range "1..65535";
                 }
-                description
-                    "TCP port(s) to protect. Defaults to 179 (BGP) when
-                     omitted. Set to a non-default value when the BGP
-                     listener uses an alternate port.";
+                description "TCP port(s) the control-plane policing rules protect, 179 (BGP) by default.";
+                ze:help "TCP port(s) to protect. Ze uses 179, the BGP port, when this leaf is omitted. Set a different value
+                    when the BGP listener uses another port.";
             }
 
             leaf-list trusted-source {

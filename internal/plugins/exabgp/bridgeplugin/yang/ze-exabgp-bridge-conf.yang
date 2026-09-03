@@ -29,36 +29,33 @@ module ze-exabgp-bridge-conf {
             "Top-level container for ExaBGP-compatibility configuration.";
 
         container bridge {
-            description
-                "In-process ExaBGP bridge settings. Present this container to
-                 configure the internal exabgp-bridge plugin.";
+            description "In-process ExaBGP bridge settings.";
+            ze:help "Present this container to configure the internal exabgp-bridge
+plugin.";
 
             leaf run {
                 type string {
                     length "1..4096";
                 }
-                description
-                    "Command line of the ExaBGP-format script to run as a
-                     subprocess (e.g. './plugin.py' or 'python3
-                     /opt/plugin.py'). Whitespace-separated; the first token is
-                     the executable and the rest are its arguments. Required
-                     for the bridge to do anything.";
+                description "Command line of the ExaBGP-format script the bridge runs as a subprocess.";
+                ze:help "Two examples are './plugin.py' and 'python3 /opt/plugin.py'. Ze
+splits the line on whitespace. The first token is the executable, and the rest are its
+arguments. The bridge does nothing until this leaf is set.";
             }
 
             leaf-list family {
                 type zt:address-family;
-                description
-                    "Address families the bridge negotiates on behalf of the
-                     script (e.g. ipv4/unicast). Defaults to ipv4/unicast when
-                     no entry is configured.";
+                description "Address families the bridge negotiates for the script.";
+                ze:help "One example is ipv4/unicast. If this leaf-list is empty, the
+bridge negotiates ipv4/unicast.";
             }
 
             leaf route-refresh {
                 type boolean;
                 default false;
-                description
-                    "Advertise the BGP route-refresh capability (RFC 2918) on
-                     the sessions the bridge feeds.";
+                description "Advertise the BGP route-refresh capability.";
+                ze:help "RFC 2918 defines the route-refresh capability. When this leaf is
+true, Ze advertises the capability on every session the bridge feeds.";
             }
 
             leaf add-path {
@@ -69,9 +66,10 @@ module ze-exabgp-bridge-conf {
                     enum both;
                 }
                 default none;
-                description
-                    "ADD-PATH mode (RFC 7911) for the negotiated families:
-                     none (disabled), receive, send, or both.";
+                description "ADD-PATH mode for the families the bridge negotiates.";
+                ze:help "RFC 7911 defines ADD-PATH. none disables it. receive accepts more
+than one path from the peer. send advertises more than one path to the peer. both does
+each of the two.";
             }
         }
     }

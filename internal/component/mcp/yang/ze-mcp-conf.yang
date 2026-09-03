@@ -17,114 +17,131 @@ module ze-mcp-conf {
     }
 
     container environment {
-        description "Environment settings for MCP server";
+        description "Environment settings of the MCP server.";
+        ze:help "The environment tree holds the settings of the services Ze runs, beside
+the routing configuration rather than inside it.";
 
         container mcp {
-            description "MCP server settings (AI assistant control interface)";
+            description "Settings of the MCP server.";
+            ze:help "MCP is the Model Context Protocol. The Ze MCP server is the interface
+an AI assistant uses to read state from Ze and to control it.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable MCP server";
+                description "Start the MCP server.";
+                ze:help "The default is false, so Ze opens no MCP listener until this leaf
+is true.";
             }
 
             leaf bind-remote {
                 type boolean;
                 default false;
-                description "Allow binding to non-loopback addresses. Default
-                             (false) keeps the Phase 1 clamp that forces every
-                             server entry to 127.0.0.1. When true, the operator
-                             configured ip is honored, and auth-mode MUST be set
-                             to a non-'none' value (verify-time reject).";
+                description "Allow the MCP server to bind to a non-loopback address.";
+                ze:help "The default is false, which keeps the Phase 1 clamp. That clamp
+forces every server entry to 127.0.0.1. When this leaf is true, Ze honors the ip the
+operator configured, and auth-mode MUST be set to a value other than 'none'. The verify
+step rejects a config that does not meet that condition.";
             }
 
             leaf auth-mode {
                 type enumeration {
                     enum none {
-                        description "No authentication. Only permitted on loopback binds.";
+                        description "No authentication, permitted on a loopback bind only.";
                     }
                     enum bearer {
-                        description "Single shared bearer token (legacy). Value read from the token leaf.";
+                        description "One shared bearer token, read from the token leaf.";
                     }
                     enum bearer-list {
-                        description "Per-identity bearer tokens. Each identity[] entry names one principal.";
+                        description "One bearer token for each entry of the identity list.";
                     }
                     enum oauth {
-                        description "OAuth 2.1 resource server. Tokens validated locally against the configured authorization server's JWKS.";
+                        description "OAuth 2.1 resource server.";
                     }
                 }
-                description "Authentication strategy. Defaults: if token is set
-                             and auth-mode is absent, auth-mode is inferred as
-                             'bearer' for back-compat; otherwise 'none'.";
+                description "Authentication strategy for the MCP server.";
+                ze:help "In oauth mode, Ze validates a token locally against the JWKS of
+the configured authorization server. If the token leaf is set and the auth-mode leaf is
+absent, Ze infers 'bearer' for backward compatibility. In every other case the default
+is 'none'.
+
+bearer is the legacy mode, which reads one shared token from the token leaf. bearer-list
+replaces it: each entry of the identity list names one principal and carries its own
+token.";
             }
 
             leaf token {
                 type string;
                 ze:sensitive;
-                description "Bearer token for auth-mode=bearer. When set without
-                             an explicit auth-mode leaf, auth-mode is inferred as
-                             'bearer'. Leave empty when using bearer-list or
-                             oauth.";
+                description "Bearer token for auth-mode=bearer.";
+                ze:help "When this leaf is set and no auth-mode leaf is present, Ze infers
+auth-mode 'bearer'. Leave this leaf empty for bearer-list mode and for oauth mode.";
             }
 
             list identity {
                 key "name";
-                description "Per-identity bearer entries (auth-mode=bearer-list).
-                             Each entry's token grants access to the named principal.
-                             Authentication runs on every request, so the matching
-                             entry's name and scopes ride that one authenticated
-                             request; changes take effect on the next request.";
+                description "Per-identity bearer entries, for auth-mode=bearer-list.";
+                ze:help "The token of each entry grants access to the named principal.
+Authentication runs on every request, so the name and the scopes of the matching entry
+ride that one authenticated request. A change takes effect on the next request.";
 
                 leaf name {
                     type string;
-                    description "Principal name (visible in logs, carried on each
-                                 authenticated request).";
+                    description "Name of the principal this entry authenticates.";
+                    ze:help "Ze writes the name to the log, and carries it on each request
+the entry authenticates.";
                 }
 
                 leaf token {
                     type string;
                     ze:sensitive;
-                    description "Bearer token value. Compared constant-time.";
+                    description "Bearer token value of this identity.";
+                    ze:help "Ze compares the token in constant time, so the duration of a
+comparison tells an attacker nothing about the value.";
                 }
 
                 leaf-list scope {
                     type string;
-                    description "Optional scopes carried on every request this
-                                 identity authenticates.";
+                    description "Scopes Ze carries on a request this identity authenticates.";
+                    ze:help "This leaf-list is optional. An empty leaf-list carries no
+scope.";
                 }
             }
 
             container oauth {
-                description "OAuth 2.1 resource-server settings (auth-mode=oauth).
-                             Ze does NOT run an authorization server; it validates
-                             bearer tokens issued by the external AS.";
+                description "OAuth 2.1 resource-server settings, for auth-mode=oauth.";
+                ze:help "Ze does not run an authorization server. Ze validates a bearer
+token that the external authorization server issued.";
 
                 leaf authorization-server {
                     type string;
-                    description "HTTPS URL of the authorization server. The
-                                 resource server reads AS metadata from
-                                 <url>/.well-known/oauth-authorization-server
-                                 (RFC 8414) to discover the jwks_uri.";
+                    description "HTTPS URL of the authorization server.";
+                    ze:help "The resource server reads the metadata of the authorization
+server from <url>/.well-known/oauth-authorization-server (RFC 8414), and discovers the
+jwks_uri there.";
                 }
 
                 leaf audience {
                     type string;
-                    description "Canonical URL identifying this MCP endpoint
-                                 (RFC 8707). Tokens whose 'aud' claim does not
-                                 match are rejected. Must be set explicitly;
-                                 never derived from the request Host header.";
+                    description "Canonical URL that identifies this MCP endpoint (RFC 8707).";
+                    ze:help "Ze rejects a token whose 'aud' claim does not match this URL.
+Set this leaf explicitly. Ze never derives the value from the Host header of the
+request.";
                 }
 
                 leaf-list required-scopes {
                     type string;
-                    description "Scopes every accepted token must carry. Empty
-                                 list means any valid token is accepted.";
+                    description "Scopes an accepted token MUST carry.";
+                    ze:help "Ze rejects a token that does not carry every scope in this
+list. An empty leaf-list accepts any valid token.";
                 }
             }
 
             container tls {
-                description "TLS certificate for HTTPS. Required when
-                             auth-mode=oauth on a non-loopback bind.";
+                description "TLS certificate that serves the MCP endpoint over HTTPS.";
+                ze:help "This container is required when auth-mode is oauth and a listen
+endpoint is not a loopback address. ze config verify rejects a config that leaves the
+cert leaf empty in that case, and one that sets cert without key.";
 
                 leaf cert {
                     type string;
@@ -141,11 +158,16 @@ module ze-mcp-conf {
             list server {
                 key "name";
                 ze:listener;
-                description "MCP server listen endpoints";
+                description "Listen endpoints of the MCP server.";
+                ze:help "Each entry binds one address and one port. The address defaults
+to 127.0.0.1 and the port defaults to 8080. The bind-remote leaf decides whether an
+address other than loopback is kept.";
 
                 leaf name {
                     type string;
-                    description "Server instance name";
+                    description "Name of this server instance.";
+                    ze:help "The name is the list key, and it identifies the entry in the
+configuration and in the log.";
                 }
 
                 uses zt:listener {

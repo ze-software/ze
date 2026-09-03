@@ -31,9 +31,9 @@ module ze-vrrp-conf {
 
             list group {
                 key "name";
-                description "One virtual router, identified by an operator-assigned name.
-                             The name is a config label only and is never sent on the wire;
-                             the VRID leaf carries the protocol identity.";
+                description "One virtual router, identified by an operator-assigned name.";
+                ze:help "The name is a config label only, and Ze never sends it on
+                         the wire. The VRID leaf carries the protocol identity.";
 
                 leaf name {
                     type zt:node-name;
@@ -46,9 +46,10 @@ module ze-vrrp-conf {
                         range "1..255";
                     }
                     mandatory true;
-                    description "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per
-                                 interface unit and address family; the IPv4 and IPv6 VRID
-                                 spaces are independent.";
+                    description "Virtual Router Identifier (RFC 9568 Section 5.2.3).";
+                    ze:help "The VRID is unique per interface unit and per address
+                             family. The IPv4 VRID space and the IPv6 VRID space
+                             are independent.";
                 }
 
                 leaf-list virtual-address {
@@ -56,11 +57,12 @@ module ze-vrrp-conf {
                     min-elements 1;
                     max-elements 16;
                     ze:syntax "bracket";
-                    description "Virtual IPv4 addresses, encoded on the wire in
-                                 configuration order (RFC 9568 Section 5.2.9).
-                                 An address equal to a real address on this unit
-                                 makes this router the owner (priority forced to
-                                 255, accept-mode forced true).";
+                    description "Virtual IPv4 addresses, encoded on the wire in configuration order.";
+                    ze:help "RFC 9568 Section 5.2.9 sets the wire order, which is
+                             the configuration order. An address equal to a real
+                             address on this unit makes this router the owner. Ze
+                             then forces the priority to 255, and forces
+                             accept-mode to true.";
                 }
 
                 leaf priority {
@@ -68,16 +70,17 @@ module ze-vrrp-conf {
                         range "1..254";
                     }
                     default 100;
-                    description "Election priority (RFC 9568 Section 5.2.4). 255 is
-                                 reserved for the address owner and assigned
-                                 automatically; it is never operator-set.";
+                    description "Election priority (RFC 9568 Section 5.2.4).";
+                    ze:help "255 is reserved for the address owner, and Ze assigns
+                             it automatically. An operator never sets it.";
                 }
 
                 leaf preempt {
                     type boolean;
                     default "true";
-                    description "Preempt_Mode (RFC 9568 Section 6.4.2): a higher-priority
-                                 Backup takes over from a live lower-priority Active router.";
+                    description "Preempt_Mode (RFC 9568 Section 6.4.2).";
+                    ze:help "A Backup router with a higher priority takes over from
+                             a live Active router with a lower priority.";
                 }
 
                 leaf preempt-delay-seconds {
@@ -85,9 +88,11 @@ module ze-vrrp-conf {
                         range "0..3600";
                     }
                     default 0;
-                    description "Preemption hold-time (Junos semantics; not in RFC 9568).
-                                 Armed on the first losing advert while a higher-priority
-                                 local router waits; never delays dead-master failover.";
+                    description "Preemption hold-time, in Junos semantics.";
+                    ze:help "RFC 9568 does not define this hold-time. Ze arms it on
+                             the first losing advertisement while a local router
+                             with a higher priority waits. It never delays failover
+                             from a dead Active router.";
                 }
 
                 leaf advertise-interval-milliseconds {
@@ -95,11 +100,13 @@ module ze-vrrp-conf {
                         range "10..255000";
                     }
                     default 1000;
-                    description "Advertisement interval in milliseconds. The native range
-                                 spans both versions; the plugin verifier narrows it per
-                                 version. v3: multiples of 10 ms within 10..40950 (wire =
-                                 centiseconds, RFC 9568 erratum 8301). v2: whole seconds
-                                 within 1000..255000 (wire = seconds).";
+                    description "Advertisement interval in milliseconds.";
+                    ze:help "The native range spans both versions, and the plugin
+                             verifier narrows it per version. Version 3 takes
+                             multiples of 10 ms within 10..40950, and the wire
+                             carries centiseconds (RFC 9568 erratum 8301). Version
+                             2 takes whole seconds within 1000..255000, and the
+                             wire carries seconds.";
                 }
 
                 leaf version {
@@ -114,23 +121,26 @@ module ze-vrrp-conf {
                         }
                     }
                     default "3";
-                    description "Protocol version. Present only for IPv4 groups; IPv6 is
-                                 always VRRPv3 (RFC 9568).";
+                    description "Protocol version.";
+                    ze:help "The leaf is present only for an IPv4 group. An IPv6
+                             group is always VRRPv3 (RFC 9568).";
                 }
 
                 leaf accept-mode {
                     type boolean;
                     default "false";
-                    description "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner
-                                 Active accepts packets addressed to the virtual addresses.
-                                 v3 semantics only; combining true with version 2 is
-                                 rejected by the plugin verifier. Enforced on the
-                                 dataplane: with false on a non-owner, the router still
-                                 answers ARP and Neighbor Discovery for the virtual
-                                 addresses and still forwards for the virtual MAC, but
-                                 does not accept packets addressed to them, so a ping to
-                                 a virtual address gets no reply. The address owner
-                                 accepts whatever this leaf says.";
+                    description "Accept_Mode (RFC 9568 Sections 6.1 and 6.4.3).";
+                    ze:help "A non-owner Active router accepts packets addressed to
+                             the virtual addresses. The leaf carries version 3
+                             semantics only, and the plugin verifier rejects true
+                             beside version 2.
+                             The dataplane enforces the leaf. With false on a
+                             non-owner, the router still answers ARP and Neighbor
+                             Discovery for the virtual addresses, and still
+                             forwards for the virtual MAC. It does not accept
+                             packets addressed to them, so a ping to a virtual
+                             address gets no reply. The address owner accepts
+                             whatever this leaf says.";
                 }
             }
         }
@@ -145,9 +155,9 @@ module ze-vrrp-conf {
 
             list group {
                 key "name";
-                description "One virtual router, identified by an operator-assigned name.
-                             The name is a config label only and is never sent on the wire;
-                             the VRID leaf carries the protocol identity.";
+                description "One virtual router, identified by an operator-assigned name.";
+                ze:help "The name is a config label only, and Ze never sends it on
+                         the wire. The VRID leaf carries the protocol identity.";
 
                 leaf name {
                     type zt:node-name;
@@ -160,9 +170,10 @@ module ze-vrrp-conf {
                         range "1..255";
                     }
                     mandatory true;
-                    description "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per
-                                 interface unit and address family; the IPv4 and IPv6 VRID
-                                 spaces are independent.";
+                    description "Virtual Router Identifier (RFC 9568 Section 5.2.3).";
+                    ze:help "The VRID is unique per interface unit and per address
+                             family. The IPv4 VRID space and the IPv6 VRID space
+                             are independent.";
                 }
 
                 leaf-list virtual-address {
@@ -170,11 +181,11 @@ module ze-vrrp-conf {
                     min-elements 1;
                     max-elements 16;
                     ze:syntax "bracket";
-                    description "Virtual IPv6 addresses, encoded on the wire in
-                                 configuration order. The FIRST address MUST be an IPv6
-                                 link-local (fe80::/10) address: it is the advertisement
-                                 source identity (RFC 9568 Section 5.2.9, erratum 8300),
-                                 enforced by the plugin verifier.";
+                    description "Virtual IPv6 addresses, encoded on the wire in configuration order.";
+                    ze:help "The FIRST address MUST be an IPv6 link-local address
+                             in fe80::/10, because it is the advertisement source
+                             identity (RFC 9568 Section 5.2.9, erratum 8300). The
+                             plugin verifier enforces it.";
                 }
 
                 leaf priority {
@@ -182,8 +193,9 @@ module ze-vrrp-conf {
                         range "1..254";
                     }
                     default 100;
-                    description "Election priority (RFC 9568 Section 5.2.4). 255 is
-                                 reserved for the address owner and assigned automatically.";
+                    description "Election priority (RFC 9568 Section 5.2.4).";
+                    ze:help "255 is reserved for the address owner, and Ze assigns
+                             it automatically.";
                 }
 
                 leaf preempt {
@@ -197,7 +209,9 @@ module ze-vrrp-conf {
                         range "0..3600";
                     }
                     default 0;
-                    description "Preemption hold-time (Junos semantics; not in RFC 9568).";
+                    description "Preemption hold-time, in Junos semantics.";
+                    ze:help "RFC 9568 does not define this hold-time. Ze takes the
+                             behavior from Junos.";
                 }
 
                 leaf advertise-interval-milliseconds {
@@ -205,8 +219,10 @@ module ze-vrrp-conf {
                         range "10..40950";
                     }
                     default 1000;
-                    description "Advertisement interval in milliseconds, multiples of 10 ms
-                                 (wire = centiseconds, RFC 9568 erratum 8301).";
+                    description "Advertisement interval in milliseconds.";
+                    ze:help "The value is a multiple of 10 ms. The wire carries
+                             centiseconds (RFC 9568 erratum 8301).";
+
                 }
 
                 leaf accept-mode {

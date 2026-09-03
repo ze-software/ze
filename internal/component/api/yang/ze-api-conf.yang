@@ -29,9 +29,10 @@ module ze-api-conf {
             leaf token {
                 type string;
                 ze:sensitive;
-                description "Bearer token for API authentication. When set, clients must send
-                             Authorization: Bearer <token> header. Leave empty to allow
-                             unauthenticated access.";
+                description "Bearer token for API authentication.";
+                ze:help "When the token is set, a client MUST send the header
+                         'Authorization: Bearer <token>'. Leave the leaf empty to
+                         allow unauthenticated access.";
             }
         }
     }

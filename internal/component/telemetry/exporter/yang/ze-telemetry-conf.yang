@@ -17,7 +17,10 @@ module ze-telemetry-conf {
         leaf prefix {
             type string;
             default "netdata";
-            description "Metric name prefix for Netdata-compatible OS collector metrics only";
+            description "Metric name prefix for Netdata-compatible OS collector metrics only.";
+            ze:help "Ze puts the prefix in front of each Netdata-compatible OS
+                     collector metric name. It does not change a Ze-native metric
+                     name. The default is netdata.";
         }
 
         leaf interval {
@@ -25,53 +28,77 @@ module ze-telemetry-conf {
                 range "1..60";
             }
             default 1;
-            description "Netdata-compatible OS collector sampling interval in seconds";
+            description "Netdata-compatible OS collector sampling interval in seconds.";
+            ze:help "Each Netdata-compatible OS collector samples the operating
+                     system once in this interval. The range is 1 to 60 seconds, and
+                     the default is 1.";
         }
 
         list collector {
             key "name";
-            description "Per-Netdata-collector overrides (enable/disable, interval)";
+            description "Per-Netdata-collector overrides of the enable state and the interval.";
+            ze:help "Each entry names one collector, and it overrides the settings of
+                     that collector alone.";
 
             leaf name {
                 type string;
-                description "Collector name (cpu, memory, loadavg, netdev, diskstats, stat, snmp, snmp6, conntrack, vmstat, sockstat, sockstat6, softnet, softirqs, pressure, entropy, filenr, uptime, diskspace)";
+                description "Collector name.";
+                ze:help "The collector names are cpu, memory, loadavg, netdev,
+                         diskstats, stat, snmp, snmp6, conntrack, vmstat, sockstat,
+                         sockstat6, softnet, softirqs, pressure, entropy, filenr,
+                         uptime and diskspace.";
             }
 
             leaf enabled {
                 type boolean;
                 default true;
-                description "Enable or disable this Netdata-compatible OS collector";
+                description "Enable or disable this Netdata-compatible OS collector.";
+                ze:help "With false, Ze runs every other collector and stops this
+                         one. The default is true.";
             }
 
             leaf interval {
                 type uint16 {
                     range "1..60";
                 }
-                description "Override sampling interval for this collector (seconds). Inherits global Netdata interval if not set.";
+                description "Override the sampling interval of this collector, in seconds.";
+                ze:help "When this leaf is not set, the collector uses the global
+                         Netdata interval.";
             }
         }
     }
 
     container telemetry {
-        description "Telemetry export configuration";
+        description "Telemetry export configuration.";
+        ze:help "The container holds the Prometheus export settings and the Netdata-
+                 compatible collector settings.";
 
         container prometheus {
-            description "Prometheus metrics HTTP export";
+            description "Prometheus metrics HTTP export.";
+            ze:help "The container holds the enable switch, the listen endpoints, the
+                     metrics path, the HTTP Basic Authentication settings and the
+                     collector settings.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable Prometheus metrics endpoint";
+                description "Enable the Prometheus metrics endpoint.";
+                ze:help "Ze serves no metrics endpoint while this leaf is false, and
+                         false is the default.";
             }
 
             list server {
                 key "name";
                 ze:listener;
-                description "Prometheus listen endpoints";
+                description "Prometheus listen endpoints.";
+                ze:help "Each entry names one listen endpoint. The default endpoint
+                         is 127.0.0.1 on port 9273.";
 
                 leaf name {
                     type string;
-                    description "Server instance name";
+                    description "Server instance name.";
+                    ze:help "The name is the list key, so each server entry carries a
+                             different one.";
                 }
 
                 uses zt:listener {
@@ -87,27 +114,36 @@ module ze-telemetry-conf {
             leaf path {
                 type string;
                 default "/metrics";
-                description "HTTP path for metrics endpoint";
+                description "HTTP path of the metrics endpoint.";
+                ze:help "A scraper reads the metrics at this path on each listen
+                         endpoint. The default path is /metrics.";
             }
 
             container basic-auth {
-                description "HTTP Basic Authentication for the Prometheus service";
+                description "HTTP Basic Authentication for the Prometheus service.";
+                ze:help "The container holds the enable switch, the realm, the
+                         username and the two password leaves.";
 
                 leaf enabled {
                     type boolean;
                     default false;
-                    description "Require HTTP Basic Authentication for Prometheus metrics and health endpoints";
+                    description "Require HTTP Basic Authentication on the metrics and health endpoints.";
+                    ze:help "Ze asks for no credentials while this leaf is false, and
+                             false is the default.";
                 }
 
                 leaf realm {
                     type string;
                     default "ze prometheus";
-                    description "HTTP Basic Authentication realm";
+                    description "HTTP Basic Authentication realm.";
+                    ze:help "A client shows the realm to the user when it asks for
+                             the credentials. The default is 'ze prometheus'.";
                 }
 
                 leaf username {
                     type string;
-                    description "HTTP Basic Authentication username";
+                    description "HTTP Basic Authentication username.";
+                    ze:help "The username pairs with the password leaf beside it.";
                 }
 
                 leaf password {
@@ -120,7 +156,11 @@ module ze-telemetry-conf {
                     type string;
                     ze:ephemeral;
                     ze:sensitive;
-                    description "Write-only password. On commit, the config system hashes this value into password and removes this leaf. The value is never written to the config file, and a display path renders the secret placeholder for it.";
+                    description "Write-only password.";
+                    ze:help "On commit, the config system hashes this value into
+                             password and removes this leaf. The value is never
+                             written to the config file, and a display path renders
+                             the secret placeholder for it.";
                 }
             }
 
@@ -130,7 +170,9 @@ module ze-telemetry-conf {
                 leaf enabled {
                     type boolean;
                     default true;
-                    description "Enable Netdata-compatible OS collectors";
+                    description "Enable the Netdata-compatible OS collectors.";
+                    ze:help "With false, Ze exports the Ze-native metrics alone. The
+                             default is true.";
                 }
 
                 uses netdata-collector-settings;
@@ -140,7 +182,9 @@ module ze-telemetry-conf {
                 type string;
                 default "netdata";
                 status deprecated;
-                description "Deprecated: use netdata/prefix. Metric name prefix for Netdata-compatible OS collector metrics only.";
+                description "Deprecated: use netdata/prefix.";
+                ze:help "The leaf sets the metric name prefix for Netdata-compatible
+                         OS collector metrics only.";
             }
 
             leaf interval {
@@ -159,13 +203,19 @@ module ze-telemetry-conf {
 
                 leaf name {
                     type string;
-                    description "Collector name (cpu, memory, loadavg, netdev, diskstats, stat, snmp, snmp6, conntrack, vmstat, sockstat, sockstat6, softnet, softirqs, pressure, entropy, filenr, uptime, diskspace)";
+                    description "Collector name.";
+                    ze:help "The collector names are cpu, memory, loadavg, netdev,
+                             diskstats, stat, snmp, snmp6, conntrack, vmstat,
+                             sockstat, sockstat6, softnet, softirqs, pressure,
+                             entropy, filenr, uptime and diskspace.";
                 }
 
                 leaf enabled {
                     type boolean;
                     default true;
-                    description "Enable or disable this collector";
+                    description "Enable or disable this collector.";
+                    ze:help "With false, Ze runs every other collector and stops this
+                             one. The default is true.";
                 }
 
                 leaf interval {

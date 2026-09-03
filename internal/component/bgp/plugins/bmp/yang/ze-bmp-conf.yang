@@ -127,7 +127,9 @@ module ze-bmp-conf {
                 leaf loc-rib {
                     type boolean;
                     default false;
-                    description "Enable Loc-RIB monitoring (RFC 9069, PeerType=3): stream local RIB best-path changes to collectors as Route Monitoring messages with a Loc-RIB peer header";
+                    description "Enable Loc-RIB monitoring (RFC 9069).";
+                    ze:help "Ze streams each best-path change of the local RIB to the collectors as a Route Monitoring message.
+                        The message carries a Loc-RIB peer header, which RFC 9069 gives PeerType 3.";
                 }
 
                 leaf statistics-timeout {

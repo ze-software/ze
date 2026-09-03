@@ -22,8 +22,9 @@ module ze-rest-conf {
             description "API engine settings (shared parent; merged across modules)";
 
             container rest {
-                description "REST/HTTP API transport. Plain HTTP listeners are restricted
-                             to loopback; expose remotely through a TLS terminator.";
+                description "REST and HTTP transport for the API server.";
+                ze:help "A plain HTTP listener is restricted to loopback. To reach the API from another host, put a TLS
+                    terminator in front of the listener.";
 
                 leaf enabled {
                     type boolean;

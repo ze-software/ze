@@ -12,48 +12,63 @@ module ze-gnmi-conf {
     }
 
     container environment {
-        description "Environment settings for gNMI server";
+        description "Environment settings of the gNMI server.";
+        ze:help "The environment tree holds the settings of the services Ze runs, beside
+the routing configuration rather than inside it.";
 
         container gnmi {
-            description "gNMI (gRPC Network Management Interface) server settings";
+            description "Settings of the gNMI server.";
+            ze:help "gNMI is the gRPC Network Management Interface. The Ze gNMI server
+answers Get, Set, Subscribe and Capabilities over gRPC.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable gNMI server";
+                description "Start the gNMI server.";
+                ze:help "The default is false, so Ze opens no gNMI listener until this
+leaf is true.";
             }
 
             leaf token {
                 type string;
                 ze:sensitive;
-                description "Bearer token for gNMI authentication. Compared
-                             constant-time (sha256 + subtle.ConstantTimeCompare).
-                             Empty means no authentication.";
+                description "Bearer token that authenticates a gNMI client.";
+                ze:help "Ze hashes the token with sha256 and compares the hash through
+subtle.ConstantTimeCompare, so the comparison takes constant time. An empty token
+means that the gNMI server does no authentication.";
             }
 
             container tls {
-                description "TLS certificate for gNMI gRPC transport";
+                description "TLS certificate of the gNMI gRPC transport.";
+                ze:help "The container holds the certificate file and the private-key file
+that the gRPC transport presents to a client.";
 
                 leaf cert {
                     type string;
-                    description "Path to PEM-encoded certificate file (or chain)";
+                    description "Path to the PEM-encoded certificate file.";
+                    ze:help "The file CAN hold one certificate or a chain of them.";
                 }
 
                 leaf key {
                     type string;
                     ze:sensitive;
-                    description "Path to PEM-encoded private-key file";
+                    description "Path to the PEM-encoded private-key file.";
+                    ze:help "The key belongs to the certificate that the cert leaf names.";
                 }
             }
 
             list server {
                 key "name";
                 ze:listener;
-                description "gNMI server listen endpoints";
+                description "Listen endpoints of the gNMI server.";
+                ze:help "Each entry binds one address and one port. The address defaults
+to 0.0.0.0 and the port defaults to 9339.";
 
                 leaf name {
                     type string;
-                    description "Server instance name";
+                    description "Name of this server instance.";
+                    ze:help "The name is the list key, and it identifies the entry in the
+configuration and in the log.";
                 }
 
                 uses zt:listener {

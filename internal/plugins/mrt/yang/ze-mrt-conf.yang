@@ -17,10 +17,11 @@ module ze-mrt-conf {
             type string {
                 length "1..255";
             }
-            description
-                "Output file path with strftime patterns for rotation.
-                 Supported codes: %Y (year), %m (month), %d (day),
-                 %H (hour), %M (minute), %S (second), %s (unix timestamp),
+            description "Output file path, with strftime patterns for rotation.";
+            ze:help
+                "The strftime codes in the path decide when Ze opens a new file.
+                 The supported codes are %Y (year), %m (month), %d (day),
+                 %H (hour), %M (minute), %S (second), %s (unix timestamp) and
                  %N (table name).";
         }
 
@@ -35,7 +36,9 @@ module ze-mrt-conf {
     }
 
     container mrt {
-        description "MRT dump configuration";
+        description "MRT dump configuration.";
+        ze:help "The container holds the extended-timestamp switch, the add-path
+                 switch, the peer filter, the direction, and the three dump streams.";
 
         leaf extended-timestamp {
             type boolean;
@@ -72,23 +75,29 @@ module ze-mrt-conf {
         }
 
         container updates {
-            description "BGP UPDATE message stream (BGP4MP records)";
+            description "BGP UPDATE message stream (BGP4MP records).";
+            ze:help "The stream carries the UPDATE messages alone. The all stream
+                     beside it carries every message type.";
+
             uses dump-stream-settings;
         }
 
         container all {
-            description
-                "All BGP messages plus state changes (BGP4MP records).
-                 Includes OPEN, UPDATE, NOTIFICATION, KEEPALIVE,
-                 ROUTE_REFRESH, and FSM state transitions.";
+            description "All BGP messages and state changes, written as BGP4MP records.";
+            ze:help
+                "The stream carries every BGP message: OPEN, UPDATE,
+                 NOTIFICATION, KEEPALIVE and ROUTE_REFRESH. It carries the FSM
+                 state transitions too. Ze writes them as BGP4MP records.";
             uses dump-stream-settings;
         }
 
         container routes {
-            description
-                "Periodic RIB snapshots (TABLE_DUMP_V2 records).
-                 Each dump writes a PEER_INDEX_TABLE followed by
-                 RIB entries for all address families.";
+            description "Periodic RIB snapshots, written as TABLE_DUMP_V2 records.";
+            ze:help
+                "Each dump writes one PEER_INDEX_TABLE record, and then the RIB
+                 entries for every address family. Ze writes them as
+                 TABLE_DUMP_V2 records.";
+
 
             leaf file {
                 type string {

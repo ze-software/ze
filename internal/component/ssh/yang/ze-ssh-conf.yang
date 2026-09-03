@@ -20,7 +20,9 @@ module ze-ssh-conf {
 
             leaf name {
                 type string;
-                description "Key identifier (e.g. jdoe@laptop)";
+                description "Key identifier, for example jdoe@laptop.";
+                ze:help "The name is the list key, so each key of one user carries a
+                         different one.";
             }
 
             leaf type {
@@ -31,38 +33,52 @@ module ze-ssh-conf {
                     enum ecdsa-sha2-nistp384;
                     enum ecdsa-sha2-nistp521;
                 }
-                description "SSH public key algorithm";
+                description "SSH public key algorithm.";
+                ze:help "The algorithm is the first field of an SSH public key line,
+                         such as ssh-ed25519.";
             }
 
             leaf key {
                 type string;
-                description "Base64-encoded public key data (the middle field
-                             of an SSH public key line, without type prefix
-                             or comment suffix)";
+                description "Base64-encoded public key data.";
+                ze:help "The value is the middle field of an SSH public key line.
+                         It carries no type prefix and no comment suffix.";
             }
         }
     }
 
     container environment {
-        description "Environment settings for SSH server";
+        description "Environment settings for the SSH server.";
+        ze:help "The ssh container under it carries every SSH server setting: the
+                 enable switch, the listen endpoints, the host key and the session
+                 limits.";
 
         container ssh {
-            description "SSH server settings";
+            description "SSH server settings.";
+            ze:help "The container holds the enable switch, the listen endpoints, the
+                     host key, the host certificate, the idle timeout and the session
+                     limit.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable SSH server";
+                description "Enable the SSH server.";
+                ze:help "The SSH server does not start while this leaf is false, and
+                         false is the default.";
             }
 
             list server {
                 key "name";
                 ze:listener;
-                description "SSH server listen endpoints";
+                description "SSH server listen endpoints.";
+                ze:help "Each entry names one listen endpoint. The default endpoint
+                         is 0.0.0.0 on port 2222.";
 
                 leaf name {
                     type string;
-                    description "Server instance name";
+                    description "Server instance name.";
+                    ze:help "The name is the list key, so each server entry carries a
+                             different one.";
                 }
 
                 uses zt:listener {
@@ -77,22 +93,34 @@ module ze-ssh-conf {
 
             leaf host-key {
                 type string;
-                description "Path to SSH host key file (default: config dir + ssh_host_ed25519_key, auto-generated if missing)";
+                description "Path to the SSH host key file.";
+                ze:help "The default path is the config directory plus
+                         ssh_host_ed25519_key. Ze generates that key when the
+                         file is missing.";
             }
 
             leaf host-certificate {
                 type string;
-                description "Path to SSH host certificate file (signed by a CA). Eliminates trust-on-first-use for clients that trust the CA.";
+                description "Path to the SSH host certificate file, signed by a CA.";
+                ze:help "A client that trusts the CA verifies the host on the
+                         first connection. It does not have to trust the host key
+                         on first use.";
+
             }
 
             leaf idle-timeout {
                 type uint32;
-                description "Idle timeout in seconds (default 600)";
+                description "Idle timeout in seconds. The default is 600.";
+                ze:help "Ze passes the value to the SSH server as the maximum
+                         duration of one session. The default is 600 seconds.";
             }
 
             leaf max-sessions {
                 type uint16;
-                description "Maximum concurrent SSH sessions";
+                description "Maximum number of concurrent SSH sessions.";
+                ze:help "Ze answers a session past this limit with 'maximum sessions
+                         reached', and closes it. The default limit is 8 sessions.";
+
             }
         }
     }

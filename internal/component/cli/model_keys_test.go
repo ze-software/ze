@@ -645,33 +645,45 @@ func TestRevealWorksForAVerbTheConfigEditorAlsoOwns(t *testing.T) {
 	}
 }
 
-// TestQuestionMarkRevealsAConfigCandidateDescription covers the config editor,
-// where `?` used to be a dead key.
+// TestRevealCandidateExplanationUsesLongHelp covers the config editor, where the
+// two texts reach two surfaces.
 //
-// A config node declares ONE text, its YANG description. Many of them are a
-// paragraph. The message row holds one line, so it shows that paragraph cut to
-// the width of the terminal. The operator has nowhere to read the rest.
+// A config node declares the same pair a command declares. The YANG description
+// is the summary the one-line message row shows, and the ze:help extension is
+// the explanation. The box takes the explanation, so pressing ? adds the text
+// the row cannot hold.
 //
-// VALIDATES: ? on a config candidate puts that node's declared description in
-// the box, whole.
-// PREVENTS: the silent return the command-completer guard produced in config
-// mode, which is the dead key an operator reported.
-func TestQuestionMarkRevealsAConfigCandidateDescription(t *testing.T) {
+// VALIDATES: AC-11 — ? on a config candidate puts that node's ze:help in the
+// box, whole, and never its description.
+// PREVENTS: the box repeating the row, which is what it did while the config
+// branch passed the description.
+func TestRevealCandidateExplanationUsesLongHelp(t *testing.T) {
 	const summary = "Classical admin distance stamped on BGP best-paths."
+	const explanation = "RFC 4271 leaves the preference between protocols to the implementation.\n" +
+		"Ze stamps this value on a best-path so the RIB can rank it against a route\n" +
+		"another protocol installed."
 
 	m := newTestModel(t)
 	if m.mode != ModeConfig {
 		t.Fatalf("precondition: mode = %v, want config", m.mode)
 	}
 	m.textInput.SetValue("set bgp ")
-	m.completions = []Completion{{Text: "admin-distance", Description: summary, Type: completionKeyword}}
+	m.completions = []Completion{{
+		Text:        "admin-distance",
+		Description: summary,
+		LongHelp:    explanation,
+		Type:        completionKeyword,
+	}}
 	m.showDropdown = true
 	m.selected = 0
 
 	revealed, _ := pressKey(t, m, tea.KeyPressMsg{Code: '?', Text: "?"})
 
-	if revealed.Explanation() != summary {
-		t.Errorf("explanation = %q, want the declared description", revealed.Explanation())
+	if revealed.Explanation() != explanation {
+		t.Errorf("explanation = %q, want the declared ze:help", revealed.Explanation())
+	}
+	if strings.Contains(revealed.Explanation(), summary) {
+		t.Errorf("explanation = %q, want the summary to stay on the message row alone", revealed.Explanation())
 	}
 	if revealed.revealLevel() != revealExplanation {
 		t.Errorf("reveal level = %d, want revealExplanation", revealed.revealLevel())
@@ -681,16 +693,20 @@ func TestQuestionMarkRevealsAConfigCandidateDescription(t *testing.T) {
 	}
 }
 
-// TestQuestionMarkOnAConfigCandidateWithNoDescriptionInventsNothing is the other
-// half of the branch above.
+// TestRevealCandidateExplanationSaysNothingIsDeclared is the other half of the
+// branch above.
 //
-// VALIDATES: a config candidate that declares no description leaves the level
-// where it is and says so, rather than returning in silence.
-// PREVENTS: a key that does nothing and states nothing.
-func TestQuestionMarkOnAConfigCandidateWithNoDescriptionInventsNothing(t *testing.T) {
+// VALIDATES: AC-11 — a config candidate that declares no ze:help leaves the
+// level where it is and says so, and its description does not stand in for the
+// explanation it has none of.
+// PREVENTS: a key that does nothing and states nothing, and the fallback that
+// would put the row's own sentence back in the box.
+func TestRevealCandidateExplanationSaysNothingIsDeclared(t *testing.T) {
+	const summary = "The leaf nobody has explained yet."
+
 	m := newTestModel(t)
 	m.textInput.SetValue("set bgp ")
-	m.completions = []Completion{{Text: "undocumented", Type: completionKeyword}}
+	m.completions = []Completion{{Text: "undocumented", Description: summary, Type: completionKeyword}}
 	m.showDropdown = true
 	m.selected = 0
 
@@ -702,5 +718,8 @@ func TestQuestionMarkOnAConfigCandidateWithNoDescriptionInventsNothing(t *testin
 	hint := revealed.MessageHint()
 	if !strings.Contains(hint, "undocumented") || !strings.Contains(hint, "no explanation") {
 		t.Errorf("message line = %q, want it to name the path and say none is declared", hint)
+	}
+	if strings.Contains(hint, summary) {
+		t.Errorf("message line = %q, want no fallback to the description", hint)
 	}
 }

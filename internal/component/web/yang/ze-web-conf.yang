@@ -12,25 +12,36 @@ module ze-web-conf {
     }
 
     container environment {
-        description "Environment settings for web interface";
+        description "Environment settings for the web interface.";
+        ze:help "The web container under it carries every web interface setting: the
+                 enable switch, the listen endpoints, the certificate and the UI
+                 mode.";
 
         container web {
-            description "Web interface settings";
+            description "Web interface settings.";
+            ze:help "The container holds the enable switch, the listen endpoints, the
+                     insecure switch, the certificate name and the UI mode.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable web interface";
+                description "Enable the web interface.";
+                ze:help "The web interface does not start while this leaf is false,
+                         and false is the default.";
             }
 
             list server {
                 key "name";
                 ze:listener;
-                description "Web server listen endpoints";
+                description "Web server listen endpoints.";
+                ze:help "Each entry names one listen endpoint. The default endpoint
+                         is 0.0.0.0 on port 3443.";
 
                 leaf name {
                     type string;
-                    description "Server instance name";
+                    description "Server instance name.";
+                    ze:help "The name is the list key, so each server entry carries a
+                             different one.";
                 }
 
                 uses zt:listener {
@@ -46,7 +57,10 @@ module ze-web-conf {
             leaf insecure {
                 type boolean;
                 default false;
-                description "Disable authentication (forces host to 127.0.0.1)";
+                description "Disable authentication, which forces the host to 127.0.0.1.";
+                ze:help "With true, the web interface asks for no credentials. Ze
+                         then binds it to 127.0.0.1, so only a user on the host
+                         reaches it.";
             }
 
             leaf certificate {
@@ -55,10 +69,11 @@ module ze-web-conf {
                     pattern '[A-Za-z0-9._-]+';
                 }
                 description
-                    "Name of the certificate in the PKI store to serve on the
-                     HTTPS listener. The listener sends the leaf certificate and
-                     every intermediate certificate the store entry holds, so a
-                     client can build the full chain.
+                    "Name of the PKI store certificate served on the HTTPS listener (ze.web.certificate).";
+                ze:help
+                    "The listener sends the leaf certificate and every
+                     intermediate certificate the store entry holds, so a client
+                     can build the full chain.
                      When this leaf is not set, ze generates a self-signed
                      certificate and serves that.
                      When this leaf is set and the store has no entry with that
@@ -70,11 +85,14 @@ module ze-web-conf {
 
             leaf ui-mode {
                 type enumeration {
-                    enum finder { description "Default file-browser style UI"; }
-                    enum workbench { description "Experimental workbench UI"; }
+                    enum finder { description "Default file-browser style UI."; }
+                    enum workbench { description "Experimental workbench UI."; }
                 }
                 default "finder";
-                description "Web UI mode";
+                description "Web UI mode.";
+                ze:help "finder is the default file-browser UI. workbench is the
+                         experimental one.";
+
             }
         }
     }

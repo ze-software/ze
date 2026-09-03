@@ -26,10 +26,9 @@ module ze-static-conf {
 
         list table {
             key "name";
-            description
-                "A named routing table grouping. Table name is resolved
-                 to a kernel table ID via the routing-table registry.
-                 Use 'default' for the main routing table.";
+            description "A named routing table that holds static routes.";
+            ze:help "A named routing table grouping. The table name is resolved to a kernel table ID through the
+                routing-table registry. Use 'default' for the main routing table.";
 
             leaf name {
                 type string;
@@ -101,30 +100,26 @@ module ze-static-conf {
                                 leaf weight {
                                     type uint16 { range "1..65535"; }
                                     default 1;
-                                    description
-                                        "ECMP weight. Higher values receive
-                                         proportionally more traffic. Default 1
-                                         gives equal distribution.";
+                                    description "ECMP weight of this next-hop, 1 by default.";
+                                    ze:help "ECMP weight. A higher value receives proportionally more traffic. The default of 1 gives equal
+                                        distribution.";
                                 }
 
                                 leaf bfd-profile {
                                     type string;
-                                    description
-                                        "BFD profile name (from bfd/profile list).
-                                         When the BFD session to this next-hop goes
-                                         down, the next-hop is removed from the ECMP
-                                         group and the route is reprogrammed with
-                                         remaining active next-hops.";
+                                    description "BFD profile name for this next-hop, from the bfd/profile list.";
+                                    ze:help "BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze
+                                        removes the next-hop from the ECMP group. Ze then reprograms the route with the remaining active
+                                        next-hops.";
                                 }
                             }
 
                             list interface {
                                 key "name";
-                                description
-                                    "Forward via interface only (no gateway address).
-                                     Used for point-to-point links (PPPoE, GRE tunnels)
-                                     where the next-hop is implicit. Multiple entries
-                                     can coexist with gateway next-hops for mixed ECMP.";
+                                description "Forward through the interface only, with no gateway address.";
+                                ze:help "Forward through the interface only, with no gateway address. This form serves point-to-point links,
+                                    such as PPPoE and GRE tunnels, where the next-hop is implicit. Multiple entries can coexist with
+                                    gateway next-hops for mixed ECMP.";
 
                                 leaf name {
                                     type string;

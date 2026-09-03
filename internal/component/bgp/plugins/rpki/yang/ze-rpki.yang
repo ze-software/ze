@@ -10,14 +10,18 @@ module ze-rpki {
     prefix zt;
   }
 
+  import ze-extensions {
+    prefix ze;
+  }
+
   // Action applied to a route in a given RPKI validation state.
   // Shared by the global and per-peer/group action blocks so the set of
   // choices stays identical everywhere. Order is display-only.
   typedef validation-action {
     type enumeration {
-      enum reject { description "Exclude the route from the Adj-RIB-In and decision process"; }
-      enum log-only { description "Keep the route (still marked with its state) but log it"; }
-      enum accept { description "Keep the route with no log"; }
+      enum reject { description "Exclude the route from the Adj-RIB-In and the decision process."; }
+      enum log-only { description "Keep the route, marked with its state, and write a log line."; }
+      enum accept { description "Keep the route and write no log line."; }
     }
     description "RPKI validation-state action (RFC 6811 Section 3: operator-configurable per state)";
   }
@@ -29,57 +33,63 @@ module ze-rpki {
   // validation) are global-only and deliberately absent here.
   grouping rpki-peer-policy {
     container rpki {
-      description "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)";
+      description "RPKI action overrides of this peer or group.";
+      ze:help "Ze resolves every leaf on its own. A leaf set on the peer wins. A leaf that
+is unset falls through to the group value, then to the global value.";
 
       container action {
-        description "Origin-validation action overrides for this peer/group";
+        description "Origin-validation action overrides of this peer or group.";
+        ze:help "A leaf here carries no default, so an unset leaf falls through to the
+group value and then to the global value.";
         leaf invalid {
           type validation-action;
-          description "Action for routes with Invalid validation state (unset: inherit group then global)";
+          description "Action Ze applies to a route in the Invalid validation state.";
+          ze:help "An unset leaf inherits the group value, then the global value.";
         }
         leaf not-found {
           type validation-action;
-          description "Action for routes with NotFound validation state (unset: inherit group then global)";
+          description "Action Ze applies to a route in the NotFound validation state.";
+          ze:help "An unset leaf inherits the group value, then the global value.";
         }
       }
 
       leaf blackhole-exempt {
         type boolean;
         default "false";
-        description
-          "Keep a route that carries the RFC 7999 BLACKHOLE community when its
-           only origin-validation fault is that the prefix is longer than a
-           covering VRP allows.
+        description "Keep a BLACKHOLE route when its only origin-validation fault is the prefix length.";
+        ze:help
+          "The route carries the RFC 7999 BLACKHOLE community, and a covering VRP allows a
+shorter prefix than the route announces.
 
-           RFC 7999 Section 3.3 states that an operator MUST ensure origin
-           validation does not inadvertently block legitimate announcements
-           carrying BLACKHOLE. A blackhole prefix is as long as possible,
-           typically a /32 or a /128, while a ROA for the covering block carries
-           its maxLength at the aggregate. RFC 6811 then makes the announcement
-           Invalid, and a session running action invalid reject drops it before
-           anything can honor it.
+RFC 7999 Section 3.3 states that an operator MUST ensure origin validation does not
+inadvertently block legitimate announcements carrying BLACKHOLE. A blackhole prefix is
+as long as possible, usually a /32 or a /128. A ROA for the covering block carries its
+maxLength at the aggregate. RFC 6811 then makes the announcement Invalid, and a session
+running action invalid reject drops the route before anything can honor it.
 
-           The exemption is narrow. It applies only when a covering VRP names
-           the route's own origin AS and disagrees on nothing but length. A
-           wrong origin AS stays Invalid, which is the hijack RFC 6811 exists to
-           catch. A prefix with no covering VRP is NotFound rather than Invalid,
-           so this never reaches it.
+The exemption is narrow. It applies only when a covering VRP names the route's own
+origin AS and disagrees on nothing but the length. A wrong origin AS stays Invalid,
+which is the hijack RFC 6811 exists to catch. A prefix with no covering VRP is NotFound
+rather than Invalid, so the exemption never reaches it.
 
-           The default is false. Turn it on together with the peer's blackhole
-           honor leaf, on the same session: on its own it accepts a route it
-           would have rejected and discards nothing.";
+The default is false. Enable it together with the blackhole honor leaf of the peer, on
+the same session. On its own it accepts a route it would have rejected, and it discards
+nothing.";
       }
 
       container aspa {
-        description "ASPA action overrides for this peer/group (only applies when ASPA validation is enabled globally)";
+        description "ASPA action overrides for this peer or group.";
+        ze:help "These overrides apply only when ASPA validation is enabled globally.";
         container action {
           leaf invalid {
             type validation-action;
-            description "Action for routes with ASPA Invalid path state (unset: inherit group then global)";
+            description "Action Ze applies to a route in the ASPA Invalid path state.";
+            ze:help "An unset leaf inherits the group value, then the global value.";
           }
           leaf unknown {
             type validation-action;
-            description "Action for routes with ASPA Unknown path state (unset: inherit group then global)";
+            description "Action Ze applies to a route in the ASPA Unknown path state.";
+            ze:help "An unset leaf inherits the group value, then the global value.";
           }
         }
       }
@@ -94,21 +104,28 @@ module ze-rpki {
         key "address";
         leaf address {
           type string;
-          description "Cache server IP or hostname";
+          description "IP address or hostname of the RTR cache server.";
+          ze:help "The address is the list key, so one entry exists for each cache
+server.";
         }
         leaf port {
           type uint16;
           default "323";
-          description "RTR TCP port";
+          description "TCP port of the RTR cache server.";
+          ze:help "Ze opens a TCP connection to this port on the cache server. The default
+is 323.";
         }
         leaf preference {
           type uint8;
           default "100";
-          description "Server preference (lower = preferred)";
+          description "Preference of this cache server.";
+          ze:help "Ze prefers the cache server with the lowest value.";
         }
         leaf source-address {
           type zt:ip-address;
-          description "Source IP address for outbound RTR connections";
+          description "Source IP address of an outbound RTR connection.";
+          ze:help "Set this leaf when the RTR connection MUST leave the box from one
+specific local address.";
         }
       }
 
@@ -116,20 +133,27 @@ module ze-rpki {
         type uint16;
         default "30";
         units "seconds";
-        description "Fail-open timeout for pending routes";
+        description "Fail-open timeout of a route whose validation is pending.";
+        ze:help "The default is 30 seconds. A longer timeout holds a route in the pending
+state for longer.";
       }
 
       container action {
-        description "Global origin-validation actions (RFC 6811 Section 3)";
+        description "Global origin-validation actions.";
+        ze:help "RFC 6811 Section 3 makes the action of each validation state
+configurable by the operator.";
         leaf invalid {
           type validation-action;
           default "reject";
-          description "Action for routes with Invalid validation state";
+          description "Action Ze applies to a route in the Invalid validation state.";
+          ze:help "The default is reject, which excludes the route from the Adj-RIB-In and
+the decision process.";
         }
         leaf not-found {
           type validation-action;
           default "accept";
-          description "Action for routes with NotFound validation state";
+          description "Action Ze applies to a route in the NotFound validation state.";
+          ze:help "The default is accept, which keeps the route and writes no log line.";
         }
       }
 
@@ -137,18 +161,22 @@ module ze-rpki {
         leaf validation {
           type boolean;
           default "false";
-          description "Enable ASPA path verification using RTR v2 ASPA records";
+          description "Verify the AS path of a route against the ASPA records.";
+          ze:help "Ze reads the ASPA records over version 2 of the RTR protocol.";
         }
         container action {
           leaf invalid {
             type validation-action;
             default "log-only";
-            description "Action for routes with ASPA Invalid path verification state";
+            description "Action Ze applies to a route in the ASPA Invalid path state.";
+            ze:help "The default is log-only, which keeps the route, marks it with its
+state, and writes a log line.";
           }
           leaf unknown {
             type validation-action;
             default "accept";
-            description "Action for routes with ASPA Unknown path verification state";
+            description "Action Ze applies to a route in the ASPA Unknown path state.";
+            ze:help "The default is accept, which keeps the route and writes no log line.";
           }
         }
       }

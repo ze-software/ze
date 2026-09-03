@@ -81,8 +81,10 @@ module ze-plugin-engine {
             list filter {
                 key "name";
                 description
-                    "Named route filters this plugin offers.
-                     Config references by name in filter { import/export } blocks.";
+                    "Named route filters this plugin offers.";
+                ze:help
+                    "Config references a filter by name, in a filter block for
+                     the import direction or the export direction.";
                 leaf name {
                     type string;
                     description "Filter name (the part after : in <plugin>:<filter>)";
@@ -125,8 +127,9 @@ module ze-plugin-engine {
             list pipe {
                 key "command name";
                 description
-                    "Pipe aliases this plugin offers for its own commands.
-                     An alias is a word an operator types after the pipe
+                    "Pipe aliases this plugin offers for its own commands.";
+                ze:help
+                    "An alias is a word an operator types after the pipe
                      character, and it stands for an operator chain.";
                 leaf command {
                     type string;
@@ -193,6 +196,10 @@ module ze-plugin-engine {
     rpc update-route {
         description
             "Plugin injects a route update to matching peers.";
+        ze:help "The answer carries the announced and withdrawn NLRI counts and nothing
+else. A plugin that needs the target handler's structured response calls
+dispatch-command instead, which preserves it. The peer selector defaults to
+every peer, so an omitted selector is not a no-op.";
         input {
             leaf peer-selector {
                 type string;
@@ -249,6 +256,10 @@ extracts only route counters, this preserves structured responses.";
     rpc subscribe-events {
         description
             "Request event delivery from the engine.";
+        ze:help "An empty peer list means every peer rather than none. The format decides how
+much of each message the engine builds. Hex and base64 carry the bytes. Parsed
+carries the decoded message, and full carries both. A plugin that asks for
+parsed pays the decode cost on every event.";
         input {
             leaf-list events {
                 type string;
@@ -268,6 +279,9 @@ extracts only route counters, this preserves structured responses.";
 
     rpc unsubscribe-events {
         description "Stop event delivery.";
+        ze:help "It cancels the whole subscription subscribe-events created. There is no
+per-event and no per-peer form, so a plugin that wants a narrower set
+unsubscribes and subscribes again with the set it wants.";
     }
 
     // Runtime: Wire decoding services.

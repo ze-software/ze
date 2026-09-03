@@ -14,39 +14,43 @@ module ze-redistribute-conf {
 
     container redistribute {
         ze:hidden true;
-        description
-            "Route redistribution between protocols.
-             Each destination protocol has its own container with import rules.
-             Adding a new destination protocol means adding a new key here.";
+        description "Route redistribution between protocols.";
+        ze:help "Each destination protocol has its own container that holds the import
+rules. To add a destination protocol, add a key here.";
 
         list destination {
             key "protocol";
-            description "Destination protocol for redistributed routes.
-                         Each entry names a registered consumer (bgp, ospf, ...).";
+            description "Destination protocol for redistributed routes.";
+            ze:help "Each entry names a consumer that registered itself, for example bgp
+or ospf.";
 
             leaf protocol {
                 type string;
                 // No ze:validate here: consumers register at plugin startup,
                 // after YANG parse. Validated at runtime by the orchestrator.
-                description "Destination protocol name (bgp, ospf, isis, ...)";
+                description "Name of the protocol that receives the redistributed routes.";
+                ze:help "bgp, ospf and isis are examples. The leaf carries no ze:validate,
+because a destination protocol registers its consumer at plugin startup, after the YANG
+parse. Ze resolves the name against that registry when it redistributes a route.";
             }
 
             list import {
                 key "source";
-                description "Import routes from a source into this destination.
-                             When family is omitted, all families are imported.";
+                description "Import routes from a source into this destination.";
+                ze:help "If the family leaf-list is empty, Ze imports every family.";
 
                 leaf source {
                     type string;
                     ze:validate "redistribute-source";
-                    description "Route source name (ibgp, ebgp, static, connected, ...)";
+                    description "Name of the route source this rule imports from.";
+                    ze:help "ibgp, ebgp, static and connected are examples.";
                 }
 
                 leaf-list family {
                     type string;
                     ze:validate "registered-address-family";
-                    description "Address families to import from this source.
-                                 Empty means all families.";
+                    description "Address families Ze imports from this source.";
+                    ze:help "An empty leaf-list imports every family.";
                 }
             }
         }

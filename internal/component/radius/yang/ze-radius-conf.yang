@@ -19,9 +19,10 @@ module ze-radius-conf {
 
             container radius {
                 description
-                    "RADIUS server configuration for operator/admin login
-                     (SSH, web, MCP), RFC 2865. Separate from the L2TP
-                     subscriber RADIUS path, which lives under the l2tp root.";
+                    "RADIUS servers for operator login over SSH, web and MCP (RFC 2865).";
+                ze:help
+                    "This block is separate from the L2TP subscriber RADIUS
+                     path, which lives under the l2tp root.";
 
                 list server {
                     key "address";
@@ -31,9 +32,11 @@ module ze-radius-conf {
                     leaf address {
                         type zt:ip-address;
                         description
-                            "Server IPv4 address. RADIUS admin auth uses the
-                             shared udp4 client; an IPv6 literal will not
-                             resolve and reads as unreachable.";
+                            "Server IPv4 address.";
+                        ze:help
+                            "RADIUS operator authentication uses the shared udp4
+                             client. An IPv6 literal does not resolve, and it
+                             reads as unreachable.";
                     }
 
                     leaf port {
@@ -50,10 +53,11 @@ module ze-radius-conf {
                         }
                         ze:sensitive;
                         description
-                            "RADIUS shared secret (RFC 2865). RFC 2865 Section 3
-                             states the secret MUST NOT be empty (length 0),
-                             since an empty secret allows packets to be
-                             trivially forged.";
+                            "RADIUS shared secret (RFC 2865).";
+                        ze:help
+                            "RFC 2865 Section 3 states that the secret MUST NOT
+                             be empty (length 0). An empty secret lets an
+                             attacker forge packets.";
                     }
                 }
 
@@ -86,26 +90,25 @@ module ze-radius-conf {
                     }
                     default "filter-id";
                     description
-                        "Access-Accept reply attribute whose value(s) name the
-                         ze authorization profile(s) for the user.
-
-                         Filter-Id is the only value. RFC 2865 Section 5.25 says
+                        "Access-Accept reply attribute that names the user's ze authorization profiles.";
+                    ze:help
+                        "Filter-Id is the only value. RFC 2865 Section 5.25 says
                          of Class that 'the client MUST NOT interpret the
-                         attribute locally', so reading a profile name out of it
-                         is not available.";
+                         attribute locally', so ze cannot read a profile name
+                         out of Class.";
                 }
 
                 leaf-list default-profile {
                     type string;
                     description
-                        "Ze authorization profile name(s) assigned when the
-                         Access-Accept carries no profile-attribute.
-
-                         Optional: leave it unset when the RADIUS server always
-                         names a profile via profile-attribute. When the server
-                         does not, and no default is set here, the login names no
-                         profile and is denied -- ze never authorizes a user it
-                         cannot attach a profile to.";
+                        "Ze authorization profiles used when the Access-Accept carries no profile-attribute.";
+                    ze:help
+                        "This leaf is optional. Leave it unset when the RADIUS
+                         server always names a profile through
+                         profile-attribute. When the server does not name one,
+                         and no default is set here, the login names no profile
+                         and is denied. Ze never authorizes a user it cannot
+                         attach a profile to.";
                 }
             }
         }

@@ -3,6 +3,7 @@ module ze-traffic-usage-conf {
     prefix trafficusageconf;
 
     import ze-traffic-control-conf { prefix tc; }
+    import ze-extensions { prefix ze; }
 
     description "eBPF TCX per-port and per-IP byte accounting configuration.
                  Augments the shared `traffic` container (owned by
@@ -30,7 +31,9 @@ module ze-traffic-usage-conf {
                             length "1..255";
                             pattern '[A-Za-z0-9][A-Za-z0-9._@-]*';
                         }
-                        description "ze interface name; resolved to its OS/kernel device (honoring the os-name / mac-match selectors) before attaching.";
+                        description "Ze interface name that this accounting entry counts bytes for.";
+                        ze:help "Ze resolves the name to its kernel device before the accounting attaches to that device. The
+                            resolution honors the os-name selector and the mac-match selector.";
                     }
                     leaf enabled {
                         type boolean;
@@ -43,7 +46,9 @@ module ze-traffic-usage-conf {
                     }
                     leaf stale-timeout {
                         type uint32;
-                        description "Override the global stale-timeout (milliseconds; 0 disables) for this interface (inherits when unset).";
+                        description "Override the global stale-timeout for this interface, in milliseconds.";
+                        ze:help "0 disables the cleanup for this interface. When the leaf is unset, this interface inherits the
+                            global stale-timeout.";
                     }
                     leaf max-entries {
                         type uint32 {
@@ -71,7 +76,9 @@ module ze-traffic-usage-conf {
             leaf track-ip {
                 type boolean;
                 default false;
-                description "Also account bytes per source (ingress) / destination (egress) IPv4. Off by default to bound metric cardinality.";
+                description "Account bytes per IPv4 address as well as per interface.";
+                ze:help "The address is the source address on ingress and the destination address on egress. The default is
+                    false, which limits the number of metric series.";
             }
 
             leaf max-entries {

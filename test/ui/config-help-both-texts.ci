@@ -1,0 +1,55 @@
+# Test: a config leaf shows its summary on the message row and its explanation in the ? box
+# VALIDATES: AC-9 and AC-11 -- the operator highlights a config key, reads a
+#   one-line summary under the menu, presses ?, and reads the ze:help paragraph
+#   in the box above the prompt.
+# PREVENTS: the defect an operator reported, the RFC 6286 paragraph of
+#   bgp router-id landing on the one-line message row, with the box repeating it.
+
+option=timeout:value=30s
+
+# go.mod marker: ze-test editor roots its base dir at the first go.mod above
+# the working directory, so --dir . resolves to this test's temp dir.
+tmpfs=go.mod:terminator=EOF_MOD
+module ze-ui-config-help-both-texts-fixture
+EOF_MOD
+
+tmpfs=config-help-both-texts.et:terminator=EOF_ET
+# Test: the two texts of a config leaf reach two surfaces
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+
+# "set rou" matches two keys, so Tab opens the menu rather than completing one.
+input=type:text=set rou
+expect=completion:contains=route-server,router-id
+input=tab
+expect=dropdown:visible
+
+# The second candidate is router-id. Its YANG description is on the message row,
+# and one row holds it whole.
+input=key:name=down
+expect=hint:contains=BGP Router ID for this speaker.
+
+# ? opens the box on the ze:help the leaf declares. That text names the RFC, and
+# the message row never held it.
+input=type:text=?
+expect=explanation:contains=RFC 6286 Section 2.1
+expect=explanation:contains=rejects 0.0.0.0
+EOF_ET
+
+cmd=foreground:seq=1:exec=ze-test editor --dir . --all
+expect=exit:code=0

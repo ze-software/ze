@@ -3,6 +3,7 @@ module ze-anomaly-observe-conf {
   prefix anomaly-observe;
 
   import ze-anomaly-detect-conf { prefix ad; }
+  import ze-extensions { prefix ze; }
 
   description "Behavioral anomaly incident lifecycle configuration. Augments the
                shared `anomaly` container (owned by ze-anomaly-detect-conf) with
@@ -11,17 +12,22 @@ module ze-anomaly-observe-conf {
 
   augment "/ad:anomaly" {
     container observe {
-      description "Incident lifecycle store: retains each confirmed incident from its start to its end, so `show anomaly observe` can report a finished incident's duration.";
+      description "Incident lifecycle store for confirmed anomaly incidents.";
+      ze:help "The store keeps each confirmed incident from its start to its end. `show anomaly observe` reads the
+          store, so it can report the duration of a finished incident.";
 
       leaf incident-ring-size {
         type uint32 { range "1..100000"; }
         default 1000;
-        description "Maximum number of incidents to retain in memory. The oldest finalized incident is dropped first when the ring is full.";
+        description "Maximum number of incidents the ring keeps in memory.";
+        ze:help "When the ring is full, the oldest finalized incident is dropped first.";
       }
       leaf stale-incident-timeout {
         type uint32 { range "1..86400"; }
         default 3600;
-        description "Seconds before an open incident that receives no clear event is finalized. The detector stops reporting an entity that goes idle without emitting a clear, so this bounds how long such an incident reads as active.";
+        description "Seconds before an open incident with no clear event is finalized.";
+        ze:help "The detector stops reporting an entity that goes idle, and it sends no clear event for that entity.
+            This timeout is the limit on how long such an incident reads as active.";
       }
     }
   }

@@ -3,6 +3,7 @@ module ze-ddos-local-conf {
   prefix ddos-local;
 
   import ze-ddos-detect-conf { prefix dd; }
+  import ze-extensions { prefix ze; }
 
   description "Local (drop-rule) mitigation configuration. Augments the shared `ddos`
                container (owned by ze-ddos-detect-conf) with the `local` subtree.";
@@ -28,16 +29,19 @@ module ze-ddos-local-conf {
       leaf confidence-min {
         type uint8 { range "0..100"; }
         default 0;
-        description "Minimum incident confidence (0-100) required to install a drop rule from a characterized attack. 0 (default) disables the gate. Higher values suppress mitigation on borderline detections.";
+        description "Minimum incident confidence, from 0 to 100, to install a drop rule.";
+        ze:help "Ze installs a drop rule from a characterized attack only when the
+confidence of the incident reaches this value. The default is 0, which disables the
+check. A higher value stops mitigation on a borderline detection.";
       }
       leaf forward-mitigation {
         type boolean;
         default false;
-        description "When true, also drop a remote (transit) victim's traffic on the
-                     netfilter FORWARD hook to protect a downstream host. Default false:
-                     the responder guards only local (box-owned) victims on INPUT and
-                     leaves remote victims to the flowspec upstream announce. The
-                     exempt/mitigate decision itself comes from the ddos/detect policy.";
+        description "Drop the traffic of a remote transit victim on the netfilter FORWARD hook.";
+        ze:help "The default is false. The responder then guards only a local victim, one
+the box owns, on the netfilter INPUT hook. The responder leaves a remote victim to the
+flowspec upstream announce. Set this leaf to true to protect a downstream host as well.
+The ddos/detect policy makes the exempt decision and the mitigate decision.";
       }
     }
   }

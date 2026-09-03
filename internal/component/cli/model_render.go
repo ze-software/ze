@@ -549,11 +549,11 @@ func (m Model) warningText() (string, lipgloss.Style) {
 		// A plugin declares this text, so it is bounded to one row before it
 		// reaches the terminal.
 		summary := oneRow(m.completions[m.selected].Description)
-		// The box already holds this text when the node declares only ONE, and
-		// every config node declares one. Repeating it here says nothing the box
-		// has not said, and the copy on this row is the one a terminal edge cuts.
-		// A command declares two, so its summary and its explanation differ and
-		// both belong on the screen.
+		// The box already holds this text when the node declares only ONE.
+		// Repeating it here says nothing the box has not said, and the copy on
+		// this row is the one a terminal edge cuts. A node that declares two,
+		// which every command and every config node can, has a summary and an
+		// explanation that differ, and both belong on the screen.
 		if summary != "" && summary != oneRow(m.explanation) {
 			return summary, dimStyle
 		}

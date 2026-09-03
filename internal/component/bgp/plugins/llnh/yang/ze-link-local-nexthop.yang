@@ -3,6 +3,7 @@ module ze-link-local-nexthop {
     prefix llnh;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
 
     description
         "Link-local next-hop capability plugin for Ze
@@ -17,9 +18,10 @@ module ze-link-local-nexthop {
         container link-local-nexthop {
             presence "Link-local next-hop capability enabled";
             description
-                "Link-local next-hop capability.
-                 Advertises willingness to receive IPv6 link-local next-hops
-                 in MP_REACH_NLRI (RFC 2545 Section 3).";
+                "Link-local next-hop capability.";
+            ze:help
+                "The capability advertises that ze accepts IPv6 link-local
+                 next-hops in MP_REACH_NLRI (RFC 2545 Section 3).";
         }
     }
 

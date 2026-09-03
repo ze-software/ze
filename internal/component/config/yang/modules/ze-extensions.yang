@@ -125,9 +125,9 @@ module ze-extensions {
     }
 
     // Extension: help
-    // Carries the LONG explanation of a command node. The YANG description
-    // statement carries the SHORT one: one sentence a list row, a completion
-    // candidate or a table cell can show whole.
+    // Carries the LONG explanation of a command node, an rpc, or a config
+    // node. The YANG description statement carries the SHORT one: one sentence
+    // a list row, a completion candidate or a table cell can show whole.
     //
     // The split is declared rather than derived. One string served both, and
     // each surface cut it differently: at the first sentence, at the first
@@ -143,18 +143,21 @@ module ze-extensions {
     // The argument is free text and can span lines. A help page prints it
     // whole, and no one-line surface reads it.
     //
-    // Two carriers declare it. A config false container in a -cmd module
+    // Three carriers declare it. A config false container in a -cmd module
     // carries the CLI path an operator types, and mergeYANGEntry reads it
     // through Entry.Exts. An rpc carries the wire method that path reaches,
-    // and ExtractRPCs reads it through gyang.RPC.Exts(). One reader answers
-    // both (internal/component/config/yang/command.go, getHelpExtension).
+    // and ExtractRPCs reads it through gyang.RPC.Exts(). A config node carries
+    // the setting an operator edits, and the CLI completer reads it through
+    // Entry.Exts for the ? box. One reader answers all three
+    // (internal/component/config/yang/command.go, GetHelpExtension).
     extension help {
         argument text;
-        description "Declares the long explanation of a command node or an rpc.
-                     The YANG description statement declares the one-line
-                     summary. This statement declares the explanation that the
-                     help page for that one command prints. The argument is
-                     free text and can span several lines.";
+        description "Declares the long explanation of a command node, an rpc, or
+                     a config node. The YANG description statement declares the
+                     one-line summary. This statement declares the explanation
+                     that the help page prints for a command, and that the ?
+                     box shows for a config node. The argument is free text and
+                     can span several lines.";
     }
 
     // Extension: modifier

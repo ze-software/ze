@@ -26,9 +26,9 @@ module ze-l2tp-shaper-conf {
             leaf default-rate {
                 type zt:rate;
                 mandatory true;
-                description
-                    "Default download rate applied to new sessions.
-                     Format: number followed by suffix (e.g. 10mbit, 100kbit).";
+                description "Default download rate applied to a new session.";
+                ze:help "Default download rate applied to new sessions. The format is a number followed by a suffix, for
+                    example 10mbit or 100kbit.";
             }
             leaf upload-rate {
                 type zt:rate;

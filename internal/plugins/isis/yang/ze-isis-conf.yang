@@ -20,9 +20,9 @@ module ze-isis-conf {
         leaf-list net {
             type string;
             ze:validate "isis-net";
-            description
-                "Network Entity Title(s), e.g. 49.0001.0000.0000.0001.00. At least
-                 one is required; the System ID is the 6 octets before the NSEL.";
+            description "Network Entity Title(s) of this IS-IS instance, at least one.";
+            ze:help "Network Entity Title(s), for example 49.0001.0000.0000.0001.00. At least one is required. The System
+                ID is the 6 octets before the NSEL.";
         }
 
         // RFC 1195: the System ID is a fixed 6-octet field. The pattern enforces
@@ -77,13 +77,11 @@ module ze-isis-conf {
         leaf hostname {
             type string { length "1..255"; }
             ze:validate "isis-hostname";
-            description
-                "Dynamic hostname to advertise (RFC 5301 section 3). Printable
-                 7-bit ASCII only, from space (0x20) to tilde (0x7e). Each
-                 dot-separated label is 1 to 63 octets and the whole name is at
-                 most 255 octets, including the separators (RFC 2181 section 11).
-                 One trailing dot is permitted. A non-ASCII name is refused, not
-                 converted.";
+            description "Dynamic hostname this IS-IS instance advertises (RFC 5301 section 3).";
+            ze:help "Dynamic hostname to advertise (RFC 5301 section 3). Printable 7-bit ASCII only, from space (0x20) to
+                tilde (0x7e). Each dot-separated label is 1 to 63 octets and the whole name is at most 255 octets,
+                including the separators (RFC 2181 section 11). One trailing dot is permitted. A non-ASCII name is
+                refused, not converted.";
         }
 
         container interfaces {

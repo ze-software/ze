@@ -14,16 +14,15 @@ module ze-pki-conf {
     }
 
     container pki {
-        description "PKI certificate and key store.
-                     Presence of this block enables certificate-based
-                     authentication for IPsec VPN, TLS, and other
-                     subsystems.";
+        description "PKI certificate and key store.";
+        ze:help "PKI certificate and key store. Presence of this block enables certificate-based authentication for
+            IPsec VPN, TLS, and other subsystems.";
 
         list ca {
             key "name";
-            description "Trusted CA certificate. The certificate leaf
-                         holds a base64-encoded DER X.509 certificate
-                         (no PEM headers).";
+            description "Trusted CA certificate.";
+            ze:help "Trusted CA certificate. The certificate leaf holds a base64-encoded DER X.509 certificate, with no
+                PEM headers.";
 
             leaf name {
                 type string;
@@ -56,15 +55,12 @@ module ze-pki-conf {
             leaf-list intermediate {
                 type string;
                 ordered-by user;
-                description "Base64-encoded DER intermediate CA certificates. Give them in
-                             order, from the one that issued this certificate toward the
-                             trust anchor. Ze stores them beside the device certificate for
-                             chain building, and sends them after it in the IKE_AUTH chain.
-
-                             RFC 7296 Section 3.6 requires an implementation be capable of
-                             being configured to send up to four X.509 certificates. This
-                             device certificate plus three intermediates is that maximum.
-                             A single value is still valid.";
+                description "Intermediate CA certificates in base64-encoded DER, from the issuer toward the trust anchor.";
+                ze:help "Base64-encoded DER intermediate CA certificates. Give them in order, from the one that issued this
+                    certificate toward the trust anchor. Ze stores them beside the device certificate for chain
+                    building, and sends them after it in the IKE_AUTH chain. RFC 7296 Section 3.6 requires an
+                    implementation be capable of being configured to send up to four X.509 certificates. This device
+                    certificate plus three intermediates is that maximum. A single value is still valid.";
             }
 
             container private {
@@ -73,10 +69,9 @@ module ze-pki-conf {
                 leaf key {
                     type string;
                     ze:sensitive;
-                    description "Private key in base64-encoded DER format.
-                                 Stored as $9$ in config file, auto-decoded
-                                 on load. Supports PKCS8, SEC1 (ECDSA),
-                                 and PKCS1 (RSA) encodings.";
+                    description "Private key in base64-encoded DER format.";
+                    ze:help "Private key in base64-encoded DER format. The config file stores it as $9$, and Ze decodes it on
+                        load. The supported encodings are PKCS8, SEC1 (ECDSA), and PKCS1 (RSA).";
                 }
             }
         }

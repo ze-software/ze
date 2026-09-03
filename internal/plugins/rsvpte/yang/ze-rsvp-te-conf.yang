@@ -51,7 +51,10 @@ module ze-rsvp-te-conf {
 
             leaf address {
                 type string;
-                description "Local link prefix (IPv4 CIDR, e.g. 10.0.0.4/30). When more than one interface is configured, admission control maps an LSP to this interface when the neighbor address falls within the prefix.";
+                description "Local link prefix in IPv4 CIDR form, for example 10.0.0.4/30.";
+                ze:help "Local link prefix (IPv4 CIDR, for example 10.0.0.4/30). When more than one interface is configured,
+                    admission control maps an LSP to this interface. The map applies when the neighbor address falls
+                    within the prefix.";
             }
         }
 
@@ -157,7 +160,12 @@ module ze-rsvp-te-conf {
 
         list bypass {
             key "name";
-            description "Facility-backup bypass LSP (RFC 4090 Section 3.2): an LSP from this PLR to a merge point, explicitly routed to avoid the protected resource. A protected transit LSP whose next hop (link protection) or next-next hop (node protection) is this bypass's merge point is redirected onto it on a local failure. Explicit because ze has no IGP/CSPF to auto-compute a backup path.";
+            description "Facility-backup bypass LSP from this PLR to a merge point (RFC 4090 Section 3.2).";
+            ze:help "Facility-backup bypass LSP (RFC 4090 Section 3.2): an LSP from this PLR to a merge point, explicitly
+                routed to avoid the protected resource. A protected transit LSP is redirected onto this bypass on a
+                local failure. The redirected LSP is one whose next hop (link protection) or next-next hop (node
+                protection) is this bypass's merge point. The route is explicit because Ze has no IGP and no CSPF to
+                compute a backup path.";
 
             leaf name {
                 type string;
@@ -166,7 +174,9 @@ module ze-rsvp-te-conf {
 
             leaf merge-point {
                 type string;
-                description "Merge point address (IPv4): the protected LSPs' next hop (link protection) or next-next hop (node protection) where this bypass rejoins them";
+                description "Merge point address (IPv4) where this bypass rejoins the protected LSPs.";
+                ze:help "Merge point address (IPv4). The address is the protected LSPs' next hop (link protection) or
+                    next-next hop (node protection), where this bypass rejoins them.";
             }
 
             leaf node-protection {

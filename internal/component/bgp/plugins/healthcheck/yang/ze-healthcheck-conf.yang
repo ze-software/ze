@@ -3,6 +3,7 @@ module ze-healthcheck-conf {
     prefix hc;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
 
     description "BGP healthcheck plugin configuration for Ze";
 
@@ -76,7 +77,9 @@ module ze-healthcheck-conf {
             leaf withdraw-on-down {
                 type boolean;
                 default false;
-                description "When true, withdraw route on DOWN/DISABLED. When false (default), re-announce with down-metric/disabled-metric.";
+                description "Withdraw the route when the probe is DOWN or DISABLED.";
+                ze:help "The default is false. Ze then keeps the route and re-announces it with down-metric, or with
+                    disabled-metric.";
             }
 
             leaf disable {

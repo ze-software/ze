@@ -21,10 +21,10 @@ module ze-filter-community-match {
         list community-match {
             ze:filter;
             key "name";
-            description "Named community match filter instance.
-                         Each list contains an ordered set of match entries.
-                         Entries are evaluated in order; first match wins.
-                         No match = implicit deny (reject).";
+            description "Named community match filter instance.";
+            ze:help "Each list holds an ordered set of match entries. Ze reads
+                     the entries in order, and the first match wins. No match is
+                     an implicit deny, so the route is rejected.";
 
             leaf name {
                 type string;
@@ -35,18 +35,21 @@ module ze-filter-community-match {
             list entry {
                 key "community";
                 ordered-by user;
-                description "Ordered match entry. First match wins.
-                             Checks whether the specified community value is present
-                             in the route's community attributes.";
+                description "Ordered match entry, checked against the route's community attributes.";
+                ze:help "Ze reads the entries in order, and the first match wins.
+                         An entry checks whether the named community value is
+                         present in the route's community attributes.";
 
                 leaf community {
                     type string;
-                    description "Community value to match.
-                                 Standard: ASN:VAL (e.g. 65001:100) or well-known name
-                                   (no-export, no-advertise, no-export-subconfed, nopeer, blackhole).
-                                 Large: GA:LD1:LD2 (e.g. 65001:100:200).
-                                 Extended: hex string (e.g. 000200010000000a) or
-                                   target:ASN:NN / origin:ASN:NN.";
+                    description "Community value to match.";
+                    ze:help "Standard: ASN:VAL, for example 65001:100, or a
+                             well-known name (no-export, no-advertise,
+                             no-export-subconfed, nopeer, blackhole).
+                             Large: GA:LD1:LD2, for example 65001:100:200.
+                             Extended: a hex string, for example
+                             000200010000000a, or target:ASN:NN, or
+                             origin:ASN:NN.";
                 }
 
                 leaf type {

@@ -2,6 +2,8 @@ module ze-image-server-conf {
     namespace "urn:ze:image-server:conf";
     prefix imgsrv;
 
+    import ze-extensions { prefix ze; }
+
     description "Image server configuration for Ze provisioning";
 
     revision 2026-01-01 {
@@ -57,7 +59,14 @@ module ze-image-server-conf {
                 type string {
                     pattern '[0-9a-f]{32}:[0-9a-f]{64}';
                 }
-                description "Salted argon2id of the installer rescue token, as '<saltHex>:<digestHex>'. Emitted on the installer kernel cmdline (ze.rescue-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal). This value is published unauthenticated on the PXE network, so it commits only to a dedicated rescue token, never to the admin password.";
+                description "Salted argon2id of the installer rescue token, as '<saltHex>:<digestHex>'.";
+                ze:help "Ze emits the value on the installer kernel cmdline, as
+                         ze.rescue-auth, and the installer checks it before it
+                         opens the rescue shell. An empty value makes the
+                         installer fail closed, so a fatal error opens no shell.
+                         The PXE network carries this value unauthenticated,
+                         so it MUST commit only to a dedicated rescue token, and
+                         never to the admin password.";
             }
         }
     }

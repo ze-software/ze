@@ -354,10 +354,13 @@ func (m *Model) revealCandidateExplanation(comp Completion) {
 	}
 
 	// The command completer is not the source, so the candidate is a config
-	// path. A config node declares ONE text, its YANG description, and it is
-	// often a paragraph. The message row holds one line, so the box is the only
-	// place that text fits whole.
-	m.revealDeclared(subjectOf(completedInput(m.textInput.Value(), comp.Text)), comp.Description)
+	// path. A config node declares the same two texts a command declares. The
+	// YANG description is the one-line summary the menu row shows. The ze:help
+	// extension is the explanation, and it is often a paragraph. The box takes
+	// the explanation alone, so the row and the box never say one thing twice.
+	// A node that declares no ze:help declares no explanation, and
+	// revealDeclared says so.
+	m.revealDeclared(subjectOf(completedInput(m.textInput.Value(), comp.Text)), comp.LongHelp)
 }
 
 // subjectOf names the command or the config path an explanation is about. A

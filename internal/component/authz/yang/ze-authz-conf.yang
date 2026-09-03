@@ -28,21 +28,24 @@ module ze-authz-conf {
                 leaf password {
                     type string;
                     ze:bcrypt;
-                    description "Bcrypt-hashed password (canonical form, e.g. $2a$10$...).
-                                 Write plaintext via plaintext-password -- it is hashed
-                                 into this leaf on commit and then discarded.";
+                    description "Bcrypt-hashed password, in canonical form.";
+                    ze:help "The canonical form carries a cost prefix, for
+                             example $2a$10$ before the salt and the digest.
+                             Write the plaintext password to plaintext-password.
+                             On commit, ze hashes that value into this leaf and
+                             then discards the plaintext.";
                 }
 
                 leaf plaintext-password {
                     type string;
                     ze:ephemeral;
                     ze:sensitive;
-                    description "Write-only plaintext password. On commit, the config
-                                 system bcrypt-hashes this value into the canonical
-                                 password leaf and removes this one from the tree.
-                                 The value is never written to the config file, and
-                                 a display path renders the secret placeholder for
-                                 it.";
+                    description "Write-only plaintext password.";
+                    ze:help "On commit, the config system hashes this value with
+                             bcrypt into the canonical password leaf, and it
+                             removes this leaf from the tree. Ze never writes the
+                             value to the config file. A display path renders the
+                             secret placeholder in its place.";
                 }
 
                 leaf-list profile {

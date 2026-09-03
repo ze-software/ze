@@ -20,10 +20,10 @@ module ze-filter-aspath-length {
         list as-path-length {
             ze:filter;
             key "name";
-            description "Named AS-path length filter instance.
-                         Routes with path length outside the configured
-                         min..max range are rejected. Both min and max
-                         are optional; omitting one makes that bound open.";
+            description "Named AS-path length filter instance.";
+            ze:help "Ze rejects a route whose AS-path length falls outside the
+                     configured min..max range. Both min and max are optional,
+                     and an omitted bound is open.";
 
             leaf name {
                 type string;

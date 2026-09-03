@@ -57,7 +57,9 @@ module ze-rib {
     // group default can be set once and a peer can override it.
     grouping blackhole-honor-fields {
         container blackhole {
-            description
+            description "RFC 7999 blackhole agreement on this BGP session, in both directions.";
+
+            ze:help
               "The RFC 7999 agreement on this BGP session, in both directions.
                It states what this speaker does with a received route carrying
                the BLACKHOLE community, 65535:666. It also states whether this
@@ -73,7 +75,8 @@ module ze-rib {
             leaf-list communities {
                 type string;
                 ze:cumulative;
-                description
+                description "Communities that make Ze discard traffic toward a prefix this peer announces.";
+                ze:help
                   "Discard traffic sent toward a prefix this peer announces
                    carrying one of these communities. Ze installs that prefix as
                    a discard route directly. There is no next-hop to allocate and
@@ -123,7 +126,8 @@ module ze-rib {
             leaf-list prefixes {
                 type string;
                 ze:cumulative;
-                description
+                description "The prefixes this peer is authorized to advertise.";
+                ze:help
                   "The prefixes this PEER is authorized to advertise. Ze honors a
                    received blackhole announcement only when one of them covers
                    it and is equal or shorter. That is RFC 7999 Section 3.3's

@@ -70,8 +70,12 @@ module ze-l2tp-pool-conf {
             }
             container ipv6-pd {
                 description
-                    "IPv6 prefix delegation pool. Allocates /N prefixes from
-                     a configured block for DHCPv6-PD. RFC 3633.";
+                    "IPv6 prefix delegation pool for subscribers.";
+                ze:help
+                    "The pool allocates one prefix of the configured length to each
+                     subscriber, taken from the configured block, for DHCPv6 prefix
+                     delegation. RFC 3633 defines that delegation.";
+
                 leaf block {
                     type string;
                     description

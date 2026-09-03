@@ -21,41 +21,42 @@ module ze-filter-aspath {
         list as-path-list {
             ze:filter;
             key "name";
-            description "Named AS-path regex filter instance.
-                         Each list contains an ordered set of regex entries.
-                         Entries are evaluated in order; first match wins.
-                         No match = implicit deny (reject).";
+            description "Named AS-path regex filter instance.";
+            ze:help "Each list holds an ordered set of regex entries. Ze evaluates the
+entries in order, and the first match wins. No match is an implicit deny, so Ze rejects
+the route.";
 
             leaf name {
                 type string;
-                description "Filter instance name (referenced in peer filter chains
-                             as bgp-filter-aspath:NAME or as-path-list:NAME).";
+                description "Filter instance name, referenced in a peer filter chain.";
+                ze:help "A peer filter chain references this instance as
+bgp-filter-aspath:NAME or as as-path-list:NAME.";
             }
 
             list entry {
                 key "regex";
                 ordered-by user;
-                description "Ordered regex entry. First match wins against the
-                             space-separated AS-path string.";
+                description "One regex entry of the ordered list.";
+                ze:help "Ze matches each entry against the space-separated AS-path string,
+in the configured order. The first entry that matches wins.";
 
                 leaf regex {
                     type string;
-                    description "Regular expression matched against the space-separated
-                                 decimal AS-path string representation.
-                                 Examples: '^65001$' (exact single-AS match),
-                                 '^65001 ' (paths starting with AS 65001),
-                                 '^$' (empty AS-path, locally originated).
-                                 Uses Go RE2 syntax (linear time guarantee).
-                                 Maximum length: 512 characters.";
+                    description "Regular expression matched against the decimal AS-path string.";
+                    ze:help "Ze builds the AS-path string from the decimal ASNs, with one
+space between them. '^65001$' matches one AS exactly. '^65001 ' matches a path that
+starts with AS 65001. '^$' matches an empty AS-path, which is a locally originated
+route. The syntax is Go RE2, which guarantees linear time. The maximum length is 512
+characters.";
                 }
 
                 leaf action {
                     type enumeration {
                         enum accept {
-                            description "Accept routes with matching AS-path";
+                            description "Accept a route whose AS-path matches.";
                         }
                         enum reject {
-                            description "Reject routes with matching AS-path";
+                            description "Reject a route whose AS-path matches.";
                         }
                     }
                     default accept;

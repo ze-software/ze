@@ -12,11 +12,10 @@ module ze-l2tp-conf {
     }
 
     container l2tp {
-        description "L2TPv2 tunnel subsystem settings (RFC 2661).
-                     Presence of this block with any content implies the
-                     subsystem is enabled. Use 'enabled false' to disable
-                     explicitly, or 'enabled true' as a filler when no
-                     other settings are needed.";
+        description "L2TPv2 tunnel subsystem settings (RFC 2661).";
+        ze:help "L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any content implies the
+            subsystem is enabled. Use 'enabled false' to disable it explicitly, or 'enabled true' as a filler
+            when no other settings are needed.";
 
         leaf enabled {
             type boolean;
@@ -28,24 +27,20 @@ module ze-l2tp-conf {
         leaf max-tunnels {
             type uint16;
             default 1024;
-            description
-                "Maximum concurrent L2TP tunnels. The default is a
-                 finite deployment safety cap. A value of 0 explicitly
-                 requests unbounded admission by this knob; the 65535
-                 ceiling imposed by RFC 2661's 16-bit Tunnel ID field
-                 still applies. New SCCRQs beyond a positive limit are
-                 rejected with StopCCN Result Code 2.";
+            description "Maximum concurrent L2TP tunnels.";
+            ze:help "Maximum concurrent L2TP tunnels. The default is a finite deployment safety cap. A value of 0
+                explicitly requests unbounded admission by this leaf. The 65535 ceiling imposed by RFC 2661's 16-bit
+                Tunnel ID field still applies. A new SCCRQ beyond a positive limit is rejected with StopCCN Result
+                Code 2.";
         }
 
         leaf max-sessions {
             type uint16;
             default 1024;
-            description
-                "Maximum concurrent sessions per tunnel. The default is
-                 a finite deployment safety cap. A value of 0 explicitly
-                 requests unbounded admission on each tunnel. New ICRQs
-                 and OCRQs beyond a positive limit are rejected with CDN
-                 Result Code 4 (no resources).";
+            description "Maximum concurrent sessions per tunnel.";
+            ze:help "Maximum concurrent sessions per tunnel. The default is a finite deployment safety cap. A value of 0
+                explicitly requests unbounded admission on each tunnel. A new ICRQ or OCRQ beyond a positive limit
+                is rejected with CDN Result Code 4 (no resources).";
         }
 
         leaf auth-method {
@@ -56,43 +51,37 @@ module ze-l2tp-conf {
                 enum ms-chap-v2;
             }
             default "chap-md5";
-            description
-                "PPP Auth-Protocol method first advertised in LCP
-                 Configure-Request. The default requires CHAP-MD5. Set
-                 to none only together with allow-no-auth true.";
+            description "PPP Auth-Protocol method first advertised in LCP Configure-Request.";
+            ze:help "PPP Auth-Protocol method first advertised in LCP Configure-Request. The default requires CHAP-MD5.
+                Set the leaf to none only together with allow-no-auth true.";
         }
 
         leaf allow-no-auth {
             type boolean;
             default false;
-            description
-                "Allow PPP LCP authentication negotiation to proceed
-                 without an Auth-Protocol. The default is false, so a
-                 peer that rejects all configured authentication methods
-                 is disconnected instead of being accepted as no-auth.";
+            description "Allow PPP LCP to finish with no Auth-Protocol, false by default.";
+            ze:help "Allow PPP LCP authentication negotiation to proceed without an Auth-Protocol. The default is false,
+                so a peer that rejects all configured authentication methods is disconnected, instead of being
+                accepted as no-auth.";
         }
 
         leaf shared-secret {
             type string;
             ze:sensitive;
-            description
-                "Shared secret used to compute CHAP-MD5 Challenge
-                 Responses (RFC 2661 Section 5.1.1; the AVPs are
-                 defined in Section 4.4.3). When unset and a
-                 peer sends a Challenge AVP, the subsystem rejects the
-                 tunnel with StopCCN Result Code 4 (Not Authorized).
-                 Value is masked in CLI output and cleared from the
-                 process environment after first read.";
+            description "Shared secret that computes CHAP-MD5 Challenge Responses (RFC 2661).";
+            ze:help "Shared secret used to compute CHAP-MD5 Challenge Responses (RFC 2661 Section 5.1.1, and the AVPs are
+                defined in Section 4.4.3). When the leaf is unset and a peer sends a Challenge AVP, the subsystem
+                rejects the tunnel with StopCCN Result Code 4 (Not Authorized). The value is masked in CLI output
+                and cleared from the process environment after the first read.";
         }
 
         leaf hello-interval {
             type uint16 {
                 range "1..3600";
             }
-            description
-                "Seconds of peer silence before sending HELLO. RFC 2661
-                 recommends 60s; values above 3600 (one hour) are
-                 rejected because they effectively disable keepalive.";
+            description "Seconds of peer silence before Ze sends HELLO.";
+            ze:help "Seconds of peer silence before sending HELLO. RFC 2661 recommends 60s. A value more than 3600, which
+                is one hour, is rejected, because it disables keepalive.";
         }
 
         leaf hello-retries {
@@ -100,26 +89,22 @@ module ze-l2tp-conf {
                 range "0..255";
             }
             default 2;
-            description
-                "Dead-peer detection threshold: consecutive unanswered HELLO
-                 keepalive intervals tolerated before an established tunnel's
-                 peer is declared dead and the tunnel is torn down. Effective
-                 detection time is hello-retries x hello-interval, measured
-                 from the last proof of peer liveness (a delivered control
-                 message or an acknowledgement of one of our messages,
-                 including a ZLB ACK of a HELLO). 0 disables dead-peer
-                 detection, leaving reliable-transport retransmit exhaustion
-                 (~31s) as the only teardown signal. Default 2.";
+            description "Unanswered HELLO intervals tolerated before the peer is declared dead.";
+            ze:help "Dead-peer detection threshold: consecutive unanswered HELLO keepalive intervals tolerated before an
+                established tunnel's peer is declared dead and the tunnel is torn down. The effective detection time
+                is hello-retries x hello-interval, measured from the last proof of peer liveness. That proof is a
+                delivered control message, or an acknowledgement of one of our messages, including a ZLB ACK of a
+                HELLO. A value of 0 disables dead-peer detection, and reliable-transport retransmit exhaustion,
+                about 31s, is then the only teardown signal. The default is 2.";
         }
 
         leaf cqm-enabled {
             type boolean;
             default false;
-            description
-                "Enable the CQM (Customer Quality Monitor) observer.
-                 When true, pre-allocates per-session event rings and
-                 per-login sample rings at subsystem start, and overrides
-                 the PPP echo interval to 1s for RTT measurement.";
+            description "Enable the CQM (Customer Quality Monitor) observer.";
+            ze:help "Enable the CQM (Customer Quality Monitor) observer. When this leaf is true, Ze pre-allocates
+                per-session event rings and per-login sample rings at subsystem start. Ze also overrides the PPP
+                echo interval to 1s for RTT measurement.";
         }
 
         leaf max-logins {
@@ -127,10 +112,10 @@ module ze-l2tp-conf {
                 range "1..1000000";
             }
             default 1000;
-            description
-                "Maximum concurrent PPP logins tracked by the CQM observer.
-                 Controls the size of the pre-allocated sample ring pool.
-                 When exceeded, the least recently used login's data is evicted.";
+            description "Maximum concurrent PPP logins the CQM observer tracks.";
+            ze:help "Maximum concurrent PPP logins tracked by the CQM observer. The value controls the size of the
+                pre-allocated sample ring pool. When the maximum is exceeded, the least recently used login's data
+                is evicted.";
         }
 
         leaf event-ring-size-per-session {
@@ -148,10 +133,10 @@ module ze-l2tp-conf {
                 range "100..86400";
             }
             default 86400;
-            description
-                "Duration of CQM sample retention per login, in seconds.
-                 Divided by the 100-second bucket interval to determine
-                 ring capacity. Default 86400 (24 hours) = 864 buckets.";
+            description "Duration of CQM sample retention per login, in seconds.";
+            ze:help "Duration of CQM sample retention per login, in seconds. The duration is divided by the 100-second
+                bucket interval to determine ring capacity. The default of 86400, which is 24 hours, gives 864
+                buckets.";
         }
 
         container authentication {
@@ -162,10 +147,9 @@ module ze-l2tp-conf {
                     range "1..3600";
                 }
                 default 30;
-                description
-                    "PPP auth-phase timeout in seconds. Sessions that do
-                     not complete authentication within this window are
-                     torn down. Default 30 seconds.";
+                description "PPP auth-phase timeout in seconds, 30 by default.";
+                ze:help "PPP auth-phase timeout in seconds. A session that does not complete authentication within this
+                    window is torn down. The default is 30 seconds.";
             }
 
             leaf reauth-interval {
@@ -173,11 +157,9 @@ module ze-l2tp-conf {
                     range "0 | 5..86400";
                 }
                 default 0;
-                description
-                    "Periodic re-authentication interval in seconds
-                     (CHAP/MS-CHAPv2 only). Zero disables re-auth.
-                     Values 1-4 are rejected to prevent re-auth storms.
-                     Default 0 (disabled).";
+                description "Periodic re-authentication interval in seconds, 0 by default.";
+                ze:help "Periodic re-authentication interval in seconds, for CHAP and MS-CHAPv2 only. Zero disables re-auth.
+                    A value of 1 to 4 is rejected, to prevent re-auth storms. The default is 0, which is disabled.";
             }
         }
 
@@ -195,9 +177,9 @@ module ze-l2tp-conf {
             leaf enable-ipv6cp {
                 type boolean;
                 default true;
-                description
-                    "Enable the IPv6CP NCP (RFC 5072) for new L2TP sessions.
-                     When false, no IPv6 interface identifier is negotiated.";
+                description "Enable the IPv6CP NCP (RFC 5072) for a new L2TP session.";
+                ze:help "Enable the IPv6CP NCP (RFC 5072) for new L2TP sessions. When this leaf is false, no IPv6 interface
+                    identifier is negotiated.";
             }
 
             leaf timeout {
@@ -205,21 +187,19 @@ module ze-l2tp-conf {
                     range "1..3600";
                 }
                 default 30;
-                description
-                    "NCP negotiation timeout in seconds. Sessions that do
-                     not complete NCP within this window are torn down.
-                     Default 30 seconds.";
+                description "NCP negotiation timeout in seconds, 30 by default.";
+                ze:help "NCP negotiation timeout in seconds. A session that does not complete NCP within this window is torn
+                    down. The default is 30 seconds.";
             }
         }
 
         list remote {
             key "name";
-            description
-                "L2TP dial targets: remote LNS/LAC endpoints ze initiates
-                 tunnels toward (sends SCCRQ to). Referenced by name from
-                 'request l2tp outgoing-call remote <name>' and from PPPoE
-                 relay bindings. Declaring a remote grants no dial by itself;
-                 an operator action (RPC) or a relay binding drives the dial.";
+            description "L2TP dial targets, the remote LNS or LAC endpoints Ze dials.";
+            ze:help "L2TP dial targets: remote LNS/LAC endpoints ze initiates tunnels toward, and sends SCCRQ to. They
+                are referenced by name from 'request l2tp outgoing-call remote <name>' and from PPPoE relay
+                bindings. Declaring a remote grants no dial by itself. An operator action (RPC) or a relay binding
+                drives the dial.";
 
             leaf name {
                 type string {
@@ -241,50 +221,44 @@ module ze-l2tp-conf {
                     range "1..65535";
                 }
                 default 1701;
-                description
-                    "Remote UDP port for the control channel. RFC 2661
-                     assigns 1701; overridable for non-standard peers.";
+                description "Remote UDP port for the control channel, 1701 by default.";
+                ze:help "Remote UDP port for the control channel. RFC 2661 assigns 1701, and this leaf overrides it for a
+                    non-standard peer.";
             }
 
             leaf shared-secret {
                 type string;
                 ze:sensitive;
-                description
-                    "Per-remote CHAP-MD5 tunnel-authentication secret
-                     (RFC 2661 Section 5.1.1). Overrides the subsystem-level
-                     shared-secret for tunnels dialed to this remote. When
-                     empty, this dial carries no Challenge AVP. Masked in CLI
-                     output.";
+                description "Per-remote CHAP-MD5 tunnel-authentication secret (RFC 2661).";
+                ze:help "Per-remote CHAP-MD5 tunnel-authentication secret (RFC 2661 Section 5.1.1). It overrides the
+                    subsystem-level shared-secret for tunnels dialed to this remote. When it is empty, this dial carries
+                    no Challenge AVP. The value is masked in CLI output.";
             }
 
             leaf outgoing-calls {
                 type boolean;
                 default false;
-                description
-                    "Permit LNS-side outgoing calls ('request l2tp
-                     outgoing-call') toward this remote. Default false: the
-                     remote must be explicitly enabled for dial-out before an
-                     operator can place a call, so a mistyped remote name is
-                     rejected rather than dialed.";
+                description "Permit LNS-side outgoing calls toward this remote, false by default.";
+                ze:help "Permit LNS-side outgoing calls ('request l2tp outgoing-call') toward this remote. The default is
+                    false. The remote must be explicitly enabled for dial-out before an operator can place a call, so a
+                    mistyped remote name is rejected rather than dialed.";
             }
         }
 
         list relay {
             key "service";
-            description
-                "PPPoE-to-L2TP relay bindings (LAC role). A subscriber whose
-                 PADI/PADR carries a matching PPPoE Service-Name is relayed
-                 into an L2TP incoming call toward the named remote instead of
-                 terminating PPP locally on this box. Removing a binding
-                 restores local termination for that service.";
+            description "PPPoE-to-L2TP relay bindings for the LAC role.";
+            ze:help "PPPoE-to-L2TP relay bindings (LAC role). A subscriber whose PADI or PADR carries a matching PPPoE
+                Service-Name is relayed into an L2TP incoming call toward the named remote, instead of terminating
+                PPP locally on this box. Removing a binding restores local termination for that service.";
 
             leaf service {
                 type string {
                     length "0..255";
                 }
-                description
-                    "PPPoE Service-Name to match. The empty string matches a
-                     subscriber that requests no specific service.";
+                description "PPPoE Service-Name to match.";
+                ze:help "PPPoE Service-Name to match. The empty string matches a subscriber that requests no specific
+                    service.";
             }
 
             leaf remote {
@@ -292,11 +266,9 @@ module ze-l2tp-conf {
                     length "1..64";
                 }
                 mandatory true;
-                description
-                    "Name of the L2TP remote (dial target) that matching
-                     subscribers are relayed to. MUST reference a remote
-                     declared under l2tp/remote; an unknown name is rejected
-                     at config validation.";
+                description "Name of the L2TP remote that matching subscribers are relayed to.";
+                ze:help "Name of the L2TP remote (dial target) that matching subscribers are relayed to. It MUST reference a
+                    remote declared under l2tp/remote, and an unknown name is rejected at config validation.";
             }
         }
     }

@@ -3,6 +3,7 @@ module ze-fakeddos-conf {
   prefix fakeddos;
 
   import ze-ddos-detect-conf { prefix dd; }
+  import ze-extensions { prefix ze; }
 
   description "Test-only synthetic DDoS injector configuration. Augments the shared
                `ddos` container (owned by ze-ddos-detect-conf) with a `fake` subtree
@@ -16,7 +17,11 @@ module ze-fakeddos-conf {
       leaf enabled {
         type boolean;
         default false;
-        description "When true, start the injector: emit a synthetic AttackDetected then, on the driver's trigger, AttackCleared. Default false leaves it inert.";
+        description "Start the synthetic DDoS injector. The default false leaves it inert.";
+        ze:help "When true, the injector emits a synthetic AttackDetected event.
+                 It then emits AttackCleared on the driver's trigger.
+                 The default false leaves the injector inert.";
+
       }
     }
   }
