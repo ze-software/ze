@@ -1,0 +1,31 @@
+# Test: `ze doctor` reports an ethernet that overrides its MAC but binds by name.
+#
+# VALIDATES: the operator learns, from the command they already run, that
+# `mac { address }` on a name-bound entry is written to whichever device holds
+# that name. applyConfig (internal/component/iface/config_apply.go) calls
+# SetMACAddress against the device the entry resolves to, on every apply, so a
+# kernel rename hands one NIC's address to another.
+# PREVENTS: the shape `ze init` wrote for every discovered NIC until 2026-09-02
+# staying invisible on the boxes that already carry it.
+#
+# One command on purpose: reject=stdout:pattern= matches the whole file's
+# accumulated stdout, so a second command printing the code would trip a reject
+# in the sibling file. No exit-code assertion, because `ze doctor` reports on
+# the whole machine and eth0 exists on no CI runner.
+
+option=needs-linux
+
+tmpfs=mac-override-by-name.conf:terminator=EOF_OVERRIDE
+interface {
+    backend netlink;
+    ethernet eth0 {
+        mac {
+            address 02:00:00:00:00:01;
+        }
+    }
+}
+EOF_OVERRIDE
+
+cmd=foreground:seq=1:exec=ze doctor --json mac-override-by-name.conf:timeout=60s
+expect=stdout:contains=schema-version
+expect=stdout:contains=doctor-iface-mac-override-by-name

@@ -1,0 +1,25 @@
+# Test: `ze doctor` stays silent when the MAC override follows the NIC.
+#
+# VALIDATES: the fix the sibling test's warning asks for. With `mac { match }`
+# set, the entry binds to the device carrying that factory address, so the
+# override lands on the NIC it was written for and the warning is wrong.
+# PREVENTS: a check that cries wolf on the config every operator is told to
+# write.
+
+option=needs-linux
+
+tmpfs=mac-override-matched.conf:terminator=EOF_MATCHED
+interface {
+    backend netlink;
+    ethernet eth0 {
+        mac {
+            match 02:00:00:00:00:02;
+            address 02:00:00:00:00:01;
+        }
+    }
+}
+EOF_MATCHED
+
+cmd=foreground:seq=1:exec=ze doctor --json mac-override-matched.conf:timeout=60s
+expect=stdout:contains=schema-version
+reject=stdout:pattern=doctor-iface-mac-override-by-name
