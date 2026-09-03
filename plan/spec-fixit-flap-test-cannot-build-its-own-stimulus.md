@@ -48,38 +48,51 @@ by timing. It sends SIGHUP, waits a fixed lead, then drives 101 carrier
 transitions, and it needs the burst to land while the reload still holds the
 lock.
 
-That no longer happens. Measured four times on the arm64 QEMU VM on 2026-09-03,
-`ze_iface_link_worker_blocked_total` did not move in any of six attempts, and
-the run ends at `only 0 of 3 wanted rounds overlapped a commit in 6 attempts`.
-The test is red, and it is red for the scenario never being built rather than
-for the product regressing.
+**The paragraph that stood here was wrong, and the wrongness is the point of
+this file.** It read: "That no longer happens. Measured four times on the arm64
+QEMU VM on 2026-09-03, `ze_iface_link_worker_blocked_total` did not move in any
+of six attempts ... The test is red for the scenario never being built rather
+than for the product regressing."
 
-The lead is not the knob. It was one second, chosen when forty DHCP clients held
-the lock for a measured 1.1 to 3.3 s; 100 ms on the same host also gave zero of
-six. Both values are recorded on `flapCommitLead08`
-(`internal/test/fixture/plugin_fixture_08_flap.go`).
+The four measurements are real. The conclusion drawn from them was not. The
+counter did not move BECAUSE IT COULD NOT: the worker labels a block with the
+interface name on the queue entry it was about to handle, the carrier resync
+pushed every second carries no name, so the block lands on the empty label while
+the burst coalesces behind it, and the fixture was reading
+`{name="zeflapv0"}`. The scenario was built on every one of those runs.
 
-Goal: restore the stimulus, on evidence rather than by tuning a literal. Answer
-first whether the reload takes `dhcpMu` at all on a current host, and only then
-choose between a longer hold, a synchronised burst, and a different way of
-blocking the worker.
+The lead was suspected next and was also innocent. One second, chosen when forty
+DHCP clients held the lock for a measured 1.1 to 3.3 s, and 100 ms on the same
+host, both gave "zero of six" for the same reason: neither changes what the
+counter can see. `flapCommitLead08` stays at one second and carries that warning.
 
-Open at design time, and the order matters:
+Goal, as achieved in `055b97a29`: read a fact about the DAEMON from every series
+of the counter rather than from one interface's label. Four of four green after.
+The three questions this file opened are answered, and the answers are worth
+keeping because each was a candidate cause that turned out to be innocent:
 
-1. Does the reload reach `reconcileDHCP` and take the lock? A SIGHUP over an
-   unchanged config does not reach the iface apply at all, and the fixture flips
-   a DHCP hostname each round precisely to force a real change. Whether that
-   flip still produces a config the loader treats as changed is unestablished.
-2. If the lock is taken, how long is it held for forty clients today? The 1.1
-   to 3.3 s figure is from 2026-08-22 and predates whatever made the reload
-   faster.
-3. Only then: whether to lengthen the hold (more clients), synchronise the burst
-   against a signal, or block the worker by a mechanism that does not depend on
-   how long an unrelated reconcile happens to take.
+1. **Does the reload reach `reconcileDHCP` and take the lock?** Yes. `hostname`
+   is declared at `internal/component/iface/yang/ze-iface-conf.yang` inside the
+   `interface` subtree, so the flip is a real change to iface's declared root
+   despite the config file being named `ze-bgp.conf` (the runner names any first
+   `stdin=` block that). No gate on the SIGHUP path skips the apply: the
+   unchanged-config test and the per-plugin subtree test both pass on this diff.
+2. **How long is the hold?** Unchanged in mechanism. `DHCPClient.Stop`
+   (`internal/plugins/iface/dhcp/dhcp_linux.go`) closes the stop channel and
+   then waits on done, forty times in sequence, and nothing has moved that work
+   out from under the lock since the 1.1 to 3.3 s figure was taken.
+3. **Which design restores the stimulus?** None was needed. Two were surveyed
+   and are recorded in the journal row for whoever meets this class again: a
+   `zetest` rendezvous inside the apply removes the timing race but costs a
+   production call site with an empty body, and a participant fixture holding
+   the reload is a trap, because participant order comes from ranging a Go map
+   and is randomized per reload.
 
-Prefer the answer that removes the timing race rather than one that widens the
-window (`ai/rules/simplicity.md`). A test whose stimulus is a race will come
-back the next time the daemon gets faster, and this is the second time.
+The advice the file opened with still stands and is the one thing to carry
+forward: prefer the answer that removes a timing race over one that widens a
+window (`ai/rules/simplicity.md`). It just was not a timing race this time, and
+reaching for the timing knob first cost two QEMU cycles before the instrument
+was questioned.
 
 ## Required Reading
 
@@ -96,12 +109,20 @@ back the next time the daemon gets faster, and this is the second time.
 **Key insights:** (minimal context to resume after compaction)
 - The three assertions and why the test needs all three are written in the
   `.ci` header. Read it before changing any of them.
-- Two instruments do NOT work here, both measured on 2026-09-03. There is no
-  config-apply counter to poll: `internal/component/iface` publishes owned
-  devices, coalescing, worker blocks and resyncs, and nothing about applies.
-  And per-round stderr from this fixture does not reach the run output, though
-  the one line printed before the round loop does, so a diagnostic added inside
-  the loop prints nothing.
+- There is no config-apply counter to poll: `internal/component/iface` publishes
+  owned devices, coalescing, worker blocks and resyncs, and nothing about
+  applies. That gap is real and is the follow-on work this file names.
+- **CORRECTED 2026-09-04.** This bullet claimed per-round stderr from the
+  fixture does not reach the run output, and that is FALSE. The relay carries
+  every line: `attachStderrRelay` has no cap and does not stop at ready. What
+  drops them is the report. `printGenericReport` calls
+  `truncateOutput(rec.ClientOutput, 30)` and `truncateOutput`
+  (`internal/test/runner/report.go`) keeps `lines[:maxLines]`, the FIRST 30, so
+  a line printed before the round loop survives and every line inside it is
+  cut. A diagnostic added inside the loop DOES print; it is simply never shown.
+  The daemon also runs at WARN in every `.ci` run, because the runner's
+  `SLOG_LEVEL` is dead code and `slogutil` reads only `ze.log*`; the knob for
+  this component is `ze.log.interface`, not `ze.log.iface`.
 
 ## Current Behavior (MANDATORY)
 
