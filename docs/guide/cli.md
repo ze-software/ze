@@ -122,6 +122,24 @@ through a pipe alias the plugin declares. It resolves over `ze cli -c "..."` and
 over ssh, and NOT inside `ze cli` with no command argument
 (`docs/guide/rpki.md`).
 
+## Resolution Commands
+
+| Command | Description |
+|---------|-------------|
+| `show resolve rir <asn>` | Which Regional Internet Registry holds an AS number, and its whois host |
+| `update resolve rir` | Refresh the RIR delegation table from the five registry delegation files |
+<!-- source: internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang -- show > resolve > rir, update > resolve > rir -->
+
+The lookup reads a table the binary ships as embedded data, so it answers with
+no network. `update resolve rir` stores a fresh table under
+`meta/rir/delegation`, and the lookup prefers that copy while its generation
+date is later than the shipped table's. The refresh is all or nothing: a
+registry that does not answer leaves the previous table in place and the error
+names the file it could not read. The same lookup runs on the host with no
+daemon, as `ze resolve rir <asn>`.
+<!-- source: internal/component/resolve/irr/stored.go -- preferStoredDelegation -->
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRASN, handleRIRRefresh -->
+
 ## Daemon Control
 
 | Command | Description |
@@ -165,9 +183,9 @@ In `ze cli` interactive mode:
 ### Keys that reveal help
 
 Every command declares two help texts: a one-line summary and a long
-explanation. Tab reaches both, so an operator reads what a command does and
-stays at the prompt. Two message lines sit above the prompt, and the second one
-carries the summary.
+explanation. Tab and `?` reach both, so an operator reads what a command does
+and stays at the prompt. Two message lines sit above the prompt, and the second
+one carries the summary.
 
 | Key | What it does |
 |-----|--------------|
@@ -175,14 +193,17 @@ carries the summary.
 | Up or Down | Moves the selection in the menu. The second message line shows the selected command's summary |
 | Tab, with nothing left to complete | Shows the command's long explanation in a box above the prompt |
 | Tab, on a command that declares no explanation | The second message line reads `<command>: no explanation is declared` |
-| `?`, with the menu open | Writes the selected command's name and summary on the second message line |
+| `?`, with a candidate highlighted | Shows that candidate's long explanation, in the box Tab uses. The menu stays open under it |
+| `?`, on a config key in configuration mode | Shows that key's whole YANG description in the box. A description is often a paragraph, and the message line holds one row |
+| `?`, on a candidate that declares no text | The second message line reads `<command>: no explanation is declared` |
+| `?`, with no candidate highlighted | Completes, as Tab does |
 | Enter, with the menu open | Puts the selected command in the input |
 | Enter, with the explanation on the screen | Runs the command as typed |
-| Escape, with the explanation on the screen | Removes the explanation. The typed command stays |
+| Escape, with the explanation on the screen | Removes the explanation. The typed command stays, and so does a menu under it |
 | Escape, with the menu open | Closes the menu |
 | Escape, with nothing revealed | Clears the typed command. An empty input asks to quit |
 | Any text key, or Backspace | Removes the menu or the explanation. The key still reaches the input |
-<!-- source: internal/component/cli/model_keys.go -- handleTab, revealExplanation, handleEnter -->
+<!-- source: internal/component/cli/model_keys.go -- handleTab, revealExplanation, revealCandidateExplanation, handleEnter -->
 <!-- source: internal/component/cli/model_render.go -- warningText -->
 
 Escape removes one thing for each press. The explanation goes first, and the

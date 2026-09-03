@@ -1,0 +1,38 @@
+# Test: an operator asks which Regional Internet Registry holds an AS number,
+# on the host with no daemon and inside the daemon with a `| json` pipe.
+#
+# VALIDATES: spec-rir-seed-embed-and-zefs-refresh AC-1 and AC-2, and user
+#            story 1.
+#            AC-1 -- `ze resolve rir 15169` answers ARIN and whois.arin.net from
+#                    the embedded seed, with no network and no stored copy, and
+#                    exits 0. `show resolve rir 15169 | json` answers the same
+#                    thing as structured data an operator can script against.
+#            AC-2 -- an AS number in no delegated range exits non-zero on both
+#                    paths and says which of the two answers it is, so "nobody
+#                    holds this AS number" never reads as "I could not find out".
+# PREVENTS:  the state this spec began in. The delegation table shipped as
+#            11,269 lines of Go and no production code reached it, so no
+#            operator could ask it anything. A unit test over the lookup would
+#            pass again in that state; only a run of the shipped binary says the
+#            answer is reachable.
+#
+# The config directory is a fresh temporary one, so the store the lookup
+# consults holds no refreshed copy and the shipped seed is what answers. The
+# daemon carries one administrator and an ephemeral SSH listener, because a
+# delegation lookup reads data and never a BGP session.
+#
+# DISCRIMINATOR: point RegistryForASN at a table it cannot read and both
+# assertions fail, the second before the first, because "unreadable" and "no
+# range" then stop being two answers.
+#
+# The timeout is DECLARED. This file starts one daemon and launches `ze` six
+# times, which is a few seconds on an idle host and more when parallel agents
+# share it.
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/resolve-rir-lookup
+expect=exit:code=0
+expect=stderr:contains=OK: the host answers from the embedded seed, with no daemon and no stored copy
+expect=stderr:contains=OK: an AS number in no delegated range exits non-zero and says which answer it is
+expect=stderr:contains=OK: the daemon answers the same registry as structured data through | json
+expect=stderr:contains=OK: the daemon keeps the two answers apart as well

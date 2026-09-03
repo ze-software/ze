@@ -6,6 +6,7 @@ module ze-resolve-cmd {
     revision 2026-04-04 { description "Initial revision"; }
     revision 2026-08-29 { description "Declare the value each lookup takes: the hostname of the A, AAAA and TXT lookups, the address of the reverse lookup, and the AS number of the Cymru and PeeringDB lookups. The descriptions spelled them in prose and the model stated nothing."; }
     revision 2026-06-03 { description "Relocated clear dns cache out of the central clear schema, and show dns lookup/cache out of the central show schema, into the resolve component (plugin self-containment)."; }
+    revision 2026-09-02 { description "Add show resolve rir and update resolve rir: which Regional Internet Registry holds an AS number, and the operator order that refreshes the delegation table."; }
 
     container resolve {
         config false;
@@ -158,6 +159,42 @@ generated references show distinct read-only actions.";
                         description "Record name to inspect";
                     }
                 }
+            }
+        }
+
+        container resolve {
+            config false;
+            description "Resolution data held on the router.";
+
+            container rir {
+                config false;
+                ze:command "ze-show:resolve-rir";
+                description "Show which Regional Internet Registry holds an AS number.";
+                ze:help "Reads the RIR delegation table that ships with the binary, or the newer
+copy an earlier 'update resolve rir' stored. Reaches no network. Reports the
+registry, its whois server, and the delegated range that holds the AS number.
+An AS number in no delegated range and a table that cannot be read are two
+different answers.";
+                leaf asn { type uint32; mandatory true; description "AS number to look up"; }
+            }
+        }
+    }
+
+    container update {
+        config false;
+
+        container resolve {
+            config false;
+            description "Refresh the resolution data held on the router.";
+
+            container rir {
+                config false;
+                ze:command "ze-update:resolve-rir";
+                description "Refresh the RIR delegation table from the five registry delegation files.";
+                ze:help "Fetches the delegation file of each of the five Regional Internet
+Registries, parses them, and stores one table under the meta/rir/delegation key.
+All-or-nothing: a run in which any fetch or parse fails stores nothing and
+leaves the previous copy in place.";
             }
         }
     }

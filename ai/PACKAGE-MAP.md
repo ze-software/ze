@@ -180,6 +180,8 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/component/bgp/plugins/filter_irr/yang` | embeds and registers the IRR-filter plugin's YANG configuration schema modules |  |
 | `internal/component/bgp/plugins/filter_modify` | implements the bgp-filter-modify plugin | bgp-filter-modify |
 | `internal/component/bgp/plugins/filter_modify/yang` | embeds and registers the modify-filter plugin's YANG configuration schema module |  |
+| `internal/component/bgp/plugins/filter_path_asn` | implements the bgp-filter-path-asn plugin | bgp-filter-path-asn |
+| `internal/component/bgp/plugins/filter_path_asn/yang` | embeds and registers the YANG schema module for the reject-asn filter |  |
 | `internal/component/bgp/plugins/filter_prefix` | implements the bgp-filter-prefix plugin | bgp-filter-prefix |
 | `internal/component/bgp/plugins/filter_prefix/yang` | embeds and registers the prefix-filter plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/filter_remove_private_as` | Named AS-path action filter that removes RFC 6996 Private Use ASNs | bgp-filter-remove-private-as |
@@ -444,6 +446,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/core/crashlog` | captures stderr output (including Go panic traces) and forwards it to syslog and a crash file on disk |  |
 | `internal/core/ddosevent` | defines the destination-oriented DDoS attack detection event contract |  |
 | `internal/core/diagnostic` | provides stable diagnostic records, codes, and explanations for Ze's agent-facing tooling surface |  |
+| `internal/core/diskspace` | answers how much room a filesystem has left |  |
 | `internal/core/dnsserver` | holds the listener lifecycle, EDNS0/client-IP resolution, and authoritative-answer shaping that any authoritative-only DNS plugin needs, so a second plugin never has to import a sibling plugin... |  |
 | `internal/core/dscp` | parses DSCP class names (e.g |  |
 | `internal/core/duration` | parses CLI duration strings with explicit unit suffixes into minutes |  |
@@ -571,7 +574,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/hookcheck` | runs the hook dispatcher and behavioral selftests in-process |  |
 | `internal/le/hookruntime` | implements the Claude hook JSON protocol without an interpreter or a shell wrapper |  |
 | `internal/le/htmxupgrade` | htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue |  |
-| `internal/le/ianaasn` | fetches the five RIR delegation files and generates rir_table.go in the irr package: the ASN-to-RIR mapping with each registry's |  |
+| `internal/le/ianaasn` | fetches the five RIR delegation files and rewrites internal/component/resolve/irr/rir-delegation.txt, the data file the irr |  |
 | `internal/le/ifaceresolution` | enforces the interface-resolution invariant from the iface-resolve umbrella (sub-spec 7): no Ze code may resolve a configured interface name straight against the kernel |  |
 | `internal/le/integration` | integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access |  |
 | `internal/le/interoplab` | provides the protocol-neutral Docker engine for Ze interoperability labs |  |

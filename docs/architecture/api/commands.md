@@ -225,6 +225,9 @@ the bus from buggy or malicious producers.
 | `ze-show:bmp-rib` | `forwardShowBMPRib` in `internal/component/bgp/plugins/bmp/cmd_show.go` | BMP-monitored routes (proxy to BMP plugin, dispatches to RIB) |
 | `ze-show:rr-status` | `forwardShowRRStatus` in `internal/component/bgp/plugins/rr/cmd_show.go` | `{"running": true}` (proxy to RR plugin) |
 | `ze-show:rr-peers` | `forwardShowRRPeers` in `internal/component/bgp/plugins/rr/cmd_show.go` | JSON array of RR peer states (proxy to RR plugin) |
+| `ze-show:reject-asn` | `forwardShowRejectASN` in `internal/component/bgp/plugins/filter_path_asn/register_command.go` | `{"lists": [{"name": "...", "import-peers": N, "export-peers": N, "entries": [{"asn": N, "positions": ["transit", "origin"], "network": "..."}], "patterns": ["..."]}]}` (proxy to the reject-asn filter plugin). `network` is written for every ASN and is EMPTY for one the curated table does not hold |
+| `ze-show:reject-asn-name` (selector: `name`) | `forwardShowRejectASNName` in the same file | One list record, the same shape as a row of `lists`. The value after the `name` keyword arrives as a SELECTOR rather than a positional, because `name` is both the last token of the path and the leaf under it, so the forwarder reads `ctx.Selector("name")` |
+| `ze-show:reject-asn-known-transit-free` | `forwardShowRejectASNTransitFree` in the same file | `{"curated": "YYYY-MM-DD", "sources": [...], "networks": [{"asn": N, "name": "...", "contested": bool}], "block": ["# ...", "via [ ... ];"]}`. `block` is an array of config LINES an operator pastes |
 | `ze-show:system-sockets` | `handleShowSystemSockets` in `sockets_linux.go` | `{"sockets": [...], "count": N}` (Linux only) |
 | `ze-show:system-kernel-log` | `handleShowSystemKernelLog` in `kernel_log_linux.go` | `{"entries": [...], "count": N}` (Linux only) |
 | `ze-show:system-goroutines` | `handleShowSystemGoroutines` in `goroutines.go` | `{"total": N, "by-state": {...}, "mode": "..."}` |
@@ -239,6 +242,8 @@ the bus from buggy or malicious producers.
 | `ze-clear:dns-cache` | `handleClearDNSCache` in `internal/component/resolve/cmd/dns.go` | `{"action": "clear-all"}` |
 | `ze-clear:dns-cache-stats` | `handleClearDNSCacheStats` in `internal/component/resolve/cmd/dns.go` | `{"action": "reset-stats"}` |
 | `ze-clear:dns-cache-record` | `handleClearDNSCacheRecord` in `internal/component/resolve/cmd/dns.go` | `{"action": "delete-entry", "name": "...", "removed": N}` or `{"action": "delete-entry", "name": "...", "type": "...", "found": bool}` |
+| `ze-show:resolve-rir` (args: `<asn>`) | `handleRIRASN` in `internal/component/resolve/cmd/rir.go` | `{"asn": N, "registry": "ARIN", "whois": "whois.arin.net", "range-start": N, "range-end": N}`. Two distinct errors: `AS<n> is in no delegated range` for a table that was read, `RIR delegation table unreadable: ...` for one that was not |
+| `ze-update:resolve-rir` (no args) | `handleRIRRefresh` in `internal/component/resolve/cmd/rir.go` | `{"key": "meta/rir/delegation", "ranges": N, "generated": "YYYY-MM-DD"}`. `ranges` is how many ranges the stored table holds and `generated` is the date it stored. All or nothing: a fetch that failed, a parse that refused, a run that read no ASN record, and a write that stored nothing each answer an error and change no stored table |
 | `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
 | `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
 | `ze-show:system-update` | `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go` | `{"backend": "ze-self-update"\|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
@@ -1047,12 +1052,27 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 |-------|------|-------------|
 | `filter` | string | Filter name (declared at stage 1, dispatches to the right handler) |
 | `direction` | string | `import` or `export` |
-| `peer` | string | Peer IP address |
-| `peer-as` | uint32 | Peer ASN |
+| `peer` | string | The peer that SENT the route on import, the DESTINATION peer on export |
+| `peer-as` | uint32 | That peer's ASN, with the same meaning as `peer` |
 | `update` | string | Text-format attributes and NLRI (only declared attributes) |
 
 Response: `{"action":"accept"}`, `{"action":"reject"}`, or
 `{"action":"modify","update":"<delta>"}` with only changed fields.
+
+**`peer` and `peer-as` change meaning with the direction, and the callback says
+so only through `direction`.** The import chain passes the sending peer
+(`runIngressPolicyChain`) and the export chain passes the destination
+(`runEgressPolicyChainASN4`), both through `PolicyFilterChain`. A filter that
+reads the ASN as "who sent me this" is wrong on export, where nothing in the
+callback names the sender at all.
+
+**A filter's declared `Direction` does not gate dispatch.** `FilterDecl.Direction`
+is carried to `plugin.FilterRegistration.Direction` and read by nothing in the
+engine, so a filter is called on whichever chain the operator's config names it
+in. Direction lives on the config attachment point, and a filter that must act on
+one direction only tests `direction` itself.
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChain, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/plugin/server/startup.go -- the one writer of FilterRegistration.Direction -->
 
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate handles it plugin-side -->
@@ -1361,8 +1381,9 @@ never shadows a builtin at the completion layer (mirroring dispatch precedence).
 - **The attached console** of `ze start --cli` asks the daemon for
   `system command list` at attach time. It filters the compiled RPC list against
   that answer, then injects each non-hidden plugin command
-  (`buildRuntimeTreeFromDispatch`, `injectPluginCommands`). A plugin a later
-  reload adds is absent until the operator attaches again.
+  (`buildRuntimeTreeFromDispatch`, `injectPluginCommands`). Both help texts
+  travel on that answer, so the tree carries the summary and the explanation. A
+  plugin a later reload adds is absent until the operator attaches again.
 
 `Hidden` commands still dispatch when typed in full. They never appear in
 completion, in help, in the MCP `tools/list` result, or in the API command list. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
@@ -1500,6 +1521,18 @@ refusal on a declared text are in
 `command help "<name>"` answers with both, under the `description` and
 `long-help` keys, for a builtin and for a plugin command alike.
 
+`system command list` carries both texts on every row too. The `help` key holds
+the summary, and `long-help` holds the explanation. That answer is the only
+place the ATTACHED console of `ze start --cli` reads either text from. An
+explanation that does not travel here is one its `?` key cannot print.
+`commandRows` fills the pair for a builtin and for a registered plugin command
+alike. A command that declares no explanation yields a row with no `long-help`
+key.
+
+On the client, `applyCommandText` writes the pair onto the node the row names,
+in ONE walk. `injectPluginCommands` carries the pair into a node the tree does
+not yet hold.
+
 An OFFLINE LOCAL command carries the same two texts in a `registry.Meta`,
 declared beside its handler in Go rather than in a YANG module. `Description` is
 the summary and `LongHelp` is the explanation, and the same empty-is-unwritten
@@ -1525,6 +1558,7 @@ surfaces.
 | A completion candidate | `command.TreeCompleter.matchChildren`, `choiceSuggestions` | `Description` |
 | The interactive completion pane | `internal/component/cli` `Model.renderDropdownBox` | nothing. A menu row is the command name alone, and a name wider than the box is clamped to the frame |
 | The interactive message line | `internal/component/cli` `Model.warningText`, `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `Description`, whole, for the candidate the menu has selected |
+| The interactive explanation box, which the `?` key opens | `internal/component/cli` `Model.renderExplanationBox`, answered by `command.TreeCompleter.Explain` | `Help`, whole. The attached console reads it from the `long-help` key of `system command list` |
 | A shell-completion record | `internal/plugins/completion` `writeCompletionRecord` | `Description` |
 | The `ze help command` table row | `printCommandTable` | `Description` |
 | `ze help command --verbose` | `printCommandVerbose` | `Description`, then `Help` |

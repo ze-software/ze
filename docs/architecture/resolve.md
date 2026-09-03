@@ -150,6 +150,94 @@ down. Each one is a guard, not a convention.
   the BGP filter, and the filter then lost a race against an incoming UPDATE.
   <!-- source: internal/component/resolve/irr/store/store.go -- Open, migrate -->
 
+## RIR Delegation Table
+
+The delegation table maps an AS number to the Regional Internet Registry that
+holds it, and to that registry's whois host. Two sources carry it, one format
+reads both, and the newer of the two answers.
+
+### The shipped seed
+
+`internal/component/resolve/irr/rir-delegation.txt` is the table the binary
+ships. `seed.go` embeds it and parses it once, so a lookup needs no network, no
+daemon and no file on disk. Each line is `<start> <end> <registry-token>`. The
+registry display name and its whois host are Go constants, so the file carries
+the token alone and neither is repeated on 11,000 lines.
+<!-- source: internal/component/resolve/irr/seed.go -- seedDelegation, seedTable -->
+
+A comment header opens the file with `Generated:`, the date the registries'
+data was collected, and one `Source:` line for each of the five delegation
+files it was built from.
+<!-- source: internal/component/resolve/irr/rir.go -- delegationTableHeader, RenderDelegationTable -->
+
+`./le iana-asn write` rewrites that file. It reads the five registry delegation
+files, parses each one, sorts, collapses adjacent ranges of one registry, and
+writes the whole table in one call. It is the one generator whose input is the
+network rather than the tree, so it has no check twin: a checkout cannot be
+compared against it without asking five registries what they publish today.
+<!-- source: internal/le/ianaasn/ianaasn.go -- Write -->
+
+### The stored copy
+
+`update resolve rir` refreshes the table into the managed store under the
+`meta/rir/delegation` key. The refresh is all or nothing: a registry that does
+not answer, or answers something the parser refuses, stops the run and names
+its URL, so the previous table stays whole. A run that reached all five and
+took no ASN record from them stops as well, because an empty table is not a
+smaller answer, it is every AS number becoming unanswerable. The write goes
+through `statestore.Put`, which is the config system's own zefs handle: a
+second handle in that process would make the next config flush re-encode from a
+stale tree and drop every state key.
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh -->
+<!-- source: internal/component/resolve/irr/rir.go -- FetchDelegationTable -->
+
+`./le iana-asn write` and `update resolve rir` run the same recipe. The parse,
+the collapse, the date and the render all belong to the `irr` package, and both
+callers reach them through `irr.FetchDelegationTable`. Two copies of that
+recipe existed until 2026-09-02, and each held a guard the other lacked.
+<!-- source: internal/component/resolve/irr/rir.go -- FetchDelegationTable, RenderDelegationTable -->
+
+### Which source answers
+
+The stored copy answers when its `Generated:` date is strictly after the
+seed's, and the seed answers otherwise. An upgrade that ships fresher data than
+the last refresh stored therefore takes over on its own, with nothing to
+configure. A stored copy that cannot be parsed is passed over, the seed
+answers, and the reason is logged: a half-read table is never used.
+<!-- source: internal/component/resolve/irr/stored.go -- preferStoredDelegation -->
+
+Nothing is cached between lookups. The seed is parsed once, because embedded
+bytes never change, and the stored copy is read and parsed on every lookup. The
+answer after a refresh therefore comes from what that refresh stored, with no
+restart to remember and no invalidation to get wrong. The cost is one store
+read for each lookup, which an operator command can afford and a wire path
+could not.
+<!-- source: internal/component/resolve/irr/stored.go -- delegationTable -->
+
+### The two read paths
+
+| Process | How it reads the stored copy |
+|---------|------------------------------|
+| The daemon, where a state store is registered | `statestore.Get` on the config system's own handle |
+| Every other process: the host CLI, a plugin process | `{config-dir}/database.zefs` opened read-only, and only if that file exists |
+
+<!-- source: internal/component/resolve/irr/stored.go -- storedDelegation, storedDelegationFile -->
+
+Neither path writes. `zefs.Open` memory-maps the file and takes no lock, so the
+host reads a store the daemon holds open without blocking it. A file that
+exists and cannot be read answers "nothing stored" and says so, because a
+corrupt or half-written store is not evidence that nobody refreshed.
+<!-- source: internal/component/resolve/irr/stored.go -- storedDelegationFile -->
+
+### Three answers, never two
+
+A lookup has three outcomes and every caller branches on all three: the
+registry that holds the AS number, `ErrASNUnallocated` for a table that was
+read and holds no range covering it, and any other error for a table that could
+not be read. "Nobody holds this AS number" and "I could not find out" are
+different answers, and neither is ever reported as the other.
+<!-- source: internal/component/resolve/irr/rir.go -- RegistryForASN, ErrASNUnallocated -->
+
 ## CLI
 
 <!-- source: internal/component/resolve/cli/main.go -- resolve CLI dispatch -->
@@ -166,6 +254,39 @@ No running daemon required.
 | `ze resolve peeringdb [--url <url>] as-set <asn>` | `--url` | One AS-SET per line |
 | `ze resolve irr [--server <host>] as-set <name>` | `--server` | One `AS<N>` per line |
 | `ze resolve irr [--server <host>] prefix <name>` | `--server` | One prefix per line |
+| `ze resolve rir <asn>` | none | Registry name and its whois server |
+
+`ze resolve rir` is the one subcommand that reaches no network. It reads the RIR
+delegation table, so it answers with the cable unplugged. An AS number in no
+delegated range and a table that cannot be read are two different answers: the
+first names the range, the second names the table, and both exit 1. The table it
+reads is the copy `update resolve rir` stored, when that copy was generated after
+the seed the binary ships, and the shipped seed in every other case. On the host
+the stored copy is read from `database.zefs`, read-only, and only if that file
+exists.
+<!-- source: internal/component/resolve/irr/rir.go -- RegistryForASN -->
+<!-- source: internal/component/resolve/irr/stored.go -- preferStoredDelegation -->
+
+### The two daemon commands
+
+Inside the daemon the same table answers two commands. Both are declared in
+`internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang`, as a `container`
+carrying a `ze:command` extension, which is how every `ze-show:` and
+`ze-update:` method of this component is declared.
+
+| Command | Wire method | Answers |
+|---------|-------------|---------|
+| `show resolve rir <asn>` | `ze-show:resolve-rir` | `asn`, `registry`, `whois`, `range-start`, `range-end` |
+| `update resolve rir` | `ze-update:resolve-rir` | `key`, `ranges`, `generated` |
+
+<!-- source: internal/component/resolve/cmd/register_rir.go -- the two RPC registrations -->
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRASN, handleRIRRefresh -->
+
+Both answer structured data, so `| json`, `| yaml` and `| table` each render
+it. A refresh that stored nothing reports an error and never reports success:
+`statestore.Put` answers `(false, nil)` when no store is registered, and that
+is a failure to store rather than a successful one.
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh -->
 
 ## DNS Config
 

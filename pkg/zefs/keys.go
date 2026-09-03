@@ -42,6 +42,7 @@ var (
 	KeyTrafficTCSnapshot    = MustRegister(KeyEntry{Pattern: "meta/traffic/tc-snapshot", Description: "traffic-usage original-qdisc snapshot for restore (JSON)"})
 	KeyNTPLastTime          = MustRegister(KeyEntry{Pattern: "meta/ntp/last-time", Description: "NTP last-known monotonic time (RFC3339)"})
 	KeyBFDAuthSeq           = MustRegister(KeyEntry{Pattern: "meta/bfd/auth/{session}", Description: "BFD meticulous-keyed TX sequence number, per session (RFC 5880)"})
+	KeyRIRDelegation        = MustRegister(KeyEntry{Pattern: "meta/rir/delegation", Description: "ASN-to-registry delegation table refreshed by 'update resolve rir'"})
 	KeyConfigPreviousActive = MustRegister(KeyEntry{Pattern: "meta/config/health-revert-previous", Description: "Pre-change active config snapshot for health-check auto-revert"})
 	KeyConfigLastGoodPushed = MustRegister(KeyEntry{Pattern: "meta/config/last-known-good-pushed", Description: "SHA-256 of the last health-confirmed pushed config"})
 	KeyConfigActiveHash     = MustRegister(KeyEntry{Pattern: "meta/config/active-hash", Description: "SHA-256 of the running active config (fleet drift detection)"})

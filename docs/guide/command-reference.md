@@ -1202,6 +1202,37 @@ clear dns cache record example.com type AAAA        # Delete a single entry by n
 
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
 
+### show resolve rir
+
+```
+ze show resolve rir 15169                      # Which registry holds AS15169
+ze show resolve rir 15169 | json               # The same answer as structured data
+```
+
+Returns `asn`, `registry`, `whois`, `range-start` and `range-end`. It reads the
+shipped delegation table, or the copy `update resolve rir` stored when that copy
+is newer, so it answers with no network. An AS number in no delegated range and
+a table that cannot be read are two different answers, and both are errors.
+
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRASN -->
+
+### update resolve rir
+
+```
+update resolve rir                             # Refresh the RIR delegation table
+```
+
+Fetches the five registry delegation files, parses them, and stores the table
+under the `meta/rir/delegation` key. It answers `key`, `ranges` (how many ranges
+the stored table holds) and `generated` (the date it stored).
+
+The refresh is all or nothing. A registry that does not answer, a file the
+parser refuses, and a run that read no ASN record each store nothing, report
+which one it was, and leave the previous table answering. A run that could not
+store reports an error and never reports success.
+
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh -->
+
 ### clear vpn ipsec sa
 
 ```
@@ -1870,6 +1901,7 @@ ze resolve peeringdb max-prefix 13335                  # IPv4/IPv6 prefix counts
 ze resolve peeringdb as-set 13335                      # Registered IRR AS-SETs
 ze resolve irr as-set AS-CLOUDFLARE                    # Expand AS-SET to member ASNs
 ze resolve irr prefix AS-CLOUDFLARE                    # Lookup announced prefixes
+ze resolve rir 15169                                   # Which registry holds an AS number
 ```
 
 | Flag | Subcommand | Purpose |
@@ -2196,6 +2228,23 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `update bgp irr asn <asn>` | write | Refresh IRR prefix-list for a specific ASN |
 | `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet --> |
 | `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate --> |
+
+### Reject-ASN Filter Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `show bgp reject-asn` | read-only | Every reject-asn list: each ASN with its effective position set, the network the curated table names for it, and the peers that name the list on import and on export |
+| `show bgp reject-asn name <name>` | read-only | The same answer for one list |
+| `show bgp reject-asn known transit-free` | read-only | Print the well-known transit-free ASNs as a `via [ ... ];` block to paste inside a `reject-asn` list, with the sources and the curated date as comments <!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- handleCommand, showRejectASN, showRejectASNName, showKnownTransitFree --> |
+
+An ASN the curated table does not know is listed with an EMPTY annotation. It is
+never omitted and never guessed: an operator has to make a policy decision about
+that ASN, and an invented network name would be an input to it.
+
+Ze acts on no ASN it was not configured with, so `known transit-free` is how the
+well-known set reaches a config. After the paste the config holds the numbers,
+and a later change to the curated table cannot alter what that config does.
+<!-- source: internal/component/bgp/plugins/filter_path_asn/curated.go -- curatedTransitFree, curatedAnnotation -->
 
 ### Healthcheck Commands
 

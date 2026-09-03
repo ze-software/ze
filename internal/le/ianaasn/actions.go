@@ -7,13 +7,14 @@
 // the tree, so there is nothing for a check twin to compare a checkout against
 // without asking five registries what they publish today. That is why the
 // generated-files checks do not list it and no aggregate native generator runs
-// it: the seed table is refreshed deliberately, not on every build.
+// it: the delegation table is refreshed deliberately, not on every build.
 
 package ianaasn
 
 import (
 	"context"
 
+	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
@@ -24,7 +25,7 @@ const area = "iana-asn"
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb: "write",
-		Why: "fetch the five RIR delegation files and rewrite the compiled ASN-to-RIR seed table." +
+		Why: "fetch the five RIR delegation files and rewrite the shipped ASN-to-RIR delegation table." +
 			" It reaches the network, so it is the one generator an offline checkout cannot run",
 		Writes: true,
 		Answer: runWriteHere,
@@ -51,7 +52,7 @@ func runWriteHere() (any, int) {
 
 // runWrite answers the write over one tree, through one fetch. A nil fetch is
 // the HTTP one.
-func runWrite(ctx context.Context, root string, fetch Fetch) (any, int) {
+func runWrite(ctx context.Context, root string, fetch irr.DelegationFetch) (any, int) {
 	report, err := Write(ctx, root, fetch)
 	if err != nil {
 		leaction.ReportError(err)

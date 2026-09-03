@@ -25,7 +25,7 @@ const (
 	opASSet = "as-set"
 )
 
-var subcommands = []string{"dns", "cymru", "peeringdb", "irr"}
+var subcommands = []string{"dns", "cymru", "peeringdb", "irr", "rir"}
 
 func isHelp(s string) bool {
 	return s == "help" || s == "-h" || s == "--help"
@@ -60,6 +60,10 @@ func Run(args []string) int {
 		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		defer cancel()
 		return cmdIRR(ctx, subArgs)
+	case "rir":
+		// No timeout: the RIR delegation table is local data, so this
+		// subcommand reaches neither the network nor the daemon.
+		return cmdRIR(subArgs)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown resolve subcommand: %s\n", subcmd)
 		if s := suggest.Command(subcmd, subcommands); s != "" {
@@ -81,6 +85,7 @@ func usage() {
 				{Name: "cymru asn-name <asn>", Desc: "Team Cymru ASN-to-name resolution"},
 				{Name: "peeringdb <op> <asn>", Desc: "PeeringDB prefix count and AS-SET queries"},
 				{Name: "irr <op> <name|asn>", Desc: "IRR AS-SET expansion and prefix lookup"},
+				{Name: "rir <asn>", Desc: "Which Regional Internet Registry holds an AS number"},
 			}},
 		},
 		Examples: []string{
@@ -89,6 +94,7 @@ func usage() {
 			"ze resolve cymru asn-name 13335",
 			"ze resolve peeringdb max-prefix 13335",
 			"ze resolve irr as-set AS-CLOUDFLARE",
+			"ze resolve rir 15169",
 		},
 	}
 	p.WriteErr()

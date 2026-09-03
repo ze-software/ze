@@ -8,15 +8,15 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// WriteReport is what `le iana-asn write` answers: the file it rewrote, and the
-// two numbers that say what went into it.
+// WriteReport is what `le iana-asn write` answers: the delegation table file it
+// rewrote, and the two numbers that say what went into it.
 //
 // The numbers are published rather than implied. Records is what the five
 // registries delegated between them and Ranges is what survived collapsing, so a
 // reader can tell a run that read the whole world from one that read a fraction
 // of it.
 type WriteReport struct {
-	// File is the generated table, relative to the tree.
+	// File is the delegation table it wrote, relative to the tree.
 	File string `json:"file"`
 	// Ranges is how many collapsed ranges the table holds.
 	Ranges int `json:"ranges"`

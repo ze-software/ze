@@ -303,7 +303,7 @@ all render it.
 | `./le gokrazy-gosum` | `internal/le/gokrazygosum.Answer` | the packed gokrazy/ze/builddir/**/go.sum files agree with the root module about what a version contains |
 | `./le hook-check` | `internal/le/hookcheck.Answer` | native hook dispatcher golden and behavioral fixture selftests |
 | `./le htmx-upgrade` | `internal/le/htmxupgrade.Answer` | htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue |
-| `./le iana-asn` | `internal/le/ianaasn.Answer` | the compiled RIR delegation seed: fetch the five registries' files and rewrite the ASN-to-RIR table |
+| `./le iana-asn` | `internal/le/ianaasn.Answer` | the shipped RIR delegation seed: fetch the five registries' files and rewrite the ASN-to-RIR delegation table |
 | `./le iface-resolution` | `internal/le/ifaceresolution.Answer` | no Ze code resolves a configured interface name straight against the kernel: every logical name goes through the shared resolver |
 | `./le integration` | `internal/le/integration.Answer` | integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access |
 | `./le inventory` | `internal/le/inventory.Answer` | what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes |
