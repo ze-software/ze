@@ -2,6 +2,8 @@ module ze-command-meta-api {
   namespace "urn:ze:command:meta:api";
   prefix command-meta-api;
 
+  import ze-extensions { prefix ze; }
+
   organization "Ze Project";
   description
     "Command discovery, completion, and plugin configuration RPCs.
@@ -11,12 +13,61 @@ module ze-command-meta-api {
     description "Relocated from central meta API schema (plugin self-containment).";
   }
 
-  rpc help { description "List subcommands."; }
-  rpc command-list { description "List commands."; }
-  rpc command-help { description "Show command details."; }
-  rpc command-complete { description "Complete command/args."; }
-  rpc event-list { description "List available event types."; }
-  rpc plugin-encoding { description "Set event encoding (json|text)."; }
-  rpc plugin-format { description "Set wire format (hex|base64|parsed|full)."; }
-  rpc plugin-ack { description "Set ACK timing (sync|async)."; }
+  rpc help {
+    description "List subcommands.";
+    ze:help "The same operation is spelled 'help' on the CLI. Each entry joins a builtin
+command name to its summary with a hyphen. A plugin's own command sits in the
+command registry instead, so command-help is the RPC that reaches it.";
+  }
+
+  rpc command-list {
+    description "List commands.";
+    ze:help "The same operation is spelled 'show command list' on the CLI. Each row carries the
+command name and its one-line summary. Give the 'verbose' argument and each row
+also carries its source, which is 'builtin'.";
+  }
+
+  rpc command-help {
+    description "Show command details.";
+    ze:help "The same operation is spelled 'show command help' on the CLI. The answer carries
+the one-line summary under 'description' and the long explanation under
+'long-help'. Neither text is derived from the other.";
+  }
+
+  rpc command-complete {
+    description "Complete command/args.";
+    ze:help "The same operation is spelled 'show command complete' on the CLI, and the CLI
+editor calls it for every keystroke. The match is a case-insensitive prefix over
+the command names. A prefix that matches nothing answers an empty list and not
+an error.";
+  }
+
+  rpc event-list {
+    description "List available event types.";
+    ze:help "The same operation is spelled 'show event list' on the CLI. Each entry carries the
+event type name and its description. subscribe takes its event names from the
+same registry.";
+  }
+
+  rpc plugin-encoding {
+    description "Set event encoding (json|text).";
+    ze:help "The same operation is spelled 'plugin encoding' on the CLI. 'json' is the default.
+The daemon holds the mode on the calling process, so it changes nothing for
+another plugin.";
+  }
+
+  rpc plugin-format {
+    description "Set wire format (hex|base64|parsed|full).";
+    ze:help "The same operation is spelled 'plugin format' on the CLI. 'parsed' carries the
+decoded fields alone and is the default. 'hex' and 'base64' carry the wire bytes
+in that encoding. 'full' carries the decoded fields and the wire bytes
+together.";
+  }
+
+  rpc plugin-ack {
+    description "Set ACK timing (sync|async).";
+    ze:help "The same operation is spelled 'plugin ack' on the CLI. 'sync' makes the daemon wait
+for wire transmission before it answers the ACK. 'async' answers as soon as the
+command is accepted, and it is the default.";
+  }
 }

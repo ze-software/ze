@@ -3,7 +3,9 @@ module ze-refresh-cmd {
     prefix refreshcmd;
     import ze-extensions { prefix ze; }
     description "Request peers to re-send routes (RFC 2918, RFC 7313)";
-    revision 2026-08-29 { description "The peer selector of every command here comes from the request peer container ze-peer-cmd.yang declares, which is the keyword the operator types it after."; }
+    // ze-peer-cmd.yang declares that container, and it is the keyword the
+    // operator types the selector after.
+    revision 2026-08-29 { description "The peer selector of every command here comes from the request peer container."; }
     revision 2026-03-16 { description "Initial revision"; }
 
     container request {

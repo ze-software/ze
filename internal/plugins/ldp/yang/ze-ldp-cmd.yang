@@ -2,7 +2,9 @@ module ze-ldp-cmd {
     namespace "urn:ze:ldp:cmd";
     prefix ldpcmd;
     import ze-extensions { prefix ze; }
-    description "show ldp ... command tree. Owned by the ldp component so that removing it removes these command nodes together with the handlers. See ai/rules/plugin-self-containment.md.";
+    // Removing the component removes these command nodes together with the
+    // handlers. See ai/rules/plugin-self-containment.md.
+    description "The show ldp command tree, owned by the ldp component.";
     revision 2026-06-03 { description "Relocated show ldp ... out of the central show schema (plugin self-containment)."; }
 
     container show {

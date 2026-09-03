@@ -2,6 +2,7 @@ module ze-bgp-api {
     namespace "urn:ze:bgp:api";
     prefix bgpapi;
 
+    import ze-extensions { prefix ze; }
     import ze-types { prefix zt; }
 
     description
@@ -17,6 +18,10 @@ module ze-bgp-api {
 
     rpc help {
         description "List BGP subcommands.";
+        ze:help "The answer holds one entry for each builtin command, and each entry joins the
+command name to its summary with a hyphen. A plugin's own command sits in the
+command registry and not in the builtin table, so command-help is the RPC that
+reaches it.";
         output {
             leaf-list subcommands { type string; description "Available subcommands"; }
         }
@@ -24,6 +29,9 @@ module ze-bgp-api {
 
     rpc command-list {
         description "List BGP commands.";
+        ze:help "Each row carries the command name and its one-line summary. Give the 'verbose'
+argument and each row also carries its source, which is 'builtin'. The rows come
+from the dispatcher's builtin table.";
         output {
             list command {
                 uses zt:command-info;
@@ -33,6 +41,9 @@ module ze-bgp-api {
 
     rpc command-help {
         description "Show BGP command details.";
+        ze:help "The answer carries the one-line summary under 'description' and the long
+explanation under 'long-help'. Neither text is derived from the other. The
+lookup reads the builtin table first and the plugin command registry after it.";
         input {
             leaf name { type string; mandatory true; description "Command name"; }
         }
@@ -43,6 +54,9 @@ module ze-bgp-api {
 
     rpc command-complete {
         description "Complete BGP command/args.";
+        ze:help "The match is a case-insensitive prefix over the builtin command names. Each
+candidate carries its summary beside the name. A prefix that matches nothing
+answers an empty list and not an error.";
         input {
             leaf partial { type string; mandatory true; description "Partial command string"; }
         }
@@ -55,6 +69,9 @@ module ze-bgp-api {
 
     rpc plugin-encoding {
         description "Set event encoding (json|text).";
+        ze:help "The mode governs the events this plugin process receives. 'json' is the default.
+The daemon holds the mode on the calling process, so it changes nothing for
+another plugin.";
         input {
             leaf encoding { type zt:encoding-mode; mandatory true; description "Encoding format"; }
         }
@@ -62,6 +79,10 @@ module ze-bgp-api {
 
     rpc plugin-format {
         description "Set wire format (hex|base64|parsed|full).";
+        ze:help "The format governs how the BGP wire bytes are rendered inside each event.
+'parsed' carries the decoded fields alone and is the default. 'hex' and 'base64'
+carry the wire bytes in that encoding. 'full' carries the decoded fields and the
+wire bytes together.";
         input {
             leaf format { type zt:wire-format; mandatory true; description "Wire format"; }
         }
@@ -69,6 +90,9 @@ module ze-bgp-api {
 
     rpc plugin-ack {
         description "Set ACK timing (sync|async).";
+        ze:help "'sync' makes an announce or a withdraw wait for wire transmission before the
+daemon answers the ACK. 'async' answers as soon as the command is accepted, and
+it is the default. The daemon holds the mode on the calling process.";
         input {
             leaf mode { type zt:ack-mode; mandatory true; description "ACK mode"; }
         }
@@ -78,6 +102,10 @@ module ze-bgp-api {
 
     rpc peer-list {
         description "List configured peers.";
+        ze:help "Each row carries the peer address, its name, and its peer-group. The remote and
+local ASN, the local bind address, the FSM state and the router ID follow. The
+receive hold time, the send hold time, the connect retry interval, and the
+seconds since the session became established close the row.";
         input {
             leaf selector { type zt:peer-selector; description "Peer filter"; }
         }
@@ -90,6 +118,10 @@ module ze-bgp-api {
 
     rpc peer-show {
         description "Show detailed peer information.";
+        ze:help "The rows carry the same peer-info fields peer-list answers. Those are the
+address, the name, the group, the two ASNs, the FSM state, the router ID, the
+three timers, and the uptime. The selector is optional here, as it is for
+peer-list.";
         input {
             leaf selector { type zt:peer-selector; description "Peer filter"; }
         }
@@ -102,6 +134,9 @@ module ze-bgp-api {
 
     rpc overview {
         description "Show the BGP overview (peer table with statistics).";
+        ze:help "The answer opens with the daemon uptime, the count of configured peers, and the
+count of peers in the Established state. The peer rows follow. A first argument
+that names neither a subcommand nor an address family is refused.";
         output {
             leaf uptime { type string; description "Daemon uptime"; }
             leaf peers-configured { type uint32; description "Total configured peers"; }
@@ -114,6 +149,9 @@ module ze-bgp-api {
 
     rpc peer-show-capabilities {
         description "Show negotiated capabilities for peer.";
+        ze:help "The answer carries the peer address, the FSM state, and a boolean that is true
+once the OPEN exchange completed. The selector is mandatory, so this RPC reads
+one peer and never every peer.";
         input {
             leaf selector { type zt:peer-selector; mandatory true; description "Peer filter"; }
         }
@@ -126,6 +164,10 @@ module ze-bgp-api {
 
     rpc peer-show-statistics {
         description "Show per-peer update statistics with rates.";
+        ze:help "The answer carries the peer address, its ASN, the FSM state, and the session
+uptime. Six counters follow, for UPDATE, KEEPALIVE and End-of-RIB messages in
+each direction. Four rate fields give the UPDATE and KEEPALIVE traffic per
+second.";
         input {
             leaf selector { type zt:peer-selector; description "Peer filter"; }
         }
@@ -149,6 +191,11 @@ module ze-bgp-api {
 
     rpc peer-clear-soft {
         description "Soft-clear peer (send ROUTE-REFRESH per negotiated family).";
+        ze:help "The soft clear sends one ROUTE-REFRESH for each family the session negotiated,
+so the peer re-advertises its routes and the session stays up. RFC 2918 Section
+4 permits the message only after the peer sent the Route Refresh Capability. The
+selector resolves to one peer, and a wildcard is refused. The answer lists the
+families that were refreshed.";
         input {
             leaf selector { type zt:peer-selector; mandatory true; description "Peer address"; }
         }
@@ -161,6 +208,12 @@ module ze-bgp-api {
 
     rpc peer-add {
         description "Add a new peer.";
+        ze:help "The address and the ASN are required, and every other input is optional.
+'local-as' overrides the local ASN and 'router-id' overrides the router ID.
+'receive-hold-time' is the hold time RFC 4271 defines. 'send-hold-time' is the
+send hold timer RFC 9687 defines, where 0 selects the automatic value. 'local/connect' and
+'remote/accept' each default to true, so the peer starts outbound connections
+and accepts inbound ones.";
         input {
             leaf address { type zt:ip-address; mandatory true; description "Peer address"; }
             leaf asn { type zt:asn; mandatory true; description "Peer ASN"; }
@@ -183,6 +236,9 @@ module ze-bgp-api {
 
     rpc peer-remove {
         description "Remove a peer.";
+        ze:help "The address leaf takes an IP address and not a peer selector, so this RPC
+removes exactly one peer. peer-teardown takes a selector instead, and it closes
+the session but keeps the peer.";
         input {
             leaf address { type zt:ip-address; mandatory true; description "Peer address"; }
         }
@@ -190,6 +246,11 @@ module ze-bgp-api {
 
     rpc peer-teardown {
         description "Teardown peer session with CEASE notification.";
+        ze:help "The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255.
+Ze sends an RFC 8203 shutdown communication message with subcode 2,
+administrative shutdown, and with subcode 4, administrative reset, and with no
+other subcode. The message is truncated to the length the wire carries, and the
+answer echoes the truncated text.";
         input {
             leaf selector { type zt:peer-selector; mandatory true; description "Peer filter"; }
             leaf subcode { type uint8; description "CEASE subcode"; }
@@ -198,6 +259,9 @@ module ze-bgp-api {
 
     rpc peer-flush {
         description "Wait for forward pool to drain (barrier).";
+        ze:help "The RPC returns once the forward pool has drained, so a test asserts on what the
+peer received without a fixed sleep. A selector of '*', or no selector at all,
+flushes every peer. The wait is bounded at 30 seconds.";
         input {
             leaf selector { type zt:peer-selector; mandatory true; description "Peer filter (* for all)"; }
         }
@@ -211,6 +275,10 @@ module ze-bgp-api {
 
     rpc peer-update {
         description "Batch UPDATE with text/hex/b64 encoding.";
+        ze:help "The encoding chooses the parser. 'text' reads the route DSL. 'hex' and 'b64'
+read encoded UPDATE bytes. 'cursor' reads a saved position. The text form
+carries announce, withdraw and End-of-RIB in one command, and the answer counts
+the NLRIs each way.";
         input {
             leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
             leaf encoding { type zt:encoding-mode; mandatory true; description "Command encoding"; }
@@ -226,6 +294,10 @@ module ze-bgp-api {
 
     rpc peer-borr {
         description "Send Beginning of Route Refresh.";
+        ze:help "RFC 7313 Section 4 requires a BoRR message before the speaker starts a route
+refresh. That holds for a local refresh and for one that answers a request from
+the peer. The family names which Adj-RIB-Out the re-advertisement covers. Send
+peer-eorr once that re-advertisement is complete.";
         input {
             leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
             leaf family { type zt:address-family; mandatory true; description "Address family"; }
@@ -234,6 +306,10 @@ module ze-bgp-api {
 
     rpc peer-eorr {
         description "Send End of Route Refresh.";
+        ze:help "RFC 7313 Section 4: 'After the speaker completes the re-advertisement of the
+entire Adj-RIB-Out to the peer, it MUST send an EoRR message.' The family MUST
+be the one peer-borr opened. RFC 7313 Section 4 applies the procedure only after
+the peer sent the Enhanced Route Refresh Capability.";
         input {
             leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
             leaf family { type zt:address-family; mandatory true; description "Address family"; }
@@ -244,6 +320,11 @@ module ze-bgp-api {
 
     rpc peer-raw {
         description "Send raw bytes to peer (no validation).";
+        ze:help "With a message type keyword, Ze builds the BGP header and the data carries the
+payload alone. Without one, the data MUST carry the marker and the header too.
+The types are open, update, notification, keepalive and route-refresh, and the
+encodings are hex and b64. Nothing validates the bytes, so this RPC can put a
+malformed message on the wire.";
         input {
             leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
             leaf type { type string; description "Message type hint"; }
@@ -256,6 +337,10 @@ module ze-bgp-api {
 
     rpc cache {
         description "BGP message cache operations.";
+        ze:help "The action is one of list, retain, release, expire and forward. Every action
+except list takes a message ID. 'forward' takes a peer selector as well. A
+message ID field holding a comma-separated list runs the action over each ID in
+one call.";
         input {
             leaf action { type string; mandatory true; description "Cache action (list|retain|release|expire|forward)"; }
             leaf message-id { type uint64; description "Cache message ID"; }
@@ -267,6 +352,9 @@ module ze-bgp-api {
 
     rpc commit {
         description "Named commit operations.";
+        ze:help "The actions are start, end, eor, rollback, show, withdraw and list. Each one
+except list takes a name. 'withdraw' takes a route prefix after the name. 'list'
+answers the open commit names and their count.";
         input {
             leaf name { type string; description "Commit name"; }
         }
@@ -276,6 +364,10 @@ module ze-bgp-api {
 
     rpc subscribe {
         description "Subscribe to BGP events (streaming).";
+        ze:help "An operator who types this at a running daemon creates a runtime override. The
+event is delivered whether or not the peer's configuration grants the type, and
+the next configuration apply discards the override. The configuration document
+stays the durable statement of what the daemon feeds.";
         input {
             leaf-list events { type string; description "Event types to subscribe to"; }
         }
@@ -283,10 +375,15 @@ module ze-bgp-api {
 
     rpc unsubscribe {
         description "Unsubscribe from BGP events.";
+        ze:help "The answer carries 'removed', which is false when the process held no matching
+subscription. The namespace and the event type are echoed back, so a caller sees
+which subscription the arguments resolved to.";
     }
 
     rpc event-list {
         description "List available event types.";
+        ze:help "The answer holds the event type names registered in the BGP namespace, each with
+its description. subscribe takes its event names from that same registry.";
         output {
             list event {
                 uses zt:event-type-info;

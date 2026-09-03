@@ -1,43 +1,76 @@
 module ze-resolve-api {
     namespace "urn:ze:resolve:api";
     prefix resolveapi;
+
+    import ze-extensions { prefix ze; }
+
     description "Resolution service RPC definitions with typed parameters";
     revision 2026-04-04 { description "Initial revision"; }
 
     rpc dns-a {
         description "Resolve DNS A records (IPv4 addresses).";
+        ze:help "Ze reads its own DNS cache before it queries a server. An
+answer with no record is not cached, so a name that starts to exist is seen at
+once. 'clear dns cache' drops the cached records.";
         input { leaf name { type string; mandatory true; description "Hostname to resolve"; } }
     }
     rpc dns-aaaa {
         description "Resolve DNS AAAA records (IPv6 addresses).";
+        ze:help "The answer carries a records list. A name with no AAAA record
+answers with an empty list, and the command still succeeds. A caller MUST read
+the list length rather than the status.";
         input { leaf name { type string; mandatory true; description "Hostname to resolve"; } }
     }
     rpc dns-txt {
         description "Resolve DNS TXT records.";
+        ze:help "The answer carries one entry per TXT record. Team Cymru
+publishes its ASN data over this record type, and 'resolve cymru asn-name'
+reads it through this same resolver.";
         input { leaf name { type string; mandatory true; description "Hostname to resolve"; } }
     }
     rpc dns-ptr {
         description "Reverse DNS lookup (PTR records).";
+        ze:help "Give the IP address, not the arpa name. Ze converts the
+address to in-addr.arpa or ip6.arpa itself. An address it cannot convert fails
+with 'reverse addr <value>'.";
         input { leaf address { type string; mandatory true; description "IP address for reverse lookup"; } }
     }
     rpc cymru-asn-name {
         description "Look up organization name for an ASN via Team Cymru DNS.";
+        ze:help "Ze asks AS<n>.asn.cymru.com for a TXT record and takes the
+organization name from it. A DNS failure, an empty answer and a record it
+cannot parse all answer '(unknown)' rather than an error. Ze caches the name
+it found.";
         input { leaf asn { type uint32; mandatory true; description "Autonomous System Number"; } }
     }
     rpc peeringdb-max-prefix {
         description "Look up maximum prefix counts for an ASN from PeeringDB.";
+        ze:help "Ze reads the info_prefixes4 and info_prefixes6 fields of the
+PeeringDB net record. The answer carries asn, ipv4 and ipv6. Ze caches the
+counts, so a repeated lookup reaches no server.";
         input { leaf asn { type uint32; mandatory true; description "Autonomous System Number"; } }
     }
     rpc peeringdb-as-set {
         description "Look up AS-SET names for an ASN from PeeringDB.";
+        ze:help "Ze reads the irr_as_set field of the PeeringDB net record.
+That field can name more than one AS-SET, so Ze splits it on spaces, commas
+and newlines. A network that declares none answers with an empty sets list.";
         input { leaf asn { type uint32; mandatory true; description "Autonomous System Number"; } }
     }
     rpc irr-expand {
         description "Recursively expand AS-SET to member ASNs.";
+        ze:help "Ze queries an RPSL whois server, whois.radb.net port 43
+without other config. It follows a nested AS-SET, visits each name once so a
+cycle stops, and refuses more than 32 levels. The members list is sorted
+and holds each ASN once.";
         input { leaf as-set { type string; mandatory true; description "AS-SET name (e.g. AS-CLOUDFLARE)"; } }
     }
     rpc irr-prefix {
         description "Look up prefixes for an AS-SET from IRR.";
+        ze:help "Ze runs the whois !a4 and !a6 queries and answers with one
+prefixes list, IPv4 first. Ze caches the answer for one hour. 'update firewall
+irr as-set <name>' is the one command that skips that cache and reaches the
+server.";
         input { leaf as-set { type string; mandatory true; description "AS-SET name (e.g. AS-CLOUDFLARE)"; } }
     }
 }

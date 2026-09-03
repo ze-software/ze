@@ -12,7 +12,10 @@ module ze-cli-cache-cmd {
         container cache {
             config false;
             ze:command "ze-bgp:cache-list";
-            description "List cached BGP UPDATE message IDs with their retain and consumer state.";
+            description "List the cached BGP UPDATE message IDs.";
+            ze:help "The answer carries two keys, 'ids' and 'count'. An ID is listed while its entry
+is retained, or while that entry has not expired. The IDs come alone, with no
+retain flag and no consumer state beside them.";
         }
     }
 
@@ -25,15 +28,24 @@ module ze-cli-cache-cmd {
         // config, interface, l2tp, log, ospf, peer, quiesce and subscribe.
         // A summary naming the cache alone was false for the other eleven.
         description "Commands that act on the running system.";
+        ze:help "This keyword runs nothing on its own. Thirteen modules merge their own children
+onto it, and this module is the one that describes it.";
 
         container cache {
             config false;
             description "Manage cached BGP UPDATE messages.";
+            ze:help "This keyword runs nothing on its own. Its four commands are retain, release,
+expire and forward, and each one takes a cache entry ID. 'show cache' is what
+lists the IDs.";
 
             container retain {
                 config false;
                 ze:command "ze-bgp:cache-retain";
                 description "Prevent eviction of a cached message.";
+                ze:help "A retained entry is not evicted when it expires, so it stays listed until
+'release' undoes the retain or 'expire' removes it. The ID leaf accepts a
+comma-separated list, and each ID is acted on in turn with a failure reported
+per ID.";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
             }
 
@@ -41,6 +53,9 @@ module ze-cli-cache-cmd {
                 config false;
                 ze:command "ze-bgp:cache-release";
                 description "Ack without forwarding (cache consumer) or undo retain (API).";
+                ze:help "The meaning depends on the caller. A cache consumer acknowledges the message and
+does not forward it. An API caller undoes an earlier retain. The ID leaf
+accepts a comma-separated list, and each ID is acted on in turn.";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
             }
 
@@ -48,6 +63,9 @@ module ze-cli-cache-cmd {
                 config false;
                 ze:command "ze-bgp:cache-expire";
                 description "Remove a cached message immediately.";
+                ze:help "The entry is removed at once rather than when its lifetime ends. The ID leaf
+accepts a comma-separated list, and each ID is acted on in turn with a failure
+reported per ID.";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
             }
 
@@ -55,6 +73,9 @@ module ze-cli-cache-cmd {
                 config false;
                 ze:command "ze-bgp:cache-forward";
                 description "Forward a cached UPDATE to peers matching a selector.";
+                ze:help "The selector is a peer address, a peer name, or *, and the cached UPDATE goes to
+every peer it matches. The ID leaf accepts a comma-separated list, and the same
+selector is applied to each ID in that list.";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
                 leaf selector { type string; mandatory true; description "Peer selector (IP, name, or *)"; }
             }

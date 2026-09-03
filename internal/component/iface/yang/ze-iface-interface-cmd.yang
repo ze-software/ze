@@ -2,10 +2,27 @@ module ze-iface-interface-cmd {
     namespace "urn:ze:iface:interface:cmd";
     prefix ifaceifcmd;
     import ze-extensions { prefix ze; }
-    description "show interface family (interface, brief, scan, type, errors, rate, name detail/counters), monitor interface rate, and clear interface counters. Owned by the iface component because every handler reads or resets interface state through the iface backend (iface.ListInterfaces / GetInterface / DiscoverInterfaces / GetRate / ClearCounters). Container-merges onto the show, monitor, and clear verb roots. See ai/rules/plugin-self-containment.md.";
-    revision 2026-08-29 { description "Declare the value the description spelled in prose, so the model states the grammar and the generated usage line reads it."; }
-    revision 2026-06-03 { description "Relocated the show interface family, monitor interface rate, and clear interface counters out of the central show, monitor, and clear schemas into the iface component (plugin self-containment)."; }
-    revision 2026-08-03 { description "Gave brief, type, errors, and rate their own wire methods. They shared ze-show:interface with the parent container, so each became an ALIAS path of one wire method; the dispatcher registers the longest path and consumes the keyword, and the handler that switched on it never saw it. show interface errors returned every interface, show interface brief returned full detail, and show interface type <t> answered with usage text. Wire methods now match the sibling scan/detail/counters pattern, one path each."; }
+    // The show interface family holds interface, brief, scan, type, errors, rate,
+    // and name detail/counters. The iface component owns the module because every
+    // handler reads or resets interface state through the iface backend:
+    // iface.ListInterfaces, GetInterface, DiscoverInterfaces, GetRate and
+    // ClearCounters. The subtrees container-merge onto the show, monitor, and
+    // clear verb roots. See ai/rules/plugin-self-containment.md.
+    description "The show interface, monitor interface rate, and clear interface counters command tree.";
+    // The model now states the grammar, and the generated usage line reads it.
+    revision 2026-08-29 { description "Declare the value the description spelled in prose."; }
+    // The show interface family, monitor interface rate, and clear interface
+    // counters left the central show, monitor, and clear schemas, for plugin
+    // self-containment.
+    revision 2026-06-03 { description "Relocated the interface commands into the iface component."; }
+    // They shared ze-show:interface with the parent container, so each became an
+    // ALIAS path of one wire method. The dispatcher registers the longest path
+    // and consumes the keyword, and the handler that switched on it never saw it.
+    // show interface errors returned every interface, show interface brief
+    // returned full detail, and show interface type <t> answered with usage text.
+    // The wire methods now match the sibling scan, detail and counters pattern,
+    // one path each.
+    revision 2026-08-03 { description "Gave brief, type, errors, and rate their own wire methods."; }
 
     container show {
         config false;
@@ -66,11 +83,16 @@ monitoring, use 'monitor interface rate' instead.";
             container name {
                 config false;
                 description "Select one interface by name.";
+                ze:help "The keyword takes the interface name, and detail or counters
+follows it. Without a name, show interface answers every interface.";
 
                 container detail {
                     config false;
                     ze:command "ze-show:interface-detail";
                     description "Show full detail for one interface.";
+                    ze:help "The answer is the whole record the backend holds for that
+interface, and the counters are part of it. An unknown name is reported as the backend's own
+error.";
                     leaf name {
                         type string;
                         mandatory true;
@@ -82,6 +104,9 @@ monitoring, use 'monitor interface rate' instead.";
                     config false;
                     ze:command "ze-show:interface-counters";
                     description "Show counters for one interface.";
+                    ze:help "The answer is the interface name and its Rx and Tx statistics.
+A backend that keeps no statistics for the interface answers no counters available rather
+than an error.";
                     leaf name {
                         type string;
                         mandatory true;
@@ -99,6 +124,8 @@ monitoring, use 'monitor interface rate' instead.";
         container interface {
             config false;
             description "Interface traffic monitoring.";
+            ze:help "Only rate sits under this keyword today, and it streams until you stop
+it. show interface rate reads the same numbers once.";
 
             container rate {
                 config false;
@@ -117,21 +144,29 @@ every second. Optionally pass an interface name to watch just one link.";
         container interface {
             config false;
             description "Reset interface traffic counters.";
+            ze:help "Without a name every managed interface is reset. clear interface name
+<name> counters resets one instead.";
 
             container counters {
                 config false;
                 ze:command "ze-clear:interface-counters";
                 description "Zero the Rx/Tx counters for every managed interface.";
+                ze:help "One call resets every interface the backend manages, and the answer
+reports the scope as all. Nothing else about the interfaces changes.";
             }
 
             container name {
                 config false;
                 description "Select one interface by name.";
+                ze:help "The keyword takes the interface name, and counters follows it. The
+answer reports that name as the scope it cleared.";
 
                 container counters {
                     config false;
                     ze:command "ze-clear:interface-counters";
                     description "Zero the Rx/Tx counters for one interface.";
+                    ze:help "Only the named interface is reset. Ze translates the name to
+its kernel device first, so a name bound to hardware by a selector clears the right port.";
                     leaf name {
                         type string;
                         mandatory true;

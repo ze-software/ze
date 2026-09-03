@@ -2,6 +2,8 @@ module ze-bgp-cmd-meta-api {
   namespace "urn:ze:bgp:cmd:meta:api";
   prefix bgp-meta-api;
 
+  import ze-extensions { prefix ze; }
+
   organization "Ze Project";
   description
     "BGP command discovery, completion, and plugin configuration RPCs.";
@@ -10,12 +12,58 @@ module ze-bgp-cmd-meta-api {
     description "Initial revision.";
   }
 
-  rpc help { description "List bgp subcommands."; }
-  rpc command-list { description "List bgp commands."; }
-  rpc command-help { description "Show command details."; }
-  rpc command-complete { description "Complete command/args."; }
-  rpc event-list { description "List available BGP event types."; }
-  rpc plugin-encoding { description "Set event encoding (json|text)."; }
-  rpc plugin-format { description "Set wire format (hex|base64|parsed|full)."; }
-  rpc plugin-ack { description "Set ACK timing (sync|async)."; }
+  rpc help {
+    description "List bgp subcommands.";
+    ze:help "The answer holds one entry for each builtin command, and each entry joins the
+command name to its summary with a hyphen. A plugin's own command sits in the
+command registry and not in the builtin table, so command-help is the RPC that
+reaches it.";
+  }
+
+  rpc command-list {
+    description "List bgp commands.";
+    ze:help "Each row carries the command name and its one-line summary. Give the 'verbose'
+argument and each row also carries its source, which is 'builtin'.";
+  }
+
+  rpc command-help {
+    description "Show command details.";
+    ze:help "The answer carries the one-line summary under 'description' and the long
+explanation under 'long-help'. Neither text is derived from the other. The
+lookup reads the builtin table first and the plugin command registry after it.";
+  }
+
+  rpc command-complete {
+    description "Complete command/args.";
+    ze:help "The match is a case-insensitive prefix over the command names. Each candidate
+carries its summary beside the name. A prefix that matches nothing answers an
+empty list and not an error.";
+  }
+
+  rpc event-list {
+    description "List available BGP event types.";
+    ze:help "Each entry carries the event type name and its description. subscribe takes its
+event names from the same registry, so a name absent here cannot be
+subscribed to.";
+  }
+
+  rpc plugin-encoding {
+    description "Set event encoding (json|text).";
+    ze:help "'json' is the default. The daemon holds the mode on the calling process, so it
+changes nothing for another plugin.";
+  }
+
+  rpc plugin-format {
+    description "Set wire format (hex|base64|parsed|full).";
+    ze:help "'parsed' carries the decoded fields alone and is the default. 'hex' and 'base64'
+carry the wire bytes in that encoding. 'full' carries the decoded fields and the
+wire bytes together.";
+  }
+
+  rpc plugin-ack {
+    description "Set ACK timing (sync|async).";
+    ze:help "'sync' makes an announce or a withdraw wait for wire transmission before the
+daemon answers the ACK. 'async' answers as soon as the command is accepted, and
+it is the default.";
+  }
 }

@@ -2,6 +2,8 @@ module ze-pppoe-api {
     namespace "urn:ze:pppoe:api";
     prefix pppoeapi;
 
+    import ze-extensions { prefix ze; }
+
     description
         "PPPoE API operations for Ze. RPCs for observing session
          state and protocol counters. RFC 2516 supplies the field
@@ -13,6 +15,9 @@ module ze-pppoe-api {
 
     rpc summary {
         description "Return subsystem summary: session count, interface count, aggregate state.";
+        ze:help "The three numbers come from one snapshot, and the answer carries the time
+that snapshot was taken. The command fails with pppoe: subsystem not running when PPPoE is
+not started.";
         output {
             leaf summary {
                 type string;
@@ -23,6 +28,9 @@ module ze-pppoe-api {
 
     rpc sessions {
         description "List every live PPPoE session across all interfaces.";
+        ze:help "One snapshot answers every session. Each row carries the session id, the
+client MAC address, the access interface, the service name, the state, the PPP unit and the
+creation time.";
         output {
             leaf sessions {
                 type string;
@@ -33,6 +41,9 @@ module ze-pppoe-api {
 
     rpc session {
         description "Return one session by session ID.";
+        ze:help "The state is discovery, session or teardown. Session id 0 is refused
+because RFC 2516 reserves it, and an id no session holds is reported as no session with that
+sid.";
         input {
             leaf session-id {
                 type uint16;
@@ -50,6 +61,9 @@ module ze-pppoe-api {
 
     rpc statistics {
         description "Return protocol counters: active sessions per interface, discovery packet counts.";
+        ze:help "The answer is the active session count and one row for each access
+interface. Each row carries the interface name, its live session count and its configured
+maximum.";
         output {
             leaf statistics {
                 type string;
@@ -60,6 +74,8 @@ module ze-pppoe-api {
 
     rpc interfaces {
         description "List configured PPPoE access interfaces.";
+        ze:help "Each row carries the interface name, its kernel index, its live session
+count, its configured maximum and the service names it accepts.";
         output {
             leaf interfaces {
                 type string;

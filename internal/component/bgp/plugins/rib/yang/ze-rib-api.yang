@@ -18,6 +18,8 @@ module ze-rib-api {
 
     rpc help {
         description "Show RIB subcommands.";
+        ze:help "The list holds the first word after show bgp rib, clear bgp rib or request
+bgp rib. It is read from the RIB command registry and sorted.";
         output {
             leaf-list subcommands { type string; description "Available subcommands"; }
         }
@@ -25,6 +27,9 @@ module ze-rib-api {
 
     rpc command-list {
         description "List RIB commands.";
+        ze:help "Each row is a full command name and its summary, sorted by name. The rows
+are read from the RIB command registry, so the community and inject commands registered
+after the built-in table are in it.";
         output {
             list command {
                 leaf name { type string; description "Command name"; }
@@ -55,6 +60,8 @@ module ze-rib-api {
 
     rpc event-list {
         description "List RIB event types.";
+        ze:help "The four types are cache, route, peer and memory. The list is a constant of
+the RIB plugin and does not change with the configuration.";
         output {
             list event {
                 leaf name { type string; description "Event type name"; }
@@ -67,6 +74,9 @@ module ze-rib-api {
 
     rpc status {
         description "RIB summary: peer count, route counts, GR state.";
+        ze:help "The optional family argument scopes the per-peer route counts to one
+address family. The routes-in and routes-out totals stay all-family counts whatever is
+given.";
         output {
             leaf running { type boolean; description "RIB plugin is running"; }
             leaf peers { type uint32; description "Number of peers tracked"; }
@@ -115,6 +125,9 @@ module ze-rib-api {
 
     rpc best-status {
         description "Show best-path computation status.";
+        ze:help "The peer count adds the BGP peers to the non-BGP redistribution sources
+that feed the RIB. It can be larger than the BGP peer count, and the route count is the sum
+over both.";
         output {
             leaf peers-with-rib { type uint32; description "Peers with RIB entries"; }
             leaf total-routes { type uint32; description "Total route count across peers"; }
@@ -123,6 +136,9 @@ module ze-rib-api {
 
     rpc clear-in {
         description "Clear Adj-RIB-In entries.";
+        ze:help "A peer selector is required, and the command is refused without one. Each
+matching peer loses its Adj-RIB-In and its entry in the peer table, and the best path is
+then computed again.";
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf family { type zt:address-family; description "Filter by address family"; }
@@ -130,7 +146,10 @@ module ze-rib-api {
     }
 
     rpc clear-out {
-        description "Clear Adj-RIB-Out entries.";
+        description "Resend the Adj-RIB-Out routes to the matching peers.";
+        ze:help "The routes are replayed and nothing is deleted. A peer selector is
+required, and only a peer that is up is resent to. A second argument holding a slash scopes
+the replay to one family.";
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf family { type zt:address-family; description "Filter by address family"; }
@@ -160,6 +179,8 @@ module ze-rib-api {
 
     rpc withdraw {
         description "Remove route from Adj-RIB-In.";
+        ze:help "The peer, the family and the prefix are all required. The answer reports
+whether the route existed, and the best path for that prefix is computed again.";
         input {
             leaf peer { type zt:ip-address; mandatory true; description "Peer address label"; }
             leaf family { type zt:address-family; mandatory true; description "Address family"; }

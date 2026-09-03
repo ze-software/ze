@@ -2,12 +2,28 @@ module ze-cli-clear-api {
   namespace "urn:ze:cli:clear:api";
   prefix cli-clear;
 
-  description
-    "Ze clear verb RPCs -- reset per-object operational state without
-     changing configuration. Think kernel counters, ARP entries, BGP
-     session stats. Differs from `del` in that nothing is removed from
-     the running config -- only accumulated runtime state is zeroed.";
+  import ze-extensions { prefix ze; }
 
-  rpc interface-counters { description "Reset RX/TX counters on one or all interfaces."; }
-  rpc dns-cache { description "Flush DNS cache entries or reset cache counters."; }
+  // The state a clear RPC resets is a kernel counter, an ARP entry, or a BGP
+  // session statistic. The clear verb differs from `del`: nothing is removed
+  // from the running config, and only accumulated runtime state is zeroed.
+  description
+    "Ze clear verb RPCs: reset per-object operational state without changing
+     configuration.";
+
+  rpc interface-counters {
+    description "Reset RX/TX counters on one or all interfaces.";
+    ze:help "Without an interface name, Ze clears every interface. Ze first
+asks the backend to zero the kernel counters. When the backend answers that
+the counters cannot be reset, Ze records the current values as a baseline and
+subtracts it from later reads. That baseline is held in memory, so a restart
+of Ze brings the raw kernel counts back.";
+  }
+  rpc dns-cache {
+    description "Flush DNS cache entries or reset cache counters.";
+    ze:help "This RPC empties every cached record and it takes no argument.
+The hit and miss counters keep their values. Two sibling commands act more
+narrowly. 'clear dns cache stats' zeroes the counters and keeps the records,
+and 'clear dns cache record <name>' deletes one name.";
+  }
 }

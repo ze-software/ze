@@ -2,16 +2,18 @@ module ze-isis-cmd {
     namespace "urn:ze:isis:cmd";
     prefix isiscmd;
     import ze-extensions { prefix ze; }
-    description
-        "show isis ... and clear isis ... command tree. Owned by the isis
-         component so that removing it removes these command nodes together with
-         the handlers in internal/plugins/isis/cmd_show.go. Both verbs bind into
-         the CENTRAL ze-show / ze-clear command namespaces (Go-registered RPCs,
-         the LDP/iface model); there is no per-component ze-isis-api module. The
-         show and clear subtrees container-merge onto the generic show and clear
-         verb roots. See ai/rules/plugin-self-containment.md.";
+    // Removing the component removes these command nodes together with the
+    // handlers in internal/plugins/isis/cmd_show.go. Both verbs bind into the
+    // CENTRAL ze-show and ze-clear command namespaces, which are the
+    // Go-registered RPCs and the LDP/iface model, so there is no per-component
+    // ze-isis-api module. The show and clear subtrees container-merge onto the
+    // generic show and clear verb roots.
+    // See ai/rules/plugin-self-containment.md.
+    description "The show isis and clear isis command tree, owned by the isis component.";
+    // show isis neighbor, database[ detail], route, interface, hostname and
+    // spf-log, and clear isis adjacency and counters.
     revision 2026-06-18 {
-        description "Initial revision: show isis neighbor/database[ detail]/route/interface/hostname/spf-log and clear isis adjacency/counters (spec-isis-13).";
+        description "Initial revision: the show isis and clear isis commands (spec-isis-13).";
     }
 
     container show {
@@ -20,7 +22,10 @@ module ze-isis-cmd {
 
         container isis {
             config false;
-            description "IS-IS neighbors, link-state database, routes, interfaces, hostnames, and SPF history (ISO/IEC 10589, RFC 1195).";
+            description "IS-IS neighbors, database, routes, interfaces, hostnames, and SPF history.";
+            ze:help "The IS-IS commands read the state ISO/IEC 10589 and RFC 1195
+define: the neighbors, the link-state database, the routes, the interfaces, the
+hostnames, and the SPF history.";
 
             container neighbor {
                 config false;

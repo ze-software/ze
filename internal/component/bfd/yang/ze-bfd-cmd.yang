@@ -52,6 +52,7 @@ name <name>' for one profile.";
                     config false;
                     ze:command "ze-bfd-api:show-profile";
                     description "Show one BFD profile by name.";
+                    ze:help "Give the profile name after the name keyword. The answer is one profile object, not a list. An unknown name fails with 'bfd: no profile named <name>'.";
                     leaf name {
                         type string;
                         mandatory true;

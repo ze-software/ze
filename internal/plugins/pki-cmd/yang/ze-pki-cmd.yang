@@ -77,6 +77,9 @@ Check here to find certificates approaching expiration.";
                             config false;
                             ze:modifier "choice";
                             description "Which hash to take of the certificate.";
+                            ze:help "The keyword takes one word, sha256, sha384 or sha512, and the
+word is case-insensitive. Any other word fails with the message 'pki:
+unsupported hash algorithm'. A second word after the algorithm is refused.";
                             leaf algorithm {
                                 type enumeration {
                                     enum sha256;

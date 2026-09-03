@@ -2,10 +2,18 @@ module ze-ping-cmd {
     namespace "urn:ze:ping:cmd";
     prefix pingcmd;
     import ze-extensions { prefix ze; }
-    description "ping command tree (show ping, monitor ping, resolve ping). Owned by the dedicated ping feature module so that the whole ping surface lives in one place and container-merges onto the show, monitor, and resolve verb roots. See ai/rules/plugin-self-containment.md.";
-    revision 2026-08-29 { description "Declare the target and the three optional values of resolve ping. The handler already reads them as keyword pairs; the description spelled them in prose and the model stated nothing."; }
-    revision 2026-07-15 { description "Add the size leaf to show ping: the ICMP engine and resolve ping already supported a payload size, and the web Ping tool offered the field, but show ping had no argument to carry it."; }
-    revision 2026-06-03 { description "Relocate the ping command surface out of the central show, monitor, and resolve schemas into the dedicated ping module."; }
+    // The dedicated ping module owns the whole ping surface, so it lives in one
+    // place. Its subtrees container-merge onto the show, monitor, and resolve
+    // verb roots. See ai/rules/plugin-self-containment.md.
+    description "The ping command tree: show ping, monitor ping, and resolve ping.";
+    // The handler already reads them as keyword pairs. The description spelled
+    // them in prose and the model stated nothing.
+    revision 2026-08-29 { description "Declare the target and the three optional values of resolve ping."; }
+    // The ICMP engine and resolve ping already supported a payload size, and the
+    // web Ping tool offered the field, but show ping had no argument to carry it.
+    revision 2026-07-15 { description "Add the size leaf to show ping."; }
+    // It left the central show, monitor, and resolve schemas.
+    revision 2026-06-03 { description "Relocate the ping command surface into the dedicated ping module."; }
 
     container show {
         config false;
@@ -63,6 +71,10 @@ running min/avg/max RTT and packet loss.";
             config false;
             ze:command "ze-resolve:ping";
             description "Ping from the router with optional source binding.";
+            ze:help "The target takes a hostname or an address, and it accepts a zone suffix such as
+fe80::1%eth0. The source binds a local address and takes the same zone suffix.
+The count runs from 1 to 100 and the payload size from 1 to 65507 bytes. 'show
+ping' declares no source leaf and puts no upper bound on its count.";
             leaf target { type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; } mandatory true; description "Host or IP address to ping"; }
             leaf source { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } description "Source IP address to bind"; }
             leaf count { type uint32 { range "1..100"; } description "Number of echo requests"; }

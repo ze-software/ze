@@ -1,15 +1,23 @@
 module ze-iface-api {
     namespace "urn:ze:iface:api";
     prefix ifaceapi;
+
+    import ze-extensions { prefix ze; }
     description "Interface management RPC definitions with typed parameters";
     revision 2026-04-04 { description "Initial revision"; }
 
     rpc interface-create-dummy {
         description "Create a dummy (loopback-like) interface.";
+        ze:help "The command is idempotent. A dummy of that name already
+present answers with created false and changes nothing. A name that holds an
+interface of another type fails, and the error names both types.";
         input { leaf name { type string; mandatory true; description "Interface name"; } }
     }
     rpc interface-create-veth {
         description "Create a veth pair.";
+        ze:help "One call creates both ends, so the name and the peer name both
+appear in the kernel. The command is idempotent, and a veth of that name
+already present answers with created false.";
         input {
             leaf name { type string; mandatory true; description "Interface name"; }
             leaf peer { type string; mandatory true; description "Peer interface name"; }
@@ -17,10 +25,18 @@ module ze-iface-api {
     }
     rpc interface-delete {
         description "Delete an interface.";
+        ze:help "Ze resolves the name to its kernel device first, so a name
+bound to hardware by a selector reaches the right port. The dispatcher calls
+this same RPC to undo a compound create. An interface the dispatcher created
+is deleted when the unit or address step after it fails.";
         input { leaf name { type string; mandatory true; description "Interface name"; } }
     }
     rpc interface-addr-add {
         description "Add an IP address to an interface.";
+        ze:help "Write the address in CIDR form, for example 10.0.0.1/24. Ze
+resolves the interface name to its kernel device, then hands the prefix to the
+netlink backend. The answer carries a message key that names the prefix and
+the interface.";
         input {
             leaf name { type string; mandatory true; description "Interface name"; }
             leaf address { type string; mandatory true; description "IP address in CIDR notation (e.g. 10.0.0.1/24)"; }
@@ -28,6 +44,9 @@ module ze-iface-api {
     }
     rpc interface-addr-del {
         description "Remove an IP address from an interface.";
+        ze:help "Write the same CIDR form the add used, because Ze passes the
+string to the netlink backend unchanged. Only that one address goes, and the
+other addresses on the interface stay.";
         input {
             leaf name { type string; mandatory true; description "Interface name"; }
             leaf address { type string; mandatory true; description "IP address in CIDR notation"; }
@@ -35,6 +54,10 @@ module ze-iface-api {
     }
     rpc interface-unit-add {
         description "Add a VLAN logical unit to an interface.";
+        ze:help "The VLAN ID is 1 to 4094, and a value outside that range fails
+with 'invalid VLAN ID <value> (must be 1-4094)'. Ze names the new device
+<name>.<vid>. The parent interface is created first when it is absent, and
+deleted again when this step fails.";
         input {
             leaf name { type string; mandatory true; description "Parent interface name"; }
             leaf vlan-id { type uint16; mandatory true; description "VLAN ID (1-4094)"; }
@@ -42,10 +65,20 @@ module ze-iface-api {
     }
     rpc interface-unit-del {
         description "Delete a logical unit from an interface.";
+        ze:help "The handler takes the parent interface name and the VLAN ID,
+and joins them into <name>.<vid> itself. The VLAN ID is 1 to 4094. The parent
+interface stays.";
         input { leaf name { type string; mandatory true; description "Interface name (e.g. eth0.100)"; } }
     }
     rpc interface-migrate {
         description "Make-before-break IP migration between interfaces.";
+        ze:help "Ze runs five phases in a fixed order. It creates the
+destination interface where a create keyword names dummy, veth or bridge, then
+adds the address there. Phase 3 waits for the BGP listener-ready event on the
+new address. Phase 4 removes the address from the source, and phase 5 removes
+the source interface. Phase 4 does not start until phase 3 confirms, and a
+failure at any phase rolls the earlier phases back. The wait is 30 seconds
+where no timeout value is given.";
         input {
             leaf from { type string; mandatory true; description "Source interface.unit (e.g. eth0.0)"; }
             leaf to { type string; mandatory true; description "Destination interface.unit (e.g. eth1.0)"; }

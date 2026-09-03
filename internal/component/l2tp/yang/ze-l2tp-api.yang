@@ -21,6 +21,9 @@ module ze-l2tp-api {
 
     rpc summary {
         description "Return subsystem summary: tunnel count, session count, listener count, aggregate state.";
+        ze:help "The payload carries tunnel-count, session-count, listener-count, and
+captured-at, which is the UTC time of the snapshot. When the L2TP subsystem is
+not running, the RPC answers an error rather than a row of zeros.";
         output {
             leaf summary {
                 type string;
@@ -31,6 +34,9 @@ module ze-l2tp-api {
 
     rpc tunnels {
         description "List every live tunnel.";
+        ze:help "Each row is the summary form of one tunnel, and the 'tunnel' RPC returns the
+detail form. Every row comes from one snapshot, so the whole table was read at
+the same instant.";
         output {
             leaf tunnels {
                 type string;
@@ -41,6 +47,10 @@ module ze-l2tp-api {
 
     rpc tunnel {
         description "Return one tunnel by local tunnel ID.";
+        ze:help "The ID reaches the handler as the 'id' selector or as a bare argument, and both
+forms parse the same way. The answer is the detail form of the tunnel rather
+than the summary form 'tunnels' returns. An unknown ID is refused with 'no
+tunnel with local-tid'.";
         input {
             leaf tunnel-id {
                 type uint16;
@@ -58,6 +68,9 @@ module ze-l2tp-api {
 
     rpc sessions {
         description "List every live session across all tunnels.";
+        ze:help "The rows are flattened across every tunnel, so a session's own tunnel is read
+from the row and not from where the row sits. Each row is the summary form, and
+the 'session' RPC returns the detail form.";
         output {
             leaf sessions {
                 type string;
@@ -68,6 +81,9 @@ module ze-l2tp-api {
 
     rpc session {
         description "Return one session by local session ID.";
+        ze:help "The ID reaches the handler as the 'id' selector or as a bare argument. The
+answer is the detail form of the session. An unknown ID is refused with 'no
+session with local-sid'.";
         input {
             leaf session-id {
                 type uint16;
@@ -84,7 +100,9 @@ module ze-l2tp-api {
     }
 
     rpc statistics {
-        description "Return protocol counters: tunnel/session counts, listener bind state, redistribute activity.";
+        description "Return the L2TP protocol counters.";
+        ze:help "The payload carries tunnels-active and sessions-active. Per-message counters are
+not published here yet. Use 'listeners' for the bind state of each UDP endpoint.";
         output {
             leaf statistics {
                 type string;
@@ -95,6 +113,9 @@ module ze-l2tp-api {
 
     rpc listeners {
         description "List bound UDP listener endpoints.";
+        ze:help "Each row carries the bound address and the UDP port. An empty array means that
+no listener is bound, which is the state 'summary' reports as a listener-count
+of 0.";
         output {
             leaf listeners {
                 type string;
@@ -155,7 +176,9 @@ returns aggregate state across all tracked logins.";
     }
 
     rpc echo {
-        description "Return current echo state for a login derived from CQM buckets: last RTT, loss ratio, echo interval, bucket state.";
+        description "Return the current echo state of one login.";
+        ze:help "The state is derived from the CQM buckets and carries the last
+RTT, the loss ratio, the echo interval, and the bucket state.";
         input {
             leaf login {
                 type string;
@@ -172,7 +195,9 @@ returns aggregate state across all tracked logins.";
     }
 
     rpc reliable {
-        description "Return reliable transport window state for a tunnel: Ns, Nr, peer-Nr, outstanding count, retransmit count, cwnd, ssthresh, peer receive window size.";
+        description "Return the reliable transport window state of one tunnel.";
+        ze:help "The state carries Ns, Nr, peer-Nr, the outstanding count, the
+retransmit count, cwnd, ssthresh, and the peer receive window size.";
         input {
             leaf tunnel-id {
                 type uint16;
@@ -191,6 +216,9 @@ returns aggregate state across all tracked logins.";
     rpc tunnel-history {
         description
             "Return FSM transition history for a tunnel.";
+        ze:help "Each transition carries the state it left, the state it reached, and a UTC
+timestamp. A tunnel the subsystem holds no history for is refused with 'no
+tunnel with local-tid'.";
         input {
             leaf tunnel-id {
                 type uint16;
@@ -209,6 +237,9 @@ returns aggregate state across all tracked logins.";
     rpc session-history {
         description
             "Return FSM transition history for a session.";
+        ze:help "Each transition carries the state it left, the state it reached, and a UTC
+timestamp. A session the subsystem holds no history for is refused with 'no
+session with local-sid'.";
         input {
             leaf session-id {
                 type uint16;
@@ -232,6 +263,9 @@ returns aggregate state across all tracked logins.";
 
     rpc tunnel-teardown {
         description "Send StopCCN Result Code 6 (administrative) for the tunnel with the given local tunnel ID.";
+        ze:help "The answer carries the tunnel ID and a status of 'sent', which reports that the
+message left Ze and not that the peer answered. Use 'session-teardown' to stop
+one session and leave the tunnel up.";
         input {
             leaf tunnel-id {
                 type uint16;
@@ -249,6 +283,9 @@ returns aggregate state across all tracked logins.";
 
     rpc tunnel-teardown-all {
         description "Send StopCCN Result Code 6 (administrative) for every live tunnel on every listener.";
+        ze:help "The answer carries 'tunnels-cleared', the number of tunnels the subsystem tore
+down. The RPC takes no input, so one named tunnel needs 'tunnel-teardown' with
+its local tunnel ID.";
         output {
             leaf result {
                 type string;
@@ -259,6 +296,10 @@ returns aggregate state across all tracked logins.";
 
     rpc session-teardown {
         description "Send CDN Result Code 3 (administrative) for the session with the given local session ID.";
+        ze:help "The answer carries the session ID and a status of 'sent', which reports that the
+message left Ze and not that the peer answered. Optional actor, reason and cause
+keywords are recorded against the session before the CDN goes out, and they are
+echoed in the answer. The tunnel stays up.";
         input {
             leaf session-id {
                 type uint16;
@@ -275,8 +316,9 @@ returns aggregate state across all tracked logins.";
     }
 
     rpc session-teardown-all {
-        description "Send CDN Result Code 3 (administrative) for every live session on every tunnel on every listener.";
-        ze:help "The tunnels are not torn down.";
+        description "Stop every live session on every tunnel on every listener.";
+        ze:help "The RPC sends CDN Result Code 3 (administrative) for each
+session. The tunnels stay open.";
         output {
             leaf result {
                 type string;

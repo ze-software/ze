@@ -11,15 +11,14 @@ module ze-cli-announce-cmd {
     revision 2026-06-27 { description "Initial revision"; }
 
     grouping announce-forms {
-        description "The three announce forms, declared once and instantiated
-twice. A bare announce reaches every peer. peer <selector> announce reaches the
-peers the selector matches. Restating the grammar under the second path would
-be a second declaration of one fact.";
+        description "The three announce forms, declared once and instantiated twice. A bare announce reaches every peer. peer <selector> announce reaches the peers the selector matches. Restating the grammar under the second path would be a second declaration of one fact.";
 
         container unicast {
             config false;
             ze:command "ze-bgp:announce-unicast";
             description "Originate a unicast route on demand.";
+            ze:help "The address family follows the prefix, so it is ipv4 unicast or ipv6
+unicast. The ORIGIN is IGP, and the next hop is this router unless next-hop names one.";
             leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix to originate, in CIDR form"; }
 
             container next-hop {
@@ -34,6 +33,9 @@ be a second declaration of one fact.";
                 config false;
                 ze:modifier "repeat";
                 description "A community to attach, repeated for each one.";
+                ze:help "The value is a standard community. Naming BLACKHOLE here meets
+RFC 7999 Section 3.1 and its agreement gate. The fan-out then narrows to the sessions that
+recorded the agreement.";
                 leaf value { type string { length "1..32"; } mandatory true; description "Community, as ASN:value or a well-known name"; }
             }
 
@@ -41,6 +43,9 @@ be a second declaration of one fact.";
                 config false;
                 ze:modifier "once";
                 description "A key and a value carried with the announcement, so a later withdraw can name it.";
+                ze:help "The tag is what puts the announcement in the registry. Without a
+tag the announcement is not tracked, so show announcements never lists it and withdraw id
+cannot reach it. Each half is 64 characters at most.";
                 leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
                 leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
             }
@@ -49,6 +54,9 @@ be a second declaration of one fact.";
                 config false;
                 ze:modifier "once";
                 description "How long the announcement lives before ze withdraws it.";
+                ze:help "The value is a Go duration such as 300s, or a whole number of
+seconds. It is read only when the announcement also carries a tag, because the timer lives
+with the registry entry.";
                 leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
             }
         }
@@ -66,6 +74,9 @@ agreement.";
                 config false;
                 ze:modifier "once";
                 description "A key and a value carried with the announcement, so a later withdraw can name it.";
+                ze:help "The tag is what puts the announcement in the registry. Without a
+tag the announcement is not tracked, so show announcements never lists it and withdraw id
+cannot reach it. Each half is 64 characters at most.";
                 leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
                 leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
             }
@@ -74,6 +85,9 @@ agreement.";
                 config false;
                 ze:modifier "once";
                 description "How long the announcement lives before ze withdraws it.";
+                ze:help "The value is a Go duration such as 300s, or a whole number of
+seconds. It is read only when the announcement also carries a tag, because the timer lives
+with the registry entry.";
                 leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
             }
         }
@@ -127,6 +141,9 @@ action.";
                 config false;
                 ze:modifier "once";
                 description "A key and a value carried with the announcement, so a later withdraw can name it.";
+                ze:help "The tag is what puts the announcement in the registry. Without a
+tag the announcement is not tracked, so show announcements never lists it and withdraw id
+cannot reach it. Each half is 64 characters at most.";
                 leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
                 leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
             }
@@ -135,16 +152,16 @@ action.";
                 config false;
                 ze:modifier "once";
                 description "How long the announcement lives before ze withdraws it.";
+                ze:help "The value is a Go duration such as 300s, or a whole number of
+seconds. It is read only when the announcement also carries a tag, because the timer lives
+with the registry entry.";
                 leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
             }
         }
     }
 
     grouping withdraw-forms {
-        description "The three withdraw forms, declared once and instantiated
-twice, the same way the announce forms are. A bare withdraw reaches every
-announcement. peer <selector> withdraw reaches the announcements made to the
-peers that selector names.";
+        description "The three withdraw forms, declared once and instantiated twice, the same way the announce forms are. A bare withdraw reaches every announcement. peer <selector> withdraw reaches the announcements made to the peers that selector names.";
 
         container tag {
             config false;
@@ -160,6 +177,9 @@ value withdraws every value of the key.";
             config false;
             ze:command "ze-bgp:withdraw-id";
             description "Withdraw one announcement by the id that show announcements reports.";
+            ze:help "Only a tagged announcement carries an id. After peer <selector>, the
+withdraw acts only when that selector is the one the announcement was made with, compared as
+text.";
             leaf id { type string { length "1..20"; } mandatory true; description "Announcement id, as show announcements reports it"; }
         }
 
@@ -183,6 +203,9 @@ word differ between them, and one node cannot state three grammars.";
     container withdraw {
         config false;
         description "Withdraw on-demand announcements.";
+        ze:help "Only a tagged announcement can be withdrawn by these forms, because an
+announcement made without a tag leaves no registry entry. The three forms are tag, id and
+all.";
         uses withdraw-forms;
     }
 
@@ -209,6 +232,9 @@ word differ between them, and one node cannot state three grammars.";
         container withdraw {
             config false;
             description "Withdraw on-demand announcements.";
+            ze:help "Only a tagged announcement can be withdrawn by these forms, because an
+announcement made without a tag leaves no registry entry. The three forms are tag, id and
+all.";
             uses withdraw-forms;
         }
     }
@@ -220,6 +246,9 @@ word differ between them, and one node cannot state three grammars.";
             config false;
             ze:command "ze-bgp:show-announcements";
             description "List active on-demand announcements.";
+            ze:help "Each row carries the id, the tag, the family, the peer selector, the
+source and the creation time. An expiry time is present only when the announcement was made
+with for.";
             leaf tag { type string { length "1..64"; } description "Show only announcements carrying this tag key"; }
             leaf selector { type string; description "Show only announcements whose peer selector matches this pattern"; }
             leaf family { type string { length "1..32"; } description "Show only announcements of this address family"; }

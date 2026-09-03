@@ -5,9 +5,8 @@ module ze-system-api {
     import ze-extensions { prefix ze; }
     import ze-types { prefix zt; }
 
-    description
-        "System-level API operations for Ze.
-         RPCs for version queries, shutdown, and command introspection.";
+    // The RPCs answer version queries, shutdown, and command introspection.
+    description "System-level API operations for Ze.";
 
     revision 2026-02-01 {
         description "Initial revision";
@@ -15,6 +14,8 @@ module ze-system-api {
 
     rpc help {
         description "List the subcommands the system verb accepts.";
+        ze:help "The built-in commands come first, then the commands each running plugin
+registered. A plugin command marked hidden is left out.";
         output {
             leaf-list subcommands { type string; description "Available subcommands"; }
         }
@@ -22,6 +23,8 @@ module ze-system-api {
 
     rpc version-software {
         description "Show the ze software version.";
+        ze:help "The answer carries the version string and the build date the binary was
+compiled with. Both are set at startup and never change while the daemon runs.";
         output {
             leaf version { type string; description "Software version string"; }
         }
@@ -29,6 +32,9 @@ module ze-system-api {
 
     rpc version-api {
         description "Show the IPC protocol version.";
+        ze:help "The number names the IPC protocol between the daemon and its clients, and
+it moves apart from the software version. The daemon reads it nowhere else, so the command
+reports the protocol rather than negotiates it.";
         output {
             leaf version { type string; description "API protocol version"; }
         }
@@ -38,18 +44,27 @@ module ze-system-api {
 
     rpc daemon-shutdown {
         description "Shut the daemon down gracefully.";
+        ze:help "The daemon answers shutdown initiated first and stops after that answer is
+written, so the connection that asked is never closed before it. A daemon with no BGP
+reactor stops through the same path SIGTERM uses.";
     }
 
     rpc daemon-reboot {
         description "Shut the daemon down gracefully, then reboot the system (root is required on Linux).";
+        ze:help "The command needs a running reactor. It fails with reboot not available
+when the daemon wired no reboot action, and the reboot runs after the answer is written.";
     }
 
     rpc daemon-quit {
         description "Dump every goroutine stack, then shut the daemon down.";
+        ze:help "The stacks go to the log at warning level, up to 1 MB of them. The daemon
+then stops through the same path daemon-shutdown uses.";
     }
 
     rpc daemon-status {
         description "Show the daemon uptime, peer count, and start time.";
+        ze:help "A BGP reactor must be registered, so a daemon that runs without one refuses
+the command. The uptime is truncated to a whole second.";
         output {
             leaf uptime-seconds { type uint32; description "Seconds since start"; }
             leaf peer-count { type uint32; description "Number of configured peers"; }
@@ -59,6 +74,8 @@ module ze-system-api {
 
     rpc daemon-reload {
         description "Reload the configuration.";
+        ze:help "The configuration is read from disk again, every plugin verifies it, and
+each one then applies it. A daemon with no config loader reconciles the BGP peers only.";
     }
 
     rpc quiesce {
@@ -72,6 +89,8 @@ module ze-system-api {
 
     rpc subsystem-list {
         description "List the subsystems registered in the daemon.";
+        ze:help "Each row carries the subsystem name, its stage, whether it runs, and how
+many commands it registered. The command count is read from the dispatcher registry.";
         output {
             list subsystem {
                 leaf name { type string; description "Subsystem name"; }
@@ -82,6 +101,9 @@ module ze-system-api {
 
     rpc command-list {
         description "List every command the daemon knows.";
+        ze:help "The answer is streamed one row for each command, so an operator who pipes
+it through first or match pays for the rows they keep. Built-in commands come first, then
+the commands each plugin registered.";
         output {
             list command {
                 uses zt:command-info;
@@ -91,6 +113,9 @@ module ze-system-api {
 
     rpc command-help {
         description "Show the detailed help for one command.";
+        ze:help "The name is looked up in the built-in commands first, then in the plugin
+registry. A plugin command also answers with its argument form, its source process, and its
+timeout.";
         input {
             leaf name { type string; mandatory true; description "Command name"; }
         }
@@ -101,6 +126,9 @@ module ze-system-api {
 
     rpc command-complete {
         description "List the completion candidates for a partial command.";
+        ze:help "The candidates match on a case-insensitive prefix. The form args <command>
+<partial> completes one command's arguments instead, and it answers empty when the plugin
+does not declare that command completable.";
         input {
             leaf partial { type string; mandatory true; description "Partial command string"; }
             leaf arg { type string; description "Current argument being completed"; }
@@ -112,6 +140,9 @@ module ze-system-api {
 
     rpc dispatch {
         description "Dispatch a text command through the command dispatcher.";
+        ze:help "The words are joined with one space and given to the same dispatcher the
+CLI uses, so a plugin command is reachable too. It fails with missing command when no word
+is given.";
         input {
             leaf-list args { type string; description "Command words to join and dispatch"; }
         }

@@ -2,6 +2,8 @@ module ze-bgp-cmd-log-api {
     namespace "urn:ze:bgp:cmd:log:api";
     prefix "bgp-log-api";
 
+    import ze-extensions { prefix ze; }
+
     organization "Ze Project";
     description "BGP log level command RPCs.";
     revision 2026-03-10 {
@@ -10,13 +12,21 @@ module ze-bgp-cmd-log-api {
 
     rpc log-show {
         description "Show current log levels for all subsystems.";
+        ze:help "The answer is one level for each subsystem that registered a logger, and
+the count beside it. A subsystem that has registered no logger is not listed.";
     }
 
     rpc log-set {
         description "Set log level for a subsystem at runtime.";
+        ze:help "The subsystem name and the level are both required. The new level takes
+effect at once and is not written to the configuration, so a restart returns the subsystem
+to its configured level.";
     }
 
     rpc log-recent {
         description "Show recent log entries from ring buffer with optional level/component/count filters.";
+        ze:help "The buffer holds the entries in memory only, so it is empty after a
+restart. The options are level, component and count, each one takes a value, and the count
+must be a positive number.";
     }
 }

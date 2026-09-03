@@ -2,8 +2,12 @@ module ze-flowexport-cmd {
     namespace "urn:ze:flowexport:cmd";
     prefix flowexportcmd;
     import ze-extensions { prefix ze; }
-    description "show flow command tree. Owned by the flowexport component so that removing it removes the command node together with the handler. See ai/rules/plugin-self-containment.md.";
-    revision 2026-07-13 { description "Nest under show flow export / show flow recent (was flow-export / flow-recent), per the CLI hyphen namespace split."; }
+    // Removing the component removes the command node together with the handler.
+    // See ai/rules/plugin-self-containment.md.
+    description "The show flow command tree, owned by the flowexport component.";
+    // They were flow-export and flow-recent, and the CLI hyphen namespace split
+    // moved them.
+    revision 2026-07-13 { description "Nest under show flow export and show flow recent."; }
     revision 2026-07-01 { description "Add show flow-recent (recent-flow ring query for DDoS characterization)."; }
     revision 2026-06-03 { description "Relocated show flow-export out of the central show schema (plugin self-containment)."; }
 

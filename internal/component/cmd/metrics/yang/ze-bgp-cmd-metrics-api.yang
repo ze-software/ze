@@ -2,6 +2,8 @@ module ze-bgp-cmd-metrics-api {
     namespace "urn:ze:bgp:cmd:metrics:api";
     prefix "bgp-metrics-api";
 
+    import ze-extensions { prefix ze; }
+
     organization "Ze Project";
     description "BGP metrics command RPCs.";
     revision 2026-03-10 {
@@ -10,9 +12,15 @@ module ze-bgp-cmd-metrics-api {
 
     rpc metrics-show {
         description "Show Prometheus metrics in text format.";
+        ze:help "The output is what the Prometheus HTTP handler writes for a GET on /metrics. It
+carries every registered metric with its HELP and TYPE lines. When no Prometheus
+registry is installed the RPC answers 'metrics not available'.";
     }
 
     rpc metrics-list {
         description "List metric names only.";
+        ze:help "The names are sorted, and they carry no sample values beside them. Use
+metrics-show for the values. When no Prometheus registry is installed the RPC
+answers 'metrics not available'.";
     }
 }

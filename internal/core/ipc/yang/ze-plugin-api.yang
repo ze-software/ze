@@ -2,6 +2,8 @@ module ze-plugin-api {
     namespace "urn:ze:plugin:api";
     prefix plug;
 
+    import ze-extensions { prefix ze; }
+
     description
         "Plugin lifecycle API operations for Ze.
          RPCs for plugin session management and health checking.";
@@ -14,6 +16,8 @@ module ze-plugin-api {
 
     rpc help {
         description "List the subcommands the plugin verb accepts.";
+        ze:help "The answer names two subcommands, session and command. The
+plugin verb accepts nothing else, so a third word is a mistake.";
         output {
             leaf-list subcommands { type string; description "Available subcommands"; }
         }
@@ -21,6 +25,10 @@ module ze-plugin-api {
 
     rpc command-list {
         description "List every command a plugin registered, with its summary.";
+        ze:help "The list holds what a plugin registered and it holds no
+built-in command. Each entry carries a name and a description, and the
+description is the one-line summary. Read the long explanation with 'plugin
+command help <name>'.";
         output {
             list command {
                 leaf name { type string; description "Command name"; }
@@ -31,6 +39,9 @@ module ze-plugin-api {
 
     rpc command-help {
         description "Show one plugin command's summary, explanation, arguments, and source plugin.";
+        ze:help "The answer carries command, description, long-help, args and
+source. The source names the plugin process that registered the command. An
+unknown name fails with 'unknown plugin command: <name>'.";
         input {
             leaf name { type string; mandatory true; description "Command name"; }
         }
@@ -41,6 +52,9 @@ module ze-plugin-api {
 
     rpc command-complete {
         description "List the completion candidates for a partial plugin command.";
+        ze:help "Ze matches the partial text against the plugin command
+registry only, so a built-in command never appears here. The answer carries a
+completions list, and an empty list means no plugin command matched.";
         input {
             leaf partial { type string; mandatory true; description "Partial command string"; }
         }
@@ -53,14 +67,22 @@ module ze-plugin-api {
 
     rpc session-ready {
         description "Signal that this plugin process finished its initialization.";
+        ze:help "The daemon then tells the BGP reactor that the API is ready,
+which unblocks reactor startup. A process that serves one peer sends
+session-peer-ready instead.";
     }
 
     rpc session-peer-ready {
         description "Signal that this peer's plugin process finished its initialization.";
+        ze:help "The daemon signals readiness for the one peer the process
+serves. A request that names no peer, or that names the wildcard peer, is
+accepted and signals nothing.";
     }
 
     rpc session-ping {
         description "Answer a health check with the daemon process id.";
+        ze:help "The answer carries the daemon process id under the pong key.
+A caller reads that id to tell one daemon from another after a restart.";
         output {
             leaf pong { type boolean; description "Always true when alive"; }
         }
@@ -68,5 +90,8 @@ module ze-plugin-api {
 
     rpc session-bye {
         description "Tell the daemon this session is disconnecting.";
+        ze:help "The daemon acknowledges the disconnect with a status of
+goodbye. It frees no client state today, so a client that stops without this
+call loses nothing.";
     }
 }

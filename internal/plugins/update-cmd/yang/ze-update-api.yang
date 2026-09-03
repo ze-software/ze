@@ -1,13 +1,59 @@
 module ze-update-api {
     namespace "urn:ze:update:api";
     prefix update-api;
+
+    import ze-extensions { prefix ze; }
     description "Update component RPCs for firmware lifecycle and system update status.";
 
-    rpc system-update { description "Show firmware update status."; }
-    rpc system-update-history { description "Show firmware update event history."; }
-    rpc system-firmware-check { description "Trigger immediate firmware version check."; }
-    rpc system-firmware-download { description "Download firmware update now."; }
-    rpc system-firmware-apply { description "Full firmware update cycle: download+verify+stage+restart."; }
-    rpc system-firmware-restart { description "Restart into staged firmware version."; }
-    rpc system-firmware-rollback { description "Restore previous firmware version and restart."; }
+    rpc system-update {
+        description "Show firmware update status.";
+        ze:help "The answer carries the backend name, the running version and
+an update-available flag. A status word states the position, for example 'up
+to date', 'update available' or 'staged'. The fields staged-version and
+download-sha256 appear once a download reaches the disk. Ze reads the stored
+status here and contacts no update server.";
+    }
+    rpc system-update-history {
+        description "Show firmware update event history.";
+        ze:help "Each row carries the timestamp, the from version, the to
+version and the result. A result is 'success', 'failed-download',
+'failed-checksum', 'failed-stage' or 'blocked-minimum-version'. Ze keeps the
+last 20 events. With no update backend configured, the answer is an empty
+history and a count of 0.";
+    }
+    rpc system-firmware-check {
+        description "Trigger immediate firmware version check.";
+        ze:help "Ze contacts the update server at once and does not wait for
+the scheduled interval. The answer carries the running version, the remote
+version and an update-available flag. Nothing is downloaded.";
+    }
+    rpc system-firmware-download {
+        description "Download firmware update now.";
+        ze:help "Ze fetches the new binary at once and skips the spread delay
+and the maintenance window. It refuses the download when no newer version
+exists, and when the manifest names an intermediate minimum version. A
+checksum mismatch deletes the temporary file. The binary is held, and the
+running version does not change.";
+    }
+    rpc system-firmware-apply {
+        description "Full firmware update cycle: download+verify+stage+restart.";
+        ze:help "This runs the whole cycle and skips every schedule. Ze
+downloads the binary, compares the SHA-256 hash with the manifest, stages the
+binary over the running path, and then restarts. The old binary is kept beside
+it with a .prev suffix, which is what 'system firmware rollback' restores. A
+failure at any step writes one history row.";
+    }
+    rpc system-firmware-restart {
+        description "Restart into staged firmware version.";
+        ze:help "Ze restarts into the binary that an earlier stage put in
+place. With no staged version, the command fails with 'no staged version' and
+nothing restarts.";
+    }
+    rpc system-firmware-rollback {
+        description "Restore previous firmware version and restart.";
+        ze:help "Ze renames the .prev binary back over the running path and
+restarts into it. With no .prev file on the disk, the command fails with 'no
+previous version available'. Only one previous version is kept, so a second
+rollback cannot go back further.";
+    }
 }

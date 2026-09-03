@@ -2,6 +2,8 @@ module ze-bfd-api {
     namespace "urn:ze:bfd:api";
     prefix bfdapi;
 
+    import ze-extensions { prefix ze; }
+
     description
         "BFD API operations for Ze. RPCs for observing session state
          and resolved profiles. RFC 5880 sections 6.8.1 (state
@@ -14,6 +16,10 @@ module ze-bfd-api {
 
     rpc show-sessions {
         description "Return every live BFD session.";
+        ze:help "Each row carries the peer, the state and the diagnostic code. It also
+carries the two discriminators, the transmit, receive and detection intervals, the packet
+counters and the recent state changes. The command fails with bfd: plugin not loaded when
+BFD is not running.";
         output {
             leaf sessions {
                 type string;
@@ -24,6 +30,8 @@ module ze-bfd-api {
 
     rpc show-session {
         description "Return one BFD session by peer address.";
+        ze:help "The peer must be an IP address, and a value that does not parse is refused
+before the lookup. A peer with no session is reported as no session for that peer.";
         input {
             leaf peer {
                 type string;
@@ -41,6 +49,9 @@ module ze-bfd-api {
 
     rpc show-profile {
         description "Return resolved BFD profile parameters.";
+        ze:help "Without a name every profile is answered. Each one carries the detect
+multiplier, the desired transmit interval and the required receive interval in microseconds,
+and whether the profile is passive.";
         input {
             leaf name {
                 type string;

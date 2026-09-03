@@ -16,7 +16,9 @@ module ze-ddos-cmd {
             container status {
                 config false;
                 ze:command "ze-show:ddos-status";
-                description "Show DDoS observation status: whether the incident store is running, the number of currently active attacks, and the number of incidents retained in the ring.";
+                description "Show the DDoS observation status.";
+                ze:help "Returns whether the incident store is running, the number of active
+attacks, and the number of incidents the ring retains.";
             }
 
             container incidents {

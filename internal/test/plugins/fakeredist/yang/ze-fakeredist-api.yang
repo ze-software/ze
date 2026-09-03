@@ -26,5 +26,8 @@ call.";
 
   rpc fakeredist-help {
     description "Print the fakeredist command surface.";
+    ze:help "The answer is one JSON object with a single key, help. That key
+holds two usage lines, one for fakeredist emit and one for fakeredist
+emit-burst.";
   }
 }

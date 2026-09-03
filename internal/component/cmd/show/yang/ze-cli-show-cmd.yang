@@ -3,11 +3,19 @@ module ze-cli-show-cmd {
     prefix clishowcmd;
     import ze-extensions { prefix ze; }
     description "Show command tree for read-only inspection of system and protocol state";
-    revision 2026-08-29 { description "show metrics name takes its label filters as two tokens, label <key> <value>, repeatable. The packed label=value form put a keyword from an open set inside a value token."; }
-    revision 2026-08-29 { description "Declare the metric name show metrics name reads. The description spelled it in prose and the model stated nothing."; }
+    // The packed label=value form put a keyword from an open set inside a value
+    // token.
+    revision 2026-08-29 { description "show metrics name takes its label filters as two tokens: label <key> <value>, repeatable."; }
+    // The description spelled the name in prose and the model stated nothing.
+    revision 2026-08-29 { description "Declare the metric name show metrics name reads."; }
     revision 2026-03-26 { description "Initial revision"; }
-    revision 2026-06-03 { description "Relocated show dns lookup/cache (-> resolve) and show bgp-health (-> bgp peer command owner) out of this central schema (plugin self-containment)."; }
-    revision 2026-06-06 { description "Relocated host, ntp, conntrack, update, kernel-log, capture, tcp-check, doctor, crashes, config, data, env, schema, yang, policy-chain, policy-test commands to their owning components/plugins (plugin self-containment)."; }
+    // show dns lookup/cache went to resolve, and show bgp-health to the bgp peer
+    // command owner, for plugin self-containment.
+    revision 2026-06-03 { description "Relocated show dns lookup/cache and show bgp-health out of this central schema."; }
+    // host, ntp, conntrack, update, kernel-log, capture, tcp-check, doctor,
+    // crashes, config, data, env, schema, yang, policy-chain and policy-test, for
+    // plugin self-containment.
+    revision 2026-06-06 { description "Relocated 16 commands to their owning components and plugins."; }
 
     container show {
         config false;

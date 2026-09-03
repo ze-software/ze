@@ -11,21 +11,30 @@ module ze-resolve-cmd {
     container resolve {
         config false;
         description "DNS, ASN, PeeringDB, and IRR resolution tools.";
+        ze:help "Each lookup runs on the router, so the answer is what the router reaches
+and not what your workstation reaches. Each family of lookups needs its own resolver to be
+configured.";
 
         container dns {
             config false;
             description "DNS record lookups from the router.";
+            ze:help "The answers come from the daemon's own resolver and are stored in its
+cache. A name that resolves to nothing is not cached, so the next lookup asks again.";
 
             container a {
                 config false;
                 ze:command "ze-resolve:dns-a";
                 description "Look up IPv4 addresses (A records) for a hostname.";
+                ze:help "The answer is the list of IPv4 addresses. A valid cache entry
+answers without a query, and a fresh answer is cached for the TTL the server gave.";
                 leaf hostname { type string { length "1..253"; } mandatory true; description "Hostname to look up"; }
             }
             container aaaa {
                 config false;
                 ze:command "ze-resolve:dns-aaaa";
                 description "Look up IPv6 addresses (AAAA records) for a hostname.";
+                ze:help "The answer is the list of IPv6 addresses. A valid cache entry
+answers without a query, and a fresh answer is cached for the TTL the server gave.";
                 leaf hostname { type string { length "1..253"; } mandatory true; description "Hostname to look up"; }
             }
             container txt {
@@ -39,6 +48,9 @@ module ze-resolve-cmd {
                 config false;
                 ze:command "ze-resolve:dns-ptr";
                 description "Reverse-lookup an IP address to its hostname (PTR).";
+                ze:help "The address is turned into its in-addr.arpa or ip6.arpa name before
+the query. The cache holds the answer under that name, so show dns cache record takes it in
+that form.";
                 leaf ip-address { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } mandatory true; description "IP address to reverse-look-up"; }
             }
         }
@@ -46,6 +58,8 @@ module ze-resolve-cmd {
         container cymru {
             config false;
             description "AS number lookups via Team Cymru.";
+            ze:help "The router must have a Cymru resolver configured, and the command fails
+without one. An AS number Team Cymru does not name answers (unknown) instead of an error.";
 
             container asn-name {
                 config false;
@@ -59,6 +73,8 @@ module ze-resolve-cmd {
         container peeringdb {
             config false;
             description "PeeringDB lookups for peering information.";
+            ze:help "The router must have a PeeringDB client configured, and both commands
+fail without one. Each one takes an AS number.";
 
             container max-prefix {
                 config false;
@@ -79,6 +95,8 @@ module ze-resolve-cmd {
         container irr {
             config false;
             description "Internet Routing Registry (WHOIS) queries.";
+            ze:help "The router must have an IRR client configured, and both commands fail
+without one. Each one takes an AS-SET name rather than an AS number.";
 
             container expand {
                 config false;
@@ -104,6 +122,8 @@ ASN. Use this to build or verify prefix filters.";
         container dns {
             config false;
             description "DNS lookups and cache inspection.";
+            ze:help "show dns lookup asks the network and stores what it gets, so it fills
+the cache. The cache commands under it only read.";
 
             container lookup {
                 config false;
@@ -140,19 +160,26 @@ generated references show distinct read-only actions.";
                 container stats {
                     config false;
                     ze:command "ze-show:dns-cache-stats";
-                    description "Show DNS cache hit, miss, eviction, expiry, and hit-rate counters without changing cache contents.";
+                    description "Show the DNS cache hit, miss, eviction, expiry, and hit-rate counters.";
+                    ze:help "It reads the counters and does not change the
+cache contents.";
                 }
 
                 container list {
                     config false;
                     ze:command "ze-show:dns-cache-list";
                     description "List all non-expired DNS cache entries, sorted by shortest TTL first.";
+                    ze:help "An entry whose TTL has run out is left out rather than reported
+as expired. The count beside the list is the number of entries reported.";
                 }
 
                 container record {
                     config false;
                     ze:command "ze-show:dns-cache-record";
                     description "Show DNS cache entries for one record name.";
+                    ze:help "The name must match the cache key exactly, and a reverse lookup
+is held under its in-addr.arpa or ip6.arpa name. A name that is not cached answers an empty
+list and a count of zero.";
                     leaf name {
                         type string;
                         mandatory true;
@@ -165,6 +192,8 @@ generated references show distinct read-only actions.";
         container resolve {
             config false;
             description "Resolution data held on the router.";
+            ze:help "The data is held on the router, so no command here reaches the network.
+update resolve is what refreshes it.";
 
             container rir {
                 config false;
@@ -186,6 +215,9 @@ different answers.";
         container resolve {
             config false;
             description "Refresh the resolution data held on the router.";
+            ze:help "The refresh fetches the delegation file of each of the five Regional
+Internet Registries. It stores nothing when any fetch or parse fails, so the previous table
+stays in place.";
 
             container rir {
                 config false;
@@ -205,16 +237,23 @@ leaves the previous copy in place.";
         container dns {
             config false;
             description "DNS cache clearing operations.";
+            ze:help "Every form needs a DNS resolver, and each one fails with DNS cache not
+available without it. Nothing here reaches the network.";
 
             container cache {
                 config false;
                 ze:command "ze-clear:dns-cache";
                 description "Flush all DNS cache entries and reset all DNS cache counters.";
+                ze:help "The entries and the four counters go together. Use clear dns cache
+stats to zero the counters and keep the entries, or clear dns cache record to evict one
+name.";
 
                 container record {
                     config false;
                     ze:command "ze-clear:dns-cache-record";
                     description "Evict DNS cache entries for one record name, or one name and type when a type is provided.";
+                    ze:help "Add type <record-type> after the name to evict one type, and
+give no other tail. An unknown type is reported inside the answer rather than as an error.";
                     leaf name {
                         type string;
                         mandatory true;
@@ -238,6 +277,8 @@ leaves the previous copy in place.";
                     config false;
                     ze:command "ze-clear:dns-cache-stats";
                     description "Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.";
+                    ze:help "The cached entries stay, so the next lookup is still served
+from the cache. Only the hit, miss, eviction and expiry counters go to zero.";
                 }
             }
         }

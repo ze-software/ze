@@ -2,7 +2,9 @@ module ze-update-firmware-cmd {
     namespace "urn:ze:update:firmware:cmd";
     prefix updatefwcmd;
     import ze-extensions { prefix ze; }
-    description "update system firmware command tree. Owned by the update component because these handlers drive the firmware update lifecycle through config/system backends. See ai/rules/plugin-self-containment.md.";
+    // These handlers drive the firmware update lifecycle through the config and
+    // system backends. See ai/rules/plugin-self-containment.md.
+    description "The update system firmware command tree, owned by the update component.";
     revision 2026-06-06 { description "Relocated update system firmware out of the central update schema (plugin self-containment)."; }
 
     container update {

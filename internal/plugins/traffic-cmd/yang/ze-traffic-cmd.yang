@@ -2,9 +2,14 @@ module ze-traffic-cmd {
     namespace "urn:ze:traffic:cmd";
     prefix trafficcmd;
     import ze-extensions { prefix ze; }
-    description "show traffic control (QoS) command. Owned by the traffic component because the handler reads traffic.GetBackend(). Container-merges onto the show verb root under the shared `traffic` namespace. See ai/rules/plugin-self-containment.md.";
-    revision 2026-07-02 { description "Nest under show traffic control (was show traffic); traffic becomes a namespace shared with show traffic usage."; }
-    revision 2026-06-03 { description "Relocate show traffic out of the central show schema into the traffic component (plugin self-containment)."; }
+    // The handler reads traffic.GetBackend(). The command container-merges onto
+    // the show verb root, under the shared `traffic` namespace.
+    // See ai/rules/plugin-self-containment.md.
+    description "The show traffic control (QoS) command, owned by the traffic component.";
+    // traffic becomes a namespace shared with show traffic usage.
+    revision 2026-07-02 { description "Nest under show traffic control, which was show traffic."; }
+    // It left the central show schema, for plugin self-containment.
+    revision 2026-06-03 { description "Relocate show traffic into the traffic component."; }
 
     container show {
         config false;

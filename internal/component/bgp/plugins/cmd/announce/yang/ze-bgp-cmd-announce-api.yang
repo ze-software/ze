@@ -2,6 +2,8 @@ module ze-bgp-cmd-announce-api {
     namespace "urn:ze:bgp:cmd:announce:api";
     prefix "bgp-announce-api";
 
+    import ze-extensions { prefix ze; }
+
     organization "Ze Project";
     description "On-demand route origination RPCs (announce, withdraw, show).";
     revision 2026-06-27 {
@@ -10,13 +12,24 @@ module ze-bgp-cmd-announce-api {
 
     rpc announce {
         description "Announce a route on demand (unicast, blackhole, flowspec).";
+        ze:help "Ze tracks each announcement in a registry and gives it an id.
+'tag <key> <value>' labels the announcement, and 'for <duration>' gives it an
+expiry time. A key or a value longer than 128 characters is refused. Withdraw
+the announcement later by id, by tag, or with 'withdraw all'.";
     }
 
     rpc withdraw {
         description "Withdraw on-demand announcements (by tag, id, or all).";
+        ze:help "The three forms are 'withdraw tag <key> <value>', 'withdraw id
+<id>' and 'withdraw all'. Every form answers with a withdrawn key, and that
+key holds the number of tracked announcements the command removed.";
     }
 
     rpc show-announcements {
         description "List active on-demand announcements.";
+        ze:help "Each row carries the id, the tag key and value, the family,
+the peer selector, the source and the creation time. A row also carries an
+expires time when that announcement has an expiry. The keywords tag, selector
+and family narrow the list.";
     }
 }

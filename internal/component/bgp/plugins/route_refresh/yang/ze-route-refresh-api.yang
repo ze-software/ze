@@ -2,6 +2,8 @@ module ze-route-refresh-api {
     namespace "urn:ze:route-refresh:api";
     prefix "rr-api";
 
+    import ze-extensions { prefix ze; }
+
     organization "Ze Project";
     description "Route refresh command RPCs (RFC 2918, RFC 7313).";
     revision 2026-03-08 {
@@ -10,14 +12,31 @@ module ze-route-refresh-api {
 
     rpc peer-refresh {
         description "Send ROUTE-REFRESH to peer for specified family.";
+        ze:help "Give the family as one word, for example ipv4/unicast. An
+unknown word fails with 'invalid family'. RFC 2918 Section 4 permits the
+message only where the peer sent the Route Refresh capability. The answer
+carries the peer selector and the family.";
     }
     rpc peer-borr {
         description "Send Beginning of Route Refresh marker (RFC 7313).";
+        ze:help "Give the family as one word, for example ipv4/unicast. RFC
+7313 Section 4 states that the speaker MUST send a BoRR message before it
+starts a route refresh. Send the matching EoRR when the re-advertisement
+ends.";
     }
     rpc peer-eorr {
         description "Send End of Route Refresh marker (RFC 7313).";
+        ze:help "Give the family as one word, for example ipv4/unicast. RFC
+7313 Section 4 states that the speaker MUST send an EoRR message after it
+completes the re-advertisement of the entire Adj-RIB-Out to the peer. The
+procedure applies only where the peer sent the Enhanced Route Refresh
+capability.";
     }
     rpc peer-clear-soft {
         description "Soft-clear peer by sending ROUTE-REFRESH for all negotiated families.";
+        ze:help "This command takes no family. Ze sends one ROUTE-REFRESH per
+negotiated family and lists them in the answer under families-refreshed. The
+selector is a peer address or a configured peer name, and the wildcard is
+refused because a soft clear targets one session.";
     }
 }

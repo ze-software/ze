@@ -30,7 +30,9 @@ module ze-ospf-cmd {
         container ospf {
             config false;
             ze:command "ze-show:ospf";
-            description "OSPFv2 process summary: router-id, areas, ABR/ASBR status, and stub-router (max-metric) state (RFC 2328).";
+            description "Show the OSPFv2 process summary (RFC 2328).";
+            ze:help "Returns the router-id, the areas, the ABR and ASBR status, and the
+stub-router (max-metric) state.";
 
             container instance {
                 config false;
@@ -74,7 +76,9 @@ SPI, and whether the kernel SA is installed. The key is never shown.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospfv3-interface-detail";
-                        description "Show full per-interface OSPFv3 state (spec-ospf-ext-14): ISM, DR/BDR by Router ID, timers, the local Interface ID and Instance ID.";
+                        description "Show the full per-interface OSPFv3 state (spec-ospf-ext-14).";
+                        ze:help "Returns the ISM state, the DR and BDR by Router ID, the timers, the
+local Interface ID, and the Instance ID.";
                     }
                 }
                 container graceful-restart {
@@ -102,64 +106,100 @@ scope-aware header + body-hex view (spec-ospf-ext-14).";
                         config false;
                         ze:command "ze-show:ospfv3-database-detail";
                         description "Decode every OSPFv3 LSA body with its scope-aware header (RFC 5340 section A.4.2.1).";
+                        ze:help "The parent command decodes the base types only. This form decodes
+every LSA body. An unknown function code then arrives as a scope-aware header
+beside its body hex, rather than as a named record.";
                     }
                     container router {
                         config false;
                         description "Router-LSAs (RFC 5340 section A.4.3).";
+                        ze:help "RFC 5340 Appendix A.4.3 gives the Router-LSA area flooding scope and the LS
+Type 0x2001. Ze reads the per-area store for it. The bare form lists the
+headers, and the detail form below decodes each body.";
                         container detail {
                             config false;
                             ze:command "ze-show:ospfv3-database-router-detail";
                             description "Decode each OSPFv3 Router-LSA body.";
+                            ze:help "Each body decodes into its interface records: the type, the metric, the
+Interface ID, the neighbor Interface ID and the neighbor Router ID. RFC 5340
+Section 2.2 states that a Router-LSA no longer contains a network address and
+expresses topology only.";
                         }
                     }
                     container scope {
                         config false;
                         description "Filter the OSPFv3 database by RFC 5340 section A.4.2.1 flooding scope (S2/S1 bits).";
+                        ze:help "RFC 5340 Section 2.3 defines three flooding scopes, and the LS Type field
+carries them in its S2 and S1 bits. Link-local scope stops at the link, area
+scope stops at one area, and AS scope reaches the whole routing domain. The
+three commands below read one scope each.";
                         container link {
                             config false;
                             ze:command "ze-show:ospfv3-database-scope-link";
                             description "Show only link-local (S2/S1 = 00) LSAs, including the per-interface Link-LSA store.";
+                            ze:help "Ze reads the per-interface Link-LSA store as well as the area store, so a
+Link-LSA appears here beside its interface. RFC 5340 Section 2.3 states that a
+link-local LSA is flooded on the local link and no further.";
                         }
                         container area {
                             config false;
                             ze:command "ze-show:ospfv3-database-scope-area";
                             description "Show only area-scope (S2/S1 = 01) LSAs.";
+                            ze:help "RFC 5340 Section 2.3 gives area scope to the router-LSA, the network-LSA,
+the inter-area-prefix-LSA, the inter-area-router-LSA and the
+intra-area-prefix-LSA. Ze reads the per-area store for them.";
                         }
                         container as {
                             config false;
                             ze:command "ze-show:ospfv3-database-scope-as";
                             description "Show only AS-scope (S2/S1 = 10) LSAs.";
+                            ze:help "RFC 5340 Section 2.3 states that an AS-scope LSA is flooded throughout the
+routing domain, and that a router which originates one is an AS Boundary
+Router. Ze reads the AS-wide store for it, and no area appears in the answer.";
                         }
                     }
                     container router-information {
                         config false;
                         ze:command "ze-show:ospfv3-database-router-information";
-                        description "Show the OSPFv3 Router Information LSAs (RFC 7770, function code 12) decoded into capability bits and TLVs.";
+                        description "Show the OSPFv3 Router Information LSAs (RFC 7770).";
+                        ze:help "The LSA carries function code 12. Each one decodes into its
+capability bits and its TLVs.";
                     }
                     container extended {
                         config false;
                         ze:command "ze-show:ospfv3-database-extended";
-                        description "Show the RFC 8362 extended OSPFv3 LSAs (E-Router / E-Network / E-Inter-Area / E-AS-External / E-Link / E-Intra-Area-Prefix) decoded into named TLVs.";
+                        description "Show the extended OSPFv3 LSAs (RFC 8362).";
+                        ze:help "Covers E-Router, E-Network, E-Inter-Area, E-AS-External, E-Link and
+E-Intra-Area-Prefix. Each LSA decodes into named TLVs.";
                     }
                     container segment-routing {
                         config false;
                         ze:command "ze-show:ospfv3-database-segment-routing";
                         description "Summarise the OSPFv3 Segment Routing content (RFC 8666) carried in the RI and extended LSAs.";
+                        ze:help "This is a summary rather than a decode. The Segment Routing content lives in
+the Router Information LSA and in the extended LSAs, and the two commands
+above decode those LSAs in full.";
                     }
                 }
                 container instance {
                     config false;
                     ze:command "ze-show:ospfv3-instance";
-                    description "Enumerate the active OSPFv3 address-family instances (RFC 5838 section 2): each with its address family, Instance ID, area count, and neighbor count.";
+                    description "Enumerate the active OSPFv3 address-family instances (RFC 5838 section 2).";
+                    ze:help "Each instance carries its address family, its Instance ID, its area
+count, and its neighbor count.";
                 }
                 container neighbor {
                     config false;
                     ze:command "ze-show:ospfv3-neighbor";
-                    description "Show OSPFv3 (IPv6) neighbors: the link-local address as identity, adjacency state, DR/BDR by Router ID, and dead time.";
+                    description "Show the OSPFv3 (IPv6) neighbors.";
+                    ze:help "Each neighbor carries the link-local address as its identity, the
+adjacency state, the DR and BDR by Router ID, and the dead time.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospfv3-neighbor-detail";
-                        description "Show full per-neighbor OSPFv3 state (spec-ospf-ext-14): the advertised Interface ID, DD sequence, decoded Options (R/V6/E/N/AF), list sizes, last NSM event, and timers.";
+                        description "Show the full per-neighbor OSPFv3 state (spec-ospf-ext-14).";
+                        ze:help "Returns the advertised Interface ID, the DD sequence, the decoded
+Options (R/V6/E/N/AF), the list sizes, the last NSM event, and the timers.";
                     }
                 }
                 container spf {
@@ -184,7 +224,10 @@ priority, dead time, and address.";
                 container detail {
                     config false;
                     ze:command "ze-show:ospf-neighbor-detail";
-                    description "Show full per-neighbor state (spec-ospf-ext-14): DD sequence, decoded Options (including the RFC 5250 O-bit), request/summary list sizes, last NSM event, and timers.";
+                    description "Show the full per-neighbor state (spec-ospf-ext-14).";
+                    ze:help "Returns the DD sequence, the decoded Options including the RFC 5250
+O-bit, the request and summary list sizes, the last NSM event, and the
+timers.";
                 }
             }
 
@@ -197,7 +240,9 @@ priority, and passive flag per interface.";
                 container detail {
                     config false;
                     ze:command "ze-show:ospf-interface-detail";
-                    description "Show full per-interface state (spec-ospf-ext-14): ISM, DR/BDR election detail, all three timers, and the opaque-capable neighbour count.";
+                    description "Show the full per-interface state (spec-ospf-ext-14).";
+                    ze:help "Returns the ISM state, the DR and BDR election detail, all three
+timers, and the opaque-capable neighbor count.";
                 }
             }
 
@@ -212,31 +257,53 @@ number, age, and checksum.";
                     config false;
                     ze:command "ze-show:ospf-database-router";
                     description "Show only Router-LSAs (Type 1).";
+                    ze:help "RFC 2328 Section 12.4.1 states that every router originates a Router-LSA.
+The LSA describes the collected states of the router's interfaces to one area.
+It is flooded throughout a single area only, and Ze reads the per-area store
+for it.";
                 }
                 container network {
                     config false;
                     ze:command "ze-show:ospf-database-network";
                     description "Show only Network-LSAs (Type 2).";
+                    ze:help "RFC 2328 Section 12.4.2 states that the Designated Router originates a
+Network-LSA for a broadcast or NBMA network. The LSA lists the routers
+connected to that network. It is flooded throughout a single area only. A
+point-to-point link has no Designated Router, so it produces none.";
                 }
                 container summary {
                     config false;
                     ze:command "ze-show:ospf-database-summary";
                     description "Show only Summary-LSAs (Type 3, inter-area network).";
+                    ze:help "RFC 2328 Section 12.4.3 states that an area border router originates a
+Summary-LSA. A Type 3 Summary-LSA describes a route to a network outside the
+area and inside the AS. Ze reads the per-area store for it.";
                 }
                 container asbr-summary {
                     config false;
                     ze:command "ze-show:ospf-database-asbr-summary";
                     description "Show only ASBR-Summary-LSAs (Type 4).";
+                    ze:help "RFC 2328 Section 12.4.3 states that a Type 4 Summary-LSA describes a route
+to an AS boundary router. A Type 3 describes a route to a network instead.
+Both come from an area border router, and both are flooded through one area.";
                 }
                 container external {
                     config false;
                     ze:command "ze-show:ospf-database-external";
                     description "Show only AS-external-LSAs (Type 5).";
+                    ze:help "RFC 2328 Section 12.4.4 states that an AS boundary router originates an
+AS-external-LSA. The LSA describes a route to a destination in another
+Autonomous System, and it is flooded throughout the AS. Ze reads the AS-wide
+store for it, so no area appears in the answer.";
                 }
                 container nssa-external {
                     config false;
                     ze:command "ze-show:ospf-database-nssa-external";
                     description "Show only NSSA-external-LSAs (Type 7, RFC 3101).";
+                    ze:help "RFC 3101 Section 2.3 states that a Type 7 LSA is advertised only within a
+single NSSA. A border router does not flood it into the backbone. It
+translates selected Type 7 LSAs into Type 5 instead, so a translated route
+appears under the AS-external view and not here.";
                 }
                 container opaque-link {
                     config false;
@@ -245,7 +312,10 @@ number, age, and checksum.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospf-database-opaque-link-detail";
-                        description "Decode each link-local opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250).";
+                        description "Decode each link-local opaque LSA body (RFC 5250).";
+                        ze:help "A body with a typed decoder returns its TLVs, which are TE,
+Router-Information, Extended and Segment-Routing. Every other body returns a
+generic type, length and hex view (spec-ospf-ext-14).";
                     }
                 }
                 container opaque-area {
@@ -255,7 +325,10 @@ number, age, and checksum.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospf-database-opaque-area-detail";
-                        description "Decode each area-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250).";
+                        description "Decode each area-scope opaque LSA body (RFC 5250).";
+                        ze:help "A body with a typed decoder returns its TLVs, which are TE,
+Router-Information, Extended and Segment-Routing. Every other body returns a
+generic type, length and hex view (spec-ospf-ext-14).";
                     }
                 }
                 container opaque-as {
@@ -265,7 +338,10 @@ number, age, and checksum.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospf-database-opaque-as-detail";
-                        description "Decode each AS-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250).";
+                        description "Decode each AS-scope opaque LSA body (RFC 5250).";
+                        ze:help "A body with a typed decoder returns its TLVs, which are TE,
+Router-Information, Extended and Segment-Routing. Every other body returns a
+generic type, length and hex view (spec-ospf-ext-14).";
                     }
                 }
                 container router-information {
@@ -327,8 +403,10 @@ count, and pending state.";
                 container detail {
                     config false;
                     ze:command "ze-show:ospf-spf-detail";
-                    description "Explain why each route won (spec-ospf-ext-14): the candidate paths considered per prefix, the winning cost, and the RFC 2328 section 16.4 path-preference tie-break.";
-                    ze:help "Read-only; the route table and SPF run count are unchanged.";
+                    description "Explain why each route won the SPF calculation (spec-ospf-ext-14).";
+                    ze:help "Returns the candidate paths considered for each prefix, the winning
+cost, and the RFC 2328 section 16.4 path-preference tie-break. The command is
+read-only, so the route table and the SPF run count do not change.";
                 }
             }
 
@@ -419,6 +497,8 @@ standards-track consumer. Requires `debug ospf inject enable`.";
                             config false;
                             ze:modifier "required";
                             description "Flooding scope of the injected LSA.";
+                            ze:help "The keyword is required and takes link, area or as. Any other word is
+refused. For link scope Ze uses the first configured interface.";
                             leaf scope {
                                 type enumeration {
                                     enum link;
@@ -433,6 +513,9 @@ standards-track consumer. Requires `debug ospf inject enable`.";
                             config false;
                             ze:modifier "required";
                             description "Opaque ID of the injected LSA.";
+                            ze:help "The keyword is required and the value is a 24-bit number, so 16777215 is the
+largest. A larger number is refused with 'opaque id exceeds 24 bits (max
+16777215)'.";
                             leaf opaque-id {
                                 type uint32 {
                                     range "0..16777215";
@@ -459,6 +542,9 @@ standards-track consumer.";
                             config false;
                             ze:modifier "repeat";
                             description "Raw body octets, appended in the order supplied.";
+                            ze:help "Repeat the keyword to append more octets, and mix it with tlv freely: the
+body grows in the order the keywords are typed. Ze refuses a body longer than
+the LSA maximum, which is 65535 bytes minus the 20-octet header.";
                             leaf body {
                                 type string {
                                     pattern "[0-9a-fA-F]*";
@@ -471,6 +557,9 @@ standards-track consumer.";
                             config false;
                             ze:modifier "repeat";
                             description "One 4-octet-aligned opaque TLV, appended to the body.";
+                            ze:help "Ze builds the TLV from a decimal type and a hex value. It writes the
+2-byte type and the 2-byte length, then pads the result with zeros to a
+multiple of 4 octets. Repeat the keyword to append more TLVs.";
                             leaf type {
                                 type uint16;
                                 mandatory true;
@@ -488,6 +577,9 @@ standards-track consumer.";
                             config false;
                             ze:modifier "once";
                             description "MaxAge-flush the LSA instead of originating it.";
+                            ze:help "Ze reoriginates the LSA at MaxAge, which is what tells the neighbors to
+remove it. The scope and the id still select which LSA goes, so pass the same
+pair the origination used.";
                         }
                     }
                 }
@@ -528,6 +620,9 @@ cross-check and not the source.";
                             config false;
                             ze:modifier "required";
                             description "Link State ID of the injected LSA.";
+                            ze:help "The keyword is required and the value is a 32-bit number. The Link State ID
+and the LS Type together select the LSA. A withdraw MUST repeat the same pair
+the origination used.";
                             leaf link-state-id {
                                 type uint32;
                                 mandatory true;
@@ -554,6 +649,9 @@ accepts the LS Type.";
                             config false;
                             ze:modifier "repeat";
                             description "Raw body octets, appended in the order supplied.";
+                            ze:help "Repeat the keyword to append more octets, and the body grows in the order
+the keywords are typed. OSPFv3 takes no tlv keyword here, so a structured body
+is written as hex.";
                             leaf body {
                                 type string {
                                     pattern "[0-9a-fA-F]*";
@@ -566,6 +664,9 @@ accepts the LS Type.";
                             config false;
                             ze:modifier "once";
                             description "MaxAge-flush the LSA instead of originating it.";
+                            ze:help "Ze reoriginates the LSA at MaxAge, which is what tells the neighbors to
+remove it. A link-local LSA is withdrawn from the per-interface store, and any
+other scope is withdrawn from the backbone area store.";
                         }
                     }
                 }
@@ -588,6 +689,10 @@ accepts the LS Type.";
                     config false;
                     ze:command "ze-debug:ospf-inject-disable";
                     description "Disable OSPF debug LSA injection.";
+                    ze:help "One flag covers both address families, so this stops IPv4 and IPv6
+injection together. An inject after it fails with 'debug injection not enabled
+(run `debug ospf inject enable`)'. The flag is never written to the config, so
+a reboot returns the router to injection off.";
                 }
             }
         }

@@ -2,6 +2,8 @@ module ze-bgp-cmd-cache-api {
     namespace "urn:ze:bgp:cmd:cache:api";
     prefix "bgp-cache-api";
 
+    import ze-extensions { prefix ze; }
+
     organization "Ze Project";
     description "BGP message cache command RPCs.";
     revision 2026-03-08 {
@@ -10,5 +12,8 @@ module ze-bgp-cmd-cache-api {
 
     rpc cache {
         description "BGP message cache operations (list, retain, release, expire, forward).";
+        ze:help "'list' is the one action that reads. retain, release and expire each take a
+message ID, and forward takes a message ID and a peer selector. An ID field
+holding a comma-separated list runs the action over each ID in one call.";
     }
 }

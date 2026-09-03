@@ -13,6 +13,11 @@ module ze-pki-api {
 
     rpc certificates {
         description "List all loaded certificates (CA and device).";
+        ze:help "Each row carries the name and the type, which is 'ca' or 'device'. The subject
+and issuer common names follow, then the not-after date, the key algorithm, and
+a 'valid' flag. The flag compares the not-after date against the clock alone, so
+it does not say that the chain verifies. The rows are sorted by type and then by
+name, and a 'count' comes with them.";
         output {
             leaf certificates {
                 type string;

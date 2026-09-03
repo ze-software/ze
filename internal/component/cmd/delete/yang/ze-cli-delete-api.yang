@@ -2,8 +2,15 @@ module ze-cli-delete-api {
   namespace "urn:ze:cli:delete:api";
   prefix cli-delete;
 
+  import ze-extensions { prefix ze; }
+
   description
     "Ze delete verb RPCs -- remove configuration.";
 
-  rpc bgp-peer { description "Remove a peer dynamically."; }
+  rpc bgp-peer {
+    description "Remove a peer dynamically.";
+    ze:help "The selector is a peer address or a configured peer name, and the
+wildcard is refused. Ze stops the TCP session and removes the peer from the
+running config. The config file on disk does not change.";
+  }
 }

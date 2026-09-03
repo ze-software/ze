@@ -12,17 +12,28 @@ module ze-fakeas112-cmd {
         ze:hidden true;
         config false;
         description "Fakeas112 test commands.";
+        ze:help "The plugin drives the AS112 redistribute producer namespace on
+demand. A .ci test can then exercise the bgp-redistribute origin-AS and
+community path, and the real AS112 DNS engine stays stopped. ze:hidden keeps
+this subtree out of the production CLI completion.";
 
         container emit {
             config false;
             ze:command "ze-fakeas112-api:fakeas112-emit";
             description "Emit the AS112 covering prefixes as route-change batches.";
+            ze:help "The four covering prefixes are 192.175.48.0/24,
+192.31.196.0/24, 2620:4f:8000::/48 and 2001:4:112::/48. One batch goes out per
+family, tagged with the origin ASN, which is 112 without an asn value. The
+/32 and /128 host addresses bound on lo are never emitted.";
         }
 
         container help {
             config false;
             ze:command "ze-fakeas112-api:fakeas112-help";
             description "Print the fakeas112 command surface.";
+            ze:help "The answer is one usage line, as a plain string. It names
+the add and del actions and the family, asn and community keywords that
+'fakeas112 emit' takes.";
         }
     }
 }

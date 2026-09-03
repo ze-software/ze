@@ -2,6 +2,8 @@ module ze-bgp-cmd-raw-api {
   namespace "urn:ze:bgp:cmd:raw:api";
   prefix "bgp-raw-api";
 
+  import ze-extensions { prefix ze; }
+
   organization "Ze Project";
   description "BGP raw message injection RPC.";
   revision 2026-03-08 {
@@ -10,5 +12,10 @@ module ze-bgp-cmd-raw-api {
 
   rpc peer-raw {
     description "Send raw bytes to peer without validation (testing/debugging).";
+      ze:help "With a message type keyword, Ze builds the BGP header and the data carries the
+payload alone. Without one, the data MUST carry the marker and the header too.
+The types are open, update, notification, keepalive and route-refresh, and the
+encodings are hex and b64. The selector resolves to one peer, and a wildcard is
+refused.";
   }
 }

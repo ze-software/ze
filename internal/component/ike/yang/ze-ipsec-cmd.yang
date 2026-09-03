@@ -2,7 +2,9 @@ module ze-ipsec-cmd {
     namespace "urn:ze:ipsec:cmd";
     prefix ipseccmd;
     import ze-extensions { prefix ze; }
-    description "show/monitor/clear vpn ipsec command tree. Owned by the ike component so that removing the IPsec surface removes these command nodes together with the handlers. See ai/rules/plugin-self-containment.md.";
+    // Removing the IPsec surface removes these command nodes together with the
+    // handlers. See ai/rules/plugin-self-containment.md.
+    description "The show, monitor, and clear vpn ipsec command tree, owned by the ike component.";
     revision 2026-08-03 { description "Added show vpn ipsec dataplane sa/policy/drift: the kernel read-back surface."; }
     revision 2026-06-03 { description "Relocated show + monitor + clear vpn ipsec out of central schemas (plugin self-containment)."; }
 
@@ -50,13 +52,14 @@ kernel expiry, an external flush, or a stranded policy becomes visible.";
 addresses, mode, algorithms, replay window, byte and packet counters, and
 timestamps. Give 'spi <spi>' to show one SA. Without a selector the command
 dumps every SA, which on a device with many tunnels is one row per SA.";
+                        // RFC 4303 Section 2.1 reserves SPI 0 and the range 1 to
+                        // 255, so 0 is not a valid selector and the command
+                        // refuses it.
                         leaf spi {
                             type uint32 {
                                 range "1..4294967295";
                             }
-                            description "Show only the SA with this SPI.
-RFC 4303 Section 2.1 reserves SPI 0 and the range 1 to 255, so 0 is not a
-valid selector and the command refuses it.";
+                            description "Show only the SA with this SPI.";
                         }
                     }
 

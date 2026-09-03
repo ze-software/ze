@@ -2,7 +2,10 @@ module ze-ddos-local-cmd {
     namespace "urn:ze:ddos-local:cmd";
     prefix ddoslocalcmd;
     import ze-extensions { prefix ze; }
-    description "show ddos local command. Owned by the ddos-local plugin; container-merges onto the shared show ddos namespace (owned by ddos-observe). Removing the plugin removes this node and its handler. See ai/rules/plugin-self-containment.md.";
+    // The command container-merges onto the shared show ddos namespace, which
+    // ddos-observe owns. Removing the plugin removes this node and its handler.
+    // See ai/rules/plugin-self-containment.md.
+    description "The show ddos local command, owned by the ddos-local plugin.";
     revision 2026-07-02 { description "Initial: show ddos local on-host mitigation status."; }
 
     container show {
@@ -16,7 +19,9 @@ module ze-ddos-local-cmd {
             container local {
                 config false;
                 ze:command "ze-show:ddos-local";
-                description "Show the on-host DDoS mitigation status: whether an nft drop rule is currently installed and the target vector (prefix / proto / port) it covers.";
+                description "Show the on-host DDoS mitigation status.";
+                ze:help "The answer states whether an nft drop rule is installed
+now, and the target vector it covers: prefix, protocol, or port.";
             }
         }
     }

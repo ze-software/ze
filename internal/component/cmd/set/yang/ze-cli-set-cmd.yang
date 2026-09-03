@@ -2,14 +2,22 @@ module ze-cli-set-cmd {
     namespace "urn:ze:cli:set:cmd";
     prefix clisetcmd;
     import ze-extensions { prefix ze; }
-    description "Create or modify running configuration. Bare verb-root anchor; set file-descriptors owned by component/host.";
+    // This module is the bare verb-root anchor. component/host owns
+    // set file-descriptors.
+    description "Create or modify running configuration.";
     revision 2026-03-23 { description "Initial revision"; }
-    revision 2026-06-03 { description "Removed set bgp peer with/save (peer config goes through the editor; the parallel runtime-then-persist path is dropped)."; }
-    revision 2026-06-06 { description "Relocated set system file-descriptors to component/host (plugin self-containment). Bare anchor only."; }
+    // Peer config goes through the editor, and the parallel
+    // runtime-then-persist path is dropped.
+    revision 2026-06-03 { description "Removed set bgp peer with/save."; }
+    // Plugin self-containment. This module keeps the bare anchor only.
+    revision 2026-06-06 { description "Relocated set system file-descriptors to component/host."; }
 
     container set {
         config false;
         description "Modify running configuration parameters.";
+        ze:help "This keyword runs nothing on its own. It is the bare verb root, and each
+owning module merges its own children onto it. 'set system file-descriptors' comes from
+the host component.";
 
         // NOTE: `set system file-descriptors` is owned by the host component.
         // See internal/component/host/schema/ze-host-set-cmd.yang.

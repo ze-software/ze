@@ -3,34 +3,48 @@ module ze-flowspec-cmd {
     prefix flowspeccmd;
     import ze-extensions       { prefix ze; }
     import ze-cli-announce-cmd { prefix cliannouncecmd; }
-    description "The FlowSpec match components an operator types after
-`announce flowspec`. They live here rather than in the announce module because
-this plugin owns the vocabulary: parseComponentText dispatches on it and
-isComponentKeyword is its single producer. The announce module must not restate
-another plugin's words, and an augment means it does not have to.
-
-Every component is `repeat` rather than `once`. RFC 8955 Section 4.2 allows each
-component type exactly once, so a repeated keyword is another OR group joined
-into the SAME component rather than a second one, which is what AddComponent
-performs.
-
-Each container states `config false` itself. mergeYANGEntry skips a child whose
-own Config is not false, and goyang sets Config from the node's own statement
-with no propagation from the parent, so an augmented container that omits it is
-dropped from the command tree without a word.";
-    revision 2026-08-31 { description "The bare destination and source keywords are removed. A prefix component names its family: RFC 8955 type 1 and RFC 8956 type 1 share a type code and carry different encodings, so destination-ipv4 and destination-ipv6 are two names rather than one name and a qualifier. These are the keywords ExaBGP emits. The bare words were its input aliases, and the ExaBGP bridge converts them now."; }
-    revision 2026-08-31 { description "announce flowspec is reachable at two paths, bare and under peer <selector>, so the components are a grouping and each augment instantiates it. An augment names one target, and a second target repeating the vocabulary would be a second declaration of it."; }
-    revision 2026-08-30 { description "Initial revision: state the match components announce flowspec takes, so the model rather than a description states the grammar."; }
+    // The components live here rather than in the announce module because this
+    // plugin owns the vocabulary: parseComponentText dispatches on it and
+    // isComponentKeyword is its single producer. The announce module must not
+    // restate another plugin's words, and an augment means it does not have to.
+    //
+    // Every component is `repeat` rather than `once`. RFC 8955 Section 4.2
+    // allows each component type exactly once, so a repeated keyword is another
+    // OR group joined into the SAME component rather than a second one, which is
+    // what AddComponent performs.
+    //
+    // Each container states `config false` itself. mergeYANGEntry skips a child
+    // whose own Config is not false, and goyang sets Config from the node's own
+    // statement with no propagation from the parent, so an augmented container
+    // that omits it is dropped from the command tree without a word.
+    description "The FlowSpec match components an operator types after `announce flowspec`.";
+    // A prefix component names its family: RFC 8955 type 1 and RFC 8956 type 1
+    // share a type code and carry different encodings, so destination-ipv4 and
+    // destination-ipv6 are two names rather than one name and a qualifier. These
+    // are the keywords ExaBGP emits. The bare words were its input aliases, and
+    // the ExaBGP bridge converts them now.
+    revision 2026-08-31 { description "The bare destination and source keywords are removed."; }
+    // The two paths are bare, and under peer <selector>. Each augment
+    // instantiates the grouping. An augment names one target, and a second
+    // target repeating the vocabulary would be a second declaration of it.
+    revision 2026-08-31 { description "announce flowspec is reachable at two paths, so the components became a grouping."; }
+    // The model rather than a description states the grammar.
+    revision 2026-08-30 { description "Initial revision: state the match components announce flowspec takes."; }
 
     grouping flowspec-components {
-        description "The match components, declared once. announce flowspec is
-reachable at two paths -- bare, and under peer <selector> -- and each augment
-below instantiates this one grouping rather than restating the vocabulary.";
+        // announce flowspec is reachable at two paths, bare and under
+        // peer <selector>. Each augment below instantiates this one grouping
+        // rather than restating the vocabulary.
+        description "The match components, declared once.";
 
         container destination-ipv4 {
             config false;
             ze:modifier "repeat";
             description "Destination prefix to match (RFC 8955 type 1).";
+            ze:help "The prefix is parsed in CIDR form, and its address family MUST match the
+FlowSpec family, so an IPv6 prefix under an IPv4 FlowSpec is refused. One NLRI
+carries one destination prefix, so a second destination-ipv4 is refused as a
+duplicate component type.";
             leaf prefix { type string { length "1..49"; } mandatory true; description "IPv4 prefix in CIDR form"; }
         }
 
@@ -38,6 +52,10 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "Destination prefix to match (RFC 8956 type 1).";
+            ze:help "The prefix is parsed in CIDR form, and it is refused when the FlowSpec family is
+IPv4. RFC 8956 gives the IPv6 form an offset field that RFC 8955 has not, which
+is why this keyword and destination-ipv4 are two words rather than one word and
+a qualifier.";
             leaf prefix { type string { length "1..49"; } mandatory true; description "IPv6 prefix in CIDR form"; }
         }
 
@@ -45,6 +63,10 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "Source prefix to match (RFC 8955 type 2).";
+            ze:help "The prefix is parsed in CIDR form, and its address family MUST match the
+FlowSpec family, so an IPv6 prefix under an IPv4 FlowSpec is refused. One NLRI
+carries one source prefix, so a second source-ipv4 is refused as a duplicate
+component type.";
             leaf prefix { type string { length "1..49"; } mandatory true; description "IPv4 prefix in CIDR form"; }
         }
 
@@ -52,6 +74,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "Source prefix to match (RFC 8956 type 2).";
+            ze:help "The prefix is parsed in CIDR form, and it is refused when the FlowSpec family is
+IPv4. One NLRI carries one source prefix, so a second source-ipv6 is refused as
+a duplicate component type.";
             leaf prefix { type string { length "1..49"; } mandatory true; description "IPv6 prefix in CIDR form"; }
         }
 
@@ -59,6 +84,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "IP protocol to match, by name or number (RFC 8955 type 3).";
+            ze:help "A value is a name such as tcp, or a number from 0 to 255. A leading '=' is
+accepted, so 'protocol =6' and 'protocol 6' parse the same way. Values are read
+until the next component keyword, and each one is an equality match.";
             leaf value { type string { pattern '=?([0-9]+|[a-z0-9-]+)'; length "1..16"; } mandatory true; description "Protocol name such as tcp, or a number, optionally with a leading ="; }
         }
 
@@ -66,6 +94,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "IPv6 Next Header to match, by name or number (RFC 8956 type 3).";
+            ze:help "A value is a name such as tcp, or a number from 0 to 255. This keyword and
+'protocol' build the same component, and the two words exist because RFC 8956
+names the IPv6 field Next Header. A leading '=' is accepted.";
             leaf value { type string { pattern '=?([0-9]+|[a-z0-9-]+)'; length "1..16"; } mandatory true; description "Header name such as tcp, or a number, optionally with a leading ="; }
         }
 
@@ -73,6 +104,10 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "Source or destination port to match (RFC 8955 type 4).";
+            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+Without an operator the match is equality. The value is bounded at 65535. This
+component matches either side of the flow, and destination-port and source-port
+name one side each.";
             leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Port, optionally with a comparison operator"; }
         }
 
@@ -80,6 +115,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "Destination port to match (RFC 8955 type 5).";
+            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+Without an operator the match is equality. The value is bounded at 65535. Use
+'port' to match either side of the flow with one component.";
             leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Port, optionally with a comparison operator"; }
         }
 
@@ -87,6 +125,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "Source port to match (RFC 8955 type 6).";
+            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+Without an operator the match is equality. The value is bounded at 65535. Use
+'port' to match either side of the flow with one component.";
             leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Port, optionally with a comparison operator"; }
         }
 
@@ -94,6 +135,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "ICMP type to match (RFC 8955 type 7).";
+            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+The value is bounded at 255. The ICMP type and the ICMP code are two components,
+so pair this keyword with icmp-code when both MUST match.";
             leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "ICMP type, optionally with a comparison operator"; }
         }
 
@@ -101,6 +145,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "ICMP code to match (RFC 8955 type 8).";
+            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+The value is bounded at 255. This component carries no ICMP type, so pair it
+with icmp-type when both MUST match.";
             leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "ICMP code, optionally with a comparison operator"; }
         }
 
@@ -108,6 +155,10 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "TCP flags to match (RFC 8955 type 9).";
+            ze:help "A flag name is fin, syn, rst, psh, ack, urg, ece or cwr, and reset, push and
+urgent are accepted aliases. A bitmask number is accepted in place of a name. A
+leading '&' makes the term AND with the term before it, and without the '&' the
+terms are OR.";
             leaf value { type string { length "1..32"; } mandatory true; description "Flag name such as syn, or a bitmask, optionally with an operator"; }
         }
 
@@ -115,6 +166,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "Packet length to match (RFC 8955 type 10).";
+            ze:help "The length is the total IP packet length and it excludes the layer 2 header. A
+value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='. The
+value is bounded at 65535.";
             leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Length in octets, optionally with a comparison operator"; }
         }
 
@@ -122,6 +176,8 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "DSCP value to match (RFC 8955 type 11).";
+            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+The DSCP field is 6 bits, so the parser refuses a value over 63.";
             leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "DSCP, optionally with a comparison operator"; }
         }
 
@@ -129,6 +185,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "Fragment bits to match (RFC 8955 type 12).";
+            ze:help "A flag name is dont-fragment, is-fragment, first-fragment or last-fragment, and
+df, isf, ff and lf are accepted aliases. A leading '&' makes the term AND with
+the term before it. RFC 8955 Section 4.2.2.12 defines the four bits.";
             leaf value { type string { length "1..32"; } mandatory true; description "Fragment name such as is-fragment, or a bitmask"; }
         }
 
@@ -136,6 +195,9 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "repeat";
             description "IPv6 Flow Label to match (RFC 8956 type 13).";
+            ze:help "The IPv6 Flow Label is a 20-bit field, and RFC 8956 defines this component for
+IPv6 FlowSpec alone. A value takes an optional operator, one of '>=', '<=',
+'!=', '>', '<' and '='. The parser bounds the value at 32 bits.";
             leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Flow label, optionally with a comparison operator"; }
         }
 
@@ -143,6 +205,10 @@ below instantiates this one grouping rather than restating the vocabulary.";
             config false;
             ze:modifier "once";
             description "Route Distinguisher, for a VPN FlowSpec family only.";
+            ze:help "This is the one component declared 'once' rather than 'repeat'. The encoder
+removes the rd pair before it walks the other components, so an rd that reaches
+the walk names a family carrying no Route Distinguisher and is refused. Write
+the value as ASN:value or as address:value.";
             leaf value { type string { length "1..32"; } mandatory true; description "Route Distinguisher, as ASN:value or address:value"; }
         }
     }

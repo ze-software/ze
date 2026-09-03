@@ -12,23 +12,37 @@ module ze-fakeredist-cmd {
         ze:hidden true;
         config false;
         description "Fakeredist test commands.";
+        ze:help "The tree carries ze:hidden, so it does not reach an operator's completion when
+'ze cli' runs against a daemon that loaded fakeredist. The plugin ships in the
+production composition root all the same, which is why emit-burst carries an
+upper bound.";
 
         container emit {
             config false;
             ze:command "ze-fakeredist-api:fakeredist-emit";
             description "Emit one synthetic route-change batch.";
+            ze:help "The arguments are 'add' or 'remove', an address family, a prefix, and an
+optional next hop. The batch carries one entry. The answer carries 'delivered',
+the number of consumers that received it.";
         }
 
         container emit-burst {
             config false;
             ze:command "ze-fakeredist-api:fakeredist-emit-burst";
             description "Emit N synthetic batches sequentially.";
+            ze:help "The arguments are the count, 'add' or 'remove', an address family, and a base
+prefix. The count MUST be a positive integer no larger than 1000000. Each step
+keeps the prefix length and increments the address, so a peer sees that many
+distinct prefixes.";
         }
 
         container help {
             config false;
             ze:command "ze-fakeredist-api:fakeredist-help";
             description "Print the fakeredist command surface.";
+            ze:help "The answer is the two usage lines of the plugin: 'fakeredist emit add|remove
+<family> <prefix> [<nexthop>]' and 'fakeredist emit-burst <N> add|remove
+<family> <base-prefix>'.";
         }
     }
 }

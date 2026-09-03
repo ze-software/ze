@@ -2,13 +2,30 @@ module ze-peer-cmd {
     namespace "urn:ze:peer:cmd";
     prefix peercmd;
     import ze-extensions { prefix ze; }
-    description "BGP peer operations: show, delete, and control peer sessions. Owns the show bgp health overview and the delete bgp peer command surface; container-merges onto the show and delete verb roots.";
-    revision 2026-08-30 { description "Delete the usage sentences of show bgp peer rib and request peer teardown. The model states both grammars and the renderer reproduces each line, so the prose stated a second time what the model already says."; }
-    revision 2026-08-29 { description "request peer teardown takes a cease subcode or it fails: handleTeardown refuses an empty tail. The description wrote it as optional and the model stated nothing. The peer selector of every command under show bgp peer, update bgp peer and request peer moves to the peer container, which is the keyword the operator types it after; show bgp peer list reads every peer, so it states ze:inherit none."; }
+    // This module owns the show bgp health overview and the delete bgp peer
+    // command surface. Its show and delete subtrees container-merge onto the
+    // show and delete verb roots.
+    description "BGP peer operations: show, delete, and control peer sessions.";
+    // The model states both grammars and the renderer reproduces each line, so
+    // the deleted prose stated a second time what the model already says.
+    revision 2026-08-30 { description "Delete the usage sentences of show bgp peer rib and request peer teardown."; }
+    // request peer teardown takes a cease subcode or it fails, because
+    // handleTeardown refuses an empty tail. The description wrote the subcode as
+    // optional and the model stated nothing. The peer selector of every command
+    // under show bgp peer, update bgp peer and request peer moves to the peer
+    // container, which is the keyword the operator types it after. show bgp peer
+    // list reads every peer, so it states ze:inherit none.
+    revision 2026-08-29 { description "State the required cease subcode, and move the peer selector to the peer container."; }
     revision 2026-03-16 { description "Initial revision"; }
-    revision 2026-06-03 { description "Relocated show bgp-health and delete bgp peer out of the central show/delete schemas into this owner (plugin self-containment)."; }
-    revision 2026-06-04 { description "Removed bare 'summary' and 'peer list' duplicates; moved summary under show bgp; canonical paths are 'show bgp summary' and 'show bgp peer list'."; }
-    revision 2026-08-21 { description "Removed the 'summary' container under show bgp. 'show bgp' is the command that answers the peer summary, and the two views are reached with the '| summary' and '| peers' pipe aliases."; }
+    // They left the central show and delete schemas, for plugin
+    // self-containment.
+    revision 2026-06-03 { description "Relocated show bgp-health and delete bgp peer into this owner module."; }
+    // summary moved under show bgp. The canonical paths are 'show bgp summary'
+    // and 'show bgp peer list'.
+    revision 2026-06-04 { description "Removed the bare 'summary' and 'peer list' duplicates."; }
+    // 'show bgp' is the command that answers the peer summary, and the two views
+    // are reached with the '| summary' and '| peers' pipe aliases.
+    revision 2026-08-21 { description "Removed the 'summary' container under show bgp."; }
 
     container show {
         config false;
@@ -24,6 +41,10 @@ or l2vpn.";
             container peer {
                 config false;
                 description "Peer state, capabilities, statistics, history, and RIB views.";
+                ze:help "The mandatory peer selector is declared here, so every command below it reads
+that one selector. 'list' is the exception: it declares ze:inherit none and
+reads every peer. A selector is an address, a peer name, an AS pattern such as
+as65001, a glob, or *.";
 
                 // The peer every command below reads. It is declared here, on
                 // the keyword the operator types it after, and each of those
@@ -44,30 +65,50 @@ the per-peer detail.";
                     config false;
                     ze:command "ze-bgp:peer-detail";
                     description "Show full detail for one or more peers.";
+                    ze:help "Each peer row carries the remote and local ASN, the router ID, the peer type,
+and four timers: receive hold time, send hold time, keepalive, and connect
+retry. The 'connect' and 'accept' flags say which directions this session opens.
+A 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and
+End-of-RIB in each direction.";
                 }
 
                 container capabilities {
                     config false;
                     ze:command "ze-bgp:peer-capabilities";
                     description "Show what capabilities were negotiated with a peer.";
+                    ze:help "The row carries the peer address and the FSM state. Once the OPEN exchange
+completed, a negotiated map follows with the address families, the extended
+message capability, enhanced route refresh, and 4-byte ASN support. A selector
+that matches no peer is refused with 'no matching peers'.";
                 }
 
                 container statistics {
                     config false;
                     ze:command "ze-bgp:peer-statistics";
                     description "Show UPDATE throughput for your peers.";
+                    ze:help "Each row carries the peer address, its ASN, the FSM state, and the session
+uptime. Six counters follow, for UPDATE, KEEPALIVE and End-of-RIB messages in
+each direction. Each rate is the cumulative counter divided by the uptime in
+seconds, so a session that is not established reports 0.";
                 }
 
                 container history {
                     config false;
                     ze:command "ze-bgp:peer-history";
                     description "Show FSM state transitions for a peer over time.";
+                    ze:help "Each row reads as a sentence: when the transition happened, the state it left,
+the state it reached, and the reason. Only the first matched peer is read, so a
+wildcard selector with no argument is refused with 'no peer specified'. A peer
+whose transitions were never recorded answers 'no history for peer'.";
                 }
 
                 container rib {
                     config false;
                     ze:command "ze-bgp:peer-rib";
                     description "Show RIB data scoped to one peer.";
+                    ze:help "The command forwards to the RIB plugin with the peer selector attached, so the
+RIB plugin MUST be loaded for it to answer. 'show bgp rib' reads the same plugin
+without a peer scope.";
 
                     container scope {
                         config false;
@@ -81,8 +122,7 @@ the per-peer detail.";
                                 enum received;
                                 enum sent-received;
                             }
-                            description "Direction of the routes to read. 'advertised' is
-another spelling of 'sent'.";
+                            description "Direction of the routes to read. 'advertised' is another spelling of 'sent'.";
                         }
                     }
                 }
@@ -105,6 +145,8 @@ you just need a status overview.";
         container bgp {
             config false;
             description "Remove BGP peers from running config.";
+            ze:help "This keyword runs nothing on its own. 'delete bgp peer <selector>' is the one
+command under it.";
 
             container peer {
                 config false;
@@ -124,10 +166,15 @@ configuration. Does not modify the config file on disk.";
         container bgp {
             config false;
             description "BGP operational updates.";
+            ze:help "This keyword runs nothing on its own. 'update bgp peer <selector> prefix' is the
+one command under it.";
 
             container peer {
                 config false;
                 description "Per-peer data refresh.";
+                ze:help "The mandatory peer selector is declared here, so every command below it reads
+that one selector. The one command under it writes to the configuration draft
+and not to the running daemon, so 'config commit' is what applies the result.";
 
                 // The peer every command below updates, declared on the keyword
                 // the operator types it after.
@@ -151,6 +198,10 @@ to apply.";
         container peer {
             config false;
             description "Peer lifecycle and flow control operations.";
+            ze:help "The mandatory peer selector is declared here, and every command below it reads
+that selector, including the ones ze-refresh-cmd.yang merges onto
+this container. The web UI reaches the same operations at bgp-peer/index.html under
+the 'network' permission.";
             ze:ui-resource "bgp-peer/index.html";
             ze:ui-permissions "network";
             ze:ui-csp "default-src 'self'";
@@ -165,6 +216,11 @@ to apply.";
                 config false;
                 ze:command "ze-bgp:peer-teardown";
                 description "Tear down a peer session.";
+                ze:help "The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255.
+Ze sends an RFC 8203 shutdown communication message with subcode 2,
+administrative shutdown, and with subcode 4, administrative reset, and with no
+other subcode. The message follows the subcode on the command line, and the
+answer echoes the truncated text that went on the wire.";
                 leaf cease-subcode { type uint8; mandatory true; description "BGP cease NOTIFICATION subcode"; }
             }
 
@@ -172,32 +228,50 @@ to apply.";
                 config false;
                 ze:command "ze-bgp:peer-pause";
                 description "Pause reading from a peer's TCP socket.";
+                ze:help "Ze stops reading the peer's socket and the session stays up, so nothing is
+withdrawn. The selector resolves to one peer and a wildcard is refused, because
+flow control acts on one read loop. 'request peer <selector> resume' restarts
+it.";
             }
 
             container resume {
                 config false;
                 ze:command "ze-bgp:peer-resume";
                 description "Resume reading from a previously paused peer.";
+                ze:help "The read loop restarts after a flow-control pause. The selector resolves to one
+peer and a wildcard is refused, for the reason pause states. Nothing else about
+the session changes.";
             }
 
             container flush {
                 config false;
                 ze:command "ze-bgp:peer-flush";
                 description "Wait until all queued updates for a peer are sent.";
+                ze:help "The command returns once the forward pool has drained, so a test asserts on what
+the peer received without a fixed sleep. A selector of '*' flushes every peer.
+The wait is bounded at 30 seconds.";
             }
 
             container plugin {
                 config false;
                 description "Plugin-level peer operations.";
+                ze:help "This keyword runs nothing on its own. It groups the operations a plugin process
+sends about one peer, and 'session' is its one branch.";
 
                 container session {
                     config false;
                     description "Plugin session lifecycle.";
+                    ze:help "This keyword runs nothing on its own. 'ready' is its one branch, and it names
+the moment a peer's plugin process finished its startup.";
 
                     container ready {
                         config false;
                         ze:command "ze-plugin:session-peer-ready";
                         description "Signal that per-peer plugin setup is complete.";
+                        ze:help "The daemon closes this process's share of the peer's End-of-RIB barrier, so the
+peer stops waiting for routes from this process. The signal is keyed on the
+sending process, so one process does not release another. A peer of '*', and an
+empty peer, are both ignored.";
                     }
                 }
             }

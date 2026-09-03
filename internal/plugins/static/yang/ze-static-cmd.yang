@@ -2,7 +2,9 @@ module ze-static-cmd {
     namespace "urn:ze:static:cmd";
     prefix staticcmd;
     import ze-extensions { prefix ze; }
-    description "show static command tree. Owned by the static plugin so that removing it removes the command node together with the handler. See ai/rules/plugin-self-containment.md.";
+    // Removing the plugin removes the command node together with the handler.
+    // See ai/rules/plugin-self-containment.md.
+    description "The show static command tree, owned by the static plugin.";
     revision 2026-06-03 { description "Relocated show static out of the central show schema (plugin self-containment)."; }
 
     container show {

@@ -2,7 +2,10 @@ module ze-bgp-tools-cmd {
     namespace "urn:ze:bgp:tools:cmd";
     prefix bgptoolscmd;
     import ze-extensions { prefix ze; }
-    description "Offline BGP protocol tools (decode/encode). Owned by cmd/ze/bgp so that removing the BGP command surface removes show bgp decode/encode. See ai/rules/plugin-self-containment.md.";
+    // cmd/ze/bgp owns them, so removing the BGP command surface removes
+    // show bgp decode and show bgp encode.
+    // See ai/rules/plugin-self-containment.md.
+    description "Offline BGP protocol tools: show bgp decode and show bgp encode.";
     revision 2026-06-02 { description "Relocated show bgp decode/encode out of the central show schema (plugin self-containment)."; }
 
     container show {

@@ -5,11 +5,11 @@ module ze-fakeas112-api {
   import ze-extensions { prefix ze; }
 
   organization "Ze Project";
-  description "Test-only synthetic AS112 route producer RPCs.
-               fakeas112 emits route-change events on the as112 namespace
-               (the same handle the real producer uses) so .ci tests can
-               exercise the bgp-redistribute origin-AS + community path
-               without starting the AS112 DNS engine.";
+  // fakeas112 emits route-change events on the as112 namespace, which is the
+  // same handle the real producer uses. A .ci test can then exercise the
+  // bgp-redistribute origin-AS and community path without starting the AS112
+  // DNS engine.
+  description "Test-only synthetic AS112 route producer RPCs.";
   revision 2026-07-05 {
     description "Initial revision -- emit / help.";
   }
@@ -21,5 +21,7 @@ module ze-fakeas112-api {
 
   rpc fakeas112-help {
     description "Print the fakeas112 command surface.";
+    ze:help "The answer is one fixed line naming the emit form and its options. It is a
+constant of the test plugin, so it does not read the command registry.";
   }
 }

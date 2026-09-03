@@ -2,6 +2,8 @@ module ze-bgp-cmd-monitor-api {
     namespace "urn:ze:bgp:cmd:monitor:api";
     prefix "bgp-mon-api";
 
+    import ze-extensions { prefix ze; }
+
     organization "Ze Project";
     description "BGP live event monitor RPCs.";
     revision 2026-03-17 {
@@ -10,5 +12,8 @@ module ze-bgp-cmd-monitor-api {
 
     rpc monitor {
         description "Stream live BGP events with optional filters.";
+        ze:help "The filters are peer <selector>, event <type,type> and direction, and each
+one is given once. direction takes received or sent, and a peer selector can start with !
+to exclude the peers it matches.";
     }
 }

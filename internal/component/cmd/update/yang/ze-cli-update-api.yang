@@ -2,12 +2,35 @@ module ze-cli-update-api {
   namespace "urn:ze:cli:update:api";
   prefix cli-update;
 
+  import ze-extensions { prefix ze; }
+
   description
     "Ze update verb RPCs -- refresh stale data from external sources.";
 
-  rpc system-firmware-check { description "Trigger immediate firmware version check."; }
-  rpc system-firmware-download { description "Download firmware update now."; }
-  rpc system-firmware-apply { description "Full firmware update cycle: download+verify+stage+restart."; }
-  rpc system-firmware-restart { description "Restart into staged firmware version."; }
-  rpc system-firmware-rollback { description "Restore previous firmware version and restart."; }
+  rpc system-firmware-check {
+    description "Trigger immediate firmware version check.";
+    ze:help "The command needs an update backend to be configured, and fails with update
+checker not configured without one. The answer carries the running version,
+whether an update exists, and the remote version when the backend reports one.";
+  }
+  rpc system-firmware-download {
+    description "Download firmware update now.";
+    ze:help "The image is fetched and nothing restarts. Run system firmware restart after
+it, or run system firmware apply to do the whole cycle in one command.";
+  }
+  rpc system-firmware-apply {
+    description "Full firmware update cycle: download+verify+stage+restart.";
+    ze:help "One call runs the four steps in order. Use the single-step commands instead
+when you want to stage now and restart during a maintenance window.";
+  }
+  rpc system-firmware-restart {
+    description "Restart into staged firmware version.";
+    ze:help "Nothing is downloaded, so an image must already be staged. A backend that
+cannot restart answers unsupported rather than a failure of its own.";
+  }
+  rpc system-firmware-rollback {
+    description "Restore previous firmware version and restart.";
+    ze:help "The version that ran before the last update becomes the running one again. The
+command takes no argument and downloads nothing.";
+  }
 }

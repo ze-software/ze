@@ -2,14 +2,21 @@ module ze-cli-update-cmd {
     namespace "urn:ze:cli:update:cmd";
     prefix cliupdatecmd;
     import ze-extensions { prefix ze; }
-    description "Refresh data from external sources and manage firmware updates. Bare verb-root anchor; firmware commands owned by update-cmd.";
+    // This module is the bare verb-root anchor. The update-cmd plugin owns the
+    // firmware commands.
+    description "Refresh data from external sources and manage firmware updates.";
     revision 2026-03-23 { description "Initial revision"; }
-    revision 2026-06-03 { description "Removed update bgp peer prefix (PeeringDB lookup stays in resolve; applying limits goes through the editor)."; }
+    // The PeeringDB lookup stays in resolve, and applying limits goes through
+    // the editor.
+    revision 2026-06-03 { description "Removed update bgp peer prefix."; }
     revision 2026-06-06 { description "Relocated firmware commands to update-cmd (plugin self-containment). Bare anchor only."; }
 
     container update {
         config false;
         description "Pull fresh data from external sources or manage firmware.";
+        ze:help "This container is the bare verb root and it carries no command
+of its own. The update-cmd plugin merges the firmware subtree onto it, from
+internal/plugins/update-cmd/yang/ze-update-firmware-cmd.yang.";
 
         // NOTE: `update system firmware *` commands are owned by the update-cmd plugin.
         // See internal/plugins/update-cmd/yang/ze-update-firmware-cmd.yang.

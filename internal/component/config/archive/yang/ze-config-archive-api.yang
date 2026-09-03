@@ -2,6 +2,8 @@ module ze-config-archive-api {
     namespace "urn:ze:config:archive:api";
     prefix "config-archive-api";
 
+    import ze-extensions { prefix ze; }
+
     organization "Ze Project";
     description "Config archive trigger RPC.";
     revision 2026-05-17 {
@@ -10,5 +12,9 @@ module ze-config-archive-api {
 
     rpc trigger {
         description "Trigger a named config archive destination.";
+        ze:help "The name must match an archive block under system archive, and a name that
+matches none is refused with the names that do exist. The config file is read from disk and
+parsed again, so the archive carries the saved config and not the running edits. The
+destination in the answer has its credentials removed.";
     }
 }

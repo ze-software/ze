@@ -21,67 +21,101 @@ module ze-system-cmd {
     container system {
         config false;
         description "Daemon introspection and command dispatch.";
+        ze:help "The subcommands are help, dispatch, version, subsystem and command. This
+container carries none of them itself, and each subcommand below reads the
+daemon rather than the config.";
 
         container help {
             config false;
             ze:command "ze-system:help";
             description "List the subcommands the system verb accepts.";
+            ze:help "The list carries the built-in commands first, then the commands the plugins
+registered, each written as 'name - description'. A plugin command marked
+hidden is left out. With no dispatcher, Ze answers a short fixed list
+instead.";
         }
 
         container dispatch {
             config false;
             ze:command "ze-system:dispatch";
             description "Dispatch a text command through the command dispatcher.";
+            ze:help "Ze joins the words after the keyword into one command string and runs it
+through the text dispatcher the CLI uses. A plugin command is reachable this
+way. With no dispatcher, the command fails with 'dispatcher not available'.";
         }
 
         container version {
             config false;
             description "Software and protocol version information.";
+            ze:help "Two commands sit here, software and api. software answers the ze build, and
+api answers the IPC protocol number. The two numbers name different things and
+change at different times.";
 
             container software {
                 config false;
                 ze:command "ze-system:version-software";
                 description "Show the ze software version.";
+                ze:help "The answer carries a version key and a build-date key. Both come from the
+values the build stamped into the binary, so a daemon that was never rebuilt
+reports the same pair after a restart.";
             }
 
             container api {
                 config false;
                 ze:command "ze-system:version-api";
                 description "Show the IPC protocol version.";
+                ze:help "The answer carries one version key. It holds the IPC protocol number that the
+daemon and its clients agree on, and it is not the ze software version.";
             }
         }
 
         container subsystem {
             config false;
             description "Inspect the registered subsystems.";
+            ze:help "One command sits here, list. A subsystem is a plugin process the daemon
+started, and the process manager owns that set.";
 
             container list {
                 config false;
                 ze:command "ze-system:subsystem-list";
                 description "List the subsystems registered in the daemon.";
+                ze:help "Each row carries the process name, its stage, a running flag and a command
+count. The command count comes from the dispatcher registry, which is what
+counts the commands the process actually registered.";
             }
         }
 
         container command {
             config false;
             description "Inspect the commands the daemon knows.";
+            ze:help "Three commands sit here: list, help and complete. All three read the same
+dispatcher, so a command missing from one is missing from the other two.";
 
             container list {
                 config false;
                 ze:command "ze-system:command-list";
                 description "List every command the daemon knows.";
+                ze:help "The rows carry the built-in commands first, then the commands the plugins
+registered. Each row carries the command name, its summary and its long
+explanation. Add the word verbose to put the source of each row beside it.";
             }
 
             container help {
                 config false;
                 ze:command "ze-system:command-help";
                 description "Show the detailed help for one command.";
+                ze:help "The answer carries command, description, long-help and source. A command a
+plugin registered also carries args and its timeout. An unknown name fails
+with 'unknown command: <name>'.";
             }
 
             container complete {
                 config false;
                 ze:command "ze-system:command-complete";
                 description "List the completion candidates for a partial command.";
+                ze:help "Ze completes a command NAME from the partial text. Write 'args' before the
+command name to complete an ARGUMENT of that command instead, in the form
+'system command complete args <cmd> [<completed>...] <partial>'.";
             }
         }
     }
@@ -95,6 +129,8 @@ module ze-system-cmd {
             config false;
             ze:command "ze-system:daemon-status";
             description "Show process status, uptime, and resource usage.";
+            ze:help "The answer carries the uptime, the peer count and the daemon start time. This
+command needs a running reactor, so a daemon that has none refuses it.";
         }
     }
 
@@ -107,24 +143,38 @@ module ze-system-cmd {
             config false;
             ze:command "ze-system:daemon-shutdown";
             description "Gracefully shutdown: drain connections, close peers, exit.";
+            ze:help "Ze writes the accepted answer first and stops after, so teardown cannot close
+the requesting connection under its own reply. The answer message is 'shutdown
+initiated'. A daemon with no reactor uses the same signal-based teardown that
+SIGTERM triggers.";
         }
 
         container reboot {
             config false;
             ze:command "ze-system:daemon-reboot";
             description "Gracefully shutdown then reboot the system.";
+            ze:help "Ze writes the accepted answer first, then runs the reboot. The answer message
+is 'reboot initiated'. A daemon with no reboot function configured fails with
+'reboot not available'.";
         }
 
         container halt {
             config false;
             ze:command "ze-system:daemon-quit";
             description "Dump goroutine stacks to stderr and terminate immediately.";
+            ze:help "Ze writes every goroutine stack through the daemon logger at warning
+level, with a 1 MB buffer, and then stops. Use it where a daemon is stuck
+and the stacks are the evidence.";
         }
 
         container reload {
             config false;
             ze:command "ze-system:daemon-reload";
             description "Reload the configuration without restarting.";
+            ze:help "Ze reads the config from disk, verifies it with every plugin that asked for
+the config roots, and then applies it to each. Every plugin verifies before
+any plugin applies. A failure at any step answers 'reload failed:
+<error>'.";
         }
 
         container quiesce {

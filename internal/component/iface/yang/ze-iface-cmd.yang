@@ -18,8 +18,7 @@ module ze-iface-cmd {
 
     typedef iface-unit {
         type string { pattern '[^ /?]+\.[0-9]+'; }
-        description "An interface and one of its units, written as name.unit. Unit 0 is
-the interface itself.";
+        description "An interface and one of its units, written as name.unit. Unit 0 is the interface itself.";
     }
 
     typedef duration {
@@ -30,14 +29,20 @@ the interface itself.";
     container create {
         config false;
         description "Create new resources.";
+        ze:help "Only the interface commands sit under this verb today. They create a dummy,
+veth or bridge interface, a VLAN unit, and an IP address.";
 
         container interface {
             config false;
             description "Create interfaces, units, and addresses.";
+            ze:help "Give the type keyword, dummy or bridge, when the interface does not
+exist yet. The unit and address forms then create the interface first.";
 
             container dummy {
                 config false;
                 description "Create a dummy (loopback-style) interface.";
+                ze:help "A second create of the same name changes nothing and reports that
+the interface is present. It fails when that name holds an interface of another type.";
 
                 container name {
                     config false;
@@ -45,6 +50,8 @@ the interface itself.";
                     ze:backend "netlink";
                     ze:ensure-exists "ze-iface:interface-delete";
                     description "Create a dummy (loopback-style) interface.";
+                    ze:help "The command is idempotent. When a unit or address command under
+it fails, and this command created the interface, the interface is deleted again.";
                     leaf name { type string; mandatory true; description "Interface name"; }
 
                     container unit {
@@ -52,6 +59,9 @@ the interface itself.";
                         ze:command "ze-iface:interface-unit-add";
                         ze:backend "netlink";
                         description "Add a VLAN sub-interface to the dummy.";
+                        ze:help "The VLAN id is 1 to 4094, and the new interface is named
+<name>.<vid>. The dummy is created first when it is absent, and deleted again when this step
+fails.";
                         leaf name { type string; mandatory true; description "Parent interface name"; }
                         leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
                     }
@@ -61,6 +71,9 @@ the interface itself.";
                         ze:command "ze-iface:interface-addr-add";
                         ze:backend "netlink";
                         description "Add an IP address to the dummy.";
+                        ze:help "The address is written in CIDR form, for example
+10.0.0.1/32. The dummy is created first when it is absent, and deleted again when this step
+fails.";
                         leaf name { type string; mandatory true; description "Interface name"; }
                         leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
                     }
@@ -70,12 +83,16 @@ the interface itself.";
             container veth {
                 config false;
                 description "Create a veth pair (two linked virtual Ethernet interfaces).";
+                ze:help "One command creates both ends of the pair. veth has no compound
+form, so create the pair first, then add a unit or an address to either end.";
 
                 container name {
                     config false;
                     ze:command "ze-iface:interface-create-veth";
                     ze:backend "netlink";
                     description "Create a veth pair (two linked virtual Ethernet interfaces).";
+                    ze:help "The peer name is the second value and is required. A second
+create of the same name changes nothing and reports that the pair is present.";
                     leaf name { type string; mandatory true; description "Interface name"; }
                     leaf peer { type string; mandatory true; description "Peer interface name"; }
                 }
@@ -84,6 +101,8 @@ the interface itself.";
             container bridge {
                 config false;
                 description "Create a Linux bridge for L2 forwarding.";
+                ze:help "A second create of the same name changes nothing and reports that
+the bridge is present. It fails when that name holds an interface of another type.";
 
                 container name {
                     config false;
@@ -91,6 +110,8 @@ the interface itself.";
                     ze:backend "netlink";
                     ze:ensure-exists "ze-iface:interface-delete";
                     description "Create a Linux bridge for L2 forwarding.";
+                    ze:help "The command is idempotent. When a unit or address command under
+it fails, and this command created the bridge, the bridge is deleted again.";
                     leaf name { type string; mandatory true; description "Interface name"; }
 
                     container unit {
@@ -98,6 +119,9 @@ the interface itself.";
                         ze:command "ze-iface:interface-unit-add";
                         ze:backend "netlink";
                         description "Add a VLAN sub-interface to the bridge.";
+                        ze:help "The VLAN id is 1 to 4094, and the new interface is named
+<name>.<vid>. The bridge is created first when it is absent, and deleted again when this
+step fails.";
                         leaf name { type string; mandatory true; description "Parent interface name"; }
                         leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
                     }
@@ -107,6 +131,9 @@ the interface itself.";
                         ze:command "ze-iface:interface-addr-add";
                         ze:backend "netlink";
                         description "Add an IP address to the bridge.";
+                        ze:help "The address is written in CIDR form, for example
+10.0.0.1/32. The bridge is created first when it is absent, and deleted again when this step
+fails.";
                         leaf name { type string; mandatory true; description "Interface name"; }
                         leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
                     }
@@ -139,17 +166,23 @@ the interface itself.";
         container interface {
             config false;
             description "Delete an interface, unit, or address.";
+            ze:help "Every form takes the interface name first. Ze translates that name to
+its kernel device, so a name bound to hardware by a selector reaches the right port.";
 
             container name {
                 config false;
                 ze:command "ze-iface:interface-delete";
                 description "Delete an interface from the kernel.";
+                ze:help "The dispatcher calls this same command to undo a compound create.
+An interface it created is deleted when the unit or address step after it fails.";
                 leaf name { type string; mandatory true; description "Interface name"; }
 
                 container unit {
                     config false;
                     ze:command "ze-iface:interface-unit-del";
                     description "Remove a VLAN sub-interface.";
+                    ze:help "The VLAN id is 1 to 4094. The interface deleted is
+<name>.<vid>, so the parent interface stays.";
                     leaf name { type string; mandatory true; description "Sub-interface name (e.g. eth0.100)"; }
                     leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
                 }
@@ -158,6 +191,8 @@ the interface itself.";
                     config false;
                     ze:command "ze-iface:interface-addr-del";
                     description "Remove an IP address from an interface.";
+                    ze:help "Give the address in the same CIDR form it was added with. The
+interface stays, and only that address goes.";
                     leaf name { type string; mandatory true; description "Interface name"; }
                     leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
                 }
@@ -171,6 +206,9 @@ the interface itself.";
         container interface {
             config false;
             description "Interface operational state.";
+            ze:help "The interface name is given once, after this keyword, and every command
+below it uses that name. request interface migrate is the exception, because it names two
+interfaces of its own.";
 
             // The interface every command below acts on. It is declared here,
             // on the keyword the operator types it after, and each of those
@@ -181,12 +219,17 @@ the interface itself.";
                 config false;
                 ze:command "ze-iface:interface-up";
                 description "Bring an interface up.";
+                ze:help "Only the administrative state changes. show interface reports the
+operational state, which a dummy, bridge or veth reports as unknown rather than up.";
             }
 
             container down {
                 config false;
                 ze:command "ze-iface:interface-down";
                 description "Shut down an interface.";
+                ze:help "Only the administrative state changes. A name bound to hardware by
+a selector is refused when the selector resolves to no device, so the shutdown cannot reach
+another port.";
             }
 
             container mtu {
@@ -201,6 +244,8 @@ the interface itself.";
                 config false;
                 ze:command "ze-iface:interface-mac";
                 description "Set the MAC address on an interface.";
+                ze:help "The address is written as xx:xx:xx:xx:xx:xx. Ze checks that form
+before it calls the backend, so a malformed address is refused with its own message.";
                 leaf address { type string { pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}'; } mandatory true; description "MAC address, as xx:xx:xx:xx:xx:xx"; }
             }
 
@@ -217,6 +262,8 @@ source (make-before-break).";
                     config false;
                     ze:modifier "required";
                     description "Interface and unit the address moves off.";
+                    ze:help "The value is an interface and one of its units, written as
+name.unit. Unit 0 is the interface itself.";
                     leaf source { type iface-unit; mandatory true; description "Source interface and unit"; }
                 }
 
@@ -224,6 +271,8 @@ source (make-before-break).";
                     config false;
                     ze:modifier "required";
                     description "Interface and unit the address moves onto.";
+                    ze:help "The value is an interface and one of its units, written as
+name.unit. The address is added here before it is removed from the source.";
                     leaf destination { type iface-unit; mandatory true; description "Destination interface and unit"; }
                 }
 
@@ -231,6 +280,8 @@ source (make-before-break).";
                     config false;
                     ze:modifier "required";
                     description "Address to move.";
+                    ze:help "One address moves for each command, written in CIDR form. Each
+keyword of migrate is given once, and a second one is refused.";
                     leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
                 }
 
@@ -254,8 +305,9 @@ exists.";
                 container timeout {
                     config false;
                     ze:modifier "once";
-                    description "How long to wait for BGP to become ready on the destination address before the move is abandoned.";
-                    ze:help "The default is 30 seconds.";
+                    description "How long to wait for BGP to become ready before the move is abandoned.";
+                    ze:help "The wait is for BGP on the destination address.
+The default is 30 seconds.";
                     leaf duration { type duration; mandatory true; description "Wait time, as a number and a unit"; }
                 }
             }

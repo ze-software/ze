@@ -14,10 +14,14 @@ module ze-policy-cmd {
         container policy {
             config false;
             description "Inspect and test route policy filters.";
+            ze:help "This keyword runs nothing on its own. 'chain' reads the filter chain a peer has,
+and 'test' feeds one UPDATE through it. Both are read-only.";
 
             container chain {
                 config false;
                 description "Show the effective filter chain for a peer.";
+                ze:help "This keyword runs nothing on its own. 'peer' is its one branch, and the chain it
+shows is the one left after group inheritance is resolved.";
 
                 container peer {
                     config false;
@@ -48,6 +52,8 @@ a direction keyword, shows both import and export.";
             container test {
                 config false;
                 description "Dry-run a BGP UPDATE through a policy chain (read-only, safe).";
+                ze:help "This keyword runs nothing on its own. 'peer' is its one branch. Nothing is
+forwarded and no route is installed, so the command is safe on a live router.";
 
                 container peer {
                     config false;
@@ -75,6 +81,9 @@ address and the tokens can arrive in any order.";
                         config false;
                         ze:modifier "once";
                         description "Test one named filter instead of the whole chain.";
+                        ze:help "The keyword is accepted at most once, and the name runs from 1 to 64 characters.
+Without it the whole chain is tested. A 'filter' keyword with no name after it
+is refused.";
                         leaf name {
                             type string {
                                 length "1..64";
@@ -92,6 +101,9 @@ address and the tokens can arrive in any order.";
                         config false;
                         ze:modifier "required";
                         description "The BGP UPDATE to feed through the chain.";
+                        ze:help "The keyword is required, and 'update hex <octets>' is accepted beside 'update
+<octets>'. The octets take an optional 0x prefix. A keyword with no value after
+it is refused.";
                         leaf hex {
                             type string {
                                 pattern '(0[xX])?[0-9a-fA-F]+';
@@ -104,6 +116,9 @@ address and the tokens can arrive in any order.";
                         config false;
                         ze:modifier "once";
                         description "How to read the sender's AS support.";
+                        ze:help "The value is 'true' or 'false', and the handler reads 'true' when the keyword is
+absent. A value that is neither is refused. The keyword is accepted at most
+once.";
                         leaf enabled {
                             type enumeration {
                                 enum true;

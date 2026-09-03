@@ -2,7 +2,9 @@ module ze-bmp-cmd {
     namespace "urn:ze:bmp:cmd";
     prefix bmpcmd;
     import ze-extensions { prefix ze; }
-    description "show bmp ... command tree. Owned by the bgp-bmp plugin so that removing the BMP surface removes these command nodes together with the handlers and config schema. See ai/rules/plugin-self-containment.md.";
+    // Removing the BMP surface removes these command nodes together with the
+    // handlers and the config schema. See ai/rules/plugin-self-containment.md.
+    description "The show bmp command tree, owned by the bgp-bmp plugin.";
     revision 2026-06-03 { description "Relocated show bmp ... out of the central show schema (plugin self-containment)."; }
 
     container show {

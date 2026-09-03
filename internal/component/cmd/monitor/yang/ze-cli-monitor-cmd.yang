@@ -9,6 +9,9 @@ module ze-cli-monitor-cmd {
     container monitor {
         config false;
         description "Continuous monitoring commands (Ctrl-C to stop).";
+        ze:help "This container is the bare verb root and it carries no command of its own.
+The BGP, ping, traceroute, interface and IPsec owners each merge their own subtree onto it.
+What you can monitor therefore follows the plugins this box runs.";
 
         // NOTE: `monitor event` is owned by the command component.
         // See internal/component/command/schema/ze-command-monitor-cmd.yang.

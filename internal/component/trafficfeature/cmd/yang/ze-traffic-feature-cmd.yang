@@ -2,7 +2,8 @@ module ze-traffic-feature-cmd {
     namespace "urn:ze:traffic-feature:cmd";
     prefix trafficfeaturecmd;
     import ze-extensions { prefix ze; }
-    description "show traffic feature command tree. Owned by the trafficfeature component. Container-merges onto the shared `traffic` namespace.";
+    // The command container-merges onto the shared `traffic` namespace.
+    description "The show traffic feature command tree, owned by the trafficfeature component.";
     revision 2026-07-13 { description "Nest under show traffic feature (was traffic-feature), per R9 namespace split."; }
     revision 2026-07-02 { description "Initial: neutral per-source traffic feature signals CLI."; }
 

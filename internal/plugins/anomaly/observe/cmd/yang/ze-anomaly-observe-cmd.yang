@@ -2,7 +2,11 @@ module ze-anomaly-observe-cmd {
     namespace "urn:ze:anomaly-observe:cmd";
     prefix anomalyobservecmd;
     import ze-extensions { prefix ze; }
-    description "show anomaly observe command tree. Owned by the anomaly-observe plugin, which holds the incident lifecycle store, so removing the plugin removes this node and its handler together. Container-merges onto the shared `anomaly` namespace that `show anomaly detect` and `show anomaly shape` also merge onto. See ai/rules/plugins.md.";
+    // The plugin holds the incident lifecycle store, so removing the plugin
+    // removes this node and its handler together. The command container-merges
+    // onto the shared `anomaly` namespace that `show anomaly detect` and
+    // `show anomaly shape` also merge onto. See ai/rules/plugins.md.
+    description "The show anomaly observe command tree, owned by the anomaly-observe plugin.";
     revision 2026-08-17 { description "Initial: show anomaly observe."; }
 
     container show {

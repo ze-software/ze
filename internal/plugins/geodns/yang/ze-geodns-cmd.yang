@@ -19,7 +19,10 @@ module ze-geodns-cmd {
         container geodns {
             config false;
             ze:command "ze-show:geodns";
-            description "GeoDNS server status: enabled, bind addresses/port, client-IP source mode, zones, nameserver/host-set/source counts, and the current SOA serial.";
+            description "Show the GeoDNS server status.";
+            ze:help "Returns whether the server is enabled, the bind addresses and
+port, and the client-IP source mode. It also returns the zones, the nameserver,
+host-set and source counts, and the current SOA serial.";
         }
     }
 }

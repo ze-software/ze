@@ -2,9 +2,16 @@ module ze-bgp-cmd-update-api {
   namespace "urn:ze:bgp:cmd:update:api";
   prefix bgp-cmd-update;
 
+  import ze-extensions { prefix ze; }
+
   description
     "Ze BGP route announcement parsing command RPCs.";
 
-  rpc peer-update { description "Parse and send text-format UPDATE to peer."; }
+  rpc peer-update {
+    description "Parse and send text-format UPDATE to peer.";
+    ze:help "The first word after update names the encoding, and it is one of text, hex,
+b64 and cursor. A BGP reactor must be running, and any other first word is refused as an
+unknown encoding.";
+  }
   rpc peer-update-hex { description "Parse and send hex/b64-format UPDATE to peer."; }
 }

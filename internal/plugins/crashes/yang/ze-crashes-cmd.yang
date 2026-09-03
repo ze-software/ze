@@ -2,7 +2,9 @@ module ze-crashes-cmd {
     namespace "urn:ze:crashes:cmd";
     prefix crashescmd;
     import ze-extensions { prefix ze; }
-    description "show crashes command tree. Owned by the crashes plugin because the handler reads crash files through the crashlog package. See ai/rules/plugin-self-containment.md.";
+    // The handler reads crash files through the crashlog package.
+    // See ai/rules/plugin-self-containment.md.
+    description "The show crashes command tree, owned by the crashes plugin.";
     revision 2026-06-06 { description "Relocated show crashes out of the central show schema (plugin self-containment)."; }
 
     container show {

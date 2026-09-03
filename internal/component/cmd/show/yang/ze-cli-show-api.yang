@@ -2,21 +2,101 @@ module ze-cli-show-api {
   namespace "urn:ze:cli:show:api";
   prefix cli-show;
 
+  import ze-extensions { prefix ze; }
+
   description
     "Ze show verb RPCs -- read-only introspection commands.";
 
-  rpc bgp-peer { description "Show peer(s) details."; }
-  rpc bgp-warnings { description "Show active prefix warnings (stale data, threshold exceeded)."; }
-  rpc traffic { description "Show traffic control state per interface."; }
-  rpc event-recent { description "Show recent events from global event ring."; }
-  rpc event-namespaces { description "Show registered event namespaces with counts."; }
-  rpc event-delivery { description "Show which peers feed which attached processes."; }
-  rpc l2tp-health { description "Show L2TP session health sorted by echo loss."; }
-  rpc bgp-health { description "Show BGP peer health sorted by state and activity."; }
-  rpc metrics-query { description "Query Prometheus metrics by name and label filter."; }
-  rpc ping { description "ICMP ping from the router to a destination IP."; }
-  rpc route-lookup { description "Longest-prefix-match route lookup for a destination IP."; }
-  rpc capture { description "Show captured control messages."; }
-  rpc health { description "Show aggregated component health status."; }
-  rpc system-update-history { description "Show firmware update history."; }
+  rpc bgp-peer {
+    description "Show peer(s) details.";
+    ze:help "The peer selector is an address, a peer name, an AS pattern such
+as as65001, a glob, or *. 'show bgp peer list' is the one form that ignores
+the selector and reads every peer.";
+  }
+  rpc bgp-warnings {
+    description "Show active prefix warnings (stale data, threshold exceeded).";
+    ze:help "Two codes reach this answer. Ze raises prefix-stale where a peer's
+prefix data is old, and prefix-threshold where a family's prefix count passes
+the warning limit. Both live on the report bus under the bgp source, and 'show
+warnings' reads that same bus for every subsystem.";
+  }
+  rpc traffic {
+    description "Show traffic control state per interface.";
+    ze:help "Give an interface name to read the qdisc type, the class count and
+the default class of that one interface. With no name, Ze reads every
+interface. A platform with no traffic control backend fails with 'traffic
+control not available on this platform'.";
+  }
+  rpc event-recent {
+    description "Show recent events from global event ring.";
+    ze:help "Each row carries the timestamp, the namespace and the event type,
+and it does not carry the payload. 'namespace <name>' reads one namespace and
+'count <N>' caps the rows. The ring holds a bounded history, so an event that
+aged out is gone.";
+  }
+  rpc event-namespaces {
+    description "Show registered event namespaces with counts.";
+    ze:help "Each row carries a namespace and the number of events the ring
+holds for it. The rows are sorted by namespace name. A namespace with no event
+in the ring does not appear.";
+  }
+  rpc event-delivery {
+    description "Show which peers feed which attached processes.";
+    ze:help "Ze reads the index delivery reads, and not the config document, so
+the answer is what the daemon acts on. A granted token the event registry does
+not know appears under unresolved, which is the one way an edge goes missing.";
+  }
+  rpc l2tp-health {
+    description "Show L2TP session health sorted by echo loss.";
+    ze:help "The rows are sorted by average round-trip time, highest first.
+Each row carries the login, the last state, the echo count, the average
+round-trip time in milliseconds and the bucket count. The degraded key counts
+the logins whose last state is not established.";
+  }
+  rpc bgp-health {
+    description "Show BGP peer health sorted by state and activity.";
+    ze:help "Each row carries the peer address, the state, the remote AS and
+the uptime. Beside the rows, count holds the peer total and not-established
+holds how many are down. The answer renders as a table, so '| match Idle |
+count' answers how many peers are not established.";
+  }
+  rpc metrics-query {
+    description "Query Prometheus metrics by name and label filter.";
+    ze:help "Ze renders the Prometheus registry and then filters its text
+lines. Each label filter is written 'label <key> <value>', filters repeat, and
+Ze ANDs them. A key named twice states two conditions and matches nothing,
+which is deliberate.";
+  }
+  rpc ping {
+    description "ICMP ping from the router to a destination IP.";
+    ze:help "The count is 5 without a value and its range is 1 to 100. The
+timeout is 5 seconds without a value and its range is 1s to 30s. The payload
+size range is 1 to 65507 bytes, and the engine picks the size where none is
+given.";
+  }
+  rpc route-lookup {
+    description "Longest-prefix-match route lookup for a destination IP.";
+    ze:help "Ze asks the kernel FIB through the netlink backend, so the answer
+is the route the kernel picks and not the BGP RIB entry. Give one IP address.
+An address it cannot parse fails with 'invalid destination'.";
+  }
+  rpc capture {
+    description "Show captured control messages.";
+    ze:help "Without a protocol word, Ze answers for both l2tp and bgp. 'peer
+<address>' and 'count <N>' narrow the answer, and 'tunnel-id <id>' narrows the
+l2tp half. The l2tp half needs the ze_l2tp build tag and is absent from a
+build without it.";
+  }
+  rpc health {
+    description "Show aggregated component health status.";
+    ze:help "The answer carries an overall status, one row per component and a
+checked-at time. A component row carries a reason only where the component
+reported one.";
+  }
+  rpc system-update-history {
+    description "Show firmware update history.";
+    ze:help "Each row carries the timestamp, the from version, the to version
+and the result. Ze keeps the last 20 events. With no update backend
+configured, the answer is an empty history and a count of 0.";
+  }
 }

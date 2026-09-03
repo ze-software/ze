@@ -16,8 +16,11 @@ module ze-anomaly-cmd {
             container detect {
                 config false;
                 ze:command "ze-show:anomaly";
-                description "Show recent behavioral anomaly incidents (report-only): source entity, cohort, fired features with their deviation z-scores, combined score, and severity.";
-                ze:help "The detector reports; the anomaly/shape responder (Spec 2b) acts.";
+                description "Show the recent behavioral anomaly incidents.";
+                ze:help "Each incident carries the source entity, the cohort, the fired
+features with their deviation z-scores, the combined score, and the severity.
+The detector only reports. The anomaly shape responder (Spec 2b) acts on the
+report.";
             }
         }
     }
