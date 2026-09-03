@@ -3,16 +3,25 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-pki-full-chain |
+| Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-09-03 |
+
+**Both work items below are resolved elsewhere; nothing here is outstanding
+(2026-09-03).** `spec-pki-full-chain` closed, so its design now lives at
+`docs/architecture/pki/tls-listeners.md`. The looking-glass item is homed at
+`plan/spec-lg-pki-certificate.md`, which was written against the delivered
+`pki.ServerTLSMaterial`. The multi-intermediate item was already true when the
+base landed: `CertificateEntry.Intermediates` is a slice and
+`pki.chainPEM` emits the leaf followed by every stored intermediate. Do not
+start work from this file. It is kept because the deferral shard cites it.
 
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `plan/spec-pki-full-chain.md` - the base spec this extends (Status: ready)
+3. `docs/architecture/pki/tls-listeners.md` - the design the closed base spec left behind
 4. `plan/deferrals.md` - the two rows that point here
 
 ## Task
@@ -50,7 +59,7 @@ this spec's existence imply the base spec is incomplete without it.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/spec-pki-full-chain.md` - the base: what `pki.ServerTLSMaterial` will look like and which consumers it covers
+- [ ] `docs/architecture/pki/tls-listeners.md` - what `pki.ServerTLSMaterial` delivers and which consumers it covers
   → Constraint: (fill during research) do NOT design a second chain-assembly path; consume the base spec's.
 
 **Key insights:** (fill during research)

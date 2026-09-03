@@ -1,4 +1,4 @@
-// Design: plan/spec-pki-full-chain.md -- server TLS material from the PKI store
+// Design: docs/architecture/pki/tls-listeners.md -- server TLS material from the PKI store
 // Related: show.go -- certBundlePEM produces the same leaf+intermediate shape for display
 // Related: store.go -- Validate applies the same chain verification at commit time
 

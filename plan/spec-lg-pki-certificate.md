@@ -47,7 +47,7 @@ silent fall back to the self-signed path, and a rotated certificate reaches a
 running listener without a rebind.
 
 This closes the deferral recorded in the Known Limitations of
-`plan/spec-pki-full-chain.md`, which sized it as "a small follow-up consuming
+`spec-pki-full-chain`, which sized it as "a small follow-up consuming
 `pki.ServerTLSMaterial`" and left `cmd/ze/hub/service_lg.go` out of scope in its
 Current Behavior list. The research phase found that sizing wrong: the
 looking-glass server cannot rotate a certificate at all, so the follow-up owes
@@ -93,7 +93,7 @@ served by `crypto/tls`, whose conformance is not altered by this change.
 - `webTLSMaterial` is eight lines and holds the whole precedence rule: a set name resolves from the PKI store or fails, an empty name takes the self-signed path. Copying it would declare that rule twice.
 - `buildLGService` refuses TLS when the store is not blob storage. That precondition exists to persist a self-signed certificate. It does not apply to a named PKI certificate, and left where it is it would refuse a valid deployment for the wrong reason.
 - The lg package has no root `register.go` and no `doctor.go`. It is compiled only under the `ze_lg` build tag, and `cmd/ze/hub/register_lg.go` is the existing seam that keeps always-on hub code free of lg types.
-- `plan/spec-pki-full-chain.md` built the web half. All eleven of its ACs have live implementations; only its Status field and its Review Gate section are stale.
+- `spec-pki-full-chain` built the web half and closed on 2026-09-03. All eleven of its acceptance criteria have live implementations, and its design is now `docs/architecture/pki/tls-listeners.md`.
 
 ## Current Behavior (MANDATORY)
 
@@ -203,7 +203,7 @@ served by `crypto/tls`, whose conformance is not altered by this change.
 |----------|--------|
 | What breaks if this is wrong? | The looking-glass listener fails to start, or serves the wrong certificate, on deployments that configure one. A mistake in the shared selector reaches the web and API listener too, which is the larger blast radius: that listener carries the config editor and the operator's own session |
 | How is it reverted? | Single commit revert. No config migration: the leaf is new and absent config behaves exactly as today. No peer or wire state is involved |
-| Who else touches this path? | `plan/spec-pki-full-chain.md` built the web half and is implemented but unclosed. Any session working `cmd/ze/hub/service_web.go`, `listener_migrate.go` or `main_reload.go` shares these files |
+| Who else touches this path? | `spec-pki-full-chain` built the web half and closed on 2026-09-03; its design is `docs/architecture/pki/tls-listeners.md`. Any session working `cmd/ze/hub/service_web.go`, `listener_migrate.go` or `main_reload.go` shares these files |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -345,7 +345,7 @@ reading the served chain, which `TestLGServerServesPKIChain` and
 |-------------------|----------|---------------|
 | YANG schema (new RPCs/config) | Yes | `internal/component/lg/yang/ze-lg-conf.yang`, a `certificate` leaf in the existing `looking-glass` container |
 | YANG validation constraints | Yes | `length "1..255"` and `pattern '[A-Za-z0-9._-]+'`, matching `internal/component/web/yang/ze-web-conf.yang` |
-| YANG custom validators | No | The web leaf carries none. Existence of a named entry is a cross-root reference a per-leaf `ValidateFn` cannot see, so it is enforced at startup, at reload and by the doctor check instead. Live completion of store names is inherited as a deferral from the Known Limitations of `plan/spec-pki-full-chain.md` |
+| YANG custom validators | No | The web leaf carries none. Existence of a named entry is a cross-root reference a per-leaf `ValidateFn` cannot see, so it is enforced at startup, at reload and by the doctor check instead. Live completion of store names is inherited as a deferral from the Known Limitations of `spec-pki-full-chain` |
 | CLI commands/flags | N-A | No new verb. The leaf is reached through the config editor and the config file |
 | CLI grammar (keyword before value) | N-A | No new command |
 | Editor autocomplete | No | Automatic completion needs an enum or a `CompleteFn`; the value is a runtime store name. Same position as the web leaf, and the same inherited deferral |
@@ -490,10 +490,10 @@ reading the served chain, which `TestLGServerServesPKIChain` and
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      needs a row in the deferral shard named in the metadata table. -->
-- No live CLI completion of store certificate names for the new leaf. The Known Limitations of `plan/spec-pki-full-chain.md` deferred it for the web leaf and this spec inherits that position rather than diverging from it. `pki.certificateNames` is the natural body of a future `Complete()`.
+- No live CLI completion of store certificate names for the new leaf. The Known Limitations of `spec-pki-full-chain` deferred it for the web leaf and this spec inherits that position rather than diverging from it. `pki.certificateNames` is the natural body of a future `Complete()`.
 - No mutual TLS or client-certificate authentication for the looking glass. Server-side chain only, matching the web listener.
 - No local certificate authority. Ze still mints an issuer-less self-signed leaf when no certificate is named, which no third party can trust. A separate spec covers a local CA, and it does not help this surface: a stranger visiting a public looking glass will never have installed Ze's root.
-- MCP and REST TLS are untouched. They carry the same self-signed-only shape and inherit the same follow-up, named in the Known Limitations of `plan/spec-pki-full-chain.md`.
+- MCP and REST TLS are untouched. They carry the same self-signed-only shape and inherit the same follow-up, named in the Known Limitations of `spec-pki-full-chain`.
 
 ## RFC Documentation (Scope: protocol)
 

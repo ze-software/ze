@@ -97,7 +97,7 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 | E1 | spec-hardware-watchdog | design (note ze-platform-vet split obligation) |
 | E2 | spec-ssh-fido2-keys | design |
 | E3 | spec-firewall-dynamic-address-group | design |
-| E4 | spec-pki-full-chain | ready (2026-07-10): web + DoT/DoH chain serving |
+| E4 | spec-pki-full-chain | closed 2026-09-03: web + DoT/DoH chain serving. Design is now `docs/architecture/pki/tls-listeners.md`; the looking-glass follow-up is `plan/spec-lg-pki-certificate.md` |
 | E5 | spec-router-advertisement | ready (2026-07-10): send-side RA |
 | E6 | spec-install-9-cloud-init | design (RESEARCH phase noted) |
 | E7 | spec-kernel-lockdown-hardening | design (explicitly not scheduled; park until asked) |

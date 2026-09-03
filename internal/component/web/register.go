@@ -1,4 +1,4 @@
-// Design: plan/spec-pki-full-chain.md -- doctor check registration for the web component
+// Design: docs/architecture/pki/tls-listeners.md -- doctor check registration for the web component
 // Related: doctor.go -- checkWebTLSCertificate, the check registered here
 //
 // The web component is not a plugin, so it registers through the component-style

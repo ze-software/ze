@@ -5,14 +5,15 @@ import (
 	"testing"
 )
 
-// TestValidateLeafValueLength covers the boundary table of
-// plan/spec-pki-full-chain.md: a `certificate` leaf is 1..255 characters.
+// TestValidateLeafValueLength covers the boundary of a `certificate` leaf: a
+// PKI store name is 1..255 characters.
 //
 // The constraint is declared in YANG (`type string { length "1..255"; }`) on
-// the three new certificate leaves and on ten leaves that predate this spec
-// (mrt, geodns, ddos/flowtriq, exabgp bridge). Until this test, the schema
-// carried patterns and numeric ranges but no string length at all, so every one
-// of those declarations was decorative: a 256-character value validated clean.
+// the three certificate leaves (web, as112, geodns) and on ten leaves that
+// predate them (mrt, geodns, ddos/flowtriq, exabgp bridge). Until this test,
+// the schema carried patterns and numeric ranges but no string length at all,
+// so every one of those declarations was decorative: a 256-character value
+// validated clean.
 func TestValidateLeafValueLength(t *testing.T) {
 	node := &LeafNode{
 		Type:     TypeString,

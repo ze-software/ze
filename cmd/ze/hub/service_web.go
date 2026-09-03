@@ -272,7 +272,7 @@ func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBrok
 // no material. It never falls back to the self-signed path, because a listener
 // that quietly serves a self-signed certificate while the config names a real
 // one is indistinguishable from a working deployment until a client rejects it
-// (R-5 of plan/spec-pki-full-chain.md).
+// (docs/architecture/pki/tls-listeners.md, "a named certificate fails closed").
 func webTLSMaterial(certName string, certStore selfcert.CertStore, listenAddr string) (certPEM, keyPEM []byte, err error) {
 	if certName != "" {
 		return zepki.ServerTLSMaterial(certName)

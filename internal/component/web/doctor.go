@@ -1,4 +1,4 @@
-// Design: plan/spec-pki-full-chain.md -- doctor check for environment.web.certificate
+// Design: docs/architecture/pki/tls-listeners.md -- doctor check for environment.web.certificate
 // Related: server.go -- the listener whose TLS material this check validates
 
 package web

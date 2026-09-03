@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-10 |
+| Updated | 2026-09-03 |
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
 citations below updated in-body): `startWebServer` now `service_web.go`,
@@ -521,7 +521,11 @@ shape for core-hosted listeners like dnsserver.
 - No current bug: self-signed certs have no chain to serve
 - Gap is architectural: no path exists to use operator certs even if desired
 - ~~Certificate rotation / reload not covered in this skeleton~~ (now in scope: AC-9/AC-10 cover rotation and reload ordering)
-- Looking glass TLS (`cmd/ze/hub/service_lg.go`) keeps the self-signed-only path; it is the same `LoadOrGenerateCert` + PEM-in pattern, so extending it is a small follow-up consuming `pki.ServerTLSMaterial` (out of scope to keep this spec bounded; same for MCP/REST if they grow TLS)
+- Looking glass TLS (`cmd/ze/hub/service_lg.go`) keeps the self-signed-only path; it is the same `LoadOrGenerateCert` + PEM-in pattern, so extending it is a small follow-up consuming `pki.ServerTLSMaterial` (out of scope to keep this spec bounded; same for MCP/REST if they grow TLS).
+  **That follow-up is written and committed: `plan/spec-lg-pki-certificate.md`.** Its research found this
+  sizing wrong in one place: the looking-glass server cannot rotate a certificate at all, so it owes
+  server code and not only wiring. The deferral row in `plan/deferrals/pki-full-chain.md` was re-homed
+  there at this closure, from the `plan/future/` holder that existed only because no real destination did.
 - ~~Single intermediate only~~ no longer true: `pki` stores a slice of intermediates and the served chain carries all of them (R-6 void)
 - Client-certificate authentication (mTLS) on these listeners is not in scope; this spec covers the server-side chain only
 - Live CLI completion of store certificate names (CompleteFn) is a UX follow-up, not required for correctness
@@ -686,52 +690,114 @@ shape for core-hosted listeners like dnsserver.
 | Broken references caught before/at deploy | doctor + startup + reload | `TestCheckCertReferenceDiagnostics` (9 cases), `TestWebTLSDoctorCheck`. Live daemon: `ze start` exits 1 with `error: environment.web.certificate: pki: certificate no-such-cert not found (available: lan)`. `test/reload/pki-reference-reload-broken.ci` PASS |
 | The reference is never silently downgraded to self-signed | negative test at every entry point | `TestStartWebServerFailsClosedOnBrokenReference` asserts the self-signed store was NOT written. `TestBuildSecureTLSResolverFailureIsLoud` asserts `m.selfSigned` stays nil. `TestServerTLSMaterialNotFound` asserts no material accompanies the error |
 
+## Deferrals Resolved
+
+The shard is `plan/deferrals/pki-full-chain.md`. It holds two rows and both are
+accounted for here. The shard is NOT removed: row 1 is still live, so removing
+the shard would delete the only place that row is written down.
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Looking-glass TLS serves a PKI-stored chain (`cmd/ze/hub/service_lg.go` keeps the self-signed-only `LoadOrGenerateCert` path) | deferred | Re-homed at this closure to `plan/spec-lg-pki-certificate.md`, which is written and committed. It previously named `plan/future/spec-followup-pki-chain.md`, a holder that existed only because no real destination did; that file now says both its items are resolved elsewhere |
+| Multi-intermediate chains (`intermediate` holds a single certificate, so a 4-tier CA cannot be expressed) | done | Void when the spec landed. `CertificateEntry.Intermediates` is a slice, `pki.ParseConfig` walks `tree.GetSlice("intermediate")`, and `pki.chainPEM` emits the leaf followed by every stored intermediate. Proven by `TestServerTLSMaterialAssemblesChain` and `TestServerTLSMaterialLeafOnly` |
+
+No foreign shard was emptied by these resolutions, so no other shard is removed.
+
 ## Review Gate
 
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
+The code under review landed in `96bad66dd7 feat(pki): serve an operator
+certificate chain, or refuse` and the pki half of `a395aa95cf`. This gate was run
+by a closure session that did not write that code, over the committed diff and
+the working tree on top of it. Independence is the phase boundary, not a second
+agent: no reviewer was spawned.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/pki-full-chain-25e5b4d8-f8d6-4d27-9c92-08d96ca82895.md` (29 files, verdict clean) |
+| `./le spec session review check` | clean -- `review_gate: OK (0 code files, clean, hashes match ...)` |
+| Rounds | 1. Nothing above NOTE was found, so no fix was made and no second pass was owed |
+| Reviewer lenses used | wiring and dead-symbol sweep (`./le repository check`), test-weakening audit (`./le commit audit base origin/main`), functional-test coverage, documentation drift and source anchors, removed-behavior audit over the `ExtractWebConfig` split, guard audit over `webTLSMaterial` / `buildSecureTLS` / `getCertificate` / `validateLengths`, logic and nil-path review, simplicity and altitude, Go style pass |
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | NOTE | `webTLSDiagnostic`'s doc comment calls it "the pure decision function". It is not pure: `ExtractWebSettings` reaches `extractWebBlock`, which calls `env.Set("ze.web.ui-mode", v)` when the leaf is set and the variable is unset. The effect is process-local (`env.Set` writes the cache and `os.Setenv`, nothing persistent) and `cmd/ze/hub/main.go` sets the same value from the same tree, so `ze doctor` changes no operator state | `internal/component/web/doctor.go` `webTLSDiagnostic`; producer `internal/component/config/loader_extract.go` `extractWebBlock` | acknowledged, not blocking. Recorded so the next reader of that comment is not misled about the extractor |
+| 2 | NOTE | `validateLengths` skips a range whose `Min` or `Max` will not parse as a decimal, and a value matching NO range is rejected. Every range being unparseable therefore rejects a legal value rather than admitting an illegal one, which is the safe direction. The tree carries no `type binary`, so counting characters rather than octets is correct everywhere `length` is declared today | `internal/component/config/schema.go` `validateLengths` | acknowledged. It copies `validateNumericRanges` in the same file exactly, so the convention is pre-existing and consistent |
 
-### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+No BLOCKER and no ISSUE was found, so nothing was fixed and no re-run was owed.
+
+### Closure repairs (not review findings)
+| Repair | Why | Where |
+|--------|-----|-------|
+| Three `// Design: plan/spec-pki-full-chain.md` headers repointed at `docs/architecture/pki/tls-listeners.md` | Commit B deletes the spec. `designReferenceFindings` (`internal/le/doc/wiring/designrefs.go`) requires a `// Design:` target to resolve, so the deletion would turn three headers into gate findings. The test files were already repointed at the same durable page by `1ca0436e85` | `internal/component/pki/tls.go`, `internal/component/web/doctor.go`, `internal/component/web/register.go` |
+| Three prose citations of the spec path restated | `sweepTracked` (`internal/le/doc/check/links.go`) reads every tracked file for dead path references, and Go files are in that population | `cmd/ze/hub/service_web.go` `webTLSMaterial`, `internal/core/selfcert/selfcert_test.go`, `internal/component/config/leaf_length_test.go` |
+| Six sibling-spec citations rewritten to the bare stem, two of them because the closure makes their claim false | `speccitation.Scan` matches the full path only. `plan/spec-lg-pki-certificate.md` said the base spec was "implemented but unclosed", which this commit ends | `plan/spec-lg-pki-certificate.md` |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+
+The review shows 0 BLOCKER and 0 ISSUE. Both NOTEs are recorded above.
 
 ## Pre-Commit Verification
+
+Every row below was produced by this closure session, on this tree, after the
+edits above. Nothing is carried over from the implementation session's audit.
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/pki/tls.go` | yes | `ServerTLSMaterial`, `chainPEM`, `CheckCertReference`, `verifyEntryChain` read in full |
+| `internal/component/web/doctor.go`, `internal/component/web/register.go` | yes | `checkWebTLSCertificate` / `webTLSDiagnostic`, and the `diagnostic.RegisterDoctorCheck` call in `init()` |
+| `test/parse/web-pki-certificate.ci`, `web-pki-certificate-name-too-long.ci`, `test/parse/as112-tls-certificate-conflict.ci` | yes | all three ran in `./le functional parse` (exit 0) |
+| `test/reload/pki-reference-reload.ci`, `test/reload/pki-reference-reload-broken.ci` | yes | both ran in `./le functional reload` (exit 0) |
+| `test/plugin/as112-dot-pki.ci`, `test/plugin/geodns-dot-pki.ci` | yes | both ran in `./le functional plugin` |
+| `docs/architecture/pki/tls-listeners.md` | yes | the durable design page the three `// Design:` headers now name |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1, AC-4 | HTTPS serves leaf + intermediate | `go test ./internal/component/web -run TestWebServerServesPKIChain -v`: PASS. Producer `pki.chainPEM` emits the leaf block then one per `entry.RawIntermediates` |
+| AC-2 | No reference means self-signed, unchanged | `TestWebServerSelfSignedFallbackUnchanged` PASS. Producer `webTLSMaterial` (`cmd/ze/hub/service_web.go`): `certName == ""` falls to `selfcert.LoadOrGenerateCert` and nothing else |
+| AC-3, R-5 | Broken reference is refused, never downgraded | `TestStartWebServerFailsClosedOnBrokenReference` PASS; `test/parse/web-pki-certificate.ci` and `test/reload/pki-reference-reload-broken.ci` PASS. Producers: the gate at `cmd/ze/hub/main.go:639-643` and the pre-apply gate at `cmd/ze/hub/main_reload.go:359-366` |
+| AC-5, AC-6, AC-7 | DoT/DoH chain, mutual exclusion, loud failure | `go test ./internal/core/dnsserver`: ok. Producers: the `sc.Certificate != ""` branch of `buildSecureTLS` and the mutual-exclusion error in `ParseSecureLeaves` (`internal/core/dnsserver/secure.go`) |
+| AC-8 | Doctor reports a broken reference | `TestWebTLSDoctorCheck` (8 subtests) PASS; `go test ./internal/plugins/as112 ./internal/plugins/geodns`: ok. `doctor-tls-reference` is registered at `internal/core/diagnostic/codes.go:249` |
+| AC-9 | Rotation without rebind | `TestWebServerUpdateTLSCertificate`, `TestUpdateTLSCertificateRejectsBadMaterial`, `TestListenerMigratorUpdateWebCertificate` PASS. Producer: `WebServer.getCertificate` over `cert atomic.Pointer[tls.Certificate]`, with `tlsCfg.Certificates` cleared so the two cannot disagree |
+| AC-10, R-3 | Store installed before plugin apply; rollback restores | `TestReloadInstallsPKIBeforePluginApply`, `TestRollbackReloadRestoresPriorPKIStore`, `TestReloadRejectsBrokenWebCertificateReference` PASS; `test/reload/pki-reference-reload.ci` PASS. Producer: `zepki.Load` at `main_reload.go:348` precedes `s.ReloadConfig` at `:367`, with `restorePKI` / `restorePKIAfter` on every failure path |
+| AC-11 | Leaf-only entry serves one block, no diagnostic | `go test ./internal/component/pki`: ok. Producer: `chainPEM` ranges over an empty `RawIntermediates` and emits the leaf block alone; `verifyEntryChain` verifies a leaf issued by a stored root with an empty intermediate pool |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `environment.web.certificate` in a config file | `test/parse/web-pki-certificate.ci` | PASS in `./le functional parse` (exit 0) |
+| A 256-character certificate name | `test/parse/web-pki-certificate-name-too-long.ci` | PASS -- and this is the test that exposed the YANG `length` gap |
+| `tls { certificate }` beside `cert-file` | `test/parse/as112-tls-certificate-conflict.ci` | PASS |
+| as112 and geodns DoT with a store certificate | `test/plugin/as112-dot-pki.ci`, `test/plugin/geodns-dot-pki.ci` | both PASS in `./le functional plugin` |
+| One commit adds a certificate and references it | `test/reload/pki-reference-reload.ci` | PASS in `./le functional reload` (exit 0) |
+| A reload whose reference does not resolve | `test/reload/pki-reference-reload-broken.ci` | PASS in the same run |
+| Exported symbols reach a non-test caller | -- | `./le repository check` names no symbol in pki, web, dnsserver, as112, geodns or hub |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | `zepki.Load` at `cmd/ze/hub/main.go:628` precedes the web certificate gate at `:639` and every service construction |
+| A-2 | confirmed-as-gap, then closed | Rotation did not exist; `WebServer.UpdateTLSCertificate` and the `GetCertificate` indirection add it, proven by `TestWebServerUpdateTLSCertificate` |
+| A-3 | confirmed | `TestNewTLSConfigServesChain` (`internal/core/selfcert`) PASS: a two-block PEM yields two entries in `tls.Certificate.Certificate`, leaf first |
+| A-4 | confirmed | `checkWebTLSCertificate` and both plugin checks call `pki.ParseConfig(tree)` on the full tree; `TestWebTLSDoctorCheck` drives a tree carrying `pki` and `environment` roots |
+| A-5 | confirmed | The ordering fix is live at `main_reload.go:348` vs `:367`, and `test/reload/pki-reference-reload.ci` exercises the add-and-reference commit through the real daemon |
+| A-6 | confirmed | `TestBuildSecureTLSResolverFailureIsLoud` proves an empty store leaves the secure listeners down; a nil `TLSMaterialResolver` is a named error in `buildSecureTLS`, never a self-signed fallback |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| Architecture page for the feature | `docs/architecture/pki/tls-listeners.md` carries six source anchors: `pki/tls.go`, `hub/service_web.go`, `dnsserver/secure.go`, `hub/main_reload.go`, `hub/listener_migrate.go`, `web/server.go`, `dnsserver/manager.go`, `as112/server.go`, `geodns/server.go`, `web/doctor.go`, `dnsserver/certcheck.go` | yes -- each named symbol was read and matches |
+| Config syntax | `docs/guide/configuration.md` "TLS Certificates From the PKI Store" | yes |
+| Feature list | `docs/features/web-interface.md` PKI certificate row, `docs/features.md` doctor row naming `doctor-tls-reference` | yes |
+| Registered inventory | `doctor-tls-reference` at `internal/core/diagnostic/codes.go:249`, with `ze explain doctor-tls-reference` in its examples | yes |
+| Env var | `ze.web.certificate` registered at `internal/component/config/environment.go:52` | yes |
+| Pages made stale by this closure | The three `// Design:` headers and six prose citations repaired above; `./le spec citation` carries no new dangling reference | yes |
 
 ## Checklist
 

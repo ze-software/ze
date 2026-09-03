@@ -126,9 +126,10 @@ func TestSelfCert_NewTLSConfig(t *testing.T) {
 	}
 }
 
-// TestNewTLSConfigServesChain validates assumption A-3 of
-// plan/spec-pki-full-chain.md: tls.X509KeyPair parses EVERY CERTIFICATE block in
-// the certificate PEM into tls.Certificate.Certificate, so a leaf+intermediate
+// TestNewTLSConfigServesChain validates the stdlib behavior the served chain
+// rests on (docs/architecture/pki/tls-listeners.md, "the leaf comes first, then
+// the intermediates"): tls.X509KeyPair parses EVERY CERTIFICATE block in the
+// certificate PEM into tls.Certificate.Certificate, so a leaf+intermediate
 // concatenation already serves the full chain and selfcert needs no change.
 //
 // PREVENTS: building the PKI chain feature on an unverified stdlib belief. If
