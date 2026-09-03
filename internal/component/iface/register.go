@@ -402,7 +402,16 @@ func runEngine(conn net.Conn) int {
 	// second channel would add interleaving without adding freshness.
 	setDeviceOwnerReconcileTrigger(func() { nonBlockingNotify(registryReconcileCh) })
 	linkQueue.start(func(key linkEventKey, value linkEventValue) {
-		dhcpMu.Lock()
+		// TryLock first, purely to observe. A failure means the worker is about
+		// to WAIT for a config commit, which holds dhcpMu across DHCP client
+		// stop and start, and that wait is the pressure that used to drop link
+		// events outright. Counting it makes "a commit is delaying link event
+		// handling" readable instead of inferrable from a route metric sampled
+		// at the right instant.
+		if !dhcpMu.TryLock() {
+			countLinkWorkerBlocked(key.ifaceName)
+			dhcpMu.Lock()
+		}
 		defer dhcpMu.Unlock()
 		applyLinkEvent(key, value, activeDHCP, activeRouters, raRoutePriority, log)
 	})

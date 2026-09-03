@@ -46,6 +46,13 @@ type ifaceMetrics struct {
 	// (link_queue.go, resyncCarrierState). A non-zero count says an event was
 	// never delivered or a route install failed, and names the interface.
 	carrierResyncs metrics.CounterVec
+	// linkWorkerBlocked counts link events whose worker had to WAIT for the
+	// lock a config commit holds. The commit keeps dhcpMu across DHCP client
+	// stop and start (register.go), so a link transition arriving mid-commit is
+	// not applied until the commit lets go. Non-zero says link event handling
+	// is being delayed by commits, which is the pressure that used to drop
+	// events outright before the queue replaced the 16-deep channel.
+	linkWorkerBlocked metrics.CounterVec
 	// resolverEventsDropped counts link events the resolver discarded because a
 	// subscriber's channel was full (sendLatest, resolve.go). The label is the
 	// LOGICAL interface name the subscriber registered under, not the kernel
@@ -83,6 +90,8 @@ func bindMetricsRegistry(reg metrics.Registry) {
 			"Carrier and router events superseded in the link queue before the worker took them", []string{metricLabelName}),
 		carrierResyncs: reg.CounterVec("ze_iface_carrier_resyncs_total",
 			"Interfaces whose route metric the carrier resync repaired", []string{metricLabelName}),
+		linkWorkerBlocked: reg.CounterVec("ze_iface_link_worker_blocked_total",
+			"Link events whose worker waited for the lock a config commit holds", []string{metricLabelName}),
 		resolverEventsDropped: reg.CounterVec("ze_iface_resolver_events_dropped_total",
 			"Oldest resolver link events discarded to make room on a full subscriber channel", []string{metricLabelName}),
 	}
@@ -367,6 +376,14 @@ func cleanStaleIfaceMetrics(previousNames, currentNames map[string]bool) {
 func countLinkEventCoalesced(ifaceName string) {
 	if m := ifaceMetricsPtr.Load(); m != nil {
 		m.linkEventsCoalesced.With(ifaceName).Inc()
+	}
+}
+
+// countLinkWorkerBlocked records that the link worker waited for the lock a
+// config commit holds before it could apply ifaceName's event.
+func countLinkWorkerBlocked(ifaceName string) {
+	if m := ifaceMetricsPtr.Load(); m != nil {
+		m.linkWorkerBlocked.With(ifaceName).Inc()
 	}
 }
 

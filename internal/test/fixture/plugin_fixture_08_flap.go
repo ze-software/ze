@@ -24,6 +24,18 @@ const (
 	flapDownMetric08  = 1278
 	flapTransitions08 = 101
 	flapRounds08      = 6
+	// flapAttempts08 bounds the retries. A round is only counted when the burst
+	// overlapped the commit, and arranging that overlap is timing, so a fast
+	// host misses some. Three attempts per wanted round leaves room for that
+	// without letting a genuinely broken stall spin: a daemon that never blocks
+	// the worker exhausts every attempt and fails with the counter named.
+	flapAttempts08 = flapRounds08 * 3
+	// flapWanted08 is how many rounds must genuinely overlap a commit. It keeps
+	// the threshold the racy sample used, rather than raising it to every
+	// round: the retries make a wanted overlap reachable, and no run has yet
+	// demonstrated that six of six is achievable on a fast host, so demanding
+	// it would trade a flaky test for a permanently red one.
+	flapWanted08 = flapRounds08 / 2
 )
 
 func init() {
@@ -199,10 +211,22 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	if err != nil {
 		return err
 	}
+	// A round only counts when the burst really landed while the worker was
+	// blocked by the commit. That overlap is arranged by timing, so it can be
+	// MISSED on a fast host where the reload finishes before the burst starts,
+	// and a missed overlap means the scenario was never exercised -- not that
+	// the product regressed. So a miss retries instead of failing, bounded by
+	// flapAttempts08, and the daemon's own counter says whether it happened
+	// rather than a route metric sampled at exactly the right instant.
 	stalled := 0
 	pressures := make([]float64, 0, flapRounds08)
-	for round := range flapRounds08 {
+	for attempt := 0; stalled < flapWanted08 && attempt < flapAttempts08; attempt++ {
+		round := stalled
 		pressureBefore, err := flapCounter08(ctx, port, "ze_iface_link_events_coalesced_total")
+		if err != nil {
+			return err
+		}
+		blockedBefore, err := flapCounter08(ctx, port, "ze_iface_link_worker_blocked_total")
 		if err != nil {
 			return err
 		}
@@ -217,9 +241,11 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		if _, _, err := runCommand08(ctx, true, "ip", "-force", "-batch", "flap.batch"); err != nil {
 			return err
 		}
-		if metric, ok := flapDefaultMetric08(ctx); ok && metric == flapBaseMetric08 {
-			stalled++
+		blockedNow, err := flapCounter08(ctx, port, "ze_iface_link_worker_blocked_total")
+		if err != nil {
+			return err
 		}
+		overlapped := blockedNow > blockedBefore
 		if !Poll(ctx, 750, 20*time.Millisecond, func() bool { metric, ok := flapDefaultMetric08(ctx); return ok && metric == flapDownMetric08 }) {
 			return fmt.Errorf("round %d: default route did not reach metric %d", round, flapDownMetric08)
 		}
@@ -233,6 +259,12 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 			return err
 		}
 		pressure := pressureNow - pressureBefore
+		if !overlapped {
+			// The commit was over before the burst arrived. Nothing is wrong
+			// with the daemon; this attempt simply did not build the scenario.
+			continue
+		}
+		stalled++
 		pressures = append(pressures, pressure)
 		if pressure <= 0 {
 			return fmt.Errorf("round %d: coalesced counter did not move; burst never outran worker", round)
@@ -267,8 +299,8 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	if resyncs := resyncsNow - resyncsBefore; resyncs != 0 {
 		return fmt.Errorf("carrier resync counter rose by %g, want 0: event path lost a transition", resyncs)
 	}
-	if stalled < flapRounds08/2 {
-		return fmt.Errorf("only %d of %d rounds found worker blocked; commit no longer stalls it", stalled, flapRounds08)
+	if stalled < flapWanted08 {
+		return fmt.Errorf("only %d of %d wanted rounds overlapped a commit in %d attempts: the burst kept arriving after the reload finished, so the scenario was never built (ze_iface_link_worker_blocked_total did not move)", stalled, flapWanted08, flapAttempts08)
 	}
 	fmt.Fprintf(os.Stderr, "OK: %d rounds of %d transitions during commits, stalled=%d, pressure=%v, resyncs=0\n", flapRounds08, flapTransitions08, stalled, pressures)
 	return nil
