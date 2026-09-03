@@ -24,12 +24,13 @@ const (
 	flapDownMetric08  = 1278
 	flapTransitions08 = 101
 	flapRounds08      = 6
-	// flapAttempts08 bounds the retries. A round is only counted when the burst
-	// overlapped the commit, and arranging that overlap is timing, so a fast
-	// host misses some. Three attempts per wanted round leaves room for that
-	// without letting a genuinely broken stall spin: a daemon that never blocks
-	// the worker exhausts every attempt and fails with the counter named.
-	flapAttempts08 = flapRounds08 * 3
+	// flapAttempts08 bounds the retries at the round count, which keeps the
+	// NETLINK LOAD exactly what this test was designed for. Raising it to three
+	// attempts per round tripled the transitions and the kernel dropped 3895
+	// notifications, failing the zero-drops assertion below: the retry itself
+	// became the thing under test. Same budget as the original loop, then: six
+	// bursts, of which at least flapWanted08 must overlap a commit.
+	flapAttempts08 = flapRounds08
 	// flapWanted08 is how many rounds must genuinely overlap a commit. It keeps
 	// the threshold the racy sample used, rather than raising it to every
 	// round: the retries make a wanted overlap reachable, and no run has yet
@@ -220,8 +221,7 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	// rather than a route metric sampled at exactly the right instant.
 	stalled := 0
 	pressures := make([]float64, 0, flapRounds08)
-	for attempt := 0; stalled < flapWanted08 && attempt < flapAttempts08; attempt++ {
-		round := stalled
+	for round := range flapAttempts08 {
 		pressureBefore, err := flapCounter08(ctx, port, "ze_iface_link_events_coalesced_total")
 		if err != nil {
 			return err
@@ -259,15 +259,19 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 			return err
 		}
 		pressure := pressureNow - pressureBefore
-		if !overlapped {
-			// The commit was over before the burst arrived. Nothing is wrong
-			// with the daemon; this attempt simply did not build the scenario.
-			continue
-		}
-		stalled++
 		pressures = append(pressures, pressure)
 		if pressure <= 0 {
 			return fmt.Errorf("round %d: coalesced counter did not move; burst never outran worker", round)
+		}
+		// Counting is the ONLY thing the overlap gates. The rest of the round,
+		// above all the recovery below, runs either way: an early `continue`
+		// here skipped `ip link set <peer> up` and its polls, so a missed
+		// overlap left the peer DOWN and the next burst flapped a down link.
+		// Six of those made the kernel drop 1229 notifications and failed the
+		// zero-drops assertion, which is the retry breaking the test rather
+		// than measuring it.
+		if overlapped {
+			stalled++
 		}
 		carrier, _ := flapCarrier08()
 		metric, _ := flapDefaultMetric08(ctx)
