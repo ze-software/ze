@@ -277,7 +277,7 @@ func TestCommandCatalogDerivesNeitherHelpTextFromTheOther(t *testing.T) {
 		checked++
 		assert.Equal(t, node.Description, e.Description,
 			"command %q publishes a summary the node does not declare", e.Path)
-		assert.Equal(t, node.Help, e.LongHelp,
+		assert.Equal(t, node.LongHelp, e.LongHelp,
 			"command %q publishes a long help the node does not declare", e.Path)
 	}
 	require.Greater(t, checked, 100, "too few YANG-backed commands were compared")

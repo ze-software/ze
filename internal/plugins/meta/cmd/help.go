@@ -21,9 +21,8 @@ const (
 	// keyDescription is the response payload key carrying a one-line summary.
 	keyDescription = "description"
 	// keyLongHelp is the response payload key carrying the long explanation of
-	// one command. The spelling is `long-help` and not `help`, because `help`
-	// already names the one-line SUMMARY in a Completion row, which the
-	// command-list answer on this same surface is built from.
+	// one command. keyDescription carries the summary beside it, and neither is
+	// derived from the other.
 	keyLongHelp = "long-help"
 )
 
@@ -51,7 +50,7 @@ func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Respon
 
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Commands() {
-			commands = append(commands, cmd.Name+" - "+cmd.Help)
+			commands = append(commands, cmd.Name+" - "+cmd.Description)
 		}
 	}
 
@@ -71,8 +70,8 @@ func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plu
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			c := pluginserver.Completion{
-				Value: cmd.Name,
-				Help:  cmd.Help,
+				Value:       cmd.Name,
+				Description: cmd.Description,
 			}
 			if verbose {
 				c.Source = sourceBuiltin
@@ -104,7 +103,7 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 	if cmd := dispatcher.Lookup(name); cmd != nil {
 		return commandHelp(commandHelpText{
 			Name:        cmd.Name,
-			Description: cmd.Help,
+			Description: cmd.Description,
 			LongHelp:    cmd.LongHelp,
 			Source:      sourceBuiltin,
 		}), nil
@@ -220,8 +219,8 @@ func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
 				completions = append(completions, pluginserver.Completion{
-					Value: cmd.Name,
-					Help:  cmd.Help,
+					Value:       cmd.Name,
+					Description: cmd.Description,
 				})
 			}
 		}

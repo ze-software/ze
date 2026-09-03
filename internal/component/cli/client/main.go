@@ -788,8 +788,8 @@ func mergeHelpText(dst, src *Command) {
 		if dstChild.Description == "" && srcChild.Description != "" {
 			dstChild.Description = srcChild.Description
 		}
-		if dstChild.Help == "" && srcChild.Help != "" {
-			dstChild.Help = srcChild.Help
+		if dstChild.LongHelp == "" && srcChild.LongHelp != "" {
+			dstChild.LongHelp = srcChild.LongHelp
 		}
 		mergeHelpText(dstChild, srcChild)
 	}
@@ -853,9 +853,9 @@ func applyDescriptions(root *Command, descriptions map[string]string) {
 
 // applyCommandText writes both texts the daemon's "system command list" answer
 // carries onto the node each entry names. The summary lands on Description,
-// which every one-line surface reads, and the explanation on Help, which the
-// command's help page and the `?` key read. It applies to a builtin and to a
-// plugin command alike.
+// which every one-line surface reads, and the explanation on LongHelp, which
+// the command's help page and the `?` key read. It applies to a builtin and to
+// a plugin command alike.
 //
 // ONE walk carries both, so the node that takes the summary is the node that
 // takes the explanation. A field already written is left alone, and a path the
@@ -867,10 +867,10 @@ func applyCommandText(root *Command, entries []commandEntry) {
 			continue
 		}
 		if node.Description == "" {
-			node.Description = entry.Help
+			node.Description = entry.Description
 		}
-		if node.Help == "" {
-			node.Help = entry.LongHelp
+		if node.LongHelp == "" {
+			node.LongHelp = entry.LongHelp
 		}
 	}
 }
@@ -899,16 +899,15 @@ func buildRuntimeTree(client *cliClient) *Command {
 	}
 
 	// Parse response to get available command names and descriptions
-	var data struct {
-		Commands []commandEntry `json:"commands"`
-	}
-	if json.Unmarshal([]byte(output), &data) != nil {
+	commands, err := decodeCommandList([]byte(output))
+	if err != nil {
+		slogutil.Logger("cli.tree").Warn("system command list refused", "error", err)
 		return commandTree
 	}
 
-	available := make(map[string]bool, len(data.Commands))
+	available := make(map[string]bool, len(commands))
 	hidden := make(map[string]bool)
-	for _, c := range data.Commands {
+	for _, c := range commands {
 		available[strings.ToLower(c.Value)] = true
 		if c.Hidden {
 			hidden[strings.ToLower(c.Value)] = true
@@ -935,13 +934,13 @@ func buildRuntimeTree(client *cliClient) *Command {
 	}
 
 	tree := cmd.BuildTree(filtered, false)
-	applyCommandText(tree, data.Commands)
+	applyCommandText(tree, commands)
 	wireValueHints(tree)
 
 	// Inject non-hidden plugin commands into the completion tree.
 	// Plugin commands not backed by YANG proxy RPCs are missing from the tree
 	// unless we add them here.
-	injectPluginCommands(tree, data.Commands, hidden)
+	injectPluginCommands(tree, commands, hidden)
 
 	// Attach dynamic peer selector completion to the "peer" node.
 	// This allows "peer <TAB>" to suggest peer names and IPs.
@@ -967,16 +966,15 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 		defer output.TransportComplete()
 	}
 
-	var data struct {
-		Commands []commandEntry `json:"commands"`
-	}
-	if json.Unmarshal([]byte(output.Text), &data) != nil {
+	commands, err := decodeCommandList([]byte(output.Text))
+	if err != nil {
+		slogutil.Logger("cli.tree").Warn("system command list refused", "error", err)
 		return commandTree
 	}
 
-	available := make(map[string]bool, len(data.Commands))
+	available := make(map[string]bool, len(commands))
 	hidden := make(map[string]bool)
-	for _, c := range data.Commands {
+	for _, c := range commands {
 		available[strings.ToLower(c.Value)] = true
 		if c.Hidden {
 			hidden[strings.ToLower(c.Value)] = true
@@ -999,11 +997,11 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	}
 
 	tree := cmd.BuildTree(filtered, false)
-	applyCommandText(tree, data.Commands)
+	applyCommandText(tree, commands)
 	wireValueHints(tree)
 
 	// Inject non-hidden plugin commands into the completion tree.
-	injectPluginCommands(tree, data.Commands, hidden)
+	injectPluginCommands(tree, commands, hidden)
 
 	if tree.Children != nil {
 		if peerNode, ok := tree.Children["peer"]; ok {

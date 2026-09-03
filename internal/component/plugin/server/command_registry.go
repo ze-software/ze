@@ -110,13 +110,24 @@ const (
 	CompletionTimeout     = 500 * time.Millisecond
 )
 
+// summaryKey is the JSON key a command's one-line summary is published under,
+// and retiredSummaryKey is the key it was published under until 2026-09-03.
+// Both are spelled here because a refusal has to name them, and the Completion
+// tag below is the declaration they repeat.
+const (
+	summaryKey        = "description"
+	retiredSummaryKey = "help"
+)
+
 // Completion represents a single completion suggestion.
 // Used for both command and argument completion.
 type Completion struct {
-	Value  string `json:"value"`            // The completion text
-	Help   string `json:"help,omitempty"`   // Optional description
-	Source string `json:"source,omitempty"` // "builtin" or process name (verbose mode)
-	Hidden bool   `json:"hidden,omitempty"` // Hidden from completion tree (works when typed in full)
+	Value string `json:"value"` // The completion text
+	// Description is the one-line SUMMARY of the command. Every surface that
+	// shows the command on one line reads it.
+	Description string `json:"description,omitempty"`
+	Source      string `json:"source,omitempty"` // "builtin" or process name (verbose mode)
+	Hidden      bool   `json:"hidden,omitempty"` // Hidden from completion tree (works when typed in full)
 	// LongHelp is the explanation the command's own help page prints. Empty
 	// means the command declares none, and the key is then absent. It is NEVER
 	// read as a summary, and no one-line surface reads it at all.
@@ -512,11 +523,10 @@ func (r *CommandRegistry) CommandCountsByProcess() map[string]int {
 // (command.MergeCommandPaths) so interactive tab-completion offers them, matching
 // the shell-completion path that already reads Complete().
 //
-// Each entry carries both help texts, and the names cross here: this package
-// spells the summary Description and the explanation LongHelp, while the
-// command package spells them Description and Help. MergeCommandPaths fills
-// each field on its own, so a command that declared a summary and no
-// explanation fills the summary alone.
+// Each entry carries both help texts, under the names both packages spell them
+// with: Description for the summary and LongHelp for the explanation.
+// MergeCommandPaths fills each field on its own, so a command that declared a
+// summary and no explanation fills the summary alone.
 func (r *CommandRegistry) VisibleCommandEntries() []command.CommandEntry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -529,7 +539,7 @@ func (r *CommandRegistry) VisibleCommandEntries() []command.CommandEntry {
 		entries = append(entries, command.CommandEntry{
 			Name:        cmd.Name,
 			Description: cmd.Description,
-			Help:        cmd.LongHelp,
+			LongHelp:    cmd.LongHelp,
 		})
 	}
 	return entries
@@ -550,9 +560,9 @@ func (r *CommandRegistry) Complete(partial string) []Completion {
 		}
 		if strings.HasPrefix(key, partial) {
 			completions = append(completions, Completion{
-				Value:  cmd.Name,
-				Help:   cmd.Description,
-				Source: cmd.Process.Config().Name,
+				Value:       cmd.Name,
+				Description: cmd.Description,
+				Source:      cmd.Process.Config().Name,
 			})
 		}
 	}

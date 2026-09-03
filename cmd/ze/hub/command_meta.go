@@ -131,7 +131,7 @@ func buildCommandMeta(
 	for _, cmd := range dispatcherCmds {
 		info := commandMeta{
 			Name:          cmd.Name,
-			Description:   cmd.Help,
+			Description:   cmd.Description,
 			LongHelp:      cmd.LongHelp,
 			ReadOnly:      cmd.ReadOnly,
 			Params:        paramsByPath[cmd.Name],

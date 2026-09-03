@@ -1206,8 +1206,11 @@ func validateDeclaredFieldName(command, kind, name string, maxNameLen int) error
 // explanation. The strings also arrive from another process
 // (docs/contributing/ze-go-style.md, "A limit on everything").
 const (
-	maxSummaryLen  = 256
-	maxLongHelpLen = 4096
+	maxSummaryLen = 256
+	// The long-help bound is command.MaxLongHelpBytes rather than a number of
+	// its own, so this validator and `le docvalid help-shape` cannot disagree
+	// about what a long explanation is allowed to be.
+	maxLongHelpLen = command.MaxLongHelpBytes
 )
 
 // textShape says whether a declared text is read as one line or as a
@@ -1239,6 +1242,10 @@ const (
 func validateHelpDecls(commands []rpc.CommandDecl) error {
 	for i := range commands {
 		c := &commands[i]
+		if c.RetiredHelp != nil {
+			return fmt.Errorf("command %q declares the retired key %q; the summary is declared under %q",
+				clampDeclared(c.Name), retiredSummaryKey, summaryKey)
+		}
 		if err := validateDeclaredText(c.Description, maxSummaryLen, textOneLine); err != nil {
 			return fmt.Errorf("command %q declares an invalid description: %w", clampDeclared(c.Name), err)
 		}

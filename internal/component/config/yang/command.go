@@ -107,7 +107,7 @@ func PathToHelp(loader *Loader) map[string]string {
 // half it is building a map of.
 func nodeDescription(node *command.Node) string { return node.Description }
 
-func nodeHelp(node *command.Node) string { return node.Help }
+func nodeHelp(node *command.Node) string { return node.LongHelp }
 
 // collectNodeText recursively walks the command tree and collects path -> the
 // text `pick` reads from each node. A node whose text is empty is absent from
@@ -390,7 +390,7 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 			}
 		}
 		mergeHelpText(&target.Description, child.Description, declaresCommand, name, "description")
-		mergeHelpText(&target.Help, getHelpExtension(child.Exts), declaresCommand, name, "help")
+		mergeHelpText(&target.LongHelp, GetHelpExtension(child.Exts), declaresCommand, name, "help")
 
 		if be := GetBackendExtension(child); be != nil && target.Backend == nil {
 			target.Backend = be
@@ -798,16 +798,18 @@ func getTaskSupportExtension(entry *gyang.Entry) string {
 	return ""
 }
 
-// getHelpExtension reads the ze:help extension from a list of YANG extension
+// GetHelpExtension reads the ze:help extension from a list of YANG extension
 // statements. Returns the long explanation, or empty string when the statement
 // list declares none. The argument is returned whole, newlines included: it is
 // what the help page prints, and nothing shortens it.
 //
-// The parameter is the statement list rather than an entry, because two
-// carriers declare the same extension and both expose it in this form: a
-// command container reaches it through Entry.Exts, and an RPC through
-// gyang.RPC.Exts() (rpc.go, ExtractRPCs). One reader answers both.
-func getHelpExtension(exts []*gyang.Statement) string {
+// The parameter is the statement list rather than an entry, because three
+// carriers declare the same extension and each exposes it in this form: a
+// command container reaches it through Entry.Exts, an RPC through
+// gyang.RPC.Exts() (rpc.go, ExtractRPCs), and a config node through Entry.Exts
+// again (the CLI completer, which puts it in the ? box). One reader answers all
+// three.
+func GetHelpExtension(exts []*gyang.Statement) string {
 	for _, ext := range exts {
 		if ext.Keyword == "ze:help" || strings.HasSuffix(ext.Keyword, ":help") {
 			return ext.Argument

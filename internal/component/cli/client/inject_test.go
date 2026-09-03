@@ -20,9 +20,9 @@ func TestInjectPluginCommands(t *testing.T) {
 	}, false)
 
 	commands := []commandEntry{
-		{Value: "show bgp health", Help: "BGP health"},        // already in tree
-		{Value: "show bgp irr", Help: "Show IRR filter data"}, // new plugin command
-		{Value: "update bgp irr", Help: "Update IRR data"},    // new plugin command
+		{Value: "show bgp health", Description: "BGP health"},        // already in tree
+		{Value: "show bgp irr", Description: "Show IRR filter data"}, // new plugin command
+		{Value: "update bgp irr", Description: "Update IRR data"},    // new plugin command
 	}
 
 	injectPluginCommands(tree, commands, nil)
@@ -54,8 +54,8 @@ func TestInjectPluginCommandsSkipsHidden(t *testing.T) {
 	tree := &cmd.Node{Children: make(map[string]*cmd.Node)}
 
 	commands := []commandEntry{
-		{Value: "show status", Help: "Show status"},
-		{Value: "show internal", Help: "Internal debug", Hidden: true},
+		{Value: "show status", Description: "Show status"},
+		{Value: "show internal", Description: "Internal debug", Hidden: true},
 	}
 	hidden := map[string]bool{
 		"show internal": true,
@@ -84,7 +84,7 @@ func TestInjectPluginCommandsPreservesExisting(t *testing.T) {
 	tree.Children["show"].Children["bgp"].Children["health"].Description = "YANG description"
 
 	commands := []commandEntry{
-		{Value: "show bgp health", Help: "Plugin description"},
+		{Value: "show bgp health", Description: "Plugin description"},
 	}
 
 	injectPluginCommands(tree, commands, nil)

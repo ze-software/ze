@@ -25,8 +25,8 @@ const (
 	fieldCount       = "count"
 	fieldDescription = "description"
 	// fieldLongHelp is the response payload key carrying the long explanation.
-	// The spelling is `long-help` and not `help`, because `help` already names
-	// the one-line SUMMARY in a Completion row on this same surface.
+	// fieldDescription carries the summary beside it, and neither is derived
+	// from the other.
 	fieldLongHelp   = "long-help"
 	fieldMessage    = "message"
 	fieldSource     = "source"

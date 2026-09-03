@@ -87,37 +87,37 @@ func TestMergeCommandPathsDecidesEachHelpFieldOnItsOwn(t *testing.T) {
 	root := &Node{Children: map[string]*Node{
 		"daemon": {Name: "daemon", Children: map[string]*Node{
 			"status": {Name: "status", Description: "Show daemon status"},
-			"health": {Name: "health", Help: "Prints one line for each subsystem."},
+			"health": {Name: "health", LongHelp: "Prints one line for each subsystem."},
 		}},
 	}}
 
 	MergeCommandPaths(root, []CommandEntry{
-		{Name: "daemon status", Description: "PLUGIN OVERRIDE", Help: "The plugin's explanation."},
-		{Name: "daemon health", Description: "Show subsystem health.", Help: "PLUGIN OVERRIDE"},
-		{Name: "daemon trace", Description: "Trace one request.", Help: "The plugin's explanation."},
+		{Name: "daemon status", Description: "PLUGIN OVERRIDE", LongHelp: "The plugin's explanation."},
+		{Name: "daemon health", Description: "Show subsystem health.", LongHelp: "PLUGIN OVERRIDE"},
+		{Name: "daemon trace", Description: "Trace one request.", LongHelp: "The plugin's explanation."},
 	})
 
 	status := root.Children["daemon"].Children["status"]
 	if status.Description != "Show daemon status" {
 		t.Errorf("summary overwritten: got %q", status.Description)
 	}
-	if status.Help != "The plugin's explanation." {
-		t.Errorf("empty explanation not filled: got %q", status.Help)
+	if status.LongHelp != "The plugin's explanation." {
+		t.Errorf("empty explanation not filled: got %q", status.LongHelp)
 	}
 
 	health := root.Children["daemon"].Children["health"]
 	if health.Description != "Show subsystem health." {
 		t.Errorf("empty summary not filled: got %q", health.Description)
 	}
-	if health.Help != "Prints one line for each subsystem." {
-		t.Errorf("explanation overwritten: got %q", health.Help)
+	if health.LongHelp != "Prints one line for each subsystem." {
+		t.Errorf("explanation overwritten: got %q", health.LongHelp)
 	}
 
 	trace := root.Children["daemon"].Children["trace"]
 	if trace == nil {
 		t.Fatal("a created leaf is missing")
 	}
-	if trace.Description != "Trace one request." || trace.Help != "The plugin's explanation." {
-		t.Errorf("a created leaf takes both fields: got %q / %q", trace.Description, trace.Help)
+	if trace.Description != "Trace one request." || trace.LongHelp != "The plugin's explanation." {
+		t.Errorf("a created leaf takes both fields: got %q / %q", trace.Description, trace.LongHelp)
 	}
 }

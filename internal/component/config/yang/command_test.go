@@ -1706,10 +1706,10 @@ func TestMergeYANGEntryReadsHelpExtension(t *testing.T) {
 	require.NotNil(t, node)
 
 	assert.Equal(t, "List every widget the daemon holds.", node.Description)
-	assert.Contains(t, node.Help, "Each row names one widget")
-	assert.Contains(t, node.Help, "it disappears when that plugin exits.")
-	assert.Contains(t, node.Help, "\n", "a long explanation keeps the line breaks its author wrote")
-	assert.NotContains(t, node.Description, node.Help, "neither field is derived from the other")
+	assert.Contains(t, node.LongHelp, "Each row names one widget")
+	assert.Contains(t, node.LongHelp, "it disappears when that plugin exits.")
+	assert.Contains(t, node.LongHelp, "\n", "a long explanation keeps the line breaks its author wrote")
+	assert.NotContains(t, node.Description, node.LongHelp, "neither field is derived from the other")
 }
 
 // TestMergeYANGEntryReadsNoHelpExtension reads a command declaring a
@@ -1729,7 +1729,7 @@ func TestMergeYANGEntryReadsNoHelpExtension(t *testing.T) {
 	require.NotNil(t, node)
 
 	assert.Equal(t, "Place a call.", node.Description)
-	assert.Empty(t, node.Help, "no ze:help statement means no long explanation")
+	assert.Empty(t, node.LongHelp, "no ze:help statement means no long explanation")
 }
 
 // TestMergeYANGEntryWarnsPerFieldOnMismatch merges a second module over a node
@@ -1785,7 +1785,7 @@ func TestMergeYANGEntryWarnsPerFieldOnMismatch(t *testing.T) {
 			defer slog.SetDefault(old)
 
 			root := &command.Node{Children: map[string]*command.Node{
-				"show": {Name: "show", Description: "First summary.", Help: "First explanation."},
+				"show": {Name: "show", Description: "First summary.", LongHelp: "First explanation."},
 			}}
 
 			mergeYANGEntry(root, entryWith(tc.description, tc.help))
@@ -1798,7 +1798,7 @@ func TestMergeYANGEntryWarnsPerFieldOnMismatch(t *testing.T) {
 				assert.NotContains(t, buf.String(), "field="+field, "a field that agrees is not reported")
 			}
 			assert.Equal(t, "First summary.", root.Children["show"].Description, "the first summary survives")
-			assert.Equal(t, "First explanation.", root.Children["show"].Help, "the first explanation survives")
+			assert.Equal(t, "First explanation.", root.Children["show"].LongHelp, "the first explanation survives")
 		})
 	}
 }
@@ -1829,7 +1829,7 @@ func TestMergeYANGEntryFillsEachFieldOnItsOwn(t *testing.T) {
 	}})
 
 	assert.Equal(t, "First summary.", root.Children["show"].Description)
-	assert.Equal(t, "The long explanation.", root.Children["show"].Help)
+	assert.Equal(t, "The long explanation.", root.Children["show"].LongHelp)
 	assert.Empty(t, buf.String(), "filling an empty field is not a collision")
 }
 
@@ -1849,7 +1849,7 @@ func TestMergeYANGEntryWireMethodOverwriteIsPerField(t *testing.T) {
 	defer slog.SetDefault(old)
 
 	root := &command.Node{Children: map[string]*command.Node{
-		"show": {Name: "show", Description: "Grouping summary.", Help: "Grouping explanation."},
+		"show": {Name: "show", Description: "Grouping summary.", LongHelp: "Grouping explanation."},
 	}}
 
 	mergeYANGEntry(root, &gyang.Entry{Dir: map[string]*gyang.Entry{
@@ -1866,6 +1866,6 @@ func TestMergeYANGEntryWireMethodOverwriteIsPerField(t *testing.T) {
 	node := root.Children["show"]
 	assert.Equal(t, "ze-test:show", node.WireMethod)
 	assert.Equal(t, "Command summary.", node.Description, "the command's own module states the summary")
-	assert.Empty(t, node.Help, "a half the command's module does not state is empty, not inherited")
+	assert.Empty(t, node.LongHelp, "a half the command's module does not state is empty, not inherited")
 	assert.Empty(t, buf.String(), "the command's own module is not in collision with a grouping container")
 }

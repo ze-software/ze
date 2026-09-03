@@ -43,7 +43,7 @@ func commandHelpPage(path []string, node *command.Node) helpfmt.Page {
 	// authored text unreachable to the operator who asked about that exact
 	// path, which is what the retired writeHelp renderer did.
 	page.Summary = node.Description
-	page.Help = node.Help
+	page.LongHelp = node.LongHelp
 
 	if tokens := command.Usage(path, node); len(tokens) > 0 {
 		tb.Reset()

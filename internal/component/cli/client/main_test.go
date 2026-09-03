@@ -921,7 +921,7 @@ func rawOnlyJSONClient(jsonAnswer string) (*cliClient, *[]string) {
 // tree, which is what buildRuntimeTree does on a parse failure. Plugin commands
 // then vanish from tab completion with no error anywhere.
 func TestBuildRuntimeTreeAsksForTheDispatcherJSON(t *testing.T) {
-	client, sent := rawOnlyJSONClient(`{"commands":[{"value":"zz-runtime-only","help":"proves the runtime answer was parsed"}]}`)
+	client, sent := rawOnlyJSONClient(`{"commands":[{"value":"zz-runtime-only","description":"proves the runtime answer was parsed"}]}`)
 
 	tree := buildRuntimeTree(client)
 	if tree == nil {

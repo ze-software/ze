@@ -146,7 +146,7 @@ func TestCommandModeNilRoot(t *testing.T) {
 // command whose author wrote an empty explanation.
 func TestBothCompleterImplementationsAnswerHelp(t *testing.T) {
 	tree := testCommandTree()
-	tree.Children["peer"].Children["list"].Help = "List every peer, with its state and its uptime."
+	tree.Children["peer"].Children["list"].LongHelp = "List every peer, with its state and its uptime."
 	commands := NewCommandCompleter(tree)
 	methods := newPluginCompleter()
 

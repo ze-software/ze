@@ -190,9 +190,9 @@ func TestSeeAlso(t *testing.T) {
 // after the first full stop on five shipped help pages.
 func TestPageRendersEachDeclaredHelpTextWhole(t *testing.T) {
 	p := Page{
-		Command: "ze bgp",
-		Summary: "Inspect the BGP protocol engine.",
-		Help:    "One subtree per session.\nEach answers over the negotiated families.",
+		Command:  "ze bgp",
+		Summary:  "Inspect the BGP protocol engine.",
+		LongHelp: "One subtree per session.\nEach answers over the negotiated families.",
 		Sections: []HelpSection{{Title: "Commands", Entries: []HelpEntry{
 			{Name: "rib", Desc: "Show one row per route. The row carries the next hop."},
 		}}},

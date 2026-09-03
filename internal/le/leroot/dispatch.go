@@ -264,7 +264,7 @@ func helpNode(program, name string) int {
 	page := helpfmt.Page{
 		Command:  command,
 		Summary:  meta.Description,
-		Help:     meta.LongHelp,
+		LongHelp: meta.LongHelp,
 		Usage:    []string{pattern},
 		Sections: sections,
 	}

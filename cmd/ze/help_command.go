@@ -223,10 +223,6 @@ type commandEntry struct {
 	// Description is the command's one-line summary. LongHelp is its long
 	// explanation. They are two declarations, not one string cut in two, so a
 	// reader takes whichever its surface renders.
-	//
-	// The key is `long-help` rather than `help`. On the plugin boundary `help`
-	// already names the SUMMARY (`Completion.Help`), and one spelling for two
-	// halves on two boundaries is the defect this spec closes.
 	Description string       `json:"description,omitempty"`
 	LongHelp    string       `json:"long-help,omitempty"`
 	Mode        string       `json:"mode"`
@@ -326,7 +322,7 @@ func collectCommands() []commandEntry {
 			node := findNode(tree, cliPath)
 			desc, longHelp := "", ""
 			if node != nil {
-				desc, longHelp = node.Description, node.Help
+				desc, longHelp = node.Description, node.LongHelp
 			}
 			e := commandEntry{
 				Path:        cliPath,

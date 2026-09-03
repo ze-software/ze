@@ -112,12 +112,12 @@ func TestRPCDescriptionCarriesSummaryAndHelp(t *testing.T) {
 
 	declared := byName["socket-list"]
 	assert.Equal(t, "List the open sockets.", declared.Description)
-	assert.Contains(t, declared.Help, "One row is written for each socket")
-	assert.Contains(t, declared.Help, "The state column names the TCP state.")
-	assert.Contains(t, declared.Help, "\n", "a long explanation keeps the line breaks its author wrote")
-	assert.NotContains(t, declared.Description, declared.Help, "neither field is derived from the other")
+	assert.Contains(t, declared.LongHelp, "One row is written for each socket")
+	assert.Contains(t, declared.LongHelp, "The state column names the TCP state.")
+	assert.Contains(t, declared.LongHelp, "\n", "a long explanation keeps the line breaks its author wrote")
+	assert.NotContains(t, declared.Description, declared.LongHelp, "neither field is derived from the other")
 
 	silent := byName["socket-clear"]
 	assert.Equal(t, "Close every idle socket.", silent.Description)
-	assert.Empty(t, silent.Help, "no ze:help statement means no long explanation")
+	assert.Empty(t, silent.LongHelp, "no ze:help statement means no long explanation")
 }

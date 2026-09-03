@@ -285,10 +285,10 @@ func (c *TreeCompleter) Explain(input string) (string, bool) {
 	if node == nil {
 		return "", false
 	}
-	if node.Help == "" {
+	if node.LongHelp == "" {
 		return "", false
 	}
-	return node.Help, true
+	return node.LongHelp, true
 }
 
 // GhostText returns the best single completion for inline display.

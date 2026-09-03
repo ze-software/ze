@@ -437,9 +437,9 @@ func (c *CommandContext) Selector(name string) string {
 type Command struct {
 	Name    string
 	Handler Handler
-	// Help is the one-line SUMMARY of the command, from its YANG description.
+	// Description is the one-line SUMMARY of the command, from its YANG description.
 	// Every surface that shows the command on one line reads it.
-	Help string
+	Description string
 	// LongHelp is the explanation this command's own help page prints, from its
 	// ze:help extension. Empty means the command declares no explanation, and
 	// the help page then prints the summary alone. It is NEVER read as a
@@ -551,9 +551,9 @@ func (d *Dispatcher) Register(name string, handler Handler, help string) {
 	// Store with lowercase key for case-insensitive matching
 	key := strings.ToLower(name)
 	d.commands[key] = &Command{
-		Name:    name,
-		Handler: handler,
-		Help:    help,
+		Name:        name,
+		Handler:     handler,
+		Description: help,
 	}
 	d.updateSortedKeys()
 
@@ -567,7 +567,7 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 	d.commands[key] = &Command{
 		Name:             name,
 		Handler:          handler,
-		Help:             help,
+		Description:      help,
 		LongHelp:         opts.LongHelp,
 		ReadOnly:         opts.ReadOnly,
 		RequiresSelector: opts.RequiresSelector,

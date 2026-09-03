@@ -377,7 +377,7 @@ func TestRegisterRPCsCarriesBothHelpTexts(t *testing.T) {
 			Module:      "ze-bgp-api",
 			Name:        "peer-list",
 			Description: "List the configured BGP peers.",
-			Help:        "One row per peer.\nThe row carries the negotiated families.",
+			LongHelp:    "One row per peer.\nThe row carries the negotiated families.",
 		},
 		{Module: "ze-bgp-api", Name: "peer-detail", Description: "Show one peer."},
 	})

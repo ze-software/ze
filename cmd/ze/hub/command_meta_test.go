@@ -21,7 +21,7 @@ func TestBuildCommandMeta_DedupesPluginProxiedCommand(t *testing.T) {
 	const name = "show isis neighbor"
 
 	dispatcher := []*pluginserver.Command{
-		{Name: name, Help: "Show IS-IS neighbors", ReadOnly: true},
+		{Name: name, Description: "Show IS-IS neighbors", ReadOnly: true},
 	}
 	plugin := []*pluginserver.RegisteredCommand{
 		{Name: name, LowerName: name, Description: "plugin-side description"},
@@ -75,7 +75,7 @@ func TestBuildCommandMeta_PluginHelpFillsEmptyDispatcherHelp(t *testing.T) {
 	const name = "show isis hostname"
 
 	got := buildCommandMeta(
-		[]*pluginserver.Command{{Name: name, Help: ""}},
+		[]*pluginserver.Command{{Name: name, Description: ""}},
 		[]*pluginserver.RegisteredCommand{{Name: name, Description: "plugin help"}},
 		nil, nil, nil)
 
@@ -188,7 +188,7 @@ func TestBuildCommandMeta_HiddenPluginCommandDoesNotFillHelp(t *testing.T) {
 	const name = "show widget status"
 
 	got := buildCommandMeta(
-		[]*pluginserver.Command{{Name: name, Help: ""}},
+		[]*pluginserver.Command{{Name: name, Description: ""}},
 		[]*pluginserver.RegisteredCommand{{Name: name, Description: "hidden help", Hidden: true}},
 		nil, nil, nil)
 
@@ -244,8 +244,8 @@ func TestBuildCommandMetaCarriesBothHelpTexts(t *testing.T) {
 
 	got := buildCommandMeta(
 		[]*pluginserver.Command{
-			{Name: yangOnly, Help: "List the IS-IS neighbors.", LongHelp: "One row for each adjacency.\nThe hold time is what the neighbor advertised."},
-			{Name: halfEach, Help: "Show the widget state."},
+			{Name: yangOnly, Description: "List the IS-IS neighbors.", LongHelp: "One row for each adjacency.\nThe hold time is what the neighbor advertised."},
+			{Name: halfEach, Description: "Show the widget state."},
 		},
 		[]*pluginserver.RegisteredCommand{
 			{Name: halfEach, Description: "plugin summary", LongHelp: "The widget count is since the last clear."},

@@ -31,14 +31,14 @@ const (
 
 // Page is a structured help page for a CLI command.
 //
-// Summary and Help are the command's two declared help texts. Neither is
-// derived from the other. Summary goes on the header line. Help is the long
+// Summary and LongHelp are the command's two declared help texts. Neither is
+// derived from the other. Summary goes on the header line. LongHelp is the long
 // explanation, and it goes in the body block. A command with no long
-// explanation leaves Help empty and prints no block.
+// explanation leaves LongHelp empty and prints no block.
 type Page struct {
 	Command  string        // e.g. "ze bgp"
 	Summary  string        // e.g. "BGP protocol tools" (the one-line summary)
-	Help     string        // the long explanation, printed as the body block
+	LongHelp string        // the long explanation, printed as the body block
 	Software string        // e.g. "ze Software" (top-level only, styled differently)
 	Usage    []string      // usage patterns
 	Sections []HelpSection // groups of entries
@@ -56,7 +56,7 @@ type HelpSection struct {
 type HelpEntry struct {
 	Name string // e.g. "decode <hex>" or "--verbose"
 	// Desc is the one-line summary, rendered whole. A caller with a long
-	// explanation puts it in Page.Help, never here. A section entry is one row,
+	// explanation puts it in Page.LongHelp, never here. A section entry is one row,
 	// and this package shortens nothing.
 	Desc string
 }
@@ -91,9 +91,9 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 	}
 
 	// The long explanation, indented, keeping the newlines its author wrote.
-	if p.Help != "" {
+	if p.LongHelp != "" {
 		rw.Str("\n")
-		for line := range strings.SplitSeq(p.Help, "\n") {
+		for line := range strings.SplitSeq(p.LongHelp, "\n") {
 			rw.Line(b.Reset().Str("  ").Str(strings.TrimRight(line, " \t")).String())
 		}
 	}

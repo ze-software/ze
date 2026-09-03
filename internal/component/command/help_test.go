@@ -198,7 +198,7 @@ func TestHelpEntryUsesSummaryLine(t *testing.T) {
 			"audit": {
 				Name:        "audit",
 				Description: "Show who did what and when on this box.",
-				Help:        "Returns audit log entries with timestamps, actors, and actions.",
+				LongHelp:    "Returns audit log entries with timestamps, actors, and actions.",
 			},
 		},
 	}

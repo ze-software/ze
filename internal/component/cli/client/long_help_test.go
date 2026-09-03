@@ -33,9 +33,9 @@ func commandListDispatch(list string) CommandFunc {
 // attached console.
 func TestRuntimeTreeCarriesLongHelp(t *testing.T) {
 	const list = `{"commands":[
-		{"value":"show env get","help":"Read one environment value","long-help":"The explanation a YANG-backed command declares."},
-		{"value":"zz-plugin-explained","help":"A plugin command","long-help":"The explanation a plugin declares."},
-		{"value":"zz-plugin-bare","help":"A plugin command that declares no explanation"}
+		{"value":"show env get","description":"Read one environment value","long-help":"The explanation a YANG-backed command declares."},
+		{"value":"zz-plugin-explained","description":"A plugin command","long-help":"The explanation a plugin declares."},
+		{"value":"zz-plugin-bare","description":"A plugin command that declares no explanation"}
 	]}`
 
 	tree := buildRuntimeTreeFromDispatch(commandListDispatch(list))

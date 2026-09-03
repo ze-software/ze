@@ -817,11 +817,11 @@ func TestCompleterSuggestsSummaryNotWholeDescription(t *testing.T) {
 	)
 	tree := &Node{
 		Children: map[string]*Node{
-			"rib": {Name: "rib", Description: summary, Help: longHelp},
+			"rib": {Name: "rib", Description: summary, LongHelp: longHelp},
 			"family": {
 				Name:        "family",
 				Description: "Pick the address family.",
-				Help:        "The families are the ones this session negotiated.",
+				LongHelp:    "The families are the ones this session negotiated.",
 				Modifier:    ModifierChoice,
 				ArgDefs:     []ArgDef{{Name: "family", EnumValues: []string{"ipv4"}}},
 			},

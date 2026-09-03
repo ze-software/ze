@@ -80,7 +80,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 	if ctx.Dispatcher() != nil {
 		var tb textbuf.Buffer
 		for _, cmd := range ctx.Dispatcher().Commands() {
-			commands = append(commands, tb.Reset().Str(cmd.Name).Str(" - ").Str(cmd.Help).String())
+			commands = append(commands, tb.Reset().Str(cmd.Name).Str(" - ").Str(cmd.Description).String())
 		}
 		// Add plugin commands (skip hidden)
 		for _, cmd := range ctx.Dispatcher().Registry().All() {
@@ -417,7 +417,7 @@ func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.RowRecord] {
 		var encoded rpc.RawRow
 
 		for _, cmd := range dispatcher.Commands() {
-			row := Completion{Value: cmd.Name, Help: cmd.Help, LongHelp: cmd.LongHelp}
+			row := Completion{Value: cmd.Name, Description: cmd.Description, LongHelp: cmd.LongHelp}
 			if verbose {
 				row.Source = sourceBuiltin
 			}
@@ -426,7 +426,7 @@ func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.RowRecord] {
 			}
 		}
 		for _, cmd := range dispatcher.Registry().All() {
-			row := Completion{Value: cmd.Name, Help: cmd.Description, Hidden: cmd.Hidden, LongHelp: cmd.LongHelp}
+			row := Completion{Value: cmd.Name, Description: cmd.Description, Hidden: cmd.Hidden, LongHelp: cmd.LongHelp}
 			if verbose {
 				row.Source = cmd.Process.Name()
 			}
@@ -490,7 +490,7 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 				Status: plugin.StatusDone,
 				Data: plugin.Map{
 					fieldCommand:     cmd.Name,
-					fieldDescription: cmd.Help,
+					fieldDescription: cmd.Description,
 					fieldLongHelp:    cmd.LongHelp,
 					fieldSource:      sourceBuiltin,
 				},
@@ -559,8 +559,8 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
 				completions = append(completions, Completion{
-					Value: cmd.Name,
-					Help:  cmd.Help,
+					Value:       cmd.Name,
+					Description: cmd.Description,
 				})
 			}
 		}

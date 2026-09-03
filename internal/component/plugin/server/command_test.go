@@ -46,7 +46,7 @@ func TestDispatcherRegister(t *testing.T) {
 	cmd := d.Lookup("test command")
 	require.NotNil(t, cmd, "registered command must be found")
 	assert.Equal(t, "test command", cmd.Name)
-	assert.Equal(t, "Test command help", cmd.Help)
+	assert.Equal(t, "Test command help", cmd.Description)
 
 	// Verify handler is set
 	require.NotNil(t, cmd.Handler)

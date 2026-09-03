@@ -444,20 +444,27 @@ type CommandDecl struct {
 	// LongHelp is the explanation the command's OWN help page prints, under
 	// the summary. It is the plugin-side twin of the ze:help extension a YANG
 	// command node declares, and the engine copies it into
-	// command.CommandEntry.Help.
-	//
-	// The key is `long-help` and not `help`, because `help` already names the
-	// SUMMARY on this same boundary (Completion, command_registry.go). One
-	// spelling, one meaning.
+	// command.CommandEntry.LongHelp.
 	//
 	// It is optional, and its zero value is the refusal: a plugin that sends
 	// `description` and no `long-help` renders with its summary and an empty
 	// explanation. Empty here MUST NOT be read as an empty summary.
-	LongHelp        string   `json:"long-help,omitempty"`
-	Args            []string `json:"args,omitempty"`
-	Completable     bool     `json:"completable,omitempty"`
-	Hidden          bool     `json:"hidden,omitempty"`
-	DeprecatedNames []string `json:"deprecated-names,omitempty"`
+	LongHelp string `json:"long-help,omitempty"`
+	// RetiredHelp holds the `help` key when a declaration still carries it.
+	// `help` named the summary on Ze's own daemon-to-CLI answer until
+	// 2026-09-03, so a plugin author who copied that spelling would otherwise
+	// declare a command whose Description decodes empty, which no reader can
+	// tell from a command that states no summary (ai/rules/principles.md).
+	// validateHelpDecls refuses the declaration and names the replacement.
+	//
+	// It is json.RawMessage rather than string so a `"help": ""` is detected
+	// too: the field is nil only when the key is absent. Nothing reads its
+	// bytes, and omitempty keeps it off the wire a Go plugin writes.
+	RetiredHelp     json.RawMessage `json:"help,omitempty"`
+	Args            []string        `json:"args,omitempty"`
+	Completable     bool            `json:"completable,omitempty"`
+	Hidden          bool            `json:"hidden,omitempty"`
+	DeprecatedNames []string        `json:"deprecated-names,omitempty"`
 
 	// Shape is the wire spelling of what the answer holds: "doc" for one
 	// document or one value, "map" for rows that carry their own keys, "tab"

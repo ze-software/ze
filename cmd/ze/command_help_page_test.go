@@ -100,7 +100,7 @@ func TestHelpPageCarriesBothDeclaredHelpTexts(t *testing.T) {
 	node := &command.Node{
 		Name:        "bgp",
 		Description: "Inspect the BGP protocol engine.",
-		Help:        "One subtree per session.\nEach answers over the negotiated families.",
+		LongHelp:    "One subtree per session.\nEach answers over the negotiated families.",
 		Children: map[string]*command.Node{
 			"rib":  {Name: "rib", Description: "Show the BGP RIB."},
 			"peer": {Name: "peer", Description: "Show the configured peers."},
@@ -111,8 +111,8 @@ func TestHelpPageCarriesBothDeclaredHelpTexts(t *testing.T) {
 	if page.Summary != "Inspect the BGP protocol engine." {
 		t.Errorf("the header summary is %q", page.Summary)
 	}
-	if page.Help != "One subtree per session.\nEach answers over the negotiated families." {
-		t.Errorf("the body help is %q", page.Help)
+	if page.LongHelp != "One subtree per session.\nEach answers over the negotiated families." {
+		t.Errorf("the body help is %q", page.LongHelp)
 	}
 	if strings.Contains(page.Summary, "\n") {
 		t.Errorf("the one-line header carries a newline: %q", page.Summary)

@@ -161,7 +161,7 @@ func (r *SchemaRegistry) RegisterRPCs(module string, rpcs []yang.RPCMeta) error 
 			Name:        meta.Name,
 			WireMethod:  wireMethod,
 			Description: meta.Description,
-			LongHelp:    meta.Help,
+			LongHelp:    meta.LongHelp,
 			Input:       meta.Input,
 			Output:      meta.Output,
 		}

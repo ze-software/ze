@@ -34,9 +34,9 @@ func tabTestModel(t *testing.T) *Model {
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
 			"peer": {Name: "peer", Description: "Peer operations", Children: map[string]*commandNode{
-				"list":  {Name: "list", Description: "List peers", Help: peerListHelp},
+				"list":  {Name: "list", Description: "List peers", LongHelp: peerListHelp},
 				"lock":  {Name: "lock", Description: "Lock a peer"},
-				"reset": {Name: "reset", Description: "Reset a peer", Help: peerResetHelp},
+				"reset": {Name: "reset", Description: "Reset a peer", LongHelp: peerResetHelp},
 			}},
 		},
 	}))
@@ -610,7 +610,7 @@ func showTestModel(t *testing.T) *Model {
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
 			"show": {Name: "show", Description: "Show operational state", Children: map[string]*commandNode{
-				"version": {Name: "version", Description: "Show the version", Help: "Prints the release this daemon runs."},
+				"version": {Name: "version", Description: "Show the version", LongHelp: "Prints the release this daemon runs."},
 			}},
 		},
 	}))

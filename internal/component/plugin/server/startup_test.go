@@ -1029,8 +1029,8 @@ func TestPluginHelpDeclarationReachesTheCommandTree(t *testing.T) {
 	if node.Description != summary {
 		t.Errorf("tree summary = %q, want %q", node.Description, summary)
 	}
-	if node.Help != explanation {
-		t.Errorf("tree explanation = %q, want %q", node.Help, explanation)
+	if node.LongHelp != explanation {
+		t.Errorf("tree explanation = %q, want %q", node.LongHelp, explanation)
 	}
 }
 
@@ -1092,8 +1092,8 @@ func TestPluginWithNoHelpDeclarationKeepsItsSummary(t *testing.T) {
 	if node.Description != summary {
 		t.Errorf("tree summary = %q, want the summary the plugin sent", node.Description)
 	}
-	if node.Help != "" {
-		t.Errorf("tree explanation = %q, want empty", node.Help)
+	if node.LongHelp != "" {
+		t.Errorf("tree explanation = %q, want empty", node.LongHelp)
 	}
 }
 
