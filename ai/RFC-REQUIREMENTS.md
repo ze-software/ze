@@ -27,7 +27,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 
 ## Coverage by RFC
 
-371 MUST-level requirement(s) still owe work across 185 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
+363 MUST-level requirement(s) still owe work across 185 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
 
 **Nightly-only** (2 requirement(s)) counts what is proven ONLY by evidence no `./le verify current mode full` stage runs -- today, interop scenarios, which are scheduled and advisory. **Both** and **One polarity** are the polarity view: they answer which polarities exist, not which pipeline runs them, so a nightly-only requirement is counted there too. **Nightly-only** is the tier view over the same rows -- an overlapping subset marker naming which of them no merge-gate stage proves, never a total to sum with the others.
 
@@ -208,8 +208,8 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 | `sflow-v5` | 16 | 1 | 0 | 15 | 0 | 0 | 0 | **enrolled** |
 | `rfc5082` | 4 | 3 | 0 | 0 | 1 | 1 | 0 | **enrolled** |
 | `rfc8671` | 10 | 7 | 0 | 2 | 1 | 1 | 0 | **enrolled** |
+| `rfc4302` | 34 | 8 | 0 | 22 | 4 | 4 | 0 | **enrolled** |
 | `draft-abraitis-bgp-version-capability` | 11 | 0 | 0 | 0 | 11 | 11 | 0 | **enrolled** |
-| `rfc4302` | 34 | 8 | 0 | 14 | 12 | 12 | 0 | **enrolled** |
 | `draft-ietf-idr-linklocal-capability` | 13 | 0 | 0 | 0 | 13 | 13 | 0 | **enrolled** |
 | `rfc3748` | 61 | 33 | 0 | 13 | 15 | 15 | 0 | **enrolled** |
 | `rfc5282` | 19 | 1 | 0 | 0 | 18 | 18 | 0 | **enrolled** |
@@ -225,15 +225,15 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 
 50 of 1789 auditable requirement(s) carry a `ze-rfc-audit` verdict (2.79%), across 1 of 181 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
 
-**Proven** (48) is the count that means what the badge implies: a verdict of `enforced` -- the tests would fail if the code stopped complying -- that is still fresh. It is NOT the **Both** column of the rollup above: that one answers which polarities exist, and a requirement can have both and still be judged `weak`. Every one of the 4 verdict(s) that is audited but not proven is named below with its verdict, so no requirement can read as proven and weak at once.
+**Proven** (43) is the count that means what the badge implies: a verdict of `enforced` -- the tests would fail if the code stopped complying -- that is still fresh. It is NOT the **Both** column of the rollup above: that one answers which polarities exist, and a requirement can have both and still be judged `weak`. Every one of the 9 verdict(s) that is audited but not proven is named below with its verdict, so no requirement can read as proven and weak at once.
 
 The remaining 1739 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `./le rfc check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
 
-Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1789) = `Audited` (50) + `Unaudited` (1739). **Records:** all 52 recorded verdict(s) = `Proven` (48) + `Not proven` (4), and the worklist below names every one of those 4. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
+Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1789) = `Audited` (50) + `Unaudited` (1739). **Records:** all 52 recorded verdict(s) = `Proven` (43) + `Not proven` (9), and the worklist below names every one of those 9. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
 
 | RFC | Auditable | Audited | Proven | Not proven | Unaudited |
 |---|---|---|---|---|---|
-| `rfc7606` | 50 | 50 | 48 | 4 | 0 |
+| `rfc7606` | 50 | 50 | 43 | 9 | 0 |
 | `draft-abraitis-idr-addpath-paths-limit` | 4 | 0 | 0 | 0 | 4 |
 | `draft-ietf-bess-mup-safi` | 3 | 0 | 0 | 0 | 3 |
 | `draft-ietf-sidrops-aspa-verification` | 6 | 0 | 0 | 0 | 6 |
@@ -390,8 +390,13 @@ One row per requirement whose verdict is anything other than a fresh `enforced`.
 
 | Requirement | Verdict | Meaning |
 |---|---|---|
+| `RFC7606-3.a-1` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
+| `RFC7606-3.i-1` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
+| `RFC7606-3.j-1` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
 | `RFC7606-5.1-1` | `unimplemented` | the tests are fine; the CODE does not comply |
 | `RFC7606-5.1-3` | `enforced (stale-unit)` | what it judged changed -- the tagged unit itself, or the producing code it cites; it must be re-judged with the `ze-rfc-audit` skill before it counts as anything |
+| `RFC7606-5.3-1` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
+| `RFC7606-5.3-2` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
 | `RFC7606-5.4-1` | `enforced (stale-unit)` | what it judged changed -- the tagged unit itself, or the producing code it cites; it must be re-judged with the `ze-rfc-audit` skill before it counts as anything |
 | `RFC7606-8-1` | `not-applicable` | no reachable code path could satisfy or violate it |
 
