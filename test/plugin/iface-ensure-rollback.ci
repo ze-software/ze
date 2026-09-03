@@ -11,13 +11,25 @@
 #            asserted against real kernel state read back through the producer
 #            (`show interface name <n> detail` -> iface.GetInterface):
 #              A. auto-created parent, leaf succeeds -> BOTH zeens0 and zeens0.100 exist.
-#              B. PRE-EXISTING parent, leaf fails    -> zeens1 SURVIVES (wasCreated
-#                 returned false, so no rollback was armed; deleting here would destroy
-#                 an interface the operator owns).
-#              C. auto-created parent, leaf fails    -> zeens2 is GONE (the rollback ran).
-#            The leaf is failed with VLAN id 9999, which handleUnitAdd rejects as outside
-#            1-4094 (internal/component/iface/cmd/manage.go) AFTER the ensure chain has
-#            already created the parent -- exactly the window rollback exists for.
+#              B. PRE-EXISTING parent, leaf fails    -> zeensrollback01 SURVIVES
+#                 (wasCreated returned false, so no rollback was armed; deleting here
+#                 would destroy an interface the operator owns).
+#              C. auto-created parent, leaf fails    -> zeensrollback02 is GONE (rollback ran).
+#            The leaf is failed by the COMPOSED VLAN name. A 15-character parent is a
+#            legal interface name (maxIfaceNameLen, internal/component/iface/validate.go)
+#            and a legal model value, so nothing refuses it up front; "<parent>.100" is 19
+#            characters and CreateVLAN rejects it only AFTER LinkByName has found the
+#            parent the ensure chain just made -- exactly the window rollback exists for.
+#            The fixture asserts that MESSAGE, not just the error status, because an
+#            argument refused before the chain runs is also an error and creates no
+#            parent, so a rollback assertion behind it would pass while proving nothing.
+#
+#            It failed with VLAN id 9999 until 2026-09-03, when the leaf's own 1-4094
+#            check stopped being the first to see it: validateUint
+#            (internal/component/command/argvalidate.go) refuses an out-of-range argument
+#            at the RPC boundary, so no parent was created and cases B and C tested
+#            nothing. A failure that needs only legal arguments cannot be pre-empted that
+#            way (plan/journal/earlier-guard-hides-the-better-error.md).
 # PREVENTS:  a silently disarmed rollback. The unit coverage in
 #            internal/component/plugin/server/ensure_test.go drives wrapWithEnsureChain
 #            with fake handlers, so it cannot catch the compound path being unreachable,
@@ -29,9 +41,9 @@
 #
 # needs-linux: every step programs real netlink links (dummy interface + 802.1Q VLAN) and
 # requires CAP_NET_ADMIN, so the SKIPPED-on-darwin runner cannot exercise it. Run via
-# `./le qemu all-tests` (boots a root QEMU VM). zeens0/1/2 are uniquely named
-# throwaways in the VM's default namespace, deleted in the finally block (idempotent on
-# rerun).
+# `./le qemu all-tests` (boots a root QEMU VM). zeens0, zeensrollback01 and
+# zeensrollback02 are uniquely named throwaways in the VM's default namespace, deleted in
+# the finally block (idempotent on rerun).
 option=needs-linux:caps=net-admin
 
 
@@ -88,8 +100,8 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=45s
 expect=exit:code=0
 expect=stderr:contains=OK A: zeens0 auto-created by the ensure chain
-expect=stderr:contains=OK B: zeens1 survived a failed compound create
-expect=stderr:contains=OK C: zeens2 rolled back after the leaf failed
+expect=stderr:contains=OK B: the pre-existing parent survived a failed compound create
+expect=stderr:contains=OK C: the auto-created parent rolled back after the leaf failed
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=unknown method

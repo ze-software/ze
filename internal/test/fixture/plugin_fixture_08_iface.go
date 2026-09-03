@@ -141,6 +141,15 @@ func pollStatus08(ctx context.Context, p *sdk.Plugin, command, wanted string) (s
 	return status, message
 }
 
+// The two parents whose compound create must fail at the LEAF. Both are exactly
+// maxIfaceNameLen (15) characters, so each is a legal interface name while
+// "<name>.100" is not, which is what defers the failure until after the ensure
+// chain has created the parent.
+const (
+	ensureParentKept   = "zeensrollback01"
+	ensureParentRolled = "zeensrollback02"
+)
+
 func ifaceEnsureRollback08(ctx context.Context, p *sdk.Plugin) error {
 	present := func(name, why string) error {
 		status, message := pollStatus08(ctx, p, "show interface name "+name+" detail", "done")
@@ -157,15 +166,31 @@ func ifaceEnsureRollback08(ctx context.Context, p *sdk.Plugin) error {
 		return nil
 	}
 	done := func(command string) error { _, err := requireDone08(ctx, p, command); return err }
-	errorOnce := func(command string) error {
+	// failsLate requires the leaf to fail INSIDE CreateVLAN, and says so by
+	// asserting the message. Status alone is not enough: an argument refused
+	// before the chain runs is also an error, and it creates no parent, so a
+	// rollback assertion behind it would pass while proving nothing.
+	//
+	// The failure is the composed VLAN name. A 15-character parent is a valid
+	// interface name (maxIfaceNameLen, internal/component/iface/validate.go) and
+	// a valid model value, so nothing can refuse it up front; "<parent>.<vid>"
+	// is 19 characters, and CreateVLAN rejects it only AFTER LinkByName has
+	// found the parent the ensure chain just made. That is the window rollback
+	// exists for, and it is reachable with arguments that are individually
+	// legal, which is what keeps this scenario armed.
+	failsLate := func(command string) error {
 		status, message := status08(ctx, p, command)
 		if status != statusError {
-			return fmt.Errorf("%q: expected status=error for VLAN 9999, got %s %s", command, status, message)
+			return fmt.Errorf("%q: expected status=error from CreateVLAN, got %s %s", command, status, message)
+		}
+		if !strings.Contains(message, "composed name too long") {
+			return fmt.Errorf("%q: expected the LATE failure (composed name too long), got %q; "+
+				"an earlier refusal creates no parent, so rollback is never exercised", command, message)
 		}
 		return nil
 	}
 	defer func() {
-		for _, name := range []string{"zeens0.100", "zeens0", "zeens1", "zeens2"} {
+		for _, name := range []string{"zeens0.100", "zeens0", ensureParentKept, ensureParentRolled} {
 			_, _, _ = command08(context.Background(), p, "delete interface name "+name)
 		}
 	}()
@@ -182,32 +207,32 @@ func ifaceEnsureRollback08(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK A: zeens0 auto-created by the ensure chain and zeens0.100 created by the leaf")
-	if err := absent("zeens1", "precondition"); err != nil {
+	if err := absent(ensureParentKept, "precondition"); err != nil {
 		return err
 	}
-	if err := done("create interface dummy name zeens1"); err != nil {
+	if err := done("create interface dummy name " + ensureParentKept); err != nil {
 		return err
 	}
-	if err := present("zeens1", "B: operator-created parent must exist first"); err != nil {
+	if err := present(ensureParentKept, "B: operator-created parent must exist first"); err != nil {
 		return err
 	}
-	if err := errorOnce("create interface dummy name zeens1 unit 9999"); err != nil {
+	if err := failsLate("create interface dummy name " + ensureParentKept + " unit 100"); err != nil {
 		return err
 	}
-	if err := present("zeens1", "B: rollback deleted a pre-existing parent"); err != nil {
+	if err := present(ensureParentKept, "B: rollback deleted a pre-existing parent"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK B: zeens1 survived a failed compound create")
-	if err := absent("zeens2", "precondition"); err != nil {
+	fmt.Fprintln(os.Stderr, "OK B: the pre-existing parent survived a failed compound create")
+	if err := absent(ensureParentRolled, "precondition"); err != nil {
 		return err
 	}
-	if err := errorOnce("create interface dummy name zeens2 unit 9999"); err != nil {
+	if err := failsLate("create interface dummy name " + ensureParentRolled + " unit 100"); err != nil {
 		return err
 	}
-	if err := absent("zeens2", "C: rollback did not delete the auto-created parent"); err != nil {
+	if err := absent(ensureParentRolled, "C: rollback did not delete the auto-created parent"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK C: zeens2 rolled back after the leaf failed")
+	fmt.Fprintln(os.Stderr, "OK C: the auto-created parent rolled back after the leaf failed")
 	return nil
 }
 
