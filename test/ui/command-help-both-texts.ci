@@ -1,0 +1,44 @@
+# Test: a COMMAND shows its whole summary on the message row under the menu
+# VALIDATES: AC-9 -- the operator opens the completion menu on a command
+#   candidate and reads the whole one-line summary, uncut, on an 80-column
+#   terminal. The headless model is sized 80x24, and the summary asserted here
+#   is 90 characters, so a row clamped to the terminal width loses it.
+# PREVENTS: a menu of bare names, and a row that cuts the declared summary at
+#   the terminal edge.
+#
+# The path: ze-resolve-cmd.yang declares the two texts -> BuildCommandTree reads
+# them -> the completion carries the summary as its Description -> warningText
+# (internal/component/cli/model_render.go) puts it on the second message row.
+
+option=timeout:value=30s
+
+# go.mod marker: ze-test editor roots its base dir at the first go.mod above
+# the working directory, so --dir . resolves to this test's temp dir.
+tmpfs=go.mod:terminator=EOF_MOD
+module ze-ui-command-help-both-texts-fixture
+EOF_MOD
+
+tmpfs=command-help-both-texts.et:terminator=EOF_ET
+# Test: the summary of a command candidate reaches the message row whole
+option=mode:value=command
+option=timeout:value=10s
+
+# "clear dns cache " has two children, record and stats, so Tab opens the menu
+# rather than completing one name.
+input=type:text=clear dns cache
+input=key:name=space
+input=tab
+expect=dropdown:visible
+expect=completion:contains=record,stats
+
+# The first candidate is record. Its YANG description is 90 characters, and the
+# row holds every one of them on an 80-column terminal.
+expect=hint:contains=Evict DNS cache entries for one record name, or one name and type when a type is provided.
+
+# The arrow moves the selection, and the row carries the next summary whole too.
+input=key:name=down
+expect=hint:contains=Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.
+EOF_ET
+
+cmd=foreground:seq=1:exec=ze-test editor --dir . --all
+expect=exit:code=0

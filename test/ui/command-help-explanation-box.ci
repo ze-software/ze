@@ -1,0 +1,45 @@
+# Test: ? on a highlighted COMMAND candidate opens the box on its explanation
+# VALIDATES: AC-9 and AC-11 for a command -- the box holds the declared ze:help,
+#   which is a different text from the summary the row holds. Both are on the
+#   screen at once, and neither repeats the other.
+# PREVENTS: the box repeating the one-line summary, which leaves the long
+#   explanation unreachable from the interactive CLI.
+#
+# The path: ? -> revealCandidateExplanation -> revealExplanationOf ->
+# CommandCompleter.Explain -> revealDeclared (internal/component/cli/model_keys.go).
+
+option=timeout:value=30s
+
+# go.mod marker: ze-test editor roots its base dir at the first go.mod above
+# the working directory, so --dir . resolves to this test's temp dir.
+tmpfs=go.mod:terminator=EOF_MOD
+module ze-ui-command-help-explanation-box-fixture
+EOF_MOD
+
+tmpfs=command-help-explanation-box.et:terminator=EOF_ET
+# Test: the explanation of a command candidate reaches the box, and the summary stays on the row
+option=mode:value=command
+option=timeout:value=10s
+
+# "clear dns cache " has two children, so Tab opens the menu on the first one,
+# record. Nothing is explained yet.
+input=type:text=clear dns cache
+input=key:name=space
+input=tab
+expect=dropdown:visible
+expect=explanation:empty
+
+# ? explains the highlighted candidate. The box takes the ze:help of
+# clear dns cache record, which states what an unknown type does. Its
+# description says nothing about that, so this sentence can only come from the
+# long text.
+input=type:text=?
+expect=explanation:contains=An unknown type is reported inside the answer rather than as an error.
+
+# The row still holds the summary while the box holds the explanation, so the
+# two texts are on the screen together and neither is a copy of the other.
+expect=hint:contains=Evict DNS cache entries for one record name, or one name and type when a type is provided.
+EOF_ET
+
+cmd=foreground:seq=1:exec=ze-test editor --dir . --all
+expect=exit:code=0
