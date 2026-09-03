@@ -13,3 +13,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-03 | 5db0ba0d | feat(radius): bound what the NAS-Port-Id template resolves to | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-03 | 5db0ba0d | feat(radius): bound what the NAS-Port-Id template resolves to | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-03 | 5db0ba0d | spec: close spec-radius-subscriber-attributes | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-03 | 5db0ba0d | spec(l2tp): settle the four accounting attributes as options | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
