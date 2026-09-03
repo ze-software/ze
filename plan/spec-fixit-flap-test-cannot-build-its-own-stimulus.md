@@ -12,6 +12,33 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## RESOLVED 2026-09-04, and the title is wrong
+
+**The test could always build its stimulus. The counter reading it was blind.**
+Fixed in `055b97a29`; `iface-link-flap-during-commit` is four of four green in
+QEMU on the arm64 runtime kernel 7.2.
+
+The premise below, that the reload stopped holding `dhcpMu` across the burst, is
+FALSE and is kept only so the reasoning is legible. `hostname` belongs to the
+iface subtree despite the config being named `ze-bgp.conf`, no gate on the
+SIGHUP path skips the apply, and `DHCPClient.Stop` still waits on each of forty
+clients in turn, unchanged since the 1.1 to 3.3 s hold was measured. What failed
+was `ze_iface_link_worker_blocked_total{name="zeflapv0"}`: the worker labels a
+block with the name on the queue entry it was about to handle, the carrier
+resync pushed every second carries no name, so the block lands on the empty
+label and the burst coalesces behind it. The fixture read the named series.
+
+The full account, both defects, the four measurements and the two designs
+surveyed and rejected, is in `plan/journal/gate-fires-outside-its-population.md`.
+
+This file is NOT closed, because `./le commit create` refuses a `remove` of a
+spec with no independent-review artifact, and manufacturing one to delete a
+skeleton resolved the same evening is not what that gate is for. It is left for
+the owner to close or drop. One piece of follow-on work is real and is recorded
+in the journal row rather than here: `internal/component/iface` publishes no
+config-apply counter, which is why answering "did the reload reach the apply"
+cost three QEMU cycles and two agents.
+
 ## Task
 
 `test/plugin/iface-link-flap-during-commit.ci` measures one thing: a link that
