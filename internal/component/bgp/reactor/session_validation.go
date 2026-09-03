@@ -567,27 +567,42 @@ func (s *Session) mpFamilyDispatchable(afi uint16, safi uint8) bool {
 // or MP_UNREACH_NLRI attribute."
 //
 // Strict mode returns the error that drives that refusal. IgnoreFamilyMismatch and
-// IgnoreFamilies make the speaker skip the NLRI instead, which is the lenient reading of
-// "determines that the attribute is incorrect": the family is unsupported rather than the
-// encoding malformed.
-func (s *Session) validateUpdateFamilies(body []byte) error {
+// IgnoreFamilies ask for the lenient reading of "determines that the attribute is
+// incorrect" -- the family is unsupported rather than the encoding malformed -- and take
+// Section 7's other two remedies instead of the session: the UPDATE is dropped, so no
+// route of that AFI/SAFI is taken, and the session survives.
+//
+// Dropping is what the option NAMES and what the RFC's MUST asks for. Until 2026-09-03
+// the lenient branch logged and let the whole UPDATE through, so an operator who wrote
+// `family <afi/safi> { mode ignore; }` got the unnegotiated NLRI installed in the RIB and
+// forwarded, which is the one outcome Section 7 forbids. The comment here, the doc on
+// PeerSettings.IgnoreFamilies and the YANG description of `mode ignore` all said the NLRI
+// was skipped; only the code disagreed.
+//
+// drop is per-MESSAGE and not per-attribute, because a rebuild on the receive path to
+// strip one attribute is not worth what it costs. An UPDATE that carries an unnegotiated
+// MP attribute alongside a negotiated IPv4 NLRI field loses the IPv4 half too. No
+// conformant peer sends one (RFC 4760 Section 8 obliges the sender to advertise the
+// family first), and the operator asked to ignore the family rather than to salvage what
+// travels with it.
+func (s *Session) validateUpdateFamilies(body []byte) (drop bool, err error) {
 	// Need at least 4 bytes: withdrawn len (2) + attrs len (2)
 	if len(body) < 4 {
-		return nil // Let message parsing handle malformed
+		return false, nil // Let message parsing handle malformed
 	}
 
 	// Skip withdrawn routes
 	withdrawnLen := binary.BigEndian.Uint16(body[0:2])
 	offset := 2 + int(withdrawnLen)
 	if offset+2 > len(body) {
-		return nil
+		return false, nil
 	}
 
 	// Get path attributes
 	attrLen := binary.BigEndian.Uint16(body[offset : offset+2])
 	offset += 2
 	if offset+int(attrLen) > len(body) {
-		return nil
+		return false, nil
 	}
 	pathAttrs := body[offset : offset+int(attrLen)]
 
@@ -640,18 +655,20 @@ func (s *Session) validateUpdateFamilies(body []byte) error {
 				// Family not negotiated - check if we should ignore
 				shouldIgnore := s.settings.IgnoreFamilyMismatch || s.shouldIgnoreFamily(fam)
 				if shouldIgnore {
-					// Lenient mode: log warning and skip
-					sessionLogger().Debug("UPDATE family mismatch ignored", "afi", afi, "safi", safi)
-				} else {
-					// Strict mode: return error
-					sessionLogger().Debug("UPDATE family mismatch rejected", "afi", afi, "safi", safi)
-					return fmt.Errorf("%w: %s", ErrFamilyNotNegotiated, fam)
+					// Lenient mode: drop the message, keep the session. Returning
+					// here rather than continuing the attribute loop is what makes
+					// the drop reach the caller.
+					sessionLogger().Debug("UPDATE dropped, family not negotiated", "afi", afi, "safi", safi)
+					return true, nil
 				}
+				// Strict mode: return error
+				sessionLogger().Debug("UPDATE family mismatch rejected", "afi", afi, "safi", safi)
+				return false, fmt.Errorf("%w: %s", ErrFamilyNotNegotiated, fam)
 			}
 		}
 	}
 
-	return nil
+	return false, nil
 }
 
 // validateCapabilityModes checks required/refused capability codes against the negotiated result.

@@ -3,15 +3,20 @@ package reactor
 import (
 	"encoding/binary"
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // VALIDATES: RFC 7606 UPDATE validation, family validation, capability mode checks, NOTIFICATION data builders.
@@ -263,8 +268,9 @@ func TestValidateUpdateFamilies_Matching(t *testing.T) {
 	pathAttrs := append([]byte{attrFlags, attrCode, 0x00, byte(len(mpReach))}, mpReach...)
 
 	body := makeUpdateBody(nil, pathAttrs, nil)
-	err := s.validateUpdateFamilies(body)
+	drop, err := s.validateUpdateFamilies(body)
 	assert.NoError(t, err)
+	assert.False(t, drop, "a negotiated family is not dropped")
 }
 
 // TestValidateUpdateFamilies_NotNegotiated verifies non-negotiated family is rejected.
@@ -298,12 +304,22 @@ func TestValidateUpdateFamilies_NotNegotiated(t *testing.T) {
 	pathAttrs := append([]byte{attrFlags, attrCode, 0x00, byte(len(mpReach))}, mpReach...)
 
 	body := makeUpdateBody(nil, pathAttrs, nil)
-	err := s.validateUpdateFamilies(body)
+	drop, err := s.validateUpdateFamilies(body)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrFamilyNotNegotiated)
+	assert.False(t, drop, "a refusal is not a drop: the session ends instead")
 }
 
-// TestValidateUpdateFamilies_IgnoreMode verifies IgnoreFamilyMismatch skips rejection.
+// TestValidateUpdateFamilies_IgnoreMode verifies that ignore mode answers DROP:
+// the session is not refused, and the UPDATE does not proceed.
+//
+// VALIDATES: RFC 4760 Section 7's MUST, "the speaker MUST delete all the BGP
+// routes received from that neighbor whose AFI/SAFI is the same as the one
+// carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute". Taking
+// none of them in the first place is how ignore mode meets it.
+// PREVENTS: the lenient branch answering "no error" and letting the caller
+// dispatch the UPDATE, which installed unnegotiated NLRI in the RIB and
+// forwarded it, and which is what this function did until 2026-09-03.
 func TestValidateUpdateFamilies_IgnoreMode(t *testing.T) {
 	s := newValidateSession()
 	s.settings.IgnoreFamilyMismatch = true
@@ -319,7 +335,7 @@ func TestValidateUpdateFamilies_IgnoreMode(t *testing.T) {
 		65001, 65002,
 	)
 
-	// IPv6 UPDATE — should be accepted in ignore mode.
+	// IPv6 UPDATE: dropped rather than refused in ignore mode.
 	mpReach := []byte{
 		0x00, 0x02, 0x01, // AFI=2, SAFI=1
 		0x10, // NH len
@@ -333,8 +349,9 @@ func TestValidateUpdateFamilies_IgnoreMode(t *testing.T) {
 	pathAttrs := append([]byte{attrFlags, attrCode, 0x00, byte(len(mpReach))}, mpReach...)
 
 	body := makeUpdateBody(nil, pathAttrs, nil)
-	err := s.validateUpdateFamilies(body)
-	assert.NoError(t, err)
+	drop, err := s.validateUpdateFamilies(body)
+	assert.NoError(t, err, "ignore mode does not refuse the session")
+	assert.True(t, drop, "ignore mode drops the UPDATE, so no unnegotiated NLRI is taken")
 }
 
 // TestBuildUnsupportedCapabilityData verifies NOTIFICATION data for Multiprotocol families.
@@ -402,3 +419,70 @@ func TestBuildUnsupportedCapabilityDataCodes_Empty(t *testing.T) {
 // Loop detection tests: moved to internal/component/bgp/reactor/filter/loop_test.go.
 // The detectLoops session method was refactored to filter.LoopIngress (ingress filter plugin).
 // All 12 tests preserved with identical coverage in the new location.
+
+// TestIgnoredFamilyUpdateNeverReachesDispatch drives the whole receive path with
+// a peer that announces an IPv6 prefix on a session where only IPv4 unicast was
+// negotiated, and where the operator wrote the ignore mode. The UPDATE must not
+// be delivered, and the session must survive.
+//
+// VALIDATES: RFC 4760 Section 7's MUST, "the speaker MUST delete all the BGP
+// routes received from that neighbor whose AFI/SAFI is the same as the one
+// carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute". Ignore
+// mode meets it by taking none of them, and declines the MAY that would end the
+// session.
+// PREVENTS: the lenient branch of validateUpdateFamilies returning "no error"
+// and letting processMessage dispatch the message, which put unnegotiated NLRI
+// into the RIB and onto the forward rails. That is what ze did until 2026-09-03,
+// while three separate places (the function's own comment, the doc on
+// PeerSettings.IgnoreFamilies, and the YANG description of `mode ignore`)
+// promised the NLRI was skipped.
+//
+// The IPv4 control in the same test is what makes the assertion mean something:
+// a session that dispatched nothing at all would pass the first half alone.
+func TestIgnoredFamilyUpdateNeverReachesDispatch(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+	session.settings.IgnoreFamilyMismatch = true
+
+	var dispatched int
+	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
+		_ BufHandle, _ map[string]any, _ string,
+	) bool {
+		if direction == rpc.DirectionReceived && wu != nil {
+			dispatched++
+		}
+		return false
+	}
+
+	// MP_REACH_NLRI for IPv6 unicast, which this session never negotiated.
+	mpReach := []byte{
+		0x00, 0x02, 0x01, // AFI=2 (IPv6), SAFI=1 (unicast)
+		0x10, // next-hop length
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // ::1
+		0x00,                         // Reserved
+		0x20, 0x20, 0x01, 0x0D, 0xB8, // 2001:db8::/32
+	}
+	pathAttrs := append([]byte{0x90, 0x0E, 0x00, byte(len(mpReach))}, mpReach...)
+
+	go func() {
+		sendUpdateAndDrain(client, buildUpdateMsg(makeUpdateBody(nil, pathAttrs, nil)))
+	}()
+	require.NoError(t, session.ReadAndProcess(), "ignore mode must not refuse the session")
+	assert.Equal(t, fsm.StateEstablished, session.State(), "ignore mode declines the MAY to terminate")
+	assert.Equal(t, 0, dispatched, "an unnegotiated family's UPDATE must reach no plugin, no RIB and no forward rail")
+
+	// Control: a negotiated family on the same session still arrives.
+	ipv4NLRI := []byte{0x18, 0x0A, 0x00, 0x00} // 10.0.0.0/24
+	origin := []byte{0x40, 0x01, 0x01, 0x00}   // ORIGIN IGP
+	asPath := []byte{0x40, 0x02, 0x00}         // empty AS_PATH
+	nextHop := []byte{0x40, 0x03, 0x04, 0x0A, 0x00, 0x00, 0x01}
+	v4Attrs := slices.Concat(origin, asPath, nextHop)
+
+	go func() {
+		sendUpdateAndDrain(client, buildUpdateMsg(makeUpdateBody(nil, v4Attrs, ipv4NLRI)))
+	}()
+	require.NoError(t, session.ReadAndProcess())
+	assert.Equal(t, 1, dispatched, "the negotiated family still reaches dispatch")
+}

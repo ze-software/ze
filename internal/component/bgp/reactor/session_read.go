@@ -229,8 +229,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		//
 		// Loop detection (RFC 4271 S9, RFC 4456 S8) runs as an ingress filter
 		// in the reactor's message receiver callback (plugins/loop package).
-		if err := s.validateUpdateFamilies(wireUpdate.Payload()); err != nil {
-			if errors.Is(err, ErrFamilyNotNegotiated) {
+		famDrop, famErr := s.validateUpdateFamilies(wireUpdate.Payload())
+		if famErr != nil {
+			if errors.Is(famErr, ErrFamilyNotNegotiated) {
 				s.mu.RLock()
 				conn := s.conn
 				s.mu.RUnlock()
@@ -242,7 +243,16 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 				s.logFSMEvent(fsm.EventUpdateMsgErr)
 				s.closeConn()
 			}
-			return err, false
+			return famErr, false
+		}
+		if famDrop {
+			// The operator asked to ignore this family, so Section 7's other two
+			// remedies apply instead of the session: no route of that AFI/SAFI is
+			// taken, and the peering survives. Same shape as the prefix-limit drop
+			// below, including the HoldTimer restart RFC 4271 Section 8.2.2
+			// Event 27 owes a well-formed UPDATE.
+			s.logFSMEvent(fsm.EventUpdateMsg)
+			return nil, false
 		}
 	}
 

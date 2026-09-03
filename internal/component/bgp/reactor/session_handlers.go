@@ -291,7 +291,13 @@ func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
 	body := wu.Payload()
 
 	// Validate address families in UPDATE.
-	if err := s.validateUpdateFamilies(body); err != nil {
+	//
+	// The drop answer is deliberately not consulted here. processMessage
+	// (session_read.go) calls the same check BEFORE dispatch and returns without
+	// reaching this handler when it says drop, so a dropped UPDATE never gets
+	// this far on the live path. Only the error half can still fire, and it
+	// carries the same refusal it always did.
+	if _, err := s.validateUpdateFamilies(body); err != nil {
 		return err
 	}
 

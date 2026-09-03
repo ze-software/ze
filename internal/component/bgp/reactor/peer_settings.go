@@ -346,8 +346,12 @@ type PeerSettings struct {
 	// Session will be rejected with NOTIFICATION if peer doesn't support these.
 	RequiredFamilies []capability.Family
 
-	// IgnoreFamilies are address families with lenient UPDATE validation.
-	// NLRI for these families will be skipped (not error) if not negotiated.
+	// IgnoreFamilies are address families with lenient UPDATE validation. An
+	// UPDATE naming one of them without having negotiated it is DROPPED rather
+	// than refused: no route of that AFI/SAFI is taken, and the session stays up.
+	// RFC 4760 Section 7 grades the three remedies, and this takes the MUST
+	// (delete nothing of that family) and the SHOULD (ignore it for the session)
+	// while declining the MAY (terminate).
 	IgnoreFamilies []capability.Family
 
 	// RequiredCapabilities are non-family capability codes that must be negotiated.
