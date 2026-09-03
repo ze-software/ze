@@ -64,11 +64,25 @@ func drainAuth(logger *slog.Logger, ch <-chan ppp.AuthEvent, handler AuthHandler
 // from d.AuthEventsOut(), calls the registered handler, and forwards
 // the decision to d.AuthResponse(). Exits when the channel closes
 // (Driver.Stop). The done channel is closed on exit.
-func startAuthDrain(logger *slog.Logger, d *ppp.Driver, handler AuthHandler, bus ze.EventBus) <-chan struct{} {
+//
+// resolve is called PER REQUEST, not once here. The auth slot is
+// late-binding on purpose: l2tp-auth-local claims it in init() and
+// l2tp-auth-radius re-claims it at configure time, which is what makes the
+// precedence "RADIUS when configured, local otherwise"
+// (internal/component/l2tp/plugins/authradius/register.go). This drain used to
+// capture the handler once at subsystem start and hold it forever, so that
+// precedence could never take effect: the listener binds before the plugins
+// configure, so the captured handler was always local's. In
+// test/l2tp/radius-acct-wire.ci the daemon bound at .365, RADIUS configured at
+// .366, and local answered the request at .390 -- one millisecond too late to
+// matter. A registry written to be re-claimed needs a consumer that re-reads
+// it.
+func startAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() AuthHandler, bus ze.EventBus) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for ev := range d.AuthEventsOut() {
+			handler := resolve()
 			req, ok := ev.(ppp.EventAuthRequest)
 			if !ok {
 				continue
@@ -138,11 +152,15 @@ func drainPool(logger *slog.Logger, ch <-chan ppp.IPEvent, handler PoolHandler, 
 // from d.IPEventsOut(), calls the registered handler, and forwards the
 // decision to d.IPResponse(). Exits when the channel closes
 // (Driver.Stop). The done channel is closed on exit.
-func startPoolDrain(logger *slog.Logger, d *ppp.Driver, handler PoolHandler) <-chan struct{} {
+func startPoolDrain(logger *slog.Logger, d *ppp.Driver, resolve func() PoolHandler) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for ev := range d.IPEventsOut() {
+			// Per request, for the same reason startAuthDrain resolves per
+			// request: l2tp-pool claims its slot at configure time, after the
+			// listener has bound.
+			handler := resolve()
 			req, ok := ev.(ppp.EventIPRequest)
 			if !ok {
 				continue

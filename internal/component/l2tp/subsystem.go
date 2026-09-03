@@ -326,17 +326,18 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			// after pppDriver.Start() so the channels are live.
 			// Driver.Stop() closes the channels, causing the drains
 			// to exit; we wait for them in unwindLocked/Stop.
-			authH := GetAuthHandler()
-			poolH := GetPoolHandler()
-			if authH == nil {
-				s.logger.Warn("l2tp: no auth handler registered; all sessions will be accepted")
+			// Warn on what is registered NOW, but hand the drains the getters:
+			// a plugin that configures after this point still takes the slot,
+			// and the drains resolve per request so it is actually consulted.
+			if GetAuthHandler() == nil {
+				s.logger.Warn("l2tp: no auth handler registered yet; a session arriving before one registers is refused")
 			}
-			if poolH == nil {
-				s.logger.Error("l2tp: no pool handler registered; all IP requests will be rejected")
+			if GetPoolHandler() == nil {
+				s.logger.Error("l2tp: no pool handler registered yet; an IP request arriving before one registers is rejected")
 			}
 			s.drainDones = append(s.drainDones,
-				startAuthDrain(s.logger, pppDriver, authH, bus),
-				startPoolDrain(s.logger, pppDriver, poolH),
+				startAuthDrain(s.logger, pppDriver, GetAuthHandler, bus),
+				startPoolDrain(s.logger, pppDriver, GetPoolHandler),
 			)
 		}
 		if worker != nil {
