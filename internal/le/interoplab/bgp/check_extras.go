@@ -77,8 +77,18 @@ var scenarioExtras = map[string][]operation{
 		{kind: opBIRDSession, argument: "ze_leak"},
 	},
 	"bgp-policy-import-export-frr": {
-		{kind: opRequireContains, peer: peerBIRD, command: []string{cmdBirdc, "show route for 10.39.1.0/24 all"}, contains: []string{"10.39.1.0/24", "BGP.local_pref: 250", "BGP.med: 77"}},
-		{kind: opBIRDRouteAbsent, argument: "10.39.2.0/24", proof: []string{"BIRD"}},
+		// A WAIT, not an immediate read. BIRD reports the session Established as
+		// soon as it is up, and the assertions above return at that instant,
+		// which is one second before FRR has advertised anything. The needles
+		// are the ones an immediate read carried, so this waits for the state it
+		// already asserted and asserts nothing less.
+		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, "show route for 10.39.1.0/24 all"}, contains: []string{"10.39.1.0/24", "BGP.local_pref: 250", "BGP.med: 77"}, timeout: 60 * time.Second},
+		// The accepted prefix is the proof, because it is the route ze DID relay
+		// on the same session: a BIRD whose table is empty, or whose session with
+		// ze never came up, cannot satisfy it and cannot pass this absence by
+		// holding nothing. The birdc banner satisfies every one of those states,
+		// so it is not evidence that the export policy rejected anything.
+		{kind: opBIRDRouteAbsent, argument: "10.39.2.0/24", proof: []string{"10.39.1.0/24"}},
 	},
 	"bgp-relay-withdraw-nexthop-self-frr": relayWithdrawalExtras(injectPrefixFirst),
 	"bgp-send-community-suppress-frr": {
@@ -130,8 +140,20 @@ var scenarioExtras = map[string][]operation{
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
 	"ospf-ptmp-frr": {
-		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseNetwork}, absent: []string{zeLabAddress}, proof: []string{"Network Link States"}},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseRouter}, contains: []string{zeLabAddress}, timeout: 60 * time.Second},
+		// RFC 2328 Section 9.5: a point-to-multipoint interface elects no
+		// Designated Router, so no router originates a network-LSA and FRR omits
+		// the whole "Net Link States" section from `show ip ospf database`. FRR
+		// prints that section with one row for each network-LSA it holds, so the
+		// heading appears the moment a DR election produces one.
+		//
+		// ze's router id is the proof, because it is the advertising router of the
+		// router-LSA FRR holds only over a working adjacency: an empty database, a
+		// dead session, and a peer that received nothing each fail it, and none of
+		// them can pass this absence by holding nothing. The section heading of the
+		// type-filtered `show ip ospf database network` satisfies every one of
+		// those states, so it is not evidence that a DR election was avoided.
+		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabase}, absent: []string{"Net Link States"}, proof: []string{zeLabAddress}},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
 	"isis-lan-dis-frr": {
@@ -140,7 +162,12 @@ var scenarioExtras = map[string][]operation{
 	},
 	"ospf-broadcast-frr": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{"Full/", "DR"}},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseNetwork}, contains: []string{"Network Link States"}, timeout: 60 * time.Second},
+		// FRR spells the section "Net Link States", and it prints that heading for
+		// every area whatever the area holds, so the heading alone says only that
+		// vtysh answered. ze's router id is the network-LSA content: ze.conf gives
+		// ze OSPF priority 100 so ze wins the election, and FRR reads back ze as
+		// the link state id and as an attached router of the LSA ze originated.
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseNetwork}, contains: []string{"Net Link States", zeLabAddress}, timeout: 60 * time.Second},
 	},
 	"ospf-gr-frr": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseRouter}, contains: []string{zeLabAddress}},
@@ -224,7 +251,16 @@ var scenarioExtras = map[string][]operation{
 	},
 	"ospfv3-nssa-redist-frr": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 route"}, contains: []string{ospf6NSSAPrefix, "NSSA"}},
-		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database external"}, absent: []string{ospf6NSSAPrefix}, proof: []string{"AS-External"}},
+		// RFC 3101 Section 2.3: an AS-External-LSA is never flooded into an NSSA,
+		// so FRR's AS-scoped database holds no LSA at all and its "ASE" type token
+		// appears nowhere in the database listing. ze's redistributed prefix is the
+		// proof, because FRR holds it only as the payload of the type-7 NSSA-LSA ze
+		// originated over a working adjacency: an empty database, a dead session,
+		// and a peer that received nothing each fail it, and none of them can pass
+		// this absence by holding nothing. A type name spelled in the section
+		// heading satisfies every one of those states, so it is not evidence that
+		// the type-5 leak was avoided.
+		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Database}, absent: []string{"ASE"}, proof: []string{ospf6NSSAPrefix, zeLabAddress}},
 	},
 	"ospfv3-ri-frr": {
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf database router-information"), contains: []string{zeLabAddress}},
