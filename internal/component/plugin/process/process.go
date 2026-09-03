@@ -28,11 +28,16 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 var errNoRawConnectionAvailable = errors.New("no raw connection available")
+
+// loopbackHost is where a forked plugin dials its hub when the hub listens on
+// an unspecified address. The hub's leaf carries it as a SAN for that reason.
+const loopbackHost = "127.0.0.1"
 
 // logger is the plugin subsystem logger (lazy initialization).
 // Controlled by ze.log.plugin environment variable.
@@ -571,6 +576,31 @@ func execBinDir() string {
 	return ""
 }
 
+// pluginPathEnv composes the PATH a spawned external plugin receives: the
+// inherited PATH first, then the engine binary's own directory. That directory
+// is a FALLBACK, so a run command like "ze plugin bgp-rib" still finds ze when
+// it is not installed system-wide, and it MUST NOT come first, because a
+// cross-built checkout holds a host binary and a guest binary of the same name
+// side by side. Under QEMU the engine runs as bin/ze-linux-arm64 next to a
+// darwin bin/ze-test, and putting that directory first made every
+// `run "ze-test ..."` in test/ resolve to the darwin binary, which the guest
+// shell reads as a script.
+//
+// An empty binDir answers the empty string, so the caller adds no PATH entry
+// and the child keeps what it inherited.
+func pluginPathEnv(binDir, inherited string) string {
+	if binDir == "" {
+		return ""
+	}
+	parts := make([]string, 0, 2)
+	if inherited != "" {
+		parts = append(parts, inherited)
+	}
+	parts = append(parts, binDir)
+	var tb textbuf.Buffer
+	return tb.Str("PATH=").Join(parts, string(os.PathListSeparator)).String()
+}
+
 // startExternal starts an external plugin via exec.Command.
 // Passes ZE_PLUGIN_HUB_HOST/PORT/TOKEN env vars and waits for TLS connect-back.
 func (p *Process) startExternal() error {
@@ -587,6 +617,13 @@ func (p *Process) startExternal() error {
 	if err != nil {
 		return fmt.Errorf("plugin %s: parse acceptor address %s: %w", p.config.Name, addr, err)
 	}
+	// A plugin process runs beside the hub, so an unspecified listen address
+	// (0.0.0.0 or ::) is reached on the loopback. Tell the child so, because
+	// the served leaf carries no SAN for an unspecified address: no peer can
+	// verify one, and the child validates the chain against the hub root.
+	if ip := net.ParseIP(host); ip != nil && ip.IsUnspecified() {
+		host = loopbackHost
+	}
 
 	// #nosec G204 - Run command is from trusted configuration, not user input
 	p.cmd = exec.CommandContext(p.ctx, "/bin/sh", "-c", p.config.Run)
@@ -595,15 +632,16 @@ func (p *Process) startExternal() error {
 	}
 
 	// Pass TLS connection info and plugin name via env vars.
-	// Prepend the engine binary's directory to PATH so that run commands
-	// like "ze plugin bgp-rib" can find the ze binary even when it is
+	// The engine binary's directory goes on PATH as a fallback, so run
+	// commands like "ze plugin bgp-rib" find the ze binary even when it is
 	// not installed system-wide (e.g., running from ./bin/ze in dev/test).
+	// pluginPathEnv states why it is a fallback rather than an override.
 	// Use os.Args[0] instead of os.Executable(): the latter follows symlinks,
 	// which can resolve to a directory containing a different-architecture
 	// binary with the same name (QEMU 9p mount with both host and VM binaries).
 	p.cmd.Env = os.Environ()
-	if binDir := execBinDir(); binDir != "" {
-		p.cmd.Env = append(p.cmd.Env, "PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if pathEnv := pluginPathEnv(execBinDir(), os.Getenv("PATH")); pathEnv != "" {
+		p.cmd.Env = append(p.cmd.Env, pathEnv)
 	}
 	// Generate a per-plugin token for name-bound authentication.
 	pluginToken, tokenErr := p.acceptor.TokenForPlugin(p.config.Name)
@@ -615,7 +653,7 @@ func (p *Process) startExternal() error {
 		"ZE_PLUGIN_HUB_HOST="+host,
 		"ZE_PLUGIN_HUB_PORT="+port,
 		"ZE_PLUGIN_HUB_TOKEN="+pluginToken,
-		"ZE_PLUGIN_CERT_FP="+p.acceptor.CertFP(),
+		"ZE_PLUGIN_CA_PEM="+string(p.acceptor.RootPEM()),
 		"ZE_PLUGIN_NAME="+p.config.Name,
 	)
 
