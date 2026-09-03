@@ -71,7 +71,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:ephemeral` | Node is validated and completed but never written to the config file | (none) |
 | `ze:filter` | Marks a list as a named filter type of the route policy framework | (none) |
 | `ze:flatten` | Serializes a container's children with the container name as a leading keyword | (none) |
-| `ze:help` | Declares the LONG explanation of a command node. The `description` statement declares the one-line summary | free text, several lines allowed |
+| `ze:help` | Declares the LONG explanation of a command node, an rpc, or a config node. The `description` statement declares the one-line summary | free text, several lines allowed |
 | `ze:hidden` | Hides a leaf from config display and from the web editor | `true` or `false` |
 | `ze:inherit` | Says whether a command takes the leaves its ancestor containers declare | `none` |
 | `ze:key-type` | Key type for inline-list nodes | type name |
@@ -176,7 +176,9 @@ component/<name>/yang/
 
 ## 4. Validation
 
-Ze validates configuration trees in two layers.
+Ze validates configuration trees in four layers. The first two are declared in
+YANG and reach one value at a time. The other two run over whole subtrees, which
+is what a rule needs when its answer depends on two sibling nodes.
 
 ### Layer 1: YANG Native Validation (goyang)
 
@@ -207,14 +209,51 @@ leaf name {
 }
 ```
 
-In Go, each validator registers a `CustomValidator` with two functions:
+In Go, each validator registers a `CustomValidator` with three functions. They
+are independent, and a validator carries any subset of them:
 
 | Function | Purpose |
 |----------|---------|
 | `ValidateFn(path, value) error` | Validates a value at parse/commit time |
 | `CompleteFn() []string` | Returns valid values for CLI completion (optional) |
+| `DescribeFn(value) string` | Says what one offered value means, for the dropdown (optional) |
 
 <!-- source: internal/component/config/yang/validator_registry.go -- CustomValidator, ValidatorRegistry -->
+
+### Completion-Only Validators
+
+**A validator with a nil `ValidateFn` refuses nothing.** It SUGGESTS: every
+value the leaf's YANG type admits stays valid, and `applyCustomValidators` skips
+it during the walk. Completion and refusal are separate jobs, so offering the
+well-known values for a leaf never narrows it.
+
+This is how a plugin completes its own leaf. `RegisterValidators` is a central
+list in the config package; config cannot import a plugin to write a row in it,
+and the plugin cannot reach the list. So the plugin calls `yang.RegisterSuggestion`
+from its own `init()`, passing the values and, optionally, a function that says
+what one value means.
+
+Two global registrations exist and they assert different things:
+
+| Call | Asserts | A name config does not declare |
+|------|---------|--------------------------------|
+| `RegisterCompleteFn(name, values)` | fill the `CompleteFn` slot of a validator config already declared | is left absent, so the startup check still names the leaf |
+| `RegisterSuggestion(name, values, describe)` | DECLARE a completion-only validator | is created, with no `ValidateFn` |
+
+The split keeps a forgotten `ValidateFn` loud. If an orphan `CompleteFn` created
+a validator, a leaf whose `ze:validate` names a validator nobody wrote would
+pass the startup check and lose its validation with no surface saying so.
+
+Neither call overwrites. A name the registry already holds keeps its
+`ValidateFn` and gains only the slots it left empty.
+
+`bgp-filter-path-asn` is the worked example: its `asn` leaf-list carries
+`ze:validate "transit-asn"`, and the plugin offers the well-known transit-free
+ASNs with their network names while accepting every other uint32
+(`docs/architecture/bgp/filter-path-asn.md`).
+
+<!-- source: internal/component/config/yang/validator_registry.go -- RegisterCompleteFn, RegisterSuggestion, MergeGlobalCompletions -->
+<!-- source: internal/component/config/yang/validator.go -- applyCustomValidators -->
 
 ### Registered Validators
 
@@ -278,6 +317,35 @@ the test asserts its recorded exclusions are present before it reads an empty
 answer as good news.
 
 <!-- source: internal/component/config/validate_sections.go -- ValidatorSectionCoverage, knownUnwalkedValidatorSections -->
+
+### Layer 3: Plugin config verifiers
+
+A plugin declares `InProcessConfigVerifier` on its registration and receives its
+own config subtree, before and after, at `VerifyPluginConfig` and
+`VerifyPluginConfigContentTransition`. It sees every node under its root, so a
+rule comparing two leaves of that subtree lives here. It does NOT see the peer
+population and it does not run at daemon startup, which is the door a
+hand-edited file uses.
+
+<!-- source: internal/component/config/plugin_verify.go -- VerifyPluginConfig, VerifyPluginConfigContentTransition -->
+
+### Layer 4: The BGP peer pipeline
+
+`bgp` is deliberately absent from `validatedSections`, because the BGP tree has
+a deeper walk of its own: `PeersFromConfigTree` resolves the group and peer
+layers, builds each peer's settings and filter chains, and validates the result.
+A rule that must see a peer's role AND its filter chains at the same time lives
+there, and nowhere else can: the role is one plugin's leaf and the chains are
+another's, and only the peer pipeline holds both.
+
+Four doors reach it, so one rule answers on every path an operator takes:
+daemon startup and reload through `CreateReactorFromTree`, `ze config validate`
+and `ze doctor` through `infra.ValidateBGPPeers`, and the config editor's
+`commit` through the same seam.
+
+<!-- source: internal/component/bgp/config/peers.go -- peersAndDynamicGroups, validatePeerProcessCaps, validateLeakFilterObligations -->
+<!-- source: internal/component/config/infra/bgp.go -- ValidateBGPPeers -->
+<!-- source: internal/component/cli/validator.go -- bgpPeerErrors -->
 
 ### Claim Completeness Gate
 
@@ -346,6 +414,28 @@ When the cursor is at a leaf value position, three sources are checked in priori
 they want dynamic completion from runtime state, not the static enum values. The `CompleteFn`
 queries whatever is currently registered (families, event types, send types), reflecting the
 plugins that are actually loaded.
+
+Each offered value is labeled `valid value` unless the validator carries a
+`DescribeFn`, which returns the meaning of one value. A value that `DescribeFn`
+does not know keeps the generic label.
+
+### List Key Completion
+
+A list key is not a leaf value, so `listKeyCompletions` answers it rather than
+`valueCompletions`. It offers the wildcard `*`, then the keys the config already
+holds.
+
+**A list keyed by an `enumeration` also offers the keys nobody has created yet**,
+each carrying the help text its `enum` declares, because for that list the
+schema knows every key there can be. For every other list the set of keys is
+what the operator created, so there is nothing more the schema can offer and the
+placeholder hint `<value>` is shown instead.
+
+The help text is read off the leaf's parse-tree node: the resolved `EnumType`
+keeps only the name and the value. An enumeration that arrives through a typedef
+or a grouping therefore completes with no help rather than with the wrong help.
+
+<!-- source: internal/component/cli/completer.go -- listKeyCompletions, enumKeyVocabulary -->
 
 ### Ghost Text
 
@@ -486,6 +576,26 @@ of the two fields on its own, in three cases:
 - An empty field takes what arrives.
 - Two different non-empty values leave the first value in place. The merge logs
   `YANG command help text mismatch` and names the field that collided.
+
+#### A config node declares the same two texts
+
+A container, a list or a leaf in a config module declares the pair in the same
+two statements. Each text reaches its own surface of the interactive CLI.
+
+| Statement | Holds | Read by |
+|-----------|-------|---------|
+| `description` | the one-line SUMMARY of the node | the message row under the completion menu, the web editor form, and every list that names the node |
+| `ze:help` | the LONG explanation of that node | the box `?` opens on the highlighted candidate |
+<!-- source: internal/component/cli/completer.go -- entryDescription, entryLongHelp -->
+<!-- source: internal/component/cli/model_keys.go -- revealCandidateExplanation -->
+
+`matchChildren` and `matchEditTargets` put both texts on the `contract.Completion`
+they build, in `Description` and `LongHelp`. The reader of the extension is
+`GetHelpExtension`, the one a command container and an rpc already use.
+
+A node that declares no `ze:help` declares no explanation. `?` then says
+`<path>: no explanation is declared` on the message row. The description does
+not stand in for it: a box repeating the row is the defect this split removes.
 
 ---
 

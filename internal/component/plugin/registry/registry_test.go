@@ -1244,3 +1244,71 @@ func TestResolveDependencies_Diamond(t *testing.T) {
 		t.Errorf("expected 3 plugins, got %d: %v", len(result), result)
 	}
 }
+
+// --- Filter obligation tests ---
+
+// TestRegistryReportsTransitLeakFilterTypes verifies that a plugin's declared
+// filter obligations are readable through FilterTypesDischarging, and that a
+// plugin declaring none contributes nothing.
+//
+// VALIDATES: the declaration seam a config rule reads to learn which filter
+// types discharge an obligation, without naming any filter type itself.
+// PREVENTS: a central rule spelling a plugin's filter type, which is the
+// coupling behind the loop-detection defect in plan/journal/unwired-feature.md.
+func TestRegistryReportsTransitLeakFilterTypes(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	declaring := validReg("declaring")
+	declaring.FilterTypes = []string{"reject-something"}
+	declaring.FilterObligations = []string{"an-obligation"}
+	if err := Register(declaring); err != nil {
+		t.Fatalf("register declaring plugin: %v", err)
+	}
+
+	silent := validReg("silent")
+	silent.FilterTypes = []string{"other-list"}
+	if err := Register(silent); err != nil {
+		t.Fatalf("register silent plugin: %v", err)
+	}
+
+	got := FilterTypesDischarging("an-obligation")
+	if len(got) != 1 || got[0] != "reject-something" {
+		t.Errorf("FilterTypesDischarging(an-obligation) = %v, want [reject-something]", got)
+	}
+	if other := FilterTypesDischarging("another-obligation"); len(other) != 0 {
+		t.Errorf("FilterTypesDischarging(another-obligation) = %v, want empty", other)
+	}
+}
+
+// TestFilterTypesDischargingEmptyWithNoDeclaration verifies the empty answer a
+// binary gives when the implementing plugin is not built into it.
+//
+// VALIDATES: the guard AC-40 rests on. The config rule reads this result and
+// enforces nothing when it is empty.
+// PREVENTS: a feature-gated-out build refusing every config that declares a
+// role, because the obligation had no type left to discharge it.
+func TestFilterTypesDischargingEmptyWithNoDeclaration(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+	Reset()
+
+	if got := FilterTypesDischarging("an-obligation"); len(got) != 0 {
+		t.Errorf("FilterTypesDischarging on an empty registry = %v, want empty", got)
+	}
+}
+
+// TestRegisterFilterObligationWithoutFilterType verifies that an obligation
+// declared by a plugin owning no filter type is refused.
+//
+// VALIDATES: a declaration that could discharge nothing is a registration
+// error, not a silent no-op.
+// PREVENTS: a typo in FilterTypes leaving an obligation permanently unmet,
+// which reads as "no plugin implements this" and disables the rule that needs it.
+func TestRegisterFilterObligationWithoutFilterType(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	reg := validReg("obliged")
+	reg.FilterObligations = []string{"an-obligation"}
+	if err := Register(reg); err == nil {
+		t.Error("expected an error for an obligation with no filter type, got nil")
+	}
+}

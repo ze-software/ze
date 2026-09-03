@@ -42,6 +42,10 @@ var forEachPeerCallers = map[string]callerDisposition{
 	"internal/component/bgp/plugins/filter_irr/config.go": {abstains: "IRR resolution keys on the peer's remote ASN, " +
 		"which parsePeerIRR reads from session.asn.remote. A listen-range group states none: its members declare " +
 		"theirs in the OPEN, after the config is parsed. The template carries nothing this plugin could key."},
+	"internal/component/bgp/plugins/filter_path_asn/command.go": {abstains: "this visitor stores nothing under a " +
+		"peer identity: it COUNTS the peers whose filter chain names each reject-asn list, for `show bgp " +
+		"reject-asn`. A dynamic group's members are not in the config document, so the template visit is the " +
+		"only thing there is to count, and it counts as one attachment."},
 	"internal/component/bgp/plugins/filter_family/config.go": {abstains: "this visitor validates and stores nothing, " +
 		"so it keys no template. The template visit still carries the group's map, so a dynamic group's export " +
 		"chain is now validated where a group with no peer list produced no visit at all."},

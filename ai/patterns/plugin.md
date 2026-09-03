@@ -162,10 +162,13 @@ func SetMetricsRegistry(reg metrics.Registry) {
 }
 ```
 
-Register in `registry.Registration`:
+Register in `registry.Registration`. The field is typed, so it takes the
+registry directly and there is no assertion to write:
 ```go
-ConfigureMetrics: func(reg any) { SetMetricsRegistry(reg.(metrics.Registry)) },
+ConfigureMetrics: func(reg metrics.Registry) { SetMetricsRegistry(reg) },
 ```
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.ConfigureMetrics -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- ConfigureMetrics call site -->
 
 ## 5-Stage Protocol
 
@@ -204,9 +207,48 @@ Short version: EventBus for async broadcast, DirectBridge for sync request/respo
 
 ### Route Filters
 
-BGP route filters live in the BGP-owned seam package
-`internal/component/bgp/filterapi`, not in the generic plugin registry.
-Register them in the same init() as `registry.Register()`:
+A BGP route filter takes one of two routes, and the choice is decided by WHEN
+the filter's name exists.
+
+**A filter named in CONFIG declares its filter TYPE on the registration.** The
+operator writes `bgp { policy { <type> NAME { ... } } }`, so the instance names
+are unknown at compile time and none of them can be registered at Stage 1.
+`FilterTypes` names the YANG list instead, `BuildFilterRegistry`
+(`internal/component/bgp/config/filter_registry.go`) discovers each instance
+from the `ze:filter` marker on that list, and a chain ref canonicalizes to
+`<plugin>:NAME`. The plugin answers each dispatch in `OnFilterUpdate`. This is
+the route `filter_aspath`, `filter_prefix` and `filter_path_asn` take:
+
+```go
+FilterTypes: []string{"as-path-list"},   // the YANG list name under bgp/policy
+```
+
+**A filter type that discharges a config obligation declares which one.** A
+config rule can require a peer to name a filter that performs a given check, and
+the rule must not spell a filter type: it asks the registry which types carry
+the obligation (`registry.FilterTypesDischarging`). Declaring it keeps the type
+name inside the plugin, and lets a second implementation qualify later:
+
+```go
+FilterObligations: []string{filterapi.ObligationTransitLeak},
+```
+
+The obligation names are constants in the domain that defines them, and an
+obligation declared by a plugin owning no filter type is a registration error.
+The one obligation today is the transit-leak check RFC 7454 Section 9
+recommends, required of a peer that declares an RFC 9234 role
+(`internal/component/bgp/config/peers.go`, `validateLeakFilterObligations`).
+
+```go
+p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
+    return handleFilterUpdate(in), nil
+})
+```
+
+**A filter whose name is fixed at COMPILE time registers with `filterapi`.** It
+lives in the BGP-owned seam package `internal/component/bgp/filterapi`, not in
+the generic plugin registry, and it goes in the same init() as
+`registry.Register()`:
 
 ```go
 filterapi.Register(filterapi.Filter{
@@ -276,7 +318,12 @@ Space-separated flags: `"nlri yang capa"`.
 [ ] Create plugins/<name>/register.go with init() -> registry.Register()
 [ ] Create plugins/<name>/<name>.go with atomic logger + Run<Name>Plugin()
 [ ] Run ./le repository generate (updates all.go)
-[ ] Update TestAllPluginsRegistered expected count
+[ ] Regenerate the snapshots TestRegisteredPluginNames reads, in testdata/:
+    go test -tags '<ze_core + features>' ./internal/component/plugin/all/ -update
+    (the package path comes BEFORE -update; a package named after a flag the go
+     command does not know is read as an argument for the test binary instead)
+[ ] If the plugin owns a filter type: add its row to the TestFilterTypeMappings
+    expected map, which is exhaustive in both directions
 [ ] If YANG config or commands: create yang/ subdir with the .yang file, then generate embed.go + register.go
 [ ] If capabilities: set CapabilityCodes, Features: "capa"
 [ ] If NLRI codec: set Families, InProcessNLRIDecoder/Encoder, Features: "nlri"

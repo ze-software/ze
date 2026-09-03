@@ -50,7 +50,14 @@ var updateSnapshot = flag.Bool("update", false,
 // snapshot compares got to testdata/<name>.snapshot, or rewrites that golden
 // file when -update is set. Regenerate after adding a plugin with:
 //
-//	go test -tags '<ze_core + features>' -update ./internal/component/plugin/all/
+//	go test -tags '<ze_core + features>' ./internal/component/plugin/all/ -update
+//
+// The package path comes BEFORE -update. The go command stops reading its own
+// flags at the first one it does not know, and treats every argument after it
+// as an argument for the test binary. A package named after -update is
+// therefore never a package: the run falls back to the current directory, which
+// is the module root, and answers "build constraints exclude all Go files"
+// without touching a snapshot.
 func snapshot(t *testing.T, name string, got []string) {
 	t.Helper()
 	path := filepath.Join("testdata", name+".snapshot")
@@ -113,6 +120,7 @@ func TestFilterTypeMappings(t *testing.T) {
 		"family-filter":     "bgp-filter-family",
 		"modify":            "bgp-filter-modify",
 		"prefix-list":       "bgp-filter-prefix",
+		"reject-asn":        "bgp-filter-path-asn",
 		"remove-private-as": "bgp-filter-remove-private-as",
 	}
 

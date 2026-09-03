@@ -118,6 +118,19 @@ type Registration struct {
 	// plugins; duplicate registration aborts startup.
 	FilterTypes []string
 
+	// FilterObligations names the config obligations every type in FilterTypes
+	// discharges. A config rule that makes a check mandatory asks the registry
+	// which types carry the obligation, so the rule never spells a filter type
+	// of its own: the plugin that implements the check is the only place the
+	// type name lives, and a second plugin implementing the same check
+	// qualifies by declaring the same obligation.
+	//
+	// The names are the obligation constants their own domain declares, such as
+	// filterapi.ObligationTransitLeak for the BGP filter pipeline. A plugin
+	// that declares an obligation and owns no filter type discharges nothing,
+	// so Register refuses it rather than leaving a declaration with no effect.
+	FilterObligations []string
+
 	// Optional handlers.
 	ConfigureEngineLogger func(loggerName string)               // Configure logger for in-process engine mode
 	InProcessDecoder      func(input, output *bytes.Buffer) int // Decode function for CLI fallback
@@ -404,6 +417,17 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 			return fmt.Errorf("registry: filter type %q already registered by %q", ft, existing)
 		}
 	}
+	// An obligation is discharged BY a filter type, so a declaration with no
+	// type to carry it would satisfy no rule and change nothing. Refusing it
+	// here keeps a typo from reading as a live declaration.
+	for _, ob := range reg.FilterObligations {
+		if ob == "" {
+			return fmt.Errorf("registry: plugin %q has empty filter obligation", reg.Name)
+		}
+		if len(reg.FilterTypes) == 0 {
+			return fmt.Errorf("registry: plugin %q declares filter obligation %q but owns no filter type", reg.Name, ob)
+		}
+	}
 	for i, dc := range reg.DoctorChecks {
 		if err := validateDoctorCheckDef(reg.Name, i, dc); err != nil {
 			return err
@@ -427,6 +451,27 @@ func FilterTypesMap() map[string]string {
 	out := make(map[string]string, len(filterTypes))
 	maps.Copy(out, filterTypes)
 	return out
+}
+
+// FilterTypesDischarging returns the filter types whose plugin declared the
+// named obligation, sorted so a message built from them reads the same on every
+// run. An EMPTY result means this binary holds no filter type that can
+// discharge the obligation, which is the answer a build with the implementing
+// plugin gated out must get: a rule that enforces an obligation nothing can
+// meet refuses every config.
+func FilterTypesDischarging(obligation string) []string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	var types []string
+	for _, reg := range plugins {
+		if !slices.Contains(reg.FilterObligations, obligation) {
+			continue
+		}
+		types = append(types, reg.FilterTypes...)
+	}
+	sort.Strings(types)
+	return types
 }
 
 // SetMetricsRegistry stores the metrics registry for plugin injection and

@@ -234,6 +234,15 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRRoute, argument: injectPrefixFirst},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	// RFC 7454 Section 9: the peer that leaks its transit loses the leaked route
+	// and keeps the session. The clean route from the SAME session is what makes
+	// the run discriminate, so it is waited for at BIRD before any absence is
+	// read (check_extras.go carries the two absences).
+	scenarioPathASNLeakFRR: {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opBIRDSession, argument: "ze_leak"},
+		{kind: opBIRDRoute, argument: pathASNCleanPrefix},
+	},
 	"bgp-policy-import-export-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opBIRDSession, argument: "ze_policy"},

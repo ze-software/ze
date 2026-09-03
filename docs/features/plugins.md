@@ -51,6 +51,7 @@ Three filter categories:
 | bgp-softver | Software version capability advertisement |
 | bgp-filter-community | Community tag/strip filter (standard, large, extended) |
 | bgp-filter-irr | IRR-based prefix-list filter from whois queries (replaces bgpq4 workflow) |
+| bgp-filter-path-asn | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position (RFC 7454 Section 9) |
 | loop | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
 
 <!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr -->
@@ -58,6 +59,7 @@ Three filter categories:
 <!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator -->
 <!-- source: internal/component/bgp/plugins/route_refresh/register.go -- bgp-route-refresh -->
 <!-- source: internal/component/bgp/plugins/role/register.go -- bgp-role -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- bgp-filter-path-asn -->
 <!-- source: internal/component/bgp/plugins/llnh/register.go -- bgp-llnh -->
 <!-- source: internal/component/bgp/plugins/hostname/register.go -- bgp-hostname -->
 <!-- source: internal/component/bgp/plugins/softver/register.go -- bgp-softver -->

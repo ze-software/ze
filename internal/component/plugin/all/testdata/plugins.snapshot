@@ -15,6 +15,7 @@ bgp-filter-community-match
 bgp-filter-family
 bgp-filter-irr
 bgp-filter-modify
+bgp-filter-path-asn
 bgp-filter-prefix
 bgp-filter-remove-private-as
 bgp-gr

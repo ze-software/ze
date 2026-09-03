@@ -1,0 +1,177 @@
+# Test: reject-asn on an export chain suppresses one destination's routes only
+# VALIDATES: AC-13 -- export, a listed ASN anywhere in the path -> not advertised
+# VALIDATES: End-to-end user story 4 -- the operator attaches NO-TRANSIT to a
+#            peer's export chain and stops offering that peer transit for a Tier-1
+# PREVENTS: an export reject taking the session down, or taking the peer's other
+#           routes with it
+#
+# peer1 (127.0.0.1, AS65001) sends two routes on one TCP stream, in this order:
+#   10.0.0.0/24  the subject, AS_PATH [65001 3356 65004], which the list rejects
+#   10.9.0.0/24  the fence,   AS_PATH [65001 65005], which the list passes
+# The two carry different attribute sets on purpose, so they are forwarded as two
+# UPDATEs and the fence never shares the subject's verdict.
+#
+# THE FENCE IS WHAT MAKES THE SUPPRESSION DISCRIMINATE. A route that is absent is
+# only evidence when the forbidden bytes had their chance to arrive first. Both
+# forwards cross ONE TCP stream in the order peer1 sent them, so the fence cannot
+# arrive before the subject would have.
+#
+# ORDER IS LOAD-BEARING, so peer2 is established FIRST and peer1 waits on the
+# observer's readiness marker. The route-server rail drops a forward whose
+# destination is not up yet and says "forward matched no target ... not-yet-up",
+# which would leave the export chain unconsulted and the file asserting nothing.
+# peer1 then lingers: a source that closes makes ze withdraw its routes, and the
+# withdrawal carries the subject's prefix bytes to peer2.
+#
+# On export FilterUpdateInput.PeerAS carries the DESTINATION peer, so no token is
+# `direct` and `indirect` covers the whole path. 3356 is therefore matched at index
+# one, where the import side would have to weigh the sender first.
+
+# The plugin logs a reject at Info and an accept at Debug, so debug is the level
+# that makes BOTH decisions visible: this file asserts one of each.
+option=env:var=ze.log.bgp.filter.path.asn:value=debug
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65004:as-path=65001,3356,65004
+option=update:value=send-route:prefix=10.9.0.0/24:next-hop=10.0.0.2:origin-as=65005:as-path=65001,65005
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# peer2 (127.0.0.2, AS65002) is the forward target and carries the export chain.
+# On peer1 the chain would never be consulted: ze does not send a route back to
+# the peer it learned it from.
+stdin=peer2:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=timeout:value=20s
+# Both checks sit in ONE seq group, where they match in any order and each
+# consumes one message. ze's end-of-rib to peer2 waits on the initial-sync
+# barrier while the fence comes off the forward rail, so which of the two lands
+# first is a race ze owes nothing about (ci-format.md, "Within one seq group").
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:contains=180A0900
+reject=bgp:conn=1:pattern=180A0000
+EOF_PEER2
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    # Ze forwards a route between peers only when the route-server plugin is
+    # attached to both. Without it nothing reaches the egress path and the
+    # export chain under test is never consulted.
+    internal adj-rib-in {
+        use bgp-adj-rib-in;
+    }
+    internal rs {
+        use bgp-rs;
+    }
+    external test-path-asn-export {
+        run "ze-test fixture plugin/path-asn-filter-export-reject /tmp/ze-path-asn-export-$PORT.ready";
+        encoder json;
+    }
+}
+bgp {
+    router-id 1.2.3.4;
+    session {
+        asn {
+            local 65000
+        }
+    }
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 3356 ];
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+                connect false
+            }
+            # Ze's own address on this session. Deliberately not the peer's
+            # 127.0.0.1: RFC 4271 Section 5.1.3 forbids a peer's own address as
+            # NEXT_HOP.
+            local {
+                ip 127.0.0.4
+                accept true
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+        attach process rs {
+            receive [ update-received state open-received refresh ];
+            send [ update ];
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
+        }
+    }
+    peer peer2 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.5
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65002
+            }
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+        attach process rs {
+            receive [ update-received state open-received refresh ];
+            send [ update ];
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
+        }
+        filter {
+            export [ NO-TRANSIT ];
+        }
+    }
+}
+EOF_CONF
+
+# Establish the forward target first. The observer writes the marker after peer2
+# sends its initial end-of-rib, then peer1 connects and supplies the routes.
+cmd=background:seq=1:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-path-asn -:stdin=ze-bgp:timeout=20s
+cmd=foreground:seq=3:exec=ze-test fixture plugin/wait-file /tmp/ze-path-asn-export-$PORT.ready:timeout=10s
+cmd=background:seq=4:exec=ze-peer --dial 127.0.0.4:$PORT:stdin=peer
+expect=exit:code=0
+# The export decision, the ASN that produced it, and the path it was read from.
+expect=stderr:pattern=reject-asn reject
+expect=stderr:pattern=filter=NO-TRANSIT
+expect=stderr:pattern=asn=3356
+expect=stderr:pattern=direction=export
+expect=stderr:pattern=reject-asn reject.*as-path="65001 3356 65004"
+# The fence took the other branch, so the list is not rejecting every forward.
+# The as-path is named because an end-of-rib is an empty update and is accepted
+# too: a bare "reject-asn accept" would be satisfied without the fence.
+expect=stderr:pattern=reject-asn accept.*as-path="65001 65005"
+# ze answers a rejected route with silence rather than with a NOTIFICATION, so
+# the session that carried the fence is the same session that carried the leak.
+reject=stderr:pattern=notification (sent|send failed).*code="[^"]*Error"

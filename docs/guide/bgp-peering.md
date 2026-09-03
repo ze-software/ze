@@ -81,6 +81,11 @@ A group with `connection { remote { ip dynamic } }` accepts a session from any a
 
 ```text
 bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 701 3356 ]
+        }
+    }
     group ix {
         connection {
             remote {
@@ -103,6 +108,10 @@ bgp {
             }
         }
         role { import rs }
+        filter {
+            import [ NO-TRANSIT ]
+            export [ NO-TRANSIT ]
+        }
         attach process rs {
             receive [ update-received state open-received refresh ]
             send [ update ]
@@ -110,6 +119,12 @@ bgp {
     }
 }
 ```
+
+The `role { import rs }` leaf is what makes the two `filter` chains mandatory. A
+declared RFC 9234 role obliges the bound chains to name a filter that can refuse a
+path through a transit provider, and `rs` binds both. Write `inactive: import
+NO-TRANSIT` in place of the active ref to record that this session runs without the
+check. See [bgp-role.md](bgp-role.md).
 
 `ip dynamic` is valid at group level only. A peer that states it is refused. Two more statements are required, and the configuration is refused without them: at least one `range`, and an explicit `connect false`. Ze only accepts on a dynamic group and never dials one, so an absent `connect` leaf, which YANG defaults to true, is refused rather than corrected.
 

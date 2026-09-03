@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md -- AS-path regex filter plugin
-// Detail: match.go -- regex matching algorithm and AS-path extraction
+// Detail: match.go -- regex matching algorithm
 // Detail: config.go -- bgp/policy/as-path-list config parsing
+// Related: internal/component/bgp/filtertext -- the reader of the filter text format
 //
 // Package filter_aspath implements the bgp-filter-aspath plugin.
 //
@@ -9,8 +10,8 @@
 // at OnConfigure (Stage 2). At runtime, peer filter chains reference a list
 // as bgp-filter-aspath:NAME. The engine dispatches each match via
 // CallFilterUpdate (filter-update RPC); the plugin handles it in OnFilterUpdate
-// by extracting the as-path field from the update text, normalizing it to a
-// space-separated decimal string, and matching against the list's ordered
+// by reading the as-path field out of the update text with filtertext.ASPath
+// and matching the space-separated decimal string against the list's ordered
 // regex entries.
 //
 // The plugin declares ZERO filters at Stage 1: filter names come from config
@@ -26,6 +27,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -103,7 +105,7 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
-	asPathStr := extractASPathField(in.Update)
+	asPathStr := filtertext.ASPath(in.Update)
 	result := evaluateASPath(list.entries, asPathStr)
 
 	if result == actionAccept {

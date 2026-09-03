@@ -22,6 +22,9 @@ import (
 // `ze doctor` output.
 const diagnosticBGPMD5 = "doctor-bgp-md5"
 
+// diagnosticBGPPeerNoRole names an eBGP peer that declares no RFC 9234 role.
+const diagnosticBGPPeerNoRole = "doctor-bgp-peer-no-role"
+
 func checkIfaceBackend(tree *config.Tree) []diagnostic.Diagnostic {
 	ifaceBlock := tree.GetContainer("interface")
 	if ifaceBlock == nil {
@@ -198,6 +201,36 @@ func checkBGPPeerConfig(tree *config.Tree) []diagnostic.Diagnostic {
 		Code:     "doctor-config-bgp-peer",
 		Severity: diagnostic.SeverityError,
 		Message:  tb.Str("bgp peer configuration rejected (the daemon will not start on it): ").Err(err).String(),
+	}}
+}
+
+// checkBGPPeersWithoutRole enumerates the eBGP peers that declare no RFC 9234
+// role. Such a peer is accepted -- the transit-leak filter obligation
+// (RFC 7454 Section 9) binds only a peer that declares a relationship -- so the
+// operator is told which sessions no relationship was stated for, and the gap
+// is a decision they can see rather than a silence.
+//
+// A WARNING, not an error: the config loads and the daemon starts on it. The
+// engine names the same peers in one aggregated line at config load; this check
+// is the door an operator opens on purpose.
+//
+// The tree is CLONED before it is handed over, for the reason checkBGPPeerConfig
+// records: the reporter prunes inactive nodes in place, and doctor's tree is
+// shared with every later check.
+func checkBGPPeersWithoutRole(tree *config.Tree) []diagnostic.Diagnostic {
+	if tree == nil || tree.GetContainer("bgp") == nil {
+		return nil
+	}
+	names := infra.BGPPeersWithoutRole(tree.Clone())
+	if len(names) == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return []diagnostic.Diagnostic{{
+		Code:     diagnosticBGPPeerNoRole,
+		Severity: diagnostic.SeverityWarning,
+		Message: tb.Str("eBGP peers declare no RFC 9234 role, so no transit-leak filter is required of them: ").
+			Str(textbuf.Join(names, ", ")).String(),
 	}}
 }
 

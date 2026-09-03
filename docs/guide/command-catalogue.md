@@ -163,6 +163,7 @@ close to fully shipped.
 | BGP ASPA verification | - | - | - | - | ~ | | planned | bgp | spec-bgp-2-aspa |
 | BGP AIGP | - | - | - | - | ~ | | planned | bgp | spec-bgp-3-aigp |
 | BGP RPKI cache state | `show rpki cache` | `show validation session` | `show router rpki session` | `show rpki cache-connection` | `show rpki cache` | `show bgp rpki status/cache/roa` | shipped | bgp | |
+| BGP transit-leak filter lists | - | `show policy-options as-path-group` | `show router policy` | `show ip as-path access-list` | `show bgp as-path-access-list` | `show bgp reject-asn`, `show bgp reject-asn name <NAME>`, `show bgp reject-asn known transit-free` | shipped | bgp | Prints the effective position set per ASN with a curated annotation; `known transit-free` prints a pasteable config block |
 
 ## 2. Routing Table / FIB
 

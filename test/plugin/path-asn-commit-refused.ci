@@ -1,0 +1,66 @@
+# Test: a declared RFC 9234 role with no transit-leak filter refuses the config
+# VALIDATES: AC-27 -- role `peer` binds BOTH chains, and neither names a filter
+#            that can catch a transit leak, so the config is REFUSED
+# VALIDATES: AC-21's message content through the daemon -- the refusal names the
+#            peer, the role, the chains, the filter type and the `inactive:` form
+# VALIDATES: End-to-end user story 7 -- the operator declares a relationship and
+#            forgets the filter, and Ze says so at load rather than at the first leak
+# PREVENTS:  the obligation existing only in a unit test. validateLeakFilterObligations
+#            (internal/component/bgp/config/peers.go) is reached from the daemon
+#            through CreateReactorFromTree -> PeersFromConfigTree -> peersAndDynamicGroups,
+#            and nothing else proves a hand-edited file meets it.
+#
+# The rule NEVER names a filter type: it asks the plugin registry which types
+# declare filterapi.ObligationTransitLeak (registry.FilterTypesDischarging), and
+# bgp-filter-path-asn declares it for `reject-asn` in its register.go. So the
+# `reject-asn` in the expected message below is produced by the registry, not by
+# a literal in the config package.
+#
+# ze-peer is a sink that asserts nothing: ze refuses the config before it binds
+# a socket, so no session is ever attempted.
+
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+# One eBGP peer declaring role `peer`, and two empty filter chains.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import peer
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=peer peer1
+expect=stderr:contains=role peer requires a filter against a transit leak
+# `peer` obliges both chains, so both are named in one refusal.
+expect=stderr:contains=import and export filter chains
+# The two ways to satisfy it. A message that reported only the fault would leave
+# the operator to guess what to write.
+expect=stderr:contains=reject-asn
+expect=stderr:contains=inactive:

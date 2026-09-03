@@ -1,0 +1,114 @@
+module ze-filter-path-asn {
+    namespace "urn:ze:filter-path-asn";
+    prefix fpa;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+
+    description "Reject-ASN filter type for the BGP policy framework.
+                 A named reject-asn list holds the ASNs that must not appear in
+                 the AS_PATH of a route exchanged with a peer. The keyword each
+                 ASN is written under says WHERE in the path it is unacceptable.
+                 The list is an unordered reject set: a route is rejected when
+                 any keyword matches, and there is no first-match-wins ordering.
+                 RFC 7454 Section 9 recommends the check for a peer that must
+                 not send you transit.
+                 Referenced from peer filter chains as the bare list name, or as
+                 reject-asn:NAME, or as bgp-filter-path-asn:NAME.";
+
+    revision 2026-09-03 {
+        description "Initial revision";
+    }
+
+    augment "/bgp:bgp/bgp:policy" {
+        list reject-asn {
+            ze:filter;
+            key "name";
+            description "Named reject-asn filter instance. Every ASN written
+                         beneath the list is looked for in the route's AS_PATH,
+                         and the keyword it was written under decides which
+                         positions in the path reject it.";
+
+            leaf name {
+                type string {
+                    length "1..256";
+                }
+                description "Filter instance name, referenced in a peer filter
+                             chain as NAME, reject-asn:NAME, or
+                             bgp-filter-path-asn:NAME.";
+            }
+
+            leaf-list direct {
+                type uint32;
+                ze:validate "transit-asn";
+                description "Reject these ASNs where they are the peer we are
+                             talking to, prepends collapsed. On export no ASN is
+                             direct, because the filter input carries the
+                             destination peer rather than the sender.";
+            }
+
+            leaf-list indirect {
+                type uint32;
+                ze:validate "transit-asn";
+                description "Reject these ASNs anywhere they are NOT the peer we
+                             are talking to. This is the leaf an operator writes
+                             for RFC 7454 Section 9: the route reached you
+                             through the ASN, and peering with it directly is
+                             still fine.";
+            }
+
+            leaf-list transit {
+                type uint32;
+                ze:validate "transit-asn";
+                description "Reject these ASNs where they sit past the peer and
+                             are not the last ASN of the AS_PATH.";
+            }
+
+            leaf-list origin {
+                type uint32;
+                ze:validate "transit-asn";
+                description "Reject these ASNs where they are the last ASN of
+                             the AS_PATH: they announced the route.";
+            }
+
+            leaf-list anywhere {
+                type uint32;
+                ze:validate "transit-asn";
+                description "Reject these ASNs at any position: direct, transit
+                             and origin together.";
+            }
+
+            list nth {
+                key "index";
+                description "Reject the listed ASNs at one collapsed position of
+                             the AS_PATH, counted from us and 1-based. A run of
+                             consecutive identical ASNs counts once, so a peer
+                             cannot move your rule by prepending.";
+
+                leaf index {
+                    type uint8 {
+                        range "1..255";
+                    }
+                    description "The collapsed position, counted from us. 1 is
+                                 the ASN we are talking to.";
+                }
+
+                leaf-list asn {
+                    type uint32;
+                    ze:validate "transit-asn";
+                    description "The ASNs this position rejects.";
+                }
+            }
+
+            leaf-list regex {
+                type string {
+                    length "1..512";
+                }
+                description "Go RE2 patterns matched against the whole
+                             space-separated AS_PATH string, so no position
+                             applies to them. The 512-character bound is the
+                             bound bgp-filter-aspath applies to a regex.";
+            }
+        }
+    }
+}

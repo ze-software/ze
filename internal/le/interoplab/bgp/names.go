@@ -48,6 +48,11 @@ const (
 	frrShowAS112PrefixJSON        = "show bgp ipv4 unicast " + as112DirectDelegationPrefix + " json"
 )
 
+// birdc commands. The whole table is what an absence assertion reads, because
+// BIRD answers a lookup for a network it does not hold with "Network not
+// found" and birdc exits 1.
+const birdShowRoute = "show route"
+
 // The FRR log file inside the FRR container.
 const frrLogPath = "/tmp/frr.log"
 
@@ -146,6 +151,14 @@ const (
 	ecmpPrefix          = "10.100.0.0/24"
 	medPrefix           = "10.62.0.0/24"
 	ospf6NSSAPrefix     = "2001:db8:7e5::/48"
+)
+
+// The two prefixes bgp-path-asn-leak-frr sends on one FRR session. They differ
+// only in the AS_PATH FRR writes for each, so a reject-asn list that named the
+// wrong ASN, or judged the wrong position, moves one of them and never both.
+const (
+	pathASNCleanPrefix  = "10.71.1.0/24"
+	pathASNLeakedPrefix = "10.71.2.0/24"
 )
 
 // The AS112 blocks the as112 scenarios carry, and the host route inside each
@@ -248,6 +261,7 @@ const (
 	scenarioFlowspecGoBGP                    = "bgp-flowspec-gobgp"
 	scenarioGracefulRestartFRR               = "bgp-graceful-restart-frr"
 	scenarioMEDIBGPPostSelectionRemovalGoBGP = "bgp-med-ibgp-post-selection-removal-gobgp"
+	scenarioPathASNLeakFRR                   = "bgp-path-asn-leak-frr"
 	scenarioRPKIFRR                          = "rpki-frr"
 	scenarioShutdownCeaseFRR                 = "shutdown-cease-frr"
 	scenarioVPNFRR                           = "bgp-vpn-frr"

@@ -1,0 +1,92 @@
+# Test: reject-asn drops a route that runs through a listed transit ASN
+# VALIDATES: AC-1 -- import, path [65001 3356 65002] from AS65001, list holds 3356 -> reject
+# VALIDATES: AC-5 -- only the leading run of the SENDING peer's ASN is `direct`
+# VALIDATES: End-to-end user story 1 -- the operator attaches NO-TRANSIT to a peer's
+#            import chain and the peer's leaked transit path never reaches the RIB
+# PREVENTS: a leaked path passing the chain while the plugin reports nothing
+#
+# Flow:
+# 1. ze-peer (AS65001) sends 10.0.0.0/24 with AS_PATH [65001 3356 65002].
+# 2. peer1's import chain names NO-TRANSIT by its bare name, so the engine calls
+#    the plugin over CallFilterUpdate.
+# 3. The leading run is 65001, so 3356 at index 1 is `transit` and 65002 at
+#    index 2 is `origin`.
+# 4. `indirect` covers transit and origin, so 3356 is rejected.
+# 5. The decision log names the ASN, the position, the list and the direction.
+
+# The plugin logs a reject at Info and an accept at Debug, so debug is the level
+# that makes BOTH decisions visible. That is what lets the reject= line below
+# discriminate: a filter that rejected every route would satisfy the expect=
+# half on its own.
+option=env:var=ze.log.bgp.filter.path.asn:value=debug
+
+# Source peer sends one leaked route: a path through AS3356, which sells transit.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65002:as-path=65001,3356,65002
+# ze answers initial sync with an end-of-rib. Consuming it is what makes ze-peer
+# bind its socket and stay up while the filter decides (ci-format.md).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze configuration: one reject-asn list, named bare in the import chain.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-path-asn-reject {
+		run "ze-test fixture plugin/path-asn-filter-reject"
+		encoder json
+	}
+}
+bgp {
+	policy {
+		reject-asn NO-TRANSIT {
+			indirect [ 3356 ]
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ NO-TRANSIT ]
+		}
+
+		attach process test-path-asn-reject {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-path-asn --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The filter must have rejected, and must have named what caught the route.
+expect=stderr:pattern=reject-asn reject
+expect=stderr:pattern=filter=NO-TRANSIT
+expect=stderr:pattern=asn=3356
+expect=stderr:pattern=position=transit
+expect=stderr:pattern=reject-asn reject.*as-path="65001 3356 65002"
+expect=stderr:pattern=direction=import
+# The other half of the decision. Without it the file would pass against a
+# filter that rejects unconditionally.
+reject=stderr:pattern=reject-asn accept

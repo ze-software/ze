@@ -1,0 +1,80 @@
+# Test: an operator asks the box what a reject-asn list holds
+# VALIDATES: AC-24 -- every ASN with its effective position set, its curated
+#            annotation, and the count of peers the list is attached to
+# VALIDATES: AC-53 -- `show bgp reject-asn known transit-free` prints a pasteable
+#            `asn [ ... ];` line, which is the only route the well-known set
+#            takes into a config
+# VALIDATES: End-to-end user story 5 -- the command reaches the plugin process
+#            and the answer comes back as structured data
+# PREVENTS: the three commands existing in the schema while nothing serves them,
+#           which every unit test over the handlers would still pass
+#
+# Flow:
+# 1. ze starts with one reject-asn list, named in peer1's import chain.
+# 2. The observer plugin dispatches `show bgp reject-asn`, which the dispatcher
+#    routes to the bgp-filter-path-asn process.
+# 3. It reads back the list, the entry for AS3356 with `indirect` expanded to transit
+#    and origin, the curated network name, and import-peers=1.
+# 4. It asks for the list by name, and asks for a name that does not exist: the
+#    second must be an ERROR rather than an empty answer.
+# 5. It reads the transit-free block and checks the `asn [ ... ];` line.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=asn:value=65001
+# ze answers initial sync with an end-of-rib. Consuming it keeps the session up
+# while the observer asks its questions (ci-format.md).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-path-asn-show {
+		run "ze-test fixture plugin/path-asn-show"
+		encoder json
+	}
+}
+bgp {
+	policy {
+		reject-asn NO-TRANSIT {
+			indirect [ 3356 ]
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ NO-TRANSIT ]
+		}
+
+		attach process test-path-asn-show {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-path-asn -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=OK: reject-asn show answered

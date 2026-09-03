@@ -171,12 +171,12 @@ func TestSplitValidatorNames(t *testing.T) {
 	}
 }
 
-// TestValidatorRegistry_MergeGlobalCompleteFns verifies that globally-registered
+// TestValidatorRegistry_MergeGlobalCompletions verifies that globally-registered
 // CompleteFns are merged into validators with nil CompleteFn.
 //
 // VALIDATES: Global CompleteFn fills nil slot after merge (AC-10).
 // PREVENTS: Domain packages unable to provide completion without direct import.
-func TestValidatorRegistry_MergeGlobalCompleteFns(t *testing.T) {
+func TestValidatorRegistry_MergeGlobalCompletions(t *testing.T) {
 	RegisterCompleteFn("test-merge", func() []string {
 		return []string{"aa:bb:cc:dd:ee:ff"}
 	})
@@ -187,7 +187,7 @@ func TestValidatorRegistry_MergeGlobalCompleteFns(t *testing.T) {
 		ValidateFn: func(_ string, _ any) error { return nil },
 	})
 
-	reg.MergeGlobalCompleteFns()
+	reg.MergeGlobalCompletions()
 
 	cv := reg.Get("test-merge")
 	require.NotNil(t, cv)
@@ -195,7 +195,7 @@ func TestValidatorRegistry_MergeGlobalCompleteFns(t *testing.T) {
 	assert.Equal(t, []string{"aa:bb:cc:dd:ee:ff"}, cv.CompleteFn())
 }
 
-// TestValidatorRegistry_MergeDoesNotOverwrite verifies that MergeGlobalCompleteFns
+// TestValidatorRegistry_MergeDoesNotOverwrite verifies that MergeGlobalCompletions
 // does not overwrite an existing CompleteFn.
 //
 // VALIDATES: Existing CompleteFn preserved during merge.
@@ -212,7 +212,7 @@ func TestValidatorRegistry_MergeDoesNotOverwrite(t *testing.T) {
 		CompleteFn: func() []string { return []string{"original"} },
 	})
 
-	reg.MergeGlobalCompleteFns()
+	reg.MergeGlobalCompletions()
 
 	cv := reg.Get("test-no-overwrite")
 	require.NotNil(t, cv)
@@ -222,8 +222,16 @@ func TestValidatorRegistry_MergeDoesNotOverwrite(t *testing.T) {
 // TestValidatorRegistry_MergeSkipsUnregisteredValidator verifies that a global
 // CompleteFn for a name that has no validator is silently ignored.
 //
-// VALIDATES: No panic or error for orphaned global CompleteFn.
-// PREVENTS: Crash when a domain package registers CompleteFn but validator not loaded.
+// This is what keeps a forgotten ValidateFn LOUD. RegisterCompleteFn fills a
+// slot on a validator config already declared, so a name config never declared
+// stays absent and CheckAllValidatorsRegistered names the leaf that references
+// it. A plugin declaring its own completion-only validator calls
+// RegisterSuggestion instead, which is the test below.
+//
+// VALIDATES: No panic, and no validator, for an orphaned global CompleteFn.
+// PREVENTS: a leaf whose ze:validate names a validator nobody wrote passing the
+// startup check because some plugin happened to register a CompleteFn for it,
+// which would lose the validation with no surface saying so.
 func TestValidatorRegistry_MergeSkipsUnregisteredValidator(t *testing.T) {
 	RegisterCompleteFn("test-orphan", func() []string {
 		return []string{"orphan"}
@@ -233,8 +241,69 @@ func TestValidatorRegistry_MergeSkipsUnregisteredValidator(t *testing.T) {
 	reg := NewValidatorRegistry()
 	// Don't register "test-orphan" as a validator
 
-	reg.MergeGlobalCompleteFns() // should not panic
+	reg.MergeGlobalCompletions() // should not panic
 
 	cv := reg.Get("test-orphan")
 	assert.Nil(t, cv, "orphaned global CompleteFn should not create a validator")
+}
+
+// TestValidatorRegistry_SuggestionDeclaresACompletionOnlyValidator verifies that
+// RegisterSuggestion creates a validator carrying the completion and the help
+// text, and no ValidateFn.
+//
+// This is how a plugin completes its own leaf. RegisterValidators
+// (config/validators_register.go) is a central list, config cannot import a
+// plugin to write an entry there, and the plugin cannot reach the list.
+//
+// VALIDATES: the declared validator exists, completes, describes, and refuses
+// nothing.
+// PREVENTS: a suggestion hardening into a rule, and a plugin leaf that offers
+// nothing because config could not name it.
+func TestValidatorRegistry_SuggestionDeclaresACompletionOnlyValidator(t *testing.T) {
+	RegisterSuggestion("test-suggest",
+		func() []string { return []string{"174"} },
+		func(value string) string {
+			if value == "174" {
+				return "Cogent Communications"
+			}
+			return ""
+		})
+	defer delete(globalSuggestions, "test-suggest")
+
+	reg := NewValidatorRegistry()
+	reg.MergeGlobalCompletions()
+
+	cv := reg.Get("test-suggest")
+	require.NotNil(t, cv, "a suggestion declares a validator")
+	require.NotNil(t, cv.CompleteFn)
+	require.NotNil(t, cv.DescribeFn)
+	assert.Equal(t, []string{"174"}, cv.CompleteFn())
+	assert.Equal(t, "Cogent Communications", cv.DescribeFn("174"))
+	assert.Empty(t, cv.DescribeFn("701"), "a value the domain does not know has no help")
+	assert.Nil(t, cv.ValidateFn, "a completion-only validator refuses nothing")
+}
+
+// TestValidatorRegistry_SuggestionDoesNotDisarmAValidator verifies that a
+// suggestion registered under a name config already validates keeps that
+// validator's ValidateFn.
+//
+// VALIDATES: the merge fills empty slots and overwrites none.
+// PREVENTS: a plugin's suggestion silently disabling a real validator by
+// colliding with its name.
+func TestValidatorRegistry_SuggestionDoesNotDisarmAValidator(t *testing.T) {
+	RegisterSuggestion("test-collide", func() []string { return []string{"offered"} }, nil)
+	defer delete(globalSuggestions, "test-collide")
+
+	reg := NewValidatorRegistry()
+	reg.Register("test-collide", CustomValidator{
+		ValidateFn: func(_ string, _ any) error { return fmt.Errorf("refused") },
+	})
+
+	reg.MergeGlobalCompletions()
+
+	cv := reg.Get("test-collide")
+	require.NotNil(t, cv)
+	require.NotNil(t, cv.ValidateFn, "the declared validator keeps refusing")
+	assert.Error(t, cv.ValidateFn("some/path", "value"))
+	assert.Equal(t, []string{"offered"}, cv.CompleteFn(), "and gains the completion")
 }

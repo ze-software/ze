@@ -56,6 +56,11 @@ An IXP route server can accept its members from a dynamic peer group instead of 
 
 ```
 bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 701 3356 ]
+        }
+    }
     group ix {
         connection {
             remote {
@@ -75,6 +80,10 @@ bgp {
             family { ipv4/unicast { prefix { maximum 200000 } } }
         }
         role { import rs }
+        filter {
+            import [ NO-TRANSIT ]
+            export [ NO-TRANSIT ]
+        }
 
         attach process rs {
             receive [ update-received state open-received refresh ]
@@ -86,6 +95,8 @@ bgp {
     }
 }
 ```
+
+The `role { import rs }` leaf makes both `filter` chains mandatory: a declared RFC 9234 role obliges each bound chain to name a filter that can refuse a path through a transit provider (RFC 7454 Section 9), and `rs` binds both. Write `inactive: import NO-TRANSIT` in place of the active ref to record that this session runs without the check.
 
 A member inherits the group's whole settings, its `attach process` blocks and its per-peer plugin config included. A static peer whose address falls inside the range keeps its own session and its own settings. See [BGP peering](bgp-peering.md) for the group leaves and the reload rules.
 

@@ -11,7 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
-// The seams below invert three edges that used to run always-on -> BGP engine.
+// The seams below invert the edges that used to run always-on -> BGP engine.
 // Always-on code (`ze config dump|diff|validate`, the daemon's reboot path)
 // needs work only the BGP engine can do; rather than importing
 // internal/component/bgp -- which would pin it into every binary and defeat
@@ -30,15 +30,24 @@ type BGPTreeResolver func(tree *config.Tree) (map[string]any, error)
 // must not name.
 type BGPPeerValidator func(tree *config.Tree) error
 
+// BGPRolelessPeerReporter names the eBGP peers a config declares with no
+// RFC 9234 role. Those peers are accepted -- the transit-leak filter obligation
+// binds only a peer that declares a relationship -- so `ze doctor` enumerates
+// them rather than leaving the gap silent. It takes the tree because the role
+// is read off the deep-merged config, and it MODIFIES that tree in place, so a
+// caller with a tree to preserve passes a clone.
+type BGPRolelessPeerReporter func(tree *config.Tree) []string
+
 // GRMarkerWriter persists the RFC 4724 graceful-restart marker so the engine
 // sets the Restarting bit on its next OPEN. Called on operator-initiated
 // restart/reboot, with the capabilities every loaded plugin injected.
 type GRMarkerWriter func(caps []plugin.InjectedCapability, store storage.Storage)
 
 var (
-	bgpTreeResolver  BGPTreeResolver
-	bgpPeerValidator BGPPeerValidator
-	grMarkerWriter   GRMarkerWriter
+	bgpTreeResolver         BGPTreeResolver
+	bgpPeerValidator        BGPPeerValidator
+	bgpRolelessPeerReporter BGPRolelessPeerReporter
+	grMarkerWriter          GRMarkerWriter
 )
 
 // SetBGPTreeResolver registers the engine's bgp{} resolver. Called from the
@@ -48,6 +57,10 @@ func SetBGPTreeResolver(fn BGPTreeResolver) { bgpTreeResolver = fn }
 // SetBGPPeerValidator registers the engine's peer validator. Called from the
 // gated BGP config package's init().
 func SetBGPPeerValidator(fn BGPPeerValidator) { bgpPeerValidator = fn }
+
+// SetBGPRolelessPeerReporter registers the engine's roleless-peer reporter.
+// Called from the gated BGP config package's init().
+func SetBGPRolelessPeerReporter(fn BGPRolelessPeerReporter) { bgpRolelessPeerReporter = fn }
 
 // SetGRMarkerWriter registers the engine's graceful-restart marker writer.
 // Called from the gated BGP config package's init().
@@ -90,6 +103,16 @@ func ValidateBGPPeers(tree *config.Tree) error {
 		return nil
 	}
 	return bgpPeerValidator(tree)
+}
+
+// BGPPeersWithoutRole names the eBGP peers that declare no RFC 9234 role.
+// It returns nothing when no engine is compiled in: without a BGP speaker there
+// is no peer to declare a role.
+func BGPPeersWithoutRole(tree *config.Tree) []string {
+	if bgpRolelessPeerReporter == nil {
+		return nil
+	}
+	return bgpRolelessPeerReporter(tree)
 }
 
 // WriteGRMarker persists the graceful-restart marker through the registered

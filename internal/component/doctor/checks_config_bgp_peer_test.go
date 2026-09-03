@@ -129,3 +129,65 @@ func TestCheckBGPPeerConfigSilentWithoutEngine(t *testing.T) {
 	withPeerValidator(t, nil)
 	assert.Empty(t, checkBGPPeerConfig(bgpTreeWithPeer()))
 }
+
+// withRolelessPeerReporter installs a roleless-peer reporter on the infra seam
+// for one test and restores it to nil, for the reason withPeerValidator gives:
+// this test binary does not link internal/component/bgp/config, so the seam
+// starts nil and a test that wants an answer supplies it.
+func withRolelessPeerReporter(t *testing.T, fn func(*config.Tree) []string) {
+	t.Helper()
+	infra.SetBGPRolelessPeerReporter(fn)
+	t.Cleanup(func() { infra.SetBGPRolelessPeerReporter(nil) })
+}
+
+// VALIDATES: AC-35. `ze doctor` enumerates every eBGP peer that declares no
+// RFC 9234 role, under its own diagnostic code, as a warning.
+// PREVENTS: the role gap staying invisible on the operator-facing readiness
+// path. A peer with no role is accepted and owes no transit-leak filter, so
+// nothing else in the report would mention it.
+func TestCheckBGPPeersWithoutRoleReportsEveryPeer(t *testing.T) {
+	withRolelessPeerReporter(t, func(*config.Tree) []string {
+		return []string{"peer1", "peer2"}
+	})
+
+	diags := checkBGPPeersWithoutRole(bgpTreeWithPeer())
+	require.Len(t, diags, 1, "one aggregated diagnostic, never one per peer")
+	assert.Equal(t, diagnosticBGPPeerNoRole, diags[0].Code)
+	assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity,
+		"the config loads and the daemon starts on it, so this is not an error")
+	assert.Contains(t, diags[0].Message, "peer1")
+	assert.Contains(t, diags[0].Message, "peer2")
+}
+
+// VALIDATES: a config whose peers all declare a role produces no diagnostic,
+// and a tree with no bgp block is not even asked about.
+// PREVENTS: a permanent warning that operators learn to ignore.
+func TestCheckBGPPeersWithoutRoleSilentWhenEveryPeerDeclaresOne(t *testing.T) {
+	asked := false
+	withRolelessPeerReporter(t, func(*config.Tree) []string {
+		asked = true
+		return nil
+	})
+
+	assert.Empty(t, checkBGPPeersWithoutRole(bgpTreeWithPeer()))
+	assert.True(t, asked, "the seam is consulted for a tree that carries a bgp block")
+
+	asked = false
+	assert.Empty(t, checkBGPPeersWithoutRole(config.NewTree()))
+	assert.False(t, asked, "a config with no bgp block has no peer to report")
+}
+
+// VALIDATES: checkBGPPeersWithoutRole does not mutate the caller's tree.
+// PREVENTS: the defect checkBGPPeerConfig shipped with. The reporter prunes
+// inactive nodes in place, and doctor's tree is shared by ~30 later checks.
+func TestCheckBGPPeersWithoutRoleDoesNotMutateTree(t *testing.T) {
+	withRolelessPeerReporter(t, func(tr *config.Tree) []string {
+		// Stand in for what PruneInactive does to whatever it is handed.
+		tr.RemoveContainer("bgp")
+		return nil
+	})
+
+	tree := bgpTreeWithPeer()
+	checkBGPPeersWithoutRole(tree)
+	assert.NotNil(t, tree.GetContainer("bgp"), "the caller's tree must survive the check")
+}

@@ -32,7 +32,7 @@ func TestRedistributeImportKeyValidated(t *testing.T) {
 	loader := newTestLoader(t)
 	reg := yang.NewValidatorRegistry()
 	RegisterValidators(reg)
-	reg.MergeGlobalCompleteFns()
+	reg.MergeGlobalCompletions()
 	v := yang.NewValidator(loader)
 	v.SetRegistry(reg)
 

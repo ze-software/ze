@@ -625,17 +625,122 @@ rewriting the attribute value directly.
 
 `bgp-filter-aspath` matches the UPDATE's AS-path against ordered regex
 entries defined in `bgp { policy { as-path-list NAME { entry REGEX { action
-accept|reject; } } } }`. The AS-path is converted to a space-separated
-decimal string (e.g., `"65001 65002 65003"`) and each entry's regex is
-matched using Go's RE2 engine (linear time, inherently ReDoS-safe). First
+accept|reject; } } } }`. Each entry's regex is matched against the AS-path
+string using Go's RE2 engine (linear time, inherently ReDoS-safe). First
 match wins; no match is implicit deny.
 
 Chain references: `bgp-filter-aspath:NAME`, `as-path-list:NAME`, or bare
 `NAME`. Config authors should use `[0-9]` instead of `\d` in regex strings
 because ze's config parser interprets backslash as an escape character.
 
+**The AS-path string every filter matches against.** One reader produces it,
+`filtertext.ASPath`, and every AS-path filter takes it from there. It is the
+space-separated decimal ASNs with no brackets, for example `65001 65002 65003`.
+Two properties of it are load-bearing for a pattern you write:
+
+- **Every segment type is flattened into one list with no marker.**
+  AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE and AS_CONFED_SET all contribute
+  their ASNs in order. A pattern therefore cannot ask which segment an ASN came
+  from, and an ASN inside an AS_SET is matched like any other.
+- **A route with no AS_PATH gives the empty string**, and a route with one ASN
+  gives that ASN alone. The producer writes one ASN unbracketed (`as-path
+  65001`) and several in brackets (`as-path [65001 65002]`), and the reader
+  strips the brackets, so a pattern never sees one.
+
 <!-- source: internal/component/bgp/plugins/filter_aspath/filter_aspath.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath, extractASPathField -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath -->
+<!-- source: internal/component/bgp/filtertext/aspath.go -- ASPath -->
+<!-- source: internal/core/bgp/attribute/text_append.go -- AppendText -->
+
+### Reject-ASN Filter (`bgp-filter-path-asn`)
+
+`bgp-filter-path-asn` drops a route whose AS_PATH carries a listed ASN at a
+listed position, and leaves the session up. It is the cheap answer to a peer
+leaking its transit, which the max-prefix limit otherwise stops by dropping the
+whole session.
+
+```
+bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 3356 ]
+        }
+    }
+    peer peer-a {
+        filter {
+            import [ NO-TRANSIT ]
+            export [ NO-TRANSIT ]
+        }
+    }
+}
+```
+
+A list is an unordered reject SET. A route matching any leaf-list is rejected,
+and there is no first-match-wins, which is what keeps the type different from
+`as-path-list`. Both types stay and can sit in one chain.
+
+A list carries seven keywords, and the one an ASN is written under says WHERE in
+the path it is unacceptable.
+
+| Keyword | Rejects the ASN when it is |
+|---------|---------------------------|
+| `direct` | the peer you are talking to, prepends collapsed |
+| `indirect` | anywhere it is NOT that peer: `transit` or `origin` |
+| `transit` | between the peer and the route's origin |
+| `origin` | the last ASN of the path |
+| `anywhere` | anywhere in the path |
+| `nth <n>` | at collapsed position n, counted from you, 1-based |
+| `regex` | not an ASN at all. The values are Go RE2 patterns matched against the whole AS-path string |
+
+Six are plain leaf-lists. `nth` takes a number, so it is written
+`nth 2 [ 3491 ];`, and it counts RUNS rather than tokens: a run of consecutive
+identical ASNs advances the count once, so a peer cannot move your rule by
+prepending.
+
+`indirect` is the everyday keyword, and it is worth the sentence it says: do not
+give me anything you reached through a transit provider, and peering with that
+provider directly is still fine. `direct` is the sending PEER's ASN, not the
+first ASN in the path: a path `[3356 65001]` from AS65001 carries 3356 at index
+zero and is still a leak, which is the route-server case RFC 7454 Section 9
+names. `nth 1` asks the positional question instead, and catches that same 3356.
+
+On an export chain the filter is told the DESTINATION peer, not who sent the
+route, so nothing is `direct` there and `indirect` covers the whole path. That is
+the export half of RFC 7454 Section 9: do not advertise a path through your
+upstream to a peer you do not sell transit to.
+
+The same ASN written under two keywords unions, so `indirect` plus `direct` is
+`anywhere`.
+A list that names nothing at all, whether its leaf-lists are absent or written
+empty, is REFUSED at load: an empty reject set accepts every route while reading
+in the config file like a safety filter. So is an `nth` entry with no ASN. A
+pattern that does not compile and one longer than 512 characters are refused too,
+naming the list. The ASN leaf-lists are `uint32`, an `nth` index is bounded
+1..255, and the keywords are the schema's own, so a word where a number belongs
+and a keyword nobody declared are both refused by the config parser.
+
+Every reject logs the offending ASN or pattern, the position it matched at, the
+list, the peer and the direction.
+
+Chain references: bare `NAME`, `reject-asn:NAME`, or `bgp-filter-path-asn:NAME`.
+
+Every reject also increments `ze_filter_path_asn_rejects_total`, labeled with
+the direction, the position that matched and the reason. The peer stays in the
+log line: a peer address in a label would grow the series count with the session
+count.
+
+Ze ships no ASN set. The operator lists the ASNs, and the list means exactly
+what it says. `show bgp reject-asn known transit-free` prints the well-known
+transit-free ASNs as a `indirect [ ... ];` block to paste, with the sources and the
+curated date as comments, and after the paste the config holds the numbers.
+`show bgp reject-asn` lists what each list holds, and
+`show bgp reject-asn name <name>` answers for one of them.
+
+<!-- source: internal/component/bgp/plugins/filter_path_asn/filter_path_asn.go -- handleFilterUpdate, senderOf -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- showRejectASN, showKnownTransitFree -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/config.go -- positionsByKey, parseRejectASNLists -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/match.go -- matchPositions, matchPattern -->
 
 ### Community Match Filter (`bgp-filter-community-match`)
 
@@ -1032,7 +1137,7 @@ The declaration is voluntary. It says WHEN your routes belong, not what you may 
 
 An external plugin has the same declaration under a different name. It is registered nowhere in this tree, so it declares `signals-session-ready` in its Stage-1 `declare-registration` instead, and the engine reads it off the running process. Declaring nothing stays the default there too.
 
-The name you are waited for under is the one the operator wrote in `attach process <name>`, whatever your plugin is called. `plugin { internal rs { use bgp-rs } }` runs the process as `rs`, and the engine resolves that alias back to the `bgp-rs` registration before it asks whether you declared. Your report carries the process name, so it is credited to `rs` as well.
+The name you are waited for under is the one the operator wrote in `attach process <name>`, whatever your plugin is called. `plugin { internal rs { use bgp-rs } }` runs the process as `rs`, and the engine resolves that alias back to the `bgp-rs` registration before it asks whether you declared. Your report carries the process name, so it is credited to `rs` as well. The spelling of the implementation does not change the answer: `use bgp-rs`, `use ze.bgp-rs`, `run ze.bgp-rs` and `run ze plugin bgp-rs` all reach the same registration, because one function (`plugin.RegistryNames`) answers which registry row a process configuration names and every caller derives from it.
 
 Three facts have to hold before a peer waits for your process, and each one is something you can check in your own config. The peer grants the route-push rail, with `send [ update ]` or `send [ raw ]`. The plugin declares the field. The peer grants `receive [ state ]`, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is not waited for. A binding with `send [ update ]` and no `receive [ state ]` is therefore free of the wait rather than stalled by it.
 
@@ -1040,6 +1145,7 @@ Report once per establishment, from your peer-up handler, and report even when y
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
+<!-- source: internal/component/plugin/resolve.go -- RegistryNames -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.waitForAPISync -->
 

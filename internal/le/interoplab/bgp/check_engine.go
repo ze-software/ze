@@ -137,15 +137,13 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 			current.argument,
 		)
 	case opBIRDRouteAbsent:
-		output, err := lab.Query(
-			ctx,
-			peerBIRD,
-			[]string{
-				cmdBirdc,
-				command.Str("show route for ").Str(current.argument).String(),
-			},
-			nil,
-		)
+		// The whole table is read, and not `show route for <prefix>`. BIRD
+		// answers a lookup for a network it does not hold with "Network not
+		// found", and birdc exits 1, so Lab.Query returns a command failure in
+		// the exact state this operation exists to observe. A failed query is
+		// never absence, so the operation asks a question BIRD answers either
+		// way and reads the absence out of the answer.
+		output, err := lab.Query(ctx, peerBIRD, []string{cmdBirdc, birdShowRoute}, nil)
 		if err != nil {
 			return err
 		}

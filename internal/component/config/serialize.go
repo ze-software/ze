@@ -581,11 +581,76 @@ func serializeListBlocks(b *textbuf.Buffer, entries map[string]*Tree, name strin
 			b.Str(" ")
 			b.Str(quoteIfNeeded(key))
 		}
+		if members, ok := inlineLeafListEntry(entry, node, key); ok {
+			writeInlineLeafListMembers(b, members)
+			continue
+		}
 		b.Str(" {\n")
 		serializeListEntry(b, entry, node, indent+1)
 		b.Str(prefix)
 		b.Str("}\n")
 	}
+}
+
+// inlineLeafListEntry reports whether a list entry renders as one line,
+// "name key [ member member ]", and returns the members when it does.
+//
+// This is the writer half of parseListInlineEntry: that reader gives the bracket
+// members to the LAST child of the entry, so the form is only unambiguous when
+// the list has exactly ONE child. A list with more children keeps the block form,
+// because the one-line form would drop the child NAME and leave a reader unable
+// to tell which leaf the members landed in.
+//
+// The other four refusals each name something the one line cannot carry: the
+// implicit KeyDefault entry has no key to write the members after, a value
+// outside the schema, a deactivated leaf and a deactivated member each own a
+// line of their own.
+func inlineLeafListEntry(entry *Tree, node *ListNode, key string) ([]string, bool) {
+	if key == KeyDefault {
+		return nil, false
+	}
+	children := node.Children()
+	if len(children) != 1 {
+		return nil, false
+	}
+	name := children[0]
+	if !isInlineLeafListChild(node.Get(name)) {
+		return nil, false
+	}
+
+	entry.mu.RLock()
+	defer entry.mu.RUnlock()
+
+	if len(entry.containers) != 0 || len(entry.lists) != 0 {
+		return nil, false
+	}
+	if len(entry.inactiveValues) != 0 || len(entry.inactiveMembers) != 0 {
+		return nil, false
+	}
+	for valueName := range entry.values {
+		if valueName != name {
+			return nil, false
+		}
+	}
+	members := entry.multiValues[name]
+	if len(members) == 0 {
+		return nil, false
+	}
+	return members, true
+}
+
+// writeInlineLeafListMembers writes the " [ a b ]" tail of an inline list entry.
+// The newline terminates the statement: the tokenizer inserts the ';' there, the
+// same way every other leaf line in this file ends.
+func writeInlineLeafListMembers(b *textbuf.Buffer, members []string) {
+	b.Str(" [ ")
+	for i, member := range members {
+		if i > 0 {
+			b.Str(" ")
+		}
+		b.Str(quoteIfNeeded(member))
+	}
+	b.Str(" ]\n")
 }
 
 func serializeListEntry(b *textbuf.Buffer, tree *Tree, node *ListNode, indent int) {

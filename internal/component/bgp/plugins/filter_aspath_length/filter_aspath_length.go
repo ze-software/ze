@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- AS-path length policy filter
-// Related: aspath_length.go -- path length evaluation and AS-path extraction
+// Related: aspath_length.go -- path length evaluation
 // Related: config.go -- bgp/policy/as-path-length config parsing
 
 package filter_aspath_length
@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -74,8 +75,7 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
-	asPathStr := extractASPathField(in.Update)
-	pathLen := countASPathHops(asPathStr)
+	pathLen := countASPathHops(filtertext.ASPath(in.Update))
 
 	if evaluateASPathLength(pathLen, def) {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}

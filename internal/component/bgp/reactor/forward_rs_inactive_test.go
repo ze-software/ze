@@ -1,0 +1,97 @@
+// Design: docs/architecture/bgp/filter-path-asn.md -- the reject-asn filter plugin
+// Related: forward_rs.go -- reactorForwardRS and hasActiveFilter, the code under test
+//
+// The deactivated-filter half of the route-server fast path lives in its own
+// file. forward_rs_test.go carries RFC 7947 tags, and adding a function to a
+// tagged file reads to the commit gate as a change to the evidence behind a
+// published compliance claim (internal/le/commit/rfcchange.go). This test
+// asserts nothing about RFC 7947: it asserts that an `inactive:` ref applies no
+// policy, which is a Ze config rule.
+
+package reactor
+
+import (
+	"net/netip"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+)
+
+// TestReactorForwardRSDeactivatedExportFilterKeepsTheFastPath is the other half
+// of TestReactorForwardRSFallback: a chain whose every ref is deactivated
+// applies no policy, so the policy-agnostic rail stays correct for that peer.
+//
+// VALIDATES: `inactive:` means the filter never runs, on the fast path too.
+// PREVENTS: an operator losing the RS fast path by recording a decision and
+// switching it off. A declared RFC 9234 role now requires the peer's chains to
+// NAME a leak filter (bgpconfig.validateLeakFilterObligations), and `inactive:`
+// is how that decision is recorded, so every such peer would have left the fast
+// path for a filter that never executes.
+func TestReactorForwardRSDeactivatedExportFilterKeepsTheFastPath(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	payload := []byte{0, 0, 0, 0}
+	wu := wireu.NewWireUpdate(payload, ctxID)
+	wu.SetMessageID(51)
+
+	update := &ReceivedUpdate{
+		WireUpdate:   wu,
+		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		ReceivedAt:   time.Now(),
+	}
+
+	cache := newRecentUpdateCache(100)
+	cache.Add(update)
+	cache.Activate(51, 1)
+
+	src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
+	dst := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
+	dst.settings.ExportFilters = frefs("inactive:bgp-rs:test-filter")
+	dst.refreshForwardFacts()
+
+	var dispatched []fwdItem
+	var mu sync.Mutex
+	done := make(chan struct{})
+
+	testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		mu.Lock()
+		dispatched = append(dispatched, items...)
+		mu.Unlock()
+		close(done)
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer testPool.Stop()
+
+	r := &Reactor{
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
+		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey(): src,
+			dst.Settings().PeerKey(): dst,
+		},
+		fwdPool: testPool,
+	}
+
+	skipped, nDispatched := reactorForwardRS(r, update, 51, netip.MustParseAddr("10.0.0.1"), src)
+	assert.Empty(t, skipped, "a deactivated ref applies no policy, so the peer is not skipped")
+	if nDispatched != 1 {
+		t.Fatalf("nDispatched = %d, want 1", nDispatched)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for dispatch")
+	}
+
+	mu.Lock()
+	require.Len(t, dispatched, 1)
+	assert.Equal(t, dst, dispatched[0].peer)
+	mu.Unlock()
+}

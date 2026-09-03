@@ -803,14 +803,23 @@ func (v *Validator) applyCustomValidators(path string, child *yang.Entry, value 
 	}
 	var lastErr error
 	for _, validatorName := range names {
-		if cv := v.registry.Get(validatorName); cv != nil {
-			if cvErr := cv.ValidateFn(path, value); cvErr == nil {
-				lastErr = nil
-				break
-			} else {
-				lastErr = cvErr
-			}
+		cv := v.registry.Get(validatorName)
+		if cv == nil {
+			continue
 		}
+		// A nil ValidateFn is a completion-only validator: it says which values
+		// are worth suggesting and refuses none of them. Skipping it leaves the
+		// leaf's YANG type as the only constraint, which is what a suggestion
+		// means (validator_registry.go, MergeGlobalCompletions).
+		if cv.ValidateFn == nil {
+			continue
+		}
+		cvErr := cv.ValidateFn(path, value)
+		if cvErr == nil {
+			lastErr = nil
+			break
+		}
+		lastErr = cvErr
 	}
 	if lastErr != nil {
 		*errs = append(*errs, ValidationError{

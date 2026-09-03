@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -104,7 +105,7 @@ func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 // Uses the transition-aware path instead of Validate to avoid running plugin
 // verifiers twice for roots present in both configs.
 func (v *ConfigValidator) ValidateTransition(previous, candidate string) ConfigValidationResult {
-	result, _, _ := v.validateCore(candidate)
+	result, tree, _ := v.validateCore(candidate)
 	if len(result.Errors) > 0 {
 		return result
 	}
@@ -114,7 +115,35 @@ func (v *ConfigValidator) ValidateTransition(previous, candidate string) ConfigV
 			Severity: severityError,
 		})
 	}
+	result.Errors = append(result.Errors, v.bgpPeerErrors(tree)...)
 	return result
+}
+
+// bgpPeerErrors runs the BGP engine's own peer resolution, the gate the daemon
+// applies when it loads the committed file and the one `ze config validate` and
+// `ze doctor` already apply offline.
+//
+// The editor reached none of them. A peer the engine refuses passed `commit`
+// and failed at the reload one step later, as a `commit failed:` line about a
+// config already written, rather than as a blocked commit naming the peer while
+// the operator still has it on the screen. Every peer-pipeline refusal is
+// covered, not just the newest one.
+//
+// The tree is CLONED: PeersFromConfigTree prunes inactive nodes in place, and
+// the caller keeps reading this tree. With the BGP engine compiled out the seam
+// is nil and this reports nothing.
+func (v *ConfigValidator) bgpPeerErrors(tree *config.Tree) []ConfigValidationError {
+	if tree == nil || tree.GetContainer("bgp") == nil {
+		return nil
+	}
+	err := infra.ValidateBGPPeers(tree.Clone())
+	if err == nil {
+		return nil
+	}
+	return []ConfigValidationError{{
+		Message:  err.Error(),
+		Severity: severityError,
+	}}
 }
 
 func (v *ConfigValidator) validateCore(content string) (ConfigValidationResult, *config.Tree, error) {

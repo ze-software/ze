@@ -1,0 +1,98 @@
+# Test: a listed ASN that IS the sending peer occupies `direct`, which `indirect` excludes
+# VALIDATES: AC-3 -- import, path [3356 65001] from AS3356, `indirect [ 3356 ]` -> accept
+# VALIDATES: End-to-end user story 3 -- the operator peers directly with a Tier-1
+#            that the list names, and still receives that Tier-1's own routes
+# PREVENTS: the index-zero reading of `direct`, which would blackhole every
+#           route learned from a peer the list names
+#
+# Flow:
+# 1. ze-peer is configured as AS3356, the ASN NO-TRANSIT names.
+# 2. It sends 10.0.0.0/24 with AS_PATH [3356 65001].
+# 3. The leading run of tokens equal to the SENDING peer's ASN is [3356], so
+#    index 0 is `direct` and index 1 is `origin`.
+# 4. `indirect` covers transit and origin only, so nothing matches and the
+#    route is accepted.
+#
+# This is the assertion the design page calls the one worth reading twice, and it
+# is the opposite verdict from path-asn-filter-reject.ci on the same list. A
+# matcher that judged position by index alone would reject here and would still
+# pass that file.
+
+# The plugin logs a reject at Info and an accept at Debug, so debug is the level
+# that makes BOTH decisions visible.
+option=env:var=ze.log.bgp.filter.path.asn:value=debug
+
+# The Tier-1 peer sends one of its own routes.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# The peer must outlive the observer's poll of the adj-RIB-in: a source that
+# closes makes ze withdraw its routes, and the store the accept is read from
+# would be empty again before the poll ran.
+option=linger:value=true
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65001:as-path=3356,65001
+# ze answers initial sync with an end-of-rib. Consuming it is what makes ze-peer
+# bind its socket and stay up while the filter decides (ci-format.md).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze configuration: the same list, attached to a peer that IS 3356.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-path-asn-peer-listed {
+		run "ze-test fixture plugin/path-asn-filter-peer-is-listed"
+		encoder json
+	}
+}
+bgp {
+	policy {
+		reject-asn NO-TRANSIT {
+			indirect [ 3356 ]
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 3356
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ NO-TRANSIT ]
+		}
+
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-path-asn --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The filter must have run and must have accepted.
+expect=stderr:pattern=reject-asn accept
+# The as-path is named so the accept cannot be credited to some other update:
+# an end-of-rib is an empty update and is accepted too.
+expect=stderr:pattern=reject-asn accept.*as-path="3356 65001"
+expect=stderr:pattern=filter=NO-TRANSIT
+expect=stderr:pattern=direction=import
+# The other half of the decision, and the whole point of this file: 3356 sits at
+# index zero and must NOT be rejected.
+reject=stderr:pattern=reject-asn reject

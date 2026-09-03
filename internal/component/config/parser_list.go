@@ -162,9 +162,16 @@ func (p *Parser) parseListInlineBlock(tree *Tree, name string, node *ListNode) e
 
 // parseListInlineEntry parses a single inline list entry after the key is consumed.
 // Assigns values positionally to children in YANG definition order until ;.
-// The last child absorbs all remaining tokens (space-joined), supporting variable-length
-// content like NLRI entries: "ipv4/unicast add 10.0.0.0/24;" → content="add 10.0.0.0/24".
-// Bracket content ([ ... ]) is collected and included in the joined string.
+// The last child absorbs all remaining tokens, supporting variable-length content
+// like NLRI entries: "ipv4/unicast add 10.0.0.0/24;" → content="add 10.0.0.0/24".
+//
+// How those tokens are STORED depends on the KIND of the last child, and the two
+// cases are decided by the schema rather than by whether brackets were written:
+//   - A leaf-list (BracketLeafListNode, ValueOrArrayNode) takes them as MEMBERS,
+//     through the same store the block form uses, so `nth 2 [ 3491 ];` and
+//     `nth 2 { asn [ 3491 ]; }` produce one tree.
+//   - Every other kind takes the space-joined text, brackets included, which is
+//     the NLRI form above.
 func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, key string) error {
 	entry := NewTree()
 	children := node.Children()
@@ -174,6 +181,8 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 	lastIdx := len(children) - 1
 	childIdx := 0
 	var lastParts []string
+
+	lastIsLeafList := lastIdx >= 0 && isInlineLeafListChild(node.Get(children[lastIdx]))
 
 	for {
 		tok := p.tok.peek()
@@ -188,13 +197,17 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 			if err != nil {
 				return err
 			}
-			var tb textbuf.Buffer
-			part := tb.Str("[ ").Join(arrayVals, " ").Str(" ]").String()
-			if childIdx <= lastIdx && lastIdx >= 0 {
-				lastParts = append(lastParts, part)
-				if childIdx < lastIdx {
-					childIdx = lastIdx // Jump to last child collection
-				}
+			if lastIdx < 0 {
+				continue
+			}
+			if lastIsLeafList {
+				lastParts = append(lastParts, arrayVals...)
+			} else {
+				var tb textbuf.Buffer
+				lastParts = append(lastParts, tb.Str("[ ").Join(arrayVals, " ").Str(" ]").String())
+			}
+			if childIdx < lastIdx {
+				childIdx = lastIdx // Jump to last child collection
 			}
 			continue
 		}
@@ -219,14 +232,50 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 
 	// Store collected values in the last child
 	if lastIdx >= 0 && len(lastParts) > 0 {
-		value := textbuf.Join(lastParts, " ")
-		if err := validateInlineListChildValue(node, children[lastIdx], value); err != nil {
-			return p.errorf(token{line: p.tok.line}, "invalid value for %s.%s: %v", name, children[lastIdx], err)
+		if err := p.setInlineLastChild(entry, name, node, children[lastIdx], lastParts); err != nil {
+			return err
 		}
-		entry.Set(children[lastIdx], value)
 	}
 
 	return p.addParsedListEntry(tree, name, node, key, entry, p.tok.line)
+}
+
+// isInlineLeafListChild reports whether a list child holds MEMBERS rather than
+// one string, so an inline entry's tokens must reach it through the leaf-list
+// store instead of being joined.
+//
+// MultiLeafNode is deliberately absent. It is spelled `name word word;` and
+// parseMultiLeaf writes ONE joined string with Tree.Set, so it is a single-valued
+// leaf that happens to be written in several words. BracketLeafListNode and
+// ValueOrArrayNode are the two kinds whose block-form parse ends in
+// AppendSlice/AppendSequence, which is what makes GetSlice answer.
+func isInlineLeafListChild(child Node) bool {
+	switch child.(type) {
+	case *BracketLeafListNode, *ValueOrArrayNode:
+		return true
+	}
+	return false
+}
+
+// setInlineLastChild writes the tokens an inline list entry collected for its
+// last child. A leaf-list child takes them as members through the same store the
+// block form uses; every other kind takes the space-joined string.
+func (p *Parser) setInlineLastChild(entry *Tree, name string, node *ListNode, childName string, parts []string) error {
+	tok := token{line: p.tok.line}
+
+	switch child := node.Get(childName).(type) {
+	case *BracketLeafListNode:
+		return p.storeBracketLeafList(entry, childName, child, parts, tok)
+	case *ValueOrArrayNode:
+		return p.storeValueOrArray(entry, childName, child, parts, tok)
+	}
+
+	value := textbuf.Join(parts, " ")
+	if err := validateInlineListChildValue(node, childName, value); err != nil {
+		return p.errorf(tok, "invalid value for %s.%s: %v", name, childName, err)
+	}
+	entry.Set(childName, value)
+	return nil
 }
 
 func (p *Parser) addParsedListEntry(tree *Tree, name string, node *ListNode, key string, entry *Tree, line int) error {
@@ -326,22 +375,31 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeaf
 	}
 	p.tok.next()
 
+	return p.storeBracketLeafList(tree, name, node, items, tok)
+}
+
+// storeBracketLeafList validates collected bracket leaf-list items and stores
+// them. It is the one store for this node kind: the statement form above and an
+// inline list entry whose last child is a bracket leaf-list both end here, so the
+// two syntaxes cannot disagree about what a bracket means.
+//
+// It stores the members AND the joined scalar mirror, exactly like the sibling
+// leaf-list path (storeValueOrArray). AppendSlice (not SetSlice) so a leaf-list
+// spelled as repeated `name value;` statements accumulates per YANG (RFC 7950
+// sec 7.7) instead of the last statement silently winning; a single bracket
+// statement on an empty leaf-list is unchanged. AppendSlice re-syncs the scalar
+// mirror to the active members, so Get() keeps returning the joined form and
+// stays consistent with GetSlice; without a slice store, GetSlice returns nil
+// and ToMap emits the joined text as one string, so every consumer sees
+// `[ a b ]` as the single value "a b" -- which is why a unit could not carry
+// two addresses. An ordered SEQUENCE (ze:ordered) preserves duplicates.
+func (p *Parser) storeBracketLeafList(tree *Tree, name string, node *BracketLeafListNode, items []string, tok token) error {
 	for _, item := range items {
 		if err := validateValuePatterns(node.Type, node.Patterns, item); err != nil {
 			return p.errorf(tok, "invalid value for %s: %v", name, err)
 		}
 	}
 
-	// Store the members AND the joined scalar mirror, exactly like the sibling
-	// leaf-list path (storeValueOrArray). AppendSlice (not SetSlice) so a leaf-list
-	// spelled as repeated `name value;` statements accumulates per YANG (RFC 7950
-	// sec 7.7) instead of the last statement silently winning; a single bracket
-	// statement on an empty leaf-list is unchanged. AppendSlice re-syncs the scalar
-	// mirror to the active members, so Get() keeps returning the joined form and
-	// stays consistent with GetSlice; without a slice store, GetSlice returns nil
-	// and ToMap emits the joined text as one string, so every consumer sees
-	// `[ a b ]` as the single value "a b" -- which is why a unit could not carry
-	// two addresses. An ordered SEQUENCE (ze:ordered) preserves duplicates.
 	if node.Ordered {
 		tree.AppendSequence(name, items)
 	} else {

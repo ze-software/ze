@@ -177,7 +177,7 @@ func YANGValidatorWithPlugins(pluginYANG map[string]string) (*yang.Validator, er
 	// Register custom validators and attach to validator.
 	reg := yang.NewValidatorRegistry()
 	RegisterValidators(reg)
-	reg.MergeGlobalCompleteFns()
+	reg.MergeGlobalCompletions()
 	v.SetRegistry(reg)
 
 	// Startup integrity check: verify every ze:validate in YANG has a registered function.

@@ -1,0 +1,84 @@
+# Test: eBGP peers that declare no RFC 9234 role load, and Ze says so once
+# VALIDATES: AC-34 -- a peer with no `role` block is ACCEPTED, and one aggregated
+#            line names how many eBGP peers are unbound and the first few by name
+# VALIDATES: End-to-end user story 9 -- an operator running without roles is not
+#            blocked, and is not left to discover the gap on their own
+# PREVENTS:  goal 7 being met silently. warnPeersWithoutRole
+#            (internal/component/bgp/config/peers.go) is the loud half; a rule
+#            that bound an undeclared peer would refuse this config instead, and a
+#            rule that said nothing would leave the operator with no signal at all.
+#
+# Two eBGP peers declare no role, so the count in the line is the discriminating
+# assertion: a warning built per peer would print two lines, and one built from
+# the wrong set would print a different number. rolelessPeers is the ONE
+# declaration of that set, and the `ze doctor` check reads the same function
+# through the infra seam, so the two can never enumerate different peers.
+
+# The subject is a CONFIG VERDICT, so the file drives `ze config validate`
+# rather than a session. That is the same peer pipeline the daemon runs at
+# startup (infra.ValidateBGPPeers -> PeersFromConfigTree), reached through the
+# command an operator runs before an upgrade, and it answers in one shot rather
+# than holding a session open for a decision that was already taken at load.
+# The daemon half of this claim is carried by the 17 role-bearing .ci files that
+# now name the filter, role-otc-rs-withdraw-eor.ci among them.
+
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+
+	peer peer2 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=eBGP peers declare no RFC 9234 role
+# The count, not just the sentence. Both peers are unbound, and both are named.
+expect=stderr:pattern=peers=2
+expect=stderr:pattern=first="?peer1, peer2
+# An undeclared role obliges nothing, so this config must not be refused.
+reject=stderr:pattern=requires a filter against a transit leak

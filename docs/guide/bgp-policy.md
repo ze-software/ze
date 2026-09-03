@@ -47,6 +47,7 @@ Each plugin declares whether an internal error fails open or closed. Security fi
 Ze ships filters for:
 
 - AS path matching and length;
+- transit-leak rejection by ASN and position (`reject-asn`);
 - prefix lists;
 - standard, large, and extended communities;
 - route attribute modification;
@@ -56,6 +57,44 @@ Ze ships filters for:
 - RFC 4271 AS loop and RFC 4456 cluster-list loop detection.
 
 The [plugin guide](plugins.md) documents the registered filter types and their current configuration. The generated [plugin catalogue](https://ze-software.net/reference/plugins/) shows which plugin owns each filter.
+
+## Rejecting a path through a transit provider
+
+A `reject-asn` list names the ASNs that must not appear in a path exchanged with
+a peer, and states WHERE in the AS_PATH each one is unacceptable. A peer that
+leaks its transit sends paths that run through its upstream, and this list drops
+those routes while the session stays up.
+
+```
+bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 701 3356 ];
+        }
+    }
+    peer ix-member {
+        role   { import peer; }
+        filter {
+            import [ NO-TRANSIT ];
+            export [ NO-TRANSIT ];
+        }
+    }
+}
+```
+
+Seven keywords say where: `direct`, `indirect`, `transit`, `origin`, `anywhere`,
+`nth <n>` and `regex`. `indirect` is the one most operators want, because it
+excludes the sending peer's own leading run and catches the ASN everywhere else.
+The [configuration reference](../config-reference.md) carries the whole table.
+
+Declaring an RFC 9234 role makes this check mandatory on the chains that role
+binds: the config is refused unless each bound chain names a `reject-asn`
+filter, or names one prefixed with `inactive:` to record the decision to run
+without it. See [BGP roles](bgp-role.md).
+
+`show bgp reject-asn` prints every list with the effective position set per ASN.
+`show bgp reject-asn known transit-free` prints a pasteable block of well-known
+transit ASNs; Ze suggests them and never applies them on its own.
 
 ## IRR and RPKI
 

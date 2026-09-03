@@ -1,0 +1,80 @@
+# Test: an `inactive:` filter ref satisfies the transit-leak obligation
+# VALIDATES: AC-30 -- the same peer, the same role, and a deactivated ref in each
+#            bound chain: the config LOADS
+# VALIDATES: End-to-end user story 8 -- the operator decides deliberately not to
+#            run the check on one session, writes the decision in the file, and Ze
+#            takes it
+# PREVENTS:  the obligation becoming a requirement to RUN the filter rather than a
+#            requirement to STATE the decision. chainNamesFilterType
+#            (internal/component/bgp/config/peers.go) counts a deactivated ref on
+#            purpose, and PolicyFilterChain never executes one.
+#
+# This file is the paired opposite of path-asn-commit-refused.ci: the peer, the
+# role and the two chains are identical, and the only difference is the two
+# `inactive:` lines. So a rule that stopped honouring `inactive:` reddens this
+# file, and a rule that stopped enforcing at all reddens that one.
+#
+# ze-peer is a sink. What this test asserts is that ze reaches its session loop
+# at all, which the exit code and the absence of the refusal both carry.
+
+# The subject is a CONFIG VERDICT, so the file drives `ze config validate`
+# rather than a session. That is the same peer pipeline the daemon runs at
+# startup (infra.ValidateBGPPeers -> PeersFromConfigTree), reached through the
+# command an operator runs before an upgrade, and it answers in one shot rather
+# than holding a session open for a decision that was already taken at load.
+# The daemon half of this claim is carried by the 17 role-bearing .ci files that
+# now name the filter, role-otc-rs-withdraw-eor.ci among them.
+
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	policy {
+		reject-asn NO-TRANSIT {
+			indirect [ 3356 ]
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import peer
+		}
+
+		filter {
+			import [ NO-TRANSIT ]
+			export [ NO-TRANSIT ]
+			inactive: import NO-TRANSIT
+			inactive: export NO-TRANSIT
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+# The refusal path-asn-commit-refused.ci asserts must NOT fire here. This is the
+# half that makes the pair discriminate: without it the file would pass against a
+# rule that had been switched off entirely.
+reject=stderr:pattern=requires a filter against a transit leak

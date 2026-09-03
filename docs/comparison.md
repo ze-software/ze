@@ -150,13 +150,16 @@ prefix-list matching with ge/le bounds, `bgp-filter-aspath` for AS-path regex
 filtering, `bgp-filter-community-match` for community presence matching
 (standard/large/extended), `bgp-filter-modify` for route attribute modification
 (local-preference, MED, origin, next-hop, AS-path prepend),
-`bgp-filter-community` for community tag/strip, and `bgp-role` for RFC 9234
+`bgp-filter-community` for community tag/strip, `bgp-filter-path-asn` for
+rejecting a path that carries a named ASN at a named position (the RFC 7454
+Section 9 transit-leak check), and `bgp-role` for RFC 9234
 roles enforcement. Filters compose in ordered chains:
 `filter import [ prefix-list:X as-path-list:Y modify:Z ]`.
 <!-- source: internal/component/bgp/plugins/filter_prefix/ -- bgp-filter-prefix cmd-4 -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/ -- bgp-filter-aspath cmd-5 -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/ -- bgp-filter-community-match cmd-6 -->
 <!-- source: internal/component/bgp/plugins/filter_modify/ -- bgp-filter-modify cmd-7 -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/ -- bgp-filter-path-asn cmd-8 -->
 
 Some community policy is config rather than a filter in a chain. The ingress
 community filter carries `scrub-own-ga` for the RFC 7454 Section 11

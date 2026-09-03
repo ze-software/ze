@@ -167,7 +167,63 @@ When `strict true` is set, ze requires the peer to advertise the Role capability
 
 When strict mode is off (default), ze proceeds even if the peer does not advertise Role. OTC filtering is applied based on the locally configured role.
 
+## A Declared Role Carries a Config Obligation
+
+Declaring a role states a business relationship, and ze holds the config to it.
+A peer whose role implies the transit-leak check must NAME, in each chain that
+role binds, a filter of a type that can refuse a path running through a transit
+provider (RFC 7454 Section 9). `reject-asn` is such a type. A config that omits
+it is REFUSED at load, at `ze config validate`, at `ze doctor` and at the config
+editor's `commit`, naming the peer, the role and the chain.
+
+| Local role | Remote is | Import chain | Export chain |
+|------------|-----------|--------------|--------------|
+| `provider` | our customer | REQUIRED | not required |
+| `customer` | our transit provider | not required | REQUIRED |
+| `peer` | a settlement-free peer | REQUIRED | REQUIRED |
+| `rs` | a client of the route server we run | REQUIRED | REQUIRED |
+| `rs-client` | the route server we are a client of | REQUIRED | REQUIRED |
+
+RFC 9234 names the LOCAL speaker's position, so `customer` means the remote is
+our upstream: they legitimately send us the whole table, and the obligation is
+on what we send THEM.
+
+```
+bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 701 1299 3356 ]
+        }
+    }
+    peer upstream {
+        role {
+            import customer
+        }
+        filter {
+            export [ NO-TRANSIT ]
+        }
+    }
+}
+```
+
+To run a session without the check, name the filter and deactivate it. The chain
+records the decision, and the filter never executes:
+
+```
+filter {
+    export [ NO-TRANSIT ];
+    inactive: export NO-TRANSIT;
+}
+```
+
+The obligation is independent of OTC. OTC works only where the peer implements
+RFC 9234; a reject-asn list works against any peer and needs nothing from it.
+<!-- source: internal/component/bgp/config/peers.go -- validateLeakFilterObligations, leakFilterByRole -->
+
 ## Without Role
 
-When role is not configured for a peer, no OTC processing occurs. Routes are forwarded without role-based filtering.
+When role is not configured for a peer, no OTC processing occurs. Routes are forwarded without role-based filtering, and no transit-leak filter is required of that peer: no relationship is declared, so none is implied.
+
+ze says so rather than passing in silence. Config load writes ONE warning naming how many eBGP peers declare no role and the first few by name, and `ze doctor` reports every one of them under `doctor-bgp-peer-no-role`.
 <!-- source: internal/component/bgp/plugins/role/ -- role plugin implementation -->
+<!-- source: internal/component/bgp/config/peers.go -- rolelessPeers, warnPeersWithoutRole -->

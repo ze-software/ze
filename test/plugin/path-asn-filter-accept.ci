@@ -1,0 +1,93 @@
+# Test: reject-asn accepts a clean customer route from the same peer
+# VALIDATES: AC-2 -- import, path [65001 65002] from AS65001, list holds 3356 -> accept
+# VALIDATES: End-to-end user story 2 -- the list drops the leak and leaves the
+#            peer's legitimate routes alone, so the session keeps carrying them
+# PREVENTS: a reject-asn list silently dropping every route of the peer it guards
+#
+# Flow:
+# 1. ze-peer (AS65001) sends 10.0.0.0/24 with AS_PATH [65001 65002].
+# 2. peer1's import chain names NO-TRANSIT, so the engine calls the plugin.
+# 3. The path carries no listed ASN at any position, so the list matches nothing.
+# 4. The route is accepted and reaches the adj-RIB-in.
+#
+# This file is the discriminating half of path-asn-filter-reject.ci. The two
+# differ in the AS_PATH only: same list, same peer, same chain.
+
+# The plugin logs a reject at Info and an accept at Debug, so debug is the level
+# that makes BOTH decisions visible.
+option=env:var=ze.log.bgp.filter.path.asn:value=debug
+
+# Source peer sends one route that its own customer originated.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# The peer must outlive the observer's poll of the adj-RIB-in: a source that
+# closes makes ze withdraw its routes, and the store the accept is read from
+# would be empty again before the poll ran.
+option=linger:value=true
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65002:as-path=65001,65002
+# ze answers initial sync with an end-of-rib. Consuming it is what makes ze-peer
+# bind its socket and stay up while the filter decides (ci-format.md).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze configuration: the same list and the same chain the reject test uses.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-path-asn-accept {
+		run "ze-test fixture plugin/path-asn-filter-accept"
+		encoder json
+	}
+}
+bgp {
+	policy {
+		reject-asn NO-TRANSIT {
+			indirect [ 3356 ]
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ NO-TRANSIT ]
+		}
+
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-path-asn --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The filter must have run and must have accepted.
+expect=stderr:pattern=reject-asn accept
+# The as-path is named so the accept cannot be credited to some other update:
+# an end-of-rib is an empty update and is accepted too.
+expect=stderr:pattern=reject-asn accept.*as-path="65001 65002"
+expect=stderr:pattern=filter=NO-TRANSIT
+expect=stderr:pattern=direction=import
+# The other half of the decision. Without it the file would pass against a
+# filter that accepts unconditionally.
+reject=stderr:pattern=reject-asn reject

@@ -38,11 +38,18 @@ func isPrivateASN(asn uint32) bool {
 	return (asn >= 64512 && asn <= 65534) || (asn >= 4200000000 && asn <= 4294967294)
 }
 
-// rewriteASPathText rewrites the flat filter-text AS-path value. The reactor
-// performs the authoritative wire rewrite; this text rewrite lets later text
-// filters in the same chain see the intended path.
-func rewriteASPathText(value string, mode removeMode, peerAS uint32) (string, bool) {
-	tokens := asPathTokens(value)
+// rewriteASPathText takes the AS path as filtertext.ASPath returns it, and
+// gives back the value in the shape the "as-path" field of the filter text
+// format carries: bare for one ASN, bracketed for several. The reactor performs
+// the authoritative wire rewrite; this text rewrite lets later text filters in
+// the same chain see the intended path.
+//
+// The second return reports whether a Private Use ASN was rewritten. It is
+// false for a path that carries none, which the first return then echoes back
+// unchanged, and false for a path this reader cannot parse, which returns the
+// empty string because there is no path to advertise.
+func rewriteASPathText(asPath string, mode removeMode, peerAS uint32) (string, bool) {
+	tokens := strings.Fields(asPath)
 	if len(tokens) == 0 {
 		return "", false
 	}
@@ -65,20 +72,9 @@ func rewriteASPathText(value string, mode removeMode, peerAS uint32) (string, bo
 		}
 	}
 	if !changed {
-		return value, false
+		return asPath, false
 	}
 	return formatASPathTokens(out), true
-}
-
-func asPathTokens(value string) []string {
-	value = strings.TrimSpace(value)
-	if len(value) >= 2 && value[0] == '[' && value[len(value)-1] == ']' {
-		value = strings.TrimSpace(value[1 : len(value)-1])
-	}
-	if value == "" {
-		return nil
-	}
-	return strings.Fields(value)
 }
 
 func formatASPathTokens(asns []uint32) string {

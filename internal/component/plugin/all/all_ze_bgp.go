@@ -47,6 +47,8 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_irr/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_modify"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_modify/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_path_asn"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_path_asn/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_prefix"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_prefix/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_remove_private_as"

@@ -52,8 +52,13 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 		return commandResult{}, errTimeoutMustBeAtMost3600
 	}
 
-	// Validate before commit.
-	result := m.validator.Validate(m.editor.WorkingContent())
+	// Validate before commit, over the SAME path `commit` takes. A commit is a
+	// transition, so it gets the transition-aware answer: that is the one call
+	// that runs the plugin verifiers once and reaches the BGP peer pipeline
+	// (ConfigValidator.bgpPeerErrors). Validate alone is the debounced,
+	// per-keystroke answer, and using it here let a config the daemon refuses
+	// reach .conf and fail one step later at reload.
+	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
 	if force {
 		// Force mode: only errors block, warnings are skipped.
 		if len(result.Errors) > 0 {

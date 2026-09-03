@@ -44,6 +44,13 @@ func init() {
 	Register("plugin/bestpath-reason", observer02("reason-test", bestpathReason02))
 	Register("plugin/bfd-auth-sha1", observer02("bfd-auth-sha1-test", bfdAuthSHA102))
 	Register("plugin/bfd-auth-simple-password", observer02("bfd-auth-simple-password-test", bfdAuthSimplePassword02))
+	// The reject-asn drivers sit beside the as-path ones because they are the
+	// same shape: one filter chain, one route, and a decision read off the log.
+	Register("plugin/path-asn-filter-accept", observer02("test-path-asn-accept", adjRIBRouteObserver02))
+	Register("plugin/path-asn-filter-export-reject", pathASNExportDriver02())
+	Register("plugin/path-asn-filter-peer-is-listed", observer02("test-path-asn-peer-listed", adjRIBRouteObserver02))
+	Register("plugin/path-asn-filter-reject", observer02("test-path-asn-reject", updateReceivedObserver02))
+	Register("plugin/path-asn-show", observer02("test-path-asn-show", pathASNShow02))
 }
 
 func observer02(name string, scenario ObserverScenario) Driver {
@@ -405,16 +412,31 @@ func as112Health02(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
+// adjRIBRouteObserver02 waits until one route has reached the adj-RIB-in, which
+// is what an accept-side .ci means by "the route survived the filter chain".
+//
+// The timeout is an ERROR. Until 2026-09-02 this discarded Poll's answer and
+// returned nil, so a chain that rejected everything and a store that held
+// nothing both read as success: the file's only remaining assertion was the
+// plugin's own decision log, which is written before the verdict is returned.
+// A fixture that meets a failed assertion MUST return an error
+// (ai/rules/testing.md).
+//
+// The caller's peer MUST carry `attach process` for the adj-rib-in plugin.
+// Loading it and attaching it to no peer stores no route, so the poll would
+// time out on a route the chain accepted.
 func adjRIBRouteObserver02(ctx context.Context, plugin *sdk.Plugin) error {
-	Poll(ctx, 20, 250*time.Millisecond, func() bool {
+	if Poll(ctx, 20, 250*time.Millisecond, func() bool {
 		raw, err := requireDone02(ctx, plugin, "show bgp adj-rib-in status")
 		if err != nil {
 			return false
 		}
 		data, err := map02(raw)
 		return err == nil && int02(data["total-routes"]) >= 1
-	})
-	return nil
+	}) {
+		return nil
+	}
+	return errors.New("no route reached the adj-RIB-in: the filter chain rejected it, or no peer attaches adj-rib-in")
 }
 
 func peerFields02(ctx context.Context, plugin *sdk.Plugin, selector string) (map[string]any, error) {
@@ -430,16 +452,69 @@ func peerFields02(ctx context.Context, plugin *sdk.Plugin, selector string) (map
 	return peers, nil
 }
 
+// updateReceivedObserver02 waits until peer1 has been read one UPDATE, then
+// quiesces so the ingress work that UPDATE started is finished before the
+// daemon stops.
+//
+// The timeout is an ERROR, for the reason adjRIBRouteObserver02 gives above: a
+// barrier that never fires and a barrier that fires read the same to the .ci,
+// and the file's remaining assertions would then be judged against a daemon
+// that read nothing.
 func updateReceivedObserver02(ctx context.Context, plugin *sdk.Plugin) error {
-	Poll(ctx, 100, 200*time.Millisecond, func() bool {
+	if !Poll(ctx, 100, 200*time.Millisecond, func() bool {
 		peers, err := peerFields02(ctx, plugin, "peer1")
 		if err != nil {
 			return false
 		}
 		row, _ := peers["127.0.0.1"].(map[string]any)
 		return int02(row["updates-received"]) >= 1
-	})
+	}) {
+		return errors.New("peer1 never reported an UPDATE received")
+	}
 	return quiesce02(ctx, plugin)
+}
+
+// pathASNExportDriver02 drives path-asn-filter-export-reject.ci. It takes the
+// absolute path of the readiness marker the .ci waits on before it starts the
+// source peer.
+//
+// Two barriers, and each closes a hole that would make the file assert nothing.
+//
+// The marker is the first. The route-server rail DROPS a forward whose
+// destination is not established yet, and says so ("forward matched no target
+// ... not-yet-up"), so a source peer that reaches the wire before peer2 does
+// leaves the export chain unconsulted and the forbidden bytes unable to arrive.
+// The marker is written after peer2's own initial-sync end-of-rib, which is the
+// shape redistribute-export-modify.ci already uses.
+//
+// The updates-sent count is the second. It is a lifetime total and counts the
+// end-of-rib, so two is the count that says the fence forward reached the wire.
+// The subject route crosses the same TCP stream ahead of the fence, so that
+// count is also what says the suppressed route had its chance to arrive. The
+// reject= clause of the .ci is evidence only after it.
+func pathASNExportDriver02() Driver {
+	return func(ctx context.Context, args []string) error {
+		if len(args) != 1 {
+			return errors.New("path-asn-filter-export-reject requires an absolute readiness marker path")
+		}
+		marker := args[0]
+		_ = os.Remove(marker) //nolint:errcheck // a stale marker from an earlier run is the only thing this can remove
+
+		return Observe(ctx, "test-path-asn-export", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+			if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "eor-sent", 1) {
+				return errors.New("peer2 never finished its initial sync, so the source peer would have raced it")
+			}
+			if err := os.WriteFile(marker, []byte("ready"), 0o600); err != nil {
+				return fmt.Errorf("write readiness marker %s: %w", marker, err)
+			}
+			defer os.Remove(marker) //nolint:errcheck // scratch cleanup, so a removal failure changes no assertion
+
+			if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "updates-sent", 2) {
+				return errors.New("ze never wrote the fence UPDATE to peer2")
+			}
+			return nil
+		})
+	}
 }
 
 func deliveryGraph02(ctx context.Context, plugin *sdk.Plugin) error {
@@ -621,4 +696,113 @@ func bfdAuthSHA102(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("no signed tx packets recorded: %v", session)
 	}
 	return nil
+}
+
+// pathASNShow02 drives path-asn-show.ci: the three `show bgp reject-asn`
+// answers, read back over the same command dispatch an operator's CLI uses.
+//
+// The unit tests prove the answers are built correctly. This proves an operator
+// can REACH them: the command reaches the plugin process, the plugin holds the
+// list the config declared, and the answer arrives as structured data. Each
+// assertion names a value the unit tests fix, so a stub answering an empty
+// document fails here.
+func pathASNShow02(ctx context.Context, plugin *sdk.Plugin) error {
+	raw, err := requireDone02(ctx, plugin, "show bgp reject-asn")
+	if err != nil {
+		return err
+	}
+	data, err := map02(raw)
+	if err != nil {
+		return err
+	}
+	lists, _ := data["lists"].([]any)
+	if len(lists) != 1 {
+		return fmt.Errorf("show bgp reject-asn: want one list, got %v", data["lists"])
+	}
+	list, _ := lists[0].(map[string]any)
+	if list["name"] != "NO-TRANSIT" {
+		return fmt.Errorf("show bgp reject-asn: wrong list: %v", list)
+	}
+	// peer1 names the list on import, so the attachment count says so.
+	if int02(list["import-peers"]) != 1 {
+		return fmt.Errorf("show bgp reject-asn: import-peers=%v, want 1", list["import-peers"])
+	}
+	if err := pathASNEntry02(list); err != nil {
+		return err
+	}
+
+	raw, err = requireDone02(ctx, plugin, "show bgp reject-asn name NO-TRANSIT")
+	if err != nil {
+		return err
+	}
+	named, err := map02(raw)
+	if err != nil {
+		return err
+	}
+	if named["name"] != "NO-TRANSIT" {
+		return fmt.Errorf("show bgp reject-asn name: %v", named)
+	}
+
+	// An unknown name is an error, not an empty list. Without this the file
+	// would pass against a handler that answers an empty document for anything.
+	if status, _, _ := command02(ctx, plugin, "show bgp reject-asn name NO-SUCH-LIST"); status != statusError {
+		return fmt.Errorf("show bgp reject-asn name NO-SUCH-LIST: status=%s, want error", status)
+	}
+
+	return pathASNTransitFree02(ctx, plugin)
+}
+
+// pathASNEntry02 checks the one entry the .ci config declares: AS3356 refused at
+// transit and origin, annotated with the network the curated table names.
+func pathASNEntry02(list map[string]any) error {
+	entries, _ := list["entries"].([]any)
+	if len(entries) != 1 {
+		return fmt.Errorf("show bgp reject-asn: want one entry, got %v", list["entries"])
+	}
+	entry, _ := entries[0].(map[string]any)
+	if int02(entry["asn"]) != 3356 {
+		return fmt.Errorf("show bgp reject-asn: wrong ASN: %v", entry)
+	}
+	if entry["network"] != "Lumen Technologies" {
+		return fmt.Errorf("show bgp reject-asn: annotation %v, want the curated network name", entry["network"])
+	}
+	positions, _ := entry["positions"].([]any)
+	if len(positions) != 2 || positions[0] != "transit" || positions[1] != "origin" {
+		return fmt.Errorf("show bgp reject-asn: positions %v, want via expanded to transit and origin", positions)
+	}
+	return nil
+}
+
+// pathASNTransitFree02 checks the authoring aid answers a pasteable block and
+// the same set as records.
+func pathASNTransitFree02(ctx context.Context, plugin *sdk.Plugin) error {
+	raw, err := requireDone02(ctx, plugin, "show bgp reject-asn known transit-free")
+	if err != nil {
+		return err
+	}
+	known, err := map02(raw)
+	if err != nil {
+		return err
+	}
+	if text, _ := known["curated"].(string); text == "" {
+		return fmt.Errorf("show bgp reject-asn known transit-free: no curated date: %v", known)
+	}
+	networks, _ := known["networks"].([]any)
+	if len(networks) == 0 {
+		return errors.New("show bgp reject-asn known transit-free: no networks")
+	}
+
+	block, _ := known["block"].([]any)
+	for _, value := range block {
+		line, _ := value.(string)
+		if !strings.HasPrefix(line, "indirect [") {
+			continue
+		}
+		if !strings.Contains(line, " 3356 ") {
+			return fmt.Errorf("the pasteable line holds no AS3356: %q", line)
+		}
+		fmt.Fprintf(os.Stderr, "OK: reject-asn show answered %d networks and one pasteable line\n", len(networks))
+		return nil
+	}
+	return fmt.Errorf("no `indirect [ ... ];` line in the block: %v", block)
 }

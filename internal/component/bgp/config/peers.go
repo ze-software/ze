@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 
 	coreenv "github.com/ze-software/ze/internal/core/env"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/redistribute"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -288,6 +290,18 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		return nil, nil, err
 	}
 
+	// Step 6: A declared RFC 9234 role carries a config obligation. A peer whose
+	// role implies the transit-leak check (RFC 7454 Section 9) and whose matching
+	// chain names no filter that can perform it REFUSES the config, so the file
+	// states the decision either way. A peer that declares no role is bound by
+	// nothing, and Ze says so in one aggregated line rather than passing silently.
+	roles := peerRoles(bgpTree, peers, groups)
+	if err := validateLeakFilterObligations(roles, filterReg,
+		registry.FilterTypesDischarging(filterapi.ObligationTransitLeak)); err != nil {
+		return nil, nil, err
+	}
+	warnPeersWithoutRole(rolelessPeers(roles))
+
 	return peers, groups, nil
 }
 
@@ -555,6 +569,246 @@ func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 			ps.Address, capName, textbuf.Join(names, ", "))
 	}
 	return nil
+}
+
+// roleChainObligation says which of a peer's two filter chains must name a
+// filter that can catch a transit leak, for one RFC 9234 role.
+type roleChainObligation struct {
+	importChain bool
+	exportChain bool
+}
+
+// leakFilterByRole is the obligation matrix RFC 7454 Section 9 implies for each
+// RFC 9234 role.
+//
+// RFC 9234 names the LOCAL speaker's position, so `customer` means the remote
+// is our transit provider and `provider` means the remote is our customer. Read
+// the other way round, every cell inverts.
+//
+//   - peer, rs, rs-client: both chains. A settlement-free peer must not hand us
+//     transit and must not be handed any, and a route server relays between
+//     members that owe each other the same.
+//   - provider: import only. The remote is our customer, so a path of theirs
+//     running through their other upstream is the leak RFC 7454 Section 9 names.
+//     We sell them transit, so everything goes out.
+//   - customer: export only. The remote is our upstream and legitimately sends
+//     us the whole table. We must not offer it transit for a network we do not
+//     carry.
+//
+// The five keys are the whole role/import enumeration
+// (internal/component/bgp/plugins/role/yang/ze-role.yang). A role absent from
+// this table obliges nothing, which is the answer a peer that declares no role
+// gets: no relationship is stated, so none is implied.
+var leakFilterByRole = map[string]roleChainObligation{
+	"peer":      {importChain: true, exportChain: true},
+	"provider":  {importChain: true},
+	"customer":  {exportChain: true},
+	"rs":        {importChain: true, exportChain: true},
+	"rs-client": {importChain: true, exportChain: true},
+}
+
+// peerRole pairs a peer's settings with an RFC 9234 role its config declares.
+// The role is NOT on PeerSettings: the role plugin owns the leaf, and the peer
+// pipeline reads it off the resolved tree.
+type peerRole struct {
+	settings *reactor.PeerSettings
+	role     string // empty when the peer declares none
+}
+
+// peerRoles pairs every configured peer with the role it declares.
+//
+// A statically configured peer takes its role from its entry in the resolved
+// peer map, which ResolveBGPTree deep-merged over the bgp, group and peer
+// layers, so a role set on a group binds each of its peers. A dynamic group
+// takes its role from the template every member is built from, which binds the
+// members the same way. Pairing by the settings pointer rather than by name
+// keeps a group and a peer that share a name from taking each other's role.
+func peerRoles(bgpTree map[string]any, peers []*reactor.PeerSettings, groups []*reactor.DynamicGroupConfig) []peerRole {
+	pairs := make([]peerRole, 0, len(peers)+len(groups))
+
+	peerMap, _ := bgpTree["peer"].(map[string]any)
+	for _, ps := range peers {
+		resolved, _ := peerMap[ps.Name].(map[string]any)
+		pairs = append(pairs, peerRole{settings: ps, role: declaredRole(resolved)})
+	}
+	for _, dg := range groups {
+		pairs = append(pairs, peerRole{settings: dg.Settings, role: declaredRole(dg.Template)})
+	}
+	return pairs
+}
+
+// declaredRole returns an RFC 9234 role a resolved peer map declares, or the
+// empty string when it declares none. The leaf is role/import, and that
+// `import` is the role sent in the OPEN, never a filter direction.
+func declaredRole(resolved map[string]any) string {
+	roleMap, ok := resolved["role"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	role, _ := roleMap["import"].(string)
+	return role
+}
+
+// validateLeakFilterObligations refuses a peer whose declared RFC 9234 role
+// implies the transit-leak check (RFC 7454 Section 9) and whose matching filter
+// chain names no filter that can perform it. Declaring a relationship is what
+// binds the peer: the operator states the decision either way, and a reader of
+// the config file sees which was made.
+//
+// declaring holds the filter types that discharge the obligation, read off the
+// plugin registry by the caller. This function never names a filter type, so
+// the type lives only in the plugin that implements it.
+func validateLeakFilterObligations(pairs []peerRole, reg *FilterRegistry, declaring []string) error {
+	// GUARD: no filter type in this binary can discharge the obligation, so
+	// enforcing it would refuse every config that declares a role. A build with
+	// the implementing plugin's feature tag off must still load every config it
+	// loaded before. The empty set disables the rule ON PURPOSE; it is not an
+	// incidental consequence of an empty loop (ai/rules/principles.md).
+	if len(declaring) == 0 {
+		return nil
+	}
+
+	declaringTypes := make(map[string]bool, len(declaring))
+	for _, filterType := range declaring {
+		declaringTypes[filterType] = true
+	}
+
+	for _, pair := range pairs {
+		obligation, bound := leakFilterByRole[pair.role]
+		if !bound {
+			continue
+		}
+		missingImport := obligation.importChain && !chainNamesFilterType(pair.settings.ImportFilters, reg, declaringTypes)
+		missingExport := obligation.exportChain && !chainNamesFilterType(pair.settings.ExportFilters, reg, declaringTypes)
+		if !missingImport && !missingExport {
+			continue
+		}
+		return leakFilterRefusal(pair, missingImport, missingExport, declaring)
+	}
+	return nil
+}
+
+// leakFilterRefusal builds the refusal an operator reads. It names the peer,
+// the role that bound it, the chain that is missing the filter, and BOTH ways
+// to satisfy the obligation, because a message that reports only what is wrong
+// leaves the operator to guess what to write.
+func leakFilterRefusal(pair peerRole, missingImport, missingExport bool, declaring []string) error {
+	chains := "import and export filter chains"
+	switch {
+	case !missingExport:
+		chains = "import filter chain"
+	case !missingImport:
+		chains = "export filter chain"
+	}
+	return fmt.Errorf(
+		"peer %s: role %s requires a filter against a transit leak in the %s\n"+
+			"  name a filter of type %s in it, or name one prefixed with `inactive:` to record that this session runs without the check",
+		pair.settings.Name, pair.role, chains, textbuf.Join(declaring, " or "))
+}
+
+// chainNamesFilterType reports whether a filter chain names a filter of one of
+// the given types.
+//
+// A DEACTIVATED ref counts. `inactive:` records a decision the operator made
+// about this session, which is what the obligation asks for, and it is the
+// reading filterChainContains already takes for a default filter.
+func chainNamesFilterType(chain []filterapi.FilterRef, reg *FilterRegistry, types map[string]bool) bool {
+	for _, ref := range chain {
+		entry, ok := reg.Lookup(filterInstanceName(ref.Name))
+		if !ok {
+			continue
+		}
+		if types[entry.Type] {
+			return true
+		}
+	}
+	return false
+}
+
+// filterInstanceName strips the prefix a chain ref can carry, leaving the
+// instance name that keys the policy registry. The plain form carries no
+// prefix; the filter-type form, the plugin form and the canonical form each
+// carry the instance name after the colon.
+func filterInstanceName(ref string) string {
+	if _, after, found := strings.Cut(ref, ":"); found {
+		return after
+	}
+	return ref
+}
+
+// rolelessPeers names the eBGP peers that declare no RFC 9234 role, in config
+// order. They are accepted: the obligation binds only a peer that declares a
+// relationship. This is the ONE declaration of that set, read by the warning
+// logged at config load and by the `ze doctor` check, so the two never
+// enumerate different peers.
+//
+// iBGP peers are left out. An RFC 9234 role describes an eBGP relationship, so
+// reporting an iBGP session as unbound would be noise on every route-reflector
+// deployment.
+func rolelessPeers(pairs []peerRole) []string {
+	var names []string
+	for _, pair := range pairs {
+		if pair.role != "" {
+			continue
+		}
+		if pair.settings.PeerAS == 0 || pair.settings.PeerAS == pair.settings.LocalAS {
+			continue
+		}
+		names = append(names, pair.settings.Name)
+	}
+	return names
+}
+
+// warnPeersWithoutRole logs ONE line for the whole config, naming how many eBGP
+// peers declare no role and the first few by name. One line per peer would bury
+// the fact it exists to report on a router with a thousand sessions.
+func warnPeersWithoutRole(names []string) {
+	if len(names) == 0 {
+		return
+	}
+	shown := names
+	if len(shown) > rolelessPeersNamed {
+		shown = shown[:rolelessPeersNamed]
+	}
+	configLogger().Warn("eBGP peers declare no RFC 9234 role, so no transit-leak filter is required of them",
+		"peers", len(names),
+		"first", textbuf.Join(shown, ", "))
+}
+
+// rolelessPeersNamed bounds how many peer names the aggregated warning prints.
+// The count is always exact; the names are a sample that keeps the line short.
+const rolelessPeersNamed = 5
+
+// rolelessPeersFromTree names the eBGP peers a config declares with no RFC 9234
+// role. It fills the infra seam `ze doctor` reads (register.go), so the doctor
+// report and the config-load warning enumerate one set.
+//
+// MUST be called on a CLONE: it prunes inactive nodes from the tree in place,
+// exactly as the peer pipeline does.
+//
+// An unreadable config yields no names rather than an error: a config the
+// engine refuses is already reported by doctor's own peer-validation check, and
+// naming the same failure twice tells the operator nothing new.
+func rolelessPeersFromTree(tree *config.Tree) []string {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return nil
+	}
+	config.PruneInactive(tree, schema)
+
+	bgpTree, err := ResolveBGPTree(tree)
+	if err != nil {
+		return nil
+	}
+	peers, err := reactor.PeersFromTree(bgpTree)
+	if err != nil {
+		return nil
+	}
+	groups, err := dynamicGroupsFromTree(bgpTree)
+	if err != nil {
+		return nil
+	}
+	return rolelessPeers(peerRoles(bgpTree, peers, groups))
 }
 
 // applyLoopDetectionConfig extracts loop-detection policy settings and applies them

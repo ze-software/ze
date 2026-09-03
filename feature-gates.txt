@@ -267,6 +267,7 @@ ze_bgp   internal/component/bgp/plugins/filter_community_match
 ze_bgp   internal/component/bgp/plugins/filter_family
 ze_bgp   internal/component/bgp/plugins/filter_irr
 ze_bgp   internal/component/bgp/plugins/filter_modify
+ze_bgp   internal/component/bgp/plugins/filter_path_asn
 ze_bgp   internal/component/bgp/plugins/filter_prefix
 ze_bgp   internal/component/bgp/plugins/filter_remove_private_as
 ze_bgp   internal/component/bgp/plugins/gr

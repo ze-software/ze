@@ -63,6 +63,10 @@ func NewCompleter() *Completer {
 	}
 	reg := yang.NewValidatorRegistry()
 	config.RegisterValidators(reg)
+	// The same two steps YANGValidatorWithPlugins runs (config/yang_schema.go).
+	// Without the merge, every CompleteFn a domain package registers is absent
+	// here, which is the surface the operator actually completes at.
+	reg.MergeGlobalCompletions()
 	return &Completer{loader: loader, registry: reg}
 }
 
@@ -536,6 +540,8 @@ func (c *Completer) completeDiscardPath(tokens, contextPath []string, endsWithSp
 // contextPath is used to navigate to the correct container in the config tree.
 // Single-entry lists return nil (auto-selected, no key needed).
 // Multi-entry lists show positional IDs (#1, #2, ...) instead of raw keys.
+// A list keyed by an enumeration also offers the keys the operator has not
+// created yet, because for that list the schema knows every key there can be.
 func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []string) []Completion {
 	// Count existing entries to decide behavior
 	var entryCount int
@@ -551,9 +557,18 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		}
 	}
 
+	listPath := append(append([]string{}, contextPath...), listName)
+	keyEntry := c.getListKeyEntry(listPath)
+	taken := make(map[string]bool, entryCount)
+	for _, entry := range orderedEntries {
+		taken[entry.Key] = true
+	}
+	vocabulary := enumKeyVocabulary(keyEntry, taken)
+
 	// Single entry with no prefix — auto-select, no key needed.
-	// When user has typed a prefix, still offer it as a completion so Tab can accept it.
-	if entryCount == 1 && prefix == "" {
+	// A list whose vocabulary still has an unused key is the exception: there
+	// is a second key to create, so auto-selecting the one that exists hides it.
+	if entryCount == 1 && prefix == "" && len(vocabulary) == 0 {
 		return nil
 	}
 
@@ -590,8 +605,22 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		}
 	}
 
-	if prefix == "" && entryCount == 0 {
-		// No entries and nothing typed — show placeholder hint (display-only, not applicable)
+	// The keys the schema allows and the config does not hold yet. They come
+	// after the existing entries, so what is configured stays at the top.
+	for _, option := range vocabulary {
+		if prefix != "" && !strings.HasPrefix(option.name, prefix) {
+			continue
+		}
+		completions = append(completions, Completion{
+			Text:        option.name,
+			Description: option.help,
+			Type:        completionListKey,
+		})
+	}
+
+	if prefix == "" && entryCount == 0 && len(vocabulary) == 0 {
+		// No entries, nothing typed and no vocabulary to offer — show a
+		// placeholder hint (display-only, not applicable).
 		var tb textbuf.Buffer
 		completions = append(completions, Completion{
 			Text:        "<value>",
@@ -601,8 +630,6 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 	} else if prefix != "" && len(completions) == 0 {
 		// User typed a value that doesn't match any existing key —
 		// validate against YANG key type before offering as completion.
-		listPath := append(append([]string{}, contextPath...), listName)
-		keyEntry := c.getListKeyEntry(listPath)
 		var tb textbuf.Buffer
 		if validateLeafValue(keyEntry, prefix) {
 			completions = append(completions, Completion{
@@ -621,6 +648,53 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 	}
 
 	return completions
+}
+
+// enumKeyOption is one key an enumeration-keyed list can still take, with the
+// help text the YANG enum declares for it.
+type enumKeyOption struct {
+	name string
+	help string
+}
+
+// enumKeyVocabulary returns the enum values keyEntry allows and taken does not
+// already hold, sorted by name, which is the order EnumType.Names gives and the
+// order every other value completion in this file uses. It returns nil for
+// any key that is not an enumeration, which is every other list in the schema:
+// for those the set of keys is what the operator has created, and there is
+// nothing more the schema can offer.
+//
+// The help text comes from each enum's own `description`, read off the leaf's
+// parse-tree node, because the resolved EnumType keeps only the name and the
+// value. A leaf whose enumeration arrives through a typedef or a grouping has
+// no enum statement of its own here, so its values come back with no help
+// rather than with the wrong help.
+func enumKeyVocabulary(keyEntry *gyang.Entry, taken map[string]bool) []enumKeyOption {
+	if keyEntry == nil || keyEntry.Type == nil || keyEntry.Type.Kind != gyang.Yenum {
+		return nil
+	}
+	if keyEntry.Type.Enum == nil {
+		return nil
+	}
+
+	help := make(map[string]string)
+	if leaf, ok := keyEntry.Node.(*gyang.Leaf); ok && leaf.Type != nil {
+		for _, declared := range leaf.Type.Enum {
+			if declared == nil || declared.Description == nil {
+				continue
+			}
+			help[declared.Name] = textbuf.Join(strings.Fields(declared.Description.Name), " ")
+		}
+	}
+
+	options := make([]enumKeyOption, 0, len(keyEntry.Type.Enum.Names()))
+	for _, name := range keyEntry.Type.Enum.Names() {
+		if taken[name] {
+			continue
+		}
+		options = append(options, enumKeyOption{name: name, help: help[name]})
+	}
+	return options
 }
 
 // isDefaultKey returns true if the key is auto-generated (KeyDefault or KeyDefault#N).
@@ -724,6 +798,7 @@ func (c *Completer) matchChildren(path []string, prefix string) []Completion {
 			completions = append(completions, Completion{
 				Text:        name,
 				Description: c.entryDescription(child),
+				LongHelp:    entryLongHelp(child),
 				Type:        completionKeyword,
 			})
 		}
@@ -752,6 +827,7 @@ func (c *Completer) matchEditTargets(path []string, prefix string) []Completion 
 			completions = append(completions, Completion{
 				Text:        name,
 				Description: c.entryDescription(child),
+				LongHelp:    entryLongHelp(child),
 				Type:        completionKeyword,
 			})
 		}
@@ -861,6 +937,9 @@ func (c *Completer) validateCompletions(entry *gyang.Entry, prefix string) []Com
 
 	var values []string
 	seen := make(map[string]bool)
+	// help holds what each value MEANS, taken from the validator that offered
+	// it. A value no DescribeFn knows keeps the generic label below.
+	help := make(map[string]string)
 
 	for _, name := range yang.SplitValidatorNames(arg) {
 		cv := c.registry.Get(name)
@@ -868,9 +947,13 @@ func (c *Completer) validateCompletions(entry *gyang.Entry, prefix string) []Com
 			continue
 		}
 		for _, v := range cv.CompleteFn() {
-			if !seen[v] {
-				seen[v] = true
-				values = append(values, v)
+			if seen[v] {
+				continue
+			}
+			seen[v] = true
+			values = append(values, v)
+			if cv.DescribeFn != nil {
+				help[v] = cv.DescribeFn(v)
 			}
 		}
 	}
@@ -883,13 +966,18 @@ func (c *Completer) validateCompletions(entry *gyang.Entry, prefix string) []Com
 
 	var completions []Completion
 	for _, v := range values {
-		if prefix == "" || strings.HasPrefix(v, prefix) {
-			completions = append(completions, Completion{
-				Text:        v,
-				Description: "valid value",
-				Type:        completionValue,
-			})
+		if prefix != "" && !strings.HasPrefix(v, prefix) {
+			continue
 		}
+		description := help[v]
+		if description == "" {
+			description = "valid value"
+		}
+		completions = append(completions, Completion{
+			Text:        v,
+			Description: description,
+			Type:        completionValue,
+		})
 	}
 	return completions
 }
@@ -931,6 +1019,17 @@ func (c *Completer) TypeHint(t *gyang.YangType) string {
 		return t.Name
 	}
 	return typeHintAny
+}
+
+// entryLongHelp returns the long explanation a YANG entry declares in its
+// ze:help extension, and the empty string when it declares none. The text is
+// returned whole, newlines included: the ? box is where it is read, and nothing
+// on the one-line menu row reads it.
+func entryLongHelp(entry *gyang.Entry) string {
+	if entry == nil {
+		return ""
+	}
+	return yang.GetHelpExtension(entry.Exts)
 }
 
 // entryDescription returns description for a YANG entry.

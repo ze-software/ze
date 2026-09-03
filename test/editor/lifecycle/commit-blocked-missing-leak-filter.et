@@ -1,0 +1,60 @@
+# Test: the config editor blocks a commit the BGP peer pipeline refuses
+# VALIDATES: AC-39 -- a peer whose declared RFC 9234 role requires a
+#            transit-leak filter, and whose chains name none, blocks `commit`
+#            while the operator still has the config on the screen
+# VALIDATES: End-to-end user story 10 -- the same omission user story 7 types
+#            into a file, typed into the editor instead
+# PREVENTS:  the refusal arriving one step later as `commit failed:` about a
+#            config already written. Until this change ValidateTransition
+#            (internal/component/cli/validator.go) reached no peer-pipeline
+#            check at all, so EVERY such refusal was invisible here, not only
+#            this rule's.
+#
+# The producing chain is cmdCommit -> ValidateTransition -> bgpPeerErrors ->
+# infra.ValidateBGPPeers -> PeersFromConfigTree -> validateLeakFilterObligations
+# (internal/component/bgp/config/peers.go). The seam is filled by
+# internal/component/bgp/config/register.go, so a build without the BGP engine
+# reports nothing here rather than blocking.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  peer peer1 {
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  		local {
+  			ip 127.0.0.1
+  			accept false
+  		}
+  	}
+  	session {
+  		asn {
+  			local 65000
+  			remote 65001
+  		}
+  		router-id 1.2.3.4
+  	}
+  	role {
+  		import peer
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=20s
+
+# One edit, so the commit has something to apply and the transition is real.
+input=type:text=set bgp peer peer1 session router-id 1.2.3.5
+input=enter
+
+input=type:text=commit
+input=enter
+expect=status:contains=commit blocked

@@ -57,6 +57,25 @@ var scenarioExtras = map[string][]operation{
 		{kind: opWaitLogContains, peer: "ze", contains: []string{"RAW-MED-DROP: removed MULTI_EXIT_DISC"}, timeout: 120 * time.Second},
 		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, medPrefix}, contains: []string{medPrefix, "65005", zeLabAddress, "Med: 100"}},
 	},
+	scenarioPathASNLeakFRR: {
+		// FRR announces both prefixes in one batch, so waiting for the clean
+		// route at BIRD does not prove ze has finished with the leaked one. The
+		// delay is that settling time, and the query doubles as the proof that
+		// ze answers `show bgp rib` at all.
+		{kind: opDelayRequireContains, peer: "ze", command: zeCommand("show bgp rib"), contains: []string{pathASNCleanPrefix}, delay: 5 * time.Second},
+		// The import chain rejected the leaked path before the route was cached,
+		// so ze holds the clean prefix and not the leaked one.
+		{kind: opRequireAbsent, peer: "ze", command: zeCommand("show bgp rib"), absent: []string{pathASNLeakedPrefix}, proof: []string{pathASNCleanPrefix}},
+		// And a foreign daemon downstream never saw it either. The clean prefix
+		// is the proof, because it is the route ze DID relay on the same session:
+		// a BIRD whose table is empty, or whose session never came up, cannot
+		// satisfy it and cannot pass this absence by holding nothing.
+		{kind: opBIRDRouteAbsent, argument: pathASNLeakedPrefix, proof: []string{pathASNCleanPrefix}},
+		// The session survives the drop. That is the whole point of the filter:
+		// a max-prefix teardown would take the clean route with the leak.
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opBIRDSession, argument: "ze_leak"},
+	},
 	"bgp-policy-import-export-frr": {
 		{kind: opRequireContains, peer: peerBIRD, command: []string{cmdBirdc, "show route for 10.39.1.0/24 all"}, contains: []string{"10.39.1.0/24", "BGP.local_pref: 250", "BGP.med: 77"}},
 		{kind: opBIRDRouteAbsent, argument: "10.39.2.0/24", proof: []string{"BIRD"}},

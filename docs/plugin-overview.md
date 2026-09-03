@@ -155,6 +155,7 @@ recorded nothing is listed as `unknown`.
 | `bgp-filter-modify` | Attribute modification (local-pref, MED, origin, next-hop, communities, AIGP) |
 | `bgp-filter-community-match` | Community match filter |
 | `bgp-filter-remove-private-as` | Remove RFC 6996 private-use ASNs |
+| `bgp-filter-path-asn` | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position (RFC 7454 Section 9) |
 <!-- source: internal/component/bgp/plugins/filter_community/register.go -- filter plugins -->
 
 ### NLRI Family Plugins

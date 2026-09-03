@@ -67,6 +67,10 @@ bgp {
 		filter {
 			import [ as-path-list:ALLOW-AS bgp-filter-prefix:ALLOW-PREFIX ]
 		}
+
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
 	}
 }
 EOF_CONF

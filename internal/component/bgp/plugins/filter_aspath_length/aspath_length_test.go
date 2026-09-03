@@ -83,45 +83,26 @@ func TestAsPathLengthMinMaxCombined(t *testing.T) {
 	}
 }
 
+// TestCountASPathHops feeds the shapes filtertext.ASPath returns: the ASNs
+// separated by one space, and the empty string for an update with no AS path.
+// The bracketed forms of the filter text format are the reader's cases, and
+// TestASPath in that package covers them.
 func TestCountASPathHops(t *testing.T) {
 	tests := []struct {
-		name      string
-		asPathStr string
-		want      int
+		name   string
+		asPath string
+		want   int
 	}{
-		{"empty", "", 0},
+		{"no_as_path", "", 0},
 		{"single_asn", "65001", 1},
-		{"two_asns_bracketed", "[65001 65002]", 2},
-		{"five_asns", "[65001 65002 65003 65004 65005]", 5},
-		{"spaces_only", "   ", 0},
-		{"brackets_empty", "[]", 0},
+		{"two_asns", "65001 65002", 2},
+		{"five_asns", "65001 65002 65003 65004 65005", 5},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := countASPathHops(tt.asPathStr)
+			got := countASPathHops(tt.asPath)
 			if got != tt.want {
-				t.Errorf("countASPathHops(%q) = %d, want %d", tt.asPathStr, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestExtractASPathField(t *testing.T) {
-	tests := []struct {
-		name       string
-		updateText string
-		want       string
-	}{
-		{"with_single_asn", "origin igp as-path 65001 next-hop 10.0.0.1", "65001"},
-		{"with_multi_asn", "origin igp as-path [65001 65002] next-hop 10.0.0.1", "[65001 65002]"},
-		{"no_as_path", "origin igp next-hop 10.0.0.1", ""},
-		{"as_path_at_end", "origin igp as-path 65001", "65001"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractASPathField(tt.updateText)
-			if got != tt.want {
-				t.Errorf("extractASPathField(%q) = %q, want %q", tt.updateText, got, tt.want)
+				t.Errorf("countASPathHops(%q) = %d, want %d", tt.asPath, got, tt.want)
 			}
 		})
 	}

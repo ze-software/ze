@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md -- remove-private-as policy action filter
 // Detail: config.go -- bgp/policy/remove-private-as config parsing
 // Detail: private_as.go -- Private Use ASN detection and text rewrite
+// Related: internal/component/bgp/filtertext -- the reader of the filter text format
 
 package filter_remove_private_as
 
@@ -8,10 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -80,7 +81,7 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
-	asPath := extractASPathField(in.Update)
+	asPath := filtertext.ASPath(in.Update)
 	rewritten, asPathChanged := rewriteASPathText(asPath, def.mode, in.PeerAS)
 	as4Changed := hasPrivateAS4PathPayload(in.Raw)
 	if !asPathChanged && !as4Changed {
@@ -90,32 +91,4 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	delta := buildDirectiveDelta(def.mode, rewritten, asPathChanged)
 	logger().Info("remove-private-as modify", "filter", in.Filter, "peer", in.Peer, "mode", def.mode.String())
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
-}
-
-func extractASPathField(updateText string) string {
-	_, rest, ok := strings.Cut(updateText, "as-path ")
-	if !ok {
-		return ""
-	}
-	return extractASPathValue(rest)
-}
-
-func extractASPathValue(s string) string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return ""
-	}
-	if s[0] == '[' {
-		for i := 1; i < len(s); i++ {
-			if s[i] == ']' {
-				return s[:i+1]
-			}
-		}
-		return s
-	}
-	before, _, found := strings.Cut(s, " ")
-	if !found {
-		return s
-	}
-	return before
 }

@@ -178,6 +178,39 @@ leaf my-field {
 **Startup check:** `yang.CheckAllValidatorsRegistered()` panics if any `ze:validate` name
 has no matching `reg.Register()` call.
 
+### Step 5b: Completion Without a Constraint (from a plugin)
+
+`RegisterValidators` is a central list in the `config` package. A plugin cannot
+reach it, and `config` cannot import a plugin to write a row in it. So a plugin
+that wants to OFFER values for its own leaf registers them from its own `init()`
+and writes no validator at all:
+
+```go
+func init() {
+    // values: func() []string, describe: func(value string) string, or nil
+    configyang.RegisterSuggestion("my-name", myValues, myHelpText)
+}
+```
+
+`RegisterSuggestion` DECLARES a validator carrying a nil `ValidateFn`, so it
+**refuses nothing**: every value the leaf's YANG type admits stays valid. Use
+this route whenever the set is a SUGGESTION, such as a well-known set that can
+go stale, and use step 5 whenever a value outside the set is genuinely wrong.
+
+Do not reach for `RegisterCompleteFn` here. That call only fills the
+`CompleteFn` slot of a validator `RegisterValidators` already declared (which is
+how `isis-net` and `ospf-router-id` work), and a name config never declared
+stays absent, so `CheckAllValidatorsRegistered` still reports the leaf. That is
+deliberate: it keeps a forgotten `ValidateFn` loud.
+
+Both routes need the `ze:validate "my-name"` on the leaf. The file holding the
+`init()` must be named `register*.go`, because the `pretool-writeedit` gate
+refuses a `Register` call inside `init()` anywhere else.
+
+Worked example: `internal/component/bgp/plugins/filter_path_asn/register_completion.go`.
+
+<!-- source: internal/component/config/yang/validator_registry.go -- RegisterCompleteFn, RegisterDescribeFn, MergeGlobalCompletions -->
+
 ## YANG Module Naming
 
 | Category | Pattern | Example |

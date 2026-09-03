@@ -31,6 +31,15 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// ObligationTransitLeak names the config obligation a filter type discharges
+// when it can refuse a route whose AS_PATH runs through a transit provider
+// (RFC 7454 Section 9). A plugin declares it in
+// registry.Registration.FilterObligations, and the config rule that makes the
+// check mandatory for a peer with a declared RFC 9234 role asks the registry
+// which types carry it. One declaration, read by both sides: the rule never
+// spells a filter type, and the plugin never spells the rule.
+const ObligationTransitLeak = "transit-leak"
+
 // PeerFilterInfo holds BGP peer metadata for filter decisions.
 // Passed by the reactor to registered filter functions.
 type PeerFilterInfo struct {

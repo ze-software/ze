@@ -268,13 +268,14 @@ traffic-cmd, trafficusage, update-cmd, vrrp
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
 
 <!-- BEGIN GENERATED: arch-bgp-plugins (internal/le/archmap.Update; ./le arch-map update) -->
-31 directories under `internal/component/bgp/plugins/`:
+32 directories under `internal/component/bgp/plugins/`:
 
 adj_rib_in, aigp, bmp, capa, cmd, filter_aspath, filter_aspath_length,
 filter_community, filter_community_match, filter_family, filter_irr,
-filter_modify, filter_prefix, filter_remove_private_as, gr, healthcheck,
-hostname, llnh, nlri, persist, redistribute_egress, redistribute_ingress, rib,
-role, route_refresh, rpki, rpki_decorator, rr, rs, softver, watchdog
+filter_modify, filter_path_asn, filter_prefix, filter_remove_private_as, gr,
+healthcheck, hostname, llnh, nlri, persist, redistribute_egress,
+redistribute_ingress, rib, role, route_refresh, rpki, rpki_decorator, rr, rs,
+softver, watchdog
 <!-- END GENERATED: arch-bgp-plugins -->
 
 **CLI** -- SSH-accessible network OS CLI: YANG-modeled config editor with modes, completion, diff, commit, history, dashboard, monitoring.

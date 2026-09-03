@@ -320,6 +320,54 @@ The existing `ingress { community { tag; strip; } }` and
 `egress { community { tag; strip; } }` leaf-lists are unchanged.
 <!-- source: internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang -- grouping community-filter-fields -->
 
+## Transit-Leak Filter (`reject-asn`)
+
+A `reject-asn` list names the ASNs that must not appear in a path exchanged with
+a peer, and says WHERE in the AS_PATH each one is unacceptable. The type only
+ever rejects, so the action is in the name. The list is an unordered reject set:
+a route is rejected when any keyword matches, and there is no ordering between
+them.
+
+```
+bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 701 3356 ];
+            nth 2    { asn [ 3491 ]; }
+            regex    [ "^3356 174 " ];
+        }
+    }
+    peer transit-a {
+        role   { import peer; }
+        filter {
+            import [ NO-TRANSIT ];
+            export [ NO-TRANSIT ];
+        }
+    }
+}
+```
+
+| Keyword | Type | The listed ASN is |
+|---------|------|-------------------|
+| `direct` | leaf-list of uint32 | the peer we are talking to, prepends collapsed |
+| `indirect` | leaf-list of uint32 | anything that is NOT the peer |
+| `transit` | leaf-list of uint32 | past the peer and not the last |
+| `origin` | leaf-list of uint32 | the last: it announced the route |
+| `anywhere` | leaf-list of uint32 | at any position |
+| `nth <n>` | keyed list, `asn` leaf-list | at collapsed position n, counted from us, 1-based |
+| `regex` | leaf-list of string (1..512) | matched by an RE2 pattern over the whole flattened path |
+
+`nth` counts runs, not tokens: a repeated ASN advances the collapsed index once,
+so a peer cannot move which rule fires by prepending. A list with no keyword at
+all is refused, because an empty list accepts everything.
+
+A peer that declares an RFC 9234 `role` MUST name a `reject-asn` filter in each
+chain the role binds, or name one prefixed with `inactive:` to record that the
+session runs without the check. See [bgp-role.md](guide/bgp-role.md) for the
+matrix and [architecture/bgp/filter-path-asn.md](architecture/bgp/filter-path-asn.md)
+for the design.
+<!-- source: internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang -- list reject-asn -->
+
 ## Route Modification Policy
 
 A `modify` policy carries its own `match` container, so one policy can change

@@ -84,6 +84,22 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 	return true, true, session
 }
 
+// hasActiveFilter reports whether a chain holds a ref that can execute.
+//
+// A chain of only deactivated refs applies no policy, so the policy-agnostic
+// fast path stays correct for that peer. Counting a deactivated ref would cost
+// the fast path to an operator who named a filter and switched it off, which is
+// the spelling Ze gives to "I considered this check and chose not to run it"
+// (bgpconfig.chainNamesFilterType).
+func hasActiveFilter(chain []filterapi.FilterRef) bool {
+	for _, ref := range chain {
+		if !ref.Inactive {
+			return true
+		}
+	}
+	return false
+}
+
 // reactorForwardRS forwards a received UPDATE to all RS-eligible peers directly
 // from notifyMessageReceiver, bypassing the plugin dispatch chain.
 //
@@ -91,10 +107,10 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 // number of peers it actually dispatched to. The caller stores the skipped list
 // on RawMessage.FastPathSkipped so bgp-rs can forward to them via ForwardCached.
 //
-// A peer is skipped for one of two reasons: it carries ExportFilters, which this
-// policy-agnostic rail cannot apply, or an in-process egress filter PANICKED for
-// it, which decides nothing. A policy suppression is not a skip -- that IS a
-// decision, and it is final here.
+// A peer is skipped for one of two reasons: it carries an ACTIVE export filter,
+// which this policy-agnostic rail cannot apply, or an in-process egress filter
+// PANICKED for it, which decides nothing. A policy suppression is not a skip --
+// that IS a decision, and it is final here.
 //
 // dispatched exists so the caller can tell "the fast path delivered this UPDATE"
 // from "the fast path matched nobody". Both used to look identical to bgp-rs,
@@ -133,7 +149,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		if pf == nil {
 			continue
 		}
-		if len(pf.exportFilters) > 0 {
+		if hasActiveFilter(pf.exportFilters) {
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}

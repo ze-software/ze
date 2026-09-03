@@ -384,6 +384,13 @@ func serializeAnnotatedList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 			b.Str(" ")
 			b.Str(quoteIfNeeded(displayKey))
 		}
+		// One line in `show configuration` is one line here too, so the two views
+		// show one shape. The gutter written above already inherits the entry's
+		// first child, which is the leaf-list this line carries.
+		if members, ok := inlineLeafListEntry(entry, node, key); ok {
+			writeInlineLeafListMembers(b, members)
+			continue
+		}
 		b.Str(" {\n")
 		serializeAnnotatedTree(b, entry, entryMeta, node, columns, indent+1)
 		writeAnnotatedCloseBraceGutter(b, entryMeta, columns)

@@ -28,18 +28,18 @@ func TestIsPrivateASN(t *testing.T) {
 // VALIDATES: flat filter text is rewritten for downstream policy filters.
 // PREVENTS: later filters in a chain seeing stale private ASNs.
 func TestRewriteASPathText(t *testing.T) {
-	got, changed := rewriteASPathText("[64496 64512 64497]", removeModeStrip, 65001)
+	got, changed := rewriteASPathText("64496 64512 64497", removeModeStrip, 65001)
 	if !changed || got != "[64496 64497]" {
 		t.Fatalf("strip rewrite = (%q,%v), want ([64496 64497], true)", got, changed)
 	}
 
-	got, changed = rewriteASPathText("[64496 64512 64497]", removeModePeerAS, 65001)
+	got, changed = rewriteASPathText("64496 64512 64497", removeModePeerAS, 65001)
 	if !changed || got != "[64496 65001 64497]" {
 		t.Fatalf("peer-as rewrite = (%q,%v), want ([64496 65001 64497], true)", got, changed)
 	}
 
-	got, changed = rewriteASPathText("[64496 64497]", removeModeStrip, 65001)
-	if changed || got != "[64496 64497]" {
+	got, changed = rewriteASPathText("64496 64497", removeModeStrip, 65001)
+	if changed || got != "64496 64497" {
 		t.Fatalf("public rewrite = (%q,%v), want unchanged false", got, changed)
 	}
 }
@@ -47,7 +47,7 @@ func TestRewriteASPathText(t *testing.T) {
 // RFC requirement: RFC6996-4-1 positive -- a Private Use ASN present in the AS path
 // is removed before advertisement: strip drops 64512 from [64496 64512 64497].
 func TestRFC6996StripsPrivateUseASN(t *testing.T) {
-	got, changed := rewriteASPathText("[64496 64512 64497]", removeModeStrip, 65001)
+	got, changed := rewriteASPathText("64496 64512 64497", removeModeStrip, 65001)
 	if !changed || got != "[64496 64497]" {
 		t.Fatalf("strip [64496 64512 64497] = (%q,%v), want ([64496 64497], true)", got, changed)
 	}
@@ -57,8 +57,8 @@ func TestRFC6996StripsPrivateUseASN(t *testing.T) {
 // range: an AS path of only non-private ASNs is advertised unchanged, so a
 // non-private ASN is never stripped as if it were private.
 func TestRFC6996KeepsPublicASN(t *testing.T) {
-	got, changed := rewriteASPathText("[64496 64497]", removeModeStrip, 65001)
-	if changed || got != "[64496 64497]" {
-		t.Fatalf("strip [64496 64497] = (%q,%v), want unchanged (false)", got, changed)
+	got, changed := rewriteASPathText("64496 64497", removeModeStrip, 65001)
+	if changed || got != "64496 64497" {
+		t.Fatalf("strip 64496 64497 = (%q,%v), want unchanged (false)", got, changed)
 	}
 }

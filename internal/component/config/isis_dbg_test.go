@@ -19,7 +19,7 @@ import (
 func TestISISValidatorsRegisteredAndReachable(t *testing.T) {
 	reg := yang.NewValidatorRegistry()
 	RegisterValidators(reg)
-	reg.MergeGlobalCompleteFns()
+	reg.MergeGlobalCompletions()
 
 	// Both ze:validate names resolve to a registered validator.
 	netV := reg.Get("isis-net")

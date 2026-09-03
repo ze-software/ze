@@ -96,6 +96,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `bgp-rpki` | `rpki` | `bgp` prefix redundant |
 | `bgp-persist` | `persist` | `bgp` prefix redundant |
 | `bgp-role` | `role` | `bgp` prefix redundant |
+| `bgp-filter-path-asn` | `filter_path_asn` | The package name. The `bgp` prefix is redundant on a BGP filter, and the hyphen-stripped `bgpfilterpathasn` cannot be read |
 
 ### Full Inventory
 
@@ -130,6 +131,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_rpki_validation_outcomes_total` | CounterVec | result | bgp-rpki |
 | `ze_role_route_rejects_total` | CounterVec | reason | bgp-role |
 | `ze_role_route_suppressions_total` | CounterVec | reason | bgp-role |
+| `ze_filter_path_asn_rejects_total` | CounterVec | direction, position, reason | bgp-filter-path-asn |
 | `ze_persist_routes_stored` | Gauge | | bgp-persist |
 | `ze_persist_peers_tracked` | Gauge | | bgp-persist |
 | `ze_persist_route_replays_total` | Counter | | bgp-persist |
@@ -393,15 +395,24 @@ with state machines, caches, or I/O operations benefit from metrics.
 | Plugins with route state (rib, sysrib, persist) | NLRI codecs (bgp-nlri-*) |
 | Plugins with external I/O (fib-kernel, rpki) | Pure capability-only plugins |
 | Plugins with timers/state machines (gr, watchdog) | Format/encoding plugins |
-| Plugins that drop or withhold routes (bgp-role) | |
+| Plugins that drop or withhold routes (bgp-role, bgp-filter-path-asn) | |
 
 A plugin that can refuse a route needs metrics even if it holds no state: a
 suppression is invisible to the operator otherwise. `bgp-role` was once listed
 as capability-only, but it filters every UPDATE on ingress and egress, so each
 of its refusal paths carries a reason-labeled counter.
 
+A route filter is the same case. `bgp-filter-path-asn` refuses a route whose
+AS_PATH carries a listed ASN, and it also refuses one fail-closed when the named
+list is unknown or no config has arrived yet. Its counter separates the three
+with a `reason` label and says where in the path the match was with a `position`
+label, so an operator reads which rule is eating the routes rather than only how
+many. The peer is in the log line: a peer address in a label would grow the
+series count with the session count.
+
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
 
 ## Reference Implementation
 

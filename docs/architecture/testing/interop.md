@@ -206,6 +206,13 @@ An absent value never proves a negative assertion by itself. The operation must
 also name positive evidence that the query mechanism ran. Failed and empty
 queries remain errors rather than becoming plausible empty protocol state.
 
+That rule decides which command a negative assertion sends. `opBIRDRouteAbsent`
+reads the whole table with `birdc show route`, and never `show route for
+<prefix>`: BIRD answers a lookup for a network it does not hold with "Network
+not found", and birdc exits 1. A lookup therefore fails in the exact state the
+assertion exists to observe, and the failure is not absence. Ask a question the
+peer answers in both states, then read the absence out of the answer.
+
 Scenarios with non-linear behavior register a bespoke checker in
 `specialCheckers` (`check_special.go`). Each one owes a named subtest in
 `TestBespokeCheckerBranches` that drives its predicate in BOTH polarities: the
@@ -266,7 +273,10 @@ replace the protocol failure that triggered it.
 The suite has grown to over 100 scenario directories in `test/interop/scenarios/`. The table
 below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
 reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
-max-prefix cease, GTSM, AS112, ADD-PATH re-advertisement (`bgp-addpath-readvertise-collision-frr`
+max-prefix cease, GTSM, AS112, the RFC 7454 Section 9 transit leak
+(`bgp-path-asn-leak-frr` gives FRR two prefixes that differ only in their AS_PATH, and requires
+ze to drop the one reached through a listed transit ASN, keep the other, and keep the session),
+ADD-PATH re-advertisement (`bgp-addpath-readvertise-collision-frr`
 proves a receiver keeps two paths whose sources both chose one Path Identifier, and
 `bgp-addpath-rail-agreement-speaker` proves the live forward and the peer-up replay emit the same
 bytes for one path), and full IS-IS (auth, convergence, dual-stack, LAN DIS,

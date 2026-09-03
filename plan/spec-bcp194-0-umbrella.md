@@ -15,7 +15,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Make Ze follow RFC 7454 (BCP 194, BGP Operations and Security), RFC 8195 (Use of
 BGP Large Communities) and RFC 7999 (BLACKHOLE Community). This umbrella
-coordinates six children and holds the gap inventory, the ledger decisions, and
+coordinates seven children (child 7 added 2026-09-02) and holds the gap
+inventory, the ledger decisions, and
 the execution order.
 
 RFC 7999 joined the set on 2026-08-08, on the owner's instruction to bring it in
@@ -207,6 +208,7 @@ Every row was verified against the producing function during the audit of
 | P3 | RPKI NotFound is accepted at full preference (§6.1.2.2.2) | no local-preference write under the RPKI plugin | child 4 |
 | P8 | Locally originated prefixes are not derived for reuse on import (§6.1.4); no IXP LAN concept (§6.1.5) | neither exists in the tree | child 4 |
 | P7 | No route flap dampening (§7) | the `damp` symbols are RFC 4271 §8.1.2 session oscillation | child 5 |
+| P10 | §9's named-ASN filter mechanism is absent in both directions. `RFC7454-9-8`, "SHOULD NOT advertise prefixes with upstream AS numbers in the AS path to their peering AS", has no producer; neither does the mechanism §9 offers for `RFC7454-9-1` in its loose form, "filters for specific 2-byte or 4-byte AS paths that must not be accepted ... such as upstream transit providers or peer ASNs". `filter_aspath` can express a hand-written regex; nothing ships the ASN set, and no rule requires the check where a relationship is declared | no producer exists; `filter_remove_private_as` strips rather than rejects, and `bgp-role` (RFC 9234 OTC) needs the peer to implement it | child 7 |
 
 Already conformant, and in scope only as regression guards: RFC 7454 §8 maximum
 prefixes, including its defaults, and §9's own-AS rejection, which ships on.
@@ -225,6 +227,13 @@ separate feature. It needs its own spec before it can be an obligation.
 | `plan/spec-bcp194-4-prefix.md` | RFC 7454 §6.1 and §8 | P1, P2, P3, P8 |
 | `plan/spec-bcp194-5-damping.md` | RFC 7454 §7 | P7 |
 | spec-bcp194-6-blackhole (CLOSED 2026-08-13) | RFC 7999 §3.3 and §4 | B2, delivered. RFC 7999 is enrolled and every MUST-level row carries both polarities: `rfc/short/rfc7999.md`, `rfc/enrolled.txt` |
+| spec-bcp194-7-transit-asn (CLOSED 2026-09-03) | RFC 7454 §9's named-ASN filter, both directions | P10, delivered. The filter type is `reject-asn`, the plugin is `bgp-filter-path-asn`, and the design is `docs/architecture/bgp/filter-path-asn.md`. A peer with a declared RFC 9234 role must name such a filter in each chain the role binds, or name one prefixed with `inactive:` |
+
+Note on P9, added 2026-09-02: its producer column reads "the role has no consumer
+outside its plugin", and that is now true only of the CONFIGURED role.
+`filter_community` consumes the RESOLVED role through the ingress metadata map
+(`relationPeerRoleFromMeta`, `relationParameterFor`, `relationIngressFilter`).
+Child 7 builds the first consumer of the configured role, in the peer pipeline.
 
 ## Execution Order
 
@@ -236,6 +245,7 @@ separate feature. It needs its own spec before it can be an obligation.
 | 4 | prefix | Largest data component. Needs the role seam from child 2 for the per-relationship defaults |
 | 5 | damping | Starts with an owner decision on whether absence is the conformant answer |
 | 6 | blackhole | Starts with an owner decision, as §3.1 makes ignoring the community conformant. Honouring it reaches the FIB and the firewall, and its origin-validation caveat interlocks with child 4 |
+| 7 | transit ASN | Owner-requested, 2026-09-02. Independent of children 1 and 5 and can run beside them. It reads the configured role, which is child 2's subject, but needs no seam from child 2: the role is already in scope where peer filter chains are built |
 
 ## Ledger Decisions
 

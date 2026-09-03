@@ -1,0 +1,13 @@
+# Test: ze completion words -- show bgp reject-asn subcommand completion
+# VALIDATES: the YANG command schema publishes the reject-asn command tree, so
+#            an operator reaches `name` and `known transit-free` by Tab
+# PREVENTS: ze-filter-path-asn-cmd.yang removed or broken without detection
+
+cmd=foreground:seq=1:exec=ze completion words run show bgp reject-asn
+expect=exit:code=0
+expect=stdout:contains=name
+expect=stdout:contains=known
+
+cmd=foreground:seq=2:exec=ze completion words run show bgp reject-asn known
+expect=exit:code=0
+expect=stdout:contains=transit-free

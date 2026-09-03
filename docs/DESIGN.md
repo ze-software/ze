@@ -341,6 +341,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-filter-remove-private-as` | AS-path action filter that removes RFC 6996 Private Use ASNs |
 | `bgp-filter-prefix` | Prefix-list filter |
 | `bgp-filter-irr` | IRR-based prefix-list filter for eBGP peers |
+| `bgp-filter-path-asn` | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position (RFC 7454 Section 9) |
 | `firewall-irr` | IRR-based prefix-list filtering for firewall rules |
 | `bgp-filter-modify` | Attribute modification filter (set LP, prepend, communities) |
 | `bgp-filter-community-match` | Community match filter |
@@ -413,6 +414,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 <!-- source: internal/component/bgp/plugins/aigp/register.go -- bgp-aigp plugin -->
 <!-- source: internal/component/bgp/plugins/filter_community/register.go -- bgp-filter-community plugin -->
 <!-- source: internal/component/bgp/plugins/filter_aspath_length/register.go -- bgp-filter-aspath-length plugin -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- bgp-filter-path-asn plugin -->
 <!-- source: internal/component/bgp/plugins/filter_remove_private_as/register.go -- bgp-filter-remove-private-as plugin -->
 <!-- source: internal/component/bgp/reactor/filter/register.go -- loop plugin -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- bgp-nlri-evpn plugin -->

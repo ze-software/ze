@@ -70,6 +70,34 @@ keyword key2 {
 }
 ```
 
+A list entry can also be written on one line, with the key first and the child
+values after it. The values are assigned positionally in YANG definition order,
+and the LAST child absorbs every remaining token:
+
+```
+nlri {
+    ipv4/unicast add 10.0.0.0/24
+}
+```
+
+What the last child RECEIVES depends on its node kind, and the schema decides it
+rather than the brackets an author happened to write.
+
+| Last child | `keyword key [ a b ];` stores |
+|------------|-------------------------------|
+| A leaf-list (`ze:syntax "bracket"`, `ze:syntax "value-or-array"`, or a plain YANG leaf-list) | `a` and `b` as two MEMBERS, through the same store the block form uses |
+| Anything else | the single string `"[ a b ]"`, joined with any other tokens on the line |
+
+So `nth 2 [ 3491 ]` and `nth 2 { asn [ 3491 ]; }` produce one tree, and the NLRI
+entry above is untouched, because its last child is a plain leaf.
+
+The serializer writes the one-line form back for a list whose schema has exactly
+ONE child and that child is a leaf-list. Every other list keeps the block form,
+because the one-line form drops the child NAME and a reader could not tell which
+leaf the members landed in.
+<!-- source: internal/component/config/parser_list.go -- parseListInlineEntry, setInlineLastChild, isInlineLeafListChild -->
+<!-- source: internal/component/config/serialize.go -- inlineLeafListEntry, writeInlineLeafListMembers -->
+
 ### What a reader receives
 
 `(*Tree).ToMap` lowers the parsed tree to `map[string]any` for delivery, and the
@@ -812,10 +840,54 @@ filter {
 | `import` | leaf-list of string | Import filter chain. Values are `<plugin>:<filter>` references |
 | `export` | leaf-list of string | Export filter chain. Values are `<plugin>:<filter>` references |
 
-Chains are cumulative across config levels (bgp > group > peer). Mandatory
-filters (e.g., `rfc:otc`) always run first and cannot be configured. Default
-filters (e.g., `rfc:no-self-as`) run unless overridden by a user filter that
-declares `overrides`.
+Chains are cumulative across config levels (bgp > group > peer). A member can
+be written three ways, and all three resolve to the same dispatch target: the
+plain instance name `NO-TRANSIT`, the filter-type form `reject-asn:NO-TRANSIT`,
+and the plugin form `bgp-filter-path-asn:NO-TRANSIT`.
+
+One filter is injected rather than written: `prependDefaultFilters`
+(`internal/component/bgp/config/peers.go`) puts each `loop-detection` entry
+defined under `policy` at the head of every peer's import chain. An operator
+suppresses that injection by naming the entry in the chain, and deactivating a
+named member turns the filter off for that peer:
+
+```
+filter {
+    import [ MY-LOOP ];
+    inactive: import MY-LOOP;
+}
+```
+
+A deactivated member stays in the chain and never executes. It is how an
+operator records a decision to run a session without a check, and the config
+layer reads it as a decision rather than as an absence: `filterChainContains`
+counts it, and so does the transit-leak obligation below.
+
+There is no mandatory filter an operator cannot configure, and no `overrides`
+keyword. RFC 9234 Only-To-Customer marking is applied by the `bgp-role` plugin
+from the peer's `role` block, not by a filter named in a chain.
+
+### The transit-leak obligation
+
+A peer that declares an RFC 9234 role must name, in the chains that role binds,
+a filter of a type that can refuse a path through a transit provider
+(RFC 7454 Section 9). `reject-asn` is such a type. A config that omits it is
+REFUSED, naming the peer, the role and the chain.
+
+| Local role | Remote is | Import chain | Export chain |
+|------------|-----------|--------------|--------------|
+| `peer` | a settlement-free peer | REQUIRED | REQUIRED |
+| `provider` | our customer | REQUIRED | not required |
+| `customer` | our transit provider | not required | REQUIRED |
+| `rs` | a client of the route server we run | REQUIRED | REQUIRED |
+| `rs-client` | the route server we are a client of | REQUIRED | REQUIRED |
+| absent | undeclared | not required | not required |
+
+RFC 9234 names the LOCAL speaker's position, so `customer` means the remote is
+our upstream. A deactivated member satisfies the obligation: naming the filter
+and switching it off records the decision. A peer that declares no role is
+accepted, and `ze doctor` enumerates those peers under
+`doctor-bgp-peer-no-role`.
 
 Validation checks local policy filter names, canonicalizes short filter-type
 references through the plugin registry, and leaves explicit `<plugin>:<filter>`
@@ -826,6 +898,7 @@ on the selected plugin.
 <!-- source: internal/component/bgp/config/redistribution.go -- redistribution config parsing -->
 <!-- source: internal/component/bgp/config/filter_registry.go -- local policy filter validation -->
 <!-- source: internal/component/plugin/registry/registry.go -- FilterTypes registry -->
+<!-- source: internal/component/bgp/config/peers.go -- validateLeakFilterObligations -->
 
 ---
 
