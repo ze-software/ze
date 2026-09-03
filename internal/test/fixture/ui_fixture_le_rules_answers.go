@@ -172,12 +172,31 @@ func leRulesAnswers(ctx context.Context) error {
 	if err != nil || rules < 20 {
 		return uiLeRulesAnswersFailf("the lint read %v rule files", lint["rules"])
 	}
+	// The floor is hand-maintained on purpose: a corpus that SHRINKS must not
+	// reach green on its own, which no derived count can enforce. What that
+	// costs is one edit when a collapse is deliberate, and the edit was missed
+	// twice. 44af3c5078 moved the corpus into docs (2310 point files to 1165)
+	// and 9ee958b7fa collapsed 1110 directives onto ten principles (1144 to
+	// 235). The floor stayed at 1000 through both, so the lint answered 209 and
+	// this fixture was red at HEAD for every session that ran it.
+	//
+	// 150 against the 209 the tree holds keeps the same headroom the rule-file
+	// floor above has (20 against 32). Lower it only alongside a collapse as
+	// deliberate as those two, and name that commit here.
 	points, err := uiLeRulesAnswersInteger(lint["points"])
-	if err != nil || points < 1000 {
+	if err != nil || points < 150 {
 		return uiLeRulesAnswersFailf("the lint read %v points", lint["points"])
 	}
-	empty, ok := lint["empty"].(bool)
-	if !ok || empty {
+	// `empty` NAMES each population the lint read nothing from, so the passing
+	// answer is an absent list rather than a false. It is []string on the
+	// report (LintReport.Empty, internal/le/rules/lint.go) and carries no
+	// omitempty, so a clean run marshals it as null and this key reads as nil.
+	//
+	// It was asserted as a bool, which no answer this gate can give will ever
+	// satisfy: nil fails the type assertion and so does a list. The floor above
+	// was red first for the whole life of that line, so the fixture never
+	// reached it and nothing said the assertion was unreachable.
+	if count, isList := listLength(lint["empty"]); !isList || count > 0 {
 		return uiLeRulesAnswersFailf("the lint read an empty or invalid population: %v", lint["empty"])
 	}
 	if err := requireRenderings(le, root, "lint"); err != nil {
@@ -503,7 +522,22 @@ func uiLeRulesAnswersInteger(value any) (int, error) {
 	}
 }
 
+// listLength answers how many rows a JSON list holds, and whether the value was
+// a list at all.
+//
+// A nil value counts as a list of none. Every list this fixture reads is a Go
+// slice with no omitempty on the report it comes from, so the healthy answer --
+// no dangling binding, no empty population -- marshals as `null` rather than as
+// `[]`. Reading nil as "not a list" made each of those checks fail on exactly
+// the state it exists to confirm, and say so with the healthy value in the
+// message: "a binding names no point: <nil>".
+//
+// A key that is genuinely absent is a different question, and the presence loop
+// above each of these checks asks it first.
 func listLength(value any) (int, bool) {
+	if value == nil {
+		return 0, true
+	}
 	rows, ok := value.([]any)
 	return len(rows), ok
 }
