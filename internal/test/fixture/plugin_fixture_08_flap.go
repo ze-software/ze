@@ -207,6 +207,12 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	if err != nil {
 		return err
 	}
+	// Say which process the commits are aimed at. This fixture is a plugin the
+	// daemon spawned, so its PARENT is the daemon: a daemon.pid that disagrees
+	// with the parent means every SIGHUP below went somewhere else, and the
+	// commits this test is named for never happened. Cheap to print, and the
+	// alternative is inferring it from a truncated log.
+	fmt.Fprintf(os.Stderr, "FLAP: signalling daemon.pid=%d, parent=%d\n", pid, os.Getppid())
 	dropsBefore := netlinkDrops08()
 	resyncsBefore, err := flapCounter08(ctx, port, "ze_iface_carrier_resyncs_total")
 	if err != nil {
