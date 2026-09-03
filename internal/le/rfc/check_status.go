@@ -235,7 +235,7 @@ func unprovenChecklist(stem string, row LedgerRow, gated int, cover CoverageRow)
 	return []string{tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is ").
 		Str(pyRepr(strings.TrimSpace(row.Status))).Str(", and not one of the ").Int(int64(gated)).
 		Str(" MUST-level requirement(s) rfc/short/").Str(stem).
-		Str(".md gates carries a test in both polarities, so the promise rests on a checklist nothing passes. An annotation is not a proof: {gap}, {not-applicable}, {single-polarity} and {lower-layer} each record why a requirement is NOT proven, and the row's Proof cell counts them apart. Prove one requirement -- a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`, with the break each goes red under recorded by ./le rfc discriminate-record -- or state what is true in the summary's own Meta table, `| Support status | Partial |`, and run ./le rfc index-update").String()}
+		Str(".md gates carries a test in both polarities, so the promise rests on a checklist nothing passes. An annotation is not a proof: {gap}, {not-applicable}, {single-polarity}, {lower-layer} and {feature-declined} each record why a requirement is NOT proven, and the row's Proof cell counts them apart. Prove one requirement -- a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`, with the break each goes red under recorded by ./le rfc discriminate-record -- or state what is true in the summary's own Meta table, `| Support status | Partial |`, and run ./le rfc index-update").String()}
 }
 
 func spelledNumbers() map[string]int {

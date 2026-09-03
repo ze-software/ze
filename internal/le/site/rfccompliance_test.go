@@ -1312,14 +1312,22 @@ func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 		t.Errorf("the out-of-scope card reads %q, want %s", scope.Value,
 			groupThousands(split.OutOfScope))
 	}
-	// The note points at the share this set IS, and says it stays in the
+	// The note points at the shares this set IS, and says it stays in the
 	// denominator. It said "in no share below" until 2026-09-02, and then "in
 	// none of the four shares below": both described an arrangement where these
 	// obligations left the page, which is the arrangement the owner removed.
 	if !strings.Contains(scope.Note, "does not bind Ze") ||
-		!strings.Contains(scope.Note, "it is the Not applicable share below") ||
 		!strings.Contains(scope.Note, "stays in the denominator") {
 		t.Errorf("the out-of-scope card does not say what it is: %q", scope.Note)
+	}
+	// Every kind the number counts is NAMED. The note named one kind until
+	// 2026-09-03, when {feature-declined} landed in the same number saying
+	// something different, and a card counting two populations while its words
+	// name one is a false statement about the one it leaves out.
+	for _, kind := range strings.Split(rfcNonBindingKinds(), " or ") {
+		if !strings.Contains(scope.Note, kind) {
+			t.Errorf("the out-of-scope card counts %s and never names it: %q", kind, scope.Note)
+		}
 	}
 	if scope.Tone != rfcToneNeutral {
 		t.Errorf("the out-of-scope card reads %q, so it looks like a result", scope.Tone)

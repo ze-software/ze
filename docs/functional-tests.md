@@ -832,7 +832,8 @@ Rules the gate enforces:
 - **`./le rfc check` is the gate.** For every MUST-level requirement of an
   enrolled RFC (its summary's `## Meta` table declares `Enrolment: enrolled`) it
   requires the positive/negative pair, or a reasoned `{gap}` /
-  `{not-applicable}` / `{single-polarity}` / `{lower-layer}` annotation. It scans
+  `{not-applicable}` / `{single-polarity}` / `{lower-layer}` /
+  `{feature-declined}` annotation. It scans
   Go `_test.go` files and `.ci` files under `internal/`, `pkg/`, and `test/`.
   `./le rfc index-update` renders each RFC's requirement to test rows into
   `rfc/requirements/<stem>.md`. It renders the index over them into

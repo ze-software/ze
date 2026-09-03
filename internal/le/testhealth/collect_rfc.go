@@ -379,7 +379,10 @@ func densityMetric(rows, unproven []ledgerRow, kinds annotationCounts, density o
 		Int(int64(kinds.get(rfc.AnnotationLowerLayer))).
 		Str(" met by a layer under ze on state ze installs, which the annotation names with " +
 			"the producer that installs it: those are MET and are not proven by ze, so they " +
-			"count in the denominator above and never in the share, and ").
+			"count in the denominator above and never in the share, ").
+		Int(int64(kinds.get(rfc.AnnotationFeatureDeclined))).
+		Str(" conditional on an optional feature ze does not offer, each quoting the RFC " +
+			"sentence that makes it optional: the condition is false, so nothing is owed, and ").
 		Int(int64(noTest)).
 		Str(" with no test and no annotation at all, which is what `./le rfc check` is red " +
 			"about. Only the gap column and that last one are untested work.").String()

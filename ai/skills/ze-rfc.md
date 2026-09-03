@@ -25,7 +25,7 @@ Generate a structured implementation summary from an RFC text file.
    and gating none of them is how a compliance claim rots. Enrolling does not mean every
    MUST is met — classify each honestly as tested, `{single-polarity}`, `{gap}` (with a
    non-"Supported" `Support status` row in the summary's own `## Meta` table),
-   `{lower-layer}` or `{not-applicable}`. The gate also fails a new summary that does not parse, or that
+   `{lower-layer}`, `{feature-declined}` or `{not-applicable}`. The gate also fails a new summary that does not parse, or that
    captures zero requirements while
    `rfc/full/<stem>.txt` contains MUST-level keywords. **Enrolling a stem that was not
    enrolled at HEAD also requires an extraction sign-off** (`rfc/extraction/<stem>.json`);
@@ -312,6 +312,7 @@ rejected by `./le rfc check`.
 - [ ] [RFC7606-5.1-1] [MUST] <text> (§5.1) {gap: Ze emits MP_UNREACH first, MP_REACH last; docs/architecture/wire/mp-nlri-ordering.md}
 - [ ] [RFC7606-4-1] [MUST] <text> (§4) {single-polarity: negative; no conforming input exists to assert positively}
 - [ ] [RFC4302-2.3-1] [MUST] <text> (§2.3) {lower-layer: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the AH SA and the kernel builds every header, so no value Ze writes decides this field}
+- [ ] [RFC4302-2.5.1-1] [MUST] <text> (§2.5.1) {feature-declined: "a new option for sequence numbers SHOULD be offered, as an extension to the current, 32-bit sequence number field"; ze offers no ESN. internal/plugins/ospf/ipsec_install.go::buildIPsecSA builds one manually keyed state with no ESN in it}
 ```
 
 | Annotation | Meaning | Gate behavior |
@@ -320,11 +321,12 @@ rejected by `./le rfc check`.
 | `{gap: why; ref}` | Known, deliberate divergence | Passes, but MUST be disclosed in that RFC's public row, which is declared by the `Support status` and `Support remaining` rows of its own `## Meta` table. Not a place to hide an accident |
 | `{single-polarity: positive\|negative; why}` | Genuinely testable only one way | Requires tags of that polarity only, instead of the usual pair |
 | `{lower-layer: <layer>; <path>.go::<Symbol> ...}` | A layer under Ze performs the behavior, on state Ze installs into it, and Ze's own boundary carries no value to assert | Passes. MUST NOT coexist with any test tag. The reason MUST name the layer and the producer, and `./le rfc check` refuses a producer this tree cannot show |
+| `{feature-declined: "<RFC sentence>"; <path>.go::<Symbol> ...}` | The obligation is conditional on a feature the RFC makes OPTIONAL, and Ze declined it, so the condition is false | Passes. MUST NOT coexist with any test tag. The reason MUST open with the RFC's own sentence making the feature optional, in double quotes, and MUST name the producer that does the narrower thing. `./le rfc check` refuses a quote that is not in `rfc/full/<stem>.txt` and a producer this tree cannot show |
 
 **These are not escape hatches.** If a requirement has no test because nobody wrote one
 yet, that is not `not-applicable` — write the test, or leave the RFC un-enrolled.
-`{not-applicable}`, `{gap}` and `{lower-layer}` each FAIL the gate the moment a test tags
-the requirement (a stale annotation is a lie the ratchet catches).
+`{not-applicable}`, `{gap}`, `{lower-layer}` and `{feature-declined}` each FAIL the gate
+the moment a test tags the requirement (a stale annotation is a lie the ratchet catches).
 
 **When to reach for `{lower-layer}`, and when not to.** Four questions decide it, in this
 order. Does the obligation BIND Ze? If it binds no role Ze fills, the kind is
@@ -344,7 +346,18 @@ difference from `{not-applicable}`: a judgement nobody can check is what grew th
 gated denominator and out of the proven share, so annotating one may not move the
 published percentage by a point.
 
-**Writing any of the four is Thomas's call, not yours** (owner directive 2026-07-27,
+**When to reach for `{feature-declined}`, and when not to.** Four questions, in this
+order. Is the MUST CONDITIONAL -- "if you do X, do it this way"? An unconditional MUST Ze
+does not meet is a `{gap}`, whatever the reason. Does the RFC make X optional in words you
+can QUOTE? Quote them: the check finds that span in `rfc/full/<stem>.txt`, with whitespace
+collapsed, and refuses the line when it is not there. Did Ze DECLINE X, and does code show
+it? Name that function as `<path>.go::<Symbol>`, and read it before you name it. Is the
+absent feature DISCLOSED on the summary's own `Support status` and `Support remaining`
+rows? The feature is an implementation gap a later scope decision can revisit, and never a
+conformance gap. This kind is the coverage register's word for what an extraction sign-off
+records as `feature-out-of-scope`.
+
+**Writing any of the five is Thomas's call, not yours** (owner directive 2026-07-27,
 `ai/rules/rfc-compliance.md` "Implement Full Compliance. Ask Thomas Only Before Doing LESS").
 Implementing the requirement fully and proving it with a tagged test is always an
 available answer, and when it is reachable you take it WITHOUT asking. Choosing an
@@ -395,9 +408,9 @@ word would collide with the requirement tables.
 | `unresolved; why` | the successor's text is not in this repository | that text is ABSENT |
 
 **This marker is a fact about the DOCUMENT, never about coverage.** It composes with
-`{not-applicable}`, `{gap}`, `{single-polarity}` and `{lower-layer}` instead of replacing one. It lowers
+`{not-applicable}`, `{gap}`, `{single-polarity}`, `{lower-layer}` and `{feature-declined}` instead of replacing one. It lowers
 nothing. A marked requirement stays gated, stays counted and stays ratcheted.
-Writing one is therefore NOT the owner-reserved judgement the four annotations above
+Writing one is therefore NOT the owner-reserved judgement the five annotations above
 are. It records where the IETF put the obligation, and it says nothing about what Ze
 owes.
 
@@ -540,7 +553,7 @@ Step-by-step, pseudocode if RFC provides it.
   test is added, moved, deleted, or re-tagged: `ai/RFC-REQUIREMENTS.md` and every changed
   file under `rfc/requirements/`. The per-RFC file records `file:line`, and `./le rfc check`
   fails on a stale index and on a stale per-RFC file
-- Never annotate `{not-applicable}` / `{gap}` / `{lower-layer}` to reach green. Write the test, or leave
+- Never annotate `{not-applicable}` / `{gap}` / `{lower-layer}` / `{feature-declined}` to reach green. Write the test, or leave
   the RFC un-enrolled and say so
 - Enrolment (`| Enrolment | enrolled |` in the summary's `## Meta` table) means "every
   MUST here is CLASSIFIED": tested, or annotated with a reason that names what is

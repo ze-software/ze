@@ -50,6 +50,11 @@ const (
 	// by Ze, unlike the two green buckets: its own slice is the only place a
 	// reader can see both facts at once.
 	rfcLowerLayerBucket = "lower_layer"
+	// rfcFeatureDeclinedBucket is the obligation conditional on a feature the
+	// RFC makes optional and Ze does not offer. Like not-applicable it does not
+	// bind, and unlike not-applicable it says WHY in a form a reader can check:
+	// the annotation quotes the sentence that makes the feature optional.
+	rfcFeatureDeclinedBucket = "feature_declined"
 	// rfcUnmappedBucket is where a gated requirement goes when it carries an
 	// annotation this page has no bucket for. It is deliberately NOT one of
 	// rfcSatisfaction, so nothing publishes it as a share: it leaves a hole in
@@ -90,6 +95,9 @@ const (
 	// The label the lower-layer bucket carries, spelled once for the same
 	// reason.
 	rfcLowerLayerLabel = "Met below Ze"
+	// The label the feature-declined bucket carries, spelled once for the same
+	// reason.
+	rfcFeatureDeclinedLabel = "Optional feature declined"
 	// rfcIssuesShown bounds the open issues the page inlines. A gate that goes
 	// red on a bad merge answers thousands of diagnostics, and a page is not a
 	// log file.
@@ -250,6 +258,8 @@ var rfcSatisfaction = []struct {
 		Condition: "{not-applicable} annotation", Binds: false},
 	{Key: rfcLowerLayerBucket, Label: rfcLowerLayerLabel, Short: rfcLowerLayerLabel,
 		Condition: "{lower-layer} annotation + named producer", Binds: true},
+	{Key: rfcFeatureDeclinedBucket, Label: rfcFeatureDeclinedLabel, Short: "Feature declined",
+		Condition: "{feature-declined} annotation + quoted RFC sentence", Binds: false},
 }
 
 // rfcAnnotationBucket answers the bucket one annotation kind satisfies, and
@@ -276,6 +286,8 @@ func rfcAnnotationBucket(kind string) (string, bool) {
 		return rfcSingleBucket, true
 	case rfc.AnnotationLowerLayer:
 		return rfcLowerLayerBucket, true
+	case rfc.AnnotationFeatureDeclined:
+		return rfcFeatureDeclinedBucket, true
 	default:
 		return "", false
 	}
@@ -1095,6 +1107,14 @@ var rfcStanding = []struct {
 			"carries no value the behavior reads",
 		Rule: "no color: an obligation met below Ze is neither a test Ze wrote nor work Ze " +
 			"owes, and the two green shares above are what says how much Ze proves itself"},
+	{Label: rfcFeatureDeclinedLabel, Keys: []string{rfcFeatureDeclinedBucket}, Tone: rfcToneNeutral,
+		Meaning: "a {feature-declined} annotation says the obligation is conditional on a " +
+			"feature the RFC makes optional and Ze does not offer, and it quotes the sentence " +
+			"that makes it optional. The condition is false, so nothing is owed and nothing " +
+			"is missing. It stays in the denominator every share here is taken over",
+		Rule: "no color: an obligation whose condition Ze never meets is neither an " +
+			"achievement nor a failure. The absent FEATURE is disclosed on the RFC's own " +
+			"status row, as an implementation gap a later scope decision can revisit"},
 }
 
 // rfcBinding is the gated population of the RFCs Ze implements, and how it is
@@ -1146,6 +1166,8 @@ func (c rfcLedgerCoverage) Bucket(key string) int {
 		return c.NotApplicable
 	case rfcLowerLayerBucket:
 		return c.LowerLayer
+	case rfcFeatureDeclinedBucket:
+		return c.FeatureDeclined
 	default:
 		return 0
 	}
@@ -1230,10 +1252,8 @@ func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 				"nor bad. It is the accounting total"},
 		{Label: "Out of scope", Value: groupThousands(split.OutOfScope), Overall: true,
 			Count: "of " + groupThousands(split.Gated) + " gated MUSTs",
-			Note: "a {not-applicable} annotation says the obligation does not bind Ze. Scope, " +
-				"not coverage, and it is the Not applicable share below: it stays in the " +
-				"denominator every share on this page is taken over",
-			Tone: rfcToneNeutral,
+			Note:  rfcScopeCardNote,
+			Tone:  rfcToneNeutral,
 			Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 				"failure, and counting it either way would be a claim"},
 		rfcProvenShareCard(snapshot.Share),
@@ -1455,6 +1475,17 @@ func rfcSatisfactionRows(counted map[string]int, split rfcBinding) string {
 const (
 	rfcGatedLabel = "Gated MUST-level requirements"
 	rfcScopeCell  = "the obligation does not bind Ze, so it is scope rather than coverage"
+	// rfcScopeCardNote is the sentence both `Out of scope` cards carry, the
+	// index's and one RFC's. TWO kinds land in that number and each says
+	// something different, so the note names both: a card counting two
+	// populations while its words name one is a false statement about the one
+	// it leaves out. TestARatioLeadsAndAPopulationFollows holds it against the
+	// bucket table.
+	rfcScopeCardNote = "an obligation that does not bind Ze. A {not-applicable} annotation " +
+		"says it never bound; a {feature-declined} annotation says its condition is an " +
+		"optional feature Ze does not offer, and quotes the RFC sentence that makes it " +
+		"optional. Scope, not coverage: it stays in the denominator every share on this page " +
+		"is taken over"
 )
 
 // rfcAccountedNote says whether the buckets account for the gated population.
@@ -1480,6 +1511,45 @@ func rfcAccountedNote(split rfcBinding, accounted int) string {
 		"counted apart rather than moved into a bucket that would misdescribe them"
 }
 
+// rfcNonBindingKinds names, in bucket order, the annotation kinds whose
+// obligation does not bind Ze.
+//
+// Derived through rfcAnnotationBucket from the vocabulary itself, never written
+// out: a sentence that says what a number counts has to change when the number
+// does, and a hand list beside a registry is a future disagreement with nothing
+// to arbitrate it (ai/rules/principles.md). It read "{not-applicable}" while
+// one kind was non-binding, and it says both from 2026-09-03.
+func rfcNonBindingKinds() string {
+	names := make([]string, 0, len(rfcSatisfaction))
+	for _, bucket := range rfcSatisfaction {
+		if bucket.Binds {
+			continue
+		}
+		for _, kind := range rfc.AnnotationKinds() {
+			if key, known := rfcAnnotationBucket(kind); known && key == bucket.Key {
+				names = append(names, "{"+kind+"}")
+			}
+		}
+	}
+	return strings.Join(names, " or ")
+}
+
+// rfcNonBindingOf sums the buckets whose obligation does not bind Ze, over one
+// summary's own counters.
+//
+// The index takes the same sum through rfcBindingOf. Both read the Binds column
+// of one table, so the `Out of scope` card cannot count one population on the
+// index and another on a stem page.
+func rfcNonBindingOf(countOf func(string) int) int {
+	total := 0
+	for _, bucket := range rfcSatisfaction {
+		if !bucket.Binds {
+			total += countOf(bucket.Key)
+		}
+	}
+	return total
+}
+
 // rfcScopeNote says what the bar counts, so a reader is never shown a
 // proportion whose population they cannot name.
 //
@@ -1491,8 +1561,8 @@ func rfcScopeNote(split rfcBinding) string {
 	}
 	return "The bar is every one of the " + groupThousands(split.Gated) +
 		" gated MUST-level requirements. " + groupThousands(split.OutOfScope) +
-		" of them are {not-applicable}: they do not bind Ze, and they are a named segment of " +
-		"the bar rather than an omission from it."
+		" of them are " + rfcNonBindingKinds() + ": they do not bind Ze, and they are a named " +
+		"segment of the bar rather than an omission from it."
 }
 
 // rfcGapDisclosureHTML renders what the public page says about the RFCs
@@ -1814,6 +1884,7 @@ const rfcComplianceStyle = `<style>
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }

@@ -397,6 +397,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	}
 	findings = append(findings, notes(compileErrors)...)
 	findings = append(findings, notes(checkLowerLayerProducer(discriminationSources, collected.Requirements))...)
+	findings = append(findings, notes(checkFeatureDeclined(tree, discriminationSources, collected.Requirements))...)
 	findings = append(findings, notes(checkStatusAgreement(collected.Requirements, rows, collected.Enrolled))...)
 	findings = append(findings, notes(checkSummaryDisposition(tree, collected.Metas, collected.Requirements))...)
 	findings = append(findings, notes(checkPublicRowMonotonic(collected.Metas, baseMetas,

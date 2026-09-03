@@ -123,6 +123,9 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 	if kind == AnnotationLowerLayer {
 		return parseLowerLayer(rest, where)
 	}
+	if kind == AnnotationFeatureDeclined {
+		return parseFeatureDeclined(rest, where)
+	}
 	return &Annotation{Kind: kind, Reason: rest}, nil
 }
 
@@ -175,6 +178,74 @@ func parseLowerLayer(rest, where string) (*Annotation, error) {
 	// `{kind} reason` publishes both facts with no knowledge of this kind, and
 	// the site cannot lose the layer on its way to a page.
 	return &Annotation{Kind: AnnotationLowerLayer, Layer: layer, Producer: producer,
+		Reason: strings.TrimSpace(rest)}, nil
+}
+
+// featureDeclinedRE splits `"<quote>"; <why>`: a double-quoted span, then the
+// reason. The quote is read by its own quotation marks rather than by the `;`
+// {lower-layer} cuts on, because an RFC sentence carries semicolons of its own
+// and cutting on the first one would truncate the quote the gate goes and
+// checks.
+var featureDeclinedRE = regexp.MustCompile(`^"([^"]+)"\s*;\s*(\S.*)$`)
+
+// featureDeclinedFormat is the one format sentence every {feature-declined}
+// refusal ends with, so an author reading any of them is shown the same shape.
+const featureDeclinedFormat = `Format: {feature-declined: "<the RFC's own sentence making the feature optional>"; <path>.go::<Symbol> does <the narrower thing ze chose>}`
+
+// minFeatureQuote is the shortest quoted span that identifies a sentence.
+//
+// It is minCorrectionQuote, and deliberately the same number: both are a quote
+// held against the RFC's own text to authorize doing less than the checklist
+// line says, so two thresholds would be one rule two files could disagree
+// about.
+const minFeatureQuote = minCorrectionQuote
+
+// parseFeatureDeclined reads `{feature-declined: "<quote>"; why}` and demands
+// both facts the kind rests on.
+//
+// The QUOTE is the RFC's own sentence that makes the feature optional or
+// conditional, and checkFeatureDeclined finds it in rfc/full/<stem>.txt. The
+// PRODUCER is the function that does the narrower thing Ze chose, as
+// `<path>.go::<Symbol>`, and the same check finds it in this tree. Neither is
+// decoration: a kind that says "Ze does not do that" with nothing named is
+// assertable rather than checkable, which is how {not-applicable} became a set
+// of 915 judgements no reader can check (owner ruling, 2026-08-31).
+func parseFeatureDeclined(rest, where string) (*Annotation, error) {
+	var tb textbuf.Buffer
+	parts := featureDeclinedRE.FindStringSubmatch(rest)
+	if parts == nil {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} needs the RFC's own sentence in double quotes, then a reason. ").
+			Str(featureDeclinedFormat))
+	}
+	quote, why := strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2])
+	if len(quote) < minFeatureQuote {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} quotes ").Str(pyRepr(quote)).
+			Str(", which is under ").Int(int64(minFeatureQuote)).
+			Str(" characters and identifies no sentence. Quote the words that make the feature optional. ").
+			Str(featureDeclinedFormat))
+	}
+	producer := producerRE.FindString(why)
+	if producer == "" {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} names no producer, so nothing in this tree can falsify it. ").
+			Str("Name the function that does the narrower thing ze chose, as <path>.go::<Symbol>. ").
+			Str(featureDeclinedFormat))
+	}
+	// A test names no producer. It is the one shape that would satisfy the
+	// demand above while deciding nothing about what Ze offers, and the kind
+	// rests on what Ze BUILDS.
+	if strings.HasSuffix(producerFile(producer), "_test.go") {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} names the test ").Str(producer).
+			Str(" as its producer. A test decides nothing about what ze offers; name the code that does. ").
+			Str(featureDeclinedFormat))
+	}
+	// Reason keeps the WHOLE body, quote included, for the same reason
+	// {lower-layer} does: every renderer that prints `{kind} reason` publishes
+	// both facts with no knowledge of this kind.
+	return &Annotation{Kind: AnnotationFeatureDeclined, Quote: quote, Producer: producer,
 		Reason: strings.TrimSpace(rest)}, nil
 }
 

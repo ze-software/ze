@@ -196,8 +196,12 @@ coverage, so it is a named slice with a neutral card of its own rather than a
 subtraction: removing it flattered every share above it, and the owner ruled
 against that on 2026-09-02. `{lower-layer}` is a second neutral slice, added on
 2026-09-03: the obligation binds Ze and a layer under Ze meets it, on state Ze
-installs, so it is neither proven by Ze nor work Ze owes
-(`docs/contributing/rfc-conformance-gates.md`). The gated count keeps its place below the ratios as
+installs, so it is neither proven by Ze nor work Ze owes.
+`{feature-declined}` is a third, added the same day: the obligation is
+conditional on a feature the RFC makes optional and Ze does not offer, so its
+condition is false and nothing is owed. That one is counted with
+`{not-applicable}` in the `Out of scope` card, whose note names both kinds and
+what each one says (`docs/contributing/rfc-conformance-gates.md`). The gated count keeps its place below the ratios as
 the accounting total it is, and the bucket table states it as the sum of the two
 populations. The page led with that count until 2026-09-01, when the owner
 called the arrangement deceptive: a count of obligations judged reads as a count

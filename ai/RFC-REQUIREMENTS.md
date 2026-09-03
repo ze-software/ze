@@ -27,7 +27,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 
 ## Coverage by RFC
 
-363 MUST-level requirement(s) still owe work across 185 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
+362 MUST-level requirement(s) still owe work across 185 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
 
 **Nightly-only** (2 requirement(s)) counts what is proven ONLY by evidence no `./le verify current mode full` stage runs -- today, interop scenarios, which are scheduled and advisory. **Both** and **One polarity** are the polarity view: they answer which polarities exist, not which pipeline runs them, so a nightly-only requirement is counted there too. **Nightly-only** is the tier view over the same rows -- an overlapping subset marker naming which of them no merge-gate stage proves, never a total to sum with the others.
 
@@ -208,7 +208,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 | `sflow-v5` | 16 | 1 | 0 | 15 | 0 | 0 | 0 | **enrolled** |
 | `rfc5082` | 4 | 3 | 0 | 0 | 1 | 1 | 0 | **enrolled** |
 | `rfc8671` | 10 | 7 | 0 | 2 | 1 | 1 | 0 | **enrolled** |
-| `rfc4302` | 34 | 8 | 0 | 22 | 4 | 4 | 0 | **enrolled** |
+| `rfc4302` | 34 | 8 | 0 | 23 | 3 | 3 | 0 | **enrolled** |
 | `draft-abraitis-bgp-version-capability` | 11 | 0 | 0 | 0 | 11 | 11 | 0 | **enrolled** |
 | `draft-ietf-idr-linklocal-capability` | 13 | 0 | 0 | 0 | 13 | 13 | 0 | **enrolled** |
 | `rfc3748` | 61 | 33 | 0 | 13 | 15 | 15 | 0 | **enrolled** |

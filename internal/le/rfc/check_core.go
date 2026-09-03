@@ -15,14 +15,16 @@ import (
 // annotationBarsATest answers the kinds whose claim is contradicted by a tagged
 // test on the same requirement.
 //
-// Each of the three says NO test carries this id, for a different reason: the
-// obligation does not bind Ze, Ze does not meet it, or a layer under Ze meets
-// it and Ze's own boundary holds nothing to assert. A tag falsifies all three
-// the same way, so the annotation is stale rather than the tag being wrong. It
-// is also what keeps {lower-layer} out of the proven numerator by more than
-// bookkeeping: a requirement Ze can prove is one this annotation may not cover.
+// Each of the four says NO test carries this id, for a different reason: the
+// obligation does not bind Ze, Ze does not meet it, a layer under Ze meets it
+// and Ze's own boundary holds nothing to assert, or its condition is a feature
+// Ze declined. A tag falsifies all four the same way, so the annotation is
+// stale rather than the tag being wrong. It is also what keeps {lower-layer}
+// and {feature-declined} out of the proven numerator by more than bookkeeping:
+// a requirement Ze can prove is one this annotation may not cover.
 func annotationBarsATest(kind string) bool {
-	return kind == AnnotationNotApplicable || kind == AnnotationGap || kind == AnnotationLowerLayer
+	return kind == AnnotationNotApplicable || kind == AnnotationGap ||
+		kind == AnnotationLowerLayer || kind == AnnotationFeatureDeclined
 }
 
 // evaluate answers one finding per coverage violation, in the PARTS it had
@@ -247,8 +249,10 @@ func checkLowerLayerProducer(reader *sourceReader, requirements []Requirement) [
 			continue
 		}
 		where := requirementWhere(req)
-		parts := producerRE.FindStringSubmatch(req.Annotation.Producer)
-		if parts == nil {
+		state, path, symbol := resolveProducer(reader, req.Annotation.Producer)
+		switch state {
+		case producerFound:
+		case producerUnnamed:
 			// The parser fills Producer or refuses the line, so this arm is
 			// reached only by a requirement built in code. It REFUSES rather
 			// than skipping: a missing producer is the one state this kind may
@@ -258,20 +262,14 @@ func checkLowerLayerProducer(reader *sourceReader, requirements []Requirement) [
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
 				Str(" is annotated {lower-layer} and names no producer. ").
 				Str(lowerLayerFormat).String())
-			continue
-		}
-		path, symbol := parts[1], parts[3]
-		content := reader.read(path)
-		if content == nil {
+		case producerFileAbsent:
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
 				Str(" is annotated {lower-layer: ").Str(req.Annotation.Layer).
 				Str("} and names the producer ").Str(req.Annotation.Producer).
 				Str(", whose file this checkout does not carry. The kind rests on a producer a reader can open: name the file that installs into ").
 				Str(req.Annotation.Layer).Str(", or the annotation claims what nothing here can show").String())
-			continue
-		}
-		if !declaresFunction(*content, symbol) {
+		case producerSymbolAbsent:
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
 				Str(" is annotated {lower-layer: ").Str(req.Annotation.Layer).
@@ -282,6 +280,121 @@ func checkLowerLayerProducer(reader *sourceReader, requirements []Requirement) [
 		}
 	}
 	return errs
+}
+
+// producerState is what this checkout can show about the `<path>.go::<Symbol>`
+// an annotation names.
+type producerState int
+
+const (
+	producerFound producerState = iota
+	producerUnnamed
+	producerFileAbsent
+	producerSymbolAbsent
+)
+
+// resolveProducer answers what the tree shows for one producer key, and the
+// path and the symbol it read.
+//
+// Two kinds name a producer and each owes its own sentence, so the RESOLUTION
+// is shared and the refusals are not. A second copy of "read the file, find the
+// function" would be one rule two checks could disagree about
+// (ai/rules/principles.md).
+func resolveProducer(reader *sourceReader, producer string) (producerState, string, string) {
+	parts := producerRE.FindStringSubmatch(producer)
+	if parts == nil {
+		return producerUnnamed, "", ""
+	}
+	path, symbol := parts[1], parts[3]
+	content := reader.read(path)
+	if content == nil {
+		return producerFileAbsent, path, symbol
+	}
+	if !declaresFunction(*content, symbol) {
+		return producerSymbolAbsent, path, symbol
+	}
+	return producerFound, path, symbol
+}
+
+// checkFeatureDeclined holds every {feature-declined} annotation against the
+// two things it claims: the RFC's own text, and this tree.
+//
+// The kind says an obligation is conditional on a feature the RFC makes
+// optional and Ze does not offer, so the condition is false and nothing is
+// owed. Both halves of that sentence are checkable, and the check is what keeps
+// the kind apart from {not-applicable}, whose judgement nothing in the tree can
+// contradict. The QUOTE has to be in the RFC, whitespace aside, so the reader
+// can see the document making the feature optional rather than take the
+// author's word for it. The PRODUCER has to be findable, so a rename or a
+// deletion under the annotation turns the gate red.
+//
+// An RFC whose text this repository does not hold is REFUSED rather than
+// skipped. A quote nobody can check is the assertion this kind exists not to
+// be, and enrolment already requires the text (checkEnrolment).
+func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requirement) []string {
+	sources := map[string]string{}
+	var errs []string
+	for _, req := range requirements {
+		if req.Annotation == nil || req.Annotation.Kind != AnnotationFeatureDeclined {
+			continue
+		}
+		where := requirementWhere(req)
+		errs = append(errs, featureDeclinedQuote(where, req, sources, tree)...)
+		state, path, symbol := resolveProducer(reader, req.Annotation.Producer)
+		switch state {
+		case producerFound:
+		case producerUnnamed:
+			// Unreachable through the parser, which refuses the line first. The
+			// check still refuses it, because a guard that skips the one state
+			// it exists to catch is not a guard (ai/rules/principles.md).
+			var tb textbuf.Buffer
+			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
+				Str(" is annotated {feature-declined} and names no producer. ").
+				Str(featureDeclinedFormat).String())
+		case producerFileAbsent:
+			var tb textbuf.Buffer
+			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
+				Str(" is annotated {feature-declined} and names the producer ").
+				Str(req.Annotation.Producer).
+				Str(", whose file this checkout does not carry. The kind rests on code a reader can open: name the function that does the narrower thing ze chose, or the annotation claims what nothing here can show").String())
+		case producerSymbolAbsent:
+			var tb textbuf.Buffer
+			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
+				Str(" is annotated {feature-declined} and names the producer ").
+				Str(req.Annotation.Producer).Str(", but ").Str(path).
+				Str(" declares no ").Str(symbol).
+				Str(". The producer was renamed or deleted under the annotation: name the function that does the narrower thing ze chose today").String())
+		}
+	}
+	return errs
+}
+
+// featureDeclinedQuote holds one annotation's quote against the RFC's own text,
+// reading each document at most once.
+func featureDeclinedQuote(where string, req Requirement, sources map[string]string,
+	tree string,
+) []string {
+	source, loaded := sources[req.RFC]
+	if !loaded {
+		source, _ = SourceText(tree, req.RFC)
+		sources[req.RFC] = source
+	}
+	if source == "" {
+		var tb textbuf.Buffer
+		return []string{tb.Str(where).Str(": ").Str(req.RID).
+			Str(" is annotated {feature-declined} and the RFC's own text is not in this repository, so its quote can be checked against nothing. Fetch it to ").
+			Str(fullRel).Byte('/').Str(req.RFC).Str(".txt or ").Str(draftsRel).Byte('/').
+			Str(req.RFC).Str(".txt").String()}
+	}
+	if strings.Contains(squashWhitespace(source), squashWhitespace(req.Annotation.Quote)) {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return []string{tb.Str(where).Str(": ").Str(req.RID).
+		Str(" is annotated {feature-declined} and quotes ").
+		Str(pyRepr(truncateRunes(req.Annotation.Quote, 60))).
+		Str(", which is not in ").Str(fullRel).Byte('/').Str(req.RFC).
+		Str(".txt. The kind rests on the DOCUMENT making the feature optional, so the sentence has to be the RFC's own: quote it verbatim (line breaks are ignored), or the obligation is unconditional and this is a {gap}").String()}
 }
 
 // declaresFunction answers whether a Go file declares a top-level function of

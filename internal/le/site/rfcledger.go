@@ -112,6 +112,18 @@ type rfcLedgerCoverage struct {
 	// names the layer and the producer instead, so the count sits beside the
 	// proven shares rather than inside them.
 	LowerLayer int `json:"met-below"`
+	// FeatureDeclined counts the gated requirements a `{feature-declined}`
+	// annotation says are conditional on a feature the RFC makes optional and
+	// Ze does not offer. Those do NOT bind, because their condition is false,
+	// and the annotation quotes the RFC sentence that makes it optional: that
+	// quote is what a reader checks, and it is what this bucket has and
+	// NotApplicable has not.
+	//
+	// The JSON key describes the state rather than spelling the annotation
+	// kind, as `out-of-scope` and `met-below` beside it do:
+	// TestTheSiteReadsItsRFCVocabularyFromThePackage refuses a closed set's own
+	// word written a second time in this file.
+	FeatureDeclined int `json:"optional-not-offered"`
 	// UnmappedAnnotations counts the gated requirements whose annotation kind
 	// this page has no bucket for.
 	//
@@ -528,6 +540,8 @@ func rfcLedgerCoverageOf(bucket rfc.CoverageRow, requirements []rfcLedgerRequire
 				coverage.SinglePolarity++
 			case bucket == rfcLowerLayerBucket:
 				coverage.LowerLayer++
+			case bucket == rfcFeatureDeclinedBucket:
+				coverage.FeatureDeclined++
 			}
 		}
 		if requirement.Audit != nil {

@@ -330,8 +330,19 @@ func TestGapCountPopulationSurvivesTheMove(t *testing.T) {
 	// truncated coverage and an EMPTY remainder -- and its "Three MUST gaps"
 	// was outside the check. The cell is escaped in the Meta table and the
 	// row rejoins the population it always belonged to.
-	if counted != 57 {
-		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 57",
+	//
+	// 58 since 2026-09-03: RFC 4552 moved from Experimental to Partial and its
+	// Remaining cell was rewritten with it, and the new prose spells its count
+	// immediately before MUST, which is the shape gapCountRE reads. The row
+	// joined the population rather than the population changing shape.
+	//
+	// The number is hand-maintained on purpose -- a population that SHRINKS in
+	// silence is what this test exists to catch, so it cannot be derived from
+	// the same rows it judges. The cost is this two-sided edit, and
+	// plan/journal/hardcoded-count-in-test.md records that the cost has now
+	// been paid several times across the repository.
+	if counted != 58 {
+		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 58",
 			counted, len(rows))
 	}
 }

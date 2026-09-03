@@ -193,12 +193,10 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 			Tone:  rfcToneNeutral,
 			Rule: "no color: a population is a scale, and a larger one is neither good news " +
 				"nor bad. It is the accounting total"},
-		{Label: "Out of scope", Value: groupThousands(coverage.NotApplicable),
+		{Label: "Out of scope", Value: groupThousands(rfcNonBindingOf(coverage.Bucket)),
 			Count: "of " + groupThousands(coverage.Gated) + " gated MUSTs",
-			Note: "a {not-applicable} annotation says the obligation does not bind Ze. Scope, " +
-				"not coverage, and it is the Not applicable share below: it stays in the " +
-				"denominator every share on this page is taken over",
-			Tone: rfcToneNeutral,
+			Note:  rfcScopeCardNote,
+			Tone:  rfcToneNeutral,
 			Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 				"failure, and counting it either way would be a claim"},
 	}

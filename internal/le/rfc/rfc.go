@@ -170,12 +170,12 @@ var escapeReasons = map[string]bool{
 // escapeReasonNames answers them sorted, for a refusal message.
 func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 
-// annotationKinds are the four `{...}` kinds that say something about Ze's
+// annotationKinds are the five `{...}` kinds that say something about Ze's
 // COVERAGE. SupersededKind is named apart because it says something about the
 // DOCUMENT, and the two registers must never share a slot: had superseded
 // joined this set, marking a requirement would have EVICTED its {gap} and a
 // document's obsolescence would have become a way out of the gated population.
-// The four annotation kinds a checklist line can carry. Named, because
+// The five annotation kinds a checklist line can carry. Named, because
 // AnnotationSinglePolarity is read in three places -- the parser that demands a
 // polarity beside it, the coverage rule that treats it as complete cover, and
 // the audit schema that lets one test carry an `enforced` verdict -- and a
@@ -195,18 +195,41 @@ func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 // (provenshare.go), exactly where {gap} sits. What stops it becoming the next
 // blanket exemption is that its reason CLAIMS A FACT the gate checks: the layer
 // and, as `<path>.go::<Symbol>`, the producer that installs into it.
+//
+// AnnotationFeatureDeclined says the obligation is CONDITIONAL on a feature the
+// RFC makes optional, and Ze declined that feature, so the condition is false
+// and the obligation does not bind. RFC4302-2.5.1-1 is the case it was added
+// for (owner approval, 2026-09-03): an Extended Sequence Number "MUST be
+// negotiated by an SA management protocol", Ze negotiates no AH SA and uses no
+// ESN, so {gap} would accuse Ze of owing behavior it does not owe and
+// {lower-layer} would claim a negotiation no layer performs.
+//
+// It is the coverage register's word for the decision the extraction register
+// already records as `feature-out-of-scope` (exclusionKinds, artifact.go). The
+// two are spelled apart on purpose: the site's `out-of-scope` counter already
+// means {not-applicable} there, so one word would name two partitions on one
+// page. Both mean "the RFC makes a feature OPTIONAL, Ze decided not to offer
+// it, and this obligation is conditional on offering it".
+//
+// What stops it becoming the next {not-applicable} is the same discipline
+// {lower-layer} carries: its reason claims two FACTS the gate checks. The
+// QUOTED sentence that makes the feature optional is held against the RFC's own
+// text in rfc/full/, and the producer that does the narrower thing Ze chose is
+// held against this checkout (checkFeatureDeclined, check_core.go).
 const (
-	AnnotationNotApplicable  = "not-applicable"
-	AnnotationGap            = "gap"
-	AnnotationSinglePolarity = "single-polarity"
-	AnnotationLowerLayer     = "lower-layer"
+	AnnotationNotApplicable   = "not-applicable"
+	AnnotationGap             = "gap"
+	AnnotationSinglePolarity  = "single-polarity"
+	AnnotationLowerLayer      = "lower-layer"
+	AnnotationFeatureDeclined = "feature-declined"
 )
 
 var annotationKinds = map[string]bool{
-	AnnotationNotApplicable:  true,
-	AnnotationGap:            true,
-	AnnotationSinglePolarity: true,
-	AnnotationLowerLayer:     true,
+	AnnotationNotApplicable:   true,
+	AnnotationGap:             true,
+	AnnotationSinglePolarity:  true,
+	AnnotationLowerLayer:      true,
+	AnnotationFeatureDeclined: true,
 }
 
 // AnnotationKinds answers them sorted.
@@ -349,18 +372,28 @@ func isParseError(err error) bool {
 // requirement owes less than a positive and a negative test.
 // Annotation is one coverage disposition a checklist line carries.
 //
-// Polarity, Layer and Producer are each read by ONE kind and empty on every
-// other: the parser fills them where that kind's format demands them, so a
-// reader that has the kind never re-parses the reason to recover them.
+// Polarity, Layer, Quote and Producer are each read by ONE kind and empty on
+// every other, except Producer, which two kinds name: the parser fills them
+// where that kind's format demands them, so a reader that has the kind never
+// re-parses the reason to recover them.
 type Annotation struct {
 	Kind     string `json:"kind"`
 	Polarity string `json:"polarity,omitempty"`
-	// Layer names what performs the behavior under Ze, and Producer is the
-	// `<path>.go::<Symbol>` that installs into that layer. Both are
-	// {lower-layer}'s alone, and checkLowerLayerProducer holds Producer against
-	// the tree: a layer claim nothing here can falsify is the blanket exemption
-	// this kind exists to avoid being.
-	Layer    string `json:"layer,omitempty"`
+	// Layer names what performs the behavior under Ze. It is {lower-layer}'s
+	// alone, and a layer claim nothing here can falsify is the blanket
+	// exemption that kind exists to avoid being.
+	Layer string `json:"layer,omitempty"`
+	// Quote is the RFC's own sentence that makes a feature optional. It is
+	// {feature-declined}'s alone, and checkFeatureDeclined holds it against
+	// rfc/full/<stem>.txt: the kind rests on the DOCUMENT making the feature
+	// optional, which is a fact rather than a judgement.
+	Quote string `json:"quote,omitempty"`
+	// Producer is the `<path>.go::<Symbol>` a reason names, and
+	// checkLowerLayerProducer and checkFeatureDeclined each hold it against the
+	// tree. {lower-layer} names the function that installs into the layer;
+	// {feature-declined} names the function that does the narrower thing Ze
+	// chose. Both die the same way, when the code is renamed or deleted under
+	// the annotation.
 	Producer string `json:"producer,omitempty"`
 	Reason   string `json:"reason"`
 }

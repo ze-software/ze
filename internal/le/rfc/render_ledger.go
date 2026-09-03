@@ -140,8 +140,20 @@ func renderEnrolled(metas map[string]Meta) string {
 	tb.Str("#\n")
 	tb.Str("# An enrolled RFC has EVERY MUST-level requirement in rfc/short/<stem>.md either\n")
 	tb.Str("#   (a) covered by a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`, or\n")
-	tb.Str("#   (b) annotated in the summary with a reason: {not-applicable: why} / {gap: why} /\n")
-	tb.Str("#       {single-polarity: <polarity>; why}\n")
+	// The kinds are READ from the vocabulary rather than restated. This line
+	// listed three of the four on 2026-09-03, having missed {lower-layer} when
+	// that kind was added, and a hand list beside a registry is a future
+	// disagreement with nothing to arbitrate it (ai/rules/principles.md). Each
+	// kind's own format is one document away rather than copied here.
+	tb.Str("#   (b) annotated in the summary with a reason, in one of the kinds\n")
+	tb.Str("#       ")
+	for index, kind := range AnnotationKinds() {
+		if index > 0 {
+			tb.Str(" / ")
+		}
+		tb.Byte('{').Str(kind).Byte('}')
+	}
+	tb.Str(" -- ai/skills/ze-rfc.md gives each one's format\n")
 	tb.Str("# `./le rfc check` enforces this. See ai/skills/ze-rfc.md.\n")
 	tb.Str("#\n")
 	tb.Str("# To enrol an RFC, edit its summary and nothing else: set `| Enrolment | enrolled |`\n") //nolint:misspell // Generated ledger prose naming the `Enrolment` field; `enroll` here would rewrite rfc/enrolled.txt.

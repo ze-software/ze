@@ -179,6 +179,7 @@ it, so each is a hard requirement rather than a HEAD comparison.
 | `checkUnprovenSupport` | two shapes of a claim nothing behind it can contradict. A support claim over a summary that declares ZERO gated requirements, where a claim is any Status other than `Unsupported` or `Future`, an empty cell included: a claim and a checklist that agree on NOTHING is the cheapest way to look green. Two escapes exist there, and each is evidence rather than assertion. They are a `non-normative` disposition whose reason states a property of the text, and a VALID `manual-walk` sign-off with a `register-reason`. The second one lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero. The other shape is a row PROMISING conformance -- `Supported`, alone or with a scope after it -- over gated requirements of which not one carries a both-polarity test. Neither escape reaches it, because both answer whether the DOCUMENT imposes a MUST rather than whether Ze meets one, and `Partial` is the row that states what is true |
 | `checkPublicRowMonotonic` | a `Support` cell that read a section at HEAD and reads `-` now, while the summary is still there, and a newly enrolled RFC that arrives with no row at all. It is keyed on the ROW, never on enrolment, because `checkSupportedSignoff` bills any row whose Status promises conformance. RFCs enrolled before it existed are grandfathered, so the count of enrolled RFCs with no row can only shrink |
 | `checkLowerLayerProducer` | a `{lower-layer}` annotation whose producer this checkout cannot show: the file is absent, or it declares no function of that name. The kind rests on a fact a reader can open, and a producer that was renamed or deleted under the annotation is the event this catches |
+| `checkFeatureDeclined` | a `{feature-declined}` annotation whose quote is not in the RFC's own text, whose RFC has no text in this repository, or whose producer this checkout cannot show. Two facts, because the kind makes two claims: the DOCUMENT makes the feature optional, and ZE built the narrower thing |
 | `checkGapCountAgreement` | a Remaining cell whose spelled number, sitting immediately before MUST or SHALL, disagrees with the real `{gap}` count. The COUNT is the only fact on that page a machine can own: it says how many annotations exist, never that their classifications are right |
 
 Un-enrolment exempts only the MISSING-ROW branch of `checkStatusAgreement`. An
@@ -238,6 +239,69 @@ line carries ONE disposition, so a line carrying both is refused rather than
 silently relabeled. That is the same reason `{superseded}` was kept out of the
 register: a way out of the gated population must not be creatable by writing a
 second marker beside the one already there.
+
+## The feature-declined annotation
+
+`{feature-declined}` says the obligation is CONDITIONAL on a feature the RFC
+makes optional, and Ze declined that feature, so the condition is false and
+nothing is owed. The owner approved it on 2026-09-03 for `RFC4302-2.5.1-1`: RFC
+4302 §2.5.1 says an Extended Sequence Number "MUST be negotiated by an SA
+management protocol", Ze negotiates no AH SA and uses no ESN, so `{gap}` would
+accuse Ze of owing behavior it does not owe, and `{lower-layer}` would claim a
+negotiation no layer performs.
+
+```
+- [ ] [RFC4302-2.5.1-1] [MUST] Use of an Extended Sequence Number MUST be negotiated by an SA management protocol (§2.5.1) {feature-declined: "a new option for sequence numbers SHOULD be offered, as an extension to the current, 32-bit sequence number field"; ze offers no ESN, so nothing ever uses one. internal/plugins/ospf/ipsec_install.go::buildIPsecSA is the only code that creates an AH SA, and it builds one manually keyed transport-mode state from static interface configuration with no ESN in it}
+```
+
+The reason states two facts, and the gate checks both:
+
+| Fact | Written as | Checked by |
+|------|-----------|------------|
+| The RFC's own sentence making the feature OPTIONAL | a double-quoted span, first, before the `;` | `parseFeatureDeclined` refuses a body that opens with anything else and a quote under 24 characters; `checkFeatureDeclined` then refuses one that is not in `rfc/full/<stem>.txt`, comparing with whitespace collapsed so the RFC's line wrapping does not matter |
+| The PRODUCER in Ze that does the narrower thing | `<path>.go::<Symbol>` anywhere in the reason | `parseFeatureDeclined` refuses a reason naming none, and one naming a `_test.go` file; `checkFeatureDeclined` then refuses one the tree cannot show |
+
+The quote is the stronger of the two, and it is what a free-text reason cannot
+be: a claim about the DOCUMENT, checkable against the document. A reason saying
+"Ze does not do that" is a judgement, which is how `{not-applicable}` grew to
+915 sites the owner ruling presumes are mostly wrong. Both refusals are the same
+shape `checkLowerLayerProducer` already has, so a rename under the annotation
+turns the gate red for either kind.
+
+An RFC whose text this repository does not hold is REFUSED rather than skipped.
+A quote nobody can check is exactly the assertion this kind exists not to be,
+and enrolment already requires the text.
+
+Four rules decide whether it is the right kind:
+
+- **The obligation is CONDITIONAL.** The MUST is written as "if you do X, do it
+  this way", and X is the feature. An unconditional MUST Ze does not meet is a
+  `{gap}`, whatever the reason.
+- **The RFC makes X optional, in words you can quote.** A feature the RFC
+  requires is not declinable, so no quote exists and the check refuses the line.
+- **Ze declined X, and code shows it.** The producer is the function that does
+  the narrower thing: it is what a reader opens, and what a later change that
+  ADDS the feature has to walk past.
+- **The absent FEATURE is still disclosed.** It goes on the summary's own
+  `Support status` and `Support remaining` rows, as an implementation gap a
+  later scope decision can revisit, and never as a conformance gap
+  (`ai/rules/rfc-compliance.md`, owner directive 2026-08-31). This kind is the
+  coverage register's word for the decision the extraction register records as
+  `feature-out-of-scope`. The two are spelled apart because the site's
+  `out-of-scope` counter already means `{not-applicable}` there.
+
+It stays INSIDE the gated denominator and OUT of the proven numerator, exactly
+as `{lower-layer}` does, and
+`TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` holds that property
+over this checkout's own corpus for every kind but `{single-polarity}`. On the
+site it is its own bucket, `feature_declined`, labeled `Optional feature
+declined`, and it is counted with `{not-applicable}` in the `Out of scope` card:
+neither obligation binds Ze, and the card's own note names both kinds and what
+each one says.
+
+It cannot take a `{gap}`'s slot, for the reason recorded about `SupersededKind`:
+one checklist line carries ONE disposition, so a line carrying both is refused
+rather than silently relabeled.
 
 ## The superseded marker
 
