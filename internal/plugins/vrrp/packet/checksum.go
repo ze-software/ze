@@ -62,10 +62,13 @@ func pseudoSumV6(src, dst netip.Addr, upperLen int) uint32 {
 	return sum
 }
 
-// pseudoSumV4Legacy builds the legacy RFC 5798 IPv4 pseudo-header partial sum
-// accepted on rx only: src (4B) + dst (4B) + zero (1B) + protocol 112 (1B) +
-// VRRP length (2B). RFC 9568 Section 5.2.8 no longer prepends this for IPv4;
-// pre-#2324 keepalived, FRR pre-2022 and uvrrpd emit it.
+// pseudoSumV4Legacy builds the RFC 5798 IPv4 pseudo-header partial sum: src
+// (4B) + dst (4B) + zero (1B) + protocol 112 (1B) + VRRP length (2B). RFC 9568
+// Section 5.2.8 no longer prepends this for IPv4, which is what "legacy" names,
+// but ze uses it on BOTH sides. FillChecksum computes every v3/IPv4 advert ze
+// transmits with it (the interop evidence is stated there), and verifyReceived
+// tries it first on rx because the deployed base -- pre-#2324 keepalived, FRR
+// pre-2022 and uvrrpd -- sends this form.
 func pseudoSumV4Legacy(src, dst netip.Addr, vrrpLen int) uint32 {
 	s := src.As4()
 	d := dst.As4()

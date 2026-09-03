@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/runlog"
@@ -49,7 +50,7 @@ func runQuiet(adm *Admission, label string, argv []string) (Report, int) {
 		return report, report.Code
 	}
 
-	relative, err := quietLog(adm.Root, label)
+	relative, err := quietLog(adm.Root, label, argv)
 	if err != nil {
 		leaction.ReportError(err)
 		report.Code = 2
@@ -76,14 +77,29 @@ func runQuiet(adm *Admission, label string, argv []string) (Report, int) {
 }
 
 // quietLog answers the checkout-relative path of this session's log for one
-// label. Two runs of one label in one session overwrite: the answer is about
-// the run in hand, and the previous run's verdict was already read.
-func quietLog(root, label string) (string, error) {
+// label and one command. Two runs of the same command under one label
+// overwrite: the answer is about the run in hand, and the previous run's
+// verdict was already read.
+//
+// The COMMAND is in the name, and it has to be. The name was the label alone
+// until 2026-09-03, on the reasoning above, which holds only while a session
+// runs one thing at a time. A session's subagents share its
+// CLAUDE_CODE_SESSION_ID and therefore its scratch directory, so two siblings
+// running one label concurrently opened one path O_TRUNC, and each read its
+// KeyLines back out of the other's log. Delegation is the default in this
+// repository, so that is the ordinary case rather than the exotic one.
+//
+// Keyed on jobKey, so the same fingerprint that decides whether one run may
+// attach to another decides whether they may share a log. Two runs that are
+// the same work share both; two that are not share neither.
+func quietLog(root, label string, argv []string) (string, error) {
 	paths, err := lepath.ResolveSession(root, true)
 	if err != nil {
 		return "", err
 	}
-	return filepath.ToSlash(filepath.Join(paths.Scratch, "job-"+label+".log")), nil
+	var tb textbuf.Buffer
+	name := tb.Str("job-").Str(label).Byte('-').Str(jobKey(argv)[:8]).Str(".log").String()
+	return filepath.ToSlash(filepath.Join(paths.Scratch, name)), nil
 }
 
 // quietSummary reads back the lines of the log that say what broke. A log this

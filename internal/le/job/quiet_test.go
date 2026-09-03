@@ -148,3 +148,39 @@ func TestQuietIsReadBeforeTheCommandAndNowhereAfterIt(t *testing.T) {
 		t.Errorf("the command is %v, want the child's argv unchanged", loud.Argv)
 	}
 }
+
+// TestTwoCommandsUnderOneLabelDoNotShareALog drives two different commands
+// under one label from the same session, which is what sibling subagents do.
+//
+// VALIDATES: the log path is keyed on the command as well as the label, so each
+// run reads its own output back.
+// PREVENTS: the shape this file's own comment assumed away until 2026-09-03,
+// that a session runs one thing at a time. A session's subagents share its
+// CLAUDE_CODE_SESSION_ID and so its scratch directory, and delegation is the
+// default here, so two of them under one label opened one path O_TRUNC and each
+// took the other's KeyLines for its own verdict.
+func TestTwoCommandsUnderOneLabelDoNotShareALog(t *testing.T) {
+	adm := quietAdmission(t)
+	adm.Out = &strings.Builder{}
+
+	first, _ := runQuiet(adm, "unit-pkg", []string{"sh", "-c", "echo FAIL\tsibling-one"})
+	second, _ := runQuiet(adm, "unit-pkg", []string{"sh", "-c", "echo FAIL\tsibling-two"})
+
+	if first.Log == second.Log {
+		t.Fatalf("both commands wrote %s, so the second truncated the first and "+
+			"each read the other's verdict", first.Log)
+	}
+	if body := read(t, filepath.Join(adm.Root, first.Log)); !strings.Contains(body, "sibling-one") {
+		t.Errorf("the first log holds %q, want its own output", body)
+	}
+	if body := read(t, filepath.Join(adm.Root, second.Log)); !strings.Contains(body, "sibling-two") {
+		t.Errorf("the second log holds %q, want its own output", body)
+	}
+
+	// The same command twice still shares one log, which is the behavior the
+	// original comment described and the only thing it was right about.
+	repeat, _ := runQuiet(adm, "unit-pkg", []string{"sh", "-c", "echo FAIL\tsibling-one"})
+	if repeat.Log != first.Log {
+		t.Errorf("the same work wrote %s then %s, want one log", first.Log, repeat.Log)
+	}
+}
