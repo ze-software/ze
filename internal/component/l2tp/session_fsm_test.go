@@ -1057,3 +1057,37 @@ func TestSession_SIDBoundary_Zero(t *testing.T) {
 		t.Fatal("expected error for SID=0")
 	}
 }
+
+// TestHandleICRQStoresCallingNumber pins the source of Calling-Station-Id.
+//
+// RFC 2661 Section 4.4.3 defines the Calling Number AVP (attribute 22) as
+// "the caller's number", and RFC 2865 Section 5.31 is where that value goes
+// on the RADIUS wire. parseICRQ read the AVP and dropped it until this test,
+// so the accounting record had no honest source for the attribute.
+func TestHandleICRQStoresCallingNumber(t *testing.T) {
+	tun := newEstablishedTunnel(t, 10)
+	logger := slog.Default()
+	now := time.Now()
+
+	var buf [256]byte
+	off := 0
+	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgICRQ))
+	off += WriteAVPUint16(buf[:], off, true, AVPAssignedSessionID, 500)
+	off += WriteAVPUint32(buf[:], off, true, AVPCallSerialNumber, 1001)
+	off += WriteAVPString(buf[:], off, false, AVPCallingNumber, "+441234567890")
+
+	if out := tun.handleICRQ(buf[:off], now, logger); len(out) == 0 {
+		t.Fatal("handleICRQ sent no ICRP")
+	}
+
+	var sess *L2TPSession
+	for _, s := range tun.sessions {
+		sess = s
+	}
+	if sess == nil {
+		t.Fatal("handleICRQ created no session")
+	}
+	if sess.callingNumber != "+441234567890" {
+		t.Errorf("callingNumber = %q, want %q", sess.callingNumber, "+441234567890")
+	}
+}

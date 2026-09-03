@@ -150,11 +150,15 @@ const SessionIPAssignedEvent = "session-ip-assigned"
 // SessionIPAssignedPayload carries session identity and assigned IP
 // for RADIUS accounting start and other subscribers.
 type SessionIPAssignedPayload struct {
-	TunnelID     uint16
-	SessionID    uint16
-	Username     string
-	PeerAddr     string
-	PppInterface string
+	TunnelID  uint16
+	SessionID uint16
+	Username  string
+	PeerAddr  string
+	// CallingStationID is the L2TP Calling Number AVP (RFC 2661 Section
+	// 4.4.3), which RADIUS accounting reports as Calling-Station-Id (RFC 2865
+	// Section 5.31). Empty when neither side named one.
+	CallingStationID string
+	PppInterface     string
 }
 
 // SessionIPAssigned is the typed handle for (l2tp, session-ip-assigned).

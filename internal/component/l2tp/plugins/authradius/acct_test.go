@@ -480,3 +480,72 @@ func TestAcctPacketCarriesEventTimestamp(t *testing.T) {
 		}
 	}
 }
+
+// TestAcctPacketCarriesCallingStationId covers AC-2.
+//
+// RFC 2865 Section 5.31: "This Attribute allows the NAS to send in the
+// Access-Request packet the phone number that the call came from, using
+// Automatic Number Identification (ANI) or similar technology." RFC 2866
+// Section 5.13 puts it at 0-1 in an Accounting-Request, which is where a BNG
+// reports the line the subscriber called from.
+func TestAcctPacketCarriesCallingStationId(t *testing.T) {
+	acct := newRADIUSAcct()
+	sess := &acctSession{
+		username:         "grace",
+		acctSessID:       "1-7-1",
+		callingStationID: "00:11:22:33:44:55",
+	}
+
+	for _, statusType := range []uint8{radius.AcctStatusStart, radius.AcctStatusInterimUpdate, radius.AcctStatusStop} {
+		pkt := acct.buildAcctPacket(sess, "nas1", nil, statusType, 0)
+		v := pkt.FindAttr(radius.AttrCallingStationID)
+		if v == nil {
+			t.Fatalf("status-type %d: no Calling-Station-Id attribute", statusType)
+		}
+		if string(v) != "00:11:22:33:44:55" {
+			t.Errorf("status-type %d: Calling-Station-Id = %q, want %q", statusType, v, "00:11:22:33:44:55")
+		}
+	}
+}
+
+// TestAcctPacketOmitsEmptyCallingStationId covers AC-3.
+//
+// RFC 2865 Section 5: "Text of length zero (0) MUST NOT be sent; omit the
+// entire attribute instead." A session whose peer sent no Calling Number AVP
+// has no value, so the record carries no attribute rather than an empty one.
+func TestAcctPacketOmitsEmptyCallingStationId(t *testing.T) {
+	acct := newRADIUSAcct()
+	sess := &acctSession{username: "grace", acctSessID: "1-7-1"}
+
+	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStart, 0)
+	if v := pkt.FindAttr(radius.AttrCallingStationID); v != nil {
+		t.Errorf("Calling-Station-Id present with no value: %q", v)
+	}
+}
+
+// TestAcctSessionCallingStationID covers the boundary AC-2 depends on: the
+// value the reactor put on the session-ip-assigned event reaches the
+// accounting session that later builds every record.
+func TestAcctSessionCallingStationID(t *testing.T) {
+	acct := newRADIUSAcct()
+	acct.setClient(&radius.Client{}, "nas1", time.Minute, "127.0.0.1:1813", nil, "")
+
+	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
+		TunnelID:         42,
+		SessionID:        7,
+		Username:         "grace",
+		PeerAddr:         "10.0.0.2",
+		CallingStationID: "+441234567890",
+	})
+
+	acct.mu.Lock()
+	sess, ok := acct.sessions[sessionKey{42, 7}]
+	acct.mu.Unlock()
+	if !ok {
+		t.Fatal("no accounting session was created")
+	}
+	if sess.callingStationID != "+441234567890" {
+		t.Errorf("callingStationID = %q, want %q", sess.callingStationID, "+441234567890")
+	}
+	acct.Stop()
+}

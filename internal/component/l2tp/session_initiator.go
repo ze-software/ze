@@ -124,6 +124,7 @@ func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callPara
 		txConnectSpeed: p.txConnectSpeed,
 		rxConnectSpeed: p.rxConnectSpeed,
 		framingType:    p.framingOrDefault(),
+		callingNumber:  p.callingNumber,
 		pppoeChannelFD: p.pppoeChannelFD,
 	}
 	// Record the origination as an FSM transition so the initiator session's

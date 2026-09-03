@@ -1,6 +1,7 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS accounting
 // RFC: rfc/short/rfc2866.md -- Accounting-Request contents (Sections 4.1, 5)
-// RFC: rfc/short/rfc2865.md -- Framed-IP-Address (Section 5.8)
+// RFC: rfc/short/rfc2865.md -- Framed-IP-Address (Section 5.8),
+// Calling-Station-Id (Section 5.31)
 // RFC: rfc/short/rfc2869.md -- NAS-Port-Id (Section 5.17), Gigawords (Section 5.1),
 // interim interval precedence (Section 2.1), Event-Timestamp (Section 5.3)
 // Related: handler.go -- RADIUS auth handler shares the client
@@ -37,15 +38,21 @@ var acctNow = time.Now
 // system joins the Start, Interim and Stop records by. It is stored for the
 // same reason acctSessID is.
 type acctSession struct {
-	tunnelID     uint16
-	sessionID    uint16
-	username     string
-	peerAddr     string
-	acctSessID   string
-	nasPortID    string
-	pppInterface string
-	startTime    time.Time
-	cancel       context.CancelFunc
+	tunnelID  uint16
+	sessionID uint16
+	username  string
+	peerAddr  string
+	// callingStationID is the L2TP Calling Number AVP of this session, which
+	// every record reports as Calling-Station-Id (RFC 2865 Section 5.31). It
+	// is stored for the same reason nasPortID is: the value is a property of
+	// the call, so every record of the session repeats the one it started
+	// with. Empty when neither side named a calling number.
+	callingStationID string
+	acctSessID       string
+	nasPortID        string
+	pppInterface     string
+	startTime        time.Time
+	cancel           context.CancelFunc
 }
 
 // subscriberIPv4 parses a session's assigned address and returns its four
@@ -171,15 +178,16 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sess := &acctSession{
-		tunnelID:     payload.TunnelID,
-		sessionID:    payload.SessionID,
-		username:     payload.Username,
-		peerAddr:     payload.PeerAddr,
-		acctSessID:   acctSessID,
-		nasPortID:    resolveNASPortID(portIDFormat, nasPortIDFacts{nasID: nasID, tunnelID: payload.TunnelID, sessionID: payload.SessionID}),
-		pppInterface: payload.PppInterface,
-		startTime:    time.Now(),
-		cancel:       cancel,
+		tunnelID:         payload.TunnelID,
+		sessionID:        payload.SessionID,
+		username:         payload.Username,
+		peerAddr:         payload.PeerAddr,
+		callingStationID: payload.CallingStationID,
+		acctSessID:       acctSessID,
+		nasPortID:        resolveNASPortID(portIDFormat, nasPortIDFacts{nasID: nasID, tunnelID: payload.TunnelID, sessionID: payload.SessionID}),
+		pppInterface:     payload.PppInterface,
+		startTime:        time.Now(),
+		cancel:           cancel,
 	}
 
 	a.mu.Lock()
@@ -258,6 +266,13 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 	// length the peer picks.
 	var attrs []radius.Attr
 	attrs = radius.AppendTextAttr(attrs, radius.AttrUserName, sess.username)
+
+	// RFC 2865 Section 5.31: Calling-Station-Id carries "the phone number that
+	// the call came from". On the L2TP path that is the peer's Calling Number
+	// AVP; on the PPPoE relay path it is the subscriber's MAC address. Both
+	// are text, and the same Section 5 zero-length rule applies, so a session
+	// whose peer named no calling number sends no attribute.
+	attrs = radius.AppendTextAttr(attrs, radius.AttrCallingStationID, sess.callingStationID)
 
 	// RFC 2869 Section 5.3: "This attribute is included in an
 	// Accounting-Request packet to record the time that this event occurred on

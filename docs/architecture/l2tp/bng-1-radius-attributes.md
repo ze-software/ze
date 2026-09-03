@@ -64,8 +64,20 @@ None of them has a config leaf: the owner ruled them unconditional on
 | Attribute | Type | Records | Value |
 |-----------|------|---------|-------|
 | Event-Timestamp | 55 | Start, Interim, Stop | Four octets, seconds since 1970-01-01 00:00 UTC (RFC 2869 Section 5.3) |
+| Calling-Station-Id | 31 | Start, Interim, Stop | The L2TP Calling Number AVP, or the subscriber MAC on the PPPoE relay path (RFC 2865 Section 5.31). Omitted when neither side named one |
 
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket, acctNow -->
+**Calling-Station-Id crosses three boundaries, and it used to cross none.**
+`parseICRQ` read attribute 22 off the wire and dropped it. The value now lands
+on the L2TP session, rides the session-ip-assigned event, and is stored on the
+accounting session, which repeats it in every record of that session.
+
+An absent value sends NO attribute. RFC 2865 Section 5: "Text of length zero
+(0) MUST NOT be sent; omit the entire attribute instead." `AppendTextAttr` is
+the one place that rule is written, so every text attribute obeys it.
+
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket, acctNow, acctSession -->
+<!-- source: internal/component/l2tp/session_fsm.go -- handleICRQ, parseICRQ -->
+<!-- source: internal/component/l2tp/events/events.go -- SessionIPAssignedPayload -->
 
 **Framed-IP-Netmask is not applied to the PPP interface.** PPP is point to
 point, so the netmask only matters for delegated-prefix routing. That belongs

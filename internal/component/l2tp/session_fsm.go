@@ -122,11 +122,12 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 	}
 
 	sess := &L2TPSession{
-		localSID:   localSID,
-		remoteSID:  info.assignedSessionID,
-		state:      L2TPSessionWaitConnect,
-		createdAt:  now,
-		fsmHistory: newFSMHistoryRing(),
+		localSID:      localSID,
+		remoteSID:     info.assignedSessionID,
+		state:         L2TPSessionWaitConnect,
+		createdAt:     now,
+		callingNumber: info.callingNumber,
+		fsmHistory:    newFSMHistoryRing(),
 	}
 	t.addSession(sess)
 

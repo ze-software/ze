@@ -116,6 +116,13 @@ type L2TPSession struct {
 	// kernel worker to set L2TP_ATTR_LNS_MODE.
 	lnsMode bool
 
+	// callingNumber is the Calling Number AVP (RFC 2661 Section 4.4.3) the
+	// peer sent on the ICRQ, or the value ze put on an ICRQ it originated.
+	// It is what RADIUS accounting reports as Calling-Station-Id (RFC 2865
+	// Section 5.31). Empty when neither side named one, and an empty value
+	// sends no attribute (RFC 2865 Section 5).
+	callingNumber string
+
 	// pppInterface is the kernel pppN interface name (e.g. "ppp0").
 	// Set by handleKernelSuccess when the PPP session is started.
 	// Used by SessionUp EventBus event so the shaper can apply TC.
