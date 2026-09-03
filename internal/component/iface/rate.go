@@ -64,6 +64,22 @@ type ifaceMetrics struct {
 	// middle of a burst. It never says the consumer was left believing the
 	// wrong final state.
 	resolverEventsDropped metrics.CounterVec
+	// configApplies counts config applies that REACHED the DHCP and RA
+	// reconcile (register.go), incremented before dhcpMu is taken rather than
+	// after it is released, so the count is already visible while the lock is
+	// held. It is the ONLY signal
+	// that says a reload got that far: an apply that refuses earlier, or a
+	// SIGHUP the transaction layer finds no changes in, never reaches the
+	// increment, so a flat count during a reload says the apply did not happen.
+	//
+	// It is here because its absence was expensive. On 2026-09-03 a red
+	// functional test was read as "the reload no longer holds the lock", and
+	// answering that took three QEMU boots and two agents, because nothing in
+	// this component published whether an apply had happened at all. The real
+	// cause was elsewhere and one scrape of this counter would have said so.
+	// Operators want it for the same reason: "did my commit reach interfaces"
+	// is otherwise only answerable from a log.
+	configApplies metrics.Counter
 }
 
 var ifaceMetricsPtr atomic.Pointer[ifaceMetrics]
@@ -94,6 +110,8 @@ func bindMetricsRegistry(reg metrics.Registry) {
 			"Link events whose worker waited for the lock a config commit holds", []string{metricLabelName}),
 		resolverEventsDropped: reg.CounterVec("ze_iface_resolver_events_dropped_total",
 			"Oldest resolver link events discarded to make room on a full subscriber channel", []string{metricLabelName}),
+		configApplies: reg.Counter("ze_iface_config_applies_total",
+			"Config applies that reached the DHCP and RA reconcile, counted as they take the lock link event handling needs"),
 	}
 	ifaceMetricsPtr.Store(m)
 }
@@ -384,6 +402,15 @@ func countLinkEventCoalesced(ifaceName string) {
 func countLinkWorkerBlocked(ifaceName string) {
 	if m := ifaceMetricsPtr.Load(); m != nil {
 		m.linkWorkerBlocked.With(ifaceName).Inc()
+	}
+}
+
+// countConfigApply records that a config apply reached the DHCP and RA
+// reconcile. Called before the lock is taken, so an observer can see it during
+// the hold rather than only after it.
+func countConfigApply() {
+	if m := ifaceMetricsPtr.Load(); m != nil {
+		m.configApplies.Inc()
 	}
 }
 

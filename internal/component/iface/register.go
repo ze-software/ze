@@ -639,6 +639,16 @@ func runEngine(conn net.Conn) int {
 		// Reconcile DHCP clients and IPv6 RA suppression after successful reload.
 		eb := GetEventBus()
 		if eb != nil {
+			// Count BEFORE taking the lock, not after releasing it. The
+			// reconcile holds dhcpMu for as long as stopping every DHCP client
+			// takes, measured at 1.1 to 3.3 s for forty of them, and a counter
+			// incremented on the far side of that is invisible for the whole
+			// window it exists to report. An observer asking "is a commit
+			// holding the lock right now" reads a flat counter and concludes
+			// the apply never happened. Incremented here it answers the
+			// question it is named for, which is whether the reload REACHED
+			// the reconcile; every earlier return still leaves it flat.
+			countConfigApply()
 			dhcpMu.Lock()
 			reconcileDHCP(cfg, eb, activeDHCP, log)
 			suppressRAForConfig(cfg, suppressedRA, activeRouters, raRoutePriority, eb, log)

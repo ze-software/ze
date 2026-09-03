@@ -191,6 +191,19 @@ func flapCounter08(ctx context.Context, port, metric string) (float64, error) {
 // So `{name="zeflapv0"}` reads zero through a genuine overlap. Reading it was
 // the defect: the run reported "0 of 3 wanted rounds overlapped" four times on
 // a daemon that was holding the lock exactly as the test intended.
+// flapApplies08 reads how many config applies reached the DHCP and RA reconcile
+// under dhcpMu. It is the counter whose absence made a red run unreadable: a
+// round whose overlap count is zero is one of two very different faults, either
+// the commit never reached the apply or the burst missed a window that did
+// happen, and nothing distinguished them until this existed.
+func flapApplies08(ctx context.Context, port string) (float64, error) {
+	body, err := scrape08(ctx, port)
+	if err != nil {
+		return 0, err
+	}
+	return totalCounter08(body, "ze_iface_config_applies_total"), nil
+}
+
 func flapBlocked08(ctx context.Context, port string) (float64, error) {
 	body, err := scrape08(ctx, port)
 	if err != nil {
@@ -295,6 +308,10 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		if err != nil {
 			return err
 		}
+		appliesBefore, err := flapApplies08(ctx, port)
+		if err != nil {
+			return err
+		}
 		if err := flapCommit08(pid); err != nil {
 			return err
 		}
@@ -309,6 +326,18 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		blockedNow, err := flapBlocked08(ctx, port)
 		if err != nil {
 			return err
+		}
+		// The commit must actually reach the interface apply. Without this the
+		// round can only report that the worker was never blocked, which reads
+		// as "the burst mistimed" and sent one session down a two-hour dead end
+		// on 2026-09-03. A flat apply counter says the SIGHUP did not get as
+		// far as the reconcile, which is a different fault with a different fix.
+		appliesNow, err := flapApplies08(ctx, port)
+		if err != nil {
+			return err
+		}
+		if appliesNow <= appliesBefore {
+			return fmt.Errorf("round %d: ze_iface_config_applies_total did not move (%g), so the SIGHUP never reached the interface apply and no commit held the lock this round", round, appliesNow)
 		}
 		overlapped := blockedNow > blockedBefore
 		if !Poll(ctx, 750, 20*time.Millisecond, func() bool { metric, ok := flapDefaultMetric08(ctx); return ok && metric == flapDownMetric08 }) {

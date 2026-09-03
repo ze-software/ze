@@ -158,13 +158,25 @@ func TestOwnedDeviceGaugeTracksRegistry(t *testing.T) {
 type capturingGaugeRegistry struct {
 	ownedDevicesVec *capturingGaugeVec
 	counterVecs     map[string]*capturingCounterVec
+	counters        map[string]*capturingCounter
 }
 
 func newCapturingGaugeRegistry() *capturingGaugeRegistry {
-	return &capturingGaugeRegistry{counterVecs: map[string]*capturingCounterVec{}}
+	return &capturingGaugeRegistry{
+		counterVecs: map[string]*capturingCounterVec{},
+		counters:    map[string]*capturingCounter{},
+	}
 }
 
-func (r *capturingGaugeRegistry) Counter(string, string) metrics.Counter { return nil }
+// Counter hands out a readable counter rather than nil. It returned nil until
+// 2026-09-04, which was safe only while no unlabelled counter existed: the
+// first one, ze_iface_config_applies_total, would have made every countConfig
+// Apply in a test panic on a nil interface.
+func (r *capturingGaugeRegistry) Counter(name, _ string) metrics.Counter {
+	c := &capturingCounter{}
+	r.counters[name] = c
+	return c
+}
 func (r *capturingGaugeRegistry) Gauge(string, string) metrics.Gauge     { return nil }
 func (r *capturingGaugeRegistry) CounterVec(name, _ string, _ []string) metrics.CounterVec {
 	v := newCapturingCounterVec()
