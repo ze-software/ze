@@ -495,6 +495,11 @@ func TestRFC8671AdminLabelReversedOrderPreserved(t *testing.T) {
 // what the live pipe session is built with, so a reload naming this collector
 // keeps that session and dials nothing.
 const (
+	// testRouterID and testLocalASN are the router identity every reload test
+	// commits, as the config tree delivers them: strings, and an ASN above
+	// 65535 so the fabricated OPEN's AS_TRANS path is the one under test.
+	testRouterID      = "10.20.30.1" // 0x0a141e01
+	testLocalASN      = "4200000001"
 	testCollectorName = "one"
 	testCollectorAddr = "127.0.0.1"
 	testCollectorPort = "11019"
@@ -780,7 +785,15 @@ func senderJSON(t *testing.T, sender map[string]any) string {
 	t.Helper()
 
 	encoded, err := json.Marshal(map[string]any{
-		"bgp": map[string]any{"bmp": map[string]any{"sender": sender}},
+		"bgp": map[string]any{
+			// The router's own identity, which the config tree delivers in the
+			// same `bgp` container as the sender subtree and which RFC 9069
+			// Section 5.1 puts in every Loc-RIB per-peer header. Both leaves are
+			// `mandatory true`, so a real reload always carries them.
+			"router-id": testRouterID,
+			"session":   map[string]any{"asn": map[string]any{"local": testLocalASN}},
+			"bmp":       map[string]any{"sender": sender},
+		},
 	})
 	if err != nil {
 		t.Fatalf("marshal sender config: %v", err)
@@ -938,8 +951,13 @@ func TestRFC8671UnrelatedBGPChangeBouncesNothing(t *testing.T) {
 
 	encoded, err := json.Marshal(map[string]any{
 		"bgp": map[string]any{
-			"bmp":      map[string]any{"sender": sender},
-			"neighbor": map[string]any{"192.0.2.7": map[string]any{"peer-as": "65007"}},
+			// The two identity leaves are `mandatory true`, so the candidate
+			// subtree a real verify carries always has them and they are what
+			// the configuration in force already holds.
+			"router-id": testRouterID,
+			"session":   map[string]any{"asn": map[string]any{"local": testLocalASN}},
+			"bmp":       map[string]any{"sender": sender},
+			"neighbor":  map[string]any{"192.0.2.7": map[string]any{"peer-as": "65007"}},
 		},
 	})
 	if err != nil {
@@ -1161,6 +1179,11 @@ func TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo(t *testing.T) {
 	unsubscribed := false
 	bp.locRIBUnsub = func() { unsubscribed = true }
 	bp.locRIBUp = true
+	// The startup rail above committed the identity leaves senderJSON carries,
+	// so the Peer Down this reload owes has a router to name.
+	if _, ok := bp.localIdentity(); !ok {
+		t.Fatal("the startup configuration carried no router identity, so no Loc-RIB message can be built")
+	}
 	pipeSenderForReload(t, bp, client)
 
 	// The new configuration names no loc-rib leaf, which is how the operator
@@ -1222,13 +1245,15 @@ func TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity(t *testing.T) {
 	defer closeLog(server, "server")
 	defer closeLog(client, "client")
 
-	// The router's own identity, as a cached sent OPEN carrying AS_TRANS in My AS
-	// and the real 4-octet ASN in the capability: what ze puts on the wire for an
-	// ASN above 65535, and the case a 2-octet read gets wrong.
-	sentOpen := fabricateLocRIBOpen(localIdentity{asn: 4200000001, routerID: 0x0a141e01})
+	// The OPEN cache is EMPTY, and that is the discriminating condition: the
+	// identity reaches the wire from the `bgp` config section senderJSON commits
+	// (testRouterID, testLocalASN) and from nowhere else. RFC 9069 Section 1.1
+	// names this case -- a Loc-RIB monitored where there are "no preexisting BGP
+	// peers" -- and an implementation reading a cached sent OPEN instead answers
+	// nothing at all here while passing every case that has a peer up.
 	bp := &BMPPlugin{
 		stopCh:    make(chan struct{}),
-		openCache: map[string]*openPair{"10.0.0.1": {sent: sentOpen}},
+		openCache: map[string]*openPair{},
 	}
 	dumpBus(t, func() *ribevents.BestChangeBatch { return locRIBBatch(1, true) })
 

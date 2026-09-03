@@ -97,8 +97,8 @@ func getEventBus() ze.EventBus {
 }
 
 // localIdentity is the router's own BGP identity: the two values RFC 9069
-// requires the Loc-RIB emulated peer to describe itself with, read from a
-// cached sent OPEN (BMPPlugin.localIdentity).
+// requires the Loc-RIB emulated peer to describe itself with, read from the
+// `bgp` configuration section (BMPPlugin.localIdentity).
 //
 // One struct rather than two uint32 arguments: the ASN and the router-id are
 // the same Go type, so a caller that transposed them would compile and would
@@ -156,39 +156,6 @@ func locRIBPeerHeader(id localIdentity, installed time.Time) PeerHeader {
 		header.TimestampUsec = uint32(installed.Nanosecond() / 1000) //nolint:gosec // bounded by 1e9/1e3
 	}
 	return header
-}
-
-// bgpIdentityFromSentOpen reads the router's own ASN and router-id out of a sent
-// BGP OPEN PDU (marker, length, type, then the RFC 4271 Section 4.2 body).
-// Returns ok=false when the PDU does not parse as an OPEN.
-//
-// RFC 6793 Section 4.1: "When a NEW BGP speaker processes an OPEN message from
-// another NEW BGP speaker, it MUST use the AS number encoded in this capability
-// in lieu of the 'My Autonomous System' field of the OPEN message." So the
-// 4-octet ASN capability answers where it is present, and the two-octet My AS
-// field answers only where it is not: a speaker with an ASN above 65535 puts
-// AS_TRANS in that field, which is nobody's autonomous system.
-func bgpIdentityFromSentOpen(open []byte) (localIdentity, bool) {
-	if len(open) < message.HeaderLen {
-		return localIdentity{}, false
-	}
-	parsed, err := message.UnpackOpen(open[message.HeaderLen:])
-	if err != nil {
-		return localIdentity{}, false
-	}
-
-	id := localIdentity{asn: uint32(parsed.MyAS), routerID: parsed.BGPIdentifier}
-	caps, err := capability.ParseFromOptionalParams(parsed.OptionalParams, parsed.ExtendedParams)
-	if err != nil {
-		return id, true // the fixed fields parsed; a malformed capability blob leaves My AS standing
-	}
-	for _, capa := range caps {
-		if asn4, ok := capa.(*capability.ASN4); ok {
-			id.asn = asn4.ASN
-			break
-		}
-	}
-	return id, true
 }
 
 // fabricateLocRIBOpen builds the BGP OPEN message a Loc-RIB Peer Up carries.
@@ -366,25 +333,40 @@ func buildLocRIBUpdateBody(fam family.Family, e ribevents.BestChangeEntry) []byt
 }
 
 // localIdentity returns the router's own ASN and router-id for the Loc-RIB
-// emulated peer, read from any cached sent OPEN PDU. Both are zero when no OPEN
-// has been cached yet, which is to say when no BGP peer has come up.
+// emulated peer, and ok=false when no `bgp` configuration has been parsed yet.
 //
-// Both values come from ONE OPEN. Every session ze opens carries the same My AS
-// and BGP Identifier, so any cached OPEN answers; reading the ASN from one entry
-// and the router-id from another would still be correct today and would stop
-// being so the moment a second local ASN existed.
-func (bp *BMPPlugin) localIdentity() localIdentity {
+// RFC 9069 Section 5.1 names both: "Peer Autonomous System (AS): Set to the
+// primary router BGP autonomous system number (ASN)", and "Peer BGP ID: Set the
+// ID to the router-id of the VRF instance if VRF is used; otherwise, set to the
+// global instance router-id."
+//
+// CONFIG is the source, and the only one. Reading them off a cached sent OPEN
+// instead -- which this did until 2026-09-03 -- answered zero for the case RFC
+// 9069 Section 1.1 exists to serve, a Loc-RIB monitored on a router with no BGP
+// peer up: the OPEN cache is filled by peers coming up, so before the first one
+// there is nothing to read, and the zero it returned was indistinguishable at
+// the collector from AS 0 on router 0.0.0.0. Configuration is present from the
+// first apply, before any session, and both leaves are `mandatory true`.
+//
+// The bool is the guard, and it is named rather than inferred from a zero: a
+// caller that cannot get an identity MUST NOT emit (ai/rules/principles.md).
+func (bp *BMPPlugin) localIdentity() (localIdentity, bool) {
 	bp.mu.RLock()
 	defer bp.mu.RUnlock()
-	for _, pair := range bp.openCache {
-		if pair == nil {
-			continue
-		}
-		if id, ok := bgpIdentityFromSentOpen(pair.sent); ok {
-			return id
-		}
+	if bp.identity == nil {
+		return localIdentity{}, false
 	}
-	return localIdentity{}
+	return *bp.identity, true
+}
+
+// setLocalIdentity installs the identity a config apply parsed. nil is what a
+// `bgp` section carrying no usable router-id or ASN leaves behind, and it puts
+// the plugin back to declining rather than leaving the previous router's
+// identity on the wire.
+func (bp *BMPPlugin) setLocalIdentity(id *localIdentity) {
+	bp.mu.Lock()
+	bp.identity = id
+	bp.mu.Unlock()
 }
 
 // startLocRIB subscribes to (bgp-rib, best-change) and requests an initial
@@ -529,6 +511,12 @@ func (bp *BMPPlugin) closeDumpFamilies(scope *dumpScope, ss *senderSession) {
 		return
 	}
 
+	id, ok := bp.localIdentity()
+	if !ok {
+		logger().Warn("bmp: loc-rib dump not closed: no bgp router-id and local asn configured yet")
+		return
+	}
+
 	// An End-of-RIB marker IS a Route Monitoring message, so RFC 9069 still
 	// requires the Loc-RIB Peer Up to precede it. On a wholly empty table
 	// nothing else has sent one; the guard inside is per-session and idempotent.
@@ -537,7 +525,7 @@ func (bp *BMPPlugin) closeDumpFamilies(scope *dumpScope, ss *senderSession) {
 	// Zero Timestamp: an End-of-RIB marker encapsulates no route, so there is no
 	// install time to report (RFC 9069 Section 5.1, "If zero, the time is
 	// unavailable").
-	peer := locRIBPeerHeader(bp.localIdentity(), time.Time{})
+	peer := locRIBPeerHeader(id, time.Time{})
 	for _, fam := range missing {
 		bp.sendLocRIBEndOfRIB(senders, fam, peer)
 	}
@@ -628,7 +616,12 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 	if batch.IsReplay() {
 		installed = time.Time{}
 	}
-	peer := locRIBPeerHeader(bp.localIdentity(), installed)
+	id, ok := bp.localIdentity()
+	if !ok {
+		logger().Warn("bmp: loc-rib route monitoring suppressed: no bgp router-id and local asn configured yet")
+		return
+	}
+	peer := locRIBPeerHeader(id, installed)
 	for i := range batch.Changes {
 		body := buildLocRIBUpdateBody(batch.Family, batch.Changes[i])
 		if body == nil {
@@ -673,7 +666,11 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 // nothing. bp.locRIBUp stays as the plugin-wide record that Loc-RIB monitoring
 // has been announced at all, which is what sendLocRIBPeerDown keys off.
 func (bp *BMPPlugin) ensureLocRIBPeerUp(senders []*senderSession) {
-	id := bp.localIdentity()
+	id, ok := bp.localIdentity()
+	if !ok {
+		logger().Warn("bmp: loc-rib peer up suppressed: no bgp router-id and local asn configured yet")
+		return
+	}
 	// Zero Timestamp: a Peer Up encapsulates no route (RFC 9069 Section 5.1).
 	peer := locRIBPeerHeader(id, time.Time{})
 	open := fabricateLocRIBOpen(id)
@@ -732,7 +729,15 @@ func (bp *BMPPlugin) primeLocRIBPeerUp(ss *senderSession) {
 	if !ss.locRIBUpSent.CompareAndSwap(false, true) {
 		return
 	}
-	id := bp.localIdentity()
+	id, ok := bp.localIdentity()
+	if !ok {
+		// The claim is given back: nothing was announced, so the next batch has
+		// to try again once the configuration has arrived.
+		ss.locRIBUpSent.Store(false)
+		logger().Warn("bmp: loc-rib peer up suppressed: no bgp router-id and local asn configured yet",
+			"collector", ss.name)
+		return
+	}
 	open := fabricateLocRIBOpen(id)
 	var zeroAddr [16]byte
 	peer := locRIBPeerHeader(id, time.Time{}) // a Peer Up encapsulates no route
@@ -818,9 +823,9 @@ func (bp *BMPPlugin) requestLocRIBDump(ss *senderSession) {
 // No-op when Peer Up was never sent.
 //
 // RFC 9069 Section 5.3: "The Peer Down notification MUST use reason code 6."
-// No Peer Down Information TLV follows it: the same section requires the
-// VRF/Table Name TLV only "if it was in the Peer Up", and ze sends a Loc-RIB
-// Peer Up with no Information TLVs (primeLocRIBPeerUp).
+// The VRF/Table Name Information TLV follows it, because the same section
+// requires it "if it was in the Peer Up" and every ze Loc-RIB Peer Up carries
+// it (ensureLocRIBPeerUp, primeLocRIBPeerUp).
 //
 // The per-session guard is given back with the Peer Down, because the pair is
 // what makes Loc-RIB monitoring restartable on a session that survives the
@@ -843,7 +848,12 @@ func (bp *BMPPlugin) sendLocRIBPeerDown() {
 	// "The VRF/Table Name informational TLV MUST be included if it was in the
 	// Peer Up." Every ze Loc-RIB Peer Up carries it, so every Loc-RIB Peer Down
 	// carries it too.
-	peer := locRIBPeerHeader(bp.localIdentity(), time.Time{})
+	id, ok := bp.localIdentity()
+	if !ok {
+		logger().Warn("bmp: loc-rib peer down suppressed: no bgp router-id and local asn configured yet")
+		return
+	}
+	peer := locRIBPeerHeader(id, time.Time{})
 	tlv := locRIBTableNameTLVBytes()
 	for _, ss := range senders {
 		if err := ss.writePeerDown(peer, PeerDownTLVData, tlv); err != nil {

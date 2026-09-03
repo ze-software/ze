@@ -110,8 +110,27 @@ type environmentSection struct {
 
 // bgpSenderSection wraps the full bgp config section.
 // ExtractConfigSubtree returns {"bgp": {"bmp": {"sender": {...}}}}.
+//
+// The two leaves outside the BMP subtree are the router's own BGP identity, and
+// RFC 9069 Section 5.1 requires the Loc-RIB emulated peer to describe itself
+// with them: "Peer Autonomous System (AS): Set to the primary router BGP
+// autonomous system number (ASN)", and "Peer BGP ID: Set the ID to the
+// router-id of the VRF instance if VRF is used; otherwise, set to the global
+// instance router-id." Both are `mandatory true` under `container bgp`
+// (internal/component/bgp/yang/ze-bgp-conf.yang), and the plugin is handed that
+// whole container already (configRootBGP), so they arrive with the sender
+// subtree rather than needing a second config source.
+//
+// Every scalar the config tree delivers is a JSON string, numbers included,
+// which is why the ASN is a string here beside the dotted-quad router-id.
 type bgpSenderSection struct {
 	BGP *struct {
+		RouterID string `json:"router-id"`
+		Session  *struct {
+			ASN *struct {
+				Local string `json:"local"`
+			} `json:"asn"`
+		} `json:"session"`
 		BMP *struct {
 			Sender *senderConfig `json:"sender"`
 		} `json:"bmp"`
@@ -228,6 +247,21 @@ type BMPPlugin struct {
 	// Protected by mu.
 	locRIBUnsub func()
 	locRIBUp    bool
+
+	// identity is the router's own ASN and router-id, read from the `bgp`
+	// config section (parseSenderConfig, installed by applySenderConfig). It is
+	// what RFC 9069 Section 5.1 requires the Loc-RIB emulated peer's per-peer
+	// header to carry, and what the fabricated OPEN of its Peer Up describes
+	// itself with. Protected by mu.
+	//
+	// A POINTER, and nil until a `bgp` section has been parsed: RFC 9069
+	// Section 1.1 names the case a router monitors a Loc-RIB with no BGP peer
+	// up at all ("VRF tables with no peers"), so "ze does not know its own
+	// identity yet" has to be distinguishable from an identity whose fields
+	// read zero. A zero PeerAS and a zero Peer BGP ID are what a collector
+	// would take for the router's real answer (ai/rules/principles.md), and
+	// RFC 6286 Section 2.1 makes a zero BGP Identifier invalid outright.
+	identity *localIdentity
 
 	// openCache stores real OPEN PDUs per peer for Peer Up messages.
 	// Key is peer address string. Populated by OPEN message events,

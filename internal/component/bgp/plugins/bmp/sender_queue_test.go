@@ -278,6 +278,7 @@ func TestHandleBestChangeDoesNotBlockOnWedgedCollector(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 
 	done := make(chan struct{})

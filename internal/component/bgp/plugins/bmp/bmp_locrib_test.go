@@ -272,59 +272,47 @@ func TestBuildLocRIBUpdateBody_IPv6Withdraw(t *testing.T) {
 	}
 }
 
-func TestBgpIdentityFromSentOpen(t *testing.T) {
-	// VALIDATES: the router's own ASN and router-id are read out of a sent OPEN,
-	// which is where the Loc-RIB emulated peer gets both (RFC 9069 Sections 5.1
-	// and 5.2).
-	open := makeBGPOpen(65000, 0x01020305)
-	id, ok := bgpIdentityFromSentOpen(open)
-	if !ok {
-		t.Fatal("expected to read an identity from a full OPEN")
-	}
-	if id.routerID != 0x01020305 {
-		t.Errorf("BGP Identifier = %#x, want 0x01020305", id.routerID)
-	}
-	if id.asn != 65000 {
-		t.Errorf("ASN = %d, want the My AS field's 65000", id.asn)
-	}
-
-	if _, ok := bgpIdentityFromSentOpen(open[:20]); ok {
-		t.Error("a truncated OPEN must not yield an identity")
-	}
-	if _, ok := bgpIdentityFromSentOpen(nil); ok {
-		t.Error("a nil OPEN must not yield an identity")
-	}
-}
-
-// RFC requirement: RFC9069-x-6 negative -- "the primary router BGP autonomous system
-// number" is the 4-octet ASN, not the two-octet field a 4-byte speaker fills with
-// AS_TRANS. An OPEN carrying My AS 23456 and a 4-octet ASN capability yields the
-// capability's value, so an implementation that read only the fixed field would publish
-// 23456 as the router's AS while still passing the positive case above.
+// TestFabricatedOpenUsesASTransForFourByteASN covers the wire encoding of an ASN
+// the two-octet My AS field cannot hold.
 //
-// RFC 6793 Section 4.1: "When a NEW BGP speaker processes an OPEN message from another
-// NEW BGP speaker, it MUST use the AS number encoded in this capability in lieu of the
-// 'My Autonomous System' field of the OPEN message".
-func TestBgpIdentityPrefersTheFourOctetASNCapability(t *testing.T) {
-	open := fabricateLocRIBOpen(localIdentity{asn: 4200000001, routerID: 0x01020305})
+// RFC 6793 Section 3: "A BGP speaker that supports four-octet Autonomous System
+// numbers SHALL advertise this to its peers using the BGP capability
+// advertisement", and a speaker whose own number does not fit puts AS_TRANS in
+// the fixed field. RFC 9069 Section 5.2 requires the fabricated OPEN's
+// "Capabilities MUST include the 4-octet ASN", which is what carries the real
+// value for such a router: an implementation that wrote the low sixteen bits of
+// the ASN into My AS would publish an autonomous system ze does not have.
+func TestFabricatedOpenUsesASTransForFourByteASN(t *testing.T) {
+	open := fabricateLocRIBOpen(localIdentity{asn: 4259905000, routerID: 0x01020305})
 
-	// The fabricated OPEN is itself the fixture: it carries AS_TRANS in My AS
-	// and the real ASN in the capability, which is exactly the shape ze's own
-	// sessions put on the wire for a 4-byte ASN.
 	body := open[message.HeaderLen:]
 	if got := binary.BigEndian.Uint16(body[1:3]); got != message.AS_TRANS {
-		t.Fatalf("My AS = %d, want AS_TRANS %d: the fixture does not exercise the capability", got, message.AS_TRANS)
+		t.Errorf("My AS = %d, want AS_TRANS %d for an ASN above 65535", got, message.AS_TRANS)
 	}
 
-	id, ok := bgpIdentityFromSentOpen(open)
-	if !ok {
-		t.Fatal("expected to read an identity from the fabricated OPEN")
+	parsed, err := message.UnpackOpen(body)
+	if err != nil {
+		t.Fatalf("the fabricated OPEN does not decode: %v", err)
 	}
-	if id.asn != 4200000001 {
-		t.Errorf("ASN = %d, want the capability's 4200000001", id.asn)
+	caps, err := capability.ParseFromOptionalParams(parsed.OptionalParams, parsed.ExtendedParams)
+	if err != nil {
+		t.Fatalf("the fabricated OPEN's capabilities do not decode: %v", err)
 	}
-	if id.routerID != 0x01020305 {
-		t.Errorf("BGP Identifier = %#x, want 0x01020305", id.routerID)
+	var asn uint32
+	for _, capa := range caps {
+		if c, ok := capa.(*capability.ASN4); ok {
+			asn = c.ASN
+		}
+	}
+	if asn != 4259905000 {
+		t.Errorf("4-octet ASN capability = %d, want 4259905000", asn)
+	}
+
+	// A 16-bit ASN goes in the fixed field unchanged, so AS_TRANS is not a
+	// blanket substitution.
+	small := fabricateLocRIBOpen(localIdentity{asn: 65044, routerID: 0x01020305})
+	if got := binary.BigEndian.Uint16(small[message.HeaderLen+1 : message.HeaderLen+3]); got != 65044 {
+		t.Errorf("My AS = %d for a 16-bit ASN, want 65044", got)
 	}
 }
 
@@ -392,6 +380,7 @@ func TestHandleBestChangeEmitsPeerUpThenRM(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 
 	batch := &ribevents.BestChangeBatch{
@@ -506,6 +495,7 @@ func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 
 	// Two batches with distinct prefixes and next-hops, standing in for best paths selected
@@ -713,6 +703,7 @@ func TestMixedFamilyDumpClosesTheSilentFamily(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 
 	// The stand-in RIB answers with IPv6 only -- IPv4 is empty, so it stays
@@ -834,6 +825,7 @@ func TestForeignReplayIsNotClaimedAsOurDump(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ssA, ssB},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 
 	bp.startLocRIB()

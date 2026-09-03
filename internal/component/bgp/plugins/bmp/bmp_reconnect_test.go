@@ -96,6 +96,7 @@ func TestHandleBestChangeReplayEndsWithEndOfRIB(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 	bus := dumpBus(t, func() *ribevents.BestChangeBatch { return locRIBBatch(1, true) })
 	bp.startLocRIB()
@@ -142,6 +143,7 @@ func TestThirdPartyReplayEmitsNoEndOfRIB(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 
 	bus := newLocRIBTestBus()
@@ -216,6 +218,7 @@ func TestShutdownDeliversLocRIBPeerDownThenTermination(t *testing.T) {
 		senders:   []*senderSession{ss},
 		locRIBUp:  true,
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 
 	bp.sendLocRIBPeerDown() // what RunBMPPlugin's defer does...
@@ -265,6 +268,7 @@ func TestLocRIBOnePeerUpAcrossReplayBatches(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 
 	bus := dumpBus(t, func() *ribevents.BestChangeBatch { return locRIBBatch(1, true) })
@@ -335,6 +339,7 @@ func TestLocRIBDumpTargetsOnlyTheReconnectingCollector(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ssA, ssB},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 	bp.startLocRIB() // subscribes handleBestChange (and emits one initial dump)
 	t.Cleanup(bp.stopLocRIB)
@@ -476,6 +481,7 @@ func TestConcurrentDumpsStayAddressedToTheirOwnCollector(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ssA, ssB},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 	bp.startLocRIB()
 	t.Cleanup(bp.stopLocRIB)
@@ -580,6 +586,7 @@ func TestSenderReconnectReplaysInitiationPeerUpAndDump(t *testing.T) {
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: sentOpen, received: recvOpen}},
 		peerUps:   map[string]*peerUpState{"10.0.0.1": established},
+		identity:  &localIdentity{asn: 65000, routerID: 0x0A000064},
 	}
 	ss.onPrimed = func() { bp.primeSender(ss) }
 	ss.onConnected = func() { bp.requestLocRIBDump(ss) }
@@ -761,6 +768,7 @@ func TestEmptyLocRIBDumpStillEndsWithEndOfRIB(t *testing.T) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 
 	// A stand-in RIB with an empty table: it receives the replay-request and

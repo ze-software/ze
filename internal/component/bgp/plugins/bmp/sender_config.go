@@ -13,10 +13,13 @@
 package bmp
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/netip"
 	"slices"
+	"strconv"
 )
 
 // statisticsTimeoutOff is the YANG default of the statistics-timeout leaf: no
@@ -33,6 +36,15 @@ type senderConfig struct {
 	RouteMirroring        string                     `json:"route-mirroring"`
 	StatisticsTimeout     string                     `json:"statistics-timeout"`
 	LocRIB                string                     `json:"loc-rib"` // RFC 9069 Loc-RIB monitoring (PeerType=3)
+
+	// identity is the router's own ASN and router-id, read from `bgp router-id`
+	// and `bgp session asn local` rather than from this subtree, and carried
+	// here because it arrives on the same config rails and is installed by the
+	// same apply. nil when the section carried neither leaf.
+	//
+	// Not a JSON field: parseSenderConfig fills it from the enclosing `bgp`
+	// container (bgpSenderSection), which is where the two leaves live.
+	identity *localIdentity
 }
 
 type collectorConfig struct {
@@ -56,10 +68,19 @@ func parseSenderConfig(data string) (*senderConfig, error) {
 	if err := json.Unmarshal([]byte(data), &sec); err != nil {
 		return nil, fmt.Errorf("bmp sender config: %w", err)
 	}
-	if sec.BGP == nil || sec.BGP.BMP == nil || sec.BGP.BMP.Sender == nil {
+	if sec.BGP == nil {
 		return defaultSenderConfig(), nil
 	}
+
+	identity := parseLocalIdentity(sec)
+
+	if sec.BGP.BMP == nil || sec.BGP.BMP.Sender == nil {
+		cfg := defaultSenderConfig()
+		cfg.identity = identity
+		return cfg, nil
+	}
 	cfg := sec.BGP.BMP.Sender
+	cfg.identity = identity
 	if cfg.RouteMonitoringPolicy == "" {
 		cfg.RouteMonitoringPolicy = policyAll
 	}
@@ -67,6 +88,44 @@ func parseSenderConfig(data string) (*senderConfig, error) {
 		cfg.StatisticsTimeout = statisticsTimeoutOff
 	}
 	return cfg, nil
+}
+
+// parseLocalIdentity reads the router's own ASN and router-id out of the `bgp`
+// container, and returns nil when the section carries neither in a usable form.
+//
+// RFC 9069 Section 5.1 is what needs them: "Peer Autonomous System (AS): Set to
+// the primary router BGP autonomous system number (ASN)", and "Peer BGP ID: Set
+// the ID to the router-id of the VRF instance if VRF is used; otherwise, set to
+// the global instance router-id." Both leaves are `mandatory true`, so a
+// configured ze always answers; the nil is what a plugin that has been handed
+// no `bgp` section yet returns, and it makes the Loc-RIB path DECLINE rather
+// than emit a header the collector would read as AS 0 from router 0.0.0.0.
+//
+// The router-id is refused when it is zero or not IPv4: RFC 6286 Section 2.1
+// defines the BGP Identifier as "a 4-octet, unsigned, non-zero integer", and
+// the YANG leaf carries `ze:validate "nonzero-ipv4"` for the same reason. The
+// ASN is refused when it is zero, which the `zt:asn` type also rejects. Both
+// refusals return nil rather than a half-filled identity: an identity with one
+// real field and one zero is the silently-wrong value this function exists to
+// keep off the wire (ai/rules/principles.md).
+func parseLocalIdentity(sec bgpSenderSection) *localIdentity {
+	if sec.BGP.Session == nil || sec.BGP.Session.ASN == nil {
+		return nil
+	}
+	asn, err := strconv.ParseUint(sec.BGP.Session.ASN.Local, 10, 32)
+	if err != nil || asn == 0 {
+		return nil
+	}
+	addr, err := netip.ParseAddr(sec.BGP.RouterID)
+	if err != nil || !addr.Is4() {
+		return nil
+	}
+	octets := addr.As4()
+	routerID := binary.BigEndian.Uint32(octets[:])
+	if routerID == 0 {
+		return nil
+	}
+	return &localIdentity{asn: uint32(asn), routerID: routerID}
 }
 
 // defaultSenderConfig is the sender configuration ze runs under before any
@@ -97,6 +156,30 @@ type senderBehavior struct {
 	mirroring  bool
 	locRIB     bool
 	statistics string
+}
+
+// identityChanged reports whether a reload moved the router's own identity.
+//
+// It is deliberately NOT a senderBehavior field. senderBehavior decides what
+// every peer on a session carries, and a change to it bounces all of them
+// (bounceMonitoredPeers). The identity decides what the LOC-RIB emulated peer
+// carries and nothing else: a monitored BGP peer's per-peer header is built
+// from that peer's own address and ASN (peerHeaderFromEvent), so bouncing the
+// monitored peers because the router learned its own router-id would cost every
+// collector a re-announcement of state the change did not touch.
+//
+// RFC 9069 Section 6.1.1 is why the Loc-RIB peer IS affected: "The BMP receiver
+// identifies the Loc-RIB by the peer header distinguisher and BGP ID", so a new
+// BGP ID is a new peer at the collector and Section 6.1.3 owes it the bounce.
+func identityChanged(previous, current *senderConfig) bool {
+	switch {
+	case previous.identity == nil && current.identity == nil:
+		return false
+	case previous.identity == nil || current.identity == nil:
+		return true
+	default:
+		return *previous.identity != *current.identity
+	}
 }
 
 // behaviorOf reads the behavior a parsed sender configuration asks for.
@@ -152,14 +235,39 @@ func behaviorOf(cfg *senderConfig) senderBehavior {
 // subscribed and no Loc-RIB Peer Up has been sent.
 func (bp *BMPPlugin) applySenderConfig(previous, current *senderConfig) {
 	behaviorChanged := behaviorOf(previous) != behaviorOf(current)
-	if !behaviorChanged && maps.Equal(previous.Collectors, current.Collectors) {
+	movedIdentity := identityChanged(previous, current)
+	if !behaviorChanged && !movedIdentity && maps.Equal(previous.Collectors, current.Collectors) {
 		return
 	}
 
+	// RFC 9069 Section 6.1.3: "In case of any change that results in the
+	// alteration of behavior of an existing BMP session, i.e., changes to
+	// filtering and table names, the session MUST be bounced with a Peer Down /
+	// Peer Up sequence." bounceMonitoredPeers below does that for the monitored
+	// BGP peers; the Loc-RIB emulated peer is not one of them, so its half of
+	// the bounce is here. Monitoring switched OFF owes the Peer Down and no
+	// Peer Up; monitoring that STAYS on across a behavior change owes both,
+	// which is what giving the per-session guard back arranges: the Peer Up is
+	// re-sent below, under the identity and the policy now in force.
+	locRIBBounce := current.LocRIB == yangTrue && (behaviorChanged || movedIdentity)
 	if current.LocRIB != yangTrue {
 		bp.stopLocRIB()
+	}
+	if current.LocRIB != yangTrue || locRIBBounce {
 		bp.sendLocRIBPeerDown()
 	}
+
+	// The new identity is installed AFTER that Peer Down and BEFORE the Peer Up
+	// that follows it, and the order is what makes the bounce a bounce. RFC 9069
+	// Section 6.1.1 has the collector identify the Loc-RIB "by the peer header
+	// distinguisher and BGP ID", so a Peer Down carrying the incoming router-id
+	// would name a peer the collector never had up, and the peer it does have up
+	// would stay up for ever.
+	//
+	// Reaching here means the identity is either unchanged or part of what
+	// changed: movedIdentity is one of the three conditions the early return
+	// above tests, so an identity change never takes it.
+	bp.setLocalIdentity(current.identity)
 
 	bp.setSenderPolicy(current.RouteMonitoringPolicy, current.RouteMirroring == yangTrue)
 	kept := bp.syncSenders(current)
@@ -175,6 +283,12 @@ func (bp *BMPPlugin) applySenderConfig(previous, current *senderConfig) {
 	// ss.onConnected).
 	if current.LocRIB == yangTrue {
 		bp.startLocRIB()
+		if locRIBBounce {
+			// startLocRIB is idempotent, so a subscription that survived the
+			// reload asks for no replay and nothing else would re-announce the
+			// peer the Peer Down above took away.
+			bp.ensureLocRIBPeerUp(kept)
+		}
 	}
 }
 

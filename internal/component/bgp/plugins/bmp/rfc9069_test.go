@@ -19,9 +19,9 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// locRIBTestPlugin returns a plugin with one piped collector session and one
-// cached sent OPEN, which is what every Loc-RIB producer reads its identity
-// from. The returned conn is the collector end.
+// locRIBTestPlugin returns a plugin with one piped collector session and the
+// configured identity every Loc-RIB producer stamps on its per-peer header.
+// The returned conn is the collector end.
 func locRIBTestPlugin(t *testing.T) (*BMPPlugin, net.Conn) {
 	t.Helper()
 	server, client := net.Pipe()
@@ -33,6 +33,7 @@ func locRIBTestPlugin(t *testing.T) (*BMPPlugin, net.Conn) {
 	bp := &BMPPlugin{
 		senders:   []*senderSession{ss},
 		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+		identity:  &localIdentity{asn: 65000, routerID: 0x01020305},
 	}
 	return bp, server
 }
@@ -503,4 +504,201 @@ func TestAConfigurationThatAltersNoBehaviorBouncesNothing(t *testing.T) {
 	bp.applySenderConfig(inForce, &same)
 
 	requireCollectorSilent(t, asyncRead(conn), "after a configuration that moved no leaf")
+}
+
+// bgpSectionJSON is the shape the config tree hands the plugin: the whole `bgp`
+// container, every scalar a string, with the router-id and the local ASN beside
+// the BMP sender subtree.
+func bgpSectionJSON(routerID, asn string) string {
+	return `{"bgp":{"router-id":"` + routerID + `","session":{"asn":{"local":"` + asn +
+		`"}},"bmp":{"sender":{"loc-rib":"true","collector":{"c1":{"address":"127.0.0.1","port":"11019"}}}}}}`
+}
+
+// TestLocRIBHeaderReadsRouterIDAndASNFromConfig covers AC-1 and AC-2.
+//
+// RFC 9069 Section 5.1: "Peer Autonomous System (AS): Set to the primary router
+// BGP autonomous system number (ASN)", and "Peer BGP ID: Set the ID to the
+// router-id of the VRF instance if VRF is used; otherwise, set to the global
+// instance router-id."
+//
+// The OPEN cache is EMPTY here, which is the case RFC 9069 Section 1.1 exists to
+// serve: a Loc-RIB monitored on a router that has no BGP peer up. Reading the
+// identity off a cached sent OPEN answered zero for it, and the collector could
+// not tell that zero from the router's real AS and BGP ID.
+func TestLocRIBHeaderReadsRouterIDAndASNFromConfig(t *testing.T) {
+	// VALIDATES: AC-1, AC-2 -- the ASN and the router-id come from the `bgp`
+	// config section, with no peer ever having come up.
+	server, client := net.Pipe()
+	t.Cleanup(func() {
+		closeLog(server, "server-pipe")
+		closeLog(client, "client-pipe")
+	})
+	ss := &senderSession{name: "test", conn: client, stopCh: make(chan struct{})}
+	bp := &BMPPlugin{
+		senders:   []*senderSession{ss},
+		openCache: map[string]*openPair{}, // no peer has come up
+	}
+
+	cfg, err := parseSenderConfig(bgpSectionJSON("172.30.0.2", "65044"))
+	if err != nil {
+		t.Fatalf("parseSenderConfig: %v", err)
+	}
+	if cfg.identity == nil {
+		t.Fatal("the `bgp` section carried a router-id and a local ASN and parsed to no identity")
+	}
+	bp.setLocalIdentity(cfg.identity)
+
+	bp.handleBestChange(oneBestChange(0))
+	up, mon := readLocRIBPeerUpThenRM(t, server)
+
+	const wantASN = 65044
+	const wantID = 0xac1e0002 // 172.30.0.2
+	for _, c := range []struct {
+		what string
+		peer PeerHeader
+	}{{"peer up", up.Peer}, {"route monitoring", mon.Peer}} {
+		if c.peer.PeerAS != wantASN {
+			t.Errorf("%s PeerAS = %d, want the configured %d", c.what, c.peer.PeerAS, wantASN)
+		}
+		if c.peer.PeerBGPID != wantID {
+			t.Errorf("%s PeerBGPID = %#x, want the configured router-id %#x", c.what, c.peer.PeerBGPID, wantID)
+		}
+	}
+
+	// The Peer Up's fabricated OPEN describes the same router (RFC 9069 Section
+	// 5.2), so a header built from config beside an OPEN built from something
+	// else would be caught here.
+	parsed, err := message.UnpackOpen(up.SentOpenMsg[message.HeaderLen:])
+	if err != nil {
+		t.Fatalf("the Peer Up's sent OPEN does not decode: %v", err)
+	}
+	if parsed.BGPIdentifier != wantID {
+		t.Errorf("fabricated OPEN BGP Identifier = %#x, want the configured router-id %#x", parsed.BGPIdentifier, wantID)
+	}
+}
+
+// TestLocRIBHeaderNeverCarriesZeroBGPID covers AC-2's negative half.
+//
+// RFC 6286 Section 2.1 defines the BGP Identifier as "a 4-octet, unsigned,
+// non-zero integer", and RFC 9069 Section 5.1 puts the router's own into every
+// Loc-RIB per-peer header. A plugin that has been handed no `bgp` section knows
+// neither the ASN nor the router-id, so it emits NOTHING rather than a header a
+// collector would read as AS 0 on router 0.0.0.0 (ai/rules/principles.md).
+func TestLocRIBHeaderNeverCarriesZeroBGPID(t *testing.T) {
+	// VALIDATES: AC-2 negative -- no identity means no message, never a zero one.
+	server, client := net.Pipe()
+	t.Cleanup(func() {
+		closeLog(server, "server-pipe")
+		closeLog(client, "client-pipe")
+	})
+	ss := &senderSession{name: "test", conn: client, stopCh: make(chan struct{})}
+	bp := &BMPPlugin{senders: []*senderSession{ss}, openCache: map[string]*openPair{}}
+
+	if id, ok := bp.localIdentity(); ok {
+		t.Fatalf("an unconfigured plugin answered an identity %+v", id)
+	}
+
+	silent := asyncRead(server)
+	bp.handleBestChange(oneBestChange(0))
+
+	// Nothing was enqueued, so the collector end has nothing to read. That is
+	// what a suppressed message has to mean: no bytes, rather than bytes whose
+	// AS and BGP ID read zero.
+	requireCollectorSilent(t, silent, "a best change on a plugin with no configured identity")
+}
+
+// TestLocRIBIdentityChangeBouncesTheEmulatedPeer covers RFC 9069 Section 6.1.3
+// for the emulated peer.
+//
+// RFC 9069 Section 6.1.3: "In case of any change that results in the alteration
+// of behavior of an existing BMP session, i.e., changes to filtering and table
+// names, the session MUST be bounced with a Peer Down / Peer Up sequence."
+// Section 6.1.1 is why a router-id change is such an alteration: "The BMP
+// receiver identifies the Loc-RIB by the peer header distinguisher and BGP ID",
+// so a new BGP ID is a new peer at the collector, and the old one would stay up
+// for ever without the Peer Down.
+//
+// The Peer Down carries the OLD identity and the Peer Up the NEW one. A bounce
+// whose Peer Down named the incoming router-id would take down a peer the
+// collector never had.
+func TestLocRIBIdentityChangeBouncesTheEmulatedPeer(t *testing.T) {
+	// VALIDATES: RFC 9069 Section 6.1.3 -- an identity change bounces the
+	// Loc-RIB emulated peer, in the right order and under the right identities.
+	server, client := net.Pipe()
+	t.Cleanup(func() {
+		closeLog(server, "server-pipe")
+		closeLog(client, "client-pipe")
+	})
+	collector := collectorConfig{Address: testCollectorAddr, Port: testCollectorPort}
+	ss := newSenderSession(testCollectorName, collector)
+	ss.conn = client
+	bp := &BMPPlugin{stopCh: make(chan struct{}), senders: []*senderSession{ss}}
+	t.Cleanup(func() {
+		bp.stopSenders()
+		bp.sessions.Wait()
+	})
+
+	// The Loc-RIB peer is announced under the first identity, which is the state
+	// the bounce acts on: bp.locRIBUp is what sendLocRIBPeerDown keys off, and
+	// the per-session guard is what the Peer Down gives back.
+	old := &localIdentity{asn: 65000, routerID: 0x01020305}
+	inForce := &senderConfig{
+		Collectors:            map[string]collectorConfig{testCollectorName: collector},
+		RouteMonitoringPolicy: policyAll,
+		LocRIB:                yangTrue,
+		identity:              old,
+	}
+	bp.setLocalIdentity(old)
+	bp.ensureLocRIBPeerUp(bp.senders)
+	up, err := readBMPFromPipe(server)
+	if err != nil {
+		t.Fatalf("read the first peer up: %v", err)
+	}
+	first, ok := up.(*PeerUp)
+	if !ok {
+		t.Fatalf("first message = %T, want *PeerUp", up)
+	}
+	if first.Peer.PeerBGPID != 0x01020305 {
+		t.Fatalf("first Peer Up BGP ID = %#x, want 0x01020305", first.Peer.PeerBGPID)
+	}
+
+	changed := *inForce
+	changed.identity = &localIdentity{asn: 65044, routerID: 0xac1e0002}
+	if !identityChanged(inForce, &changed) {
+		t.Fatal("two identities compared as one: a router-id change would bounce nothing")
+	}
+	if behaviorOf(inForce) != behaviorOf(&changed) {
+		t.Fatal("the two configurations differ in a sender behavior leaf, so the bounce would not be the identity's")
+	}
+	bp.applySenderConfig(inForce, &changed)
+
+	down, err := readBMPFromPipe(server)
+	if err != nil {
+		t.Fatalf("read peer down: %v", err)
+	}
+	pd, ok := down.(*PeerDown)
+	if !ok {
+		t.Fatalf("message after the identity change = %T, want *PeerDown", down)
+	}
+	if pd.Peer.PeerBGPID != 0x01020305 {
+		t.Errorf("Peer Down BGP ID = %#x, want the OLD router-id 0x01020305", pd.Peer.PeerBGPID)
+	}
+	if pd.Reason != PeerDownTLVData {
+		t.Errorf("Peer Down reason = %d, want %d (RFC 9069 Section 5.3)", pd.Reason, PeerDownTLVData)
+	}
+
+	next, err := readBMPFromPipe(server)
+	if err != nil {
+		t.Fatalf("read peer up: %v", err)
+	}
+	pu, ok := next.(*PeerUp)
+	if !ok {
+		t.Fatalf("message after the Peer Down = %T, want *PeerUp", next)
+	}
+	if pu.Peer.PeerBGPID != 0xac1e0002 {
+		t.Errorf("Peer Up BGP ID = %#x, want the NEW router-id 0xac1e0002", pu.Peer.PeerBGPID)
+	}
+	if pu.Peer.PeerAS != 65044 {
+		t.Errorf("Peer Up PeerAS = %d, want the NEW ASN 65044", pu.Peer.PeerAS)
+	}
 }

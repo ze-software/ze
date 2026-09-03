@@ -154,6 +154,14 @@ Ze handles all 7 BMP message types defined in RFC 7854:
   capabilities to represent the Loc-RIB Route Monitoring messages." Ze
   advertises the 4-octet ASN capability and one address-family capability per
   family the dump delivers, and nothing else
+- Reads that ASN and that router-id from `bgp session asn local` and `bgp
+  router-id`, and from nowhere else. Both leaves are required, so a configured
+  ze always knows its own identity, and it knows it before any BGP peer comes
+  up. That is the case RFC 9069 Section 1.1 exists to serve, a Loc-RIB monitored
+  where there are "no preexisting BGP peers": a router that read its identity
+  off an established session would have none to read. Ze sends no Loc-RIB
+  message at all while the identity is unknown, and logs why, rather than
+  sending a Peer AS of 0 from router 0.0.0.0
 - Names that Loc-RIB `global` in a VRF/Table Name Information TLV (type 3) on
   the Peer Up, and repeats the TLV after reason code 6 on the Peer Down. RFC
   9069 Section 5.2.1: "The default value of "global" MUST be used for the
@@ -193,6 +201,15 @@ session carries, and only a move in one of them bounces the peers:
 A commit that changes anything else under `bgp`, a new neighbor for example,
 leaves every collector session untouched. So does a commit that changes nothing
 under `bgp`.
+
+The router's own identity is the one exception, and it bounces the Loc-RIB
+emulated peer alone. A commit that moves `bgp router-id` or `bgp session asn
+local` while `loc-rib` is on sends that peer a Peer Down with reason 6 under the
+OLD identity, then a Peer Up under the new one. RFC 9069 Section 6.1.1 has the
+collector identify the Loc-RIB "by the peer header distinguisher and BGP ID", so
+a new BGP ID is a new peer to it and Section 6.1.3 owes it the bounce. The
+monitored BGP peers are not bounced: their per-peer headers carry their own
+addresses and AS numbers, which the router's identity does not appear in.
 
 The collector list is separate, because changing it changes which sessions exist
 rather than what one of them carries. A collector you remove, or point at another
