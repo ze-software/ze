@@ -38,10 +38,10 @@ type CommandFormData struct {
 	// Description is the one-line summary of this command, from its YANG
 	// description statement. It is the lede above the form.
 	Description string
-	// Help is the long explanation of this command, from its ze:help
+	// LongHelp is the long explanation of this command, from its ze:help
 	// extension. It is the body under the lede, and it keeps the newlines its
 	// author wrote. Empty means the command declares no explanation.
-	Help string
+	LongHelp string
 	// ActionURL is the POST target (e.g., "/admin/peer/192.168.1.1/teardown").
 	ActionURL string
 	// Parameters lists the command's input parameters.
@@ -234,7 +234,7 @@ func buildAdminFragmentData(path []string, tree *command.Node) *FragmentData {
 		// read. An absent command MUST NOT borrow its parent's text.
 		if node != nil {
 			form.Description = node.Description
-			form.Help = node.Help
+			form.LongHelp = node.LongHelp
 		}
 		data.CommandForm = form
 	}
