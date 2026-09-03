@@ -176,8 +176,18 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	if err := os.WriteFile("flap.batch", []byte(batch.String()), 0o600); err != nil {
 		return err
 	}
-	pidText, ok := readTrimmed08("daemon.pid")
-	if !ok {
+	// Poll, do not read once. This fixture is a PLUGIN the daemon spawns, so it
+	// starts while the runner is still waiting for daemon.ready before it
+	// publishes daemon.pid (runOrchestrated, internal/test/runner/runner_exec.go).
+	// A single read therefore loses that race every time and reported
+	// "daemon.pid unavailable" about a daemon that was starting normally. Every
+	// other fixture that needs the pid polls for it (waitDaemon,
+	// netfilter_fixture.go).
+	var pidText string
+	if !Poll(ctx, 200, 50*time.Millisecond, func() bool {
+		pidText, _ = readTrimmed08("daemon.pid")
+		return pidText != ""
+	}) {
 		return fmt.Errorf("daemon.pid unavailable")
 	}
 	pid, err := strconv.Atoi(pidText)
