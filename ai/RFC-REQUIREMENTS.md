@@ -225,15 +225,15 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 
 50 of 1789 auditable requirement(s) carry a `ze-rfc-audit` verdict (2.79%), across 1 of 181 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
 
-**Proven** (43) is the count that means what the badge implies: a verdict of `enforced` -- the tests would fail if the code stopped complying -- that is still fresh. It is NOT the **Both** column of the rollup above: that one answers which polarities exist, and a requirement can have both and still be judged `weak`. Every one of the 9 verdict(s) that is audited but not proven is named below with its verdict, so no requirement can read as proven and weak at once.
+**Proven** (48) is the count that means what the badge implies: a verdict of `enforced` -- the tests would fail if the code stopped complying -- that is still fresh. It is NOT the **Both** column of the rollup above: that one answers which polarities exist, and a requirement can have both and still be judged `weak`. Every one of the 4 verdict(s) that is audited but not proven is named below with its verdict, so no requirement can read as proven and weak at once.
 
 The remaining 1739 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `./le rfc check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
 
-Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1789) = `Audited` (50) + `Unaudited` (1739). **Records:** all 52 recorded verdict(s) = `Proven` (43) + `Not proven` (9), and the worklist below names every one of those 9. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
+Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1789) = `Audited` (50) + `Unaudited` (1739). **Records:** all 52 recorded verdict(s) = `Proven` (48) + `Not proven` (4), and the worklist below names every one of those 4. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
 
 | RFC | Auditable | Audited | Proven | Not proven | Unaudited |
 |---|---|---|---|---|---|
-| `rfc7606` | 50 | 50 | 43 | 9 | 0 |
+| `rfc7606` | 50 | 50 | 48 | 4 | 0 |
 | `draft-abraitis-idr-addpath-paths-limit` | 4 | 0 | 0 | 0 | 4 |
 | `draft-ietf-bess-mup-safi` | 3 | 0 | 0 | 0 | 3 |
 | `draft-ietf-sidrops-aspa-verification` | 6 | 0 | 0 | 0 | 6 |
@@ -390,13 +390,8 @@ One row per requirement whose verdict is anything other than a fresh `enforced`.
 
 | Requirement | Verdict | Meaning |
 |---|---|---|
-| `RFC7606-3.a-1` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
-| `RFC7606-3.i-1` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
-| `RFC7606-3.j-1` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
 | `RFC7606-5.1-1` | `unimplemented` | the tests are fine; the CODE does not comply |
 | `RFC7606-5.1-3` | `enforced (stale-unit)` | what it judged changed -- the tagged unit itself, or the producing code it cites; it must be re-judged with the `ze-rfc-audit` skill before it counts as anything |
-| `RFC7606-5.3-1` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
-| `RFC7606-5.3-2` | `enforced (shifted)` | the tagged unit is byte-identical and only the file around it moved; nothing was re-judged, so re-stamp it with `./le rfc reseal` |
 | `RFC7606-5.4-1` | `enforced (stale-unit)` | what it judged changed -- the tagged unit itself, or the producing code it cites; it must be re-judged with the `ze-rfc-audit` skill before it counts as anything |
 | `RFC7606-8-1` | `not-applicable` | no reachable code path could satisfy or violate it |
 
@@ -410,7 +405,7 @@ The backlog is grandfathered, as the extraction backlog is. The obligation is CH
 
 An escape (`no-break`) is a recorded claim that no break exists, and the gate checks a precondition for each reason it accepts: `declaration-only` 0, `foreign-producer` 0, `generated-producer` 0. It is counted apart from a proof because a claim that nothing can break is debt, not evidence.
 
-10 `RFC requirement:` comment(s) sit in production Go that no carrier claims. Nothing resolves them and nothing runs them, and 8 of them carry no polarity, so no scanner would accept them even if a carrier did claim the file. `./le rfc check` names each one.
+19 `RFC requirement:` comment(s) sit in production Go that no carrier claims. Nothing resolves them and nothing runs them, and 17 of them carry no polarity, so no scanner would accept them even if a carrier did claim the file. `./le rfc check` names each one.
 
 ## Extraction sign-off
 

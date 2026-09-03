@@ -39,6 +39,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -123,7 +124,7 @@
       "requirement_sha": "4454cc3553ff70e3",
       "tests": {
         "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606ValidUpdateSendsNoNotification": "a2709905771d74c8",
-        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_ShortBody": "557a5fcce1f8fc77",
+        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_ShortBody": "b8a7729ef54fdc07",
         "test/plugin/rfc7606-reset.ci": "2aeeeae801985ab4"
       },
       "units": {
@@ -281,7 +282,7 @@
       "requirement_sha": "55678935f22b8a58",
       "tests": {
         "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestEnforceRFC7606_ValidWithdrawnNLRIAccepted": "a2709905771d74c8",
-        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "557a5fcce1f8fc77"
+        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "b8a7729ef54fdc07"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestEnforceRFC7606_ValidWithdrawnNLRIAccepted": "36303b7929270759",
@@ -300,7 +301,7 @@
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv4": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv6": "41fae6472d6a1c4d",
-        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidTrailingNLRI": "557a5fcce1f8fc77",
+        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidTrailingNLRI": "b8a7729ef54fdc07",
         "test/plugin/rfc7606-reset.ci": "2aeeeae801985ab4"
       },
       "units": {
@@ -436,7 +437,7 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRIMaxPrefixLengthAccepted": "669936946251c215",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv4": "41fae6472d6a1c4d",
-        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidTrailingNLRI": "557a5fcce1f8fc77"
+        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidTrailingNLRI": "b8a7729ef54fdc07"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRIMaxPrefixLengthAccepted": "c285d00b4dc7e152",
@@ -450,7 +451,7 @@
       "requirement_sha": "819cbde516294c61",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRILastPrefixExactlyFitsAccepted": "669936946251c215",
-        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "557a5fcce1f8fc77"
+        "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "b8a7729ef54fdc07"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRILastPrefixExactlyFitsAccepted": "23f0a8a82c45bc48",
