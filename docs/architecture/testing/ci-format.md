@@ -1300,7 +1300,41 @@ expect=command-error:contains=<text>
 `command=`/`stream=` keep their full raw text (colons included). `expect=output`
 re-dispatches the most recent `command=` until its predicate holds or the
 timeout expires; `expect=stream` matches delivered `stream=` events;
-`expect=event` matches a delivered event by exclusive subscription.
+`expect=event` matches a delivered event by its `(namespace, name)` identity.
+
+### expect=event
+
+The executor declares ONE startup event subscription, derived from the
+`expect=event` steps of the file itself, and asks for enveloped delivery. A `.ci`
+therefore names each event once, in the step that waits for it, and nothing else
+declares the subscription.
+
+A startup subscription rides the `ready` RPC, so it is registered before any
+plugin's `OnAllPluginsReady` runs. That is what lets a step observe the FIRST
+delivery of an event the daemon emits while it starts. `test/ipsec/ipsec-sa-installed.ci`
+is the case that forced it: the IKE engine emits `vpn-ipsec`/`sa-up` from its
+startup peer reconciliation, so a subscription dispatched from the step could
+only ever see a SECOND establishment, and a test with no re-negotiation has none.
+
+Enveloped delivery wraps each event with its `(namespace, event)` identity
+(`rpc.EventEnvelope`), which is what tells one subscribed event from another once
+several share the one subscription. A bare payload decodes with an empty
+namespace and event, so a delivery the executor did not ask to be enveloped can
+never satisfy a step.
+
+Two consequences follow, and both are load-bearing when writing a test:
+
+- **A step list names ONE namespace.** `rpc.SubscribeEventsInput` carries one, so
+  steps naming two are REFUSED before the executor dials, with a message naming
+  both. Split the test rather than subscribing to one and dropping the rest.
+- **A step matches ANY delivery of that identity, scrollback included.** It cannot
+  assert "another one, after this point". A second `sa-up` after an operator
+  `clear` re-matches the first, so re-establishment is asserted by a separate
+  test (`test/ipsec/ipsec-clear-reestablish.ci`), not by a second `expect=event`.
+
+<!-- source: internal/test/runner/engine_steps.go -- EngineStepSubscriptionFor, RunEngineSteps -->
+<!-- source: internal/test/cli/cmd_engine_steps.go -- cmdEngineSteps -->
+<!-- source: internal/component/plugin/server/dispatch.go -- buildEventEnvelope, resolveSubscriptionNamespace -->
 
 ### expect=command-error
 

@@ -154,23 +154,18 @@ EOF_CONFIG
 cmd=background:seq=1:exec=ze -:stdin=responder
 cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=35s
 
-# The initiator polls `show vpn ipsec sa` until the negotiated SA reports the
-# peer established -- proof that two unprivileged ze instances complete IKEv2
-# end to end (IKE_SA_INIT + IKE_AUTH over loopback, no CAP_NET_ADMIN).
-#
-# // an earlier revision of THIS conversion also asserted the
-# sa-up EVENT via the executor (subscribe -> clear -> expect=event). That leg
-# is blocked on a real product gap, not test infra, so it is deferred to a
-# spec-test-coverage-gaps follow-up: the initial establishment fires before
-# any runtime subscription can exist (the startup subscribe-events RPC is
-# namespace-less -- dispatch.go registerSubscriptions only reaches the "bgp"
-# default). Event DELIVERY itself is proven by the unit test
-# TestEmitEngineEventDeliversToProcessSubscriber.
-#
-# The operator-clear re-negotiation gap this note used to describe (the
-# responder dropping the initiator's re-sent IKE_SA_INIT) is FIXED by
-# spec-fixit-ipsec-clear-reestablish and is now covered end to end by
-# test/ipsec/ipsec-clear-reestablish.ci.
+# The FIRST sa-up of the run, which is the one an operator subscriber wants and
+# the one nothing used to reach. The IKE engine defers its startup peer
+# reconciliation to OnAllPluginsReady (ike/engine/register.go) so this event has
+# a subscriber when it fires, and the executor declares its subscription before
+# Run with enveloped delivery (internal/test/cli/cmd_engine_steps.go) so a
+# delivery that beats the step still matches. Nothing here re-establishes, so a
+# step-time subscribe would have no second sa-up to fall back on.
+expect=event:namespace=vpn-ipsec:name=sa-up:timeout=20
+
+# The initiator then polls `show vpn ipsec sa` until the negotiated SA reports
+# the peer established -- proof that two unprivileged ze instances complete
+# IKEv2 end to end (IKE_SA_INIT + IKE_AUTH over loopback, no CAP_NET_ADMIN).
 command=show vpn ipsec sa
 expect=output:contains=peer-1:timeout=20
 # Gate on the negotiated ESP encryption algorithm (aes-cbc), which the SA row

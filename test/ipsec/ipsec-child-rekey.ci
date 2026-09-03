@@ -18,11 +18,12 @@
 # end. (A colon-bearing needle: the engine-steps contains= parser keeps colons,
 # see engine_steps.go parseEngineExpectContains.)
 #
-# // the original revision asserted the sa-up / child-up /
-# child-rekey EVENTS. The event path is namespace-locked to bgp (dispatch.go
-# registerSubscriptions) -- a product gap deferred to
-# spec-fixit-plugin-event-subscription. Rekey completion is asserted here via the
-# polled rekey-count, which needs no event subscription.
+# The executor also asserts the sa-up EVENT. Its subscription is declared before
+# Run, in the namespace the step names, with enveloped delivery
+# (internal/test/cli/cmd_engine_steps.go), so the FIRST sa-up counts even though
+# the engine emits it before the executor reaches its first step. Rekey
+# completion stays asserted by the polled rekey-count, which is the counter the
+# operator reads.
 
 option=env:var=ze_test_ike_port:value=$PORT2
 # noop dataplane: unprivileged XFRM install is EPERM-fatal by design.
@@ -160,6 +161,9 @@ EOF_CONFIG
 
 cmd=background:seq=1:exec=ze -:stdin=responder
 cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=40s
+
+# The engine announces establishment before any show command can report it.
+expect=event:namespace=vpn-ipsec:name=sa-up:timeout=25
 
 # Wait for the initial established SA (aes-cbc only appears after IKE_AUTH), then
 # poll for the first child rekey. rekey-count increments from 0 to 1 when the

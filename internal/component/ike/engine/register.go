@@ -455,6 +455,11 @@ func runEngine(conn net.Conn) int {
 	// configuration whose peers depend on `interface` for their local address, when that
 	// interface cannot supply one. See applyPhase and the branch below for why the two
 	// deliveries answer that condition differently.
+	// startupCfg carries the configuration OnConfigure parsed across to
+	// OnAllPluginsReady, which is where the daemon's first peers start. It is
+	// nil once those peers are running, and it stays nil for every reload.
+	var startupCfg *ipsec.IPsecConfig
+
 	applyIPsecConfig := func(cfg *ipsec.IPsecConfig, phase applyPhase) error {
 		// RFC 7296 Section 2.6. Published before any peer is reconciled, so an
 		// initiation that arrives during the reconcile is judged against the config
@@ -590,10 +595,24 @@ func runEngine(conn net.Conn) int {
 			}
 		}
 
-		eb := getEventBus()
-		reconcilePeers(cfg, activeCfg, activePeers, table, tr, trNATT, eb, log)
-		activeCfg = cfg
+		// Peer reconciliation is the only part of an apply that puts packets on
+		// the wire, and at STARTUP it is deferred to OnAllPluginsReady below.
+		// Phase 1 loads a config-path plugin such as this one before Phase 2
+		// spawns an `external` plugin, so initiating here means the first
+		// sa-up is emitted while no external process has subscribed yet: the
+		// event is routed correctly and delivered to nobody
+		// (plugin/server/subscribe.go getMatching returns an empty set). BGP
+		// already answers this by starting its reactor at configure and its
+		// peers from coord.OnPostStartup (bgp/plugin/register.go).
+		//
+		// A reload has no such window, so it reconciles here as it always did.
 		reCtx.Store(&reEstablishCtx{cfg: cfg, tr: tr, natt: trNATT})
+		if phase == applyStartup {
+			startupCfg = cfg
+		} else {
+			reconcilePeers(cfg, activeCfg, activePeers, table, tr, trNATT, getEventBus(), log)
+			activeCfg = cfg
+		}
 
 		if ipsecMetrics != nil {
 			ipsecMetrics.Update()
@@ -674,6 +693,27 @@ func runEngine(conn net.Conn) int {
 	// Stop returns as soon as the session goroutine reaches its stopCh.
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		return staging.commit()
+	})
+
+	// The startup half of the reconcile, held back until every plugin in every
+	// phase has completed its handshake and both registries are frozen. That is
+	// the earliest moment an external plugin can hold a subscription, so it is
+	// the earliest moment the first sa-up has a reader.
+	//
+	// It runs on the same event loop as every other callback, so activeCfg, the
+	// transports and startupCfg need no lock, for the reason applyIPsecConfig
+	// states. Nothing here waits on peer activity, which is the one thing
+	// sendPostStartupToAll cannot be asked to do (plugin/server/poststartup.go).
+	p.OnAllPluginsReady(func() error {
+		if startupCfg == nil {
+			return nil
+		}
+		cfg := startupCfg
+		startupCfg = nil
+		reconcilePeers(cfg, activeCfg, activePeers, table, tr, trNATT, getEventBus(), log)
+		activeCfg = cfg
+		log.Info("ike peers started", "peers", len(cfg.Peers))
+		return nil
 	})
 
 	ctx, cancel := sdk.SignalContext()

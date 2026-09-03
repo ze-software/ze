@@ -8,10 +8,13 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func parseCIRecord(t *testing.T, body string) *Record {
@@ -303,7 +306,11 @@ func TestParseEngineRejects(t *testing.T) {
 	}
 }
 
-func TestEngineEventBufferScrollbackAndPositions(t *testing.T) {
+func TestEngineEventBufferScrollbackAndLiveDelivery(t *testing.T) {
+	// Goal: Wait answers from the scrollback and from a live delivery, and pred
+	// is the only thing that scopes a match. Method: record one event before the
+	// wait, match it, then require a non-matching buffer to time out and a later
+	// matching delivery to wake the wait.
 	b := NewEngineEventBuffer()
 	if err := b.OnEvent(`{"peer-name":"peer-1"}`); err != nil {
 		t.Fatalf("OnEvent: %v", err)
@@ -315,24 +322,88 @@ func TestEngineEventBufferScrollbackAndPositions(t *testing.T) {
 	if got == "" {
 		t.Fatal("Wait missed the scrollback event")
 	}
-	// waitFrom(Len()) must ignore that old event and time out.
-	pos := b.Len()
-	got = b.waitFrom(t.Context(), pos, time.Now().Add(50*time.Millisecond), func(string) bool {
-		return true
+	// A predicate no recorded event satisfies must time out rather than take
+	// whatever is in the buffer.
+	got = b.Wait(t.Context(), time.Now().Add(50*time.Millisecond), func(e string) bool {
+		return strings.Contains(e, "peer-2")
 	})
 	if got != "" {
-		t.Fatalf("waitFrom(Len) = %q, want timeout (old events excluded)", got)
+		t.Fatalf("Wait = %q, want timeout (no recorded event matches)", got)
 	}
-	// A post-position delivery satisfies waitFrom.
+	// A delivery that lands DURING the wait wakes it.
 	go func() {
 		time.Sleep(20 * time.Millisecond)
 		_ = b.OnEvent(`{"peer-name":"peer-2"}`)
 	}()
-	got = b.waitFrom(t.Context(), pos, time.Now().Add(time.Second), func(string) bool {
-		return true
+	got = b.Wait(t.Context(), time.Now().Add(time.Second), func(e string) bool {
+		return strings.Contains(e, "peer-2")
 	})
 	if got == "" {
-		t.Fatal("waitFrom missed the post-position event")
+		t.Fatal("Wait missed the live delivery")
+	}
+}
+
+func TestEngineStepSubscriptionFor(t *testing.T) {
+	// Goal: the startup subscription is DERIVED from the expect=event steps, so
+	// no .ci and no hand-kept list declares it a second time. Method: feed a step
+	// list with a repeated event name and assert the namespace plus the distinct
+	// names in first-appearance order.
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show vpn ipsec sa"},
+		{Kind: EngineStepExpectEvent, Namespace: "vpn-ipsec", Name: "sa-up"},
+		{Kind: EngineStepExpectOutput, Text: "peer-1"},
+		{Kind: EngineStepExpectEvent, Namespace: "vpn-ipsec", Name: "sa-down"},
+		{Kind: EngineStepExpectEvent, Namespace: "vpn-ipsec", Name: "sa-up"},
+	}
+	sub, err := EngineStepSubscriptionFor(steps)
+	if err != nil {
+		t.Fatalf("EngineStepSubscriptionFor: %v", err)
+	}
+	if sub.Namespace != "vpn-ipsec" {
+		t.Errorf("Namespace = %q, want vpn-ipsec", sub.Namespace)
+	}
+	want := []string{"sa-up", "sa-down"}
+	if len(sub.Events) != len(want) {
+		t.Fatalf("Events = %v, want %v", sub.Events, want)
+	}
+	for i := range want {
+		if sub.Events[i] != want[i] {
+			t.Fatalf("Events = %v, want %v", sub.Events, want)
+		}
+	}
+}
+
+func TestEngineStepSubscriptionForNoEventSteps(t *testing.T) {
+	// Steps that expect no event ask for no subscription, and that is not an
+	// error: the executor then declares none and delivery stays bare.
+	sub, err := EngineStepSubscriptionFor([]EngineStep{
+		{Kind: EngineStepCommand, Text: "show vpn ipsec sa"},
+		{Kind: EngineStepExpectOutput, Text: "peer-1"},
+	})
+	if err != nil {
+		t.Fatalf("EngineStepSubscriptionFor: %v", err)
+	}
+	if sub.Namespace != "" || len(sub.Events) != 0 {
+		t.Fatalf("subscription = %+v, want the zero value", sub)
+	}
+}
+
+func TestEngineStepSubscriptionForRefusesTwoNamespaces(t *testing.T) {
+	// One startup subscription carries one namespace. Subscribing to the first
+	// and dropping the second would leave the dropped step waiting on an event
+	// nobody delivers, and report it as a daemon failure -- so this REFUSES, and
+	// the message names both namespaces so the author can split the test.
+	_, err := EngineStepSubscriptionFor([]EngineStep{
+		{Kind: EngineStepExpectEvent, Namespace: "vpn-ipsec", Name: "sa-up"},
+		{Kind: EngineStepExpectEvent, Namespace: "bgp", Name: "update"},
+	})
+	if err == nil {
+		t.Fatal("EngineStepSubscriptionFor accepted two namespaces, want a refusal")
+	}
+	for _, want := range []string{"vpn-ipsec", "bgp"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not name namespace %q", err, want)
+		}
 	}
 }
 
@@ -394,7 +465,26 @@ func TestRunEngineStepsOutputTimeout(t *testing.T) {
 	}
 }
 
+// envelopedEvent renders one delivered event the way the engine renders it for
+// a subscriber that opted in (plugin/server/dispatch.go buildEventEnvelope).
+func envelopedEvent(t *testing.T, namespace, event, payload string) string {
+	t.Helper()
+	b, err := json.Marshal(rpc.EventEnvelope{
+		Namespace: namespace,
+		Event:     event,
+		Payload:   json.RawMessage(payload),
+	})
+	if err != nil {
+		t.Fatalf("marshal envelope: %v", err)
+	}
+	return string(b)
+}
+
 func TestRunEngineStepsEventAndStream(t *testing.T) {
+	// Goal: expect=event matches an enveloped delivery by its (namespace, event)
+	// identity and dispatches no subscription of its own, because the executor
+	// declared one before Run. Method: deliver the enveloped event late and
+	// assert the run passes with no subscribe command issued.
 	f := &fakeDispatch{responses: map[string][]string{}}
 	buf := NewEngineEventBuffer()
 	steps := []EngineStep{
@@ -404,37 +494,62 @@ func TestRunEngineStepsEventAndStream(t *testing.T) {
 	}
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		_ = buf.OnEvent(`{"peer-name":"peer-1","local-address":"127.0.0.1"}`)
+		_ = buf.OnEvent(envelopedEvent(t, "vpn-ipsec", "sa-up",
+			`{"peer-name":"peer-1","local-address":"127.0.0.1"}`))
 		time.Sleep(100 * time.Millisecond)
-		_ = buf.OnEvent(`{"peer-name":"peer-1","detail":"child-up esp"}`)
+		_ = buf.OnEvent(envelopedEvent(t, "vpn-ipsec", "child-up",
+			`{"peer-name":"peer-1","detail":"child-up esp"}`))
 	}()
 	if err := RunEngineSteps(t.Context(), f.dispatch, buf, steps); err != nil {
 		t.Fatalf("RunEngineSteps: %v", err)
 	}
-	// The event expectation scopes by exclusive subscription: subscribe at
-	// the step, any delivery counts, then unsubscribe.
 	joined := strings.Join(f.calls, ";")
-	if !strings.Contains(joined, "request subscribe vpn-ipsec event sa-up") {
-		t.Fatalf("calls = %v, want step-time subscription", f.calls)
-	}
-	if !strings.Contains(joined, "request unsubscribe vpn-ipsec event sa-up") {
-		t.Fatalf("calls = %v, want unsubscribe after the event step", f.calls)
+	if strings.Contains(joined, "subscribe") {
+		t.Fatalf("calls = %v, want no step-time subscription", f.calls)
 	}
 }
 
-func TestRunEngineStepsEventIgnoresPreSubscriptionDeliveries(t *testing.T) {
+func TestRunEngineStepsEventMatchesADeliveryThatPrecededTheStep(t *testing.T) {
+	// Goal: the assertion this whole path exists for. The IKE engine emits its
+	// first sa-up during startup reconciliation, before the executor reaches the
+	// step, so a delivery already in the buffer MUST satisfy expect=event.
 	f := &fakeDispatch{responses: map[string][]string{}}
 	buf := NewEngineEventBuffer()
-	// An event recorded BEFORE the expect=event step (e.g. noise from an
-	// earlier stream step) must NOT satisfy the exclusive subscription window.
-	if err := buf.OnEvent(`{"stale":"event"}`); err != nil {
+	if err := buf.OnEvent(envelopedEvent(t, "vpn-ipsec", "sa-up", `{"peer-name":"peer-1"}`)); err != nil {
 		t.Fatalf("OnEvent: %v", err)
 	}
 	steps := []EngineStep{
 		{Kind: EngineStepExpectEvent, Namespace: "vpn-ipsec", Name: "sa-up", Timeout: 300 * time.Millisecond},
 	}
-	if err := RunEngineSteps(t.Context(), f.dispatch, buf, steps); err == nil {
-		t.Fatal("stale pre-subscription delivery must not satisfy expect=event")
+	if err := RunEngineSteps(t.Context(), f.dispatch, buf, steps); err != nil {
+		t.Fatalf("RunEngineSteps: %v, want the pre-step delivery to satisfy expect=event", err)
+	}
+}
+
+func TestRunEngineStepsEventRejectsAnotherEventAndABarePayload(t *testing.T) {
+	// The match is on identity, not on "some event arrived". A sibling event of
+	// the same namespace, and an un-enveloped payload the executor never asked
+	// for, must both time out rather than pass the step.
+	for name, event := range map[string]string{
+		"sibling event":   envelopedEvent(t, "vpn-ipsec", "sa-down", `{"peer-name":"peer-1"}`),
+		"other namespace": envelopedEvent(t, "bgp", "sa-up", `{"peer-name":"peer-1"}`),
+		"bare payload":    `{"peer-name":"peer-1"}`,
+	} {
+		f := &fakeDispatch{responses: map[string][]string{}}
+		buf := NewEngineEventBuffer()
+		if err := buf.OnEvent(event); err != nil {
+			t.Fatalf("%s: OnEvent: %v", name, err)
+		}
+		steps := []EngineStep{
+			{Kind: EngineStepExpectEvent, Namespace: "vpn-ipsec", Name: "sa-up", Timeout: 200 * time.Millisecond},
+		}
+		err := RunEngineSteps(t.Context(), f.dispatch, buf, steps)
+		if err == nil {
+			t.Fatalf("%s satisfied expect=event vpn-ipsec/sa-up", name)
+		}
+		if !strings.Contains(err.Error(), "vpn-ipsec/sa-up not delivered") {
+			t.Fatalf("%s: err = %v, want the not-delivered message", name, err)
+		}
 	}
 }
 

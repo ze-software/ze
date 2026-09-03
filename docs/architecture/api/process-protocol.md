@@ -715,6 +715,32 @@ renders the envelope at most once per emit and only when a matching subscriber
 opted in, preserving the lazy-marshal-once cost of the default path.
 <!-- source: internal/component/plugin/server/dispatch.go -- deliverEvent, buildEventEnvelope; pkg/plugin/rpc/types.go -- EventEnvelope -->
 
+### An Event Emitted Before the Subscribers Exist
+
+A subscription is registered when its plugin handshakes, and plugins handshake
+in phases: config-path plugins load first, `plugin { external ... }` plugins
+after them. An event a config-path plugin emits during its own configure
+callback is therefore routed correctly and delivered to nobody. `getMatching`
+returns an empty set, `deliverEvent` returns 0, and no error is raised: an
+empty subscriber set and a filtered-out subscriber look the same.
+
+A startup subscription does not close this window. It is registered at the
+subscribing plugin's ready handshake, which for a Phase 2 plugin is still after
+Phase 1 has run.
+
+So a plugin that emits an event an external plugin must see MUST NOT start the
+work that emits it from its configure callback. It starts that work from
+`OnAllPluginsReady`, which the engine fans out after every plugin in every phase
+is running and both registries are frozen. BGP does this by starting its reactor
+at configure and its peers from `coord.OnPostStartup`. IKE does it by stashing
+the parsed configuration and reconciling peers from `OnAllPluginsReady`, which is
+why the first `sa-up` of a session now has a reader.
+
+The handler MUST NOT wait on the activity it starts. `sendPostStartupToAll` is
+not ordered against peer startup, so a handler that blocks on peer activity
+deadlocks.
+<!-- source: internal/component/plugin/server/startup.go -- phase order; internal/component/ike/engine/register.go -- OnAllPluginsReady; internal/component/bgp/plugin/register.go -- OnPostStartup -->
+
 ### DirectBridge Optimization
 
 For internal plugins with an active `DirectBridge`, `deliverBatch()` calls

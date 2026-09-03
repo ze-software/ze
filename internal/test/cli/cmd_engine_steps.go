@@ -22,7 +22,8 @@ const engineStepsPluginName = "engine-steps"
 // cmdEngineSteps is the spawned executor for .ci engine-step directives
 // (command=/stream=/expect=output|event|stream, see
 // internal/test/runner/engine_steps.go). It connects back to the daemon as a
-// regular external plugin, waits for OnAllPluginsReady -- the engine's
+// regular external plugin, declares the one event subscription its expect=event
+// steps imply, waits for OnAllPluginsReady -- the engine's
 // sanctioned point for cross-plugin dispatch -- runs the steps from the JSON
 // file the runner materialized into the tmpfs dir, and reports failures via
 // the ZE-OBSERVER-FAIL sentinel the runner already gates on
@@ -44,6 +45,15 @@ func cmdEngineSteps(args []string) int {
 		return 1
 	}
 
+	// The steps themselves say which events this run must observe, so nothing
+	// else declares it. Derived before the dial so a .ci that names two
+	// namespaces is refused whether or not the daemon comes up.
+	sub, err := runner.EngineStepSubscriptionFor(steps)
+	if err != nil {
+		slog.Error("ZE-OBSERVER-FAIL: engine-steps: startup event subscription", "path", args[0], "error", err)
+		return 1
+	}
+
 	conn, err := sdk.DialTLSEnvRaw(engineStepsPluginName)
 	if err != nil {
 		slog.Error("ZE-OBSERVER-FAIL: engine-steps: TLS connect-back failed", "error", err)
@@ -53,6 +63,22 @@ func cmdEngineSteps(args []string) int {
 	p := sdk.NewWithConn(engineStepsPluginName, conn)
 	buf := runner.NewEngineEventBuffer()
 	p.OnEvent(buf.OnEvent)
+
+	// A startup subscription rides the "ready" RPC, so it is registered before
+	// any plugin's OnAllPluginsReady runs. That is what lets an expect=event
+	// step observe the FIRST delivery of an event the daemon emits while it
+	// starts, which a subscribe dispatched from a step can never see.
+	//
+	// Envelope delivery tags each event with its (namespace, event) identity,
+	// which is what tells one subscribed event from another once several share
+	// this one subscription (rpc.EventEnvelope). Format is deliberately empty:
+	// it is the BGP wire format (hex, base64, parsed, full), not an encoding,
+	// and these steps subscribe to whichever namespace they named.
+	if len(sub.Events) > 0 {
+		p.SetStartupSubscriptionsIn(sub.Namespace, sub.Events, nil, "")
+		p.SetEncoding("json")
+		p.SetEnvelope(true)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

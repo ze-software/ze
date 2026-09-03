@@ -9,14 +9,14 @@
 # runs `clear vpn ipsec sa` and asserts it dispatches the clear-all action to the
 # engine -- the operator teardown command exercised against a live SA.
 #
-# // the original revision asserted the sa-up EVENT before the clear
-# and a second sa-up after it (re-establishment). The event leg is dropped here:
-# the sa-up event path is namespace-locked to bgp (dispatch.go
-# registerSubscriptions), a product gap deferred to
-# spec-fixit-plugin-event-subscription. This test asserts the clear-command
-# DISPATCH via the clear-all output; the post-clear RE-ESTABLISHMENT (previously
-# deferred to spec-fixit-ipsec-clear-reestablish) is now FIXED and covered end to
-# end by test/ipsec/ipsec-clear-reestablish.ci.
+# The executor asserts the sa-up EVENT that precedes the clear. Its subscription
+# is declared before Run, with enveloped delivery
+# (internal/test/cli/cmd_engine_steps.go), so the FIRST sa-up counts even though
+# the engine emits it before the executor reaches its first step. The SECOND
+# sa-up (re-establishment after the clear) is NOT asserted here: expect=event
+# matches any delivery of that identity in the buffer, so a step after the clear
+# would re-match the first one. Re-establishment is covered end to end by
+# test/ipsec/ipsec-clear-reestablish.ci.
 
 option=env:var=ze_test_ike_port:value=$PORT2
 # noop dataplane: unprivileged XFRM install is EPERM-fatal by design.
@@ -154,6 +154,9 @@ EOF_CONFIG
 
 cmd=background:seq=1:exec=ze -:stdin=responder
 cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=35s
+
+# The engine announces establishment before any show command can report it.
+expect=event:namespace=vpn-ipsec:name=sa-up:timeout=25
 
 # Wait for a REAL established SA (aes-cbc only appears after IKE_AUTH), then run
 # the operator teardown. `clear vpn ipsec sa` echoes the clear-all action it

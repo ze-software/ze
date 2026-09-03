@@ -43,8 +43,10 @@
 // command=/stream= lines keep their full raw text (colons included).
 // expect=output re-dispatches the most recent command until its result text
 // contains the needle or the timeout expires; expect=event/expect=stream
-// match delivered events (event subscriptions are established up front so a
-// trigger fired by an earlier step cannot race its expectation).
+// match delivered events. The executor declares ONE startup subscription
+// derived from the expect=event steps themselves (EngineStepSubscriptionFor)
+// and asks for enveloped delivery, so an event the daemon fired before the
+// executor reached its step is already in the buffer and still matches.
 
 package runner
 
@@ -59,6 +61,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // EngineStepKind identifies one engine-step directive.
@@ -129,6 +132,61 @@ func UnmarshalEngineSteps(data []byte) ([]EngineStep, error) {
 		return nil, fmt.Errorf("engine steps file: %w", err)
 	}
 	return steps, nil
+}
+
+// EngineStepSubscription is the startup event subscription a parsed step list
+// needs: the ONE namespace its expect=event steps name, and the distinct event
+// names within it, in first-appearance order. The zero value (no namespace, no
+// events) says the steps expect no event at all, and the executor then declares
+// no subscription.
+type EngineStepSubscription struct {
+	Namespace string
+	Events    []string
+}
+
+// EngineStepSubscriptionFor derives the startup event subscription from the
+// expect=event steps themselves, so a .ci declares what it waits for exactly
+// once, in the step it already wrote (ai/rules/principles.md).
+//
+// The subscription MUST be in place before the daemon starts its peers, which
+// is why the executor declares it before Run rather than at the step: the IKE
+// engine emits its first sa-up from startup reconciliation, and a step-time
+// subscribe could only ever observe the SECOND one.
+//
+// rpc.SubscribeEventsInput carries ONE namespace, so steps naming two of them
+// have no correct startup subscription and this returns an error naming both.
+// Picking one and dropping the rest would leave the dropped steps waiting on an
+// event nobody delivers, and report that as a product failure.
+func EngineStepSubscriptionFor(steps []EngineStep) (EngineStepSubscription, error) {
+	var sub EngineStepSubscription
+	var namespaces []string
+	seenNamespace := make(map[string]bool)
+	seenEvent := make(map[string]bool)
+
+	for _, step := range steps {
+		if step.Kind != EngineStepExpectEvent {
+			continue
+		}
+		if !seenNamespace[step.Namespace] {
+			seenNamespace[step.Namespace] = true
+			namespaces = append(namespaces, step.Namespace)
+		}
+		if !seenEvent[step.Name] {
+			seenEvent[step.Name] = true
+			sub.Events = append(sub.Events, step.Name)
+		}
+	}
+
+	if len(namespaces) == 0 {
+		return EngineStepSubscription{}, nil
+	}
+	if len(namespaces) > 1 {
+		return EngineStepSubscription{}, fmt.Errorf(
+			"expect=event steps name %d event namespaces (%s), and one startup subscription carries exactly one: split the test",
+			len(namespaces), strings.Join(namespaces, ", "))
+	}
+	sub.Namespace = namespaces[0]
+	return sub, nil
 }
 
 // parseEngineTimeout accepts both bare seconds ("10") and Go durations ("10s").
@@ -307,23 +365,17 @@ func (b *EngineEventBuffer) OnEvent(event string) error {
 	return nil
 }
 
-// Len returns the number of recorded events; use it as a position marker for
-// waitFrom to exclude deliveries that predate a step.
-func (b *EngineEventBuffer) Len() int {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return len(b.events)
-}
-
 // Wait blocks until pred matches any recorded event (scrollback included) or
 // the deadline passes. Returns the matching event or "".
+//
+// The scan starts at the first event this buffer ever recorded, never at the
+// length it had when the step began. A daemon emits its first event when the
+// thing happens, not when a test is ready to look: the IKE engine emits sa-up
+// from its startup reconciliation, before the executor runs step one. pred is
+// what scopes the match, so it MUST identify the event rather than accept any
+// delivery.
 func (b *EngineEventBuffer) Wait(ctx context.Context, deadline time.Time, pred func(string) bool) string {
-	return b.waitFrom(ctx, 0, deadline, pred)
-}
-
-// waitFrom is Wait restricted to events recorded at position >= from.
-func (b *EngineEventBuffer) waitFrom(ctx context.Context, from int, deadline time.Time, pred func(string) bool) string {
-	scanned := from
+	scanned := 0
 	for {
 		b.mu.Lock()
 		for ; scanned < len(b.events); scanned++ {
@@ -436,28 +488,26 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 			}
 
 		case EngineStepExpectEvent:
-			// Delivered events carry the BARE payload JSON -- no namespace or
-			// name envelope exists on the wire (plugin/server/dispatch.go
-			// payloadToJSON) -- so the step scopes by EXCLUSIVE subscription:
-			// subscribe to exactly this pair, count only deliveries recorded
-			// after the subscription, unsubscribe again. Any delivery inside
-			// the window is, by construction, this event.
+			// Every delivered event carries its own (namespace, event) identity,
+			// because the executor opted the whole process into enveloped
+			// delivery (plugin/server/dispatch.go buildEventEnvelope). So the
+			// step matches on that identity over the WHOLE buffer, scrollback
+			// included, and needs no subscription of its own: the one the
+			// executor declared before Run covers every expect=event in the
+			// file (EngineStepSubscriptionFor).
+			//
+			// A bare (un-enveloped) payload decodes with an empty Namespace and
+			// Event, so it can never satisfy a step: a delivery this executor
+			// did not ask to be enveloped is not silently accepted.
 			ns, name := step.Namespace, step.Name
-			pos := buf.Len()
-			subCmd := tb.Reset().Str("request subscribe ").Str(ns).Str(" event ").Str(name).String()
-			status, _, err := dispatch(ctx, subCmd)
-			if err != nil {
-				return fmt.Errorf("engine step %d subscribe %s/%s: %w", i+1, ns, name, err)
+			pred := func(e string) bool {
+				envelope, envErr := rpc.ParseEventEnvelope(e)
+				if envErr != nil {
+					return false
+				}
+				return envelope.Namespace == ns && envelope.Event == name
 			}
-			if status != "done" {
-				return fmt.Errorf("engine step %d subscribe %s/%s: status=%q", i+1, ns, name, status)
-			}
-			ev := buf.waitFrom(ctx, pos, time.Now().Add(step.Timeout), func(string) bool { return true })
-			unsubCmd := tb.Reset().Str("request unsubscribe ").Str(ns).Str(" event ").Str(name).String()
-			if _, _, unsubErr := dispatch(ctx, unsubCmd); unsubErr != nil {
-				return fmt.Errorf("engine step %d unsubscribe %s/%s: %w", i+1, ns, name, unsubErr)
-			}
-			if ev == "" {
+			if ev := buf.Wait(ctx, time.Now().Add(step.Timeout), pred); ev == "" {
 				return fmt.Errorf("engine step %d: event %s/%s not delivered within %s",
 					i+1, ns, name, step.Timeout)
 			}
