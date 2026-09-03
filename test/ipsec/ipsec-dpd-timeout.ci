@@ -1,0 +1,201 @@
+# Functional test: a configured DPD tears a tunnel down when the peer DIES.
+#
+# It is the negative of ipsec-dpd-holds-tunnel.ci, and the pair is the point.
+# That test proves a HEALTHY tunnel survives a probe every second; on its own a
+# DPD that never fires at all would pass it. This one proves the probe reaches a
+# verdict when the answer stops coming, which is the only thing a liveness check
+# exists to do.
+#
+# HOW THE PEER DIES, and why it is not a cmd=stop. A cmd=stop step runs between
+# cmd= steps, so it cannot reach the responder while the foreground initiator is
+# still running its own. The responder declares its own LIFETIME instead:
+# cmd=background:...:timeout=20s stops it 20 seconds after it starts, with a kill
+# rather than a signal, so it stops ANSWERING rather than saying goodbye on the
+# wire. A graceful stop would send a Delete and prove nothing about DPD. That
+# lifetime was parsed and discarded until 2026-09-03 (startBackgroundLifetime,
+# internal/test/runner/runner_exec.go).
+#
+# WHY THE ASSERTIONS ARE WHERE THEY ARE. expect=stderr: reads the FOREGROUND
+# process, so the initiator is foreground and the responder carries the lifetime.
+# The initiator declares the engine-steps executor, so its command= steps run
+# inside it against its own state.
+#
+# WHAT MAKES THIS DISCRIMINATE:
+#   1. aes-cbc present proves the SA established BEFORE the responder died, so
+#      what follows is a teardown and not a failure to connect.
+#   2. aes-cbc absent afterwards proves the SA is GONE. `action clear` deletes the
+#      child and does not rebuild it, so the absence is stable rather than a
+#      window between a restart's teardown and its retry.
+#   3. `dpd: peer dead` is the verdict itself, by name (engine/established.go).
+#   4. `dpd: sent probe` proves a probe went out at all. Without it the SA could
+#      have gone away for any other reason and this would still pass.
+#
+# A 6s DPD timeout at a 1s interval puts the verdict 6 to 7 seconds after the
+# responder stops answering, so the SA is gone by roughly 27s of a 75s budget.
+# RFC 7296 Section 2.4 asks for REPEATED unanswered attempts before that verdict,
+# and shouldRetransmit makes several inside the budget, so no single lost datagram
+# ends the tunnel early.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design.
+option=env:var=ze_test_ike_dataplane:value=noop
+# sendDPD logs at DEBUG and the dead-peer verdict at WARN; the default is WARN.
+option=env:var=ze.log.ike:value=debug
+option=timeout:value=75s
+
+# -- Responder daemon (background) with a 20s LIFETIME: it dies mid-test --
+stdin=responder:terminator=EOF_RESPONDER
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 2.2.2.2
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			dead-peer-detection {
+				interval 3600
+				timeout 3600
+			}
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# -- Initiator daemon (foreground) with the engine-steps executor; SHORT DPD --
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			dead-peer-detection {
+				action clear
+				interval 1
+				timeout 6
+			}
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=ze -:stdin=responder:name=responder:timeout=20s
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=70s
+
+# The SA establishes while the responder is still alive.
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=25
+
+# The responder is killed at 20s. The initiator's probes stop being answered, the
+# verdict is reached, and `action clear` leaves nothing behind.
+command=show vpn ipsec sa | json
+expect=output:absent=aes-cbc:timeout=40
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+expect=stderr:contains=dpd: sent probe
+expect=stderr:contains=dpd: peer dead
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
