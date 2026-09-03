@@ -33,6 +33,13 @@ input=enter
 expect=status:contains=set
 expect=error:none
 
+# A local ip is one of the required fields: commit runs the BGP peer pipeline
+# and refuses a peer without one.
+input=type:text=set bgp peer peer-10 connection local ip 127.0.0.1
+input=enter
+expect=status:contains=set
+expect=error:none
+
 # Set receive-hold-time on the same peer
 input=type:text=set bgp peer peer-10 timer receive-hold-time 90
 input=enter

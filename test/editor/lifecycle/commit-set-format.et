@@ -12,6 +12,9 @@ bgp {
   }
   peer peer1 {
   	connection {
+  		local {
+  			ip 127.0.0.1
+  		}
   		remote {
   			ip 1.1.1.1
   		}

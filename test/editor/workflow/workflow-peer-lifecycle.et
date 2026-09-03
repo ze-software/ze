@@ -12,6 +12,9 @@ bgp {
   }
   peer peer-alpha {
   	connection {
+  		local {
+  			ip 127.0.0.1
+  		}
   		remote {
   			ip 10.0.0.1
   		}
@@ -45,6 +48,13 @@ expect=dirty:true
 expect=error:none
 
 input=type:text=set bgp peer peer-beta connection remote ip 10.0.0.2
+input=enter
+expect=status:contains=set
+expect=error:none
+
+# A local ip is one of the required fields: commit runs the BGP peer pipeline
+# and refuses a peer without one.
+input=type:text=set bgp peer peer-beta connection local ip 127.0.0.1
 input=enter
 expect=status:contains=set
 expect=error:none
@@ -118,6 +128,12 @@ expect=dirty:true
 expect=error:none
 
 input=type:text=set bgp peer peer-alpha connection remote ip 10.0.0.1
+input=enter
+expect=status:contains=set
+expect=error:none
+
+# The delete took the local ip with the peer, so the re-add restores it.
+input=type:text=set bgp peer peer-alpha connection local ip 127.0.0.1
 input=enter
 expect=status:contains=set
 expect=error:none

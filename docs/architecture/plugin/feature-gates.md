@@ -186,8 +186,19 @@ Two traps appear only at this scale:
 - **Removing an always-on import can unlink an `init()` nobody else pulls in.**
   `bgp/config` registers the reactor factory and was linked only because the hub
   imported it. Blank-importing it from `bgp/plugin` cycles in test, so it is
-  linked from `cmd/ze/dispatch_bgp.go` instead: a `package main` root can never
-  be imported back, so the edge is always safe there.
+  linked from `cmd/ze/infra_bgp.go` instead: a `package main` root can never be
+  imported back, so the edge is always safe there.
+- **A seam link gates on the FEATURE tag alone, not on the personality tag.**
+  `cmd/ze/infra_bgp.go` carries `//go:build ze_bgp` while its neighbor
+  `cmd/ze/dispatch_bgp.go` carries `//go:build ze_core && ze_bgp`, because
+  `ze_core` selects the CLI dispatch personality and only the CLI registration
+  belongs to it. The two were one file until 2026-09-03, and the wider gate left
+  the seams unfilled in every non-`ze_core` binary: the `ze-test` harness
+  (`ze_test` plus the feature tags) drives the config editor in-process, so
+  `infra.ValidateBGPPeers` answered nil there and an editor `.et` asserting a
+  refused commit could not pass. A test binary that links its own composition
+  root needs the same edge, which is what
+  `internal/component/cli/testing/all_import_bgp_test.go` carries.
 
 ## Dependent gates and dependent files
 
