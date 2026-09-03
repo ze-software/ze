@@ -29,7 +29,7 @@ func testCommandTree() *command.Node {
 					"teardown": {
 						Name:        "teardown",
 						Description: testTeardownSummary,
-						Help:        testTeardownHelp,
+						LongHelp:    testTeardownHelp,
 					},
 				},
 			},
@@ -494,14 +494,14 @@ func TestAdminCommandFormShowsHelp(t *testing.T) {
 	fragData := buildAdminFragmentData([]string{"peer", "teardown"}, tree)
 	require.NotNil(t, fragData.CommandForm)
 	assert.Equal(t, testTeardownSummary, fragData.CommandForm.Description)
-	assert.Equal(t, testTeardownHelp, fragData.CommandForm.Help)
+	assert.Equal(t, testTeardownHelp, fragData.CommandForm.LongHelp)
 
 	// A path no node holds still renders a form, and shows no text it cannot
 	// read. An absent command must not borrow its parent's help.
 	unknown := buildAdminFragmentData([]string{"peer", "nosuchcommand"}, tree)
 	require.NotNil(t, unknown.CommandForm)
 	assert.Empty(t, unknown.CommandForm.Description)
-	assert.Empty(t, unknown.CommandForm.Help)
+	assert.Empty(t, unknown.CommandForm.LongHelp)
 }
 
 // TestAdminCommandFormEscapesHelp proves the security row of the spec's review
@@ -520,7 +520,7 @@ func TestAdminCommandFormEscapesHelp(t *testing.T) {
 			"teardown": {
 				Name:        "teardown",
 				Description: `Close <b>one</b> session.`,
-				Help:        `<script>alert("x")</script>`,
+				LongHelp:    `<script>alert("x")</script>`,
 			},
 		}},
 	}}

@@ -1103,7 +1103,7 @@ func TestBuildConfigEditURL(t *testing.T) {
 // It drives the production handler over the real command completer, because the
 // JSON payload is built from whatever that completer answers.
 //
-// PREVENTS: a later edit routing Node.Help into the candidate line.
+// PREVENTS: a later edit routing Node.LongHelp into the candidate line.
 func TestCLICompleteSendsSummaryNotExplanation(t *testing.T) {
 	mgr, _ := setupCLITest(t)
 	schema, _ := buildTestSchemaAndTree()
@@ -1113,7 +1113,7 @@ func TestCLICompleteSendsSummaryNotExplanation(t *testing.T) {
 			"peer": {
 				Name:        "peer",
 				Description: "Show one line for each peer.",
-				Help:        "The state column is the FSM state.\nThe counts are prefixes received.",
+				LongHelp:    "The state column is the FSM state.\nThe counts are prefixes received.",
 			},
 		}},
 	}}

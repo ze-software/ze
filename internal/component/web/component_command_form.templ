@@ -10,8 +10,8 @@ templ commandForm(v *FragmentData) {
 		if v.CommandForm.Description != "" {
 			<p class="command-form-description">{ v.CommandForm.Description }</p>
 		}
-		if v.CommandForm.Help != "" {
-			<p class="command-form-help">{ v.CommandForm.Help }</p>
+		if v.CommandForm.LongHelp != "" {
+			<p class="command-form-help">{ v.CommandForm.LongHelp }</p>
 		}
 		<form
 			method="post"
