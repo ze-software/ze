@@ -65,6 +65,28 @@ module ze-lg-conf {
 
             }
 
+            leaf certificate {
+                type string {
+                    length "1..255";
+                    pattern '[A-Za-z0-9._-]+';
+                }
+                description
+                    "PKI store certificate served on the looking-glass listener (ze.looking-glass.certificate).";
+                ze:help
+                    "The listener sends the leaf certificate and every
+                     intermediate certificate the store entry holds, so a client
+                     can build the full chain.
+                     When this leaf is not set, ze generates a self-signed
+                     certificate and serves that.
+                     If the store holds no entry with that name, or the entry
+                     holds no private key, ze exits with an error and rejects a
+                     reload. ze never falls back to a self-signed certificate
+                     for a configured name.
+                     A named certificate needs no blob storage, because the
+                     material comes from the pki container.
+                     Environment variable: ze.looking-glass.certificate.";
+            }
+
             leaf token {
                 type string;
                 ze:sensitive;

@@ -26,7 +26,9 @@ module ze-ospf-conf {
                         pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
                     }
                     ze:validate "ospf-area-id";
-                    description "Area identifier as uint32 or dotted quad; 0.0.0.0 is the backbone.";
+                    description "Identifier of this area.";
+                    ze:help "The value is a uint32 or a dotted quad. The value 0.0.0.0
+names the backbone area.";
                 }
                 leaf area-type {
                     type enumeration {
@@ -39,12 +41,11 @@ module ze-ospf-conf {
                 }
                 list virtual-link {
                     key "remote-router-id";
-                    description
-                        "Virtual link through this (transit) area to a backbone
-                         area-border router (RFC 5340 section 4.2). It belongs to the
-                         backbone; its cost is the transit-area SPF path cost, never
-                         configured. The transit area must not be the backbone, a stub,
-                         or an NSSA.";
+                    description "Virtual link across this transit area to a backbone area-border router.";
+                    ze:help "RFC 5340 section 4.2 defines the virtual link. The link
+belongs to the backbone area. Its cost is the SPF path cost across the transit area, and
+it is never configured. The transit area MUST NOT be the backbone, a stub area, or an
+NSSA.";
                     leaf remote-router-id {
                         type string {
                             pattern "([0-9]{1,3}\\.){3}[0-9]{1,3}";
@@ -81,44 +82,79 @@ module ze-ospf-conf {
                         enum point-to-multipoint;
                     }
                     default "broadcast";
-                    description "Interface network type. nbma elects a DR/BDR over a configured neighbor list with unicast/poll Hellos (RFC 5340); point-to-multipoint treats the link as a collection of point-to-point links with per-neighbor /128 host routes and no DR.";
+                    description "Network type of this interface.";
+                    ze:help "broadcast and point-to-point are the two common types. nbma
+elects a DR and a BDR over a configured neighbor list, with unicast Hellos and poll
+Hellos (RFC 5340). point-to-multipoint treats the link as a set of point-to-point links,
+with one /128 host route for each neighbor and no DR.";
                 }
                 leaf cost { type uint16 { range "1..65535"; } description "Interface output cost."; }
                 leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval."; }
                 leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval."; }
-                leaf poll-interval { type uint16 { range "1..65535"; } default 120; units seconds; description "NBMA poll interval: the slower Hello rate sent to a configured but silent neighbor (RFC 2328 App C.5)."; }
-                leaf priority { type uint8 { range "0..255"; } default 1; description "DR/BDR election priority; 0 means ineligible."; }
+                leaf poll-interval {
+                    type uint16 { range "1..65535"; }
+                    default 120;
+                    units seconds;
+                    description "NBMA poll interval.";
+                    ze:help "Ze sends a Hello at this slower rate to a configured neighbor
+that stays silent (RFC 2328 Appendix C.5).";
+                }
+                leaf priority {
+                    type uint8 { range "0..255"; }
+                    default 1;
+                    description "Priority of this interface in the DR election and the BDR election.";
+                    ze:help "The value 0 makes the interface ineligible.";
+                }
                 list nbma-neighbor {
                     key "router-id";
-                    description "Statically configured NBMA neighbor (RFC 2328 App C.6); required for network-type nbma or the non-broadcast point-to-multipoint variant. The IPv6 neighbor is keyed by Router ID; the link-local (the unicast Hello destination) may be configured or learned from the first Hello.";
+                    description "A statically configured NBMA neighbor.";
+                    ze:help "RFC 2328 Appendix C.6 defines the neighbor list. The list is
+required for network-type nbma and for the non-broadcast point-to-multipoint variant. Ze
+keys an IPv6 neighbor by Router ID.";
                     leaf router-id { type string { pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})"; } ze:validate "ospf-router-id"; description "Neighbor OSPFv3 Router ID."; }
-                    leaf link-local { type string; ze:validate "ipv6-address"; description "Neighbor IPv6 link-local address (the unicast Hello destination); learned from the neighbor's first Hello when omitted."; }
-                    leaf priority { type uint8 { range "0..255"; } default 0; description "Neighbor DR/BDR eligibility; 0 means ineligible (polled, never elected)."; }
+                    leaf link-local {
+                        type string;
+                        ze:validate "ipv6-address";
+                        description "IPv6 link-local address of the neighbor.";
+                        ze:help "The address is the unicast Hello destination. Ze learns
+it from the first Hello of the neighbor when this leaf is absent.";
+                    }
+                    leaf priority {
+                        type uint8 { range "0..255"; }
+                        default 0;
+                        description "Eligibility of this neighbor in the DR election and the BDR election.";
+                        ze:help "The value 0 makes the neighbor ineligible, so Ze polls it
+and never elects it.";
+                    }
                 }
                 leaf passive { type boolean; default false; description "Advertise the interface but form no adjacency."; }
                 container ldp-sync {
-                    description
-                        "LDP-IGP synchronization (RFC 5443, RFC 6138) for the IPv6
-                         family; reuses the AF-neutral state machine on the shared
-                         interface model.";
+                    description "LDP-IGP synchronization of the IPv6 family.";
+                    ze:help "RFC 5443 and RFC 6138 define LDP-IGP synchronization. The
+IPv6 family reuses the address-family-neutral state machine on the shared interface
+model.";
                     leaf enable { type boolean; default false; description "Enable LDP-IGP synchronization on this interface."; }
                     leaf holddown {
                         type uint16 { range "0..65535"; }
                         default 0;
                         units seconds;
-                        description "Seconds to wait after the LDP session is established before declaring the link synchronized (RFC 5443 section 2).";
+                        description "Seconds Ze waits before it declares the link synchronized.";
+                        ze:help "The wait starts when the LDP session is established
+(RFC 5443 section 2).";
                     }
                 }
                 container ipsec {
-                    description
-                        "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode
-                         kernel Security Association plus a proto-89 policy is installed on interface
-                         up; the kernel applies AH/ESP below the socket and silently discards
-                         unprotected or failed-integrity OSPF packets (RFC 4552 §3/§4). This is a
-                         DISTINCT auth path from the RFC 7166 authentication trailer and is mutually
-                         exclusive with a per-interface authentication key-chain. Manual keying only
-                         (RFC 4552 §7: IKE cannot key the multicast group); the key is shared by the
-                         inbound and outbound SA.";
+                    description "Manual IPsec that protects the OSPFv3 packets of this interface.";
+                    ze:help "RFC 4552 defines manual IPsec, with AH or with ESP, for an
+OSPFv3 interface. When the interface comes up, Ze installs a transport-mode kernel
+Security Association and a proto-89 policy. The kernel applies AH or ESP below the
+socket. It discards an unprotected OSPF packet, and one whose integrity check fails,
+with no message (RFC 4552 §3 and §4).
+
+This authentication path is distinct from the RFC 7166 authentication trailer, and it is
+mutually exclusive with a per-interface authentication key-chain. RFC 4552 §7 permits
+manual keying only, because IKE cannot key the multicast group. The inbound SA and the
+outbound SA share one key.";
                     leaf spi {
                         type uint32 { range "256..4294967295"; }
                         description "Security Parameters Index (RFC 4303 §2.1 reserves 0..255).";
@@ -129,7 +165,9 @@ module ze-ospf-conf {
                             enum esp;
                         }
                         default "esp";
-                        description "IPsec protocol: esp (RFC 4303; authentication MUST be supported) or ah (RFC 4302; MAY).";
+                        description "IPsec protocol that protects the OSPFv3 packets.";
+                        ze:help "esp is RFC 4303, and an implementation MUST support
+authentication with it. ah is RFC 4302, and an implementation MAY support it.";
                     }
                     leaf algorithm {
                         type enumeration {
@@ -147,21 +185,23 @@ module ze-ospf-conf {
                             length "40..128";
                         }
                         ze:sensitive;
-                        description "Hex integrity key; length must match the algorithm (sha1=40, sha256=64, sha384=96, sha512=128 hex characters).";
+                        description "Integrity key, written in hex characters.";
+                        ze:help "The length MUST match the algorithm. sha1 takes 40 hex
+characters, sha256 takes 64, sha384 takes 96, and sha512 takes 128.";
                     }
                     leaf replay-window {
                         type uint8 { range "0 | 32..255"; }
                         default 0;
                         units packets;
-                        description
-                            "Anti-replay window in packets, for ah and esp alike. RFC 4302
-                             §3.4.3 and RFC 4303 §3.4.3 let the receiver enable or disable
-                             anti-replay per SA, and this leaf is that switch. 0 disables it.
-                             0 is the default because every OSPFv3 SA is manually keyed
-                             (RFC 4552 §7), and RFC 4302 §5 says a compliant implementation
-                             SHOULD NOT provide anti-replay with a manually keyed SA. A
-                             non-zero window is 32 or more, the minimum RFC 4302 §3.4.3
-                             requires; that section prefers 64.";
+                        description "Anti-replay window, counted in packets.";
+                        ze:help "The window applies to ah and to esp alike. RFC 4302 §3.4.3
+and RFC 4303 §3.4.3 let the receiver enable or disable anti-replay for each SA, and this
+leaf is that switch. The value 0 disables it.
+
+0 is the default because every OSPFv3 SA is manually keyed (RFC 4552 §7), and RFC 4302 §5
+says that a compliant implementation SHOULD NOT provide anti-replay with a manually keyed
+SA. A non-zero window is 32 or more, which is the minimum RFC 4302 §3.4.3 requires. That
+section prefers 64.";
                     }
                     leaf encryption-algorithm {
                         type enumeration {
@@ -169,7 +209,10 @@ module ze-ospf-conf {
                             enum aes128;
                             enum aes256;
                         }
-                        description "ESP confidentiality algorithm (RFC 4552 §4: only ESP, never AH). Omit or null for authentication-only ESP.";
+                        description "ESP confidentiality algorithm.";
+                        ze:help "RFC 4552 §4 offers confidentiality with ESP only, never
+with AH. Leave this leaf absent, or set it to null, for an ESP that authenticates the
+packet and does not encrypt it.";
                     }
                     leaf encryption-key {
                         type string {
@@ -177,11 +220,17 @@ module ze-ospf-conf {
                             length "32..64";
                         }
                         ze:sensitive;
-                        description "Hex ESP encryption key; length must match encryption-algorithm (aes128=32, aes256=64 hex characters).";
+                        description "ESP encryption key, written in hex characters.";
+                        ze:help "The length MUST match the encryption-algorithm leaf. aes128
+takes 32 hex characters, and aes256 takes 64.";
                     }
                 }
                 container bfd {
-                    description "RFC 5880 / RFC 5881 single-hop BFD for this OSPFv3 interface. When enabled, a Full adjacency opens an IPv6 single-hop BFD session (link-local pair); a BFD-detected failure declares the neighbor down far faster than the router-dead interval.";
+                    description "Single-hop BFD failure detection for this OSPFv3 interface.";
+                    ze:help "RFC 5880 and RFC 5881 define single-hop BFD. When this
+container enables it, a Full adjacency opens an IPv6 single-hop BFD session over the
+link-local pair. A failure that BFD detects declares the neighbor down much faster than
+the router-dead interval does.";
                     leaf enabled { type boolean; default false; description "Enable single-hop BFD failure detection on this interface."; }
                     leaf min-tx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval)."; }
                     leaf min-rx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval)."; }
@@ -198,28 +247,76 @@ module ze-ospf-conf {
     // top-level ospf container (IPv4) and every OSPFv3 address family (spec-ospf-ext-5).
     grouping ospf-segment-routing {
         container segment-routing {
-            description "RFC 8665 (OSPFv2) / RFC 8666 (OSPFv3) Segment Routing over the MPLS data plane. Advertises SR-Algorithm 0, the SRGB/SRLB label ranges, and per-prefix Prefix-SIDs; installs label-switched forwarding through the shared mpls-fib. Off by default.";
-            leaf enable { type boolean; default false; description "Enable Segment Routing for this address family. When true the RI LSA advertises SR-Algorithm 0 and the configured SRGB/SRLB."; }
+            description "Segment Routing over the MPLS dataplane.";
+            ze:help "RFC 8665 defines Segment Routing for OSPFv2, and RFC 8666 for OSPFv3.
+Ze advertises SR-Algorithm 0, the SRGB label range, the SRLB label range, and one
+Prefix-SID for each configured prefix. Ze installs label-switched forwarding through the
+shared mpls-fib. Segment Routing is off by default.";
+            leaf enable {
+                type boolean;
+                default false;
+                description "Enable Segment Routing for this address family.";
+                ze:help "When this leaf is true, the RI LSA advertises SR-Algorithm 0, the
+configured SRGB and the configured SRLB.";
+            }
             container srgb {
-                description "Segment Routing Global Block: the contiguous global MPLS label range this node owns, mapped by Prefix-SID index (RFC 8665 sec 3.2). MUST NOT overlap the SRLB or the LDP/RSVP-TE label space.";
+                description "Segment Routing Global Block of this node.";
+                ze:help "The SRGB is the contiguous global MPLS label range this node owns,
+which a Prefix-SID index maps into (RFC 8665 section 3.2). The SRGB MUST NOT overlap the
+SRLB, the LDP label space, or the RSVP-TE label space.";
                 leaf lower-bound { type uint32 { range "16..1048575"; } description "First MPLS label of the SRGB (inclusive)."; }
-                leaf upper-bound { type uint32 { range "16..1048575"; } description "Last MPLS label of the SRGB (inclusive). Must be >= lower-bound."; }
+                leaf upper-bound {
+                    type uint32 { range "16..1048575"; }
+                    description "Last MPLS label of the SRGB, inclusive.";
+                    ze:help "The value MUST be equal to or more than lower-bound.";
+                }
             }
             container srlb {
-                description "Segment Routing Local Block: the local MPLS label range Adjacency-SIDs are allocated from (RFC 8665 sec 3.3). MUST NOT overlap the SRGB or the LDP/RSVP-TE label space.";
+                description "Segment Routing Local Block of this node.";
+                ze:help "The SRLB is the local MPLS label range that Ze allocates an
+Adjacency-SID from (RFC 8665 section 3.3). The SRLB MUST NOT overlap the SRGB, the LDP
+label space, or the RSVP-TE label space.";
                 leaf lower-bound { type uint32 { range "16..1048575"; } description "First MPLS label of the SRLB (inclusive)."; }
-                leaf upper-bound { type uint32 { range "16..1048575"; } description "Last MPLS label of the SRLB (inclusive). Must be >= lower-bound."; }
+                leaf upper-bound {
+                    type uint32 { range "16..1048575"; }
+                    description "Last MPLS label of the SRLB, inclusive.";
+                    ze:help "The value MUST be equal to or more than lower-bound.";
+                }
             }
             list prefix-sid {
                 key "prefix";
-                description "Prefix-SIDs advertised for local prefixes (typically the loopback). Each carries a SID index into this node's SRGB (RFC 8665 sec 5).";
+                description "Prefix-SIDs Ze advertises for the local prefixes.";
+                ze:help "The local prefix is usually the loopback. Each Prefix-SID carries
+a SID index into the SRGB of this node (RFC 8665 section 5).";
                 leaf prefix { type zt:ip-prefix; description "The local prefix (host loopback for a node-SID)."; }
-                leaf index { type uint32; description "The SID index into the SRGB; the label is SRGB-base + index. Must be within the total SRGB size."; }
+                leaf index {
+                    type uint32;
+                    description "SID index into the SRGB.";
+                    ze:help "The MPLS label is the SRGB base plus this index. The index
+MUST be less than the total size of the SRGB.";
+                }
                 leaf node-sid { type boolean; default true; description "Mark this as a node Prefix-SID (sets the N-Flag on the Extended Prefix TLV)."; }
-                leaf no-php { type boolean; default false; description "Set the NP-Flag: the penultimate hop keeps the label rather than popping it (no penultimate-hop-popping)."; }
-                leaf explicit-null { type boolean; default false; description "Set the E-Flag: the upstream neighbor uses the Explicit NULL label (0 IPv4 / 2 IPv6). Requires no-php."; }
+                leaf no-php {
+                    type boolean;
+                    default false;
+                    description "Set the NP-Flag on the Prefix-SID.";
+                    ze:help "The penultimate hop then keeps the label rather than popping
+it, so no penultimate-hop-popping happens.";
+                }
+                leaf explicit-null {
+                    type boolean;
+                    default false;
+                    description "Set the E-Flag on the Prefix-SID.";
+                    ze:help "The upstream neighbor then uses the Explicit NULL label, which
+is 0 for IPv4 and 2 for IPv6. This leaf needs no-php.";
+                }
             }
-            leaf srms-preference { type uint8 { range "0..255"; } description "SR Mapping-Server preference advertised in the SRMS-Preference TLV (RFC 8665 sec 3.4). Absent when unset."; }
+            leaf srms-preference {
+                type uint8 { range "0..255"; }
+                description "SR Mapping-Server preference of this node.";
+                ze:help "Ze advertises the value in the SRMS-Preference TLV (RFC 8665
+section 3.4). An unset leaf advertises no TLV.";
+            }
         }
     }
 
@@ -235,7 +332,9 @@ module ze-ospf-conf {
                 pattern "([0-9]{1,3}\\.){3}[0-9]{1,3}";
             }
             ze:validate "ospf-router-id";
-            description "OSPF Router ID in dotted-quad form; derived when omitted.";
+            description "OSPF Router ID of this instance, in dotted-quad form.";
+            ze:help "Ze derives the Router ID when this leaf is absent. It reads the
+highest loopback IPv4 address first, then the highest interface IPv4 address.";
         }
 
         leaf reference-bandwidth {
@@ -254,57 +353,61 @@ module ze-ospf-conf {
         leaf opaque {
             type boolean;
             default false;
-            description
-                "Enable the RFC 5250 opaque-LSA capability. When true, this router sets
-                 the O-bit in its Database Description packets (advertising it will
-                 receive and forward opaque LSAs) and originates opaque LSAs for any
-                 registered consumer. Received opaque LSAs are stored and reflooded by
-                 their scope regardless of this leaf; disabling it only stops advertising
-                 opaque capability and originating opaque LSAs.";
+            description "Enable the opaque-LSA capability.";
+            ze:help "RFC 5250 defines the opaque LSA. When this leaf is true, the router
+sets the O-bit in its Database Description packets, which advertises that it will receive
+and forward an opaque LSA, and it originates an opaque LSA for each registered consumer.
+
+Ze stores a received opaque LSA and refloods it by its scope whatever this leaf holds. A
+false leaf stops the capability advertisement and the origination only.";
         }
 
         leaf extended-prefix {
             type boolean;
             default false;
-            description
-                "Originate RFC 7684 Extended Prefix Opaque LSAs (Opaque Type 7) that associate
-                 attributes with this router's advertised prefixes. Requires opaque true. The
-                 LSA is a container a prefix-attribute application (e.g. Segment Routing) fills
-                 with sub-TLVs; it is off by default until such a producer needs it. Received
-                 Extended Prefix LSAs are decoded and shown regardless of this leaf.";
+            description "Originate Extended Prefix Opaque LSAs for the local prefixes.";
+            ze:help "RFC 7684 defines the Extended Prefix Opaque LSA, which is Opaque
+Type 7. The LSA associates attributes with the prefixes this router advertises. The leaf
+needs opaque true.
+
+The LSA is a container that a prefix-attribute application fills with sub-TLVs, for
+example Segment Routing. It is off by default until such a producer needs it. Ze decodes
+and shows a received Extended Prefix LSA whatever this leaf holds.";
         }
 
         leaf extended-link {
             type boolean;
             default false;
-            description
-                "Originate RFC 7684 Extended Link Opaque LSAs (Opaque Type 8) that associate
-                 attributes with this router's links (one LSA per point-to-point/transit link,
-                 mirroring the Router-LSA link). Requires opaque true. The LSA is a container a
-                 link-attribute application (e.g. Segment Routing) fills with sub-TLVs; it is
-                 off by default until such a producer needs it. Received Extended Link LSAs are
-                 decoded and shown regardless of this leaf.";
+            description "Originate Extended Link Opaque LSAs for the local links.";
+            ze:help "RFC 7684 defines the Extended Link Opaque LSA, which is Opaque Type 8.
+The LSA associates attributes with the links of this router, one LSA for each
+point-to-point link and each transit link, which mirrors the Router-LSA link. The leaf
+needs opaque true.
+
+The LSA is a container that a link-attribute application fills with sub-TLVs, for example
+Segment Routing. It is off by default until such a producer needs it. Ze decodes and
+shows a received Extended Link LSA whatever this leaf holds.";
         }
 
         leaf router-address {
             type zt:ipv4-address;
-            description
-                "RFC 3630 sec 2.4.1 Traffic Engineering Router Address: a stable,
-                 always-reachable IPv4 address (typically a loopback) advertised once per
-                 router in its Router-Address TE LSA. Defaults to the Router ID when unset.
-                 Requires opaque and at least one traffic-engineering interface to take
-                 effect.";
+            description "Traffic Engineering Router Address of this router.";
+            ze:help "RFC 3630 section 2.4.1 defines the Router Address. The value is a
+stable IPv4 address that is always reachable, usually a loopback, and the router
+advertises it once in its Router-Address TE LSA. An unset leaf takes the Router ID. The
+leaf needs opaque, and at least one traffic-engineering interface, to take effect.";
         }
 
         container fast-reroute {
-            description
-                "RFC 5286 Loop-Free Alternate (LFA) and TI-LFA IP fast reroute. When
-                 enabled, SPF pre-computes a loop-free backup next-hop alongside each
-                 primary and programs it into the FIB, so a single local link or node
-                 failure is repaired locally before the IGP reconverges. TI-LFA mode adds
-                 a Segment-Routing repair-list fallback where no directly-connected LFA
-                 exists (requires segment-routing). Applies to OSPFv2 and OSPFv3; OSPFv3
-                 gets base-LFA next-hop selection (SR repair labels are IPv4 only).";
+            description "Loop-Free Alternate and TI-LFA IP fast reroute.";
+            ze:help "RFC 5286 defines the Loop-Free Alternate. When this container enables
+fast reroute, SPF pre-computes a loop-free backup next-hop beside each primary next-hop
+and programs it into the FIB. Ze then repairs a single local link failure, or a single
+node failure, before the IGP reconverges.
+
+TI-LFA mode adds a Segment-Routing repair-list fallback where no directly connected LFA
+exists, and it needs segment-routing. The container applies to OSPFv2 and to OSPFv3.
+OSPFv3 gets base-LFA next-hop selection only, because an SR repair label is IPv4 only.";
             leaf enable {
                 type boolean;
                 default false;
@@ -350,7 +453,9 @@ module ze-ospf-conf {
         }
 
         container max-metric {
-            description "RFC 6987 stub router: originate the Router-LSA with MaxLinkMetric so transit traffic avoids this router.";
+            description "Stub-router advertisement of this router.";
+            ze:help "RFC 6987 defines the stub router. Ze originates the Router-LSA with
+MaxLinkMetric, so transit traffic avoids this router.";
             container router-lsa {
                 leaf always { type boolean; default false; description "Always advertise as a stub router."; }
                 leaf on-startup { type uint32 { range "0..86400"; } units seconds; description "Advertise as a stub router for N seconds after startup (0 disables)."; }
@@ -359,42 +464,74 @@ module ze-ospf-conf {
         }
 
         container router-information {
-            description "RFC 7770 Router Information (RI) LSA: advertise this router's optional capabilities (OSPFv2 opaque type 4, OSPFv3 function code 12). Applies to both address families; a top-level container drives the OSPFv3 family unless it configures its own.";
-            leaf enabled { type boolean; default false; description "Originate the Router Information LSA advertising this router's informational capabilities. OSPFv2 also requires 'opaque true' (the RI LSA is an opaque LSA)."; }
+            description "Router Information LSA of this router.";
+            ze:help "RFC 7770 defines the Router Information LSA, which advertises the
+optional capabilities of this router. It is opaque type 4 in OSPFv2 and function code 12
+in OSPFv3. The container applies to both address families. A top-level container drives
+the OSPFv3 family unless that family configures its own.";
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Originate the Router Information LSA.";
+                ze:help "The LSA advertises the informational capabilities of this router.
+OSPFv2 also needs opaque true, because the RI LSA is an opaque LSA.";
+            }
             leaf-list scope {
                 type enumeration {
                     enum link { description "Link-local (OSPFv2 opaque type 9)."; }
                     enum area { description "Area (OSPFv2 opaque type 10, OSPFv3 0xA00C)."; }
                     enum as { description "AS-wide (OSPFv2 opaque type 11, OSPFv3 0xC00C)."; }
                 }
-                description "Flooding scope(s) at which the RI LSA is advertised (RFC 7770 sec 2.7). When enabled with no scope listed, defaults to area + as.";
+                description "Flooding scopes at which Ze advertises the RI LSA.";
+                ze:help "RFC 7770 section 2.7 defines the scopes. An enabled RI LSA with no
+scope listed takes area and as.";
             }
         }
 
         container graceful-restart {
-            description "RFC 3623 (OSPFv2) / RFC 5187 (OSPFv3) Graceful Restart: keep forwarding across a control-plane restart. Family-neutral: this container drives both address families (the OSPFv3 family inherits it unless it configures its own).";
+            description "Graceful Restart, which keeps forwarding across a control-plane restart.";
+            ze:help "RFC 3623 defines Graceful Restart for OSPFv2, and RFC 5187 for
+OSPFv3. The container is family-neutral and drives both address families. The OSPFv3
+family inherits it unless that family configures its own.";
             container restarter {
-                description "This router's restarting-router role: originate Grace-LSAs and preserve the FIB across a restart.";
+                description "Restarting-router role of this router.";
+                ze:help "In this role Ze originates a Grace-LSA and keeps the FIB across a
+restart.";
                 leaf support {
                     type enumeration {
-                        enum disabled { description "Never originate a Grace-LSA; restart normally (default)."; }
-                        enum planned { description "Originate Grace-LSAs on an operator-triggered (planned) restart only."; }
-                        enum planned-and-unplanned { description "Originate Grace-LSAs on planned and on unplanned (cold) restarts (RFC 3623 sec 5); the unplanned reason is restricted to unknown/redundant-cp."; }
+                        enum disabled { description "Never originate a Grace-LSA, and restart normally."; }
+                        enum planned { description "Originate a Grace-LSA on a planned restart only."; }
+                        enum planned-and-unplanned { description "Originate a Grace-LSA on a planned restart and on an unplanned restart."; }
                     }
                     default "disabled";
                     description "RFC 3623 Appendix B.1 RestartSupport.";
+                    ze:help "planned names a restart the operator triggered.
+planned-and-unplanned covers a cold restart too (RFC 3623 section 5), and Ze restricts
+the unplanned reason to unknown and to redundant-cp.";
                 }
                 leaf restart-interval {
                     type uint16 { range "1..1800"; }
                     units seconds;
                     default 120;
-                    description "RFC 3623 Appendix B.1 RestartInterval: the grace period neighbors keep advertising this router as fully adjacent. Should not exceed LSRefreshTime (1800 s) or this router's own LSAs age out mid-restart.";
+                    description "Grace period during which a neighbor advertises this router as fully adjacent.";
+                    ze:help "RFC 3623 Appendix B.1 names this value RestartInterval. Keep
+it at or under LSRefreshTime, which is 1800 seconds. A longer interval lets the LSAs of
+this router age out during the restart.";
                 }
             }
             container helper {
-                description "This router's helper role: hold an adjacency to a restarting neighbor and suppress LSDB churn for its grace period.";
+                description "Helper role of this router.";
+                ze:help "In this role Ze holds the adjacency to a restarting neighbor and
+stops LSDB churn for the grace period of that neighbor.";
                 leaf support { type boolean; default true; description "RFC 3623 Appendix B.2 RestartHelperSupport: act as a helper for a restarting neighbor."; }
-                leaf strict-lsa-checking { type boolean; default true; description "RFC 3623 Appendix B.2 RestartHelperStrictLSAChecking (sec 3.2): terminate helper mode when a changed LSA that would flood to the restarting router is installed."; }
+                leaf strict-lsa-checking {
+                    type boolean;
+                    default true;
+                    description "Stop helper mode when a changed LSA would flood to the restarting router.";
+                    ze:help "RFC 3623 Appendix B.2 names this value
+RestartHelperStrictLSAChecking, and section 3.2 states the rule. Ze stops helper mode
+when it installs a changed LSA that would flood to the restarting router.";
+                }
             }
         }
 
@@ -435,7 +572,9 @@ module ze-ospf-conf {
                         pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
                     }
                     ze:validate "ospf-area-id";
-                    description "Area identifier as uint32 or dotted quad; 0.0.0.0 is the backbone.";
+                    description "Identifier of this area.";
+                    ze:help "The value is a uint32 or a dotted quad. The value 0.0.0.0
+names the backbone area.";
                 }
                 leaf area-type {
                     type enumeration {
@@ -444,9 +583,17 @@ module ze-ospf-conf {
                         enum nssa;
                     }
                     default "normal";
-                    description "Area type; semantics land in the stub/NSSA spec.";
+                    description "Type of this area.";
+                    ze:help "The types are normal, stub and nssa. The stub specification
+and the NSSA specification state what each type does.";
                 }
-                leaf no-summary { type boolean; default false; description "Suppress Type 3 summaries other than the required default in totally-stubby or totally-NSSA areas."; }
+                leaf no-summary {
+                    type boolean;
+                    default false;
+                    description "Suppress the Type 3 summaries of a totally-stubby or totally-NSSA area.";
+                    ze:help "Ze keeps the default summary the area requires, and suppresses
+every other Type 3 summary.";
+                }
                 leaf default-cost { type uint32 { range "0..16777215"; } default 1; description "Default summary metric for stub/NSSA areas."; }
                 container nssa {
                     description "NSSA-specific configuration (applies when area-type is nssa).";
@@ -457,15 +604,25 @@ module ze-ospf-conf {
                             enum never;
                         }
                         default "candidate";
-                        description "Type 7 to Type 5 translator role: candidate (elect by highest router-id), always (force translate), never (do not translate).";
+                        description "Role of this router in the Type 7 to Type 5 translation.";
+                        ze:help "candidate enters the election, which the highest router-id
+wins. always translates whatever the election decides. never does no translation.";
                     }
                     leaf stability-interval {
                         type uint16 { range "0..65535"; }
                         units seconds;
                         default 40;
-                        description "Hysteresis before a newly elected translator stops translating after losing the role (RFC 3101 section 3.5).";
+                        description "Hysteresis before a translator that lost the role stops translating.";
+                        ze:help "RFC 3101 section 3.5 defines the interval. A newly elected
+translator keeps translating for this long after it loses the role.";
                     }
-                    leaf default-originate { type boolean; default false; description "On an internal NSSA router, originate a Type 7 default route into the NSSA. An NSSA border router always originates the required default."; }
+                    leaf default-originate {
+                        type boolean;
+                        default false;
+                        description "Originate a Type 7 default route into the NSSA.";
+                        ze:help "This leaf applies to an internal NSSA router. An NSSA
+border router always originates the required default route.";
+                    }
                 }
                 container authentication {
                     description "Area-level authentication defaults.";
@@ -490,11 +647,11 @@ module ze-ospf-conf {
                 }
                 list virtual-link {
                     key "remote-router-id";
-                    description
-                        "Virtual link through this (transit) area to a backbone area-border
-                         router (RFC 2328 section 15). The virtual link belongs to the backbone;
-                         its output cost is computed from the transit-area SPF, never configured.
-                         The transit area must not be the backbone, a stub, or an NSSA.";
+                    description "Virtual link across this transit area to a backbone area-border router.";
+                    ze:help "RFC 2328 section 15 defines the virtual link. The link belongs
+to the backbone area. Ze computes its output cost from the SPF over the transit area, and
+it is never configured. The transit area MUST NOT be the backbone, a stub area, or an
+NSSA.";
                     leaf remote-router-id {
                         type string {
                             pattern "([0-9]{1,3}\\.){3}[0-9]{1,3}";
@@ -533,18 +690,42 @@ module ze-ospf-conf {
                         enum loopback;
                     }
                     default "broadcast";
-                    description "Interface network type. nbma elects a DR/BDR over a configured neighbor list with unicast/poll Hellos (RFC 2328); point-to-multipoint treats the link as a collection of point-to-point links with per-neighbor host routes and no DR.";
+                    description "Network type of this interface.";
+                    ze:help "broadcast and point-to-point are the two common types. nbma
+elects a DR and a BDR over a configured neighbor list, with unicast Hellos and poll
+Hellos (RFC 2328). point-to-multipoint treats the link as a set of point-to-point links,
+with one host route for each neighbor and no DR.";
                 }
                 leaf cost { type uint16 { range "1..65535"; } description "Interface output cost."; }
                 leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval."; }
                 leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval."; }
-                leaf poll-interval { type uint16 { range "1..65535"; } default 120; units seconds; description "NBMA poll interval: the slower Hello rate sent to a configured but silent neighbor (RFC 2328 App C.5)."; }
-                leaf priority { type uint8 { range "0..255"; } default 1; description "DR/BDR election priority; 0 means ineligible."; }
+                leaf poll-interval {
+                    type uint16 { range "1..65535"; }
+                    default 120;
+                    units seconds;
+                    description "NBMA poll interval.";
+                    ze:help "Ze sends a Hello at this slower rate to a configured neighbor
+that stays silent (RFC 2328 Appendix C.5).";
+                }
+                leaf priority {
+                    type uint8 { range "0..255"; }
+                    default 1;
+                    description "Priority of this interface in the DR election and the BDR election.";
+                    ze:help "The value 0 makes the interface ineligible.";
+                }
                 list nbma-neighbor {
                     key "address";
-                    description "Statically configured NBMA neighbor (RFC 2328 App C.6); required for network-type nbma or the non-broadcast point-to-multipoint variant.";
+                    description "A statically configured NBMA neighbor.";
+                    ze:help "RFC 2328 Appendix C.6 defines the neighbor list. The list is
+required for network-type nbma and for the non-broadcast point-to-multipoint variant.";
                     leaf address { type string; ze:validate "ipv4-address"; description "Neighbor IPv4 interface address (the unicast Hello destination)."; }
-                    leaf priority { type uint8 { range "0..255"; } default 0; description "Neighbor DR/BDR eligibility; 0 means ineligible (polled, never elected)."; }
+                    leaf priority {
+                        type uint8 { range "0..255"; }
+                        default 0;
+                        description "Eligibility of this neighbor in the DR election and the BDR election.";
+                        ze:help "The value 0 makes the neighbor ineligible, so Ze polls it
+and never elects it.";
+                    }
                 }
                 leaf passive { type boolean; default false; description "Advertise the interface but form no adjacency."; }
                 leaf mtu-ignore { type boolean; default false; description "Skip DD MTU mismatch rejection."; }
@@ -552,12 +733,14 @@ module ze-ospf-conf {
                 leaf transmit-delay { type uint16 { range "1..3600"; } default 1; units seconds; description "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0)."; }
                 leaf-list instance-id {
                     type uint8 { range "0..255"; }
-                    description
-                        "OSPFv2 Multi-Instance Instance ID(s) this interface participates in
-                         (RFC 6549 section 3). Absent means the base instance 0 only, which is
-                         bit-for-bit compatible with base OSPFv2. Each listed value runs a
-                         separate OSPFv2 instance demultiplexed on this subnet; a received packet
-                         whose Instance ID matches none of them is discarded (section 2/3.1).";
+                    description "Multi-Instance Instance IDs this interface takes part in.";
+                    ze:help "RFC 6549 section 3 defines OSPFv2 Multi-Instance. An absent
+leaf-list runs the base instance 0 only, which is bit-for-bit compatible with base
+OSPFv2.
+
+Each listed value runs a separate OSPFv2 instance, which Ze demultiplexes on this subnet.
+Ze discards a received packet whose Instance ID matches none of the listed values
+(RFC 6549 sections 2 and 3.1).";
                 }
                 container authentication {
                     description "Per-interface authentication settings.";
@@ -573,38 +756,41 @@ module ze-ospf-conf {
                             enum hmac-sha-512;
                         }
                         default "inherit";
-                        description "Authentication mode; inherit uses the area default.";
+                        description "Authentication mode of this interface.";
+                        ze:help "The value inherit takes the area default.";
                     }
                     leaf key-chain { type string { length "1..63"; } description "Key chain reference."; }
                 }
                 container ldp-sync {
-                    description
-                        "LDP-IGP synchronization (RFC 5443, RFC 6138): hold the link at
-                         maximum cost (point-to-point) or withhold its transit link
-                         (broadcast, non-cut-edge) until LDP is synchronized, so transit
-                         traffic is not black-holed before the label bindings exist.";
+                    description "LDP-IGP synchronization of this interface.";
+                    ze:help "RFC 5443 and RFC 6138 define LDP-IGP synchronization. Ze holds
+a point-to-point link at maximum cost, and withholds the transit link of a broadcast link
+that is not a cut edge, until LDP is synchronized. Transit traffic is then not
+black-holed before the label bindings exist.";
                     leaf enable { type boolean; default false; description "Enable LDP-IGP synchronization on this interface."; }
                     leaf holddown {
                         type uint16 { range "0..65535"; }
                         default 0;
                         units seconds;
-                        description
-                            "Seconds to wait after the LDP session is established before
-                             declaring the link synchronized (RFC 5443 section 2 estimation
-                             that all label bindings are exchanged; the RFC defines no
-                             universal default). 0 restores the cost immediately once the
-                             session is up (allowed but discouraged).";
+                        description "Seconds Ze waits before it declares the link synchronized.";
+                        ze:help "The wait starts when the LDP session is established.
+RFC 5443 section 2 estimates that every label binding is exchanged by then, and it defines
+no universal default. The value 0 restores the cost as soon as the session is up, which is
+permitted and not advised.";
                     }
                 }
                 container traffic-engineering {
-                    description
-                        "RFC 3630 / RFC 5392 Traffic Engineering link attributes advertised
-                         in a Type 10 (or, for inter-as, Type 10/11) opaque TE LSA. Requires
-                         the top-level opaque leaf. The TE metric is independent of cost.";
+                    description "Traffic Engineering link attributes of this interface.";
+                    ze:help "RFC 3630 and RFC 5392 define the attributes. Ze advertises
+them in a Type 10 opaque TE LSA, and in a Type 10 or a Type 11 LSA for an inter-as link.
+The container needs the top-level opaque leaf. The TE metric is independent of the
+cost.";
                     leaf enable { type boolean; default false; description "Advertise a TE Link LSA for this interface."; }
                     leaf te-metric {
                         type uint32 { range "0..4294967295"; }
-                        description "RFC 3630 sec 2.5.5 Traffic Engineering metric; independent of the OSPF cost, defaulting to it when unset.";
+                        description "Traffic Engineering metric of this link.";
+                        ze:help "RFC 3630 section 2.5.5 defines the metric. It is
+independent of the OSPF cost, and an unset leaf takes the cost.";
                     }
                     leaf max-bandwidth {
                         type uint64;
@@ -614,18 +800,23 @@ module ze-ospf-conf {
                     leaf max-reservable-bandwidth {
                         type uint64;
                         units bytes/second;
-                        description "RFC 3630 sec 2.5.7 Maximum Reservable Bandwidth in bytes/second; defaults to max-bandwidth.";
+                        description "Maximum Reservable Bandwidth of this link.";
+                        ze:help "RFC 3630 section 2.5.7 defines the value, in bytes per
+second. An unset leaf takes max-bandwidth.";
                     }
                     leaf admin-group {
                         type uint32;
-                        description "RFC 3630 sec 2.5.9 Administrative Group (Resource Class/Color) 32-bit mask; LSB is group 0.";
+                        description "Administrative Group mask of this link.";
+                        ze:help "RFC 3630 section 2.5.9 defines the Administrative Group,
+which is also named Resource Class or Color. The mask is 32 bits wide, and the least
+significant bit is group 0.";
                     }
                     container inter-as {
                         presence "Advertise this as an RFC 5392 inter-AS TE link (Opaque type 6).";
-                        description
-                            "RFC 5392 inter-AS TE link. No OSPF adjacency is formed on the link
-                             (sec 4); the ASBR proxies the link into its own AS. Requires
-                             remote-as and at least one remote-asbr address.";
+                        description "Inter-AS Traffic Engineering link.";
+                        ze:help "RFC 5392 defines the inter-AS TE link. Ze forms no OSPF
+adjacency on the link (RFC 5392 section 4), and the ASBR proxies the link into its own AS.
+The container needs remote-as, and at least one remote-asbr address.";
                         leaf remote-as {
                             type zt:asn;
                             mandatory true;
@@ -633,11 +824,15 @@ module ze-ospf-conf {
                         }
                         leaf remote-asbr-ipv4 {
                             type zt:ipv4-address;
-                            description "RFC 5392 sec 3.3.2 IPv4 Remote ASBR ID (sub-TLV 22); recommended to be the remote TE Router ID.";
+                            description "IPv4 Remote ASBR ID of the inter-AS link.";
+                            ze:help "RFC 5392 section 3.3.2 defines the value, which
+travels in sub-TLV 22. The RFC recommends the remote TE Router ID.";
                         }
                         leaf remote-asbr-ipv6 {
                             type zt:ipv6-address;
-                            description "RFC 5392 sec 3.3.3 IPv6 Remote ASBR ID (sub-TLV 24, not 23); a stable global IPv6 address.";
+                            description "IPv6 Remote ASBR ID of the inter-AS link.";
+                            ze:help "RFC 5392 section 3.3.3 defines the value, which
+travels in sub-TLV 24 and not in sub-TLV 23. Use a stable global IPv6 address.";
                         }
                         leaf scope {
                             type enumeration {
@@ -645,12 +840,18 @@ module ze-ospf-conf {
                                 enum as;
                             }
                             default "area";
-                            description "RFC 5392 sec 3.1.1 flooding scope policy: area (Type 10, limited to the ASBR's area) or as (Type 11, AS-wide).";
+                            description "Flooding scope of the inter-AS TE LSA.";
+                            ze:help "RFC 5392 section 3.1.1 defines the policy. area is a
+Type 10 LSA, held inside the area of the ASBR. as is a Type 11 LSA, flooded across the
+AS.";
                         }
                     }
                 }
                 container bfd {
-                    description "RFC 5880 / RFC 5881 single-hop BFD for this OSPF interface. When enabled, a Full adjacency opens a single-hop BFD session; a BFD-detected failure declares the neighbor down far faster than the router-dead interval.";
+                    description "Single-hop BFD failure detection for this OSPF interface.";
+                    ze:help "RFC 5880 and RFC 5881 define single-hop BFD. When this
+container enables it, a Full adjacency opens a single-hop BFD session. A failure that BFD
+detects declares the neighbor down much faster than the router-dead interval does.";
                     leaf enabled { type boolean; default false; description "Enable single-hop BFD failure detection on this interface."; }
                     leaf min-tx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval)."; }
                     leaf min-rx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval)."; }
@@ -663,7 +864,13 @@ module ze-ospf-conf {
             key "name";
             description "Named authentication key chains for hitless rotation.";
             leaf name { type string { length "1..63"; } description "Key-chain name."; }
-            leaf extended-sequence { type boolean; default false; description "Use RFC 7474 AuType 3 (extended 64-bit cryptographic sequence numbers) instead of AuType 2; applies to the HMAC-SHA algorithms."; }
+            leaf extended-sequence {
+                type boolean;
+                default false;
+                description "Use AuType 3 rather than AuType 2 for this key chain.";
+                ze:help "RFC 7474 defines AuType 3, which carries an extended cryptographic
+sequence number of 64 bits. The leaf applies to the HMAC-SHA algorithms.";
+            }
             list key {
                 key "key-id";
                 description "Keys in this chain.";
@@ -699,17 +906,20 @@ module ze-ospf-conf {
         }
 
         container address-family {
-            description
-                "Additional OSPF address families. The IPv6 (OSPFv3, RFC 5340) family runs as a
-                 second engine instance over the ospfv3 transport (ff02::5/6), sharing the
-                 FSM/flooding/SPF machinery with the IPv4 family.";
+            description "More OSPF address families.";
+            ze:help "The IPv6 family is OSPFv3 (RFC 5340). It runs as a second engine
+instance over the ospfv3 transport, which uses ff02::5 and ff02::6. It shares the FSM,
+the flooding and the SPF machinery with the IPv4 family.";
             container ipv6 {
-                description "Default IPv6-unicast OSPFv3 address family (RFC 5340); the bare
-                    `ipv6` spelling is the IPv6-unicast AF. Presence enables the v6 instance.";
+                description "The default IPv6-unicast OSPFv3 address family.";
+                ze:help "RFC 5340 defines OSPFv3. The bare ipv6 spelling names the
+IPv6-unicast address family. The presence of this container starts the IPv6 instance.";
                 leaf instance-id {
                     type uint8 { range "0..31"; }
                     default 0;
-                    description "OSPFv3 Instance ID (RFC 5340 §2.5); the RFC 5838 §2.1 IPv6-unicast range is 0-31.";
+                    description "OSPFv3 Instance ID of this address family.";
+                    ze:help "RFC 5340 §2.5 defines the Instance ID. RFC 5838 §2.1 gives the
+IPv6-unicast range as 0 to 31.";
                 }
                 uses ospf-af-topology;
             }
@@ -718,37 +928,45 @@ module ze-ospf-conf {
                 leaf instance-id {
                     type uint8 { range "0..31"; }
                     default 0;
-                    description "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv6-unicast range is 0-31.";
+                    description "OSPFv3 Instance ID of this address family.";
+                    ze:help "RFC 5838 §2.1 gives the IPv6-unicast range as 0 to 31.";
                 }
                 uses ospf-af-topology;
             }
             container ipv6-multicast {
-                description "IPv6-multicast OSPFv3 address family (RFC 5838 §2.1: Instance ID 32-63).
-                    Reachability is computed unicast-shaped; MOSPF tree computation is not implemented.";
+                description "The IPv6-multicast OSPFv3 address family.";
+                ze:help "RFC 5838 §2.1 gives the Instance ID range as 32 to 63. Ze computes
+reachability in the unicast shape. Ze does not implement the MOSPF tree computation.";
                 leaf instance-id {
                     type uint8 { range "32..63"; }
                     default 32;
-                    description "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv6-multicast range is 32-63.";
+                    description "OSPFv3 Instance ID of this address family.";
+                    ze:help "RFC 5838 §2.1 gives the IPv6-multicast range as 32 to 63.";
                 }
                 uses ospf-af-topology;
             }
             container ipv4-unicast {
-                description "IPv4-unicast over OSPFv3 (RFC 5838 §2.1/§2.7: Instance ID 64-95). Carries
-                    IPv4 prefixes in the address-free OSPFv3 LSA model; routes install into the IPv4 RIB.";
+                description "The IPv4-unicast address family over OSPFv3.";
+                ze:help "RFC 5838 §2.1 and §2.7 give the Instance ID range as 64 to 95. The
+family carries IPv4 prefixes in the address-free OSPFv3 LSA model, and Ze installs its
+routes into the IPv4 RIB.";
                 leaf instance-id {
                     type uint8 { range "64..95"; }
                     default 64;
-                    description "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv4-unicast range is 64-95.";
+                    description "OSPFv3 Instance ID of this address family.";
+                    ze:help "RFC 5838 §2.1 gives the IPv4-unicast range as 64 to 95.";
                 }
                 uses ospf-af-topology;
             }
             container ipv4-multicast {
-                description "IPv4-multicast over OSPFv3 (RFC 5838 §2.1: Instance ID 96-127).
-                    Reachability is computed unicast-shaped; MOSPF tree computation is not implemented.";
+                description "The IPv4-multicast address family over OSPFv3.";
+                ze:help "RFC 5838 §2.1 gives the Instance ID range as 96 to 127. Ze computes
+reachability in the unicast shape. Ze does not implement the MOSPF tree computation.";
                 leaf instance-id {
                     type uint8 { range "96..127"; }
                     default 96;
-                    description "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv4-multicast range is 96-127.";
+                    description "OSPFv3 Instance ID of this address family.";
+                    ze:help "RFC 5838 §2.1 gives the IPv4-multicast range as 96 to 127.";
                 }
                 uses ospf-af-topology;
             }
