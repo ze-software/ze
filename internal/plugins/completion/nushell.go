@@ -28,6 +28,28 @@ def "nu-complete ze plugins" [] {
     }
 }
 
+def "nu-complete ze config sections" [parts: list<string>] {
+    # ze config show <file> [path...]: the section paths under what is typed
+    # so far, from the same "ze config completion" engine bash, zsh and fish
+    # call. The path words after the file name join with "/" to form the
+    # context, and column 2 of each line is the section name.
+    let idx = ($parts | enumerate | where item == "config" | get index.0? )
+    if $idx == null { return [] }
+    let file = ($parts | get ($idx + 2) | default "")
+    if ($file | is-empty) { return [] }
+    let sections = ($parts | skip ($idx + 3))
+    let ctx = ($sections | str join "/")
+    try {
+        ^ze config completion --context $ctx --input "set " $file
+        | lines
+        | where {|line| ($line | str length) > 0 }
+        | each {|line| ($line | split row -r '\s+' | get 1? | default "") }
+        | where {|name| ($name | str length) > 0 }
+    } catch {
+        []
+    }
+}
+
 def "nu-complete ze subargs" [context: string, offset: int] {
     let parts = ($context | str trim | split row " " | where {|w| ($w | str length) > 0 })
     if ($parts | length) < 2 { return [] }
@@ -36,8 +58,36 @@ def "nu-complete ze subargs" [context: string, offset: int] {
     # If context does not end with a space, the last word is a partial
     # prefix being typed. Exclude it from the path so ze completion words
     # returns the full sibling list; nushell filters by prefix.
+    let typing = (if ($context | str ends-with " ") { "" } else { ($parts | last) })
     if not ($context | str ends-with " ") and ($rest | length) > 0 {
         $rest = ($rest | drop 1)
+    }
+
+    # Flag names from the registry inventory, the same source bash, zsh and
+    # fish read. Registration over hardcoding: a command that registers a flag
+    # completes it here without this script naming it. Positional words only,
+    # because a flag already typed is not part of the path a flag is registered
+    # under. Nushell runs ONE completer for every argument position, so this
+    # branch is what the other shells express as a separate flag rule.
+    if ($typing | str starts-with "-") {
+        let path = ($parts | skip 1 | where {|w| not ($w | str starts-with "-") })
+        if ($path | length) >= 1 {
+            let flags = (try {
+                ^ze completion flags ...$path
+                | lines
+                | where {|line| ($line | str length) > 0 }
+                | each {|line|
+                    let cols = ($line | split column "\t")
+                    let row = ($cols | first)
+                    { value: $row.column0, description: ($row.column1? | default "") }
+                }
+            } catch { [] })
+            if ($flags | length) > 0 { return $flags }
+        }
+    }
+
+    if $subcmd == "config" and ($rest | length) >= 2 and ($rest | first) == "show" {
+        return (nu-complete ze config sections $parts)
     }
 
     mut result = []

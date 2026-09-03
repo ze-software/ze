@@ -651,3 +651,46 @@ func extractLine(text, prefix string) string {
 	}
 	return ""
 }
+
+// TestEveryShellReadsTheFlagInventory pins the rule that a shell completes flag
+// names from the registry rather than from a list this package writes down. All
+// four generators are asserted together, because the defect this catches is one
+// shell being left behind when the other three are wired.
+//
+// VALIDATES: registration over hardcoding for flag names. A command that
+// registers a flag completes in every shell without an edit here.
+// PREVENTS: nushell keeping the hardcoded global-flag list as its only flag
+// knowledge, which is what it had until 2026-09-03 while bash, zsh and fish all
+// called `ze completion flags`.
+func TestEveryShellReadsTheFlagInventory(t *testing.T) {
+	for _, shell := range []string{"bash", "zsh", "fish", "nushell"} {
+		var buf strings.Builder
+		if code := generate(shell, &buf); code != 0 {
+			t.Fatalf("generate(%s) = %d, want 0", shell, code)
+		}
+		if !strings.Contains(buf.String(), "completion flags") {
+			t.Errorf("the %s script never calls `ze completion flags`, so it cannot complete a "+
+				"flag the registry knows about", shell)
+		}
+	}
+}
+
+// TestEveryShellCompletesConfigSections pins the same rule for the section paths
+// under `ze config show <file>`, which every shell answers through the one
+// `ze config completion` engine rather than by walking the file itself.
+//
+// VALIDATES: `ze config show <file> <TAB>` offers section paths in every shell.
+// PREVENTS: nushell answering that position from `ze completion words`, which
+// knows command words and not the sections of an operator's config file.
+func TestEveryShellCompletesConfigSections(t *testing.T) {
+	for _, shell := range []string{"bash", "zsh", "fish", "nushell"} {
+		var buf strings.Builder
+		if code := generate(shell, &buf); code != 0 {
+			t.Fatalf("generate(%s) = %d, want 0", shell, code)
+		}
+		if !strings.Contains(buf.String(), "config completion") {
+			t.Errorf("the %s script never calls `ze config completion`, so `ze config show "+
+				"<file> <TAB>` cannot offer section paths", shell)
+		}
+	}
+}
