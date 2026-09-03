@@ -11,7 +11,6 @@ package runner
 
 import (
 	"bytes"
-	"github.com/ze-software/ze/internal/test/tmpfs"
 	"go/ast"
 	"go/importer"
 	"go/parser"
@@ -26,6 +25,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
 // TestWithParallelHeadroom checks that per-test timeouts are widened only when

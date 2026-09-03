@@ -212,7 +212,7 @@ func TestBackgroundLifetimeStopsTheProcess(t *testing.T) {
 // context, so a run that finishes first leaves no goroutine waiting to kill a
 // process teardown has already reaped.
 //
-// VALIDATES: the lifetime timer is cancelled by the context.
+// VALIDATES: the lifetime timer is canceled by the context.
 // PREVENTS: a leaked goroutine per background command in every test that
 // declares a lifetime longer than its own run.
 func TestBackgroundLifetimeEndsWithTheTest(t *testing.T) {
@@ -221,11 +221,11 @@ func TestBackgroundLifetimeEndsWithTheTest(t *testing.T) {
 	startBackgroundLifetime(ctx, RunCommand{Timeout: "1h"}, proc)
 	cancel()
 
-	// The process must outlive the cancelled timer: cancellation stops the
+	// The process must outlive the canceled timer: cancellation stops the
 	// timer, it does not fire it.
 	time.Sleep(50 * time.Millisecond)
 	if proc.ProcessState != nil {
-		t.Error("a cancelled lifetime killed the process instead of standing down")
+		t.Error("a canceled lifetime killed the process instead of standing down")
 	}
 	_ = proc.Process.Kill()
 	_ = proc.Wait()
