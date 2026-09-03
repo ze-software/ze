@@ -76,7 +76,7 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze config validate -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-expect=stderr:contains=eBGP peers declare no RFC 9234 role
+expect=stderr:contains=peers and dynamic groups declare no RFC 9234 role
 # The count, not just the sentence. Both peers are unbound, and both are named.
 expect=stderr:pattern=peers=2
 expect=stderr:pattern=first="?peer1, peer2

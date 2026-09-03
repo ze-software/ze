@@ -885,8 +885,8 @@ REFUSED, naming the peer, the role and the chain.
 
 RFC 9234 names the LOCAL speaker's position, so `customer` means the remote is
 our upstream. A deactivated member satisfies the obligation: naming the filter
-and switching it off records the decision. A peer that declares no role is
-accepted, and `ze doctor` enumerates those peers under
+and switching it off records the decision. A peer or a dynamic group that declares
+no role is accepted, and `ze doctor` enumerates them under
 `doctor-bgp-peer-no-role`.
 
 Validation checks local policy filter names, canonicalizes short filter-type

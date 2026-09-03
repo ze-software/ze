@@ -28,6 +28,8 @@ const (
 	codeDoctorMPLSDisabled            = "doctor-mpls-disabled"
 	codeDoctorMPLSUnavailable         = "doctor-mpls-unavailable"
 	codeDoctorMPLSUnknown             = "doctor-mpls-unknown"
+	codeDoctorPKICARootExpiry         = "doctor-pki-ca-root-expiry"
+	codeDoctorPKICARootMissing        = "doctor-pki-ca-root-missing"
 	codeDoctorRIRSourceRefused        = "doctor-rir-source-refused"
 	codeDoctorWriteDestination        = "doctor-write-destination"
 )
@@ -255,6 +257,25 @@ var builtinCodes = []CodeMeta{
 			"The listener does not start; ze never substitutes a self-signed certificate for a name the operator configured. " +
 			"Fix the name, add private { key ... } to the pki entry, or correct the intermediate.",
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-tls-reference", "show pki certificate name <name>"},
+	},
+	{
+		Code:  codeDoctorPKICARootMissing,
+		Title: "Local certificate authority root not stored",
+		Description: "Ze issues its own components' certificates from a local certificate authority root it generates once and keeps. " +
+			"No root is stored, so the next daemon start generates one. " +
+			"Every copy of the previous root that an operator distributed stops working at that point, because the leaves the new root issues carry a different issuer. " +
+			"Export the new root with `show pki local-ca pem` and give it to each client configured to trust this node.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pki-ca-root-missing", "show pki local-ca pem"},
+		RelatedCodes: []string{codeDoctorPKICARootExpiry},
+	},
+	{
+		Code:  codeDoctorPKICARootExpiry,
+		Title: "Local certificate authority root is expiring",
+		Description: "The stored local certificate authority root expires within 90 days, or has expired already. " +
+			"The window is 90 days rather than the 30 a configured certificate gets, because the root has to be replaced on every client that trusts it and Ze distributes it by hand. " +
+			"An expired root is an error: every leaf it issued is refused, so plugin and fleet connections fail.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pki-ca-root-expiry", "show pki local-ca pem"},
+		RelatedCodes: []string{codeDoctorPKICARootMissing},
 	},
 	{
 		Code:        "doctor-plugin-missing",
@@ -629,8 +650,8 @@ var builtinCodes = []CodeMeta{
 	},
 	{
 		Code:  "doctor-bgp-peer-no-role",
-		Title: "eBGP peers declare no RFC 9234 role",
-		Description: "One or more eBGP peers carry no `role { import ... }` block. A declared role states the " +
+		Title: "peers and dynamic groups declare no RFC 9234 role",
+		Description: "One or more peers, or dynamic groups, carry no `role { import ... }` block. A declared role states the " +
 			"relationship the session carries, and Ze then requires the peer's filter chains to name a filter " +
 			"that can refuse a path through a transit provider (RFC 7454 Section 9). A peer with no role " +
 			"declares no relationship, so nothing is implied and nothing is required: the session is accepted " +

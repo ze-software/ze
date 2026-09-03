@@ -736,22 +736,18 @@ func filterInstanceName(ref string) string {
 	return ref
 }
 
-// rolelessPeers names the eBGP peers that declare no RFC 9234 role, in config
-// order. They are accepted: the obligation binds only a peer that declares a
-// relationship. This is the ONE declaration of that set, read by the warning
-// logged at config load and by the `ze doctor` check, so the two never
-// enumerate different peers.
-//
-// iBGP peers are left out. An RFC 9234 role describes an eBGP relationship, so
-// reporting an iBGP session as unbound would be noise on every route-reflector
-// deployment.
+// rolelessPeers names the peers and the dynamic groups that declare no RFC 9234
+// role, in config order. They are accepted: the obligation binds only a peer
+// that declares a relationship. This is the ONE declaration of that set, read
+// by the warning logged at config load and by the `ze doctor` check, so the two
+// never enumerate different peers.
 func rolelessPeers(pairs []peerRole) []string {
 	var names []string
 	for _, pair := range pairs {
 		if pair.role != "" {
 			continue
 		}
-		if pair.settings.PeerAS == 0 || pair.settings.PeerAS == pair.settings.LocalAS {
+		if !reportsRoleless(pair.settings) {
 			continue
 		}
 		names = append(names, pair.settings.Name)
@@ -759,9 +755,36 @@ func rolelessPeers(pairs []peerRole) []string {
 	return names
 }
 
-// warnPeersWithoutRole logs ONE line for the whole config, naming how many eBGP
-// peers declare no role and the first few by name. One line per peer would bury
-// the fact it exists to report on a router with a thousand sessions.
+// reportsRoleless reports whether a peer that declares no role is named. ONE
+// config leaves it out, and the reason is what the report says: an RFC 9234
+// role describes an eBGP relationship, so a session Ze KNOWS is iBGP owes no
+// role, and naming one would be noise on every route-reflector deployment.
+func reportsRoleless(ps *reactor.PeerSettings) bool {
+	// A dynamic group states no remote AS. It arrives in the member's OPEN
+	// (RFC 4271 Section 4.2), so PeerAS stays 0 on the template
+	// (reactor.ParseDynamicGroupTemplate) and the comparison below has nothing
+	// to compare: 0 is UNKNOWN here, never iBGP. The session can be eBGP, and a
+	// listen range that declares no role is the IXP route-server shape this
+	// report exists for.
+	if ps.IsDynamic {
+		return true
+	}
+	// A static peer states its remote AS or it is refused: parsePeerFromTree
+	// returns ErrIncompleteConfig without it and PeersFromTree drops the peer
+	// (reactor/config.go), so 0 on a static peer is a Ze defect rather than an
+	// operator's config. Name it instead of dropping it. An unknown AS is not
+	// evidence of iBGP, and a peer in the warning is how such a defect reaches
+	// a reader at all.
+	if ps.PeerAS == 0 {
+		return true
+	}
+	return ps.PeerAS != ps.LocalAS
+}
+
+// warnPeersWithoutRole logs ONE line for the whole config, naming how many
+// peers and dynamic groups declare no role and the first few by name. One line
+// per peer would bury the fact it exists to report on a router with a thousand
+// sessions.
 func warnPeersWithoutRole(names []string) {
 	if len(names) == 0 {
 		return
@@ -770,7 +793,7 @@ func warnPeersWithoutRole(names []string) {
 	if len(shown) > rolelessPeersNamed {
 		shown = shown[:rolelessPeersNamed]
 	}
-	configLogger().Warn("eBGP peers declare no RFC 9234 role, so no transit-leak filter is required of them",
+	configLogger().Warn("peers and dynamic groups declare no RFC 9234 role, so no transit-leak filter is required of them",
 		"peers", len(names),
 		"first", textbuf.Join(shown, ", "))
 }
@@ -779,9 +802,10 @@ func warnPeersWithoutRole(names []string) {
 // The count is always exact; the names are a sample that keeps the line short.
 const rolelessPeersNamed = 5
 
-// rolelessPeersFromTree names the eBGP peers a config declares with no RFC 9234
-// role. It fills the infra seam `ze doctor` reads (register.go), so the doctor
-// report and the config-load warning enumerate one set.
+// rolelessPeersFromTree names the peers and the dynamic groups a config
+// declares with no RFC 9234 role. It fills the infra seam `ze doctor` reads
+// (register.go), so the doctor report and the config-load warning enumerate one
+// set.
 //
 // MUST be called on a CLONE: it prunes inactive nodes from the tree in place,
 // exactly as the peer pipeline does.

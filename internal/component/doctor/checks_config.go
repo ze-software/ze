@@ -22,7 +22,8 @@ import (
 // `ze doctor` output.
 const diagnosticBGPMD5 = "doctor-bgp-md5"
 
-// diagnosticBGPPeerNoRole names an eBGP peer that declares no RFC 9234 role.
+// diagnosticBGPPeerNoRole names a peer or a dynamic group that declares no
+// RFC 9234 role.
 const diagnosticBGPPeerNoRole = "doctor-bgp-peer-no-role"
 
 func checkIfaceBackend(tree *config.Tree) []diagnostic.Diagnostic {
@@ -204,11 +205,11 @@ func checkBGPPeerConfig(tree *config.Tree) []diagnostic.Diagnostic {
 	}}
 }
 
-// checkBGPPeersWithoutRole enumerates the eBGP peers that declare no RFC 9234
-// role. Such a peer is accepted -- the transit-leak filter obligation
-// (RFC 7454 Section 9) binds only a peer that declares a relationship -- so the
-// operator is told which sessions no relationship was stated for, and the gap
-// is a decision they can see rather than a silence.
+// checkBGPPeersWithoutRole enumerates the peers and the dynamic groups that
+// declare no RFC 9234 role. Such a peer is accepted -- the transit-leak filter
+// obligation (RFC 7454 Section 9) binds only a peer that declares a
+// relationship -- so the operator is told which sessions no relationship was
+// stated for, and the gap is a decision they can see rather than a silence.
 //
 // A WARNING, not an error: the config loads and the daemon starts on it. The
 // engine names the same peers in one aggregated line at config load; this check
@@ -229,7 +230,7 @@ func checkBGPPeersWithoutRole(tree *config.Tree) []diagnostic.Diagnostic {
 	return []diagnostic.Diagnostic{{
 		Code:     diagnosticBGPPeerNoRole,
 		Severity: diagnostic.SeverityWarning,
-		Message: tb.Str("eBGP peers declare no RFC 9234 role, so no transit-leak filter is required of them: ").
+		Message: tb.Str("peers and dynamic groups declare no RFC 9234 role, so no transit-leak filter is required of them: ").
 			Str(textbuf.Join(names, ", ")).String(),
 	}}
 }

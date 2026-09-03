@@ -140,8 +140,8 @@ func withRolelessPeerReporter(t *testing.T, fn func(*config.Tree) []string) {
 	t.Cleanup(func() { infra.SetBGPRolelessPeerReporter(nil) })
 }
 
-// VALIDATES: AC-35. `ze doctor` enumerates every eBGP peer that declares no
-// RFC 9234 role, under its own diagnostic code, as a warning.
+// VALIDATES: AC-35. `ze doctor` enumerates every peer and dynamic group that
+// declares no RFC 9234 role, under its own diagnostic code, as a warning.
 // PREVENTS: the role gap staying invisible on the operator-facing readiness
 // path. A peer with no role is accepted and owes no transit-leak filter, so
 // nothing else in the report would mention it.

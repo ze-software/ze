@@ -224,6 +224,8 @@ RFC 9234; a reject-asn list works against any peer and needs nothing from it.
 
 When role is not configured for a peer, no OTC processing occurs. Routes are forwarded without role-based filtering, and no transit-leak filter is required of that peer: no relationship is declared, so none is implied.
 
-ze says so rather than passing in silence. Config load writes ONE warning naming how many eBGP peers declare no role and the first few by name, and `ze doctor` reports every one of them under `doctor-bgp-peer-no-role`.
+ze says so rather than passing in silence. Config load writes ONE warning naming how many peers and dynamic groups declare no role and the first few by name, and `ze doctor` reports every one of them under `doctor-bgp-peer-no-role`.
+
+A dynamic group is named with the peers. Its members' AS arrives in the OPEN (RFC 4271 Section 4.2), so ze cannot know a listen range is eBGP, and an IXP route-server range that declares no role is exactly what the report is for. An iBGP peer is left out: a role describes an eBGP relationship, so a route reflector's sessions owe none.
 <!-- source: internal/component/bgp/plugins/role/ -- role plugin implementation -->
 <!-- source: internal/component/bgp/config/peers.go -- rolelessPeers, warnPeersWithoutRole -->
