@@ -1,0 +1,102 @@
+// A config module for the help shape gate's tests. It is read as a file rather
+// than as a Go string so the gate's owner resolution runs over real YANG text,
+// braces and all.
+//
+// The module, the revision and the grouping each carry a paragraph no one-line
+// row renders. They are here to prove the caps do NOT reach them: three agents
+// given a brief with no population rule shortened exactly these statements and
+// moved the prose into comments, which is a downgrade.
+//
+// Two enumerations sit in it on purpose. The one on `family` keys a list, so
+// the completer renders each value's description on a one-line row. The one on
+// `state` keys nothing, so no surface renders it and no bound reaches it.
+module ze-fixture-conf {
+  namespace "urn:ze:fixture:conf";
+  prefix zefixconf;
+  import ze-extensions { prefix ze; }
+
+  description
+    "The module statement describes the whole schema for a reader who opens the
+     file, so it is written as a paragraph and it runs well past ninety-six
+     characters and well past twenty-five words. No completion row renders it,
+     and no gate caps it.";
+
+  revision 2026-09-03 {
+    description
+      "The revision statement records what changed in this version of the schema,
+       so it is written as a paragraph too, and it also runs well past ninety-six
+       characters and well past twenty-five words. No completion row renders it
+       either.";
+  }
+
+  grouping socket-common {
+    description
+      "A grouping is a reusable block that no completion row names, so its own
+       description is written as a paragraph and runs past both bounds without a
+       gate saying anything about it.";
+
+    leaf backlog {
+      type uint16;
+      description "Pending connections the listener holds.";
+      ze:help "The kernel queues connections on this listener until the daemon accepts them.";
+    }
+  }
+
+  typedef socket-state {
+    type enumeration {
+      enum listening {
+        description
+          "An enumeration reached through a typedef carries no help to any row,
+           because the completer reads an enum description off the leaf's own
+           node, so this paragraph past both bounds is never rendered.";
+      }
+    }
+    description "The state a socket is in.";
+  }
+
+  container sockets {
+    description "Socket state the operator can set.";
+    ze:help "The container groups every socket the daemon opens on behalf of a peer.";
+
+    uses socket-common;
+
+    leaf state {
+      type enumeration {
+        enum open {
+          description
+            "An enumeration on a leaf that keys no list reaches no completion
+             row at all, because getListKeyEntry answers the key leaf and
+             nothing else, so this paragraph past both bounds is never
+             rendered.";
+        }
+      }
+      description "Whether the socket is open.";
+      ze:help "The state is read from the kernel each time the row is drawn.";
+    }
+
+    list binding {
+      key "family";
+      description "One binding for each address family.";
+      ze:help "A binding names the family the listener opens a socket for.";
+
+      leaf family {
+        type enumeration {
+          enum ipv4 {
+            description "Bind the listener to IPv4 only.";
+          }
+          enum ipv6 {
+            description "Bind the listener to IPv6 only.";
+          }
+        }
+        description "Address family the listener binds.";
+        ze:help "The listener binds one family, and a second listener carries the other.";
+      }
+
+      leaf port {
+        type uint16;
+        description "Port the listener binds.";
+        ze:help "The port is the local TCP port the listener accepts connections on.";
+      }
+    }
+  }
+}

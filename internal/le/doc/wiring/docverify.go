@@ -73,7 +73,7 @@ var docVerifyStages = [...]docVerifyStage{
 	{"Documentation drift (docs claims vs registries and filesystem)...", docDriftStage},
 	{"YANG/handler contract (validate-commands)...", docContractStage},
 	{"Command usage contract (the model states every grammar, no description spells one)...", docUsageStage},
-	{"Command help shape (every command node declares a one-sentence summary)...", docHelpShapeStage},
+	{"Command help shape (a one-line summary a row renders, and a long text beside it)...", docHelpShapeStage},
 	{"Source anchors (docs source references exist)...", docIndexStage},
 	{"Rules render (ai/rules/<rule>.md matches ai/rules/points/)...", rulesRenderStage},
 	{"Rules round trip (split every rendered rule, render it back, compare bytes)...", rulesRoundTripStage},
@@ -140,11 +140,18 @@ func docUsageStage(root string) (any, int) {
 	return report, 0
 }
 
-// docHelpShapeStage refuses a command summary that no one-line surface can
-// render, and reports how much of the command tree is written.
+// docHelpShapeStage refuses a summary that no one-line surface can render, and
+// a declaration the commit under test wrote with no long text beside it. It
+// reports how much of each of the four corpora is written.
+//
+// The four are the command tree, the RPCs, the offline local registry and the
+// CONFIG tree. The last one is the largest and was outside every command gate
+// until 2026-09-03, which is how 640 config descriptions ran past the render
+// bound with nothing saying so.
 //
 // The root is unused: the gate reads the YANG modules this binary carries,
-// which is the same population every other command gate walks.
+// which is the same population every other command gate walks, and it reads
+// HEAD through git for the one rule scoped to the commit under test.
 func docHelpShapeStage(_ string) (any, int) {
 	report, err := docvalid.HelpShape()
 	if err != nil {

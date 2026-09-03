@@ -4,14 +4,18 @@ package hookruntime
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/ste"
 	"github.com/ze-software/ze/internal/le/testweakened"
 )
 
@@ -429,4 +433,361 @@ func writeCISleep(ctx context) *verdict {
 		return nil
 	}
 	return &verdict{2, red + bold + "BLOCKED: time.sleep( with no sleep(<kind>) marker in " + path + reset + "\n" + strings.Join(bad, "\n")}
+}
+
+// yangSummaryChars bounds a YANG description statement, in characters.
+// overlayInnerWidth clamps every Ze overlay box to [48, 96] characters
+// (internal/component/cli/model_render.go), so a summary longer than this
+// cannot render whole in any of them.
+//
+// The bound therefore governs the statements that REACH a one-line row.
+// It governs no others (plan/spec-command-help-and-description.md, "What the
+// Bounds Govern"). A module, a revision and an import declare schema
+// documentation that no operator surface renders. 116 of the 640 over-long
+// descriptions measured on 2026-09-03 were of that kind.
+//
+// Holding one to this bound invites the repair three agents each made under a
+// brief that did not say so. Each moved the prose into a `//` comment. Standard
+// YANG tooling cannot read a comment, and the schema output does not publish
+// one.
+const yangSummaryChars = 96
+
+// yangRendering names the statements whose description reaches a one-line
+// operator surface. The table is the spec's. It is the whole population that
+// the character bound and the word bound govern.
+var yangRendering = [...]string{
+	"container", "list", "leaf", "leaf-list", "choice", "case",
+	"action", "rpc", "notification",
+}
+
+// The rules a proposed YANG description is held to. Each is named on its own
+// line of a refusal. The author is told which bound was passed, and not that
+// something about the text is wrong.
+const (
+	yangRuleCharCap  = "char-cap"
+	yangRuleWordCap  = "word-cap"
+	yangRuleShape    = "shape"
+	yangRuleRestates = "long-restates-summary"
+)
+
+// yangKeywordHelp is the extension that carries the long explanation, and
+// yangKeywordSummary the statement that carries the one-line summary.
+const (
+	yangKeywordHelp    = "ze:help"
+	yangKeywordSummary = "description"
+)
+
+// yangBlock is one open brace. It carries the keyword that opened it and the
+// whole statement as the author wrote it. The identity stays unique when two
+// blocks carry the same name.
+type yangBlock struct {
+	id      int
+	keyword string
+	name    string
+}
+
+// yangText is one `description` or `ze:help` argument read out of proposed
+// text. It carries the keyword, the block that held it, the statement that
+// named that block, and the argument itself. The argument arrives with its
+// concatenation joined and its whitespace collapsed.
+//
+// Owned says whether the scan found the enclosing statement at all. An Edit
+// region can carry a description and no statement around it. A text whose owner
+// is unknown is REPORTED rather than judged, because nothing says which surface
+// renders it (ai/rules/principles.md).
+type yangText struct {
+	keyword string
+	block   int
+	node    string
+	owner   string
+	owned   bool
+	text    string
+}
+
+// yangArgument names the two statements a command module turns into a typed
+// argument, where the text beside them is dropped.
+var yangArgument = [...]string{"leaf", "leaf-list"}
+
+// yangArgumentModule answers whether the module declares command arguments
+// rather than config nodes. The file name is what separates the two producers
+// at the level this hook reads.
+func yangArgumentModule(path string) bool {
+	return strings.HasSuffix(path, "-cmd.yang") || strings.HasSuffix(path, "-api.yang")
+}
+
+// yangRenders answers whether a description on this statement reaches a
+// one-line operator surface. The statement decides it. For a leaf and a
+// leaf-list, the module the statement sits in decides it too.
+//
+// extractArgDefs (internal/component/config/yang/command.go) walks every child
+// of a command container and calls argDefFor, which admits any entry with a
+// type. A leaf and a leaf-list each have one, so both become a command.ArgDef
+// built from Type and Mandatory. ArgDef declares nine fields and none of them
+// holds text, so the description is dropped at the tree boundary. The same
+// statement in a config module renders on the completion row, through
+// entryDescription (internal/component/cli/completer.go).
+func yangRenders(path, keyword string) bool {
+	if !slices.Contains(yangRendering[:], keyword) {
+		return false
+	}
+	if !slices.Contains(yangArgument[:], keyword) {
+		return true
+	}
+	return !yangArgumentModule(path)
+}
+
+// yangEscape answers the byte a backslash escape stands for. YANG names \n and
+// \t. Every other escape stands for the character itself.
+func yangEscape(char byte) byte {
+	switch char {
+	case 'n':
+		return '\n'
+	case 't':
+		return '\t'
+	}
+	return char
+}
+
+// readYangString reads the quoted string that starts at index and answers its
+// text, the index after the closing quote, and whether the quote closed. A
+// single-quoted YANG string carries no escape, which is why the quote decides
+// whether a backslash is read as one.
+func readYangString(content string, index int) (string, int, bool) {
+	quote := content[index]
+	var text textbuf.Buffer
+	text.Reset()
+	for cursor := index + 1; cursor < len(content); cursor++ {
+		if content[cursor] == '\\' && quote == '"' && cursor+1 < len(content) {
+			cursor++
+			text.Byte(yangEscape(content[cursor]))
+			continue
+		}
+		if content[cursor] == quote {
+			return text.String(), cursor + 1, true
+		}
+		text.Byte(content[cursor])
+	}
+	return "", len(content), false
+}
+
+// readYangToken reads one unquoted token and answers the index after it.
+func readYangToken(content string, index int) (string, int) {
+	for cursor := index; cursor < len(content); cursor++ {
+		if strings.IndexByte(" \t\r\n;{}\"'", content[cursor]) >= 0 {
+			return content[index:cursor], cursor
+		}
+	}
+	return content[index:], len(content)
+}
+
+// yangSpaced collapses every run of whitespace to one space and trims the
+// ends. That is how a description reads on a one-line surface, whatever wrapping
+// the author gave it in the module.
+func yangSpaced(text string) string {
+	return strings.Join(strings.Fields(text), " ")
+}
+
+// scanYangText reads every `description` and `ze:help` argument out of proposed
+// YANG text, lexically.
+//
+// It loads no YANG model. The hook judges one file that is not on disk yet.
+// A module whose imports the loader cannot resolve still has to be judged.
+// `./le docvalid help-shape` is the gate that reads the built tree.
+//
+// A string or a comment that never closes is an ERROR rather than an empty
+// answer. The content can be one Edit fragment. A scan that stopped early must
+// not read as a file that broke no rule (ai/rules/principles.md).
+func scanYangText(content string) ([]yangText, error) {
+	found := make([]yangText, 0, 8)
+	stack := make([]yangBlock, 0, 8)
+	blocks := 0
+	keyword := ""
+	var argument textbuf.Buffer
+	argument.Reset()
+
+	for cursor := 0; cursor < len(content); {
+		char := content[cursor]
+
+		if char == ' ' || char == '\t' || char == '\r' || char == '\n' {
+			cursor++
+			continue
+		}
+		if char == '/' && cursor+1 < len(content) && content[cursor+1] == '/' {
+			end := strings.IndexByte(content[cursor:], '\n')
+			if end < 0 {
+				break
+			}
+			cursor += end + 1
+			continue
+		}
+		if char == '/' && cursor+1 < len(content) && content[cursor+1] == '*' {
+			end := strings.Index(content[cursor+2:], "*/")
+			if end < 0 {
+				return nil, errors.New("a block comment is never closed")
+			}
+			cursor += end + 4
+			continue
+		}
+		if char == '"' || char == '\'' {
+			text, next, closed := readYangString(content, cursor)
+			if !closed {
+				return nil, errors.New("a quoted string is never closed")
+			}
+			argument.Str(text)
+			cursor = next
+			continue
+		}
+		if char == '{' {
+			blocks++
+			stack = append(stack, yangBlock{id: blocks, keyword: keyword, name: yangSpaced(keyword + " " + argument.String())})
+			keyword = ""
+			argument.Reset()
+			cursor++
+			continue
+		}
+		if char == '}' {
+			if len(stack) != 0 {
+				stack = stack[:len(stack)-1]
+			}
+			keyword = ""
+			argument.Reset()
+			cursor++
+			continue
+		}
+		if char == ';' {
+			found = appendYangText(found, stack, keyword, argument.String())
+			keyword = ""
+			argument.Reset()
+			cursor++
+			continue
+		}
+		// A `+` joins two quoted parts of one argument, so it carries no text.
+		if char == '+' {
+			cursor++
+			continue
+		}
+		token, next := readYangToken(content, cursor)
+		if keyword == "" {
+			keyword = token
+		} else {
+			argument.Str(token)
+		}
+		cursor = next
+	}
+	// An Edit fragment can end before the semicolon that closes its statement.
+	// The text read so far is what the author proposed, so it is judged.
+	return appendYangText(found, stack, keyword, argument.String()), nil
+}
+
+// appendYangText records one finished statement when it is a summary or a long
+// help carrying text. An empty argument is left out. `./le docvalid help-shape`
+// owns the `missing-summary` rule, and a fragment can end before its author
+// typed the text.
+func appendYangText(found []yangText, stack []yangBlock, keyword, argument string) []yangText {
+	if keyword != yangKeywordSummary && keyword != yangKeywordHelp {
+		return found
+	}
+	text := yangSpaced(argument)
+	if text == "" {
+		return found
+	}
+	entry := yangText{keyword: keyword, text: text}
+	if len(stack) != 0 {
+		entry.block = stack[len(stack)-1].id
+		entry.node = stack[len(stack)-1].name
+		entry.owner = stack[len(stack)-1].keyword
+		entry.owned = true
+	}
+	return append(found, entry)
+}
+
+// yangFinding writes one refusal line: the node the text belongs to, the rule
+// it broke, and what was measured beside the bound.
+func yangFinding(text yangText, rule, detail string) string {
+	return "  " + text.node + ": " + rule + ", " + detail
+}
+
+// judgeYangSummary answers every rule one description breaks.
+func judgeYangSummary(text yangText) []string {
+	bad := make([]string, 0, 4)
+	if count := utf8.RuneCountInString(text.text); count > yangSummaryChars {
+		bad = append(bad, yangFinding(text, yangRuleCharCap, fmt.Sprintf("%d characters, and the bound is %d", count, yangSummaryChars)))
+	}
+	if count := ste.WordCount(text.text); count > ste.MaxDescriptiveWords {
+		bad = append(bad, yangFinding(text, yangRuleWordCap, fmt.Sprintf("%d words, and the bound is %d", count, ste.MaxDescriptiveWords)))
+	}
+	if strings.Contains(text.text, ";") {
+		bad = append(bad, yangFinding(text, yangRuleShape, "the summary joins two statements with a semicolon"))
+	}
+	if !strings.HasSuffix(text.text, ".") {
+		bad = append(bad, yangFinding(text, yangRuleShape, "the summary does not end in a full stop"))
+	}
+	return bad
+}
+
+// ze point: writing/directives/project-text-is-us-english-and-simplified-technical-english
+// ze point: writing/detail-budget/write-only-what-changes-the-next-action
+// writeYangDescription warns when a proposed YANG description is too long for
+// the one-line surface that renders it. It warns again when the ze:help beside
+// that description only repeats it.
+func writeYangDescription(ctx context) *verdict {
+	path := filepath.ToSlash(ctx.path)
+	if !strings.HasSuffix(path, ".yang") || strings.TrimSpace(ctx.content) == "" {
+		return nil
+	}
+	texts, err := scanYangText(ctx.content)
+	if err != nil {
+		return &verdict{1, yellow + bold + "WARN: the proposed text of " + path + " does not read as YANG" + reset +
+			"\n  " + err.Error() + ", so no description in it was judged.\n" +
+			"  Run ./le docvalid help-shape after the edit: it reads the built tree, and this hook reads one file."}
+	}
+
+	summaries := make(map[int]string, len(texts))
+	bad := make([]string, 0, 4)
+	unowned := 0
+	for _, text := range texts {
+		if text.keyword != yangKeywordSummary {
+			continue
+		}
+		summaries[text.block] = text.text
+		if !text.owned {
+			unowned++
+			continue
+		}
+		if !yangRenders(path, text.owner) {
+			continue
+		}
+		bad = append(bad, judgeYangSummary(text)...)
+	}
+	for _, text := range texts {
+		if text.keyword != yangKeywordHelp || !text.owned {
+			continue
+		}
+		// Byte equality after the whitespace collapse, so a copy that was
+		// rewrapped over more lines is still read as the copy it is.
+		if beside, ok := summaries[text.block]; ok && beside == text.text {
+			bad = append(bad, yangFinding(text, yangRuleRestates, "the ze:help repeats the description word for word"))
+		}
+	}
+	if unowned == 1 {
+		bad = append(bad, "  one description was NOT judged: the proposed text names no statement around it, so nothing says which surface renders it.")
+	}
+	if unowned > 1 {
+		bad = append(bad, fmt.Sprintf("  %d descriptions were NOT judged: the proposed text names no statement around them, so nothing says which surface renders them.", unowned))
+	}
+	if len(bad) == 0 {
+		return nil
+	}
+	shown := bad[:min(4, len(bad))]
+	more := ""
+	if len(shown) != len(bad) {
+		more = fmt.Sprintf("\n  %d more findings are not shown.", len(bad)-len(shown))
+	}
+	return &verdict{1, yellow + bold + "WARN: a description in " + path + " breaks the summary rules" + reset + "\n" +
+		strings.Join(shown, "\n") + more +
+		"\n  Write the one-line summary in `description`, and the paragraph in the `ze:help` beside it.\n" +
+		"  The bounds hold the statements that render on a one-line row.\n" +
+		"  Those are container, list, leaf, leaf-list, choice, case, action, rpc and notification.\n" +
+		"  A leaf and a leaf-list count in a config module alone, because a command module drops the text beside them.\n" +
+		"  ./le docvalid help-shape is the gate over the whole tree; this hook reads one proposed file."}
 }

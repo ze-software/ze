@@ -44,6 +44,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
@@ -60,11 +61,24 @@ const (
 	ruleMissingSummary = "missing-summary"
 	ruleOneSentence    = "one-sentence"
 	ruleWordCap        = "word-cap"
+	ruleCharCap        = "char-cap"
 	ruleNewline        = "no-newline"
 	ruleSemicolon      = "no-semicolon"
 	ruleFullStop       = "full-stop"
 	ruleUsageMarker    = "no-usage-marker"
 	ruleUnreadable     = "unreadable-node"
+)
+
+// The rules the PAIR is held to: the summary and the long explanation beside
+// it. Each names one clause of D-4 (plan/spec-command-help-and-description.md).
+//
+// missing-long-help is the one rule of this gate that is not absolute. It
+// judges what the commit under test added or changed, because the corpus does
+// not yet carry an explanation everywhere (helpshape_baseline.go).
+const (
+	ruleMissingLongHelp = "missing-long-help"
+	ruleLongCap         = "long-cap"
+	ruleLongRestates    = "long-restates-summary"
 )
 
 // The three surfaces that declare a command's help. A refusal names one,
@@ -75,6 +89,7 @@ const (
 	surfaceCommand = "command"
 	surfaceRPC     = "rpc"
 	surfaceLocal   = "local"
+	surfaceSchema  = "schema"
 )
 
 // HelpShapeRow is one refusal: the surface it belongs to, the path that names
@@ -108,22 +123,34 @@ type HelpShapeReport struct {
 	Locals            int            `json:"locals"`
 	LocalsWithSummary int            `json:"locals-with-summary"`
 	LocalsWithHelp    int            `json:"locals-with-help"`
+	Schema            int            `json:"schema"`
+	SchemaWithSummary int            `json:"schema-with-summary"`
+	SchemaWithHelp    int            `json:"schema-with-help"`
+	LongHelpScope     string         `json:"long-help-scope"`
 	Broken            []HelpShapeRow `json:"broken"`
 	Valid             bool           `json:"valid"`
+
+	// baseline is what HEAD already declared, and only the missing-long-help
+	// rule reads it. It rides on the report because the four surfaces reach
+	// their judges through it and through nothing else: collectUsage walks the
+	// command tree with the report as its only carrier.
+	baseline helpBaseline
 }
 
-// node judges one command node's summary and counts it.
+// node judges one command node's two texts and counts it.
 func (r *HelpShapeReport) node(cliPath string, node *command.Node) {
 	r.Nodes++
 	if node.WireMethod != "" {
 		r.Commands++
 	}
-	if strings.TrimSpace(node.Help) != "" {
+	if strings.TrimSpace(node.LongHelp) != "" {
 		r.WithHelp++
 	}
-	if r.judgeSummary(surfaceCommand, cliPath, node.Description) {
-		r.WithSummary++
+	if !r.judgeSummary(surfaceCommand, cliPath, node.Description) {
+		return
 	}
+	r.WithSummary++
+	r.judgePair(surfaceCommand, cliPath, node.Description, node.LongHelp)
 }
 
 // rpc judges one RPC's summary and counts it.
@@ -133,12 +160,14 @@ func (r *HelpShapeReport) node(cliPath string, node *command.Node) {
 // the module (ai/rules/evidence.md -- name the producer, not a caller of it).
 func (r *HelpShapeReport) rpc(label string, meta yang.RPCMeta) {
 	r.RPCs++
-	if strings.TrimSpace(meta.Help) != "" {
+	if strings.TrimSpace(meta.LongHelp) != "" {
 		r.RPCsWithHelp++
 	}
-	if r.judgeSummary(surfaceRPC, label, meta.Description) {
-		r.RPCsWithSummary++
+	if !r.judgeSummary(surfaceRPC, label, meta.Description) {
+		return
 	}
+	r.RPCsWithSummary++
+	r.judgePair(surfaceRPC, label, meta.Description, meta.LongHelp)
 }
 
 // local judges one offline local command's summary and counts it.
@@ -150,9 +179,11 @@ func (r *HelpShapeReport) local(entry registry.LocalCommandEntry) {
 	if strings.TrimSpace(entry.Meta.LongHelp) != "" {
 		r.LocalsWithHelp++
 	}
-	if r.judgeSummary(surfaceLocal, entry.Path, entry.Meta.Description) {
-		r.LocalsWithSummary++
+	if !r.judgeSummary(surfaceLocal, entry.Path, entry.Meta.Description) {
+		return
 	}
+	r.LocalsWithSummary++
+	r.judgePair(surfaceLocal, entry.Path, entry.Meta.Description, entry.Meta.LongHelp)
 }
 
 // judgeSummary judges one authored summary against the seven rules of AC-3 and
@@ -186,11 +217,7 @@ func (r *HelpShapeReport) judgeSummary(surface, label, description string) bool 
 		r.refuse(surface, label, ruleOneSentence,
 			detail.Str("the summary is ").Int(int64(count)).Str(" sentences").String(), summary)
 	}
-	if count := ste.WordCount(summary); count > ste.MaxDescriptiveWords {
-		var detail textbuf.Buffer
-		r.refuse(surface, label, ruleWordCap, detail.Str("the summary is ").Int(int64(count)).
-			Str(" words (STE Rule 6.3 allows ").Int(int64(ste.MaxDescriptiveWords)).Byte(')').String(), summary)
-	}
+	r.judgeCaps(surface, label, summary)
 	// The same three markers the usage gate refuses, read from the same table: a
 	// summary that prescribes an invocation form breaks ai/rules/cli.md whatever
 	// word it opens with.
@@ -200,6 +227,74 @@ func (r *HelpShapeReport) judgeSummary(surface, label, description string) bool 
 			detail.Str("the summary prescribes a CLI spelling under ").Quoted(marker).String(), summary)
 	}
 	return true
+}
+
+// judgeCaps holds one summary to the two length bounds D-4 sets: 25 words and
+// 96 characters.
+//
+// Both are measured on the FLATTENED text, because that is what a reader is
+// shown. `entryDescription` and `enumKeyVocabulary`
+// (internal/component/cli/completer.go) each join strings.Fields with a space
+// before the summary reaches the row, so a description rewrapped over three
+// lines is one length to an operator and must be one length here.
+//
+// One judge for the caps, called by every surface. A second copy would let a
+// command node and a config leaf drift into two bounds, and the author of a
+// refusal could not tell which one applied to them.
+func (r *HelpShapeReport) judgeCaps(surface, label, description string) {
+	summary := flattenSummary(description)
+
+	if count := ste.WordCount(summary); count > ste.MaxDescriptiveWords {
+		var detail textbuf.Buffer
+		r.refuse(surface, label, ruleWordCap, detail.Str("the summary is ").Int(int64(count)).
+			Str(" words (STE Rule 6.3 allows ").Int(int64(ste.MaxDescriptiveWords)).Byte(')').String(), summary)
+	}
+	if count := utf8.RuneCountInString(summary); count > command.MaxSummaryChars {
+		var detail textbuf.Buffer
+		r.refuse(surface, label, ruleCharCap, detail.Str("the summary is ").Int(int64(count)).
+			Str(" characters (a one-line row renders ").
+			Int(int64(command.MaxSummaryChars)).Byte(')').String(), summary)
+	}
+}
+
+// judgePair holds one declaration's TWO texts to the rules that are about the
+// pair rather than about either text alone.
+//
+// Every caller is a declaration that OWES an explanation. An enum does not, and
+// it reaches judgeCaps alone for that reason: nothing anywhere reads a ze:help
+// on an enum, so demanding one would demand a declaration no surface prints
+// (helpshape_schema.go, schemaEnums).
+//
+// missing-long-help is the only rule of this gate scoped to the commit under
+// test. The other two are absolute, because a long text that repeats its
+// summary and a long text past the byte bound are both defects wherever they
+// were written (helpshape_baseline.go).
+func (r *HelpShapeReport) judgePair(surface, label, description, longHelp string) {
+	summary := strings.TrimSpace(description)
+	long := strings.TrimSpace(longHelp)
+	// The row PRINTS the summary on one line, which is the form an operator
+	// reads it in. The comparison below is over the TRIMMED text, because AC-3
+	// asks whether the two declarations are byte-equal, and a config
+	// description rewrapped over four lines would otherwise never be equal to
+	// the long text that copies it.
+	shown := flattenSummary(summary)
+
+	if long == "" {
+		if !r.baseline.declaredAtHEAD(summary) {
+			r.refuse(surface, label, ruleMissingLongHelp,
+				"the declaration carries a summary and no long text beside it", shown)
+		}
+		return
+	}
+	if long == summary {
+		r.refuse(surface, label, ruleLongRestates,
+			"the long text repeats the summary word for word", shown)
+	}
+	if size := len(long); size > command.MaxLongHelpBytes {
+		var detail textbuf.Buffer
+		r.refuse(surface, label, ruleLongCap, detail.Str("the long text is ").Int(int64(size)).
+			Str(" bytes (the bound is ").Int(int64(command.MaxLongHelpBytes)).Byte(')').String(), shown)
+	}
 }
 
 // unreadable names a child the tree holds under a name with no node behind it.
@@ -215,25 +310,36 @@ func (r *HelpShapeReport) refuse(surface, label, rule, detail, summary string) {
 	})
 }
 
-// helpShapeContract walks the command tree the loader holds, the RPCs beside it
-// and the offline local commands, and answers the coverage of all three with
-// every summary that breaks the shape.
+// helpShapeInput is what one run of the shape gate reads: the modules, the
+// offline registrations, and what HEAD already declared.
 //
-// The tree and the local registrations are parameters rather than the checkout,
-// so a test names a fixture module by building a loader over it and a fixture
-// registration by passing one (usage.go, usageContract, takes the same shape
-// for the same reason).
+// Every one is a parameter rather than the checkout, so a test names a fixture
+// module by building a loader over it, a fixture registration by passing one,
+// and a fixture history by passing a baseline (usage.go, usageContract, takes
+// the same shape for the same reason).
+type helpShapeInput struct {
+	Loader   *yang.Loader
+	Locals   []registry.LocalCommandEntry
+	Baseline helpBaseline
+}
+
+// helpShapeContract walks the command tree the loader holds, the RPCs beside
+// it, the offline local commands and the config tree, and answers the coverage
+// of all four with every summary that breaks the shape.
 //
 // A tree with no command node is an error rather than a valid report. Every
 // count would be zero and no rule could be broken, so a load failure would read
 // as a converted tree and the cheapest route from red to green would be to stop
 // loading the modules (ai/rules/evidence.md).
-func helpShapeContract(loader *yang.Loader, locals []registry.LocalCommandEntry) (HelpShapeReport, error) {
-	tree := yang.BuildCommandTree(loader)
+func helpShapeContract(in helpShapeInput) (HelpShapeReport, error) {
+	tree := yang.BuildCommandTree(in.Loader)
 	walk := newUsageWalk()
+	walk.shape.baseline = in.Baseline
+	walk.shape.LongHelpScope = in.Baseline.scope()
 	collectUsage(tree, nil, &walk)
-	collectRPCs(loader, walk.shape)
-	collectLocals(locals, tree, walk.shape)
+	collectRPCs(in.Loader, walk.shape)
+	collectLocals(in.Locals, tree, walk.shape)
+	collectSchema(in.Loader, walk.shape)
 
 	report := *walk.shape
 	if report.Commands == 0 {
@@ -250,6 +356,13 @@ func helpShapeContract(loader *yang.Loader, locals []registry.LocalCommandEntry)
 	// covered without having read the half the command tree does not carry.
 	if report.Locals == 0 {
 		return report, errors.New("no offline local command was read: the registry did not load")
+	}
+	// And the config half on the same argument a fourth time. The config tree
+	// is 2,000 of the 2,800 summaries this gate judges, so a walk that read
+	// none of it would print three green surfaces over the corpus that holds
+	// most of the work.
+	if report.Schema == 0 {
+		return report, errors.New("no module declares a config node: the modules did not load")
 	}
 
 	sort.Slice(report.Broken, func(i, j int) bool {
@@ -545,18 +658,24 @@ func (r HelpShapeReport) Text() string {
 	tb.Str("RPCs with a long help: ").Int(int64(r.RPCsWithHelp)).Byte('\n')
 	tb.Str("Offline local commands: ").Int(int64(r.Locals)).Byte('\n')
 	tb.Str("Offline local commands with a summary: ").Int(int64(r.LocalsWithSummary)).Byte('\n')
-	tb.Str("Offline local commands with a long help: ").Int(int64(r.LocalsWithHelp)).Str("\n\n")
+	tb.Str("Offline local commands with a long help: ").Int(int64(r.LocalsWithHelp)).Byte('\n')
+	tb.Str("Config nodes: ").Int(int64(r.Schema)).Byte('\n')
+	tb.Str("Config nodes with a summary: ").Int(int64(r.SchemaWithSummary)).Byte('\n')
+	tb.Str("Config nodes with a long help: ").Int(int64(r.SchemaWithHelp)).Byte('\n')
+	tb.Str("Long help judged over: ").Str(r.LongHelpScope).Str("\n\n")
 
 	if len(r.Broken) == 0 {
-		tb.Str("Every command node, every RPC and every offline local command declares a summary " +
-			"of one short sentence.\n")
+		tb.Str("Every command node, every RPC, every offline local command and every config node " +
+			"declares a summary a one-line row renders whole.\n")
 		return tb.String()
 	}
 
 	tb.Str("Nodes with a broken summary: ").Int(int64(r.brokenPaths(surfaceCommand))).Byte('\n')
 	tb.Str("RPCs with a broken summary: ").Int(int64(r.brokenPaths(surfaceRPC))).Byte('\n')
 	tb.Str("Offline local commands with a broken summary: ").
-		Int(int64(r.brokenPaths(surfaceLocal))).Str("\n\n")
+		Int(int64(r.brokenPaths(surfaceLocal))).Byte('\n')
+	tb.Str("Config nodes with a broken summary: ").
+		Int(int64(r.brokenPaths(surfaceSchema))).Str("\n\n")
 
 	counts := r.ruleCounts()
 	width := 0
@@ -582,8 +701,9 @@ func (r HelpShapeReport) Text() string {
 	tb.Byte('\n')
 
 	tb.Str("FAILED: ").Int(int64(len(r.Broken))).Str(" summary rule(s) broken over ").
-		Int(int64(r.Nodes)).Str(" command tree node(s), ").Int(int64(r.RPCs)).Str(" RPC(s) and ").
-		Int(int64(r.Locals)).Str(" offline local command(s)\n")
+		Int(int64(r.Nodes)).Str(" command tree node(s), ").Int(int64(r.RPCs)).Str(" RPC(s), ").
+		Int(int64(r.Locals)).Str(" offline local command(s) and ").
+		Int(int64(r.Schema)).Str(" config node(s)\n")
 	return tb.String()
 }
 
@@ -649,7 +769,11 @@ func HelpShape() (HelpShapeReport, error) {
 	if err != nil {
 		return HelpShapeReport{}, err
 	}
-	return helpShapeContract(loader, locals)
+	return helpShapeContract(helpShapeInput{
+		Loader:   loader,
+		Locals:   locals,
+		Baseline: headHelpBaseline(root),
+	})
 }
 
 // runHelpShape runs the shape gate for the action table.

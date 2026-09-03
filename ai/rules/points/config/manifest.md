@@ -8,3 +8,4 @@ directives ## Directives
   manipulate-config-only-by-the-two-approved-methods
   default-to-yang-config-env-only-is-the-exception
   accept-the-string-form-in-every-config-coercion
+  write-both-help-texts-on-every-config-node

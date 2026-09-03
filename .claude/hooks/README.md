@@ -84,7 +84,7 @@ check's row cannot survive it.
 
 ## PreToolUse: Write/Edit (`internal/le/hookruntime/writeedit.go`)
 
-<!-- source: internal/le/hookruntime/writeedit.go -- writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite, writePointLanguage, writeDesignEvidence, writeSpecStatus, writeGoPatterns, writeFilePatterns, writeWeakening, writeCISleep -->
+<!-- source: internal/le/hookruntime/writeedit.go -- writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite, writePointLanguage, writeDesignEvidence, writeSpecStatus, writeGoPatterns, writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription -->
 
 | Check | Enforces | What it refuses |
 |---|---|---|
@@ -99,6 +99,7 @@ check's row cannot survive it.
 | `writeFilePatterns` | `architecture.md`, `commands.md`, `config.md`, `quality.md`, `testing.md` | The file-level patterns the rules ban, by path: path shape, package name, scratch location, lint exclusion, config version, and CI observers. |
 | `writeWeakening` | `testing.md` | A proposed edit that lowers what a test proves. |
 | `writeCISleep` | `testing.md` | A pause in a `.ci` test that names no justification marker. |
+| `writeYangDescription` | `writing.md` | A proposed YANG `description` past 96 characters or 25 words. Also one carrying a semicolon or no full stop, and a `ze:help` that repeats the `description` beside it. It judges the statements that render on a one-line row, and a `leaf` or `leaf-list` only in a config module. It reports the descriptions whose owner it did not find, it warns rather than blocks, and `./le docvalid help-shape` is the gate. |
 
 `writeGoPatterns` is the edit-time allocation-pattern check. It blocks
 `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Printf`, and `strconv.FormatInt` or

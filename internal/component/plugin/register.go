@@ -55,8 +55,11 @@ type pluginRow struct {
 // YANG and served by nobody.
 func init() {
 	cmdregistry.MustRegisterLocalData("show plugins", dataPlugins, cmdregistry.Meta{
-		Description: "Every plugin compiled into this binary, with its families, RFCs, capability codes and the setup outcome its own init() recorded.",
-		Mode:        modeOffline,
+		Description: "Every plugin compiled into this binary, with its setup outcome.",
+		LongHelp: "One row is written for each plugin the binary links. The row names the " +
+			"families it registers, the RFCs it implements and the capability codes it " +
+			"negotiates, beside the outcome its own init() recorded and the reason for it.",
+		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
 
 	// The answer is rows read against declared column names, so every row

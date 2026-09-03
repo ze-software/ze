@@ -90,7 +90,7 @@ var nativeHookActions = map[string]hookAction{
 		checks: []hookCheck{
 			writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite,
 			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeGoPatterns,
-			writeFilePatterns, writeWeakening, writeCISleep,
+			writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription,
 		},
 	},
 	"posttool-writeedit": {
