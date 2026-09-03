@@ -466,3 +466,74 @@ func TestEnsureBindAddressesFromParsedCI(t *testing.T) {
 		})
 	}
 }
+
+// exabgpConfigWithLocal is the shape test/exabgp-compat/etc/*.conf carries: an
+// ExaBGP neighbor block whose source address is a `local-address` leaf, not a
+// `connection { local { ip } }` block.
+func exabgpConfigWithLocal(addr string) string {
+	return "neighbor ::1 {\n\trouter-id 127.0.0.2;\n\tlocal-address " + addr + ";\n\tlocal-as 12345;\n\tpeer-as 12345;\n}\n"
+}
+
+// TestEnsureConfigFileBindAddresses verifies the preflight the exabgp-compat
+// suite runs over a config it keeps on disk.
+//
+// That suite has its own parser and its own runner, so it cannot reach
+// ensureBindAddresses, and its fixtures are the ones binding fd00::2. The cases
+// are observed by consequence as the embedded ones are: absentULA is not on
+// this host, so a config that yields it MUST error and one that does not MUST
+// NOT.
+//
+// VALIDATES: the ExaBGP `local-address` leaf is read as a bind address; an
+// absent one fails with the address and the fix named; `local-as` is not read
+// as an address, and neither is the `local-link-local` leaf beside it.
+// PREVENTS: the 180-second `context deadline exceeded` that conf-ipself6 and
+// conf-llnh-update paid on a host without the address, whose only other output
+// was `Ze running` (plan/journal/failing-gate-prints-no-cause.md).
+func TestEnsureConfigFileBindAddresses(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  string
+		wantErr bool
+	}{
+		{"local_address_absent", exabgpConfigWithLocal(absentULA), true},
+		{"local_address_present_v6", exabgpConfigWithLocal("::1"), false},
+		{"local_address_present_v4", exabgpConfigWithLocal("127.0.0.1"), false},
+		// local-as carries an AS number, and reading the token after a `local`
+		// prefix would collect it as though it were an address.
+		{"local_as_not_an_address", "neighbor ::1 {\n\tlocal-as 65533;\n}\n", false},
+		// conf-llnh-update carries this leaf beside local-address. fe80::/10 is
+		// link-local, which `./le setup` does not add, so probing it would fail
+		// a passing test with a fix that does not apply.
+		{"link_local_not_probed", "neighbor ::1 {\n\tlocal-link-local fe80::1;\n}\n", false},
+		{"commented_out", "neighbor ::1 {\n# local-address " + absentULA + ";\n}\n", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "conf.conf")
+			require.NoError(t, os.WriteFile(path, []byte(tt.config), 0o600))
+
+			err := EnsureConfigFileBindAddresses([]string{path})
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), absentULA, "the failing address must be named")
+			assert.Contains(t, err.Error(), "./le setup", "the supported route must be named")
+		})
+	}
+}
+
+// TestEnsureConfigFileBindAddressesUnreadable verifies that a config this
+// process cannot read is reported rather than passed over.
+//
+// A config the preflight cannot open is a config whose addresses it does not
+// know. Answering "nothing to probe" would be a zero standing in for an answer,
+// and the daemon would then fail on the same file with a less specific error.
+func TestEnsureConfigFileBindAddressesUnreadable(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "absent.conf")
+	err := EnsureConfigFileBindAddresses([]string{missing})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "absent.conf", "the unreadable config must be named")
+}

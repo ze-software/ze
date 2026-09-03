@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/test/runner"
 )
@@ -141,5 +142,78 @@ func writeExaBGPFixture(t *testing.T, base, name, config string, tcpConnections 
 	content := "option=file:" + config + "\noption=tcp_connections:" + strconv.Itoa(tcpConnections) + "\n" + strings.Join(options, "\n")
 	if err := os.WriteFile(filepath.Join(root, "encoding", name+".ci"), []byte(content), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// exabgpAbsentULA is a unique-local address no host carries. `./le setup` adds
+// fd00::2 and nothing else in fc00::/7, so this one is absent on a configured
+// machine as well as on a bare one, and a probe of it always fails.
+const exabgpAbsentULA = "fd00:7e57:c0de::1"
+
+// TestExaBGPFixturePreflightNamesMissingLoopback drives the guard from the
+// suite's own entry point: a fixture on disk, through discoverExaBGPSuite, into
+// runOneExaBGPTest.
+//
+// The table in the runner package proves the scanner. This proves the WIRING,
+// which is where this defect actually lived: the scanner was correct, and the
+// exabgp-compat suite never called it because that suite has a parser and a
+// runner of its own.
+//
+// The entry point is affordable here for the same reason the fix is worth
+// having: the preflight refuses before either process starts, so a run that
+// reaches this assertion has spawned nothing and taken no port. It is run for
+// the absent address only, because the present-address arm would go on to
+// launch a real daemon and a real peer.
+//
+// VALIDATES: a fixture whose config binds an address this host lacks fails the
+// test at once, with the address and `./le setup` in the error, and with the
+// failure typed so the suite can report it as a host problem.
+// PREVENTS: the 180-second `context deadline exceeded` conf-ipself6 and
+// conf-llnh-update paid, whose only other output was `Ze running`
+// (plan/journal/failing-gate-prints-no-cause.md).
+func TestExaBGPFixturePreflightNamesMissingLoopback(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "test", "exabgp-compat")
+	for _, dir := range []string{"encoding", "etc"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	conf := "neighbor ::1 {\n\tlocal-address " + exabgpAbsentULA + ";\n\tlocal-as 12345;\n}\n"
+	if err := os.WriteFile(filepath.Join(root, "etc", "conf-probe.conf"), []byte(conf), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ci := "option=file:conf-probe.conf\noption=tcp_connections:1\n"
+	if err := os.WriteFile(filepath.Join(root, "encoding", "conf-probe.ci"), []byte(ci), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	suite, err := discoverExaBGPSuite(base)
+	if err != nil {
+		t.Fatalf("discover ExaBGP suite: %v", err)
+	}
+	test := suite.byNick["1"]
+	if test == nil {
+		t.Fatal("missing metadata for nick 1")
+	}
+
+	// The timeout is what the fixture would have burned. A run that reaches it
+	// has not refused, so the assertions below are also a statement about how
+	// long this test may take.
+	ok, _ := runOneExaBGPTest(t.Context(), test, exabgpCLI{timeout: 5 * time.Second})
+	if ok {
+		t.Fatal("the test passed on a host that does not carry the address its config binds")
+	}
+	if test.record.FailureType != runner.FailTypeLoopbackMissing {
+		t.Errorf("failure type = %q, want %q", test.record.FailureType, runner.FailTypeLoopbackMissing)
+	}
+	if test.record.Error == nil {
+		t.Fatal("a failed record carries no error")
+	}
+	if !strings.Contains(test.record.Error.Error(), exabgpAbsentULA) {
+		t.Errorf("error = %q, want the failing address named", test.record.Error)
+	}
+	if !strings.Contains(test.record.Error.Error(), "./le setup") {
+		t.Errorf("error = %q, want the supported route named", test.record.Error)
 	}
 }

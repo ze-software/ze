@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"os"
 	"slices"
 	"strings"
 
@@ -34,10 +35,10 @@ import (
 //
 //   - `ze-peer --bind <ip>` on a command line. ze-peer is the one binary in a
 //     fixture that takes its own source address from its arguments.
-//   - `connection { local { ip <addr> } }` inside the config the fixture embeds.
-//     Ze binds that address twice over: the dialer sends from it
-//     (internal/component/bgp/reactor/session.go, dialer.LocalAddr) and the
-//     listener opens on it when `accept` is true
+//   - the local-address leaf of the config the fixture carries, in either
+//     grammar (configLocalAddresses). Ze binds that address twice over: the
+//     dialer sends from it (internal/component/bgp/reactor/session.go,
+//     dialer.LocalAddr) and the listener opens on it when `accept` is true
 //     (internal/component/bgp/reactor/reactor_peers.go,
 //     startListenerForAddressPort). A host without it fails the same way a
 //     missing --bind address does.
@@ -103,6 +104,13 @@ func ensurePeerBindAddresses(cmds []RunCommand) error {
 // A stdin block that is not a config contributes nothing: the ze-peer block
 // holds expect/action directives, which declare no block at all.
 //
+// A config named rather than embedded is NOT read here. Record.ConfigFile
+// carries such a name, and in 166 of the fixtures that set it the name resolves
+// to a tmpfs file this process never writes to disk, so reading it would fail a
+// population that passes today. The exabgp-compat suite, whose fixtures do keep
+// their config on disk, runs its own preflight through
+// EnsureConfigFileBindAddresses.
+//
 // The order is stable so a host missing two addresses always names the same one
 // first, whatever order the maps iterate in.
 func embeddedConfigs(rec *Record) []string {
@@ -118,18 +126,67 @@ func embeddedConfigs(rec *Record) []string {
 	return configs
 }
 
-// configLocalAddresses returns the addresses a config's
-// `connection { local { ip <addr> } }` blocks declare.
+// EnsureConfigFileBindAddresses makes every address the named config files
+// declare usable, or returns the error naming what an operator must run.
 //
-// The scan is structural rather than textual, because `local` names two
-// different things in a Ze config. One is the block above. The other is a leaf
-// every fixture carries, `asn { local 65000 }`, and a pattern that reads the
-// token after `local` collects an AS number as though it were an address.
+// It is the entry point for a suite that keeps its configs on disk rather than
+// inside the `.ci`: the exabgp-compat suite writes `option=file:<name>` and
+// reads test/exabgp-compat/etc/<name>.conf (internal/test/cli/cmd_exabgp.go,
+// parseExaBGPCI). That suite has its own parser and its own runner, so it
+// cannot reach ensureBindAddresses, and it had no preflight at all: on a host
+// without fd00::2, conf-ipself6 and conf-llnh-update each spent 180 seconds
+// reaching a deadline whose only output was `Ze running`, while `./le setup
+// check` named the cause in one line
+// (plan/journal/failing-gate-prints-no-cause.md, 2026-09-02).
+//
+// It shares configLocalAddresses, loopbackCandidate and ensureLoopbackAlias
+// with the embedded path, so the two suites cannot disagree about what a config
+// binds or about which addresses this host is meant to carry.
+func EnsureConfigFileBindAddresses(paths []string) error {
+	for _, path := range paths {
+		content, err := os.ReadFile(path) //nolint:gosec // the path is built by the suite's own parser from a discovered fixture directory
+		if err != nil {
+			return fmt.Errorf("read fixture config %s: %w", path, err)
+		}
+		for _, ip := range configLocalAddresses(string(content)) {
+			// A config-declared local address is not always one this host is
+			// meant to carry, so the candidate filter decides before the probe.
+			if !loopbackCandidate(ip) {
+				continue
+			}
+			if err := ensureLoopbackAlias(ip); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// configLocalAddresses returns the addresses a config declares as its own
+// source address, in either grammar a fixture writes:
+//
+//   - Ze: `connection { local { ip <addr> } }`
+//   - ExaBGP: `local-address <addr>;` inside a neighbor block
+//
+// Both are read by one function because both answer one question, and a second
+// scanner beside this one would be free to disagree with it about what a
+// fixture binds.
+//
+// The Ze form is read structurally rather than textually, because `local` names
+// two different things there. One is the block above. The other is a leaf every
+// fixture carries, `asn { local 65000 }`, and a pattern that reads the token
+// after `local` collects an AS number as though it were an address.
 //
 // Two properties keep them apart. A block is entered only on `{`, so `local
 // 65000` opens none. An `ip` key is read only while the two innermost open
 // blocks are `connection` then `local`, so the reach of one `local` ends at its
 // own closing brace and never extends to the next `ip` in the file.
+//
+// The ExaBGP form needs no block context, because `local-address` is one token
+// and names one thing. It is not `local-as`, and it is not the `local` of
+// `asn { local }`, so the ambiguity the paragraph above guards against does not
+// arise. `local-link-local` is a different token again and is not collected;
+// its fe80::/10 value would fail loopbackCandidate in any case.
 func configLocalAddresses(config string) []net.IP {
 	var (
 		found []net.IP
@@ -149,7 +206,7 @@ func configLocalAddresses(config string) []net.IP {
 		case ";":
 			prev = ""
 		default:
-			if prev == "ip" && inConnectionLocal(open) {
+			if (prev == "ip" && inConnectionLocal(open)) || prev == "local-address" {
 				if ip := net.ParseIP(token); ip != nil {
 					found = append(found, ip)
 				}

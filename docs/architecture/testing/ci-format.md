@@ -728,14 +728,22 @@ an ordinary user. A test that binds an address this host does not carry fails at
 once with `loopback_address_missing` and the command to run, rather than timing
 out on a bind that could not succeed.
 
-The check reads both places a fixture names an address it binds. One is
-`ze-peer --bind <ip>` on a `cmd=` line. The other is `connection { local { ip
+The check reads the three places a fixture names an address it binds. One is
+`ze-peer --bind <ip>` on a `cmd=` line. The second is `connection { local { ip
 <addr> } }` in the config the fixture embeds: Ze sends from that address and
-listens on it when `accept` is true, so the host must carry it too. A local
-address outside 127.0.0.0/8 and fc00::/7 is left alone. A config-validation
-fixture names a routable one (`local { ip 192.0.2.1 }`), the daemon exits before
-it binds anything, and `./le setup install` adds no such address.
-<!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
+listens on it when `accept` is true, so the host must carry it too. The third is
+`local-address <addr>;` in an ExaBGP-syntax config the exabgp-compat suite keeps
+beside its `.ci` and names with `option=file:`. That suite has a parser and a
+runner of its own, so it calls the same scan through
+`EnsureConfigFileBindAddresses` rather than through the embedded path.
+
+A local address outside 127.0.0.0/8 and fc00::/7 is left alone. A
+config-validation fixture names a routable one (`local { ip 192.0.2.1 }`), the
+daemon exits before it binds anything, and `./le setup install` adds no such
+address. The `local-link-local fe80::1` leaf that sits beside `local-address` in
+an exabgp-compat config is left alone for the same reason.
+<!-- source: internal/test/runner/loopback.go -- probe, error text, --bind, config-local and local-address scan -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- runOneExaBGPTest, the exabgp-compat preflight call -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
 <!-- source: internal/le/setup/actions.go -- Answer -->

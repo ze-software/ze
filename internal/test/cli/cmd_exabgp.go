@@ -456,6 +456,19 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 	rec.State = runner.StateRunning
 	rec.StartTime = time.Now()
 
+	// Make the addresses this fixture's config binds usable before either
+	// process starts. A host missing one used to learn it only from the test's
+	// own deadline: ze wrote `Ze running`, never reached its local-address, and
+	// the runner reported `context deadline exceeded` 180 seconds later with no
+	// cause and no fix in the output.
+	if err := runner.EnsureConfigFileBindAddresses(test.configs); err != nil {
+		rec.State = runner.StateFail
+		rec.Duration = time.Since(rec.StartTime)
+		rec.Error = err
+		rec.FailureType = runner.FailTypeLoopbackMissing
+		return false, exabgpRunDetail{}
+	}
+
 	testCtx, cancel := context.WithTimeout(ctx, cli.timeout)
 	defer cancel()
 
