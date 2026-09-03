@@ -429,15 +429,20 @@ func (m Model) View() tea.View {
 
 	baseView := textbuf.Join(lines, "\n")
 
+	// The explanation region: what Tab reveals once the candidate list is
+	// exhausted, and what ? reveals for the highlighted candidate
+	// (model_help_level.go).
+	//
+	// It is tested before the menu because revealLevel ranks it above the menu.
+	// The menu stays open underneath, so one Escape takes off the explanation
+	// and the candidate list is on the screen again.
+	if m.revealLevel() == revealExplanation {
+		return altView(m.overlayExplanation(baseView), nil)
+	}
+
 	// Overlay dropdown if showing
 	if m.showDropdown && len(m.completions) > 0 {
 		return altView(m.overlayDropdown(baseView), nil)
-	}
-
-	// The explanation region: what Tab reveals once the candidate list is
-	// exhausted (model_help_level.go).
-	if m.revealLevel() == revealExplanation {
-		return altView(m.overlayExplanation(baseView), nil)
 	}
 
 	// Help overlay
@@ -543,7 +548,15 @@ func (m Model) warningText() (string, lipgloss.Style) {
 	if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
 		// A plugin declares this text, so it is bounded to one row before it
 		// reaches the terminal.
-		return oneRow(m.completions[m.selected].Description), dimStyle
+		summary := oneRow(m.completions[m.selected].Description)
+		// The box already holds this text when the node declares only ONE, and
+		// every config node declares one. Repeating it here says nothing the box
+		// has not said, and the copy on this row is the one a terminal edge cuts.
+		// A command declares two, so its summary and its explanation differ and
+		// both belong on the screen.
+		if summary != "" && summary != oneRow(m.explanation) {
+			return summary, dimStyle
+		}
 	}
 	// Validation hints
 	if hint := m.validationHintLine(); hint != "" {
@@ -607,9 +620,9 @@ func (m Model) overlayDropdown(base string) string {
 }
 
 // overlayExplanation renders the explanation region as a floating overlay on the
-// base view, in the place and with the bounds the dropdown uses. The two are
-// never on the screen together: the explanation is revealed only once the
-// candidate list is empty (model_help_level.go).
+// base view, in the place and with the bounds the dropdown uses. One box is
+// drawn at a time, and the explanation is the one View draws when both are
+// revealed (model_help_level.go).
 func (m Model) overlayExplanation(base string) string {
 	promptLine, availableAbove := promptAnchor(base)
 	return placeAbovePrompt(base, m.renderExplanationBox(availableAbove), promptLine)

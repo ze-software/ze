@@ -417,7 +417,7 @@ func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.RowRecord] {
 		var encoded rpc.RawRow
 
 		for _, cmd := range dispatcher.Commands() {
-			row := Completion{Value: cmd.Name, Help: cmd.Help}
+			row := Completion{Value: cmd.Name, Help: cmd.Help, LongHelp: cmd.LongHelp}
 			if verbose {
 				row.Source = sourceBuiltin
 			}
@@ -426,7 +426,7 @@ func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.RowRecord] {
 			}
 		}
 		for _, cmd := range dispatcher.Registry().All() {
-			row := Completion{Value: cmd.Name, Help: cmd.Description, Hidden: cmd.Hidden}
+			row := Completion{Value: cmd.Name, Help: cmd.Description, Hidden: cmd.Hidden, LongHelp: cmd.LongHelp}
 			if verbose {
 				row.Source = cmd.Process.Name()
 			}

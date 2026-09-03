@@ -18,17 +18,25 @@ import (
 // breaks its author wrote.
 const peerListHelp = "List every peer this daemon knows.\nOne row per peer, in configuration order."
 
-// tabTestModel returns an operational-mode model over a two-command tree.
-// "peer list" declares a long explanation and "peer lock" declares none, so one
-// tree serves both the reveal and the nothing-invented tests.
+// peerResetHelp is the long explanation the test tree declares for "peer reset".
+// Two siblings declare different explanations, so a test reads which candidate
+// an explanation came from.
+const peerResetHelp = "Reset the session of one peer.\nThe peer reconnects on its own timer."
+
+// tabTestModel returns an operational-mode model over a three-command tree.
+// "peer list" and "peer reset" declare different long explanations, and "peer
+// lock" declares none. One tree therefore serves the reveal tests, the tests
+// that read WHICH candidate an explanation came from, and the
+// nothing-invented tests.
 func tabTestModel(t *testing.T) *Model {
 	t.Helper()
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
 			"peer": {Name: "peer", Description: "Peer operations", Children: map[string]*commandNode{
-				"list": {Name: "list", Description: "List peers", Help: peerListHelp},
-				"lock": {Name: "lock", Description: "Lock a peer"},
+				"list":  {Name: "list", Description: "List peers", Help: peerListHelp},
+				"lock":  {Name: "lock", Description: "Lock a peer"},
+				"reset": {Name: "reset", Description: "Reset a peer", Help: peerResetHelp},
 			}},
 		},
 	}))
@@ -288,18 +296,18 @@ func TestTypingDismissesHelpAndReachesTheInput(t *testing.T) {
 
 	t.Run("a rune at the menu", func(t *testing.T) {
 		menu := menuModel(t)
-		// ? writes the selected candidate's summary as a hint of its own. The
-		// menu still holds two candidates, so updateCompletions leaves that
-		// hint alone and only the key handler can take it off.
-		asked, _ := pressKey(t, &menu, tea.KeyPressMsg{Code: '?', Text: "?"})
-		if !strings.Contains(asked.MessageHint(), "list: ") {
-			t.Fatalf("precondition: message line = %q, want the ? hint", asked.MessageHint())
+		// ? reveals the explanation of the highlighted candidate over the menu.
+		// The menu still holds three candidates, so updateCompletions leaves
+		// that reveal alone and only the key handler can take it off.
+		asked := pressQuestionMark(t, &menu)
+		if asked.Explanation() != peerListHelp {
+			t.Fatalf("precondition: explanation = %q, want the candidate's", asked.Explanation())
 		}
 
 		typed, _ := pressKey(t, &asked, tea.KeyPressMsg{Code: 'l', Text: "l"})
 
-		if strings.Contains(typed.MessageHint(), "list: ") {
-			t.Errorf("message line = %q, want the hint dismissed by the rune", typed.MessageHint())
+		if typed.Explanation() != "" {
+			t.Errorf("explanation = %q, want it dismissed by the rune", typed.Explanation())
 		}
 
 		if typed.InputValue() != "peer l" {
@@ -433,4 +441,266 @@ func runCommand(t *testing.T, cmd tea.Cmd) {
 		return
 	}
 	cmd()
+}
+
+// pressQuestionMark presses ? once and returns the model the dispatch produced.
+func pressQuestionMark(t *testing.T, m *Model) Model {
+	t.Helper()
+	asked, _ := pressKey(t, m, tea.KeyPressMsg{Code: '?', Text: "?"})
+	return asked
+}
+
+// TestQuestionMarkRevealsTheSelectedCandidateExplanation covers what an operator
+// asks for when they highlight a name and press ?.
+//
+// VALIDATES: ? opens the explanation box on the CANDIDATE the selection points
+// at, and the selection decides which text arrives.
+// PREVENTS: the explanation of the typed path, or of another candidate, being
+// shown for the name the operator highlighted.
+func TestQuestionMarkRevealsTheSelectedCandidateExplanation(t *testing.T) {
+	t.Run("the first candidate", func(t *testing.T) {
+		menu := menuModel(t)
+
+		asked := pressQuestionMark(t, &menu)
+
+		if asked.Explanation() != peerListHelp {
+			t.Errorf("explanation = %q, want %q", asked.Explanation(), peerListHelp)
+		}
+		if asked.revealLevel() != revealExplanation {
+			t.Errorf("reveal level = %d, want revealExplanation", asked.revealLevel())
+		}
+	})
+
+	t.Run("a later candidate", func(t *testing.T) {
+		menu := menuModel(t)
+		// Tab cycles the selection, so two presses move it from "list" to
+		// "reset". Both declare an explanation, and they declare different ones.
+		moved := pressTab(t, &menu)
+		moved = pressTab(t, &moved)
+		if moved.Completions()[moved.SelectedIndex()].Text != "reset" {
+			t.Fatalf("precondition: selection is %q, want reset",
+				moved.Completions()[moved.SelectedIndex()].Text)
+		}
+
+		asked := pressQuestionMark(t, &moved)
+
+		if asked.Explanation() != peerResetHelp {
+			t.Errorf("explanation = %q, want %q", asked.Explanation(), peerResetHelp)
+		}
+		if asked.Explanation() == peerListHelp {
+			t.Error("explanation belongs to another candidate")
+		}
+	})
+}
+
+// TestQuestionMarkOnACandidateWithNoExplanationInventsNothing covers the
+// candidate whose author wrote no long text.
+//
+// VALIDATES: the level stays at the menu, and the message line says no
+// explanation is declared.
+// PREVENTS: an empty box, which reads as an author who wrote nothing rather
+// than as an undeclared explanation.
+func TestQuestionMarkOnACandidateWithNoExplanationInventsNothing(t *testing.T) {
+	menu := menuModel(t)
+	moved := pressTab(t, &menu)
+	if moved.Completions()[moved.SelectedIndex()].Text != "lock" {
+		t.Fatalf("precondition: selection is %q, want lock",
+			moved.Completions()[moved.SelectedIndex()].Text)
+	}
+
+	asked := pressQuestionMark(t, &moved)
+
+	if asked.Explanation() != "" {
+		t.Errorf("explanation = %q, want none for a candidate that declares none", asked.Explanation())
+	}
+	if asked.revealLevel() != revealCandidates {
+		t.Errorf("reveal level = %d, want revealCandidates", asked.revealLevel())
+	}
+	hint := asked.MessageHint()
+	if !strings.Contains(hint, "peer lock") {
+		t.Errorf("message line = %q, want it to name the candidate", hint)
+	}
+	if !strings.Contains(hint, "no explanation") {
+		t.Errorf("message line = %q, want it to say no explanation is declared", hint)
+	}
+}
+
+// TestQuestionMarkOnASingleGhostMatchRevealsItsExplanation covers the reveal
+// with no menu on the screen.
+//
+// VALIDATES: ? reads the one candidate ghost text is offering, and explains the
+// command that candidate would produce.
+// PREVENTS: an explanation read for the half-typed word, which names no command.
+func TestQuestionMarkOnASingleGhostMatchRevealsItsExplanation(t *testing.T) {
+	m := tabTestModel(t)
+	m.width = 100
+	m.height = 24
+	m.textInput.SetValue("peer lis")
+	m.updateCompletions()
+	if len(m.Completions()) != 1 || m.GhostText() == "" {
+		t.Fatalf("precondition: %d candidates and ghost text %q, want one and some",
+			len(m.Completions()), m.GhostText())
+	}
+
+	asked := pressQuestionMark(t, m)
+
+	if asked.Explanation() != peerListHelp {
+		t.Errorf("explanation = %q, want %q", asked.Explanation(), peerListHelp)
+	}
+}
+
+// TestQuestionMarkWithNoCandidateCompletes covers the fall-through.
+//
+// VALIDATES: with no candidate singled out, ? does what Tab does.
+// PREVENTS: ? becoming a dead key at the state where the operator still has
+// something to complete.
+func TestQuestionMarkWithNoCandidateCompletes(t *testing.T) {
+	m := tabTestModel(t)
+	m.width = 100
+	m.height = 24
+	m.textInput.SetValue("peer ")
+	m.updateCompletions()
+	if m.ShowDropdown() {
+		t.Fatal("precondition: the menu must be closed")
+	}
+
+	asked := pressQuestionMark(t, m)
+
+	if !asked.ShowDropdown() {
+		t.Error("the menu is closed, want ? to open it as Tab does")
+	}
+	if asked.SelectedIndex() != 0 {
+		t.Errorf("selection = %d, want the first candidate", asked.SelectedIndex())
+	}
+}
+
+// TestEscapeAtTheExplanationOverTheMenuLeavesTheMenu covers AC-5 in the state
+// the operator reaches with ?.
+//
+// VALIDATES: one Escape takes off the explanation alone, and the menu it was
+// drawn over is still open.
+// PREVENTS: Escape closing both, which costs the operator the candidate list
+// they were reading.
+func TestEscapeAtTheExplanationOverTheMenuLeavesTheMenu(t *testing.T) {
+	menu := menuModel(t)
+	asked := pressQuestionMark(t, &menu)
+	if asked.revealLevel() != revealExplanation {
+		t.Fatalf("precondition: reveal level = %d, want revealExplanation", asked.revealLevel())
+	}
+
+	next, _ := pressKey(t, &asked, tea.KeyPressMsg{Code: tea.KeyEscape})
+
+	if next.Explanation() != "" {
+		t.Errorf("explanation = %q, want it taken off", next.Explanation())
+	}
+	if !next.ShowDropdown() {
+		t.Error("the menu closed, want Escape to take off the explanation alone")
+	}
+	if next.revealLevel() != revealCandidates {
+		t.Errorf("reveal level = %d, want revealCandidates", next.revealLevel())
+	}
+}
+
+// showTestModel returns an operational-mode model whose tree is rooted at a verb
+// the config editor also owns. `show` means the same thing in both modes, so an
+// editor-backed model must still complete it from the COMMAND tree.
+func showTestModel(t *testing.T) *Model {
+	t.Helper()
+	m := newTestModel(t)
+	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
+		Children: map[string]*commandNode{
+			"show": {Name: "show", Description: "Show operational state", Children: map[string]*commandNode{
+				"version": {Name: "version", Description: "Show the version", Help: "Prints the release this daemon runs."},
+			}},
+		},
+	}))
+	m.switchMode(ModeOperational)
+	return m
+}
+
+// TestRevealWorksForAVerbTheConfigEditorAlsoOwns covers the regression an editor
+// on the attached console exposed.
+//
+// VALIDATES: completesFromYANG subtracts the verbs that mean the same thing in
+// both modes, so `show ...` reaches the command completer and its explanation is
+// reachable.
+// PREVENTS: ? and Tab returning in silence for every `show` command the moment a
+// model carries a config completer, which is what `ze start --cli` gained.
+func TestRevealWorksForAVerbTheConfigEditorAlsoOwns(t *testing.T) {
+	m := showTestModel(t)
+	if m.completer == nil {
+		t.Fatal("precondition: this model must carry a config completer")
+	}
+
+	m.textInput.SetValue("show version ")
+	if _, ok := m.commandCompleterInput(); !ok {
+		t.Fatal("the command completer must answer for a show command")
+	}
+	m.updateCompletions()
+
+	updated := pressTab(t, m)
+
+	if updated.Explanation() != "Prints the release this daemon runs." {
+		t.Errorf("explanation = %q, want the declared text", updated.Explanation())
+	}
+}
+
+// TestQuestionMarkRevealsAConfigCandidateDescription covers the config editor,
+// where `?` used to be a dead key.
+//
+// A config node declares ONE text, its YANG description. Many of them are a
+// paragraph. The message row holds one line, so it shows that paragraph cut to
+// the width of the terminal. The operator has nowhere to read the rest.
+//
+// VALIDATES: ? on a config candidate puts that node's declared description in
+// the box, whole.
+// PREVENTS: the silent return the command-completer guard produced in config
+// mode, which is the dead key an operator reported.
+func TestQuestionMarkRevealsAConfigCandidateDescription(t *testing.T) {
+	const summary = "Classical admin distance stamped on BGP best-paths."
+
+	m := newTestModel(t)
+	if m.mode != ModeConfig {
+		t.Fatalf("precondition: mode = %v, want config", m.mode)
+	}
+	m.textInput.SetValue("set bgp ")
+	m.completions = []Completion{{Text: "admin-distance", Description: summary, Type: completionKeyword}}
+	m.showDropdown = true
+	m.selected = 0
+
+	revealed, _ := pressKey(t, m, tea.KeyPressMsg{Code: '?', Text: "?"})
+
+	if revealed.Explanation() != summary {
+		t.Errorf("explanation = %q, want the declared description", revealed.Explanation())
+	}
+	if revealed.revealLevel() != revealExplanation {
+		t.Errorf("reveal level = %d, want revealExplanation", revealed.revealLevel())
+	}
+	if !strings.Contains(revealed.View().Content, "admin-distance") {
+		t.Error("the box does not name the config path it explains")
+	}
+}
+
+// TestQuestionMarkOnAConfigCandidateWithNoDescriptionInventsNothing is the other
+// half of the branch above.
+//
+// VALIDATES: a config candidate that declares no description leaves the level
+// where it is and says so, rather than returning in silence.
+// PREVENTS: a key that does nothing and states nothing.
+func TestQuestionMarkOnAConfigCandidateWithNoDescriptionInventsNothing(t *testing.T) {
+	m := newTestModel(t)
+	m.textInput.SetValue("set bgp ")
+	m.completions = []Completion{{Text: "undocumented", Type: completionKeyword}}
+	m.showDropdown = true
+	m.selected = 0
+
+	revealed, _ := pressKey(t, m, tea.KeyPressMsg{Code: '?', Text: "?"})
+
+	if revealed.Explanation() != "" {
+		t.Errorf("explanation = %q, want none for a node that declares none", revealed.Explanation())
+	}
+	hint := revealed.MessageHint()
+	if !strings.Contains(hint, "undocumented") || !strings.Contains(hint, "no explanation") {
+		t.Errorf("message line = %q, want it to name the path and say none is declared", hint)
+	}
 }

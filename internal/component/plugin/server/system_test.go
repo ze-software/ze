@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
@@ -295,5 +296,59 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 			s.Stop()
 			require.NoError(t, s.Wait(testCtx))
 		})
+	}
+}
+
+// TestCommandRowsCarryLongHelp: `system command list` is the only answer the
+// attached console of `ze start --cli` builds its command tree from. The long
+// explanation therefore travels on it, beside the summary. A command that
+// declares no explanation yields a row without the key. That is how the console
+// tells an unwritten explanation from a written one.
+//
+// VALIDATES: the command list carries the explanation of a builtin and of a
+// registered plugin command.
+// PREVENTS: `?` in the attached console answering "no explanation is declared"
+// for every command.
+func TestCommandRowsCarryLongHelp(t *testing.T) {
+	d := NewDispatcher()
+	handler := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+	d.RegisterWithOptions("show explained", handler, "Show the explained thing",
+		RegisterOptions{LongHelp: "The explanation a builtin declares."})
+	d.Register("show bare", handler, "Show the bare thing")
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+	for _, result := range d.Registry().Register(proc, []CommandDef{
+		{Name: "request explained", Description: "Explained plugin command", LongHelp: "The explanation a plugin declares."},
+		{Name: "request bare", Description: "Bare plugin command"},
+	}) {
+		require.True(t, result.OK, "register %s: %s", result.Name, result.Error)
+	}
+
+	rows := make(map[string]map[string]any)
+	for record := range rpc.HeldRecords(commandRows(d, false)) {
+		require.Nil(t, record.Fault, "commandRows yielded a rejected row")
+		var row map[string]any
+		require.NoError(t, json.Unmarshal(record.Item, &row))
+		value, _ := row["value"].(string)
+		rows[value] = row
+	}
+
+	declared := map[string]string{
+		"show explained":    "The explanation a builtin declares.",
+		"request explained": "The explanation a plugin declares.",
+	}
+	for name, want := range declared {
+		row, ok := rows[name]
+		require.True(t, ok, "no row for %q", name)
+		assert.Equal(t, want, row["long-help"], "long-help of %q", name)
+	}
+
+	for _, name := range []string{"show bare", "request bare"} {
+		row, ok := rows[name]
+		require.True(t, ok, "no row for %q", name)
+		_, present := row["long-help"]
+		assert.False(t, present, "row for %q carries long-help, want the key absent", name)
 	}
 }

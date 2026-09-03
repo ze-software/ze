@@ -211,21 +211,15 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.handleTab()
 
 	case key.Text == "?":
-		// ? shows full description when dropdown is open, otherwise triggers completion like Tab
-		// Show description of selected item in dropdown
-		if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
-			comp := m.completions[m.selected]
-			var tb textbuf.Buffer
-			m.completionHint = tb.Str(comp.Text).Str(": ").Str(comp.Description).String()
-			m.completionHintDim = false
-			return m, nil
-		}
-		// Show description of single ghost-text match
-		if len(m.completions) == 1 && m.ghostText != "" {
-			comp := m.completions[0]
-			var tb textbuf.Buffer
-			m.completionHint = tb.Str(comp.Text).Str(": ").Str(comp.Description).String()
-			m.completionHintDim = false
+		// ? reveals the long explanation of the candidate the operator has
+		// singled out, in the box Tab opens. The candidate's summary is
+		// already on message line 2, read from the selection (model_render.go
+		// warningText), so this key adds the text that row cannot hold.
+		//
+		// With no candidate singled out there is nothing to explain, so ? does
+		// what Tab does.
+		if comp, ok := m.selectedCandidate(); ok {
+			m.revealCandidateExplanation(comp)
 			return m, nil
 		}
 		return m.handleTab()
@@ -333,16 +327,55 @@ func (m *Model) revealExplanation() {
 		return
 	}
 
-	// A pipe operator explains nothing about the command, so the subject is the
-	// part before the first one. TreeCompleter.Explain cuts the same way.
-	base, _, _ := strings.Cut(input, "|")
-	subject := textbuf.Join(strings.Fields(base), " ")
-	if subject == "" {
+	m.revealExplanationOf(input)
+}
+
+// selectedCandidate answers the candidate the operator has singled out. That is
+// the menu selection while the menu is open, and the one match ghost text offers
+// while the menu is closed. It answers false when they singled out none.
+func (m Model) selectedCandidate() (Completion, bool) {
+	if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
+		return m.completions[m.selected], true
+	}
+	if len(m.completions) == 1 && m.ghostText != "" {
+		return m.completions[0], true
+	}
+	return Completion{}, false
+}
+
+// revealCandidateExplanation puts the long explanation of one CANDIDATE on the
+// screen. The operator has typed a prefix and highlighted a name. So the command
+// to explain is the one the candidate would produce, and never the text now in
+// the prompt.
+func (m *Model) revealCandidateExplanation(comp Completion) {
+	if input, ok := m.commandCompleterInput(); ok {
+		m.revealExplanationOf(completedInput(input, comp.Text))
 		return
 	}
 
-	text, declared := m.commandCompleter.Explain(input)
-	if !declared {
+	// The command completer is not the source, so the candidate is a config
+	// path. A config node declares ONE text, its YANG description, and it is
+	// often a paragraph. The message row holds one line, so the box is the only
+	// place that text fits whole.
+	m.revealDeclared(subjectOf(completedInput(m.textInput.Value(), comp.Text)), comp.Description)
+}
+
+// subjectOf names the command or the config path an explanation is about. A
+// pipe operator explains nothing about it, so the subject is the part before
+// the first one. TreeCompleter.Explain cuts the same way.
+func subjectOf(input string) string {
+	base, _, _ := strings.Cut(input, "|")
+	return textbuf.Join(strings.Fields(base), " ")
+}
+
+// revealDeclared puts one declared text on the screen for one subject. An empty
+// text is the subject declaring none, and the message row says which rather
+// than leaving the operator with a key that did nothing.
+func (m *Model) revealDeclared(subject, text string) {
+	if subject == "" {
+		return
+	}
+	if text == "" {
 		// Silence would leave the operator unable to tell an undeclared
 		// explanation from a dead key, so the message line says which it is.
 		// It reads "<command>: <what>", the shape the ? hint uses.
@@ -351,9 +384,16 @@ func (m *Model) revealExplanation() {
 		m.completionHintDim = true
 		return
 	}
-
 	m.explanation = text
 	m.explanationSubject = subject
+}
+
+// revealExplanationOf puts the long explanation of one command on the screen.
+// The caller states which command: the text in the prompt for Tab, and the text
+// the highlighted candidate would produce for ?.
+func (m *Model) revealExplanationOf(input string) {
+	text, _ := m.commandCompleter.Explain(input)
+	m.revealDeclared(subjectOf(input), text)
 }
 
 // handleShiftTab handles Shift+Tab key press.

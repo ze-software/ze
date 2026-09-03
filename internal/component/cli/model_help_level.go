@@ -26,9 +26,9 @@ const (
 // revealLevel answers what is on the screen now. It reads the field that owns
 // each row.
 //
-// The explanation wins, because the two are never on screen together. Tab
-// reveals it only once the candidate list is empty, and updateCompletions hides
-// the menu whenever one candidate or none is left.
+// The explanation wins, and View draws it in that order. ? reveals the
+// explanation of a candidate with the menu open, so the menu waits under the
+// box until one Escape takes the box off.
 func (m Model) revealLevel() revealLevel {
 	if m.explanation != "" {
 		return revealExplanation

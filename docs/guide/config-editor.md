@@ -159,15 +159,29 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
 - Valid config keys at the current level
 - Enum values for leaf nodes
 - Address family names from registered plugins
-<!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions -->
+- The keys of a list whose key is an enumeration, including the ones the config
+  does not hold yet, each with the help text the schema declares
+- Well-known values a plugin offers for one of its own leaves, such as the
+  transit-free ASNs on `bgp policy reject-asn ... via`
+<!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, listKeyCompletions -->
+
+**A suggestion is never a constraint.** A leaf that offers well-known values
+still accepts every value its YANG type admits, so an ASN outside the offered
+set is entered and committed with no warning.
 
 A menu row is the config key alone. The second message line above the prompt
 shows the description of the selected key.
 <!-- source: internal/component/cli/model_render.go -- renderDropdownBox, warningText -->
 
-Tab on a config path that is complete reveals no explanation, because a config
-leaf declares no long form. Operational command help is reachable from
-configuration mode behind `run `, and the keys are in the
+Press `?` on a highlighted key to read that description WHOLE, in a box above
+the prompt. A YANG description is often a paragraph, and the message line holds
+one row, so the box is the only place the whole text fits. A key that declares
+no description says so on the message line.
+<!-- source: internal/component/cli/model_keys.go -- revealCandidateExplanation, revealDeclared -->
+
+A config node declares one text and a command declares two, so Tab on a
+complete config path reveals nothing more to read. Operational command help is
+reachable from configuration mode behind `run `, and the keys are in the
 [CLI guide](cli.md#keys-that-reveal-help).
 <!-- source: internal/component/cli/model.go -- commandCompleterInput -->
 

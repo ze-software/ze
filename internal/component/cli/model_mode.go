@@ -130,6 +130,22 @@ func isOperationalVerb(input string) bool {
 	return false
 }
 
+// completesFromYANG says the config completer, and not the command completer,
+// answers for this input in OPERATIONAL mode.
+//
+// It subtracts the verbs that mean the same thing in both modes. handleEnter
+// makes that subtraction already, so `show bgp summary` typed in operational
+// mode RUNS operationally. Without it here, completion sent that input to YANG
+// while dispatch sent it to the daemon. The two then disagreed about what the
+// operator was typing.
+//
+// The disagreement was unreachable while only the SSH model held a config
+// completer. `ze start --cli` gained one. That console then completed `show`
+// against the config tree, and it explained none of it.
+func completesFromYANG(input string) bool {
+	return isConfigCommandWithArgs(input) && !isOperationalVerb(input)
+}
+
 // isConfigCommand returns true if the input starts with a config editing command.
 func isConfigCommand(input string) bool {
 	fields := strings.Fields(input)

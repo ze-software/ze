@@ -1283,3 +1283,57 @@ func TestWrapForBoxReadsNoMoreRowsThanAsked(t *testing.T) {
 		}
 	}
 }
+
+// TestExplanationDrawsOverTheOpenMenu covers what ? puts on the screen.
+//
+// VALIDATES: View draws the explanation while the completion menu is open, so
+// the box the operator asked for is the box they see.
+// PREVENTS: View testing showDropdown first, which draws the menu over an
+// explanation revealLevel already ranks above it, and leaves ? looking dead.
+func TestExplanationDrawsOverTheOpenMenu(t *testing.T) {
+	menu := menuModel(t)
+	asked := pressQuestionMark(t, &menu)
+	if asked.revealLevel() != revealExplanation {
+		t.Fatalf("precondition: reveal level = %d, want revealExplanation", asked.revealLevel())
+	}
+	if !asked.ShowDropdown() {
+		t.Fatal("precondition: the menu must still be open")
+	}
+
+	view := asked.View().Content
+
+	if !strings.Contains(view, "One row per peer") {
+		t.Errorf("view does not draw the explanation:\n%s", view)
+	}
+}
+
+// TestTheMessageRowDoesNotRepeatTheBox covers a config node, which declares one
+// text and no more.
+//
+// VALIDATES: while the box holds a candidate's only declared text, message line
+// 2 does not carry the same words.
+// PREVENTS: the same paragraph twice on screen, wrapped in the box and cut at
+// the terminal edge on the row.
+func TestTheMessageRowDoesNotRepeatTheBox(t *testing.T) {
+	const only = "BGP Router ID (required). RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, NON-ZERO integer."
+
+	m := Model{
+		completions:        []Completion{{Text: "router-id", Description: only, Type: "keyword"}},
+		selected:           0,
+		showDropdown:       true,
+		explanation:        only,
+		explanationSubject: "set bgp router-id",
+		width:              100,
+		height:             24,
+	}
+
+	if got := m.MessageHint(); strings.Contains(got, "BGP Router ID") {
+		t.Errorf("message row = %q, want it silent while the box holds the same text", got)
+	}
+
+	// A command declares two texts, so both belong on the screen.
+	m.completions[0].Description = "Set the BGP router identifier"
+	if got := m.MessageHint(); got != "Set the BGP router identifier" {
+		t.Errorf("message row = %q, want the summary when it differs from the box", got)
+	}
+}

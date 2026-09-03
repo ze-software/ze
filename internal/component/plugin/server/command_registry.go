@@ -117,6 +117,10 @@ type Completion struct {
 	Help   string `json:"help,omitempty"`   // Optional description
 	Source string `json:"source,omitempty"` // "builtin" or process name (verbose mode)
 	Hidden bool   `json:"hidden,omitempty"` // Hidden from completion tree (works when typed in full)
+	// LongHelp is the explanation the command's own help page prints. Empty
+	// means the command declares none, and the key is then absent. It is NEVER
+	// read as a summary, and no one-line surface reads it at all.
+	LongHelp string `json:"long-help,omitempty"`
 }
 
 // CommandDef describes a command to register.

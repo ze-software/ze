@@ -695,21 +695,31 @@ func (m *Model) applyCompletion(comp Completion) {
 		return
 	}
 
-	input := m.textInput.Value()
+	m.textInput.SetValue(completedInput(m.textInput.Value(), comp.Text))
+	m.textInput.CursorEnd()
+}
+
+// completedInput answers the text a candidate produces when it is applied to
+// the input now typed. A trailing word with no space after it is what the
+// operator is still typing, so the candidate REPLACES it. Otherwise the
+// candidate is appended.
+//
+// applyCompletion writes this text into the prompt, and the ? reveal
+// (model_keys.go) asks the completer to explain it. One function answers for
+// both, so an explanation always describes the command the candidate would
+// produce.
+func completedInput(input, text string) string {
 	words := tokenizeCommand(input)
 
 	var tb textbuf.Buffer
 	if len(words) > 0 && !strings.HasSuffix(input, " ") {
-		words[len(words)-1] = comp.Text
-		m.textInput.SetValue(tb.Str(joinTokensWithQuotes(words)).Byte(' ').String())
-	} else {
-		if strings.ContainsAny(comp.Text, " \t\"") {
-			m.textInput.SetValue(tb.Str(input).Byte('"').Str(comp.Text).Str("\" ").String())
-		} else {
-			m.textInput.SetValue(tb.Reset().Str(input).Str(comp.Text).Byte(' ').String())
-		}
+		words[len(words)-1] = text
+		return tb.Str(joinTokensWithQuotes(words)).Byte(' ').String()
 	}
-	m.textInput.CursorEnd()
+	if strings.ContainsAny(text, " \t\"") {
+		return tb.Str(input).Byte('"').Str(text).Str("\" ").String()
+	}
+	return tb.Str(input).Str(text).Byte(' ').String()
 }
 
 // commandCompleterInput answers the text the command completer reads for the
@@ -740,7 +750,7 @@ func (m Model) commandCompleterInput() (string, bool) {
 		return input[len(cmdRun)+1:], true
 	}
 
-	if isConfigCommandWithArgs(input) && m.completer != nil {
+	if completesFromYANG(input) && m.completer != nil {
 		// A config command with arguments is completed from YANG.
 		return "", false
 	}
@@ -769,7 +779,7 @@ func (m *Model) updateCompletions() {
 			m.ghostText = m.commandCompleter.GhostText(commandArgs)
 		}
 
-	case m.mode == ModeOperational && isConfigCommandWithArgs(input) && m.completer != nil:
+	case m.mode == ModeOperational && completesFromYANG(input) && m.completer != nil:
 		// Operational mode with a full config command followed by args: YANG completions.
 		m.completions = m.completer.Complete(input, m.contextPath)
 		m.ghostText = m.completer.GhostText(input, m.contextPath)

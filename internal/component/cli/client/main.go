@@ -813,30 +813,64 @@ func mergeArgDefs(dst, src *Command) {
 	}
 }
 
-// applyDescriptions walks the command tree and sets Description on leaf nodes
-// whose full command path matches a key in the descriptions map. This propagates
-// help text from plugin CommandDecl through the daemon's "system command list".
-func applyDescriptions(root *Command, descriptions map[string]string) {
-	if root == nil || len(descriptions) == 0 {
-		return
+// nodeAtPath returns the node the space-separated command path names, and nil
+// when the tree holds no such path. It is the ONE descent in this package. The
+// caller that writes a summary and the caller that writes an explanation can
+// never find two different nodes for one path.
+func nodeAtPath(root *Command, path string) *Command {
+	if root == nil {
+		return nil
 	}
-	for path, desc := range descriptions {
-		parts := strings.Fields(path)
-		node := root
-		for _, part := range parts {
-			if node.Children == nil {
-				node = nil
-				break
-			}
-			child, ok := node.Children[part]
-			if !ok {
-				node = nil
-				break
-			}
-			node = child
+	parts := strings.Fields(path)
+	if len(parts) == 0 {
+		return nil // A path that names no command names the root.
+	}
+	node := root
+	for _, part := range parts {
+		if node.Children == nil {
+			return nil
 		}
+		child, ok := node.Children[part]
+		if !ok {
+			return nil
+		}
+		node = child
+	}
+	return node
+}
+
+// applyDescriptions sets Description on each node whose full command path
+// matches a key in the descriptions map. A node that already states a summary
+// keeps it.
+func applyDescriptions(root *Command, descriptions map[string]string) {
+	for path, description := range descriptions {
+		node := nodeAtPath(root, path)
 		if node != nil && node.Description == "" {
-			node.Description = desc
+			node.Description = description
+		}
+	}
+}
+
+// applyCommandText writes both texts the daemon's "system command list" answer
+// carries onto the node each entry names. The summary lands on Description,
+// which every one-line surface reads, and the explanation on Help, which the
+// command's help page and the `?` key read. It applies to a builtin and to a
+// plugin command alike.
+//
+// ONE walk carries both, so the node that takes the summary is the node that
+// takes the explanation. A field already written is left alone, and a path the
+// tree does not hold is skipped: injectPluginCommands creates such a node.
+func applyCommandText(root *Command, entries []commandEntry) {
+	for _, entry := range entries {
+		node := nodeAtPath(root, entry.Value)
+		if node == nil {
+			continue
+		}
+		if node.Description == "" {
+			node.Description = entry.Help
+		}
+		if node.Help == "" {
+			node.Help = entry.LongHelp
 		}
 	}
 }
@@ -873,13 +907,9 @@ func buildRuntimeTree(client *cliClient) *Command {
 	}
 
 	available := make(map[string]bool, len(data.Commands))
-	descriptions := make(map[string]string, len(data.Commands))
 	hidden := make(map[string]bool)
 	for _, c := range data.Commands {
 		available[strings.ToLower(c.Value)] = true
-		if c.Help != "" {
-			descriptions[c.Value] = c.Help
-		}
 		if c.Hidden {
 			hidden[strings.ToLower(c.Value)] = true
 		}
@@ -905,7 +935,7 @@ func buildRuntimeTree(client *cliClient) *Command {
 	}
 
 	tree := cmd.BuildTree(filtered, false)
-	applyDescriptions(tree, descriptions)
+	applyCommandText(tree, data.Commands)
 	wireValueHints(tree)
 
 	// Inject non-hidden plugin commands into the completion tree.
@@ -945,13 +975,9 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	}
 
 	available := make(map[string]bool, len(data.Commands))
-	descriptions := make(map[string]string, len(data.Commands))
 	hidden := make(map[string]bool)
 	for _, c := range data.Commands {
 		available[strings.ToLower(c.Value)] = true
-		if c.Help != "" {
-			descriptions[c.Value] = c.Help
-		}
 		if c.Hidden {
 			hidden[strings.ToLower(c.Value)] = true
 		}
@@ -973,7 +999,7 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	}
 
 	tree := cmd.BuildTree(filtered, false)
-	applyDescriptions(tree, descriptions)
+	applyCommandText(tree, data.Commands)
 	wireValueHints(tree)
 
 	// Inject non-hidden plugin commands into the completion tree.

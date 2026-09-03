@@ -112,10 +112,13 @@ the row.
 
 | Order | Occupant | When it has text |
 |-------|----------|------------------|
-| 1 | the `?` hint | `?` was pressed on a candidate, or the input is invalid |
+| 1 | the completion hint | Tab or `?` asked for an explanation the command does not declare, or the input is invalid |
 | 2 | the selected candidate's summary | the completion menu is open |
 | 3 | the validation hint | the config holds an error or a warning |
 | 4 | the idle banner | nothing above it applies |
+
+`?` puts a long explanation in a box above the prompt, and writes nothing on
+this row. The row is one row, so it holds a summary and never an explanation.
 
 The menu row shows the command name alone, so row 2 says what the selected name
 does. `Model.warningText` READS the summary from the selection, so an arrow key

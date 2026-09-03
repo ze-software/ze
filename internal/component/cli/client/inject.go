@@ -11,66 +11,39 @@ import (
 // commandEntry matches the anonymous struct used in buildRuntimeTree and
 // buildRuntimeTreeFromDispatch to parse the system command list response.
 type commandEntry struct {
-	Value  string `json:"value"`
-	Help   string `json:"help"`
-	Hidden bool   `json:"hidden"`
+	Value string `json:"value"`
+	// Help is the one-line SUMMARY of the command, which every surface that
+	// shows it on one line reads.
+	Help string `json:"help"`
+	// LongHelp is the explanation the command's own help page prints, and the
+	// `?` key answers. Empty means the command declares none, and no one-line
+	// surface reads it at all.
+	LongHelp string `json:"long-help"`
+	Hidden   bool   `json:"hidden"`
 }
 
 // injectPluginCommands adds plugin-registered commands to the completion tree.
-// Commands that already exist in the tree (from YANG proxy RPCs) are skipped.
-// Hidden commands are skipped. This ensures plugin commands that have no YANG
-// backing still appear in tab-completion.
+// It merges them the way every daemon-side tree does, through
+// command.MergeCommandPaths. A command therefore enters the client's tree as it
+// enters the SSH and web trees. An existing node is never modified. Each of the two
+// texts is written only on a leaf the merge creates, or on one that holds
+// nothing in THAT field. A hidden command is skipped, so it never surfaces in
+// tab-completion.
+//
+// The names cross here. The daemon's answer spells the summary "help" and the
+// explanation "long-help". The command package spells them Description and
+// Help.
 func injectPluginCommands(tree *cmd.Node, commands []commandEntry, hidden map[string]bool) {
-	if tree == nil {
-		return
-	}
+	entries := make([]cmd.CommandEntry, 0, len(commands))
 	for _, c := range commands {
-		key := strings.ToLower(c.Value)
-		if hidden[key] {
+		if hidden[strings.ToLower(c.Value)] {
 			continue
 		}
-		parts := strings.Fields(c.Value)
-		if len(parts) == 0 {
-			continue
-		}
-
-		// Walk the tree to check if this command path already exists.
-		// If every token exists, the command is already in the tree from
-		// YANG proxy RPCs and we skip it.
-		current := tree
-		exists := true
-		for _, part := range parts {
-			if current.Children == nil {
-				exists = false
-				break
-			}
-			child, ok := current.Children[part]
-			if !ok {
-				exists = false
-				break
-			}
-			current = child
-		}
-		if exists {
-			continue
-		}
-
-		// Add missing path nodes to the tree.
-		current = tree
-		for _, part := range parts {
-			if current.Children == nil {
-				current.Children = make(map[string]*cmd.Node)
-			}
-			child, ok := current.Children[part]
-			if !ok {
-				child = &cmd.Node{Name: part}
-				current.Children[part] = child
-			}
-			current = child
-		}
-		// Set description on the leaf node if not already set.
-		if current.Description == "" && c.Help != "" {
-			current.Description = c.Help
-		}
+		entries = append(entries, cmd.CommandEntry{
+			Name:        c.Value,
+			Description: c.Help,
+			Help:        c.LongHelp,
+		})
 	}
+	cmd.MergeCommandPaths(tree, entries)
 }
