@@ -12,8 +12,15 @@ type baseline struct {
 	multiplier float64
 	floor      float64
 	samples    []float64
-	count      int
-	p99Cache   float64
+	// count is the TOTAL of samples ever admitted, and next is the ring index
+	// the following sample overwrites once the window is full. They were one
+	// field, and restore is where the two disagree: it rebuilds the ring with
+	// the OLDEST sample at index 0 while count carries a long run's total, so
+	// count%window pointed at an arbitrary mid-age slot and samples retired out
+	// of order for a whole window after every restart.
+	count    int
+	next     int
+	p99Cache float64
 	// attackRun counts the consecutive samples marked attacking. It drives the
 	// slow-adapt admission in admit, and it is transient: a restart starts the
 	// adapt clock again rather than resuming a run.
@@ -58,7 +65,8 @@ func (b *baseline) Add(pps float64, attacking bool) {
 	if len(b.samples) < b.window {
 		b.samples = append(b.samples, pps)
 	} else {
-		b.samples[b.count%b.window] = pps
+		b.samples[b.next] = pps
+		b.next = (b.next + 1) % b.window
 	}
 	b.count++
 
@@ -153,6 +161,10 @@ func (b *baseline) restore(st baselineState) bool {
 	}
 	b.samples = append(b.samples[:0], samples...)
 	b.count = max(st.Count, len(b.samples))
+	// The ring was just rebuilt oldest-first, so the next overwrite is index 0
+	// whatever total count carries. Deriving the cursor from count here is what
+	// retired samples out of order for one window after each restart.
+	b.next = 0
 	b.recalc()
 	return true
 }

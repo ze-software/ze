@@ -1,6 +1,7 @@
 package detect
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -100,5 +101,67 @@ func TestBaselineCustomMultiplier(t *testing.T) {
 	// p99 ~ 2000, multiplier 5.0 => threshold ~ 10000
 	if thr < 9000 || thr > 11000 {
 		t.Errorf("threshold with 5x multiplier: got %f, want ~10000", thr)
+	}
+}
+
+// TestBaselineRestoreRetiresOldestFirst drives a full window through a restored
+// baseline and checks that each sample it overwrites is the oldest one present,
+// which is what the ring promises while it is filled in order.
+//
+// VALIDATES: the ring cursor is its own field, so a restore that rebuilds the
+// window oldest-first starts overwriting at index 0 whatever total the persisted
+// count carries.
+// PREVENTS: deriving the write index from count, which after a long run points
+// at an arbitrary mid-age slot: for one whole window after every restart some
+// samples lived past the window and others died early.
+func TestBaselineRestoreRetiresOldestFirst(t *testing.T) {
+	const window = 60
+	b := newBaseline(window, 2.0, 1)
+
+	// A persisted window whose values ARE their age: 0 is the oldest.
+	samples := make([]float64, window)
+	for i := range samples {
+		samples[i] = float64(i)
+	}
+	// A count from a long run, which is what makes count%window an arbitrary slot.
+	if !b.restore(baselineState{Samples: samples, Count: 100003, P99Cache: 59}) {
+		t.Fatal("restore refused a well-formed snapshot")
+	}
+
+	// Overwrite the whole window. After each Add the value just retired must be
+	// the smallest one the window held, because the oldest carries the lowest
+	// number and FIFO retires the oldest.
+	for i := range window {
+		want := float64(i) // the oldest sample still present
+		if got := slices.Min(b.samples); got != want {
+			t.Fatalf("add %d: oldest sample is %v, want %v", i, got, want)
+		}
+		b.Add(1000+float64(i), false)
+		if slices.Contains(b.samples, want) {
+			t.Fatalf("add %d: retired %v, but it is still in the window", i, want)
+		}
+	}
+}
+
+// TestBaselineFillThenWrapRetiresOldestFirst is the same promise on a baseline
+// that was never restored, so the two write paths are held to one rule.
+//
+// VALIDATES: a ring filled by Add alone retires oldest-first once it wraps.
+// PREVENTS: the cursor split breaking the path it was not written for.
+func TestBaselineFillThenWrapRetiresOldestFirst(t *testing.T) {
+	const window = 30
+	b := newBaseline(window, 2.0, 1)
+	for i := range window {
+		b.Add(float64(i), false)
+	}
+	for i := range window {
+		want := float64(i)
+		if got := slices.Min(b.samples); got != want {
+			t.Fatalf("add %d: oldest sample is %v, want %v", i, got, want)
+		}
+		b.Add(1000+float64(i), false)
+		if slices.Contains(b.samples, want) {
+			t.Fatalf("add %d: retired %v, but it is still in the window", i, want)
+		}
 	}
 }
