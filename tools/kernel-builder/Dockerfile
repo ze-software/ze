@@ -10,7 +10,13 @@ FROM golang:1.27-bookworm AS builder
 
 WORKDIR /src
 COPY go.mod go.sum ./
+# The whole kernelbuilder package, because Go compiles a package as a unit. Only
+# worker.go runs in here; driver.go and space.go are the HOST side and come
+# along for the compile. So a host-side import lands in this image too, and
+# leaving one out fails the build at `go build`, not at run time. diskspace is
+# space.go's (internal/appliance/kernelbuilder/space.go).
 COPY internal/appliance/kernelbuilder ./internal/appliance/kernelbuilder
+COPY internal/core/diskspace ./internal/core/diskspace
 COPY tools/kernel-builder/main.go ./tools/kernel-builder/main.go
 RUN CGO_ENABLED=0 go build -o /ze-kernel-builder ./tools/kernel-builder
 
