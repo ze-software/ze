@@ -537,3 +537,40 @@ func TestEnsureConfigFileBindAddressesUnreadable(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "absent.conf", "the unreadable config must be named")
 }
+
+// TestRunTestPreflightsThePeerPath drives a fixture with NO cmd= line, which is
+// the path runTest takes itself instead of handing to runOrchestrated.
+//
+// The preflight lived inside runOrchestrated, so that path had none: a `.ci`
+// with no cmd= line and a second local address would have reached its own
+// deadline exactly as the exabgp-compat fixtures did. No fixture in the tree
+// binds a second address on this path today, which is what kept the gap
+// invisible, and is why the guard is proven here rather than by a fixture.
+//
+// VALIDATES: the check sits above the branch, so a record with no RunCommands
+// is refused with the address and the fix named, and typed as a host problem.
+// PREVENTS: moving the call back inside runOrchestrated, which reads as
+// tidying and silently reopens the peer path.
+func TestRunTestPreflightsThePeerPath(t *testing.T) {
+	rec := newRecord("peer-path-local-address")
+	rec.Extra = map[string]string{"timeout": "5s"}
+	rec.Conf = map[string]any{}
+	rec.StdinBlocks = map[string][]byte{"ze-bgp": []byte(bgpConfigWithLocal(absentULA))}
+	require.Empty(t, rec.RunCommands, "the guard under test is the path taken when there are none")
+
+	// A real Runner, not a zero one: with the guard moved back below the
+	// branch this record goes on to launch a peer, and a half-built Runner
+	// would fail that with a nil dereference rather than with the timeout that
+	// says what the guard prevents.
+	baseDir := t.TempDir()
+	r, err := NewRunner(NewEncodingTests(baseDir), baseDir)
+	require.NoError(t, err)
+	defer r.Cleanup()
+
+	assert.False(t, r.runTest(context.Background(), rec, &RunOptions{}),
+		"a fixture binding an address this host lacks must fail, not run")
+	assert.Equal(t, FailTypeLoopbackMissing, rec.FailureType, "the failure must be typed as a host problem")
+	require.Error(t, rec.Error)
+	assert.Contains(t, rec.Error.Error(), absentULA, "the failing address must be named")
+	assert.Contains(t, rec.Error.Error(), "./le setup", "the supported route must be named")
+}

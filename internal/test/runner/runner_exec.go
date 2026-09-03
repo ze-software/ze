@@ -131,6 +131,26 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		rec.TmpfsTempDir = workDir
 	}
 
+	// Make every address this fixture binds usable before anything starts: the
+	// ones ze-peer takes from --bind, and the ones ze takes from the config the
+	// .ci embeds (connection > local > ip).
+	//
+	// This FAILS the test. It used to log a warning and carry on, so a host
+	// missing the address paid for it later as a bind failure or a whole-test
+	// timeout, with nothing on the way naming the cause or the fix.
+	//
+	// It sits ABOVE the branch rather than inside runOrchestrated, where it
+	// used to live, so the peer path below is covered by the same call. That
+	// path has no fixture binding a second address today, which is why the gap
+	// was invisible: it is one `.ci` with no `cmd=` line and a second local
+	// address away from being the 180-second deadline the exabgp-compat suite
+	// paid (plan/journal/failing-gate-prints-no-cause.md).
+	if err := ensureBindAddresses(rec); err != nil {
+		rec.Error = err
+		rec.FailureType = FailTypeLoopbackMissing
+		return false
+	}
+
 	// Use new orchestration if RunCommands present
 	if len(rec.RunCommands) > 0 {
 		return r.runOrchestrated(ctx, rec, opts)
@@ -586,19 +606,6 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Make every address this fixture binds usable before anything starts: the
-	// ones ze-peer takes from --bind, and the ones ze takes from the config the
-	// .ci embeds (connection > local > ip).
-	//
-	// This FAILS the test. It used to log a warning and carry on, so a host
-	// missing the address paid for it later as a bind failure or a whole-test
-	// timeout, with nothing on the way naming the cause or the fix.
-	if err := ensureBindAddresses(rec); err != nil {
-		rec.Error = err
-		rec.FailureType = FailTypeLoopbackMissing
-		return false
-	}
-
 	// Execute commands in order
 	for cmdIdx, cmd := range cmds {
 		// A cmd=stop step terminates a named background process mid-test. It runs
@@ -864,9 +871,20 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// daemon.pid, eliminating a startup race condition. Armed for both
 		// foreground (default daemon path) and background-daemon suites that poll
 		// daemon.pid/daemon.ready; see zeReadyFileEnabled.
-		if zeReadyFileEnabled(cmd.Mode, binName, rec.TmpfsTempDir) {
+		//
+		// Rooted at WorkDir, which is where the child actually runs
+		// (childWorkingDirectory) and which EVERY record has. It was
+		// TmpfsTempDir until 2026-09-03, and that field is set only when the .ci
+		// declares files, so for the 1503 .ci files that declare none the runner
+		// armed nothing, wrote no daemon.pid, and fell to the default arm's
+		// 100ms sleep. Their fixtures poll both by bare relative name and timed
+		// out "by construction", which is what that arm's own comment predicts.
+		// The two fields name the same directory whenever both are set, so this
+		// changes nothing for a record that declares files
+		// (plan/journal/guard-added-to-one-half-of-a-pair.md).
+		if zeReadyFileEnabled(cmd.Mode, binName, rec.WorkDir) {
 			proc.Env = append(proc.Env,
-				"ZE_READY_FILE="+filepath.Join(rec.TmpfsTempDir, "daemon.ready"))
+				"ZE_READY_FILE="+filepath.Join(rec.WorkDir, "daemon.ready"))
 		}
 
 		// Run the child in this test's own directory, so its tmpfs files resolve
@@ -981,7 +999,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					}
 					waitCancel()
 				}
-			case zeReadyFileEnabled(cmd.Mode, binName, rec.TmpfsTempDir):
+			case zeReadyFileEnabled(cmd.Mode, binName, rec.WorkDir):
 				// Background-daemon suites poll daemon.pid/daemon.ready.
 				// ZE_READY_FILE was armed above, so
 				// mirror the foreground daemon path: when no ze-peer provides
@@ -993,13 +1011,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					// a plugin that aborts startup may never write daemon.ready),
 					// so skip this 5s wait then -- mirrors the foreground path.
 					if !hasPeer && rec.AwaitStderr == "" {
-						readyPath := filepath.Join(rec.TmpfsTempDir, "daemon.ready")
+						readyPath := filepath.Join(rec.WorkDir, "daemon.ready")
 						// Parallel-run headroom: a daemon that writes daemon.ready after
 						// startup can be slow to reach it under oversubscription. Identity
 						// for serial runs.
 						waitReady(testCtx, readyPath, r.withParallelHeadroom(5*time.Second))
 					}
-					pidPath := filepath.Join(rec.TmpfsTempDir, "daemon.pid")
+					pidPath := filepath.Join(rec.WorkDir, "daemon.pid")
 					_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", proc.Process.Pid), 0o600)
 				}
 			default:
@@ -1062,7 +1080,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// Guard on ze: a foreground helper that is the last command also lands
 			// here and must NOT clobber daemon.pid with its own pid. A helper that
 			// reads daemon.pid to signal the daemon would otherwise signal itself.
-			if zeReadyFileEnabled(cmd.Mode, binName, rec.TmpfsTempDir) && proc.Process != nil {
+			if zeReadyFileEnabled(cmd.Mode, binName, rec.WorkDir) && proc.Process != nil {
 				// When no ze-peer provides BGP-level synchronization, wait for
 				// the process readiness file before writing daemon.pid. This
 				// prevents a race where signal.sh sends SIGHUP before the
@@ -1070,14 +1088,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// provides its own synchronization (and a plugin that aborts
 				// startup may never write daemon.ready), so skip this wait then.
 				if !hasPeer && rec.AwaitStderr == "" {
-					readyPath := filepath.Join(rec.TmpfsTempDir, "daemon.ready")
+					readyPath := filepath.Join(rec.WorkDir, "daemon.ready")
 					// Same parallel-run headroom as the background-daemon path above:
 					// a foreground ze slow to write daemon.ready under oversubscription
 					// must not make the runner publish daemon.pid (and let signal.sh
 					// SIGHUP) before handler registration. Identity for serial runs.
 					waitReady(testCtx, readyPath, r.withParallelHeadroom(5*time.Second))
 				}
-				pidPath := filepath.Join(rec.TmpfsTempDir, "daemon.pid")
+				pidPath := filepath.Join(rec.WorkDir, "daemon.pid")
 				_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", proc.Process.Pid), 0o600)
 			}
 		}
