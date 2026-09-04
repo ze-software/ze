@@ -7,7 +7,6 @@
       "Grep(*)",
       "Bash(go:*)",
       "Bash(agent-browser:*)",
-      "Bash(make:*)",
       "Bash(golangci-lint:*)",
       "Bash(rg:*)",
       "Bash(find:*)",
@@ -96,9 +95,7 @@
       "Bash(git mv:*)",
       "Bash(echo:*)",
       "Bash(pkill:*)",
-      "Bash(python3:*)",
       "Bash(./migrate-ci:*)",
-      "Bash(./.claude/hooks/session-start.sh)",
       "Bash(go run ./cmd/ze *)",
       "Bash(./bin/ze-test:*)",
       "Bash(bin/ze-test:*)",
@@ -111,11 +108,10 @@
       "Bash(mkdir:*)",
       "Bash(sed:*)",
       "Bash(gofmt:*)",
-      "Bash(./scripts/dev/worktree_update.sh:*)",
+      "Bash(./le worktree update:*)",
       "Bash(gh issue:*)",
       "Bash(zellij setup:*)",
-      "Bash(mkdir -p tmp/session)",
-      "Bash(uv run *)"
+      "Bash(mkdir -p tmp/session)"
     ],
     "deny": [
       "Bash(git commit:*)",
