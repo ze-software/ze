@@ -147,6 +147,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkVPPVersion(tree)...)
 	diags = append(diags, checkBGPMD5(tree)...)
 	diags = append(diags, checkBGPPeersWithoutRole(tree)...)
+	diags = append(diags, checkRedistributeRules(tree)...)
 	diags = append(diags, checkAS112WatchdogWithdraw(tree)...)
 	diags = append(diags, checkAS112GlobalOriginCoordination(tree)...)
 	diags = append(diags, checkAS112RedistributeOriginCoordination(tree)...)

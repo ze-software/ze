@@ -96,3 +96,23 @@ func TestRedistributeCheckSilentWithNoBlock(t *testing.T) {
 	assert.Empty(t, checkRedistributeRules(config.NewTree()))
 	assert.Empty(t, checkRedistributeRules(nil))
 }
+
+// TestRunChecksReachesTheRedistributeCheck drives the check from the entry
+// point an operator reaches, rather than from the helper.
+//
+// VALIDATES: `ze doctor` on a config whose redistribution destination is a
+// typo reports it.
+// PREVENTS: the defect this test was written for. The check and the five tests
+// above landed in one commit that never added the `runChecks` call, so the
+// check was dead from the day it was written and every helper-driven test
+// stayed green (`ai/rules/evidence.md`).
+func TestRunChecksReachesTheRedistributeCheck(t *testing.T) {
+	cfgPath := writeTestConfig(t, `redistribute {
+	destination ospv3 {
+		import connected
+	}
+}
+`)
+
+	assert.Contains(t, codes(runChecks(cfgPath)), diagnosticRedistUnknownDestination)
+}

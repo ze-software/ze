@@ -40,6 +40,8 @@ remediation guidance.
 | `doctor-dns-resolver` | Name server reachability |
 | `doctor-*-unreachable` | External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (`doctor-radius-admin-unreachable`), RPKI cache (`doctor-rpki-unreachable`), BMP collector (`doctor-bmp-unreachable`), NTP (`doctor-ntp-server-unreachable`), management hub (`doctor-hub-unreachable`) <!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable --> |
 | `doctor-clock-skew` | System clock vs NTP (>5 min) |
+| `doctor-redistribute-unknown-source` | A `redistribute` import names a source no component registered. The daemon refuses to start on it |
+| `doctor-redistribute-unknown-destination` | A `redistribute` destination names a protocol nothing registered, so every rule under it is inert. A warning, because a build that omits that protocol is a legitimate reason <!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules --> |
 | `doctor-vpp-unreachable` | VPP API socket (Linux) |
 | `doctor-vpp-version` | VPP version compatibility (Linux) |
 | `doctor-module-missing` | Kernel modules (Linux) |
