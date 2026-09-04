@@ -29,6 +29,41 @@ The same rule is what keeps the recovery path open. An operator who makes
 TACACS+ the only backend can still be rescued by the ZeFS super-admin, which
 sits outside the AAA chain by design.
 
+## A chain the daemon cannot BUILD fails over to the local accounts
+
+The section above is about a backend that ANSWERS. This one is about a backend
+that never starts. A TACACS+ server declared with no shared secret is one case,
+and any error out of `Build` is another.
+
+The rule is the owner's, given on 2026-09-04: **failover to the local accounts
+is the documented behaviour.** A daemon whose AAA chain failed to build keeps
+running, and every management surface authenticates from the local bcrypt
+accounts until the config is repaired.
+
+| Surface | What a nil bundle does |
+|---------|------------------------|
+| ssh | starts, and its authenticator answers from the local accounts |
+| web | the same, through the fallback its live authenticator carries |
+| authorization, every surface | DENIES. A nil bundle establishes no policy, so no operator passes an authorization check |
+
+Authentication and authorization part company here on purpose. A login is what
+makes the repair possible. A privileged command is not, and nothing has told the
+daemon which commands this operator CAN run.
+
+The failover is not a second chain. The live indirection reads the bundle slot
+on every request. A reload that repairs the config installs a bundle, and the
+local accounts stop answering with no restart.
+
+**A reload refuses rather than failing over.** `ze config commit` rebuilds the
+chain, and a build error rolls the commit back and keeps the running one. This
+holds only while a bundle is already installed. After a boot whose build failed
+the slot is nil, the rebuild is skipped, and a corrected config needs a restart.
+
+<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition and its authenticator fallback -->
+<!-- source: cmd/ze/hub/main.go -- noBGPAAAWiring -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthenticator, liveAAABundleAuthorizer -->
+<!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
+
 ## An unmapped privilege level is a denial
 
 A TACACS+ user whose priv-lvl has no `tacacs-profile` entry is denied. This

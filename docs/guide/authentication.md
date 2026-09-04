@@ -35,6 +35,38 @@ the missing-database case which grants access for emergency recovery.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
 
+## A backend that will not build falls over to the local accounts
+
+The table above is about who CAN log in. This is about a backend that never
+starts. A TACACS+ server declared with no shared secret is one case, and any
+error while the AAA chain is built is another.
+
+**The daemon keeps running, and login falls over to the local accounts.** That
+is the documented behavior on every management surface, ssh and web alike. It is
+deliberate. A login is how you reach the box to repair the config. A daemon that
+took ssh away would leave you with a running forwarding plane and no way in.
+
+Authorization does NOT fall over. A daemon with no AAA bundle establishes no
+policy, so every authorization check denies. Expect to log in and be refused
+privileged commands until the config is fixed.
+
+| When | What happens |
+|------|--------------|
+| `ze config commit`, with a chain already running | The commit is REFUSED and the running chain is kept |
+| The same, after a boot whose build failed | Nothing. The rebuild is skipped while no chain is installed, so a corrected config needs a restart |
+| Boot | The failure is logged, and login falls over to the local accounts |
+
+Two consequences worth planning for. A central-auth box that reboots with a
+broken AAA block comes up on local accounts, so keep one that works. And a
+config error you commit is caught, while the same error already in the file at
+boot is not.
+
+`docs/architecture/aaa-tacacs.md` carries the mechanism.
+
+<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition and its authenticator fallback -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthenticator, liveAAABundleAuthorizer -->
+<!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
+
 ## Adding a user
 
 ### Step 1: hash a password

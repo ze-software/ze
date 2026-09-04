@@ -72,17 +72,21 @@ differ.
 | Boot | The failure is logged, the bundle is left nil, and startup continues |
 
 A nil bundle denies every authorization, so no operator passes an authorization
-check. Authentication depends on whether the config runs BGP.
+check. Login is a different question, and the answer is the same on every
+surface: **it fails over to the local accounts.**
 
-| Boot config | What a nil bundle does to login |
-|-------------|-------------------------------|
-| With a `bgp` block | SSH is not started at all |
-| Without one | SSH starts and falls back to LOCAL users, so a local password still logs in |
+| Surface | What a nil bundle does to login |
+|---------|--------------------------------|
+| ssh | starts, and answers from the local accounts |
+| web | the same |
 
-That second row is deliberate: a live indirection over an absent bundle would
-reject every login, which is worse than falling back. It does mean a keyless
-TACACS+ block silently downgrades a no-BGP box to local accounts. Run
-`ze config validate` before a reboot.
+That is the documented behavior rather than an accident. A login is what makes
+the repair possible. A daemon that took ssh away would leave the operator with a
+running forwarding plane and no way in. `docs/architecture/aaa-tacacs.md`
+carries the full contract.
+
+It does mean a keyless TACACS+ block downgrades the box to local accounts until
+somebody notices. Run `ze config validate` before a reboot.
 
 The `ze:sensitive` marking hides the key from `show` and from the web editor. It
 does NOT encrypt what the commit path writes. Ze decodes a `$9$` value you write

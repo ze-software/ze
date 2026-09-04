@@ -281,6 +281,28 @@ to the next.
 <!-- source: internal/component/radius/aaa.go -- aaaPriority -->
 <!-- source: internal/component/tacacs/register.go -- Priority 100 -->
 
+## A config the chain cannot build
+
+The order above is what happens when RADIUS ANSWERS. A RADIUS block the daemon
+cannot build a client from is a different case. So is a TACACS+ server declared
+with no shared secret in the same config. The whole AAA chain then fails to
+build, and no backend answers at all.
+
+**Login then falls over to the local accounts, on ssh and on web.** That is the
+documented behavior, because a login is how you reach the box to repair the
+config. Authorization does not fall over: with no chain installed there is no
+policy, so every authorization check denies.
+
+A commit is refused rather than failed over, and only while a chain is already
+running. The same error already in the file at boot is logged and startup
+continues.
+
+`docs/guide/authentication.md` carries the operator view and
+`docs/architecture/aaa-tacacs.md` the mechanism.
+
+<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition and its authenticator fallback -->
+<!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
+
 ## Readiness check
 
 `ze doctor` probes every configured RADIUS admin server with an Access-Request

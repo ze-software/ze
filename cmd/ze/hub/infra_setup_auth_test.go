@@ -455,7 +455,17 @@ func TestInfraSetupReentryDoesNotRetryFailedNoBGPAAABoot(t *testing.T) {
 	assert.Equal(t, 1, initialBuilds)
 	assert.Zero(t, candidateBuilds, "runtime hook reentry must not retry a failed boot build")
 	assert.Nil(t, aaaBundle.Load())
-	assert.False(t, sshBuilt, "a nil boot-owned bundle must keep SSH fail closed")
+	// REVERSED on 2026-09-04 by owner ruling: failover to the local user when
+	// AAA fails MUST be the documented behavior. This row used to require the
+	// opposite, that a nil boot-owned bundle leaves ssh unbuilt, and called it
+	// failing closed.
+	//
+	// Skipping ssh is not failing closed. It removes the surface the operator
+	// repairs the broken AAA config over, while the daemon keeps forwarding.
+	// Authorization still denies on a nil bundle (liveAAABundleAuthorizer), and
+	// the authenticator ssh receives falls back to the local accounts, which is
+	// what the other two management surfaces already did.
+	assert.True(t, sshBuilt, "a nil boot-owned bundle must still start ssh, which fails over to the local accounts")
 }
 
 // postStartDispatcherForTest installs a boot bundle, runs infraSetup and its

@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/infra"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/audit"
 	coreenv "github.com/ze-software/ze/internal/core/env"
@@ -167,7 +168,17 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 	// Build the ssh server through the compile-out seam (ssh_infra.go). When
 	// ssh is compiled out (ze_ssh off) sshBuild is nil and ssh is skipped; the
 	// AAA/authz/accounting work above still runs for MCP/API.
-	if hasSSHConfig && usersReady && bundle != nil && sshBuild != nil {
+	// A NIL bundle does not stop ssh. An AAA chain the config describes and the
+	// daemon cannot build must fail over to the local accounts, which is the
+	// documented behavior (owner ruling, 2026-09-04) and what the other two
+	// management surfaces already do: service_web.go gives its live
+	// authenticator a LocalAuthenticator fallback, and the no-BGP boot hands
+	// ssh a nil authenticator so Server.Start substitutes one.
+	//
+	// Gating ssh on `bundle != nil` did the opposite here, and this is the path
+	// a router running BGP takes: one mistyped AAA block and the operator lost
+	// ssh altogether, with the daemon otherwise running.
+	if hasSSHConfig && usersReady && sshBuild != nil {
 		sshSrv = sshBuild(&sshBuildInputs{
 			Config:    sshCfg,
 			Users:     users,
@@ -177,7 +188,14 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 			// reads its authenticator once, so a captured chain would keep
 			// authenticating against the RADIUS or TACACS+ server the boot
 			// tree named after a reload replaced it (aaa_lifecycle.go).
-			Authenticator: liveAAABundleAuthenticator{},
+			//
+			// The fallback is what the indirection answers from while the slot
+			// holds nothing. It is NOT a second chain: the bundle wins whenever
+			// it exists, so a reload that repairs the AAA config takes effect
+			// without a restart and local login stops being the answer.
+			Authenticator: liveAAABundleAuthenticator{
+				fallback: &authz.LocalAuthenticator{Users: users, UsersFunc: aaaLiveUsers},
+			},
 			Authorizer:    liveAAABundleAuthorizer{},
 			Recorder:      recorder,
 			EphemeralFile: ephemeralFile,

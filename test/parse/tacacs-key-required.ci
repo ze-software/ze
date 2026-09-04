@@ -8,10 +8,9 @@
 #   - at BOOT, both build sites log the failure and set the bundle nil
 #     (`cmd/ze/hub/main.go` no-BGP branch, `cmd/ze/hub/infra_setup.go`). A nil
 #     bundle denies every authorization (aaa_lifecycle.go). It does NOT deny
-#     every login: on the no-BGP path taken by THIS config, noBGPAAAWiring
-#     returns a nil authenticator on purpose and ssh.Server.Start substitutes a
-#     LocalAuthenticator, so a local password still works. The BGP path is the
-#     one that leaves SSH unstarted.
+#     every login: failover to the local accounts is the documented behavior on
+#     every surface (owner ruling, 2026-09-04), because a login is how the
+#     operator reaches the box to repair the config.
 #   - at RELOAD, `ze config commit` REFUSES and rolls back
 #     (`cmd/ze/hub/main_reload.go`, "reload: rebuild aaa bundle"), but only
 #     while a bundle is already live: the rebuild is skipped when it is nil.

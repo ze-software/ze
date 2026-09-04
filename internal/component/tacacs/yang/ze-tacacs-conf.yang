@@ -82,9 +82,10 @@ module ze-tacacs-conf {
                              through the schema: a missing mandatory field is
                              only a warning. At BOOT the same failure is logged
                              and startup continues with no AAA bundle, which
-                             denies every authorization. SSH then falls back to
-                             local users where the config runs no BGP, and does
-                             not start at all where it does. The leaf is marked
+                             denies every authorization. Login then fails over
+                             to the local accounts on every surface. That is the
+                             documented behavior, and it is how you reach the
+                             box to repair the config. The leaf is marked
                              sensitive, so every display path prints a
                              placeholder. A $9$-encoded value written by hand is
                              decoded on read, and the commit path writes back
