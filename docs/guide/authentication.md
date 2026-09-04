@@ -35,7 +35,7 @@ the missing-database case which grants access for emergency recovery.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
 
-## A backend that will not build falls over to the local accounts
+## A backend that will not build: login falls over, authorization does not
 
 The table above is about who CAN log in. This is about a backend that never
 starts. A TACACS+ server declared with no shared secret is one case, and any
@@ -43,8 +43,11 @@ error while the AAA chain is built is another.
 
 **The daemon keeps running, and login falls over to the local accounts.** That
 is the documented behavior on every management surface, ssh and web alike. It is
-deliberate. A login is how you reach the box to repair the config. A daemon that
-took ssh away would leave you with a running forwarding plane and no way in.
+deliberate. A login is how you SEE the failure. A daemon that took ssh away
+would leave you with a running forwarding plane and no way to look at it.
+
+It is not how you repair the box. See the next paragraph: the session you get
+runs nothing.
 
 **Authorization does NOT fall over. It fails closed.** With no chain installed
 there is no policy to consult, so every command is refused. You log in, you see

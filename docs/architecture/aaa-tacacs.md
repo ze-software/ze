@@ -29,16 +29,16 @@ The same rule is what keeps the recovery path open. An operator who makes
 TACACS+ the only backend can still be rescued by the ZeFS super-admin, which
 sits outside the AAA chain by design.
 
-## A chain the daemon cannot BUILD fails over to the local accounts
+## A chain the daemon cannot BUILD: login falls over, authorization does not
 
 The section above is about a backend that ANSWERS. This one is about a backend
 that never starts. A TACACS+ server declared with no shared secret is one case,
 and any error out of `Build` is another.
 
-The rule is the owner's, given on 2026-09-04: **failover to the local accounts
-is the documented behaviour.** A daemon whose AAA chain failed to build keeps
-running, and every management surface authenticates from the local bcrypt
-accounts until the config is repaired.
+Two owner rulings settle it, both given on 2026-09-04. **Failover to the local
+accounts is the documented behavior**, and **authorization fails closed: no
+user, no login.** A daemon whose AAA chain failed to build keeps running and
+authenticates from the local bcrypt accounts. It authorizes nothing.
 
 | Surface | What a nil bundle does |
 |---------|------------------------|
