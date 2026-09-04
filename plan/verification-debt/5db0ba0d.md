@@ -102,3 +102,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | 5db0ba0d | spec: close spec-fixit-locrib-peer-fields-contradict-rfc9069 | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | spec(interop): close the tunnel proof on a re-derived measurement | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | spec: close spec-fixit-tunnel-traffic-proof-is-one-directional | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | test(l2tp): re-pin two interop fixtures their own commits moved | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | test(l2tp): re-pin two interop fixtures their own commits moved | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

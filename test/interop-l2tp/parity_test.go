@@ -51,7 +51,7 @@ func TestNativeScenarioPopulationIsExact(t *testing.T) {
 // PREVENTS: A config, PPP option, secret, or FRR fixture drifting during runner removal.
 func TestNativeConfigBytesArePinned(t *testing.T) {
 	files := map[string]string{
-		"Dockerfile.ze":                                      "b9bde11cb4b43bc6a98d64be3e3c9438b585ac9aafbd33a074f13935f7592140",
+		"Dockerfile.ze":                                      "8058d120cac7b2c33313ff7ea6150fd07bdd92c28182fd7cc82b16d22fc08a84",
 		"Dockerfile.lac":                                     "de2f22de8c1815e8d0d6a37b96d7518d8157b26cd5598fb95c8e4f624909a180",
 		"daemons":                                            "6c0f1be1b722ff89041b5bea87ed1212dd0595019b44730616de9e338cb08cd0",
 		"vtysh.conf":                                         "dc8aa539965a4cebabbe1a75a53b48ae8471bafe77ce59af22d5352d28da4df6",
@@ -67,7 +67,7 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		"scenarios/03-ze-lac-xl2tpd-lns/ze.conf":             "78bd29a86ddad3572c670e5e30d331042e50b1fffafba8bb166d7d984e6301cd",
 		"scenarios/03-ze-lac-xl2tpd-lns/xl2tpd.conf":         "bdd8acec47050dd362774130bccc6f17a97d9956b514143cd93e827b716bf013",
 		"scenarios/03-ze-lac-xl2tpd-lns/options.xl2tpd":      "24bd437d8d4bd6d2916236a7036d01d4f990ead0951763b18347c068c809536f",
-		"scenarios/04-radius-acct-attrs/ze.conf":             "5773b223fd57351ed46ea079e8a39e0157634238914dd90527ff0d2d32d1db39",
+		"scenarios/04-radius-acct-attrs/ze.conf":             "a834e28c29c8e80e1d1c135bc6f5f3f02f4a39c33b21914bc3e5af60489e15ae",
 		"scenarios/04-radius-acct-attrs/xl2tpd.conf":         "37c2eb77bfdb632f4c03ef5ba06a71b3ddb8200369e30395d6bf8b5d738a3cae",
 		"scenarios/04-radius-acct-attrs/ppp-options":         "f09bbbc2e509408723541c5009d4819b9d01cc9d81b4f0961117c31f53314004",
 		"scenarios/04-radius-acct-attrs/l2tp-secrets":        "6c08c01fa683780b644f441f8d7f4191d64feaf05a035fe4fe79f63e7365b7e5",
