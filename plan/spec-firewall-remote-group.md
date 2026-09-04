@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | config |
 | Depends | - |
 | Phase | - |
-| Deferral shard | - |
-| Updated | 2026-08-01 |
+| Deferral shard | `plan/deferrals/firewall-remote-group.md` |
+| Updated | 2026-09-02 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -52,6 +52,46 @@ Related, and deliberately out of scope here:
 Provenance: VyOS T9076 added a per-group `interval` on top of an existing
 `firewall group remote-group <name> url <url>` feature. Ze needs both halves.
 
+## Scope change, 2026-09-02 (owner directive)
+
+Everything above is preserved as written on 2026-08-01. Two things changed, and
+both WIDEN this spec.
+
+**One plugin serves both sources, not two plugins.** `plan/spec-firewall-domain-group.md`
+was written on 2026-09-02 as a separate plugin that would depend on this spec
+for shared substrate: the cache, keeping the last good answer when a source
+fails, programming the set, and the show, update and clear commands. That left
+two plugin processes, two timers, two caches and two command sets for one idea,
+which is what `ai/rules/simplicity.md` exists to catch. The owner decided one
+plugin with two sources. This spec now owns that plugin and the URL source;
+domain-group becomes the DNS source inside it and is edited to say so. The
+dependency dissolves rather than being scheduled: there is no shared package
+with exactly two callers, because there is one package.
+
+**"Group" is a display word, not a config concept, so the source belongs on
+`list set`.** The task text above says "firewall group", following the VyOS
+spelling, and Ze has no such config node. `handleShowFirewallGroup`
+(`internal/plugins/firewall/nft/cmd_show.go`) reads `firewall.LastApplied` and
+reports every named set as a "group"; its own YANG help says "Without arguments,
+lists all known groups. With a name, shows the set elements." Config has
+`list set`. So this spec does NOT add a `remote-group` list. It gives the
+existing `list set` a source, and a set whose members are written literally
+keeps working with no config change. `show firewall group` then displays a
+sourced set for free, because it already displays every set.
+
+The three sources are therefore mutually exclusive alternatives on one set:
+members written literally in config, members downloaded from a URL, or members
+resolved from domain names. Earlier research found `choice` is this codebase's
+shape for exactly that (`ze-iface-conf.yang` `choice kind`,
+`ze-static-conf.yang` `choice action`), and confirming that a `choice` can wrap
+the existing `list element` without breaking operator config already committed
+is the load-bearing research question for this spec.
+
+Still deliberately out of scope, unchanged:
+`plan/spec-firewall-dynamic-address-group.md` owns packet-triggered population
+through nftables `dynset`, and owns finishing the inert `flags-dynamic` and
+`flags-timeout` lowering in `applySet`.
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
@@ -59,9 +99,60 @@ Provenance: VyOS T9076 added a per-group `interval` on top of an existing
      survive compaction; track reading progress in the session state file. -->
 
 ### Architecture Docs
-- [ ] `docs/architecture/<doc>.md` - [why relevant]
-  → Decision: [specific architectural decision that constrains this spec]
-  → Constraint: [specific rule from the doc that applies here]
+- [ ] `ai/digests/firewall.md` - the firewall global options and the IRR flow.
+  → Constraint: the digest covers `buildSets` and `prefixRange` end to end and
+    does NOT mention any element cap, so the cap below was verified at source
+    rather than taken from the digest.
+- [ ] `docs/architecture/firewall/firewall-irr.md` - the closest working feature.
+  → Constraint: a reply cut short by the read cap is an ERROR, not a shorter
+    answer. The doc states it directly: "A reply cut short by the 4 MB read cap
+    has no status line, so a partial record set is an error rather than a
+    shorter prefix list." A truncated blocklist download follows the same rule:
+    it is a failed fetch that keeps the cached list, never a shorter list.
+- [ ] `ai/rules/performance.md` - allocation rules.
+  → Decision: the hot-path allocation ban does NOT apply here. Its named paths
+    are per-UPDATE and per-packet code, and the directives explicitly permit
+    ordinary allocation in "config parsing". A timer-driven download and parse
+    is cold-path work, so `make`, `append` and `strings.Split` are permitted.
+    Avoid `fmt.Sprintf` inside the per-line loop as hygiene, not as a rule.
+- [ ] `.golangci.yml` - `noctx` and `bodyclose` are both enabled with no carve-out.
+  → Constraint: every outbound HTTP call is built with
+    `http.NewRequestWithContext` carrying the refresh loop's cancelable context.
+    `http.Get` and a context-less client call are refused.
+  → Constraint: `resp.Body` is closed on every return path, including the error
+    branches after a non-2xx status.
+
+**Key insights:** (minimal context to resume after compaction)
+- **Set size is bounded in exactly one place, and it truncates silently.**
+  `prefixesToIntervalElements` (`irr/sets.go`) stops at a private
+  `maxPrefixEntries = 500_000` with a WARN and `break`, returning no error, and
+  IPv4 and IPv6 SHARE that one budget through `buildSets`. Nothing else counts
+  elements: `Set.Validate` (`model.go`) checks only the name and the type,
+  `applySet` (`backend_linux.go`) and `lowerSet` (`lower_linux.go`) loop
+  unconditionally. The constant is unexported and not reusable.
+- **One `firewall.Set` holds one address family.** `SetType` is single-valued
+  and `lowerSet` maps one set to one `nftables.Set` of one key type, so a
+  downloaded list mixing families must be split into two named sets at parse
+  time, as `setNames` and `buildSets` do.
+- **There is no shared HTTP client in ze.** Every caller builds its own
+  `&http.Client{Timeout: ...}` inline: `peeringdb` at 10s, the update checker at
+  30s, `rir.go` at 60s. That is the convention by repetition, not a helper.
+- **The response-size cap is a strong, consistent precedent.** `peeringdb`
+  caps at 1 MB, the update checker at 64 KiB, JWKS at 256 KiB, the IRR whois
+  client at 4 MB, each with `io.LimitReader`.
+- **There is no proxy or CA-bundle config surface to honor**, and no fetcher
+  sets `Transport.Proxy`. Do not invent one.
+- **`managed.Backoff` is NOT reusable.** The type is exported but `newBackoff`
+  and every field are unexported, and a zero value multiplies zero forever. No
+  generic retry or backoff helper exists in `internal/core/`. The failure-retry
+  timer this spec needs is new local code.
+- **Conditional fetch is new ground.** No ETag, If-None-Match or 304 handling
+  exists anywhere in `internal/`. Re-downloading an unchanged list every
+  interval is the default unless this spec designs the alternative.
+- **No plain-list parser exists.** The shape to copy is `parseDelegation`
+  (`internal/component/resolve/irr/rir.go`): `bufio.Scanner` over an
+  `io.LimitReader`, skipping blank and `#` lines. Its own format is
+  pipe-delimited RIR records, so only the shape transfers, not the parser.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfcNNNN.md` - [why relevant]
@@ -72,32 +163,121 @@ Provenance: VyOS T9076 added a per-group `interval` on top of an existing
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (must read BEFORE you write this spec)
-- [ ] `path/to/file.go` - [what it currently does]
+**Source files read:**
+- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` - `list set` keyed
+  by name, carrying `leaf type`, four presence containers (`flags-interval`,
+  `flags-timeout`, `flags-constant`, `flags-dynamic`) and a `list element` of
+  static `value` plus optional `timeout`. Members are written literally. There
+  is no source of any kind.
+- [ ] `internal/component/config/yang_schema.go` - `flattenChildren` and
+  `flattenChoiceCases`. Choice and case are transparent at the data layer: the
+  inner data node's name is used directly and the case wrapper is bypassed.
+  This is what makes a `choice` safe to add around the existing `list element`.
+- [ ] `internal/component/iface/config.go` - `parseTunnelEntry` reads
+  `m["encapsulation"]` and finds keys named for the case's inner container
+  (`gre`, `gretap`), never the choice or case names. It also performs its own
+  Go-side exclusivity check, because the walker does not.
+- [ ] `internal/component/firewall/plugins/irr/sets.go` -
+  `prefixesToIntervalElements` caps at the unexported `maxPrefixEntries` of
+  500000 and `break`s past it with a WARN and no error. `buildSets` gives IPv4
+  the full budget and IPv6 whatever remains, so the two families share one
+  budget. `setNames` produces one name per family.
+- [ ] `internal/component/firewall/model.go` - `SetType` is single-valued, so
+  one `Set` holds one address family. `Set.Validate` checks only the name and
+  that the type is non-zero, and never inspects `Elements`.
+- [ ] `internal/plugins/firewall/nft/lower_linux.go` and
+  `internal/plugins/firewall/nft/backend_linux.go` - `lowerSet` and `applySet`
+  loop over `Elements` unconditionally. Nothing downstream bounds set size.
+- [ ] `internal/component/resolve/peeringdb/client.go` - the fetch convention:
+  an inline `&http.Client{Timeout: ...}` at 10 seconds, and a 1 MB body cap
+  through `io.LimitReader`. TLS is relaxed only for localhost.
+- [ ] `internal/component/resolve/irr/rir.go` - `parseDelegation` is the
+  line-parser shape to copy: `bufio.Scanner` over an `io.LimitReader`, skipping
+  blank and `#` lines. Its own record format is pipe-delimited and does not
+  transfer.
+- [ ] `internal/component/managed/reconnect.go` - `Backoff` is exported but
+  `newBackoff` and every field are not, and a zero value multiplies zero
+  forever. It cannot be reused from another package.
+- [ ] `internal/component/firewall/plugins/irr/irr.go` - `refreshLoop` and
+  `refreshAllNow` are the error posture to copy: every fetch failure is logged,
+  the cached data is kept, and the loop continues.
 
-**Behavior to preserve:** (unless the user explicitly said to change it)
-- [output format, function signature, or `.ci` expectation callers depend on]
+**Behavior to preserve:**
+- A `set` whose members are written literally parses and behaves exactly as it
+  does today, with no config migration. This is AC-10 and it is the reason the
+  `choice` question was researched before anything else.
+- `show firewall group` keeps listing every named set, sourced or not.
+- The IRR plugin's own behavior is unchanged by the cap being moved. Only the
+  declaration site moves.
 
-**Behavior to change:** (only what the user asked for)
-- [list, or "None - preserve all existing behavior"]
+**Behavior to change:**
+- A `set` may name a source instead of literal members.
+- The plugin fetches, parses, caches, and programs the set on a timer.
+- A failure keeps the previous contents and retries sooner than the full
+  interval.
+- The element cap becomes one exported bound, read by both sources.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+
+Three, differing in kind:
+
+- **Config.** An operator writes a `set` naming a source. Format at entry is the
+  YANG-parsed `map[string]any` the plugin receives in `OnConfigVerify` and
+  `OnConfigure`. Because choice and case are transparent, the map carries
+  `element`, `url` or `domain-names` as a direct key.
+- **A refresh timer.** Per set, at its own `refresh-interval` or the global
+  default; and after a failure, at `retry-interval` instead.
+- **An operator command.** `update firewall group <name>` forces a fetch now.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+
+1. Config parse. `parseSet` reads the three optional keys and refuses a set that
+   names more than one, because the schema walker does not enforce choice
+   exclusivity.
+2. Verify. A set naming a source that has never been fetched refuses the commit,
+   the same rule `verifyRefs` (`irr.go`) applies to an uncached IRR reference,
+   and the same rule `plan/spec-firewall-domain-group.md` applies to a name.
+   Verify reads the cache only and performs no network I/O.
+3. Fetch. `http.NewRequestWithContext` with the loop's cancelable context, an
+   explicit client timeout, and the stored `ETag` and `Last-Modified` sent as
+   `If-None-Match` and `If-Modified-Since`.
+4. Classify the response. `304` means unchanged: stop, reprogram nothing. A
+   non-2xx, a transport error, or a body that hits the byte cap is a FAILED
+   fetch: keep the previous contents and arm the retry timer.
+5. Parse. `bufio.Scanner` over an `io.LimitReader`, skipping blank and `#`
+   lines. Unparsable lines are counted and skipped. A fetch that yields zero
+   entries is a failed fetch, not an empty list.
+6. Bound. If the entry count exceeds the exported cap, the fetch FAILS and the
+   previous contents are kept. It is never truncated.
+7. Split by family. One `firewall.Set` per family that has entries, named as
+   `setNames` does it.
+8. Persist. Write the parsed entries and the new validators to the cache.
+9. Program. `firewall.RegisterTables` then `firewall.ApplyAll`.
+10. Schedule. Arm the next refresh at the set's interval, or the retry interval
+    after a failure.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | [JSON format, command syntax] | No |
+| Plugin → the internet | HTTPS GET with a context, a client timeout, a body cap, and conditional headers | No |
+| Plugin → Firewall registry | `firewall.RegisterTables` and `ApplyAll` under one owner | No |
+| Plugin → zefs | Registered key per set holding entries and the cache validators | No |
+| Plugin → Hub (resolution) | The resolve RPC that `plan/spec-firewall-domain-group.md` adds, used by the domain source | No |
+| Hub → Plugin (show) | `enrich-show` carrying source provenance into `show firewall group` | No |
+| Operator → Plugin | `pluginserver.RegisterRPCs` and `ForwardToPlugin` | No |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- `firewall.RegisterTables` and `ApplyAll` (`registry.go`) - programs the sets.
+  A rule naming a set no owner registered holds its whole table back
+  (`dropTablesMissingAProvidedSet`), which is what the verify refusal prevents.
+- The exported element cap in `internal/component/firewall` - read by this
+  plugin and by `irr/sets.go`.
+- `show.Enrich` (`internal/core/show/show.go`) - the call site the firewall show
+  handlers still lack.
+- `ProcessManager.Respawn` (`internal/component/plugin/process/manager.go`) -
+  restarts the plugin with its cache intact.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -110,31 +290,33 @@ Provenance: VyOS T9076 added a per-group `interval` on top of an existing
 
 ## Risks & Assumptions
 
-<!-- LIVE: written during RESEARCH/DESIGN, statuses updated during implementation.
-     Gate answers from /ze-spec (assumption challenge, Failure Mode Analysis)
-     land HERE, not only in conversation. -->
-
 ### Assumptions
-<!-- Every row needs a validation method. `unvalidated` is not a valid final
-     status: closure re-checks each one. A broken assumption also gets a
-     Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+| A-1 | A `choice` around the existing `list element` leaves operator config parsing unchanged | `flattenChildren` and `flattenChoiceCases` (`yang_schema.go`) make case transparent: "the inner data node's name is used directly, matching the YANG source". `parseTunnelEntry` (`iface/config.go`) reads case-inner keys and proves it live | Existing firewall config breaks on upgrade, which is the worst outcome this spec could have | A parse test over a set written in today's syntax, asserting an identical parsed result before and after the schema change | unvalidated |
+| A-2 | Go-side code must enforce choice exclusivity, because the walker does not | The schema walker flattens cases and keeps no record of which case supplied a key; `parseTunnelEntry` performs its own check for the same reason | A set naming two sources parses, and the plugin silently honors whichever it reads first | A parse test asserting a set with both `url` and `domain-names` is refused, naming both | unvalidated |
+| A-3 | Moving the element cap to an exported bound leaves IRR behavior unchanged | The cap is read at exactly one place, `prefixesToIntervalElements`, called by `buildSets` and `buildTermSets` (`irr/sets.go`) | The IRR plugin's set contents change, which is a regression in a shipped feature this spec does not own | The existing IRR set tests passing unchanged, plus a test asserting the same cap value | unvalidated |
+| A-4 | The domain source can reuse this plugin's cache, timer and command surface unchanged | Both sources answer the same question, "what are this set's members now", and differ only in how they are obtained | The two sources need separate machinery after all, and the one-plugin decision has to be revisited | Implementing the URL source first, then the domain source against the same interfaces | unvalidated |
+| A-5 | A blocklist publisher serves usable `ETag` or `Last-Modified` headers | Common practice for static list files behind a CDN, and unverified in this codebase because no ze code has ever sent a conditional request | Conditional fetch is dead weight: every refresh downloads the whole list anyway, and the saving the owner asked for does not materialize | A functional test asserting a 304 path, plus a manual check against a real published list before closure | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+| R-1 | A list larger than the cap silently under-filters, the defect journaled at `plan/journal/guard-addition-drops-what-it-refuses.md` | Refresh outcome counter labeled for the over-cap result | DECIDED (owner, 2026-09-02): an over-cap download is a FAILED fetch that keeps the previous contents. It is never truncated. The IRR whois client's own rule is the precedent: a reply cut short by its read cap "is an error rather than a shorter prefix list" |
+| R-2 | The element cap is a fact declared twice once a second source exists | The two constants drift, and two sources disagree about the same bound | DECIDED (owner, 2026-09-02): one exported bound in `internal/component/firewall`, read by this plugin and by `irr/sets.go`. This puts the IRR file in the diff, and its existing tests must pass unchanged |
+| R-3 | A set naming two sources is accepted, because the schema walker does not enforce choice exclusivity | A config that should have been refused commits cleanly | Go-side refusal in `parseSet`, following `parseTunnelEntry`. A-2 covers the test |
+| R-4 | A URL is attacker-influenced input that decides what a firewall permits or drops | None at runtime; the box does what the config asked | Cap the body with `io.LimitReader`, cap the entry count, treat a truncated body as a failed fetch, and require HTTPS in the leaf pattern. Document that a permit rule sourced from a URL trusts whoever serves it |
+| R-5 | A fetch failure that retries too eagerly hammers the publisher, and one that retries too slowly leaves the list stale | Refresh outcome counters, and the retry interval relative to the refresh interval | A `retry-interval` leaf with a sane default, and exponential growth with jitter written locally, since `managed.Backoff` cannot be imported |
+| R-6 | A panic while parsing an untrusted downloaded list kills the plugin | The plugin process exiting, `ze_plugin_restarts_total` rising | Recover in the refresh loop so a bad list costs one cycle. `ze-go-style.md`: "A peer MUST NOT be able to panic the daemon", and a downloaded list is the same class of input |
+| R-7 | Cold start with no cached list holds back every table naming the set | The WARN in `dropTablesMissingAProvidedSet` | Persist to the cache and refuse the commit at verify, the same treatment `plan/spec-firewall-domain-group.md` chose and `verifyRefs` already implements for IRR |
 
 ## Blast Radius
 
-<!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | [other plugins, components, or specs working the same files] |
+| What breaks if this is wrong? | Two things, in increasing severity. A bad fetch path leaves a set stale, which under-filters or over-filters. A bad `choice` change breaks parsing of firewall config operators have already written, which takes the whole firewall section down on upgrade. A-1 exists for the second |
+| How is it reverted? | Single commit revert for the plugin. The `choice` schema change is also a single revert, because it adds no new required node and rewrites no existing config |
+| Who else touches this path? | `plan/spec-firewall-domain-group.md` adds the domain source to this same plugin. `plan/spec-firewall-dynamic-address-group.md` owns `flags-dynamic` and `flags-timeout` lowering in `applySet`. `internal/component/firewall/plugins/irr/sets.go` is touched by the cap move |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -144,7 +326,15 @@ Provenance: VyOS T9076 added a per-group `interval` on top of an existing
      by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| A committed config carrying a set with a `url` source | → | the plugin's `OnConfigure`, then `firewall.RegisterTables` | `TestSourcedSetConfigureRegistersSet` |
+| A set's refresh interval expiring | → | the plugin's refresh loop, then the fetcher | `TestSourcedSetRefreshFiresAtInterval` |
+| A fetch failure | → | the retry timer rather than the refresh timer | `TestSourcedSetFailureArmsRetryInterval` |
+| `update firewall group <name>` typed by an operator | → | the forwarded plugin command handler | `test/plugin/firewall-sourced-group-update.ci` |
+| `show firewall group` typed by an operator | → | `show.Enrich` call site plus the plugin's `OnEnrichShow` | `test/firewall/firewall-cli-sourced-group-show.ci` |
+| A daemon restart with a populated cache | → | the plugin's cache load on `OnConfigure` | `TestSourcedSetColdStartProgramsFromCache` |
+| A commit naming a source never fetched | → | the plugin's `OnConfigVerify` | `TestSourcedSetVerifyRefusesUnfetchedSource` |
+| A set written in today's literal-element syntax | → | `parseSet`, unchanged | `TestParseSetLiteralElementsUnchangedByChoice` |
+| A set naming two sources | → | the Go-side exclusivity check in `parseSet` | `TestParseSetRefusesTwoSources` |
 
 ## Acceptance Criteria
 
@@ -152,7 +342,22 @@ Provenance: VyOS T9076 added a per-group `interval` on top of an existing
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
+| AC-1 | A set naming a URL is committed, after the list has been fetched once | The nftables set holds exactly the entries the list contained, and a rule matching that set filters on them |
+| AC-2 | The downloaded list mixes IPv4 and IPv6 entries | Two named sets are programmed, one per family, and neither contains an entry of the other family |
+| AC-3 | A refresh returns a transport error or a non-2xx status | The set keeps its previous contents, the failure is logged and counted, and nothing is reprogrammed |
+| AC-4 | A downloaded list contains more entries than the element cap | The fetch FAILS. The set keeps its previous contents. The list is never truncated, and the failure names both the entry count and the cap |
+| AC-5 | A response body reaches the byte cap before the list ends | The fetch FAILS and the previous contents are kept, because a body cut short is an error rather than a shorter list |
+| AC-6 | A refresh fails | The next attempt is made at the retry interval, not at the full refresh interval, and repeated failures back off with jitter rather than at a fixed rate |
+| AC-7 | The server answers 304 Not Modified | Nothing is parsed, nothing is reprogrammed, no cache write occurs, and the set keeps serving what it had |
+| AC-8 | A 200 response carries an ETag or Last-Modified | Both are stored, and the next fetch sends them as If-None-Match and If-Modified-Since |
+| AC-9 | A set declares its own refresh interval while a global default is also configured | The set's own interval is used. A set that declares none uses the global default |
+| AC-10 | A set written in today's literal-element syntax is committed, with no edit | It parses and programs exactly as it does today. No migration, no warning, no behavior change |
+| AC-11 | A set names two sources at once | The commit is REFUSED, and the error names the set and both sources |
+| AC-12 | A commit names a set whose source has never been fetched | The commit is REFUSED at verify, naming the set and the command that would fetch it. No table is silently held back |
+| AC-13 | The daemon restarts with a populated cache and the network unreachable | Every sourced set is programmed from the cache before any fetch is attempted, so filtering resumes without waiting for the network |
+| AC-14 | The downloaded list contains blank lines, `#` comments, and lines that are neither an address nor a prefix | Blank and comment lines are skipped silently. Unparsable lines are skipped and counted, and the count is reported |
+| AC-15 | A fetch succeeds but yields zero usable entries | The fetch FAILS and the previous contents are kept, because an empty list is indistinguishable from a broken publisher and an empty set is not a filter |
+| AC-16 | The IRR plugin runs after the element cap has moved to a shared bound | Its set contents and its existing tests are unchanged |
 
 ## End-to-End User Stories
 
@@ -162,7 +367,12 @@ Provenance: VyOS T9076 added a per-group `interval` on top of an existing
      before proceeding. Delete this section when Scope is tooling or docs. -->
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | [for example "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+| 1 | Points a set at a published blocklist and commits a rule dropping it | `update firewall group` -> fetch -> parse -> cache -> commit -> verify passes -> `RegisterTables` -> `ApplyAll` -> nft | `test/plugin/firewall-sourced-group-update.ci` |
+| 2 | Commits a rule naming a set never fetched | commit -> `OnConfigVerify` -> cache miss -> commit refused naming the fetch command | `TestSourcedSetVerifyRefusesUnfetchedSource` |
+| 3 | Reads which sets are sourced, from where, and how fresh | `show firewall group` -> `show.Enrich` -> `enrich-show` -> source and last-fetch attached | `test/firewall/firewall-cli-sourced-group-show.ci` |
+| 4 | Keeps filtering while the publisher is down | refresh fails -> previous contents kept -> retry timer armed | `TestSourcedSetFailureArmsRetryInterval` |
+| 5 | Reboots with the network down | restart -> `OnConfigure` -> cache load -> `RegisterTables` | `TestSourcedSetColdStartProgramsFromCache` |
+| 6 | Upgrades a box whose firewall config uses literal set elements | config parse -> `parseSet` -> unchanged result | `TestParseSetLiteralElementsUnchangedByChoice` |
 
 ## 🧪 TDD Test Plan
 
