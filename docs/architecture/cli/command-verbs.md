@@ -34,6 +34,11 @@ and `debug` each name a PARTICULAR change. `request` is the general word for a
 change that none of them names. Thomas stated it in these words: "request lead
 to a change in the system".
 
+`send` sits on the axis in a third place, and that is why it is a verb of its
+own. It changes something OUTSIDE the system. The bytes the operator supplies
+leave the router, and what they change is a peer's state. So a send is not a
+read, and a send is not a request either. L-8 records the decision.
+
 The axis is declared in code rather than here. `verbRole` gives `show`,
 `monitor` and `resolve` the role `VerbRead`, `set` and `delete` the role
 `VerbMutation`, and every other canonical verb the role `VerbAction`.
@@ -60,9 +65,11 @@ fixed keyword. That ambiguity is what every rule below exists to prevent.
 
 ## The verb classes
 
-Twelve verbs are canonical. `command.Verbs` is the one statement of the set, and
-both the grammar gate and the plugin registration check derive their verb set
-from it.
+Twelve verbs are canonical, and `send` is the thirteenth: decided by Thomas on
+2026-09-05 and not yet declared, which
+`plan/spec-fixit-send-names-its-destination.md` implements. `command.Verbs` is
+the one statement of the set, and both the grammar gate and the plugin
+registration check derive their verb set from it.
 <!-- source: internal/component/command/verbs.go -- Verbs, verbRole -->
 
 | Verb | Role | It promises | Side effect on | Repeat is safe | Commands |
@@ -77,6 +84,7 @@ from it.
 | `create` | Action | Something that did not exist exists after the command, today a live kernel resource | The kernel | Yes | 5 |
 | `update` | Action | Data held for something that exists is rewritten | The config draft, or a cached set | Yes | 13 |
 | `debug` | Action | Live protocol state is perturbed on purpose | The wire | No | 4 |
+| `send` | Action | Bytes the operator supplies leave the router for a destination the operator names | The wire, and the peer that reads it | No | 0, and the verb is not declared yet |
 | `cache` | Action | Declared, and no command uses it at root | - | - | 0 |
 | `commit` | Action | Declared, and no command uses it at root | - | - | 0 |
 
@@ -113,7 +121,7 @@ Ask one question, in this order, and stop at the first Yes.
 | 5 | Does it make something exist that did not exist? | `create` |
 | 6 | Does it rewrite data held for something that exists? | `update` |
 | 7 | Does it perturb live protocol state to test something? | `debug` |
-| 8 | Does it put bytes on a destination? | `request send` |
+| 8 | Does it put bytes on a destination? | `send` |
 | 9 | It changes the system, and no question above answered it | `request` |
 
 Two consequences follow, and neither is negotiable. How diagnostic a command
@@ -224,28 +232,35 @@ protocol difference is learnable nowhere.
 A command that puts bytes on a destination takes one of two forms.
 
 ```
-request send <destination> <protocol> raw <encoding> <data>
-request send <destination> <protocol> <message> [<field> <value> ...]
+send <protocol> <destination> raw <encoding> <data>
+send <protocol> <destination> <message> [<field> <value> ...]
 ```
 
-`send` exists to DISCRIMINATE, and that is the whole reason for the word. The
-token after `request` is drawn from a closed set the compiler knows: 17 distinct
-words over the 33 `request` commands. Nine name a subsystem (`peer`,
-`interface`, `cache`, `bgp`, `ospf`, `log`, `l2tp`, `config`, `as112`). Eight
-are bare actions (`commit`, `halt`, `quiesce`, `reboot`, `reload`, `shutdown`,
-`subscribe`, `unsubscribe`).
+`send` is a root verb, and the word exists to keep a destination out of a slot
+that already holds keywords. The token after `request` is drawn from a closed set
+the compiler knows: 17 distinct words over the 33 `request` commands. Nine name a
+subsystem (`peer`, `interface`, `cache`, `bgp`, `ospf`, `log`, `l2tp`, `config`,
+`as112`). Eight are bare actions (`commit`, `halt`, `quiesce`, `reboot`,
+`reload`, `shutdown`, `subscribe`, `unsubscribe`).
 
 A destination is free-form text. So `request <destination> <protocol> ...` puts
 an arbitrary string in the slot where `bgp` already names a subsystem, and no
-parser can tell the two apart. `send` types the slot. That is the
+parser can tell the two apart. `send` gives the destination a root of its own,
+and the protocol keyword in front of it types the slot. That is the
 keyword-before-value rule applied where it is load bearing (`ai/rules/cli.md`).
+
+The protocol comes FIRST because it says how to read the value after it. The
+token after `send` is a protocol keyword from a closed set. Completion, the
+grammar gate and the authorization profiles each meet a known word rather than a
+guess. Each protocol's own package declares its own destination leaf, with its
+own type and its own completion.
 
 Three rules follow, and each one decides a command a reader is about to write.
 
 **`raw` is not a BGP verb.** It is the escape hatch every protocol has, and it
-sits beside that protocol's structured messages. `request send <destination> bgp
-raw hex <data>` and `request send <destination> bgp update <field> <value>` are
-the same shape with a different last part.
+sits beside that protocol's structured messages. `send bgp <destination> raw hex
+<data>` and `send bgp <destination> update <field> <value>` are the same shape
+with a different last part.
 
 **The slot holds a DESTINATION, not a selector.** A configured peer name and a
 bare address are both destinations, and the resolver decides which one arrived.
@@ -502,7 +517,7 @@ changed, and it is not a bug list.
 | L-5 | Rendering has no flag | Operators arriving from any of the five reach for a flag or a per-command keyword | Earned. Rendering belongs to the pipe layer on every command, so one operator set serves 363 commands and only the operator composes (`command-namespacing.md`) |
 | L-6 | The name of the narrowing operator is OPEN | `plan/spec-fixit-selector-narrows-through-a-pipe.md` proposes one operator named `limit` for every display command, which would replace the field-named `\| peer <sel>` on `show bgp rib`. That reading of `limit` disagrees with the rule above, and it disagrees with the word's other uses | Undecided, and Thomas decides. `limit` already means a numeric row cap in three Ze surfaces, in FRR (`bgp listen limit`, `prefix-limit`) and in BIRD (`babel limit`, merge-paths `limit`). Ze also ships `\| first <n>` and `\| last <n>` beside it |
 | L-7 | `request interface <name> up` and `down` | The admin flag is a field an operator reads back on the interface, which is the `update` test. It is also what drives the link transition, which is the residual | Undecided, and Thomas decides. T-17 moves `mtu` and `mac` because each carries a value the operator types. `up` and `down` carry none, so the word IS the value. Reading them as `update` produces `update interface name eth0 up`, and reading them as `request` keeps the pair beside `teardown` |
-| L-8 | `send` sits under `request` | It already promises a change, so it does not need `request` in front of it. `ping` and `traceroute` are root verbs in every reference CLI, and `send` would sit beside them | Undecided, and Thomas decides. He phrased the shape as `request send <destination> ...` and has not ruled the fork. A root `send` shortens every line and adds a thirteenth verb. `request send` keeps the verb set at twelve and states the change class in the first word |
+| L-8 | `send` is a root verb | It is a thirteenth canonical verb, where every other change class sits under one of twelve | Settled by Thomas on 2026-09-05, in two words: "send bgp". The axis decides it. `request` changes the system, and `send` puts a message outside it, so a send is not a request. The price is one entry in `command.Verbs` and one row in its golden test. Authorization costs nothing. `IsReadOnlyPath` allowlists the read verbs and answers false for every verb it does not name, so a new root verb counts as writing by default. The built-in read-only profile then denies it through its `Edit` section default. `ping` and `traceroute` are root verbs in every reference CLI, and `send` sits beside them |
 
 ## See also
 

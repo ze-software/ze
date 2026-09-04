@@ -8,7 +8,7 @@
 | Phase | - |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-09-04 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -18,26 +18,26 @@ Thomas set the grammar for every command that puts an operator's message on a
 wire. It is settled, and this spec designs to it rather than re-opening it.
 
 ```
-request send <protocol> <selector> raw [<type>] <encoding> <data>
-request send <protocol> <selector> <message> [fields...]
+send <protocol> <selector> raw [<type>] <encoding> <data>
+send <protocol> <selector> <message> [fields...]
 ```
 
 His words, in order. First the shape: "we send `<destination>` `<protocol>`
 `<raw|protocol info>`". Then the reason for the discriminator: "we need to not
 have clash between request system (subsystem) and request system (command on
 host)", and "we need to have request `<send or another better word>` destination
-...". Then the correction that fixed the token order, and it is the form above:
-"it should probably be better as request send bgp `<selector>` with the protocol
-first so we know how to process the selector".
+...". Then the correction that fixed the token order: "with the protocol first
+so we know how to process the selector". Then the root, in two words: "send
+bgp".
 
 Two examples, one per production:
 
 ```
-request send bgp 192.0.2.1 raw hex FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-request send bgp * announce unicast 10.0.0.0/24 next-hop 10.0.0.1
+send bgp 192.0.2.1 raw hex FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+send bgp * announce unicast 10.0.0.0/24 next-hop 10.0.0.1
 ```
 
-### Why `send` is there
+### Why `send` is a word of its own
 
 `request` is followed by SUBSYSTEM names. Its children in the merged tree are
 `as112`, `bgp`, `cache`, `commit`, `config`, `halt`, `interface`, `l2tp`, `log`,
@@ -48,8 +48,13 @@ A destination is free-form text: an address, a configured peer name, an AS
 pattern, a glob, a comma-separated list, or `*`. Writing `request <destination>
 <protocol>` would put an arbitrary string where `bgp` already names a subsystem,
 and no parser can separate the two: a peer named `bgp` and the BGP subsystem
-would be one token. `send` is an explicit discriminator, the same shape as the
-`type` key on the CA root.
+would be one token. `send` is the word that keeps the two apart, the same shape
+as the `type` key on the CA root.
+
+`send` is also the correct word on the axis
+`docs/architecture/cli/command-verbs.md` states. `request` changes the system,
+and `send` puts a message OUTSIDE it. A send is therefore not a kind of request,
+and that is why the word is a root verb rather than a noun under one.
 
 ### Why the protocol comes BEFORE the selector
 
@@ -83,28 +88,47 @@ difference between this grammar and a parser that sniffs.
 The protocol token therefore is not machinery with one user
 (`ai/rules/simplicity.md`). It is the token that types the value after it.
 
-### The open question this spec carries and does NOT answer
+### The root-verb question, answered
 
-Whether `send` belongs under `request` or is a ROOT verb of its own, beside the
-diagnostics every reference CLI roots bare. Thomas phrased it under `request`
-and has not ruled the fork. Both forms, one example each:
+`send` is a ROOT VERB. Thomas ruled the fork on 2026-09-05, in two words: "send
+bgp". The grammar is `send <protocol> <selector> ...`, and no token stands in
+front of it.
 
-| Form | Example |
-|------|---------|
-| Under `request` | `request send bgp 192.0.2.1 raw hex FFFF...001304` |
-| Root verb | `send bgp 192.0.2.1 raw hex FFFF...001304` |
+The verb set is stated at two sites, and the implementation phase edits both.
 
-What the fork costs, so the answer is cheap to give: a root `send` is a
-thirteenth canonical verb in `command.Verbs`, and `IsReadOnlyPath` must place it
-in the write set or a read-only operator reaches it.
-`docs/architecture/cli/command-verbs.md` records that Ze already declines the
-bare-root shape for diagnostics (`resolve ping`, `monitor traceroute`,
-divergence L-1), so a bare root `send` would be the first of its kind here. Under
-`request` it inherits the verb's existing promise and its authorization section
-with no new declaration.
+| Site | Edit |
+|------|------|
+| `internal/component/command/verbs.go` | `Verbs` gains `send` with the role `VerbAction`. It is the single canonical verb map, and its own comment states that the grammar gate and the plugin registration gate (`validateCommandName`) both derive from it, with no second hardcoded list. Twelve entries today, thirteen after |
+| `internal/component/command/verbs_test.go` | `TestVerbRegistryCanonical` pins the same map as a golden `want` value and asserts its length, so the row is added there too |
 
-Every acceptance criterion below holds under either answer: only the leading
-token changes, and it changes in one YANG container.
+`VerbAction` is the role, and the file declares three. `send` is a runtime
+operational action. It is not `VerbRead`, because bytes leave the router. It is
+not `VerbMutation`, which exists to gate config-tree mutation in engine path
+form, and a send writes no config node.
+
+**A root verb costs nothing in `IsReadOnlyPath`, and an earlier draft of this
+spec priced it wrong.** `IsReadOnlyPath`
+(`internal/component/plugin/server/command.go`) is an ALLOWLIST of the read
+verbs: it cuts the first token, matches it against `show`, `monitor`, `resolve`,
+`validate`, `help`, `system`, `plugin` and `rib`, and returns false for every
+other token. A verb the predicate has never heard of therefore counts as writing,
+so it fails closed and `send` needs no entry. The root-verb option is cheaper
+than the price Thomas was quoted when he answered.
+
+### What a read-only operator reaches
+
+Read at the producers, in the order the flag travels. `LoadBuiltins` registers
+each path with `ReadOnly: IsReadOnlyPath(name)`. `Dispatch` passes that flag to
+`isAuthorized`. `Profile.Authorize` reads the `Run` section when the flag is true
+and the `Edit` section when it is false. `builtinReadOnlyProfile`
+(`internal/component/authz/authz.go`) declares `Edit: Section{Default: Deny}`
+with no entries at all.
+
+So the built-in read-only profile denies every `send` command, by the section
+default and without an entry that names the verb. The answer is the same as under
+`request`, and it is reached by two defaults that each fail closed rather than by
+a rule someone remembered to write. AC-16 asserts it from the dispatcher, because
+a property that holds by default is the one a later edit removes in silence.
 
 ### What this replaces
 
@@ -128,7 +152,7 @@ both touch, in different containers.
 - [ ] `docs/architecture/cli/command-verbs.md` - the verb contract this spec implements
   → Constraint: "An action names the objects it acts on with a positional selector, typed BEFORE the action word", and "Peer commands are the one exception, and they drop the selector kind". The new grammar keeps both. The exception moves from `peer` to the protocol keyword, and it gets a better reason: the protocol token is what tells the parser how to read the value, which is the job a selector-kind keyword does elsewhere.
   → Constraint: "Every argument a handler reads MUST be declared in the schema. An undeclared argument reaches the handler and reaches nothing else." This decides the undeclared-argument question below, and row T-5 already records `peer raw` as breaking it.
-  → Constraint: row T-3 is the failure the token order avoids: a slot that accepts both an operator-supplied value and a fixed keyword makes a peer named `list` unreachable. Row T-4 records the four commands at a second peer action root and names the superseded spec as their fix; this spec becomes that row's fix instead. **A concurrent session is editing this page. This spec does not edit it; the repoint is that session's or a later one's.**
+  → Constraint: row T-3 is the failure the token order avoids: a slot that accepts both an operator-supplied value and a fixed keyword makes a peer named `list` unreachable. Row T-4 records the four commands at a second peer action root and names the superseded spec as their fix; this spec becomes that row's fix instead. **This spec edits the page for the root-verb decision alone: the `send` row, the change axis, the send shape and row L-8. The T-4 and T-5 repoint is a concurrent session's or a later one's.**
   → Decision: `request` is the residual of `create`, `delete` and `update`. A send creates nothing that outlives it, deletes nothing and rewrites nothing, so the residual is the correct family and `send` is a noun under it rather than a fifth state-changing verb.
 - [ ] `docs/architecture/exabgp-bridge.md` - the Design doc `bridgeplugin/internal.go` declares, and the page that settles the compatibility question
   → Constraint: "Down, `ExabgpToZebgpCommand` reads one ExaBGP line and writes one ze CLI command." The translated half is decoupled: an ExaBGP script never sees Ze's spelling for it.
@@ -207,8 +231,8 @@ both touch, in different containers.
 - The UPDATE text grammar from the encoding word onward, and every `.ci` hex expectation over the resulting wire bytes.
 
 **Behavior to change:**
-- Nine wire methods, reached at fifteen paths, move under `request send bgp <selector> <form>`. The old paths match nothing.
-- The selector becomes mandatory on every one of them, and each registers `RequiresSelector: true`. `announce unicast <prefix>` with no selector is refused; `request send bgp * announce unicast <prefix>` is how an operator reaches every peer.
+- Nine wire methods, reached at fifteen paths, move under `send bgp <selector> <form>`. The old paths match nothing.
+- The selector becomes mandatory on every one of them, and each registers `RequiresSelector: true`. `announce unicast <prefix>` with no selector is refused; `send bgp * announce unicast <prefix>` is how an operator reaches every peer.
 - The announce and withdraw groupings are instantiated ONCE instead of twice, because the selector is now always present.
 - Every argument `handleRaw`, `handleUpdate` and `handleCacheForwardRPC` read is declared in YANG.
 - The translator learns the BARE ExaBGP forms, so a script's `announce route ...` and `withdraw route ...` are translated rather than passed through.
@@ -232,7 +256,7 @@ TEXT.
 
 | Entry | Format at entry |
 |-------|-----------------|
-| An operator at the CLI or over SSH | `request send bgp 192.0.2.1 raw hex FFFF...` as typed tokens |
+| An operator at the CLI or over SSH | `send bgp 192.0.2.1 raw hex FFFF...` as typed tokens |
 | A plugin over the process protocol | the same string inside a `ze-plugin-engine:dispatch-command` JSON payload |
 | The ExaBGP bridge | ExaBGP line-protocol text on the plugin's stdout, either translated or (today) passed through unchanged |
 
@@ -302,17 +326,17 @@ row per wire method.
 
 | Wire method | Paths today | Under the new grammar | Arity today |
 |-------------|-------------|-----------------------|-------------|
-| `ze-bgp:peer-raw` | `peer raw <sel> [<type>] <enc> <data>` | `request send bgp <sel> raw [type <t>] <enc> <data>` | exactly one, enforced |
-| `ze-bgp:peer-update` | `peer update <sel> <encoding> ...` | `request send bgp <sel> update <encoding> ...` | fan-out |
-| `ze-bgp:announce-unicast` | `announce unicast ...` and `peer <sel> announce unicast ...` | `request send bgp <sel> announce unicast ...` | fan-out |
-| `ze-bgp:announce-blackhole` | the same two paths | `request send bgp <sel> announce blackhole ...` | fan-out |
-| `ze-bgp:announce-flowspec` | the same two paths | `request send bgp <sel> announce flowspec ...` | fan-out |
-| `ze-bgp:withdraw-tag` | `withdraw tag ...` and `peer <sel> withdraw tag ...` | `request send bgp <sel> withdraw tag ...` | fan-out |
-| `ze-bgp:withdraw-id` | the same two paths | `request send bgp <sel> withdraw id <id>` | fan-out |
-| `ze-bgp:withdraw-all` | the same two paths | `request send bgp <sel> withdraw all` | fan-out |
-| `ze-bgp:cache-forward` | `request cache forward <id> <sel>` | `request send bgp <sel> cached <id>` | fan-out |
+| `ze-bgp:peer-raw` | `peer raw <sel> [<type>] <enc> <data>` | `send bgp <sel> raw [type <t>] <enc> <data>` | exactly one, enforced |
+| `ze-bgp:peer-update` | `peer update <sel> <encoding> ...` | `send bgp <sel> update <encoding> ...` | fan-out |
+| `ze-bgp:announce-unicast` | `announce unicast ...` and `peer <sel> announce unicast ...` | `send bgp <sel> announce unicast ...` | fan-out |
+| `ze-bgp:announce-blackhole` | the same two paths | `send bgp <sel> announce blackhole ...` | fan-out |
+| `ze-bgp:announce-flowspec` | the same two paths | `send bgp <sel> announce flowspec ...` | fan-out |
+| `ze-bgp:withdraw-tag` | `withdraw tag ...` and `peer <sel> withdraw tag ...` | `send bgp <sel> withdraw tag ...` | fan-out |
+| `ze-bgp:withdraw-id` | the same two paths | `send bgp <sel> withdraw id <id>` | fan-out |
+| `ze-bgp:withdraw-all` | the same two paths | `send bgp <sel> withdraw all` | fan-out |
+| `ze-bgp:cache-forward` | `request cache forward <id> <sel>` | `send bgp <sel> cached <id>` | fan-out |
 
-**Every row is a RESPELLING, not a new command.** `request send bgp <sel> raw
+**Every row is a RESPELLING, not a new command.** `send bgp <sel> raw
 <bytes>` is the same operation as `peer <sel> raw <bytes>`, reached by the same
 handler through the same wire method, with the same guard and the same
 resolution. Nine wire methods exist before this spec and nine exist after. The
@@ -373,7 +397,7 @@ the six announce and withdraw forms and `handleBgpCacheForward` all fan out
 today, and the shipped bridge fixtures send a wildcard on purpose. The grammar
 therefore does NOT carry the arity, and it must not pretend to: the selector slot
 accepts the whole vocabulary, and `handleRaw` narrows it with `ResolveSinglePeer`
-exactly as it does now. A test asserts that `request send bgp * raw ...` is still
+exactly as it does now. A test asserts that `send bgp * raw ...` is still
 refused, because that refusal is the whole safety property and it is now two
 tokens further from the operator's eye.
 
@@ -476,7 +500,7 @@ adding a compatibility layer.
 
 `ExabgpToZebgpCommand` gains the bare ExaBGP forms beside the `neighbor`-prefixed
 ones it already handles: `announce route ...`, `withdraw route ...` and the
-family forms, each translating to `request send bgp * ...`, since a bare ExaBGP
+family forms, each translating to `send bgp * ...`, since a bare ExaBGP
 command addresses every neighbor and `*` is how the new grammar says that. Three
 things follow, and all three are gains:
 
@@ -579,7 +603,7 @@ exactly what this design changes.
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The selector binds through the existing anchored-leaf mechanism with no dispatcher change | `matchCommandTokens` and `anchoredDef` already bind `peer <sel> announce unicast` this way, and the anchor is the container that declares the leaf, which is now `bgp` | new dispatch machinery is needed, which changes the size of the work | a wiring test that dispatches `request send bgp <sel> raw hex ...` before any handler moves | unvalidated |
+| A-1 | The selector binds through the existing anchored-leaf mechanism with no dispatcher change | `matchCommandTokens` and `anchoredDef` already bind `peer <sel> announce unicast` this way, and the anchor is the container that declares the leaf, which is now `bgp` | new dispatch machinery is needed, which changes the size of the work | a wiring test that dispatches `send bgp <sel> raw hex ...` before any handler moves | unvalidated |
 | A-2 | The moved nodes pass R1 to R9 with no gate change once they leave `bridgeSurface` | `CheckNode` fires R6 only for a mandatory free-form argument on a node with a subcommand child whose name is not a selector kind; the send forms carry modifier groups and leaves, not subcommands | the gate needs a rule amendment, which is a separate design decision | `./le cli-grammar` on the moved tree, before the exemption is removed and after | unvalidated |
 | A-3 | The selector leaf keeps the model's existing name, so no second spelling enters `applyExtractedSelectors` | `selectorLeaf` is the one constant binding a YANG leaf to the context's peer field; six call sites read `ResolveSinglePeer` and five are outside this population | a rename touches five unrelated handlers or adds a second name for one concept | grep for `selectorLeaf` and `PeerSelector` after the move; no new spelling appears | unvalidated |
 | A-4 | Every argument the three under-declared handlers read can be stated as a typed leaf, except the update route expression | the announce and withdraw forms already declare theirs; `handleRaw` reads three tokens; `handleCacheForwardRPC` reads two | the declaration is partial and the journal row stays open for a member of this population | the generated usage line for each moved command, asserted in a `.ci` | unvalidated |
@@ -598,8 +622,8 @@ exactly what this design changes.
 | R-3 | A programmatic sender still spells an old path and fails at runtime | `./le ci-dispatch` reports an unroutable command string | the sender migration is its own phase, run before the old paths are deleted, and `ci-dispatch` gates it |
 | R-4 | Making the selector mandatory changes the meaning of a command an operator relies on: `announce unicast <prefix>` reached every peer and is now refused | a `.ci` that announced with no peer now fails | intended, and stated as an acceptance criterion. Every such call site becomes an explicit `*`, which is the point of the change |
 | R-5 | The moved commands enter the grammar gate for the first time and fail a rule nobody has checked them against | `./le cli-grammar` reports findings on the send subtree | A-2 validates this before the exemption is removed. A finding is fixed in the move, never exempted around |
-| R-6 | `request send` inherits web permissions from a container it did not have before | the permission a moved command answers under differs before and after | assert the `ze:ui-permissions` and `ze:ui-resource` each moved command answers under, before and after. `container request/peer` carries `bgp-peer/index.html` and `network` today; the `send` container's are declared deliberately, not inherited by accident |
-| R-7 | The two-path collapse loses a form: a bare `withdraw all` reached every announcement, and the peer-scoped one compared the recorded selector as TEXT | a withdraw that used to remove an announcement no longer does | `handleWithdrawID` compares the peer selector to the one the announcement was recorded with, as text. `request send bgp * withdraw id <id>` must reproduce the bare path exactly, and a `.ci` asserts both the wildcard and the named-peer case |
+| R-6 | `send` inherits web permissions from a container it did not have before | the permission a moved command answers under differs before and after | assert the `ze:ui-permissions` and `ze:ui-resource` each moved command answers under, before and after. `container request/peer` carries `bgp-peer/index.html` and `network` today; the `send` container's are declared deliberately, not inherited by accident |
+| R-7 | The two-path collapse loses a form: a bare `withdraw all` reached every announcement, and the peer-scoped one compared the recorded selector as TEXT | a withdraw that used to remove an announcement no longer does | `handleWithdrawID` compares the peer selector to the one the announcement was recorded with, as text. `send bgp * withdraw id <id>` must reproduce the bare path exactly, and a `.ci` asserts both the wildcard and the named-peer case |
 | R-8 | The package is larger than one implementation session | the sender migration alone is 207 occurrences across 70 files | stated up front. The natural cut is two packages: the BGP send family with its senders and documentation, then the bridge with the gate. The main thread re-cuts rather than the implementer trimming an acceptance criterion |
 
 ## Blast Radius
@@ -608,54 +632,57 @@ exactly what this design changes.
 |----------|--------|
 | What breaks if this is wrong? | An operator cannot inject a message, an ExaBGP script's routes stop reaching the wire, or a route command's flush is skipped so the forward pool does not drain. The last one is silent |
 | How is it reverted? | A single commit revert of the YANG, the handler registrations and the bridge restores the old paths; the sender migration and the doc edits revert with it. Nothing persists on disk and no config migration is involved |
-| Who else touches this path? | `plan/spec-fixit-selector-narrows-through-a-pipe.md` (its display half stands, and `ze-peer-cmd.yang` is the shared file), and a concurrent session editing `docs/architecture/cli/command-verbs.md`, which this spec does not touch |
+| Who else touches this path? | `plan/spec-fixit-selector-narrows-through-a-pipe.md` (its display half stands, and `ze-peer-cmd.yang` is the shared file), and a concurrent session editing `docs/architecture/cli/command-verbs.md`, which this spec edits for the root-verb decision alone |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| operator types `request send bgp 192.0.2.1 raw hex FFFF...` | → | `anchoredDef` binds the selector to the leaf `bgp` declares, `handleRaw`, `ResolveSinglePeer`, `SendRawMessage` | `TestSendRawReachesOnePeerAtItsNewPath` |
-| operator types `request send bgp * raw hex FFFF...` | → | `ResolveSinglePeer` refuses the wildcard | `TestSendRawRefusesAWildcardSelector` |
-| operator types `request send bgp * announce unicast 10.0.0.0/24 next-hop 10.0.0.1` | → | `handleAnnounceUnicastCmd`, `announceAndTrack`, the reactor | `test/ui/send-announce-reaches-the-wire.ci` |
-| operator types `request send bgp announce unicast 10.0.0.0/24`, with no selector | → | `Dispatch` refuses on `RequiresSelector` | `TestSendRefusesAMissingSelector` |
+| operator types `send bgp 192.0.2.1 raw hex FFFF...` | → | `anchoredDef` binds the selector to the leaf `bgp` declares, `handleRaw`, `ResolveSinglePeer`, `SendRawMessage` | `TestSendRawReachesOnePeerAtItsNewPath` |
+| operator types `send bgp * raw hex FFFF...` | → | `ResolveSinglePeer` refuses the wildcard | `TestSendRawRefusesAWildcardSelector` |
+| operator types `send bgp * announce unicast 10.0.0.0/24 next-hop 10.0.0.1` | → | `handleAnnounceUnicastCmd`, `announceAndTrack`, the reactor | `test/ui/send-announce-reaches-the-wire.ci` |
+| operator types `send bgp announce unicast 10.0.0.0/24`, with no selector | → | `Dispatch` refuses on `RequiresSelector` | `TestSendRefusesAMissingSelector` |
 | operator types an old path, `peer raw 192.0.2.1 hex FF` | → | no node matches; the dispatcher refuses and names the command | `test/ui/send-old-paths-are-refused.ci` |
 | an ExaBGP process writes `neighbor 127.0.0.1 announce route 1.1.0.0/24 next-hop 101.1.101.1` | → | `ExabgpToZebgpCommand`, `DispatchCommand`, the reactor, the peer's wire | `test/plugin/exabgp-bridge-internal.ci` (existing, hex unchanged) |
-| an ExaBGP process writes the BARE form `announce route 1.1.0.0/24 next-hop 101.1.101.1` | → | the translator's new bare branch, `request send bgp * ...`, the reactor, the peer's wire | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` |
+| an ExaBGP process writes the BARE form `announce route 1.1.0.0/24 next-hop 101.1.101.1` | → | the translator's new bare branch, `send bgp * ...`, the reactor, the peer's wire | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` |
 | an ExaBGP process writes a line the translator does not recognize | → | the narrowed passthrough refuses by name | `TestBridgeRefusesAnUnrecognizedLineByName` |
 | the same ExaBGP input, followed by the drain | → | `IsRouteCommand`, the selector the translator returned, the flush | `test/plugin/exabgp-bridge-flush-still-reaches-the-peer.ci` |
 | the grammar gate walks the merged tree | → | `ExemptCategory`, `CheckName`, `CheckNode` over the send subtree | `TestSendSubtreeIsCheckedNotExempt` |
+| a read-only operator types `send bgp * announce unicast 10.0.0.0/24` | → | `IsReadOnlyPath` answers false, `Dispatch` calls `isAuthorized`, `Profile.Authorize` reads the `Edit` section, `builtinReadOnlyProfile` denies by default | `TestSendIsDeniedToAReadOnlyProfile` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | The merged YANG tree, enumerated | No slot in the send family accepts both an operator-supplied value and a fixed keyword. Every child of `request` is a closed keyword, `send` among them; every child of `send` is a protocol keyword from a set the registry derives; and the one free-form slot sits AFTER a protocol keyword that says how to read it. A peer named `bgp`, `cache`, `raw` or `system` is reachable as a selector and confusable with no subsystem and no form word |
-| AC-2 | `request send bgp * raw hex 00`, `request send bgp !edge1 raw ...`, and a selector matching two peers | Each is refused BY NAME, naming the selector and saying a single peer is required. An address matching no configured peer reaches the reactor and answers `ErrPeerNotFound` |
+| AC-1 | The merged YANG tree, enumerated | No slot in the send family accepts both an operator-supplied value and a fixed keyword. `send` is a root verb declared in `command.Verbs`; every child of `send` is a protocol keyword from a set the registry derives; and the one free-form slot sits AFTER a protocol keyword that says how to read it. A peer named `bgp`, `cache`, `raw` or `system` is reachable as a selector and confusable with no subsystem and no form word |
+| AC-2 | `send bgp * raw hex 00`, `send bgp !edge1 raw ...`, and a selector matching two peers | Each is refused BY NAME, naming the selector and saying a single peer is required. An address matching no configured peer reaches the reactor and answers `ErrPeerNotFound` |
 | AC-3 | Any send command typed with no selector | Refused by the dispatcher. All nine wire methods register `RequiresSelector: true` and their protocol container declares a mandatory selector leaf. No send reaches a handler on a defaulted `*` |
 | AC-4 | `ze help` and tab completion at each moved path | Every argument each handler reads is offered and typed: the raw message type, its encoding enumeration and its data; the update encoding enumeration; the cache id. A value outside a declared enumeration is refused by type before the handler runs |
-| AC-5 | `request send bgp * announce unicast <prefix>` and `request send bgp edge1 withdraw all` | Each behaves exactly as the bare and peer-scoped paths behaved before: the same handler, the same wire method, the same bytes. The groupings are instantiated once, and `*` is the only way to reach every peer |
+| AC-5 | `send bgp * announce unicast <prefix>` and `send bgp edge1 withdraw all` | Each behaves exactly as the bare and peer-scoped paths behaved before: the same handler, the same wire method, the same bytes. The groupings are instantiated once, and `*` is the only way to reach every peer |
 | AC-6 | Every old path: `peer raw ...`, `peer update ...`, `announce unicast ...`, `peer <sel> withdraw all`, `request cache forward <id> <sel>` | Matches nothing. The refusal names the command that was typed. No alias and no fallback spelling |
 | AC-7 | The command inventory before and after | Nine send wire methods before, nine after. This spec respells commands and adds none, so no new handler, no new wire method and no new RPC registration appears in the diff |
 | AC-8 | An unmodified ExaBGP script writing `neighbor`-prefixed lines | Unaffected. The resulting BGP UPDATE on the peer's wire is byte-identical, the two bridge `.ci` hex expectations are unedited, and the bridge diff removes no form the translator accepts today |
-| AC-9 | An ExaBGP script writing the BARE forms, `announce route ...` and `withdraw route ...` | Translated to `request send bgp * ...` and reaching the peer's wire. This is behavior the bridge does not have today: the same input currently passes through untranslated and matches no Ze command |
+| AC-9 | An ExaBGP script writing the BARE forms, `announce route ...` and `withdraw route ...` | Translated to `send bgp * ...` and reaching the peer's wire. This is behavior the bridge does not have today: the same input currently passes through untranslated and matches no Ze command |
 | AC-10 | A line the translator does not recognize | Refused BY NAME, naming the line the script wrote and saying the bridge refused it. It is not forwarded to Ze's dispatcher. `help` is the one line that still passes through |
 | AC-11 | A route command through the bridge, driven from its ExaBGP input side | The per-peer flush still reaches the peer after the dispatch. The test asserts the flush ARRIVES, not that a helper returned the right string |
 | AC-12 | Any bridge helper that answers a selector | It cannot answer an empty string into a caller that reads empty as absence. Either it reports a failure the caller handles, or it does not exist |
 | AC-13 | `./le cli-grammar` over the merged tree | The eight BGP methods are gone from `bridgeSurface`, are CHECKED rather than counted as exempt, and produce no finding. E1 reports exactly one member, `ze-bgp:help`, with its reason restated as the passthrough |
 | AC-14 | `docs/architecture/exabgp-bridge.md` | States the translation direction, names `ExabgpToZebgpCommand` as the translator, keeps the three-row table current, and records what the narrowed passthrough now accepts |
 | AC-15 | `./le ci-dispatch` | Green. Every command string this repository sends to its own daemon still routes, over all 70 migrated `.ci` files |
+| AC-16 | A user holding only the built-in `read-only` profile types any `send` command | Denied, and denied by two defaults rather than by an entry. `IsReadOnlyPath` does not name `send`, so it answers false and the command evaluates in the profile's `Edit` section, whose default is `Deny`. The test drives the whole path from the dispatcher, and it also asserts that no entry naming `send` was added to the profile |
+| AC-17 | `command.Verbs` and the grammar gate | Thirteen canonical verbs, `send` among them with the role `VerbAction`. The gate accepts `send` as a first token because it derives its verb set from that map, and no second verb list is added anywhere |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | injects a crafted BGP message into one session for a conformance test | CLI → `request send bgp <sel> raw` → `ResolveSinglePeer` → `SendRawMessage` → wire | `test/ui/send-raw-reaches-one-peer.ci` |
-| 2 | originates a prefix to every peer | CLI → `request send bgp * announce unicast` → `announceAndTrack` → reactor → wire | `test/ui/send-announce-reaches-the-wire.ci` |
-| 3 | withdraws a tagged announcement from one peer | CLI → `request send bgp edge1 withdraw tag <k> <v>` → the registry → wire | `test/ui/send-withdraw-by-tag.ci` |
-| 4 | replays a cached UPDATE to the peers a selector names | CLI → `request send bgp <sel> cached <id>` → `ForwardUpdate` → wire | `test/plugin/api-send-cached.ci` |
+| 1 | injects a crafted BGP message into one session for a conformance test | CLI → `send bgp <sel> raw` → `ResolveSinglePeer` → `SendRawMessage` → wire | `test/ui/send-raw-reaches-one-peer.ci` |
+| 2 | originates a prefix to every peer | CLI → `send bgp * announce unicast` → `announceAndTrack` → reactor → wire | `test/ui/send-announce-reaches-the-wire.ci` |
+| 3 | withdraws a tagged announcement from one peer | CLI → `send bgp edge1 withdraw tag <k> <v>` → the registry → wire | `test/ui/send-withdraw-by-tag.ci` |
+| 4 | replays a cached UPDATE to the peers a selector names | CLI → `send bgp <sel> cached <id>` → `ForwardUpdate` → wire | `test/plugin/api-send-cached.ci` |
 | 5 | runs an unmodified ExaBGP script using `neighbor` lines | ExaBGP text → `ExabgpToZebgpCommand` → dispatch → reactor → wire, then the flush | `test/plugin/exabgp-bridge-internal.ci`, `test/plugin/exabgp-bridge-flush-still-reaches-the-peer.ci` |
-| 6 | runs an ExaBGP script using the bare forms | ExaBGP text → the translator's bare branch → `request send bgp * ...` → wire | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` |
-| 7 | discovers the grammar by typing `request send ` and pressing tab | completion over the merged tree: the protocols, then the selector, then the forms | `test/ui/cli-completion-send-forms.ci` |
+| 6 | runs an ExaBGP script using the bare forms | ExaBGP text → the translator's bare branch → `send bgp * ...` → wire | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` |
+| 7 | discovers the grammar by typing `send ` and pressing tab | completion over the merged tree: the protocols, then the selector, then the forms | `test/ui/cli-completion-send-forms.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -670,10 +697,12 @@ exactly what this design changes.
 | `TestOldSendPathsMatchNothing` | `internal/component/plugin/server/command_test.go` | each of the fifteen old paths resolves to no node | |
 | `TestSendAddsNoWireMethod` | `internal/component/plugin/server/command_test.go` | AC-7: the send wire-method set is identical before and after, so the change is a respelling | |
 | `TestSendSubtreeIsCheckedNotExempt` | `internal/component/command/grammar/checker_test.go` | `ExemptCategory` answers false for the eight moved methods and true for `ze-bgp:help`, and E1 has one member | |
+| `TestVerbRegistryCanonical` (existing) | `internal/component/command/verbs_test.go` | AC-17: the golden `want` map gains `send` with the role `VerbAction`, and the length assertion moves from twelve to thirteen | |
+| `TestSendIsDeniedToAReadOnlyProfile` | `internal/component/plugin/server/command_test.go` | AC-16: a read-only profile is refused a `send` command through the dispatcher, and the refusal comes from the `Edit` section default rather than from an entry naming the verb | |
 | `TestAnnounceFormsAreInstantiatedOnce` | `internal/component/bgp/plugins/cmd/announce/announce_test.go` | each form is reachable at exactly one path, and `*` reproduces the old bare behavior | |
 | `TestWithdrawIDMatchesTheRecordedSelector` | `internal/component/bgp/plugins/cmd/announce/withdraw_forms_test.go` | R-7: the wildcard and a named selector each behave as the two old paths did | |
-| `TestBridgeTranslatesTheNeighborForms` | `internal/exabgp/bridge/bridge_test.go` | all fourteen construction sites emit `request send bgp <ip> ...` from `neighbor`-prefixed input, and no accepted form is lost | |
-| `TestBridgeTranslatesTheBareForms` | `internal/exabgp/bridge/bridge_test.go` | AC-9: `announce route ...` and `withdraw route ...` with no prefix become `request send bgp * ...` | |
+| `TestBridgeTranslatesTheNeighborForms` | `internal/exabgp/bridge/bridge_test.go` | all fourteen construction sites emit `send bgp <ip> ...` from `neighbor`-prefixed input, and no accepted form is lost | |
+| `TestBridgeTranslatesTheBareForms` | `internal/exabgp/bridge/bridge_test.go` | AC-9: `announce route ...` and `withdraw route ...` with no prefix become `send bgp * ...` | |
 | `TestBridgeRefusesAnUnrecognizedLineByName` | `internal/exabgp/bridge/bridge_test.go` | AC-10: an unrecognized line is refused and named; `help` still passes through | |
 | `TestBridgeSelectorCannotBeSilentlyEmpty` | `internal/exabgp/bridge/bridge_muxconn_test.go` | AC-12: the helper reports a failure the caller must handle rather than answering an empty string | |
 
@@ -690,10 +719,10 @@ exactly what this design changes.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `send-raw-reaches-one-peer` | `test/ui/send-raw-reaches-one-peer.ci` | the operator injects raw bytes at the new path and a scripted peer reads them; a wildcard selector is refused | |
-| `send-announce-reaches-the-wire` | `test/ui/send-announce-reaches-the-wire.ci` | `request send bgp * announce unicast` puts the prefix on a peer's wire, with the hex the current announce fixture asserts | |
+| `send-announce-reaches-the-wire` | `test/ui/send-announce-reaches-the-wire.ci` | `send bgp * announce unicast` puts the prefix on a peer's wire, with the hex the current announce fixture asserts | |
 | `send-withdraw-by-tag` | `test/ui/send-withdraw-by-tag.ci` | a tagged announcement is withdrawn from one selector and stays for another | |
 | `send-old-paths-are-refused` | `test/ui/send-old-paths-are-refused.ci` | all fifteen old paths match nothing and the refusal names the command | |
-| `cli-completion-send-forms` | `test/ui/cli-completion-send-forms.ci` | completion after `request send ` offers the protocols, then the selector, then the forms, then each form's declared arguments | |
+| `cli-completion-send-forms` | `test/ui/cli-completion-send-forms.ci` | completion after `send ` offers the protocols, then the selector, then the forms, then each form's declared arguments | |
 | `api-send-cached` | `test/plugin/api-send-cached.ci` | a cached UPDATE is replayed to the peers a selector names | |
 | `exabgp-bridge-internal` | `test/plugin/exabgp-bridge-internal.ci` (existing) | an ExaBGP-format helper's route reaches the wire; the hex expectation is UNCHANGED and the Ze-side expectation line moves | |
 | `exabgp-bridge-sdk` | `test/plugin/exabgp-bridge-sdk.ci` (existing) | the same, in SDK mode | |
@@ -708,14 +737,16 @@ exactly what this design changes.
 
 ## Files to Modify
 
-- `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang` - declares `container request / container send / container bgp`, with the mandatory selector leaf on `bgp` and the description the sibling modules share, then `container raw` with its type, encoding and data declared. The top-level `container peer` and its shared description go with the move
+- `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang` - declares `container send / container bgp`, with the mandatory selector leaf on `bgp` and the description the sibling modules share, then `container raw` with its type, encoding and data declared. The top-level `container peer` and its shared description go with the move
 - `internal/component/bgp/plugins/cmd/raw/raw.go` - reads its arguments from the declared leaves rather than positionally; keeps `ResolveSinglePeer`
-- `internal/component/bgp/plugins/cmd/update/yang/ze-update-cmd.yang` - re-declares `request/send/bgp` with no description, so the merge is silent, and moves `container update` under it with a typed encoding enumeration
+- `internal/component/bgp/plugins/cmd/update/yang/ze-update-cmd.yang` - re-declares `send/bgp` with no description, so the merge is silent, and moves `container update` under it with a typed encoding enumeration
 - `internal/component/bgp/plugins/cmd/update/update_text.go` - reads the encoding from its declared leaf; registers `RequiresSelector: true`
-- `internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang` - the two grouping instantiations collapse to one, under `request/send/bgp`
+- `internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang` - the two grouping instantiations collapse to one, under `send/bgp`
 - `internal/component/bgp/plugins/cmd/announce/announce.go` - the six forms register `RequiresSelector: true`
-- `internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang` - `forward` leaves `request cache` and becomes `request send bgp <sel> cached <id>` with the id declared
+- `internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang` - `forward` leaves `request cache` and becomes `send bgp <sel> cached <id>` with the id declared
 - `internal/component/bgp/plugins/cmd/cache/cache.go` - `handleCacheForwardRPC` reads the declared id and the bound selector
+- `internal/component/command/verbs.go` - `Verbs` gains `send` with the role `VerbAction`, the thirteenth entry. It is the single canonical verb map, and both the grammar gate and `validateCommandName` derive from it, so no second verb list exists to edit
+- `internal/component/command/verbs_test.go` - `TestVerbRegistryCanonical` pins that map as a golden `want` value and asserts its length, so it is the second and last verb-list edit site
 - `internal/component/command/grammar/checker.go` - `bridgeSurface` drops eight entries; the comment states what the one remaining entry covers and why
 - `internal/exabgp/bridge/bridge_command.go` - the ten translating functions emit the new Ze-side grammar and return the selector they used; the translator gains the bare ExaBGP forms; the passthrough narrows to a stated set and refuses the rest by name
 - `internal/exabgp/bridge/bridge_muxconn.go` - the selector helper stops answering an empty string into a caller that reads it as absence
@@ -727,9 +758,10 @@ exactly what this design changes.
 - 70 `.ci` files under `test/encode`, `test/plugin` and `test/editor/commands` - 207 occurrences of a moved path
 - `docs/architecture/exabgp-bridge.md` - AC-14: the translation direction, the translator, the three-row table kept current, and what the narrowed passthrough accepts
 - `docs/guide/mcp/overview.md` - the page `help_ai.go` declares, which publishes the same grammar to an agent
-- `docs/architecture/api/commands.md`, `docs/architecture/api/update-syntax.md`, `docs/architecture/bgp/on-demand-origination.md`, `docs/architecture/api/ipc_protocol.md`, `docs/guide/cli.md`, `docs/architecture/config/syntax.md`, `docs/architecture/hub-api-commands.md`, `docs/features/api-commands.md`, `docs/config-migration.md`, `docs/architecture/api/architecture.md`, `docs/guide/plugins.md`, `docs/architecture/api/text-format.md`, `docs/guide/production-diagnostics.md` - the pages carrying the literal `peer <...>` shape. 133 occurrences over 15 pages, measured. `docs/guide/command-catalogue.md` and `docs/guide/command-reference.md` are the generated surface and are REGENERATED rather than edited (A-9), and `docs/architecture/cli/command-verbs.md` is the fifteenth and is NOT edited by this spec: a concurrent session owns it
+- `docs/architecture/api/commands.md`, `docs/architecture/api/update-syntax.md`, `docs/architecture/bgp/on-demand-origination.md`, `docs/architecture/api/ipc_protocol.md`, `docs/guide/cli.md`, `docs/architecture/config/syntax.md`, `docs/architecture/hub-api-commands.md`, `docs/features/api-commands.md`, `docs/config-migration.md`, `docs/architecture/api/architecture.md`, `docs/guide/plugins.md`, `docs/architecture/api/text-format.md`, `docs/guide/production-diagnostics.md` - the pages carrying the literal `peer <...>` shape. 133 occurrences over 15 pages, measured. `docs/guide/command-catalogue.md` and `docs/guide/command-reference.md` are the generated surface and are REGENERATED rather than edited (A-9), and `docs/architecture/cli/command-verbs.md` is the fifteenth. Its root-verb content is edited by this spec, listed above; its T-4 and T-5 repoint is a concurrent session's
 - `ai/patterns/cli-command.md` - the Peer Selector Mechanism section and the Full Command Inventory, for the send family alone
-- `ai/rules/cli.md` - the peer-selector exception is restated for the send family, typed by the protocol keyword
+- `ai/rules/cli.md` - GENERATED from `ai/rules/points/cli/`, so the edits land in the point files and the rule is regenerated. `cli-grammar-keywords-before-values/the-verb-is-chosen-by-the-command-s-effect-on-live-state.md` enumerates the existing action verbs and gains `send` once the verb is declared; `the-first-token-after-the-noun-must-be-a-keyword.md` restates the peer-selector exception for the send family, typed by the protocol keyword
+- `docs/architecture/cli/command-verbs.md` - the per-verb table's `send` row states the promise and the count; the verb-count sentence moves from twelve to thirteen once `Verbs` carries it
 - `docs/architecture/cli/command-namespacing.md` - the exemption count and what E1 now covers
 - `docs/architecture/api/process-protocol.md` - which commands carry `RequiresSelector`, and why the selector is mandatory
 - `docs/architecture/core-design.md` - named as unaffected beyond a pointer to `exabgp-bridge.md`, which is where the translation is documented
@@ -749,11 +781,11 @@ exactly what this design changes.
 
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `ze-raw-cmd.yang` declares `request/send/bgp` and the selector leaf on `bgp`; `ze-update-cmd.yang`, `ze-cli-announce-cmd.yang` and `ze-cli-cache-cmd.yang` merge their forms onto it. No new RPC: nine existing wire methods are re-pathed |
+| YANG schema (new RPCs/config) | Yes | `ze-raw-cmd.yang` declares `send/bgp` and the selector leaf on `bgp`; `ze-update-cmd.yang`, `ze-cli-announce-cmd.yang` and `ze-cli-cache-cmd.yang` merge their forms onto it. No new RPC: nine existing wire methods are re-pathed |
 | YANG validation constraints | Yes | the raw encoding and the update encoding become enumerations; the raw message type is an enumeration of the five names; the cache id is a string identifier with a length |
 | YANG custom validators | N-A | every value is expressible with a native `enumeration`, `length` or `pattern`. The selector stays a string because `selector.ParseDefault` owns its vocabulary and already reports on it |
 | CLI commands/flags | Yes | no offline command changes; the whole change is in the daemon command tree |
-| CLI grammar (keyword before value) | Yes | `ai/rules/cli.md` and `internal/component/command/grammar/checker.go`. The peer exception is restated for the send family, and eight methods enter the checked population |
+| CLI grammar (keyword before value) | Yes | `ai/rules/cli.md` and `internal/component/command/grammar/checker.go`. `send` joins `command.Verbs` as the thirteenth canonical verb, so the gate accepts it as a first token with no gate edit. The peer exception is restated for the send family, and eight methods enter the checked population |
 | Editor autocomplete | Yes | automatic for the new enumerations, and the protocol set is a closed child list; `test/ui/cli-completion-send-forms.ci` asserts the whole chain |
 | Functional test for new RPC/API | Yes | eight new `.ci` files listed above, plus the two existing bridge fixtures |
 | Pipe completeness | N-A | every send answers a small status object through the existing response path; this spec changes no answer shape |
@@ -786,10 +818,11 @@ exactly what this design changes.
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- declare `request send bgp <selector>` and prove the selector binds
+1. **Phase: Wiring (MANDATORY FIRST)** -- declare `send bgp <selector>` and prove the selector binds
    - Tests: `TestSendRawReachesOnePeerAtItsNewPath`, `TestSendRefusesAMissingSelector`
-   - Files: `ze-raw-cmd.yang` (the `request/send/bgp` skeleton and the selector leaf), the `raw.go` registration
-   - Verify: the new path dispatches and the selector reaches the context's peer field, with the handler still a stub. A-1 is answered here, before anything moves
+   - Tests, also: `TestVerbRegistryCanonical`, `TestSendIsDeniedToAReadOnlyProfile`
+   - Files: `verbs.go` and `verbs_test.go` (the thirteenth verb, role `VerbAction`), `ze-raw-cmd.yang` (the `send/bgp` skeleton and the selector leaf), the `raw.go` registration
+   - Verify: the new path dispatches and the selector reaches the context's peer field, with the handler still a stub. The grammar gate accepts `send` as a first token, and the read-only profile refuses the command. A-1 and AC-16 are answered here, before anything moves
 2. **Phase: declare the arguments** -- raw, update and cache forward state what their handlers read
    - Tests: `TestSendArgumentsAreDeclared`, `test/ui/cli-completion-send-forms.ci`
    - Files: the three YANG modules and their three handlers
@@ -842,7 +875,7 @@ exactly what this design changes.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Fifteen old paths match nothing | `test/ui/send-old-paths-are-refused.ci` |
-| Nine wire methods answer at their new paths, and nine is still the count | `./le command list` shows each under `request send bgp`, and `TestSendAddsNoWireMethod` passes |
+| Nine wire methods answer at their new paths, and nine is still the count | `./le command list` shows each under `send bgp`, and `TestSendAddsNoWireMethod` passes |
 | Every send carries the guard | `grep -rn "RequiresSelector" internal/component/bgp/plugins/cmd` names all nine |
 | E1 has one member | `grep -n "bridgeSurface" -A 6 internal/component/command/grammar/checker.go` |
 | No sender left behind | `./le ci-dispatch` |
@@ -856,7 +889,7 @@ exactly what this design changes.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | The selector is operator text reaching `selector.ParseDefault`. Its vocabulary is unchanged, and the exclusion refusal in `ResolveSinglePeer` must still fire through the new path |
-| Authorization | `request` is not a read verb, so `IsReadOnlyPath` puts the whole send family in the edit section. Assert the permission each moved command answers under before and after the move (R-6), including any `ze:ui-permissions` a moved node inherits from its new parent |
+| Authorization | `IsReadOnlyPath` is an allowlist of the read verbs and does not name `send`, so the whole send family evaluates in the edit section and the built-in read-only profile denies it by default (AC-16). A verb the allowlist has never heard of is a write, which is the property that makes a new root verb safe to add. Assert the permission each moved command answers under before and after the move (R-6), including any `ze:ui-permissions` a moved node inherits from its new parent |
 | Fail-closed guard | `RequiresSelector` is the guard that stops a send with no selector. It is being ADDED to eight commands that lacked it, so each one's refusal is tested rather than assumed |
 | Passthrough narrowing | The passthrough is an untyped path from a plugin's stdout to Ze's dispatcher. Narrowing it REDUCES what a script process can reach, so the review checks that the remaining accepted set is exactly the one A-6 enumerated |
 | Blast radius of `raw` | `raw` bypasses validation by design. Its single-session property and its sender permission, which requires the process to be attached to that peer, must both still hold at the new path |
@@ -892,10 +925,11 @@ exactly what this design changes.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | `send` is an explicit discriminator | `request <destination> <protocol> ...`, with no discriminator | Every child of `request` is a subsystem keyword today. A free-form value in that slot is unparseable against `bgp`, `cache` and `system`, and a peer named `bgp` would be unreachable |
-| The protocol comes BEFORE the selector | `request send <destination> <protocol> ...`, the shape first proposed | Owner decision, and the repository's own reason is stronger: a closed keyword in front of the value tells the parser how to read it, keeps a name and a keyword out of one slot, and lets each protocol's package own its selector grammar. Completion, the grammar checker and the authz profiles all key on closed sets |
+| `send` is a ROOT VERB, the thirteenth | `send` as a noun under `request` | Thomas ruled it on 2026-09-05, in two words: "send bgp". The axis on `docs/architecture/cli/command-verbs.md` gives the reason: `request` changes the system, and `send` puts a message outside it, so a send is not a kind of request. It costs one entry in `command.Verbs` and one row in that map's golden test, and nothing in `IsReadOnlyPath`, which allowlists the read verbs and treats every verb it does not name as writing |
+| The protocol comes BEFORE the selector | the shape first proposed, which put the destination in front of the protocol | Owner decision, and the repository's own reason is stronger: a closed keyword in front of the value tells the parser how to read it, keeps a name and a keyword out of one slot, and lets each protocol's package own its selector grammar. Completion, the grammar checker and the authz profiles all key on closed sets |
 | The selector leaf is declared on the protocol container, not on `send` | one selector leaf on `send`, shared by every protocol | A BGP peer selector, a resolver address and an interface name are three types with three validators and three completions. One shared leaf would be a central declaration every protocol has to fit (`ai/rules/principles.md`) |
 | The selector leaf keeps the model's existing name, and "destination" is prose | name the leaf `destination`, and either teach `applyExtractedSelectors` a second spelling or change `ResolveSinglePeer`'s signature at six call sites | One concept, one name in the model (`ai/rules/writing.md`, habit 1). The leaf is positional and anchored, so the operator never types its name, and `ai/rules/cli.md`'s ban is on exposing it as a keyword |
-| `request cache forward` joins the population as `request send bgp <sel> cached <id>` | leave it under `request cache`, beside `retain`, `release` and `expire` | It puts a whole UPDATE on each matched peer's wire and names the peers, so both legs hold. Leaving it keeps a second place where a BGP send names its destination. Its three siblings act on the cache entry and send nothing, so the family is split by effect rather than by noun |
+| `request cache forward` joins the population as `send bgp <sel> cached <id>` | leave it under `request cache`, beside `retain`, `release` and `expire` | It puts a whole UPDATE on each matched peer's wire and names the peers, so both legs hold. Leaving it keeps a second place where a BGP send names its destination. Its three siblings act on the cache entry and send nothing, so the family is split by effect rather than by noun |
 | The arguments are declared in this spec rather than in a follow-up | keep the journal row open, as the superseded spec did | The row's stated reason stops holding: this spec publishes a path no operator has typed, and shipping it with an undeclared tail states a knowingly incomplete grammar at a brand-new path |
 | The translator learns the bare ExaBGP forms, freeing the six passthrough spellings | freeze the six spellings so a passthrough script keeps reaching them; or take the compatibility break to Thomas | Teaching the translator removes the coupling instead of preserving it, and it fixes an existing gap: ExaBGP's own bare `announce route ...` matches no Ze command today. Freezing would exempt six of fifteen paths from the point of the spec. Taking it to Thomas would be asking permission to do less when a design exists |
 | The free moves go first, the passthrough moves go after the translator learns | move all nine together | The bridge page's table says `peer raw` costs nothing and `peer update` costs one translator edit, while the six passthrough forms need the translator taught first. Ordering the phases by that table means no phase leaves an ExaBGP script broken between commits |
@@ -909,7 +943,8 @@ exactly what this design changes.
 - The update route expression after the encoding word stays a tail `ParseUpdateText` owns. A full YANG declaration of a recursive attribute and NLRI grammar is not reachable here, and the encoding enumeration plus a `ze:help` naming `docs/architecture/api/update-syntax.md` is what this spec delivers.
 - Narrowing the passthrough removes an undocumented escape hatch: today a plugin's stdout can carry ANY Ze command through the bridge, and after this spec it carries the ExaBGP vocabulary and `help`. Nothing in the repository uses that hatch, and A-6 enumerates before the narrowing lands, but it is a capability that goes.
 - `request commit` keeps its row in `plan/journal/command-takes-an-untyped-positional-value.md`. It sends nothing and is outside this population.
-- `docs/architecture/cli/command-verbs.md` is not edited by this spec, though its rows T-4 and T-5 are answered by it and their Evidence columns point at the superseded spec. A concurrent session owns that page.
+- `docs/architecture/cli/command-verbs.md` carries the root-verb decision, and its rows T-4 and T-5 are answered by this spec while their Evidence columns still point at the superseded spec. That repoint is a concurrent session's.
+- The `send` row on that page and the `send` line in `ai/rules/cli.md` describe a verb `command.Verbs` does not hold yet. The implementation phase declares the verb and makes the two agree, and the page states which side is ahead until then.
 - E1 keeps one member. Whether `help` should reach Ze through a passthrough at all is the bridge's own question, not this spec's.
 - `bgp` is the only protocol under `send` when this lands. The token's value is the parser property and the registration point, not a second protocol that exists today.
 - **Size.** Nine wire methods at fifteen paths, 207 sender occurrences across 70 `.ci` files, 133 documentation occurrences across 15 pages, plus the bridge and the gate. If this is more than one implementation package, the cut is between phase 6 and phase 7: the BGP send family with its senders, its documentation and the translator work that unblocks it, then the bridge's remaining repair with the gate. The package boundary is the main thread's to set (`ai/rules/planning.md`); an implementer facing it trims no acceptance criterion.
@@ -938,7 +973,7 @@ traffic action) are each enforced below the command layer and are untouched.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-15 all demonstrated
+- [ ] AC-1..AC-17 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
