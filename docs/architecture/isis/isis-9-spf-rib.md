@@ -41,7 +41,7 @@ here is SPF correctness, not the install path.
 `locrib.Path` has no protocol-type or level field, so per-level admin distance is
 not modelable. IS-IS resolves the up/down-aware preference internally and
 publishes exactly **one** path per prefix. The existing
-`rib.admin-distance.isis` leaf is reused unchanged and no per-level leaves were
+`rib.distance.isis` leaf is reused unchanged and no per-level leaves were
 added.
 
 Per-level admin distance against **other** protocols would need a level field on
@@ -64,6 +64,23 @@ metric is the full 32-bit field, read in full and never capped at 24 bits. Path
 cost accumulates in 64 bits and clamps at the maximum path metric, so a sum of
 32-bit prefix and 24-bit edge metrics cannot wrap. A prefix at or above the
 maximum is unreachable and skipped.
+
+## Decision: the maximum LINK metric excludes the link, not the path
+
+RFC 5305 section 3 states two bounds, and they are different requirements. The
+path bound above clamps an accumulated cost at MAX_PATH_METRIC (0xFE000000). The
+link bound says a link advertised at the maximum LINK metric (2^24-1 =
+16777215) MUST NOT be considered during the normal SPF computation, so an
+operator can advertise a link for traffic engineering and keep it out of
+hop-by-hop routing.
+
+The exclusion is applied where an edge is considered, in `relax`, and not where
+the graph is built. The RFC keeps such a link advertised on purpose, so the
+graph still carries it for every reader that is not the normal shortest path
+tree. One guard covers both levels and both address families, because Ze runs a
+single per-level SPF tree and IPv6 rides it (`spf/ipv6.go`).
+
+<!-- source: internal/plugins/isis/spf/spf.go -- relax -->
 
 ## Decision: ECMP needed a path-group expansion in shared code
 
