@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | spec-radius-acct-session-attributes, closed 2026-09-04 |
-| Phase | 5/6 (schema, typed set, wiring, filter and the two `.ci` landed in `6bd1653b41`; the doc hunks wait on two pages several sessions hold) |
+| Phase | 6/6 (schema, typed set, wiring, filter and the two `.ci` in `6bd1653b41`; the docs in `a32367b75`) |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-04 |
