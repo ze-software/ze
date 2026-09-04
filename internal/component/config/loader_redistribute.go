@@ -42,6 +42,11 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 				rules = append(rules, redistribute.ImportRule{Source: scalar, Destination: dest.Key})
 				continue
 			}
+			// A destination that imports nothing states an intention the
+			// daemon cannot act on. Producing no rule for it looks exactly
+			// like producing one that rejects everything, so name it instead
+			// (ai/rules/principles.md).
+			return nil, fmt.Errorf("redistribute: destination %q imports nothing; name at least one source or remove the destination", dest.Key)
 		}
 		for _, entry := range entries {
 			source := entry.Key

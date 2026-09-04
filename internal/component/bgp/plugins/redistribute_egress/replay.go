@@ -1,17 +1,23 @@
 // Design: docs/architecture/core-design.md -- redistribute replay-on-request
 //
-// This file implements the peer-up trigger and new-peer targeting for the
-// late-join replay (spec-redistribute-late-join-replay):
+// This file implements the two triggers of the late-join replay and the
+// targeting of each. A producer emits once, and whoever was not listening at
+// that moment holds nothing, so each trigger names a party that arrived late:
 //
-//	BGP peer down->up edge --> replayCoordinator.onPeerUp
-//	   -> allocate monotonic replayID, record replayID -> peer (bounded + TTL)
+//	BGP peer down->up edge      --> replayCoordinator.onPeerUp
+//	consumer becomes registered --> replayCoordinator.onConsumerRegistered
+//	   -> allocate monotonic replayID, record replayID -> target (bounded + TTL)
 //	   -> emit redistevents.ReplayRequest{replayID}
 //	producers re-emit RouteChangeBatch{ReplayID: replayID}
 //	   -> orchestrator handleBatch sees IsReplay() -> handleReplayBatch
-//	   -> lookupTarget(replayID) -> inject to that ONE peer, bgp consumer only
+//	   -> lookupTarget(replayID) -> inject to that ONE target
 //
-// The producer never learns the peer; the coordinator alone holds the
-// replayID -> peer mapping, so the returning batch stays peer-agnostic.
+// A peer target injects through the BGP consumer, to that peer alone. A
+// consumer target injects through that consumer, with the all-peers fan-out an
+// incremental batch takes.
+//
+// The producer never learns the target. The coordinator alone holds the
+// replayID -> target mapping, so the returning batch stays target-agnostic.
 
 package redistributeegress
 
@@ -27,11 +33,14 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-// bgpDestination is the destination protocol name the late-join replay targets.
-// OSPF/ISIS redistribute consumers originate into a flooded/synchronized
-// link-state DB and receive routes via database exchange on a new adjacency, so
-// they have no late-join gap; only the BGP consumer sends per-peer and needs
-// the replay.
+// bgpDestination is the destination protocol name the PEER-UP replay targets.
+// OSPF/ISIS redistribute consumers originate into a flooded link-state DB, and
+// a new adjacency receives that DB by database exchange. A new neighbor
+// therefore opens no gap for them. Only the BGP consumer sends per-peer, and
+// only it needs a replay when a peer establishes.
+//
+// A consumer REGISTERING late is the other gap, and it is every destination's:
+// see onConsumerRegistered, which targets the consumer rather than this name.
 const bgpDestination = "bgp"
 
 // replayTTL bounds how long a replayID -> peer mapping is held after the request
@@ -48,19 +57,41 @@ const replayTTL = 30 * time.Second
 // (lowest replayID) are dropped.
 const replayMapMaxSize = 4096
 
-// replayEntry records the peer a replay request targets and when the mapping
-// expires.
+// replayKind names who one replay request was fired for. Zero is never a valid
+// target, so an entry nobody filled in cannot be mistaken for a peer.
+type replayKind uint8
+
+const (
+	// replayKindUnspecified is the Go zero value and names no target.
+	replayKindUnspecified replayKind = iota
+	// replayKindPeer targets the one BGP peer whose session just established.
+	// The returning batch is injected through the BGP consumer, to that peer.
+	replayKindPeer
+	// replayKindConsumer targets the one destination protocol whose consumer
+	// just registered. The returning batch is injected through that consumer,
+	// with the ordinary all-peers fan-out.
+	replayKindConsumer
+)
+
+// replayEntry records who a replay request targets and when the mapping
+// expires. name is a peer address for replayKindPeer and a consumer name for
+// replayKindConsumer; kind is what says which, and no reader guesses from the
+// value.
 type replayEntry struct {
-	peer     string
+	kind     replayKind
+	name     string
 	deadline time.Time
 }
 
-// replayCoordinator correlates BGP peer-up events to redistribute replay
-// batches. On a peer's down->up edge it allocates a monotonic replayID, records
-// replayID -> peer, and emits ReplayRequest{replayID}. Producers re-emit their
-// current set tagged with the echoed replayID; the orchestrator's batch handler
-// maps the ID back to the peer and targets only that peer. Distinct replayIDs
-// per peer-up mean concurrent replays never cross-deliver (R-2).
+// replayCoordinator correlates a late-join event to the redistribute replay
+// batches it produces. On a peer's down->up edge, and on a consumer becoming
+// registered, it allocates a monotonic replayID, records replayID -> target,
+// and emits ReplayRequest{replayID}.
+//
+// Producers re-emit their current set tagged with the echoed replayID. The
+// orchestrator's batch handler maps the ID back to the target and reaches only
+// that target. Distinct replayIDs per trigger mean concurrent replays never
+// cross-deliver (R-2).
 type replayCoordinator struct {
 	mu      sync.Mutex
 	gen     uint64
@@ -118,21 +149,57 @@ func (c *replayCoordinator) onPeerUp(bus ze.EventBus, peer string) (uint64, bool
 		return 0, false
 	}
 
+	return c.fire(bus, replayKindPeer, peer)
+}
+
+// onConsumerRegistered handles a destination protocol's consumer becoming
+// visible in the registry. It allocates a replayID, records it against that
+// consumer, and emits ReplayRequest{replayID} so every producer re-emits its
+// current set for it. Returns (replayID, true) when a request was fired;
+// (0, false) when there is no configured evaluator or no import feeds this
+// destination.
+//
+// This is what makes a late consumer not an empty consumer. The dispatcher
+// reads the consumer registry live at event time (handleBatch). A producer that
+// emitted before this consumer registered reached every consumer except it, and
+// the route was lost with no line in any log.
+//
+// Startup order decides which case a deployment lands in. The static plugin and
+// the IS-IS plugin start in the same tier, and nothing orders them.
+//
+// The evaluator gate is R-2. A consumer no rule imports into gains nothing from
+// a replay, and firing anyway would storm every producer once per consumer on
+// every startup.
+func (c *replayCoordinator) onConsumerRegistered(bus ze.EventBus, consumer string) (uint64, bool) {
+	if c == nil || bus == nil || consumer == "" {
+		return 0, false
+	}
+	ev := configredist.Global()
+	if ev == nil || !ev.HasDestination(consumer) {
+		return 0, false
+	}
+	return c.fire(bus, replayKindConsumer, consumer)
+}
+
+// fire allocates a replayID for one target, records the mapping, and broadcasts
+// the request. It is the one place a replayID is minted, so both triggers share
+// the eviction, the TTL and the hard cap.
+func (c *replayCoordinator) fire(bus ze.EventBus, kind replayKind, name string) (uint64, bool) {
 	c.mu.Lock()
 	c.evictLocked()
 	c.gen++
 	id := c.gen
-	c.pending[id] = replayEntry{peer: peer, deadline: c.nowFn().Add(c.ttl)}
+	c.pending[id] = replayEntry{kind: kind, name: name, deadline: c.nowFn().Add(c.ttl)}
 	c.mu.Unlock()
 
 	// Emit OUTSIDE the lock: engine subscribers deliver synchronously and the
 	// producer re-emit re-enters handleReplayBatch -> lookupTarget, which locks
 	// c.mu. Holding the lock here would deadlock that nested dispatch.
 	if _, err := redistevents.ReplayRequestEvent.Emit(bus, &redistevents.ReplayRequest{ReplayID: id}); err != nil {
-		logger().Warn("redistribute-orchestrator: replay-request emit failed", "peer", peer, "replay-id", id, "error", err)
+		logger().Warn("redistribute-orchestrator: replay-request emit failed", "target", name, "replay-id", id, "error", err)
 		return id, true
 	}
-	logger().Debug("redistribute-orchestrator: replay request fired on peer-up", "peer", peer, "replay-id", id)
+	logger().Debug("redistribute-orchestrator: replay request fired", "kind", kind, "target", name, "replay-id", id)
 	return id, true
 }
 
@@ -147,25 +214,25 @@ func (c *replayCoordinator) onPeerDown(peer string) {
 	c.mu.Unlock()
 }
 
-// lookupTarget returns the peer a replayID maps to, or ("", false) when the ID
-// is unknown or its mapping has expired. It does NOT evict on lookup: several
-// producers each re-emit for the same replayID, so the mapping must survive
-// until the TTL, not until the first returning batch.
-func (c *replayCoordinator) lookupTarget(replayID uint64) (string, bool) {
+// lookupTarget returns who a replayID targets, or a zero entry and false when
+// the ID is unknown or its mapping has expired. It does NOT evict on lookup:
+// several producers each re-emit for the same replayID, so the mapping must
+// survive until the TTL, not until the first returning batch.
+func (c *replayCoordinator) lookupTarget(replayID uint64) (replayEntry, bool) {
 	if c == nil {
-		return "", false
+		return replayEntry{}, false
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e, ok := c.pending[replayID]
 	if !ok {
-		return "", false
+		return replayEntry{}, false
 	}
 	if c.nowFn().After(e.deadline) {
 		delete(c.pending, replayID)
-		return "", false
+		return replayEntry{}, false
 	}
-	return e.peer, true
+	return e, true
 }
 
 // evictLocked drops expired entries and, if still over the hard cap, the oldest
@@ -193,15 +260,15 @@ func (c *replayCoordinator) evictLocked() {
 	}
 }
 
-// handleReplayBatch injects a ReplayID-tagged batch to the single peer its
-// replayID maps to, via the BGP consumer only. An unknown/expired replayID is
-// dropped with a warn (never mis-delivered). Only Add entries are injected: a
-// re-emit is a snapshot of the producer's CURRENT live set (all adds); a route
-// withdrawn before the peer joined is simply absent (AC-4).
+// handleReplayBatch injects a ReplayID-tagged batch to the target its replayID
+// maps to. An unknown/expired replayID is dropped with a warn (never
+// mis-delivered). Only Add entries are injected: a re-emit is a snapshot of the
+// producer's CURRENT live set (all adds); a route withdrawn before the target
+// joined is simply absent (AC-4).
 func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 	coord := getReplayCoordinator()
 	name := redistevents.ProtocolName(b.Protocol)
-	peer, ok := coord.lookupTarget(b.ReplayID)
+	target, ok := coord.lookupTarget(b.ReplayID)
 	if !ok {
 		logger().Warn("redistribute-orchestrator: replay batch with unknown/expired ReplayID, dropping",
 			"replay-id", b.ReplayID, "source", name)
@@ -211,9 +278,31 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		logger().Warn("redistribute-orchestrator: replay batch from unregistered ProtocolID", "id", b.Protocol)
 		return
 	}
-	// Loop prevention (whole-batch drop): a bgp-sourced batch is never
-	// redistributed back into bgp on the single-destination replay path.
-	if redistevents.WouldLoop(name, bgpDestination) {
+
+	// The destination this replay feeds, and the peer selector it feeds it
+	// with. A peer-up replay reaches one peer through the BGP consumer; a
+	// consumer-registration replay reaches every peer through the one consumer
+	// that just registered, which is the ordinary fan-out an incremental batch
+	// takes (dispatchEntryToConsumer, redistribute.go).
+	var destination, peer string
+	switch target.kind {
+	case replayKindPeer:
+		destination, peer = bgpDestination, target.name
+	case replayKindConsumer:
+		destination, peer = target.name, ""
+	default:
+		// replayKindUnspecified, and any kind a later change adds while this
+		// switch stays silent about what it targets. Dropping is the only safe
+		// answer. An empty destination matches a destination-agnostic rule, so
+		// falling through would deliver the batch to a consumer nobody named.
+		logger().Warn("BUG: redistribute-orchestrator: replay entry with no target kind, dropping",
+			"replay-id", b.ReplayID, "source", name, "kind", target.kind)
+		return
+	}
+
+	// Loop prevention (whole-batch drop): a source protocol's batch is never
+	// redistributed back into that same protocol's consumer.
+	if redistevents.WouldLoop(name, destination) {
 		return
 	}
 
@@ -224,15 +313,15 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 	}
 	famVal := family.Family{AFI: family.AFI(b.AFI), SAFI: family.SAFI(b.SAFI)}
 	route := configredist.RedistRoute{Origin: name, Family: famVal, Source: name}
-	// Destination-scoped: only sources imported under `destination bgp` replay.
-	if !ev.Accept(route, bgpDestination) {
-		logger().Debug("redistribute-orchestrator: evaluator rejected replay batch", "source", name, "family", famVal.String())
+	// Destination-scoped: only sources imported under this destination replay.
+	if !ev.Accept(route, destination) {
+		logger().Debug("redistribute-orchestrator: evaluator rejected replay batch", "source", name, "destination", destination, "family", famVal.String())
 		return
 	}
 
-	consumer, ok := configredist.LookupConsumer(bgpDestination)
+	consumer, ok := configredist.LookupConsumer(destination)
 	if !ok {
-		logger().Warn("redistribute-orchestrator: bgp consumer not registered, dropping replay batch")
+		logger().Warn("redistribute-orchestrator: consumer not registered, dropping replay batch", "destination", destination)
 		return
 	}
 
@@ -246,5 +335,5 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 			m.replayTotal.With(name).Inc()
 		}
 	}
-	logger().Debug("redistribute-orchestrator: replayed source to new peer", "source", name, "peer", peer, "entries", len(b.Entries))
+	logger().Debug("redistribute-orchestrator: replayed source", "source", name, "destination", destination, "peer", peer, "entries", len(b.Entries))
 }

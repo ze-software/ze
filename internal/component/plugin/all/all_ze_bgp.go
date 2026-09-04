@@ -74,7 +74,6 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/persist"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/redistribute_egress"
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/redistribute_ingress"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/role"

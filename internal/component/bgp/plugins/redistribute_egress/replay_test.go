@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 
@@ -39,9 +40,10 @@ func TestOrchestratorFiresReplayOnPeerUp(t *testing.T) {
 	require.Len(t, gotIDs, 1)
 	assert.Equal(t, id, gotIDs[0], "emitted ReplayRequest carries the allocated ID")
 
-	peer, ok := coord.lookupTarget(id)
+	target, ok := coord.lookupTarget(id)
 	assert.True(t, ok)
-	assert.Equal(t, "10.0.0.1", peer)
+	assert.Equal(t, replayKindPeer, target.kind)
+	assert.Equal(t, "10.0.0.1", target.name)
 
 	// Same peer already up: not a down->up edge, no re-fire.
 	_, fired2 := coord.onPeerUp(bus, "10.0.0.1")
@@ -162,4 +164,202 @@ func TestOrchestratorIncrementalUnchangedByReplayID(t *testing.T) {
 	inj := consumer.snapshotInjected()
 	require.Len(t, inj, 1)
 	assert.Equal(t, "", inj[0].entry.Peer, "incremental inject keeps the all-peers selector")
+}
+
+// replayingProducer subscribes a fake producer to ReplayRequest and answers
+// each one with its current set, which is what the static and connected
+// plugins' reemitAll does. Returns the handle its incremental emits use.
+func replayingProducer(t *testing.T, bus *testBus, id redistevents.ProtocolID, name, prefix string) func(uint64) {
+	t.Helper()
+	handle := events.Register[*redistevents.RouteChangeBatch](name, redistevents.EventType)
+	emit := func(replayID uint64) {
+		b := addBatch(id, afiIPv4, prefix, "")
+		b.ReplayID = replayID
+		_, err := handle.Emit(bus, b)
+		require.NoError(t, err)
+	}
+	redistevents.ReplayRequestEvent.Subscribe(bus, func(r *redistevents.ReplayRequest) { emit(r.ReplayID) })
+	return emit
+}
+
+// TestLateConsumerReceivesProducerSet is AC-3 at the orchestrator: a consumer
+// that registers after a producer emitted holds that producer's current set.
+//
+// VALIDATES: AC-3 -- the static plugin and the IS-IS plugin start in the same
+// tier, nothing orders them, and the IS-IS LSP has to carry the static prefix
+// either way.
+// PREVENTS: the dispatch that reads ConsumerNames() live at event time and
+// therefore fans a batch out to whoever happened to be registered at that
+// instant, losing it for everybody else with no line in any log.
+func TestLateConsumerReceivesProducerSet(t *testing.T) {
+	resetState(t)
+	fakeID := redistevents.RegisterProtocol("fakeredist")
+	redistevents.RegisterProducer(fakeID)
+	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
+	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
+		{Source: "fakeredist", Destination: "isis"},
+	}))
+
+	bus := newTestBus()
+	setEventBus(bus)
+	emit := replayingProducer(t, bus, fakeID, "fakeredist", "10.99.0.0/24")
+
+	coord := newReplayCoordinator()
+	setReplayCoordinator(coord)
+	t.Cleanup(func() { setReplayCoordinator(nil) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	unsubs := subscribe(ctx, bus, nil)
+	defer func() {
+		for _, u := range unsubs {
+			u()
+		}
+	}()
+	defer watchConsumers(bus, coord)()
+
+	// The producer emits its route before any consumer exists. This is the
+	// batch that is lost today.
+	emit(0)
+
+	isis := &stubConsumer{name: "isis"}
+	require.NoError(t, configredist.RegisterConsumer(isis))
+
+	inj := isis.snapshotInjected()
+	require.Len(t, inj, 1, "the consumer must hold the producer's set the moment it registers")
+	assert.Equal(t, "10.99.0.0/24", inj[0].entry.Prefix)
+	assert.Empty(t, inj[0].entry.Peer, "a consumer replay takes the all-peers fan-out, not the single-peer selector")
+	assert.Equal(t, "fakeredist", inj[0].entry.Source)
+}
+
+// TestConsumerAlreadyRegisteredIsSweptAtStartup is the other startup order. The
+// consumer registered before the dispatcher subscribed, so no observer can have
+// seen it, and the producer's batch reached no dispatcher either.
+//
+// VALIDATES: AC-3 for the order the observer alone does not cover.
+// PREVENTS: fixing one arrival order and leaving the other, which would make
+// the outcome depend on which plugin tier ran first.
+func TestConsumerAlreadyRegisteredIsSweptAtStartup(t *testing.T) {
+	resetState(t)
+	fakeID := redistevents.RegisterProtocol("fakeredist")
+	redistevents.RegisterProducer(fakeID)
+	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
+	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
+		{Source: "fakeredist", Destination: "isis"},
+	}))
+
+	bus := newTestBus()
+	setEventBus(bus)
+	emit := replayingProducer(t, bus, fakeID, "fakeredist", "10.99.0.0/24")
+
+	isis := &stubConsumer{name: "isis"}
+	require.NoError(t, configredist.RegisterConsumer(isis))
+	emit(0)
+	require.Empty(t, isis.snapshotInjected(), "nothing dispatches before the orchestrator subscribes")
+
+	coord := newReplayCoordinator()
+	setReplayCoordinator(coord)
+	t.Cleanup(func() { setReplayCoordinator(nil) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	unsubs := subscribe(ctx, bus, nil)
+	defer func() {
+		for _, u := range unsubs {
+			u()
+		}
+	}()
+	defer watchConsumers(bus, coord)()
+
+	inj := isis.snapshotInjected()
+	require.Len(t, inj, 1, "the startup sweep must replay for a consumer that registered first")
+	assert.Equal(t, "10.99.0.0/24", inj[0].entry.Prefix)
+}
+
+// TestReplayFiresOncePerConsumer holds the trigger to R-2: one registration
+// emits one ReplayRequest, and a consumer no rule imports into emits none.
+//
+// VALIDATES: R-2 -- the boundary row "1 request per registration", whose
+// invalid-above case is a duplicate request per producer.
+// PREVENTS: a replay storm at startup, where every consumer asks every producer
+// separately and a deployment with N consumers and M producers pays N*M.
+func TestReplayFiresOncePerConsumer(t *testing.T) {
+	resetState(t)
+	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
+	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
+		{Source: "fakeredist", Destination: "isis"},
+	}))
+
+	bus := newTestBus()
+	setEventBus(bus)
+
+	// Two producers answer the broadcast. One request still has to be ONE
+	// request. The count below is of requests, and two producers answering it
+	// is the mechanism rather than a second request.
+	var requests []uint64
+	redistevents.ReplayRequestEvent.Subscribe(bus, func(r *redistevents.ReplayRequest) {
+		requests = append(requests, r.ReplayID)
+	})
+	redistevents.ReplayRequestEvent.Subscribe(bus, func(_ *redistevents.ReplayRequest) {})
+
+	coord := newReplayCoordinator()
+	setReplayCoordinator(coord)
+	t.Cleanup(func() { setReplayCoordinator(nil) })
+	defer watchConsumers(bus, coord)()
+
+	isis := &stubConsumer{name: "isis"}
+	require.NoError(t, configredist.RegisterConsumer(isis))
+	require.Len(t, requests, 1, "one registration fires exactly one request")
+
+	// An engine instance recreated by an SDK reconnect re-registers, and that
+	// instance holds nothing. It is owed one request of its own: one request,
+	// never one per producer.
+	configredist.ReregisterConsumer(&stubConsumer{name: "isis"})
+	require.Len(t, requests, 2)
+	assert.NotEqual(t, requests[0], requests[1], "each request carries its own replayID")
+
+	// No rule imports into ospf, so a replay would ask every producer for a set
+	// this consumer will reject anyway.
+	require.NoError(t, configredist.RegisterConsumer(&stubConsumer{name: "ospf"}))
+	assert.Len(t, requests, 2, "a consumer no rule feeds must not fire a request")
+}
+
+// TestConsumerReplayRespectsLoopPrevention keeps the second replay target under
+// the same invariant as the first: a source protocol's batch is never
+// redistributed into that same protocol's consumer.
+//
+// VALIDATES: the "behavior to preserve" row on loop prevention.
+// PREVENTS: an IS-IS batch replayed into the IS-IS consumer, which the config
+// in test/interop/scenarios/isis-redist-frr deliberately does not ask for.
+func TestConsumerReplayRespectsLoopPrevention(t *testing.T) {
+	resetState(t)
+	isisID := redistevents.RegisterProtocol("isis")
+	redistevents.RegisterProducer(isisID)
+	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "isis", Protocol: "isis"}))
+	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
+		{Source: "isis", Destination: "isis"},
+	}))
+
+	bus := newTestBus()
+	setEventBus(bus)
+	emit := replayingProducer(t, bus, isisID, "isis", "10.99.0.0/24")
+
+	coord := newReplayCoordinator()
+	setReplayCoordinator(coord)
+	t.Cleanup(func() { setReplayCoordinator(nil) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	unsubs := subscribe(ctx, bus, nil)
+	defer func() {
+		for _, u := range unsubs {
+			u()
+		}
+	}()
+	defer watchConsumers(bus, coord)()
+
+	emit(0)
+	isis := &stubConsumer{name: "isis"}
+	require.NoError(t, configredist.RegisterConsumer(isis))
+	assert.Empty(t, isis.snapshotInjected(), "an isis-sourced batch must never reach the isis consumer")
 }

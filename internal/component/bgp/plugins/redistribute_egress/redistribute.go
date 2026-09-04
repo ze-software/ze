@@ -132,10 +132,40 @@ func run(ctx context.Context) {
 		}
 	}()
 
+	// Installed AFTER subscribe. A replay request this dispatcher is not yet
+	// subscribed to answers nobody. The producers re-emit into a bus with no
+	// orchestrator on it, which is the same loss in a different place.
+	stopWatching := watchConsumers(bus, getReplayCoordinator())
+	defer stopWatching()
+
 	logger().Debug(Name+": running", "producers", len(unsubs))
 	<-ctx.Done()
 	var tb2 textbuf.Buffer
 	logger().Debug(tb2.Str(Name).Str(": stopped").Slice())
+}
+
+// watchConsumers makes a consumer that registers late hold the producers'
+// current set rather than nothing, and returns the function that stops
+// watching. The caller MUST have subscribed to the producers first.
+//
+// Two arrivals are late, and both are owed. A consumer that registers after
+// this dispatcher started is answered by the observer. A consumer that
+// registered BEFORE it started is answered by the sweep. Its registration
+// happened where no observer can see it, and the batch it missed reached no
+// dispatcher either. Nothing orders the plugin startup tiers, so which of the
+// two a deployment takes is not decided anywhere.
+//
+// A consumer that registers during the sweep is replayed twice. That costs one
+// duplicate InjectRoute of a prefix the consumer already holds. Every consumer
+// treats it as the add it already applied.
+func watchConsumers(bus ze.EventBus, coord *replayCoordinator) func() {
+	configredist.SetConsumerObserver(func(name string) {
+		coord.onConsumerRegistered(bus, name)
+	})
+	for _, name := range configredist.ConsumerNames() {
+		coord.onConsumerRegistered(bus, name)
+	}
+	return func() { configredist.SetConsumerObserver(nil) }
 }
 
 func subscribe(ctx context.Context, bus ze.EventBus, skipIDs map[redistevents.ProtocolID]bool) []func() {

@@ -36,6 +36,36 @@ type ImportRule struct {
 	Families    []family.Family // Allowed families (empty = all families accepted)
 }
 
+// mustNameImportingProtocol refuses an empty importing protocol.
+//
+// An empty name is not a verdict about anything. It misses every rule the
+// config loader builds, because the loader writes the enclosing `destination`
+// key into Destination on every one of them, and it matches every rule whose
+// Destination is empty. So a caller with no importing protocol in hand reads
+// back `false` (or `true`) for a question it never asked, and neither answer
+// can be told from a rule that legitimately did not match
+// (`ai/rules/principles.md`).
+//
+// Ze shipped that caller. The `bgp-redistribute` ingress filter
+// (`internal/component/bgp/plugins/redistribute_ingress`, retired 2026-09-04)
+// asked this package whether to KEEP a route a peer had just announced. That
+// question holds no importing protocol, so the filter passed "", every rule
+// rejected, and one `redistribute` block anywhere in the config discarded every
+// route from every peer, with no log line. Its unit tests were green because
+// they built ImportRule values with an empty Destination, which no config
+// produces.
+//
+// The name reaches this package from the consumer registry or from a replay
+// target, never from the wire, so an empty one is a Ze defect and a peer cannot
+// reach this panic. `redistevents.RegisterProtocol` refuses an empty protocol
+// name for the same reason.
+func mustNameImportingProtocol(importingProtocol string) {
+	if importingProtocol != "" {
+		return
+	}
+	panic("BUG: redistribute: the importing protocol has no name, and an empty name is not a verdict")
+}
+
 // Accept checks whether a route should be accepted by this import rule.
 // A route is rejected if:
 //   - its origin protocol matches the importing protocol (loop prevention)
@@ -43,7 +73,10 @@ type ImportRule struct {
 //     (destination scoping: an import under `destination bgp` feeds only BGP)
 //   - neither its specific source nor umbrella origin matches the rule's source
 //   - its family is not in the allowed list (when families is non-empty)
+//
+// importingProtocol MUST name a protocol. An empty name panics.
 func (r ImportRule) Accept(route RedistRoute, importingProtocol string) bool {
+	mustNameImportingProtocol(importingProtocol)
 	// Loop prevention: one shared definition of the invariant (redistevents.WouldLoop),
 	// also enforced at the two runtime guards in redistribute_egress.
 	if redistevents.WouldLoop(route.Origin, importingProtocol) {

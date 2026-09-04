@@ -105,6 +105,14 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		dynByGroup[dg.GroupName] = dg.Settings
 	}
 
+	// Step 2a: derive the process bindings the config's redistribution rules
+	// depend on. It runs over `settings`, so a dynamic group's template takes
+	// them with the statically configured peers. It runs before the route and
+	// filter layers because it reads the config alone.
+	if err := wireRedistributeDelivery(tree, settings); err != nil {
+		return nil, nil, err
+	}
+
 	if len(settings) == 0 {
 		return peers, groups, nil
 	}

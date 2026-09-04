@@ -207,7 +207,6 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/component/bgp/plugins/nlri/vpn` | implements VPN NLRI types for the vpn plugin | bgp-nlri-vpn |
 | `internal/component/bgp/plugins/persist` | Route Persistence | bgp-persist |
 | `internal/component/bgp/plugins/redistribute_egress` | implements the redistribute-orchestrator plugin: the single EventBus subscriber that turns non-consumer protocol route-change events into dispatches to registered RedistConsumer implementations |  |
-| `internal/component/bgp/plugins/redistribute_ingress` | Route redistribution ingress filter with loop prevention and family filtering | bgp-redistribute |
 | `internal/component/bgp/plugins/rib` | implements a RIB (Routing Information Base) plugin for ze | bgp-rib |
 | `internal/component/bgp/plugins/rib/pool` | holds the per-attribute-type BGP path-attribute pools used for fine-grained RIB deduplication |  |
 | `internal/component/bgp/plugins/rib/storage` | implements the per-peer, per-family RIB storage with per-attribute-type deduplication |  |
@@ -483,6 +482,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/core/report` | is the single place where Ze subsystems push operator-visible warnings and errors |  |
 | `internal/core/rescueauth` | encodes and verifies the installer's rescue-shell credential |  |
 | `internal/core/resolve` | selects the storage backend and default config filename for ze |  |
+| `internal/core/rib/distance` | carries every protocol's administrative distance from the one place it is declared to the producers that stamp it on a route |  |
 | `internal/core/rib/igpcost` | carries the IGP metric of a resolved next-hop from whoever computes it to whoever ranks paths by it |  |
 | `internal/core/rib/locrib` | implements the unified, sharded Loc-RIB that arbitrates best paths across routing protocols |  |
 | `internal/core/rib/routeinstall` | provides the RouteSink a FORKED route-installing plugin (OSPF, IS-IS) uses in place of a direct Loc-RIB write |  |

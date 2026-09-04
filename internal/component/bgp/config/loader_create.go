@@ -34,18 +34,28 @@ import (
 // It creates a global listener so the ze-test peer can connect to ze.
 const envKeyTCPPort = "ze.test.bgp.port"
 
-// initRedistribute parses redistribute import rules from the config tree
-// and installs the global evaluator. Called during reactor creation.
-// Non-fatal: logs a warning if parsing fails (redistribute is optional).
-func initRedistribute(tree *config.Tree) {
+// initRedistribute parses redistribute import rules from the config tree and
+// installs the global evaluator. Called during reactor creation and on reload.
+//
+// A config it cannot turn into rules REFUSES the load. Until 2026-09-04 it
+// warned once and returned. That left the global evaluator nil, which disabled
+// EVERY redistribution rule in the file. One mistyped source name stopped every
+// rule the operator wrote, and the only trace was a startup log line nobody
+// reads (ai/rules/principles.md, a silently wrong value must not be reachable).
+// The daemon cannot do what the operator asked, so it says so and stops
+// (ai/rules/go-standards.md, fail early).
+//
+// An empty rule list installs an EMPTY evaluator rather than leaving whatever
+// was installed before. A reload that removed the last `redistribute` block
+// must stop redistributing. The old code set nothing at all in that case, so
+// the removed rules stayed live until the daemon restarted.
+func initRedistribute(tree *config.Tree) error {
 	rules, err := config.ExtractRedistributeRules(tree)
 	if err != nil {
-		slogutil.Logger("config").Warn("redistribute config error", "error", err)
-		return
+		return err
 	}
-	if len(rules) > 0 {
-		redistribute.SetGlobal(redistribute.NewEvaluator(rules))
-	}
+	redistribute.SetGlobal(redistribute.NewEvaluator(rules))
+	return nil
 }
 
 var _ = coreenv.MustRegister(coreenv.EnvEntry{
@@ -90,6 +100,14 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
+	// Parse and install redistribution import rules. It runs ahead of the peer
+	// walk because that walk derives process bindings from the same rules
+	// (wireRedistributeDelivery, redistribute_binding.go). A redistribution
+	// error is then reported as one, rather than wrapped in "build peers".
+	if err := initRedistribute(tree); err != nil {
+		return nil, fmt.Errorf("redistribute config: %w", err)
+	}
+
 	// Build peers and dynamic groups from tree (resolves templates, extracts
 	// routes and filter chains). Incomplete peers are skipped inside the builder
 	// so the daemon can start for config editing with partial configs. Hard
@@ -100,9 +118,6 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	if err != nil {
 		return nil, fmt.Errorf("build peers: %w", err)
 	}
-
-	// Parse and install redistribution import rules (optional, non-fatal).
-	initRedistribute(tree)
 
 	// Validate plugin references
 	if err := ValidatePluginReferences(tree, plugins); err != nil {
@@ -337,8 +352,12 @@ func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadF
 			return nil, err
 		}
 
-		// Update redistribute rules on reload.
-		initRedistribute(tree)
+		// Update redistribute rules on reload. A reload that cannot build them
+		// refuses, for the reason the initial load refuses: a nil evaluator
+		// disables every rule in the file.
+		if err := initRedistribute(tree); err != nil {
+			return nil, fmt.Errorf("redistribute config: %w", err)
+		}
 
 		// The builder prunes inactive nodes and resolves the tree, and it returns
 		// the dynamic groups from the same walk. SetDynamicGroups is the one

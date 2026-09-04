@@ -46,7 +46,13 @@ func (e *Evaluator) Reload(rules []ImportRule) {
 
 // Accept checks whether a route should be imported into the given protocol.
 // Returns true if any import rule accepts the route without creating a loop.
+//
+// importingProtocol MUST name a protocol. An empty name panics.
 func (e *Evaluator) Accept(route RedistRoute, importingProtocol string) bool {
+	// Guarded here as well as in ImportRule.Accept. An empty rule list never
+	// runs that loop, so the callee's guard alone would let a caller with no
+	// importing protocol read back a silent false.
+	mustNameImportingProtocol(importingProtocol)
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return evaluate(route, e.rules, importingProtocol)
@@ -71,7 +77,12 @@ func (e *Evaluator) Rules() []ImportRule {
 // A rule with an empty Destination is destination-agnostic and matches every
 // destination. The redistribute orchestrator calls this on a BGP peer-up to
 // skip firing a replay request when no import feeds BGP.
+//
+// dest MUST name a protocol. An empty name panics: a destination IS the
+// importing protocol, so an unnamed one carries the same ambiguity Accept
+// refuses, and a false here silently cancels a replay.
 func (e *Evaluator) HasDestination(dest string) bool {
+	mustNameImportingProtocol(dest)
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	for i := range e.rules {

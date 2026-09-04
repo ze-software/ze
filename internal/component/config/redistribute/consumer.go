@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -56,19 +57,60 @@ type RouteEntry struct {
 var (
 	consumerMu sync.RWMutex
 	consumers  = map[string]RedistConsumer{}
+	// observer is notified after a consumer becomes visible in the registry.
+	// One slot, replaced rather than appended. The redistribute orchestrator is
+	// the one dispatcher, and an SDK reconnect re-runs its startup, so
+	// appending would leave a handler for a dead engine behind.
+	observer atomic.Pointer[func(string)]
 )
+
+// SetConsumerObserver installs the function notified after a consumer becomes
+// visible in this registry, and replaces any function installed before.
+//
+// It exists because a consumer that registers after a producer emitted holds
+// nothing. The dispatcher reads this registry live at event time, so a batch
+// emitted one moment earlier reached every consumer except this one. No stage
+// of the chain can tell that from a batch nobody wanted. The observer is what
+// lets the dispatcher ask the producers to say it again.
+//
+// The registry stays protocol-agnostic: it hands out a name, and what a replay
+// means is the dispatcher's to decide.
+//
+// The observer runs on the registering goroutine, AFTER the write and OUTSIDE
+// the registry lock, so it MAY call back into LookupConsumer and ConsumerNames.
+// A nil fn clears it.
+func SetConsumerObserver(fn func(name string)) {
+	if fn == nil {
+		observer.Store(nil)
+		return
+	}
+	observer.Store(&fn)
+}
+
+// announceConsumer runs the observer for a name that has just become visible.
+// The caller MUST NOT hold consumerMu: the observer reads this registry back.
+func announceConsumer(name string) {
+	fn := observer.Load()
+	if fn == nil {
+		return
+	}
+	(*fn)(name)
+}
 
 // RegisterConsumer adds a redistribution consumer to the registry.
 // Re-registration with the same name is rejected.
 func RegisterConsumer(c RedistConsumer) error {
 	consumerMu.Lock()
-	defer consumerMu.Unlock()
 	name := c.Name()
 	if _, ok := consumers[name]; ok {
+		consumerMu.Unlock()
 		return fmt.Errorf("%w: %q", ErrConsumerConflict, name)
 	}
 	consumers[name] = c
+	consumerMu.Unlock()
+
 	slog.Debug("redistribute consumer registered", "name", name)
+	announceConsumer(name)
 	return nil
 }
 
@@ -82,15 +124,17 @@ func RegisterConsumer(c RedistConsumer) error {
 // may log the rewire).
 func ReregisterConsumer(c RedistConsumer) (replaced bool) {
 	consumerMu.Lock()
-	defer consumerMu.Unlock()
 	name := c.Name()
 	_, replaced = consumers[name]
 	consumers[name] = c
+	consumerMu.Unlock()
+
 	if replaced {
 		slog.Debug("redistribute consumer re-registered", "name", name)
 	} else {
 		slog.Debug("redistribute consumer registered", "name", name)
 	}
+	announceConsumer(name)
 	return replaced
 }
 
@@ -102,11 +146,14 @@ func LookupConsumer(name string) (RedistConsumer, bool) {
 	return c, ok
 }
 
-// ResetConsumersForTest clears the consumer registry. Test use only.
+// ResetConsumersForTest clears the consumer registry and its observer. Test use
+// only. The observer is cleared with the map because a test that installed one
+// would otherwise see the next test's registrations.
 func ResetConsumersForTest() {
 	consumerMu.Lock()
-	defer consumerMu.Unlock()
 	consumers = map[string]RedistConsumer{}
+	consumerMu.Unlock()
+	observer.Store(nil)
 }
 
 // ConsumerNames returns all registered consumer names in sorted order.
