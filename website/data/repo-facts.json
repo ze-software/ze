@@ -2,12 +2,12 @@
   "facts": {
     "interop.scenario_dirs_raw": {
       "category": "committed-data",
-      "value": 132,
+      "value": 137,
       "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
     },
     "interop.scenarios": {
       "category": "committed-data",
-      "value": 132,
+      "value": 137,
       "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
     },
     "interop.targets": {
@@ -17,17 +17,17 @@
     },
     "repo.design_comments": {
       "category": "committed-data",
-      "value": 4480,
+      "value": 4564,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.detail_comments": {
       "category": "committed-data",
-      "value": 4070,
+      "value": 4179,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.go_packages": {
       "category": "committed-data",
-      "value": 760,
+      "value": 765,
       "source": "go list ./..., keeping the packages git holds a file for"
     }
   },
