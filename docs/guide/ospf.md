@@ -92,6 +92,12 @@ Redistribution uses the shared `redistribute` orchestrator. `redistribute { dest
 <!-- source: internal/plugins/ospf/redistribute/source.go -- Source OnSPFChange exports OSPF routes -->
 <!-- source: internal/plugins/ospf/redist_wiring.go -- engine InjectExternal, externalParams -->
 
+The `redistribute` block is the whole configuration. It needs no `plugin` block
+and no `attach process` block. `import bgp` names the daemon's own Loc-RIB, and
+each peer's delivery to it is derived from the rule. See
+[Route Filters and Redistribution](redistribution.md), "Route Redistribution".
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
+
 Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one `locrib.Path` with admin distance 110.
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal, ComputeExternalWith, betterExternal -->
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6ExternalReader -->

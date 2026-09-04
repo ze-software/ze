@@ -84,6 +84,12 @@ also drives the intra-BGP `IngressFilter` ACL when the source is `ibgp` /
 `ebgp`. Per-peer NEXT_HOP substitution (`nhop self`) is automatic; explicit
 producer-supplied NEXT_HOP is passed through verbatim.
 
+The block is the whole configuration, which is the behavior FRR and BIRD have.
+`import bgp` names ze's own Loc-RIB and derives the peer-to-plugin delivery it
+depends on, so no second binding is written by hand. A consumer that registers
+after a producer emitted is replayed that producer's current set, so the outcome
+does not depend on which protocol started first.
+
 IS-IS meshes with BGP in **both** directions, matching the vendor IGP<->BGP
 mutual-redistribution operators expect: `import isis` exports IS-IS SPF routes
 into BGP (single source `isis`, both levels), and `destination isis { import

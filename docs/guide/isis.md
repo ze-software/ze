@@ -224,6 +224,18 @@ when leaking a prefix to a lower level (RFC 2966), never to mark external origin
 `destination isis { import isis }` is accepted by the schema but is a no-op:
 loop prevention rejects redistributing IS-IS into IS-IS.
 
+The block above is the whole configuration. It needs no `plugin` block and no
+`attach process` block. `import bgp` derives each peer's delivery to the
+Loc-RIB, and `destination bgp` derives the send permission the orchestrator
+needs on each peer.
+
+A consumer that registers after a producer emitted is replayed the producer's
+current set. The static prefix therefore reaches the LSP whichever of the two
+plugins started first. See
+[Route Filters and Redistribution](redistribution.md), "Route Redistribution".
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onConsumerRegistered -->
+
 **Connected and passive interfaces.** IS-IS also advertises its own enabled and
 **passive** interface prefixes as internal reachability in its LSPs. A passive
 interface forms no adjacency but its prefix is still advertised, so loopbacks and

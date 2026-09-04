@@ -568,6 +568,32 @@ type FamilyRIB struct {
 }
 ```
 
+### Who Reads a Best-Path Change
+
+`publishBestChanges` (`rib_bestchange.go`) turns a best-path change into an
+event, and it has two readers. It emits the batch on `(bgp-rib, best-change)`,
+which `system-rib` takes for FIB arbitration. It also calls
+`redistribute.EmitBestChange`, which converts the same batch into a
+`redistevents.RouteChangeBatch` under the `bgp` protocol id.
+
+It is not the only caller of `EmitBestChange`. `replayRedistribute`
+(`rib_bestchange.go`) answers a consumer that registered late: it walks the
+whole best-path table with `collectBestPaths` and emits directly, carrying the
+request's `ReplayID` so the orchestrator routes the answer to that one consumer.
+A reader tracing where a redistributed route comes from has two entry points to
+account for, not one.
+
+That second call is the whole of BGP's redistribution source.
+`redistribute { destination ospf { import bgp } }` moves a route because this
+function ran.
+
+So a Loc-RIB holding nothing is redistribution producing nothing. The Loc-RIB
+holds a route only where a peer's config feeds it the UPDATE. That delivery is
+derived from the rule rather than written by the operator. See
+[API architecture](../api/architecture.md), "The Two Bindings Ze Derives".
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- publishBestChanges -->
+<!-- source: internal/component/bgp/redistribute/producer.go -- EmitBestChange -->
+
 ### Generic `Store[T]` and bestPrev Consolidation
 
 The BART-vs-map dispatch is factored into `storage.Store[T]` (a generic

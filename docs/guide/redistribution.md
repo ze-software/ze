@@ -1,4 +1,12 @@
-# Route Filters
+# Route Filters and Redistribution
+
+This page covers two things an operator writes for routes. Route FILTERS decide
+what a BGP session accepts and advertises. Route REDISTRIBUTION moves a route
+from one protocol into another. They are separate config roots and separate
+mechanisms. The filters come first, and
+[Route Redistribution](#route-redistribution) is at the end.
+
+## Route Filters
 
 Route filters let plugins act as route filters on import (ingress) and export
 (egress). Filters are configured per peer, group, or globally using named
@@ -7,7 +15,7 @@ references in a `filter {}` config block. Named filter types are defined under
 
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter container -->
 
-## Quick Start
+### Quick Start
 
 ```
 bgp {
@@ -30,7 +38,7 @@ bgp {
 
 <!-- source: internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang -- loop-detection type -->
 
-## Filter Types
+### Filter Types
 
 Filter types are YANG lists under `bgp/policy`, each marked with `ze:filter`.
 Plugins add new filter types via YANG `augment`. Each list entry is a named
@@ -53,7 +61,7 @@ detection (RFC 4271 Section 9) and cluster-list loop detection (RFC 4456 Section
 External plugins declare filters at startup using `<plugin>:<filter>` names.
 Example: `rpki:validate`, `community:scrub`.
 
-## How It Works
+### How It Works
 
 1. Filter types are defined in `bgp { policy { } }` as named instances.
 2. Per-peer `filter { import/export [ names ] }` references filter instances.
@@ -64,7 +72,7 @@ Example: `rpki:validate`, `community:scrub`.
 
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters, extractFilterChain -->
 
-## Deactivating Filters
+### Deactivating Filters
 
 Default filters can be deactivated per-peer using the inline `inactive:` prefix:
 
@@ -95,7 +103,7 @@ activate bgp peer special filter import no-self-as
 <!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain builds []FilterRef with Inactive -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips FilterRef.Inactive -->
 
-## Chain Order
+### Chain Order
 
 Chains are cumulative across config levels:
 
@@ -113,7 +121,7 @@ insert filter import reject-bogons before no-self-as
 insert filter import new-filter last
 ```
 
-## Filter Responses
+### Filter Responses
 
 | Response | Meaning |
 |----------|---------|
@@ -164,7 +172,7 @@ A modification that cannot be applied suppresses the route for that destination
 rather than forwarding it unmodified, and increments
 `ze_bgp_update_modify_failed_total{reason}`.
 
-## Failure Handling
+### Failure Handling
 
 Each filter declares its own failure mode at startup:
 
@@ -173,8 +181,148 @@ Each filter declares its own failure mode at startup:
 | `reject` | Fail-closed: drop the update |
 | `accept` | Fail-open: pass the update through |
 
-## Writing a Filter Plugin
+### Writing a Filter Plugin
 
 A filter plugin is a normal ze plugin that includes `filters` in its stage 1
 `declare-registration`. See [Plugin Guide](plugins.md) for general plugin
 development and `docs/architecture/api/process-protocol.md` for the wire protocol.
+
+## Route Redistribution
+
+Redistribution moves a route a protocol already holds into another protocol.
+The `redistribute` root is a separate config root from `bgp { filter }`, and
+nothing in this section changes what a BGP session accepts or advertises.
+
+```
+redistribute {
+    destination ospf {
+        import bgp {
+            family [ ipv6/unicast ];
+        }
+    }
+    destination isis {
+        import connected
+        import static
+    }
+}
+```
+
+A `destination <protocol>` block names the protocol that RECEIVES the routes.
+Each `import <source>` under it names where they come from. The optional
+`family` leaf-list narrows which address families that source contributes. An
+empty list imports every family.
+
+That block is the whole configuration. It needs no `plugin` block and no
+`attach process` block. The orchestrator that dispatches the routes auto-loads
+because the `redistribute` root is present. The two peer bindings the rules
+depend on are derived from the rules (below).
+
+<!-- source: internal/component/config/redistribute/yang/ze-redistribute-conf.yang -- redistribute container -->
+<!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
+
+### Sources and Destinations
+
+A source is a name a component registers at startup, so which names this build
+accepts depends on which components it carries. No command prints the set. A
+name this build does not carry is refused at load, and `ze doctor` names the
+token first.
+
+| Source | Registered by | What it contributes |
+|--------|---------------|---------------------|
+| `bgp`, `ibgp`, `ebgp` | the BGP engine | the Loc-RIB's best paths, all sessions or internal or external only |
+| `connected` | the interface component | prefixes of configured interface addresses |
+| `static` | the static plugin | forward routes in the default table |
+| `kernel` | the kernel plugin | routes another program installed in the OS FIB |
+| `isis`, `ospf` | the IGP plugins | that protocol's SPF-selected routes |
+| `as112`, `l2tp` | those plugins | the covering prefixes and the per-session routes they own |
+| `ipsec` | the IKE engine | the remote traffic selector of each established Child SA |
+
+A destination is the name of a protocol whose consumer registered: `bgp`, `ospf`
+and `isis` today.
+
+**A protocol is never redistributed into itself.** `destination isis { import
+isis }` parses and moves nothing, at every guard: the config evaluator, the
+dispatch fan-out and the replay all ask one predicate.
+
+<!-- source: internal/component/config/redistribute/registry.go -- RegisterSource, LookupSource -->
+<!-- source: internal/core/redistevents/registry.go -- WouldLoop, the one loop definition -->
+
+### What the Rules Wire For You
+
+A `redistribute` rule needs no `attach process` block. Ze derives the two it
+implies, and each one only when a rule implies it.
+
+| You write | Ze grants every peer | Because |
+|-----------|----------------------|---------|
+| `import bgp` (or `ibgp`, `ebgp`) | `receive [ update state refresh ]` toward `bgp-rib` | the source is the daemon's own Loc-RIB, and a plugin sees a peer's UPDATEs only where that peer grants them |
+| `destination bgp` | `receive [ state ]` and `send [ update ]` toward `redistribute-orchestrator` | that plugin puts the route on the peer's wire, and `send` is the permission to do so |
+
+Two things follow, and both are deliberate:
+
+- A peer that already names one of those processes keeps its own binding,
+  exactly as written. A narrower grant you typed stays narrow, and you never get
+  a second binding for one process.
+- A rule implies only its own binding. A router that only imports IS-IS into
+  OSPF gains neither.
+
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery, processNameFor -->
+<!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend -->
+
+### Startup Order Does Not Decide the Outcome
+
+A producer emits its routes once, when it has them. A destination protocol
+registers its consumer when its plugin starts. Nothing orders the two, so a
+consumer can register after the routes were already sent.
+
+When that happens the consumer asks for them again. Becoming registered fires a
+replay request, every producer re-emits its CURRENT set, and the answer is
+injected through that consumer alone.
+
+A replay reflects what the producer holds NOW rather than what it once sent. A
+route withdrawn before the consumer registered is therefore absent.
+
+The same mechanism covers a BGP peer that establishes after an injection, where
+the replay reaches that one peer.
+
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onPeerUp, onConsumerRegistered -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- watchConsumers -->
+
+### When Redistribution Cannot Work
+
+The daemon REFUSES to start on a `redistribute` block it cannot turn into rules,
+and the error names what you typed:
+
+| The config says | What happens |
+|-----------------|--------------|
+| `import rip`, and no component registers `rip` | the load fails: `redistribute: unknown source "rip" under destination "ospf"` |
+| `family [ ipv9/unicast ]` | the load fails naming the family |
+| `destination ospf { }` with no import | the load fails: the destination imports nothing |
+
+A refusal is deliberate. Ze used to warn once and carry on with redistribution
+disabled for the WHOLE file. One mistyped word silently stopped rules that were
+written correctly.
+
+One fault is not refusable, because no code can judge it at load time. It is a
+`destination` naming a protocol whose consumer never registers. `ze doctor`
+reports it, under `doctor-redistribute-unknown-destination`, together with an
+unknown source under `doctor-redistribute-unknown-source`.
+
+```
+ze doctor
+```
+
+<!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules -->
+<!-- source: internal/core/diagnostic/codes.go -- doctor-redistribute-unknown-source, doctor-redistribute-unknown-destination -->
+
+### Counters
+
+| Counter | What it counts |
+|---------|----------------|
+| `ze_bgp_redistribute_events_received` | route-change batches the orchestrator received |
+| `ze_bgp_redistribute_announcements` | accepted add entries dispatched to a consumer |
+| `ze_bgp_redistribute_withdrawals` | accepted remove entries dispatched to a consumer |
+| `ze_bgp_redistribute_filtered_protocol_total` | batches skipped by the loop guard |
+| `ze_bgp_redistribute_filtered_rule_total` | entries the evaluator rejected |
+| `ze_bgp_redistribute_replay_total{source}` | routes replayed, to a new peer or to a consumer that registered late |
+
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- setMetricsRegistry -->
