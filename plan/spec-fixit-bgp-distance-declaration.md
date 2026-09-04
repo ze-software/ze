@@ -302,7 +302,7 @@ renaming it buys nothing and buries the real change in 35 files.
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | One declaration of every protocol's distance | unit | `TestBgpStampsTheDeclaredDistanceNotItsOwn`, plus a grep recorded in the audit showing no second literal 20 or 200 in Go or YANG |
-| The declaration is always populated | unit | `TestDeclaredDistancesApplyWithNoRibBlock` asserts the declaration resolves completely with no config, which is the value `runSysRIBPlugin` seeds from. STILL NOT PROVEN: that the DAEMON seeds. No test reaches `runSysRIBPlugin`, `publishDistances` or `distance.Set`, and deleting the seeding block leaves every test green. `test/plugin/distance-default-without-block.ci` runs `ze config validate` only and would pass with this spec reverted |
+| The declaration is always populated AND reaches the producers | unit | `TestDeclaredDistancesApplyWithNoRibBlock` proves the declaration resolves completely with no config, and `TestPublishDistancesReachesTheSeam` proves the resolved table reaches the seam a producer reads, observed RED under a broken publish: "publishDistances did not reach the seam; every producer would use its own constant". What remains unasserted is the CALL SITE in `runSysRIBPlugin`: deleting the seeding block still leaves the suite green, because no test starts the daemon |
 | Nothing is discarded in silence | unit | `TestUnknownProtocolTypeIsLoggedNotZeroed` |
 | The rename does not cross into the RIB concept | audit | The recorded count on each side of the A-3 boundary, and a diff touching no file under `internal/core/rib/locrib/` |
 

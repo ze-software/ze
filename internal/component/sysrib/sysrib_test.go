@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/replay"
+	"github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -1425,4 +1426,50 @@ func TestDeclaredDistancesApplyWithNoRibBlock(t *testing.T) {
 	s.adminDist = declared
 	require.Equal(t, 20, s.effectivePriority("ebgp", 999))
 	require.Empty(t, s.distanceSpoken, "an ordinary config must produce no distance warning")
+}
+
+// TestPublishDistancesReachesTheSeam closes the last unproven claim in
+// spec-fixit-bgp-distance-declaration: that the resolved table actually reaches
+// the producers.
+//
+// Every other test for this feature stops before the seam. They call
+// parseAdminDistanceConfig or assign s.adminDist by hand, so deleting
+// publishDistances entirely leaves them all green while every producer silently
+// falls back to its own constant. That is the exact defect a closure gate found
+// in the first version of this work, and the second version's test for it had
+// the same blind spot.
+//
+// This calls the real publishDistances and reads back through the real seam.
+//
+// PREVENTS: the seam being wired in the daemon and never asserted, so a future
+// change that drops the publish call breaks cross-protocol selection with no
+// test going red.
+func TestPublishDistancesReachesTheSeam(t *testing.T) {
+	t.Cleanup(func() { distance.Set(nil) })
+
+	// Before any publish, the seam must refuse to answer rather than saying 0:
+	// zero is the BEST distance and the one `connected` holds.
+	distance.Set(nil)
+	if _, ok := distance.Of("ebgp"); ok {
+		t.Fatal("the seam answered before anything published to it")
+	}
+
+	declared, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ebgp":250}}}`)
+	require.NoError(t, err)
+
+	publishDistances(declared)
+
+	got, ok := distance.Of("ebgp")
+	require.True(t, ok, "publishDistances did not reach the seam; every producer would use its own constant")
+	require.Equal(t, uint8(250), got, "the operator's value must be what a producer stamps")
+
+	// The rest of the declaration travels too, not just the leaf that was named.
+	ospf, ok := distance.Of("ospf")
+	require.True(t, ok)
+	require.Equal(t, uint8(110), ospf)
+
+	// A protocol the declaration does not name is refused, not zeroed.
+	if _, ok := distance.Of("no-such-protocol"); ok {
+		t.Error("an unnamed protocol was answered rather than refused")
+	}
 }
