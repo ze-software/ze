@@ -181,6 +181,28 @@ bindings by inheritance.
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- buildDynamicPeerSettings -->
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
+### The Two Bindings Ze Derives
+
+Every binding in the index is one an operator wrote, with two exceptions. Both
+come from the `redistribute` root, and each is one end of the same route's
+journey through this index.
+
+| The rule | What it derives | Why there is no choice |
+|----------|-----------------|------------------------|
+| `import bgp`, or any source registered under the BGP protocol | `receive [ update state refresh ]` toward the process `bgp-rib` runs under | the source is the daemon's own Loc-RIB, and the Loc-RIB reads a peer's UPDATEs only through this index |
+| `destination bgp` | `receive [ state ]` and `send [ update ]` toward the process `redistribute-orchestrator` runs under | the route reaches a peer's wire through that plugin, and `send` is what permits it |
+
+Three properties keep them from surprising a reader:
+
+| Property | What it means |
+|----------|---------------|
+| Each is derived from a RULE, never from the block | a `redistribute` block whose rules imply neither gains neither |
+| The operator's binding wins | a peer that already names that process keeps its own list, and gains no second binding |
+| Both are added where the operator's bindings are | one function decides precedence, so `ze config graph` and the delivery reconcile read the same set |
+
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
+<!-- source: internal/component/bgp/reactor/config.go -- EnsureProcessBinding -->
+
 ### Key Differences from ExaBGP
 
 | Aspect | ExaBGP | Ze |
@@ -1323,6 +1345,13 @@ process-wide (see "Encoding" above), and `attribute` reaches no field of
 to be rendered differently from another's.
 <!-- source: internal/component/bgp/types/contentconfig.go -- ContentConfig -->
 <!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding -->
+
+This selection is not the policy filter chain's attribute set. The chain builds
+one text subject for every filter on the peer, and it renders every attribute
+the UPDATE carries. The names in that subject, and the value shape of each one,
+are "The Attribute Names in the Filter Text Protocol" in
+`docs/architecture/api/process-protocol.md`.
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- orderedIngressStep, orderedEgressStep -->
 
 ### RFC 9234 Role Tagging (Planned)
 
