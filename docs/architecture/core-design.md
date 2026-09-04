@@ -768,8 +768,8 @@ kinds of executor, ordered by declared Stage, then Priority, then name -- never 
 code position:
 
 1. **In-process ingress filters** (registered via `filterapi.Register`, ordered by
-   `filterapi` Stage: Protocol `loop` → Policy `bgp-filter-community` /
-   `bgp-redistribute` → Annotation `bgp-role`/OTC). Signature
+   `filterapi` Stage: Protocol `loop` → Policy `bgp-filter-community` →
+   Annotation `bgp-role`/OTC). Signature
    `func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)`.
    `accept=false` drops the route (no caching, no dispatch). A non-nil
    `modifiedPayload` REPLACES the original bytes; the reactor builds a fresh
@@ -929,10 +929,15 @@ Three categories of filters:
 | Default | Always unless overridden | Yes, per-peer | `rfc:no-self-as` |
 | User | When configured | N/A | `rpki:validate` |
 
-Config hierarchy is cumulative (bgp > group > peer). Each filter declares which
-attributes it needs; the reactor parses only the union across the chain. Filters
-respond accept/reject/modify with delta-only output. Dirty tracking ensures only
+Config hierarchy is cumulative (bgp > group > peer). Filters respond
+accept/reject/modify with delta-only output. Dirty tracking ensures only
 modified attributes are re-encoded.
+
+The chain reads one text subject, built once per UPDATE and shared by every
+filter on the peer. Which attribute names that subject carries, and the value
+shape of each one, is "The Attribute Names in the Filter Text Protocol" in
+`docs/architecture/api/process-protocol.md`. A filter's declared attribute list
+records what it reads and does not narrow the subject.
 
 A filter may declare `overrides` to remove a default filter from the chain for
 peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as`).
@@ -1310,7 +1315,27 @@ all protocols). It maintains a per-prefix table of each protocol's best route an
 selects the system-wide best by administrative distance (lower wins). When the
 system best changes, it publishes a batch to `system-rib/best-change`.
 
-After admin-distance selection, the system RIB performs two additional phases:
+Every protocol's administrative distance is declared once, in `rib { distance
+{ } }` (`internal/component/sysrib/yang/ze-rib-conf.yang`). The table is complete
+whether or not an operator writes the block: `parseAdminDistanceConfig`
+(`internal/component/sysrib/sysrib.go`) fills it from the schema defaults.
+
+The declaration has to reach the PRODUCER, not just the RIB, and that is why a
+seam exists. `locrib.selectBest` (`internal/core/rib/locrib/entry.go`) ranks
+paths on the distance stamped on the `locrib.Path`, and `(*sysRIB).run` consumes
+one already-arbitrated best per prefix, so a value resolved in sysrib alone
+would change no cross-protocol selection. `internal/core/rib/distance` carries
+the resolved table from sysrib, which publishes it on every configure and
+rollback, to the three producers that stamp: the BGP RIB plugin, IS-IS SPF and
+OSPF SPF. Each reads it at the stamp rather than at construction, so a reload
+takes effect.
+
+Each producer keeps its classical value as a bootstrap, reachable only before the
+first configure. An unset seam reports that it did not answer rather than
+returning 0, because 0 is the BEST distance and the one `connected` holds, so a
+zero stamped by accident would beat every other protocol.
+
+After distance selection, the system RIB performs two additional phases:
 
 1. **Recursive NH resolution** (`nhresolver.go`): resolves next-hops that are not
    directly connected by walking the Loc-RIB via LPM, up to 8 levels deep. Tracks
@@ -1385,6 +1410,72 @@ redistributed. Tracks announced prefixes; withdraws all on shutdown. Configured 
 <!-- source: internal/plugins/kernel/kernel.go -- routeObserver, handleRouteEvent, withdrawAll -->
 <!-- source: internal/plugins/kernel/events/events.go -- redistevents producer registration -->
 
+### The Two Deliveries a Redistribution Rule Derives
+
+`redistribute { destination <proto> { import bgp } }` names the daemon's own
+Loc-RIB as the route source. The Loc-RIB is the `bgp-rib` plugin, and a plugin
+receives a peer's UPDATEs only where that peer's config grants them.
+
+Peer-scoped delivery is the OVERLAP of two halves. One is what the peer's
+`attach process` block grants, the other is what the plugin declared, and there
+is no default ([API architecture](api/architecture.md)). A config that wrote the
+rule and no attach block therefore held an empty Loc-RIB. Every stage after it
+produced nothing to say.
+
+So the rule derives the binding. Where any rule's source resolves to a
+BGP-registered route source, every peer the config builds gains one process
+binding. It grants `update`, `state` and `refresh` to the process the Loc-RIB
+runs under. It is added only where the peer's own config does not name that
+process.
+
+Two properties follow. A peer's own binding always wins, so a narrower grant an
+operator typed stays narrow. A config that names no BGP source gains nothing. A
+daemon that redistributes IS-IS into BGP therefore pays no per-UPDATE delivery
+it did not ask for.
+
+The binding names the process the plugin server will run.
+`plugin { internal <alias> { use bgp-rib; } }` makes it `<alias>`. Where no such
+block exists, the config-root auto-load starts it under its registry name
+`bgp-rib`.
+
+The other direction derives the mirror of that binding. A `destination bgp`
+rule moves its routes onto a peer's wire through the redistribute orchestrator,
+and a peer grants a process that right with `send` (Peer.maySend).
+
+So every peer gains `receive [ state ]` and `send [ update ]` toward the process
+`redistribute-orchestrator` runs under. The same precedence rule applies: a
+binding the operator typed for that process stands unchanged.
+
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery, processNameFor -->
+<!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, filterPermittedPeers -->
+<!-- source: internal/component/bgp/reactor/config.go -- EnsureProcessBinding, where an operator's binding wins -->
+<!-- source: internal/component/bgp/redistribute/producer.go -- SourceIsBGP, LocRIBPlugin -->
+
+### A Redistribution Rule Never Gates What BGP Learns
+
+A `redistribute` rule states which routes move BETWEEN protocols. It states
+nothing about which routes BGP accepts from a peer. RFC 4271 Section 3.2 puts
+every policy-accepted route in the Adj-RIB-In. So no ingress filter asks the
+redistribution evaluator whether to keep a received UPDATE.
+
+The `bgp-redistribute` ingress filter did ask, at `FilterStagePolicy`, where
+`accept=false` drops the route before it is cached and before any process is
+fed. It held no importing protocol and passed the empty string. Destination
+scoping then made every rule the config loader builds reject that empty string.
+So one `redistribute` block anywhere in the file discarded every route every
+peer announced, and the Loc-RIB the rule reads stayed empty. The filter is
+retired.
+
+The per-consumer decision has one home, and it is the orchestrator: `handleBatch`
+calls `Accept(route, consumerName)` with the protocol that is actually importing.
+`TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig` runs every registered
+ingress filter over a received UPDATE with a destination-scoped evaluator
+installed, and requires each one to accept.
+
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- handleBatch, the per-consumer Accept -->
+<!-- source: internal/component/config/redistribute/route.go -- ImportRule.Accept, destination scoping -->
+<!-- source: internal/component/plugin/all/ingress_redistribution_test.go -- the guard over the whole pipeline -->
+
 ### Redistribute Late-Join Replay
 
 Redistribute injection is a point-in-time fan-out: `AnnounceNLRIBatch` only reaches
@@ -1419,11 +1510,32 @@ out-of-process producers deliver their re-emit asynchronously. The replay reflec
 the CURRENT live set, so a route withdrawn before the peer joined is not replayed.
 Replays increment `ze_bgp_redistribute_replay_total{source}`.
 
+A consumer registering is the second late arrival, and it takes the same
+mechanism. The orchestrator dispatches over the consumer registry read live at
+event time. A producer that emitted before a consumer registered reached every
+consumer except that one, and the route was lost with no line in any log.
+
+Startup order decided which deployments hit it. The static plugin and the IS-IS
+plugin start in the same tier, and nothing orders them.
+
+So a consumer becoming visible in the registry fires a replay request of its
+own. The request is recorded against that CONSUMER rather than against a peer.
+The returning batch is injected through that consumer, with the ordinary
+all-peers fan-out. One `replayKind` field says which of the two a pending token
+is for, so one coordinator, one TTL and one hard cap serve both.
+
+The orchestrator also sweeps the consumers already registered when it
+subscribes. Their registration happened where no observer can see it, and the
+batch they missed reached no dispatcher either. The evaluator gates both
+triggers, so a consumer no rule imports into fires nothing.
+
 Destination scoping: an `ImportRule` records the `destination` protocol it was parsed
 under, and `Accept(route, importingProtocol)` requires the importing protocol to match
 that destination -- so an import under `destination bgp` no longer satisfies
 `Accept(_, "ospf")`. An empty `Destination` stays destination-agnostic (back-compat).
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- replayCoordinator, onPeerUp, handleReplayBatch, ReplayID->peer TTL map -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- replayCoordinator, onPeerUp, onConsumerRegistered, handleReplayBatch, ReplayID->target TTL map -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- watchConsumers, the observer and the startup sweep -->
+<!-- source: internal/component/config/redistribute/consumer.go -- SetConsumerObserver, the registration announcement -->
 <!-- source: internal/core/replay/replay.go -- shared Request token, Broadcast sentinel, IsReplay marker (all three replay hops) -->
 <!-- source: internal/core/redistevents/events.go -- ReplayRequest (alias of replay.Request) + RouteChangeBatch.ReplayID + IsReplay -->
 <!-- source: internal/component/config/redistribute/route.go -- ImportRule.Destination, destination-scoped Accept -->
