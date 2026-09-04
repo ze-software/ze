@@ -443,6 +443,7 @@ itself, so `<bytes>` hid three operator-typed arguments.
 |----|----------|---------------------------|-----------------|
 | Q1 | Does the rule reach ACTION commands, or DISPLAY commands only? | "no request is not a display limit it is a command limit so request is not changed" | Display only. The pipe narrows an answer; an action has no answer to narrow. Every action keeps its positional selector. Not to be re-opened. |
 | Q1a | Where does an action's selector sit? | "it should be request peer raw ..." then "request peer <sel> raw ..." | Positional and before the verb. The four children of the top-level `peer` root move under `request peer`. |
+| Q7 | Do `delete bgp peer <sel>` and `update bgp peer prefix` move under `request` as well? | "request lead to a change in the system, like create, delete or update but it is when the action is neither of the three" | No. `request` is the residual of the other three, so a command that deletes or updates never reaches it. `delete bgp peer <sel>` removes the peer from the running config, and `update bgp peer prefix` refetches the max-prefix limits and rewrites them. Both stay where they are. `docs/architecture/cli/command-verbs.md` carries the family test. |
 
 ### Open
 
@@ -453,7 +454,6 @@ itself, so `<bytes>` hid three operator-typed arguments.
 | Q4 | `show bgp rib` today has `\| peer <sel>`, which is `\| limit <sel>` under a second name. Rename it? | Recommended yes, on habit 1 of `ai/rules/writing.md`. It is listed as in-scope above; the question is whether Thomas wants it in this spec or separately. |
 | Q5 | What does an operator who types the old form see? | Ze is unreleased, so `ai/rules/cli.md` says an unreleased grammar is replaced outright, not deprecated. `internal/component/config/retired.go` is CONFIG-only and offers no mechanism here. The old form therefore fails as an unknown command with the existing `suggest.Command` hint. A message naming the replacement would be new machinery. |
 | Q6 | What becomes of the top-level `peer` root once its four children move under `request peer`? | Nothing is left under it, and it carries a description, `ze:help` text and a `leaf selector` that three modules share. `ze-cli-announce-cmd.yang` records that `ze-raw-cmd.yang` owns the description because `mergeYANGEntry` warns when two modules describe one node differently. Deleting it and keeping it for something else are both coherent, and neither is implied by what Thomas said. |
-| Q7 | Do `delete bgp peer <sel>` and `update bgp peer prefix` move under `request` as well? | He named `peer raw` and the general rule for actions. He did not name these two. Both already type the selector before nothing (`delete bgp peer <sel>` ends on it) or before the verb (`update bgp peer <sel> prefix`), so neither carries the asymmetry the move fixes. This spec leaves both where they are. |
 
 ## Risks & Assumptions
 
