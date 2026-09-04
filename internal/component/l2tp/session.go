@@ -9,6 +9,8 @@ import (
 	"encoding/binary"
 	"net/netip"
 	"time"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // L2TPSessionState enumerates the session FSM states from RFC 2661 S10.
@@ -237,12 +239,44 @@ func (t *L2TPTunnel) addSession(s *L2TPSession) {
 	t.sessions[s.localSID] = s
 }
 
-// removeSession removes a session from the tunnel's maps. If the session
-// had reached established state (kernel resources may exist), a teardown
-// event is queued for the reactor to send to the kernel worker.
-func (t *L2TPTunnel) removeSession(sid uint16) {
+// sessionDown is one session a teardown removed from the tunnel, held on the
+// tunnel until the reactor can emit (l2tp, session-down) for it after it
+// releases tunnelsMu.
+//
+// The username is captured at removal because it lives only on the session
+// struct the removal drops: a read taken after the map is cleared returns an
+// empty string, which reaches RADIUS as a Stop record with no User-Name.
+type sessionDown struct {
+	// localTID travels with the event because a single drain can carry
+	// sessions from more than one tunnel: a tie-breaker loss discards a
+	// tunnel whose local TID is not the one the inbound packet named.
+	localTID uint16
+	localSID uint16
+	username string
+	cause    l2tpevents.TerminateCause
+}
+
+// removeSession is the ONE place a session leaves a tunnel, so it performs
+// every obligation a removal carries: it cancels the session and idle
+// timers, drops the session metadata, queues the kernel teardown when kernel
+// resources exist, fails a call still waiting on an RPC, and queues the
+// (l2tp, session-down) the reactor emits after it unlocks.
+//
+// cause is why this session ended, and it reaches RADIUS accounting as the
+// Acct-Terminate-Cause of RFC 2866 Section 5.10. Every caller MUST name one
+// that is true of its own path: a peer CDN names what the CDN Result Code
+// says, a tunnel that went away names Lost Service, and an error ze detected
+// names NAS Error.
+//
+// Removing a session the tunnel does not hold is a no-op and queues nothing.
+func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) {
 	sess := t.sessions[sid]
-	if sess != nil && sess.state == L2TPSessionEstablished {
+	if sess == nil {
+		return
+	}
+	cancelSessionTimeouts(sess)
+	ClearSessionMetadata(t.localTID, sid)
+	if sess.state == L2TPSessionEstablished {
 		t.pendingKernelTeardowns = append(t.pendingKernelTeardowns, kernelTeardownEvent{
 			localTID: t.localTID,
 			localSID: sid,
@@ -250,10 +284,35 @@ func (t *L2TPTunnel) removeSession(sid uint16) {
 	}
 	// AC-4: an operator call torn down before it established fails its RPC.
 	// No-op once the session established (resolveCall already fired success).
-	if sess != nil {
-		sess.resolveCall(callOutcome{err: errCallTornDown})
-	}
+	sess.resolveCall(callOutcome{err: errCallTornDown})
+	t.pendingSessionDowns = append(t.pendingSessionDowns, sessionDown{
+		localTID: t.localTID,
+		localSID: sid,
+		username: sess.username,
+		cause:    cause,
+	})
 	delete(t.sessions, sid)
+}
+
+// drainPendingTeardowns returns everything the removals queued on this tunnel
+// and resets both lists: the kernel teardown events for the kernel worker,
+// and one sessionDown for every session removed.
+//
+// The two lists differ deliberately. A kernel teardown exists only for a
+// session that reached established, because only that session holds kernel
+// resources. A sessionDown exists for every session removed, because the
+// subscribers of the event decide for themselves whether they hold state for
+// it.
+//
+// Caller MUST hold tunnelsMu, and MUST emit the session-downs after it
+// unlocks (emitSessionDowns) so a subscriber cannot re-enter the reactor
+// under the lock.
+func (t *L2TPTunnel) drainPendingTeardowns() ([]kernelTeardownEvent, []sessionDown) {
+	teardowns := t.pendingKernelTeardowns
+	t.pendingKernelTeardowns = nil
+	downs := t.pendingSessionDowns
+	t.pendingSessionDowns = nil
+	return teardowns, downs
 }
 
 // sessionCount returns the number of active sessions on this tunnel.
@@ -280,27 +339,24 @@ func (t *L2TPTunnel) lookupSessionByRemote(remoteSID uint16) *L2TPSession {
 	return nil
 }
 
-// clearSessions removes all sessions from the tunnel. Used during
-// StopCCN processing. Returns the sessions that were active (for CDN
-// generation by the caller). Established sessions are queued for kernel
-// teardown.
-func (t *L2TPTunnel) clearSessions() []*L2TPSession {
+// clearSessions removes every session from the tunnel and returns the ones it
+// removed, for the caller's logging. Used whenever the tunnel itself ends:
+// RFC 2661 Section 6.4 says a StopCCN implicitly clears all active sessions.
+//
+// cause carries the obligation removeSession states, and it is the same for
+// every session here because they all end for the one reason the tunnel did.
+func (t *L2TPTunnel) clearSessions(cause l2tpevents.TerminateCause) []*L2TPSession {
 	if len(t.sessions) == 0 {
 		return nil
 	}
 	result := make([]*L2TPSession, 0, len(t.sessions))
 	for _, s := range t.sessions {
-		cancelSessionTimeouts(s)
-		ClearSessionMetadata(t.localTID, s.localSID)
-		if s.state == L2TPSessionEstablished {
-			t.pendingKernelTeardowns = append(t.pendingKernelTeardowns, kernelTeardownEvent{
-				localTID: t.localTID,
-				localSID: s.localSID,
-			})
-		}
-		// AC-4: fail any operator call that had not yet established.
-		s.resolveCall(callOutcome{err: errCallTornDown})
 		result = append(result, s)
+	}
+	// The sessions are collected before the first removal, so the walk never
+	// reads the map removeSession is deleting from.
+	for _, s := range result {
+		t.removeSession(s.localSID, cause)
 	}
 	t.sessions = nil
 	return result

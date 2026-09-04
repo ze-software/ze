@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // TestSubsystem_PlaceOutgoingCall_PreflightErrors -- AC-4 remote resolution.
@@ -105,7 +107,7 @@ func TestOutgoingCall_SignalsFailureOnTeardown(t *testing.T) {
 	ch := make(chan callOutcome, 1)
 	sess.callResult = ch
 
-	tun.teardownSession(sess, cdnResultGeneralError, now, logger)
+	tun.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
 	select {
 	case o := <-ch:
 		require.Error(t, o.err)

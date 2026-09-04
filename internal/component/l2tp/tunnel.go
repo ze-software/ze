@@ -138,6 +138,12 @@ type L2TPTunnel struct {
 	// Process() returns and enqueues kernelTeardownEvents. Phase 5.
 	pendingKernelTeardowns []kernelTeardownEvent
 
+	// pendingSessionDowns collects every session the tunnel removed, with
+	// the username and the RFC 2866 Section 5.10 cause captured at removal.
+	// The reactor drains this with drainPendingTeardowns and emits one
+	// (l2tp, session-down) per entry after it releases tunnelsMu.
+	pendingSessionDowns []sessionDown
+
 	// pendingCall is a call the reactor must originate the moment this
 	// initiated tunnel reaches established (a dial issued via
 	// placeIncomingCall / PlaceOutgoingCall). Nil for answering tunnels and

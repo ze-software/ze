@@ -35,6 +35,13 @@ const (
 	// answered, which is how a virtual link says its carrier is gone.
 	TerminateCauseLostCarrier TerminateCause = 2
 
+	// TerminateCauseLostService is RFC 2866 Section 5.10 value 3: "Service can
+	// no longer be provided; for example, user's connection to a host was
+	// interrupted." Ze reports it for every session on a tunnel that went
+	// away, because the transport the subscriber was carried on is gone
+	// whatever ended the tunnel.
+	TerminateCauseLostService TerminateCause = 3
+
 	// TerminateCauseIdleTimeout is RFC 2866 Section 5.10 value 4: "Idle timer
 	// expired." Ze reports it for the Idle-Timeout of RFC 2865 Section 5.28.
 	TerminateCauseIdleTimeout TerminateCause = 4

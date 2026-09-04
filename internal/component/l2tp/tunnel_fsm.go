@@ -14,6 +14,8 @@ import (
 	"net/netip"
 	"strconv"
 	"time"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // TunnelDefaults carries the local-side values stamped into outbound
@@ -182,7 +184,7 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 	if sccrq.ChallengePresent {
 		if defaults.SharedSecret == "" {
 			t.logger.Warn("l2tp: SCCRQ Challenge AVP present but shared-secret is unset; sending StopCCN RC=4")
-			return t.teardownStopCCN(now, resultNotAuthorized)
+			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
 		}
 		resp := ChallengeResponse(ChapIDSCCRP, []byte(defaults.SharedSecret), sccrq.ChallengeValue)
 		peerResponse = resp[:]
@@ -194,7 +196,7 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 		ours := make([]byte, 16)
 		if _, err := rand.Read(ours); err != nil {
 			t.logger.Warn("l2tp: unable to read random Challenge; sending StopCCN RC=4", "error", err.Error())
-			return t.teardownStopCCN(now, resultNotAuthorized)
+			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
 		}
 		t.ourChallenge = ours
 	}
@@ -235,16 +237,16 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 	scccn, err := parseSCCCN(payload)
 	if err != nil {
 		t.logger.Warn("l2tp: malformed SCCCN; sending StopCCN RC=4", "error", err.Error())
-		return t.teardownStopCCN(now, resultNotAuthorized)
+		return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
 	}
 	if t.ourChallenge != nil {
 		if !scccn.ChallengeResponsePresent {
 			t.logger.Warn("l2tp: SCCCN missing Challenge Response; sending StopCCN RC=4")
-			return t.teardownStopCCN(now, resultNotAuthorized)
+			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
 		}
 		if !VerifyChallengeResponse(ChapIDSCCCN, []byte(defaults.SharedSecret), t.ourChallenge, scccn.ChallengeResponseValue) {
 			t.logger.Warn("l2tp: SCCCN Challenge Response did not verify; sending StopCCN RC=4")
-			return t.teardownStopCCN(now, resultNotAuthorized)
+			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
 		}
 	}
 	t.transition(L2TPTunnelEstablished, "SCCCN received")
@@ -269,11 +271,16 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 // handlers that decide to tear the tunnel down (bad Challenge Response,
 // malformed SCCCN, etc.). The Result Code AVP is RFC 2661 S4.4.2; the
 // StopCCN message itself is S6.4.
-func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16) []sendRequest {
+//
+// resultCode is what the peer is told. cause is what accounting is told about
+// every session the tunnel carried, and each caller names the one true of it:
+// an operator clear names Admin Reset, the keepalive and retransmit timeouts
+// name Lost Carrier, and a message ze refused names NAS Error.
+func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16, cause l2tpevents.TerminateCause) []sendRequest {
 	// Clear all sessions before closing the tunnel. Same as handleStopCCN
 	// (peer-initiated) per RFC 2661 S6.4. Phase 5: this also queues
-	// kernel teardown events via clearSessions -> pendingKernelTeardowns.
-	cleared := t.clearSessions()
+	// kernel teardown events and one session-down per session.
+	cleared := t.clearSessions(cause)
 	if len(cleared) > 0 {
 		t.logger.Info("l2tp: teardownStopCCN clearing sessions", "count", len(cleared))
 	}
@@ -608,7 +615,13 @@ func (t *L2TPTunnel) handleStopCCN(now time.Time, payload []byte) []sendRequest 
 	// AC-9: cascade CDN to all active sessions before closing tunnel.
 	// RFC 2661 S6.4: on a StopCCN "all active sessions are implicitly
 	// cleared".
-	cleared := t.clearSessions()
+	// The peer ended the control connection, so the transport under every
+	// session on it is gone. RFC 2866 Section 5.10 value 3, Lost Service:
+	// "Service can no longer be provided; for example, user's connection to a
+	// host was interrupted." That is true whatever Result Code the peer
+	// stated, and it is what ze can attribute without reading the peer's
+	// intent into a billing record.
+	cleared := t.clearSessions(l2tpevents.TerminateCauseLostService)
 	if len(cleared) > 0 {
 		t.logger.Info("l2tp: StopCCN clearing sessions", "count", len(cleared))
 	}

@@ -90,7 +90,7 @@ func TestReactorCollectsKernelSetupEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	r.tunnelsMu.Lock()
-	setups, teardowns := r.collectKernelEventsLocked(tun)
+	setups, teardowns, _ := r.collectKernelEventsLocked(tun)
 	r.tunnelsMu.Unlock()
 
 	require.Len(t, setups, 1, "one setup event expected")
@@ -130,7 +130,7 @@ func TestReactorCollectsTeardownEvent(t *testing.T) {
 	}
 
 	r.tunnelsMu.Lock()
-	setups, teardowns := r.collectKernelEventsLocked(tun)
+	setups, teardowns, _ := r.collectKernelEventsLocked(tun)
 	r.tunnelsMu.Unlock()
 
 	require.Empty(t, setups)
@@ -162,7 +162,7 @@ func TestReactorKernelDisabledSkipsSetupsButStillDrainsTeardowns(t *testing.T) {
 	tun.pendingKernelTeardowns = []kernelTeardownEvent{{localTID: 102, localSID: 9}}
 
 	r.tunnelsMu.Lock()
-	setups, teardowns := r.collectKernelEventsLocked(tun)
+	setups, teardowns, _ := r.collectKernelEventsLocked(tun)
 	r.tunnelsMu.Unlock()
 
 	require.Nil(t, setups, "no kernel worker means no setup events")
@@ -217,7 +217,7 @@ func TestReactorDiscardTunnelReturnsKernelTeardowns(t *testing.T) {
 	addEstablishedSession(tun, 5002, 6002, false)
 
 	r.tunnelsMu.Lock()
-	teardowns := r.discardTunnelLocked(tun, "test")
+	teardowns, _ := r.discardTunnelLocked(tun, "test")
 	r.tunnelsMu.Unlock()
 
 	if len(teardowns) != 2 {

@@ -13,18 +13,17 @@ import (
 )
 
 // collectKernelEventsLocked scans the tunnel for sessions that need
-// kernel setup and for pending kernel teardowns. Clears the flags and
-// drains the teardown list. Caller MUST hold tunnelsMu.
-func (r *l2tpReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSetupEvent, []kernelTeardownEvent) {
-	// Drain teardowns first, unconditionally: the route observer must learn
-	// of torn sessions even when no kernel worker is present (non-Linux,
-	// tests). Subscriber-route withdrawal is independent of kernel-resource
-	// teardown, so this must not be gated on r.kernelWorker.
-	teardowns := tunnel.pendingKernelTeardowns
-	tunnel.pendingKernelTeardowns = nil
+// kernel setup and drains everything a session removal queued on it.
+// Caller MUST hold tunnelsMu.
+func (r *l2tpReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSetupEvent, []kernelTeardownEvent, []sessionDown) {
+	// Drain first, unconditionally: the route observer and the session-down
+	// subscribers must learn of torn sessions even when no kernel worker is
+	// present (non-Linux, tests). Both are independent of kernel-resource
+	// teardown, so neither can be gated on r.kernelWorker.
+	teardowns, downs := tunnel.drainPendingTeardowns()
 
 	if r.kernelWorker == nil {
-		return nil, teardowns
+		return nil, teardowns, downs
 	}
 
 	var setups []kernelSetupEvent
@@ -60,7 +59,7 @@ func (r *l2tpReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSet
 		})
 	}
 
-	return setups, teardowns
+	return setups, teardowns, downs
 }
 
 // enqueueKernelEvents sends setup and teardown events to the kernel
@@ -212,11 +211,9 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 		r.tunnelsMu.Unlock()
 		return
 	}
-	cancelSessionTimeouts(sess)
-	username := sess.username
 	now := r.params.Clock()
-	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, now, r.logger)
-	teardowns := tunnel.drainPendingKernelTeardowns()
+	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, cause, now, r.logger)
+	teardowns, downs := tunnel.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
 	// spec-l2tp-7 Phase 6: notify the route observer before the CDN
@@ -228,18 +225,7 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 
 	// spec-l2tp-8a: emit (l2tp, session-down) so the pool plugin
 	// can release the allocated IP address.
-	if r.eventBus != nil {
-		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
-			TunnelID:  tid,
-			SessionID: sid,
-			Username:  username,
-			Cause:     cause,
-		}); err != nil {
-			r.logger.Warn("l2tp: session-down emit failed", "error", err)
-		}
-	}
-
-	ClearSessionMetadata(tid, sid)
+	r.emitSessionDowns(downs)
 
 	r.logger.Info("l2tp: PPP requested session teardown; sending CDN",
 		"tunnel-id", tid, "session-id", sid, "reason", reason)
@@ -406,15 +392,27 @@ func (r *l2tpReactor) handleKernelError(kerr kernelSetupFailed) {
 		return
 	}
 	now := r.params.Clock()
-	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, now, r.logger)
+	// RFC 2866 Section 5.10 value 9, NAS Error: "NAS detected some error
+	// (other than on the port) which required ending the session." Kernel
+	// setup failed inside ze, before PPP ran and before any address was
+	// assigned, so no subscriber holds state for this session and every
+	// subscriber of the event will find none. It is emitted anyway because
+	// the session did end, and a removal that tells nobody is the defect
+	// this path is drained to prevent.
+	outbound := tunnel.teardownSession(sess, cdnResultGeneralError,
+		l2tpevents.TerminateCauseNASError, now, r.logger)
+	teardowns, downs := tunnel.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
+	r.notifyRouteObserverDown(teardowns)
+	r.emitSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (kernel error CDN)",
 				"to", req.to.String(), "error", err.Error())
 		}
 	}
+	r.enqueueKernelEvents(nil, teardowns)
 }
 
 // setKernelWorker configures the kernel worker for this reactor.

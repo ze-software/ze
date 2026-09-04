@@ -389,12 +389,14 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 	// test introspection. We release the lock BEFORE sending outbound
 	// bytes because listener.Send may block on a full kernel TX queue.
 	r.tunnelsMu.Lock()
-	tunnel, discardTeardowns := r.locateTunnelLocked(pkt.from, hdr, sccrq)
+	tunnel, discardTeardowns, discardDowns := r.locateTunnelLocked(pkt.from, hdr, sccrq)
 	if tunnel == nil {
 		r.tunnelsMu.Unlock()
 		// Even if no tunnel is dispatched (peer lost the tie-breaker), the
-		// loser tunnel may have queued kernel teardowns we must drain.
+		// loser tunnel may have queued kernel teardowns and session-downs we
+		// must drain.
 		r.enqueueKernelEvents(nil, discardTeardowns)
+		r.emitSessionDowns(discardDowns)
 		return
 	}
 	tunnel.peerAddr = pkt.from
@@ -415,8 +417,9 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 
 	// Phase 5: collect kernel events while still holding tunnelsMu.
 	// Tie-breaker losers add their teardowns into discardTeardowns above.
-	setupEvents, teardownEvents := r.collectKernelEventsLocked(tunnel)
+	setupEvents, teardownEvents, downs := r.collectKernelEventsLocked(tunnel)
 	teardownEvents = append(teardownEvents, discardTeardowns...)
+	downs = append(downs, discardDowns...)
 
 	// Capture the tunnel's new deadline for the timer heap update.
 	// If the tunnel just reached established and the engine has no
@@ -462,6 +465,11 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 	// one; tie-breaker losses discard a tunnel). Without this the redistribute
 	// source keeps the /32 injected after the session is gone.
 	r.notifyRouteObserverDown(teardownEvents)
+
+	// Tell the subscribers of (l2tp, session-down) about the same teardowns.
+	// A peer hanging up is the ORDINARY end of a session, so this is where
+	// most of an LNS's Accounting-Stop records come from.
+	r.emitSessionDowns(downs)
 
 	// Phase 5: enqueue kernel events after releasing the lock.
 	r.enqueueKernelEvents(setupEvents, teardownEvents)
@@ -624,7 +632,7 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 
 	// Reaper sweep: check all closed tunnels for expiry. The returned
 	// IDs are notified to the timer AFTER releasing the lock.
-	reaped, reapTeardowns := r.reapExpiredLocked(now)
+	reaped, reapTeardowns, reapDowns := r.reapExpiredLocked(now)
 
 	tunnel, ok := r.tunnelsByLocalID[tr.tunnelID]
 	if !ok {
@@ -633,6 +641,7 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 		// stale heap entry.
 		r.tunnelsMu.Unlock()
 		r.enqueueKernelEvents(nil, reapTeardowns)
+		r.emitSessionDowns(reapDowns)
 		r.notifyReaped(reaped)
 		select {
 		case r.updateCh <- heapUpdate{tunnelID: tr.tunnelID}:
@@ -681,7 +690,13 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 				"since-liveness", now.Sub(tunnel.lastLiveness).String())
 		}
 		if tunnel.state != L2TPTunnelClosed {
-			outbound = append(outbound, tunnel.teardownStopCCN(now, resultGeneralError)...)
+			// Both branches are the peer no longer answering: the keepalive
+			// went unacknowledged, or the retransmit budget ran out. RFC 2866
+			// Section 5.10 value 2, Lost Carrier, "DCD was dropped on the
+			// port", is what ze already reports when LCP echo probes stop
+			// being answered one layer up.
+			outbound = append(outbound,
+				tunnel.teardownStopCCN(now, resultGeneralError, l2tpevents.TerminateCauseLostCarrier)...)
 		}
 	} else {
 		// Queue retransmits produced by the engine.
@@ -701,7 +716,7 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 	}
 
 	// Phase 5: collect kernel events (teardownStopCCN may have cleared sessions).
-	_, tickTeardowns := r.collectKernelEventsLocked(tunnel)
+	_, tickTeardowns, tickDowns := r.collectKernelEventsLocked(tunnel)
 
 	newDeadline := tunnel.engine.NextDeadline()
 	// If the tunnel is established and has a HELLO interval, ensure
@@ -732,6 +747,11 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 	// cleared (retransmit limit exhausted -> StopCCN). reapTeardowns belong
 	// to tunnels closed in an earlier tick/packet and already withdrawn then.
 	r.notifyRouteObserverDown(tickTeardowns)
+
+	// A dead peer or an exhausted retransmit budget ends every session the
+	// tunnel carried, and the subscriber never sent anything to say so. Their
+	// Accounting-Stop, pool release and shaper cleanup start here.
+	r.emitSessionDowns(append(reapDowns, tickDowns...))
 
 	// Phase 5: enqueue kernel teardown events after releasing the lock.
 	r.enqueueKernelEvents(nil, append(reapTeardowns, tickTeardowns...))
@@ -766,9 +786,14 @@ func (r *l2tpReactor) notifyReaped(ids []uint16) {
 // engine retention window has elapsed. Returns the IDs of reaped
 // tunnels so the caller can notify the timer AFTER releasing the lock,
 // plus any kernel teardown events from reaped tunnels whose sessions
-// had kernel resources.
+// had kernel resources, plus the session-downs they queued.
+//
+// A tunnel reaches retention already closed, and closing it cleared its
+// sessions, so both lists are normally empty here. They are returned rather
+// than dropped because a session that reaches this point ended without
+// telling anybody, which is the defect this plumbing exists to prevent.
 // Caller MUST hold tunnelsMu.
-func (r *l2tpReactor) reapExpiredLocked(now time.Time) ([]uint16, []kernelTeardownEvent) {
+func (r *l2tpReactor) reapExpiredLocked(now time.Time) ([]uint16, []kernelTeardownEvent, []sessionDown) {
 	// Collect IDs first to avoid modifying the map during iteration.
 	var expired []uint16
 	for tid, t := range r.tunnelsByLocalID {
@@ -777,13 +802,16 @@ func (r *l2tpReactor) reapExpiredLocked(now time.Time) ([]uint16, []kernelTeardo
 		}
 	}
 	teardowns := make([]kernelTeardownEvent, 0, len(expired))
+	var downs []sessionDown
 	for _, tid := range expired {
 		t := r.tunnelsByLocalID[tid]
-		// discardTunnelLocked drains and returns the tunnel's
-		// pendingKernelTeardowns; the tunnel is about to become unreachable.
-		teardowns = append(teardowns, r.discardTunnelLocked(t, "retention expired")...)
+		// discardTunnelLocked drains and returns everything the tunnel
+		// queued; the tunnel is about to become unreachable.
+		tearDown, down := r.discardTunnelLocked(t, "retention expired")
+		teardowns = append(teardowns, tearDown...)
+		downs = append(downs, down...)
 	}
-	return expired, teardowns
+	return expired, teardowns, downs
 }
 
 // locateTunnelLocked resolves the target tunnel for an inbound control
@@ -793,19 +821,19 @@ func (r *l2tpReactor) reapExpiredLocked(now time.Time) ([]uint16, []kernelTeardo
 // the caller MUST pass a pre-validated sccrqInfo (parseSCCRQ has
 // already run); no tunnel is created for malformed input.
 //
-// The second return value carries any kernel teardowns produced by
-// discarding a tunnel during tie-breaker resolution (Phase 5). The
-// caller MUST enqueue these to the kernel worker after releasing
-// tunnelsMu, even when the tunnel return is nil.
-func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader, sccrq *sccrqInfo) (*L2TPTunnel, []kernelTeardownEvent) {
+// The second and third return values carry what discarding a tunnel during
+// tie-breaker resolution queued (Phase 5): the kernel teardowns the caller
+// MUST enqueue to the kernel worker, and the session-downs it MUST emit. Both
+// are owed after releasing tunnelsMu, even when the tunnel return is nil.
+func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader, sccrq *sccrqInfo) (*L2TPTunnel, []kernelTeardownEvent, []sessionDown) {
 	if hdr.TunnelID != 0 {
 		t, ok := r.tunnelsByLocalID[hdr.TunnelID]
 		if !ok {
 			r.logger.Debug("l2tp: packet for unknown tunnel dropped",
 				"from", from.String(), "tunnel-id", hdr.TunnelID)
-			return nil, nil
+			return nil, nil, nil
 		}
-		return t, nil
+		return t, nil, nil
 	}
 	// TunnelID=0: caller has already parsed and validated the SCCRQ.
 	// sccrq.AssignedTunnelID is guaranteed non-zero by parseSCCRQ.
@@ -820,7 +848,7 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 		// rare enough that this does not flood.
 		r.logger.Info("l2tp: SCCRQ retransmit matched existing tunnel",
 			"from", from.String(), "peer-tid", sccrq.AssignedTunnelID, "local-tid", existing.localTID)
-		return existing, nil
+		return existing, nil, nil
 	}
 	// Tie breaker resolution (RFC 2661 S4.4.3; S7.2 names the collision).
 	// When a second SCCRQ arrives
@@ -834,12 +862,16 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 	// tie breakers; a peer that omits the AVP on either SCCRQ keeps both
 	// tunnels per RFC 2661 S5.3 (multiple concurrent tunnels between
 	// the same addr pair are legitimate).
-	var teardowns []kernelTeardownEvent
+	var (
+		teardowns []kernelTeardownEvent
+		downs     []sessionDown
+	)
 	if sccrq.TieBreakerPresent {
-		tunnel, tieTeardowns := r.resolveTieBreakerLocked(from, sccrq.TieBreakerValue)
+		tunnel, tieTeardowns, tieDowns := r.resolveTieBreakerLocked(from, sccrq.TieBreakerValue)
 		teardowns = tieTeardowns
+		downs = tieDowns
 		if tunnel == nil {
-			return nil, teardowns
+			return nil, teardowns, downs
 		}
 	}
 	// Max-tunnels enforcement. MaxTunnels == 0 means unbounded by this
@@ -848,13 +880,13 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 		r.logger.Warn("l2tp: max-tunnels limit reached; SCCRQ rejected",
 			"from", from.String(), "limit", r.params.MaxTunnels)
 		// Phase 3 drops; phase 4 will emit StopCCN Result Code 2.
-		return nil, teardowns
+		return nil, teardowns, downs
 	}
 	localTID, err := r.allocateLocalTID()
 	if err != nil {
 		r.logger.Warn("l2tp: local tunnel ID allocation failed; SCCRQ dropped",
 			"from", from.String(), "error", err.Error())
-		return nil, teardowns
+		return nil, teardowns, downs
 	}
 	t := newTunnel(localTID, sccrq.AssignedTunnelID, from, ReliableConfig{RecvWindow: r.params.Defaults.RecvWindow}, r.logger, r.params.Clock())
 	t.maxSessions = r.params.MaxSessions
@@ -862,7 +894,7 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 	r.tunnelsByPeer[key] = t
 	r.logger.Info("l2tp: new tunnel created from SCCRQ",
 		"from", from.String(), "local-tid", localTID, "peer-tid", sccrq.AssignedTunnelID)
-	return t, teardowns
+	return t, teardowns, downs
 }
 
 // resolveTieBreakerLocked compares the new SCCRQ's Tie Breaker value
@@ -871,11 +903,12 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 // lost the comparison, or the values were equal and both sides discard).
 // On success (new SCCRQ wins or has no conflict) returns a non-nil
 // sentinel. The teardowns return value carries kernel cleanup events
-// from any discarded loser tunnels; the caller MUST enqueue them.
+// from any discarded loser tunnels and the downs value the session-downs
+// they queued; the caller MUST enqueue the first and emit the second.
 //
 // Caller MUST hold tunnelsMu. Called only when sccrq.TieBreakerPresent
 // is true and newTB is non-nil.
-func (r *l2tpReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte) (*L2TPTunnel, []kernelTeardownEvent) {
+func (r *l2tpReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte) (*L2TPTunnel, []kernelTeardownEvent, []sessionDown) {
 	sentinel := &L2TPTunnel{} // non-nil "proceed" return value
 	var losers []*L2TPTunnel
 	newLoses := false
@@ -902,38 +935,45 @@ func (r *l2tpReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte)
 		newLoses = true
 	}
 	teardowns := make([]kernelTeardownEvent, 0, len(losers))
+	var downs []sessionDown
 	for _, loser := range losers {
-		teardowns = append(teardowns, r.discardTunnelLocked(loser, "tie-breaker lost")...)
+		tearDown, down := r.discardTunnelLocked(loser, "tie-breaker lost")
+		teardowns = append(teardowns, tearDown...)
+		downs = append(downs, down...)
 	}
 	if newLoses {
 		r.logger.Info("l2tp: new SCCRQ discarded by tie breaker",
 			"from", from.String())
-		return nil, teardowns
+		return nil, teardowns, downs
 	}
-	return sentinel, teardowns
+	return sentinel, teardowns, downs
 }
 
 // discardTunnelLocked removes a tunnel from both lookup maps and marks it
-// closed. Returns any kernel teardown events queued by clearSessions for
-// established sessions that had kernel resources; the caller MUST
-// enqueue them to the kernel worker. Caller MUST hold tunnelsMu.
-func (r *l2tpReactor) discardTunnelLocked(t *L2TPTunnel, reason string) []kernelTeardownEvent {
+// closed. Returns what clearSessions queued: the kernel teardown events for
+// the sessions that held kernel resources, which the caller MUST enqueue to
+// the kernel worker, and one session-down per session, which the caller MUST
+// emit after it unlocks. Caller MUST hold tunnelsMu.
+func (r *l2tpReactor) discardTunnelLocked(t *L2TPTunnel, reason string) ([]kernelTeardownEvent, []sessionDown) {
 	// AC-4: a dialed tunnel that loses the tie-breaker (or expires in
 	// retention) is discarded before it establishes, so its pending call is
 	// never placed on a session and would otherwise be dropped silently. Fail
 	// the blocking RPC with the discard reason (e.g. "tie-breaker lost").
 	t.resolvePendingCall(callOutcome{err: fmt.Errorf("%w (%s)", errCallTunnelSetupFailed, reason)})
-	// Phase 5: clear sessions so kernel teardown events are queued.
-	t.clearSessions()
-	teardowns := t.pendingKernelTeardowns
-	t.pendingKernelTeardowns = nil
+	// Phase 5: clear sessions so kernel teardown events are queued. Ze is
+	// discarding this tunnel from its own state after detecting a collision
+	// or an expiry, which RFC 2866 Section 5.10 value 9 states as "NAS
+	// detected some error (other than on the port) which required ending the
+	// session".
+	t.clearSessions(l2tpevents.TerminateCauseNASError)
+	teardowns, downs := t.drainPendingTeardowns()
 	pk := peerKey{addr: t.peerAddr, tid: t.remoteTID}
 	delete(r.tunnelsByLocalID, t.localTID)
 	delete(r.tunnelsByPeer, pk)
 	t.state = L2TPTunnelClosed
 	r.logger.Info("l2tp: tunnel discarded",
 		"local-tid", t.localTID, "peer", t.peerAddr.String(), "reason", reason)
-	return teardowns
+	return teardowns, downs
 }
 
 // allocateLocalTID picks a non-zero uint16 not already present in

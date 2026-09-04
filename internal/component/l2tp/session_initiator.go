@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // callParams carries the local-side attributes stamped into an initiator's
@@ -63,7 +65,7 @@ func (t *L2TPTunnel) placeIncomingCall(now time.Time, p callParams, logger *slog
 	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now, false)
 	if err != nil {
 		logger.Warn("l2tp: ICRQ enqueue failed", "local-sid", sess.localSID, "error", err.Error())
-		t.removeSession(sess.localSID)
+		t.removeSession(sess.localSID, l2tpevents.TerminateCauseNASError)
 		return 0, nil
 	}
 	logger.Info("l2tp: ICRQ sent; session wait-reply (LAC incoming)",
@@ -87,7 +89,7 @@ func (t *L2TPTunnel) placeOutgoingCall(now time.Time, p callParams, logger *slog
 	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now, false)
 	if err != nil {
 		logger.Warn("l2tp: OCRQ enqueue failed", "local-sid", sess.localSID, "error", err.Error())
-		t.removeSession(sess.localSID)
+		t.removeSession(sess.localSID, l2tpevents.TerminateCauseNASError)
 		return 0, nil
 	}
 	logger.Info("l2tp: OCRQ sent; session wait-reply (LNS outgoing)",
@@ -157,7 +159,7 @@ func (t *L2TPTunnel) handleICRP(sess *L2TPSession, payload []byte, now time.Time
 	if err != nil {
 		logger.Warn("l2tp: malformed ICRP; sending CDN RC=2",
 			"local-sid", sess.localSID, "error", err.Error())
-		return t.teardownSession(sess, cdnResultGeneralError, now, logger)
+		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
 	}
 	sess.remoteSID = info.assignedSessionID
 
@@ -168,7 +170,7 @@ func (t *L2TPTunnel) handleICRP(sess *L2TPSession, payload []byte, now time.Time
 	if enqErr != nil {
 		logger.Warn("l2tp: ICCN enqueue failed; tearing down session",
 			"local-sid", sess.localSID, "error", enqErr.Error())
-		return t.teardownSession(sess, cdnResultGeneralError, now, logger)
+		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
 	}
 	sess.transition(L2TPSessionEstablished, "ICRP received")
 	sess.kernelSetupNeeded = true
@@ -194,7 +196,7 @@ func (t *L2TPTunnel) handleOCRP(sess *L2TPSession, payload []byte, now time.Time
 	if err != nil {
 		logger.Warn("l2tp: malformed OCRP; sending CDN RC=2",
 			"local-sid", sess.localSID, "error", err.Error())
-		return t.teardownSession(sess, cdnResultGeneralError, now, logger)
+		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
 	}
 	sess.remoteSID = info.assignedSessionID
 	sess.transition(L2TPSessionWaitConnect, "OCRP received")

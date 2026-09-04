@@ -63,3 +63,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | 5db0ba0d | feat(radius): the admin backend speaks EAP over a signed exchange | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | feat(radius): the admin backend speaks EAP over a signed exchange | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-04 | 5db0ba0d | feat(radius): the admin backend speaks EAP over a signed exchange | discovery-index freshness | ai/PACKAGE-MAP.md and the rfc requirement indexes hold several other sessions' regenerated rows | open |
+| 2026-09-04 | 5db0ba0d | fix(l2tp): a peer hanging up tells the session subscribers | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | fix(l2tp): a peer hanging up tells the session subscribers | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | 5db0ba0d | test: probe trailer rendering | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

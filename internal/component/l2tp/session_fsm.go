@@ -9,14 +9,50 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // CDN Result Codes (RFC 2661 S5.4.2). Distinct from StopCCN Result Codes.
 const (
+	cdnResultLossOfCarrier  uint16 = 1 // Call disconnected due to loss of carrier
 	cdnResultGeneralError   uint16 = 2 // Call disconnected -- general error
 	cdnResultAdministrative uint16 = 3 // Call disconnected for administrative reasons
 	cdnResultNoResources    uint16 = 4 // Call disconnected -- no appropriate facilities
 )
+
+// terminateCauseForCDN maps the Result Code a peer put in a CDN onto the
+// Acct-Terminate-Cause ze reports for the session it ended.
+//
+// RFC 2661 Section 4.4.2 defines twelve CDN Result Codes and RFC 2866
+// Section 5.10 defines eighteen termination causes. Two of the twelve state
+// something Section 5.10 also states, so those two are translated:
+//
+//   - 1, "Call disconnected due to loss of carrier", is Lost Carrier, which
+//     Section 5.10 defines as "DCD was dropped on the port".
+//   - 3, "Call disconnected for administrative reasons", is Admin Reset,
+//     which Section 5.10 defines as "Administrator reset the port or
+//     session".
+//
+// Every other code describes a call the LAC could not place or complete
+// ("Invalid destination", "Call failed due to detection of a busy signal",
+// "Call was not established within time allotted by LAC"), and code 2 defers
+// its reason to an Error Code AVP whose values are protocol and message
+// format errors. None of those is a Section 5.10 cause, so ze reports NAS
+// Error, which Section 5.10 defines as "NAS detected some error (other than
+// on the port) which required ending the session" and which ze already uses
+// for a teardown it cannot attribute. A wrong cause lands in an operator's
+// billing store, so the general value is preferred over a specific guess.
+func terminateCauseForCDN(resultCode uint16) l2tpevents.TerminateCause {
+	switch resultCode {
+	case cdnResultLossOfCarrier:
+		return l2tpevents.TerminateCauseLostCarrier
+	case cdnResultAdministrative:
+		return l2tpevents.TerminateCauseAdminReset
+	default:
+		return l2tpevents.TerminateCauseNASError
+	}
+}
 
 // dispatchToSession routes a session-scoped message to the appropriate
 // handler. Called from handleMessage for message types ICRQ, ICRP, ICCN,
@@ -140,7 +176,7 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 	wire, enqErr := t.engine.Enqueue(info.assignedSessionID, (*bodyBuf)[:n], now, false)
 	if enqErr != nil {
 		logger.Warn("l2tp: ICRP enqueue failed", "error", enqErr.Error())
-		t.removeSession(localSID)
+		t.removeSession(localSID, l2tpevents.TerminateCauseNASError)
 		return nil
 	}
 
@@ -167,7 +203,7 @@ func (t *L2TPTunnel) handleICCN(sess *L2TPSession, payload []byte, now time.Time
 		// AC-3: malformed ICCN -> CDN.
 		logger.Warn("l2tp: malformed ICCN; sending CDN RC=2",
 			"local-sid", sess.localSID, "error", err.Error())
-		return t.teardownSession(sess, cdnResultGeneralError, now, logger)
+		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
 	}
 
 	// AC-2: transition to established. Capture fields for phase 6.
@@ -268,7 +304,7 @@ func (t *L2TPTunnel) handleOCRQ(payload []byte, now time.Time, logger *slog.Logg
 	wire, enqErr := t.engine.Enqueue(info.assignedSessionID, (*bodyBuf)[:n], now, false)
 	if enqErr != nil {
 		logger.Warn("l2tp: OCRP enqueue failed", "error", enqErr.Error())
-		t.removeSession(localSID)
+		t.removeSession(localSID, l2tpevents.TerminateCauseNASError)
 		return nil
 	}
 
@@ -295,7 +331,7 @@ func (t *L2TPTunnel) handleOCCN(sess *L2TPSession, payload []byte, now time.Time
 	if err != nil {
 		logger.Warn("l2tp: malformed OCCN; sending CDN RC=2",
 			"local-sid", sess.localSID, "error", err.Error())
-		return t.teardownSession(sess, cdnResultGeneralError, now, logger)
+		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
 	}
 
 	sess.transition(L2TPSessionEstablished, "OCCN received")
@@ -345,6 +381,9 @@ func (t *L2TPTunnel) handleCDN(sessionID uint16, payload []byte, logger *slog.Lo
 		return nil
 	}
 
+	// A malformed CDN still destroys the session, and ze then has no Result
+	// Code to read. parseCDN leaves info zero on error, and Result Code 0 is
+	// Reserved, so the cause is NAS Error either way.
 	info, err := parseCDN(payload)
 	if err != nil {
 		logger.Warn("l2tp: malformed CDN; destroying session anyway",
@@ -355,7 +394,7 @@ func (t *L2TPTunnel) handleCDN(sessionID uint16, payload []byte, logger *slog.Lo
 			"result", info.result, "error-code", info.errorCode)
 	}
 
-	t.removeSession(sessionID)
+	t.removeSession(sessionID, terminateCauseForCDN(info.result))
 	return nil
 }
 
@@ -424,15 +463,21 @@ func (t *L2TPTunnel) handleSLI(sessionID uint16, payload []byte, logger *slog.Lo
 // ---------------------------------------------------------------------------
 
 // teardownSession sends a CDN for the given session and removes it from the
-// tunnel's session map. Used when we detect an error during session setup.
+// tunnel's session map. Used when ze itself ends one session.
 //
-// resultCode stays parameterised even though every current caller passes
-// cdnResultGeneralError: RFC 2661 S4.4.1 defines distinct codes (admin
-// shutdown, busy, no-bearer, no-bandwidth) that will be routed to this
-// function once the corresponding events are wired.
+// resultCode is what ze tells the PEER in the CDN's Result Code AVP (RFC 2661
+// Section 4.4.2). cause is what ze tells ACCOUNTING about the same teardown
+// (RFC 2866 Section 5.10). The two are separate vocabularies and neither one
+// derives from the other: a PPP-driven teardown sends the general CDN code
+// while naming the reason PPP gave, and an operator clear sends the
+// administrative code while naming Admin Reset.
 //
-//nolint:unparam // see doc comment: future RFC 2661 result codes plug in here
-func (t *L2TPTunnel) teardownSession(sess *L2TPSession, resultCode uint16, now time.Time, logger *slog.Logger) []sendRequest {
+// RFC 2661 Section 4.4.2 defines further CDN codes (busy, no bearer, no
+// bandwidth) that route here once the events producing them are wired, so
+// resultCode stays parameterised while one caller value is in the tree.
+//
+//nolint:unparam // resultCode is parameterised for the RFC 2661 codes named above
+func (t *L2TPTunnel) teardownSession(sess *L2TPSession, resultCode uint16, cause l2tpevents.TerminateCause, now time.Time, logger *slog.Logger) []sendRequest {
 	// AC-4: report the CDN Result Code to a blocking RPC (no-op once the
 	// session established or for peer-initiated sessions). Signaled here so
 	// the specific code survives the generic errCallTornDown in removeSession.
@@ -450,10 +495,10 @@ func (t *L2TPTunnel) teardownSession(sess *L2TPSession, resultCode uint16, now t
 	if err != nil {
 		logger.Warn("l2tp: CDN enqueue failed; session dropped without peer notification",
 			"local-sid", sess.localSID, "error", err.Error())
-		t.removeSession(sess.localSID)
+		t.removeSession(sess.localSID, cause)
 		return nil
 	}
-	t.removeSession(sess.localSID)
+	t.removeSession(sess.localSID, cause)
 	logger.Info("l2tp: CDN sent; session destroyed",
 		"local-sid", sess.localSID, "remote-sid", sess.remoteSID,
 		"result-code", resultCode)

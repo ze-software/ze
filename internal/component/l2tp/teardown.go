@@ -27,14 +27,6 @@ var (
 	ErrInvalidID = errors.New("l2tp: invalid id (must be 1..65535)")
 )
 
-// tornSession is one session a tunnel teardown removed. The teardown reads it
-// out of the tunnel map before that map is cleared, so the notifications below
-// the unlock still know which sessions ended and who was on them.
-type tornSession struct {
-	localSID uint16
-	username string
-}
-
 // teardownTunnelByID sends a StopCCN Result Code 6 (administrative
 // shutdown) for the tunnel with the given local TID. The tunnel's
 // sessions are cleared and any kernel resources drained the same way
@@ -62,30 +54,17 @@ func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
 		r.tunnelsMu.Unlock()
 		return fmt.Errorf("%w: local-tid=%d", ErrTunnelNotFound, localTID)
 	}
-	// Collect each session before teardownStopCCN clears the session map, so
-	// the route observer and the event bus both hear about every session that
-	// was live when the operator requested the teardown. The username is read
-	// in this same pass because it lives only on the session struct the clear
-	// is about to drop, and an empty one reaches RADIUS as a Stop record with
-	// no User-Name.
-	torn := make([]tornSession, 0, len(t.sessions))
-	for sid, sess := range t.sessions {
-		torn = append(torn, tornSession{localSID: sid, username: sess.username})
-	}
 	now := r.params.Clock()
-	outbound := t.teardownStopCCN(now, resultAdministrative)
-	teardowns := t.drainPendingKernelTeardowns()
+	outbound := t.teardownStopCCN(now, resultAdministrative, l2tpevents.TerminateCauseAdminReset)
+	teardowns, downs := t.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
 	if r.routeObserver != nil {
-		for _, s := range torn {
-			r.routeObserver.OnSessionDown(localTID, s.localSID)
+		for _, d := range downs {
+			r.routeObserver.OnSessionDown(localTID, d.localSID)
 		}
 	}
-	for _, s := range torn {
-		r.emitSessionDown(localTID, s.localSID, s.username, l2tpevents.TerminateCauseAdminReset)
-		ClearSessionMetadata(localTID, s.localSID)
-	}
+	r.emitSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (operator tunnel teardown)",
@@ -126,18 +105,16 @@ func (r *l2tpReactor) teardownSessionByID(localSID uint16, cause l2tpevents.Term
 		r.tunnelsMu.Unlock()
 		return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
 	}
-	cancelSessionTimeouts(sess)
 	tid := tunnel.localTID
-	username := sess.username
 	now := r.params.Clock()
-	outbound := tunnel.teardownSession(sess, cdnResultAdministrative, now, r.logger)
-	teardowns := tunnel.drainPendingKernelTeardowns()
+	outbound := tunnel.teardownSession(sess, cdnResultAdministrative, cause, now, r.logger)
+	teardowns, downs := tunnel.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
 	if r.routeObserver != nil {
 		r.routeObserver.OnSessionDown(tid, localSID)
 	}
-	r.emitSessionDown(tid, localSID, username, cause)
+	r.emitSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (operator session teardown)",
@@ -145,7 +122,6 @@ func (r *l2tpReactor) teardownSessionByID(localSID uint16, cause l2tpevents.Term
 		}
 	}
 	r.enqueueKernelEvents(nil, teardowns)
-	ClearSessionMetadata(tid, localSID)
 	return nil
 }
 
@@ -204,25 +180,31 @@ func (r *l2tpReactor) TeardownAllSessions() int {
 	return n
 }
 
-// emitSessionDown publishes (l2tp, session-down) for a session the reactor
-// itself tore down. The PPP-driven path emits from handlePPPEvent; a locally
-// initiated teardown removes the session from the tunnel map first, so that
-// path finds nothing and returns, and this is the only emission the
-// subscribers of the event get. Exactly one of the two fires, because both
-// look the session up under tunnelsMu before emitting.
+// emitSessionDowns publishes one (l2tp, session-down) for every session a
+// teardown removed from the tunnel. It is the ONLY emitter of that event, and
+// its input is what removeSession queued, so a teardown path cannot reach the
+// subscribers without one and cannot reach them twice.
 //
-// Caller MUST NOT hold tunnelsMu.
-func (r *l2tpReactor) emitSessionDown(localTID, localSID uint16, username string, cause l2tpevents.TerminateCause) {
+// This is what RADIUS accounting, the address pool, the shaper and the CoS
+// handler each key their cleanup on: no emission means no Accounting-Stop, no
+// address released and no traffic rule dropped.
+//
+// Caller MUST NOT hold tunnelsMu. A subscriber runs on this goroutine and can
+// call back into the reactor.
+func (r *l2tpReactor) emitSessionDowns(downs []sessionDown) {
 	if r.eventBus == nil {
 		return
 	}
-	if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
-		TunnelID:  localTID,
-		SessionID: localSID,
-		Username:  username,
-		Cause:     cause,
-	}); err != nil {
-		r.logger.Warn("l2tp: session-down emit failed", "error", err)
+	for _, d := range downs {
+		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
+			TunnelID:  d.localTID,
+			SessionID: d.localSID,
+			Username:  d.username,
+			Cause:     d.cause,
+		}); err != nil {
+			r.logger.Warn("l2tp: session-down emit failed",
+				"local-tid", d.localTID, "local-sid", d.localSID, "error", err)
+		}
 	}
 }
 
@@ -244,17 +226,15 @@ func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16, cause l
 		r.tunnelsMu.Unlock()
 		return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
 	}
-	cancelSessionTimeouts(sess)
-	username := sess.username
 	now := r.params.Clock()
-	outbound := t.teardownSession(sess, cdnResultAdministrative, now, r.logger)
-	teardowns := t.drainPendingKernelTeardowns()
+	outbound := t.teardownSession(sess, cdnResultAdministrative, cause, now, r.logger)
+	teardowns, downs := t.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
 	if r.routeObserver != nil {
 		r.routeObserver.OnSessionDown(localTID, localSID)
 	}
-	r.emitSessionDown(localTID, localSID, username, cause)
+	r.emitSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (teardown-all session)",
@@ -262,18 +242,5 @@ func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16, cause l
 		}
 	}
 	r.enqueueKernelEvents(nil, teardowns)
-	ClearSessionMetadata(localTID, localSID)
 	return nil
-}
-
-// drainPendingKernelTeardowns returns any kernel teardown events that
-// session-clearing queued on the tunnel, resetting the slice. Caller
-// MUST hold the owning reactor's tunnelsMu.
-func (t *L2TPTunnel) drainPendingKernelTeardowns() []kernelTeardownEvent {
-	if len(t.pendingKernelTeardowns) == 0 {
-		return nil
-	}
-	out := t.pendingKernelTeardowns
-	t.pendingKernelTeardowns = nil
-	return out
 }
