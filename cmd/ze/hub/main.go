@@ -47,6 +47,7 @@ import (
 	"github.com/ze-software/ze/internal/core/reboot"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (
@@ -604,6 +605,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			lgToken = lgCfg.Token
 		}
 	}
+	// Names the PKI store entry the looking glass serves. One function answers
+	// this for the startup path and the reload path, so a restart and a reload
+	// cannot serve different certificates from one config; it reads the env var
+	// first and reports no name for a plaintext looking glass.
+	lgCertificate := lgCertificateName(loadResult.Tree)
 	// No looking-glass block at all, so nothing named an address: bind the same
 	// default extractServerList synthesizes for a block that names no server.
 	if lgEnabledByEnv && len(lgAddrs) == 0 {
@@ -619,7 +625,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// methods, so there is no separate standalone bus any more; one
 	// namespaced pub/sub backbone serves everyone.
 
-	pkiConfig, pkiErr := preparePKIConfig(configTree)
+	pkiConfig, pkiErr := preparePKIConfig(loadResult.Tree)
 	if pkiErr != nil {
 		fmt.Fprintf(os.Stderr, "error: pki config: %v\n", pkiErr)
 		logStartupFailure("pki config", pkiErr)
@@ -640,6 +646,20 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if _, _, certErr := zepki.ServerTLSMaterial(webCertificate); certErr != nil {
 			fmt.Fprintf(os.Stderr, "error: environment.web.certificate: %v\n", certErr)
 			logStartupFailure("web certificate", certErr)
+			return 1
+		}
+	}
+
+	// The same refusal for the looking glass (AC-3, AC-4). A non-empty lgAddrs
+	// is what starts it, so that is the enable condition. lgCertificate is
+	// already empty when the listener serves plaintext, because a plaintext
+	// listener presents no certificate to resolve.
+	if len(lgAddrs) > 0 && lgCertificate != "" {
+		if _, _, certErr := zepki.ServerTLSMaterial(lgCertificate); certErr != nil {
+			var tb textbuf.Buffer
+			tb.Str("error: environment.looking-glass.certificate: ").Str(certErr.Error()).Byte('\n')
+			tb.StdErr() //nolint:errcheck // the process is exiting on the next line
+			logStartupFailure("looking glass certificate", certErr)
 			return 1
 		}
 	}
@@ -709,7 +729,21 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// //go:build ze_mrt can drop MRT from the binary.
 	})
 
+	// Load the daemon's certificate authority, generating it on first start.
+	// Every internal listener that has no operator-named certificate takes its
+	// leaf from this root, so a failure here is a startup failure: without a
+	// root the plugin hub can serve nothing a plugin can validate.
+	caRoot, caErr := zepki.LoadOrGenerateRoot(store)
+	if caErr != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: local certificate authority: ").Str(caErr.Error()).Byte('\n')
+		tb.StdErr() //nolint:errcheck // the process is exiting on the next line
+		logStartupFailure("local certificate authority", caErr)
+		return 1
+	}
+
 	pm := pluginmgr.NewManager()
+	pm.SetHubAuthority(caRoot)
 
 	// Wire hub config into process manager for external plugin startup.
 	if hubCfg, hubErr := zeconfig.ExtractHubConfig(loadResult.Tree); hubErr == nil {
@@ -1230,7 +1264,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// their listeners. With a feature's ze_<feature> tag off, its factory is not
 	// registered and the service is silently skipped. Looking-glass (ze_lg) is
 	// the pilot; its listen binding (lgAddrs/lgTLS) is resolved above.
-	builtServices := buildServices(serviceDeps{
+	builtServices := buildServices(&serviceDeps{
 		Store:          store,
 		ConfigPath:     configPath,
 		Resolvers:      resolvers,
@@ -1239,6 +1273,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		LGTLS:          lgTLS,
 		LGTLSExplicit:  lgTLSSet,
 		LGToken:        lgToken,
+		LGCertificate:  lgCertificate,
 		WebEnabled:     webEnabled,
 		WebAddrs:       webAddrs,
 		InsecureWeb:    insecureWeb,

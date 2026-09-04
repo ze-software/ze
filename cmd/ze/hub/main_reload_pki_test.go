@@ -12,12 +12,15 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"math/big"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zepki "github.com/ze-software/ze/internal/component/pki"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/env"
 
 	"github.com/stretchr/testify/require"
@@ -91,17 +94,7 @@ func caSignedB64(t *testing.T, cn string) (caB64, certB64, keyB64 string) {
 // and certName under it, and environment.web referencing `reference`.
 func pkiWebTree(caB64, certB64, keyB64, certName, reference string) map[string]any {
 	return map[string]any{
-		"pki": map[string]any{
-			"ca": map[string]any{
-				certName + "-ca": map[string]any{"certificate": caB64},
-			},
-			"certificate": map[string]any{
-				certName: map[string]any{
-					"certificate": certB64,
-					"private":     map[string]any{"key": keyB64},
-				},
-			},
-		},
+		"pki": pkiBlock(caB64, certB64, keyB64, certName),
 		"environment": map[string]any{
 			"web": map[string]any{
 				"enabled":     "true",
@@ -112,9 +105,300 @@ func pkiWebTree(caB64, certB64, keyB64, certName, reference string) map[string]a
 }
 
 // treeFromMap turns a loaded-tree map into the parsed *config.Tree a reload
-// also carries (runReload gets both).
+// also carries (runReload gets both), so a test can keep writing its fixture as
+// a map literal.
+//
+// TEST FIXTURES ONLY. This conversion is LOSSY and the daemon must never take
+// it: ToMap lowers a one-member leaf-list to a bare string and a longer one to
+// a []string, so neither arm below can rebuild the leaf-list it came from.
+// preparePKIConfig used to do exactly this and lost every
+// `pki certificate <name> intermediate` (TestPreparePKIConfigKeepsEveryIntermediate,
+// plan/journal/validated-value-discarded-by-its-caller.md). It is safe here only
+// because these fixtures carry no leaf-list; a fixture that needs one builds its
+// tree from config text with zeconfig.ParseTreeWithYANG instead.
 func treeFromMap(m map[string]any) *zeconfig.Tree {
-	return configTreeFromMap(m)
+	if m == nil {
+		return nil
+	}
+	t := zeconfig.NewTree()
+	for k, v := range m {
+		// A reserved order key is not config: it is how ToPluginMap carries a
+		// list's entry order beside the list. Rebuilding it as a container
+		// would put a node in this tree that no YANG module declares.
+		if strings.HasPrefix(k, configorder.KeyPrefix) {
+			continue
+		}
+		switch val := v.(type) {
+		case string:
+			t.Set(k, val)
+		case float64:
+			t.Set(k, strconv.FormatFloat(val, 'f', -1, 64))
+		case bool:
+			if val {
+				t.Set(k, "true")
+			} else {
+				t.Set(k, "false")
+			}
+		case map[string]any:
+			t.SetContainer(k, treeFromMap(val))
+			if mapValuesAreMaps(val) {
+				for entryKey, entryVal := range val {
+					entryMap, ok := entryVal.(map[string]any)
+					if !ok {
+						continue
+					}
+					t.AddListEntry(k, entryKey, treeFromMap(entryMap))
+				}
+			}
+		}
+	}
+	return t
+}
+
+// mapValuesAreMaps reports whether every value is a map, which is how a YANG
+// list entry set is told from a container of leaves in a fixture literal.
+func mapValuesAreMaps(m map[string]any) bool {
+	if len(m) == 0 {
+		return false
+	}
+	for _, v := range m {
+		if _, ok := v.(map[string]any); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// pkiBlock builds the pki root a reload sees: a CA and certName under it.
+func pkiBlock(caB64, certB64, keyB64, certName string) map[string]any {
+	return map[string]any{
+		"ca": map[string]any{
+			certName + "-ca": map[string]any{"certificate": caB64},
+		},
+		"certificate": map[string]any{
+			certName: map[string]any{
+				"certificate": certB64,
+				"private":     map[string]any{"key": keyB64},
+			},
+		},
+	}
+}
+
+// pkiLGTree builds the loaded-tree map a reload sees for the looking glass: a
+// pki block defining certName, and the environment.looking-glass leaves the
+// caller names.
+func pkiLGTree(caB64, certB64, keyB64, certName string, lg map[string]any) map[string]any {
+	return map[string]any{
+		"pki": pkiBlock(caB64, certB64, keyB64, certName),
+		"environment": map[string]any{
+			"looking-glass": lg,
+		},
+	}
+}
+
+func TestLGCertificateEnvWins(t *testing.T) {
+	// VALIDATES: AC-10 -- ze.looking-glass.certificate beats the config file on
+	// the startup path and on the reload path.
+	// PREVENTS: a config edit re-pointing a certificate an operator pinned
+	// through the environment, which would serve one identity after a reload and
+	// another after the next restart.
+	//
+	// Both paths call lgCertificateName (main_reload.go): the startup gate in
+	// cmd/ze/hub/main.go takes its value from it, and the reload subtest below
+	// drives runReload, which reaches the same function through the real reload.
+	require.NoError(t, env.Set("ze.looking-glass.certificate", "pinned"))
+	t.Cleanup(func() { _ = env.Set("ze.looking-glass.certificate", "") })
+
+	t.Run("the startup path serves the environment value", func(t *testing.T) {
+		tree := map[string]any{
+			"environment": map[string]any{
+				"looking-glass": map[string]any{"enabled": "true", "certificate": "from-config"},
+			},
+		}
+		require.Equal(t, "pinned", lgCertificateName(treeFromMap(tree)))
+	})
+
+	t.Run("the reload path serves the environment value", func(t *testing.T) {
+		t.Cleanup(func() { _ = zepki.Load(nil) })
+		require.NoError(t, zepki.Load(nil))
+
+		// The config names a certificate the store DOES define, the environment
+		// names one it does not. The reload is refused over the environment's
+		// name, which no reload reading the config file could produce.
+		caB64, certB64, keyB64 := caSignedB64(t, "config lg cert")
+		newTree := pkiLGTree(caB64, certB64, keyB64, "from-config", map[string]any{
+			"enabled":     "true",
+			"certificate": "from-config",
+		})
+
+		srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+		require.NoError(t, err)
+
+		cp := zeconfig.NewProvider()
+		cp.SetRoot("pki", map[string]any{})
+
+		fake := &fakeTLSUpdatable{}
+		lm := &listenerMigrator{}
+		lm.setLGTLS(fake)
+
+		load := func() (map[string]any, *zeconfig.Tree, error) {
+			return newTree, treeFromMap(newTree), nil
+		}
+
+		err = runReload(srv, cp, load, lm)
+		require.Error(t, err)
+		// The refusal names the certificate it FAILED to resolve. "from-config"
+		// appears too, in the list of names the store does hold, so the
+		// assertion is on the failing name rather than on its absence.
+		require.Contains(t, err.Error(), "certificate pinned not found",
+			"the reload must resolve the environment value, not the config file's")
+		require.Zero(t, fake.calls)
+	})
+}
+
+func TestLGCertificateNameReadsSettingsNotAddresses(t *testing.T) {
+	// VALIDATES: A-3 on the certificate leaf -- the name is a SETTING, so a
+	// looking glass started by ze.looking-glass.enabled or --lg still serves the
+	// operator's certificate.
+	// PREVENTS: an `enabled` gate discarding the reference for exactly the
+	// deployments most likely to set one.
+	tree := map[string]any{
+		"environment": map[string]any{
+			"looking-glass": map[string]any{"enabled": "false", "certificate": "still-mine"},
+		},
+	}
+	require.Equal(t, "still-mine", lgCertificateName(treeFromMap(tree)),
+		"a disabled block still states which certificate the operator wants served")
+
+	require.Empty(t, lgCertificateName(nil))
+	require.Empty(t, lgCertificateName(treeFromMap(map[string]any{})))
+}
+
+func TestReloadPlaintextLGKeepsCertificateInert(t *testing.T) {
+	// VALIDATES: a looking glass running plaintext serves no certificate, so a
+	// reload neither checks the name nor rotates anything.
+	// PREVENTS: the two paths disagreeing about one config. Startup resolves the
+	// name only when TLS is on (service_lg.go), so a daemon that boots this
+	// config happily must not have its next reload refused over the same leaf --
+	// and the lg server refuses a rotation it could never serve, which would
+	// turn that disagreement into a rejected commit.
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+	require.NoError(t, zepki.Load(nil))
+
+	plaintext := map[string]any{
+		"environment": map[string]any{
+			"looking-glass": map[string]any{
+				"enabled":     "true",
+				"tls":         "false",
+				"certificate": "absent-cert",
+			},
+		},
+	}
+	require.Empty(t, lgCertificateName(treeFromMap(plaintext)),
+		"a plaintext looking glass presents no certificate, so it names none")
+
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	cp := zeconfig.NewProvider()
+	cp.SetRoot("pki", map[string]any{})
+
+	fake := &fakeTLSUpdatable{}
+	lm := &listenerMigrator{}
+	lm.setLGTLS(fake)
+
+	load := func() (map[string]any, *zeconfig.Tree, error) {
+		return plaintext, treeFromMap(plaintext), nil
+	}
+
+	err = runReload(srv, cp, load, lm)
+	require.Error(t, err, "this harness has no reactor, so the reload cannot complete")
+	require.ErrorContains(t, err, "no reactor configured",
+		"the reload must reach plugin apply, which means the certificate gate let it through")
+	require.NotContains(t, err.Error(), "absent-cert",
+		"a name a plaintext listener never reads must not refuse the commit")
+	require.Zero(t, fake.calls, "nothing may be rotated onto a plaintext looking glass")
+}
+
+func TestReloadRejectsBrokenLGCertificateReference(t *testing.T) {
+	// VALIDATES: AC-5 and R-5 -- a commit whose looking-glass certificate
+	// reference does not resolve is rejected, and the PRIOR store is put back.
+	// PREVENTS: a config edit silently downgrading a public looking glass to its
+	// self-signed certificate at reload time, and the subtler half: a rejected
+	// commit leaving the daemon serving the NEW material under the OLD config.
+	//
+	// Both stores define "shared" and the material behind it DIFFERS, so the
+	// restore assertion cannot pass by the name merely surviving.
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+
+	oldCA, oldCert, oldKey := caSignedB64(t, "old lg cert")
+	newCA, newCert, newKey := caSignedB64(t, "new lg cert")
+
+	priorTree := pkiLGTree(oldCA, oldCert, oldKey, "shared", map[string]any{"enabled": "true"})
+	priorPKI, err := preparePKIConfig(treeFromMap(priorTree))
+	require.NoError(t, err)
+	require.NoError(t, zepki.Load(priorPKI))
+	require.Equal(t, "old lg cert", zepki.CertCN("shared"), "precondition: the prior store is installed")
+
+	newTree := pkiLGTree(newCA, newCert, newKey, "shared", map[string]any{
+		"enabled":     "true",
+		"certificate": "absent-cert",
+	})
+
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	cp := zeconfig.NewProvider()
+	priorPKIRoot, ok := priorTree["pki"].(map[string]any)
+	require.True(t, ok)
+	cp.SetRoot("pki", priorPKIRoot)
+
+	fake := &fakeTLSUpdatable{}
+	lm := &listenerMigrator{}
+	lm.setLGTLS(fake)
+
+	load := func() (map[string]any, *zeconfig.Tree, error) {
+		return newTree, treeFromMap(newTree), nil
+	}
+
+	err = runReload(srv, cp, load, lm)
+	require.Error(t, err, "a reload naming an absent certificate must fail")
+	require.Contains(t, err.Error(), "absent-cert")
+	require.Contains(t, err.Error(), "environment.looking-glass.certificate")
+	require.Zero(t, fake.calls, "nothing may be installed on the listener by a rejected reload")
+	require.Equal(t, "old lg cert", zepki.CertCN("shared"),
+		"the refused commit must leave the prior store installed, not the one it was rejected for")
+}
+
+func TestReloadRotatesLGCertificate(t *testing.T) {
+	// VALIDATES: AC-6 -- the material the running looking glass is handed comes
+	// from the commit being applied, with no rebind.
+	// PREVENTS: a reload that installs a new store while the listener keeps
+	// serving the chain it was built with, which looks healthy and presents an
+	// identity the config no longer describes.
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+	require.NoError(t, zepki.Load(nil))
+
+	caB64, certB64, keyB64 := caSignedB64(t, "incoming lg leaf")
+	incoming, err := preparePKIConfig(treeFromMap(pkiLGTree(caB64, certB64, keyB64, "lg-cert", map[string]any{
+		"enabled":     "true",
+		"certificate": "lg-cert",
+	})))
+	require.NoError(t, err)
+	require.NoError(t, zepki.Load(incoming))
+
+	fake := &fakeTLSUpdatable{}
+	lm := &listenerMigrator{}
+	lm.setLGTLS(fake)
+
+	require.NoError(t, lm.updateLGCertificate("lg-cert"))
+	require.Equal(t, 1, fake.calls)
+
+	pair, err := tls.X509KeyPair(fake.certPEM, fake.keyPEM)
+	require.NoError(t, err)
+	leaf, err := x509.ParseCertificate(pair.Certificate[0])
+	require.NoError(t, err)
+	require.Equal(t, "incoming lg leaf", leaf.Subject.CommonName)
 }
 
 func TestReloadInstallsPKIBeforePluginApply(t *testing.T) {
@@ -174,7 +458,7 @@ func TestReloadCertificateGateSeesTheIncomingStore(t *testing.T) {
 	require.NoError(t, zepki.Load(nil))
 
 	caB64, certB64, keyB64 := caSignedB64(t, "incoming leaf")
-	incoming, err := preparePKIConfig(pkiWebTree(caB64, certB64, keyB64, "fresh-cert", "fresh-cert"))
+	incoming, err := preparePKIConfig(treeFromMap(pkiWebTree(caB64, certB64, keyB64, "fresh-cert", "fresh-cert")))
 	require.NoError(t, err)
 	require.NoError(t, zepki.Load(incoming))
 
@@ -234,9 +518,9 @@ func TestRollbackReloadRestoresPriorPKIStore(t *testing.T) {
 	oldCA, oldCert, oldKey := caSignedB64(t, "old cert")
 	newCA, newCert, newKey := caSignedB64(t, "new cert")
 
-	priorPKI, err := preparePKIConfig(pkiWebTree(oldCA, oldCert, oldKey, "rolled-back", ""))
+	priorPKI, err := preparePKIConfig(treeFromMap(pkiWebTree(oldCA, oldCert, oldKey, "rolled-back", "")))
 	require.NoError(t, err)
-	newPKI, err := preparePKIConfig(pkiWebTree(newCA, newCert, newKey, "rolled-back", ""))
+	newPKI, err := preparePKIConfig(treeFromMap(pkiWebTree(newCA, newCert, newKey, "rolled-back", "")))
 	require.NoError(t, err)
 
 	require.NoError(t, zepki.Load(priorPKI))

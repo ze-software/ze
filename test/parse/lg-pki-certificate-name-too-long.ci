@@ -1,0 +1,42 @@
+# spec-lg-pki-certificate boundary table: the looking-glass certificate leaf is
+# 1..255 characters over the pki name charset. The boundary is stated on both
+# sides here rather than implied -- 255 characters VALIDATES and 256 is REFUSED
+# -- because a length constraint that only ever sees a rejected value cannot
+# tell a working 1..255 from a schema that rejects everything.
+#
+# A name carrying a path separator is refused too: the reference is a store key,
+# never a file path.
+stdin=atlimit:terminator=EOF_LIMIT
+environment {
+	looking-glass {
+		enabled true
+		certificate aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+	}
+}
+EOF_LIMIT
+
+stdin=toolong:terminator=EOF_LONG
+environment {
+	looking-glass {
+		enabled true
+		certificate aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+	}
+}
+EOF_LONG
+
+stdin=badchar:terminator=EOF_BAD
+environment {
+	looking-glass {
+		enabled true
+		certificate "../../etc/ze/secret"
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=atlimit
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+cmd=foreground:seq=2:exec=ze config validate -:stdin=toolong
+expect=exit:code=1
+cmd=foreground:seq=3:exec=ze config validate -:stdin=badchar
+expect=exit:code=1

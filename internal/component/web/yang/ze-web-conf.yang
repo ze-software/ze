@@ -76,10 +76,10 @@ module ze-web-conf {
                      can build the full chain.
                      When this leaf is not set, ze generates a self-signed
                      certificate and serves that.
-                     When this leaf is set and the store has no entry with that
-                     name, or the entry holds no private key, the web server does
-                     not start and the reload is rejected. ze never falls back to
-                     a self-signed certificate for a configured name.
+                     If the store holds no entry with that name, or the entry
+                     holds no private key, ze exits with an error and rejects a
+                     reload. ze never falls back to a self-signed certificate
+                     for a configured name.
                      Environment variable: ze.web.certificate.";
             }
 

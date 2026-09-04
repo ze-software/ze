@@ -140,9 +140,9 @@ func TestStartWebServerUsesPKIMaterial(t *testing.T) {
 	loadWebPKIStore(t)
 	store := &memCertStore{}
 
-	certPEM, keyPEM, err := webTLSMaterial("web-cert", store, "127.0.0.1:3443")
+	certPEM, keyPEM, err := listenerTLSMaterial("web-cert", store, "127.0.0.1:3443")
 	if err != nil {
-		t.Fatalf("webTLSMaterial: %v", err)
+		t.Fatalf("listenerTLSMaterial: %v", err)
 	}
 	if store.generated {
 		t.Fatal("a configured certificate must not generate a self-signed certificate")
@@ -175,7 +175,7 @@ func TestStartWebServerFailsClosedOnBrokenReference(t *testing.T) {
 	for _, name := range []string{"typo-cert", "keyless"} {
 		t.Run(name, func(t *testing.T) {
 			store := &memCertStore{}
-			certPEM, keyPEM, err := webTLSMaterial(name, store, "127.0.0.1:3443")
+			certPEM, keyPEM, err := listenerTLSMaterial(name, store, "127.0.0.1:3443")
 			if err == nil {
 				t.Fatal("expected an error, got material")
 			}
@@ -199,9 +199,9 @@ func TestWebServerSelfSignedFallbackUnchanged(t *testing.T) {
 	loadWebPKIStore(t)
 	store := &memCertStore{}
 
-	certPEM, keyPEM, err := webTLSMaterial("", store, "127.0.0.1:3443")
+	certPEM, keyPEM, err := listenerTLSMaterial("", store, "127.0.0.1:3443")
 	if err != nil {
-		t.Fatalf("webTLSMaterial: %v", err)
+		t.Fatalf("listenerTLSMaterial: %v", err)
 	}
 	if !store.generated {
 		t.Fatal("the self-signed path must generate and persist material")
@@ -223,8 +223,8 @@ func TestWebServerSelfSignedFallbackUnchanged(t *testing.T) {
 
 	// A second call reuses the persisted pair rather than regenerating.
 	store.generated = false
-	if _, _, err := webTLSMaterial("", store, "127.0.0.1:3443"); err != nil {
-		t.Fatalf("second webTLSMaterial: %v", err)
+	if _, _, err := listenerTLSMaterial("", store, "127.0.0.1:3443"); err != nil {
+		t.Fatalf("second listenerTLSMaterial: %v", err)
 	}
 	if store.generated {
 		t.Fatal("existing stored material must be reused, not regenerated")

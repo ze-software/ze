@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Deferral shard | `plan/deferrals/lg-pki-certificate.md` |
 | Handoff | - |
 | Updated | 2026-09-03 |
@@ -177,12 +177,12 @@ served by `crypto/tls`, whose conformance is not altered by this change.
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The PKI store is reachable without blob storage, so a named certificate can be served on a deployment that has no blob store | `pki.Load` takes a parsed `PKIConfig`; nothing in `internal/component/pki/store.go` references blob storage | The blob-storage guard must stay where it is, and AC-7 is void | Functional test: a no-blob-storage deployment with a named certificate serves that chain | unvalidated |
-| A-2 | The looking glass wants its own leaf rather than a share of `environment.web.certificate` | The lg has its own container, its own default port 8443, and plausibly its own hostname; user decision at the design gate | One leaf serves both and this spec's YANG half disappears | User confirmation, recorded at the design gate | unvalidated |
-| A-3 | `ExtractLGSettings` returns on block presence rather than on `enabled`, so a flag-started looking glass still receives the operator certificate | `internal/component/config/lg_extract_test.go` asserts settings survive a disabled block | The certificate is dropped for exactly the deployments most likely to set it | Existing test re-read at implementation, plus a new case naming `Certificate` | unvalidated |
-| A-4 | Adding `GetCertificate` and clearing `Certificates` on the lg `tls.Config` changes no negotiated parameter other than which certificate is served | `internal/component/web/server.go` does exactly this and its handshake tests pass | The lg handshake changes in some way the tests do not cover | The existing `test/plugin/lg-tls-default-on.ci` handshake assertion must still pass unchanged | unvalidated |
-| A-5 | The `ze_lg` build tag keeps the new doctor check out of a build without the looking glass | `cmd/ze/hub/register_lg.go` uses this pattern for the service factory | A build without lg either fails to compile or registers a check for a component it does not have | Build both tag configurations; assert the check is absent in one and present in the other | unvalidated |
-| A-6 | The lg package may import `internal/component/config` and `internal/component/pki`, which it does not today, without failing the tier rule | `internal/component/web/doctor.go` imports both for exactly this purpose | The doctor check needs a different home, most likely an injected resolver like the one `internal/core/dnsserver` takes | `./le tier check` after the doctor phase | unvalidated |
+| A-1 | The PKI store is reachable without blob storage, so a named certificate can be served on a deployment that has no blob store | `pki.Load` takes a parsed `PKIConfig`; nothing in `internal/component/pki/store.go` references blob storage | The blob-storage guard must stay where it is, and AC-7 is void | Functional test: a no-blob-storage deployment with a named certificate serves that chain | confirmed |
+| A-2 | The looking glass wants its own leaf rather than a share of `environment.web.certificate` | The lg has its own container, its own default port 8443, and plausibly its own hostname; user decision at the design gate | One leaf serves both and this spec's YANG half disappears | User confirmation, recorded at the design gate | confirmed |
+| A-3 | `ExtractLGSettings` returns on block presence rather than on `enabled`, so a flag-started looking glass still receives the operator certificate | `internal/component/config/lg_extract_test.go` asserts settings survive a disabled block | The certificate is dropped for exactly the deployments most likely to set it | Existing test re-read at implementation, plus a new case naming `Certificate` | confirmed |
+| A-4 | Adding `GetCertificate` and clearing `Certificates` on the lg `tls.Config` changes no negotiated parameter other than which certificate is served | `internal/component/web/server.go` does exactly this and its handshake tests pass | The lg handshake changes in some way the tests do not cover | The existing `test/plugin/lg-tls-default-on.ci` handshake assertion must still pass unchanged | confirmed |
+| A-5 | The `ze_lg` build tag keeps the new doctor check out of a build without the looking glass | `cmd/ze/hub/register_lg.go` uses this pattern for the service factory | A build without lg either fails to compile or registers a check for a component it does not have | Build both tag configurations; assert the check is absent in one and present in the other | confirmed |
+| A-6 | The lg package may import `internal/component/config` and `internal/component/pki`, which it does not today, without failing the tier rule | `internal/component/web/doctor.go` imports both for exactly this purpose | The doctor check needs a different home, most likely an injected resolver like the one `internal/core/dnsserver` takes | `./le tier check` after the doctor phase | confirmed: with `internal/component/lg/doctor.go` importing both, `./le tier check` exits 0 ("engine placement clean", "non-engine placement categories clean; 28 manifest row(s)", "core import direction clean"). No injected resolver is needed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -201,8 +201,8 @@ served by `crypto/tls`, whose conformance is not altered by this change.
 <!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | The looking-glass listener fails to start, or serves the wrong certificate, on deployments that configure one. A mistake in the shared selector reaches the web and API listener too, which is the larger blast radius: that listener carries the config editor and the operator's own session |
-| How is it reverted? | Single commit revert. No config migration: the leaf is new and absent config behaves exactly as today. No peer or wire state is involved |
+| What breaks if this is wrong? | The looking-glass listener fails to start, or serves the wrong certificate, on deployments that configure one. A mistake in the shared selector reaches the web and API listener too: that listener carries the config editor and the operator's own session. WIDENED AT CLOSURE, and this is now the largest surface: the work also changed `preparePKIConfig` (`cmd/ze/hub/main_pki.go`), which every daemon runs at startup and at every reload, whatever listeners it carries. A mistake there refuses a `pki {}` block that used to load, or loads one it should refuse, on every deployment |
+| How is it reverted? | Single commit revert. No config migration: the leaf is new and absent config behaves exactly as today. No peer or wire state is involved. The `preparePKIConfig` half reverts with it, and reverting restores the defect it fixed: no config-file `pki certificate <name> intermediate` reached the store, so a deployment naming a CA-issued chain exited at the `pki config` stage |
 | Who else touches this path? | `spec-pki-full-chain` built the web half and closed on 2026-09-03; its design is `docs/architecture/pki/tls-listeners.md`. Any session working `cmd/ze/hub/service_web.go`, `listener_migrate.go` or `main_reload.go` shares these files |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -313,7 +313,9 @@ reading the served chain, which `TestLGServerServesPKIChain` and
 - `cmd/ze/hub/register_lg.go` - the `tlsUpdatable` assertion beside `lm.setLG`
 - `cmd/ze/hub/listener_migrate.go` - `setLGTLS` and `updateLGCertificate`
 - `cmd/ze/hub/main_reload.go` - `reloadLGCertificate`, its refusal block, and the rotation call
-- `internal/component/lg/server.go` - the atomic certificate pointer, the `GetCertificate` callback, and `UpdateTLSCertificate`
+- `internal/component/lg/server.go` - the atomic certificate pointer, the `GetCertificate` callback, `UpdateTLSCertificate`, and `ServesTLS`
+- `cmd/ze/hub/main_pki.go` - take the config TREE rather than the plugin-facing map, and delete the lossy rebuild that was dropping every stored intermediate
+- `cmd/ze/hub/service_registry.go` - `serviceDeps` reaches every factory by pointer, because the new field pushed it past the linter's value-parameter threshold
 - `internal/component/web/server_tls_test.go` - hold a connection open across the rotation (AC-13)
 - `docs/architecture/pki/tls-listeners.md` - three consumers, not two, and the looking-glass rows
 - `docs/architecture/web-interface.md` - declared by the `// Design:` header of `internal/component/lg/server.go`, which this spec changes
@@ -326,11 +328,14 @@ reading the served chain, which `TestLGServerServesPKIChain` and
 - `docs/features/looking-glass.md` - the feature page for the surface that gains the capability
 
 ## Files to Create
+- `cmd/ze/hub/service_tls.go` - the one listener-agnostic TLS material selector, tagged `ze_lg || ze_web` because its two callers carry independent gates
 - `internal/component/lg/register.go` - the lg package's root registration file, holding the doctor-check registration
 - `internal/component/lg/doctor.go` - the looking-glass certificate reference check, delegating to `pki.CheckCertReference`
 - `internal/component/lg/doctor_test.go` - both diagnostic codes, the warning window, and the registration assertion
 - `internal/component/lg/server_tls_test.go` - chain serving, rotation with an open connection, and fail-closed rotation
 - `cmd/ze/hub/service_lg_tls_test.go` - selector resolution, the storage-guard cases, and per-service rotation isolation
+- `cmd/ze/hub/listener_migrate_lg_test.go` - per-service rotation isolation in both directions (R-1)
+- `cmd/ze/hub/main_pki_test.go` - a chain of one, two and three intermediates reaching the store from config text, on the startup and the reload path
 - `test/parse/lg-pki-certificate.ci` - the leaf parses
 - `test/parse/lg-pki-certificate-name-too-long.ci` - the length constraint refuses
 - `test/plugin/lg-pki-certificate.ci` - end-to-end chain plus token gate
@@ -441,9 +446,9 @@ reading the served chain, which `TestLGServerServesPKIChain` and
 |-------------|---------------------|
 | The YANG leaf exists with its constraints | `grep -A6 'leaf certificate' internal/component/lg/yang/ze-lg-conf.yang` |
 | The env var is registered | `grep 'ze.looking-glass.certificate' internal/component/config/environment.go` |
-| One selector serves both listeners | `grep -rn 'ServerTLSMaterial' cmd/ze/hub/` returns one call site |
+| One selector serves both listeners | `grep -rn 'ServerTLSMaterial' cmd/ze/hub/` returns one MATERIAL-SELECTION call site, in `service_tls.go`. The startup gate, the reload refusal and the rotation path resolve a reference too and are not second declarations of the rule: an empty name there means "do not rotate", never "serve self-signed" |
 | The looking glass can rotate | `grep -n 'UpdateTLSCertificate\|GetCertificate' internal/component/lg/server.go` |
-| The doctor check is registered | `./le run -- ze doctor list` names the looking-glass certificate check |
+| The doctor check is registered | `go test ./internal/component/lg/ -run TestLGTLSDoctorCheckRegistered` finds `lg-tls-certificate` in the post-config phase with both codes. There is no `ze doctor list` verb and no `le run` action, so the registry is read through the test rather than a CLI |
 | Every functional test exists and passes | `./le test functional` over the five named `.ci` files |
 | No page still claims shared certificate infrastructure | `grep -rn 'same certificate infrastructure' docs/` returns nothing |
 
@@ -475,6 +480,8 @@ reading the served chain, which `TestLGServerServesPKIChain` and
 <!-- LIVE: write immediately when you learn something. At closure these route to
      a subsystem arch doc, a rule, or the learned summary. -->
 - A deferral written as "the same pattern, so extending it is a small follow-up" measured the code it could see and not the code it could not. The looking-glass server had no rotation path at all, which no reading of `service_lg.go` alone would show. The lesson is about where a deferral's sizing comes from: naming the CONSUMER as identical says nothing about whether the consumer can accept what the producer now offers.
+- A value lost between two representations asks one question before any other: was the second representation needed at all? The stored chain was dropped because the hub lowered its config tree to the plugin-facing map and rebuilt a tree from it, and the two obvious repairs were both to the conversion. Every caller already held the tree, so the conversion was pure loss. The cheapest fix was the one that deleted code rather than adding a case to it.
+- A functional test earns its place by reaching a surface no unit test does. Three phases of unit tests passed over this feature and none of them failed, because they all built the store entry through the slice setter. The first test that wrote the operator's own config text found that the operator's route had never worked.
 - A test comment that claims more than the test body asserts is the same defect as a claim wider than its evidence, and it survives longer because a green bar hides it. The web rotation test says long-lived SSE sessions survive and asserts only that the listener address did not change.
 
 ## Key Design Decisions
@@ -494,6 +501,8 @@ reading the served chain, which `TestLGServerServesPKIChain` and
 - No mutual TLS or client-certificate authentication for the looking glass. Server-side chain only, matching the web listener.
 - No local certificate authority. Ze still mints an issuer-less self-signed leaf when no certificate is named, which no third party can trust. A separate spec covers a local CA, and it does not help this surface: a stranger visiting a public looking glass will never have installed Ze's root.
 - MCP and REST TLS are untouched. They carry the same self-signed-only shape and inherit the same follow-up, named in the Known Limitations of `spec-pki-full-chain`.
+- No `.ci` drives a DAEMON through the plaintext-downgrade sequence: a deployment with no blob store, TLS inherited, an operator who then adds a certificate name and reloads. What is proven in-process, through the real registration hook and the real `runReload`, is every discriminating step of it: `TestPlaintextLGHoldsNoRotationHandle` builds that deployment with `storage.NewFilesystem()`, asserts the rotation handle is withheld, asserts the reload is accepted, and asserts the four things the warning must say; `TestReloadPlaintextLGKeepsCertificateInert` asserts `lgCertificateName` reports no name for `tls false`. What no test reads is that warning arriving on a real daemon's stderr. Closing that needs a fixture that starts a daemon with no blob store and greps its output, and it would assert the same producer, `(*listenerMigrator).updateLGCertificate`, one process boundary further out.
+- The WEB listener has no `ServesTLS` equivalent. `web.(*WebServer).UpdateTLSCertificate` does not ask whether the server serves TLS, so `--insecure-web` plus a named certificate would accept a rotation nothing serves. No AC covers it and no phase touched it. Row: `plan/journal/guard-added-to-one-half-of-a-pair.md`.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -540,3 +549,201 @@ N-A. Scope is `config`. No RFC-governed behavior is implemented or changed.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- The `certificate` leaf in the `looking-glass` container (`internal/component/lg/yang/ze-lg-conf.yang`), `length "1..255"` and `pattern '[A-Za-z0-9._-]+'`, matching the web leaf.
+- `ze.looking-glass.certificate` (`internal/component/config/environment.go`), and `LGListenConfig.Certificate` read in `extractLGBlock` on the SETTINGS path (`internal/component/config/loader_extract.go`), so a flag-started listener still receives the operator certificate.
+- `listenerTLSMaterial` (`cmd/ze/hub/service_tls.go`, NEW, `//go:build ze_lg || ze_web`): ONE precedence rule for every hub TLS listener. `webTLSMaterial` and `lgTLSMaterial` are both DELETED, and `startWebServer` and `buildLGService` call the shared selector.
+- The blob-storage precondition moved inside the empty-name branch of `buildLGService` (`cmd/ze/hub/service_lg.go`), so a named certificate serves on a deployment that never ran `ze init`.
+- Rotation on the running server: `LGServer.cert atomic.Pointer[tls.Certificate]`, `getCertificate`, `UpdateTLSCertificate` and `ServesTLS` (`internal/component/lg/server.go`). `NewLGServer` clears `tls.Config.Certificates` at the statement that sets `GetCertificate`.
+- Fail-closed on both paths: the startup gate in `runYANGConfig` (`cmd/ze/hub/main.go`) exits non-zero, and the reload refusal through `restorePKIAfter` (`cmd/ze/hub/main_reload.go`). Both read one name through `lgCertificateName`, so a restart and a reload cannot disagree.
+- The rotation seam: `setLGTLS` and `updateLGCertificate` (`cmd/ze/hub/listener_migrate.go`), installed by `register_lg.go` only for a TLS-serving looking glass.
+- The doctor check `lg-tls-certificate` (`internal/component/lg/doctor.go`, `internal/component/lg/register.go`), delegating to `pki.CheckCertReference`.
+- `serviceDeps` reaches every factory by POINTER (`cmd/ze/hub/service_registry.go`): the new field took the struct to 288 bytes, the linter's value-parameter threshold. `buildWebService` no longer writes `deps.WebAddrs`, because one struct now reaches every later factory.
+
+### Bugs Found/Fixed
+- **`pki certificate <name> intermediate` never reached the store, on every deployment.** `(*Tree).toMap` lowers a one-member leaf-list to a bare string and a longer one to `[]string`; the hub rebuilt a tree from that map with a `case string` arm calling `Set` and a slice arm matching only `[]any`, so `GetSlice("intermediate")` answered nil for every count, `pki.Validate` built an empty intermediate pool, and the daemon exited at the `pki config` stage with `x509: certificate signed by unknown authority`. Fixed by DELETING the round trip: `preparePKIConfig` (`cmd/ze/hub/main_pki.go`) takes the `*zeconfig.Tree` its callers already hold, and `configTreeFromMap` and `mapValuesAreMaps` are gone. Covered by `TestPreparePKIConfigKeepsEveryIntermediate` and `TestReloadInstallsEveryIntermediate` (`cmd/ze/hub/main_pki_test.go`), both building the chain from config TEXT through `ParseTreeWithYANG`.
+- **The same defect at a third site.** The reload's rollback rebuilt the prior PKI config from the PROVIDER snapshot, which holds the same plugin-facing maps, so a rejected reload restored a store with its intermediates stripped. `runReloadContext` now takes `zepki.Snapshot()`.
+- **`test/plugin/lg-pki-certificate.ci` was RED at promotion on that defect** and is GREEN now. It is the first test anywhere that wrote an `intermediate` leaf in operator config text.
+- **A plaintext looking glass refused the whole reload** over a certificate no listener reads. `ServesTLS` plus the gate in `register_lg.go` make the leaf inert instead; `updateLGCertificate` logs why. `TestPlaintextLGHoldsNoRotationHandle` asserts both the withheld handle and that log line.
+- **`listenerMigrator.logger` was nil on the zero-value migrator** tests build directly, so a log line added to a path a test enters would panic. `(*listenerMigrator).log()` falls back to the subsystem logger.
+
+### Documentation Updates
+- `docs/architecture/pki/tls-listeners.md`: three consumers with a per-consumer leaf table; the one-rule statement and its disjunction build tag; the looking glass's three-row blob-storage table; the startup gate; the reload refusal and `restorePKIAfter`; the new `## Decision: a listener that serves no TLS makes the leaf inert`; the rotation section now names both hub listeners and both `UpdateTLSCertificate` and `getCertificate` pairs; the doctor section gained `internal/component/lg/doctor.go`.
+- `docs/guide/looking-glass.md`: the `certificate` row, the env override, and a `### Serve your own certificate` section whose table carries Default, Fail closed, Rotation, TLS off, Plaintext by downgrade, No blob storage needed, Name, Own leaf and Env override, with five source anchors. Its closing sentence no longer claims the same certificate infrastructure as the web UI.
+- `docs/features/looking-glass.md` (three new rows and four anchors), `docs/features/web-interface.md` (the anchor follows `webTLSMaterial` to `listenerTLSMaterial`; the fail-closed sentence says the daemon exits), `docs/guide/looking-glass-howto.md`, `docs/guide/config-reload.md` (the lg reload row and two anchors), `docs/guide/environment-variables.md` (both certificate env vars), `docs/architecture/hub-architecture.md` (the startup-refusal count was already wrong and is now uncounted).
+- `docs/features.md` and `internal/component/lg/yang/ze-lg-conf.yang` carry this spec's edits ALREADY COMMITTED: a concurrent session staged those two whole files. Verified at `git show HEAD:docs/features.md` lines 42 and 72, and `git show HEAD:internal/component/lg/yang/ze-lg-conf.yang` line 68.
+- FOUR pages carry this spec's edits UNCOMMITTED, because a concurrent session's unshipped work sits in the same files and git stages whole files: `docs/config-reference.md` (the four-listener TLS Listeners section and the lg leaf row), `docs/guide/configuration.md` (four listeners, the Plaintext row, the Blob storage row, the rotation and env-override rows, three anchors), `docs/architecture/web-interface.md` (the `### LG TLS` section), `docs/architecture/config/syntax.md` (the one-way lowering paragraph naming `preparePKIConfig`). Carrying them would commit that session's PEM-parsing, retired-keyword and hub-CA prose, which describes behavior no commit holds yet.
+
+### Deviations from Plan
+- `cmd/ze/hub/main_pki.go` and `cmd/ze/hub/main_pki_test.go` were not in the original Files lists. The chain defect was found by the first functional test that wrote operator config text, and it blocks the spec's own headline claim, so it was fixed here (`ai/rules/completion.md`).
+- `plan/deferrals/lg-pki-certificate.md` was named in Files to Create and never created. No deferral was recorded by any phase, so the shard has no rows and nothing to remove.
+- The Deliverables row naming `./le run -- ze doctor list` was corrected: neither the action nor the verb exists. The registry is read through `TestLGTLSDoctorCheckRegistered` and through a two-build `ze doctor --json` run.
+- The Deliverables row demanding ONE `ServerTLSMaterial` call site was corrected to name the MATERIAL-SELECTION site: the startup gate, the reload refusal and the rotation each must resolve a reference too.
+- `serviceDeps` by pointer was not planned. Phase 1's 16-byte field crossed `gocritic.hugeParam.sizeThreshold: 288`; `.golangci.yml` was not edited.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Three phases of unit tests passed over the chain-serving path and none of them failed | Every one built the store entry with `SetSlice`, so none entered the operator's config route, where the chain was dropped | The first `.ci` that wrote an `intermediate` leaf in config text | Both new tests in `cmd/ze/hub/main_pki_test.go` build the tree from config text through `ParseTreeWithYANG` |
+| approach | A deferral in `spec-pki-full-chain` sized this work as "a small follow-up consuming `pki.ServerTLSMaterial`" | The looking-glass server could not rotate a certificate at all, so the follow-up owed server code | The research phase read `internal/component/lg/server.go` | Row in `plan/journal/deferral-sized-from-the-visible-half.md` |
+| approach | Three `.ci` headers stated the chain defect as unfixed and one called its own test RED | The defect was fixed inside this spec and the test is green | The closure review read the files | All three headers corrected |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The looking glass serves a named PKI certificate with its full chain | Done | `buildLGService` calls `listenerTLSMaterial` (`cmd/ze/hub/service_tls.go`), which calls `zepki.ServerTLSMaterial` | `test/plugin/lg-pki-certificate.ci` reads both certificates off a real handshake |
+| The same fail-closed rule as the web listener | Done | `runYANGConfig` (`cmd/ze/hub/main.go`), the lg refusal block in `runReloadContext` (`cmd/ze/hub/main_reload.go`) | Never falls back to self-signed for a configured name |
+| The same rotation behavior: no rebind | Done | `updateLGCertificate` (`cmd/ze/hub/listener_migrate.go`) into `(*LGServer).UpdateTLSCertificate` | `test/reload/lg-pki-reference-reload.ci` holds a connection across the rotation |
+| The precedence rule is declared once | Done | `listenerTLSMaterial`, `cmd/ze/hub/service_tls.go` | `webTLSMaterial` and `lgTLSMaterial` are both deleted |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestLGServerServesPKIChain`, `TestBuildLGServiceResolvesNamedCertificate`, `test/plugin/lg-pki-certificate.ci` | The `.ci` client trusts only the operator root, so a completed handshake is itself the chain proof |
+| AC-2 | Done | `TestBuildLGServiceEmptyNameKeepsStorageRules`, `TestBuildLGService_DefaultTLSWithoutBlobStorageServesPlaintext` | The self-signed path is unchanged; `selfcert.LoadOrGenerateCert` still persists into zefs |
+| AC-3 | Done | `TestBuildLGServiceResolvesNamedCertificate/typo-cert`, the startup gate in `runYANGConfig` | No unit test drives `runYANGConfig`: `runHub` is not callable from a test. The gate shares `lgCertificateName` and `zepki.ServerTLSMaterial` with the reload path, which IS tested |
+| AC-4 | Done | `TestBuildLGServiceResolvesNamedCertificate/lg-keyless` | The keyless-entry error comes from `ServerTLSMaterial` |
+| AC-5 | Done | `TestReloadRejectsBrokenLGCertificateReference`, `test/reload/lg-pki-reference-reload-broken.ci` | Both stores define the same name with DIFFERENT leaves, so the restore cannot pass by the name surviving |
+| AC-6 | Done | `TestLGServerUpdateTLSCertificate`, `TestReloadRotatesLGCertificate`, `test/reload/lg-pki-reference-reload.ci` | The `.ci` holds one connection across the rotation and counts `sighup reload complete` rather than searching for it |
+| AC-7 | Done | `TestBuildLGServiceNamedCertificateWithoutBlobStorage`, `test/plugin/lg-pki-certificate.ci` | The `.ci` fixture runs no `ze init`, so the deployment has no blob storage at all |
+| AC-8 | Done | `TestBuildLGServiceEmptyNameKeepsStorageRules`, `TestBuildLGService_ExplicitTLSWithoutBlobStorageFails` | One observable change: the error message no longer carries a doubled prefix |
+| AC-9 | Done | `TestLGTLSDoctorCheck` | Both codes and the 30-day window |
+| AC-10 | Done | `TestLGCertificateEnvWins` | Two subtests: the shared producer, and a real `runReload` refused over the env name |
+| AC-11 | Done | `test/plugin/lg-pki-certificate.ci` | One deployment sets both; the gate answers 401 over the named chain |
+| AC-12 | Done | `TestLGTLSDoctorCheckRegistered`, plus a two-build `ze doctor --json` run | The build without `ze_lg` names no looking-glass check |
+| AC-13 | Done | `TestWebServerUpdateTLSCertificate` | The held connection answers before and after, and still names the pre-rotation leaf |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestExtractLGBlockReadsCertificate` | Done | `internal/component/config/lg_extract_test.go` | Three subtests, one of them A-3 |
+| `TestCertificateLeafLengthFromYANGLG` | Done | `internal/component/config/leaf_length_test.go` | Length and pattern read from the built schema |
+| `TestLGServerServesPKIChain` | Done | `internal/component/lg/server_tls_test.go` | |
+| `TestLGServerUpdateTLSCertificate` | Done | `internal/component/lg/server_tls_test.go` | |
+| `TestLGUpdateTLSCertificateRejectsBadMaterial` | Done | `internal/component/lg/server_tls_test.go` | `TestLGUpdateTLSCertificateWithoutTLS` was added beside it |
+| `TestBuildLGServiceResolvesNamedCertificate` | Done | `cmd/ze/hub/service_lg_tls_test.go` | |
+| `TestBuildLGServiceNamedCertificateWithoutBlobStorage` | Done | `cmd/ze/hub/service_lg_tls_test.go` | |
+| `TestBuildLGServiceEmptyNameKeepsStorageRules` | Done | `cmd/ze/hub/service_lg_tls_test.go` | |
+| `TestLGCertificateEnvWins` | Done | `cmd/ze/hub/main_reload_pki_test.go` | |
+| `TestReloadRejectsBrokenLGCertificateReference` | Done | `cmd/ze/hub/main_reload_pki_test.go` | |
+| `TestReloadRotatesLGCertificate` | Done | `cmd/ze/hub/main_reload_pki_test.go` | |
+| `TestListenerMigratorUpdateLGCertificate` | Changed | `cmd/ze/hub/listener_migrate_lg_test.go` | The plan named `service_lg_tls_test.go`; it lives in its own file beside two siblings |
+| `TestLGTLSDoctorCheck` | Done | `internal/component/lg/doctor_test.go` | |
+| `TestLGTLSDoctorCheckRegistered` | Done | `internal/component/lg/doctor_test.go` | |
+| `TestWebServerUpdateTLSCertificate` | Done | `internal/component/web/server_tls_test.go` | Extended to hold a connection open |
+| `TestPreparePKIConfigKeepsEveryIntermediate` | Changed | `cmd/ze/hub/main_pki_test.go` | Not in the plan: the chain defect the work found |
+| `TestReloadInstallsEveryIntermediate` | Changed | `cmd/ze/hub/main_pki_test.go` | Not in the plan, same reason |
+| `TestPlaintextLGHoldsNoRotationHandle` | Changed | `cmd/ze/hub/service_lg_tls_test.go` | Not in the plan: the inert-leaf decision |
+| `TestReloadPlaintextLGKeepsCertificateInert` | Changed | `cmd/ze/hub/main_reload_pki_test.go` | Not in the plan, same reason |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify | Done | `internal/component/lg/yang/ze-lg-conf.yang` and `docs/features.md` were carried into HEAD by a concurrent session's whole-file commit |
+| Every file in Files to Create | Done | Except `plan/deferrals/lg-pki-certificate.md`, which no phase needed |
+
+### Audit Summary
+- **Total items:** 13 AC, 4 requirements, 19 tests
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5, four tests added beyond the plan and one file moved, each recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A visitor's browser accepts the looking glass's certificate, so the public surface stops training people to click through a warning | functional | `test/plugin/lg-pki-certificate.ci`: the fixture's client trusts ONLY the operator's generated root and verifies against it, so a completed handshake proves the listener sent a buildable path. `./le functional plugin` reports it PASSING |
+| The same fail-closed rule as the web listener: a configured name that does not resolve is an error, never a silent self-signed fallback | functional | `test/reload/lg-pki-reference-reload-broken.ci`: the refusal names `environment.looking-glass.certificate`, the listener keeps its previous chain, and the corrected reload then commits. Discrimination: deleting the refusal block moves the failure LATER and drops the leaf name from the message |
+| The same rotation behavior: a rotated certificate reaches a running listener without a rebind | functional | `test/reload/lg-pki-reference-reload.ci`: one held connection carries data across the rotation, the address is unchanged, the next handshake gets the new leaf. Discrimination: dropping `UpdateTLSCertificate` from `updateLGCertificate` gives `the served leaf CN is "ze looking glass leaf one", want ... "leaf two"` |
+| The precedence rule is declared once, so the two surfaces cannot disagree | grep | `grep -rn 'ServerTLSMaterial' cmd/ze/hub/` returns ONE material-selection call site, `cmd/ze/hub/service_tls.go`. The others are reference VALIDATION (`main.go`, `main_reload.go`), ROTATION (`listener_migrate.go`) and one injected resolver (`managed_server.go`) |
+| A named certificate serves where the self-signed one cannot: a deployment with no blob storage | functional | `test/plugin/lg-pki-certificate.ci` runs no `ze init`, so no blob store exists, and the named chain serves |
+| Every stored intermediate reaches the listener from a config FILE | unit, entered by the operator's own route | `TestPreparePKIConfigKeepsEveryIntermediate` (one, two and three intermediates) and `TestReloadInstallsEveryIntermediate`, both parsing config text with `ParseTreeWithYANG`. Discrimination walked 2026-09-04: routing `preparePKIConfig` back through a lowering round trip turns all four cases red with the production error |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| No shard exists | done | `plan/deferrals/lg-pki-certificate.md` was named in the metadata table and in Files to Create, and no phase recorded a deferral into it. `ls` reports no such file, so there is no shard to remove and no live row to home |
+| Live CLI completion of store certificate names, inherited from the Known Limitations of `spec-pki-full-chain` | deferred | Unchanged position, recorded in Known Limitations above. `pki.certificateNames` is the natural body of a future `Complete()` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lg-pki-certificate-8c387580-991c-4941-9e76-f341b6dd780e.md`, 52 files, verdict clean |
+| `./le spec session review check` | `review_gate: OK (37 code files, clean, hashes match ...)` |
+| Rounds | 1 |
+| Reviewer lenses used | automated pre-checks (`./le repository check`, `./le commit audit`), wiring, functional-test coverage, documentation drift, removed-behavior audit, logic and guard audit, the Go style pass of `docs/contributing/ze-go-style.md`, simplicity and altitude, project-rule cross-check |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Three `.ci` headers stated the intermediate-lowering defect as live and one declared its own test RED. The defect was fixed inside this spec, so each header taught a reader the opposite of the tree | `test/plugin/lg-pki-certificate.ci`, `test/reload/lg-pki-reference-reload.ci`, `test/reload/lg-pki-reference-reload-broken.ci` | Headers rewritten to state the fix, name `preparePKIConfig` as the repair, and forbid taking the intermediate out of the plugin fixture |
+| 2 | ISSUE | The plaintext-downgrade reload is ACCEPTED and rotates nothing, and the log line is the only thing that tells the operator so. No test asserted that line, so a silent no-op would have passed | `updateLGCertificate` (`cmd/ze/hub/listener_migrate.go`), `TestPlaintextLGHoldsNoRotationHandle` (`cmd/ze/hub/service_lg_tls_test.go`) | `captureMigratorLog` plus four substring assertions. Discrimination: with the `Warn` call deleted the subtest fails on the first missing substring |
+| 3 | ISSUE | The Blast Radius table described the looking glass alone, while the work also changed `preparePKIConfig`, which every daemon runs at startup and at every reload | Blast Radius, this spec | Both rows rewritten to name the wider surface and what a revert restores |
+| 4 | NOTE | `./le commit audit` reports `internal/component/web/server_tls_test.go` `handshakePeerCerts` as weakened, 2 assertions to 0 | `internal/component/web/server_tls_test.go` | Not a weakening: both assertions moved into `dialHeld`, which `handshakePeerCerts` now calls. Recorded as an accepted row on commit A |
+| 5 | ISSUE | `TestCertificateLeafLengthFromYANGLG` opened with `t.Skipf` on a schema that fails to build, copied from its web sibling. A schema that does not build is a defect, and the skip retires the check with no test red and nothing said | `internal/component/config/leaf_length_test.go` | Both tests now `t.Fatalf`. Found by `./le commit create`, which refused the file for adding a `t.Skip` with no ledger row; the fix removed the need for the row rather than writing one |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `cmd/ze/hub/service_tls.go` | Yes | `ls -1`: 2.4K, 2026-09-04 |
+| `internal/component/lg/register.go`, `doctor.go`, `doctor_test.go`, `server_tls_test.go` | Yes | `ls -1`: 1.8K, 2.3K, 8.5K, 9.6K |
+| `cmd/ze/hub/service_lg_tls_test.go`, `listener_migrate_lg_test.go`, `main_pki_test.go` | Yes | `ls -1`: 14K, 4.5K, 7.0K |
+| `test/parse/lg-pki-certificate.ci`, `test/parse/lg-pki-certificate-name-too-long.ci` | Yes | `ls -1`: 2.6K, 1.6K |
+| `test/plugin/lg-pki-certificate.ci` | Yes | `ls -1`: 2.6K |
+| `test/reload/lg-pki-reference-reload.ci`, `test/reload/lg-pki-reference-reload-broken.ci` | Yes | `ls -1`: 1.8K, 2.0K |
+| `internal/test/fixture/lg_pki_fixture.go`, `register_lg_pki.go` | Yes | `ls -1`: 26K, 493 bytes |
+| `plan/deferrals/lg-pki-certificate.md` | No | Never created; no phase recorded a deferral. Recorded in Deviations |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-11 | The named chain serves and the token gate still refuses | `./le functional plugin`: `lg-pki-certificate` PASSES, 718 of 727 overall; the nine failures name neither `pki` nor `looking-glass` |
+| AC-3, AC-7, AC-8 | Startup resolution, the storage rules, and the plaintext-downgrade decision | `go test -race -run 'TestPlaintextLG\|TestBuildLGService\|TestListenerMigratorUpdateLGCertificate' ./cmd/ze/hub` under the full gate set: `ok github.com/ze-software/ze/cmd/ze/hub 4.764s` |
+| AC-5, AC-6 | The refusal, the restore and the rotation | `./le functional reload`: 59 pass, both new tests among them |
+| AC-13 | The web rotation keeps an open connection | `TestWebServerUpdateTLSCertificate` holds one `*tls.Conn` and one `*bufio.Reader` across the swap and probes over both |
+| Chain, the defect this work found | Every intermediate reaches the store from config text | `TestPreparePKIConfigKeepsEveryIntermediate` and `TestReloadInstallsEveryIntermediate` pass, and both go red under a restored round trip with the production error |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `environment.looking-glass.certificate` in a config file | `test/parse/lg-pki-certificate.ci` | Yes: the leaf parses and validates, and the length sibling refuses 256 characters |
+| `serviceDeps.LGCertificate` at hub startup | `test/plugin/lg-pki-certificate.ci` | Yes: read the file. It drives a daemon with no `ze init` and dials it with `crypto/tls` |
+| A TLS handshake against the looking glass | `test/plugin/lg-pki-certificate.ci` | Yes: the fixture reads `PeerCertificates` and asserts leaf then intermediate |
+| `ze.looking-glass.certificate` | `TestLGCertificateEnvWins` | Yes: the reload subtest runs a real `runReload` refused over the env name |
+| A reload that changes the name | `test/reload/lg-pki-reference-reload.ci` | Yes: the fixture counts `sighup reload complete` and re-dials |
+| `ze doctor` over a broken lg reference | `test/reload/lg-pki-reference-reload-broken.ci`, `TestLGTLSDoctorCheck` | Yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestBuildLGServiceNamedCertificateWithoutBlobStorage`, and `test/plugin/lg-pki-certificate.ci` running no `ze init` |
+| A-2 | confirmed | User decision at the design gate. The leaf is `environment.looking-glass.certificate`, its own |
+| A-3 | confirmed | `TestExtractLGBlockReadsCertificate/the_name_survives_enabled_false`; `extractLGBlock` applies no `enabled` gate |
+| A-4 | confirmed | `test/plugin/lg-tls-default-on.ci` unchanged and passing; `MinVersion` and both `tls.NewListener` sites untouched |
+| A-5 | confirmed | Two `cmd/ze` builds, with and without `ze_lg`, run as `ze doctor --json`: only the `ze_lg` build reports `doctor-tls-reference` |
+| A-6 | confirmed | `./le tier check` exits 0 with `internal/component/lg/doctor.go` importing `internal/component/config` and `internal/component/pki` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| New user-facing feature (`docs/features.md`) | The PKI row names three consumers and anchors `cmd/ze/hub/service_tls.go -- listenerTLSMaterial`; the Looking Glass row names the leaf | Yes, already at HEAD |
+| User guide (`docs/guide/looking-glass.md`) | The `### Serve your own certificate` table matches `listenerTLSMaterial`, `lgCertificateName`, `ServesTLS` and `updateLGCertificate` | Yes |
+| Internal architecture (`docs/architecture/pki/tls-listeners.md`) | Every anchor resolves: `./le repository check` reports 0 source-anchor issues | Yes |
+| Doctor checks | `lg-tls-certificate` registered with both existing codes. No page enumerates check NAMES, and `docs/guide/health-checks.md` already covers both codes | Yes |
+| RFC behavior | N-A: scope is `config`, no wire format changes and no `rfc/short/` row moves | Yes |
+| Config syntax (`docs/config-reference.md`, `docs/guide/configuration.md`) | Written, and held out of commit A because a concurrent session's unshipped work shares those files | Partial, named in Documentation Updates |
+
+## Core Insight
+
+A value lost between two representations asks one question before any other: was the second representation needed at all? The intermediate chain was dropped because the hub lowered its config tree to the plugin-facing map and rebuilt a tree from it, and both obvious repairs were to the conversion. Every caller already held the tree, so the conversion was pure loss. The fix that DELETED code was the correct one, and it was the one nobody had looked for.

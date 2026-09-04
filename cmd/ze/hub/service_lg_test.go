@@ -46,7 +46,7 @@ func TestParseASNForDecorator(t *testing.T) {
 
 func TestBuildLGService_NotConfigured(t *testing.T) {
 	// No listen addresses -> the factory skips (nil service, nil error).
-	svc, err := buildLGService(serviceDeps{Dispatch: lgTestDispatch()})
+	svc, err := buildLGService(&serviceDeps{Dispatch: lgTestDispatch()})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestBuildLGService_ExplicitTLSWithoutBlobStorageFails(t *testing.T) {
 	// rather than approximated (ai/rules/protocol.md).
 	// PREVENTS: the default-on fallback below widening into a downgrade of TLS
 	// the operator explicitly demanded.
-	_, err := buildLGService(serviceDeps{
+	_, err := buildLGService(&serviceDeps{
 		Dispatch:      lgTestDispatch(),
 		LGAddrs:       []string{"127.0.0.1:0"},
 		LGTLS:         true,
@@ -84,7 +84,7 @@ func TestBuildLGService_DefaultTLSWithoutBlobStorageServesPlaintext(t *testing.T
 	// one; the warning on stderr names `ze init` as the remedy.
 	// PREVENTS: every file-config deployment that never ran `ze init` losing its
 	// looking glass to a silent build failure.
-	svc, err := buildLGService(serviceDeps{
+	svc, err := buildLGService(&serviceDeps{
 		Dispatch:      lgTestDispatch(),
 		LGAddrs:       []string{"127.0.0.1:0"},
 		LGTLS:         true,

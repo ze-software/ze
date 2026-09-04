@@ -351,7 +351,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/component/l2tp/subscriber/cmd/yang` | embeds and registers the subscriber command YANG module |  |
 | `internal/component/l2tp/subscriber/events` | defines the subscriber session event namespace and payloads |  |
 | `internal/component/l2tp/yang` | embeds and registers the L2TP API and configuration YANG modules |  |
-| `internal/component/lg` | provides the looking glass HTTP server for Ze |  |
+| `internal/component/lg` | provides the looking glass HTTP server for Ze | lg-tls-certificate |
 | `internal/component/lg/yang` | embeds and registers the looking-glass configuration YANG module |  |
 | `internal/component/managed` | implements the managed configuration client |  |
 | `internal/component/mcp` | implements the MCP (Model Context Protocol) server surface: JSON-RPC tool dispatch wrapping Ze's command dispatcher, served over the Streamable HTTP transport (streamable.go) |  |
@@ -583,6 +583,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/interoplab/l2tp` | TODO |  |
 | `internal/le/interoplab/l2tp/radiusmock` | TODO |  |
 | `internal/le/interoplab/pppoe` | TODO |  |
+| `internal/le/interoplab/radius` | TODO |  |
 | `internal/le/inventory` | is the `ze-inventory` gate: what ze is made of, counted |  |
 | `internal/le/job` | determines whether each heavy job runs now |  |
 | `internal/le/journal` | reads plan/journal class files from git HEAD |  |

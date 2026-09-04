@@ -64,9 +64,12 @@ func TestValidateLeafValueLength(t *testing.T) {
 // TestCertificateLeafLengthFromYANG proves the constraint reaches the built
 // schema from the YANG module, not merely that the validator can enforce one.
 func TestCertificateLeafLengthFromYANG(t *testing.T) {
+	// A schema that does not build is a defect, not a reason to stop asking.
+	// This used to skip, which would have retired the check with no test red
+	// and nothing said (ai/rules/principles.md).
 	schema, err := YANGSchema()
 	if err != nil {
-		t.Skipf("YANG schema unavailable: %v", err)
+		t.Fatalf("the YANG schema must build: %v", err)
 	}
 	node := lookupLeaf(t, schema.Get("environment"), "web", "certificate")
 	if len(node.Lengths) == 0 {
@@ -99,4 +102,28 @@ func lookupLeaf(t *testing.T, root Node, path ...string) *LeafNode {
 		t.Fatalf("%v is not a leaf", path)
 	}
 	return leaf
+}
+
+// TestCertificateLeafLengthFromYANGLG proves the looking-glass certificate leaf
+// carries the same constraint as the web one, from the YANG module rather than
+// from Go. The two leaves name the same kind of value, a PKI store key, so a
+// name one listener accepts and the other refuses would be a trap.
+func TestCertificateLeafLengthFromYANGLG(t *testing.T) {
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatalf("the YANG schema must build: %v", err)
+	}
+	node := lookupLeaf(t, schema.Get("environment"), "looking-glass", "certificate")
+	if len(node.Lengths) == 0 {
+		t.Fatal("environment.looking-glass.certificate must carry its YANG length constraint")
+	}
+	if node.Lengths[0].Min != "1" || node.Lengths[0].Max != "255" {
+		t.Fatalf("length = %v, want 1..255", node.Lengths)
+	}
+	if err := ValidateLeafValue(node, strings.Repeat("a", 256)); err == nil {
+		t.Fatal("a 256-character certificate name must be rejected by the built schema")
+	}
+	if err := ValidateLeafValue(node, "lan/../etc"); err == nil {
+		t.Fatal("the YANG pattern must refuse a path separator in a store name")
+	}
 }

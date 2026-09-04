@@ -47,7 +47,7 @@ func (mcpService) Name() string { return "mcp" }
 // nil Service (not an error) when MCP is not configured or fails to start --
 // preserving the prior best-effort, non-fatal behavior of the inline
 // startMCPServer call in main.go.
-func buildMCPService(deps serviceDeps) (Service, error) {
+func buildMCPService(deps *serviceDeps) (Service, error) {
 	m := deps.MCP
 	if m == nil || len(m.Addrs) == 0 || m.Dispatch == nil {
 		// Not configured: a skip, not a failure.

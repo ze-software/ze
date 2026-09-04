@@ -24,7 +24,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/lg"
-	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -41,7 +40,7 @@ func (lgService) Name() string { return "looking-glass" }
 // start -- preserving the prior best-effort, non-fatal behavior of
 // startLGServer. Every entry in deps.LGAddrs becomes a bound listener; Shutdown
 // closes all of them.
-func buildLGService(deps serviceDeps) (Service, error) {
+func buildLGService(deps *serviceDeps) (Service, error) {
 	if len(deps.LGAddrs) == 0 || deps.Dispatch == nil {
 		// Not configured: a skip, not a failure. buildServices treats a nil
 		// service as "feature absent" and moves on.
@@ -51,15 +50,22 @@ func buildLGService(deps serviceDeps) (Service, error) {
 	dispatch := deps.Dispatch
 	resolvers := deps.Resolvers
 
-	// TLS is on by default. Certificates live in blob storage, which a
-	// file-config deployment that never ran `ze init` does not have. An operator
-	// who ASKED for TLS gets an error (their instruction cannot be honored, and
-	// silently serving plaintext would be the opposite of what they wrote). An
-	// operator who only inherited the default gets the prior plaintext behavior
-	// plus a warning naming the remedy, because a hardening default must not
-	// turn a working looking glass into a missing one.
+	// TLS is on by default. A self-signed certificate lives in blob storage,
+	// which a file-config deployment that never ran `ze init` does not have. An
+	// operator who ASKED for TLS gets an error (their instruction cannot be
+	// honored, and silently serving plaintext would be the opposite of what they
+	// wrote). An operator who only inherited the default gets the prior
+	// plaintext behavior plus a warning naming the remedy, because a hardening
+	// default must not turn a working looking glass into a missing one.
+	//
+	// Only the self-signed path reads blob storage. A NAMED certificate comes
+	// from the pki container instead, so neither branch below applies to it.
 	useTLS := deps.LGTLS
-	if useTLS && !storage.IsBlobStorage(deps.Store) && !deps.LGTLSExplicit {
+	selfSignedTLS := useTLS && deps.LGCertificate == ""
+	if selfSignedTLS && !storage.IsBlobStorage(deps.Store) {
+		if deps.LGTLSExplicit {
+			return nil, errors.New("looking glass TLS requires blob storage (run ze init first)")
+		}
 		fmt.Fprintln(os.Stderr,
 			"warning: looking glass serving plaintext: TLS is on by default but needs blob storage for certificates")
 		fmt.Fprintln(os.Stderr,
@@ -83,17 +89,13 @@ func buildLGService(deps serviceDeps) (Service, error) {
 		},
 	}
 
-	// When TLS is enabled, load or generate cert from blob storage. The SAN
-	// hint is derived from the first endpoint; GenerateWebCertWithAddr already
-	// fans out to all interface IPs when the host is 0.0.0.0. Build failures are
-	// returned as errors; buildServices logs them and leaves lg unstarted
-	// (best-effort, matching the prior non-fatal behavior).
+	// When TLS is enabled, resolve the material the listener serves through the
+	// selector the web listener shares. Build failures are returned as errors;
+	// buildServices logs them and leaves lg unstarted (best-effort, matching the
+	// prior non-fatal behavior).
 	if useTLS {
-		if !storage.IsBlobStorage(deps.Store) {
-			return nil, errors.New("looking glass TLS requires blob storage (run ze init first)")
-		}
 		certStore := &blobCertStore{store: deps.Store}
-		certPEM, keyPEM, err := selfcert.LoadOrGenerateCert(certStore, deps.LGAddrs[0])
+		certPEM, keyPEM, err := listenerTLSMaterial(deps.LGCertificate, certStore, deps.LGAddrs[0])
 		if err != nil {
 			return nil, fmt.Errorf("looking glass TLS cert: %w", err)
 		}

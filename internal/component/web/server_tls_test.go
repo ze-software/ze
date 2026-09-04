@@ -3,6 +3,7 @@
 package web
 
 import (
+	"bufio"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -12,12 +13,21 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"io"
 	"math/big"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+)
+
+// probePath answers with probeBody. A rotation test drives it twice over ONE
+// connection, so a listener that dropped its open connections on rotation fails
+// the second request instead of passing on an address comparison alone.
+const (
+	probePath = "/tls-probe"
+	probeBody = "ze tls probe"
 )
 
 // testChain builds an intermediate CA and a leaf it issued, returning the
@@ -77,6 +87,10 @@ func startServerWithMaterial(t *testing.T, certPEM, keyPEM []byte) *WebServer {
 	})
 	require.NoError(t, err)
 
+	srv.HandleFunc("GET "+probePath, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, probeBody)
+	})
+
 	go func() {
 		if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
 			t.Logf("ListenAndServe: %v", serveErr)
@@ -101,6 +115,16 @@ func startServerWithMaterial(t *testing.T, certPEM, keyPEM []byte) *WebServer {
 // chain the server sent.
 func handshakePeerCerts(t *testing.T, addr string) []*x509.Certificate {
 	t.Helper()
+	conn := dialHeld(t, addr)
+	defer func() { _ = conn.Close() }()
+	return conn.ConnectionState().PeerCertificates
+}
+
+// dialHeld opens a TLS connection to addr and keeps it open for the caller. The
+// test owns this connection, so no transport pool can retire it and re-dial
+// underneath an assertion about a connection surviving a rotation.
+func dialHeld(t *testing.T, addr string) *tls.Conn {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	dialer := &tls.Dialer{Config: &tls.Config{
@@ -109,10 +133,33 @@ func handshakePeerCerts(t *testing.T, addr string) []*x509.Certificate {
 	}}
 	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	require.NoError(t, err)
-	defer func() { _ = conn.Close() }()
 	tlsConn, ok := conn.(*tls.Conn)
 	require.True(t, ok, "expected a TLS connection")
-	return tlsConn.ConnectionState().PeerCertificates
+	t.Cleanup(func() { _ = tlsConn.Close() })
+	return tlsConn
+}
+
+// probeOver writes one HTTP/1.1 GET for probePath over conn and returns the body
+// the server answered. reader is the caller's buffered reader over the same
+// connection, kept across calls so a second request reads the second response.
+func probeOver(t *testing.T, conn *tls.Conn, reader *bufio.Reader) string {
+	t.Helper()
+	require.NoError(t, conn.SetDeadline(time.Now().Add(5*time.Second)))
+
+	url := "https://" + conn.RemoteAddr().String() + probePath
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
+	require.NoError(t, err)
+	require.NoError(t, req.Write(conn))
+
+	resp, err := http.ReadResponse(reader, req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.False(t, resp.Close, "the server must keep the connection open for the next request")
+	return string(body)
 }
 
 func TestWebServerServesPKIChain(t *testing.T) {
@@ -132,26 +179,39 @@ func TestWebServerServesPKIChain(t *testing.T) {
 }
 
 func TestWebServerUpdateTLSCertificate(t *testing.T) {
-	// VALIDATES: AC-9 -- rotating the configured certificate changes what new
-	// handshakes are served WITHOUT rebinding the listener, so long-lived SSE
-	// sessions survive a reload that rotates the certificate.
+	// VALIDATES: AC-9 and AC-13 -- rotating the configured certificate changes
+	// what new handshakes are served WITHOUT rebinding the listener, and a
+	// connection opened before the rotation still carries requests after it,
+	// which is what lets a long-lived SSE session survive a reload.
 	// PREVENTS: a rotation path that swaps a field the already-built tls.Config
-	// no longer reads, leaving the old certificate on the wire until restart.
+	// no longer reads, leaving the old certificate on the wire until restart;
+	// and a rotation that reaches the open connections, which an assertion on
+	// the listener address alone cannot see.
 	firstPEM, firstKey := testChain(t, "before rotation")
 	srv := startServerWithMaterial(t, firstPEM, firstKey)
 
 	addrBefore := srv.Addresses()
-	peers := handshakePeerCerts(t, srv.Address())
-	require.Equal(t, "before rotation", peers[0].Subject.CommonName)
+
+	held := dialHeld(t, srv.Address())
+	heldReader := bufio.NewReader(held)
+	require.Equal(t, "before rotation", held.ConnectionState().PeerCertificates[0].Subject.CommonName)
+	require.Equal(t, probeBody, probeOver(t, held, heldReader), "the held connection must carry data before the rotation")
 
 	secondPEM, secondKey := testChain(t, "after rotation")
 	require.NoError(t, srv.UpdateTLSCertificate(secondPEM, secondKey))
 
 	require.Equal(t, addrBefore, srv.Addresses(), "rotation must not rebind the listeners")
 
-	peers = handshakePeerCerts(t, srv.Address())
-	require.Equal(t, "after rotation", peers[0].Subject.CommonName, "new handshakes must serve the rotated certificate")
+	// The same connection, not a fresh one: its handshake ran before the
+	// rotation, so it still names the old leaf while carrying the new request.
+	require.Equal(t, probeBody, probeOver(t, held, heldReader), "the connection open across the rotation must still carry data")
+	require.Equal(t, "before rotation", held.ConnectionState().PeerCertificates[0].Subject.CommonName,
+		"the held connection must be the pre-rotation one, not a silent re-dial")
+
+	peers := handshakePeerCerts(t, srv.Address())
 	require.Len(t, peers, 2, "the rotated certificate must keep serving its chain")
+	require.Equal(t, "after rotation", peers[0].Subject.CommonName, "new handshakes must serve the rotated leaf first")
+	require.Equal(t, "after rotation intermediate", peers[1].Subject.CommonName, "the rotated intermediate must follow its leaf")
 }
 
 func TestUpdateTLSCertificateRejectsBadMaterial(t *testing.T) {

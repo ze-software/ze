@@ -3,16 +3,25 @@
 package hub
 
 import (
-	"strconv"
-	"strings"
-
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zepki "github.com/ze-software/ze/internal/component/pki"
-	"github.com/ze-software/ze/internal/core/configorder"
 )
 
-func preparePKIConfig(tree map[string]any) (*zepki.PKIConfig, error) {
-	cfg, err := zepki.ParseConfig(configTreeFromMap(tree))
+// preparePKIConfig parses and validates the pki block of a loaded config tree.
+//
+// It takes the TREE rather than the plugin-facing map every other reload
+// consumer takes, because the map cannot carry a leaf-list faithfully. ToMap
+// lowers a leaf-list by its member count, so one member becomes a bare string
+// that no reader can tell from a plain leaf. A tree rebuilt from that map put
+// every `pki certificate <name> intermediate` in the single-value map instead
+// of the leaf-list map, and dropped the multi-member case outright, so the
+// intermediate pool was always empty and a leaf issued by an intermediate CA
+// failed validation with "certificate signed by unknown authority".
+//
+// The callers all hold the tree already, so the round trip bought nothing and
+// cost the chain (plan/journal/validated-value-discarded-by-its-caller.md).
+func preparePKIConfig(tree *zeconfig.Tree) (*zepki.PKIConfig, error) {
+	cfg, err := zepki.ParseConfig(tree)
 	if err != nil {
 		return nil, err
 	}
@@ -20,63 +29,4 @@ func preparePKIConfig(tree map[string]any) (*zepki.PKIConfig, error) {
 		return nil, err
 	}
 	return cfg, nil
-}
-
-func configTreeFromMap(m map[string]any) *zeconfig.Tree {
-	if m == nil {
-		return nil
-	}
-	t := zeconfig.NewTree()
-	for k, v := range m {
-		// A reserved order key is not config: it is how ToPluginMap carries a
-		// list's entry order beside the list. Rebuilding it as a container
-		// would put a node in this tree that no YANG module declares.
-		if strings.HasPrefix(k, configorder.KeyPrefix) {
-			continue
-		}
-		switch val := v.(type) {
-		case string:
-			t.Set(k, val)
-		case float64:
-			t.Set(k, strconv.FormatFloat(val, 'f', -1, 64))
-		case bool:
-			if val {
-				t.Set(k, "true")
-			} else {
-				t.Set(k, "false")
-			}
-		case map[string]any:
-			t.SetContainer(k, configTreeFromMap(val))
-			if mapValuesAreMaps(val) {
-				for entryKey, entryVal := range val {
-					entryMap, ok := entryVal.(map[string]any)
-					if !ok {
-						continue
-					}
-					t.AddListEntry(k, entryKey, configTreeFromMap(entryMap))
-				}
-			}
-		case []any:
-			for _, item := range val {
-				itemStr, ok := item.(string)
-				if !ok {
-					continue
-				}
-				t.AppendValue(k, itemStr)
-			}
-		}
-	}
-	return t
-}
-
-func mapValuesAreMaps(m map[string]any) bool {
-	if len(m) == 0 {
-		return false
-	}
-	for _, v := range m {
-		if _, ok := v.(map[string]any); !ok {
-			return false
-		}
-	}
-	return true
 }

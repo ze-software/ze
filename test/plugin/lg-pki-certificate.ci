@@ -1,0 +1,43 @@
+# Test: an operator names a PKI store certificate on the looking glass, and a
+# client receives the full chain over a handshake it can verify.
+#
+# VALIDATES: spec-lg-pki-certificate AC-1 and AC-11 in ONE deployment. The
+# listener sends the store leaf first and the store intermediate second, a
+# client that trusts only the operator's root builds the whole path from what
+# arrived, and the bearer gate still refuses an unauthenticated request over
+# that same connection.
+# PREVENTS: the trap this feature exists to close, a public looking glass
+# presenting a certificate every visitor's browser refuses while the config
+# names a real one. And R-7, the risk that a configured certificate clears the
+# token gate or the reverse: the fixture sets both and asserts both.
+#
+# The fixture runs no `ze init`, so the deployment has NO blob storage. A named
+# certificate must serve there, because its material comes from the pki
+# container rather than the store the self-signed path persists into (AC-7).
+#
+# The chain assertion is in the compiled fixture because the observer sandbox
+# cannot drive a TLS handshake: `http=get` carries only insecure-tls=true, which
+# accepts a chain without reading it. internal/test/fixture/lg_pki_fixture.go
+# dials crypto/tls and reads PeerCertificates.
+#
+# RED AT PROMOTION, on a product defect this test found and did not cause, and
+# GREEN once that defect was fixed inside this spec. `pki certificate <name>
+# intermediate` never reached the store: (*Tree).toMap
+# (internal/component/config/tree.go) lowers a one-member leaf-list to a bare
+# string and a longer one to []string, and the hub rebuilt a tree from that map
+# with a `case string` arm writing t.Set and a slice arm matching only []any, so
+# GetSlice("intermediate") answered nil for every count. pki.Validate then built
+# an empty intermediate pool and the DAEMON EXITED at the `pki config` stage
+# with "x509: certificate signed by unknown authority". The rebuild is deleted:
+# preparePKIConfig (cmd/ze/hub/main_pki.go) now takes the parsed tree its
+# callers already hold. Row:
+# plan/journal/validated-value-discarded-by-its-caller.md, 2026-09-04.
+# The intermediate in this fixture is what found it. Do not take it out.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/lg-pki-certificate:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: the looking glass serves the named store leaf first and its intermediate second
+expect=stderr:contains=OK: a client trusting only the operator root validated the served chain
+expect=stderr:contains=OK: the bearer gate refuses an unauthenticated request over the named chain

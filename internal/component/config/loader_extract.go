@@ -496,6 +496,10 @@ type LGListenConfig struct {
 	// warned fallback to plaintext.
 	TLSExplicit bool
 	Token       string // Optional bearer token gating every route; empty leaves the LG open
+	// Certificate names an entry in the PKI store to serve on the listener.
+	// Empty selects the self-signed certificate. A non-empty name that does not
+	// resolve is a startup/reload error, never a fallback.
+	Certificate string
 }
 
 // ExtractLGSettings returns the transport and authentication settings of an
@@ -565,6 +569,10 @@ func extractLGBlock(tree *Tree) (LGListenConfig, bool, bool) {
 
 	if v, ok := lg.Get("token"); ok {
 		cfg.Token = v
+	}
+
+	if v, ok := lg.Get("certificate"); ok {
+		cfg.Certificate = v
 	}
 
 	return cfg, enabled, true
@@ -961,8 +969,8 @@ func extractHubClientConfig(name string, tree *Tree) (plugin.HubClientConfig, er
 		cli.SourceAddress = sa
 	}
 
-	if fp, ok := tree.Get("certificate-fingerprint"); ok {
-		cli.CertificateFingerprint = fp
+	if ca, ok := tree.Get("ca"); ok {
+		cli.CA = ca
 	}
 
 	return cli, nil

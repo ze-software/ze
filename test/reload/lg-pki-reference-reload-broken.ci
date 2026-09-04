@@ -1,0 +1,36 @@
+# Test: a reload naming a looking-glass certificate the store does not define is
+# refused, and the looking glass keeps serving the chain it had.
+#
+# VALIDATES: spec-lg-pki-certificate AC-5. The commit is rejected as a whole,
+# the refusal names environment.looking-glass.certificate and the missing name,
+# and the running listener still presents its previous leaf and intermediate and
+# still answers requests. The operator's corrected reload then commits, so the
+# rejection leaves the daemon usable.
+# PREVENTS: the silent failure. A listener that kept serving, or quietly fell
+# back to a self-signed certificate, while the config named an operator
+# certificate would show the operator a working HTTPS endpoint and let a
+# visitor's trust error be the first report.
+#
+# The PKI store restoration itself is not observable from outside the process:
+# every reload re-derives the store from the file, so no later config can tell a
+# restored store from a re-installed one. TestReloadRejectsBrokenLGCertificateReference
+# (cmd/ze/hub/main_reload_pki_test.go) pins that half.
+#
+# The daemon stays up: a broken looking-glass certificate reference rejects the
+# COMMIT, it does not kill the process.
+#
+# The store here holds two leaves issued DIRECTLY by the root CA, and no
+# intermediate. AC-5 and AC-6 are about which certificate a reload installs, not
+# about how many the store holds. A chain-bearing store boots:
+# test/plugin/lg-pki-certificate.ci carries one, and
+# TestReloadInstallsEveryIntermediate (cmd/ze/hub/main_pki_test.go) pins the
+# reload path.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=ze-test fixture reload/lg-pki-reference-reload-broken:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: the reload is refused, naming environment.looking-glass.certificate and the missing name
+expect=stderr:contains=OK: the looking glass keeps serving its previous chain and answering requests
+expect=stderr:contains=OK: the operator's corrected reload commits and serves
+expect=stderr:contains=reload error

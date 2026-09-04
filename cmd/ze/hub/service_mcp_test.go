@@ -33,7 +33,7 @@ func TestServiceRegistry_BuildsMCP(t *testing.T) {
 	port := allocEphemeralPorts(t, 1)[0]
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 
-	svc, err := buildMCPService(serviceDeps{
+	svc, err := buildMCPService(&serviceDeps{
 		MCP: &mcpServiceDeps{
 			Addrs: []string{addr},
 			Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
@@ -60,12 +60,12 @@ func TestServiceRegistry_BuildsMCP(t *testing.T) {
 // config as a skip (nil service, nil error), not a failure.
 func TestBuildMCPService_NotConfigured(t *testing.T) {
 	// Nil MCP deps -> skip.
-	svc, err := buildMCPService(serviceDeps{})
+	svc, err := buildMCPService(&serviceDeps{})
 	require.NoError(t, err)
 	require.Nil(t, svc, "nil MCP deps must skip")
 
 	// No listen addresses -> skip.
-	svc, err = buildMCPService(serviceDeps{MCP: &mcpServiceDeps{
+	svc, err = buildMCPService(&serviceDeps{MCP: &mcpServiceDeps{
 		Dispatch: func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
 			return plugin.NewResponse(plugin.StatusDone, nil), nil
 		},

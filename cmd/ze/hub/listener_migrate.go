@@ -85,6 +85,7 @@ type listenerMigrator struct {
 	web    Reconfigurable
 	webTLS tlsUpdatable
 	lg     Reconfigurable
+	lgTLS  tlsUpdatable
 	mcp    Reconfigurable
 	rest   Reconfigurable
 	grpc   Reconfigurable
@@ -199,6 +200,23 @@ func newListenerMigrator() *listenerMigrator {
 	}
 }
 
+// log returns the migrator's logger, falling back to the subsystem logger when
+// the field is unset.
+//
+// The zero-value migrator is reachable: tests build &listenerMigrator{} directly
+// rather than through newListenerMigrator, and every logging path here used to
+// be one no such test entered. A nil *slog.Logger panics on first use, so a log
+// line added to a path a test DOES enter turns a diagnostic into a crash. The
+// fallback makes the zero value say the same thing as the constructed one
+// instead of being a different object that happens to work until it is logged
+// at (ai/rules/principles.md).
+func (m *listenerMigrator) log() *slog.Logger {
+	if m.logger == nil {
+		return slogutil.Logger("hub.listener")
+	}
+	return m.logger
+}
+
 // setWeb updates the web server reference.
 func (m *listenerMigrator) setWeb(web Reconfigurable) {
 	m.web = web
@@ -237,6 +255,55 @@ func (m *listenerMigrator) updateWebCertificate(certName string) error {
 func (m *listenerMigrator) setLG(s Reconfigurable) {
 	m.lg = s
 	m.registerAuthReporter(svcLG, s)
+}
+
+// setLGTLS updates the looking glass's certificate-rotation reference. Takes
+// tlsUpdatable (not *lg.LGServer) so always-on code never imports the lg
+// package, the same reason setLG takes Reconfigurable.
+func (m *listenerMigrator) setLGTLS(s tlsUpdatable) { m.lgTLS = s }
+
+// updateLGCertificate re-resolves certName in the PKI store and installs the
+// resulting chain on the running looking glass, without rebinding its
+// listeners. Called on reload AFTER the new store is installed, so a commit
+// that rotates the certificate's material takes effect on the next handshake
+// (AC-6).
+//
+// It reads its OWN handle and its OWN name. The web listener and the looking
+// glass hold separate certificates, and one migrator carries both, so a method
+// that shared either would serve one listener's identity on the other (R-1).
+//
+// An empty certName means the operator named no certificate: the self-signed
+// certificate keeps serving and nothing is touched. A non-empty name that no
+// longer resolves is an ERROR that fails the reload, never a silent downgrade
+// to the self-signed certificate the listener may still be holding (R-5).
+//
+// The two reasons to do nothing are reported apart, because they are not the
+// same answer to the operator. No name is the ordinary case and says nothing.
+// A name with no handle means the looking glass serves plaintext, so this
+// commit is accepted and the certificate it names reaches no listener until a
+// restart. Nothing else on this path would tell the operator that, and a
+// configuration change that takes no effect in silence is the failure this
+// separation exists to prevent (ai/rules/principles.md).
+func (m *listenerMigrator) updateLGCertificate(certName string) error {
+	if certName == "" {
+		return nil
+	}
+	if m.lgTLS == nil {
+		m.log().Warn("looking glass certificate not applied: the listener serves plaintext",
+			"leaf", "environment.looking-glass.certificate",
+			"certificate", certName,
+			"remedy", "restart ze to serve this certificate over TLS",
+		)
+		return nil
+	}
+	certPEM, keyPEM, err := zepki.ServerTLSMaterial(certName)
+	if err != nil {
+		return fmt.Errorf("looking glass tls certificate %q: %w", certName, err)
+	}
+	if err := m.lgTLS.UpdateTLSCertificate(certPEM, keyPEM); err != nil {
+		return fmt.Errorf("looking glass tls certificate %q: %w", certName, err)
+	}
+	return nil
 }
 
 // setMCP lives in register_mcp.go, under //go:build ze_mcp. Its only caller is
@@ -523,11 +590,11 @@ func (m *listenerMigrator) migrateListeners(ctx context.Context, changes []servi
 		label := change.name
 		if conflicts[change.name] {
 			label += " (conflicting)"
-			m.logger.Warn("sequenced listener migration (brief gap expected)",
+			m.log().Warn("sequenced listener migration (brief gap expected)",
 				"service", change.name,
 				"add", change.add, "remove", change.remove)
 		} else {
-			m.logger.Info("reconfiguring listeners", "service", change.name,
+			m.log().Info("reconfiguring listeners", "service", change.name,
 				"add", change.add, "remove", change.remove)
 		}
 		if err := change.server.Reconfigure(ctx, change.newAddr); err != nil {
@@ -551,7 +618,7 @@ func (m *listenerMigrator) migrateListeners(ctx context.Context, changes []servi
 func (m *listenerMigrator) rollbackAppliedListeners(ctx context.Context, applied []serviceChange) error {
 	var rollbackErrs []error
 	for _, change := range slices.Backward(applied) {
-		m.logger.Warn("rolling back listener migration", "service", change.name, "addr", change.oldAddr)
+		m.log().Warn("rolling back listener migration", "service", change.name, "addr", change.oldAddr)
 		if err := change.server.Reconfigure(ctx, change.oldAddr); err != nil {
 			rollbackErrs = append(rollbackErrs, fmt.Errorf("rollback %s: %w", change.name, err))
 		}

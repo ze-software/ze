@@ -30,10 +30,11 @@ environment {
 | `enabled` | `false` | Enable the looking glass server. |
 | `server <name> { ip }` | `0.0.0.0` | Listen address. Set to `127.0.0.1` to restrict to local access. |
 | `server <name> { port }` | `8443` | Listen port. Must differ from the web UI port. |
-| `tls` | `true` | Serve HTTPS. Certificates come from blob storage (`ze init`). Set `false` to serve plaintext. |
+| `tls` | `true` | Serve HTTPS. Set `false` to serve plaintext. |
+| `certificate` | (empty) | Name of a `pki { certificate <name> }` entry to serve. Empty means a self-signed certificate from blob storage (`ze init`). |
 | `token` | (empty) | Bearer token. When set, every `/api/` and `/lg/` route needs `Authorization: Bearer <token>`. Empty leaves the looking glass open. |
 
-Environment variable overrides: `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=false`, `ze.looking-glass.token=<token>`.
+Environment variable overrides: `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=false`, `ze.looking-glass.token=<token>`, `ze.looking-glass.certificate=<name>`.
 
 ### TLS is on by default
 
@@ -42,10 +43,44 @@ it serves HTTPS unless you turn TLS off. Two rules apply:
 
 - Write `tls false` (or set `ze.looking-glass.tls=false`) to serve plaintext,
   for example behind a proxy that terminates TLS.
-- Without blob storage there is no certificate. If you wrote `tls true`, Ze
-  reports the error and does not start the looking glass. If you wrote nothing
-  and took the default, Ze serves plaintext and prints a warning that names
-  `ze init` as the remedy.
+- With no `certificate` and no blob storage there is no self-signed certificate
+  to serve. If you wrote `tls true`, Ze reports the error and does not start the
+  looking glass. If you wrote nothing and took the default, Ze serves plaintext
+  and prints a warning that names `ze init` as the remedy.
+
+### Serve your own certificate
+
+A visitor to a public looking glass has not installed your root, so a
+self-signed certificate gives them a browser warning. Set `certificate` to the
+name of a `pki { certificate <name> }` entry and the listener serves that leaf
+and every intermediate the entry holds:
+
+```
+environment {
+    looking-glass {
+        enabled     true
+        certificate lan
+    }
+}
+```
+
+| Rule | Detail |
+|------|--------|
+| Default | No `certificate` leaf means Ze generates and serves a self-signed certificate, which is the behavior of every release before this leaf existed. |
+| Fail closed | A name the store does not hold, or an entry with no `private { key }`, refuses the start: Ze exits and names the missing certificate. A reload that names one is rejected as a whole, and the running looking glass keeps the chain it is serving. Ze never falls back to a self-signed certificate for a name you configured. |
+| Rotation | Load new material under the same name and reload: the listener serves the new chain from the next handshake, with no rebind, so a viewer's open connection survives. |
+| TLS off | `tls false` serves no certificate, so the leaf is inert. Neither the start nor a reload reads the name. |
+| Plaintext by downgrade | You took the `tls` default and have no blob store, so Ze dropped the looking glass to plaintext at start. A `certificate` name you add later changes nothing there. The reload is accepted and rotates nothing. Restart Ze to serve the named chain over TLS. |
+| No blob storage needed | The material comes from the `pki {}` container, so a named certificate serves on a deployment that never ran `ze init`. The blob store holds the self-signed certificate only. |
+| Name | 1 to 255 characters, `A-Z a-z 0-9 . _ -`. It is a store key, never a file path. |
+| Own leaf | The looking glass and the web UI have separate `certificate` leaves, so each listener serves the certificate that matches its own hostname. |
+| Env override | `ze.looking-glass.certificate` takes precedence over the config file. |
+
+<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->
+<!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial (fail-closed selection) -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the looking-glass certificate startup gate -->
+<!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName and the reload refusal -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateLGCertificate (rotation without rebind) -->
 
 ### Optional bearer token
 
@@ -130,4 +165,6 @@ The looking glass is designed for public IXP deployment. It is read-only, and op
 <!-- source: internal/component/lg/markup_check_test.go -- TestTemplatesAvoidInlineScriptAndStyle, lgMarkupExempt -->
 <!-- source: internal/component/lg/layout.go -- renderGraphSVG label escaping -->
 
-When TLS is enabled, the server uses TLS 1.2 minimum with the same certificate infrastructure as the web UI.
+When TLS is enabled, the server uses TLS 1.2 minimum. It reads its own
+`certificate` leaf, resolved against the same PKI store the web UI reads, and
+serves a self-signed certificate when that leaf is unset.

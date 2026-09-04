@@ -128,3 +128,50 @@ func TestExtractLGConfigToken(t *testing.T) {
 		t.Fatalf("an absent token leaf must leave the looking glass open, got %q", open.Token)
 	}
 }
+
+func TestExtractLGBlockReadsCertificate(t *testing.T) {
+	// VALIDATES: the environment.looking-glass certificate leaf reaches
+	// LGListenConfig.Certificate, so the hub can name a PKI store entry for the
+	// looking-glass HTTPS listener instead of a self-signed certificate.
+	// PREVENTS: a public looking glass presenting a certificate no visitor's
+	// browser accepts while the operator configured their own chain.
+	t.Run("an enabled block yields the name", func(t *testing.T) {
+		tree := lgTree("true", "")
+		tree.GetContainer("environment").GetContainer("looking-glass").Set("certificate", "lg-cert")
+
+		cfg, ok := ExtractLGConfig(tree)
+		if !ok {
+			t.Fatal("expected an enabled looking-glass config")
+		}
+		if cfg.Certificate != "lg-cert" {
+			t.Fatalf("certificate = %q, want %q", cfg.Certificate, "lg-cert")
+		}
+	})
+
+	t.Run("an absent leaf leaves the name empty", func(t *testing.T) {
+		// Empty is the "unset" case the self-signed path reads, never an error.
+		cfg, _ := ExtractLGConfig(lgTree("true", ""))
+		if cfg.Certificate != "" {
+			t.Fatalf("an absent certificate leaf must stay empty, got %q", cfg.Certificate)
+		}
+	})
+
+	t.Run("the name survives enabled false", func(t *testing.T) {
+		// A-3: ze.looking-glass.enabled and ze.looking-glass.listen start the
+		// server without an `enabled true` leaf, and ExtractLGSettings is what
+		// those deployments consult. Gating the certificate on `enabled` would
+		// drop it for exactly the deployments most likely to name one.
+		tree := lgTree("true", "")
+		lg := tree.GetContainer("environment").GetContainer("looking-glass")
+		lg.Set("certificate", "lg-cert")
+		lg.Set("enabled", "false")
+
+		cfg, ok := ExtractLGSettings(tree)
+		if !ok {
+			t.Fatal("settings must be available for any looking-glass block")
+		}
+		if cfg.Certificate != "lg-cert" {
+			t.Fatalf("certificate must survive a disabled block: got %q", cfg.Certificate)
+		}
+	})
+}

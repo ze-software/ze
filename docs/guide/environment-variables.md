@@ -26,6 +26,8 @@ An OS env var is never overwritten by a config value.
 | `ze.bgp.openwait` | Seconds to wait for peer OPEN after TCP connect |
 | `ze.bgp.announce.delay` | Duration to block between reactor Ready and first UPDATE |
 | `exabgp.api.ack` | ExaBGP bridge: emit `done`/`error` ack lines on plugin stdin |
+| `ze.web.certificate` | PKI store entry the web HTTPS listener serves. Empty means self-signed |
+| `ze.looking-glass.certificate` | PKI store entry the looking glass serves. Empty means self-signed |
 
 ## Config Block Syntax
 

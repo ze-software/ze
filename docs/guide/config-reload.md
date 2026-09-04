@@ -24,6 +24,10 @@ kill -HUP $(pidof ze)               # Direct signal
 | A user removed | The user stops authenticating at once on the web password, the web session cookie, the SSH password, the SSH public key, and `Bearer <user>:<pass>` over REST and gRPC |
 | An API token added, rotated, or removed | The running REST and gRPC servers rebuild their credentials without rebinding |
 | A web `certificate` reference changed | The listener serves the new chain on the next handshake with no rebind |
+| A looking-glass `certificate` reference changed | The same, on the looking-glass listener. A name the new store does not define refuses the whole commit and puts the prior store back |
+
+<!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName and the looking-glass certificate gate -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateLGCertificate -->
 
 The reload runs the same loader as daemon start, so it applies the password transform
 with no branch of its own. Every load that hashes a leaf warns that the file still

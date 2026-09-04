@@ -157,8 +157,8 @@ a refused start leaves no state store behind.
 
 The refusal names EVERY failing plugin and its reason, not the first, because
 an operator who repairs one fault and restarts to meet the next pays a whole
-boot for each fault after the first. It uses the same shape as the other 27
-startup refusals in the file: one stderr line, one `logStartupFailure` (the
+boot for each fault after the first. It uses the same shape as every other
+startup refusal in the file: one stderr line, one `logStartupFailure` (the
 kmsg-visible half, which is what an appliance console sees), and `return 1`.
 
 `RunWebOnly` does not go through `run`, so `ze start --web-only` does not

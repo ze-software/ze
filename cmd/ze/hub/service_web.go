@@ -26,7 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/system"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
-	zepki "github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -34,7 +33,6 @@ import (
 	zeweb "github.com/ze-software/ze/internal/component/web"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/health"
-	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -68,18 +66,20 @@ func (s webService) Shutdown(ctx context.Context) error {
 	return s.WebServer.Shutdown(ctx)
 }
 
-func buildWebService(deps serviceDeps) (Service, error) {
+func buildWebService(deps *serviceDeps) (Service, error) {
 	if !deps.WebEnabled {
 		return nil, nil //nolint:nilnil // not-configured is an intentional skip
 	}
-	deps.WebAddrs = resolveWebListeners(true, deps.WebAddrs)
+	// A local, not a write back into deps: buildServices hands one struct to
+	// every factory, so a rewritten field would reach the next one.
+	webAddrs := resolveWebListeners(true, deps.WebAddrs)
 	for _, svc := range deps.WebPortalServices {
 		zeweb.RegisterPortalService(zeweb.PortalService{Key: svc.Key, Title: svc.Title, Path: svc.Path, Icon: svc.Icon})
 	}
 	webSrv, broker := startWebServer(
 		deps.Store,
 		deps.ConfigPath,
-		deps.WebAddrs,
+		webAddrs,
 		deps.InsecureWeb,
 		deps.WebCertificate,
 		deps.Dispatch,
@@ -261,29 +261,6 @@ func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBrok
 	})
 }
 
-// webTLSMaterial returns the PEM material the web listener serves.
-//
-// certName is the operator's environment.web.certificate leaf. When it is set,
-// the material comes from the PKI store and carries the full chain; when it is
-// empty, the established self-signed pair is loaded from (or generated into)
-// the blob store, exactly as before this leaf existed.
-//
-// It FAILS CLOSED: a configured name that does not resolve returns an error and
-// no material. It never falls back to the self-signed path, because a listener
-// that quietly serves a self-signed certificate while the config names a real
-// one is indistinguishable from a working deployment until a client rejects it
-// (docs/architecture/pki/tls-listeners.md, "a named certificate fails closed").
-func webTLSMaterial(certName string, certStore selfcert.CertStore, listenAddr string) (certPEM, keyPEM []byte, err error) {
-	if certName != "" {
-		return zepki.ServerTLSMaterial(certName)
-	}
-	// Persist the self-signed cert in zefs so browsers don't have to re-accept
-	// on every restart. The SAN hint is derived from the first endpoint;
-	// GenerateWebCertWithAddr already fans out to all interface IPs when the
-	// host is 0.0.0.0.
-	return selfcert.LoadOrGenerateCert(certStore, listenAddr)
-}
-
 // startWebServer creates and starts the web server with zefs credentials.
 // Returns the server and SSE event broker on success, nil on failure (logged, non-fatal).
 // Caller MUST call broker.Close() during shutdown to release SSE clients.
@@ -343,8 +320,10 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		fmt.Fprintf(os.Stderr, "WARNING: authentication disabled (--insecure-web)\n")
 	}
 
+	// Persist the self-signed cert in zefs so browsers don't have to re-accept
+	// on every restart. A named certificate never reaches this store.
 	certStore := &blobCertStore{store: store}
-	certPEM, keyPEM, err := webTLSMaterial(certName, certStore, listenAddrs[0])
+	certPEM, keyPEM, err := listenerTLSMaterial(certName, certStore, listenAddrs[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: TLS cert: %v\n", err)
 		return nil, nil

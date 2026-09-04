@@ -44,6 +44,12 @@ type Service interface {
 // looking-glass listen addresses) are plain values resolved by the always-on
 // hub and handed in. The struct grows as services are converted; it never
 // imports a service package.
+//
+// It reaches every factory as a POINTER. The struct is past the gocritic
+// hugeParam threshold, so a value parameter would copy it once per factory, and
+// a factory MUST NOT write to it: buildServices hands the same struct to every
+// registered factory in turn, so a field one factory rewrote would reach the
+// next one changed.
 type serviceDeps struct {
 	Store      storage.Storage
 	ConfigPath string
@@ -65,6 +71,11 @@ type serviceDeps struct {
 	// the prior plaintext behavior with a warning.
 	LGTLSExplicit bool
 	LGToken       string
+	// LGCertificate names an entry in the PKI store to serve on the looking
+	// glass. Empty selects the self-signed certificate. A plain string (no pki
+	// type crosses this boundary); the factory resolves it through
+	// pki.ServerTLSMaterial.
+	LGCertificate string
 
 	// Web resolved bindings. These stay generic: no internal/component/web type
 	// crosses the always-on registry boundary.
@@ -110,8 +121,8 @@ type serviceDeps struct {
 	// MCP resolved bindings + command source (all generic types). Consumed only
 	// by the ze_mcp-gated factory (service_mcp.go); populated always-on so a
 	// no-mcp build neither names a zemcp type nor leaves an unused local. A
-	// pointer so serviceDeps stays small (the by-value struct trips hugeParam,
-	// learned 981); a nil MCP is the not-configured skip.
+	// pointer because a nil MCP is the not-configured skip, which no value of
+	// the struct can state.
 	MCP *mcpServiceDeps
 }
 
@@ -133,7 +144,7 @@ type mcpServiceDeps struct {
 // serviceFactory builds (and starts) one service from deps. It returns a nil
 // Service when the service is not configured/enabled -- that is NOT an error.
 // A non-nil error means the build failed unexpectedly; the hub logs and skips.
-type serviceFactory func(deps serviceDeps) (Service, error)
+type serviceFactory func(deps *serviceDeps) (Service, error)
 
 type serviceMigratorWire func(*listenerMigrator, Service)
 
@@ -163,7 +174,9 @@ func registerService(name string, f serviceFactory, wireMigrator serviceMigrator
 // buildServices builds every registered service. Factories returning a nil
 // Service (not configured) are skipped; build errors are logged and skipped,
 // matching the prior best-effort service startup.
-func buildServices(deps serviceDeps) []builtService {
+//
+// deps MUST NOT be nil, and every factory reads the same struct.
+func buildServices(deps *serviceDeps) []builtService {
 	logger := slogutil.Logger("hub.services")
 	var built []builtService
 	for _, nf := range serviceFactories {

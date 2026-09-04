@@ -304,7 +304,7 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 	// already replaced (aaa_lifecycle.go, nextAAAConfigReadOrder).
 	configOrder := nextAAAConfigReadOrder()
 
-	pkiConfig, pkiErr := preparePKIConfig(newTree)
+	pkiConfig, pkiErr := preparePKIConfig(parsedTree)
 	if pkiErr != nil {
 		if clearErr := clearCandidate(); clearErr != nil {
 			return fmt.Errorf("reload: pki config: %w (candidate cleanup failed: %w)", pkiErr, clearErr)
@@ -329,14 +329,13 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 	// the daemon serving the NEW certificates under the OLD config (R-3).
 	var priorPKI *zepki.PKIConfig
 	if priorProvider != nil {
-		var priorErr error
-		priorPKI, priorErr = preparePKIConfig(snapshotToLoadedTree(priorProvider))
-		if priorErr != nil {
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("reload: snapshot pki config: %w (candidate cleanup failed: %w)", priorErr, clearErr)
-			}
-			return fmt.Errorf("reload: snapshot pki config: %w", priorErr)
-		}
+		// Ask the STORE what it is serving rather than re-deriving it from the
+		// provider snapshot. The snapshot holds plugin-facing maps, which carry
+		// no leaf-list faithfully, so a config rebuilt from one comes back
+		// without its intermediates and the restore would install a shorter
+		// chain than the one it replaced. Snapshot shares the installed maps, so
+		// handing it straight back to Load reinstalls exactly what was running.
+		priorPKI = zepki.Snapshot()
 	}
 
 	// Install the new store BEFORE any consumer applies the new config. A
@@ -361,6 +360,18 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 		if _, _, certErr := zepki.ServerTLSMaterial(webCertName); certErr != nil {
 			return restorePKIAfter(priorPKI, clearCandidate,
 				fmt.Errorf("reload: environment.web.certificate: %w", certErr))
+		}
+	}
+
+	// The same refusal for the looking glass, on its own name (AC-5, R-5). The
+	// looking glass is the surface a stranger visits, so a name that stopped
+	// resolving must stop the commit here rather than leave the listener on a
+	// certificate the config no longer describes.
+	lgCertName := lgCertificateName(parsedTree)
+	if lgCertName != "" {
+		if _, _, certErr := zepki.ServerTLSMaterial(lgCertName); certErr != nil {
+			return restorePKIAfter(priorPKI, clearCandidate,
+				fmt.Errorf("reload: environment.looking-glass.certificate: %w", certErr))
 		}
 	}
 
@@ -554,10 +565,17 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 	}
 
 	// The store is already installed (above). Push the possibly-rotated material
-	// onto the running web listener, which serves it from the next handshake
+	// onto each running TLS listener, which serves it from the next handshake
 	// with no rebind, so open SSE streams survive the rotation (AC-9).
 	if lm != nil {
-		if err := lm.updateWebCertificate(webCertName); err != nil {
+		// Each listener takes its OWN name onto its OWN handle, so rotating one
+		// can never install the other's identity (R-1). A viewer holding an
+		// open looking-glass connection keeps it across the swap (AC-6).
+		err := lm.updateWebCertificate(webCertName)
+		if err == nil {
+			err = lm.updateLGCertificate(lgCertName)
+		}
+		if err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
 				if clearErr := clearCandidate(); clearErr != nil {
 					return fmt.Errorf("reload: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
@@ -801,6 +819,60 @@ func reloadWebCertificate(parsedTree *zeconfig.Tree) string {
 		return ""
 	}
 	return cfg.Certificate
+}
+
+// lgCertificateName returns the environment.looking-glass.certificate name the
+// looking glass serves. The startup gate (cmd/ze/hub/main.go) and the reload
+// gate both call it, so a restart and a reload cannot disagree about which
+// certificate one config asks for.
+//
+// The env var wins, exactly as it does for the web certificate, so a deployment
+// that pins the certificate through ze.looking-glass.certificate is not
+// silently re-pointed by a config edit.
+//
+// A looking glass without TLS presents no certificate, so it reports no name.
+// The leaf is inert there rather than refused: the listener resolves it only
+// when TLS is on (service_lg.go, buildLGService), so a commit rejected here over
+// a name nothing reads would refuse a config the same daemon boots happily.
+func lgCertificateName(parsedTree *zeconfig.Tree) string {
+	if !lgTLSEnabled(parsedTree) {
+		return ""
+	}
+	if name := env.Get("ze.looking-glass.certificate"); name != "" {
+		return name
+	}
+	if parsedTree == nil {
+		return ""
+	}
+	// Settings, not addresses: the certificate applies to a listener started by
+	// a flag or env var too (learned 1327).
+	cfg, ok := zeconfig.ExtractLGSettings(parsedTree)
+	if !ok {
+		return ""
+	}
+	return cfg.Certificate
+}
+
+// lgTLSEnabled reports whether the looking glass this config describes
+// terminates TLS. Precedence: the env var, then the config block, then the
+// default-on posture a public read-only listener keeps.
+//
+// It answers the same question as the startup resolution in cmd/ze/hub/main.go
+// and returns the same value for every config. Startup tracks a second fact
+// this one does not, whether the operator STATED the choice, because only the
+// self-signed path needs it (service_lg.go turns the storage rule on it).
+func lgTLSEnabled(parsedTree *zeconfig.Tree) bool {
+	if env.Get("ze.looking-glass.tls") != "" {
+		return env.GetBool("ze.looking-glass.tls", true)
+	}
+	if parsedTree == nil {
+		return true
+	}
+	cfg, ok := zeconfig.ExtractLGSettings(parsedTree)
+	if !ok {
+		return true
+	}
+	return cfg.TLS
 }
 
 func rootsSet(roots []string) map[string]struct{} {

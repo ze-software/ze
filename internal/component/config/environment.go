@@ -91,6 +91,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: valueTypeBool, Description: "Enable looking glass server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: valueTypeBool, Default: configTrue, Description: "Enable TLS for looking glass (default true; set false to serve plaintext)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.token", Type: valueTypeString, Description: "Looking glass bearer token (empty leaves it open)", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.certificate", Type: valueTypeString, Description: "Name of the PKI store certificate to serve on the looking glass (empty means self-signed)"})
 
 	// Gokrazy management proxy (mounted on ze web server at /gokrazy/).
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.enabled", Type: valueTypeBool, Description: "Enable gokrazy appliance mode: management proxy on web at /gokrazy/ and first-boot auto-init fallback"})

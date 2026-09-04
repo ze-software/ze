@@ -15,8 +15,9 @@
 //
 // TLS is on by default (LGConfig.TLS), because the server binds 0.0.0.0 and
 // publishes route data; a deployment behind a TLS-terminating proxy turns it
-// off. When TLS is enabled, the server uses the same self-signed certificate
-// infrastructure as the web UI.
+// off. When TLS is enabled, the caller supplies the PEM material: a self-signed
+// certificate, or a chain from the PKI store. UpdateTLSCertificate replaces it
+// on a running server without rebinding a listener.
 //
 // All BGP data is accessed via CommandDispatcher, preserving plugin
 // isolation. The LG never imports RIB or peer plugin packages directly.
@@ -54,6 +55,8 @@ var (
 	errLgServerCommandDispatcherIsRequired = errors.New("lg server: command dispatcher is required")
 	errLgServerTlsEnabledButCertificate    = errors.New("lg server: TLS enabled but certificate/key PEM data missing")
 	errLgServerShutDown                    = errors.New("lg server: server has been shut down")
+	errLgServerNoCertificate               = errors.New("lg server: no TLS certificate installed")
+	errLgServerTLSNotEnabled               = errors.New("lg server: TLS is not enabled on this server")
 )
 
 // lgLogger is the structured logger for the looking glass subsystem.
@@ -82,7 +85,8 @@ type LGConfig struct {
 	// TLS enables HTTPS. When false, the server uses plain HTTP.
 	TLS bool
 
-	// CertPEM is optional PEM-encoded certificate data (required when TLS is true).
+	// CertPEM is optional PEM-encoded certificate data (required when TLS is
+	// true). A chain is the leaf first, then one block per intermediate.
 	CertPEM []byte
 
 	// KeyPEM is optional PEM-encoded private key data (required when TLS is true).
@@ -119,16 +123,21 @@ type LGServer struct {
 	configured []string
 	// bound holds the actual listen addresses once ListenAndServe has bound
 	// them. Populated under mu.
-	bound       []string
-	listeners   map[string]net.Listener // bound addr -> listener
-	mu          sync.RWMutex            // protects bound, listeners, stopped
-	ready       chan struct{}           // closed once every listener is bound
-	readyOnce   sync.Once               // prevents double-close panic on ready channel
-	stopped     bool                    // set by Shutdown; Reconfigure checks this
-	logger      *slog.Logger
-	server      *http.Server
-	useTLS      bool
-	tlsCfg      *tls.Config
+	bound     []string
+	listeners map[string]net.Listener // bound addr -> listener
+	mu        sync.RWMutex            // protects bound, listeners, stopped
+	ready     chan struct{}           // closed once every listener is bound
+	readyOnce sync.Once               // prevents double-close panic on ready channel
+	stopped   bool                    // set by Shutdown; Reconfigure checks this
+	logger    *slog.Logger
+	server    *http.Server
+	useTLS    bool
+	tlsCfg    *tls.Config
+	// cert is the certificate every handshake serves. tls.Config.GetCertificate
+	// reads it per handshake rather than per listener, so UpdateTLSCertificate
+	// rotates the served material without touching a bound listener. Nil when
+	// useTLS is false; never nil after NewLGServer returns with TLS enabled.
+	cert        atomic.Pointer[tls.Certificate]
 	dispatch    CommandDispatcher
 	decorateASN ASNDecorator
 	sseClients  atomic.Int32 // concurrent SSE connection counter
@@ -209,6 +218,15 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 
 	if tlsCfg != nil {
 		s.server.TLSConfig = tlsCfg
+
+		// Move the certificate behind a per-handshake lookup. crypto/tls
+		// consults GetCertificate before Certificates, so a bound listener
+		// serves rotated material on its NEXT handshake, with no rebind and no
+		// dropped connection. Certificates is cleared in the same statement
+		// group so the two can never disagree about what is served.
+		s.cert.Store(&tlsCfg.Certificates[0])
+		tlsCfg.Certificates = nil
+		tlsCfg.GetCertificate = s.getCertificate
 	}
 
 	// Register route handlers.
@@ -217,6 +235,65 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 	}
 
 	return s, nil
+}
+
+// ServesTLS reports whether this looking glass serves TLS. It is false for a
+// plaintext listener. It is false too for one that asked for TLS and was
+// dropped to plaintext, because no certificate store was available
+// (cmd/ze/hub/service_lg.go).
+//
+// The hub gates the certificate-rotation seam on it. A plaintext looking glass
+// holds no certificate to replace, so it never receives a rotation. A later
+// config that names a certificate then does not fail the whole reload over a
+// leaf this listener cannot serve.
+//
+// useTLS is written once, in NewLGServer, and never again, so this is safe for
+// concurrent use.
+func (s *LGServer) ServesTLS() bool { return s.useTLS }
+
+// getCertificate is the tls.Config.GetCertificate callback. It returns the
+// certificate installed now, which UpdateTLSCertificate can replace at any time.
+// Safe for concurrent use.
+func (s *LGServer) getCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+	cert := s.cert.Load()
+	if cert == nil {
+		// Unreachable: NewLGServer installs a certificate before it returns
+		// with TLS enabled, and UpdateTLSCertificate never installs nil. Refuse
+		// the handshake rather than let crypto/tls fall through to an empty
+		// Certificates list, which would serve nothing while the listener still
+		// looks healthy.
+		return nil, errLgServerNoCertificate
+	}
+	return cert, nil
+}
+
+// UpdateTLSCertificate replaces the certificate served on every later
+// handshake. Bound listeners are untouched, so open connections, SSE streams
+// among them, survive the rotation.
+//
+// It is fail-closed on bad material: material that does not parse is refused
+// and the certificate installed before it keeps serving. Installing unparseable
+// material, or clearing the certificate, would break every later handshake on a
+// listener that worked a moment earlier. A server running plaintext refuses too,
+// because it would never serve what it accepted.
+//
+// Safe for concurrent use.
+func (s *LGServer) UpdateTLSCertificate(certPEM, keyPEM []byte) error {
+	if !s.useTLS {
+		return errLgServerTLSNotEnabled
+	}
+	if len(certPEM) == 0 || len(keyPEM) == 0 {
+		return errLgServerTlsEnabledButCertificate
+	}
+
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return fmt.Errorf("lg server: rotate TLS certificate: %w", err)
+	}
+
+	s.cert.Store(&cert)
+	s.logger.Info("lg server TLS certificate rotated")
+	return nil
 }
 
 // registerRoutes sets up the mux with all LG route handlers.

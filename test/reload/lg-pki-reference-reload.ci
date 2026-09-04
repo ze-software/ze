@@ -1,0 +1,33 @@
+# Test: a reload rotates the looking-glass certificate while a viewer is
+# connected, and the listener keeps its socket.
+#
+# VALIDATES: spec-lg-pki-certificate AC-6. One commit repoints
+# environment.looking-glass.certificate at a second entry of the same store. The
+# open connection keeps carrying data, the listener address does not change, and
+# the next handshake receives the new chain.
+# PREVENTS: the shape the looking-glass server had before this spec. It built
+# one tls.Config at construction and handed it to tls.NewListener, so the served
+# certificate could not change without rebinding, and an operator renewing a
+# certificate had to drop every viewer to publish it.
+#
+# The rotation fence is the daemon's own `sighup reload complete`, counted
+# rather than searched, so the second reload of a run is not read as the first.
+# The chain assertions are in the compiled fixture: the observer sandbox cannot
+# drive a TLS handshake, and insecure-tls=true accepts a chain without reading
+# it.
+#
+# The store here holds two leaves issued DIRECTLY by the root CA, and no
+# intermediate. AC-5 and AC-6 are about which certificate a reload installs, not
+# about how many the store holds. A chain-bearing store boots:
+# test/plugin/lg-pki-certificate.ci carries one, and
+# TestReloadInstallsEveryIntermediate (cmd/ze/hub/main_pki_test.go) pins the
+# reload path.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=ze-test fixture reload/lg-pki-reference-reload:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: the next handshake receives the rotated chain
+expect=stderr:contains=OK: the listener address is unchanged and the socket was never rebound
+expect=stderr:contains=OK: the connection held across the rotation still carries data
+expect=stderr:contains=sighup reload complete
