@@ -409,7 +409,7 @@ func runEngine(conn net.Conn) int {
 		// handling" readable instead of inferrable from a route metric sampled
 		// at the right instant.
 		if !dhcpMu.TryLock() {
-			countLinkWorkerBlocked(key.ifaceName)
+			countLinkWorkerBlocked(blockedLabel(key))
 			dhcpMu.Lock()
 		}
 		defer dhcpMu.Unlock()

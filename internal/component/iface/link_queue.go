@@ -149,6 +149,30 @@ func (q *linkEventQueue) pushRouter(payload RouterEventPayload, data string, dis
 	)
 }
 
+// resyncBlockedLabel is the metric label a block is counted under when the
+// worker was about to handle a resync. A resync is about every interface at
+// once, so it carries no name, and labelling its block with the zero value put
+// it on a `name=""` series that reads as a bug and hid a real one: a test
+// summing only `name="<device>"` saw zero through a genuine block, because the
+// resync ticks every second and is what usually meets a held lock.
+//
+// A label an operator can read is the point. `blockedLabel` is the only place
+// that turns a key into one, and TestBlockedLabelIsNeverEmpty pins it.
+const resyncBlockedLabel = "(resync)"
+
+// blockedLabel names the metric series a worker block is counted under. It
+// never answers the empty string: an empty Prometheus label value tells an
+// operator nothing and tempts a reader into filtering it out.
+func blockedLabel(key linkEventKey) string {
+	if key.ifaceName != "" {
+		return key.ifaceName
+	}
+	if key.class == linkEventResync {
+		return resyncBlockedLabel
+	}
+	return "(unnamed)"
+}
+
 // pushResync queues a comparison of acted-on route metric state against live
 // carrier state. The caller MUST NOT write to carrier after the call.
 func (q *linkEventQueue) pushResync(carrier map[string]bool) {
