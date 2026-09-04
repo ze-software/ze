@@ -51,6 +51,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"bgp-self-nexthop-withheld-frr":         checkSelfNextHopWithheld,
 	"bgp-wellknown-noexport-frr":            checkNoExportBoundary,
 	"bgp-holdtime-deadpeer-frr":             checkHoldtimeDeadPeer,
+	"isis-max-metric-frr":                   checkISISMaxLinkMetric,
 	"isis-p2p-frr":                          checkISISDynamicHostname,
 	"isis-purge-reorig-frr":                 checkISISOwnLSPPurge,
 	"no-family-peer-eor-frr":                checkNoFamilyEndOfRIB,

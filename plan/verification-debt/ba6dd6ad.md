@@ -59,3 +59,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | ba6dd6ad | spec: close spec-command-help-and-description | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | ba6dd6ad | docs(config): a plain leaf is a string at both ends of the delivery | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | ba6dd6ad | docs(config): a plain leaf is a string at both ends of the delivery | discovery-index freshness | the only PACKAGE-MAP row that moved is another session's; this commit adds and removes no package | open |
+| 2026-09-04 | ba6dd6ad | test(isis): the RFC 5305 max link metric proven against FRR | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | ba6dd6ad | test(isis): the RFC 5305 max link metric proven against FRR | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | ba6dd6ad | test(isis): the RFC 5305 max link metric proven against FRR | discovery-index freshness | the only PACKAGE-MAP row that moved is another session's; this commit adds and removes no package | open |
