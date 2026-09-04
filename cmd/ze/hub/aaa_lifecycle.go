@@ -560,22 +560,23 @@ type liveAAABundleAuthorizer struct{}
 func (liveAAABundleAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	bundle := aaaBundle.Load()
 	if bundle == nil {
-		// An AAA chain the daemon could not BUILD falls back to the local RBAC
-		// policy, which is the documented behavior (owner ruling, 2026-09-04).
+		// FAIL CLOSED. No accepted AAA bundle means no policy was ever
+		// installed, so nothing here can say what this operator may run
+		// (owner ruling, 2026-09-04: "we should fail close - no user no
+		// login").
 		//
-		// This branch used to deny outright, and the denial defeated the
-		// failover it sat beside: ssh hands a local account a session, the
-		// login resolves its profiles, and then every command is refused. The
-		// operator reached a shell that could not edit the config that broke
-		// the chain. It reached further than that, because the same dispatch
-		// path carries a plugin's own `request shutdown`.
+		// A fallback to the local policy was tried and reverted the same day.
+		// It made a box that declares no system.authorization profile allow
+		// EVERY command while its chain was broken, because falling back to a
+		// policy means falling back to what it says and an absent one says
+		// allow. A daemon that cannot build the chain its config describes
+		// must not be the daemon that authorizes most freely.
 		//
-		// The policy consulted here is the accepted local one, which follows
-		// the running config. Where the operator declared no
-		// system.authorization profile it allows, exactly as an installed
-		// bundle with no authorizer does, so this branch widens nothing a
-		// built chain would have narrowed.
-		return liveLocalAuthorizer{}.Authorize(username, remoteAddr, command, isReadOnly)
+		// AUTHENTICATION still fails over: ssh starts and the local accounts
+		// answer (infra_setup.go). The two halves answer differently on
+		// purpose. A login costs nothing and is how the operator sees the
+		// failure; a command under no policy is the thing being refused.
+		return false
 	}
 	if bundle.Authorizer == nil {
 		// No local RBAC configured (no system.authorization profiles).
@@ -592,11 +593,10 @@ func (liveAAABundleAuthorizer) AuthorizeCommandArgs(
 ) bool {
 	bundle := aaaBundle.Load()
 	if bundle == nil {
-		// The same fallback as Authorize, and for the same reason. The two
-		// methods MUST answer alike: a caller that reached one and was refused
-		// by the other would see a command allowed by name and denied by its
-		// arguments, with no policy behind either answer.
-		return liveLocalAuthorizer{}.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
+		// Fail closed, as Authorize does. The two methods MUST answer alike: a
+		// caller refused by one and allowed by the other would see a command
+		// permitted by name and denied by its arguments.
+		return false
 	}
 	if bundle.Authorizer == nil {
 		return true
@@ -659,11 +659,10 @@ func (a liveAAABundleProfileAuthorizer) AuthorizeCommandArgs(
 ) bool {
 	bundle := aaaBundle.Load()
 	if bundle == nil {
-		// The same fallback as Authorize, and for the same reason. The two
-		// methods MUST answer alike: a caller that reached one and was refused
-		// by the other would see a command allowed by name and denied by its
-		// arguments, with no policy behind either answer.
-		return liveLocalAuthorizer{}.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
+		// Fail closed, as Authorize does. The two methods MUST answer alike: a
+		// caller refused by one and allowed by the other would see a command
+		// permitted by name and denied by its arguments.
+		return false
 	}
 	if bundle.Authorizer == nil {
 		return true

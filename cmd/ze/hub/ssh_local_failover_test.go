@@ -186,36 +186,45 @@ func TestInfraSetupStartsSSHWhenTheBundleIsNil(t *testing.T) {
 	assert.True(t, built, "ssh must be built with no AAA bundle: it is how the operator repairs the config")
 }
 
-// TestAuthorizationFallsBackToTheLocalPolicy is the authorization half of the
-// ruling, and the half a login test cannot reach. Both methods of the live
-// authorizer answer from the accepted local policy while the bundle slot is
-// empty, so an operator who failed over can act, and a policy that refuses
-// still refuses.
+// TestAuthorizationFailsClosedWhileTheBundleIsAbsent is the authorization half,
+// and it answers the opposite way to the authentication half above.
 //
-// PREVENTS: a shell that can run nothing, on the box whose config must be
-// edited to repair the chain. It also covers a plugin's `request shutdown`,
-// which travels the same dispatch path.
-func TestAuthorizationFallsBackToTheLocalPolicy(t *testing.T) {
+// Owner ruling, 2026-09-04: "we should fail close - no user no login". A
+// fallback to the local RBAC policy was tried and reverted the same day,
+// because a box that declares no system.authorization profile would then allow
+// EVERY command while its chain was broken: falling back to a policy means
+// falling back to what it says, and an absent one says allow.
+//
+// So the failover is asymmetric on purpose. ssh starts and a local account logs
+// in, which is how the operator sees the failure. That session runs nothing.
+//
+// PREVENTS: a daemon that cannot build the chain its config describes becoming
+// the daemon that authorizes most freely.
+func TestAuthorizationFailsClosedWhileTheBundleIsAbsent(t *testing.T) {
 	resetAAABundleForTest(t)
 
+	// A local policy that ALLOWS. Even so, no bundle means no answer: this is
+	// what tells fail-closed from a fallback that happened to refuse.
 	policy := authz.NewStore()
 	policy.AddProfile(authz.Profile{
 		Name: "operator",
 		Run:  authz.Section{Default: authz.Allow},
-		Edit: authz.Section{Default: authz.Deny},
+		Edit: authz.Section{Default: authz.Allow},
 	})
 	policy.AssignProfiles("opsadmin", []string{"operator"})
 	publishAcceptedLocalIdentity(&acceptedLocalIdentityState{authorizer: policy})
 
 	authorizer := liveAAABundleAuthorizer{}
-	require.Nil(t, aaaBundle.Load(), "the slot must be empty for the fallback to be under test")
+	require.Nil(t, aaaBundle.Load(), "the slot must be empty for the guard to be under test")
 
+	assert.False(t, authorizer.Authorize("opsadmin", "", "show bgp", true),
+		"the local policy allows this command, and a nil bundle must still refuse it")
+	assert.False(t, authorizer.AuthorizeCommandArgs("opsadmin", "", "show bgp", nil, "", true),
+		"both methods must answer alike")
+
+	// An installed bundle restores the policy's own answer, so the guard is
+	// about the missing chain and not about this operator.
+	swapAAABundle(&aaa.Bundle{Authorizer: liveLocalAuthorizer{}}, nil)
 	assert.True(t, authorizer.Authorize("opsadmin", "", "show bgp", true),
-		"the local policy allows an operational command, so the fallback must allow it")
-	assert.False(t, authorizer.Authorize("opsadmin", "", "set bgp router-id", false),
-		"the local policy refuses an edit, and the fallback must refuse it too")
-	assert.True(t, authorizer.AuthorizeCommandArgs("opsadmin", "", "show bgp", nil, "", true),
-		"both methods must answer alike, or a command is allowed by name and denied by its arguments")
-	assert.False(t, authorizer.Authorize("stranger", "", "show bgp", true),
-		"a user the local policy does not name gains nothing from the fallback")
+		"with a bundle installed the local policy decides again")
 }

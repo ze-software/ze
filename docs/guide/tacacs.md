@@ -71,16 +71,16 @@ differ.
 | The same, after a boot whose build already failed | Nothing. The rebuild is skipped while the bundle is nil, so a corrected config needs a restart |
 | Boot | The failure is logged, the bundle is left nil, and startup continues |
 
-**Login and authorization both fail over**, on every surface: the local accounts
-answer the login and the accepted local RBAC policy answers the command.
+**Login fails over. Authorization fails closed.**
 
 | Surface | What a nil bundle does |
 |---------|------------------------|
-| ssh | starts, and the local accounts and local policy answer |
+| ssh | starts, and the local accounts answer the login |
 | web | the same |
+| every command | REFUSED, because no policy is installed to consult |
 
-A box declaring no `system authorization` profile allows every command while the
-chain is down. That is the no-RBAC mode it runs in usually.
+You log in, see the failure, and repair the box from the console. No local user
+means no login either.
 
 That is the documented behavior rather than an accident. A login is what makes
 the repair possible. A daemon that took ssh away would leave the operator with a

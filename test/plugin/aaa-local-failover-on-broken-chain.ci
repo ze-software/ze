@@ -13,13 +13,17 @@
 # secret and forbids a client to set TAC_PLUS_UNENCRYPTED_FLAG, so
 # tacacsBackend.Build refuses the server and the whole bundle build fails.
 #
-# VALIDATES: with the AAA chain unbuilt, ssh starts, a LOCAL account logs in,
-#            and the accepted local RBAC policy authorizes its command.
-# PREVENTS: a mistyped AAA block locking the operator out of a running daemon.
-#           Both halves are needed and each failed on its own: without the ssh
-#           fix the fixture cannot connect, because there is no listener; without
-#           the authorization fallback it connects and every command is refused,
-#           which is a shell that cannot edit the config that caused it.
+# VALIDATES: with the AAA chain unbuilt, ssh starts and a LOCAL account logs in,
+#            and authorization then REFUSES its command.
+# PREVENTS: two failures at once, which is why both are asserted here. Without
+#           the ssh fix the fixture cannot connect at all, because there is no
+#           listener. Without the fail-closed authorizer the command would run,
+#           and a box declaring no authorization profile would be ungoverned for
+#           as long as its chain stayed broken.
+#
+# The two halves answer differently on purpose (owner ruling, 2026-09-04). A
+# login costs nothing and is how the operator sees the failure. A command under
+# no policy is the thing being refused, so repair goes through the console.
 
 stdin=ze-conf:terminator=EOF_CONF
 bgp {
@@ -59,6 +63,6 @@ expect=stderr:pattern=no shared secret configured for this TACACS\+ server
 expect=stderr:contains=AAA backend build failed
 # And the operator still got in, on a local account.
 expect=stderr:pattern=auth success.*source=local
-expect=stderr:pattern=OK: local login and local RBAC both answered
+expect=stderr:pattern=OK: local login succeeded with the AAA chain unbuilt
 reject=stderr:pattern=source=tacacs
 reject=stderr:pattern=ZE-OBSERVER-FAIL

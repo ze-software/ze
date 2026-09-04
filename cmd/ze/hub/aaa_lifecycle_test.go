@@ -157,22 +157,20 @@ func (a *bundleAccountantProbe) CommandStop(taskID, _, _, command string) {
 	a.stops = append(a.stops, command)
 }
 
-// TestLiveAAABundleAuthorizerFallsBackToLocalRBAC pins the authorization half of
-// the failover the owner ruled on 2026-09-04.
+// TestLiveAAABundleAuthorizerFailsClosedBeforeBundleInstall pins the
+// authorization half of the failover, which FAILS CLOSED (owner ruling,
+// 2026-09-04: "we should fail close - no user no login").
 //
-// REVERSED from an earlier contract, which required a nil bundle to deny every
-// command. That denial defeated the failover beside it: ssh hands a local
-// account a session and then refuses every command, so the operator could not
-// edit the config that broke the chain.
-//
-// With no bundle the answer now comes from the accepted LOCAL policy. This test
-// declares none, so it is the daemon's no-RBAC allow mode, which is the same
-// answer an installed bundle with no authorizer gives. The fallback therefore
-// grants nothing a working chain would have refused.
-func TestLiveAAABundleAuthorizerFallsBackToLocalRBAC(t *testing.T) {
+// A fallback to the local policy was tried and reverted the same day: it made a
+// box with no system.authorization profile allow every command while its chain
+// was broken. Authentication still fails over, so ssh starts and a local
+// account logs in; authorization does not, so that session runs nothing.
+func TestLiveAAABundleAuthorizerFailsClosedBeforeBundleInstall(t *testing.T) {
 	resetAAABundleForTest(t)
-	assert.True(t, (liveAAABundleAuthorizer{}).Authorize("alice", "", "show version", true),
-		"with no bundle the accepted local policy answers, and no policy is the no-RBAC allow mode")
+	assert.False(t, (liveAAABundleAuthorizer{}).Authorize("alice", "", "show version", true),
+		"no bundle means no policy was installed, so nothing may be authorized")
+	assert.False(t, (liveAAABundleAuthorizer{}).AuthorizeCommandArgs("alice", "", "show version", nil, "", true),
+		"both methods must answer alike, or a command is allowed by name and denied by its arguments")
 
 	swapAAABundle(&aaa.Bundle{}, nil)
 	assert.True(t, (liveAAABundleAuthorizer{}).Authorize("alice", "", "show version", true),

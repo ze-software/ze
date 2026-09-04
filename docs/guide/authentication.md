@@ -46,14 +46,17 @@ is the documented behavior on every management surface, ssh and web alike. It is
 deliberate. A login is how you reach the box to repair the config. A daemon that
 took ssh away would leave you with a running forwarding plane and no way in.
 
-Authorization falls over too, to the accepted local RBAC policy. Both halves
-must, because a login that can run no command cannot repair the config that
-broke the chain.
+**Authorization does NOT fall over. It fails closed.** With no chain installed
+there is no policy to consult, so every command is refused. You log in, you see
+the failure, and you repair the box from the console.
 
-**A box that declares no `system authorization` profile therefore allows every
-command while its AAA chain is broken.** That is the same no-RBAC mode it runs
-in usually, so nothing a working chain refused becomes permitted. Declare a
-local profile if you want that box governed while its chain is down.
+That asymmetry is deliberate. A login costs nothing and is how you learn the
+chain is broken. A command under no policy is the thing being refused. A
+daemon that cannot build the chain its config describes must not become the
+daemon that authorizes most freely.
+
+**No local user means no login at all.** ssh rejects every attempt when the
+config declares no user, and never falls back to an open session.
 
 | When | What happens |
 |------|--------------|

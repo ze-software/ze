@@ -375,35 +375,37 @@ func pluginShellExtra4TacacsFallback(ctx context.Context, args []string) error {
 	})
 }
 
-// pluginShellExtra4AAALocalFailover proves the failover the owner ruled on
-// 2026-09-04, both halves: with the AAA chain unbuilt, a local account logs in
-// over ssh AND runs a command, so the operator can repair the config that broke
-// the chain.
+// pluginShellExtra4AAALocalFailover proves both halves of the failover the
+// owner ruled on 2026-09-04, and they answer differently on purpose.
 //
-// Authentication answers from the local accounts and authorization from the
-// accepted local RBAC policy. The scenario declares a profile that allows, so
-// `show bgp` must SUCCEED. An earlier shape of this fixture required the
-// opposite, because the nil-bundle authorizer denied everything and the login
-// bought nothing.
+// AUTHENTICATION fails over: with the AAA chain unbuilt, ssh starts and a local
+// account logs in, which is how the operator sees the failure at all.
+//
+// AUTHORIZATION FAILS CLOSED: "we should fail close - no user no login". A
+// fallback to the local RBAC policy was tried and reverted the same day,
+// because a box declaring no system.authorization profile would then allow
+// every command while its chain was broken. So the session opens and runs
+// nothing, and repair goes through the console.
+//
+// Reading the refusal TEXT is what separates the two halves. A login that
+// failed and a command that was refused look the same from a bare exec error,
+// and only one of them is the contract.
 //
 // Not an in-config observer: the daemon is driven from OUTSIDE, because a
 // plugin's own `request shutdown` travels the same dispatch path and an
-// observer could not end the run while that path was denied.
+// observer could not end the run while that path is denied.
 func pluginShellExtra4AAALocalFailover(_ context.Context, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("aaa-local-failover: got %d arguments, want 1", len(args))
 	}
-	output, err := pluginShellExtra4Command("127.0.0.1", args[0], "admin", "testpass", "show bgp")
-	if err != nil {
-		if strings.Contains(err.Error(), "command restricted by access control") {
-			return fmt.Errorf("the local login succeeded and the command was REFUSED, so authorization did not fall back to the local policy: %w", err)
-		}
-		return fmt.Errorf("the local account could not run a command with the AAA chain unbuilt: %w", err)
+	_, err := pluginShellExtra4Command("127.0.0.1", args[0], "admin", "testpass", "show bgp")
+	if err == nil {
+		return errors.New("the command was ALLOWED: a nil AAA bundle installs no policy, so authorization must refuse")
 	}
-	if strings.TrimSpace(output) == "" {
-		return errors.New("show bgp answered nothing, so the command did not actually run")
+	if !strings.Contains(err.Error(), "command restricted by access control") {
+		return fmt.Errorf("the local account could not log in, so authentication did not fail over: %w", err)
 	}
-	fmt.Fprintln(os.Stderr, "OK: local login and local RBAC both answered with the AAA chain unbuilt")
+	fmt.Fprintln(os.Stderr, "OK: local login succeeded with the AAA chain unbuilt, and authorization refused the command")
 	return nil
 }
 

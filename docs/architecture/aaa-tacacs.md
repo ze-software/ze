@@ -44,18 +44,26 @@ accounts until the config is repaired.
 |---------|------------------------|
 | ssh | starts, and its authenticator answers from the local accounts |
 | web | the same, through the fallback its live authenticator carries |
-| authorization, every surface | answers from the accepted LOCAL RBAC policy |
+| authorization, every surface | REFUSES every command |
 
-Both halves fall back, and they must. Authentication alone hands the operator a
-session that can run nothing, and the config they have to edit is the one that
-broke the chain. The same dispatch path carries a plugin's own `request
-shutdown`, so a denial there reaches further than the operator.
+The two halves answer differently, and the asymmetry is the design.
 
-**A daemon with no local `system authorization` profile therefore ALLOWS every
-command after a failed build.** That is the daemon's no-RBAC mode. An installed
-bundle with no authorizer already gives the same answer, so the fallback grants
-nothing a working chain would have refused. It does mean a box that declares no
-RBAC has none while its AAA chain is broken.
+**Authentication falls over so the operator can SEE the failure.** A daemon that
+took ssh away would leave a running forwarding plane and no way to look at it.
+No local account means no login: ssh rejects every attempt when the config
+declares no user, and never falls back to an open session.
+
+**Authorization fails closed because there is no policy to consult.** A fallback
+to the local RBAC policy was tried on 2026-09-04 and reverted the same day. It
+made a box that declares no `system authorization` profile allow EVERY command
+while its chain was broken. Falling back to a policy means falling back to what
+it says, and an absent one says allow. A daemon that cannot build the
+chain its config describes must not be the daemon that authorizes most freely.
+
+So a failed build leaves a session that opens and runs nothing, and repair goes
+through the console. That cost is deliberate. It is paid once, by an operator
+who mistyped an AAA block, rather than continuously by every box that runs
+without local profiles.
 
 The failover is not a second chain. The live indirection reads the bundle slot
 on every request. A reload that repairs the config installs a bundle, and the

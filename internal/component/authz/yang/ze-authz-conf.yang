@@ -78,8 +78,8 @@ module ze-authz-conf {
                      user runs every command. The first profile therefore changes the answer for every user, and a
                      user with no profile assigned is denied from that point.
 
-                     A daemon whose AAA chain FAILS TO BUILD falls back to these profiles. A box that writes
-                     none is then UNGOVERNED until repair, which docs/guide/authorization.md explains.";
+                     A daemon whose AAA chain FAILS TO BUILD reaches none of this and refuses every command.
+                     Login still answers from the local accounts, so repair goes through the console.";
 
             list profile {
                 key "name";

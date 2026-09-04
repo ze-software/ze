@@ -150,10 +150,12 @@ Once you define any `system.authorization` profile, authorization is in use and 
 
 There is a third state, and it is the one to plan for.
 
-- When the daemon cannot BUILD the AAA chain the config describes, authentication and authorization both fall back to the local accounts and the local profiles. A TACACS+ server declared with no shared secret does this, and so does any other error while the chain is built. The failover exists so you can log in and repair the config. A login that runs no command does not let you.
-- **On a box with no `system.authorization` profile, that fallback is fully permissive.** Falling back to the local policy means falling back to whatever it says, and a box with no profile says allow. This is the same state such a box runs in every day, so nothing a working chain refused becomes permitted. It does mean a central-auth box whose chain breaks is ungoverned until you fix it.
+- When the daemon cannot BUILD the AAA chain the config describes, **authorization refuses every command**. A TACACS+ server declared with no shared secret does this, and so does any other error while the chain is built. With no chain installed there is no policy to consult, so nothing is authorized.
+- **Authentication still falls back to the local accounts**, so you can log in and SEE the failure. No local user means no login: ssh rejects every attempt when the config declares no user.
 
-This is the reason this guide has you define profiles at all. **A box that relies on TACACS+ or RADIUS for authorization, and declares no local profile, has no authorization the moment its chain fails to build.** Define local profiles even where a central server decides day to day. `docs/architecture/aaa-tacacs.md` carries the mechanism.
+The two halves answer differently on purpose. A daemon that cannot build the chain its config describes must not become the daemon that authorizes most freely. A session opens, runs nothing, and repair goes through the console.
+
+`docs/architecture/aaa-tacacs.md` carries the mechanism.
 
 The daemon log states which rule decided, so you can tell "denied by profile" from "denied because no profile applied":
 

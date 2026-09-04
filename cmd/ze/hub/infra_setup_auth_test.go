@@ -616,13 +616,14 @@ func TestPostStartDispatcherAccountsToTheInstalledBundle(t *testing.T) {
 // authorizer at all is silently allow-all. That is what this pins: an
 // authorizer IS installed and IS consulted.
 //
-// REVISED on 2026-09-04 by owner ruling: a failed AAA build falls back to the
-// local RBAC policy. This test used to declare no policy and require a denial,
-// which is no longer the contract -- with no policy the fallback is the
-// daemon's no-RBAC allow mode, the same answer an installed bundle with no
-// authorizer gives. So the test now declares a policy that DENIES, which proves
-// more than the old shape did: the authorizer is present, it is reached, and
-// the operator's own rules decide.
+// The contract is FAIL CLOSED (owner ruling, 2026-09-04: "we should fail close
+// - no user no login"). A fallback to the local policy was tried and reverted
+// the same day, because it made a box with no profile allow every command while
+// its chain was broken.
+//
+// The local policy this scenario declares DENIES, which is stricter than the
+// no-policy case the test carried before and proves more: the authorizer is
+// installed, it is reached, and the refusal is not the dispatcher defaulting.
 func TestPostStartDispatcherDeniesWhenTheAAABootBuildFailed(t *testing.T) {
 	resetAAABundleForTest(t)
 
@@ -669,7 +670,7 @@ func TestPostStartDispatcherDeniesWhenTheAAABootBuildFailed(t *testing.T) {
 		RemoteAddr: "198.51.100.8:2200",
 	}, command)
 	require.ErrorIs(t, err, pluginserver.ErrUnauthorized,
-		"the local policy denies alice, and a nil AAA bundle must consult it rather than allow by default")
+		"a nil AAA bundle authorizes nothing, and the dispatcher must not allow by default either")
 	require.NotNil(t, refused)
 	assert.Equal(t, plugin.StatusError, refused.Status)
 }
