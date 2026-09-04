@@ -4,6 +4,68 @@ Written 2026-09-04 by the session that incurred it. Read this before you start;
 it names what the debt is, what it is NOT, and the one decision that has to be
 made before any of it can be cleared.
 
+## What the verification proved (2026-09-04, session 2d2bc99a)
+
+The gate has now run. `./le commit debt-clear` verified `36e9a2f31be7` in a
+detached worktree, the full 48-stage population: **22 stages red, 0 rows
+cleared, 2459 still open.** Read the section below with that in front of it.
+
+**The claim under this heading is false.** "No row means a test failed" was
+written before anything ran. Two of this session's own commits are red at HEAD:
+
+- **`557f401028` broke the tracked build.** It committed a consumer,
+  `internal/component/plugin/process/process.go:656`, that calls
+  `p.acceptor.RootPEM()`, while the file DEFINING that method,
+  `internal/component/plugin/ipc/tls.go`, stays uncommitted in this shared
+  checkout. HEAD's copy of that file does not contain `RootPEM` at all. This is
+  the exact thing `ai/rules/precommit-verify.md` forbids, and it is what a full
+  native verification exists to catch. About twelve of the 22 reds are this one
+  break: lint in every flavor, all six staticcheck parts, tracked-build,
+  platform-vet, unit-cached, alloc, and the .ci cache warm.
+- **`297b790446` changed byte-pinned bytes and left the pin.** The committed
+  `test/interop-l2tp/scenarios/04-radius-acct-attrs/ze.conf` hashes to
+  `2635d839...`; `test/interop-l2tp/parity_test.go:70` still pins `5773b223...`,
+  last touched by `eae2825926`. `TestNativeConfigBytesArePinned` is red. The
+  section below calls that scenario "corrected and UNVERIFIED". It is verified
+  now.
+
+**Do not try to clear the first one by committing the producer.** `tls.go` is
+the middle of a live refactor that replaces fingerprint pinning with a CA root
+trust model: it deletes `CertFingerprint`, `TLSConfigWithFingerprint` and
+`GenerateSelfSignedCert` and changes `NewPluginAcceptor` and `StartListeners`,
+and it moves with `tls_test.go`, `acceptor.go`, the untracked `leaf.go` and
+`server/managed_serve.go`. Landing any subset makes HEAD worse. It belongs to
+whoever owns the pki work.
+
+**`./le commit debt-clear` exits 0 on a red run.** `clearDebt`
+(`internal/le/commit/actions.go:311`) returns 1 only when `report.Verify` is
+nil, so a red population that produced a report still exits 0. The verdict is
+the `verify-worktree: full exit=` line, never the status.
+
+**The decision below is settled by the tooling, not by you.** `debt-clear` calls
+`verify.Run(..., Options{Commit: "HEAD"})` itself, which IS the detached-worktree
+run. There is no in-place option to refuse, and `./le verify worktree` first
+only buys the same verdict for a second full population.
+
+**`debt-clear` is repo-wide.** It collects gate names from every shard and, on a
+green, clears every open row carrying one. That is all 2459 rows across 111
+shards, not this session's 47.
+
+**The discovery-index rows are cleared of their blocker.** HEAD's
+`ai/PACKAGE-MAP.md` was stale against HEAD's own tree, not against uncommitted
+work: `c54d97dcdb` moved the EAP peer to `internal/core/eap` and the map kept the
+`internal/component/ike/eap` row, so `discovery-index/check` was a guaranteed red
+for every commit made since. `f2917cde4` carries that one row and stage 37 now
+reports "checked 753 packages, ai/PACKAGE-MAP.md up to date". The full
+regeneration this file asks for below is still owed, once
+`internal/le/interoplab/radius` and `internal/component/lg/register.go` land.
+
+**Disk.** The sweep reclaimed one abandoned verify worktree and spared
+`20260903T071206...-150bac9b3c75`: 23h43m old, at least 7.4G, 264 deleted files,
+owner pid 74412 dead. It was spared for holding uncommitted changes, but those
+are deletions from an interrupted run. On a 22G disk it is the cheapest space
+available.
+
 ## What you are taking on
 
 `plan/verification-debt/4526b941.md` holds 47 open rows across the commits one
