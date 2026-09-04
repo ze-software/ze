@@ -2,6 +2,28 @@
   "rfc": "rfc7296",
   "records": [
     {
+      "rid": "RFC7296-1.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/child_rekey_pfs_test.go::TestChildRekeyProposesDiffieHellmanWhenPFSIsEnabled",
+      "unit-sha": "eb28a085c46bb465",
+      "claim-sha": "ab115b84b39ec878",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/rekey.go::childRekeyDHGroup",
+      "producer-sha": "c04d80f6721f13fb",
+      "break": "body of childRekeyDHGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-1.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/child_rekey_pfs_test.go::TestChildRekeyProposesNoDiffieHellmanWhenPFSIsDisabled",
+      "unit-sha": "6206b60fc76cbc07",
+      "claim-sha": "7f1b9a8fc7c4d301",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/rekey.go::childRekeyDHGroup",
+      "producer-sha": "c04d80f6721f13fb",
+      "break": "body of childRekeyDHGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-2.16-5",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go::TestEAPAuthOfKeyDerivingMethodStillUsesTheMSK",
