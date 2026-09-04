@@ -44,3 +44,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | 5db0ba0d | test(bmp): prove Loc-RIB against two receivers ze did not write | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | test(bmp): prove Loc-RIB against two receivers ze did not write | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-04 | 5db0ba0d | test(bmp): prove Loc-RIB against two receivers ze did not write | discovery-index freshness | ai/PACKAGE-MAP.md holds several other sessions' regenerated rows; this commit adds no package | open |
+| 2026-09-04 | 5db0ba0d | plan: the FreeRADIUS suite's own tests do not pass yet | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | plan: the FreeRADIUS suite's own tests do not pass yet | discovery-index freshness | ai/PACKAGE-MAP.md holds several other sessions' regenerated rows; this commit adds no package | open |

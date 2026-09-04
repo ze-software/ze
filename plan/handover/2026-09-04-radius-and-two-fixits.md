@@ -139,3 +139,41 @@ Judge your own change by its own evidence (`ai/rules/principles.md`).
 `spec-fixit-tunnel-traffic-proof-is-one-directional` are both in progress and
 both approved by Thomas on 2026-09-03. `spec-fixit-dns-rfc1035-conformance` stays
 blocked: he said no DNS work.
+
+## Addendum, later on 2026-09-04: the FreeRADIUS suite is further from done than its last line suggested
+
+Its agent's final message was "Now wiring the suite into `./le integration`",
+which reads as one step from runnable. It is not. **Its own unit tests do not
+pass**, and they are the polarity harness that proves each checker fails for the
+right reason, so the suite proves nothing until they do.
+
+Every subtest of `TestPAPCheckerPolarities`, `TestCHAPCheckerPolarities` and
+`TestCHAPHashedCheckerPolarities` fails identically at the FIRST assertion:
+
+```
+assertion 1: local control login as localop failed (exit 1):
+error: cannot connect to daemon: ssh: handshake failed
+```
+
+That string is the stub's own refusal (`runLogin`, `radius_test.go`), not a real
+SSH attempt, so the stub IS reached and it is declining to authenticate the local
+control user. `conformingPAP` grants that user in both `silentUsers` and
+`localPasswords`, and the field extraction is correct: I reproduced
+`parseStubLogin` against the exact script `loginScript` builds and it recovers
+`localop` and `testpass`. So the cause is NOT the policy fixture and NOT the
+parsing, which is where the obvious suspicion falls. Whoever resumes should start
+by instrumenting `runLogin`'s branch selection rather than re-reading the policy.
+
+**One real defect was found and fixed on the way, and it is left UNCOMMITTED in
+the working tree** (`internal/le/interoplab/radius/radius_test.go`).
+`parseStubLogin` read the command with `stubField(script, " -c ")` over the
+joined argv, and the checker hands `Exec` an argv of `{"sh", "-c", script}`, so
+the first `" -c "` is the SHELL's own and the field after it is the script rather
+than the command. The command therefore came back empty on every call, which made
+`runLogin`'s denied-command branch unreachable and its polarity untestable. The
+fix searches from the `ze cli` invocation onward. It is correct on its own merits
+and it is NOT the cause of the failures above; keep it when you resume.
+
+Stopped here under `ai/rules/pre-release.md`: two repairs to test scaffolding in
+one stretch is the limit before it becomes the session, and the product work this
+suite exists to prove is already committed.
