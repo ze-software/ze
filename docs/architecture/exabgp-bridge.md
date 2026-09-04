@@ -34,24 +34,28 @@ translated forms.
 expression. A line that does not match is returned unchanged, so it reaches
 ze's CLI verbatim.
 
-This makes ze's CLI a second external contract, for the ExaBGP forms that carry
-no `neighbor` prefix. Those forms are ExaBGP commands and ze commands with one
-spelling. `bridgeSurface` records the nine wire methods that are exempt from the
-verb-first grammar. They do not all reach an operator the same way, and the
-difference decides what a rename costs.
+Passthrough is what makes ze's CLI reachable from a script. It does not make
+the two command sets agree, and they do not agree.
+
+ze declares a bare form for each `announce` and `withdraw` command, and the
+bare form reaches every peer. The spellings are ze's own. ExaBGP writes
+`announce route <prefix>` and `withdraw route <prefix>`, where ze declares
+`announce unicast`, `announce blackhole`, `announce flowspec`, `withdraw tag`,
+`withdraw id` and `withdraw all`.
+
+So a bare ExaBGP line reaches ze's dispatcher and matches no command. `help`
+is the only one of the nine exempt wire methods an ExaBGP script can reach
+through passthrough. It is the only one spelled the same on both sides.
 
 | Wire method | How a script reaches it | What a rename costs |
 |---|---|---|
-| `announce-unicast`, `announce-blackhole`, `announce-flowspec`, `withdraw-tag`, `withdraw-id`, `withdraw-all`, `help` | passthrough, as the bare ExaBGP form | a break for every script that writes the bare form |
+| `announce-unicast`, `announce-blackhole`, `announce-flowspec`, `withdraw-tag`, `withdraw-id`, `withdraw-all` | no ExaBGP script reaches these, because ExaBGP spells them `route` | nothing for a script, and an operator types them at ze's own CLI |
+| `help` | passthrough, with one spelling on both sides | a break for a script that asks for help |
 | `peer-update` | translator output, from `neighbor <address> announce` | one edit in the translator |
 | `peer-raw` | neither, because the translator never writes it | one edit, and no script is affected |
 
-`peer raw` is exempt because it starts with a noun, not because the line
-protocol names it.
-
-A change to one of those nine spellings is a compatibility break for an ExaBGP
-script. A change to a command the translator builds is not. The two sets are
-different, and the exemption list is what tells them apart.
+Each is exempt from the verb-first grammar for one of two reasons. It starts
+with a noun, or it is a line-protocol verb ze does not list as one of its own.
 
 <!-- source: internal/component/command/grammar/checker.go -- bridgeSurface, ExemptCategory -->
 

@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Scope | cli |
+| Scope | cli -- the DISPLAY half only. The action move (AC-5, Phase 5, and the rows moving `raw`, `update`, `announce` and `withdraw` to `request peer`) is superseded by `plan/spec-fixit-send-names-its-destination.md`, which respells them `request send bgp <selector> <form>` |
 | Depends | - |
 | Phase | - |
 | Deferral shard | - |
