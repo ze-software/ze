@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/events"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
@@ -95,6 +96,15 @@ type linkEventQueue struct {
 
 	stopOnce sync.Once
 	log      *slog.Logger
+
+	// workerBlocked is true while the worker is waiting for the lock a config
+	// commit holds. It exists so a push can say whether it arrived DURING that
+	// wait, which is the one fact the block counter cannot report: the worker
+	// takes the lock once per drained entry, so at most one block is countable
+	// per contiguous hold, and the periodic resync usually takes it. An event
+	// queued while this is set met a held lock by definition, however many
+	// other events did.
+	workerBlocked atomic.Bool
 }
 
 // newLinkEventQueue returns a queue with no worker behind it. The caller MUST
@@ -131,7 +141,19 @@ func (q *linkEventQueue) push(key linkEventKey, value linkEventValue) {
 		q.log.Debug("interface: link event superseded before the worker took it",
 			"iface", key.ifaceName, "router", key.routerIP)
 	}
+	// Counted whether or not it coalesced, and for a resync too: the question
+	// is what ARRIVED during the hold, not what survived it.
+	if q.workerBlocked.Load() {
+		countLinkEventQueuedWhileBlocked(blockedLabel(key))
+	}
 	nonBlockingNotify(q.wake)
+}
+
+// setWorkerBlocked records whether the worker is waiting for the config-commit
+// lock. The worker MUST clear it once it holds the lock, so the window this
+// reports is the wait and not the work.
+func (q *linkEventQueue) setWorkerBlocked(blocked bool) {
+	q.workerBlocked.Store(blocked)
 }
 
 // pushCarrier queues the carrier state ifaceName ended in.

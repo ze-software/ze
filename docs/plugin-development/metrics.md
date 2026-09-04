@@ -112,6 +112,12 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_attr_pool_dedup_hits_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_slots_used` | GaugeVec | pool | bgp-rib |
 | `ze_bgp_attr_mod_remove_buffer_refused_total` | CounterVec | attribute | bgp reactor (filterapi) |
+| `ze_bgp_redistribute_events_received` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_announcements` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_withdrawals` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_filtered_protocol_total` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_filtered_rule_total` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_replay_total` | CounterVec | source | redistribute-orchestrator |
 | `ze_gr_active_peers` | Gauge | | bgp-gr |
 | `ze_gr_stale_routes` | GaugeVec | peer | bgp-gr |
 | `ze_gr_timer_expired_total` | CounterVec | peer | bgp-gr |
@@ -209,6 +215,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_iface_carrier_resyncs_total` | CounterVec | name | iface (carrier resync) |
 | `ze_iface_resolver_events_dropped_total` | CounterVec | name | iface (resolver fan-out) |
 | `ze_iface_link_worker_blocked_total` | CounterVec | name | iface (link event worker) |
+| `ze_iface_link_events_queued_while_blocked_total` | CounterVec | name | iface (link event queue) |
 | `ze_iface_config_apply_started_total` | Counter | | iface (config apply) |
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
@@ -325,6 +332,19 @@ injections whose LSP re-origination failed; and
 `ze_isis_lsp_reoriginations_total{level}` counts the own-LSP re-originations that
 redistribution drove, by level. Exporting IS-IS routes *out* to BGP uses the
 generic `redistribute-orchestrator` counters, not an IS-IS-specific series.
+
+The six `redistribute-orchestrator` series track the generic dispatch every
+protocol shares. `ze_bgp_redistribute_events_received` counts route-change
+batches taken off the bus. `_announcements` and `_withdrawals` count the entries
+dispatched to a consumer. `_filtered_protocol_total` counts batches the loop
+guard skipped, and `_filtered_rule_total` counts entries the evaluator rejected.
+
+`ze_bgp_redistribute_replay_total{source}` counts routes replayed to a party
+that arrived after a producer emitted. That party is either a BGP peer whose
+session just established, or a destination protocol's consumer that just
+registered. One counter serves both, labeled by the producing source rather than
+by which of the two triggered it.
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- setMetricsRegistry -->
 
 The four `isis (spf)` series track the shortest-path computation and its Loc-RIB
 install: `ze_isis_spf_runs_total{level}` counts Dijkstra runs per level,

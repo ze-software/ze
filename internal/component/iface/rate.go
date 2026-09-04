@@ -88,6 +88,21 @@ type ifaceMetrics struct {
 	// Operators want it for the same reason: "did my commit reach interfaces"
 	// is otherwise only answerable from a log.
 	configApplies metrics.Counter
+	// linkEventsQueuedWhileBlocked counts link events that arrived while the
+	// worker was WAITING for the lock a config commit holds. It is the only
+	// counter that answers "did events meet a held lock", and it exists because
+	// linkWorkerBlocked cannot: the worker takes the lock once per drained
+	// entry, so at most one block is countable per contiguous hold, and the
+	// periodic carrier resync usually takes it while a burst of carrier events
+	// coalesces behind it and finds the lock free.
+	//
+	// Reading the block counter for this cost a session a night. A window wide
+	// enough to see the resync's block was true in every round that took the
+	// lock at all, which made the test's own guard unfalsifiable; a window
+	// narrow enough to exclude it read zero through a genuine hold. This
+	// counter has no such window: an event counted here arrived during the
+	// wait, whatever else did.
+	linkEventsQueuedWhileBlocked metrics.CounterVec
 }
 
 var ifaceMetricsPtr atomic.Pointer[ifaceMetrics]
@@ -118,6 +133,8 @@ func bindMetricsRegistry(reg metrics.Registry) {
 			"Link events whose worker waited for the lock a config commit holds", []string{metricLabelName}),
 		resolverEventsDropped: reg.CounterVec("ze_iface_resolver_events_dropped_total",
 			"Oldest resolver link events discarded to make room on a full subscriber channel", []string{metricLabelName}),
+		linkEventsQueuedWhileBlocked: reg.CounterVec("ze_iface_link_events_queued_while_blocked_total",
+			"Link events that arrived while the worker was waiting for the lock a config commit holds", []string{metricLabelName}),
 		configApplies: reg.Counter("ze_iface_config_apply_started_total",
 			"Config applies that STARTED the DHCP and RA reconcile, counted as they take the lock link event handling needs. No completion counter exists, so a wedged reconcile reads the same as a healthy one"),
 	}
@@ -410,6 +427,14 @@ func countLinkEventCoalesced(ifaceName string) {
 func countLinkWorkerBlocked(ifaceName string) {
 	if m := ifaceMetricsPtr.Load(); m != nil {
 		m.linkWorkerBlocked.With(ifaceName).Inc()
+	}
+}
+
+// countLinkEventQueuedWhileBlocked records that an event arrived while the
+// worker was waiting for the config-commit lock.
+func countLinkEventQueuedWhileBlocked(label string) {
+	if m := ifaceMetricsPtr.Load(); m != nil {
+		m.linkEventsQueuedWhileBlocked.With(label).Inc()
 	}
 }
 

@@ -410,7 +410,14 @@ func runEngine(conn net.Conn) int {
 		// at the right instant.
 		if !dhcpMu.TryLock() {
 			countLinkWorkerBlocked(blockedLabel(key))
+			// Open the window an arriving event is counted against, and close
+			// it the moment the lock is ours. What it reports is the WAIT, not
+			// the work: an event queued while this is open met a held lock,
+			// which is the fact the block counter above cannot give, because
+			// only the first entry of a contiguous hold ever blocks.
+			linkQueue.setWorkerBlocked(true)
 			dhcpMu.Lock()
+			linkQueue.setWorkerBlocked(false)
 		}
 		defer dhcpMu.Unlock()
 		applyLinkEvent(key, value, activeDHCP, activeRouters, raRoutePriority, log)
