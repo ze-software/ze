@@ -529,9 +529,9 @@ func TestExpandASPath2to4(t *testing.T) {
 }
 
 func TestCanonicalizeASPath(t *testing.T) {
-	asPath2Byte := []byte{2, 1, 0x00, 0x41}            // AS_SEQUENCE[65] in 2-byte
-	asPath4Byte := []byte{2, 1, 0, 0, 0x00, 0x41}      // AS_SEQUENCE[65] in 4-byte
-	as4Path := []byte{2, 1, 0, 0, 0xFD, 0xE8, 0, 0x01} // AS_SEQUENCE[65000:1] in 4-byte
+	asPath2Byte := []byte{2, 1, 0x00, 0x41}       // AS_SEQUENCE[65] in 2-byte
+	asPath4Byte := []byte{2, 1, 0, 0, 0x00, 0x41} // AS_SEQUENCE[65] in 4-byte
+	as4Path := []byte{2, 1, 0, 0, 0xFD, 0xE8}     // AS_SEQUENCE[65000] in 4-byte
 
 	t.Run("asn4_true_returns_aspath_as_is", func(t *testing.T) {
 		got := canonicalizeASPath(asPath4Byte, nil, true)
@@ -543,8 +543,11 @@ func TestCanonicalizeASPath(t *testing.T) {
 		assert.Equal(t, []byte{2, 1, 0, 0, 0x00, 0x41}, got)
 	})
 
-	t.Run("as4path_preferred_over_aspath", func(t *testing.T) {
-		got := canonicalizeASPath(asPath2Byte, as4Path, true)
+	// RFC 6793 Section 4.2.3: both attributes carry one AS number, so no AS
+	// number is taken from the leading part of the AS_PATH and the AS4_PATH is
+	// the whole of the reconstructed path.
+	t.Run("as4path_replaces_equal_length_aspath", func(t *testing.T) {
+		got := canonicalizeASPath(asPath2Byte, as4Path, false)
 		assert.Equal(t, as4Path, got)
 	})
 

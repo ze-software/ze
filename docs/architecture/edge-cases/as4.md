@@ -81,33 +81,56 @@ AS4_PATH (4-byte):  [65001, 4200000001, 65002]  <- Real values
 
 ## Reconstruction Algorithm
 
-When receiving from a 2-byte peer:
+RFC 6793 Section 4.2.3 states one procedure for a received UPDATE, and its two
+halves are not separable: the AGGREGATOR decides whether the AS4_* attributes
+are read at all, and only then is the AS path constructed.
 
-```python
-def reconstruct_aspath(as_path, as4_path):
-    """Merge AS_PATH and AS4_PATH to get real path.
+### The AGGREGATOR gate
 
-    RFC 6793 Section 4.2.3:
-    1. If AS4_PATH shorter than AS_PATH: prepend AS_PATH entries
-    2. Replace AS_TRANS values with AS4_PATH values
-    """
-    if as4_path is None:
-        return as_path
+The gate applies when BOTH the AGGREGATOR and the AS4_AGGREGATOR are received.
+With only one of them there is nothing to choose between, and the AS4_PATH is
+used.
 
-    # Get lengths
-    as_path_len = sum(len(seg) for seg in as_path)
-    as4_path_len = sum(len(seg) for seg in as4_path)
+| AGGREGATOR AS | Aggregating node | AS path information |
+|---|---|---|
+| not AS_TRANS | the AGGREGATOR | the AS_PATH. The AS4_AGGREGATOR and the AS4_PATH are ignored |
+| AS_TRANS | the AS4_AGGREGATOR. The AGGREGATOR is ignored | constructed, as below |
 
-    if as4_path_len < as_path_len:
-        # Prepend extra entries from AS_PATH
-        diff = as_path_len - as4_path_len
-        # Take first 'diff' ASNs from AS_PATH, then all of AS4_PATH
-        result = as_path[:diff] + as4_path
-    else:
-        result = as4_path
+`selectAggregator` makes that choice on the ingest path, and an ignored AS4_PATH
+reaches `canonicalizeASPath` as an absent one.
+<!-- source: internal/component/bgp/plugins/rib/storage/attrparse.go -- selectAggregator, canonicalizeASPath -->
 
-    return result
-```
+### The AS path construction
+
+The AS number count decides, and it is the RFC 4271 Section 9.1.2.2 count: an
+AS_SET counts as one whatever it holds, and RFC 5065 counts nothing for an
+AS_CONFED_SEQUENCE or an AS_CONFED_SET.
+
+| Count comparison | Result |
+|---|---|
+| AS_PATH count < AS4_PATH count | the AS4_PATH is ignored, and the AS_PATH is the AS path information |
+| AS_PATH count >= AS4_PATH count | as many AS numbers and path segments as necessary are taken from the leading part of the AS_PATH and prepended to the AS4_PATH, so the result has the AS_PATH's own AS number count |
+
+The AS4_PATH is peer-supplied and nothing verifies it, so the first row is what
+stops a peer lengthening a path by sending an oversized AS4_PATH.
+
+A confederation segment is prepended when it leads the path or sits beside a
+segment that is prepended, and it spends none of the count budget. Ze walks the
+leading segments in order and stops at the first segment it does not prepend,
+which is what leaves a confederation segment further along unreached.
+
+`MergeAS4Path` owns the whole construction, and both callers take its verdict:
+the RIB ingest path and the filter-text builder that every text-mode filter
+judges.
+<!-- source: internal/core/bgp/attribute/as4.go -- MergeAS4Path, appendLeadingSegments, countASNs -->
+<!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter -->
+
+### What it costs
+
+The reconstruction runs only for an UPDATE that carries an AS4_PATH, which an
+OLD speaker sends and a session between NEW speakers never does. The common
+path parses nothing and allocates nothing beyond the widening buffer a
+two-octet AS_PATH already needed.
 
 ---
 

@@ -96,7 +96,10 @@ func TestRFC6793ASPathAloneNotInventedIntoFourOctet(t *testing.T) {
 //
 // RFC requirement: RFC6793-4.2.3-2 positive -- an UPDATE from an OLD speaker carrying an
 // AS4_AGGREGATOR alongside the existing AGGREGATOR is accepted rather than rejected: parsing
-// succeeds, the AGGREGATOR is interned and the AS4_AGGREGATOR is retained with the route.
+// succeeds and the four-octet aggregating AS the pair carries survives ingest.
+//
+// Which of the two the route records as its aggregating node is RFC6793-4.2.3-3 through -7,
+// proven in rfc6793_reconstruct_test.go.
 func TestRFC6793ReceivedAS4AggregatorAccepted(t *testing.T) {
 	raw := concat(wireOriginIGP, rfc6793WireAggregatorASTrans, rfc6793WireAS4Aggregator)
 
@@ -105,14 +108,9 @@ func TestRFC6793ReceivedAS4AggregatorAccepted(t *testing.T) {
 	defer entry.Release()
 
 	b := entry.GetBundle()
-	require.True(t, b.HasAggregator(), "AGGREGATOR is retained")
+	require.True(t, b.HasAggregator(), "the pair is retained as the route's aggregating node")
 	aggValue, err := pool.Aggregator.Get(b.Aggregator)
 	require.NoError(t, err)
-	assert.Equal(t, []byte{0x5B, 0xA0, 0x0A, 0x00, 0x00, 0x01}, aggValue)
-
-	require.True(t, b.HasOtherAttrs(), "AS4_AGGREGATOR is retained with the route")
-	other, err := pool.OtherAttrs.Get(b.OtherAttrs)
-	require.NoError(t, err)
-	assert.Contains(t, string(other), string([]byte{0xFA, 0x56, 0xEA, 0x01}),
+	assert.Equal(t, []byte{0xFA, 0x56, 0xEA, 0x01, 0x0A, 0x00, 0x00, 0x01}, aggValue,
 		"the four-octet aggregating AS survives ingest")
 }

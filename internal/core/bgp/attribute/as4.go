@@ -224,14 +224,13 @@ func isValidSegmentType(t ASPathSegmentType) bool {
 	}
 }
 
-// ToASPath converts AS4Path to a regular ASPath.
+// ToASPath converts AS4Path to a regular ASPath, dropping the path segment
+// types an AS4_PATH may not carry.
 //
 // RFC 6793 Section 4.2.3: Used when reconstructing the AS path from
 // AS_PATH and AS4_PATH attributes received from an OLD BGP speaker.
 func (p *AS4Path) ToASPath() *ASPath {
-	return &ASPath{
-		Segments: p.Segments,
-	}
+	return &ASPath{Segments: appendAS4Segments(nil, p.Segments)}
 }
 
 // AS4Aggregator represents the AS4_AGGREGATOR attribute for 4-byte AS support.
@@ -364,52 +363,114 @@ const ASTrans uint32 = 23456
 //	 AS_PATH attribute, and then prepending them to the AS4_PATH attribute
 //	 so that the AS path information has a number of AS numbers identical
 //	 to that of the AS_PATH attribute."
+//
+//	"Note that a valid AS_CONFED_SEQUENCE or AS_CONFED_SET path segment
+//	 SHALL be prepended if it is either the leading path segment or is
+//	 adjacent to a path segment that is prepended."
 func MergeAS4Path(asPath *ASPath, as4Path *AS4Path) *ASPath {
 	if as4Path == nil || len(as4Path.Segments) == 0 {
 		return asPath
 	}
-	if asPath == nil || len(asPath.Segments) == 0 {
+	if asPath == nil {
+		// No AS_PATH attribute was received, so there is no AS number count to
+		// compare against and no leading part to prepend.
 		return as4Path.ToASPath()
 	}
 
-	// Count ASNs in each path
 	asPathLen := countASNs(asPath.Segments)
 	as4PathLen := countASNs(as4Path.Segments)
 
-	// If AS4_PATH is longer, something is wrong - use AS_PATH
-	if as4PathLen > asPathLen {
+	// RFC 6793 Section 4.2.3: "If the number of AS numbers in the AS_PATH
+	// attribute is less than the number of AS numbers in the AS4_PATH
+	// attribute, then the AS4_PATH attribute SHALL be ignored, and the AS_PATH
+	// attribute SHALL be taken as the AS path information."
+	//
+	// A received AS_PATH with no segment at all is counted here rather than
+	// short-circuited: its count is zero, so any AS4_PATH carrying an AS number
+	// is longer and is ignored. The AS4_PATH is peer-supplied and unverifiable,
+	// which is why the count decides rather than the presence.
+	if asPathLen < as4PathLen {
 		return asPath
 	}
 
-	// Create merged path
-	// Take the first (asPathLen - as4PathLen) ASNs from AS_PATH,
-	// then append all of AS4_PATH
-	skip := asPathLen - as4PathLen
-	merged := &ASPath{}
+	// RFC 6793 Section 4.2.3: "the AS path information SHALL be constructed by
+	// taking as many AS numbers and path segments as necessary from the leading
+	// part of the AS_PATH attribute, and then prepending them to the AS4_PATH
+	// attribute so that the AS path information has a number of AS numbers
+	// identical to that of the AS_PATH attribute."
+	segments := appendLeadingSegments(nil, asPath.Segments, asPathLen-as4PathLen)
+	return &ASPath{Segments: appendAS4Segments(segments, as4Path.Segments)}
+}
 
-	remaining := skip
-	for _, seg := range asPath.Segments {
-		if remaining <= 0 {
-			break
+// appendLeadingSegments appends to dst the leading path segments of source that
+// carry the first wanted AS numbers, and returns the extended slice.
+//
+// RFC 6793 Section 4.2.3: "Note that a valid AS_CONFED_SEQUENCE or AS_CONFED_SET
+// path segment SHALL be prepended if it is either the leading path segment or is
+// adjacent to a path segment that is prepended."
+//
+// RFC 5065 counts no AS number for a confederation segment, so such a segment
+// spends none of the budget and is taken whole. The walk stops at the first
+// segment that is not prepended, which is what leaves a confederation segment
+// further along the path unreached: it is then adjacent to nothing prepended.
+func appendLeadingSegments(dst, source []ASPathSegment, wanted int) []ASPathSegment {
+	for _, seg := range source {
+		if isConfedSegment(seg.Type) {
+			dst = append(dst, seg)
+			continue
 		}
-
-		if len(seg.ASNs) <= remaining {
-			merged.Segments = append(merged.Segments, seg)
-			remaining -= len(seg.ASNs)
-		} else {
-			// Partial segment
-			merged.Segments = append(merged.Segments, ASPathSegment{
-				Type: seg.Type,
-				ASNs: seg.ASNs[:remaining],
-			})
-			remaining = 0
+		if wanted < 1 {
+			return dst
 		}
+		taken, cost := leadingPart(seg, wanted)
+		dst = append(dst, taken)
+		wanted -= cost
 	}
+	return dst
+}
 
-	// Append AS4_PATH segments
-	merged.Segments = append(merged.Segments, as4Path.Segments...)
+// leadingPart returns the leading part of seg that fits in wanted AS numbers,
+// and the number of AS numbers that part costs. wanted is at least one.
+//
+// RFC 4271 Section 9.1.2.2: "an AS_SET counts as 1, no matter how many ASes are
+// in the set", so a set is taken whole and costs one. Cutting a set would drop
+// the aggregated AS numbers it exists to carry and would not shorten the path.
+func leadingPart(seg ASPathSegment, wanted int) (taken ASPathSegment, cost int) {
+	if len(seg.ASNs) == 0 {
+		return seg, 0
+	}
+	if seg.Type == ASSet {
+		return seg, 1
+	}
+	if len(seg.ASNs) <= wanted {
+		return seg, len(seg.ASNs)
+	}
+	return ASPathSegment{Type: seg.Type, ASNs: seg.ASNs[:wanted]}, wanted
+}
 
-	return merged
+// appendAS4Segments appends to dst the path segments of a received AS4_PATH
+// that are valid in one, and returns the extended slice.
+//
+// RFC 6793 Section 6: "the path segment types AS_CONFED_SEQUENCE and
+// AS_CONFED_SET [RFC5065] MUST NOT be carried in the AS4_PATH attribute of an
+// UPDATE message. A NEW BGP speaker that receives these path segment types in
+// the AS4_PATH attribute of an UPDATE message from an OLD BGP speaker MUST
+// discard these path segments, adjust the relevant attribute fields
+// accordingly, and continue processing the UPDATE message.".
+func appendAS4Segments(dst, source []ASPathSegment) []ASPathSegment {
+	for _, seg := range source {
+		if isConfedSegment(seg.Type) {
+			continue
+		}
+		dst = append(dst, seg)
+	}
+	return dst
+}
+
+// isConfedSegment reports whether t is one of the two confederation path
+// segment types RFC 5065 defines.
+func isConfedSegment(t ASPathSegmentType) bool {
+	return t == ASConfedSequence || t == ASConfedSet
 }
 
 // countASNs counts AS path length per RFC 4271 Section 9.1.2.2.
