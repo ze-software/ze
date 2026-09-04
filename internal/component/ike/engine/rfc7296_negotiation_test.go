@@ -110,7 +110,7 @@ func negSetKeyLength(sa *wire.PayloadSA, keyLen uint16) {
 // and Nr. The keyLen argument sets the key length the accepted ESP offer names.
 func negESPRekeyInner(t *testing.T, old *ChildSA, keyLen uint16) []wire.PayloadEntry {
 	t.Helper()
-	saPayload := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344)}
+	saPayload := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344, dhGroupNone)}
 	negSetKeyLength(saPayload, keyLen)
 	return append([]wire.PayloadEntry{
 		{Payload: saPayload},
@@ -560,7 +560,7 @@ func TestNegInitiatorRejectsUnproposedOffer(t *testing.T) {
 		if got.Protocol != wire.ProtocolIKE {
 			t.Errorf("protocol = %d, want IKE (%d)", got.Protocol, wire.ProtocolIKE)
 		}
-		esp := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344)}
+		esp := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344, dhGroupNone)}
 		got, err = verifyAcceptedOffer(esp, testIKEGroup(), testESPGroup())
 		if err != nil {
 			t.Fatalf("a consistent ESP offer returned %v", err)
@@ -717,16 +717,36 @@ func negAuthExchange(t *testing.T, iniESP, respESP ipsec.ESPGroup) (*SA, []byte)
 // negESPRekeyAccepted builds a Child SA rekey response whose SA payload carries exactly
 // the proposal at index idx of group. RFC 7296 Section 3.3 makes a response name one
 // proposal, so this is the wire shape a real peer answers with.
-func negESPRekeyAccepted(t *testing.T, old *ChildSA, group ipsec.ESPGroup, idx int) []wire.PayloadEntry {
+// negESPRekeyAccepted builds the peer's CREATE_CHILD_SA answer to a Child SA rekey.
+//
+// It answers in the Diffie-Hellman group the REQUEST proposed, which childRekeyDHGroup
+// takes from the IKE SA when the ESP group enables PFS. ipsec.PFSEnable is the zero value
+// of PFSMode, so a group built as a struct literal enables PFS, and an answer carrying no
+// KE payload is refused by childRekeyKeys rather than keyed without the exchange.
+func negESPRekeyAccepted(t *testing.T, sa *SA, old *ChildSA, group ipsec.ESPGroup, idx int) []wire.PayloadEntry {
 	t.Helper()
-	props := buildWireESPProposals(group, 0x11223344)
+	dhGroup, err := childRekeyDHGroup(sa, group)
+	if err != nil {
+		t.Fatalf("childRekeyDHGroup: %v", err)
+	}
+	props := buildWireESPProposals(group, 0x11223344, dhGroup)
 	if idx >= len(props) {
 		t.Fatalf("proposal index %d is past the %d the group offers", idx, len(props))
 	}
-	return append([]wire.PayloadEntry{
+	entries := []wire.PayloadEntry{
 		{Payload: &wire.PayloadSA{Proposals: props[idx : idx+1]}},
 		{Payload: &wire.PayloadNonce{NonceData: negNonce(0x22)}},
-	}, childRekeyAnswerTS(t, old)...)
+	}
+	if dhGroup != dhGroupNone {
+		peer, err := crypto.NewDHExchange(dhGroup)
+		if err != nil {
+			t.Fatalf("NewDHExchange(%d): %v", uint16(dhGroup), err)
+		}
+		entries = append(entries, wire.PayloadEntry{
+			Payload: &wire.PayloadKE{DHGroup: uint16(dhGroup), KeyExchangeData: peer.PublicKey},
+		})
+	}
+	return append(entries, childRekeyAnswerTS(t, old)...)
 }
 
 // negInstalledSuite returns the encryption and integrity algorithm names of the ESP states
@@ -796,7 +816,7 @@ func TestNegInitiatorInstallsAcceptedESPSuite(t *testing.T) {
 			t.Fatalf("initiateChildRekey: %v", err)
 		}
 		dp.sas = nil
-		if _, err := applyChildRekeyResponse(ini, pending, negESPRekeyAccepted(t, child, negESPGroupPair(), 1), dp, log); err != nil {
+		if _, err := applyChildRekeyResponse(ini, pending, negESPRekeyAccepted(t, ini, child, negESPGroupPair(), 1), dp, log); err != nil {
 			t.Fatalf("applyChildRekeyResponse: %v", err)
 		}
 		enc, auth := negInstalledSuite(t, dp)

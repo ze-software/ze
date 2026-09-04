@@ -32,13 +32,18 @@ type pendingRekey struct {
 	retransmits int
 	localNonce  []byte // Ni we sent
 
+	// dh is our Diffie-Hellman half, kept until the response supplies KEr. An IKE SA
+	// rekey always holds one (RFC 7296 Section 1.3.2 makes KEi mandatory there). A Child
+	// SA rekey holds one when the esp-group enables Perfect Forward Secrecy, and nil
+	// otherwise, which is the bracketed KEi of Section 1.3.3.
+	dh *crypto.DHExchange
+
 	// Child SA rekey.
 	newInboundSPI uint32   // our proposed ESP SPI
 	oldChild      *ChildSA // the Child SA being replaced
 
 	// IKE SA rekey.
-	newInitiatorSPI [8]byte            // our proposed new IKE SPI
-	dh              *crypto.DHExchange // our DH half, kept until the response supplies KEr
+	newInitiatorSPI [8]byte // our proposed new IKE SPI
 }
 
 // clear releases any DH key material held by a pending IKE SA rekey.

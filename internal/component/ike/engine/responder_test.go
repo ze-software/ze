@@ -84,7 +84,7 @@ func TestResponderSelectsESPProposal(t *testing.T) {
 	// Peer offers only aes256 → narrow to the aes256 proposal.
 	peerWire := buildWireESPProposals(ipsec.ESPGroup{Proposals: []ipsec.ESPProposal{
 		{Number: 1, Encryption: ipsec.EncryptionAES256, Hash: ipsec.HashSHA256},
-	}}, 0x11223344)
+	}}, 0x11223344, dhGroupNone)
 	sa := testSA()
 	sa.IsInitiator = false
 	sa.ESPGroup = twoProp
@@ -101,7 +101,7 @@ func TestResponderSelectsESPProposal(t *testing.T) {
 	// Peer offers only aes256gcm (AEAD) — our CBC group has no match.
 	gcmWire := buildWireESPProposals(ipsec.ESPGroup{Proposals: []ipsec.ESPProposal{
 		{Number: 1, Encryption: ipsec.EncryptionAES256GCM},
-	}}, 0x55667788)
+	}}, 0x55667788, dhGroupNone)
 	saNo := testSA()
 	saNo.IsInitiator = false
 	saNo.ESPGroup = twoProp

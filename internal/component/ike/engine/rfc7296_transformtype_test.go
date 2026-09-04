@@ -82,15 +82,15 @@ func TestTftUnknownTransformTypeMakesProposalUnacceptable(t *testing.T) {
 func TestTftForeignTransformTypeRefusedInESPOffer(t *testing.T) {
 	our := testESPGroup().Proposals[0]
 
-	clean := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344)}
-	if _, ok := matchOfferedESPProposal(clean, our); !ok {
+	clean := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344, dhGroupNone)}
+	if _, ok := matchOfferedESPProposal(clean, our, espDHMatch{}); !ok {
 		t.Fatal("the ESP offer of understood types was not selected")
 	}
 
-	foreign := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344)}
+	foreign := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344, dhGroupNone)}
 	foreign.Proposals[0].Transforms = append(foreign.Proposals[0].Transforms,
 		wire.Transform{Type: wire.TransformTypePRF, ID: uint16(crypto.PRF_HMAC_SHA2_256)})
-	if _, ok := matchOfferedESPProposal(foreign, our); ok {
+	if _, ok := matchOfferedESPProposal(foreign, our, espDHMatch{}); ok {
 		t.Error("an ESP proposal carrying a PRF transform was selected")
 	}
 }

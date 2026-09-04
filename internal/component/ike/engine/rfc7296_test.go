@@ -156,7 +156,7 @@ func TestESPWireProposalAEADIntegNone(t *testing.T) {
 		{Number: 1, Encryption: ipsec.EncryptionAES256GCM},                      // AEAD, no hash
 		{Number: 2, Encryption: ipsec.EncryptionAES256, Hash: ipsec.HashSHA256}, // non-AEAD
 	}}
-	props := buildWireESPProposals(grp, 0x11223344)
+	props := buildWireESPProposals(grp, 0x11223344, dhGroupNone)
 	if len(props) != 2 {
 		t.Fatalf("built %d wire proposals, want 2", len(props))
 	}
@@ -178,7 +178,7 @@ func TestESPProposalsNeverMixAEADClass(t *testing.T) {
 		{Number: 1, Encryption: ipsec.EncryptionAES256GCM},
 		{Number: 2, Encryption: ipsec.EncryptionAES256, Hash: ipsec.HashSHA256},
 	}}
-	props := buildWireESPProposals(grp, 0x55667788)
+	props := buildWireESPProposals(grp, 0x55667788, dhGroupNone)
 	if len(props) != 2 {
 		t.Fatalf("built %d wire proposals, want 2 (one per configured proposal, never merged)", len(props))
 	}
@@ -309,7 +309,7 @@ func TestLifetimesNotNegotiatedOnWire(t *testing.T) {
 		wire.TransformTypeDH:   true,
 		wire.TransformTypeESN:  true,
 	}
-	proposals := append(buildWireIKEProposals(testIKEGroup()), buildWireESPProposals(testESPGroup(), 0x1)...)
+	proposals := append(buildWireIKEProposals(testIKEGroup()), buildWireESPProposals(testESPGroup(), 0x1, dhGroupNone)...)
 	if len(proposals) == 0 {
 		t.Fatal("no proposals built")
 	}

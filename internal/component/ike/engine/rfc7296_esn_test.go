@@ -160,7 +160,7 @@ func TestEsnInitiatorRefusesAnESNValueItNeverOffered(t *testing.T) {
 	espGroup := testESPGroup()
 
 	// The offer states what this side can key, and the checks below are read against it.
-	offered := esnIDsOf(buildWireESPProposals(espGroup, 0x0a0b0c0d)[0])
+	offered := esnIDsOf(buildWireESPProposals(espGroup, 0x0a0b0c0d, dhGroupNone)[0])
 	if !slices.Equal(offered, []uint16{espESNNotExtended}) {
 		t.Fatalf("the ESP offer carries ESN %v, want the single value %d ze can key",
 			offered, espESNNotExtended)

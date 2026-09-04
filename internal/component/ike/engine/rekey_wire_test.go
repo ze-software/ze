@@ -17,7 +17,7 @@ import (
 // the proposals it sent (RFC 7296 Section 3.3.6, verifyAcceptedOffer). A proposal with no
 // transform names no suite, so a peer never sends one.
 func espSAPayload(spi uint32) *wire.PayloadSA {
-	return &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), spi)}
+	return &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), spi, dhGroupNone)}
 }
 
 // childRekeyAnswerTS builds the TSi and TSr payloads a conforming peer echoes for a rekey

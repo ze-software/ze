@@ -143,15 +143,54 @@ func proposeChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
 	return tsi, tsr
 }
 
+// childRekeyDHGroup answers which Diffie-Hellman group a Child SA rekey runs over, and
+// dhGroupNone when it runs none.
+//
+// RFC 7296 Section 2.17 gives KEYMAT two forms and this value picks between them. Without
+// a group it is "KEYMAT = prf+(SK_d, Ni | Nr)", which reuses the SK_d the IKE SA has held
+// since it came up, so every replacement Child SA is readable by anyone who learns that
+// one secret. With a group it is "KEYMAT = prf+(SK_d, g^ir (new) | Ni | Nr)", where
+// "g^ir (new) is the shared secret from the ephemeral Diffie-Hellman exchange of this
+// CREATE_CHILD_SA exchange". That fresh secret is what Perfect Forward Secrecy means, and
+// the esp-group's pfs leaf is the operator asking for it.
+//
+// The group is the one the IKE SA negotiated. An ESP proposal carries no group of its own
+// in Ze's data model, and the IKE SA's group is one both ends already agreed on and both
+// can compute, so it needs no second negotiation. RFC 7296 Section 3.4 then holds,
+// because buildChildSAPayloads offers that same group as a Transform Type 4.
+func childRekeyDHGroup(sa *SA, espGroup ipsec.ESPGroup) (crypto.DHGroupID, error) {
+	if espGroup.PFS != ipsec.PFSEnable {
+		return dhGroupNone, nil
+	}
+	group := sa.Proposal.DHGroup.ID
+	if group == dhGroupNone {
+		// An IKE SA is established with a group, so this state is unreachable from a
+		// negotiated proposal. Reporting it keeps the silent alternative out of reach: a
+		// rekey that answered dhGroupNone here would key without the exchange the
+		// operator asked for, and nothing on the wire would say so.
+		return dhGroupNone, fmt.Errorf("child rekey: esp-group %q enables pfs and the IKE SA negotiated no Diffie-Hellman group",
+			espGroup.Name)
+	}
+	return group, nil
+}
+
 // initiateChildRekey builds the SK-encrypted CREATE_CHILD_SA request to replace
 // oldChild and the pendingRekey state to correlate the response.
-// RFC 7296 §1.3.2: N(REKEY_SA), SA, Ni, [KEi], TSi, TSr.
+// RFC 7296 Section 1.3.3: "HDR, SK {N(REKEY_SA), SA, Ni, [KEi,] TSi, TSr}".
+//
+// The bracketed KEi is Perfect Forward Secrecy. childRekeyDHGroup reads the esp-group's
+// pfs leaf and decides whether it is sent, and applyChildRekeyResponse refuses a response
+// that disagrees with what went out.
 func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error) {
+	group, err := childRekeyDHGroup(sa, oldChild.ESPGroup)
+	if err != nil {
+		return nil, nil, err
+	}
 	ni, err := GenerateNonce(nonceLen)
 	if err != nil {
 		return nil, nil, err
 	}
-	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa)
+	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa, group)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -190,12 +229,29 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 		{Payload: rekeyNotify},
 		{Payload: saPayload},
 		{Payload: &wire.PayloadNonce{NonceData: ni}},
-		{Payload: tsi},
-		{Payload: tsr},
 	}
+
+	// RFC 7296 Section 1.3.3 puts KEi between the nonce and the traffic selectors. The
+	// exchange is kept on the pendingRekey until the response supplies KEr, exactly as
+	// initiateIKERekey keeps its own half.
+	var dh *crypto.DHExchange
+	if group != dhGroupNone {
+		dh, err = crypto.NewDHExchange(group)
+		if err != nil {
+			return nil, nil, err
+		}
+		inner = append(inner, wire.PayloadEntry{
+			Payload: &wire.PayloadKE{DHGroup: uint16(group), KeyExchangeData: dh.PublicKey},
+		})
+	}
+	inner = append(inner, wire.PayloadEntry{Payload: tsi}, wire.PayloadEntry{Payload: tsr})
+
 	msgID := sa.NextMsgID
 	msg, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeCreateChildSA, initiatorFlag(sa))
 	if err != nil {
+		if dh != nil {
+			dh.Clear()
+		}
 		return nil, nil, err
 	}
 	sa.advanceMsgID()
@@ -207,13 +263,16 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 		localNonce:    ni,
 		newInboundSPI: espSPI,
 		oldChild:      oldChild,
+		dh:            dh,
 	}, nil
 }
 
 // applyChildRekeyResponse processes the peer's CREATE_CHILD_SA response to our
 // pending child rekey: derives keys from our Ni and the peer's Nr, and installs
 // the new Child SA BEFORE the caller removes the old one (make-before-break).
-// RFC 7296 §1.3.2, §2.17: KEYMAT = prf+(SK_d, Ni | Nr).
+// RFC 7296 Section 2.17: "KEYMAT = prf+(SK_d, Ni | Nr)" when this exchange ran no
+// Diffie-Hellman exchange, and "KEYMAT = prf+(SK_d, g^ir (new) | Ni | Nr)" when it did.
+// childRekeyKeys reads the request that went out and picks between them.
 //
 // The response states the scope of the SA the peer just built, so TSi and TSr are
 // mandatory (RFC 7296 §1.3.3) and a response without them is refused. The replacement is
@@ -235,11 +294,14 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	var nr []byte
 	var outSPI uint32
 	var accepted *wire.PayloadSA
+	var acceptedKE *wire.PayloadKE
 	var respTSi, respTSr *wire.PayloadTS
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
 			nr = p.NonceData
+		case *wire.PayloadKE:
+			acceptedKE = p
 		case *wire.PayloadSA:
 			accepted = p
 			s, err := espSPIFromSA(p)
@@ -319,10 +381,9 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	}
 	prop := offer.ESPConfig
 	rekeyEnc, rekeyInteg := espTransforms(prop)
-	keys, err := crypto.DeriveChildSAKeys(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
-		pending.localNonce, nr, rekeyEnc, rekeyInteg)
+	keys, err := childRekeyKeys(sa, pending.dh, accepted, acceptedKE, pending.localNonce, nr, rekeyEnc, rekeyInteg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("child rekey response: %w", err)
 	}
 	// We initiated this rekey (sent Ni), so our KEYMAT role is initiator, and this node's
 	// side is TSi in the set recorded above.
@@ -340,23 +401,83 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	return child, nil
 }
 
+// childRekeyKeys derives the replacement Child SA's ESP keys for the node that sent Ni,
+// under whichever KEYMAT form of RFC 7296 Section 2.17 this exchange agreed.
+//
+// dh is the exchange the request carried, and nil when the request carried no KEi. The
+// two disagreements below are refused rather than keyed, because each of them is one end
+// deriving with a shared secret the other end did not use, which installs a Child SA that
+// carries no traffic and says nothing on the wire about why.
+//
+//   - A request that carried KEi and a response that carries no KEr. Accepting it would
+//     give an operator who configured pfs enable a replacement keyed from SK_d alone,
+//     which is the non-PFS form of Section 2.17 under a PFS configuration.
+//   - A request that carried no KEi and a response that carries KEr. Section 3.3.6 has
+//     the RESPONDER "ignore the initiator's KE payload" when the selected group is NONE,
+//     and states no such rule for an initiator reading a KE payload it never invited.
+func childRekeyKeys(sa *SA, dh *crypto.DHExchange, accepted *wire.PayloadSA, acceptedKE *wire.PayloadKE,
+	ni, nr []byte, enc crypto.EncryptionTransform, integ crypto.IntegrityTransform) (*crypto.ChildSAKeys, error) {
+	if dh == nil {
+		if acceptedKE != nil {
+			return nil, fmt.Errorf("a rekey that proposed no Diffie-Hellman group was answered with a KE payload for group %d",
+				acceptedKE.DHGroup)
+		}
+		return crypto.DeriveChildSAKeys(sa.Proposal.PRF.ID, sa.SKKeys.SK_d, ni, nr, enc, integ)
+	}
+	if acceptedKE == nil || len(acceptedKE.KeyExchangeData) == 0 {
+		return nil, fmt.Errorf("a rekey that proposed Diffie-Hellman group %d was answered with no KE payload",
+			uint16(dh.GroupID))
+	}
+	// RFC 7296 Section 3.4: the KE payload's Diffie-Hellman Group Num "MUST match a
+	// Diffie-Hellman group specified in a proposal in the SA payload that is sent in the
+	// same message", which is the accepted proposal this response carries. The second
+	// check is this node's own: the response can only be completed with the half that
+	// went out, so a KEr in any other group has no private value to meet it.
+	if err := accepted.ValidateKEGroup(acceptedKE); err != nil {
+		return nil, err
+	}
+	if acceptedKE.DHGroup != uint16(dh.GroupID) {
+		return nil, fmt.Errorf("the response answered Diffie-Hellman group %d for a request that proposed group %d",
+			acceptedKE.DHGroup, uint16(dh.GroupID))
+	}
+	sharedSecret, err := dh.SharedSecret(acceptedKE.KeyExchangeData)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := crypto.DeriveChildSAKeysPFS(sa.Proposal.PRF.ID, sa.SKKeys.SK_d, sharedSecret, ni, nr, enc, integ)
+	clear(sharedSecret)
+	return keys, err
+}
+
 // respondChildRekey processes a peer-initiated CREATE_CHILD_SA rekey request,
 // installs the replacement Child SA (make-before-break; the old one is removed
 // when the peer's INFORMATIONAL Delete arrives), and returns the SK-encrypted
-// response echoing the request message ID. RFC 7296 §1.3.2.
+// response echoing the request message ID. RFC 7296 Section 1.3.3.
+//
+// The esp-group's pfs leaf decides what this node accepts. With pfs enabled the request
+// must offer the IKE SA's Diffie-Hellman group and carry KEi for it, and the response
+// carries KEr; with pfs disabled the request must offer no group, and RFC 7296
+// Section 3.3.6 has a stray KE payload ignored rather than refused.
 //
 // The request states the scope of the SA it asks for, so TSi and TSr are mandatory
 // (RFC 7296 §1.3.3) and a request without them is refused. The answer is then built
 // from the narrowing THIS request produced, never from a previous exchange's.
 func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID uint32, dp dataplane.Dataplane, log *slog.Logger) ([]byte, *ChildSA, error) {
+	group, err := childRekeyDHGroup(sa, old.ESPGroup)
+	if err != nil {
+		return nil, nil, err
+	}
 	var ni []byte
 	var peerSPI uint32
 	var offer *wire.PayloadSA
+	var reqKE *wire.PayloadKE
 	var reqTSi, reqTSr *wire.PayloadTS
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
 			ni = p.NonceData
+		case *wire.PayloadKE:
+			reqKE = p
 		case *wire.PayloadSA:
 			offer = p
 			if s, err := espSPIFromSA(p); err == nil {
@@ -402,9 +523,39 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// must name it by the peer's own Proposal Num (RFC 7296 Sections 3.3, 3.3.6). A
 	// request that offers no such proposal is refused. Ze does not answer it with
 	// keys for an algorithm the peer never asked for.
-	accepted, ok := matchOfferedESPProposal(offer, old.ESPGroup.Proposals[0])
+	// espDHMatch carries the pfs decision into the comparison. With a group required, an
+	// offer that names none is refused with NO_PROPOSAL_CHOSEN rather than keyed without
+	// the exchange the operator asked for. With no group required, an offer that names
+	// one is refused for the mirror reason: RFC 7296 Section 2.7 would make the answer
+	// carry a Type 4 transform this node is not running.
+	accepted, ok := matchOfferedESPProposal(offer, old.ESPGroup.Proposals[0], espDHMatch{Want: group})
 	if !ok || accepted.Number == 0 {
 		return nil, nil, fmt.Errorf("child rekey request: %w", crypto.ErrNoProposalChosen)
+	}
+
+	// RFC 7296 Section 3.4: "If the selected proposal uses a different Diffie-Hellman
+	// group (other than NONE), the message MUST be rejected with a Notify payload of type
+	// INVALID_KE_PAYLOAD." The initiator guesses the group before it learns which
+	// proposal this node selects, so the answer names the group it must use and the
+	// exchange is not keyed. RFC 7296 Section 3.10.1 gives the payload two octets of data.
+	// respondIKERekey answers an IKE SA rekey the same way.
+	if group != dhGroupNone && (reqKE == nil || reqKE.DHGroup != uint16(group)) {
+		got := uint16(wire.DHGroupNone)
+		if reqKE != nil {
+			got = reqKE.DHGroup
+		}
+		log.Info("ike: peer child rekey KE group mismatch", "peer", sa.PeerName,
+			"want", uint16(group), "got", got)
+		notify := &wire.PayloadNotify{
+			NotifyMsgType:    wire.NotifyInvalidKEPayload,
+			NotificationData: []byte{byte(uint16(group) >> 8), byte(group)},
+		}
+		resp, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: notify}},
+			msgID, wire.ExchangeCreateChildSA, initiatorFlag(sa)|wire.FlagResponse)
+		if err != nil {
+			return nil, nil, err
+		}
+		return resp, nil, nil
 	}
 
 	// RFC 7296 Section 2.9.2 MUST NOT: "The responder MUST NOT narrow down the Traffic
@@ -435,11 +586,37 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	}
 	prop := old.ESPGroup.Proposals[0]
 	respEnc, respInteg := espTransforms(prop)
-	// Peer is the initiator here: KEYMAT = prf+(SK_d, Ni | Nr).
-	keys, err := crypto.DeriveChildSAKeys(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
-		ni, nr, respEnc, respInteg)
-	if err != nil {
-		return nil, nil, err
+
+	// RFC 7296 Section 2.17, the two KEYMAT forms. Without a group the peer is the
+	// initiator here and the seed is "Ni | Nr". With one, this node completes the
+	// exchange from the peer's KEi and the seed gains "g^ir (new)" in front, which is the
+	// fresh secret Perfect Forward Secrecy rests on. ourPub is the KEr the response
+	// carries, taken before the private half is cleared.
+	var keys *crypto.ChildSAKeys
+	var ourPub []byte
+	if group == dhGroupNone {
+		keys, err = crypto.DeriveChildSAKeys(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
+			ni, nr, respEnc, respInteg)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		dh, err := crypto.NewDHExchange(group)
+		if err != nil {
+			return nil, nil, err
+		}
+		ourPub = append([]byte(nil), dh.PublicKey...)
+		sharedSecret, err := dh.SharedSecret(reqKE.KeyExchangeData)
+		dh.Clear()
+		if err != nil {
+			return nil, nil, err
+		}
+		keys, err = crypto.DeriveChildSAKeysPFS(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
+			sharedSecret, ni, nr, respEnc, respInteg)
+		clear(sharedSecret)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	// RFC 7296 Section 2.9: "TS payloads specify the selection criteria for packets that
 	// will be forwarded over the newly set up SA." The answer is therefore a statement
@@ -467,12 +644,19 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		keys.Clear()
 		return nil, nil, err
 	}
+	// RFC 7296 Section 1.3.3: "HDR, SK {SA, Nr, [KEr,] TSi, TSr}". The accepted proposal
+	// carries the same Transform Type 4 the KE payload names, which is what Section 3.4
+	// requires of every message that carries a KE payload.
 	inner2 := []wire.PayloadEntry{
-		{Payload: &wire.PayloadSA{Proposals: []wire.Proposal{espProposalToWire(prop, inSPI, accepted.Number)}}},
+		{Payload: &wire.PayloadSA{Proposals: []wire.Proposal{espProposalToWire(prop, inSPI, accepted.Number, group)}}},
 		{Payload: &wire.PayloadNonce{NonceData: nr}},
-		{Payload: tsi},
-		{Payload: tsr},
 	}
+	if group != dhGroupNone {
+		inner2 = append(inner2, wire.PayloadEntry{
+			Payload: &wire.PayloadKE{DHGroup: uint16(group), KeyExchangeData: ourPub},
+		})
+	}
+	inner2 = append(inner2, wire.PayloadEntry{Payload: tsi}, wire.PayloadEntry{Payload: tsr})
 	resp, err := buildEncryptedMessageEx(sa, inner2, msgID, wire.ExchangeCreateChildSA, initiatorFlag(sa)|wire.FlagResponse)
 	if err != nil {
 		if dp != nil {

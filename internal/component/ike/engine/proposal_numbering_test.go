@@ -105,7 +105,7 @@ func TestPnmOfferNumbersStartAtOneAndStepByOne(t *testing.T) {
 				}
 			}
 
-			esp := &wire.PayloadSA{Proposals: buildWireESPProposals(pnmESPGroup(tc.configs...), 0x11223344)}
+			esp := &wire.PayloadSA{Proposals: buildWireESPProposals(pnmESPGroup(tc.configs...), 0x11223344, dhGroupNone)}
 			if err := esp.ValidateOfferNumbering(); err != nil {
 				t.Errorf("the ESP offer is misnumbered: %v", err)
 			}

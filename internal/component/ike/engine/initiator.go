@@ -621,7 +621,13 @@ func encAttrs(enc crypto.EncryptionTransform) []wire.TransformAttr {
 // CREATE_CHILD_SA request. The SA payload is an OFFER, so it carries every
 // configured proposal numbered one upward (RFC 7296 Section 3.3). Returns the
 // generated inbound ESP SPI and the three payloads.
-func buildChildSAPayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wire.PayloadTS, error) {
+//
+// dh is the Diffie-Hellman group the exchange runs, and it becomes a Transform Type 4 in
+// every proposal. RFC 7296 Section 3.4 requires it: a KE payload's group "MUST match a
+// Diffie-Hellman group specified in a proposal in the SA payload that is sent in the same
+// message". The IKE_AUTH caller passes dhGroupNone, because that exchange carries no KE
+// payload and Section 2.17 keys its Child SA from the IKE_SA_INIT nonces.
+func buildChildSAPayloads(sa *SA, dh crypto.DHGroupID) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wire.PayloadTS, error) {
 	if len(sa.ESPGroup.Proposals) == 0 {
 		return 0, nil, nil, nil, errors.New("no ESP proposals configured")
 	}
@@ -629,7 +635,7 @@ func buildChildSAPayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wi
 	if err != nil {
 		return 0, nil, nil, nil, err
 	}
-	saPayload := &wire.PayloadSA{Proposals: buildWireESPProposals(sa.ESPGroup, espSPI)}
+	saPayload := &wire.PayloadSA{Proposals: buildWireESPProposals(sa.ESPGroup, espSPI, dh)}
 	// A REQUEST proposes the operator's configured selectors, so a responder that
 	// narrows has something of ours to narrow. An unconfigured peer still proposes the
 	// wildcard (proposeChildTSPayloads).
@@ -658,7 +664,9 @@ func buildChildSAResponsePayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.Payloa
 	if err != nil {
 		return 0, nil, nil, nil, err
 	}
-	accepted := espProposalToWire(sa.ESPGroup.Proposals[0], espSPI, sa.ChildProposalNum)
+	// The IKE_AUTH response answers an offer this node accepted with no Diffie-Hellman
+	// group, so the answer carries no Transform Type 4 either (RFC 7296 Section 2.17).
+	accepted := espProposalToWire(sa.ESPGroup.Proposals[0], espSPI, sa.ChildProposalNum, dhGroupNone)
 	saPayload := &wire.PayloadSA{Proposals: []wire.Proposal{accepted}}
 
 	// RFC 7296 Section 2.9: a RESPONSE carries the NARROWED selectors, which are a
@@ -696,11 +704,17 @@ func anyTrafficSelector(ipv6 bool) wire.TrafficSelector {
 	}
 }
 
-// buildWireESPProposals converts an ESP group to a wire OFFER.
-func buildWireESPProposals(espGroup ipsec.ESPGroup, spi uint32) []wire.Proposal {
+// dhGroupNone is Transform Type 4 value 0, "NONE" (RFC 7296 Section 3.3.2). A Child SA
+// proposal that carries it, or that carries no Type 4 transform at all, runs no
+// Diffie-Hellman exchange, so its KEYMAT takes the first form of Section 2.17.
+const dhGroupNone = crypto.DHGroupID(wire.DHGroupNone)
+
+// buildWireESPProposals converts an ESP group to a wire OFFER. Every proposal carries the
+// Diffie-Hellman group the exchange runs, for the reason buildChildSAPayloads gives.
+func buildWireESPProposals(espGroup ipsec.ESPGroup, spi uint32, dh crypto.DHGroupID) []wire.Proposal {
 	proposals := make([]wire.Proposal, 0, len(espGroup.Proposals))
 	for i := range espGroup.Proposals {
-		proposals = append(proposals, espProposalToWire(espGroup.Proposals[i], spi, offerProposalNum(i)))
+		proposals = append(proposals, espProposalToWire(espGroup.Proposals[i], spi, offerProposalNum(i), dh))
 	}
 	return proposals
 }
@@ -728,7 +742,10 @@ const espESNNotExtended uint16 = 0
 // Num. An offer derives that number from the position (offerProposalNum). A response
 // carries the number the peer put on the proposal that was accepted, which RFC 7296
 // Section 3.3.1 requires the response to match.
-func espProposalToWire(p ipsec.ESPProposal, spi uint32, number uint8) wire.Proposal {
+//
+// dh names the Diffie-Hellman group of the exchange, and dhGroupNone omits Transform
+// Type 4 entirely.
+func espProposalToWire(p ipsec.ESPProposal, spi uint32, number uint8, dh crypto.DHGroupID) wire.Proposal {
 	spiBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(spiBytes, spi)
 	enc := lookupEncryption(p.Encryption)
@@ -739,6 +756,16 @@ func espProposalToWire(p ipsec.ESPProposal, spi uint32, number uint8) wire.Propo
 		integ := lookupIntegrity(p.Hash)
 		transforms = append(transforms, wire.Transform{
 			Type: wire.TransformTypeINTG, ID: uint16(integ.ID),
+		})
+	}
+	// RFC 7296 Section 3.3.2 gives Transform Type 4 the Diffie-Hellman group, and
+	// Section 3.4 makes the group of a KE payload match "a Diffie-Hellman group specified
+	// in a proposal in the SA payload that is sent in the same message". A Child SA rekey
+	// with Perfect Forward Secrecy sends a KE payload, so the group it names is offered
+	// here. The transform precedes Type 5 to keep the proposal in ascending type order.
+	if dh != dhGroupNone {
+		transforms = append(transforms, wire.Transform{
+			Type: wire.TransformTypeDH, ID: uint16(dh),
 		})
 	}
 	// RFC 7296 Section 3.3.3 makes Transform Type 5 mandatory in an ESP proposal, and

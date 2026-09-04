@@ -136,7 +136,7 @@ func rccAuthRequest(t *testing.T, ini *SA, ders ...[]byte) []byte {
 	if err != nil {
 		t.Fatalf("compute the initiator AUTH: %v", err)
 	}
-	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(ini)
+	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(ini, dhGroupNone)
 	if err != nil {
 		t.Fatalf("build the child SA payloads: %v", err)
 	}

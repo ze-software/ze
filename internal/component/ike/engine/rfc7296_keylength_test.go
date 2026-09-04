@@ -62,7 +62,7 @@ func TestKlnInitiatorRefusesLongerAcceptedKey(t *testing.T) {
 		t.Error("an IKE answer of 256 bits against a 128-bit offer was accepted")
 	}
 
-	esp := &wire.PayloadSA{Proposals: buildWireESPProposals(klnESPGroup(), 0x11223344)}
+	esp := &wire.PayloadSA{Proposals: buildWireESPProposals(klnESPGroup(), 0x11223344, dhGroupNone)}
 	if _, err := verifyAcceptedOffer(esp, klnIKEGroup(), klnESPGroup()); err != nil {
 		t.Fatalf("the ESP offer ze really sent returned %v, want acceptance", err)
 	}

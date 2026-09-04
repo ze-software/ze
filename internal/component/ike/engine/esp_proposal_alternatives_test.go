@@ -59,7 +59,7 @@ func TestEspAltKeyLengthDoesNotCrossTransforms(t *testing.T) {
 			{Type: wire.TransformTypeINTG, ID: integID},
 		},
 	}
-	if espProposalMatches(offer, encID, keyLen, integID, false) {
+	if espProposalMatches(offer, encID, keyLen, integID, false, espDHMatch{}) {
 		t.Error("a key length from one ENCR transform was paired with the id of another")
 	}
 }
@@ -81,7 +81,7 @@ func TestEspAltFirstTransformStillMatches(t *testing.T) {
 			{Type: wire.TransformTypeINTG, ID: integID + 1},
 		},
 	}
-	if !espProposalMatches(offer, encID, keyLen, integID, false) {
+	if !espProposalMatches(offer, encID, keyLen, integID, false, espDHMatch{}) {
 		t.Error("a proposal offering ze's suite as its first alternative was refused")
 	}
 }
@@ -102,7 +102,7 @@ func TestEspAltComparisonIsNotRelaxed(t *testing.T) {
 			{Type: wire.TransformTypeINTG, ID: integID},
 		},
 	}
-	if !espProposalMatches(matching, encID, keyLen, integID, false) {
+	if !espProposalMatches(matching, encID, keyLen, integID, false, espDHMatch{}) {
 		t.Error("ze's integrity algorithm offered as a later alternative was not seen")
 	}
 
@@ -115,7 +115,7 @@ func TestEspAltComparisonIsNotRelaxed(t *testing.T) {
 			{Type: wire.TransformTypeINTG, ID: integID + 1},
 		},
 	}
-	if espProposalMatches(foreign, encID, keyLen, integID, false) {
+	if espProposalMatches(foreign, encID, keyLen, integID, false, espDHMatch{}) {
 		t.Error("a proposal offering none of ze's algorithms was accepted")
 	}
 
@@ -128,7 +128,7 @@ func TestEspAltComparisonIsNotRelaxed(t *testing.T) {
 			{Type: wire.TransformTypeINTG, ID: integID},
 		},
 	}
-	if espProposalMatches(wrongLen, encID, keyLen, integID, false) {
+	if espProposalMatches(wrongLen, encID, keyLen, integID, false, espDHMatch{}) {
 		t.Error("the configured cipher at a different key length was accepted")
 	}
 }
@@ -151,7 +151,7 @@ func TestEspAltSelectionSeesAlternatives(t *testing.T) {
 		},
 	}}}
 
-	rp, ok := matchOfferedESPProposal(offer, our)
+	rp, ok := matchOfferedESPProposal(offer, our, espDHMatch{})
 	if !ok {
 		t.Fatal("the selection entry point refused an offer whose first alternative is ze's suite")
 	}

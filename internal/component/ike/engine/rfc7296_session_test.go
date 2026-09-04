@@ -446,7 +446,7 @@ func TestSesAcceptedProposalKeepsItsProtocol(t *testing.T) {
 
 	// Negative. A proposal offered under the wrong protocol id is not accepted, so
 	// the responder can never echo a protocol it did not agree to.
-	wrong := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344)}
+	wrong := &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), 0x11223344, dhGroupNone)}
 	probe := &SA{ESPGroup: testESPGroup()}
 	if err := selectResponderESP(probe, wrong); err != nil {
 		t.Fatalf("the reference ESP offer was refused before its protocol id changed: %v", err)

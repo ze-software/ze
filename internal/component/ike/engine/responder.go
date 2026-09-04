@@ -650,7 +650,12 @@ func selectResponderESP(sa *SA, remoteSAi2 *wire.PayloadSA) error {
 	}
 	for i := range sa.ESPGroup.Proposals {
 		our := sa.ESPGroup.Proposals[i]
-		rp, ok := matchOfferedESPProposal(remoteSAi2, our)
+		// RFC 7296 Section 2.17 keys the first Child SA from the IKE_SA_INIT nonces, and
+		// IKE_AUTH carries no KE payload for a Child SA. A Diffie-Hellman group named in
+		// SAi2 therefore binds no exchange, so it takes no part in this comparison. The
+		// esp-group's pfs leaf governs the CREATE_CHILD_SA rekey, where a KE payload
+		// exists (respondChildRekey, rekey.go).
+		rp, ok := matchOfferedESPProposal(remoteSAi2, our, espDHMatch{Unbound: true})
 		if !ok {
 			continue
 		}
@@ -667,10 +672,24 @@ func selectResponderESP(sa *SA, remoteSAi2 *wire.PayloadSA) error {
 	return crypto.ErrNoProposalChosen
 }
 
+// espDHMatch says what Transform Type 4 must look like in a Child SA proposal.
+//
+// Its zero value requires an offer that names no Diffie-Hellman group, which is the
+// strict reading and the one a rekey without Perfect Forward Secrecy needs. Nothing in
+// this type defaults to accepting a group the exchange will not run.
+type espDHMatch struct {
+	// Want is the group the offer must carry. dhGroupNone requires an offer that carries
+	// no group.
+	Want crypto.DHGroupID
+	// Unbound drops Transform Type 4 from the comparison. Only the IKE_AUTH Child SA
+	// negotiation sets it, for the reason selectResponderESP gives.
+	Unbound bool
+}
+
 // matchOfferedESPProposal returns the ESP proposal in the peer's offer that agrees
 // with one configured proposal, and reports whether the offer holds one. The caller
 // reads its Proposal Num, which RFC 7296 Section 3.3.1 makes the response echo.
-func matchOfferedESPProposal(offer *wire.PayloadSA, our ipsec.ESPProposal) (wire.Proposal, bool) {
+func matchOfferedESPProposal(offer *wire.PayloadSA, our ipsec.ESPProposal, dh espDHMatch) (wire.Proposal, bool) {
 	if offer == nil {
 		return wire.Proposal{}, false
 	}
@@ -682,7 +701,7 @@ func matchOfferedESPProposal(offer *wire.PayloadSA, our ipsec.ESPProposal) (wire
 	}
 	for _, rp := range offer.Proposals {
 		if rp.ProtocolID == wire.ProtocolESP &&
-			espProposalMatches(rp, uint16(enc.ID), enc.KeyLength, integID, aead) {
+			espProposalMatches(rp, uint16(enc.ID), enc.KeyLength, integID, aead, dh) {
 			return rp, true
 		}
 	}
@@ -749,7 +768,7 @@ func logKeyLengthUpgrade(log *slog.Logger, peer string, chosen crypto.IKEProposa
 // offer is acceptable exactly when each type carries at least one alternative ze accepts.
 // The scan is linear in the transform count rather than multiplicative in it, which is
 // why appendIKECombinations needs maxIKECombinations and this does not.
-func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead bool) bool {
+func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead bool, dh espDHMatch) bool {
 	// The id and its key length are read raw and kept together, one entry per ENCR
 	// transform. Pairing them in the element is what stops a length from one transform
 	// reaching the comparison of another.
@@ -758,6 +777,7 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 		encs   []espEnc
 		integs []uint16
 		esns   []uint16
+		dhs    []uint16
 	)
 	for _, t := range p.Transforms {
 		if !crypto.TransformTypeUnderstoodESP(crypto.TransformType(t.Type)) {
@@ -777,9 +797,11 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 		case wire.TransformTypeESN:
 			esns = append(esns, t.ID)
 		case wire.TransformTypeDH:
-			// A Diffie-Hellman group is optional for ESP and ze negotiates none for a
-			// Child SA, so it takes no part in this comparison. A pseudorandom function
-			// transform never reaches here, because ESP does not use that type.
+			// A Diffie-Hellman group is optional for ESP (RFC 7296 Section 3.3.3), and a
+			// Child SA rekey with Perfect Forward Secrecy runs one. Every alternative the
+			// peer offers is collected, and espDHAcceptable below decides. A pseudorandom
+			// function transform never reaches here, because ESP does not use that type.
+			dhs = append(dhs, t.ID)
 		}
 	}
 	if !slices.Contains(encs, espEnc{id: encID, keyLen: keyLen}) {
@@ -802,12 +824,42 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 	if len(esns) > 0 && !slices.Contains(esns, espESNNotExtended) {
 		return false
 	}
+	if !espDHAcceptable(dhs, dh) {
+		return false
+	}
 	if aead {
 		// RFC 7296 Section 3.3.2: an AEAD proposal carries no integrity transform, and
 		// an explicit NONE says the same thing. Either is accepted, exactly as before.
 		return len(integs) == 0 || slices.Contains(integs, 0)
 	}
 	return slices.Contains(integs, integID)
+}
+
+// espDHAcceptable reports whether the Diffie-Hellman alternatives one ESP proposal offers
+// hold the group this exchange will run.
+//
+// RFC 7296 Section 2.7 makes the accepted suite carry "exactly one transform of each type
+// included in the proposal", so a proposal ze accepts is one ze can answer transform for
+// transform. Two refusals follow from that, and each of them replaces a silent mis-key.
+// An offer with no group cannot satisfy a rekey that requires one, and keying it without
+// the Diffie-Hellman exchange would give the operator who asked for Perfect Forward
+// Secrecy a rekey that reuses SK_d alone. An offer that names a group cannot be answered
+// by a suite that omits Type 4, and keying it without the exchange the peer ran would
+// install a Child SA neither end can read.
+func espDHAcceptable(offered []uint16, dh espDHMatch) bool {
+	if dh.Unbound {
+		return true
+	}
+	if dh.Want != dhGroupNone {
+		return slices.Contains(offered, uint16(dh.Want))
+	}
+	// A proposal with no Type 4 transform names no group, and an explicit NONE says the
+	// same thing, exactly as an absent integrity transform and an explicit NONE do for an
+	// AEAD proposal above.
+	if len(offered) == 0 {
+		return true
+	}
+	return slices.Contains(offered, uint16(dhGroupNone))
 }
 
 // buildAuthResponse negotiates and installs the first Child SA and builds the
