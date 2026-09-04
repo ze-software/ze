@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -607,12 +608,21 @@ func TestPostStartDispatcherAccountsToTheInstalledBundle(t *testing.T) {
 	assert.False(t, replacementAccountant.stoppedOnClosed)
 }
 
-// VALIDATES: the post-start dispatcher DENIES a command when boot could not
-// build an AAA bundle and the configuration declares no authorization profiles.
+// VALIDATES: the post-start dispatcher consults the accepted LOCAL policy when
+// boot could not build an AAA bundle, and refuses what that policy refuses.
 // PREVENTS: authorization failing OPEN on the BGP path. Dispatcher.isAuthorized
 // authorizes every command while its authorizer is nil
 // (internal/component/plugin/server/command.go), so a wiring that installs no
-// authorizer at all is allow-all here against deny-all on the no-BGP path.
+// authorizer at all is silently allow-all. That is what this pins: an
+// authorizer IS installed and IS consulted.
+//
+// REVISED on 2026-09-04 by owner ruling: a failed AAA build falls back to the
+// local RBAC policy. This test used to declare no policy and require a denial,
+// which is no longer the contract -- with no policy the fallback is the
+// daemon's no-RBAC allow mode, the same answer an installed bundle with no
+// authorizer gives. So the test now declares a policy that DENIES, which proves
+// more than the old shape did: the authorizer is present, it is reached, and
+// the operator's own rules decide.
 func TestPostStartDispatcherDeniesWhenTheAAABootBuildFailed(t *testing.T) {
 	resetAAABundleForTest(t)
 
@@ -629,10 +639,20 @@ func TestPostStartDispatcherDeniesWhenTheAAABootBuildFailed(t *testing.T) {
 	t.Cleanup(func() { sshBuild = originalSSHBuild })
 	sshBuild = func(*sshBuildInputs) sshServer { return authWiringSSHServer{} }
 
+	// The accepted LOCAL policy, which is what the fallback consults. It denies
+	// every operational command for alice, so a refusal below can only have
+	// come from this store being reached.
+	denyAll := authz.NewStore()
+	denyAll.AddProfile(authz.Profile{
+		Name: "locked",
+		Run:  authz.Section{Default: authz.Deny},
+		Edit: authz.Section{Default: authz.Deny},
+	})
+	denyAll.AssignProfiles("alice", []string{"locked"})
+	publishAcceptedLocalIdentity(&acceptedLocalIdentityState{authorizer: denyAll})
+
 	dispatcher := pluginserver.NewDispatcher()
 	r := &authWiringReactor{dispatcher: dispatcher}
-	// No AuthzStore either: this daemon has no local authorization profiles, so
-	// nothing else can supply an authorizer.
 	_ = infraSetup(infra.HookParams{
 		Reactor:   r,
 		SSHConfig: infra.SSHExtractedConfig{HasConfig: true},
@@ -649,7 +669,7 @@ func TestPostStartDispatcherDeniesWhenTheAAABootBuildFailed(t *testing.T) {
 		RemoteAddr: "198.51.100.8:2200",
 	}, command)
 	require.ErrorIs(t, err, pluginserver.ErrUnauthorized,
-		"a daemon with no AAA bundle and no profiles must authorize nothing")
+		"the local policy denies alice, and a nil AAA bundle must consult it rather than allow by default")
 	require.NotNil(t, refused)
 	assert.Equal(t, plugin.StatusError, refused.Status)
 }

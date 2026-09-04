@@ -70,3 +70,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | ba6dd6ad | test(aaa): the local failover proven through the daemon | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | ba6dd6ad | test(aaa): the local failover proven through the daemon | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-04 | ba6dd6ad | test(aaa): the local failover proven through the daemon | discovery-index freshness | the only PACKAGE-MAP row that moved is another session's; this commit adds and removes no package | open |
+| 2026-09-04 | ba6dd6ad | fix(aaa): authorization falls back to the local RBAC policy too | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | ba6dd6ad | fix(aaa): authorization falls back to the local RBAC policy too | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | ba6dd6ad | fix(aaa): authorization falls back to the local RBAC policy too | discovery-index freshness | the only PACKAGE-MAP row that moved is another session's; this commit adds and removes no package | open |

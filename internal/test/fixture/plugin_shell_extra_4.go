@@ -375,40 +375,36 @@ func pluginShellExtra4TacacsFallback(ctx context.Context, args []string) error {
 	})
 }
 
-// pluginShellExtra4AAALocalFailover proves the AUTHENTICATION half of the
-// failover the owner ruled on 2026-09-04: with the AAA chain unbuilt, a local
-// account still logs in over ssh.
+// pluginShellExtra4AAALocalFailover proves the failover the owner ruled on
+// 2026-09-04, both halves: with the AAA chain unbuilt, a local account logs in
+// over ssh AND runs a command, so the operator can repair the config that broke
+// the chain.
 //
-// It asserts the login and NOT a command, because the two halves have different
-// answers today. A nil AAA bundle establishes no policy, so
-// liveAAABundleAuthorizer denies every command even though the login resolved
-// the admin profile. The refusal below is that denial, and reading it is how
-// this fixture tells "the session opened and the command was refused" from "the
-// login failed", which look the same from a bare exec error.
+// Authentication answers from the local accounts and authorization from the
+// accepted local RBAC policy. The scenario declares a profile that allows, so
+// `show bgp` must SUCCEED. An earlier shape of this fixture required the
+// opposite, because the nil-bundle authorizer denied everything and the login
+// bought nothing.
 //
-// Change the authorization half and this fixture goes red, which is correct: it
-// pins what the daemon does today, and the daemon would be doing something else.
+// Not an in-config observer: the daemon is driven from OUTSIDE, because a
+// plugin's own `request shutdown` travels the same dispatch path and an
+// observer could not end the run while that path was denied.
 func pluginShellExtra4AAALocalFailover(_ context.Context, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("aaa-local-failover: got %d arguments, want 1", len(args))
 	}
-	// Not an in-config observer: this fixture drives the daemon from OUTSIDE,
-	// because a plugin's own `request shutdown` travels the dispatch path the
-	// nil-bundle authorizer refuses, so an observer could never end the run.
-	return func() error {
-		_, err := pluginShellExtra4Command("127.0.0.1", args[0], "admin", "testpass", "show bgp")
-		if err == nil {
-			return errors.New("the command was ALLOWED: a nil AAA bundle installs no policy, so authorization must still deny")
+	output, err := pluginShellExtra4Command("127.0.0.1", args[0], "admin", "testpass", "show bgp")
+	if err != nil {
+		if strings.Contains(err.Error(), "command restricted by access control") {
+			return fmt.Errorf("the local login succeeded and the command was REFUSED, so authorization did not fall back to the local policy: %w", err)
 		}
-		if strings.Contains(err.Error(), "unable to authenticate") || strings.Contains(err.Error(), "handshake") {
-			return fmt.Errorf("the local account could not log in, so the failover did not happen: %w", err)
-		}
-		if !strings.Contains(err.Error(), "command restricted by access control") {
-			return fmt.Errorf("expected an authorization refusal after a successful local login, got: %w", err)
-		}
-		fmt.Fprintln(os.Stderr, "OK: local login succeeded with the AAA chain unbuilt, and authorization denied the command")
-		return nil
-	}()
+		return fmt.Errorf("the local account could not run a command with the AAA chain unbuilt: %w", err)
+	}
+	if strings.TrimSpace(output) == "" {
+		return errors.New("show bgp answered nothing, so the command did not actually run")
+	}
+	fmt.Fprintln(os.Stderr, "OK: local login and local RBAC both answered with the AAA chain unbuilt")
+	return nil
 }
 
 func pluginShellExtra4TacacsLocalOnly(ctx context.Context, args []string) error {

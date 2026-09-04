@@ -288,10 +288,11 @@ cannot build a client from is a different case. So is a TACACS+ server declared
 with no shared secret in the same config. The whole AAA chain then fails to
 build, and no backend answers at all.
 
-**Login then falls over to the local accounts, on ssh and on web.** That is the
-documented behavior, because a login is how you reach the box to repair the
-config. Authorization does not fall over: with no chain installed there is no
-policy, so every authorization check denies.
+**Login and authorization both fall over to the local accounts and the local
+RBAC policy, on ssh and on web.** That is the documented behavior, because a
+login that can run no command cannot repair the config. A box declaring no
+`system authorization` profile allows every command while the chain is down,
+which is the no-RBAC mode it runs in usually.
 
 A commit is refused rather than failed over, and only while a chain is already
 running. The same error already in the file at boot is logged and startup

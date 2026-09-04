@@ -157,9 +157,22 @@ func (a *bundleAccountantProbe) CommandStop(taskID, _, _, command string) {
 	a.stops = append(a.stops, command)
 }
 
-func TestLiveAAABundleAuthorizerFailsClosedBeforeBundleInstall(t *testing.T) {
+// TestLiveAAABundleAuthorizerFallsBackToLocalRBAC pins the authorization half of
+// the failover the owner ruled on 2026-09-04.
+//
+// REVERSED from an earlier contract, which required a nil bundle to deny every
+// command. That denial defeated the failover beside it: ssh hands a local
+// account a session and then refuses every command, so the operator could not
+// edit the config that broke the chain.
+//
+// With no bundle the answer now comes from the accepted LOCAL policy. This test
+// declares none, so it is the daemon's no-RBAC allow mode, which is the same
+// answer an installed bundle with no authorizer gives. The fallback therefore
+// grants nothing a working chain would have refused.
+func TestLiveAAABundleAuthorizerFallsBackToLocalRBAC(t *testing.T) {
 	resetAAABundleForTest(t)
-	assert.False(t, (liveAAABundleAuthorizer{}).Authorize("alice", "", "show version", true))
+	assert.True(t, (liveAAABundleAuthorizer{}).Authorize("alice", "", "show version", true),
+		"with no bundle the accepted local policy answers, and no policy is the no-RBAC allow mode")
 
 	swapAAABundle(&aaa.Bundle{}, nil)
 	assert.True(t, (liveAAABundleAuthorizer{}).Authorize("alice", "", "show version", true),

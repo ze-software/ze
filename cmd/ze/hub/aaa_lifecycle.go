@@ -560,10 +560,22 @@ type liveAAABundleAuthorizer struct{}
 func (liveAAABundleAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	bundle := aaaBundle.Load()
 	if bundle == nil {
-		// No accepted AAA bundle means startup has not installed authorization
-		// yet. Deny until a non-nil bundle explicitly establishes either RBAC
-		// policy or the existing no-RBAC allow mode.
-		return false
+		// An AAA chain the daemon could not BUILD falls back to the local RBAC
+		// policy, which is the documented behavior (owner ruling, 2026-09-04).
+		//
+		// This branch used to deny outright, and the denial defeated the
+		// failover it sat beside: ssh hands a local account a session, the
+		// login resolves its profiles, and then every command is refused. The
+		// operator reached a shell that could not edit the config that broke
+		// the chain. It reached further than that, because the same dispatch
+		// path carries a plugin's own `request shutdown`.
+		//
+		// The policy consulted here is the accepted local one, which follows
+		// the running config. Where the operator declared no
+		// system.authorization profile it allows, exactly as an installed
+		// bundle with no authorizer does, so this branch widens nothing a
+		// built chain would have narrowed.
+		return liveLocalAuthorizer{}.Authorize(username, remoteAddr, command, isReadOnly)
 	}
 	if bundle.Authorizer == nil {
 		// No local RBAC configured (no system.authorization profiles).
@@ -580,7 +592,11 @@ func (liveAAABundleAuthorizer) AuthorizeCommandArgs(
 ) bool {
 	bundle := aaaBundle.Load()
 	if bundle == nil {
-		return false
+		// The same fallback as Authorize, and for the same reason. The two
+		// methods MUST answer alike: a caller that reached one and was refused
+		// by the other would see a command allowed by name and denied by its
+		// arguments, with no policy behind either answer.
+		return liveLocalAuthorizer{}.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
 	}
 	if bundle.Authorizer == nil {
 		return true
@@ -643,7 +659,11 @@ func (a liveAAABundleProfileAuthorizer) AuthorizeCommandArgs(
 ) bool {
 	bundle := aaaBundle.Load()
 	if bundle == nil {
-		return false
+		// The same fallback as Authorize, and for the same reason. The two
+		// methods MUST answer alike: a caller that reached one and was refused
+		// by the other would see a command allowed by name and denied by its
+		// arguments, with no policy behind either answer.
+		return liveLocalAuthorizer{}.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
 	}
 	if bundle.Authorizer == nil {
 		return true

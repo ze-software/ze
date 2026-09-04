@@ -44,11 +44,18 @@ accounts until the config is repaired.
 |---------|------------------------|
 | ssh | starts, and its authenticator answers from the local accounts |
 | web | the same, through the fallback its live authenticator carries |
-| authorization, every surface | DENIES. A nil bundle establishes no policy, so no operator passes an authorization check |
+| authorization, every surface | answers from the accepted LOCAL RBAC policy |
 
-Authentication and authorization part company here on purpose. A login is what
-makes the repair possible. A privileged command is not, and nothing has told the
-daemon which commands this operator CAN run.
+Both halves fall back, and they must. Authentication alone hands the operator a
+session that can run nothing, and the config they have to edit is the one that
+broke the chain. The same dispatch path carries a plugin's own `request
+shutdown`, so a denial there reaches further than the operator.
+
+**A daemon with no local `system authorization` profile therefore ALLOWS every
+command after a failed build.** That is the daemon's no-RBAC mode. An installed
+bundle with no authorizer already gives the same answer, so the fallback grants
+nothing a working chain would have refused. It does mean a box that declares no
+RBAC has none while its AAA chain is broken.
 
 The failover is not a second chain. The live indirection reads the bundle slot
 on every request. A reload that repairs the config installs a bundle, and the

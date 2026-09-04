@@ -81,9 +81,9 @@ module ze-tacacs-conf {
                              a commit, through the AAA rebuild rather than
                              through the schema: a missing mandatory field is
                              only a warning. At BOOT the same failure is logged
-                             and startup continues with no AAA bundle, which
-                             denies every authorization. Login then fails over
-                             to the local accounts on every surface. That is the
+                             and startup continues with no AAA bundle. Login and
+                             authorization then both fail over, to the local
+                             accounts and the local RBAC policy. That is the
                              documented behavior, and it is how you reach the
                              box to repair the config. The leaf is marked
                              sensitive, so every display path prints a

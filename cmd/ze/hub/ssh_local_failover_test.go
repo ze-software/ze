@@ -185,3 +185,37 @@ func TestInfraSetupStartsSSHWhenTheBundleIsNil(t *testing.T) {
 	require.Nil(t, aaaBundle.Load(), "the boot claim was consumed, so no bundle is installed")
 	assert.True(t, built, "ssh must be built with no AAA bundle: it is how the operator repairs the config")
 }
+
+// TestAuthorizationFallsBackToTheLocalPolicy is the authorization half of the
+// ruling, and the half a login test cannot reach. Both methods of the live
+// authorizer answer from the accepted local policy while the bundle slot is
+// empty, so an operator who failed over can act, and a policy that refuses
+// still refuses.
+//
+// PREVENTS: a shell that can run nothing, on the box whose config must be
+// edited to repair the chain. It also covers a plugin's `request shutdown`,
+// which travels the same dispatch path.
+func TestAuthorizationFallsBackToTheLocalPolicy(t *testing.T) {
+	resetAAABundleForTest(t)
+
+	policy := authz.NewStore()
+	policy.AddProfile(authz.Profile{
+		Name: "operator",
+		Run:  authz.Section{Default: authz.Allow},
+		Edit: authz.Section{Default: authz.Deny},
+	})
+	policy.AssignProfiles("opsadmin", []string{"operator"})
+	publishAcceptedLocalIdentity(&acceptedLocalIdentityState{authorizer: policy})
+
+	authorizer := liveAAABundleAuthorizer{}
+	require.Nil(t, aaaBundle.Load(), "the slot must be empty for the fallback to be under test")
+
+	assert.True(t, authorizer.Authorize("opsadmin", "", "show bgp", true),
+		"the local policy allows an operational command, so the fallback must allow it")
+	assert.False(t, authorizer.Authorize("opsadmin", "", "set bgp router-id", false),
+		"the local policy refuses an edit, and the fallback must refuse it too")
+	assert.True(t, authorizer.AuthorizeCommandArgs("opsadmin", "", "show bgp", nil, "", true),
+		"both methods must answer alike, or a command is allowed by name and denied by its arguments")
+	assert.False(t, authorizer.Authorize("stranger", "", "show bgp", true),
+		"a user the local policy does not name gains nothing from the fallback")
+}

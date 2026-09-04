@@ -46,9 +46,14 @@ is the documented behavior on every management surface, ssh and web alike. It is
 deliberate. A login is how you reach the box to repair the config. A daemon that
 took ssh away would leave you with a running forwarding plane and no way in.
 
-Authorization does NOT fall over. A daemon with no AAA bundle establishes no
-policy, so every authorization check denies. Expect to log in and be refused
-privileged commands until the config is fixed.
+Authorization falls over too, to the accepted local RBAC policy. Both halves
+must, because a login that can run no command cannot repair the config that
+broke the chain.
+
+**A box that declares no `system authorization` profile therefore allows every
+command while its AAA chain is broken.** That is the same no-RBAC mode it runs
+in usually, so nothing a working chain refused becomes permitted. Declare a
+local profile if you want that box governed while its chain is down.
 
 | When | What happens |
 |------|--------------|
