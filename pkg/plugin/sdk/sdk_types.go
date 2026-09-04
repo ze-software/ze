@@ -105,7 +105,7 @@ const (
 	OperationRemoveListener     = rpc.OperationRemoveListener
 	OperationAddStaticRoute     = rpc.OperationAddStaticRoute
 	OperationRemoveStaticRoute  = rpc.OperationRemoveStaticRoute
-	OperationSetAdminDistance   = rpc.OperationSetAdminDistance
+	OperationSetDistance   = rpc.OperationSetDistance
 	OperationSetSysctl          = rpc.OperationSetSysctl
 	OperationStartDHCP          = rpc.OperationStartDHCP
 	OperationStopDHCP           = rpc.OperationStopDHCP

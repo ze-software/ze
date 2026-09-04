@@ -811,7 +811,7 @@ Operation types are kebab-case string constants registered in `pkg/plugin/rpc/ty
 | `set-property` | (varies) | Set MTU, admin state, etc. |
 | `add-static-route` | `static-route` | Install a static route |
 | `remove-static-route` | `static-route` | Remove a static route |
-| `set-admin-distance` | (varies) | Change administrative distance |
+| `set-distance` | (varies) | Change administrative distance |
 | `set-sysctl` | `sysctl` | Set a kernel parameter |
 | `start-dhcp` | `dhcp` | Start DHCP client on an interface |
 | `stop-dhcp` | `dhcp` | Stop DHCP client |

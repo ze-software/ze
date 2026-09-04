@@ -105,6 +105,31 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	s := newSysRIB()
 
+	// SEED THE DECLARATION BEFORE ANY CONFIG ARRIVES. A config with no `rib {`
+	// block delivers NO section at all: ExtractConfigSubtree
+	// (internal/component/config/plugin_verify.go) returns nil for an absent
+	// path, so OnConfigure never runs for this root and neither the map nor the
+	// seam would ever be populated. Exactly one config in the tree carries that
+	// block, so waiting for one left every producer on its own constant
+	// permanently rather than as a bootstrap, and made effectivePriority warn on
+	// an ordinary configuration.
+	//
+	// parseAdminDistanceConfig("{}") is the declaration itself: it fills every
+	// protocol from the YANG schema defaults. Seeding with it means the declared
+	// values apply from process start, and a config that DOES carry the block
+	// overrides them through OnConfigure below.
+	declared, declErr := parseAdminDistanceConfig("{}")
+	if declErr != nil {
+		// The schema is unreadable, so no protocol has a distance and every
+		// route would install at whatever its producer guessed. Refusing to
+		// start is the safe direction for a value that decides what the kernel
+		// forwards on.
+		logger().Error("sysrib: cannot resolve the declared distances, refusing to start", "error", declErr)
+		return 1
+	}
+	s.adminDist = declared
+	publishDistances(declared)
+
 	// pendingDist holds the validated distance map between verify and apply.
 	var pendingDist map[string]int
 

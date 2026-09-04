@@ -38,7 +38,7 @@ Route wins in a protocol, then gets programmed in the kernel:
 1. **Protocol computes its best path.** BGP: `bgp-rib`'s `checkBestPathChange` (see
    `rib.md`) mirrors the winner into Loc-RIB via `r.locRIB.InsertForward(fam, pfx,
    locrib.Path{...}, forward)` (`internal/component/bgp/plugins/rib/rib_bestchange.go`),
-   stamping `AdminDistance` from the operator's `bgp/admin-distance` ebgp/ibgp config
+   stamping `AdminDistance` from the declaration via `internal/core/rib/distance`
    (defaults 20/200). OSPF: `Installer.insert` inserts one `locrib.Path` per equal-cost
    next-hop (`internal/plugins/ospf/spf/install.go`, `InsertForward` at `:163`),
    `AdminDistance` hardcoded to `DefaultAdminDistance=110`
@@ -68,8 +68,8 @@ Route wins in a protocol, then gets programmed in the kernel:
 4. **Convert and arbitrate.** `changeToBatch` (`sysrib.go`) maps a `locrib.Change` to
    sysrib's internal batch shape, resolving the source protocol name via
    `redistevents.ProtocolName(c.Best.Source)` and tagging `FromLocRIB: true`
-   (`:1076`). `processEvent` (`sysrib.go`) applies the OPERATOR admin-distance override
-   (`effectivePriority`, `:246`, from the `rib/admin-distance` YANG config), but because
+   (`:1076`). `processEvent` (`sysrib.go`) applies the OPERATOR distance override
+   (`effectivePriority`, `:246`, from the `rib/distance` YANG config), but because
    `FromLocRIB` is true it REPLACES the whole per-protocol map with just the Loc-RIB's
    single already-chosen winner (`s.routes[key] = map[string]*protocolRoute{proto: pr}`,
    `sysrib.go`) rather than upserting alongside other protocols, so a prior winner from
@@ -147,14 +147,14 @@ Route wins in a protocol, then gets programmed in the kernel:
 ## Key files
 | File | Role |
 |------|------|
-| `sysrib/sysrib.go` | `sysRIB`: cross-protocol admin-distance arbitration, `run`/`processEvent`/`recomputeBest`/`publishChanges`, Loc-RIB↔EventBus dual-source `run` |
+| `sysrib/sysrib.go` | `sysRIB`: cross-protocol distance arbitration, `run`/`processEvent`/`recomputeBest`/`publishChanges`, Loc-RIB↔EventBus dual-source `run` |
 | `sysrib/ecmp.go` | `ecmpCollect`/`backupPaths`/`dedupECMP`/`ecmpChanged`: ECMP and fast-reroute backup shaping for the outgoing batch |
 | `sysrib/nhresolver.go` | `nhResolver`: recursive next-hop resolution via Loc-RIB LPM, dependency tracking for cascade re-evaluation |
-| `sysrib/register.go` | Plugin registration (`configRootRIB="rib"`), admin-distance config verify/apply/rollback (journaled) |
+| `sysrib/register.go` | Plugin registration (`configRootRIB="rib"`), distance config verify/apply/rollback (journaled) |
 | `sysrib/events/events.go` | `BestChangeBatch`/`BestChangeEntry` (system-rib's own outgoing shape), `RouteType`, `ECMPPath`, typed `BestChange`/`ReplayRequest` handles |
-| `sysrib/yang/ze-rib-conf.yang` | `rib/admin-distance` leaves (connected/static/ebgp/ospf/isis/ibgp); see gotcha below |
+| `sysrib/yang/ze-rib-conf.yang` | `rib/distance` leaves (connected/static/ebgp/ospf/isis/ibgp); see gotcha below |
 | `core/rib/locrib/manager.go` | `RIB`: sharded per-family store, `Insert`/`InsertForward`/`Remove`/`LPM`/`Iterate`, `OnChange` subscriber replication |
-| `core/rib/locrib/entry.go` | `PathGroup`, `selectBest` (the REAL cross-protocol admin-distance decision) |
+| `core/rib/locrib/entry.go` | `PathGroup`, `selectBest` (the REAL cross-protocol distance decision) |
 | `core/rib/locrib/candidate.go` | `Path` value type: `Source`/`Instance`/`AdminDistance`/`Metric`/`Labels`/`BackupNextHop` |
 | `core/rib/locrib/change.go` | `Change`/`ChangeKind`/`ChangeHandler`, `subscriberList` (copy-on-write dispatch under the shard write lock) |
 | `core/rib/locrib/default.go` | `Default()`: process-wide singleton, nil in forked plugin subprocesses (`ze.plugin.hub.token` set) |
@@ -177,22 +177,22 @@ Route wins in a protocol, then gets programmed in the kernel:
 ## Invariants & gotchas
 - **The real cross-protocol decision happens in Loc-RIB, not sysrib.** `selectBest`
   (`locrib/entry.go`) picks the winner using each producer's raw `AdminDistance` (BGP's
-  operator-configurable `bgp/admin-distance`; OSPF/IS-IS's hardcoded, non-configurable
+  operator-configurable through `rib/distance`; OSPF and IS-IS read the same seam
   `DefaultAdminDistance` 110/115 set once at `Installer` construction
   (`internal/plugins/ospf/spf/install.go`,
   `internal/plugins/isis/spf/install.go`) and never mutated afterward, no
   setter exists). By the time sysrib sees the `Change` (`FromLocRIB=true`), only ONE
   protocol's route is present in `s.routes[key]`, so sysrib's own `recomputeBest` has
-  nothing left to arbitrate: sysrib's `rib/admin-distance` override changes only the
+  nothing left to arbitrate: sysrib's `rib/distance` override changes only the
   reported `priority` number (visible in `show rib` and change-detection), never which
   protocol wins, in the default in-process deployment. **Doc-vs-code drift:** the YANG
   description at `sysrib/yang/ze-rib-conf.yang` ("Used by the system RIB to select
   the best route across protocols") overstates this for OSPF/IS-IS/BGP; only a forked,
   multi-process deployment without a shared Loc-RIB would let sysrib's own map hold
   competing entries to arbitrate for real (see next point).
-- **`connected` and `static` admin-distance leaves are dead.** Neither protocol ever writes
-  to Loc-RIB or reaches sysrib (see flow steps 13/14), so `rib/admin-distance/connected`
-  (default 0) and `rib/admin-distance/static` (default 10) in the YANG have NO effect on
+- **`connected` and `static` distance leaves are dead.** Neither protocol ever writes
+  to Loc-RIB or reaches sysrib (see flow steps 13/14), so `rib/distance/connected`
+  (default 0) and `rib/distance/static` (default 10) in the YANG have NO effect on
   any actual route-install decision anywhere in the codebase today.
 - **Forked/multi-process deployment loses OSPF/IS-IS entirely.** `locrib.Default()`
   returns nil when `ze.plugin.hub.token` is set (`locrib/default.go`), which makes every
@@ -206,7 +206,7 @@ Route wins in a protocol, then gets programmed in the kernel:
   `sysrib.go`: a Loc-RIB-sourced change REPLACES `s.routes[key]` wholesale (map
   with exactly the new winner) instead of upserting under `[proto]`, specifically so a
   best switching from protocol A to B does not leave A's stale entry able to win
-  `recomputeBest` after a later admin-distance reconfig. The event-bus fallback path keeps
+  `recomputeBest` after a later distance reconfig. The event-bus fallback path keeps
   the per-protocol upsert because it genuinely needs multiple concurrent entries.
 - **Loc-RIB `OnChange` handlers run under the shard write lock.** sysrib's handler
   (`sysrib.go`) only enqueues to a channel: it must never call back into `Insert`/
@@ -219,7 +219,7 @@ Route wins in a protocol, then gets programmed in the kernel:
   so fib-kernel's external-change monitor never mistakes its own or static's writes for an
   externally injected route needing re-assertion. It does NOT prevent static and
   fib-kernel from independently installing routes for the SAME prefix if configured to:
-  there is no admin-distance arbitration across that boundary, and whichever netlink write
+  there is no distance arbitration across that boundary, and whichever netlink write
   lands last wins in the kernel.
 - **Same-best short-circuits skip labeled routes.** Both BGP's mirror
   (`internal/component/bgp/plugins/rib/rib_bestchange.go`, see `rib.md`) and

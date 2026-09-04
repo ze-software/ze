@@ -1386,3 +1386,34 @@ func TestDistanceRollbackRestoresThePreviousMap(t *testing.T) {
 	require.Equal(t, 30, s.effectivePriority("ebgp", 999),
 		"rollback must restore the map the daemon was running before the failed apply")
 }
+
+// TestDeclaredDistancesApplyWithNoRibBlock covers AC-1 at the path that
+// actually fails, which is the one the earlier tests missed.
+//
+// A config with no `rib {` block delivers NO section: ExtractConfigSubtree
+// returns nil for an absent path, so OnConfigure never runs for this root.
+// Every previous test called parseAdminDistanceConfig directly or assigned
+// s.adminDist by hand, so all of them passed while the daemon left every
+// producer on its own constant permanently. Exactly one config in the tree
+// carries a `rib {` block.
+//
+// PREVENTS: the declaration going back to deciding nothing on an ordinary
+// configuration, which is indistinguishable from working unless the assertion
+// starts where the daemon starts.
+func TestDeclaredDistancesApplyWithNoRibBlock(t *testing.T) {
+	// The exact call runSysRIBPlugin makes before any config arrives.
+	declared, err := parseAdminDistanceConfig("{}")
+	require.NoError(t, err, "the declaration must resolve with no config at all")
+
+	require.Equal(t, 20, declared["ebgp"], "eBGP must hold its declared value, not a producer constant")
+	require.Equal(t, 110, declared["ospf"])
+	require.Equal(t, 0, declared["connected"])
+	require.Len(t, declared, 6, "every protocol the schema declares")
+
+	// And the fallback must NOT be reached, so no warning is emitted on an
+	// ordinary configuration.
+	s := newSysRIB()
+	s.adminDist = declared
+	require.Equal(t, 20, s.effectivePriority("ebgp", 999))
+	require.Empty(t, s.distanceSpoken, "an ordinary config must produce no distance warning")
+}

@@ -1081,7 +1081,7 @@ const (
 	OperationRemoveListener     ConfigOperationType = "remove-listener"
 	OperationAddStaticRoute     ConfigOperationType = "add-static-route"
 	OperationRemoveStaticRoute  ConfigOperationType = "remove-static-route"
-	OperationSetAdminDistance   ConfigOperationType = "set-distance"
+	OperationSetDistance   ConfigOperationType = "set-distance"
 	OperationSetSysctl          ConfigOperationType = "set-sysctl"
 	OperationStartDHCP          ConfigOperationType = "start-dhcp"
 	OperationStopDHCP           ConfigOperationType = "stop-dhcp"

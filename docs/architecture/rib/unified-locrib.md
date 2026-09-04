@@ -31,7 +31,7 @@ longest-prefix match and iteration. A caller that needs per-path-id lookup puts
 a path-id map in the value layer.
 <!-- source: internal/component/bgp/plugins/rib/storage/pathset.go -- value-layer ADD-PATH wrapper -->
 
-**Cross-source best path runs off an admin-distance table.** `Path.AdminDistance
+**Cross-source best path runs off a distance table.** `Path.AdminDistance
 uint8` orders before metric inside `selectBest`. The defaults follow Cisco and
 Juniper. A YANG override is additive future work and blocks nothing.
 

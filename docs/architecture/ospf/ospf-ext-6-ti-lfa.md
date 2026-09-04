@@ -37,7 +37,7 @@ post-convergence path. This is a COMPUTE, CARRY-THROUGH and INSTALL feature. RFC
 
 - **The Loc-RIB path equality INCLUDES the backup fields, and the key and
   best-path selection EXCLUDE them.** A backup-only change must re-install so
-  the kernel reprograms, while arbitration stays admin-distance then metric.
+  the kernel reprograms, while arbitration stays distance then metric.
   Equality is used only for change detection, never in arbitration, so other
   protocols are unaffected.
 

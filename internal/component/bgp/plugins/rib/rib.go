@@ -387,13 +387,16 @@ type RIBManager struct {
 	// operator writes, and sysrib resolves it (effectivePriority,
 	// internal/component/sysrib/sysrib.go).
 	//
-	// They stay atomics rather than becoming plain constants because the stamp
-	// site runs on the forwarding path while configure runs on another
-	// goroutine, and because the producer-side copy is a KNOWN duplication with
-	// a spec of its own: locrib.selectBest (internal/core/rib/locrib/entry.go)
-	// arbitrates cross-protocol on the value stamped here and never sees the
-	// declaration. IS-IS (spf.DefaultAdminDistance 115) and OSPF (110) hold the
-	// same shape.
+	// They are written once, in newRIBManager, and never again: the config path
+	// that used to write them is gone. They stay atomics rather than becoming
+	// plain constants only because the stamp site reads them on the forwarding
+	// path.
+	//
+	// locrib.selectBest (internal/core/rib/locrib/entry.go) arbitrates
+	// cross-protocol on the value stamped at that site, and since 2026-09-04 the
+	// stamp reads the declaration through internal/core/rib/distance, so these
+	// are the value used only until sysrib publishes. IS-IS
+	// (spf.DefaultAdminDistance 115) and OSPF (110) hold the same shape.
 	adminDistanceEBGP atomic.Uint32
 	adminDistanceIBGP atomic.Uint32
 

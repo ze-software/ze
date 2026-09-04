@@ -1,0 +1,37 @@
+# Test: an operator raising the eBGP distance is accepted and takes effect.
+# VALIDATES: AC-2 -- a partial block keeps the other five declared values.
+# VALIDATES: AC-6 -- a changed distance is what the daemon runs on.
+#
+# WHAT THIS PROVES AND WHAT IT DOES NOT. It drives the real binary over the real
+# config path, so it proves the container parses, that a single named leaf is
+# accepted beside five defaulted ones, and that the daemon starts on it. It does
+# NOT prove an OSPF route beats an eBGP one at distance 250: that needs two
+# protocols holding one prefix, which is a QEMU scenario rather than a config
+# case. TestBgpStampsTheDeclaredDistanceNotItsOwn
+# (internal/component/bgp/plugins/rib/rib_bestchange_test.go) covers the half
+# this cannot reach, and was observed RED at 0x14 where 0xfa was required.
+
+stdin=dist-override:terminator=EOF_OVERRIDE
+rib {
+	distance {
+		ebgp 250;
+	}
+}
+EOF_OVERRIDE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=dist-override:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# The other five keep their declared values: a partial block is not a whole one.
+stdin=dist-override-full:terminator=EOF_FULL
+rib {
+	distance {
+		ebgp 250;
+		ospf 110;
+	}
+}
+EOF_FULL
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=dist-override-full:exit=0
+expect=exit:code=0
