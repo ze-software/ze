@@ -151,6 +151,7 @@ var interopTrees = [...]interopTree{
 	{"interop-bgp", "internal/le/interoplab/bgp/", "integration/interop"},
 	{"interop-ipsec", "internal/le/interoplab/ipsec/", "integration/interop-ipsec"},
 	{"interop-l2tp", "internal/le/interoplab/l2tp/", "deployment/docker-l2tp-ppp-test"},
+	{"interop-radius", "internal/le/interoplab/radius/", "integration/interop-radius"},
 	{"interop-pppoe", "internal/le/interoplab/pppoe/", "deployment/docker-pppoe-accel-test"},
 }
 

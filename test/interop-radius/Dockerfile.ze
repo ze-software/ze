@@ -1,0 +1,11 @@
+# Ze image for the RADIUS admin interop lab.
+# Expects a pre-built linux binary at test/interop-radius/ze-linux, which the
+# native suite cross-compiles before it builds this image.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache tini iproute2
+
+COPY test/interop-radius/ze-linux /usr/local/bin/ze
+
+ENTRYPOINT ["tini", "--", "ze"]

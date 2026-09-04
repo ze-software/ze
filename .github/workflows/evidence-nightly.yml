@@ -98,6 +98,28 @@ jobs:
       - name: IKEv2/IPsec interoperability
         run: ./le integration interop-ipsec
 
+  # Ze's admin login against a real FreeRADIUS server. Every other RADIUS proof
+  # ze holds runs against a mock ze wrote, and a mock built beside ze's own
+  # encoder agrees with ze by construction. Ze computes a CHAP digest the server
+  # must reproduce from its own stored password, so only a server ze did not
+  # write can disagree.
+  #
+  # It needs Docker and nothing else: the admin path is a UDP socket and ze's own
+  # listeners, so unlike the three labs around it this job asks for no kernel
+  # module and no privileged container.
+  radius-interop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: RADIUS admin-login interoperability against FreeRADIUS
+        run: ./le integration interop-radius
+
   # The L2TP lab builds a PPP/NCP path between peer-isolated containers. It needs
   # PPPoL2TP in the runner's kernel, so it is scheduled and advisory like the
   # strongSwan lab above, never part of a merge gate.

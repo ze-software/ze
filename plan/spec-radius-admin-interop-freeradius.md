@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-04 |
@@ -119,9 +119,9 @@ over SSH with credentials FreeRADIUS holds.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Lab → FreeRADIUS | a pulled image plus a mounted config directory | [ ] |
-| Ze → FreeRADIUS | a real Access-Request over UDP | [ ] |
-| Checker → both sides | ze's log and the server's detail log | [ ] |
+| Lab → FreeRADIUS | a pulled image plus a mounted config directory | [x] |
+| Ze → FreeRADIUS | a real Access-Request over UDP | [x] |
+| Checker → both sides | ze's log and the server's detail log | [x] |
 
 ### Integration Points
 - `internal/le/interoplab/radius/` -- the new suite: lab, containers, checkers.
@@ -138,10 +138,10 @@ required a product change would be testing the change.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A FreeRADIUS peer can be a pulled image | FRR is pulled in the L2TP suite through `ImageBuild{Pull: true}` | A Dockerfile is needed, which is still small | AC-1 | unvalidated |
-| A-2 | The admin path needs no kernel module | it is a UDP socket and ze's own listeners | The suite inherits a gate after all, and the L2TP suite becomes the right home | AC-8 | unvalidated |
-| A-3 | FreeRADIUS can be made to log enough for the checker to read the server's side | its detail log module | The checker asserts ze's side only, which is weaker and must be said | AC-4 | unvalidated |
-| A-4 | The CHAP scenario needs a `Cleartext-Password` entry | RFC 2865 Section 2.2 | The scenario proves less than it claims | AC-3 | unvalidated |
+| A-1 | A FreeRADIUS peer can be a pulled image | FRR is pulled in the L2TP suite through `ImageBuild{Pull: true}` | A Dockerfile is needed, which is still small | AC-1 | confirmed -- `docker.io/freeradius/freeradius-server:3.2.7` pulls and answers; the ready probe reads `/proc/net/udp` for 0714 |
+| A-2 | The admin path needs no kernel module | it is a UDP socket and ze's own listeners | The suite inherits a gate after all, and the L2TP suite becomes the right home | AC-8 | confirmed -- the whole suite runs green on macOS/Docker Desktop, where `l2tp_ppp` is absent; `TestSuiteNeedsNoKernelModule` refuses a module mount, a capability or a privileged peer |
+| A-3 | FreeRADIUS can be made to log enough for the checker to read the server's side | its detail log module | The checker asserts ze's side only, which is weaker and must be said | AC-4 | confirmed -- two `linelog` modules (`test/interop-radius/mods-ze-request-log`) write one line per request carrying verdict, User-Name, the PRESENCE of each credential, and the NAS-Identifier. The checker reads BOTH sides; the fallback did not have to be taken |
+| A-4 | The CHAP scenario needs a `Cleartext-Password` entry | RFC 2865 Section 2.2 | The scenario proves less than it claims | AC-3 | confirmed -- the cleartext entry accepts CHAP; the same password stored `{sha256}` refuses CHAP and still accepts PAP, which is what `radius-admin-chap-hashed-freeradius` asserts |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -186,7 +186,7 @@ suite, plus a CI job. No product code changes.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| the suite's own lab test, following `internal/le/interoplab/l2tp/l2tp_test.go` | `internal/le/interoplab/radius/radius_test.go` | AC-1, the container and probe wiring | |
+| the suite's own lab test, following `internal/le/interoplab/l2tp/l2tp_test.go` | `internal/le/interoplab/radius/radius_test.go` | AC-1, the container and probe wiring | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Input | Boundary | Expected |
@@ -197,7 +197,7 @@ suite, plus a CI job. No product code changes.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| the three scenarios below | `test/interop-radius/scenarios/` | see the user stories | |
+| the three scenarios below | `test/interop-radius/scenarios/` | see the user stories | PASS |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Peer implementation | Asserts |
@@ -220,16 +220,17 @@ suite, plus a CI job. No product code changes.
 - `test/interop-radius/scenarios/radius-admin-chap-hashed-freeradius/`
 
 ### Integration Checklist
-- [ ] `./le integration` lists the suite and its scenarios.
-- [ ] `Discover` names every scenario directory, so none breaks the run.
-- [ ] A CI job runs it.
+- [x] `./le integration` lists the suite and its scenarios.
+- [x] `Discover` names every scenario directory, so none breaks the run.
+- [x] A CI job runs it.
 
 ### Documentation Update Checklist (BLOCKING)
-- [ ] `docs/architecture/testing/interop.md` -- the suite, its scenarios, its
-      peer, and what each asserts.
-- [ ] `docs/guide/radius.md` -- the Verification table, which today names two
-      `.ci` tests and no interop.
-- [ ] `docs/functional-tests.md`.
+- [x] `docs/architecture/testing/interop.md` -- the suites table gains a row, and
+      "The FreeRADIUS admin-login suite" states the peer, the linelog record, and
+      what each scenario asserts on both sides.
+- [x] `docs/guide/radius.md` -- the Verification section gains an interop table,
+      and the §2.2 paragraph now cites the scenario that proves it.
+- [x] `docs/functional-tests.md`.
 
 ## Implementation Steps
 
@@ -254,12 +255,12 @@ suite, plus a CI job. No product code changes.
 ### Deliverables Checklist
 | Deliverable | Verification method | Status |
 |-------------|--------------------|--------|
-| The suite exists and runs | `./le integration` naming it | |
-| PAP against a real server | `radius-admin-pap-freeradius` | |
-| CHAP against a real server | `radius-admin-chap-freeradius` | |
-| The RFC 2865 Section 2.2 consequence | `radius-admin-chap-hashed-freeradius` | |
-| Discrimination recorded | the recorded REDs | |
-| CI job | the CI config diff | |
+| The suite exists and runs | `./le integration interop-radius` | done -- listed by `./le integration`, 3 scenarios green |
+| PAP against a real server | `radius-admin-pap-freeradius` | done |
+| CHAP against a real server | `radius-admin-chap-freeradius` | done |
+| The RFC 2865 Section 2.2 consequence | `radius-admin-chap-hashed-freeradius` | done |
+| Discrimination recorded | the recorded REDs | done -- see Discrimination Record below |
+| CI job | the CI config diff | done -- the `radius-interop` job in `.github/workflows/evidence-nightly.yml` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -309,15 +310,61 @@ where an implementation can be self-consistently wrong.
 - [x] The owner approved running this spec on 2026-09-04.
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-10 demonstrated
-- [ ] Each scenario shown RED against a broken producer, and recorded
-- [ ] CI runs the suite
+- [x] AC-1..AC-10 demonstrated
+- [x] Each scenario shown RED against a broken producer, and recorded
+- [x] CI runs the suite
 - [ ] `./le verify worktree` passes
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [x] Tests written
+- [x] Tests FAIL (paste output)
+- [x] Tests PASS (paste output)
+
+## Discrimination Record (AC-9)
+
+Baseline, all three scenarios, `./le integration interop-radius`, after a forced
+`./le --update` so the binary under measurement is the tree on disk:
+
+```
+PASS  3 scenario(s)
+```
+
+**Break 1 -- the chain no longer stops at an Access-Reject.** Removed the
+`errors.Is(err, ErrAuthRejected)` early return from
+`(*ChainAuthenticator).Authenticate` (`internal/component/aaa/types.go`), which
+is the R-1 defect this suite exists to catch, then restored it:
+
+```
+── radius-admin-chap-freeradius ──
+  ✗ FAIL: assertion 5: radiusop logged in with the LOCAL password while RADIUS rejected it; the chain fell through
+── radius-admin-chap-hashed-freeradius ──
+  ✓ PASS
+── radius-admin-pap-freeradius ──
+  ✗ FAIL: assertion 5: radiusop logged in with the LOCAL password while RADIUS rejected it; the chain fell through
+```
+
+`radius-admin-chap-hashed-freeradius` stays green under this break, and that is
+correct rather than a gap: the password it sends is not the local account's, so
+a chain that fell through still could not authenticate it. It needs its own
+break, below.
+
+**Break 2 -- ze puts the wrong credential on the wire.** Set `auth-method pap`
+in `test/interop-radius/scenarios/radius-admin-chap-hashed-freeradius/ze.conf`,
+so ze sends a User-Password the server CAN verify against its stored hash, then
+restored it:
+
+```
+── radius-admin-chap-hashed-freeradius ──
+  ✗ FAIL: assertion 1: wait for FreeRADIUS record 'verdict=silent user=localop
+    user-password=absent chap-password=present nas-identifier=ze-interop-nas'
+    timed out before the peer became ready
+```
+
+The scenario reds at its FIRST assertion rather than at the login under test,
+because the control request already carries the wrong credential and the checker
+reads the server's record of what ARRIVED. That is the discrimination working
+earlier than expected, not a weaker one: no assertion in this scenario survives
+ze sending PAP where the config says `chap`.
 
 ### Closure
 - [ ] `plan/future/spec-radius-admin-interop-freeradius.md` removed

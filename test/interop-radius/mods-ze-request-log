@@ -1,0 +1,32 @@
+# Ze RADIUS interop lab: the server's own record of every request it handled.
+#
+# The checker reads this file to assert what FreeRADIUS saw and what it replied.
+# Ze's log alone cannot make that assertion: a login the local bcrypt backend
+# satisfied produces a ze log line and no server traffic at all.
+#
+# One line per request, in one field shape, whichever way the request went.
+# ze_request_log writes the two answered verdicts, and ze_silent_log writes the
+# one deliberately unanswered request, so a reader parses one format.
+#
+# Tmp-String-0 and Tmp-String-1 carry the PRESENCE of the two credentials, never
+# their values, so the file holds no password and no digest. sites-enabled/default
+# sets both before either module runs.
+linelog ze_request_log {
+	filename = ${logdir}/ze-request.log
+	escape_filenames = no
+	permissions = 0644
+	format = ""
+	reference = "messages.%{%{reply:Packet-Type}:-unknown}"
+	messages {
+		Access-Accept = "verdict=accept user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none}"
+		Access-Reject = "verdict=reject user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none}"
+		unknown = "verdict=unhandled user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none}"
+	}
+}
+
+linelog ze_silent_log {
+	filename = ${logdir}/ze-request.log
+	escape_filenames = no
+	permissions = 0644
+	format = "verdict=silent user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none}"
+}

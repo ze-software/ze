@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	interopbgp "github.com/ze-software/ze/internal/le/interoplab/bgp"
 	interopipsec "github.com/ze-software/ze/internal/le/interoplab/ipsec"
+	interopradius "github.com/ze-software/ze/internal/le/interoplab/radius"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
@@ -70,6 +71,10 @@ func runGeneralInterop(ctx context.Context, root string) (any, int) {
 
 func runIPsecInterop(ctx context.Context, root string) (any, int) {
 	return interopipsec.RunAt(ctx, root)
+}
+
+func runRADIUSInterop(ctx context.Context, root string) (any, int) {
+	return interopradius.RunAt(ctx, root)
 }
 
 func runStressBirdGate(_ context.Context, _ string) (any, int) {

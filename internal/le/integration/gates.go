@@ -14,10 +14,11 @@
 // Kernel staging and the host build share the same native definitions, so the
 // guest proofs cannot boot an artifact produced by a different configuration.
 //
-// INTEROP_SCENARIO and IPSEC_INTEROP_SCENARIO remain environment selectors.
-// The two native interop callbacks read them before scenario discovery, so
-// `./le integration interop` and `./le integration interop-ipsec` select one
-// exact scenario without a helper argv.
+// INTEROP_SCENARIO, IPSEC_INTEROP_SCENARIO and RADIUS_INTEROP_SCENARIO remain
+// environment selectors.
+// The three native interop callbacks read them before scenario discovery, so
+// `./le integration interop`, `./le integration interop-ipsec` and
+// `./le integration interop-radius` select one exact scenario without a helper argv.
 //
 // Nine neighboring actions are not in this table. internal/le/deployment owns
 // seven deployment actions, while internal/le/evidence and internal/le/qemu own
@@ -86,6 +87,13 @@ var (
 		Description: "one scenario under test/interop-ipsec/; empty runs every scenario",
 		Private:     true,
 	})
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "radius.interop.scenario",
+		Type:        envString,
+		Default:     "",
+		Description: "one scenario under test/interop-radius/; empty runs every scenario",
+		Private:     true,
+	})
 )
 
 // goTest answers a kernel-facing integration suite, argument for argument.
@@ -121,6 +129,13 @@ func Table() []Action {
 			Native: runIPsecInterop,
 			Why: "IKEv2/IPsec interop against strongSwan. Needs Docker and privileged" +
 				" containers. IPSEC_INTEROP_SCENARIO=<name> runs one scenario",
+		},
+		{
+			Verb:   "interop-radius",
+			Native: runRADIUSInterop,
+			Why: "RADIUS admin-login interop against a real FreeRADIUS server, every" +
+				" scenario under test/interop-radius/scenarios/. Needs Docker and no" +
+				" kernel module. RADIUS_INTEROP_SCENARIO=<name> runs one scenario",
 		},
 		// ── Stress ───────────────────────────────────────────────────────
 		{

@@ -1,0 +1,85 @@
+# Ze RADIUS interop lab: the whole virtual server, written out.
+#
+# This replaces the shipped sites-enabled/default rather than editing it. The
+# shipped file carries EAP, MS-CHAP, realms, proxying and accounting, none of
+# which the admin-login path uses, and a reader of this lab must be able to see
+# every step the server takes between the Access-Request and its reply.
+#
+# authorize runs chap before files so the chap module can set Auth-Type = CHAP
+# from a CHAP-Password, and pap after files so it can read whatever password
+# form the users file supplied.
+server default {
+	listen {
+		type = auth
+		ipaddr = *
+		port = 1812
+	}
+
+	authorize {
+		preprocess
+
+		# Tmp-String-0 and Tmp-String-1 record that a credential was PRESENT.
+		# The values never enter the log: a fixture that printed the password
+		# would teach the wrong thing, and the CHAP digest says nothing a reader
+		# can check by eye. They are set here, before any branch, so every path
+		# that logs has them.
+		update request {
+			&Tmp-String-0 := "absent"
+			&Tmp-String-1 := "absent"
+		}
+		if (&User-Password) {
+			update request {
+				&Tmp-String-0 := "present"
+			}
+		}
+		if (&CHAP-Password) {
+			update request {
+				&Tmp-String-1 := "present"
+			}
+		}
+
+		# localop is the lab's control account, and the server answers nothing
+		# for it. Silence is deliberate: docs/guide/radius.md step 7 sends a
+		# timeout to the next backend, while step 5 stops the chain on an
+		# Access-Reject. A reject here would therefore leave no scenario able to
+		# reach the local bcrypt backend at all, and a refused RADIUS login
+		# could not be told apart from a broken SSH listener.
+		#
+		# The request is logged before the silence, so the checker reads
+		# positive evidence that the server SAW it and chose not to answer.
+		if (&User-Name == "localop") {
+			ze_silent_log
+			update control {
+				&Response-Packet-Type := Do-Not-Respond
+			}
+			handled
+		}
+
+		chap
+		files
+		pap
+	}
+
+	authenticate {
+		Auth-Type PAP {
+			pap
+		}
+		Auth-Type CHAP {
+			chap
+		}
+	}
+
+	post-auth {
+		ze_request_log
+
+		Post-Auth-Type REJECT {
+			# RFC 2865 Section 5.11 gives Filter-Id a count of 0 in an
+			# Access-Reject. The users file attaches it as a reply item during
+			# authorize, which runs before the verdict is known, so this filter
+			# removes it again on the reject path and keeps the lab's replies
+			# conformant.
+			attr_filter.access_reject
+			ze_request_log
+		}
+	}
+}

@@ -430,7 +430,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 		"fuzz/run",
 		"integration/iface", "integration/fib", "integration/firewall",
 		"integration/traffic", "integration/gtsm", "integration/as112",
-		"integration/interop", "integration/interop-ipsec",
+		"integration/interop", "integration/interop-ipsec", "integration/interop-radius",
 	}
 	actions := nativeActions(t, name)
 	for _, action := range want {

@@ -1,0 +1,13 @@
+# FreeRADIUS mods-config/files/authorize for radius-admin-chap-hashed-freeradius.
+#
+# The password is stored HASHED, as {sha256} over the fixture password
+# "fixture-chap-secret". The server therefore cannot compute the CHAP digest,
+# and RFC 2865 Section 2.2 tells it what to do: "If the password is not
+# available in cleartext to the RADIUS server then the server MUST send an
+# Access-Reject to the client."
+#
+# The same entry accepts the same password over PAP. The checker proves that
+# with radclient before it reads the rejection, so the rejection cannot be
+# explained by a wrong username or a wrong password in this file.
+radiusop	Password-With-Header := "{sha256}ar0ZJw9ixbA6LpsWQYWzA/4cmajW11xulQsp2JTJaZM="
+		Filter-Id = "interop-operator"

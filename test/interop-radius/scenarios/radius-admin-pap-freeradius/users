@@ -1,0 +1,12 @@
+# FreeRADIUS mods-config/files/authorize for radius-admin-pap-freeradius.
+#
+# The password is stored HASHED, as {sha256} over the fixture password
+# "fixture-pap-secret". PAP works against this form because ze sends the
+# password and the server hashes what it received. CHAP would not, and
+# radius-admin-chap-hashed-freeradius proves it.
+#
+# Filter-Id names the ze authorization profile the login must end up with.
+# RFC 2865 Section 5.11 calls it "the filter list for this user", which is what
+# a ze profile is.
+radiusop	Password-With-Header := "{sha256}+QDCWcnn5kTK8xqKEm6cExY9fNHh0vUj/hfVyYRtx3s="
+		Filter-Id = "interop-operator"

@@ -1,0 +1,12 @@
+# FreeRADIUS mods-config/files/authorize for radius-admin-chap-freeradius.
+#
+# The password is stored in CLEARTEXT, which RFC 2865 Section 2.2 requires for
+# CHAP: "CHAP requires that the user's password be available in cleartext to
+# the server so that it can encrypt the CHAP challenge and compare that to the
+# CHAP response."
+#
+# "fixture-chap-secret" is a published fixture value. It is here because the
+# scenario needs the server to hold a cleartext password, which is exactly the
+# cost docs/guide/radius.md tells an operator that auth-method chap carries.
+radiusop	Cleartext-Password := "fixture-chap-secret"
+		Filter-Id = "interop-operator"
