@@ -15,11 +15,16 @@ import (
 // deliverSection builds the config section this plugin actually receives, by
 // driving the real producer chain rather than typing the JSON:
 //
-//	LoadConfig            (internal/component/config)
-//	  -> (*Tree).ToMap
+//	LoadConfig              (internal/component/config)
+//	  -> (*Tree).ToPluginMap  (cmd/ze/hub/main_reload.go, loadTreeForReload)
 //	  -> ExtractConfigSubtree (internal/component/config/plugin_verify.go)
 //	  -> json.Marshal         (plugin server reload.go)
 //	  -> parseFIBConfig       (register.go)
+//
+// ToPluginMap, not ToMap: that is the lowering the daemon uses, and
+// main_reload.go says it MUST be. The two agree for this root, which holds two
+// leaves and no list, but a helper copied to a plugin whose root holds an
+// ordered list would hand it a map with no entry order.
 //
 // The point is the SHAPE. Two defects lived here at once, and a hand-typed
 // fixture agreed with the reader on both: every leaf arrives as a STRING, and
@@ -36,7 +41,7 @@ func deliverSection(t *testing.T, text string) (fibConfig, error) {
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
 	}
-	subtree := zeconfig.ExtractConfigSubtree(result.Tree.ToMap(), configRoot)
+	subtree := zeconfig.ExtractConfigSubtree(result.Tree.ToPluginMap(), configRoot)
 	if subtree == nil {
 		t.Fatalf("ExtractConfigSubtree(%q) returned nil, so the plugin would be handed {}", configRoot)
 	}

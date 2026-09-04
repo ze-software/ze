@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | complete |
 | Scope | cli |
 | Depends | - |
 | Phase | - |
@@ -616,3 +616,212 @@ D-1 YES.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The gate. `./le docvalid help-shape` judges four populations (command nodes, RPCs, offline local commands, config nodes) against `missing-long-help`, `char-cap`, `word-cap`, `long-restates-summary` and `missing-summary`. It derives its population by walking the resolved goyang entry tree, so no keyword list restates the schema, and it judges the long half only over declarations this tree changed against HEAD.
+- The write hook. `./le hook-check pretool-writeedit` answers on a proposed `.yang` edit, scoped to rendering statements: a `module` or `revision` description takes no bound, and a `leaf` in a `-cmd.yang` or `-api.yang` module is not judged.
+- The Go consistency pass. `Description` is the summary and `LongHelp` the explanation, in `command.Node`, `command.CommandEntry`, `yang.RPCMeta`, `pluginserver.Command`, `pluginserver.Completion`, `contract.Completion` and `client.commandEntry`. No field is named `Help`.
+- The retired key. `help` named the summary on the daemon-to-CLI wire until 2026-09-03. `validateHelpDecls` and `decodeCommandList` refuse a payload carrying it rather than decoding it to an empty summary.
+- The config two-text path. `ze:help` now covers a config node, `entryLongHelp` reads it off the resolved entry, and the `?` box shows it with no fallback to the description.
+- The prose. 3,011 of 3,196 config nodes carry a long explanation, up from 16 at the start; 3,181 carry a summary. Command nodes 612 of 613, RPCs 204 of 211, offline locals 19 of 19.
+
+### Bugs Found/Fixed
+Writing an explanation means reading the producer, and reading 3,196 producers found defects the prose could not honestly describe. Each was fixed at its source, with a test that fails against the old code.
+
+| Defect | Fix | Test that goes red without it |
+|--------|-----|-------------------------------|
+| `over-limit-policy drop` set the base input chain policy to drop, so a value named for over-limit traffic discarded SSH, ICMP and every service the four CoPP terms did not name | The drop rides the rate-limit term as the nftables inverted limiter; the chain policy is accept under both settings | `TestCoppTranslateDropPolicy`, `test/firewall/copp-over-limit-drop.ci` |
+| A TACACS+ server with no key sent the packet body in cleartext under a header whose `TAC_PLUS_UNENCRYPTED_FLAG` was clear | `MarshalInto` returns `ErrNoSharedSecret`; `tacacsBackend.Build` refuses the server by address; the YANG leaf is `mandatory true` with `length "1..max"` | `TestPacketMarshalNoEncryption`, `test/parse/tacacs-key-required.ci` |
+| The help of a node several modules declare was chosen by module-name order, so every declaration but the first was unreachable | `mergeHelpExts` joins them | `TestMergeKeepsEveryDeclarationsHelp`, `TestMergeKeepsTheHelpOfTheDeclarationThatCarriesOne` |
+| Three `.(bool)` and `.(float64)` assertions on delivered config could never succeed, because every leaf arrives as a string | `configvalue.Bool` and `configvalue.Int` | `TestParseFIBConfigReadsTheDeliveredStrings`, the pool tests fed the delivered shape |
+| `fib/kernel` read its section one level above where it arrives, so neither of its settings had ever reached a running daemon | `configvalue.Section` derives the unwrap from the declared root | every test in `config_delivery_test.go` |
+| `configvalue.Int`'s upper bound rejected nothing: `math.MaxInt64` rounds up to 2^63 in float64, so exactly 2^63 passed and the conversion answered differently per architecture | `value >= -float64(math.MinInt64)` | `TestIntReadsEveryDeliveryShape/one_past_the_top_of_int64` |
+| `Bool` and `Int` could not tell an absent leaf from an unreadable one, and both callers kept their default | The callers split on map presence and refuse a value that does not read | `TestParseFIBConfigRefusesAValueItCannotRead` |
+| `sweep-delay 0` is schema-legal and was discarded by a `> 0` guard | Accepted | `TestParseFIBConfigReadsAConfiguredZero` |
+| `show firewall` and the web rules page printed an inverted limiter exactly like a plain one | Both print `over` | `TestFormatActionTypes/limit_packets,_inverted` |
+| `ddos/flowtriq/api-key` carried a bearer token with no `ze:sensitive` | Marked sensitive. A sweep of 13 secret-shaped leaves found no second gap | (schema; the masking producer is `LeafHoldsSecret`) |
+
+### Documentation Updates
+- `docs/architecture/config/yang-config-design.md` -- the config-node two-text section, and what the merge does when several modules declare one node.
+- `docs/architecture/config/syntax.md` -- a plain leaf is a STRING at both ends of the delivery, which is the fact three readers guessed wrong.
+- `docs/architecture/traffic/cp-survival-2-copp-port179.md` -- the chain policy is always accept, and `over-limit-policy` rides the limiter.
+- `docs/guide/tacacs.md` -- what a keyless server does at commit, at boot with BGP, and at boot without it.
+- `docs/features.md` -- the CoPP row. **Left uncommitted:** its other changed row belongs to another session.
+- `./le ste check` passes on every one.
+
+### Deviations from Plan
+| Planned | Actual | Why |
+|---------|--------|-----|
+| D-1 inverts the two statements | No inversion. `description` stays SHORT, `ze:help` stays LONG | The owner reversed his own instruction on 2026-09-03: "sorry I gave the instruction the wrong way round. make sure all is consistent with no inversion" |
+| `internal/le/docvalid/testdata/help-shape-one-text/` | `internal/le/docvalid/testdata/helpshape/ze-fixture-conf.yang` | One fixture module serves every rule, so the per-rule directory was never created |
+| `plan/deferrals/command-help-and-description.md` | Never created | Nothing was deferred |
+| Five named TDD tests | Three exist under other names, two were genuinely absent and are now written | The three renames predate D-1 and carried the inverted spelling |
+| Config nodes out of scope | Folded in | The owner answered D-2 "Fold it in here" |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed the owner wanted the inversion at the YANG layer | He wanted consistency with the SHIPPED meaning, and no inversion at all | He answered D-1 | The spec's premise was rewritten before implementation started |
+| approach | The first measurement reported 4,147 over-long descriptions | 825. Untracked build copies under `tmp/` were counted | The count did not match `git ls-files` | The Measured Population section states that it reads tracked files only |
+| approach | Three regex scans of the command tree answered 21, 36 and 21 nodes | 107. A regex cannot see the merged tree the gate walks | The gate disagreed with every scan | The population is enumerated from a built binary carrying all 36 feature tags |
+| approach | Three agents were briefed without statement scoping and moved module and revision prose into comments | Only a rendering statement takes a bound | Reading their diffs | All three reverted; the scoping moved into the gate and the hook, where a brief cannot lose it |
+| escalation | A unit test was written with a hand-typed unwrapped fixture and passed while the code under it could never read a real section | The daemon wraps a section in its full root path | Round 2 of the review | `configvalue.Section` exists so the next reader does not guess, and the fixtures carry the wrapper |
+| escalation | Three prose claims about the TACACS+ key were written from the code I had changed rather than from the code that runs it | A keyless server refuses a reload, not a boot; a nil bundle lets SSH fall back to local users | Round 2 of the review | Every clause now names the producer it was read from |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every command has a help and a description | Done | 612 of 613 command nodes, 204 of 211 RPCs, 19 of 19 offline locals | The gate names any node a commit leaves half-declared |
+| `help` for the short text, `description` for the long | Changed | Reversed by the owner in D-1 | `description` is SHORT and `ze:help` is LONG, which is the shipped meaning |
+| Use these names in the code | Done | `Description` and `LongHelp` on seven types | No field is named `Help` |
+| Code to validate after YANG edit or creation that both exist and have suitable length | Done | `./le docvalid help-shape`, `./le hook-check pretool-writeedit` | The gate is the load-bearing check; the hook is the early warning |
+| Config nodes too | Done | 3,011 of 3,196 carry both | D-2, "Fold it in here" |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestHelpShapeRefusesACommandWithNoLongHelp`, `...AnRPC...`, `...ALocal...` | |
+| AC-2 | Done | `TestHelpShapeRefusesASummaryPastTheCharacterCap`, `TestHelpShapeRefusesASummaryPastTheWordCap` | |
+| AC-3 | Done | `TestHelpShapeRefusesALongTextThatRestatesItsSummary` | |
+| AC-4 | Done | 13 rows in `writeedit_test.go` | |
+| AC-5 | Done | `TestMergeYANGEntryReadsHelpExtension` | The plan's name for this test carried the pre-D-1 spelling |
+| AC-6 | Done | `internal/component/command/node.go` declares `Description` and `LongHelp`; a grep for a field named `Help` returns nothing | |
+| AC-7 | Done | The same grep over `pluginserver`, `yang.RPCMeta` and `client.commandEntry` | |
+| AC-8 | Done | `TestCommandDeclRoundTripsBothKeys`, `TestCommandDeclOmitsTheExplanationItDoesNotDeclare`, `TestRuntimeTreeCarriesLongHelp` | Written in this closure round; the wire keys had no round-trip test |
+| AC-9 | Done | `TestConfigCompletionRowIsNotTheParagraph`, `test/ui/command-help-both-texts.ci` | |
+| AC-10 | Done | `TestValidateHelpDeclsRefusesTheRetiredKey`, `TestDecodeCommandListRefusesTheRetiredKey` | Written in this closure round; both guards had no test |
+| AC-11 | Done | `TestRevealCandidateExplanationUsesLongHelp`, `test/ui/config-help-both-texts.ci` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The seven `helpshape_test.go` rows | Done | `internal/le/docvalid/helpshape_test.go`, `helpshape_schema_test.go` | |
+| The 13 `writeedit_test.go` rows | Done | `internal/le/hookruntime/writeedit_test.go` | |
+| `TestCommandNodeHelpIsTheSummary` | Changed | Covered by `TestMergeYANGEntryReadsHelpExtension` and the field declarations | The plan's name asserts a compile-time fact |
+| `TestBuildCommandTreeReadsTheSummaryFromZeHelp` | Changed | `TestMergeYANGEntryReadsHelpExtension` | The plan's name carried the pre-D-1 inversion |
+| `TestMergeCommandPathsKeepsEachHalfOnItsOwnField` | Changed | `TestMergeCommandPathsDecidesEachHelpFieldOnItsOwn` | Renamed, same claim |
+| `TestValidateHelpDeclsRefusesTheRetiredKey` | Done | `internal/component/plugin/server/startup_test.go` | Absent until this closure round |
+| `TestCommandDeclRoundTripsBothKeys` | Done | `pkg/plugin/rpc/types_test.go` | Absent until this closure round |
+| The four completer and model_keys rows | Done | `completer_test.go`, `model_keys_test.go` | |
+| The four functional tests | Done | `test/ui/` x3, `test/plugin/` x1 | All four pass |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify | Done | All present and changed |
+| `internal/le/docvalid/testdata/help-shape-one-text/` | Changed | One fixture module under `testdata/helpshape/` serves every rule |
+| The three `.ci` files | Done | Plus `test/ui/config-help-both-texts.ci`, which D-2 added |
+| `plan/deferrals/command-help-and-description.md` | Skipped | Nothing was deferred, so the shard was never created |
+
+### Audit Summary
+- **Total items:** 34
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 1 (the deferral shard, because nothing was deferred)
+- **Changed:** 6 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every command carries both texts | functional | `test/ui/command-help-both-texts.ci` and `test/ui/command-help-explanation-box.ci` PASS in the `ui` suite (91, 92 of 243). Each was forced red at its own renderer |
+| A config node carries both texts | functional | `test/ui/config-help-both-texts.ci` PASS (107 of 243), discrimination RED recorded |
+| A plugin declares both texts and both survive the wire | functional | `test/plugin/plugin-command-two-texts.ci` PASS (470 of 731) |
+| Code validates that both exist and have suitable length after a YANG edit | gate | `./le docvalid help-shape` exits 0 over 613 command nodes, 211 RPCs, 19 offline locals and 3,196 config nodes, and named 29 breakages before they were written |
+| The operator reads a summary on one row and a paragraph in the box | functional | `TestConfigCompletionRowIsNotTheParagraph` plus `config-help-both-texts.ci`, which types `set rou`, reads the row, presses `?` and reads the RFC 6286 paragraph |
+| The prose is worth writing rather than a restatement | measurement | Over the 554 nodes carrying both texts: 0 byte-equal, and 48 (8.7%) open by repeating the description before adding new material. A-2 holds; R-3 is largely not realized |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| The shard was never created | done | Nothing was deferred. Every defect found on the way was fixed in this spec's commits or recorded as a journal row with its class |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/command-help-and-description-dd5fc94a-0a52-4e4b-b946-b2c79adc8646.md`, 16 files, verdict clean |
+| `review_gate.py check` | clean |
+| Rounds | 4. Round 1 found 12, round 2 found 6, round 3 found 4, round 4 found none |
+| Reviewer lenses used | logic+wiring, security+edge-cases, feature-risk+docs+simplicity (round 1, three parallel agents); the fixes only (rounds 2 and 3) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `fib/kernel` read its config section one level above where it arrives, so neither setting had ever reached a running daemon | `parseFIBConfig` | `configvalue.Section`, and fixtures carrying the wrapper |
+| 2 | BLOCKER | Three prose claims about a keyless TACACS+ server were false: it refuses a reload not a boot, and a nil bundle lets SSH fall back to local users | `docs/guide/tacacs.md`, `ze-tacacs-conf.yang`, `tacacs-key-required.ci` | Every clause rewritten against its producer |
+| 3 | ISSUE | `configvalue.Int`'s upper bound rejected nothing at exactly 2^63 | `configvalue.Int` | `value >= -float64(math.MinInt64)` |
+| 4 | ISSUE | `Bool` and `Int` could not separate an absent leaf from an unreadable one | both callers | Split on map presence, refuse by name |
+| 5 | ISSUE | `sweep-delay 0` discarded by a `> 0` guard | `parseFIBConfig` | Accepted |
+| 6 | ISSUE | An inverted limiter rendered exactly like a plain one on two surfaces | `formatLimit`, `page_firewall.go` | Both print `over` |
+| 7 | ISSUE | `over-limit-policy drop` had no test through the daemon | -- | `test/firewall/copp-over-limit-drop.ci` |
+| 8 | ISSUE | The `?` box truncates a joined help and no key scrolls it | `renderExplanationBox` | Not fixed. Journal row; the page states the limit |
+| 9 | ISSUE | A doc sentence claimed the box names each contributing module | `yang-config-design.md` | Sentence corrected |
+| 10 | ISSUE | `mergeAugmentedEntries`' comment claimed the row was fixed too | `completer.go` | Comment corrected |
+| 11 | ISSUE | The reload refusal is gated on a live bundle; the prose stated it unconditionally | `docs/guide/tacacs.md` | Table states all three paths |
+| 12 | ISSUE | `ze:sensitive` does not encode what the commit path writes | two `ze:help` texts | Corrected; only `ze config dump` encodes |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/docvalid/testdata/helpshape/ze-fixture-conf.yang` | yes | `ls` 3.7K |
+| `test/ui/command-help-both-texts.ci` | yes | `ls` 1.9K |
+| `test/ui/command-help-explanation-box.ci` | yes | `ls` 2.0K |
+| `test/ui/config-help-both-texts.ci` | yes | `ls` 1.7K |
+| `test/plugin/plugin-command-two-texts.ci` | yes | `ls` 2.9K |
+| `test/parse/tacacs-key-required.ci` | yes | committed in `4a1521d1b` |
+| `test/firewall/copp-over-limit-drop.ci` | yes | committed in `f68705107` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3 | The gate refuses a half-declared or over-long declaration | `./le docvalid help-shape` exit 0 today; it reported 29 breakages over 8 modules before they were written |
+| AC-4 | The write hook answers on a proposed YANG edit | 13 PASS rows in `writeedit_test.go` |
+| AC-5 | `description` is the summary, `ze:help` the explanation | `TestMergeYANGEntryReadsHelpExtension` asserts each reaches its own field |
+| AC-6, AC-7 | No field is named `Help` | `grep -rn "\tHelp "` over the seven types returns nothing |
+| AC-8 | The wire keys are `description` and `long-help` | `TestCommandDeclRoundTripsBothKeys` reads the raw JSON keys; red when `long-help` is renamed to `help` |
+| AC-9, AC-11 | The row holds the summary, the box the explanation | `config-help-both-texts.ci` PASS |
+| AC-10 | A retired key is refused, never decoded to zero | `TestValidateHelpDeclsRefusesTheRetiredKey` and `TestDecodeCommandListRefusesTheRetiredKey`; both red with their guard disabled |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| The operator opens the completion menu | `test/ui/command-help-both-texts.ci` | PASS, 91 of 243 |
+| The operator presses `?` | `test/ui/command-help-explanation-box.ci` | PASS, 92 of 243 |
+| The operator types `set rou` and presses `?` | `test/ui/config-help-both-texts.ci` | PASS, 107 of 243 |
+| A plugin declares both texts | `test/plugin/plugin-command-two-texts.ci` | PASS, 470 of 731 |
+| An operator commits a keyless TACACS+ server | `test/parse/tacacs-key-required.ci` | PASS, 297 of 326 |
+| An operator sets `over-limit-policy drop` | `test/firewall/copp-over-limit-drop.ci` | NOT RUN. `needs-linux`, so it skips on this darwin host. Its red walk is owed on a Linux host |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | The owner answered D-1 no. Mistake Log row and Deviations entry |
+| A-2 | confirmed | 0 byte-equal texts over 554 nodes carrying both; 8.7% open by repeating the summary and none is a pure restatement |
+| A-3 | confirmed | D-3, "Yes, and refuse the retired key". Both refusals now carry a test |
+| A-4 | not applicable | The gate persists nothing: its baseline is the summary TEXT read from HEAD, so a rename is not read as new debt |
+| A-5 | confirmed | D-4, the proposed bounds, against the measured 7.3 percent cost |
+| A-6 | confirmed | The hook check was written first and answers over a fixture module; 13 rows pass |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| The config-node two-text section | `entryDescription`, `entryLongHelp`, `mergeHelpExts` | yes |
+| A plain leaf is a string at both ends | `(*Tree).toMap` copies `values map[string]string` through | yes |
+| The CoPP chain policy is always accept | `translatePolicy` returns `firewall.PolicyAccept` unconditionally | yes |
+| A keyless TACACS+ server at commit, at boot with BGP, at boot without | `main_reload.go`, `infra_setup.go`, `main.go` `noBGPAAAWiring`, `ssh.Server.Start` | yes, after two corrections |
+| `ze:sensitive` masks but does not encode on the commit path | the only `secret.Encode` callers are `cmd_dump.go` and `iface/emit.go` | yes, after one correction |
+
+## Core Insight
+
+**A test that builds its own fixture chooses the shape, and it chooses the shape the author believes rather than the shape the producer emits.** Three defects in this spec are one defect wearing three faces: a `.(float64)` assertion that no delivered value satisfies, a section read one level above where it arrives, and a `> math.MaxInt64` guard that rejects nothing. Each had a green unit test over a hand-typed fixture, and each was invisible for exactly as long as nobody compared the fixture with the producer. The cure is not more assertions. It is to build the fixture from the producer, or to put the shape question in one reader that every caller uses.
