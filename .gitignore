@@ -88,6 +88,7 @@ bin/ze-perf-linux
 # Cross-compiled ze binary staged into the IPsec interop Docker build context by
 # `buildZe` in `internal/le/interoplab/ipsec`; regenerated each run.
 test/interop-ipsec/ze-linux
+test/interop-radius/ze-linux
 
 # Runtime / scratch artifacts that leak into the working tree from running ze
 /stderr
@@ -116,11 +117,18 @@ gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
 /ai/DOCS-TO-CODE.md
 /ai/CODE-TO-DOCS.md
 
-# The daemon's meta store sits beside the config file
-# (storage.pointer.go, filepath.Join(filepath.Dir(configPath), "meta", ...)),
-# so a run whose config path is inside the checkout writes runtime state into
-# the source tree. meta/ca holds a REAL PKI root private key that
-# pki.LoadOrGenerateRoot mints on first use, so a stray one must never be
-# committable. Ignored wherever it lands, and regenerated on demand.
+# meta/ca holds a REAL PKI root private key, so a stray one must never be
+# committable. LoadOrGenerateRootFor (internal/component/pki/ca.go) writes the
+# RELATIVE ZeFS keys meta/ca/cert and meta/ca/key (pkg/zefs/keys.go) onto
+# whatever store it is handed, and filesystemStorage.WriteFile passes the name
+# through verbatim, so on a filesystem-backed store they resolve against the
+# process working directory. A test binary's cwd is its package directory,
+# which is how one lands in the source tree.
+#
+# This ignores the artifact and fixes nothing: the same call in a shipped
+# `ze <file>` daemon writes the root key into the operator's cwd, because that
+# path falls back to a filesystem store when the blob store lacks the config.
+# docs/architecture/pki/pki-store.md says the root lives in ZeFS, and on that
+# path it lives in neither ZeFS nor the config directory.
 meta/ca/
 **/hub/meta/
