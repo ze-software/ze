@@ -17,3 +17,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | be88eda9 | docs(isis): the distance leaf is rib.distance.isis, not admin-distance | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | be88eda9 | test(rib): assert the distance column and JSON key, not admin-distance | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | be88eda9 | test(rib): assert the distance column and JSON key, not admin-distance | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | be88eda9 | test(locrib): a raised eBGP distance lets the OSPF route win | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | be88eda9 | test(locrib): a raised eBGP distance lets the OSPF route win | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
