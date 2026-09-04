@@ -180,11 +180,15 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 
 	var tid, sid uint16
 	var reason string
+	var cause l2tpevents.TerminateCause
 	switch e := ev.(type) {
 	case ppp.EventSessionDown:
-		tid, sid, reason = e.TunnelID, e.SessionID, e.Reason
+		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, e.Cause
 	case ppp.EventSessionRejected:
-		tid, sid, reason = e.TunnelID, e.SessionID, e.Reason
+		// A rejected StartSession never ran a session goroutine: the refusals
+		// are invalid file descriptors and duplicate session keys, which are
+		// the NAS's own errors. RFC 2866 Section 5.10 value 9.
+		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, l2tpevents.TerminateCauseNASError
 	case ppp.EventLCPUp, ppp.EventLCPDown:
 		return
 	case ppp.EventSessionUp:
@@ -229,6 +233,7 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 			TunnelID:  tid,
 			SessionID: sid,
 			Username:  username,
+			Cause:     cause,
 		}); err != nil {
 			r.logger.Warn("l2tp: session-down emit failed", "error", err)
 		}

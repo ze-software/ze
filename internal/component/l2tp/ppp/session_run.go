@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // Defaults applied per session when StartSession leaves a field zero.
@@ -278,9 +280,13 @@ func (s *pppSession) run(start *StartSession) {
 	for {
 		select {
 		case <-s.stopCh:
+			// The PPP driver was stopped on purpose, so RFC 2866 Section 5.10
+			// value 10 applies: "NAS ended session for a non-error reason not
+			// otherwise listed here."
 			s.sendEvent(EventSessionDown{
 				TunnelID: s.tunnelID, SessionID: s.sessionID,
 				Reason: "driver stopped",
+				Cause:  l2tpevents.TerminateCauseNASRequest,
 			})
 			return
 
@@ -290,9 +296,14 @@ func (s *pppSession) run(start *StartSession) {
 				var tb textbuf.Buffer
 				reason = tb.Str("chan fd read error: ").Err(err).String()
 			}
+			// The channel fd to the kernel closed or failed to read. Ze
+			// cannot tell a local teardown from a peer-side loss here, and
+			// RFC 2866 Section 5.10 value 9 is the honest answer for an
+			// ending the NAS detected and cannot attribute further.
 			s.sendEvent(EventSessionDown{
 				TunnelID: s.tunnelID, SessionID: s.sessionID,
 				Reason: reason,
+				Cause:  l2tpevents.TerminateCauseNASError,
 			})
 			return
 
@@ -315,9 +326,13 @@ func (s *pppSession) run(start *StartSession) {
 			out := s.echoOutstanding
 			s.mu.Unlock()
 			if out > echoMax {
+				// The peer stopped answering LCP echo probes, which is how a
+				// virtual link reports the carrier RFC 2866 Section 5.10
+				// value 2 names: "DCD was dropped on the port."
 				s.sendEvent(EventSessionDown{
 					TunnelID: s.tunnelID, SessionID: s.sessionID,
 					Reason: textbuf.StrIntStr("echo timeout: ", int64(out), " consecutive failures"),
+					Cause:  l2tpevents.TerminateCauseLostCarrier,
 				})
 				return
 			}
@@ -349,6 +364,7 @@ func (s *pppSession) run(start *StartSession) {
 				s.sendEvent(EventSessionDown{
 					TunnelID: s.tunnelID, SessionID: s.sessionID,
 					Reason: "chan fd closed (reader exited without error)",
+					Cause:  l2tpevents.TerminateCauseNASError,
 				})
 				return
 			}
@@ -410,12 +426,18 @@ func generateMagic() (uint32, error) {
 
 // fail emits EventSessionDown with the reason and logs at warn.
 // Caller MUST exit immediately after calling fail.
+//
+// Every failure routed here is one the NAS detected in its own processing: a
+// negotiation timeout, an auth rejection, an NCP refusal, an ioctl error. RFC
+// 2866 Section 5.10 value 9 covers all of them, and the event reports it as
+// the terminate cause.
 func (s *pppSession) fail(reason string) {
 	s.logger.Warn("ppp: session failed", "reason", reason)
 	s.sendEvent(EventSessionDown{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,
 		Reason:    reason,
+		Cause:     l2tpevents.TerminateCauseNASError,
 	})
 }
 
@@ -919,10 +941,13 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 
 	if tr.NewState == LCPStateClosed || tr.NewState == LCPStateStopped {
 		var tb textbuf.Buffer
+		// RFC 2866 Section 5.10 value 1: "User requested termination of
+		// service, for example with LCP Terminate or by logging out."
 		s.sendEvent(EventSessionDown{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
 			Reason:    tb.Str("LCP terminated: state=").Str(tr.NewState.String()).String(),
+			Cause:     l2tpevents.TerminateCauseUserRequest,
 		})
 		return true
 	}

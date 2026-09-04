@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // ErrSubsystemNotStarted is returned by façade methods when they are
@@ -150,7 +152,10 @@ func (s *Subsystem) TeardownSession(localSID uint16) error {
 	s.mu.Unlock()
 
 	for _, r := range reactors {
-		err := r.teardownSessionByID(localSID)
+		// An operator clear and a RADIUS Disconnect-Request (RFC 5176) are both
+		// RFC 2866 Section 5.10 value 6: "Administrator reset the port or
+		// session." Those two are the only callers of this method.
+		err := r.teardownSessionByID(localSID, l2tpevents.TerminateCauseAdminReset)
 		if err == nil {
 			return nil
 		}

@@ -46,6 +46,10 @@ type SessionDownPayload struct {
 	TunnelID  uint16
 	SessionID uint16
 	Username  string
+	// Cause is why the session ended, as an RFC 2866 Section 5.10 value. The
+	// RADIUS accounting plugin reports it as Acct-Terminate-Cause on the Stop
+	// record. TerminateCauseUnspecified means no teardown site named one.
+	Cause TerminateCause
 }
 
 // SessionDown is the typed handle for (l2tp, session-down). Emitted by

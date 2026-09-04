@@ -1,5 +1,6 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS accounting
-// RFC: rfc/short/rfc2866.md -- Accounting-Request contents (Sections 4.1, 5)
+// RFC: rfc/short/rfc2866.md -- Accounting-Request contents (Sections 4.1, 5),
+// Acct-Terminate-Cause (Section 5.10)
 // RFC: rfc/short/rfc2865.md -- Framed-IP-Address (Section 5.8),
 // Calling-Station-Id (Section 5.31)
 // RFC: rfc/short/rfc2869.md -- NAS-Port-Id (Section 5.17), Gigawords (Section 5.1),
@@ -42,6 +43,13 @@ type acctSession struct {
 	sessionID uint16
 	username  string
 	peerAddr  string
+	// terminateCause is why this session ended, and it is the ONE field of
+	// this struct that is written after construction. The writer is whichever
+	// of onSessionDown and Stop claimed the session out of radiusAcct.sessions
+	// under radiusAcct.mu, and exactly one of them can, so no second goroutine
+	// writes it. The interim loop never reads it: buildAcctPacket reads it
+	// inside the Acct-Status-Type Stop branch alone.
+	terminateCause l2tpevents.TerminateCause
 	// callingStationID is the L2TP Calling Number AVP of this session, which
 	// every record reports as Calling-Station-Id (RFC 2865 Section 5.31). It
 	// is stored for the same reason nasPortID is: the value is a property of
@@ -218,6 +226,9 @@ func (a *radiusAcct) onSessionDown(payload *l2tpevents.SessionDownPayload) {
 	}
 
 	sess.cancel()
+	// This goroutine owns sess now: the delete above took it out of the map,
+	// so no other caller reaches it.
+	sess.terminateCause = payload.Cause
 	a.sendAcctStop(client, sess, nasID, srcAddr)
 }
 
@@ -344,6 +355,14 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 		}
 	}
 
+	// RFC 2866 Section 5.10: "This attribute indicates how the session was
+	// terminated, and can only be present in Accounting-Request records where
+	// the Acct-Status-Type is set to Stop." This guard is the only place the
+	// attribute is appended, so no Start and no Interim can carry it.
+	if statusType == radius.AcctStatusStop {
+		attrs = append(attrs, radius.Attr{Type: radius.AttrAcctTerminateCause, Value: radius.AttrUint32(uint32(terminateCauseOrNASError(sess.terminateCause)))})
+	}
+
 	return &radius.Packet{
 		Code:  radius.CodeAccountingReq,
 		Attrs: attrs,
@@ -402,11 +421,30 @@ func (a *radiusAcct) Stop() {
 	a.mu.Unlock()
 
 	for _, sess := range active {
+		// RFC 2866 Section 5.10 value 7: "Administrator is ending service on
+		// the NAS, for example prior to rebooting the NAS." Stop() runs when
+		// the plugin shuts down, which is that ending. The map was cleared
+		// above, so this goroutine owns every session in active.
+		sess.terminateCause = l2tpevents.TerminateCauseAdminReboot
 		if client != nil {
 			a.sendAcctStop(client, sess, nasID, srcAddr)
 		}
 		sess.cancel()
 	}
+}
+
+// terminateCauseOrNASError answers the value a Stop record reports.
+//
+// A cause of TerminateCauseUnspecified means no teardown site named one, so ze
+// does not know how the session ended. RFC 2866 Section 5.10 value 9 is the
+// answer for exactly that: "NAS detected some error (other than on the port)
+// which required ending the session." Guessing a more specific cause would put
+// a wrong reason in an operator's billing store.
+func terminateCauseOrNASError(cause l2tpevents.TerminateCause) l2tpevents.TerminateCause {
+	if cause == l2tpevents.TerminateCauseUnspecified {
+		return l2tpevents.TerminateCauseNASError
+	}
+	return cause
 }
 
 const (

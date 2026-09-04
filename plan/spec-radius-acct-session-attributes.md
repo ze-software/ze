@@ -5,10 +5,10 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/7 (phases 1-3 of this session) |
+| Phase | 3/7 (Event-Timestamp, Calling-Station-Id and the cause are done; the client and Acct-Delay-Time are not) |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-09-03 |
+| Updated | 2026-09-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -105,17 +105,22 @@ with it.
   been trying to send this record".
   → Constraint: the value is measured from the first send attempt, not from the
   session event.
-- [x] RFC 2866 Section 5.10 -- Acct-Terminate-Cause, Stop only, with the eleven
-  enumerated values (User Request 1, Lost Carrier 2, Lost Service 3, Idle Timeout
-  4, Session Timeout 5, Admin Reset 6, Admin Reboot 7, Port Error 8, NAS Error 9,
-  NAS Request 10, NAS Reboot 11).
-  → Constraint: ze's cause type maps onto these integers and adds none.
+- [x] RFC 2866 Section 5.10 -- Acct-Terminate-Cause, Stop only. The section
+  enumerates EIGHTEEN values, not eleven: 1..11 as listed here plus Port Unneeded
+  12, Port Preempted 13, Port Suspended 14, Service Unavailable 15, Callback 16,
+  User Error 17 and Host Request 18. Read at `rfc/full/rfc2866.txt` on 2026-09-04;
+  the earlier count in this spec was wrong.
+  → Constraint: ze's cause type maps onto these integers and adds none. It names
+  only the eight ze can honestly produce (1, 2, 4, 5, 6, 7, 9, 10), because a
+  constant with no non-test caller is unreachable code.
 - [x] RFC 2865 Section 5.31 -- Calling-Station-Id, the phone number or identifier
   the call came from.
 - [x] RFC 2869 Section 5.19 -- Event-Timestamp, 0-1 in an Accounting-Request.
-- [ ] RFC 2869 Section 5.19 / the Event-Timestamp definition in RFC 2869 Section
-  5.18 -- confirm the four-octet seconds-since-epoch encoding at the RFC text
-  before writing the encoder.
+- [x] RFC 2869 Section 5.3 is where Event-Timestamp is defined, NOT 5.19 or 5.18
+  as this spec first said. Read at `rfc/full/rfc2869.txt` on 2026-09-04: Type 55,
+  Length 6, and "The Value field is four octets encoding an unsigned integer with
+  the number of seconds since January 1, 1970 00:00 UTC."
+  → Constraint: `AttrUint32` writes exactly that, so the encoder is one append.
 
 ## Current Behavior (MANDATORY)
 
@@ -187,8 +192,8 @@ parse free text.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The calling-station value exists at call setup on both the L2TP and the relay path | `callInfo.callingNumber` is assigned in `session_fsm.go` and in `relay_sink.go` | Calling-Station-Id has no honest source on one path | read at the producer | confirmed |
-| A-2 | No consumer of `SessionDownPayload` breaks when a field is added | the pool plugin is its named consumer | The event needs versioning | AC-12 | unvalidated |
-| A-3 | Every teardown site can name a cause without guessing | the emitters listed in `plan/spec-finish-l2tp.md` | Some sites need a cause ze cannot source, which is a `NAS Error` rather than a fabrication | AC-6 | unvalidated |
+| A-2 | No consumer of `SessionDownPayload` breaks when a field is added | the pool plugin is its named consumer | The event needs versioning | AC-12 | confirmed. Five consumers read it and every one constructs by field name: `internal/plugins/cos/handler.go`, `internal/component/l2tp/observer.go`, `internal/component/l2tp/plugins/shaper/shaper.go`, `internal/component/l2tp/plugins/authradius/acct.go` and `internal/component/l2tp/subscriber_bridge.go`. The pool plugin subscribes to `subevents.SessionDown`, which the bridge re-emits, so it never sees this struct. All five packages green |
+| A-3 | Every teardown site can name a cause without guessing | the emitters listed in `plan/spec-finish-l2tp.md` | Some sites need a cause ze cannot source, which is a `NAS Error` rather than a fabrication | AC-6 | broken, and the repair landed. The spec's list of emitters was incomplete in the other direction: the session-timeout, idle-timeout, operator-clear and CoA-Disconnect paths emitted NO session-down event at all, because `teardownSessionByID` and `teardownSessionOnTunnel` removed the session from the tunnel map and the later PPP event then found nothing. `emitSessionDown` fixes those four. The TUNNEL teardown paths still have it (`plan/journal/guard-added-to-one-half-of-a-pair.md`, 2026-09-04). The `fail()` and channel-fd sites cannot be attributed and report NAS Error, which is what this row anticipated |
 | A-4 | Re-encoding per retransmission does not break the Access-Request path | the two paths differ in which RFC governs the retransmit | An Access-Request retransmit changes its Identifier and violates RFC 2865 Section 2.5 | AC-9 | unvalidated |
 
 ### Risks
@@ -243,11 +248,11 @@ fails it.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAcctPacketCarriesEventTimestamp` | `internal/component/l2tp/plugins/authradius/acct_test.go` | AC-1 | |
-| `TestAcctPacketCarriesCallingStationId` | same | AC-2 | |
-| `TestAcctPacketOmitsEmptyCallingStationId` | same | AC-3 | |
-| `TestTerminateCauseOnStopOnly` | same | AC-4, AC-5 | |
-| `TestTerminateCausePerTeardownPath` | same | AC-6 | |
+| `TestAcctPacketCarriesEventTimestamp` | `internal/component/l2tp/plugins/authradius/acct_test.go` | AC-1 | green |
+| `TestAcctPacketCarriesCallingStationId` | same | AC-2 | green, with `TestAcctSessionCallingStationID` for the boundary and `TestHandleICRQStoresCallingNumber` (`internal/component/l2tp/session_fsm_test.go`) for the source |
+| `TestAcctPacketOmitsEmptyCallingStationId` | same | AC-3 | green |
+| `TestTerminateCauseOnStopOnly` | same | AC-4, AC-5 | green |
+| `TestTerminateCausePerTeardownPath` | same | AC-6 | green, with `TestAcctStopCarriesEventCause` for the boundary and `TestTeardownSessionByIDEmitsCause` / `TestTeardownSessionOnTunnelEmitsAdminReset` (`internal/component/l2tp/teardown_cause_test.go`) for the emitters |
 | `TestAcctDelayTimeUpdatesOnRetransmit` | `internal/component/radius/client_test.go` | AC-7, AC-8 | |
 | `TestAccessRequestRetransmitIsByteIdentical` | same | AC-9 | |
 | `TestAccountingRequestAuthenticatorMatchesRFC2866` | `internal/component/radius/packet_test.go` | AC-10 | |
@@ -257,7 +262,7 @@ fails it.
 |-------|----------|----------|
 | calling-station value of length 0 | empty | attribute omitted |
 | Event-Timestamp | 4 octets | attribute Length 6 |
-| Acct-Terminate-Cause | the eleven defined values | no value outside 1..11 is ever sent |
+| Acct-Terminate-Cause | the eight values ze names | no value outside 1..11 is ever sent; `TestTerminateCausePerTeardownPath` asserts the range |
 | Acct-Delay-Time on first send | typically 0 | present, and 0 is honest here where a constant 0 on a retransmit is not |
 
 ### Functional Tests
@@ -266,9 +271,54 @@ fails it.
 | `radius-acct-wire` | `test/l2tp/radius-acct-wire.ci` | extended to assert all four across Start, Interim and Stop | |
 
 ### Interop Tests (Scope: protocol)
-| Scenario | Peer implementation | Asserts |
-|----------|--------------------|---------|
-| `radius-acct-attrs` (`test/interop-l2tp/scenarios/`) | the existing L2TP interop lab plus a real RADIUS accounting server | A real server records the four attributes, and the Stop record's cause survives a round trip into the server's own store |
+| Scenario | Peer implementation | Asserts | Status |
+|----------|--------------------|---------|--------|
+| `04-radius-acct-attrs` (`test/interop-l2tp/scenarios/`) | xl2tpd LAC plus the lab's RADIUS mock | A real server records the attributes, and the Stop record's cause survives a round trip into the server's own store | **CHANGED AND UNRUN.** See below |
+
+**`04-radius-acct-attrs` is changed and has not been run.** This host is darwin,
+`l2tp_ppp`/`pppol2tp` is absent, and `modulesAvailable` (`internal/le/interoplab/l2tp/l2tp.go:410`)
+makes the lab fail closed rather than pass on nothing. There is no QEMU route
+either: `internal/le/qemu/` carries guest labs for PPPoE/accel and
+VRRP/keepalived only, so `ai/rules/platform-linux.md` has no lever. What it will
+prove when CI runs it on a Linux host: that a real RADIUS server decodes
+Event-Timestamp, Calling-Station-Id and the Stop record's Acct-Terminate-Cause
+off ze's wire. The checker (`checkRadiusAttributes`,
+`internal/le/interoplab/l2tp/checkers.go`) does not yet assert the three new
+attributes; extending it is phase 6.
+
+**Why the scenario could not pass, verified at the producer.** `buildAuthAttrs`
+(`internal/component/l2tp/plugins/authradius/handler.go`) returns `nil, false`
+for `ppp.AuthMethodNone`, so no Access-Request leaves ze, and
+`checkRadiusAttributes` waits for one. Since `6bc7b6063b` (2026-08-31) the
+scenario's `auth-method none` therefore made it unpassable. `297b790446`
+changed `ze.conf` to `auth-method chap-md5`, and nothing else in the directory.
+
+**The change is REASONED, not verified.** It rests on xl2tpd sending no RFC 2661
+proxy LCP AVPs, which nobody read out of xl2tpd's source or a capture. The ze
+half IS verified: `EvaluateProxyLCP` (`internal/component/l2tp/ppp/proxy.go:69`)
+returns `errProxyLCPMissing` when any of the three AVPs is empty, so `isProxy`
+is false and `session_run.go` negotiates LCP directly, where the `auth-method`
+leaf selects the method. If xl2tpd DOES send them, ze short-circuits,
+`authMethodFromAuthProto` (`internal/component/l2tp/ppp/auth.go:97`) reads
+Auth-Protocol out of the LAC's Last-Sent CONFREQ, the leaf is inert exactly as
+it was in `test/l2tp/radius-acct-wire.ci`, and the repair is fixture-side as in
+`bab29e430`.
+
+**How to settle it in one grep.** Ze logs `ppp: proxy LCP short-circuit` with
+`auth-proto` and `auth-method` (`session_run.go:154`), and ONLY when `isProxy`
+is true. Absent line means the leaf is load-bearing and the edit is right.
+Present line means read `auth-proto`: 0 maps to `AuthMethodNone` whatever the
+config says, and so does CHAP with an empty algorithm byte (`auth.go:102`).
+
+**The log-level caveat does NOT apply to this scenario, checked at the
+producers.** The line is at Info, and `ze.log.l2tp=debug` is added only for
+`03-ze-lac-xl2tpd-lns` (`l2tp.go:168`). But `zePeer` sets `ZE_LOG_L2TP=debug`
+on every ze peer (`l2tp.go:209`), and `env.normalize`
+(`internal/core/env/env.go:42`) lowercases and turns `.` into `_`, so
+`ZE_LOG_L2TP` and `ze.log.l2tp` are one cache key. The ppp session logger is the
+l2tp subsystem logger with a `component=ppp` attribute
+(`internal/component/l2tp/subsystem.go:309`), so it runs at that same level. An
+absent line in THIS scenario is therefore evidence.
 
 ## Files to Modify
 - `internal/component/l2tp/session_fsm.go` -- carry the calling-station value out.

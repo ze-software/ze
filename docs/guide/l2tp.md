@@ -279,12 +279,33 @@ and 1.1).
 <!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS -->
 
 Every Accounting-Request carries Acct-Status-Type, Acct-Session-Id, Service-Type
-(Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual) and NAS-Port. User-Name
-is added when the session has one: a session the LNS never authenticated has no
-username, and RFC 2866 Section 5 forbids sending text of length zero.
-NAS-Port-Id is added when the operator configured a template. Stop and
-Interim-Update add Acct-Session-Time, the input and output octet and packet
-counters, and the RFC 2869 gigaword counters when a counter passes 2^32.
+(Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual), NAS-Port and
+Event-Timestamp. User-Name and Calling-Station-Id are added when the session has
+one: a session the LNS never authenticated has no username, a call whose peer
+sent no Calling Number AVP has no station id, and RFC 2866 Section 5 forbids
+sending text of length zero. NAS-Port-Id is added when the operator configured a
+template. Stop and Interim-Update add Acct-Session-Time, the input and output
+octet and packet counters, and the RFC 2869 gigaword counters when a counter
+passes 2^32.
+
+Event-Timestamp (type 55) is four octets of seconds since 1970-01-01 00:00 UTC,
+which RFC 2869 Section 5.3 defines. Calling-Station-Id (type 31) is the L2TP
+Calling Number AVP the peer sent, or the subscriber MAC address on the PPPoE
+relay path.
+
+The Stop record adds Acct-Terminate-Cause (type 49), and no other record
+carries it. RFC 2866 Section 5.10: "This attribute indicates how the session was
+terminated, and can only be present in Accounting-Request records where the
+Acct-Status-Type is set to Stop." The value is one of that section's integers:
+User Request (1) for an LCP Terminate, Lost Carrier (2) for unanswered LCP echo
+probes, Idle Timeout (4) and Session Timeout (5) for the two RADIUS timers,
+Admin Reset (6) for an operator clear and for a RADIUS Disconnect-Request, Admin
+Reboot (7) for the sessions ze stops on shutdown, NAS Request (10) when the PPP
+driver stops a running session, and NAS Error (9) for a failure ze detected or a
+teardown it cannot attribute. Ze reports NAS Error rather than guessing a more
+specific cause.
+
+None of these four attributes has a config leaf. They are unconditional.
 
 RFC 2866 Section 4.1 requires either NAS-IP-Address or NAS-Identifier in every
 Accounting-Request, and RFC 2865 Section 4.1 requires the same of every

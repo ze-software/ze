@@ -20,9 +20,10 @@ type acctCapture struct {
 }
 
 type capturedAcct struct {
-	statusType uint8
-	username   string
-	sessionID  string
+	statusType     uint8
+	username       string
+	sessionID      string
+	terminateCause uint32
 }
 
 func newAcctCapture() *acctCapture {
@@ -39,6 +40,9 @@ func (c *acctCapture) add(pkt *radius.Packet) {
 	}
 	if v := pkt.FindAttr(radius.AttrAcctSessionID); v != nil {
 		cap.sessionID = string(v)
+	}
+	if v := pkt.FindAttr(radius.AttrAcctTerminateCause); len(v) == 4 {
+		cap.terminateCause = binary.BigEndian.Uint32(v)
 	}
 	c.mu.Lock()
 	c.packets = append(c.packets, cap)
@@ -548,4 +552,115 @@ func TestAcctSessionCallingStationID(t *testing.T) {
 		t.Errorf("callingStationID = %q, want %q", sess.callingStationID, "+441234567890")
 	}
 	acct.Stop()
+}
+
+// TestTerminateCauseOnStopOnly covers AC-4 and AC-5.
+//
+// RFC 2866 Section 5.10: "This attribute indicates how the session was
+// terminated, and can only be present in Accounting-Request records where the
+// Acct-Status-Type is set to Stop." The absence case is what catches an append
+// written in the wrong place.
+func TestTerminateCauseOnStopOnly(t *testing.T) {
+	acct := newRADIUSAcct()
+	sess := &acctSession{username: "grace", acctSessID: "1-7-1", terminateCause: events.TerminateCauseUserRequest}
+
+	stop := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStop, 60)
+	v := stop.FindAttr(radius.AttrAcctTerminateCause)
+	if v == nil {
+		t.Fatal("Stop record carries no Acct-Terminate-Cause")
+	}
+	if len(v) != 4 {
+		t.Fatalf("Acct-Terminate-Cause value is %d octets, want 4", len(v))
+	}
+	if got := binary.BigEndian.Uint32(v); got != 1 {
+		t.Errorf("Acct-Terminate-Cause = %d, want 1 (User Request)", got)
+	}
+
+	for _, statusType := range []uint8{radius.AcctStatusStart, radius.AcctStatusInterimUpdate} {
+		pkt := acct.buildAcctPacket(sess, "nas1", nil, statusType, 60)
+		if v := pkt.FindAttr(radius.AttrAcctTerminateCause); v != nil {
+			t.Errorf("status-type %d carries Acct-Terminate-Cause %v; RFC 2866 Section 5.10 allows it on Stop only", statusType, v)
+		}
+	}
+}
+
+// TestTerminateCausePerTeardownPath covers AC-6.
+//
+// Every value ze emits is one of the integers RFC 2866 Section 5.10 defines,
+// and a teardown ze cannot attribute reports NAS Error rather than a guess.
+func TestTerminateCausePerTeardownPath(t *testing.T) {
+	cases := []struct {
+		name  string
+		cause events.TerminateCause
+		want  uint32
+	}{
+		{"lcp-terminate", events.TerminateCauseUserRequest, 1},
+		{"echo-timeout", events.TerminateCauseLostCarrier, 2},
+		{"idle-timeout", events.TerminateCauseIdleTimeout, 4},
+		{"session-timeout", events.TerminateCauseSessionTimeout, 5},
+		{"admin-clear-or-coa-disconnect", events.TerminateCauseAdminReset, 6},
+		{"nas-shutdown", events.TerminateCauseAdminReboot, 7},
+		{"unattributable", events.TerminateCauseNASError, 9},
+		{"local-stop", events.TerminateCauseNASRequest, 10},
+		{"unspecified-reports-nas-error", events.TerminateCauseUnspecified, 9},
+	}
+	acct := newRADIUSAcct()
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sess := &acctSession{username: "grace", acctSessID: "1-7-1", terminateCause: tc.cause}
+			pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStop, 60)
+			v := pkt.FindAttr(radius.AttrAcctTerminateCause)
+			if v == nil {
+				t.Fatal("Stop record carries no Acct-Terminate-Cause")
+			}
+			got := binary.BigEndian.Uint32(v)
+			if got != tc.want {
+				t.Errorf("Acct-Terminate-Cause = %d, want %d", got, tc.want)
+			}
+			if got < 1 || got > 11 {
+				t.Errorf("Acct-Terminate-Cause = %d, outside the RFC 2866 Section 5.10 values ze emits", got)
+			}
+		})
+	}
+}
+
+// TestAcctStopCarriesEventCause proves the cause crosses the boundary: what
+// the reactor put on (l2tp, session-down) is what the Stop record reports.
+func TestAcctStopCarriesEventCause(t *testing.T) {
+	sharedKey := []byte("accttest")
+	capture := newAcctCapture()
+	conn, addr := startAcctServer(t, sharedKey, capture)
+	defer conn.Close() //nolint:errcheck // test cleanup
+
+	client, err := radius.NewClient(radius.ClientConfig{
+		Servers: []radius.Server{{Address: addr, SharedKey: sharedKey}},
+		Timeout: 2 * time.Second,
+		Retries: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close() //nolint:errcheck // test cleanup
+
+	acct := newRADIUSAcct()
+	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
+	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
+		TunnelID: 42, SessionID: 7, Username: "grace", PeerAddr: "10.0.0.2",
+	})
+	capture.waitN(t, 1)
+
+	acct.onSessionDown(&events.SessionDownPayload{
+		TunnelID: 42, SessionID: 7, Username: "grace",
+		Cause: events.TerminateCauseSessionTimeout,
+	})
+	packets := capture.waitN(t, 1)
+
+	last := packets[len(packets)-1]
+	if last.statusType != radius.AcctStatusStop {
+		t.Fatalf("last record status-type = %d, want Stop", last.statusType)
+	}
+	if last.terminateCause != 5 {
+		t.Errorf("Acct-Terminate-Cause = %d, want 5 (Session Timeout)", last.terminateCause)
+	}
 }

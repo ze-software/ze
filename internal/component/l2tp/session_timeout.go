@@ -8,6 +8,8 @@ package l2tp
 import (
 	"context"
 	"time"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // startSessionTimeouts reads RADIUS metadata for the session and starts
@@ -62,7 +64,9 @@ func (r *l2tpReactor) runSessionTimeout(tid, sid uint16, timeout time.Duration, 
 	case <-time.After(timeout):
 		r.logger.Info("l2tp: session-timeout expired; tearing down session",
 			"tunnel-id", tid, "session-id", sid, "timeout", timeout)
-		if err := r.teardownSessionByID(sid); err != nil {
+		// RFC 2866 Section 5.10 value 5: "Maximum session length timer
+		// expired."
+		if err := r.teardownSessionByID(sid, l2tpevents.TerminateCauseSessionTimeout); err != nil {
 			r.logger.Debug("l2tp: session-timeout teardown (session may already be gone)",
 				"session-id", sid, "error", err)
 		}
@@ -93,7 +97,8 @@ func (r *l2tpReactor) runIdleTimeout(tid, sid uint16, idleTimeout time.Duration,
 			}
 			r.logger.Info("l2tp: idle-timeout expired; tearing down session",
 				"tunnel-id", tid, "session-id", sid, "idle-timeout", idleTimeout, "interface", iface)
-			if err := r.teardownSessionByID(sid); err != nil {
+			// RFC 2866 Section 5.10 value 4: "Idle timer expired."
+			if err := r.teardownSessionByID(sid, l2tpevents.TerminateCauseIdleTimeout); err != nil {
 				r.logger.Debug("l2tp: idle-timeout teardown (session may already be gone)",
 					"session-id", sid, "error", err)
 			}

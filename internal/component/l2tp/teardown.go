@@ -7,6 +7,8 @@ package l2tp
 import (
 	"errors"
 	"fmt"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // Operator-initiated teardown errors. CLI handlers translate these into
@@ -73,8 +75,13 @@ func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
 // the first session with the given local SID found on any tunnel.
 // Returns ErrSessionNotFound when no session carries the SID.
 //
+// cause is why the caller is ending this session, and it reaches RADIUS
+// accounting as Acct-Terminate-Cause. Every caller MUST name one that is true
+// of its own path: the timers name their timer, the operator and CoA paths
+// name Admin Reset.
+//
 // Caller MUST NOT hold tunnelsMu.
-func (r *l2tpReactor) teardownSessionByID(localSID uint16) error {
+func (r *l2tpReactor) teardownSessionByID(localSID uint16, cause l2tpevents.TerminateCause) error {
 	if localSID == 0 {
 		return ErrInvalidID
 	}
@@ -96,6 +103,7 @@ func (r *l2tpReactor) teardownSessionByID(localSID uint16) error {
 	}
 	cancelSessionTimeouts(sess)
 	tid := tunnel.localTID
+	username := sess.username
 	now := r.params.Clock()
 	outbound := tunnel.teardownSession(sess, cdnResultAdministrative, now, r.logger)
 	teardowns := tunnel.drainPendingKernelTeardowns()
@@ -104,6 +112,7 @@ func (r *l2tpReactor) teardownSessionByID(localSID uint16) error {
 	if r.routeObserver != nil {
 		r.routeObserver.OnSessionDown(tid, localSID)
 	}
+	r.emitSessionDown(tid, localSID, username, cause)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (operator session teardown)",
@@ -161,18 +170,44 @@ func (r *l2tpReactor) TeardownAllSessions() int {
 
 	n := 0
 	for _, k := range keys {
-		if err := r.teardownSessionOnTunnel(k.tid, k.sid); err == nil {
+		// An operator clearing every session is RFC 2866 Section 5.10 value 6:
+		// "Administrator reset the port or session."
+		if err := r.teardownSessionOnTunnel(k.tid, k.sid, l2tpevents.TerminateCauseAdminReset); err == nil {
 			n++
 		}
 	}
 	return n
 }
 
+// emitSessionDown publishes (l2tp, session-down) for a session the reactor
+// itself tore down. The PPP-driven path emits from handlePPPEvent; a locally
+// initiated teardown removes the session from the tunnel map first, so that
+// path finds nothing and returns, and this is the only emission the
+// subscribers of the event get. Exactly one of the two fires, because both
+// look the session up under tunnelsMu before emitting.
+//
+// Caller MUST NOT hold tunnelsMu.
+func (r *l2tpReactor) emitSessionDown(localTID, localSID uint16, username string, cause l2tpevents.TerminateCause) {
+	if r.eventBus == nil {
+		return
+	}
+	if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
+		TunnelID:  localTID,
+		SessionID: localSID,
+		Username:  username,
+		Cause:     cause,
+	}); err != nil {
+		r.logger.Warn("l2tp: session-down emit failed", "error", err)
+	}
+}
+
 // teardownSessionOnTunnel is the tunnel-scoped variant used by
 // TeardownAllSessions. Distinct from TeardownSessionByID because the
 // latter walks every tunnel looking for the SID; here the caller
 // already knows the tuple.
-func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16) error {
+//
+// cause carries the same obligation teardownSessionByID states.
+func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16, cause l2tpevents.TerminateCause) error {
 	r.tunnelsMu.Lock()
 	t, ok := r.tunnelsByLocalID[localTID]
 	if !ok {
@@ -185,6 +220,7 @@ func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16) error {
 		return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
 	}
 	cancelSessionTimeouts(sess)
+	username := sess.username
 	now := r.params.Clock()
 	outbound := t.teardownSession(sess, cdnResultAdministrative, now, r.logger)
 	teardowns := t.drainPendingKernelTeardowns()
@@ -193,6 +229,7 @@ func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16) error {
 	if r.routeObserver != nil {
 		r.routeObserver.OnSessionDown(localTID, localSID)
 	}
+	r.emitSessionDown(localTID, localSID, username, cause)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (teardown-all session)",

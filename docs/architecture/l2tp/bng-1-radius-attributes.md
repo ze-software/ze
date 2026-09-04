@@ -65,6 +65,48 @@ None of them has a config leaf: the owner ruled them unconditional on
 |-----------|------|---------|-------|
 | Event-Timestamp | 55 | Start, Interim, Stop | Four octets, seconds since 1970-01-01 00:00 UTC (RFC 2869 Section 5.3) |
 | Calling-Station-Id | 31 | Start, Interim, Stop | The L2TP Calling Number AVP, or the subscriber MAC on the PPPoE relay path (RFC 2865 Section 5.31). Omitted when neither side named one |
+| Acct-Terminate-Cause | 49 | Stop ONLY | Why the session ended, as an RFC 2866 Section 5.10 integer |
+
+**Acct-Terminate-Cause is on the Stop record and nowhere else.** RFC 2866
+Section 5.10: "This attribute indicates how the session was terminated, and can
+only be present in Accounting-Request records where the Acct-Status-Type is set
+to Stop." Juniper's attribute table lists it on Interim as well. The RFC
+outranks a vendor's table, so ze sends it on Stop alone.
+
+### What each teardown path reports
+
+The cause is a typed value on the session-down event, never text. Each teardown
+site names the cause that is TRUE of its own path.
+
+| Teardown path | Cause | RFC 2866 Section 5.10 value |
+|---------------|-------|------------------------------|
+| Peer LCP Terminate, or LCP reaching Closed or Stopped | User Request | 1 |
+| LCP echo probes unanswered past the limit | Lost Carrier | 2 |
+| Idle-Timeout expired (RFC 2865 Section 5.28) | Idle Timeout | 4 |
+| Session-Timeout expired (RFC 2865 Section 5.27) | Session Timeout | 5 |
+| Operator `clear l2tp session`, and RADIUS Disconnect-Request (RFC 5176) | Admin Reset | 6 |
+| The accounting plugin stopping, which ends service on the NAS | Admin Reboot | 7 |
+| Any failure the NAS detected: negotiation timeout, auth rejection, NCP refusal, an ioctl error, a channel fd that closed or failed to read, a refused StartSession | NAS Error | 9 |
+| The PPP driver stopping a running session on purpose | NAS Request | 10 |
+
+**A path ze cannot attribute reports NAS Error, never a guess.** RFC 2866
+Section 5.10 defines eighteen causes; ze names the eight above and no others,
+because a cause it cannot source would land in an operator's billing store as a
+fact. A cause of zero reaching the encoder is reported as NAS Error for the
+same reason.
+
+**The event fires on both teardown halves now.** A locally initiated teardown
+used to remove the session from the tunnel map and emit nothing, so the PPP
+event that followed found no session and returned. RADIUS then sent no
+Accounting-Stop for a session-timeout, an idle-timeout, an operator clear or a
+CoA-Disconnect, and the pool and the shaper never heard either. Exactly one of
+the two paths emits, because both look the session up under `tunnelsMu` before
+they emit. Tunnel-scoped teardown still has this gap
+(`plan/journal/guard-added-to-one-half-of-a-pair.md`, 2026-09-04).
+
+<!-- source: internal/component/l2tp/events/terminate_cause.go -- TerminateCause -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownSessionByID, teardownSessionOnTunnel, emitSessionDown -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- fail, the LCP and echo emitters -->
 
 **Calling-Station-Id crosses three boundaries, and it used to cross none.**
 `parseICRQ` read attribute 22 off the wire and dropped it. The value now lands

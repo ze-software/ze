@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // newReactorForSnapshot builds a reactor with no listener, suitable for
@@ -138,7 +140,7 @@ func TestTeardownUnknownIDReturnsError(t *testing.T) {
 	require.ErrorIs(t, err, ErrTunnelNotFound)
 	require.Contains(t, err.Error(), "999")
 
-	err = r.teardownSessionByID(999)
+	err = r.teardownSessionByID(999, l2tpevents.TerminateCauseAdminReset)
 	require.ErrorIs(t, err, ErrSessionNotFound)
 	require.Contains(t, err.Error(), "999")
 }
@@ -148,7 +150,7 @@ func TestTeardownRejectsZeroID(t *testing.T) {
 	r := newReactorForSnapshot(t)
 
 	require.ErrorIs(t, r.teardownTunnelByID(0), ErrInvalidID)
-	require.ErrorIs(t, r.teardownSessionByID(0), ErrInvalidID)
+	require.ErrorIs(t, r.teardownSessionByID(0, l2tpevents.TerminateCauseAdminReset), ErrInvalidID)
 }
 
 // VALIDATES: FormatFraming renders RFC 2661 bitmap values the CLI

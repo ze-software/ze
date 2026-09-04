@@ -15,6 +15,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // defaultIPTimeout bounds the time between emitting EventIPRequest and
@@ -98,6 +100,7 @@ func (s *pppSession) runNCPPhase() bool {
 				TunnelID:  s.tunnelID,
 				SessionID: s.sessionID,
 				Reason:    "driver stopped during NCP phase",
+				Cause:     l2tpevents.TerminateCauseNASRequest,
 			})
 			return false
 		case <-s.sessStop:
@@ -105,6 +108,7 @@ func (s *pppSession) runNCPPhase() bool {
 				TunnelID:  s.tunnelID,
 				SessionID: s.sessionID,
 				Reason:    "session stopped during NCP phase",
+				Cause:     l2tpevents.TerminateCauseNASRequest,
 			})
 			return false
 		case <-timer.C:
@@ -117,6 +121,7 @@ func (s *pppSession) runNCPPhase() bool {
 					TunnelID:  s.tunnelID,
 					SessionID: s.sessionID,
 					Reason:    "chan fd closed during NCP phase",
+					Cause:     l2tpevents.TerminateCauseNASError,
 				})
 				return false
 			}

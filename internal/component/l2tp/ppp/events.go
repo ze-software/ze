@@ -7,6 +7,8 @@ package ppp
 import (
 	"net/netip"
 	"time"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // Event is the sealed sum type emitted on Manager.EventsOut. The
@@ -98,10 +100,17 @@ func (EventSessionIPAssigned) isPPPEvent() {}
 //
 // Reason is human-readable for logs. The transport MUST NOT parse
 // reason for control flow -- use the event type to discriminate.
+//
+// Cause is the machine-readable half of the same fact: the RFC 2866
+// Section 5.10 value that is true of this exit, which the transport
+// carries to RADIUS accounting as Acct-Terminate-Cause. Every emitter
+// sets it; an exit ze cannot attribute names NAS Error rather than
+// guessing a more specific cause.
 type EventSessionDown struct {
 	TunnelID  uint16
 	SessionID uint16
 	Reason    string
+	Cause     l2tpevents.TerminateCause
 }
 
 func (EventSessionDown) isPPPEvent() {}
