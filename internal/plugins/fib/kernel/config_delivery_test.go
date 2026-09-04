@@ -3,46 +3,113 @@
 package fibkernel
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
 
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// TestParseFIBConfigReadsTheDeliveredStrings checks the config shape a plugin
-// actually receives, wrapper included. ExtractConfigSubtree wraps a section in
-// its full root path, so a hand-typed unwrapped fixture tests a payload the
-// daemon never sends -- which is how both settings stayed unreachable while a
-// unit test called them covered. Tree.values is a map[string]string and toMap copies it
-// through unchanged, so every leaf arrives as the text the operator wrote. The
-// assertions this replaces read .(bool) and .(float64), which the delivered
-// map never satisfies, so both settings were discarded in silence and the
-// defaults stood whatever the config said.
+// deliverSection builds the config section this plugin actually receives, by
+// driving the real producer chain rather than typing the JSON:
+//
+//	LoadConfig            (internal/component/config)
+//	  -> (*Tree).ToMap
+//	  -> ExtractConfigSubtree (internal/component/config/plugin_verify.go)
+//	  -> json.Marshal         (plugin server reload.go)
+//	  -> parseFIBConfig       (register.go)
+//
+// The point is the SHAPE. Two defects lived here at once, and a hand-typed
+// fixture agreed with the reader on both: every leaf arrives as a STRING, and
+// the section arrives WRAPPED in its full root path. A fixture the author
+// writes states what the author believes; this one states what the daemon
+// sends.
+//
+// The parse error is RETURNED rather than fataled here, so each test asserts it
+// itself. A helper that swallows the error takes that assertion out of every
+// caller, and a reader of one test can no longer see that it checks one.
+func deliverSection(t *testing.T, text string) (fibConfig, error) {
+	t.Helper()
+	result, err := zeconfig.LoadConfig(text, "test.conf", nil)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	subtree := zeconfig.ExtractConfigSubtree(result.Tree.ToMap(), configRoot)
+	if subtree == nil {
+		t.Fatalf("ExtractConfigSubtree(%q) returned nil, so the plugin would be handed {}", configRoot)
+	}
+	data, err := json.Marshal(subtree)
+	if err != nil {
+		t.Fatalf("marshal subtree: %v", err)
+	}
+	t.Logf("delivered section for %s: %s", configRoot, data)
+	return parseFIBConfig([]sdk.ConfigSection{{Root: configRoot, Data: string(data)}})
+}
+
+const fibBothSet = `fib {
+	kernel {
+		flush-on-stop true
+		sweep-delay 45
+	}
+}
+`
+
+const fibSweepZero = `fib {
+	kernel {
+		sweep-delay 0
+	}
+}
+`
+
+const fibNeitherSet = `fib {
+	kernel {
+	}
+}
+`
+
+// TestParseFIBConfigReadsTheDeliveredStrings is the whole point of this file.
+// Both settings were unreachable for two independent reasons at once, and both
+// unit tests that covered them passed. The assertions here are the operator's
+// values, read back through the producer chain.
 func TestParseFIBConfigReadsTheDeliveredStrings(t *testing.T) {
-	cfg, err := parseFIBConfig([]sdk.ConfigSection{{
-		Root: configRoot,
-		Data: `{"fib":{"kernel":{"flush-on-stop":"true","sweep-delay":"30"}}}`,
-	}})
+	cfg, err := deliverSection(t, fibBothSet)
 	if err != nil {
 		t.Fatalf("parseFIBConfig: %v", err)
 	}
+
 	if !cfg.FlushOnStop {
 		t.Error("flush-on-stop = false, want true: the operator's setting was discarded")
 	}
-	if cfg.SweepDelay != 30*time.Second {
-		t.Errorf("sweep-delay = %v, want 30s: the operator's setting was discarded", cfg.SweepDelay)
+	if cfg.SweepDelay != 45*time.Second {
+		t.Errorf("sweep-delay = %v, want 45s: the operator's setting was discarded", cfg.SweepDelay)
+	}
+}
+
+// TestParseFIBConfigReadsAConfiguredZero checks the value a "> 0" guard used to
+// discard. ze-fib-conf.yang declares sweep-delay as a uint16 with no range, so
+// `sweep-delay 0` commits and asks for the sweep to run at once.
+func TestParseFIBConfigReadsAConfiguredZero(t *testing.T) {
+	cfg, err := deliverSection(t, fibSweepZero)
+	if err != nil {
+		t.Fatalf("parseFIBConfig: %v", err)
+	}
+
+	if cfg.SweepDelay != 0 {
+		t.Errorf("sweep-delay = %v, want 0: a configured zero is a value, not an absence", cfg.SweepDelay)
 	}
 }
 
 // TestParseFIBConfigKeepsItsDefaultsWhenTheLeavesAreAbsent checks the other
-// half: an absent leaf must leave the default standing rather than write a
-// zero over it.
+// half: an absent leaf leaves the default standing rather than writing a zero
+// over it.
 func TestParseFIBConfigKeepsItsDefaultsWhenTheLeavesAreAbsent(t *testing.T) {
-	cfg, err := parseFIBConfig([]sdk.ConfigSection{{Root: configRoot, Data: `{"fib":{"kernel":{}}}`}})
+	cfg, err := deliverSection(t, fibNeitherSet)
 	if err != nil {
 		t.Fatalf("parseFIBConfig: %v", err)
 	}
+
 	if cfg.FlushOnStop {
 		t.Error("flush-on-stop = true, want the default false")
 	}
@@ -51,29 +118,32 @@ func TestParseFIBConfigKeepsItsDefaultsWhenTheLeavesAreAbsent(t *testing.T) {
 	}
 }
 
-// TestParseFIBConfigReadsAConfiguredZero checks the value that a "> 0" guard
-// discards. ze-fib-conf.yang declares sweep-delay as a uint16 with no range, so
-// `sweep-delay 0` commits, and it asks for the sweep to run at once. A guard
-// that treated 0 as an absence would keep the 30-second default over it and
-// log nothing, which is the operator's setting discarded in silence.
-func TestParseFIBConfigReadsAConfiguredZero(t *testing.T) {
-	cfg, err := parseFIBConfig([]sdk.ConfigSection{{
-		Root: configRoot,
-		Data: `{"fib":{"kernel":{"flush-on-stop":"false","sweep-delay":"0"}}}`,
-	}})
+// TestParseFIBConfigAcceptsTheRemovalPayload checks the shape a DELETED root
+// takes. Every producer spells it `{}`, and a guard that read that as a
+// malformed section refused the commit, so an operator could not remove a
+// `fib { kernel { } }` block they had already committed.
+func TestParseFIBConfigAcceptsTheRemovalPayload(t *testing.T) {
+	cfg, err := parseFIBConfig([]sdk.ConfigSection{{Root: configRoot, Data: `{}`}})
 	if err != nil {
-		t.Fatalf("parseFIBConfig: %v", err)
+		t.Fatalf("parseFIBConfig refused the removal payload: %v", err)
 	}
-	if cfg.SweepDelay != 0 {
-		t.Errorf("sweep-delay = %v, want 0: a configured zero is a value, not an absence", cfg.SweepDelay)
+	if cfg.FlushOnStop {
+		t.Error("flush-on-stop = true, want the default false after removal")
+	}
+	if cfg.SweepDelay != sweepDelay {
+		t.Errorf("sweep-delay = %v, want the default %v after removal", cfg.SweepDelay, sweepDelay)
 	}
 }
 
 // TestParseFIBConfigRefusesAValueItCannotRead checks the case an absent leaf
 // and a malformed one used to share. configvalue answers false for both, so a
 // reader that only asked "did I get a value" kept its default for a value the
-// operator wrote and never said so. The map lookup separates them, and a
-// malformed value is refused by name.
+// operator wrote and never said so.
+//
+// The payload is typed here rather than delivered, because the loader refuses
+// these values before they reach the plugin: the YANG types are boolean and
+// uint16. This pins the plugin's own refusal for a section that reaches it by
+// another route.
 func TestParseFIBConfigRefusesAValueItCannotRead(t *testing.T) {
 	for _, tc := range []struct {
 		name string

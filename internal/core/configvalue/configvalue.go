@@ -218,6 +218,12 @@ func Int(v any) (int64, bool) {
 // (parseFibVPPConfigSection is the fullest). They are unmigrated: this is the
 // one declaration for a caller that wants it.
 func Section(root string, delivered map[string]any) map[string]any {
+	// "*" asks for the whole tree, and ExtractConfigSubtree returns it
+	// UNWRAPPED for that root. Walking it would look up a literal "*" key and
+	// answer nil, which is the silent-then-refusing failure this helper ends.
+	if root == "*" {
+		return delivered
+	}
 	current := delivered
 	for _, segment := range strings.Split(root, "/") {
 		if segment == "" {

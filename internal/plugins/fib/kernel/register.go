@@ -40,6 +40,16 @@ func parseFIBConfig(sections []sdk.ConfigSection) (fibConfig, error) {
 		if err := json.Unmarshal([]byte(sec.Data), &delivered); err != nil {
 			return cfg, fmt.Errorf("fib/kernel: invalid config JSON: %w", err)
 		}
+		// An EMPTY object is the root being REMOVED, not a malformed section.
+		// Every producer spells a deleted root that way
+		// (buildPluginConfigSectionsTransition and marshalOperationRoot in
+		// internal/component/config, reload.go in the plugin server), so
+		// refusing it would stop an operator deleting a `fib { kernel { } }`
+		// block they can commit today. The defaults stand, which is what the
+		// removal asks for.
+		if len(delivered) == 0 {
+			continue
+		}
 		// The section arrives wrapped in its full root path, so configRoot
 		// "fib/kernel" delivers {"fib":{"kernel":{...}}}. Indexing the outer
 		// map by leaf name found nothing and kept every default, which is why

@@ -41,7 +41,7 @@ system {
 |------|------|---------|-------|
 | `tacacs.server <ip>` | list, ordered-by-user | - | Tried in declaration order on connection failure |
 | `tacacs.server <ip>.port` | uint16 | 49 | TCP |
-| `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret. A server with none refuses the commit, and at boot disables the whole AAA bundle |
+| `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret. A server with none disables the whole AAA bundle. See below: what that costs depends on when the bundle is built |
 | `tacacs.timeout` | uint16 (1-300) | 5 | Per-server connection timeout in seconds |
 | `tacacs.source-address` | ip-address | none | Local source IP for outbound TACACS+ TCP |
 | `tacacs.authorization` | boolean | false | Enable per-command TACACS+ authorization |

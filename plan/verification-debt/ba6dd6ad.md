@@ -47,3 +47,9 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | ba6dd6ad | fix: the review found the fib config leaves were never reachable | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | ba6dd6ad | fix: the review found the fib config leaves were never reachable | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-04 | ba6dd6ad | fix: the review found the fib config leaves were never reachable | discovery-index freshness | the only PACKAGE-MAP row that moved is another session's half-landed internal/core/rib/distance; this commit adds and removes no package | open |
+| 2026-09-04 | ba6dd6ad | probe | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | ba6dd6ad | probe | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | ba6dd6ad | probe | discovery-index freshness | probe | open |
+| 2026-09-04 | ba6dd6ad | fix(fib): an empty section is a removal, not a malformed one | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | ba6dd6ad | fix(fib): an empty section is a removal, not a malformed one | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | ba6dd6ad | fix(fib): an empty section is a removal, not a malformed one | discovery-index freshness | the only PACKAGE-MAP row that moved is another session's half-landed internal/core/rib/distance; this commit adds and removes no package | open |
