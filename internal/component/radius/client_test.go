@@ -1,6 +1,7 @@
 package radius
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -494,5 +495,96 @@ func TestClientTimeout(t *testing.T) {
 	_, err = client.Exchange(context.Background(), pkt, []byte("key"), dead.LocalAddr().String())
 	if err == nil {
 		t.Fatal("expected timeout error")
+	}
+}
+
+// TestAccessRequestRetransmitIsByteIdentical captures the datagrams Exchange
+// actually puts on the wire and compares them, which is the assertion
+// TestClientRetransmit's prose claims and its body does not make: that test
+// counts attempts and reads the reply code, so it would pass against a client
+// that re-encoded every retry with a fresh Identifier.
+//
+// The guard matters because the accounting path is about to stop behaving this
+// way. RFC 2866 Section 4.1 requires a retransmitted Accounting-Request to
+// update Acct-Delay-Time, which changes the Attributes field and so requires a
+// new Identifier and Request Authenticator. RFC 2865 Section 2.5 requires the
+// opposite of an Access-Request: "If any attributes have changed, you MUST use
+// a new Request Authenticator and ID", and nothing changes here, so the bytes
+// must not. This test is written BEFORE that divergence exists, so a change
+// that reaches the wrong path cannot land quietly.
+func TestAccessRequestRetransmitIsByteIdentical(t *testing.T) {
+	sharedKey := []byte("testing123")
+
+	var mu sync.Mutex
+	var datagrams [][]byte
+
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := conn.LocalAddr().String()
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		buf := make([]byte, MaxPacketLen)
+		for {
+			n, from, readErr := conn.ReadFromUDP(buf)
+			if readErr != nil {
+				return
+			}
+			seen := make([]byte, n)
+			copy(seen, buf[:n])
+			mu.Lock()
+			datagrams = append(datagrams, seen)
+			count := len(datagrams)
+			mu.Unlock()
+			if count < 2 {
+				continue
+			}
+			conn.WriteToUDP(buildResponse(CodeAccessAccept, seen, sharedKey), from) //nolint:errcheck // test mock
+		}
+	}()
+	defer func() {
+		closeSilent(conn)
+		<-done
+	}()
+
+	client, err := NewClient(ClientConfig{Timeout: 200 * time.Millisecond, Retries: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeSilent(client)
+
+	auth, _ := RandomAuthenticator()
+	pkt := &Packet{
+		Code:          CodeAccessRequest,
+		Identifier:    client.NextID(),
+		Authenticator: auth,
+		Attrs: []Attr{
+			{Type: AttrUserName, Value: AttrString("alice")},
+			{Type: AttrUserPassword, Value: []byte("secret")},
+		},
+	}
+	if _, err = client.Exchange(context.Background(), pkt, sharedKey, addr); err != nil {
+		t.Fatal(err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(datagrams) < 2 {
+		t.Fatalf("the client sent %d datagram(s); the test proves nothing without a retransmission", len(datagrams))
+	}
+	first, second := datagrams[0], datagrams[1]
+	if !bytes.Equal(first, second) {
+		t.Fatalf("the retransmitted Access-Request differs from the first.\nfirst  %x\nsecond %x", first, second)
+	}
+	// Named separately so a failure says WHICH field moved rather than only
+	// that two byte slices differ.
+	if first[1] != second[1] {
+		t.Errorf("Identifier changed across the retransmission: %d then %d", first[1], second[1])
+	}
+	if !bytes.Equal(first[4:4+AuthenticatorLen], second[4:4+AuthenticatorLen]) {
+		t.Errorf("Request Authenticator changed across the retransmission")
 	}
 }
