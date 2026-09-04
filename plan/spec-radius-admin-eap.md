@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | plan/spec-radius-admin-chap.md |
-| Phase | - |
+| Phase | 6/8 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-09-03 |
+| Updated | 2026-09-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

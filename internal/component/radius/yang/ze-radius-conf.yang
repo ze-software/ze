@@ -7,6 +7,10 @@ module ze-radius-conf {
 
     description "RADIUS admin-authentication configuration for Ze (RFC 2865)";
 
+    revision 2026-09-04 {
+        description "Add auth-method eap-md5 and eap-mschapv2: RADIUS/EAP admin login (RFC 3579)";
+    }
+
     revision 2026-09-03 {
         description "Add auth-method: PAP or CHAP credential on the Access-Request";
     }
@@ -96,25 +100,41 @@ module ze-radius-conf {
                             description
                                 "Send MD5(identifier, password, challenge) in a CHAP-Password attribute, with the challenge in CHAP-Challenge (RFC 2865 Sections 5.3 and 5.40).";
                         }
+                        enum eap-md5 {
+                            description
+                                "Run an EAP conversation with MD5-Challenge inside EAP-Message attributes (RFC 3579 Section 3.1, RFC 3748 Section 5.4).";
+                        }
+                        enum eap-mschapv2 {
+                            description
+                                "Run an EAP conversation with MS-CHAPv2 inside EAP-Message attributes (RFC 3579 Section 3.1, RFC 2759).";
+                        }
                     }
                     default "pap";
                     description
                         "Credential the Access-Request carries for an operator login.";
                     ze:help
-                        "RFC 2865 Section 4.1 permits one of the two and never
-                         both, so ze sends exactly one credential attribute.
-                         Select chap only when the RADIUS server holds the
-                         operator password in cleartext. RFC 2865 Section 2.2
-                         states that 'CHAP requires that the user's password be
-                         available in cleartext to the server so that it can
-                         encrypt the CHAP challenge and compare that to the CHAP
-                         response. If the password is not available in cleartext
-                         to the RADIUS server then the server MUST send an
-                         Access-Reject to the client.' A server that stores
-                         password hashes cannot verify CHAP and rejects every
-                         login. With pap the password is recoverable from a
-                         captured request by anyone who holds the shared secret,
-                         because Section 5.2 hides it with a reversible XOR.";
+                        "RFC 2865 Section 4.1 and RFC 3579 Section 3.3 Note 1
+                         permit one credential and never two, so ze sends
+                         exactly one. Select chap only when the RADIUS server
+                         holds the operator password in cleartext. RFC 2865
+                         Section 2.2 states that 'CHAP requires that the user's
+                         password be available in cleartext to the server so
+                         that it can encrypt the CHAP challenge and compare that
+                         to the CHAP response. If the password is not available
+                         in cleartext to the RADIUS server then the server MUST
+                         send an Access-Reject to the client.' A server that
+                         stores password hashes cannot verify CHAP and rejects
+                         every login. With pap the password is recoverable from
+                         a captured request by anyone who holds the shared
+                         secret, because Section 5.2 hides it with a reversible
+                         XOR.
+                         The two eap values run a full RADIUS/EAP conversation:
+                         ze answers EAP itself, as the peer, with the password
+                         the operator typed, and the server drives it through
+                         Access-Challenge packets. eap-md5 carries the same
+                         cleartext-password requirement as chap. eap-mschapv2
+                         needs the server to hold the NT hash instead, which is
+                         what an Active Directory backed server holds.";
                 }
 
                 leaf profile-attribute {

@@ -4,6 +4,7 @@
 // RFC: rfc/short/rfc2865.md -- Request Authenticator (Section 4.1), retransmission (Section 2.5)
 // RFC: rfc/short/rfc2866.md -- Accounting-Request authenticator (Section 3)
 // RFC: rfc/short/rfc2869.md -- Message-Authenticator on a response (Section 5.14)
+// RFC: rfc/short/rfc3579.md -- Message-Authenticator signing (Section 3.2), attributes forbidden in accounting (Section 3.3)
 
 package radius
 
@@ -134,7 +135,14 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, secret []byte, serve
 	// been trying to send this record", so it is measured from here and not
 	// from the event the record describes.
 	firstAttempt := time.Now()
-	if pkt.Code == CodeAccountingReq {
+
+	// A record whose author held Acct-Delay-Time back carries no value for this
+	// client to update, so it is replayed byte for byte the way an
+	// Access-Request is. RFC 2866 Section 4.1 asks for the new Identifier only
+	// "if Acct-Delay-Time is included in the attributes of an
+	// Accounting-Request".
+	stampsAcctDelayTime := pkt.Code == CodeAccountingReq && !pkt.OmitAcctDelayTime
+	if stampsAcctDelayTime {
 		setAcctDelayTime(pkt, 0)
 	}
 
@@ -179,7 +187,7 @@ retryLoop:
 		// that authenticator an MD5 over the attributes, so it moves with them
 		// by construction. A constant delay is not a shortcut around this: it
 		// reports a number that is never true after the first attempt.
-		if attempt > 0 && pkt.Code == CodeAccountingReq {
+		if attempt > 0 && stampsAcctDelayTime {
 			c.unregisterWaiter(key, waiter)
 			setAcctDelayTime(pkt, time.Since(firstAttempt))
 			pkt.Identifier = c.NextID()
@@ -242,18 +250,113 @@ retryLoop:
 // carried in the packet: RFC 2866 Section 3 computes it over "the Code +
 // Identifier + Length + 16 zero octets + request attributes + shared secret",
 // so it has to be recomputed whenever any attribute changes.
+//
+// The Message-Authenticator is signed here, after the encode and before that
+// derivation, because RFC 3579 Section 3.2 hashes "the entire Access-Request
+// packet, including Type, ID, Length and Authenticator": there is no packet to
+// hash until the attributes are laid out. The same section adds that the value
+// "is calculated and inserted in the packet before the Response Authenticator
+// is calculated", which is the order the two steps run in below.
 func encodeRequest(pkt *Packet, secret, buf []byte) (int, [AuthenticatorLen]byte, error) {
+	// RFC 3579 Section 3.3: "The EAP-Message and Message-Authenticator
+	// attributes specified in this document MUST NOT be present in an
+	// Accounting-Request." Every RADIUS packet ze sends leaves through
+	// Exchange, so this is the one place that has to hold the rule, and it
+	// refuses rather than stripping: a caller that built one of these into an
+	// accounting record wants the record it built or an error, never a quietly
+	// different record.
+	if pkt.Code == CodeAccountingReq {
+		for _, a := range pkt.Attrs {
+			if a.Type == AttrEAPMessage || a.Type == AttrMessageAuthenticator {
+				return 0, [AuthenticatorLen]byte{}, fmt.Errorf(
+					"radius: attribute %d is forbidden in an Accounting-Request (RFC 3579 Section 3.3)", a.Type)
+			}
+		}
+	}
+
+	// RFC 3579 Section 3.3 Note 1: "An Access-Request that contains either a
+	// User-Password or CHAP-Password or ARAP-Password or one or more
+	// EAP-Message attributes MUST NOT contain more than one type of those four
+	// attributes." RFC 2865 Section 4.1 states the User-Password/CHAP-Password
+	// half on its own, and the authenticator's `credential` selects rather than
+	// appends, so this is the paired check at the socket: a builder that ever
+	// appended two would be caught here rather than by a permissive server.
+	//
+	// ARAP-Password is not named. Ze implements no ARAP attribute, which RFC
+	// 2869 Section 1.1 requires of a NAS that cannot offer the service, and
+	// rfc2869_unoffered_service_attributes_test.go holds it.
+	if pkt.Code == CodeAccessRequest {
+		if err := oneCredentialType(pkt); err != nil {
+			return 0, [AuthenticatorLen]byte{}, err
+		}
+	}
+
 	wirePkt := prepareWirePacket(pkt, secret)
 	n, err := wirePkt.EncodeTo(buf, 0)
 	if err != nil {
 		return 0, [AuthenticatorLen]byte{}, fmt.Errorf("radius: encode: %w", err)
 	}
+
+	signed, err := SignMessageAuthenticator(buf, n, secret)
+	if err != nil {
+		return 0, [AuthenticatorLen]byte{}, err
+	}
+	// RFC 3579 Section 3.1: "the Message-Authenticator attribute MUST be used
+	// to protect all Access-Request, Access-Challenge, Access-Accept, and
+	// Access-Reject packets containing an EAP-Message attribute." The builder
+	// appends the placeholder (eapCredential, eap.go); this is the paired check
+	// at the socket, so no path can put an unprotected EAP request on the wire.
+	if !signed && carriesEAPMessage(pkt) {
+		return 0, [AuthenticatorLen]byte{}, errors.New(
+			"radius: an EAP-Message packet needs a Message-Authenticator (RFC 3579 Section 3.1)")
+	}
+
 	if pkt.Code != CodeAccountingReq {
 		return n, pkt.Authenticator, nil
 	}
 	auth := AccountingRequestAuth(buf, n, secret)
 	copy(buf[4:4+AuthenticatorLen], auth[:])
 	return n, auth, nil
+}
+
+// carriesEAPMessage reports whether the packet encapsulates an EAP packet.
+func carriesEAPMessage(pkt *Packet) bool {
+	for _, a := range pkt.Attrs {
+		if a.Type == AttrEAPMessage {
+			return true
+		}
+	}
+	return false
+}
+
+// oneCredentialType refuses an Access-Request carrying more than one of the
+// credential types RFC 3579 Section 3.3 Note 1 makes exclusive.
+//
+// The three ze can build are named, and the error names both offenders so the
+// builder that appended rather than selected is identifiable from the log.
+func oneCredentialType(pkt *Packet) error {
+	names := map[uint8]string{
+		AttrUserPassword: "User-Password",
+		AttrCHAPPassword: "CHAP-Password",
+		AttrEAPMessage:   "EAP-Message",
+	}
+	found := ""
+	for _, a := range pkt.Attrs {
+		name, credential := names[a.Type]
+		if !credential {
+			continue
+		}
+		if found == "" {
+			found = name
+			continue
+		}
+		if found != name {
+			return fmt.Errorf(
+				"radius: an Access-Request carries %s beside %s; RFC 3579 Section 3.3 Note 1 permits one credential type",
+				name, found)
+		}
+	}
+	return nil
 }
 
 // setAcctDelayTime records how long the client has been trying to send this

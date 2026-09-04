@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 const (
@@ -142,8 +143,12 @@ func profileAttrType(_ string) uint8 {
 // AuthMethod names the credential an Access-Request carries for an operator
 // login. RFC 2865 Section 4.1: "An Access-Request MUST contain either a
 // User-Password or a CHAP-Password or a State.  An Access-Request MUST NOT
-// contain both a User-Password and a CHAP-Password." The two values are
-// therefore exclusive, and the authenticator builds one of them.
+// contain both a User-Password and a CHAP-Password." RFC 3579 Section 3.3
+// Note 1 extends the same exclusion to EAP: "An Access-Request that contains
+// either a User-Password or CHAP-Password or ARAP-Password or one or more
+// EAP-Message attributes MUST NOT contain more than one type of those four
+// attributes." The values are therefore exclusive, and the authenticator builds
+// exactly one of them.
 //
 // The zero value is AuthMethodPAP, which is the YANG default and the behavior
 // ze shipped before the auth-method leaf existed.
@@ -155,14 +160,46 @@ const (
 	// AuthMethodCHAP sends CHAP-Password and CHAP-Challenge, RFC 2865
 	// Sections 5.3 and 5.40.
 	AuthMethodCHAP
+	// AuthMethodEAPMD5 runs an EAP conversation with MD5-Challenge
+	// (RFC 3748 Section 5.4) inside EAP-Message attributes.
+	AuthMethodEAPMD5
+	// AuthMethodEAPMSCHAPv2 runs an EAP conversation with MS-CHAPv2
+	// (RFC 2759) inside EAP-Message attributes.
+	AuthMethodEAPMSCHAPv2
 )
 
-// String names the method as the YANG enum spells it.
+// authMethodNames spells each method as the YANG enum spells it. It is the one
+// declaration both String and parseAuthMethod read, so the two can never name
+// different sets.
+var authMethodNames = map[AuthMethod]string{
+	AuthMethodPAP:         "pap",
+	AuthMethodCHAP:        "chap",
+	AuthMethodEAPMD5:      "eap-md5",
+	AuthMethodEAPMSCHAPv2: "eap-mschapv2",
+}
+
+// String names the method as the YANG enum spells it. A value the map does not
+// hold answers "unknown", which is not a word the enum accepts, so a reader
+// cannot mistake it for a configured method.
 func (m AuthMethod) String() string {
-	if m == AuthMethodCHAP {
-		return "chap"
+	if name, ok := authMethodNames[m]; ok {
+		return name
 	}
-	return "pap"
+	return "unknown"
+}
+
+// EAPType reports the EAP method Type this credential runs, and whether it runs
+// EAP at all. The Type is what internal/core/eap builds a peer session for, and
+// the peer NAKs toward it rather than accepting whatever the server offers.
+func (m AuthMethod) EAPType() (uint8, bool) {
+	switch m {
+	case AuthMethodEAPMD5:
+		return eap.TypeMD5Challenge, true
+	case AuthMethodEAPMSCHAPv2:
+		return eap.TypeMSCHAPv2, true
+	default:
+		return 0, false
+	}
 }
 
 // parseAuthMethod maps the YANG auth-method enum to a typed method.
@@ -174,13 +211,11 @@ func (m AuthMethod) String() string {
 // would send one he did not choose. ExtractConfig returns the error, Build logs
 // it and contributes nothing, and login falls through to the local backend.
 func parseAuthMethod(s string) (AuthMethod, error) {
-	switch s {
-	case "pap":
-		return AuthMethodPAP, nil
-	case "chap":
-		return AuthMethodCHAP, nil
-	default:
-		return AuthMethodPAP, fmt.Errorf(
-			"radius: auth-method %q is not pap or chap", s)
+	for method, name := range authMethodNames {
+		if name == s {
+			return method, nil
+		}
 	}
+	return AuthMethodPAP, fmt.Errorf(
+		"radius: auth-method %q is not pap, chap, eap-md5 or eap-mschapv2", s)
 }

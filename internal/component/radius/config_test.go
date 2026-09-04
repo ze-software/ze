@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 // radiusTree builds system/authentication/radius with the given inner tree.
@@ -165,10 +166,13 @@ func TestRadiusSecretNotLogged(t *testing.T) {
 // VALIDATES: AC-1 and AC-2 -- an absent leaf and an explicit `pap` both extract
 // to AuthMethodPAP. AC-3 -- `chap` extracts to AuthMethodCHAP. AC-8 -- a word
 // the schema does not define fails the whole extraction rather than silently
-// selecting a credential the operator did not choose.
+// selecting a credential the operator did not choose. spec-radius-admin-eap
+// AC-1 -- `eap-md5` and `eap-mschapv2` extract to their own methods, and each
+// names the EAP Type its peer session runs.
 // PREVENTS: an unknown auth-method defaulting to PAP behind an operator who
 // wrote `chap` with a typo, which would send the password in a recoverable form
-// while the config file says otherwise.
+// while the config file says otherwise. Also an eap word that parses and then
+// selects no EAP Type, which would run the PAP credential under an EAP name.
 func TestExtractConfigAuthMethod(t *testing.T) {
 	withMethod := func(value string) *config.Tree {
 		inner := config.NewTree()
@@ -194,8 +198,33 @@ func TestExtractConfigAuthMethod(t *testing.T) {
 	assert.Equal(t, AuthMethodCHAP, cfg.AuthMethod)
 	assert.Equal(t, "chap", cfg.AuthMethod.String())
 
+	cfg, err = ExtractConfig(withMethod("eap-md5"))
+	require.NoError(t, err)
+	assert.Equal(t, AuthMethodEAPMD5, cfg.AuthMethod)
+	assert.Equal(t, "eap-md5", cfg.AuthMethod.String())
+	eapType, isEAP := cfg.AuthMethod.EAPType()
+	assert.True(t, isEAP)
+	assert.Equal(t, eap.TypeMD5Challenge, eapType)
+
+	cfg, err = ExtractConfig(withMethod("eap-mschapv2"))
+	require.NoError(t, err)
+	assert.Equal(t, AuthMethodEAPMSCHAPv2, cfg.AuthMethod)
+	assert.Equal(t, "eap-mschapv2", cfg.AuthMethod.String())
+	eapType, isEAP = cfg.AuthMethod.EAPType()
+	assert.True(t, isEAP)
+	assert.Equal(t, eap.TypeMSCHAPv2, eapType)
+
+	// The two password credentials run no EAP conversation.
+	for _, method := range []AuthMethod{AuthMethodPAP, AuthMethodCHAP} {
+		_, isEAP = method.EAPType()
+		assert.False(t, isEAP, "%s runs no EAP conversation", method)
+	}
+
+	// A word the schema does not define. "mschapv2" is chosen because it is a
+	// real method name and one letter of intent away from eap-mschapv2, so a
+	// parser that matched loosely would accept it.
 	_, err = ExtractConfig(withMethod("mschapv2"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mschapv2")
-	assert.Contains(t, err.Error(), "pap or chap")
+	assert.Contains(t, err.Error(), "pap, chap, eap-md5 or eap-mschapv2")
 }

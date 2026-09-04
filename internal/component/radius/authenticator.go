@@ -93,8 +93,9 @@ func authBudget(cfg ExtractedConfig) time.Duration {
 
 // Authenticate authenticates against the configured RADIUS servers with the
 // credential the auth-method leaf selects: PAP (RFC 2865 User-Password,
-// Section 5.2) or CHAP (CHAP-Password and CHAP-Challenge, Sections 5.3 and
-// 5.40).
+// Section 5.2), CHAP (CHAP-Password and CHAP-Challenge, Sections 5.3 and 5.40),
+// or EAP inside EAP-Message attributes (RFC 3579 Section 3.1), where ze answers
+// as the EAP peer with the password the operator typed.
 //
 // Returns:
 //   - (success, nil) on Access-Accept, Profiles mapped from the reply
@@ -102,18 +103,40 @@ func authBudget(cfg ExtractedConfig) time.Duration {
 //   - (zero, ErrAuthRejected) on an Access-Accept that resolves to no profile
 //     names, whether the reply carried none and no default is configured, or the
 //     names it carried were all empty
-//   - (zero, other error) on timeout/socket/unexpected-code, or on a CHAP
-//     challenge that could not be generated, so the chain tries the next
+//   - (zero, other error) on timeout/socket/unexpected-code, on a CHAP
+//     challenge that could not be generated, or on an EAP conversation that hit
+//     its round cap or could not be continued, so the chain tries the next
 //     backend (local fallback)
 func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
-	auth, err := RandomAuthenticator()
-	if err != nil {
-		return aaa.AuthResult{}, fmt.Errorf("radius: random authenticator: %w", err)
+	ctx, cancel := context.WithTimeout(context.Background(), a.budget)
+	defer cancel()
+
+	if _, isEAP := a.method.EAPType(); isEAP {
+		return a.authenticateEAP(ctx, request)
 	}
 
 	credential, err := a.credential(request.Password)
 	if err != nil {
 		return aaa.AuthResult{}, err
+	}
+
+	resp, err := a.exchange(ctx, request.Username, credential)
+	if err != nil {
+		return aaa.AuthResult{}, err
+	}
+	return a.result(resp, request.Username)
+}
+
+// exchange sends one Access-Request carrying credential beside the attributes
+// every admin login owes, and returns the server's reply.
+//
+// The Request Authenticator is drawn here and overwritten by SendToServers,
+// which draws its own per server. RFC 2865 Section 4.1 requires a new one with
+// each new Identifier, and failover assigns both.
+func (a *radiusAuthenticator) exchange(ctx context.Context, username string, credential []Attr) (*Packet, error) {
+	auth, err := RandomAuthenticator()
+	if err != nil {
+		return nil, fmt.Errorf("radius: random authenticator: %w", err)
 	}
 
 	// RFC 2865 Section 4.1: an Access-Request MUST carry NAS-IP-Address or
@@ -129,7 +152,7 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 	// zero-length User-Name on the wire. Section 4.1 makes User-Name a SHOULD,
 	// and NAS-Identifier above already meets the MUST that Section 4.1 states,
 	// so omitting it leaves the request conformant.
-	attrs = AppendTextAttr(attrs, AttrUserName, request.Username)
+	attrs = AppendTextAttr(attrs, AttrUserName, username)
 	if v4 := a.sourceIP.To4(); v4 != nil {
 		attrs = append(attrs, Attr{Type: AttrNASIPAddress, Value: v4})
 	}
@@ -140,16 +163,26 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		Attrs:         attrs,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), a.budget)
-	defer cancel()
-
 	resp, err := a.client.SendToServers(ctx, pkt)
 	if err != nil {
 		// Infra failure (timeout / all servers unreachable): let the chain try
 		// the next backend rather than lock the operator out (R-4).
-		return aaa.AuthResult{}, fmt.Errorf("radius: %w", err)
+		return nil, fmt.Errorf("radius: %w", err)
 	}
+	return resp, nil
+}
 
+// result turns a server's reply into the login's verdict. It is the whole
+// answer for PAP and CHAP, and the concluding answer for EAP.
+//
+// RFC 3579 Section 2.6.3: "The NAS MUST make its access control decision based
+// solely on the RADIUS Packet Type (Access-Accept/Access-Reject)", and "The
+// access control decision MUST NOT be based on the contents of the EAP packet
+// encapsulated in one or more EAP-Message attributes, if present." This
+// function therefore reads resp.Code and never an EAP-Message: the EAP peer has
+// already seen the encapsulated packet by the time the caller gets here, and
+// what the peer made of it changes nothing decided below.
+func (a *radiusAuthenticator) result(resp *Packet, username string) (aaa.AuthResult, error) {
 	switch resp.Code {
 	case CodeAccessAccept:
 		// An Accept that resolves to no profile names is a denial, not a
@@ -187,38 +220,43 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		// and the chain stops, exactly as for the empty profile set below.
 		if !AcceptedServiceType(resp, serviceTypeLogin) {
 			a.logger.Warn("RADIUS admin auth rejected: Access-Accept names an unsupported Service-Type",
-				"username", request.Username)
+				"username", username)
 			return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
 		}
 
 		profiles := a.mapProfiles(resp)
 		if len(profiles) == 0 {
 			a.logger.Warn("RADIUS admin auth rejected: no profiles resolved",
-				"username", request.Username)
+				"username", username)
 			return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
 		}
 
 		a.logger.Info("RADIUS admin auth accepted",
-			"username", request.Username, "profiles", profiles)
+			"username", username, "profiles", profiles)
 		return aaa.AuthResult{
 			Authenticated: true,
 			Profiles:      profiles,
 			Source:        aaaName,
 		}, nil
 	case CodeAccessReject:
-		a.logger.Info("RADIUS admin auth rejected", "username", request.Username)
+		a.logger.Info("RADIUS admin auth rejected", "username", username)
 		return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
 	case CodeAccessChallenge:
 		// RFC 2865 Section 4.4: "If the NAS does not support challenge/response,
 		// it MUST treat an Access-Challenge as though it had received an
 		// Access-Reject instead."
 		//
-		// Admin login sends one Access-Request and has no path back to the
+		// PAP and CHAP send one Access-Request and have no path back to the
 		// operator for a second one, so ze does not support challenge/response
-		// here. Returning a plain error would leave the challenge looking like an
-		// infrastructure failure, and the chain would try TACACS+ and local next.
+		// for them. Returning a plain error would leave the challenge looking like
+		// an infrastructure failure, and the chain would try TACACS+ and local
+		// next.
+		//
+		// The two EAP methods DO support it, and authenticateEAP consumes every
+		// challenge before it calls this function, so a challenge reaching here is
+		// always a login that cannot answer one.
 		a.logger.Info("RADIUS admin auth rejected: Access-Challenge and no challenge/response support",
-			"username", request.Username)
+			"username", username, "method", a.method.String())
 		return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
 	default:
 		return aaa.AuthResult{}, fmt.Errorf("radius: unexpected response code %d", resp.Code)

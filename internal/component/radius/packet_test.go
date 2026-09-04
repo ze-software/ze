@@ -389,3 +389,222 @@ func TestEncodeAtOffset(t *testing.T) {
 		t.Error("code should be at offset 10")
 	}
 }
+
+// rfc3579SignVector is a hand-built Access-Request and the HMAC-MD5 an OUTSIDE
+// tool computed over it. The digest came from
+//
+//	openssl dgst -md5 -mac HMAC -macopt key:testing123 <the 45 octets below>
+//
+// so nothing in this file, and nothing in packet.go, produced the expected
+// value. A signer that hashed the wrong octet range, keyed on the wrong string,
+// or forgot to zero the signature field would agree with a self-computed
+// expectation and disagree with this one.
+//
+// The packet: Code 1 (Access-Request), Identifier 0x2a, Length 45, a fixed
+// 16-octet Request Authenticator, a User-Name of "alice", and a
+// Message-Authenticator whose sixteen value octets are zero.
+var rfc3579SignVector = struct {
+	packet []byte
+	secret []byte
+	digest [AuthenticatorLen]byte
+	maOff  int
+}{
+	packet: []byte{
+		0x01, 0x2a, 0x00, 0x2d,
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+		0x01, 0x07, 'a', 'l', 'i', 'c', 'e',
+		0x50, 0x12,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	},
+	secret: []byte("testing123"),
+	digest: [AuthenticatorLen]byte{
+		0xef, 0xa1, 0xd9, 0x82, 0xee, 0x5f, 0x38, 0x59,
+		0x9f, 0x66, 0xdf, 0x64, 0x86, 0xec, 0x00, 0x15,
+	},
+	maOff: 29,
+}
+
+// TestSignMessageAuthenticatorMatchesRFC3579 proves the signer computes the
+// value RFC 3579 Section 3.2 defines, against a digest computed outside ze.
+//
+// VALIDATES: AC-3 -- the HMAC covers Type, Identifier, Length, the Request
+// Authenticator and every attribute, with the signature field zeroed.
+// PREVENTS: a signer that hashes only the attributes, that substitutes zeros
+// for the Request Authenticator (the RFC 5176 rule, which is a DIFFERENT
+// packet's rule), or that hashes the value octets as the caller left them.
+//
+// RFC requirement: RFC3579-3.2-1 positive -- SignMessageAuthenticator writes
+// the HMAC-MD5 an independent implementation computes over the same octets
+// (packet.go SignMessageAuthenticator).
+func TestSignMessageAuthenticatorMatchesRFC3579(t *testing.T) {
+	v := rfc3579SignVector
+	buf := make([]byte, MaxPacketLen)
+	copy(buf, v.packet)
+
+	signed, err := SignMessageAuthenticator(buf, len(v.packet), v.secret)
+	if err != nil {
+		t.Fatalf("SignMessageAuthenticator: %v", err)
+	}
+	if !signed {
+		t.Fatal("the packet carries a Message-Authenticator, so the signer must report it signed one")
+	}
+	got := buf[v.maOff : v.maOff+AuthenticatorLen]
+	if !bytes.Equal(got, v.digest[:]) {
+		t.Fatalf("Message-Authenticator = %x, openssl says %x", got, v.digest)
+	}
+	// Everything outside the sixteen value octets is untouched: the signer
+	// writes a value, never a packet.
+	if !bytes.Equal(buf[:v.maOff], v.packet[:v.maOff]) {
+		t.Error("the signer rewrote the packet before the attribute value")
+	}
+}
+
+// TestSignMessageAuthenticatorZeroesTheSignatureField proves the "sixteen
+// octets of zero" rule holds whatever the caller left in the value.
+//
+// VALIDATES: AC-3 -- the value the caller supplied does not enter the hash.
+// PREVENTS: a signer that hashes the buffer as it stands, which would produce a
+// value no server can recompute unless the caller happened to pass zeros. The
+// vector test above cannot catch it, because its placeholder IS zeros.
+//
+// RFC requirement: RFC3579-3.2-1 negative -- a non-zero placeholder in the
+// signature field produces the SAME digest, so the field is excluded from the
+// hash (packet.go SignMessageAuthenticator).
+func TestSignMessageAuthenticatorZeroesTheSignatureField(t *testing.T) {
+	v := rfc3579SignVector
+	buf := make([]byte, MaxPacketLen)
+	copy(buf, v.packet)
+	for i := range AuthenticatorLen {
+		buf[v.maOff+i] = 0xff
+	}
+
+	if _, err := SignMessageAuthenticator(buf, len(v.packet), v.secret); err != nil {
+		t.Fatalf("SignMessageAuthenticator: %v", err)
+	}
+	if !bytes.Equal(buf[v.maOff:v.maOff+AuthenticatorLen], v.digest[:]) {
+		t.Fatalf("Message-Authenticator = %x, want %x: the placeholder entered the hash",
+			buf[v.maOff:v.maOff+AuthenticatorLen], v.digest)
+	}
+}
+
+// TestSignMessageAuthenticatorReportsAbsence proves a packet without the
+// attribute is left alone and says so.
+//
+// VALIDATES: the signer never invents an attribute, so a caller that owes a
+// Message-Authenticator learns it does not have one.
+// PREVENTS: a silent no-op reading as a successful signature, which would put
+// an unprotected EAP Access-Request on the wire (ai/rules/principles.md).
+func TestSignMessageAuthenticatorReportsAbsence(t *testing.T) {
+	pkt := &Packet{
+		Code:       CodeAccessRequest,
+		Identifier: 7,
+		Attrs:      []Attr{{Type: AttrUserName, Value: AttrString("alice")}},
+	}
+	buf := make([]byte, MaxPacketLen)
+	n, err := pkt.EncodeTo(buf, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := append([]byte{}, buf[:n]...)
+
+	signed, err := SignMessageAuthenticator(buf, n, []byte("testing123"))
+	if err != nil {
+		t.Fatalf("SignMessageAuthenticator: %v", err)
+	}
+	if signed {
+		t.Error("no Message-Authenticator is present, so the signer signed nothing")
+	}
+	if !bytes.Equal(buf[:n], before) {
+		t.Error("the signer modified a packet carrying no Message-Authenticator")
+	}
+}
+
+// TestSignMessageAuthenticatorRefusesAMalformedPacket proves the signer fails
+// rather than answering over octets it could not walk.
+//
+// VALIDATES: a length outside the buffer, and an attribute list that runs off
+// the end, both produce an error.
+// PREVENTS: a signature computed over a truncated packet, which a server would
+// reject and which the caller would read as a signed request.
+func TestSignMessageAuthenticatorRefusesAMalformedPacket(t *testing.T) {
+	buf := make([]byte, MaxPacketLen)
+	copy(buf, rfc3579SignVector.packet)
+
+	if _, err := SignMessageAuthenticator(buf, MinPacketLen-1, rfc3579SignVector.secret); err == nil {
+		t.Error("a packet shorter than the header must be refused")
+	}
+	if _, err := SignMessageAuthenticator(buf, len(buf)+1, rfc3579SignVector.secret); err == nil {
+		t.Error("a length past the buffer must be refused")
+	}
+
+	// An attribute whose Length runs past the packet: the walk fails and the
+	// signer has no offset to write to.
+	torn := make([]byte, MaxPacketLen)
+	copy(torn, rfc3579SignVector.packet)
+	torn[21] = 0xff // User-Name Length, now longer than the whole packet
+	if _, err := SignMessageAuthenticator(torn, len(rfc3579SignVector.packet), rfc3579SignVector.secret); err == nil {
+		t.Error("an attribute list that does not walk must be refused")
+	}
+}
+
+// TestSignAndVerifyMessageAuthenticatorAgree holds the signer against the
+// verifier ze already shipped, over a REPLY, which is where the two meet.
+//
+// VALIDATES: AC-3 -- a reply this signer produced verifies under
+// verifyResponseMessageAuthenticator, and one octet of drift does not.
+// PREVENTS: R-4, the signer and the verifier disagreeing about which octets are
+// covered. Each is written from the RFC independently, so agreement is
+// evidence; the interop scenario against a real server is the rest of it.
+//
+// The reply's own Authenticator field is overwritten with the Request
+// Authenticator before the HMAC runs, because RFC 3579 Section 3.2 computes a
+// reply's Message-Authenticator "using the Request-Authenticator from the
+// Access-Request this packet is in reply to". That substitution is the one
+// difference between the two directions, and doing it here is what makes this
+// test a check of the SIGNER rather than of a shared helper.
+func TestSignAndVerifyMessageAuthenticatorAgree(t *testing.T) {
+	secret := []byte("s3cr3t")
+	var requestAuth [AuthenticatorLen]byte
+	for i := range requestAuth {
+		requestAuth[i] = byte(0xa0 + i)
+	}
+
+	reply := &Packet{
+		Code:       CodeAccessChallenge,
+		Identifier: 9,
+		Attrs: []Attr{
+			{Type: AttrEAPMessage, Value: []byte{0x01, 0x09, 0x00, 0x05, 0x01}},
+			{Type: AttrMessageAuthenticator, Value: make([]byte, AuthenticatorLen)},
+			{Type: AttrState, Value: []byte("opaque")},
+		},
+	}
+	buf := make([]byte, MaxPacketLen)
+	n, err := reply.EncodeTo(buf, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copy(buf[4:4+AuthenticatorLen], requestAuth[:])
+	signed, err := SignMessageAuthenticator(buf, n, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !signed {
+		t.Fatal("the reply carries a Message-Authenticator")
+	}
+	// A real server writes the Response Authenticator over the field the HMAC
+	// read. The verifier substitutes the Request Authenticator back, so put
+	// something else there to prove it does.
+	copy(buf[4:4+AuthenticatorLen], bytes.Repeat([]byte{0x5a}, AuthenticatorLen))
+
+	if !verifyResponseMessageAuthenticator(buf[:n], requestAuth, secret) {
+		t.Error("the verifier rejected a reply the signer produced")
+	}
+
+	tampered := append([]byte{}, buf[:n]...)
+	tampered[HeaderLen+2] ^= 0x01 // one octet of the EAP-Message value
+	if verifyResponseMessageAuthenticator(tampered, requestAuth, secret) {
+		t.Error("the verifier accepted a reply whose attributes moved under the signature")
+	}
+}

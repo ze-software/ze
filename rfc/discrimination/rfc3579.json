@@ -1,0 +1,234 @@
+{
+  "rfc": "rfc3579",
+  "records": [
+    {
+      "rid": "RFC3579-1-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryCoversTheServicesZeOffers",
+      "unit-sha": "2e44b8dd9e97149c",
+      "claim-sha": "83eba4e8f8f7fd5c",
+      "route": "no-break",
+      "producer": "internal/component/radius/dict.go",
+      "reason": "declaration-only"
+    },
+    {
+      "rid": "RFC3579-1-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService",
+      "unit-sha": "e4b5a7999efe4ba8",
+      "claim-sha": "0a77f0d81af91869",
+      "route": "no-break",
+      "producer": "internal/component/radius/dict.go",
+      "reason": "declaration-only"
+    },
+    {
+      "rid": "RFC3579-2.6.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes",
+      "unit-sha": "a93c5aab61b3a62b",
+      "claim-sha": "b90c88fc6960468f",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator_eap.go::authenticateEAP",
+      "producer-sha": "3ea7392011e498d2",
+      "break": "body of authenticateEAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-2.6.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDecisionFollowsTheRadiusCode",
+      "unit-sha": "71e6e815b340bfa6",
+      "claim-sha": "676bda0b9ad78835",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator.go::result",
+      "producer-sha": "1e92da891dbf761a",
+      "break": "body of result replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-2.6.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes",
+      "unit-sha": "a93c5aab61b3a62b",
+      "claim-sha": "24865c97c17f2376",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator.go::result",
+      "producer-sha": "1e92da891dbf761a",
+      "break": "body of result replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-2.6.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDecisionFollowsTheRadiusCode",
+      "unit-sha": "71e6e815b340bfa6",
+      "claim-sha": "dc9ebf63ebcf24bd",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator_eap.go::authenticateEAP",
+      "producer-sha": "3ea7392011e498d2",
+      "break": "body of authenticateEAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/eap_test.go::TestEAPMessageConcatenatesOnTheWayIn",
+      "unit-sha": "9002d438391a2107",
+      "claim-sha": "96190e5f1698f1c6",
+      "route": "revert",
+      "producer": "internal/component/radius/eap.go::eapPacketFrom",
+      "producer-sha": "3f6e17fa4be88992",
+      "break": "body of eapPacketFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/eap_test.go::TestEAPMessageKeepsTheRunConsecutive",
+      "unit-sha": "d78d840d0a8bf01e",
+      "claim-sha": "b79c3ae87b515fd2",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
+      "producer-sha": "127159291cffa17d",
+      "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/eap_test.go::TestEAPMessageSplitsAtTheAttributeLimit",
+      "unit-sha": "ebbc13e50afe1f8f",
+      "claim-sha": "a302e4716c27bc6c",
+      "route": "revert",
+      "producer": "internal/component/radius/eap.go::appendEAPMessage",
+      "producer-sha": "a1289efb37044957",
+      "break": "body of appendEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapOneEAPPacketPerRadiusPacket",
+      "unit-sha": "985927586a762b54",
+      "claim-sha": "8c103a63a80c7f65",
+      "route": "revert",
+      "producer": "internal/component/radius/eap.go::appendEAPMessage",
+      "producer-sha": "a1289efb37044957",
+      "break": "body of appendEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/radius/eap_test.go::TestEAPMessageRefusesASecondRun",
+      "unit-sha": "5ac4dbf515fa160e",
+      "claim-sha": "ecd92d8f7572d497",
+      "route": "revert",
+      "producer": "internal/component/radius/eap.go::eapPacketFrom",
+      "producer-sha": "3f6e17fa4be88992",
+      "break": "body of eapPacketFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused",
+      "unit-sha": "d8ff3d7174c30965",
+      "claim-sha": "0c322c64e3482103",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::carriesEAPMessage",
+      "producer-sha": "08aba3f9b8edb600",
+      "break": "body of carriesEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage",
+      "unit-sha": "82dfa2adc40a67e5",
+      "claim-sha": "a7dbd668bac5592c",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::SignMessageAuthenticator",
+      "producer-sha": "bebd094472ef0a33",
+      "break": "body of SignMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.1-4",
+      "polarity": "negative",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDiscardsUnauthenticatedChallenge",
+      "unit-sha": "4ce7395cff272ee9",
+      "claim-sha": "1edcaf4d300041de",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
+      "producer-sha": "ae7274a02dfc345d",
+      "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapVerifiedChallengeIsAccepted",
+      "unit-sha": "68f311ed26dec906",
+      "claim-sha": "fbb98592e4960157",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
+      "producer-sha": "ae7274a02dfc345d",
+      "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/packet_test.go::TestSignMessageAuthenticatorMatchesRFC3579",
+      "unit-sha": "7256f75b710ec7bd",
+      "claim-sha": "3b70cc974c5ef65e",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::SignMessageAuthenticator",
+      "producer-sha": "bebd094472ef0a33",
+      "break": "body of SignMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/packet_test.go::TestSignMessageAuthenticatorZeroesTheSignatureField",
+      "unit-sha": "053b9e57ef5b5d7d",
+      "claim-sha": "c3082b194cf2320f",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::SignMessageAuthenticator",
+      "producer-sha": "bebd094472ef0a33",
+      "break": "body of SignMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes",
+      "unit-sha": "15d28e1514dcfa38",
+      "claim-sha": "267770b1dbcef26a",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::encodeRequest",
+      "producer-sha": "1683398c8195b350",
+      "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes",
+      "unit-sha": "15d28e1514dcfa38",
+      "claim-sha": "27cffed25588dced",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::encodeRequest",
+      "producer-sha": "1683398c8195b350",
+      "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes",
+      "unit-sha": "06c2bf107e198e5f",
+      "claim-sha": "d3a8dca0f8ba1d4b",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::oneCredentialType",
+      "producer-sha": "63edc854432edf23",
+      "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage",
+      "unit-sha": "82dfa2adc40a67e5",
+      "claim-sha": "7bdd544e656580aa",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
+      "producer-sha": "127159291cffa17d",
+      "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

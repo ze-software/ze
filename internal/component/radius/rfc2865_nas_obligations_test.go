@@ -15,6 +15,7 @@
 package radius
 
 import (
+	"net"
 	"testing"
 	"time"
 
@@ -35,7 +36,15 @@ type capturingServer struct {
 // false it records the request and stays silent, so the client fails over.
 func newCapturingServer(t *testing.T, sharedKey []byte, code uint8, attrs []Attr, reply bool) *capturingServer {
 	t.Helper()
-	m := newMockServer(t, sharedKey, code)
+	// The listener is built here rather than by newMockServer, because that
+	// helper starts serve() before it returns and this server needs its own
+	// handler installed FIRST. Writing m.handler after the goroutine started is
+	// a data race, and it is the one the suite reported on 2026-09-04
+	// (plan/journal/false-synchronization-claim.md). Every other server in
+	// this package already installs the handler before `go serve()`.
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	m := &mockRADIUSServer{conn: conn, addr: conn.LocalAddr().String(), done: make(chan struct{})}
 	c := &capturingServer{mock: m, reqs: make(chan []byte, 8)}
 	m.handler = func(req []byte) []byte {
 		cp := make([]byte, len(req))
@@ -49,6 +58,7 @@ func newCapturingServer(t *testing.T, sharedKey []byte, code uint8, attrs []Attr
 		}
 		return buildReplyResponse(code, req, sharedKey, attrs)
 	}
+	go m.serve()
 	t.Cleanup(m.close)
 	return c
 }

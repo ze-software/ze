@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 func buildParamsWithTree(tree *config.Tree, logger *slog.Logger) aaa.BuildParams {
@@ -111,4 +112,47 @@ func TestRadiusAdminChapReachesTheWire(t *testing.T) {
 	req := srv.captured(t)
 	assert.Nil(t, req.FindAttr(AttrUserPassword))
 	verifyCHAPAsServer(t, req, "Hello")
+}
+
+// TestRadiusAdminEapReachesTheWire is the EAP wiring test: it drives the CONFIG
+// TREE, not the authenticator, so an auth-method value that parses and never
+// reaches the challenge loop fails here.
+//
+// VALIDATES: spec-radius-admin-eap wiring and AC-2 -- `auth-method
+// eap-mschapv2` under system/authentication/radius produces an Access-Request
+// carrying EAP-Message and Message-Authenticator, through ExtractConfig,
+// radiusBackend.Build and the real UDP client, and the login completes against
+// a server that runs the EAP authenticator half.
+// PREVENTS: the leaf being read into ExtractedConfig and dropped on the way to
+// newRadiusAuthenticator, which every unit test that constructs the
+// authenticator directly would still pass.
+func TestRadiusAdminEapReachesTheWire(t *testing.T) {
+	key := []byte("testing123")
+	srv := newEAPMockServer(t, key, eap.TypeMSCHAPv2, "Hello",
+		[]Attr{{Type: AttrFilterID, Value: []byte("admin")}})
+	host, port, err := net.SplitHostPort(srv.addr)
+	require.NoError(t, err)
+
+	inner := config.NewTree()
+	server := config.NewTree()
+	server.Set("key", string(key))
+	server.Set("port", port)
+	inner.AddListEntry("server", host, server)
+	inner.Set("auth-method", "eap-mschapv2")
+
+	contrib, err := radiusBackend{}.Build(buildParamsWithTree(radiusTree(inner), nil))
+	require.NoError(t, err)
+	require.NotNil(t, contrib.Authenticator)
+	t.Cleanup(func() { _ = contrib.Close() })
+
+	res, err := contrib.Authenticator.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	require.NoError(t, err)
+	assert.True(t, res.Authenticated)
+	assert.Equal(t, []string{"admin"}, res.Profiles)
+
+	requests := srv.captured(t)
+	require.GreaterOrEqual(t, len(requests), 3, "MS-CHAPv2 runs several challenge rounds")
+	assert.NotNil(t, requests[0].FindAttr(AttrEAPMessage), "the first request carries an EAP-Message")
+	assert.Len(t, requests[0].FindAttr(AttrMessageAuthenticator), AuthenticatorLen)
+	assert.Nil(t, requests[0].FindAttr(AttrUserPassword))
 }

@@ -3,13 +3,17 @@
 //
 // VALIDATES: that the RADIUS attribute dictionary declares an attribute only for
 // a service Ze's NAS actually offers.
-// PREVENTS: a contributor adding EAP-Message (type 79) or the ARAP attribute set
-// to dict.go as "support", when internal/component/l2tp/ppp offers neither
-// service. RFC 2869 Section 1.1 forbids exactly that, and the cost is not
-// cosmetic: an EAP-Message attribute in an Access-Request commits the NAS to the
-// EAP obligations of Sections 2.3.1, 5.13 and 5.14, none of which Ze implements,
-// so a server that answered with an Access-Challenge would meet a NAS that
-// cannot continue the conversation.
+// PREVENTS: a contributor adding the ARAP attribute set to dict.go as "support",
+// when no ARAP module exists anywhere in the tree. RFC 2869 Section 1.1 forbids
+// exactly that, and the cost is not cosmetic: an attribute in an Access-Request
+// commits the NAS to the obligations of the service it names, so a server that
+// answered on that service would meet a NAS that cannot continue the
+// conversation.
+//
+// EAP-Message was on the forbidden list until 2026-09-04. It moved to the
+// offered list when the admin backend gained a RADIUS/EAP conversation, because
+// the rule is conditional on the service and reverses with it: the NAS that
+// offers EAP owes the attribute rather than being forbidden it.
 //
 // The test reads dict.go itself rather than a hand-kept list, because a constant
 // nobody registered is the thing being looked for. A registry would answer only
@@ -37,19 +41,26 @@ var unofferedServiceAttrs = map[int]string{
 	72: "ARAP",
 	73: "ARAP",
 	74: "ARAP",
-	79: "EAP",
 	84: "ARAP",
 }
 
 // offeredServiceAttrs names attributes Ze must declare, because it does offer
-// the service each one belongs to: PPP with PAP or CHAP over L2TP, and RADIUS
-// accounting with Gigaword counters.
+// the service each one belongs to: PPP with PAP or CHAP over L2TP, RADIUS
+// accounting with Gigaword counters, and RADIUS/EAP for operator login.
+//
+// EAP-Message moved here on 2026-09-04, when plan/spec-radius-admin-eap.md gave
+// the admin backend an EAP peer of its own. The RFC 2869 Section 1.1 rule is
+// conditional on the service, so the attribute is forbidden while the service is
+// absent and REQUIRED once it exists: `auth-method eap-md5` and `eap-mschapv2`
+// run a full RADIUS/EAP conversation (eap.go, authenticator.go), and a NAS that
+// offers EAP and declares no EAP-Message could not encapsulate one.
 var offeredServiceAttrs = map[string]int{
 	"AttrUserPassword":        2,
 	"AttrCHAPPassword":        3,
 	"AttrCHAPChallenge":       60,
 	"AttrAcctInputGigawords":  52,
 	"AttrAcctOutputGigawords": 53,
+	"AttrEAPMessage":          79,
 	"AttrNASPortID":           87,
 }
 
@@ -96,6 +107,13 @@ func declaredAttrConstants(t *testing.T) map[string]int {
 //
 // RFC requirement: RFC2869-1.1-1 positive -- the dictionary declares the RADIUS
 // attributes for the services Ze's NAS does offer (dict.go).
+// RFC requirement: RFC3579-1-1 positive -- RFC 3579 Section 1 states the rule
+// for EAP ("a NAS that is unable to offer EAP service MUST NOT implement the
+// RADIUS attributes for EAP"). Ze IS able to offer it: `auth-method eap-md5`
+// and `eap-mschapv2` run a RADIUS/EAP conversation (authenticator_eap.go
+// authenticateEAP). This case asserts the other half of the pairing, that
+// AttrEAPMessage (dict.go, type 79) is declared, so the two halves together
+// hold the attribute and the service to each other.
 // RFC requirement: RFC2865-1.1-1 positive -- RFC 2865 Section 1.1 carries the
 // same sentence, and dict.go is the one dictionary both documents bind, so the
 // constants this test finds for the services Ze does offer are the control for
@@ -124,12 +142,17 @@ func TestRFC2869DictionaryCoversTheServicesZeOffers(t *testing.T) {
 // ARAP."
 //
 // RFC requirement: RFC2869-1.1-1 negative -- no attribute constant names an ARAP
-// attribute or EAP-Message, because internal/component/l2tp/ppp carries pap.go,
-// chap.go and mschapv2.go and no ARAP or EAP module (dict.go).
+// attribute, because Ze carries no ARAP module anywhere (dict.go).
 // RFC requirement: RFC2865-1.1-1 negative -- RFC 2865 Section 1.1 states it in
 // the same words ("A NAS that does not implement a given service MUST NOT
 // implement the RADIUS attributes for that service"), and dict.go declares no
-// ARAP attribute and no EAP-Message.
+// ARAP attribute.
+// RFC requirement: RFC3579-1-1 negative -- RFC 3579 Section 1 states the same
+// rule for EAP ("a NAS that is unable to offer EAP service MUST NOT implement
+// the RADIUS attributes for EAP"). This case is the refusing half: it walks
+// every constant dict.go declares and fails on one whose service Ze does not
+// offer. AttrEAPMessage is no longer on that list, because Ze does offer EAP,
+// and the sibling test above requires the constant for exactly that reason.
 func TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService(t *testing.T) {
 	for name, value := range declaredAttrConstants(t) {
 		if service, forbidden := unofferedServiceAttrs[value]; forbidden {

@@ -3,6 +3,7 @@
 // RFC: rfc/short/rfc2866.md -- Section 3 Accounting-Request Authenticator
 // RFC: rfc/short/rfc2869.md -- Section 5.14 Message-Authenticator on a response
 // RFC: rfc/short/rfc5176.md -- Section 2.3 Request Authenticator, Section 3.4 Message-Authenticator
+// RFC: rfc/short/rfc3579.md -- Section 3.2 Message-Authenticator on an Access-Request
 // Related: dict.go -- packet codes and attribute type constants
 // Related: attr.go -- attribute encode/decode helpers
 
@@ -24,6 +25,17 @@ type Packet struct {
 	Identifier    uint8
 	Authenticator [AuthenticatorLen]byte
 	Attrs         []Attr
+
+	// OmitAcctDelayTime keeps Exchange from writing Acct-Delay-Time on this
+	// Accounting-Request. RFC 2866 Section 5.13 gives the attribute a count of
+	// "0-1", so a record without it is a conformant record.
+	//
+	// The decision and the value belong to different places, which is why this
+	// is a field rather than a caller writing the attribute itself. Only the
+	// author of the record knows which attributes the operator held back, and
+	// only the client knows how long it has been trying to send. The zero value
+	// writes the attribute, which is what a caller with no opinion wants.
+	OmitAcctDelayTime bool
 }
 
 // Attr is a decoded RADIUS attribute (Type-Length-Value).
@@ -363,6 +375,61 @@ func verifyResponseMessageAuthenticator(data []byte, requestAuth [AuthenticatorL
 	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 2869 Section 5.14 mandates HMAC-MD5.
 	mac.Write(buf)
 	return hmac.Equal(received[:], mac.Sum(nil))
+}
+
+// SignMessageAuthenticator computes the Message-Authenticator of an ENCODED
+// RADIUS request and writes it over the attribute's sixteen value octets. It
+// reports whether the packet carried the attribute at all, so a caller that
+// owes one can tell a signed packet from an unsigned one.
+//
+// RFC 3579 Section 3.2: "When present in an Access-Request packet,
+// Message-Authenticator is an HMAC-MD5 [RFC2104] hash of the entire
+// Access-Request packet, including Type, ID, Length and Authenticator, using
+// the shared secret as the key, as follows.  Message-Authenticator = HMAC-MD5
+// (Type, Identifier, Length, Request Authenticator, Attributes)". The same
+// section adds "When the message integrity check is calculated the signature
+// string should be considered to be sixteen octets of zero."
+//
+// The octet stream the HMAC covers, with byte offsets:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     Code      |  Identifier   |            Length             |  0..3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|      Request Authenticator (16 octets, as it stands)          |  4..19
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|    Attributes, Message-Authenticator value zeroed ...         |  20..Length-1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// The Request Authenticator is hashed AS IT STANDS, which is what separates
+// this from VerifyCoAMessageAuthenticator above: RFC 3579 Section 3.2 carries a
+// random nonce in that field of an Access-Request, while RFC 5176 Section 3.4
+// derives the field from the packet and therefore substitutes zeros.
+//
+// verifyResponseMessageAuthenticator is the mirror of this function on a reply,
+// and TestSignAndVerifyMessageAuthenticatorAgree holds the two together.
+func SignMessageAuthenticator(buf []byte, length int, secret []byte) (bool, error) {
+	if length < MinPacketLen || length > len(buf) {
+		return false, fmt.Errorf("radius: cannot sign a %d-octet packet", length)
+	}
+	packet := buf[:length]
+	off, present, ok := messageAuthenticatorValueOffset(packet)
+	if !ok {
+		return false, errors.New("radius: cannot sign, the attribute list does not walk")
+	}
+	if !present {
+		return false, nil
+	}
+
+	// The caller may have put anything in the value, and the HMAC is defined
+	// over sixteen zeros there. Writing them here rather than trusting the
+	// caller keeps this the only place that has to know it.
+	clear(packet[off : off+AuthenticatorLen])
+	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 3579 Section 3.2 mandates HMAC-MD5.
+	mac.Write(packet)
+	copy(packet[off:off+AuthenticatorLen], mac.Sum(nil))
+	return true, nil
 }
 
 func messageAuthenticatorValueOffset(data []byte) (offset int, present, ok bool) {
