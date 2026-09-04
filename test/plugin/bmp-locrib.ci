@@ -4,6 +4,11 @@
 #            header has Peer Type = 3 (Loc-RIB) and whose embedded PDU is a
 #            complete BGP UPDATE (marker + length + type=UPDATE). A Loc-RIB
 #            Peer Up (Peer Type 3) precedes it.
+#
+#            The top-level `router-id` and `session asn local` are what the
+#            emulated peer describes itself with (RFC 9069 Section 5.1), so a
+#            config that names neither gets no Loc-RIB feed at all. Both are
+#            `mandatory true` in internal/component/bgp/yang/ze-bgp-conf.yang.
 # PREVENTS:  regressing rib-arch-5 -- Loc-RIB monitoring silently not emitting,
 #            or emitting with the wrong peer type / a malformed UPDATE PDU.
 #
@@ -37,6 +42,11 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
     router-id 1.2.3.5;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     bmp {
         sender {
             collector test-collector {

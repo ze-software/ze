@@ -646,3 +646,257 @@ then TLVs), each as an ASCII diagram with the RFC section reference, in
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+
+The six obligations landed across four commits, none of which closed the spec.
+
+| Commit | Date | What it landed |
+|--------|------|----------------|
+| `26a5b5bdf8` | 2026-08-31 | Obligations 1, 2, 4 and half of 5. `locRIBPeerHeader` gained `PeerAS`, `fabricateLocRIBOpen` was written and its result put in BOTH Peer Up OPEN fields, `sendLocRIBPeerDown` moved to reason 6, and `decodePeerUp`'s `PeerTypeLocRIB` branch was DELETED so every peer type walks both OPENs. `rfc/short/rfc9069.md` rows x-3 and x-6 were corrected under their own ids |
+| `7e08738aff` | 2026-09-01 | Obligation 3 and the rest of 5, plus the extraction sign-off. The VRF/Table Name TLV on the Peer Up and repeated on the Peer Down, `processPeerUp` reading the OPEN's Multiprotocol capabilities, and `bmpCompositeKey` keying a Loc-RIB peer on distinguisher plus BGP ID while leaving peer types 0-2 on the address. `RFC9069-4.2-1` and `RFC9069-6.1.3-1` were added with both polarities, and `rfc/extraction/rfc9069.json` landed |
+| `ead2e374eb` | 2026-09-04 | Obligation 6, the one this spec is named for. `localRouterID`'s OPEN-cache walk and `bgpIdentityFromSentOpen` were DELETED, not kept as a fallback. `parseLocalIdentity` (`internal/component/bgp/plugins/bmp/sender_config.go`) reads `bgp router-id` and `bgp session asn local` and returns nil on a zero ASN, a zero router-id or a non-IPv4 one. `BMPPlugin.localIdentity` answers `(localIdentity, bool)` and all five Loc-RIB producers decline with a log line when `ok` is false |
+| `8e56e8aa26` | 2026-09-04 | AC-15 and AC-16: the `bmp-locrib-pmacct` and `bmp-locrib-receiver-frr` scenarios, their configs, and their registry entries |
+
+This closure added what those four left behind:
+
+- `pmacctPeerDownReasonSix` was declared in `names.go` and used by nothing, so User Story 4 (the operator turns Loc-RIB off and watches the collector) had no proof at a collector. `scenarioLocRIBPMACCT` now ends with an `opSignal` TERM followed by a wait for that needle, and a new `signalTERM` constant replaces the three bare `"TERM"` literals `goconst` then flagged.
+- `FuzzDecodeLocRIBPeerUp` (`internal/component/bgp/plugins/bmp/fuzz_test.go`), which R-6 owed and no phase wrote. It drives `decodePeerUp` and `openMultiprotocolFamilies` over arbitrary bytes and asserts no returned OPEN escapes its input.
+- `docs/architecture/testing/interop.md`: pmacct in Tested Daemons and Container Addresses, `pmbmpd.conf` in Optional sidecars with the per-scenario `daemons` override, both scenarios named in the Scenario Inventory prose, and the sentence "BMP scenarios start `ze-test interop-bgp bmp-collector`", which `8e56e8aa26` made false.
+- `test/plugin/bmp-locrib.ci` was left UNCOMMITTED by `ead2e374eb`. The config it drives names no `session asn local`, so under the new identity rule that daemon emits no Loc-RIB feed at all and the test cannot pass. The ten added lines are this spec's and land in commit A.
+
+### Bugs Found/Fixed
+
+- The unused `pmacctPeerDownReasonSix` needle, above. `8e56e8aa26`'s own message claims the scenario greps for "reason_type 6 on the Peer Down"; it did not until this closure.
+- No product defect was found. The two claims this closure was asked to test both hold at their producers (see Goal Validation).
+
+### Documentation Updates
+
+- `docs/architecture/testing/interop.md` -- five edits, listed above, with a `<!-- source: test/interop/scenarios/bmp-locrib-pmacct/ -->` anchor added beside the StayRTR worked example.
+- `docs/guide/bmp.md` -- already correct at HEAD. It describes the fabricated OPEN, the Peer AS, the config-sourced router-id and the reason-6 Peer Down, and states that the two leaves are the only source. Landed by `ead2e374eb` and `7e08738aff`.
+- `docs/features/rfc-status.md` and `rfc/enrolled.txt` -- already correct at HEAD; both describe fifteen met requirements and name no absent behavior.
+- `docs/functional-tests.md` -- no edit owed: no `.ci` was created (see Deviations).
+- `./le doc check verify` result: FAILED, and no failure names a file this spec touched. Every failure is a `../gh-pages/reference/command-equivalents/` HTML identity row or command description from another session's command-help work, plus one stale source anchor in `docs/guide/configuration.md` pointing at `internal/component/bgp/plugins/redistribute_ingress/filter.go`, which `1ec5b741f8` retired. The Source-anchors stage resolved the anchor this closure added.
+
+### Deviations from Plan
+
+| Planned | What happened | Why |
+|---------|---------------|-----|
+| `test/plugin/bmp-locrib-peer-fields.ci` (Files to Create, Functional Tests, Wiring Test row 8, User Story 2) | NOT created | The row was premised on `show bmp peers` reporting ze's own emulated Loc-RIB peer. It does not. `bmpState.peersCommand` (`internal/component/bgp/plugins/bmp/state.go`) returns `s.peers`, and `bmpState.peerUp` fills that map only from a Peer Up ze RECEIVED as a BMP receiver. The sender's emulated peer is never in it, so the `.ci` as specified is unwritable. The operator-visible proof the row wanted exists and is stronger: `bmp-locrib-receiver-frr` runs `show bmp peers` against a Loc-RIB feed FRR's `bmpd` sent and requires the peer AS, the router address and `ipv4/unicast`. Raised to the main thread rather than decided here |
+| `docs/architecture/core-design.md` (Files to Modify, Documentation checklist row 12) | NOT edited | The page contains no BMP text at all (`grep -i bmp docs/architecture/core-design.md` is empty), so no claim in it went stale. The `// Design:` headers of `bmp.go`, `msg.go` and `sender.go` point at it regardless, which is a pre-existing false pointer recorded as a journal row rather than repaired here |
+| Phase 1's interim downward correction of `docs/features/rfc-status.md` and `rfc/enrolled.txt` | Not observable at closure | The ledger was corrected in the same commits as the fixes rather than ahead of them. R-3's concern does not apply: both files describe what the code does at HEAD |
+| The TDD plan's test names | Most were renamed during implementation | Every planned assertion has a landed test under another name; the mapping is in "Tests from TDD Plan" below. No planned assertion is missing except `FuzzDecodeLocRIBPeerUp`, which this closure wrote under its planned name |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Wiring Test row 8 and User Story 2 assumed `show bmp peers` reports the Loc-RIB peer ze emits | `bmpState.peersCommand` reports only peers received by ze's BMP RECEIVER; the sender's emulated peer has no operator surface | Read the producer while filling the Wiring Verified table | Deviation recorded above, raised to the main thread, journal row written |
+| approach | `8e56e8aa26` declared `pmacctPeerDownReasonSix` and its commit message stated the scenario greps for it | The needle was in no operation, so the reason-6 Peer Down had no interop proof | `grep -rn pmacctPeerDownReasonSix internal/` returned one line, its own declaration | Teardown step added and re-run green |
+| approach | R-6 said "the existing fuzz target is extended to cover peer type 3" | `fuzz_test.go` held one target, over `DecodeTLVs`, and nothing fuzzed `decodePeerUp` | `grep 'func Fuzz'` while auditing the TDD plan | `FuzzDecodeLocRIBPeerUp` written and run for 30s, 89672 executions, no crash |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Obligation 1: Peer AS is the primary router ASN (§5.1) | Done | `locRIBPeerHeader` (`bmp_locrib.go`) | `PeerAS: id.asn` |
+| Obligation 2: fabricated OPEN in both Peer Up fields (§5.2, §6.1.1) | Done | `fabricateLocRIBOpen`, `ensureLocRIBPeerUp`, `primeLocRIBPeerUp` (`bmp_locrib.go`) | One result passed to both fields |
+| Obligation 3: VRF/Table Name TLV `global` (§5.2.1) | Done | `locRIBTableNameTLV`, `locRIBTableNameTLVBytes` (`bmp_locrib.go`) | Repeated on the Peer Down by `sendLocRIBPeerDown` |
+| Obligation 4: Peer Down reason code 6 (§5.3) | Done | `sendLocRIBPeerDown` (`bmp_locrib.go`) | Now also proven at pmacct |
+| Obligation 5: receiver processes the OPEN capabilities (§6.1.1) | Done | `decodePeerUp` (`msg.go`), `openMultiprotocolFamilies` and `bmpCompositeKey` (`bmp.go`) | The peer-type branch is deleted, not conditioned |
+| Obligation 6: Peer BGP ID from the global router-id (§5.1) | Done | `parseLocalIdentity` (`sender_config.go`), `BMPPlugin.localIdentity` (`bmp_locrib.go`) | No OPEN-cache path survives anywhere |
+| Correct every derived claim | Done | `rfc/short/rfc9069.md`, `rfc/enrolled.txt`, `docs/features/rfc-status.md` | `./le rfc check` names no rfc9069 id among its 130 findings |
+| Prove the result against a BMP implementation that is not ze | Done | `bmp-locrib-pmacct`, `bmp-locrib-receiver-frr` | Both run green, 2026-09-04 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestLocRIBPeerHeader`, `TestLocRIBHeaderReadsRouterIDAndASNFromConfig`, `TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity` | The reload test commits the leaf with the OPEN cache EMPTY |
+| AC-2 | Done | `TestLocRIBHeaderNeverCarriesZeroBGPID` | The plugin declines with a log line rather than emitting 0 |
+| AC-3 | Done | `TestHandleBestChangeEmitsPeerUpThenRM` | Both fields present, equal, decoding as a BGP OPEN |
+| AC-4 | Done | `TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities` | Asserts the COUNT as well as the membership |
+| AC-5 | Done | `TestFabricatedOpenUsesASTransForFourByteASN` | |
+| AC-6 | Done | `TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName` | Also proven at pmacct, which prints the hex of `global` in its Peer Up Information TLV field |
+| AC-7 | Done | `TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo`, `TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName` | Also proven at pmacct, which prints reason type 6; the step was added by this closure |
+| AC-8 | Done | `fabricateLocRIBOpen` reads `dumpFamilies`; `TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities` | One declaration, so the two sets cannot disagree by construction |
+| AC-9 | Done | `TestReceiverRecordsThePeerUpAddressFamilies`, `TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone`, `TestOpenMultiprotocolFamiliesRefusesAMalformedOPEN` | A malformed OPEN records no family rather than a defaulted one |
+| AC-10 | Done | `TestLocRIBPeerKeyDistinguishesTheInstancesOfOneRouter` | Three keys, differing only in distinguisher and BGP ID |
+| AC-11 | Done | The `PeerTypeGlobal` assertion in the same test, and `TestBMPCompositeKey` (`bmp_test.go`) | The Adj-RIB composition is untouched |
+| AC-12 | Done | `rfc/short/rfc9069.md` rows x-3 and x-6; `./le rfc check` | Both under their original ids, both with a positive test, no row `{gap}` |
+| AC-13 | Done | `rfc/short/rfc9069.md` rows `RFC9069-4.2-1` and `RFC9069-6.1.3-1` | Each names a positive and a negative test, neither is `{single-polarity}` |
+| AC-14 | Done | The RFC 9069 row of `docs/features/rfc-status.md`, the `rfc9069` line of `rfc/enrolled.txt` | Both name the fabricated OPEN, the primary ASN, the config-sourced router-id, the TLV, reason 6 and the receiver's capability processing |
+| AC-15 | Done | `INTEROP_SCENARIO=bmp-locrib-pmacct ./le integration interop`, exit 0, 2026-09-04 | |
+| AC-16 | Done | `INTEROP_SCENARIO=bmp-locrib-receiver-frr ./le integration interop`, exit 0, 2026-09-04 | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestLocRIBHeaderReadsRouterIDAndASNFromConfig` | Done | `rfc9069_test.go` | Landed under its planned name |
+| `TestLocRIBHeaderNeverCarriesZeroBGPID` | Done | `rfc9069_test.go` | Planned name |
+| `TestLocRIBPeerHeader` (corrected) | Done | `bmp_locrib_test.go` | Tag kept on `RFC9069-x-6` |
+| `TestLocRIBPeerUpCarriesFabricatedOpen` | Changed | `TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities` (`bmp_locrib_test.go`) | Renamed; same assertions plus the capability count |
+| `TestHandleBestChangeEmitsPeerUpThenRM` (corrected) | Done | `bmp_locrib_test.go` | Tag kept on `RFC9069-x-3` |
+| `TestFabricatedOpenUsesASTransForFourByteASN` | Done | `bmp_locrib_test.go` | Planned name |
+| `TestFabricatedOpenCarriesNoUnusedCapability` | Changed | Folded into `TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities` | The count assertion IS the "no unused capability" assertion |
+| `TestLocRIBPeerUpCarriesGlobalTableName` | Changed | `TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName` (`rfc9069_test.go`) | One test covers both directions, which §5.2.1 makes one decision |
+| `TestPrimedLocRIBPeerUpCarriesOpenAndTableName` | Changed | The same test, which reads both messages of one session off the wire | |
+| `TestLocRIBPeerDownUsesReasonSixWithTableName` | Changed | `TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo` (`rfc8671_test.go`) | Driven over the plugin's real reload rail rather than by calling the function |
+| `TestLocRIBPeerDownNeverUsesReasonTwo` | Changed | `TestPeerDownReasonMapping` requires every mapped BGP close reason to be 1 to 5; `TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession` requires reason 5 on a `PeerTypeGlobal` Peer Down | The negative is stated as "reason 6 never reaches a non-Loc-RIB peer" |
+| `TestAdvertisedFamiliesMatchDumpFamilies` | Changed | `TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities` | One declaration removes the comparison the test would make |
+| `TestReceiverParsesLocRIBPeerUpCapabilities` | Changed | `TestReceiverRecordsThePeerUpAddressFamilies` (`rfc9069_test.go`) | |
+| `TestReceiverRejectsLocRIBPeerUpWithTruncatedOpen` | Changed | `TestOpenMultiprotocolFamiliesRefusesAMalformedOPEN` (`rfc9069_test.go`) | |
+| `TestLocRIBRouteInjectionKeyedOnDistinguisherAndBGPID` | Changed | `TestLocRIBPeerKeyDistinguishesTheInstancesOfOneRouter` (`rfc9069_test.go`) | |
+| `TestAdjRIBInjectionKeyUnchanged` | Changed | The `PeerTypeGlobal` half of the same test | |
+| `TestLocallySourcedRoutesUseLocRIBPeerType` | Changed | `TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType` (`rfc9069_test.go`) | `RFC9069-4.2-1` positive |
+| `TestNonLocalRoutesDoNotUseLocRIBPeerType` | Changed | `TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType` (`rfc9069_test.go`) and `TestPeerHeaderFromEvent` | `RFC9069-4.2-1` negative |
+| `TestBehaviorChangeBouncesTheSession` | Changed | `TestBehaviorChangeBouncesThePeersOfALocRIBSession` (`rfc9069_test.go`) | `RFC9069-6.1.3-1` positive |
+| `TestUnchangedConfigDoesNotBounceTheSession` | Changed | `TestAConfigurationThatAltersNoBehaviorBouncesNothing` (`rfc9069_test.go`) | `RFC9069-6.1.3-1` negative |
+| `FuzzDecodeLocRIBPeerUp` | Done | `fuzz_test.go`, written by this closure | 30s, 89672 executions, no crash |
+| `bmp-locrib-peer-fields` (`.ci`) | Skipped | -- | Unwritable as specified; see Deviations. Raised to the main thread |
+| `bmp-locrib-pmacct` | Done | `test/interop/scenarios/bmp-locrib-pmacct/` | Green 2026-09-04 |
+| `bmp-locrib-receiver-frr` | Done | `test/interop/scenarios/bmp-locrib-receiver-frr/` | Green 2026-09-04 |
+
+Every Status cell of the planning tables above (Unit Tests, Functional Tests,
+Interop Tests, Deliverables Checklist) was left EMPTY by the implementation
+phases. No cell claims a green this audit had to overturn.
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `bmp_locrib.go`, `bmp.go`, `msg.go`, `sender.go`, `tlv.go`, `state.go`, `sender_config.go` | Done | Across the four commits |
+| `bmp_locrib_test.go`, `rfc9069_test.go`, `rfc8671_test.go` | Done | |
+| `fuzz_test.go` | Done | This closure |
+| `rfc/short/rfc9069.md`, `rfc/enrolled.txt`, `docs/features/rfc-status.md`, `rfc/requirements/rfc9069.md` | Done | |
+| `docs/guide/bmp.md` | Done | |
+| `docs/architecture/core-design.md` | Changed | No BMP text to stale; see Deviations |
+| `internal/le/interoplab/bgp/prepare.go`, `checkers.go`, `names.go`, `run.go` | Done | `checkers.go` and `names.go` again in this closure |
+| `internal/le/interoplab/bgp/check_extras.go` | Changed | The two scenarios needed no bespoke extras; `scenarioOperations` carries both |
+| `docs/architecture/testing/interop.md` | Done | This closure |
+| `internal/component/bgp/plugins/bmp/rfc9069_test.go` (Files to Create) | Done | |
+| `test/plugin/bmp-locrib-peer-fields.ci` (Files to Create) | Skipped | See Deviations |
+| `test/interop/scenarios/bmp-locrib-pmacct/`, `test/interop/scenarios/bmp-locrib-receiver-frr/` (Files to Create) | Done | |
+
+### Audit Summary
+- **Total items:** 16 AC, 8 requirements, 24 tests, 12 file groups
+- **Done:** 16 AC, 8 requirements, 10 tests under their planned names, 12 tests renamed and landed, 10 file groups
+- **Partial:** 0
+- **Skipped:** 1 (`test/plugin/bmp-locrib-peer-fields.ci`; needs the main thread's answer)
+- **Changed:** 12 renamed tests, 2 file rows, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Make ze's Loc-RIB monitoring conformant on the SENDER side | interop | `INTEROP_SCENARIO=bmp-locrib-pmacct ./le integration interop` exits 0 (2026-09-04). pmacct decoded ze's stream and printed its own peer-type, peer-type-string, peer-ASN, BGP-ID, Peer Up Information TLV and Peer Down reason fields. None of those field names appears anywhere in ze's source: `grep -rn 'peer_type_str\|bmp_peer_up_info\|reason_type' --include='*.go' internal/ cmd/ pkg/` matches only the checker registry that reads them |
+| Make ze's Loc-RIB monitoring conformant on the RECEIVER side | interop | `INTEROP_SCENARIO=bmp-locrib-receiver-frr ./le integration interop` exits 0 (2026-09-04). FRR 10.3.1's `bmpd`, started with the BMP module from the scenario's own `daemons` file, sends a Loc-RIB feed at ze's BMP listener and `show bmp peers` reports the peer AS, the router address and `ipv4/unicast`. A receiver that walked the OPEN bytes as Information TLVs records none of the three |
+| The sender-side assertions DISCRIMINATE | interop, forced red | The scenario's `ze.conf` overrides the FRR session's ASN and router-id away from the router's own on purpose, and the `opRequireAbsent` row requires pmacct to print neither, with the configured pair as its proof needles. A Loc-RIB header built from a cached sent OPEN reports exactly the absent pair, so the two implementations are separated on one run. Re-observed 2026-09-04: moving the top-level `router-id` to an unused address with everything else unchanged turns the run RED (exit 1); restoring it turns it green (exit 0), so the BGP-ID needle tracks the emitted value rather than always matching |
+| Correct every derived claim | verification gate | `./le rfc check` reports 130 violations and NOT ONE names rfc9069: `grep -n '9069' <log>` is empty. No `rfc/discrimination/rfc9069.json` record is reported stale, though `ead2e374eb` changed `bmp_locrib.go` after `7e08738aff` wrote it |
+| No zero reads as a valid answer | unit + source | `parseLocalIdentity` returns nil on a zero ASN, an unparseable or non-IPv4 router-id, and a zero router-id. `BMPPlugin.localIdentity` answers `(localIdentity, bool)`, and all five non-test call sites (`closeDumpFamilies`, `handleBestChange`, `ensureLocRIBPeerUp`, `primeLocRIBPeerUp`, `sendLocRIBPeerDown`) return on `!ok` with a log line naming the two leaves to set. `TestLocRIBHeaderNeverCarriesZeroBGPID` drives it |
+| The peer-type-3 OPEN parse is bounds-safe | fuzz | `FuzzDecodeLocRIBPeerUp`, 30s, 89672 executions, 12 corpus entries, no crash and no escaping OPEN |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| None. The spec's metadata declares no deferral shard, and no file under `plan/deferrals/` carries this stem | done | No shard to remove |
+| `plan/deferrals/ad-hoc-2026-07-27-423eaa77.md` row 14, which PREDICTED this defect | done | The prediction was correct and the defect it named is fixed. The row belongs to that ad-hoc shard, not to this spec, and this closure does not touch it |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-locrib-peer-fields-contradict-rfc9069-f89390ec-889f-4a7a-8172-1e2cfd108a12.md` (6 files, verdict clean) |
+| `./le spec session review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | wiring + correctness, removed-behavior + test-rewrite, docs/claims + style |
+
+Three lenses rather than one: the diff changes a test that pins a protocol path
+(`scenarioLocRIBPMACCT`) and adds a fuzz target over a remote-input decoder.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `pmacctPeerDownReasonSix` is declared and used by nothing, and `8e56e8aa26`'s message claims the scenario greps for it, so RFC 9069 §5.3's reason code had no interop proof and User Story 4 had no test | `internal/le/interoplab/bgp/names.go` | The teardown step in `scenarioLocRIBPMACCT` (`checkers.go`), re-run green |
+| 2 | ISSUE | R-6's mitigation says the fuzz target is extended to peer type 3; `fuzz_test.go` held one target, over `DecodeTLVs`, and `decodePeerUp` was fuzzed by nothing | `internal/component/bgp/plugins/bmp/fuzz_test.go` | `FuzzDecodeLocRIBPeerUp` written and run |
+| 3 | ISSUE | `docs/architecture/testing/interop.md` names neither new scenario, has no pmacct row in either table, and its sentence "BMP scenarios start `ze-test interop-bgp bmp-collector`" became false when `pmbmpd.conf` gained the `else if` | `docs/architecture/testing/interop.md` | Five edits, listed in Documentation Updates |
+| 4 | ISSUE | `test/plugin/bmp-locrib.ci` was stranded uncommitted by `ead2e374eb`: its config names no `session asn local`, and under the new rule that daemon emits no Loc-RIB feed, so the committed test cannot pass | `test/plugin/bmp-locrib.ci` | Staged in commit A |
+| 5 | NOTE | Wiring Test row 8 names a surface that does not carry the data | `bmpState.peersCommand` (`internal/component/bgp/plugins/bmp/state.go`) | Deviation recorded; raised to the main thread |
+| 6 | NOTE | `bmp.go`, `msg.go` and `sender.go` declare `// Design: docs/architecture/core-design.md`, a page with no BMP text | three file headers | Journal row; pre-existing and outside this spec |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/interop/scenarios/bmp-locrib-pmacct/` | yes | `ze.conf`, `frr.conf`, `pmbmpd.conf` |
+| `test/interop/scenarios/bmp-locrib-receiver-frr/` | yes | `ze.conf`, `frr.conf`, `daemons` |
+| `internal/component/bgp/plugins/bmp/rfc9069_test.go` | yes | 15 top-level `Test*` functions (`gopls symbols`) |
+| `internal/component/bgp/plugins/bmp/fuzz_test.go` | yes | `FuzzDecodeBMPTLV`, `FuzzDecodeLocRIBPeerUp` |
+| `test/plugin/bmp-locrib.ci` | yes | 3.5K, modified by this closure |
+| `test/plugin/bmp-locrib-peer-fields.ci` | NO | `ls test/plugin/ \| grep bmp` lists ten files and not this one. See Deviations |
+| `rfc/extraction/rfc9069.json`, `rfc/discrimination/rfc9069.json` | yes | Landed by `7e08738aff` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | The header carries the configured ASN and router-id, never 0 | `go test -race` over the whole feature-tag set at HEAD, in a detached worktree: `ok github.com/ze-software/ze/internal/component/bgp/plugins/bmp 7.958s`. Producer read: `locRIBPeerHeader` sets `PeerAS: id.asn`, `PeerBGPID: id.routerID` and nothing else |
+| AC-3..AC-8 | Fabricated OPEN, capabilities, AS_TRANS, TLV, reason 6, one family declaration | Same run, green. `fabricateLocRIBOpen` builds its capability list from `dumpFamilies` |
+| AC-9..AC-11 | Receiver parses the OPENs and keys Loc-RIB peers apart without moving the Adj-RIB key | Same run, green. `bmpCompositeKey` branches on `PeerTypeLocRIB` only |
+| AC-12..AC-14 | The ledger says what the code does | `./le rfc check`: 130 violations, none naming rfc9069 |
+| AC-15 | pmacct reads ze's Loc-RIB stream | `INTEROP_SCENARIO=bmp-locrib-pmacct ./le integration interop`, exit 0, twice (before and after the teardown step) |
+| AC-16 | ze reads FRR's Loc-RIB stream | `INTEROP_SCENARIO=bmp-locrib-receiver-frr ./le integration interop`, exit 0 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `loc-rib true` plus a best-path change | `test/plugin/bmp-locrib.ci` | yes -- read: it configures `router-id` and `session asn local`, drives a real peer announcement, and requires the collector to print `valid-locrib-route-monitoring` |
+| First Loc-RIB message on a collector session | scenario `bmp-locrib-pmacct` | yes -- pmacct reports the Loc-RIB Instance Peer type |
+| A collector connecting after monitoring started | `TestLocRIBSinglePeerUpPerInstance` over `primeLocRIBPeerUp` | yes |
+| BMP sender teardown with Loc-RIB announced | scenario `bmp-locrib-pmacct`, teardown step | yes -- `opSignal` TERM, then pmacct's reason-type needle |
+| A conformant Loc-RIB Peer Up at ze's listener | scenario `bmp-locrib-receiver-frr` | yes |
+| Route Monitoring from a monitored Loc-RIB instance | scenario `bmp-locrib-receiver-frr` | yes |
+| `./le integration interop bmp-locrib-pmacct` | scenario | yes, exit 0 |
+| `show bmp peers` reporting the Loc-RIB peer's AS and BGP ID | `test/plugin/bmp-locrib-peer-fields.ci` | NO -- the `.ci` does not exist and the sender has no such surface. The receiver-side equivalent is proven by `bmp-locrib-receiver-frr`, which runs `show bmp peers` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `parseLocalIdentity` reads the router-id and the local ASN off the `bgp` section the plugin already receives. `WantsConfig` was not changed and no leaf was added |
+| A-2 | confirmed | `pmacct/pmbmpd:latest` runs as a lab sidecar, accepts the BMP v3 session, and writes a JSON msglog the scenario greps. Neither fallback was needed |
+| A-3 | confirmed | FRR 10.3.1's `bmpd` drives ze's receiver once the scenario carries its own `daemons` file naming the BMP module. GoBGP was not needed |
+| A-4 | confirmed | `TestFabricatedOpenUsesASTransForFourByteASN` |
+| A-5 | confirmed | `./le rfc check` reports no rfc9069 finding: no id retired, no polarity lost |
+| A-6 | confirmed | `fabricateLocRIBOpen` and the End-of-RIB walk both read `dumpFamilies`, so the sets are equal by construction rather than by comparison |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| pmacct image `pmacct/pmbmpd:latest` | `defaultPMACCTImage` (`internal/le/interoplab/bgp/run.go`) | yes |
+| pmacct at 172.30.0.13, container `ze-iop-pmacct-<pid>` | `pmacctLabAddress` (`names.go`), the pmacct peer's host number (`prepare.go`), and `containerName` writing the `ze-iop-` prefix (`prepare.go`) | yes |
+| A scenario carrying `pmbmpd.conf` starts pmacct INSTEAD of ze's collector | `scenarioPeers` (`prepare.go`): the pmacct branch is an `if regularFile(...)` whose `else if` is the old `bmp {` test | yes |
+| A per-scenario `daemons` file overrides the shared one | `scenarioPeers` (`prepare.go`); the shared file is `test/interop/daemons`, and `producer` is the `test/interop` directory (`run.go`) | yes |
+| `bmp-locrib-receiver-frr` requires `show bmp peers` to report the peer and its family | `scenarioLocRIBReceiverFRR` (`checkers.go`) | yes |
+| `docs/guide/bmp.md` says the identity comes from those two leaves and from nowhere else | `parseLocalIdentity` is the only producer; `localRouterID` and `bgpIdentityFromSentOpen` return no hits in any `.go` file | yes |
+| Row 9 (RFC behavior newly proven): `rfc/short/rfc9069.md`, `rfc/enrolled.txt`, `docs/features/rfc-status.md` | Read at HEAD; every sentence checked against `rfc/full/rfc9069.txt` §4.2, §5.1, §5.2, §5.2.1, §5.3, §6.1.1 and §6.1.3 | yes |
+| Row 12 (internal architecture): `docs/architecture/core-design.md` | `grep -i bmp docs/architecture/core-design.md` returns nothing, so no claim there went stale | yes, no edit owed |
+| Row 10 (test infrastructure): `docs/functional-tests.md` | `grep -n bmp-locrib docs/functional-tests.md` is empty and no `.ci` was created, so no row is owed | yes |
+
+## Core Insight
+
+A summary written from the code cannot disagree with the code, so the gate over
+it can never go red. `rfc/short/rfc9069.md` declared ze's two defects as the
+RFC's two requirements, bound a passing test to each, and published `Supported`
+with "None outstanding" for about a year. What broke the loop was not a test: it
+was `rfc/full/rfc9069.txt` arriving in the tree, and a walk that read the
+sentences rather than the summary. The extraction sign-off exists for exactly
+this, and RFC 9069 had never had one.
+
+The same shape appears one layer down. `dumpFamilies` carried a comment
+justifying a hardcoded list with "there is no negotiated family set to derive
+this from", which was true only because the OPEN was empty, which was true only
+because the summary said it should be. One false sentence in a derived artifact
+had produced a defect, a test pinning it, a comment explaining it, and a second
+hardcoding resting on the explanation.

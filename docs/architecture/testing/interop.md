@@ -54,6 +54,7 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 | BIRD | 2.x (Alpine 3.21) | Alpine build | birdc | eBGP, route exchange, triangle topologies |
 | GoBGP | 3.31.0 | Go builder | gobgp CLI | eBGP, route injection and verification |
 | StayRTR | 0.6.4 | Go builder | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
+| pmacct `pmbmpd` | latest | `pmacct/pmbmpd:latest` | JSON msglog file | BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted |
 | ExaBGP | API 6.0.0 contract fixtures | Compiled Go wire server | Wire byte comparison | Byte-for-byte encoding across all address families |
 <!-- source: internal/le/interoplab/bgp/prepare.go -- peer helpers and scenario preparation -->
 <!-- source: internal/le/interoplab/bgp/run.go -- scenario orchestrator -->
@@ -108,6 +109,7 @@ opening this page.
 | Compiled strict speaker | 172.30.0.10 | `ze-iop-speaker-<pid>` |
 | Compiled strict speaker (2nd) | 172.30.0.11 | `ze-iop-speaker2-<pid>` |
 | StayRTR | 172.30.0.12 | `ze-iop-stayrtr-<pid>` |
+| pmacct `pmbmpd` | 172.30.0.13 | `ze-iop-pmacct-<pid>` |
 
 Container names include the runner PID as suffix, so concurrent runs do not conflict.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- container naming, IP addresses -->
@@ -150,8 +152,15 @@ A scenario directory may also carry files that start extra containers before Ze:
 | `inject.msg` | `ze-test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit. An optional `inject-args` file adds flags. Because the injector and Ze start before the peer daemons, an early route exercises Ze's replay-on-peer-up path. |
 | `speaker-args` (and optional `speaker2-args`) | `ze-test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
 | `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session. |
+| `pmbmpd.conf` | pmacct `pmbmpd` (172.30.0.13:1790) | Read Ze's BMP stream with a collector Ze did not write. The file is also the selector: a scenario that carries it starts pmacct INSTEAD of Ze's own collector, because two collectors are two readings of one stream and only the third-party one is interop evidence. The typed checker greps pmacct's JSON msglog, so every needle is a field pmacct printed after decoding. |
 
-BMP scenarios start `ze-test interop-bgp bmp-collector`. Announcement and
+A scenario carrying `frr.conf` may also carry its own `daemons` file. That file
+names which FRR daemons run and what each one is started with, so a scenario
+needing a `bgpd` module (`-M bmp` for one that drives Ze's BMP receiver) carries
+its own copy instead of adding the module to every scenario in the suite. Without
+one, the shared `test/interop/daemons` is mounted.
+
+A BMP scenario with no `pmbmpd.conf` starts `ze-test interop-bgp bmp-collector`. Announcement and
 observer process plugins use `ze-test interop-bgp process <scenario> <plugin>`.
 These personalities are compiled into `ze-test`; no interpreter or source mount
 is present in the Ze image.
@@ -161,6 +170,7 @@ is present in the Ze image.
 <!-- source: test/interop/scenarios/bgp-rfc7606-relay-shape-frr/ -- injector worked example -->
 <!-- source: test/interop/scenarios/bgp-rfc7606-speaker-dup-attr/ -- speaker worked example -->
 <!-- source: test/interop/scenarios/rtr-stayrtr/ -- StayRTR worked example -->
+<!-- source: test/interop/scenarios/bmp-locrib-pmacct/ -- pmacct collector worked example -->
 
 ### Prove a scenario discriminates
 
@@ -389,7 +399,13 @@ replace the protocol failure that triggered it.
 
 The suite has grown to over 100 scenario directories in `test/interop/scenarios/`. The table
 below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
-reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
+reflection, policy import/export, RPKI origin validation, BMP monitoring
+(`bmp-locrib-pmacct` puts Ze's RFC 9069 Loc-RIB feed in front of pmacct and requires
+pmacct to print the configured Peer AS, the configured Peer BGP ID, the `global`
+VRF/Table Name TLV and reason code 6 on the Peer Down; `bmp-locrib-receiver-frr`
+turns the direction around, so FRR's `bmpd` drives Ze's BMP receiver and
+`show bmp peers` must report the third party's Loc-RIB peer and its address
+family), PATHS-LIMIT,
 max-prefix cease, GTSM, AS112, the RFC 7454 Section 9 transit leak
 (`bgp-path-asn-leak-frr` gives FRR two prefixes that differ only in their AS_PATH, and requires
 ze to drop the one reached through a listed transit ASN, keep the other, and keep the session),

@@ -32,6 +32,11 @@ const (
 	zeTestBinary = "ze-test"
 )
 
+// signalTERM is the graceful-shutdown signal an opSignal step sends a peer. It
+// is the signal every ze shutdown path runs under, so a scenario asserting what
+// ze emits on the way down sends this one and never KILL.
+const signalTERM = "TERM"
+
 // vtysh commands. FRR takes one after each -c flag.
 const (
 	frrConfigureTerminal          = "configure terminal"

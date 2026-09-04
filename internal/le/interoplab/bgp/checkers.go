@@ -425,6 +425,14 @@ var scenarioOperations = map[string][]operation{
 				pmacctUnknownPeerAS, pmacctUnknownBGPID,
 			},
 			proof: []string{pmacctLocRIBPeerAS, pmacctLocRIBBGPID}},
+		// The teardown. RFC 9069 Section 5.3: "The Peer Down notification MUST
+		// use reason code 6." ze sends it from the shutdown path before the
+		// collector sessions close (BMPPlugin.Stop, bmp.go), so a TERM is what
+		// puts it on the wire, and pmacct decodes the reason itself.
+		{kind: opSignal, peer: "ze", argument: signalTERM},
+		{kind: opWaitContains, peer: peerPMACCT, command: []string{cmdCat, pmacctMsgLogPath},
+			contains: []string{pmacctPeerDownReasonSix},
+			timeout:  60 * time.Second},
 	},
 	// RFC 9069 Loc-RIB monitoring, RECEIVER side. FRR's bmpd sends a Loc-RIB
 	// feed at ze's BMP listener, so what ze parses is a third party's fabricated
@@ -627,13 +635,13 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: injectPrefixFirst, timeout: 60 * time.Second},
 		{kind: opFRRRoute, argument: injectPrefixFirst},
-		{kind: opSignal, peer: "ze", argument: "TERM"},
+		{kind: opSignal, peer: "ze", argument: signalTERM},
 		{kind: opFRRRouteAbsent, argument: injectPrefixFirst, timeout: 30 * time.Second},
 	},
 	"vrrp-mastership-keepalived": {
 		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, contains: []string{vrrpVirtualAddress}, timeout: 40 * time.Second},
 		{kind: opRequireAbsent, peer: peerKeepalived, command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, absent: []string{vrrpVirtualAddress}, proof: []string{containerInterface}},
-		{kind: opSignal, peer: "ze", argument: "TERM"},
+		{kind: opSignal, peer: "ze", argument: signalTERM},
 		{kind: opWaitContains, peer: peerKeepalived, command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, contains: []string{vrrpVirtualAddress}, timeout: 12 * time.Second},
 		{kind: opStart, peer: "ze"},
 		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, contains: []string{vrrpVirtualAddress}, timeout: 40 * time.Second},

@@ -1,7 +1,9 @@
 package bmp
 
 import (
+	"encoding/binary"
 	"testing"
+	"time"
 )
 
 // FuzzDecodeBMPTLV feeds arbitrary bytes into the BMP information-TLV decoder.
@@ -73,5 +75,77 @@ func bmpTLVSeeds() [][]byte {
 		{0x00, 0x02, 0x00, 0x08},                                                             // Length=8 with no value bytes (truncated)
 		{0x00, 0x00, 0xFF, 0xFF},                                                             // Length=65535 with no value (oversized)
 		{0x00, 0x02, 0x00, 0x02, 0x41},                                                       // valid header, one short of its 2 value bytes
+	}
+}
+
+// FuzzDecodeLocRIBPeerUp feeds arbitrary bytes into the Peer Up decoder and
+// into the capability reader that runs on what it returns.
+//
+// This is the surface RFC 9069 Section 6.1.1 opened. decodePeerUp used to skip
+// OPEN extraction for PeerTypeLocRIB; the branch is gone, so a Peer Up from a
+// monitored router now reaches extractBGPOpen and openMultiprotocolFamilies for
+// every peer type. Those bytes come from a remote BMP speaker, which makes the
+// parse an attack surface rather than an internal decode.
+//
+// Two invariants, and neither is provable by the unit tests, which drive
+// well-formed messages: nothing panics on any input, and every OPEN the decoder
+// returns sub-slices its own input rather than escaping it, which is what a
+// forged BGP length would have to break.
+//
+// VALIDATES: R-6 of spec-fixit-locrib-peer-fields-contradict-rfc9069 -- the
+// peer-type-3 OPEN parse is bounds-safe.
+// PREVENTS: regression where a future edit drops a bound in extractBGPOpen and
+// a crafted Peer Up over-reads the session buffer.
+func FuzzDecodeLocRIBPeerUp(f *testing.F) {
+	for _, seed := range locRIBPeerUpSeeds() {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		pu, err := decodePeerUp(data, 0, len(data))
+		if err != nil {
+			return
+		}
+		for _, open := range [][]byte{pu.SentOpenMsg, pu.ReceivedOpenMsg} {
+			if len(open) > len(data) {
+				t.Fatalf("decodePeerUp: OPEN of %d bytes escapes the %d-byte input", len(open), len(data))
+			}
+			// The families reader runs on the same remote bytes and must answer
+			// nil rather than panic on anything it cannot parse.
+			openMultiprotocolFamilies(open)
+		}
+	})
+}
+
+// locRIBPeerUpSeeds returns Peer Up bodies for the fuzzer: a well-formed Loc-RIB
+// Peer Up carrying the fabricated OPEN twice, the same message truncated at each
+// boundary the decoder checks, and a message whose sent OPEN declares a length
+// past the end of the buffer.
+func locRIBPeerUpSeeds() [][]byte {
+	open := fabricateLocRIBOpen(localIdentity{asn: 65044, routerID: 0xAC1E0002})
+	body := &PeerUp{
+		Peer:            locRIBPeerHeader(localIdentity{asn: 65044, routerID: 0xAC1E0002}, time.Time{}),
+		SentOpenMsg:     open,
+		ReceivedOpenMsg: open,
+		InfoTLVs:        []TLV{locRIBTableNameTLV()},
+	}
+	whole := make([]byte, CommonHeaderSize+PeerHeaderSize+peerUpFixedSize+2*len(open)+TLVHeaderSize+len(locRIBTableName))
+	total := writePeerUp(whole, 0, body)
+	whole = whole[:total]
+
+	// The decoder is handed the message body, so every seed starts past the
+	// common header, which DecodeMsg strips before it dispatches.
+	valid := whole[CommonHeaderSize:]
+	forged := append([]byte(nil), valid...)
+	// The sent OPEN's BGP length field, two octets at offset 16 of the OPEN.
+	binary.BigEndian.PutUint16(forged[PeerHeaderSize+peerUpFixedSize+16:], 4095)
+
+	return [][]byte{
+		{},
+		valid,
+		valid[:PeerHeaderSize],                 // peer header only, no fixed fields
+		valid[:PeerHeaderSize+peerUpFixedSize], // fixed fields, no OPEN
+		valid[:PeerHeaderSize+peerUpFixedSize+18], // OPEN one octet short of its header
+		valid[:len(valid)-1],                      // TLV one octet short
+		forged,                                    // sent OPEN claims 4095 bytes it does not have
 	}
 }

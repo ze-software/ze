@@ -97,3 +97,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | 5db0ba0d | fix(radius): the callers and claims the exclusion change reached | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | fix(radius): the callers and claims the exclusion change reached | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-04 | 5db0ba0d | spec: close spec-radius-attribute-exclusion | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | test(bmp): the three proofs the RFC 9069 Loc-RIB work still owed | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | test(bmp): the three proofs the RFC 9069 Loc-RIB work still owed | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | 5db0ba0d | spec: close spec-fixit-locrib-peer-fields-contradict-rfc9069 | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

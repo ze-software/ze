@@ -74,10 +74,15 @@ Nine files uncommitted under `internal/le/interoplab/ipsec/` and
 `test/interop-ipsec/`. Check what it produced for AC-9, the report of which
 scenarios were passing on one direction only, before assuming anything.
 
-### 4. Loc-RIB RFC 9069 (`plan/spec-fixit-locrib-peer-fields-contradict-rfc9069.md`, Phase 1/1)
+### 4. Loc-RIB RFC 9069 (`spec-fixit-locrib-peer-fields-contradict-rfc9069`, Phase 1/1)
 
 **Its last words: "Now the mandatory discrimination walk for the scenario."**
 `ead2e374eb` landed the headline fix. `internal/component/bgp/plugins/bmp/bmp_locrib.go` is modified beyond it.
+
+CLOSED 2026-09-04. The spec file is gone from the tree and lives in the history
+of its closure commit; the stem above is written bare for that reason. The
+scenario work landed as `8e56e8aa26`, and both `bmp-locrib-pmacct` and
+`bmp-locrib-receiver-frr` run green.
 
 ### 5. Subscriber accounting phases 4-5 (`plan/spec-radius-acct-session-attributes.md`, Phase 3/7)
 
