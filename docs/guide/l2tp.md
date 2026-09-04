@@ -307,14 +307,26 @@ carries it. RFC 2866 Section 5.10: "This attribute indicates how the session was
 terminated, and can only be present in Accounting-Request records where the
 Acct-Status-Type is set to Stop." The value is one of that section's integers:
 User Request (1) when LCP reaches Closed or Stopped, Lost Carrier (2) for
-unanswered LCP echo probes, Idle Timeout (4) and Session Timeout (5) for the
+unanswered LCP echo probes and for a peer that stops answering at the tunnel
+level, Lost Service (3) for every session on a tunnel the peer ended, Idle
+Timeout (4) and Session Timeout (5) for the
 two RADIUS timers, Admin Reset (6) for an operator clear and for a RADIUS Disconnect-Request, Admin
 Reboot (7) for the sessions ze stops on shutdown, NAS Request (10) when the PPP
 driver stops a running session, and NAS Error (9) for a failure ze detected or a
 teardown it cannot attribute. Ze reports NAS Error rather than guessing a more
 specific cause.
 
-None of these four attributes has a config leaf. They are unconditional.
+A subscriber hanging up reaches the record through the peer's Call-Disconnect-
+Notify. Ze reads that message's Result Code (RFC 2661 Section 4.4.2) and
+translates the two values RFC 2866 Section 5.10 also states: code 1, "Call
+disconnected due to loss of carrier", becomes Lost Carrier, and code 3, "Call
+disconnected for administrative reasons", becomes Admin Reset. The other ten
+codes describe a call the far end could not place, which no Section 5.10 cause
+states, so they become NAS Error rather than a guess.
+
+Each of these four attributes is sent unless the operator holds it back with
+`attributes exclude`, described below. There is no leaf that turns one on: the
+default is to send it.
 
 RFC 2866 Section 4.1 requires either NAS-IP-Address or NAS-Identifier in every
 Accounting-Request, and RFC 2865 Section 4.1 requires the same of every
@@ -330,6 +342,67 @@ four octets, so a session with no address yet, or one whose only assignment is
 IPv6, sends no attribute rather than a wrong one.
 <!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket -->
 <!-- source: internal/component/l2tp/plugins/authradius/nasidentity.go -- appendNASIdentity -->
+
+#### Holding an attribute back
+
+The four attributes above are sent by default, which is what a billing system
+usually wants. An operator whose server or billing pipeline does not want one of
+them writes an `attributes exclude` container beside `server`:
+
+```
+l2tp {
+    auth {
+        radius {
+            attributes {
+                exclude {
+                    calling-station-id {
+                        packet-type [ accounting-interim ];
+                    }
+                    acct-terminate-cause;
+                }
+            }
+        }
+    }
+}
+```
+
+Naming an attribute alone holds it back from every packet that would carry it.
+Adding a `packet-type` list holds it back from the record types named there and
+keeps it in the others.
+
+Six attributes can be held back, and each accepts only the record types Ze puts
+it in. A line naming any other record type is refused when the configuration is
+committed.
+
+| Attribute | Record types it accepts | What it feeds on the server |
+|-----------|------------------------|------------------------------|
+| `calling-station-id` (31) | the three accounting records | the line the subscriber called from, and the key FreeRADIUS matches its IP pool rows on |
+| `event-timestamp` (55) | the three accounting records | when the event happened on the NAS, where a server would otherwise use its own receive time |
+| `acct-delay-time` (41) | the three accounting records | how long Ze has been trying to send the record, which a server subtracts to recover the event time |
+| `acct-terminate-cause` (49) | `accounting-stop` | why the session ended, which billing and churn reports read |
+| `nas-port-id` (87) | the Access-Request and the three accounting records | the port text that joins one session's Access-Request to its accounting records |
+| `framed-ip-address` (8) | the three accounting records | the address the session was given, which address-to-subscriber lookups read |
+
+**Check the server before you hold Calling-Station-Id back.** FreeRADIUS is not
+uniform about its fallbacks. Its default accounting queries are defensive: they
+fall back to the server clock when Event-Timestamp is absent, and they default
+Acct-Terminate-Cause to `NAS-Reboot`, so a record without either is still
+stored. Its IP pool queries are not. `raddb/mods-config/sql/ippool/mysql/queries.conf`
+matches `AND callingstationid = '%{Calling-Station-Id}'` in `stop_clear`,
+`alive_update` and `start_update` with no fallback value, so a pool served by
+FreeRADIUS keeps leases that never expire once attribute 31 stops arriving.
+Acct-Delay-Time appears in no default query at all.
+
+Acct-Status-Type, Acct-Session-Id and the NAS identity cannot be held back, and
+the schema does not name them. RFC 2866 Section 5.13 counts the first two as
+"1  Exactly one instance of this attribute MUST be present", and its Note 1
+reads "An Accounting-Request MUST contain either a NAS-IP-Address or a
+NAS-Identifier (or both)". Ze offers no numeric form for the same reason: a number accepts
+a line that suppresses a mandatory attribute and gives the operator no
+diagnostic either way.
+
+<!-- source: internal/component/l2tp/plugins/authradius/exclude.go -- attributeExclusions, parseAttributeExclusions -->
+<!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- attributes container -->
 
 Three attributes an operator may look for are deliberately absent, because no
 runtime value exists for them: Framed-Interface-Id, Framed-IPv6-Prefix and

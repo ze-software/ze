@@ -58,20 +58,85 @@ range, or the commit fails.
 ## What every Accounting-Request carries
 
 Ze emits the session attributes below on every subscriber Accounting-Request.
-None of them has a config leaf: the owner ruled them unconditional on
-2026-09-03, so an operator cannot suppress one.
+The owner ruled them unconditional by DEFAULT on 2026-09-03. An operator who
+does not want one of them holds it back with `attributes exclude`, which the
+next section describes; nothing turns one on, because each is already sent.
 
 | Attribute | Type | Records | Value |
 |-----------|------|---------|-------|
 | Event-Timestamp | 55 | Start, Interim, Stop | Four octets, seconds since 1970-01-01 00:00 UTC (RFC 2869 Section 5.3) |
 | Calling-Station-Id | 31 | Start, Interim, Stop | The L2TP Calling Number AVP, or the subscriber MAC on the PPPoE relay path (RFC 2865 Section 5.31). Omitted when neither side named one |
 | Acct-Terminate-Cause | 49 | Stop ONLY | Why the session ended, as an RFC 2866 Section 5.10 integer |
+| Acct-Delay-Time | 41 | Start, Interim, Stop | How many seconds the client has been trying to send this record (RFC 2866 Section 5.2). Zero on the first attempt, updated on every retransmission |
+
+**Acct-Delay-Time makes the accounting retransmit re-encode.** RFC 2866
+Section 4.1: "if Acct-Delay-Time is included in the attributes of an
+Accounting-Request then the Acct-Delay-Time value will be updated when the
+packet is retransmitted, changing the content of the Attributes field and
+requiring a new Identifier and Request Authenticator." So the client stamps the
+delay at send time, and each retry takes a fresh Identifier and recomputes the
+authenticator, which Section 3 derives from the attributes. The Access-Request
+path is untouched and still replays its first buffer byte for byte, because RFC
+2865 Section 2.5 asks for a new Identifier only when the attributes change and
+none of an Access-Request's do.
+
+The delay is measured from the first send attempt rather than from the session
+event, which is what Section 5.2 defines: "how many seconds the client has been
+trying to send this record". A constant zero is not a shortcut around this. It
+reports a number that is true once and false on every attempt after it.
+
+<!-- source: internal/component/radius/client.go -- Exchange, encodeRequest, setAcctDelayTime -->
 
 **Acct-Terminate-Cause is on the Stop record and nowhere else.** RFC 2866
 Section 5.10: "This attribute indicates how the session was terminated, and can
 only be present in Accounting-Request records where the Acct-Status-Type is set
 to Stop." Juniper's attribute table lists it on Interim as well. The RFC
 outranks a vendor's table, so ze sends it on Stop alone.
+
+### The operator can hold six of them back
+
+The owner's 2026-09-03 ruling settled the DEFAULT, not the absence of a switch.
+Junos exposes `exclude` under `[edit access profile <name> radius attributes]`,
+and ze copies that shape at its own profile-shaped scope, `l2tp auth radius`.
+An `attributes exclude` container names an attribute and the record types it is
+held back from, and an attribute nobody names is sent.
+
+Six attributes are excludable: Calling-Station-Id (31), Event-Timestamp (55),
+Acct-Delay-Time (41), Acct-Terminate-Cause (49), NAS-Port-Id (87) and
+Framed-IP-Address (8). Three attributes are NOT, and the schema does not name
+them: Acct-Status-Type (40) and Acct-Session-Id (44), which RFC 2866
+Section 5.13 counts as "1  Exactly one instance of this attribute MUST be
+present", and the NAS identity pair its Note 1 governs.
+
+**The enum is curated, and that is the decision.** Junos 18.1R1 added a numeric
+form, `standard-attribute <number>`, whose unsupported configurations "have no
+effect". A number therefore accepts a line that suppresses a mandatory attribute
+and answers nothing either way. A closed enum refuses the word at configuration
+load, which is where the operator can still fix it.
+
+**Each attribute's legal record types are in the SCHEMA, not in a runtime
+check.** Junos does the same: its `accounting-terminate-cause` leaf accepts only
+`accounting-off`. Acct-Terminate-Cause is Stop-only in ze under RFC 2866
+Section 5.10, so its `packet-type` leaf-list enumerates `accounting-stop` alone
+and the configuration load refuses anything else. No packet builder ever asks
+whether an exclusion was permitted.
+
+**The filter runs once per builder, on the finished list.** `buildAcctPacket`
+and `buildAccessRequestAttrs` each call `attributeExclusions.filter` after the
+list is assembled, rather than guarding each append. A condition per append
+grows with the attribute list and lets an attribute added later miss the feature
+with nothing to say so.
+
+**Acct-Delay-Time is the exception, because ze does not append it.** RFC 2866
+Section 5.2 counts the seconds the CLIENT has been trying to send, so
+`radius.Client.Exchange` writes the attribute and rewrites it on each
+retransmission. Its exclusion therefore travels on the packet, as
+`radius.Packet.OmitAcctDelayTime`, and a record that carries the field is
+replayed byte for byte the way an Access-Request is: RFC 2866 Section 4.1 asks
+for a new Identifier only "if Acct-Delay-Time is included in the attributes".
+
+<!-- source: internal/component/l2tp/plugins/authradius/exclude.go -- attributeExclusions, filter, parseAttributeExclusions -->
+<!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- attributes container -->
 
 ### What each teardown path reports
 
@@ -80,20 +145,51 @@ site names the cause that is TRUE of its own path.
 
 | Teardown path | Cause | RFC 2866 Section 5.10 value |
 |---------------|-------|------------------------------|
-| Peer LCP Terminate, or LCP reaching Closed or Stopped | User Request | 1 |
+| LCP reaching Closed or Stopped | User Request | 1 |
 | LCP echo probes unanswered past the limit | Lost Carrier | 2 |
+| A CDN whose Result Code is 1, "Call disconnected due to loss of carrier" | Lost Carrier | 2 |
+| The dead-peer keepalive timeout and the exhausted retransmit budget, which are both the peer no longer answering | Lost Carrier | 2 |
+| A StopCCN the peer sent, which takes every session on the tunnel with it | Lost Service | 3 |
 | Idle-Timeout expired (RFC 2865 Section 5.28) | Idle Timeout | 4 |
 | Session-Timeout expired (RFC 2865 Section 5.27) | Session Timeout | 5 |
-| Operator `clear l2tp session`, and RADIUS Disconnect-Request (RFC 5176) | Admin Reset | 6 |
+| Operator `clear l2tp session`, `clear l2tp tunnel id <tid>`, `clear l2tp tunnel all`, and RADIUS Disconnect-Request (RFC 5176) | Admin Reset | 6 |
+| A CDN whose Result Code is 3, "Call disconnected for administrative reasons" | Admin Reset | 6 |
 | The accounting plugin stopping, which ends service on the NAS | Admin Reboot | 7 |
-| Any failure the NAS detected: negotiation timeout, auth rejection, NCP refusal, an ioctl error, a channel fd that closed or failed to read, a refused StartSession | NAS Error | 9 |
+| Any failure the NAS detected: negotiation timeout, auth rejection, NCP refusal, an ioctl error, a channel fd that closed or failed to read, a refused StartSession, a message ze refused during tunnel or session setup, a kernel setup failure | NAS Error | 9 |
+| A CDN carrying any other Result Code, and a CDN ze could not parse | NAS Error | 9 |
 | The PPP driver stopping a running session on purpose | NAS Request | 10 |
 
+**A peer's LCP Terminate-Request does not reach that row today.** RFC 1661
+puts Opened plus RTR into Stopping, with the restart counter zeroed, and ze's
+FSM table says exactly that. The restart counter and its timer are not
+implemented, so nothing moves the session on to Stopped, and the session ends
+later by the echo timer as Lost Carrier instead
+(`plan/journal/silent-fall-through.md`, 2026-09-04). The row above is the state
+that produces the cause, not the peer message that should produce the state.
+
+<!-- source: internal/component/l2tp/ppp/session_run.go -- performAction, the LCPActIRC and LCPActZRC no-op -->
+
 **A path ze cannot attribute reports NAS Error, never a guess.** RFC 2866
-Section 5.10 defines eighteen causes; ze names the eight above and no others,
+Section 5.10 defines eighteen causes; ze names the nine above and no others,
 because a cause it cannot source would land in an operator's billing store as a
 fact. A cause of zero reaching the encoder is reported as NAS Error for the
 same reason.
+
+**Two of the twelve CDN Result Codes translate, and the rest report NAS
+Error.** RFC 2661 Section 4.4.2 defines the CDN codes, and only its 1 and its 3
+state something RFC 2866 Section 5.10 also states. Every other code describes a
+call the LAC could not place: "Invalid destination", "Call failed due to
+detection of a busy signal", "Call was not established within time allotted by
+LAC". Code 2 defers its reason to an Error Code AVP whose values are protocol
+and message-format errors. None of those is a Section 5.10 cause, so ze reports
+the general value rather than picking the nearest-looking specific one.
+
+**A peer StopCCN reports Lost Service whatever Result Code it carried.** RFC
+2866 Section 5.10 defines Lost Service as "Service can no longer be provided;
+for example, user's connection to a host was interrupted", and that is a
+statement about ze rather than about the peer's intent: the tunnel those
+sessions were carried on is gone. Reading the peer's StopCCN Result Code into
+the subscriber's billing record would claim to know why the far end went away.
 
 **The event fires on both teardown halves now.** A locally initiated teardown
 used to remove the session from the tunnel map and emit nothing, so the PPP
@@ -101,11 +197,34 @@ event that followed found no session and returned. RADIUS then sent no
 Accounting-Stop for a session-timeout, an idle-timeout, an operator clear or a
 CoA-Disconnect, and the pool and the shaper never heard either. Exactly one of
 the two paths emits, because both look the session up under `tunnelsMu` before
-they emit. Tunnel-scoped teardown still has this gap
+they emit.
+
+**One removal point queues the event, so no teardown path can be silent.**
+`removeSession` is the only place a session leaves a tunnel, and it performs
+every obligation the removal carries: it cancels the two timers, drops the
+session metadata, queues the kernel teardown when the session held kernel
+resources, fails a call still waiting on an RPC, and queues the session-down
+with the username and the cause read off the session struct it is about to
+drop. `clearSessions` runs it for every session on a tunnel that ended. The
+reactor drains both lists with `drainPendingTeardowns` while it still holds
+`tunnelsMu` and emits after it unlocks, because a subscriber runs on that
+goroutine and can call back into the reactor.
+
+The username is read at removal rather than after, because it lives only on the
+session struct the removal drops: a read taken later returns an empty string,
+which reaches RADIUS as a Stop record with no User-Name.
+
+This replaced three rounds of per-site collection. The PPP-driven teardown
+emitted and the operator session teardowns did not; the operator session
+teardowns were fixed and the operator tunnel teardown was not; the operator
+paths were all fixed and the peer-driven ones were not. Each round left the
+route observer working, which is why each round looked correct
 (`plan/journal/guard-added-to-one-half-of-a-pair.md`, 2026-09-04).
 
 <!-- source: internal/component/l2tp/events/terminate_cause.go -- TerminateCause -->
-<!-- source: internal/component/l2tp/teardown.go -- teardownSessionByID, teardownSessionOnTunnel, emitSessionDown -->
+<!-- source: internal/component/l2tp/session.go -- removeSession, clearSessions, drainPendingTeardowns -->
+<!-- source: internal/component/l2tp/session_fsm.go -- terminateCauseForCDN, handleCDN -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownTunnelByID, teardownSessionByID, teardownSessionOnTunnel, emitSessionDowns -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- fail, the LCP and echo emitters -->
 
 **Calling-Station-Id crosses three boundaries, and it used to cross none.**
