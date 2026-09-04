@@ -15,11 +15,9 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -1358,30 +1356,32 @@ bgp {
 // lives in internal/component/config/infra (spec-feature-gate-10-bgp Bucket 2).
 // The test moved verbatim to internal/component/config/infra/ssh_test.go.
 
-// TestReservedPeerNamesSyncWithRPCs verifies that reservedPeerNames in resolve.go
-// matches the subcommand keywords derived from registered RPCs.
+// TestReservedPeerNamesSyncWithRPCs holds reservedPeerNames (resolve.go) to the
+// keywords the merged command tree declares under the BGP `peer` containers.
 // This test imports plugin/all so all init() registrations have run.
 //
-// VALIDATES: Hardcoded reserved names stay in sync with registered "peer" RPCs.
-// PREVENTS: New "peer <subcommand>" RPC added without updating reservedPeerNames.
+// The two directions are two obligations, and they read two different sets.
+// A word an operator types immediately after `peer` MUST be reserved, or a peer
+// of that name stands in the keyword's slot. An entry that names no peer
+// keyword at all is stale, whether or not it can collide.
+//
+// VALIDATES: Hardcoded reserved names stay in sync with the peer command tree.
+// PREVENTS: A peer command added at a path that takes no selector, without the
+// matching reservedPeerNames entry; and an entry left behind by a command that
+// no longer exists.
 func TestReservedPeerNamesSyncWithRPCs(t *testing.T) {
-	loader, err := yang.DefaultLoader()
-	require.NoError(t, err)
-	wireToPath := yang.WireMethodToPath(loader)
+	keywords := livePeerKeywords(t)
 
-	dynamicKeywords := pluginserver.PeerSubcommandKeywords(wireToPath)
-	require.NotEmpty(t, dynamicKeywords, "YANG cmd modules should define peer commands")
-
-	// Every dynamically discovered keyword must be in the hardcoded set.
-	for keyword := range dynamicKeywords {
+	// Every keyword an operator can type where a peer name goes must be reserved.
+	for keyword := range keywords.Colliding {
 		assert.True(t, reservedPeerNames[keyword],
-			"RPC keyword %q (from registered bgp peer commands) is missing from reservedPeerNames in resolve.go", keyword)
+			"peer keyword %q is typed immediately after `peer`, so a peer of that name stands in its slot: add it to reservedPeerNames in resolve.go", keyword)
 	}
 
-	// Every hardcoded keyword should correspond to a registered RPC.
+	// Every reserved name must name a keyword some bgp peer container declares.
 	for keyword := range reservedPeerNames {
-		assert.True(t, dynamicKeywords[keyword],
-			"reservedPeerNames entry %q has no matching registered bgp peer RPC -- remove it or register the RPC", keyword)
+		assert.True(t, keywords.Declared[keyword],
+			"reservedPeerNames entry %q names no keyword any bgp peer container declares -- remove it or register the command", keyword)
 	}
 }
 
