@@ -65,9 +65,25 @@ module ze-tacacs-conf {
                     }
 
                     leaf key {
-                        type string;
+                        type string {
+                            length "1..max";
+                        }
+                        mandatory true;
                         ze:sensitive;
-                        description "Shared encryption key";
+                        description "Shared secret this server obfuscates its packets with";
+                        ze:help
+                            "The key is the shared secret RFC 8907 Section 4.5
+                             builds the MD5 pseudo-pad from, and both ends must
+                             hold the same value. The leaf is mandatory and
+                             takes no empty string, because a client with no
+                             secret has no conformant packet to send: Section
+                             10.5.2 requires a shared secret and forbids a
+                             client to set TAC_PLUS_UNENCRYPTED_FLAG. A commit
+                             that omits the key is refused, and a send with an
+                             empty one fails with 'no shared secret configured
+                             for this TACACS+ server'. The leaf is marked
+                             sensitive, so the value is stored $9$-encoded and
+                             every display path prints a placeholder.";
                     }
                 }
 

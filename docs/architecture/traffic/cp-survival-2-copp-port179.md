@@ -23,12 +23,26 @@ coexisting on one table set. The rules that keep those owners' tables visible an
 reconciled are in
 [firewall table ownership](../firewall/table-ownership-and-shutdown-flush.md).
 
-### The default chain policy is accept
+### The chain policy is always accept
 
 <!-- source: internal/plugins/copp/translate.go -- chain policy, term order -->
 
-A first apply with a `drop` policy can lock the operator out. The operator opts
-into `drop` with `over-limit-policy drop`.
+A base input chain whose policy is `drop` discards every packet that reaches the
+end of the chain. The CoPP terms name TCP to the protected ports and nothing
+else. Such a policy would take SSH, ICMP and every other service with it. The
+operator would lose the box on the first apply. The policy is therefore `accept`
+under both settings of `over-limit-policy`.
+
+`over-limit-policy` rides the rate-limit term instead, as the nftables limiter
+and its inversion flag. `accept` emits `limit rate N` and then `accept`. That
+rule matches while the token bucket has credit, so an over-limit packet falls
+through to the chain policy and is accepted. `drop` emits `limit rate over N`
+and then `drop`. That rule matches only once the bucket is empty, so an
+over-limit packet is dropped. Every under-limit packet falls through to the same
+accept policy.
+
+An established session is accepted by the first term, before the limiter is
+reached. A `drop` setting never closes a session that is already up.
 
 ### Term order is fixed by construction
 

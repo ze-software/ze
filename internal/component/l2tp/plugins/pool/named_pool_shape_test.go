@@ -66,7 +66,7 @@ func TestParseFullPoolConfigReadsNamedPoolMap(t *testing.T) {
 // TestParseFullPoolConfigReadsNamedIPv6PoolMap is the IPv6 half of the same
 // defect: the prefix-delegation pools were lost by the same assertion.
 func TestParseFullPoolConfigReadsNamedIPv6PoolMap(t *testing.T) {
-	data := `{"l2tp":{"pool":{"named-ipv6-pool":{"v6-gold":{"block":"2001:db8:aa00::/40","delegation-length":48}}}}}`
+	data := `{"l2tp":{"pool":{"named-ipv6-pool":{"v6-gold":{"block":"2001:db8:aa00::/40","delegation-length":"48"}}}}}`
 
 	result, err := parseFullPoolConfig(data)
 	require.NoError(t, err)

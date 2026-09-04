@@ -20,7 +20,11 @@
 // values and vanishes when they write one.
 package configvalue
 
-import "sort"
+import (
+	"math"
+	"sort"
+	"strconv"
+)
 
 // LeafList coerces a YANG leaf-list value into its members, in the order the
 // producer emitted them. It accepts every shape Tree.ToMap and the JSON
@@ -116,4 +120,69 @@ func ListEntries(v any) []ListEntry {
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Key < entries[j].Key })
 	return entries
+}
+
+// Bool coerces a YANG boolean leaf into its value. It accepts every shape the
+// producer and the delivery after it can present: a Go bool for an in-process
+// component, and the strings "true" and "false" for a plugin, because
+// Tree.values is a map[string]string and JSON delivery carries the leaf as the
+// string the operator wrote.
+//
+// The second return says whether a value was read. A caller that gets false
+// keeps its own default; it MUST NOT read the first return, which is the zero
+// value and is indistinguishable from a configured false.
+//
+// A plugin that asserts .(bool) on the delivered map never succeeds, so the
+// operator's setting is discarded with no message anywhere. That is the failure
+// this function ends, and it is the same one LeafList ends for a leaf-list.
+func Bool(v any) (bool, bool) {
+	switch value := v.(type) {
+	case bool:
+		return value, true
+	case string:
+		parsed, err := strconv.ParseBool(value)
+		if err != nil {
+			return false, false
+		}
+		return parsed, true
+	default:
+		return false, false
+	}
+}
+
+// Int coerces a YANG integer leaf into its value, over the same delivery shapes
+// as Bool. An in-process component sees the Go type the caller stored, a plugin
+// sees the decimal string the operator wrote, and a map that has been through
+// encoding/json holds a float64 for any number a Go producer put there.
+//
+// A float is accepted only when it is a whole number in range, because a YANG
+// integer leaf has no fractional value and rounding one would answer a question
+// the operator never asked.
+//
+// The second return says whether a value was read, and the first MUST NOT be
+// read when it is false: zero is a legal setting for many leaves, so a caller
+// cannot tell a configured zero from an absent leaf any other way.
+func Int(v any) (int64, bool) {
+	switch value := v.(type) {
+	case int:
+		return int64(value), true
+	case int64:
+		return value, true
+	case float64:
+		if value != math.Trunc(value) {
+			return 0, false
+		}
+		if value < math.MinInt64 || value > math.MaxInt64 {
+			return 0, false
+		}
+		return int64(value), true
+	case string:
+		parsed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return parsed, true
+	default:
+		return 0, false
+	}
 }

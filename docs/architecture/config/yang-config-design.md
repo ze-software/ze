@@ -609,6 +609,25 @@ A node that declares no `ze:help` declares no explanation. `?` then says
 `<path>: no explanation is declared` on the message row. The description does
 not stand in for it: a box repeating the row is the defect this split removes.
 
+##### Several modules can declare one node, and the `?` box carries them all
+
+A plugin attaches its leaves to a shared node by declaring a container of the
+same name in its own module. It does not import the module that owns the node.
+Removing the plugin then removes its leaves and nothing else, which is what
+plugin self-containment requires. `class-of-service` reaches `interface` that
+way.
+
+`mergeAugmentedEntries` unions those declarations into one virtual entry. The
+`ze:help` of every declaration is JOINED into that entry. The `?` box therefore
+tells the operator what each module contributes at the node. A module that
+declares no help cannot erase one that does.
+
+The one-line `description` can show only one text, and it is the first in
+module-name order. Nothing in the schema says which module OWNS a shared node,
+so that row can name the wrong module until one does.
+
+<!-- source: internal/component/cli/completer.go -- mergeAugmentedEntries, mergeHelpExts -->
+
 ---
 
 ## 7. File Organization

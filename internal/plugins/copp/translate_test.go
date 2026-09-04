@@ -82,6 +82,11 @@ func TestCoppTranslateNoTrusted(t *testing.T) {
 	}
 }
 
+// TestCoppTranslateDropPolicy checks that
+// over-limit-policy drop reaches only the over-limit packets. The goal is the
+// lockout: a base input chain whose policy is drop discards SSH, ICMP and every
+// service the copp table never mentions, so the policy MUST stay accept and the
+// drop MUST ride the rate-limit term as an inverted limiter.
 func TestCoppTranslateDropPolicy(t *testing.T) {
 	policy := coppPolicy{
 		Rate:           10,
@@ -94,8 +99,56 @@ func TestCoppTranslateDropPolicy(t *testing.T) {
 	table := translatePolicy(policy)
 	chain := table.Chains[0]
 
-	if chain.Policy != firewall.PolicyDrop {
-		t.Errorf("chain policy = %v, want drop", chain.Policy)
+	if chain.Policy != firewall.PolicyAccept {
+		t.Errorf("chain policy = %v, want accept: a drop policy locks the operator out", chain.Policy)
+	}
+
+	rateLimit := chain.Terms[len(chain.Terms)-1]
+	if rateLimit.Name != "rate-limit" {
+		t.Fatalf("last term = %q, want rate-limit", rateLimit.Name)
+	}
+	if len(rateLimit.Actions) != 2 {
+		t.Fatalf("rate-limit actions = %d, want 2", len(rateLimit.Actions))
+	}
+	lim, ok := rateLimit.Actions[0].(firewall.Limit)
+	if !ok {
+		t.Fatalf("rate-limit action[0] = %T, want firewall.Limit", rateLimit.Actions[0])
+	}
+	if !lim.Over {
+		t.Error("limit Over = false, want true: without the inversion the drop hits every under-limit packet")
+	}
+	if _, ok := rateLimit.Actions[1].(firewall.Drop); !ok {
+		t.Errorf("rate-limit action[1] = %T, want firewall.Drop", rateLimit.Actions[1])
+	}
+}
+
+// TestCoppTranslateAcceptPolicyDoesNotInvertTheLimiter checks the default. An
+// accept over-limit-policy counts the over-limit packets and passes them, so
+// the limiter matches while it has credit and the action pair ends in accept.
+func TestCoppTranslateAcceptPolicyDoesNotInvertTheLimiter(t *testing.T) {
+	policy := coppPolicy{
+		Rate:           10,
+		RateUnit:       "second",
+		Dimension:      firewall.RateDimensionPackets,
+		ProtectedPorts: []uint16{179},
+		OverPolicy:     "accept",
+	}
+
+	chain := translatePolicy(policy).Chains[0]
+	if chain.Policy != firewall.PolicyAccept {
+		t.Errorf("chain policy = %v, want accept", chain.Policy)
+	}
+
+	rateLimit := chain.Terms[len(chain.Terms)-1]
+	lim, ok := rateLimit.Actions[0].(firewall.Limit)
+	if !ok {
+		t.Fatalf("rate-limit action[0] = %T, want firewall.Limit", rateLimit.Actions[0])
+	}
+	if lim.Over {
+		t.Error("limit Over = true, want false: accept must not invert the limiter")
+	}
+	if _, ok := rateLimit.Actions[1].(firewall.Accept); !ok {
+		t.Errorf("rate-limit action[1] = %T, want firewall.Accept", rateLimit.Actions[1])
 	}
 }
 

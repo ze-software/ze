@@ -38,14 +38,27 @@ func translatePolicy(policy coppPolicy) firewall.Table {
 		})
 	}
 
-	limitActions := []firewall.Action{
-		firewall.Limit{
-			Rate:      policy.Rate,
-			Unit:      policy.RateUnit,
-			Dimension: policy.Dimension,
-			Burst:     policy.Burst,
-		},
-		firewall.Accept{},
+	// over-limit-policy governs the packets that EXCEED the rate, and nothing
+	// else. It is expressed on the rate-limit term rather than on the chain
+	// policy: a base input chain with policy drop discards every packet that
+	// reaches its end, so SSH, ICMP and every service this table never mentions
+	// would go with it, and the operator would lose the box.
+	//
+	// nftables spells the two cases with one limiter and its inversion flag.
+	// "limit rate N accept" matches while the token bucket has credit, so an
+	// over-limit packet falls through to the accept policy. "limit rate over N
+	// drop" matches only once the bucket is empty, so an over-limit packet is
+	// dropped and everything under the rate falls through to that same policy.
+	limit := firewall.Limit{
+		Rate:      policy.Rate,
+		Unit:      policy.RateUnit,
+		Dimension: policy.Dimension,
+		Burst:     policy.Burst,
+	}
+	overAction := firewall.Action(firewall.Accept{})
+	if policy.OverPolicy == overPolicyDrop {
+		limit.Over = true
+		overAction = firewall.Drop{}
 	}
 
 	terms = append(terms, firewall.Term{
@@ -55,13 +68,8 @@ func translatePolicy(policy coppPolicy) firewall.Table {
 			firewall.MatchDestinationPort{Ranges: portRanges(policy.ProtectedPorts)},
 			firewall.MatchConnState{States: firewall.ConnStateNew},
 		},
-		Actions: limitActions,
+		Actions: []firewall.Action{limit, overAction},
 	})
-
-	chainPolicy := firewall.PolicyAccept
-	if policy.OverPolicy == overPolicyDrop {
-		chainPolicy = firewall.PolicyDrop
-	}
 
 	return firewall.Table{
 		Name:   coppTableName,
@@ -72,7 +80,7 @@ func translatePolicy(policy coppPolicy) firewall.Table {
 			Type:     firewall.ChainFilter,
 			Hook:     firewall.HookInput,
 			Priority: 0,
-			Policy:   chainPolicy,
+			Policy:   firewall.PolicyAccept,
 			Terms:    terms,
 		}},
 	}

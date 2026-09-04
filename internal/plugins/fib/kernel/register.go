@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/health"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -39,10 +40,15 @@ func parseFIBConfig(sections []sdk.ConfigSection) (fibConfig, error) {
 		if err := json.Unmarshal([]byte(sec.Data), &tree); err != nil {
 			return cfg, fmt.Errorf("fib/kernel: invalid config JSON: %w", err)
 		}
-		if v, ok := tree["flush-on-stop"].(bool); ok {
+		// The delivered map carries every leaf as the string the operator
+		// wrote: Tree.values is a map[string]string and toMap copies it
+		// through unchanged (internal/component/config/tree.go). A .(bool) or
+		// .(float64) assertion here never succeeds, so both settings were
+		// silently discarded and the defaults stood whatever the config said.
+		if v, ok := configvalue.Bool(tree["flush-on-stop"]); ok {
 			cfg.FlushOnStop = v
 		}
-		if v, ok := tree["sweep-delay"].(float64); ok && v > 0 {
+		if v, ok := configvalue.Int(tree["sweep-delay"]); ok && v > 0 {
 			cfg.SweepDelay = time.Duration(v) * time.Second
 		}
 	}

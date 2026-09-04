@@ -2,6 +2,7 @@ package tacacs
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -151,8 +152,15 @@ func TestPacketMarshalRoundTrip(t *testing.T) {
 	assert.Equal(t, original.Body, got.Body)
 }
 
-// VALIDATES: packet marshal/unmarshal without encryption.
-// PREVENTS: encryption applied when no key provided.
+// TestPacketMarshalNoEncryption checks that a packet with no shared
+// secret never reaches the wire. The goal is the cleartext leak: with no key
+// there is no pseudo-pad, so the body would be sent verbatim under a header
+// whose TAC_PLUS_UNENCRYPTED_FLAG is clear, and a PAP User-Password rides in
+// that body.
+//
+// RFC requirement: RFC8907-10-2 negative -- a client with no shared secret
+// sends nothing, because RFC 8907 Section 10.5.2 requires a shared secret and
+// forbids a client to set TAC_PLUS_UNENCRYPTED_FLAG (packet.go MarshalInto).
 func TestPacketMarshalNoEncryption(t *testing.T) {
 	body := []byte{0x01, 0x02, 0x03}
 	pkt := &Packet{
@@ -165,15 +173,17 @@ func TestPacketMarshalNoEncryption(t *testing.T) {
 		Body: body,
 	}
 
-	wire, err := pkt.Marshal(nil)
-	require.NoError(t, err)
+	_, err := pkt.Marshal(nil)
+	require.ErrorIs(t, err, ErrNoSharedSecret)
 
-	// Body should be in cleartext in wire bytes.
-	assert.Equal(t, body, wire[hdrLen:])
+	_, err = pkt.Marshal([]byte{})
+	require.ErrorIs(t, err, ErrNoSharedSecret, "an empty key is the same absence as a nil one")
 
-	got, err := UnmarshalPacket(wire, nil)
-	require.NoError(t, err)
-	assert.Equal(t, body, got.Body)
+	buf := make([]byte, hdrLen+len(body))
+	n, err := pkt.MarshalInto(buf, nil)
+	require.ErrorIs(t, err, ErrNoSharedSecret)
+	assert.Zero(t, n, "a refused marshal writes nothing")
+	assert.Equal(t, make([]byte, hdrLen+len(body)), buf, "a refused marshal leaves the buffer untouched")
 }
 
 // VALIDATES: truncated packet rejected.
@@ -203,9 +213,12 @@ func TestUnmarshalPacketUnencryptedFlag(t *testing.T) {
 		Body: body,
 	}
 
-	// Marshal without key (body stays cleartext).
-	wire, err := pkt.Marshal(nil)
-	require.NoError(t, err)
+	// Build the wire bytes directly. MarshalInto refuses a keyless send, and
+	// this fixture is a packet a non-conformant SERVER sent us, not one Ze
+	// would ever produce.
+	wire := append(pkt.Header.MarshalBinary(), body...)
+	binary.BigEndian.PutUint32(wire[8:12], uint32(len(body)))
+	require.Equal(t, body, wire[hdrLen:], "the fixture body is cleartext, as the flag declares")
 
 	// Unmarshal WITH key but unencrypted flag set: should NOT decrypt.
 	got, err := UnmarshalPacket(wire, []byte("key"))

@@ -320,7 +320,7 @@ func TestPrefixHandlerDuplicateAllocation(t *testing.T) {
 }
 
 func TestParseIPv6PDPoolConfig(t *testing.T) {
-	data := `{"l2tp":{"pool":{"ipv6-pd":{"block":"2001:db8::/32","delegation-length":56}}}}`
+	data := `{"l2tp":{"pool":{"ipv6-pd":{"block":"2001:db8::/32","delegation-length":"56"}}}}`
 
 	result, err := parseFullPoolConfig(data)
 	if err != nil {
@@ -341,7 +341,7 @@ func TestParseIPv6PDPoolConfig(t *testing.T) {
 func TestParseNamedIPv6PoolConfig(t *testing.T) {
 	// A map of pool name to entry, which is what Tree.ToMap emits for a YANG
 	// list. The array-of-entries form this used to carry has no producer.
-	data := `{"l2tp":{"pool":{"named-ipv6-pool":{"v6-gold":{"block":"2001:db8:aa00::/40","delegation-length":48}}}}}`
+	data := `{"l2tp":{"pool":{"named-ipv6-pool":{"v6-gold":{"block":"2001:db8:aa00::/40","delegation-length":"48"}}}}}`
 
 	result, err := parseFullPoolConfig(data)
 	if err != nil {

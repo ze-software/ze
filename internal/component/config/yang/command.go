@@ -811,12 +811,18 @@ func getTaskSupportExtension(entry *gyang.Entry) string {
 // three.
 func GetHelpExtension(exts []*gyang.Statement) string {
 	for _, ext := range exts {
-		if ext.Keyword == "ze:help" || strings.HasSuffix(ext.Keyword, ":help") {
+		if ext.Keyword == HelpExtensionKeyword || strings.HasSuffix(ext.Keyword, ":help") {
 			return ext.Argument
 		}
 	}
 	return ""
 }
+
+// HelpExtensionKeyword is the keyword a ze:help statement carries once the
+// loader has resolved the ze-extensions prefix. A caller that builds a help
+// statement rather than reading one writes this keyword, so the builder and
+// GetHelpExtension cannot disagree about the spelling.
+const HelpExtensionKeyword = "ze:help"
 
 // UIResourceEntry holds the MCP Apps ui-resource metadata from YANG extensions.
 type UIResourceEntry struct {

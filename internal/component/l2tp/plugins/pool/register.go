@@ -730,8 +730,13 @@ func parseIPv6PDPool(block map[string]any) (*ipv6PrefixPool, error) {
 		return nil, fmt.Errorf("%s: ipv6-pd block must be native IPv6", Name)
 	}
 
+	// The delivered map carries the leaf as the string the operator wrote, so
+	// the .(float64) assertion this replaces never succeeded: every subscriber
+	// was delegated a /56 whatever the config said, and named-ipv6-pool marks
+	// the leaf mandatory, which forced the operator to supply a value the code
+	// then discarded.
 	delegLen := 56
-	if v, ok := block["delegation-length"].(float64); ok {
+	if v, ok := configvalue.Int(block["delegation-length"]); ok {
 		delegLen = int(v)
 	} else {
 		logger().Warn("l2tp-pool: ipv6-pd delegation-length not set, defaulting to /56")

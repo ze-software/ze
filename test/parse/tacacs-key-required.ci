@@ -1,0 +1,26 @@
+# RFC 8907 Section 10.5.2: "There MUST always be a shared secret set on the
+# server for the client requesting the connection", and "TACACS+ clients MUST
+# NOT set TAC_PLUS_UNENCRYPTED_FLAG". A client with no key therefore has no
+# conformant packet to send, so a server declared without one refuses the load.
+#
+# VALIDATES: a tacacs server declared with no key stops the daemon starting.
+# PREVENTS: the daemon running with a server whose every packet body, the PAP
+#           User-Password included, would go out in cleartext under a header
+#           whose unencrypted flag is clear.
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	authentication {
+		tacacs {
+			server 127.0.0.1 {
+				port 49
+			}
+			timeout 2
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=1
+expect=stderr:pattern=no shared secret configured

@@ -28,7 +28,8 @@ const (
 
 	// FlagUnencrypted (TAC_PLUS_UNENCRYPTED_FLAG, RFC 8907 §4.5): when set,
 	// the body is NOT obfuscated with the MD5 pseudo-pad. Ze never emits
-	// this flag. On receive, a set flag disables the XOR step.
+	// this flag, and MarshalInto refuses a send with no key rather than
+	// reach for it. On receive, a set flag disables the XOR step.
 	FlagUnencrypted = 0x01
 	// FlagSingleConnect (TAC_PLUS_SINGLE_CONNECT_FLAG, RFC 8907 §4.5): the
 	// client sets this on the first packet of a TCP connection to signal it
@@ -97,6 +98,13 @@ var (
 	ErrBadSecret   = errors.New("bad secret: body length mismatch after decryption")
 	ErrBodyTooBig  = errors.New("body exceeds maximum length")
 	ErrSeqOverflow = errors.New("sequence number overflow")
+	// ErrNoSharedSecret refuses a send with no shared secret. RFC 8907
+	// Section 10.5.2: "There MUST always be a shared secret set on the
+	// server for the client requesting the connection." The only wire form
+	// for an unobfuscated body is TAC_PLUS_UNENCRYPTED_FLAG, and the same
+	// section says "TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG",
+	// so a client with no key has no conformant packet to send.
+	ErrNoSharedSecret = errors.New("no shared secret configured for this TACACS+ server")
 )
 
 // Encrypt obfuscates or de-obfuscates the packet body using the MD5 pseudo-pad.
@@ -162,6 +170,18 @@ type Packet struct {
 // implementation allocate now supply a pool buffer, eliminating the
 // runtime `make([]byte, N)` on every send path.
 func (p *Packet) MarshalInto(buf, key []byte) (int, error) {
+	// RFC 8907 Section 4.5: "The flag field MUST be configured with
+	// TAC_PLUS_UNENCRYPTED_FLAG set to 0 so that the packet body is
+	// obfuscated". With no key there is no pseudo-pad, so the body would go
+	// out in cleartext under a header that claims it is obfuscated. The
+	// honest alternative, TAC_PLUS_UNENCRYPTED_FLAG, is closed to a client:
+	// Section 10.5.2 says "TACACS+ clients MUST NOT set
+	// TAC_PLUS_UNENCRYPTED_FLAG". Refusing is therefore the only conformant
+	// outcome, and it must happen here rather than at the config layer alone,
+	// because this is the last function before the bytes reach the socket.
+	if len(key) == 0 {
+		return 0, ErrNoSharedSecret
+	}
 	if len(p.Body) > maxBodyLen {
 		return 0, ErrBodyTooBig
 	}

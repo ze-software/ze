@@ -1157,6 +1157,15 @@ func (c *Completer) findModuleEntry(name string) *gyang.Entry {
 // taken from the first entry (YANG augment semantics keep the original
 // container's Kind/Node/etc.). Returns nil for an empty list; returns the
 // single input unchanged when len==1 to avoid wrapping real entries.
+//
+// The one exception to "first entry wins" is the operator-facing prose. Ze
+// lets several modules declare the same node so that a plugin can attach its
+// leaves without importing the module that owns the node, and every one of
+// those declarations carries its own ze:help. Taking the first left the
+// explanations of all the others unreachable, and the winner was decided by
+// nothing more than the alphabetical order of the module names. The merged
+// entry therefore carries every declaration's help, joined, so the ? box
+// tells the operator what each module contributes here.
 func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
 	if len(entries) == 0 {
 		return nil
@@ -1170,15 +1179,76 @@ func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
 			groups[name] = append(groups[name], child)
 		}
 	}
+	help := mergeHelpExts(entries)
 	if len(groups) == 0 {
-		return entries[0]
+		if help == nil {
+			return entries[0]
+		}
+		merged := *entries[0]
+		merged.Exts = help
+		return &merged
 	}
 	merged := *entries[0]
+	if help != nil {
+		merged.Exts = help
+	}
 	merged.Dir = make(map[string]*gyang.Entry, len(groups))
 	for name, children := range groups {
 		merged.Dir[name] = mergeAugmentedEntries(children)
 	}
 	return &merged
+}
+
+// mergeHelpExts answers the extension list a merged entry carries when more
+// than one declaration explains the node, and nil when the first entry's own
+// list already says everything there is to say.
+//
+// The joined text goes into a NEW ze:help statement. The statements the loader
+// parsed are shared by every reader of the schema tree, so writing to one would
+// change what an unrelated caller sees.
+func mergeHelpExts(entries []*gyang.Entry) []*gyang.Statement {
+	var texts []string
+	for _, e := range entries {
+		text := yang.GetHelpExtension(e.Exts)
+		if text == "" {
+			continue
+		}
+		if slices.Contains(texts, text) {
+			continue
+		}
+		texts = append(texts, text)
+	}
+	if len(texts) == 0 {
+		return nil
+	}
+	// One text that the first entry already carries needs no new statement.
+	// One text the first entry does NOT carry does: it belongs to a later
+	// declaration, and the first entry is silent, so returning nil here would
+	// leave the node with no explanation at all.
+	if len(texts) == 1 && yang.GetHelpExtension(entries[0].Exts) == texts[0] {
+		return nil
+	}
+	var tb textbuf.Buffer
+	for i, text := range texts {
+		if i > 0 {
+			tb.Str("\n\n")
+		}
+		tb.Str(text)
+	}
+	joined := &gyang.Statement{
+		Keyword:     yang.HelpExtensionKeyword,
+		HasArgument: true,
+		Argument:    tb.String(),
+	}
+	out := make([]*gyang.Statement, 0, len(entries[0].Exts)+1)
+	out = append(out, joined)
+	for _, ext := range entries[0].Exts {
+		if yang.GetHelpExtension([]*gyang.Statement{ext}) != "" {
+			continue
+		}
+		out = append(out, ext)
+	}
+	return out
 }
 
 func effectiveChildren(entry *gyang.Entry) map[string]*gyang.Entry {

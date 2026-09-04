@@ -88,9 +88,14 @@ module ze-copp-conf {
                     }
                 }
                 default "accept";
-                description
-                    "Action for packets exceeding the rate limit.
-                     Default is accept to avoid lock-out risk.";
+                description "What Ze does with the packets that exceed the rate limit.";
+                ze:help "accept, the default, counts the over-limit packets and lets them through. The
+                         limit then reports load and stops nothing. drop discards a new TCP connection
+                         to a protected port once the rate is exceeded. Either setting reaches the
+                         over-limit packets alone. The input chain keeps an accept policy, so SSH, ICMP
+                         and every service this table never names stay reachable. The first term accepts
+                         an established session before the limit is read, so drop never closes a session
+                         that is already up.";
             }
         }
     }

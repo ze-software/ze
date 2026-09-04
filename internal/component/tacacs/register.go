@@ -7,6 +7,8 @@
 package tacacs
 
 import (
+	"fmt"
+
 	"github.com/ze-software/ze/internal/component/aaa"
 )
 
@@ -29,6 +31,23 @@ func (tacacsBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
 	cfg := ExtractConfig(params.ConfigTree)
 	if !cfg.HasServers() {
 		return aaa.Contribution{}, nil
+	}
+
+	// RFC 8907 Section 10.5.2: "There MUST always be a shared secret set on
+	// the server for the client requesting the connection", and "TACACS+
+	// clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG". A server with no key
+	// therefore has no packet Ze can conformantly send it, and MarshalInto
+	// refuses one. Refusing here as well means the operator learns at load,
+	// with the address named, rather than at the first login attempt.
+	//
+	// The YANG `mandatory true` on the leaf reports the same absence, but
+	// SectionValidationError.Blocking grades a missing mandatory field a
+	// warning on purpose (validate_sections.go), so the schema alone lets the
+	// daemon start.
+	for _, srv := range cfg.Servers {
+		if len(srv.Key) == 0 {
+			return aaa.Contribution{}, fmt.Errorf("tacacs server %s: %w", srv.Address, ErrNoSharedSecret)
+		}
 	}
 
 	client := NewTacacsClient(TacacsClientConfig{

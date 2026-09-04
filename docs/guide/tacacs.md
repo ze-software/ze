@@ -41,7 +41,7 @@ system {
 |------|------|---------|-------|
 | `tacacs.server <ip>` | list, ordered-by-user | - | Tried in declaration order on connection failure |
 | `tacacs.server <ip>.port` | uint16 | 49 | TCP |
-| `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret, stored as `$9$` ciphertext |
+| `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret, stored as `$9$` ciphertext. Ze refuses to start with a server that has none |
 | `tacacs.timeout` | uint16 (1-300) | 5 | Per-server connection timeout in seconds |
 | `tacacs.source-address` | ip-address | none | Local source IP for outbound TACACS+ TCP |
 | `tacacs.authorization` | boolean | false | Enable per-command TACACS+ authorization |
@@ -50,6 +50,19 @@ system {
 | `tacacs-profile <N>.profile` | leaf-list | required | Maps priv-lvl `N` (0-15) to one or more local authz profiles |
 
 <!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
+
+The key is not optional. RFC 8907 Section 4.5 builds the obfuscation pad from
+the shared secret. Section 10.5.2 says "TACACS+ clients MUST NOT set
+TAC_PLUS_UNENCRYPTED_FLAG", which is the only honest wire form for an
+unobfuscated body. A client with no secret therefore has no conformant packet to
+send.
+
+Ze refuses a server declared without a key at load, and names the address. The
+packet writer refuses one too. No path reaches the socket with a cleartext body
+under a header that claims otherwise.
+
+<!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build -->
+<!-- source: internal/component/tacacs/packet.go -- MarshalInto, ErrNoSharedSecret -->
 
 ## Authentication flow
 
