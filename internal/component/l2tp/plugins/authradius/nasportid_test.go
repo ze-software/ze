@@ -90,7 +90,7 @@ func TestValidateNASPortIDFormatRejects(t *testing.T) {
 func TestAccessRequestCarriesNASPortID(t *testing.T) {
 	req := ppp.EventAuthRequest{TunnelID: 1027, SessionID: 42, Username: "alice", Method: ppp.AuthMethodPAP}
 
-	attrs, ok := buildAccessRequestAttrs(req, "lns1", nil, "{nas-id}:{tunnel-id}.{session-id}")
+	attrs, ok := buildAccessRequestAttrs(req, "lns1", nil, attributePolicy{nasPortIDFormat: "{nas-id}:{tunnel-id}.{session-id}"})
 	if !ok {
 		t.Fatal("a PAP request MUST build an Access-Request")
 	}
@@ -108,7 +108,7 @@ func TestAccessRequestCarriesNASPortID(t *testing.T) {
 func TestAccessRequestOmitsNASPortIDWhenUnset(t *testing.T) {
 	req := ppp.EventAuthRequest{TunnelID: 1027, SessionID: 42, Username: "alice", Method: ppp.AuthMethodPAP}
 
-	attrs, ok := buildAccessRequestAttrs(req, "lns1", nil, "")
+	attrs, ok := buildAccessRequestAttrs(req, "lns1", nil, attributePolicy{})
 	if !ok {
 		t.Fatal("a PAP request MUST build an Access-Request")
 	}
@@ -140,7 +140,7 @@ func TestNASPortIDSameInAuthAndAcct(t *testing.T) {
 	const format = "{nas-id}:{tunnel-id}.{session-id}"
 
 	req := ppp.EventAuthRequest{TunnelID: 7, SessionID: 9, Username: "bob", Method: ppp.AuthMethodPAP}
-	authAttrs, ok := buildAccessRequestAttrs(req, "lns1", nil, format)
+	authAttrs, ok := buildAccessRequestAttrs(req, "lns1", nil, attributePolicy{nasPortIDFormat: format})
 	if !ok {
 		t.Fatal("a PAP request MUST build an Access-Request")
 	}

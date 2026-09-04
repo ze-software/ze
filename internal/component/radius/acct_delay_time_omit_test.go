@@ -1,8 +1,11 @@
 package radius
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
@@ -112,4 +115,98 @@ func wireAttrValue(t *testing.T, packet []byte, attrType uint8) ([]byte, bool) {
 		off += length
 	}
 	return nil, false
+}
+
+// RFC requirement: RFC2866-3-3 positive -- an Accounting-Request whose author held
+// Acct-Delay-Time back is retransmitted byte for byte under its ORIGINAL Identifier.
+// RFC 2866 Section 3 carries RFC 2865's rule: "For retransmissions where the contents
+// are identical, the Identifier MUST remain unchanged." Section 4.1 makes the other
+// half conditional: "if Acct-Delay-Time is included in the attributes of an
+// Accounting-Request then the Acct-Delay-Time value will be updated when the packet is
+// retransmitted ... requiring a new Identifier and Request Authenticator." An excluded
+// Acct-Delay-Time leaves nothing to update, so the contents are identical and the
+// Identifier MUST stay.
+//
+// This case became reachable on the accounting path when Packet.OmitAcctDelayTime
+// landed. TestRFC2866AccountingRetransmitTakesANewIdentifier proves the other half,
+// where the delay moves.
+func TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier(t *testing.T) {
+	secret := []byte("acct-secret")
+
+	var mu sync.Mutex
+	var datagrams [][]byte
+
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		buf := make([]byte, MaxPacketLen)
+		for {
+			n, from, readErr := conn.ReadFromUDP(buf)
+			if readErr != nil {
+				return
+			}
+			seen := make([]byte, n)
+			copy(seen, buf[:n])
+			mu.Lock()
+			datagrams = append(datagrams, seen)
+			count := len(datagrams)
+			mu.Unlock()
+			if count == 1 {
+				continue // drop the first datagram, so the client retransmits
+			}
+			var reqAuth [AuthenticatorLen]byte
+			copy(reqAuth[:], seen[4:4+AuthenticatorLen])
+			resp := make([]byte, HeaderLen)
+			resp[0] = CodeAccountingResp
+			resp[1] = seen[1]
+			binary.BigEndian.PutUint16(resp[2:4], HeaderLen)
+			auth := ResponseAuthenticator(CodeAccountingResp, seen[1], HeaderLen, reqAuth, nil, secret)
+			copy(resp[4:4+AuthenticatorLen], auth[:])
+			conn.WriteToUDP(resp, from) //nolint:errcheck // test mock best-effort
+		}
+	}()
+	t.Cleanup(func() {
+		closeSilent(conn)
+		<-done
+	})
+
+	client, err := NewClient(ClientConfig{Timeout: 150 * time.Millisecond, Retries: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeSilent(client)
+
+	pkt := &Packet{
+		Code:       CodeAccountingReq,
+		Identifier: client.NextID(),
+		Attrs: []Attr{
+			{Type: AttrAcctStatusType, Value: AttrUint32(AcctStatusStart)},
+			{Type: AttrAcctSessionID, Value: AttrString("1-2-1")},
+			{Type: AttrNASIdentifier, Value: AttrString("lns1")},
+		},
+		OmitAcctDelayTime: true,
+	}
+	if _, err = client.Exchange(context.Background(), pkt, secret, conn.LocalAddr().String()); err != nil {
+		t.Fatal(err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(datagrams) < 2 {
+		t.Fatalf("the client sent %d datagram(s); the test proves nothing without a retransmission", len(datagrams))
+	}
+	first, second := datagrams[0], datagrams[1]
+	if first[1] != second[1] {
+		t.Errorf("the retransmission moved the Identifier from %d to %d, and its contents did not change", first[1], second[1])
+	}
+	if !bytes.Equal(first, second) {
+		t.Errorf("the retransmission changed the datagram:\nfirst  %x\nsecond %x", first, second)
+	}
+	if wireCarriesAttr(t, second, AttrAcctDelayTime) {
+		t.Error("the retransmission carries Acct-Delay-Time, which the record held back")
+	}
 }

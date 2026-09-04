@@ -142,7 +142,7 @@ func (e attributeExclusions) filter(attrs []radius.Attr, kind packetKind) []radi
 func parseAttributeExclusions(radiusBlock map[string]any) (attributeExclusions, error) {
 	rawAttributes, present := radiusBlock["attributes"]
 	if !present || rawAttributes == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil // a nil map is the answer: this deployment holds nothing back
 	}
 	// A node the schema declares as a container arrives as a map. Anything else
 	// is a delivery Ze does not understand, and it is an error rather than an
@@ -154,7 +154,7 @@ func parseAttributeExclusions(radiusBlock map[string]any) (attributeExclusions, 
 	}
 	rawExclude, present := attributes["exclude"]
 	if !present || rawExclude == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil // a nil map is the answer: this deployment holds nothing back
 	}
 	excluded, ok := rawExclude.(map[string]any)
 	if !ok {
@@ -177,7 +177,7 @@ func parseAttributeExclusions(radiusBlock map[string]any) (attributeExclusions, 
 	// An empty container is the deployment that named nothing, and it answers
 	// the same nil map an absent container does.
 	if len(exclusions) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // a nil map is the answer: this deployment holds nothing back
 	}
 	return exclusions, nil
 }

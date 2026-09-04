@@ -172,10 +172,12 @@ func TestRFC2866AccountingRequestAuthRejectsTampering(t *testing.T) {
 // and Request Authenticator." RFC 2865 Section 2.5 states the same rule from the other side:
 // a new Identifier is required exactly when attributes change.
 //
-// The unchanged-attributes half of that rule is proven where it is still reachable, on the
-// Access-Request path, by TestAccessRequestRetransmitIsByteIdentical. Ze stamps
-// Acct-Delay-Time on every Accounting-Request it sends, so an accounting retransmission
-// whose attributes do not change is a packet ze no longer produces.
+// The unchanged-attributes half of that rule is proven on the Access-Request path by
+// TestAccessRequestRetransmitIsByteIdentical, and on the accounting path by
+// TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier. Ze stamps
+// Acct-Delay-Time on an Accounting-Request unless the operator held the attribute back
+// with `l2tp auth radius attributes exclude acct-delay-time`. That configuration sets
+// Packet.OmitAcctDelayTime, and the attributes then stay the same between attempts.
 func TestRFC2866AccountingRetransmitTakesANewIdentifier(t *testing.T) {
 	secret := []byte("acct-secret")
 	addr, ids := startRecordingAcctServer(t, secret, true)

@@ -119,7 +119,7 @@
       "claim-sha": "007bc18e48854af5",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
-      "producer-sha": "4ee8347e2766fe79",
+      "producer-sha": "e54abd188c1310cc",
       "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

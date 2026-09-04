@@ -94,3 +94,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | 5db0ba0d | spec: close spec-radius-admin-interop-freeradius | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | plan: the CHAP/EAP admin deferral now overstates what is left | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | plan: the CHAP/EAP admin deferral now overstates what is left | discovery-index freshness | ai/PACKAGE-MAP.md holds other sessions' regenerated rows; this commit adds no package | open |
+| 2026-09-04 | 5db0ba0d | fix(radius): the callers and claims the exclusion change reached | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | fix(radius): the callers and claims the exclusion change reached | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | 5db0ba0d | spec: close spec-radius-attribute-exclusion | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

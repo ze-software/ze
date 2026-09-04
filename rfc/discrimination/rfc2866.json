@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc2866",
+  "records": [
+    {
+      "rid": "RFC2866-3-3",
+      "polarity": "positive",
+      "unit": "internal/component/radius/acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier",
+      "unit-sha": "aca4bc1c1288d4bb",
+      "claim-sha": "9c5c843baead279e",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::Exchange",
+      "producer-sha": "c7a365b14dccaa30",
+      "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2866-3-3",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier",
+      "unit-sha": "2779fd9bd69422d3",
+      "claim-sha": "3f194cf7405fe8ce",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::setAcctDelayTime",
+      "producer-sha": "c26bec897097516a",
+      "break": "body of setAcctDelayTime replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

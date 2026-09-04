@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | spec-radius-acct-session-attributes, closed 2026-09-04 |
-| Phase | 6/6 (schema, typed set, wiring, filter and the two `.ci` in `6bd1653b41`; the docs in `a32367b75`) |
+| Phase | closing (schema, typed set, wiring, filter and the two `.ci` in `6bd1653b41`; `Packet.OmitAcctDelayTime` in `0488b5dfac`; the docs in `a32367b75`; closure repairs in this commit) |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-04 |
@@ -269,18 +269,23 @@ reaches a builder fails it.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestNoExclusionsLeavesThePacketUnchanged` | `internal/component/l2tp/plugins/authradius/acct_test.go` | AC-1 | |
-| `TestExcludeWithNoPacketTypeAppliesEverywhere` | same | AC-2 | |
-| `TestExcludePerPacketType` | same | AC-3 | |
-| `TestExcludeBeatsAKnownValue` | same | AC-4 | |
-| `TestExcludeOnAccessRequestOnly` | `.../handler_test.go` | AC-5 | |
-| `TestExcludePreservesTheRemainingOrder` | `.../acct_test.go` | AC-7 | |
-| `TestRequiredAttributesAreNotInTheEnum` | `.../config_test.go` | AC-8 | |
-| `TestExcludeRefusesUnknownWords` | same | AC-9 | |
-| `TestFullyExcludedRecordIsStillConformant` | `.../acct_test.go` | AC-10 | |
-| `TestExcludedAttributeIsAbsentFromTheWire` | same | Wiring | |
-| `TestExcludeAcctDelayTimePerPacketType` | `.../exclude_test.go` | AC-3 for the attribute the client stamps | |
-| `TestAccountingRequestOmitsAcctDelayTimeOnRequest` | `internal/component/radius/acct_delay_time_omit_test.go` | AC-2 for Acct-Delay-Time, read off the wire a UDP socket received | |
+| `TestNoExclusionsLeavesThePacketUnchanged` | `internal/component/l2tp/plugins/authradius/acct_test.go` | AC-1 | green |
+| `TestExcludeWithNoPacketTypeAppliesEverywhere` | same | AC-2 | green |
+| `TestExcludePerPacketType` | same | AC-3 | green |
+| `TestExcludeBeatsAKnownValue` | same | AC-4 | green |
+| `TestExcludeOnAccessRequestOnly` | `.../handler_test.go` | AC-5 | green |
+| `TestTwoExclusionsApplyIndependently` | same | AC-6 | green; the row was missing from this table until closure |
+| `TestExcludePreservesTheRemainingOrder` | `.../acct_test.go` | AC-7 | green |
+| `TestRequiredAttributesAreNotInTheEnum` | `.../config_test.go` | AC-8 | green |
+| `TestExcludeRefusesUnknownWords` | same | AC-9 | green, four subtests |
+| `TestFullyExcludedRecordIsStillConformant` | `.../acct_test.go` | AC-10 | green |
+| `TestExcludedAttributeIsAbsentFromTheWire` | same | Wiring | green |
+| `TestExcludeAcctDelayTimePerPacketType` | `.../exclude_test.go` | AC-3 for the attribute the client stamps | green |
+| `TestAccountingRequestOmitsAcctDelayTimeOnRequest` | `internal/component/radius/acct_delay_time_omit_test.go` | AC-2 for Acct-Delay-Time, read off the wire a UDP socket received | green, two subtests |
+| `TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier` | same file | RFC 2866 Section 3: the identical-contents retransmit branch this spec MADE reachable. Added at closure | green; discrimination record in `rfc/discrimination/rfc2866.json` |
+
+Every unit test above runs under `go test -race`, which was green over both
+packages on 2026-09-04.
 
 Every unit test above lives in
 `internal/component/l2tp/plugins/authradius/exclude_test.go` rather than in the
@@ -358,12 +363,12 @@ work in this checkout. The two tests above own the config surface, and
 ### Deliverables Checklist
 | Deliverable | Verification method | Status |
 |-------------|--------------------|--------|
-| The schema refuses a required attribute | `TestRequiredAttributesAreNotInTheEnum` | |
-| Per-packet-type exclusion | `TestExcludePerPacketType` | |
-| Wiring from config to wire | `TestExcludedAttributeIsAbsentFromTheWire` | |
-| A fully excluded record is conformant | `TestFullyExcludedRecordIsStillConformant` | |
-| Functional proof | `test/l2tp/radius-acct-exclude.ci` | |
-| Guide updated | the `docs/guide/l2tp.md` diff | |
+| The schema refuses a required attribute | `TestRequiredAttributesAreNotInTheEnum` | done -- `go test -race ./internal/component/l2tp/plugins/authradius/` green 2026-09-04 |
+| Per-packet-type exclusion | `TestExcludePerPacketType` | done -- same run |
+| Wiring from config to wire | `TestExcludedAttributeIsAbsentFromTheWire` | done -- same run; it encodes the packet and walks the octets |
+| A fully excluded record is conformant | `TestFullyExcludedRecordIsStillConformant` | done -- same run |
+| Functional proof | `test/l2tp/radius-acct-exclude.ci` | done -- `./le functional l2tp` 23/23 PASS 2026-09-04, both exclude scenarios among them |
+| Guide updated | the `docs/guide/l2tp.md` diff | done -- `a32367b75`, +77 lines, the exclusion section at line 328 onward |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -428,3 +433,257 @@ wrong quietly.
 
 ### Closure
 - [ ] Citations repointed
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `attributes exclude` under `l2tp auth radius`, six presence containers, each
+  with a `packet-type` leaf-list enumerating only the record types that
+  attribute can reach
+  (`internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang`).
+- The typed set and its parser: `attributeExclusions`, `packetKind`,
+  `packetKindSet`, `parseAttributeExclusions`, `parseExcludedPacketKinds`,
+  `filter` (`internal/component/l2tp/plugins/authradius/exclude.go`).
+- One filter point per builder: `(*radiusAcct).buildAcctPacket` and
+  `buildAccessRequestAttrs`, each calling `attributeExclusions.filter` on the
+  finished list.
+- The reload path: `activateRadiusConfig` calls `setExclusions` on both the auth
+  and the accounting instance (`register.go`).
+- `radius.Packet.OmitAcctDelayTime` and the `stampsAcctDelayTime` branch of
+  `(*radius.Client).Exchange`, which is how the one attribute the builder never
+  appends is held back (`internal/component/radius/packet.go`, `client.go`).
+- Two `.ci`: `test/l2tp/radius-acct-exclude.ci` and
+  `test/l2tp/radius-acct-exclude-invalid.ci`.
+
+### Bugs Found/Fixed
+- **The committed tree could not compile its own test binary.** `6bd1653b41`
+  changed the signature of `buildAccessRequestAttrs` from a `string` to an
+  `attributePolicy` and did not carry `nasportid_test.go`, whose three call sites
+  still passed a string. The fix already existed in the working tree, which is
+  why the commit message could read "go test over the package is green": that
+  sentence was measured against a tree the commit did not produce. The file
+  lands in commit A. Journal:
+  `plan/journal/tree-state-claim-published-unverified.md`.
+- **Three claims elsewhere went stale when `OmitAcctDelayTime` landed**, and the
+  diff could not show any of them, because each is a sentence in another file
+  about `(*Client).Exchange`:
+  - `rfc/short/rfc2866.md`, Enrolment reason: "ze stamps Acct-Delay-Time on
+    every Accounting-Request". It does so by default only, and the same cell
+    said the identical-contents half of RFC2866-3-3 is "proven where ze still
+    produces it, on the Access-Request path", which stopped being the whole
+    truth the moment the accounting path could produce it too.
+  - `rfc/short/rfc2866.md`, Support coverage: the four attributes are now
+    per-record-type suppressible.
+  - The tag prose of `TestRFC2866AccountingRetransmitTakesANewIdentifier`
+    (`internal/component/radius/rfc2866_accounting_test.go`): "an accounting
+    retransmission whose attributes do not change is a packet ze no longer
+    produces".
+  All three are repaired, and `./le rfc index-update` re-rendered
+  `rfc/enrolled.txt`, `rfc/requirements/rfc2866.md` and
+  `docs/features/rfc-status.md`.
+- **An RFC 2866 MUST became reachable and was left unproven.** RFC 2866 Section
+  3 carries RFC 2865's rule that "For retransmissions where the contents are
+  identical, the Identifier MUST remain unchanged". Excluding Acct-Delay-Time
+  makes ze produce exactly that packet on the accounting path, where nothing
+  asserted it. `TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`
+  now does, with a discrimination record in `rfc/discrimination/rfc2866.json`.
+- **A discrimination record staled on our producer.** `rfc/discrimination/
+  rfc2865.json` held a revert record for RFC2865-4.1-1 negative whose break was
+  applied to `buildAcctPacket`, and `6bd1653b41` rewrote that function. Its
+  producer fingerprint moved, so `./le rfc check` reported the red as never
+  re-observed. Re-recorded with `./le rfc discriminate-record`.
+
+### Documentation Updates
+- `docs/guide/l2tp.md` and `docs/architecture/l2tp/bng-1-radius-attributes.md`
+  were written in `a32367b75`. The architecture page carries
+  `<!-- source: internal/component/l2tp/plugins/authradius/exclude.go -- attributeExclusions, filter, parseAttributeExclusions -->`
+  and a second anchor on the YANG module.
+- `rfc/short/rfc2866.md` repaired at closure, then `./le rfc index-update`.
+- `./le doc check verify` is RED on this checkout and none of its findings names
+  a RADIUS or L2TP config surface. Every one it reports is website command-catalog
+  and llms.txt drift for BGP, interface and resolve commands. This spec adds no
+  CLI command, so it is outside that population.
+
+### Deviations from Plan
+- The wire-level functional scenario stayed undelivered, as the spec's own TDD
+  section states: it needs `checkRecordAttributes` to assert an ABSENT attribute,
+  and that function is another session's uncommitted work.
+  `TestExcludedAttributeIsAbsentFromTheWire` owns the octets in process instead.
+- The TDD table named nine files it does not use. Every unit test lives in
+  `exclude_test.go`, which the spec says one paragraph below the table.
+- The TDD table had no row for AC-6. The test
+  (`TestTwoExclusionsApplyIndependently`) existed from the first commit; only the
+  row was missing. Added at closure.
+- The Documentation Update Checklist called `docs/config-reference.md`
+  "regenerated, not hand-edited". It is hand-authored: it carries no GENERATED
+  header and its l2tp section is prose about `nas-port-id-format`. See the
+  Documentation Verified table for why no edit is owed there.
+- One test was added at closure that the spec never planned:
+  `TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`. The spec did
+  not plan it because A-4 broke during implementation, and the branch it proves
+  did not exist when the TDD plan was written.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4: `buildAcctPacket` appends every excludable attribute, so one filter point per builder reaches all six | `(*radius.Client).Exchange` writes Acct-Delay-Time, because RFC 2866 Section 5.2 counts what only the client knows | writing the filter and finding no attribute 41 in the list | `radius.Packet.OmitAcctDelayTime` carries the decision to the client. Recorded in Blast Radius during implementation |
+| approach | `6bd1653b41` changed a function signature and committed six of the seven files that name it | `nasportid_test.go` held three call sites and stayed uncommitted, so the committed tree's test binary does not build | closure ran `git diff` over the package before trusting the tree | The file lands in commit A. `ai/rules/principles.md`: the work a change owes is what it can REACH, never the files you edited |
+| escalation | The diff was searched for staled claims | Three of the four staled claims are sentences in files the diff never touched, each about `(*Client).Exchange` | deriving the set from the PRODUCER's name rather than from the diff | The producer-name search is what found the `rfc/short/` cells, the tagged comment and the staled `rfc2865.json` record. A diff cannot show a sentence in another file that just became false |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Give the operator Junos's `exclude`, at ze's profile-shaped scope | Done | `yang/ze-l2tp-auth-radius-conf.yang`, `container attributes` under `l2tp auth radius` | Sibling of `server`, as designed |
+| The curated named form, never the numeric one | Done | `excludableAttributes` (`exclude.go`) and the six presence containers | No leaf accepts a number |
+| Per-attribute typing of the legal record types | Done | each container's `packet-type` leaf-list | `acct-terminate-cause` enumerates `accounting-stop` alone |
+| The schema refuses a required attribute | Done | the enum names six words and none of the four | `TestRequiredAttributesAreNotInTheEnum` |
+| One filter point per builder | Done | `buildAcctPacket`, `buildAccessRequestAttrs` | Not a condition per append |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestNoExclusionsLeavesThePacketUnchanged` | Compares the encoded attribute stream of a configured-with-nothing instance against an untouched one, over all three record types |
+| AC-2 | Done | `TestExcludeWithNoPacketTypeAppliesEverywhere` | And `TestAccountingRequestOmitsAcctDelayTimeOnRequest` for attribute 41 |
+| AC-3 | Done | `TestExcludePerPacketType`, `TestExcludeAcctDelayTimePerPacketType` | Interim loses it, Start and Stop keep it |
+| AC-4 | Done | `TestExcludeBeatsAKnownValue` | Verified at the producers: see Goal Validation |
+| AC-5 | Done | `TestExcludeOnAccessRequestOnly` | Drives `buildAccessRequestAttrs` and then all three accounting records |
+| AC-6 | Done | `TestTwoExclusionsApplyIndependently` | |
+| AC-7 | Done | `TestExcludePreservesTheRemainingOrder` | |
+| AC-8 | Done | `TestRequiredAttributesAreNotInTheEnum`, `test/l2tp/radius-acct-exclude-invalid.ci` | Verified at the schema: see Goal Validation |
+| AC-9 | Done | `TestExcludeRefusesUnknownWords`, four subtests | Unknown attribute, unknown packet type, a packet type the attribute cannot reach, and a value where the name stands alone |
+| AC-10 | Done | `TestFullyExcludedRecordIsStillConformant` | Excludes all six and asserts Acct-Status-Type, Acct-Session-Id and the NAS identity survive |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The twelve planned unit tests | Done | `internal/component/l2tp/plugins/authradius/exclude_test.go` and `internal/component/radius/acct_delay_time_omit_test.go` | All in one file per package, not the three the table named |
+| `TestTwoExclusionsApplyIndependently` | Done | `exclude_test.go` | Present since the first commit; the table row was missing |
+| `radius-acct-exclude`, `radius-acct-exclude-invalid` | Done | `test/l2tp/` | `./le functional l2tp` 23/23 PASS |
+| The wire-level `.ci` | Changed | not delivered | Stated as not delivered in the spec's own TDD section, with the reason |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `yang/ze-l2tp-auth-radius-conf.yang` | Done | +188 lines |
+| `config.go` | Done | `Exclusions` field and the parse call |
+| `acct.go` | Done | `setExclusions`, `exclusionsNow`, the filter point |
+| `handler.go` | Done | `attributePolicy`, `setExclusions`, the filter point |
+| `docs/guide/l2tp.md`, `docs/architecture/l2tp/bng-1-radius-attributes.md` | Done | `a32367b75` |
+| `test/l2tp/radius-acct-exclude.ci` | Done | Plus the invalid twin, which the plan did not name |
+| `exclude.go`, `exclude_test.go`, `register.go` | Changed | Created beyond the plan's file list |
+| `internal/component/radius/packet.go`, `client.go` | Changed | Needed once A-4 broke |
+| `nasportid_test.go` | Changed | The call sites `6bd1653b41` left behind |
+
+### Audit Summary
+- **Total items:** 30
+- **Done:** 25
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5 (each recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator can suppress one attribute their server dislikes, per record type | functional | `test/l2tp/radius-acct-exclude.ci` writes three exclusions through the real `OnConfigVerify` path and `./le functional l2tp` passes it, 23/23 on 2026-09-04 |
+| The suppression reaches the wire | functional, in process | `TestExcludedAttributeIsAbsentFromTheWire` starts at configuration TEXT, runs the YANG parse, `ToPluginMap`, `parseConfigFromTree` and `buildAcctPacket`, then encodes the packet and walks its octets |
+| The enum cannot express a non-conformant record | data correctness | Verified at the schema, not at the test: `container exclude` declares exactly six presence containers, and `acct-status-type`, `acct-session-id`, `nas-identifier` and `nas-ip-address` appear nowhere under it. `acct-terminate-cause`'s `packet-type` leaf-list has one member, `accounting-stop`, per RFC 2866 Section 5.10. Two refusals then back the schema: `parseAttributeExclusions` errors on a name `excludableAttributes` does not hold, and `parseExcludedPacketKinds` errors on an unknown packet type. `TestRequiredAttributesAreNotInTheEnum` and `radius-acct-exclude-invalid.ci` exercise both |
+| Exclusion and omit-when-empty stay distinguishable | data correctness | Verified at the producers. `TestExcludeBeatsAKnownValue`'s middle case reaches `radius.AppendTextAttr`, which never appends an empty text and where the exclusion set is nil. Its third case reaches `append` followed by `attributeExclusions.filter`, over a session whose `callingStationID` is `"00:11:22:33:44:55"`. Two different functions decide the two absences, and the test `t.Fatal`s if the fixture value is empty, so the third case cannot degrade into the second |
+| An absent container changes nothing | data correctness | `TestNoExclusionsLeavesThePacketUnchanged` compares encoded attribute streams over Start, Interim and Stop. `filter` returns `attrs` unchanged when `len(e) == 0`, and `parseAttributeExclusions` answers a nil map for an absent container, an absent `exclude` and an empty one |
+| Discrimination: the feature is what the tests measure | red phase, re-observed at closure | Neutering `attributeExclusions.filter` to `return attrs` reddens exactly eight tests: `TestExcludedAttributeIsAbsentFromTheWire`, `TestExcludeWithNoPacketTypeAppliesEverywhere`, `TestExcludePerPacketType`, `TestExcludeBeatsAKnownValue`, `TestExcludeOnAccessRequestOnly`, `TestTwoExclusionsApplyIndependently`, `TestExcludePreservesTheRemainingOrder`, `TestFullyExcludedRecordIsStillConformant`. Neutering the value refusal in `parseExcludedPacketKinds` reddens exactly one subtest, `TestExcludeRefusesUnknownWords/a_value_where_the_name_stands_alone`. Both were re-run against the code as it stands on 2026-09-04, not taken from the commit message |
+| RFC 2866 conformance survives the feature | RFC gate | `TestFullyExcludedRecordIsStillConformant` for Section 5.13, and `TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier` for the Section 3 rule the feature made reachable, the second with a discrimination record. `./le rfc check` reports nothing against rfc2865 or rfc2866 |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | n/a | The metadata table declares no deferral shard, and no `plan/deferrals/radius-attribute-exclusion.md` exists. No row was created and none is resolved here. The neighbouring `plan/deferrals/radius-subscriber-attributes.md` belongs to `spec-radius-subscriber-attributes` and its rows were closed by `spec-radius-acct-session-attributes`, so this closure neither empties it nor removes it |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/radius-attribute-exclusion-f89390ec-889f-4a7a-8172-1e2cfd108a12.md`, 15 files, verdict clean |
+| `./le spec session review check` | clean |
+| Rounds | 3. Round 3 was earned by a PRODUCT finding: `./le verify lint run` scoped to the two packages reported four issues in this spec's own files |
+| Reviewer lenses used | deliverable-versus-test (every Deliverables and TDD cell re-run, never accepted as its own evidence); red-phase re-observation of both recorded neuterings; staled-sibling-claim search derived from the producer name `(*Client).Exchange` and `stampsAcctDelayTime` rather than from the diff; guard and zero-value lens over `parseAttributeExclusions`, `parseExcludedPacketKinds` and `acctPacketKind`; concurrency lens over `exclusionsNow` and the `a.mu` call sites; aliasing lens over `filter`'s in-place write; `docs/contributing/ze-go-style.md` pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The committed tree does not compile the authradius test binary: `6bd1653b41` changed `buildAccessRequestAttrs` to take an `attributePolicy` and left three `string` call sites uncommitted | `internal/component/l2tp/plugins/authradius/nasportid_test.go` | Committing the working-tree fix in commit A, plus a journal row under `tree-state-claim-published-unverified` |
+| 2 | ISSUE | `rfc/short/rfc2866.md` claims ze stamps Acct-Delay-Time on EVERY Accounting-Request, and that the identical-contents retransmit is a packet ze no longer produces on the accounting path | `rfc/short/rfc2866.md`, Enrolment reason and Support coverage | Both cells rewritten, `./le rfc index-update` re-rendered the three generated artifacts |
+| 3 | ISSUE | The same false sentence sits in the tag prose of an RFC-tagged test, where `./le rfc check` counts it as the proof behind a public compliance claim | `internal/component/radius/rfc2866_accounting_test.go`, `TestRFC2866AccountingRetransmitTakesANewIdentifier` | Comment rewritten. `rfc.ChangedTags` strips comments, so the commit gate computes no tagged-test change and `test/rfc-changed.md` owes no row |
+| 4 | ISSUE | RFC 2866 Section 3's identical-contents Identifier rule became reachable on the accounting path and nothing asserted it | `(*radius.Client).Exchange`, the false branch of `stampsAcctDelayTime` | `TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`, tagged `RFC2866-3-3 positive`, with a discrimination record |
+| 5 | ISSUE | `rfc/discrimination/rfc2865.json`'s revert record for RFC2865-4.1-1 negative no longer verified: its break was applied to `buildAcctPacket`, which this spec rewrote | `rfc/discrimination/rfc2865.json` | Re-recorded with `./le rfc discriminate-record`, red re-observed |
+| 6 | ISSUE | `./le verify lint run` scoped to the two packages reported four findings never run against this diff: three `nilnil` on `parseAttributeExclusions`'s `return nil, nil`, and one `modernize` on `containsType` | `exclude.go`, `exclude_test.go` | The three `nil, nil` returns are correct, because a nil map is a usable value and the doc comment says it names the deployment that holds nothing back, so each carries `//nolint:nilnil` with that reason. `containsType` now calls `slices.Contains`. The scoped lint is 0 issues over both packages and both build flavors |
+| 7 | NOTE | The TDD table had no row for AC-6 and named three files that hold no test | this spec | Rows corrected at closure. A record defect, fixed in one edit, earning no extra round |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/l2tp/radius-acct-exclude.ci` | yes | `ls -la` reports 2.0K, 2026-09-04 11:42 |
+| `test/l2tp/radius-acct-exclude-invalid.ci` | yes | `ls -la` reports 1.4K, 2026-09-04 11:42 |
+| `internal/component/l2tp/plugins/authradius/exclude.go` | yes | `ls -la` reports 8.3K |
+| `internal/component/l2tp/plugins/authradius/exclude_test.go` | yes | `ls -la` reports 18K |
+| `internal/component/radius/acct_delay_time_omit_test.go` | yes | `ls -la` reports 6.9K |
+| `rfc/discrimination/rfc2866.json` | yes | written by `./le rfc discriminate-record`, two records |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | An absent container changes nothing | `go test -race` over the package, green, `TestNoExclusionsLeavesThePacketUnchanged` among the passes |
+| AC-2, AC-3, AC-6, AC-7 | Exclusion applies where named and nowhere else, order preserved | the same run; all four reddened by the `filter` neutering, which is what proves they measure the feature |
+| AC-4 | An excluded attribute whose value is known is still absent | `TestExcludeBeatsAKnownValue`, and the producer reading in Goal Validation |
+| AC-5 | Access-Request only | `TestExcludeOnAccessRequestOnly` builds an Access-Request through `buildAccessRequestAttrs` and then three accounting records |
+| AC-8 | The enum names none of the four | read at `yang/ze-l2tp-auth-radius-conf.yang`: six `container` names under `container exclude`, and `ze-radclose schema show ze-l2tp-auth-radius-conf` serves the same six |
+| AC-9 | Unknown words refused | `TestExcludeRefusesUnknownWords`, four subtests, each asserting the refusal NAMES the offending word and the permitted ones |
+| AC-10 | A fully excluded record is conformant | `TestFullyExcludedRecordIsStillConformant` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `exclude calling-station-id` in the config tree, to the attribute's absence on the wire | `TestExcludedAttributeIsAbsentFromTheWire` in process, and `test/l2tp/radius-acct-exclude.ci` for the config surface | yes. The `.ci` was read, not inferred from its name: it pipes a config carrying three exclusions into `ze config validate -` and requires exit 0 with `configuration valid`. The invalid twin requires exit 1 and `unknown field in exclude: acct-session-id` on stderr. The in-process test starts at configuration text and ends at encoded octets |
+| Config reload installs the set on both builders | none | yes, read at `activateRadiusConfig` (`register.go`): `authInstance.setExclusions(cfg.Exclusions)` and `acctInstance.setExclusions(cfg.Exclusions)` |
+| The container round-trips | none | yes. `ze config show <file> l2tp auth radius attributes` and `ze config fmt` both re-render `exclude { acct-terminate-cause; calling-station-id { packet-type accounting-interim } }` from a config built for this check |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The six excludable attributes are `0-1` in RFC 2866 Section 5.13 or absent from its table, read in `rfc/full/rfc2866.txt`. AC-10 asserts the consequence |
+| A-2 | confirmed | `internal/component/radius/dict.go` defines `AcctStatusStart`, `AcctStatusStop` and `AcctStatusInterimUpdate` and no Acct-On or Acct-Off. `acctPacketKind` switches on exactly those three and answers `packetKindUnspecified` otherwise |
+| A-3 | confirmed | `TestExcludePreservesTheRemainingOrder` derives the expected order from an unfiltered packet and requires the filtered one to match it |
+| A-4 | **broken** | `buildAcctPacket` never appends Acct-Delay-Time. `(*radius.Client).Exchange` writes it through `setAcctDelayTime`. Mistake Log row 1, Deviations, and Blast Radius all carry it |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/l2tp.md` -- the exclusion syntax and what each attribute feeds | The syntax block written there matches the YANG: an `attributes { exclude { ... } }` block beside `server`. `ze config fmt` re-renders the same shape | yes |
+| `docs/architecture/l2tp/bng-1-radius-attributes.md` -- the list is filterable, and which three are not | The page names the six excludable attributes and the three that are not, and its Acct-Delay-Time paragraph states the byte-identical retransmit. Both `<!-- source: -->` anchors resolve | yes |
+| `docs/config-reference.md` -- regenerated | No. The claim in the checklist is wrong: the file carries no GENERATED header and no generator writes it. Its l2tp section is hand-written prose about `nas-port-id-format` alone, and it names none of `source-address`, `timeout`, `retries`, `acct-interval`, `coa-port` or the `server` list. The page is declared "a concise reference", so an unlisted leaf does not make it wrong. Adding `attributes exclude` beside a section that omits `server` would misstate what the page covers | no edit owed |
+| RFC status | `rfc/short/rfc2866.md` Support coverage now names the knob and the three attributes it cannot reach, with `authradius/exclude.go excludableAttributes, attributeExclusions.filter` inside the cell. `./le rfc index-update` re-rendered `docs/features/rfc-status.md`, whose diff is one row, ours | yes |
+| Doctor checks | This change adds no runtime dependency: no file path, socket, kernel module, port, binary or certificate. It removes attributes from a packet ze already sends to a server the operator already configured | none owed |
+| CLI reference | This change adds no command. `ze schema show ze-l2tp-auth-radius-conf` serves the container, which is the config surface rather than a command surface | none owed |
+
+## Core Insight
+
+The interesting decision was which of Juniper's two naming forms to copy, and
+the answer generalises: the curated enum is deliberately LESS capable, and the
+capability it gives up is the ability to be wrong quietly. A numeric form accepts
+a line that suppresses a mandatory attribute and, in Junos's own words, has "no
+effect". The closed enum refuses the word at configuration load, where the
+operator can still fix it, so no packet builder ever asks whether an exclusion
+was permitted. The guard is structural, and a structural guard cannot be
+forgotten by the next person who adds an attribute.
+
+Closure found the cost of that shape. A feature that REMOVES something from a
+packet makes a branch reachable that nothing produced before, and the claims that
+went stale were all sentences saying "ze always does X". None of them was in the
+diff. They were found by searching for the PRODUCER's name.

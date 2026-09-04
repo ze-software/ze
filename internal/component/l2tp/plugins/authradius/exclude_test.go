@@ -1,6 +1,7 @@
 package l2tpauthradius
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -123,12 +124,7 @@ func wireAttrTypes(t *testing.T, pkt *radius.Packet) []uint8 {
 }
 
 func containsType(types []uint8, attrType uint8) bool {
-	for _, candidate := range types {
-		if candidate == attrType {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(types, attrType)
 }
 
 // TestExcludedAttributeIsAbsentFromTheWire is the wiring test. It starts at the
