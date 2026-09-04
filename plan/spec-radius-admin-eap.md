@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | protocol |
-| Depends | plan/spec-radius-admin-chap.md |
+| Depends | spec-radius-admin-chap (closed 2026-09-04) |
 | Phase | 6/8 |
 | Deferral shard | - |
 | Handoff | - |
@@ -19,7 +19,10 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 2. `internal/component/radius/authenticator.go` -- `(*radiusAuthenticator).Authenticate`, single-shot today.
 3. `internal/component/radius/packet.go` -- `verifyResponseMessageAuthenticator` and `VerifyCoAMessageAuthenticator`, the two verifiers; there is no signer.
 4. `internal/component/ike/eap/peer.go` -- `NewPeerSession`, `(*PeerSession).Process`, `PeerResult`. This is the EAP peer this spec drives.
-5. `plan/spec-radius-admin-chap.md` -- the `auth-method` leaf this extends.
+5. `internal/component/radius/config.go` -- `AuthMethod`, `authMethodNames` and
+   `parseAuthMethod`, plus the `auth-method` leaf in
+   `internal/component/radius/yang/ze-radius-conf.yang`. This is the selector
+   this spec extends; spec-radius-admin-chap added it and closed 2026-09-04.
 
 ## Task
 
