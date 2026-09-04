@@ -30,54 +30,95 @@ module ze-l2tp-pool-conf {
                     description
                         "NAS-side IP for all PPP sessions (IPCP local address).
                          Must not overlap the pool range.";
+                    ze:help "Each session sees this address as its IPCP peer, so it is the next hop the
+                        subscriber routes through. Ze refuses an address that falls inside the range
+                        from start to end, and it refuses an address that is not IPv4.";
                 }
                 leaf start {
                     type zt:ipv4-address;
                     description "First address in the pool range.";
+                    ze:help "Ze refuses the ipv4 block that names start without end, and it refuses a
+                        start after the end. The range is inclusive at both ends, and the bitmap holds
+                        one bit for each address in it. Ze releases an address when the session goes
+                        down, and hands it to the next session that asks.";
                 }
                 leaf end {
                     type zt:ipv4-address;
                     description "Last address in the pool range (inclusive).";
+                    ze:help "The range is inclusive, so this address is handed to a session as well. Ze
+                        refuses an end before the start, and it refuses the block that names end without
+                        start. A session that arrives after the last free address is refused with pool
+                        exhausted.";
                 }
                 leaf dns-primary {
                     type zt:ipv4-address;
                     description "Primary DNS server pushed to subscribers.";
+                    ze:help "Ze offers the address as the IPCP Primary DNS option, and it offers no such
+                        option while the leaf is absent. A subscriber that asks for another address gets
+                        a Configure-Nak carrying this one. Ze drops the option from its later requests
+                        when the subscriber rejects it.";
                 }
                 leaf dns-secondary {
                     type zt:ipv4-address;
                     description "Secondary DNS server pushed to subscribers.";
+                    ze:help "Ze offers the address as the IPCP Secondary DNS option, and it offers no
+                        such option while the leaf is absent. The leaf is independent of dns-primary, so
+                        a pool can name one, both, or neither.";
                 }
             }
             list named-pool {
                 key "name";
                 description
                     "Named IPv4 pools selected by RADIUS Framed-Pool attribute.";
+                ze:help "The Framed-Pool attribute RADIUS returns for a session names one of these
+                    pools. Ze then uses the gateway and the DNS servers of that pool. Ze refuses the
+                    session when the attribute names a pool this list does not hold, and it does not
+                    fall back to the ipv4 pool. The ipv4 pool serves a session with no Framed-Pool.";
                 leaf name {
                     type string;
                     description "Pool name matching RADIUS Framed-Pool value.";
+                    ze:help "The name is the list key, so it stands after the named-pool keyword and not
+                        inside the braces. Ze compares it against the Framed-Pool value exactly. Two
+                        pools cannot share a name, because a list key is unique.";
                 }
                 leaf gateway {
                     type zt:ipv4-address;
                     mandatory true;
                     description "NAS-side IP for sessions using this pool.";
+                    ze:help "A session RADIUS sends to this pool sees this address as its IPCP peer, and
+                        not the gateway of the ipv4 pool. Ze refuses an address that falls inside the
+                        range from start to end of this pool.";
                 }
                 leaf start {
                     type zt:ipv4-address;
                     mandatory true;
                     description "First address in the pool range.";
+                    ze:help "The leaf is required here, and the ipv4 pool leaves it optional. Ze refuses
+                        a start after the end. Ze does not compare the range of one pool against the
+                        range of another. Two ranges that overlap can therefore hand one address to two
+                        sessions.";
                 }
                 leaf end {
                     type zt:ipv4-address;
                     mandatory true;
                     description "Last address in the pool range (inclusive).";
+                    ze:help "The range is inclusive, so this address is handed to a session as well. A
+                        session that arrives after the last free address of this pool is refused with
+                        pool exhausted. Ze does not move that session to another pool.";
                 }
                 leaf dns-primary {
                     type zt:ipv4-address;
                     description "Primary DNS server pushed to subscribers.";
+                    ze:help "A session RADIUS sends to this pool receives this address, and not the one
+                        the ipv4 pool holds. Ze offers no Primary DNS option while the leaf is absent,
+                        even when the ipv4 pool names one.";
                 }
                 leaf dns-secondary {
                     type zt:ipv4-address;
                     description "Secondary DNS server pushed to subscribers.";
+                    ze:help "A session RADIUS sends to this pool receives this address, and not the one
+                        the ipv4 pool holds. Ze offers no Secondary DNS option while the leaf is absent,
+                        even when the ipv4 pool names one.";
                 }
             }
             container ipv6-pd {
@@ -91,7 +132,11 @@ module ze-l2tp-pool-conf {
                 leaf block {
                     type string;
                     description
-                        "Prefix block to allocate from (e.g. 2001:db8::/32).";
+                        "Prefix block to allocate from, for example 2001:db8::/32.";
+                    ze:help "Ze cuts the block into prefixes of the delegated length and hands one to
+                        each subscriber. The block must be native IPv6, so an IPv4-mapped address is
+                        refused. The delegated length can be at most 24 bits longer than the block,
+                        which bounds one pool at 16 million prefixes.";
                 }
                 leaf delegation-length {
                     type uint8 {
@@ -107,16 +152,26 @@ module ze-l2tp-pool-conf {
                 description
                     "Named IPv6 prefix pools selected by RADIUS
                      Framed-IPv6-Pool attribute (RFC 6911 attr 100).";
+                ze:help "The Framed-IPv6-Pool attribute RADIUS returns for a session names one of these
+                    pools. Each pool holds its own block and its own bitmap, and none of them is tied to
+                    the ipv6-pd pool. The name is the list key.";
                 leaf name {
                     type string;
                     description
                         "Pool name matching RADIUS Framed-IPv6-Pool value.";
+                    ze:help "The name is the list key, so it stands after the named-ipv6-pool keyword and
+                        not inside the braces. Ze compares it against the Framed-IPv6-Pool value exactly,
+                        and it refuses an entry with no name.";
                 }
                 leaf block {
                     type string;
                     mandatory true;
                     description
-                        "Prefix block to allocate from (e.g. 2001:db8::/32).";
+                        "Prefix block to allocate from, for example 2001:db8::/32.";
+                    ze:help "The leaf is required here, and the ipv6-pd pool leaves it optional. Ze
+                        refuses a block that is not native IPv6, and names the pool in the error. Ze does
+                        not compare the block of one pool against the block of another, so two blocks
+                        that overlap can delegate one prefix twice.";
                 }
                 leaf delegation-length {
                     type uint8 {

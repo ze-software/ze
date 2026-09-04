@@ -7,10 +7,17 @@ module ze-rsvp-te-conf {
 
     container rsvp-te {
         description "RSVP-TE traffic engineering configuration";
+        ze:help "RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a router-id the engine stays
+            idle, and no tunnel and no bypass signals. Ze has no IGP and no CSPF, so every path is given as an
+            explicit route.";
 
         leaf router-id {
             type string;
             description "Router identifier (IPv4 address format)";
+            ze:help "Router identifier, in IPv4 address format. A commit that gives an IPv6 address is rejected. The
+                address is the PATH sender address, the address the transport socket binds, and the seed of the
+                session key each tunnel and bypass derives. A change after startup is logged and refused, and the
+                running router-id stays in use until the daemon restarts.";
         }
 
         leaf refresh-period {
@@ -20,6 +27,10 @@ module ze-rsvp-te-conf {
             default 30;
             units seconds;
             description "PATH/RESV refresh interval (RFC 2205 soft-state)";
+            ze:help "PATH and RESV refresh interval, 1 to 65535 seconds, default 30. The same 65535-second ceiling caps
+                the period a neighbor advertises in TIME_VALUES. A neighbor therefore cannot hold state alive for
+                years. A
+                reload reaches the running LSPs at the next refresh tick.";
         }
 
         leaf refresh-multiplier {
@@ -28,25 +39,41 @@ module ze-rsvp-te-conf {
             }
             default 3;
             description "Number of missed refreshes before state cleanup";
+            ze:help "Number of missed refreshes before state cleanup, 1 to 255, default 3. State expires when the last
+                refresh is older than refresh-period multiplied by this number, which is 90 seconds at the
+                defaults. Expiry releases the reserved bandwidth, the MPLS forwarding entry and the label, then
+                sends an lsp-down event.";
         }
 
         list interface {
             key "name";
             description "Per-interface RSVP-TE configuration";
+            ze:help "Per-interface RSVP-TE configuration. Bandwidth admission control accounts each reservation against
+                one entry of this list. An interface that no entry names carries no limit, so every reservation
+                that resolves onto it is admitted.";
 
             leaf name {
                 type string;
                 description "Interface name";
+                ze:help "Interface name, and the key of this list. With one entry configured, every reservation is
+                    accounted against that entry. With more than one, the entry whose address prefix contains the
+                    LSP neighbor owns the reservation. An LSP that matches no prefix is not accounted at all.";
             }
 
             leaf max-bandwidth {
                 type string;
                 description "Maximum link bandwidth (bps)";
+                ze:help "Maximum link bandwidth. The value is reported by 'show rsvp-te interface' and it is not an
+                    admission limit. Only max-reservable-bandwidth bounds what admission control accepts.";
             }
 
             leaf max-reservable-bandwidth {
                 type string;
                 description "Maximum reservable bandwidth (bps)";
+                ze:help "Maximum reservable bandwidth. Admission control denies a reservation when the accounted total
+                    plus the new request is more than this value. A shared-explicit session counts its largest LSP
+                    once rather than the sum, so a make-before-break reroute is not double-counted. Left unset, the
+                    limit is 0 and every tunnel that requests bandwidth on this interface is denied.";
             }
 
             leaf address {
@@ -61,25 +88,40 @@ module ze-rsvp-te-conf {
         list tunnel {
             key "name";
             description "RSVP-TE LSP tunnel definition";
+            ze:help "RSVP-TE LSP tunnel definition. Each entry signals a PATH from the local router-id toward
+                destination. A commit that changes only the explicit route starts a make-before-break reroute (RFC
+                3209 Section 6.1) and leaves the live tunnel in place.";
 
             leaf name {
                 type string;
                 description "Tunnel name";
+                ze:help "Tunnel name, and the key of this list. Ze puts the name in the SESSION_ATTRIBUTE object, and it
+                    adds that object only for a tunnel that also declares fast-reroute. No router on the path
+                    reads the name of an unprotected tunnel.";
             }
 
             leaf destination {
                 type string;
                 description "Tunnel endpoint (IPv4 address)";
+                ze:help "Tunnel endpoint, an IPv4 address. The address is the SESSION tunnel endpoint the PATH carries.
+                    A node whose own router-id equals this address acts as the egress and answers with a RESV. Every
+                    other node on the path acts as a transit node.";
             }
 
             leaf tunnel-id {
                 type uint16;
                 description "Tunnel identifier";
+                ze:help "Tunnel identifier, the part of the SESSION that separates this LSP from another to the same
+                    endpoint. Ze reserves 61440 to 65535 for the bypass LSPs it derives from a bypass name, and a
+                    commit that puts a tunnel in that range is rejected.";
             }
 
             leaf bandwidth {
                 type string;
                 description "Requested bandwidth (bps)";
+                ze:help "Requested bandwidth. The value fills the SENDER_TSPEC token rate, token bucket and peak rate.
+                    Admission control charges it against the interface entry the LSP neighbor resolves onto, and it
+                    denies the LSP when the charge is more than max-reservable-bandwidth.";
             }
 
             leaf setup-priority {
@@ -88,6 +130,10 @@ module ze-rsvp-te-conf {
                 }
                 default 7;
                 description "Setup priority (0 = highest)";
+                ze:help "Setup priority, where 0 is the highest and 7 is the default. Ze signals the value in the
+                    SESSION_ATTRIBUTE and FAST_REROUTE objects, and it adds both objects only for a tunnel that
+                    declares fast-reroute. Ze preempts no LSP of its own, so the priority acts on the routers
+                    downstream.";
             }
 
             leaf hold-priority {
@@ -96,11 +142,17 @@ module ze-rsvp-te-conf {
                 }
                 default 7;
                 description "Hold priority (0 = highest)";
+                ze:help "Hold priority, where 0 is the highest and 7 is the default. It states how hard this LSP holds
+                    its reservation against a setup of higher priority. Ze signals it beside setup-priority, and
+                    only for a tunnel that declares fast-reroute.";
             }
 
             container fast-reroute {
                 presence "request RFC 4090 local protection for this tunnel";
                 description "Fast Reroute (RFC 4090) local protection for this LSP";
+                ze:help "Fast Reroute (RFC 4090) local protection for this LSP. The container has presence. Absent, the
+                    head-end PATH carries no SESSION_ATTRIBUTE and no FAST_REROUTE object, and no transit PLR arms a
+                    backup. Present, it also puts setup-priority, hold-priority and the tunnel name on the wire.";
 
                 leaf backup {
                     type enumeration {
@@ -109,18 +161,30 @@ module ze-rsvp-te-conf {
                     }
                     default facility;
                     description "Backup method: facility (one bypass protects many LSPs) or one-to-one (a detour per LSP)";
+                    ze:help "Backup method. facility is the default and asks each PLR for one bypass LSP that protects
+                        many LSPs (RFC 4090 Section 3.2). one-to-one asks for one detour per LSP (Section 3.1). As a
+                        PLR, Ze arms only a facility bypass from its own bypass list. Ze signals a one-to-one request
+                        and builds no detour for it.";
                 }
 
                 leaf node-protection {
                     type boolean;
                     default false;
                     description "Request NNHOP (node) protection rather than NHOP (link) protection";
+                    ze:help "Request NNHOP (node) protection rather than NHOP (link) protection. Ze sets the
+                        node-protection flag in SESSION_ATTRIBUTE (RFC 4090 Section 4.3). As a PLR, Ze then arms only
+                        a bypass whose merge point is the next-next hop of the explicit route. That bypass also has
+                        to set its own node-protection leaf. With no such bypass, the LSP gets no protection.";
                 }
 
                 leaf bandwidth-protection {
                     type boolean;
                     default false;
                     description "Request a backup that guarantees the reserved bandwidth";
+                    ze:help "Request a backup that guarantees the reserved bandwidth. Ze sets the bandwidth-protection
+                        flag in SESSION_ATTRIBUTE (RFC 4090 Section 4.3) and records it in the RESV route object. Ze's
+                        own bypass selection does not compare the bypass bandwidth, so the flag is a request to the
+                        PLR downstream.";
                 }
 
                 leaf hop-limit {
@@ -128,7 +192,11 @@ module ze-rsvp-te-conf {
                         range "0..255";
                     }
                     default 16;
-                    description "Maximum number of hops the backup path may take";
+                    description "Maximum number of hops the backup path can take";
+                    ze:help "Maximum number of hops the backup path can take, 0 to 255, default 16. The value goes into
+                        the FAST_REROUTE object (RFC 4090 Section 4.1) for the PLR that computes the backup. A Ze
+                        facility bypass is routed by its own explicit-route list, so this limit does not shorten
+                        it.";
                 }
             }
 
@@ -136,15 +204,23 @@ module ze-rsvp-te-conf {
                 key "index";
                 ordered-by user;
                 description "Explicit route hops";
+                ze:help "Explicit route hops. The list becomes the ERO object the PATH carries (RFC 3209 Section 4.3).
+                    Ze has no IGP and no CSPF, so the operator gives every hop. A tunnel with no hop here is signaled
+                    with no ERO object. A commit that changes the list starts a make-before-break reroute.";
 
                 leaf index {
                     type uint16;
                     description "Hop index";
+                    ze:help "Hop index, and the key of this list. Ze sorts the hops by this number. The index decides
+                        the order of the path rather than the order of the statements in the config file.";
                 }
 
                 leaf address {
                     type string;
                     description "Hop address (IPv4 prefix)";
+                    ze:help "Hop address, given as an IPv4 prefix such as 10.0.0.4/30. A commit that gives a bare
+                        address with no prefix length is rejected. The address and the prefix length both go into
+                        the ERO IPv4 prefix subobject.";
                 }
 
                 leaf type {
@@ -154,6 +230,9 @@ module ze-rsvp-te-conf {
                     }
                     default strict;
                     description "Hop type (strict or loose)";
+                    ze:help "Hop type. strict is the default and asks that the previous hop reaches this one directly.
+                        loose sets the L bit of the ERO subobject and permits other hops between them. Ze reads any
+                        value other than loose as strict.";
                 }
             }
         }
@@ -170,6 +249,9 @@ module ze-rsvp-te-conf {
             leaf name {
                 type string;
                 description "Bypass name";
+                ze:help "Bypass name, and the key of this list. Ze hashes the name into its reserved tunnel-id range to
+                    key the bypass LSP. Two names that hash to the same key are rejected at commit, and one of them
+                    is renamed. The list holds 1024 bypasses at most.";
             }
 
             leaf merge-point {
@@ -182,22 +264,33 @@ module ze-rsvp-te-conf {
             leaf node-protection {
                 type boolean;
                 default false;
-                description "This bypass merges at a next-next hop, providing node protection";
+                description "This bypass merges at a next-next hop, so it gives node protection";
+                ze:help "This bypass merges at a next-next hop, so it gives node protection. A protected LSP that asked
+                    for node protection is armed onto a bypass only when this leaf is true. Left false, the bypass
+                    protects the link alone, and a node-protection request finds no bypass at this PLR.";
             }
 
             list explicit-route {
                 key "index";
                 ordered-by user;
                 description "Bypass path hops (must avoid the protected resource)";
+                ze:help "Bypass path hops. The route has to avoid the link or the node this bypass protects, because a
+                    backup that crosses the protected resource fails with it. Ze has no IGP and no CSPF, so the
+                    operator gives the hops. The hops are ordered by the numeric index key.";
 
                 leaf index {
                     type uint16;
                     description "Hop index";
+                    ze:help "Hop index, and the key of this list. Ze sorts the bypass hops by this number. The index
+                        decides the order of the path rather than the order of the statements in the config file.";
                 }
 
                 leaf address {
                     type string;
                     description "Hop address (IPv4 prefix)";
+                    ze:help "Hop address, given as an IPv4 prefix such as 10.0.0.8/30. A commit that gives a bare
+                        address with no prefix length is rejected. The address and the prefix length both go into
+                        the ERO IPv4 prefix subobject of the bypass PATH.";
                 }
 
                 leaf type {
@@ -207,6 +300,9 @@ module ze-rsvp-te-conf {
                     }
                     default strict;
                     description "Hop type (strict or loose)";
+                    ze:help "Hop type. strict is the default and asks that the previous hop reaches this one directly.
+                        loose sets the L bit of the ERO subobject and permits other hops between them. Ze reads any
+                        value other than loose as strict.";
                 }
             }
         }

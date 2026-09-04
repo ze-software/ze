@@ -25,6 +25,10 @@ module ze-ddos-local-conf {
         }
         default alert;
         description "Action on attack detection: alert (log only) or enforce (install drop rule).";
+        ze:help "alert is the default. The responder then logs the rule it would install, and installs
+                 nothing. enforce is the value that puts a drop rule in nftables, on a base chain at
+                 priority -200. The traffic policy of ddos/detect can still exempt a target from the
+                 action.";
       }
       leaf max-mitigation-duration {
         type uint32 { range "0..86400"; }

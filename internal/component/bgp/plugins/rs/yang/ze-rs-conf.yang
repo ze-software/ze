@@ -21,6 +21,9 @@ module ze-rs-conf {
     augment "/bgp:bgp" {
         container route-server {
             description "Route server plugin tuning parameters";
+            ze:help "The route server forwards an UPDATE from one client to every other client. Each source peer
+                gets its own worker, and the worker stops after 5 seconds with no work. A peer joins the client set
+                with the rs-client leaf of its session, not with this container.";
 
             leaf worker-queue-size {
                 type uint32 {

@@ -19,11 +19,19 @@ module ze-firewall-irr {
     augment "/fw:firewall" {
         container irr {
             description "IRR policy settings for firewall prefix-list resolution.";
+            ze:help "The settings under it reach every IRR reference of the firewall, in a
+                     term and on an interface alike. Ze keeps the resolved prefixes in a
+                     zefs prefix store that the BGP IRR filter shares, so one query serves
+                     both. A commit that names a reference with no cached prefixes is
+                     refused.";
 
             leaf server {
                 type string;
                 default "whois.radb.net";
                 description "IRR whois server hostname or host:port.";
+                ze:help "The default is whois.radb.net. Ze adds port 43 when the value names
+                         no port, so a host:port value reaches the port you name. One query
+                         waits 10 seconds at most, and Ze holds each answer for one hour.";
             }
 
             leaf peeringdb-url {
@@ -33,6 +41,10 @@ module ze-firewall-irr {
                 default "https://www.peeringdb.com";
                 description "Base URL for PeeringDB API queries.
                              Override for testing with a mock server.";
+                ze:help "The default is https://www.peeringdb.com. Ze adds /api/net?asn=<N>
+                         to this value for each query, and holds each answer for one hour.
+                         Ze skips TLS verification for the host 127.0.0.1 alone, which is
+                         what makes a local test server work.";
             }
 
             leaf refresh-interval {
@@ -62,6 +74,11 @@ module ze-firewall-irr {
                     }
                     description "Interface name (e.g. eth1, bond0.100).
                                  Must match the kernel interface name exactly.";
+                    ze:help "Ze matches the input interface by this name in the nftables
+                             rule, so a name no interface carries filters nothing. The
+                             15-character limit is the kernel limit on an interface name. A
+                             binding whose AS-SET resolved to no prefix produces no rule at
+                             all, and Ze logs a warning that names the interface.";
                 }
 
                 leaf source-as-set {

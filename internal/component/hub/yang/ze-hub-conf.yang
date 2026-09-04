@@ -13,21 +13,52 @@ module ze-hub-conf {
     // Environment block - ZeBGP-specific settings
     container environment {
         description "ZeBGP environment settings";
+        ze:help "Ze copies each leaf in this block into an environment variable at config load. The OS
+            environment wins: a variable already set there keeps its value, and the leaf is ignored. Ze
+            also refuses to overwrite a variable it set itself. A changed leaf therefore reaches the
+            runtime at the next daemon start, and not at a reload.";
 
         container daemon {
             description "Daemon settings";
-            leaf pid { type string; description "PID file path"; }
-            leaf user { type string; default "zeuser"; description "System user for privilege drop"; }
+            ze:help "The container holds the path of the PID file and the user Ze changes to. Ze reads
+                both leaves at startup, in that order, and neither one changes a running daemon.";
+
+            leaf pid {
+                type string;
+                description "PID file path";
+                ze:help "Ze writes its own process ID to this path at startup and removes the file at a
+                    clean shutdown. The create refuses an existing file, so a second daemon that names
+                    the same path stops at startup with an error. When the user leaf is also set, Ze
+                    gives the file to that user, because the shutdown path runs after the change of user.
+                    Ze writes no PID file while the leaf is absent.";
+            }
+
+            leaf user {
+                type string;
+                default "zeuser";
+                description "System user for privilege drop";
+                ze:help "Ze starts as root to bind port 179, then changes to this user before it starts a
+                    plugin or accepts a connection. A user name and a numeric UID are both accepted, and
+                    the user's primary group is used. Ze keeps root while the leaf is absent.";
+            }
         }
 
         container log {
             description "Logging settings";
+            ze:help "A name this container does not declare becomes a subsystem level: bgp.routes debug
+                sets the level of the bgp.routes subsystem alone. Ze reads a subsystem level from the
+                longest matching name to the shortest, so bgp covers bgp.fsm until bgp.fsm is set too.";
 
             // Base log level for all subsystems (ze.log)
             leaf level {
                 type string;
                 default "INFO";
-                description "Base log level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL (case-insensitive)";
+                description "Base log level for all subsystems: disabled, debug, info, warn, or err (case-insensitive)";
+                ze:help "warn is the level Ze uses while no config leaf and no environment variable set
+                    one. warning, error and err name the same two levels, and disabled silences every
+                    subsystem. Ze refuses any other word with a warning on stderr and keeps the level it
+                    already has. A subsystem name written beside this leaf overrides it for that
+                    subsystem alone.";
             }
 
             // Log output backend
@@ -38,24 +69,37 @@ module ze-hub-conf {
                     enum syslog { description "Syslog daemon"; }
                 }
                 description "Log output backend (default: stderr)";
+                ze:help "syslog reads the destination leaf for its address, and it is the one value that
+                    does not write to a file descriptor. Ze writes to stderr when the syslog dial fails,
+                    and also while the leaf is absent.";
             }
 
             // Syslog destination address
             leaf destination {
                 type string;
                 default "stdout";
-                description "Log destination: stdout, stderr, syslog, or filename";
+                description "Syslog address used when backend is syslog: empty, a socket path, or host:port";
+                ze:help "An empty value reaches the local syslog daemon. A value that starts with /
+                    names a Unix socket. Any other value is a UDP address, so 127.0.0.1:514 sends to a
+                    collector on this host. Ze writes to stderr when the dial fails. The crash log reads
+                    the same address, and it reads it once at startup.";
             }
 
             // Plugin stderr relay level
             leaf relay {
                 type string;
-                description "Plugin stderr relay level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL (case-insensitive)";
+                description "Plugin stderr relay level: disabled, debug, info, warn, or err (case-insensitive)";
+                ze:help "A plugin runs as its own process and writes to its own stderr. Ze relays a line
+                    at this level or above into its own log, and drops the rest. warn is the level Ze
+                    uses while the leaf is absent, and disabled silences a plugin's stderr completely.";
             }
 
             leaf color {
                 type boolean;
                 description "Force color log output on (true) or off (false). When unset, auto-detected from terminal.";
+                ze:help "NO_COLOR and TERM=dumb win over this leaf, and each one removes color whatever
+                    the leaf holds. While neither is set and the leaf is absent, Ze writes color only
+                    when the log writer is a terminal.";
             }
 
             // Subsystem-specific log levels (any key allowed)
@@ -67,18 +111,48 @@ module ze-hub-conf {
 
         // pprof HTTP server address (top-level leaf under environment).
         // Consumed by startPprofServer via env var `ze.pprof`.
-        leaf pprof { type string; description "pprof HTTP server address (e.g. :6060). Empty disables pprof."; }
+        leaf pprof {
+            type string;
+            description "Address of the pprof HTTP server, which must be a loopback address";
+            ze:help "Ze starts the Go pprof handlers on this address at startup. The host must be
+                127.0.0.1, ::1 or localhost, and Ze stops with an error for any other host. An address
+                that carries no host, such as :6060, binds every interface, so Ze stops on it too. Ze
+                starts no pprof server while the leaf is absent, and the --pprof flag wins over it.";
+        }
 
         container chaos {
             description "Chaos fault injection settings";
-            leaf seed { type int64; description "PRNG seed (0 = disabled)"; }
-            leaf rate { type string; default "0.1"; description "Fault probability per operation (0.0-1.0)"; }
+            ze:help "Ze wraps the clock, the dialer and the listener factory with a fault injector while
+                seed is not 0. The block exists to test Ze against slow timers and failed connections.
+                A production config leaves the block out.";
+
+            leaf seed {
+                type int64;
+                description "PRNG seed (0 = disabled)";
+                ze:help "Ze builds the fault injector only while the seed is not 0. The same seed replays
+                    the same sequence of faults, so a failed run can be repeated. A seed of -1 takes the
+                    seed from the clock, and Ze logs the value it took. The --chaos-seed flag wins over
+                    this leaf, because it applies after the config load.";
+            }
+
+            leaf rate {
+                type string;
+                default "0.1";
+                description "Fault probability per operation (0.0-1.0)";
+                ze:help "0.1 injects a fault into one operation in ten. Ze uses 0.1 for a value that is
+                    not a number, and for a value outside 0.0 to 1.0. The leaf does nothing while seed
+                    is 0.";
+            }
         }
 
         container cli {
             description "CLI session settings";
+            ze:help "The container holds the default output format and the transcript switch. Both leaves
+                apply to every CLI session this daemon serves.";
             container format {
                 description "Default output format settings";
+                ze:help "The container holds the default leaf alone. A session overrides it with set cli
+                    format, which changes that one session and no other.";
                 leaf default {
                     type enumeration {
                         enum text { description "Space-aligned columns without box-drawing"; }
@@ -89,6 +163,10 @@ module ze-hub-conf {
                     }
                     default "text";
                     description "Default output format when no pipe operator is specified";
+                    ze:help "text writes space-aligned columns, table draws a box around them, json
+                        pretty-prints, yaml writes YAML, and ndjson writes one JSON object on each line.
+                        A format operator on the command line, such as | json, wins over this leaf, and
+                        so does set cli format. Ze falls back to text for a value it does not know.";
                 }
             }
             leaf transcript {
@@ -98,17 +176,29 @@ module ze-hub-conf {
                 }
                 default "disabled";
                 description "CLI session transcript recording to $XDG_DATA_HOME/ze/transcripts/";
+                ze:help "enabled writes one file for each session, named transcript-DATE-TIME-PID.log,
+                    with mode 0600 in a directory with mode 0700. Each entry holds the time, the command
+                    with its pipe operators, and the answer. Ze writes under $HOME/.local/share while
+                    XDG_DATA_HOME is unset, and it reports a directory it cannot create on stderr.";
             }
         }
 
         container exabgp {
             description "ExaBGP compatibility settings for the migration bridge";
+            ze:help "The bridge runs an unchanged ExaBGP API program against Ze, and the container holds
+                the settings of the channel to that program.";
             container api {
                 description "ExaBGP bridge API settings";
+                ze:help "The container holds the ack leaf alone. The bridge reads the leaf once, when it
+                    starts, so a change reaches the bridge at the next daemon start.";
                 leaf ack {
                     type boolean;
                     default true;
                     description "Emit done/error ack lines on plugin stdin after each dispatched command";
+                    ze:help "true matches ExaBGP, and it lets the program wait for done before it sends
+                        the next command. false keeps the bridge silent, and a program that waits for
+                        done then stops. The bridge reads false, 0, no, off, disable and disabled as
+                        false, and every other value as true.";
                 }
             }
         }

@@ -7,7 +7,7 @@ module ze-static-conf {
     description
         "Static route configuration for Ze.
          Routes are programmed directly to the kernel (netlink) or VPP
-         data plane. Multiple next-hops produce ECMP with optional
+         dataplane. Multiple next-hops produce ECMP with optional
          per-next-hop weights. BFD profiles enable fast failover.
          Routes are grouped under named tables (resolved via the
          routing-table registry). The 'default' table maps to the
@@ -23,6 +23,10 @@ module ze-static-conf {
 
     container static {
         description "Static route configuration.";
+        ze:help "Ze programs each route into the kernel through netlink, or into the VPP dataplane, and
+            marks it with the static protocol number. A route the backend cannot program is skipped and
+            logged, and the rest of the section still applies. Only a forward route in the default table
+            reaches the redistribute bus, where BGP can announce it.";
 
         list table {
             key "name";
@@ -36,21 +40,34 @@ module ze-static-conf {
                     "Table name. Must match an entry in the
                      routing-table registry, or 'default' for
                      the main table.";
+                ze:help "Ze resolves the name through the routing-table registry, and it stops the config
+                    load for a name the registry does not hold. default and an empty name both resolve
+                    to table 0, which the kernel reads as the main table. A route in any other table is
+                    never redistributed.";
             }
 
             list route {
                 key "prefix";
                 description "A static route entry.";
+                ze:help "The prefix is the key, so one table holds one entry for each prefix. Ze compares
+                    every leaf of the entry at a reload, the description included, and reprograms the
+                    route when one of them changed.";
 
                 leaf prefix {
                     type string;
                     ze:validate "ipv4-prefix|ipv6-prefix";
                     description "Destination prefix in CIDR notation.";
+                    ze:help "Ze masks the host bits, so 10.0.0.1/24 is stored and shown as 10.0.0.0/24.
+                        The prefix is the list key, so it stands after the route keyword and not inside
+                        the braces. Ze names the prefix in the error when it cannot parse it.";
                 }
 
                 leaf description {
                     type string { length "0..255"; }
                     description "Operator note for this route.";
+                    ze:help "The note reaches show static routes and nothing else. It is not sent to the
+                        kernel, and no filter reads it. Ze compares the note at a reload, so a change to
+                        the note alone reprograms the route. The length is 0 to 255 characters.";
                 }
 
                 leaf metric {
@@ -59,6 +76,10 @@ module ze-static-conf {
                     description
                         "Route metric. Used as kernel route priority
                          (lower is preferred) and carried in redistribute.";
+                    ze:help "Ze writes the value into the netlink route priority. The kernel prefers the
+                        lower priority when two routes cover the same prefix. 0 leaves the attribute
+                        out, so the kernel applies its own default. The redistribute event carries the
+                        same value.";
                 }
 
                 leaf tag {
@@ -71,25 +92,43 @@ module ze-static-conf {
                 choice action {
                     mandatory true;
                     description "What to do with matching packets.";
+                    ze:help "One case is required. Ze stops the load for a route that names none of next,
+                        blackhole and reject, and it names the prefix in the error. Only the forward case
+                        reaches the redistribute bus.";
 
                     case forward {
                         description "Send the packet on toward a next hop.";
+                        ze:help "The case holds the next container, which carries gateway next hops and
+                            interface next hops. Two or more next hops of either kind become one ECMP
+                            route. A redistribute consumer sees this case alone.";
 
                         container next {
                             description
                                 "Forward action. Contains gateway and interface
                                  next-hops that may be combined for ECMP.";
+                            ze:help "Ze reads the hop list and the interface list, and joins the two into
+                                one set of next hops. A route whose next container holds neither one
+                                stops the config load. One next hop becomes a plain route, and two or
+                                more become a multipath route.";
 
                             list hop {
                                 key "address";
                                 description
                                     "Forward via gateway. Multiple entries produce
                                      ECMP with traffic distributed by weight.";
+                                ze:help "The gateway address is the key, so one route holds one entry for
+                                    each gateway. Ze shares the traffic between the entries in proportion
+                                    to their weights. An entry can name its own BFD profile, and a next
+                                    hop whose BFD session goes down leaves the group.";
 
                                 leaf address {
                                     type string;
                                     ze:validate "ipv4-address|ipv6-address";
                                     description "Gateway address.";
+                                    ze:help "The address is the list key, so it names the entry. Ze sets
+                                        it as the netlink gateway, and the kernel selects the outgoing
+                                        interface unless the interface leaf names one. IPv4 and IPv6 are
+                                        both accepted.";
                                 }
 
                                 leaf interface {
@@ -97,6 +136,11 @@ module ze-static-conf {
                                     description
                                         "Outgoing interface. Required when the
                                          next-hop is a link-local IPv6 address.";
+                                    ze:help "Ze resolves the name to a kernel interface index and sets it
+                                        on the route. A link-local IPv6 gateway needs it, because the
+                                        same address can exist on every link. A name that resolves to no
+                                        interface skips this one route, which show static routes then
+                                        reports with its reason.";
                                 }
 
                                 leaf weight {
@@ -126,6 +170,10 @@ module ze-static-conf {
                                 leaf name {
                                     type string;
                                     description "Outgoing interface name.";
+                                    ze:help "The name is the list key, so it names the entry. This form
+                                        serves a point-to-point link, where the packet needs no gateway
+                                        address. A BFD profile is refused here, because a BFD session
+                                        needs a peer address.";
                                 }
 
                                 leaf weight {
@@ -134,6 +182,9 @@ module ze-static-conf {
                                     description
                                         "ECMP weight. Higher values receive
                                          proportionally more traffic.";
+                                    ze:help "The range is 1 to 65535, and Ze reads 0 as 1. The weight
+                                        counts only against the other next hops of the same route. A
+                                        route with one next hop ignores it.";
                                 }
                             }
                         }
@@ -141,6 +192,9 @@ module ze-static-conf {
 
                     case discard {
                         description "Drop the packet and tell the sender nothing.";
+                        ze:help "The case holds the blackhole container, and the presence of that
+                            container selects the action. Ze installs the route with the kernel blackhole
+                            type, so the kernel drops the packet and answers nothing.";
 
                         container blackhole {
                             presence "Silently discard matching packets.";
@@ -153,6 +207,9 @@ module ze-static-conf {
 
                     case unreachable {
                         description "Drop the packet and answer the sender.";
+                        ze:help "The case holds the reject container, and the presence of that container
+                            selects the action. Ze installs the route with the kernel unreachable type,
+                            so the kernel answers with ICMP destination unreachable.";
 
                         container reject {
                             presence

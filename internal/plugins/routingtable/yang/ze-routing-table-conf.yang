@@ -19,16 +19,25 @@ module ze-routing-table-conf {
         description
             "Named routing table definitions. Each entry maps
              a name to a kernel routing table ID.";
+        ze:help "Ze builds one registry from these entries, and a static route or a policy
+                 route resolves its table name against that registry. The name default is
+                 built-in and resolves to table 0, so no entry can carry that name.";
 
         list table {
             key "name";
             description "A named routing table.";
+            ze:help "One entry maps one name to one kernel table identifier. Ze refuses an
+                     entry named default, and refuses an entry with no id. Two entries CAN
+                     carry the same identifier, because the registry keys on the name.";
 
             leaf name {
                 type string;
                 description
                     "Table name referenced by static routes
                      and policy routing configuration.";
+                ze:help "The name is the list key, and it is the value a static route or a
+                         policy route carries in its table leaf. A route that names a table
+                         no entry defines is refused when Ze resolves it.";
             }
 
             leaf id {
@@ -40,6 +49,10 @@ module ze-routing-table-conf {
                     "Kernel routing table ID. Reserved IDs
                      excluded: 0 (use 'default'), 253-255
                      (kernel reserved).";
+                ze:help "The leaf is mandatory. The range refuses 0 and 253 to 255, because
+                         253 is the kernel default table, 254 is the main table and 255 is
+                         the local table. Ze also refuses an identifier this build cannot
+                         program through netlink without truncation.";
             }
         }
     }

@@ -18,6 +18,9 @@ module ze-filter-irr {
     grouping irr-peer-config {
         container irr {
             description "Per-peer IRR filter settings.";
+            ze:help "Ze resolves the prefixes of a peer only when the peer asked for it. A filter chain that names
+                bgp-filter-irr asks for it, and so does an as-set written here. A peer that states no remote ASN is
+                never resolved.";
 
             leaf as-set {
                 type string;
@@ -38,6 +41,8 @@ peer and discovers the AS-SET from PeeringDB.";
                 }
                 default "enable";
                 description "Enable or disable IRR filtering for this peer.";
+                ze:help "disable takes the peer out of the resolution, so Ze runs no whois query and no PeeringDB
+                    query for it. The other peers of the same remote ASN keep their list.";
             }
         }
     }
@@ -45,11 +50,15 @@ peer and discovers the AS-SET from PeeringDB.";
     augment "/bgp:bgp/bgp:policy" {
         container irr {
             description "Global IRR filtering settings.";
+            ze:help "The container holds the IRR server, the PeeringDB endpoint and the refresh period. One
+                resolution serves every peer of the same remote ASN, so two peers of one ASN cost one query.";
 
             leaf server {
                 type string;
                 default "whois.radb.net";
                 description "IRR whois server hostname or host:port.";
+                ze:help "Ze speaks whois to the server and adds port 43 when the value carries no port. A query that
+                    gets no answer in 10 seconds fails, and the prefix list of the last query stays in force.";
             }
 
             leaf peeringdb-url {
@@ -66,6 +75,8 @@ without a query to the public PeeringDB service.";
             leaf source-address {
                 type zt:ip-address;
                 description "Source IP address for outbound IRR whois connections.";
+                ze:help "Ze binds the address on the whois connection only. The PeeringDB query does not read the
+                    leaf. When the leaf is absent, the kernel picks the source address of the route to the server.";
             }
 
             leaf refresh-interval {
@@ -75,6 +86,9 @@ without a query to the public PeeringDB service.";
                 default "3600";
                 units "seconds";
                 description "Seconds between automatic IRR re-queries.";
+                ze:help "Ze re-queries every enrolled AS-SET on this period. The first query runs in the background
+                    at startup, so a slow IRR server never blocks the start of Ze. A failed query leaves the prefix
+                    list of the last query in force.";
             }
         }
     }

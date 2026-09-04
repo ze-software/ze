@@ -3,6 +3,7 @@ module ze-fib-vpp-conf {
     prefix fibvpp;
 
     import ze-fib-conf { prefix fib; }
+    import ze-extensions { prefix ze; }
 
     description
         "FIB VPP backend configuration for Ze.
@@ -16,6 +17,13 @@ module ze-fib-vpp-conf {
     augment "/fib:fib" {
         container vpp {
             description "VPP FIB programming via GoVPP binary API.";
+            ze:help
+                "Ze writes each best route from the system RIB into the VPP FIB
+                 with the GoVPP call IPRouteAddDel. The plugin needs a live VPP
+                 connector. With none it falls back to a backend that programs
+                 nothing and writes a warning. Ze asks the system RIB to replay
+                 the whole table each time VPP connects, so a VPP restart
+                 reprograms every route.";
 
             leaf enabled {
                 type boolean;
@@ -31,6 +39,12 @@ module ze-fib-vpp-conf {
                 description
                     "VRF table ID for route programming.
                      0 is the default VRF.";
+                ze:help
+                    "The value names the VPP VRF that Ze programs, and the
+                     default 0 is the default VRF. Ze gives it to the IP backend
+                     and to the MPLS and SRv6 backends at the moment it builds
+                     them. A new value reaches VPP when the plugin builds a
+                     backend again, which happens when VPP connects.";
             }
 
             leaf batch-size {

@@ -17,9 +17,15 @@ module ze-rest-conf {
 
     container environment {
         description "Environment settings (shared parent; merged across modules)";
+        ze:help "Ze merges same-named containers across modules, so this container is one
+                 tree that every service module writes into. ze-rest-conf contributes the
+                 rest container alone.";
 
         container api-server {
             description "API engine settings (shared parent; merged across modules)";
+            ze:help "The token that ze-api-conf declares beside this container is shared by
+                     REST and gRPC, so an operator writes the bearer token once for both
+                     transports.";
 
             container rest {
                 description "REST and HTTP transport for the API server.";
@@ -30,16 +36,29 @@ module ze-rest-conf {
                     type boolean;
                     default false;
                     description "Enable REST API server";
+                    ze:help "The default is false, so config starts no REST listener until
+                             the leaf is true. The environment variable
+                             ze.api-server.rest.enabled starts the transport with no leaf
+                             written. Ze parses the addresses and the CORS origin even when
+                             the transport stays off.";
                 }
 
                 list server {
                     key "name";
                     ze:listener;
                     description "REST API listen endpoints";
+                    ze:help "The ze:listener extension marks this list, so config validation
+                             collects each endpoint and refuses a second listener that binds
+                             the same protocol, port and address. An empty list still binds
+                             one endpoint, 0.0.0.0 port 8081, from the refine defaults under
+                             it.";
 
                     leaf name {
                         type string;
                         description "Server instance name";
+                        ze:help "The name is the list key alone. Ze binds the ip and the
+                                 port of each entry and reads no name, so the name only
+                                 keeps two entries of the list apart.";
                     }
 
                     uses zt:listener {
@@ -55,6 +74,12 @@ module ze-rest-conf {
                 leaf cors-origin {
                     type string;
                     description "CORS allowed origin (empty disables CORS headers)";
+                    ze:help "Ze copies the value into the Access-Control-Allow-Origin header
+                             of each API answer, and validates nothing in it. An empty leaf sends no
+                             CORS header, and a preflight request then gets 204 with no
+                             header. A preflight answer permits GET, POST, PUT, DELETE and
+                             OPTIONS, permits the Authorization and Content-Type headers,
+                             and holds for 86400 seconds.";
                 }
             }
         }

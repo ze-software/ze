@@ -17,14 +17,33 @@ module ze-policyroute-conf {
 
     container policy {
         description "Policy routing configuration.";
+        ze:help
+            "Ze merges every policy into one nftables table named ze_pr. The
+             chain of that table attaches to the prerouting hook at priority
+             -150. A rule marks the packet, and an ip rule then selects the
+             kernel routing table for that mark. A packet that matches no rule
+             keeps the routing decision of the main table.";
 
         list route {
             key "name";
             description "A named policy route applied to ingress interfaces.";
+            ze:help
+                "Ze applies the rules of this policy to packets that arrive on
+                 the listed interfaces. A policy that lists no interface matches
+                 on any ingress interface. Each rule that selects a table or a
+                 next-hop gets its own fwmark from range 0x50000 to 0x5FFFF. An
+                 ip rule then maps that mark to the table.";
 
             leaf name {
                 type string;
                 description "Policy route name.";
+                ze:help
+                    "The name prefixes every nftables term this policy installs,
+                     as <policy>-<rule>. Ze sorts the policies by name and writes
+                     their rules into the ze_pr chain in that order. The name
+                     decides which policy sees a packet first. The name takes 1
+                     to 255 characters: letters, digits, underscore, hyphen and
+                     dot. It does not start with a hyphen or a dot.";
             }
 
             leaf-list interface {
@@ -38,10 +57,23 @@ module ze-policyroute-conf {
                 key "name";
                 ordered-by user;
                 description "Ordered list of match/action rules.";
+                ze:help
+                    "Ze sorts the rules by the order leaf, lowest first, and it
+                     breaks a tie by name. The position of a rule in the config
+                     file does not decide its position in the chain. A rule with
+                     no order leaf takes 0 and runs first. Each rule becomes one
+                     nftables term named <policy>-<rule>.";
 
                 leaf name {
                     type string;
                     description "Rule name.";
+                    ze:help
+                        "The name breaks a tie between two rules that carry the
+                         same order value, and Ze then sorts those rules
+                         alphabetically. It is also the second half of the
+                         nftables term name <policy>-<rule>. The name takes 1 to
+                         255 characters from the set of letters, digits,
+                         underscore, hyphen and dot.";
                 }
 
                 leaf order {
@@ -55,29 +87,64 @@ module ze-policyroute-conf {
 
                 container from {
                     description "Packet match criteria.";
+                    ze:help
+                        "Ze puts every leaf of this block into one nftables rule,
+                         so a packet MUST match all of them. An empty from block
+                         matches every packet on the interfaces of the policy.
+                         Write the protocol leaf beside a port leaf. Ze reads a
+                         port from the transport header at a fixed offset and
+                         adds no protocol guard. A port leaf alone also reads
+                         those two bytes of another L4 header.";
 
                     leaf source-address {
                         type string;
                         ze:validate "ipv4-prefix|ipv6-prefix|set-ref";
                         description "Source IP prefix or @set reference.";
+                        ze:help
+                            "A value that starts with @ names a firewall set, and
+                             Ze matches the source address of the packet against
+                             the elements of that set. Any other value MUST carry
+                             a prefix length, because Ze parses it as a prefix.
+                             10.0.0.1 is refused at commit, and 10.0.0.1/32
+                             matches one host.";
                     }
 
                     leaf destination-address {
                         type string;
                         ze:validate "ipv4-prefix|ipv6-prefix|set-ref";
                         description "Destination IP prefix or @set reference.";
+                        ze:help
+                            "A value that starts with @ names a firewall set, and
+                             Ze matches the destination address of the packet
+                             against the elements of that set. Any other value
+                             MUST carry a prefix length, because Ze parses it as
+                             a prefix. 10.0.0.1 is refused at commit, and
+                             10.0.0.1/32 matches one host.";
                     }
 
                     leaf source-port {
                         type string;
                         ze:validate "port-spec";
                         description "Source port or port range (e.g. '80,443').";
+                        ze:help
+                            "Ze accepts one port, a range written with a hyphen,
+                             or a comma-separated list of both, and it holds at
+                             most 128 entries. Two entries that overlap or touch
+                             are refused at commit, and so is port 0. Ze compiles
+                             more than one entry into an anonymous nftables
+                             interval set.";
                     }
 
                     leaf destination-port {
                         type string;
                         ze:validate "port-spec";
                         description "Destination port or port range.";
+                        ze:help
+                            "The syntax is the syntax of source-port: one port, a
+                             range written with a hyphen, or a comma-separated
+                             list of both, at most 128 entries. Ze reads the
+                             destination port at offset 2 of the transport
+                             header, so write the protocol leaf beside it.";
                     }
 
                     leaf protocol {
@@ -95,20 +162,47 @@ module ze-policyroute-conf {
                         description
                             "Comma-separated TCP flags to match
                              (fin, syn, rst, psh, ack, urg).";
+                        ze:help
+                            "Every flag you list MUST be set in the packet. Ze
+                             builds the nftables mask from the same list, so a
+                             flag you do not list is not read and its value does
+                             not matter. Write syn,ack to match a packet that
+                             carries both. A name outside the six is refused at
+                             commit, and an empty list is refused too.";
                     }
                 }
 
                 container then {
                     description "Action for matching packets.";
+                    ze:help
+                        "The block carries one terminal action: accept, drop,
+                         table, or next-hop. Two terminal actions in one rule are
+                         refused at commit, and the error names both. tcp-mss is
+                         not terminal, so it combines with one of the four. A
+                         then block with no terminal action sets no fwmark, so
+                         the packet keeps the main table.";
 
                     leaf accept {
                         type empty;
                         description "Skip this policy (packet routes normally).";
+                        ze:help
+                            "Ze emits the nftables accept verdict and sets no
+                             fwmark, so the packet keeps the routing decision of
+                             the main table. The verdict ends the ze_pr chain, so
+                             no later rule of any policy reads that packet. Put
+                             an accept rule in front of a table rule to carve an
+                             exception out of it.";
                     }
 
                     leaf drop {
                         type empty;
                         description "Drop matching packets.";
+                        ze:help
+                            "Ze emits the nftables drop verdict in the ze_pr
+                             chain, which runs at the prerouting hook with
+                             priority -150. The kernel discards the packet before
+                             it makes a routing decision, and it sends the source
+                             no ICMP answer.";
                     }
 
                     leaf table {
@@ -139,7 +233,15 @@ module ze-policyroute-conf {
                         type uint16 {
                             range "1..65535";
                         }
-                        description "Clamp TCP MSS to this value (bytes).";
+                        description "Rewrite the TCP MSS option to this value in bytes.";
+                        ze:help
+                            "Ze writes this value into the TCP MSS option, kind
+                             2, of every matching packet, and it does not read
+                             the value already there. A packet that carries no
+                             MSS option is not changed. The range is 1 to 65535,
+                             and 0 is refused at commit. This action is not
+                             terminal, so it combines with accept, drop, table,
+                             or next-hop in the same rule.";
                     }
                 }
             }

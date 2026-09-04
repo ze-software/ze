@@ -61,6 +61,8 @@ characters.";
                     }
                     default accept;
                     description "Action applied when this entry's regex matches.";
+                    ze:help "The first entry whose pattern matches decides the UPDATE, and no later entry is read. A
+                        route whose path matches no entry is rejected, so a list needs no closing reject entry.";
                 }
             }
         }

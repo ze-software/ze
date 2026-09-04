@@ -19,6 +19,10 @@ module ze-graceful-restart {
         container graceful-restart {
             presence "Graceful Restart capability enabled";
             description "Graceful Restart capability configuration.";
+            ze:help "The container carries presence, so writing it makes Ze send the Graceful Restart capability,
+                code 64, to this peer. Ze lists no address family in that capability, because Ze runs the Receiving
+                Speaker procedures of RFC 4724 and preserves no forwarding state of its own. A container on the peer
+                replaces the container on the group rather than adding to it.";
 
             leaf restart-time {
                 type uint16 {
@@ -29,6 +33,9 @@ module ze-graceful-restart {
                 description
                     "Restart Time in seconds (RFC 4724 Section 3).
                      Maximum value is 4095 (12-bit field).";
+                ze:help "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer
+                    restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale
+                    route of the peer when that timer expires, unless the peer also negotiated LLGR.";
             }
 
             leaf long-lived-stale-time {

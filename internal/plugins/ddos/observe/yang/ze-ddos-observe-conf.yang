@@ -3,6 +3,7 @@ module ze-ddos-observe-conf {
   prefix ddos-observe;
 
   import ze-ddos-detect-conf { prefix dd; }
+  import ze-extensions { prefix ze; }
 
   description "DDoS incident observation configuration. Augments the shared `ddos`
                container (owned by ze-ddos-detect-conf) with the `observe` subtree.";
@@ -18,6 +19,9 @@ module ze-ddos-observe-conf {
         type uint32 { range "1..100000"; }
         default 1000;
         description "Maximum number of incidents to retain in memory.";
+        ze:help "The ring holds this many incidents. A new incident past the bound deletes the oldest
+                 closed one. When every incident in the ring is still open, the oldest open one is
+                 deleted instead. 1000 is the default, and the range is 1 to 100000.";
       }
       leaf stale-incident-timeout {
         type uint32 { range "1..86400"; }

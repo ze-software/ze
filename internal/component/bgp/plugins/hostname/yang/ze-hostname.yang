@@ -3,6 +3,7 @@ module ze-hostname {
     prefix hostname;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
 
     description
         "FQDN capability plugin for ZeBGP (draft-walton-bgp-hostname, code 73).
@@ -16,12 +17,17 @@ module ze-hostname {
     augment "/bgp:bgp/bgp:peer/bgp:session/bgp:capability" {
         container hostname {
             description "FQDN capability configuration.";
+            ze:help "Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze
+                sends no capability when host and domain are both empty. A container on the peer replaces the
+                container on the group rather than adding to it.";
 
             leaf host {
                 type string {
                     length "0..255";
                 }
                 description "System hostname (max 255 bytes).";
+                ze:help "Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the
+                    limit. Ze does not read the hostname of the box, so an empty leaf sends an empty string.";
             }
 
             leaf domain {
@@ -29,6 +35,9 @@ module ze-hostname {
                     length "0..255";
                 }
                 description "Domain name (max 255 bytes).";
+                ze:help "The capability carries host and domain as two separate strings, and Ze joins neither. Ze
+                    writes the domain after the host, with its own 1-byte length, which is why 255 bytes is the
+                    limit.";
             }
         }
     }
@@ -37,12 +46,17 @@ module ze-hostname {
     augment "/bgp:bgp/bgp:group/bgp:session/bgp:capability" {
         container hostname {
             description "FQDN capability configuration.";
+            ze:help "Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze
+                sends no capability when host and domain are both empty. A container on the peer replaces the
+                container on the group rather than adding to it.";
 
             leaf host {
                 type string {
                     length "0..255";
                 }
                 description "System hostname (max 255 bytes).";
+                ze:help "Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the
+                    limit. Ze does not read the hostname of the box, so an empty leaf sends an empty string.";
             }
 
             leaf domain {
@@ -50,6 +64,9 @@ module ze-hostname {
                     length "0..255";
                 }
                 description "Domain name (max 255 bytes).";
+                ze:help "The capability carries host and domain as two separate strings, and Ze joins neither. Ze
+                    writes the domain after the host, with its own 1-byte length, which is why 255 bytes is the
+                    limit.";
             }
         }
     }
@@ -58,12 +75,17 @@ module ze-hostname {
     augment "/bgp:bgp/bgp:group/bgp:peer/bgp:session/bgp:capability" {
         container hostname {
             description "FQDN capability configuration.";
+            ze:help "Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze
+                sends no capability when host and domain are both empty. A container on the peer replaces the
+                container on the group rather than adding to it.";
 
             leaf host {
                 type string {
                     length "0..255";
                 }
                 description "System hostname (max 255 bytes).";
+                ze:help "Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the
+                    limit. Ze does not read the hostname of the box, so an empty leaf sends an empty string.";
             }
 
             leaf domain {
@@ -71,6 +93,9 @@ module ze-hostname {
                     length "0..255";
                 }
                 description "Domain name (max 255 bytes).";
+                ze:help "The capability carries host and domain as two separate strings, and Ze joins neither. Ze
+                    writes the domain after the host, with its own 1-byte length, which is why 255 bytes is the
+                    limit.";
             }
         }
     }

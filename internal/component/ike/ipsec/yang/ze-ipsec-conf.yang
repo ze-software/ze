@@ -39,13 +39,23 @@ module ze-ipsec-conf {
 
     container vpn {
         description "VPN subsystems.";
+        ze:help "Ze declares one subsystem under it today, which is ipsec. That subsystem holds the ESP
+            groups, the IKE groups and the site-to-site peers.";
 
         container ipsec {
-            description "IPsec site-to-site VPN configuration.";
+            description "IPsec VPN configuration.";
+            ze:help "Ze speaks IKEv2 (RFC 7296) and installs each negotiated Child SA into the Linux XFRM
+                stack. A peer references one ESP group and one IKE group, and those two carry the
+                algorithms and the timers of the tunnel.";
 
             leaf interface {
                 type string;
                 description "WAN interface for IPsec traffic.";
+                ze:help "Commit refuses a name no interface on the host carries. The first IPv4 address of
+                    the interface fills the local-address of every peer that names none. It is also the
+                    address the IKE socket on port 500 and the NAT-T socket on port 4500 bind to. A
+                    reload whose interface holds no IPv4 address is refused, and the same case at
+                    startup runs and writes a warning.";
             }
 
             leaf cookie-threshold {
@@ -66,10 +76,15 @@ module ze-ipsec-conf {
             list esp-group {
                 key "name";
                 description "ESP (Encapsulating Security Payload) group.";
+                ze:help "The group carries the ESP proposals a peer offers for its Child SAs and the lifetime
+                    those SAs run under. A group MUST hold at least one proposal, and commit refuses an
+                    empty one. One group holds at most 255 proposals.";
 
                 leaf name {
                     type string;
                     description "ESP group name.";
+                    ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                        underscore and period. A site-to-site peer references the group by this name.";
                 }
 
                 leaf lifetime {
@@ -78,6 +93,12 @@ module ze-ipsec-conf {
                     }
                     default 3600;
                     description "SA lifetime in seconds. 0 disables expiry.";
+                    ze:help "The Child SA rekey trigger sits ahead of the lifetime by the larger of a
+                        random 10 percent and one retransmit budget. That lead is capped at half the
+                        lifetime. RFC 7296 Section 2.8 states the rule. 'When the lifetime of a
+                        Security Association expires, the Security Association MUST NOT be used.' Ze
+                        therefore tears the SA down at that point, even when a rekey is still in
+                        flight. The value 0 starts no rekey and no expiry.";
                 }
 
                 leaf pfs {
@@ -87,6 +108,13 @@ module ze-ipsec-conf {
                     }
                     default "enable";
                     description "Perfect Forward Secrecy for Child SA rekeying.";
+                    ze:help "With enable, Ze puts a KEi payload in the CREATE_CHILD_SA request, and the
+                        replacement Child SA is keyed from a fresh Diffie-Hellman secret. With disable,
+                        Ze sends no KEi, and the replacement is keyed from SK_d alone, so one leaked
+                        SK_d reads every replacement Child SA. RFC 7296 Section 2.17 gives both KEYMAT
+                        forms. An ESP proposal carries no Diffie-Hellman group of its own, so Ze offers
+                        the group the IKE SA already negotiated. The default is enable, and Ze refuses a
+                        response that disagrees with what its request carried.";
                 }
 
                 list proposal {
@@ -102,6 +130,10 @@ module ze-ipsec-conf {
                             range "1..65535";
                         }
                         description "Proposal priority number.";
+                        ze:help "The number is a PRIORITY and it is not the Proposal Num of the wire. Ze
+                            sorts the proposals of the group by this number and offers them lowest
+                            first. The wire number comes from the position after that sort, which is how
+                            the ike-group proposal number behaves as well.";
                     }
 
                     leaf encryption {
@@ -132,10 +164,15 @@ module ze-ipsec-conf {
             list ike-group {
                 key "name";
                 description "IKE (Internet Key Exchange) group.";
+                ze:help "The group carries the IKE proposals, the IKE SA lifetime and the Dead Peer Detection
+                    timers. A group MUST hold at least one proposal, and commit refuses an empty one.
+                    One group holds at most 255 proposals.";
 
                 leaf name {
                     type string;
                     description "IKE group name.";
+                    ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                        underscore and period. A site-to-site peer references the group by this name.";
                 }
 
                 leaf key-exchange {
@@ -152,7 +189,13 @@ module ze-ipsec-conf {
                         range "0..86400";
                     }
                     default 28800;
-                    description "IKE SA lifetime in seconds. 0 disables reauth.";
+                    description "IKE SA lifetime in seconds, where 0 starts no rekey.";
+                    ze:help "Ze rekeys the IKE SA before the lifetime runs out, on the trigger the ESP group
+                        lifetime describes. It also rekeys the SA as the message id space nears its
+                        ceiling. RFC 7296 Section 2.2 requires that. 'In the unlikely event that Message
+                        IDs grow too large to fit in 32 bits, the IKE SA MUST be closed or rekeyed.' The
+                        value 0 starts no rekey, so the SA runs until the peer or the operator ends
+                        it.";
                 }
 
                 leaf close-action {
@@ -167,6 +210,10 @@ module ze-ipsec-conf {
 
                 container dead-peer-detection {
                     description "Dead Peer Detection (DPD) settings (RFC 3706).";
+                    ze:help "The timers run whether or not this container is present. A peer with no DPD
+                        block probes every 30 seconds and waits 120 seconds for the answer. The probe is
+                        an empty INFORMATIONAL request, which is the liveness check of RFC 7296 Sections
+                        1.4 and 2.4.";
 
                     leaf action {
                         type enumeration {
@@ -184,6 +231,8 @@ module ze-ipsec-conf {
                         }
                         default 30;
                         description "DPD probe interval in seconds.";
+                        ze:help "Ze sends the next probe this long after the last one, and it sends none
+                            while a probe is outstanding. The default is 30 seconds.";
                     }
 
                     leaf timeout {
@@ -192,6 +241,11 @@ module ze-ipsec-conf {
                         }
                         default 120;
                         description "DPD timeout in seconds before declaring peer dead.";
+                        ze:help "The value bounds the whole liveness budget, so it covers the first probe and
+                            every repeat of it. RFC 7296 Section 2.4 allows the verdict only when
+                            'repeated attempts to contact it have gone unanswered for a timeout period'.
+                            Ze repeats the probe on a growing backoff inside the budget and tears the SA
+                            down when the budget runs out. The default is 120 seconds.";
                     }
                 }
 
@@ -208,6 +262,12 @@ module ze-ipsec-conf {
                             range "1..65535";
                         }
                         description "Proposal priority number.";
+                        ze:help "The number is a PRIORITY and it is not the Proposal Num of the wire. Ze
+                            sorts the proposals of the group by this number and offers them lowest
+                            first. RFC 7296 Section 3.3 sets the wire number. 'The first Proposal in the
+                            initiator's SA payload MUST have a Proposal Num of one (1).' Each later one
+                            is one greater, so Ze takes that number from the position after the
+                            sort.";
                     }
 
                     leaf encryption {
@@ -241,6 +301,11 @@ module ze-ipsec-conf {
                         }
                         mandatory true;
                         description "Diffie-Hellman group number (RFC 7296 Section 3.3.2).";
+                        ze:help "The number is Transform Type 4 of RFC 7296 Section 3.3.2. That section lists
+                            the values current at publication, up to 18, and sends the reader to the
+                            IANA registry for later ones. Ze takes 1 to 31 and refuses a group this
+                            build carries no transform for. The refusal lists the numbers the build does
+                            carry, which stops the reserved Transform ID 0 reaching the wire.";
                     }
                 }
             }
@@ -361,26 +426,42 @@ module ze-ipsec-conf {
 
             container site-to-site {
                 description "Site-to-site VPN peers.";
+                ze:help "Each peer under it is one tunnel to one remote gateway. A peer carries its own
+                    algorithms, its own identity, its own traffic selectors and its own rank in the
+                    Security Policy Database.";
 
                 list peer {
                     key "name";
                     description "Remote VPN peer.";
+                    ze:help "Ze runs one session for each peer. A configuration reload stops and restarts
+                        only the peers whose own configuration changed, so a peer left untouched keeps
+                        its Child SAs up. A peer MUST reference one IKE group and one ESP group.";
 
                     leaf name {
                         type string;
                         description "Peer name (used as connection identifier).";
+                        ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                            underscore and period. Ze asserts the name as its own IKE identity when the
+                            authentication local-id leaf is empty. The name also labels the peer in the
+                            log and in the show output.";
                     }
 
                     leaf ike-group {
                         type string;
                         mandatory true;
                         description "Reference to an IKE group name.";
+                        ze:help "The group MUST be declared under vpn ipsec ike-group, and commit refuses a
+                            name no group carries. It supplies the IKE proposals, the IKE SA lifetime
+                            and the Dead Peer Detection timers of this peer.";
                     }
 
                     leaf esp-group {
                         type string;
                         mandatory true;
                         description "Reference to an ESP group name.";
+                        ze:help "The group MUST be declared under vpn ipsec esp-group, and commit refuses a
+                            name no group carries. It supplies the ESP proposals Ze offers for this
+                            peer's Child SAs and the lifetime those SAs run under.";
                     }
 
                     leaf connection-type {
@@ -390,16 +471,31 @@ module ze-ipsec-conf {
                         }
                         default "initiate";
                         description "Whether to initiate or wait for the remote peer.";
+                        ze:help "With `initiate` Ze starts the IKE_SA_INIT exchange toward remote-address.
+                            With respond Ze starts nothing and waits. Ze matches an unsolicited
+                            IKE_SA_INIT to a respond peer when the source address of the datagram
+                            equals its remote-address. A respond peer that names no remote-address
+                            therefore matches nothing.";
                     }
 
                     leaf local-address {
                         type string;
-                        description "Local endpoint address or interface name.";
+                        description "Local endpoint IP address.";
+                        ze:help "The value is an IP address literal. Ze reads it with net.ParseIP, so an
+                            interface name here resolves to nothing and the peer cannot build a Child
+                            SA. Name the interface under vpn ipsec interface instead, and Ze fills this
+                            leaf from the first IPv4 address of that interface.";
                     }
 
                     leaf remote-address {
                         type string;
-                        description "Remote endpoint address or DNS hostname.";
+                        description "Remote endpoint IPv4 address or DNS hostname.";
+                        ze:help "Ze resolves the value with net.ResolveUDPAddr over udp4 and sends IKE to
+                            port 500 there, so an IPv6 literal is refused with \"ike: resolve remote\".
+                            Ze builds the NAT detection hashes of RFC 7296 Section 2.23 from this value.
+                            It sends none when the value is not an address literal. An unsolicited
+                            IKE_SA_INIT reaches a respond peer only when its source address equals this
+                            leaf, character for character.";
                     }
 
                     leaf mode {
@@ -503,16 +599,27 @@ module ze-ipsec-conf {
                                 pattern '[0-9]+';
                             }
                             description "Selector identifier. Order is the order of proposal.";
+                            ze:help "Ze proposes the entries in the order the configuration declares them,
+                                and it does not sort them by this number. The number is the key of the
+                                list, so commit refuses a peer that declares one number twice.";
                         }
 
                         container local {
                             description "The local side of the selector pair (TSi when Ze
                                 initiates, TSr when Ze responds).";
+                            ze:help "The prefix under it is mandatory once a traffic-selector entry exists,
+                                and commit refuses an entry that leaves it out. The port under it takes
+                                any unless the protocol leaf names a protocol that carries ports.";
 
                             leaf prefix {
                                 type zt:ip-prefix;
                                 mandatory true;
                                 description "Local traffic the Child SA carries.";
+                                ze:help "The value is a CIDR prefix, and Ze installs it as the local selector
+                                    of the kernel policy. Under mode transport the prefix MUST cover
+                                    exactly one address, a /32 or a /128. RFC 7296 Section 2.23.1
+                                    requires one IP address in TSi and in TSr, so commit refuses
+                                    anything wider there.";
                             }
 
                             leaf port {
@@ -540,11 +647,17 @@ module ze-ipsec-conf {
                         container remote {
                             description "The remote side of the selector pair (TSr when Ze
                                 initiates, TSi when Ze responds).";
+                            ze:help "It obeys the rules the local container states. Ze narrows the peer's
+                                proposal against the pair of prefixes, and it answers TS_UNACCEPTABLE
+                                when no non-empty subset remains.";
 
                             leaf prefix {
                                 type zt:ip-prefix;
                                 mandatory true;
                                 description "Remote traffic the Child SA carries.";
+                                ze:help "The value is a CIDR prefix, and Ze installs it as the remote
+                                    selector of the kernel policy. The single-address rule the local
+                                    prefix states applies here as well under mode transport.";
                             }
 
                             leaf port {
@@ -578,6 +691,10 @@ module ze-ipsec-conf {
 
                     container authentication {
                         description "Peer authentication settings.";
+                        ze:help "The mode leaf decides which leaf below it Ze reads. A pre-shared-secret peer
+                            and an EAP password mode read pre-shared-secret. X.509 and every EAP mode
+                            read certificate and ca-certificate, and commit refuses a peer that leaves
+                            either of those empty.";
 
                         leaf mode {
                             type enumeration {
@@ -607,6 +724,10 @@ module ze-ipsec-conf {
                             type string;
                             ze:sensitive;
                             description "Pre-shared key ($9$-encoded).";
+                            ze:help "Ze reads the leaf when the mode is pre-shared-secret, and when the mode
+                                is an EAP method that carries a password. The $9$ wrapper is removed
+                                first, and the pre-shared-secret-encoding leaf then decides whether the
+                                result is ASCII text or hexadecimal digit pairs.";
                         }
 
                         leaf pre-shared-secret-encoding {
@@ -635,6 +756,12 @@ module ze-ipsec-conf {
                         leaf local-id {
                             type string;
                             description "Local identity for IKE negotiation.";
+                            ze:help "Ze derives the ID type it sends from the shape of the value. An IP
+                                address literal goes out as ID_IPV4_ADDR or ID_IPV6_ADDR, and every
+                                other value as ID_FQDN. There is no ID_DER_ASN1_DN form, so commit
+                                refuses a distinguished name. Commit also refuses a subtree or an
+                                address range, because this leaf names the one identity Ze asserts. An
+                                empty leaf sends the peer name.";
                         }
 
                         leaf remote-id {

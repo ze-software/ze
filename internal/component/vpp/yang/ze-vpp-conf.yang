@@ -15,6 +15,10 @@ module ze-vpp-conf {
 
     container vpp {
         description "VPP data plane configuration.";
+        ze:help "Ze reads this subtree at startup and writes /etc/vpp/startup.conf from it, then starts /usr/bin/vpp.
+            A change committed later logs \"config reload requires daemon restart to take effect\" and does not reach
+            VPP until the daemon restarts. The enabled leaf is false by default, so every other leaf here changes
+            nothing until you set it to true.";
 
         leaf enabled {
             type boolean;
@@ -39,16 +43,29 @@ module ze-vpp-conf {
             default "/run/vpp/api.sock";
             description
                 "GoVPP binary API Unix socket path.";
+            ze:help "Ze writes this path into the socksvr section of startup.conf and then connects to it through GoVPP.
+                The path MUST be absolute, MUST NOT contain \"..\", and MUST be 108 characters or less, which is the
+                Unix socket path limit. Under external true Ze writes no startup.conf, so this leaf is the only
+                setting Ze needs to reach a VPP process another supervisor started. Ze retries the connection 10
+                times, one second apart, inside a 30-second budget.";
         }
 
         container cpu {
             description "VPP CPU pinning configuration.";
+            ze:help "These leaves write the cpu section of startup.conf. The main-core leaf pins the VPP main thread, and
+                the workers leaf derives a contiguous core list that starts one core after it. The poll-sleep leaf
+                sits here for the operator, and Ze emits it in the unix section, because that is where VPP reads
+                poll-sleep-usec. Omit every leaf to let VPP place its own threads.";
 
             leaf main-core {
                 type uint8;
                 description
                     "CPU core for VPP main thread.
                      Omit for automatic assignment.";
+                ze:help "Ze writes this core number into the cpu section of startup.conf as main-core. The worker core list
+                    starts one core after it, so main-core 0 with workers 2 emits corelist-workers 1-2. Omit the leaf
+                    and VPP picks the main core itself, and Ze still counts the worker list from core 1. Ze does not
+                    compare the number against the cores the host holds.";
             }
 
             leaf workers {
@@ -56,6 +73,10 @@ module ze-vpp-conf {
                 description
                     "Number of VPP worker threads.
                      Omit for automatic (one per available core).";
+                ze:help "Ze turns this count into the corelist-workers line of the cpu section in startup.conf. The list is
+                    contiguous and starts one core after main-core, so 4 workers with main-core 1 emits
+                    corelist-workers 2-5. A value of 0 emits no line at all, which is what an absent leaf does. Ze
+                    does not compare the count against the cores the host holds.";
             }
 
             leaf poll-sleep {
@@ -73,6 +94,10 @@ module ze-vpp-conf {
 
         container memory {
             description "VPP memory and buffer configuration.";
+            ze:help "These three leaves decide how much hugepage memory VPP asks the host for. The ze doctor check adds the
+                main heap, the buffer memory and the stats segment together. It warns when the host reserved less
+                hugepage memory than that sum. The hugepage-size leaf decides which page size VPP asks for, and it
+                also governs the stats segment.";
 
             leaf main-heap {
                 type string;
@@ -80,6 +105,9 @@ module ze-vpp-conf {
                 description
                     "VPP main heap size (e.g. 512M, 1G, 1536M).
                      Production with full DFZ: 1536M.";
+                ze:help "Ze writes this size into the heapsize section of startup.conf as main-heap-size. The value MUST be
+                    digits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check
+                    counts this size toward the hugepage memory it expects the host to have reserved.";
             }
 
             leaf hugepage-size {
@@ -89,6 +117,10 @@ module ze-vpp-conf {
                 }
                 default "2M";
                 description "Hugepage size for VPP buffers.";
+                ze:help "The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and
+                    the statseg section of startup.conf. For 2M Ze writes page-size default-hugepage-size instead,
+                    which takes whatever the kernel holds as its default hugepage size. The ze doctor check warns when
+                    you select 1G on an amd64 CPU with no pdpe1gb flag, because the kernel then reserves no 1G page.";
             }
 
             leaf buffers {
@@ -97,21 +129,36 @@ module ze-vpp-conf {
                 description
                     "Number of packet buffers per NUMA node.
                      128000 is proven for full DFZ at 10G.";
+                ze:help "Ze writes this count into the buffers section of startup.conf as buffers-per-numa, beside a fixed
+                    default-data-size of 2048 bytes. So the pool costs the count multiplied by 2048 bytes on each NUMA
+                    node, and the default 128000 costs 250 MiB. A value of 0 is refused at commit with \"vpp: memory
+                    buffers must be > 0\".";
             }
         }
 
         container dpdk {
             description "DPDK NIC configuration.";
+            ze:help "Every NIC listed here is unbound from its kernel driver and bound to vfio-pci before VPP starts, so
+                Linux loses the interface. Ze saves the original driver name and rebinds it when the daemon stops.
+                Under external true Ze binds nothing, because the external supervisor owns that step. An empty list
+                emits no dpdk section in startup.conf.";
 
             list interface {
                 key "pci-address";
                 description "DPDK-managed network interface.";
+                ze:help "The list key is the PCI address, so this list holds one entry for each NIC. Ze loads the vfio, vfio_pci
+                    and vfio_iommu_type1 kernel modules, then binds each listed address to vfio-pci. A bind failure on
+                    one NIC unbinds every NIC Ze bound in the same pass, and VPP does not start.";
 
                 leaf pci-address {
                     type string;
                     description
                         "PCI bus address in DDDD:DD:DD.D format
                          (e.g. 0000:03:00.0).";
+                    ze:help "This address is the list key, and Ze writes it into the dpdk section of startup.conf as a dev entry.
+                        Ze reads /sys/bus/pci/devices/ADDRESS to find the current driver and the vendor and device IDs,
+                        then writes that pair to /sys/bus/pci/drivers/vfio-pci/new_id. A value that does not match the
+                        DDDD:DD:DD.D pattern is refused at commit, where the last digit is 0 to 7.";
                 }
 
                 leaf name {
@@ -119,6 +166,10 @@ module ze-vpp-conf {
                     description
                         "Short interface name (e.g. xe0, e1).
                          Used in ze CLI and config.";
+                    ze:help "Ze writes this name into the dev entry of the dpdk section in startup.conf, so VPP calls the
+                        interface by it. The name is 1 to 15 characters of letters, digits, underscore, hyphen and dot,
+                        and a hyphen or a dot MUST NOT come first. Omit the leaf and Ze writes no name line, so VPP
+                        picks the interface name itself.";
                 }
 
                 leaf rx-queues {
@@ -126,6 +177,10 @@ module ze-vpp-conf {
                     description
                         "Number of receive queues.
                          Omit for VPP default.";
+                    ze:help "Ze writes this count into the dev entry of the dpdk section as num-rx-queues. An explicit 0 is
+                        written out, so it is not the same as an absent leaf. Omit the leaf and the line is absent,
+                        which leaves VPP on its own default. Ze does not compare the count against the queues the NIC
+                        holds.";
                 }
 
                 leaf tx-queues {
@@ -133,23 +188,39 @@ module ze-vpp-conf {
                     description
                         "Number of transmit queues.
                          Omit for VPP default.";
+                    ze:help "Ze writes this count into the dev entry of the dpdk section as num-tx-queues. An explicit 0 is
+                        written out, so it is not the same as an absent leaf. Omit the leaf and the line is absent,
+                        which leaves VPP on its own default. Ze does not compare the count against the queues the NIC
+                        holds.";
                 }
             }
         }
 
         container stats {
             description "VPP stats segment configuration.";
+            ze:help "The stats segment is the shared memory area VPP writes its counters into. Ze connects to it separately
+                from the binary API and reads it for Prometheus metrics, at the interval poll-interval sets. A failed
+                stats connection logs \"vpp: stats connection failed, telemetry disabled\" and leaves the rest of the
+                VPP integration running.";
 
             leaf segment-size {
                 type string;
                 default "512M";
                 description "Stats segment shared memory size.";
+                ze:help "Ze writes this size into the statseg section of startup.conf as size. The value MUST be digits followed
+                    by M or G, so 512M and 1G are accepted and 512MB is refused at commit. The page size of the
+                    segment comes from memory hugepage-size and not from this leaf. The ze doctor check counts this
+                    size toward the hugepage memory it expects the host to have reserved.";
             }
 
             leaf socket-path {
                 type string;
                 default "/run/vpp/stats.sock";
                 description "Stats segment Unix socket path.";
+                ze:help "Ze writes this path into the statseg section of startup.conf as socket-name, and the telemetry poller
+                    connects to it to read VPP's counters. The path MUST be absolute, MUST NOT contain \"..\", and MUST
+                    be 108 characters or less, which is the Unix socket path limit. This is a different socket from
+                    api-socket, which carries the binary API.";
             }
 
             leaf poll-interval {
@@ -172,6 +243,10 @@ module ze-vpp-conf {
                 type boolean;
                 default true;
                 description "Enable LCP plugin in VPP.";
+                ze:help "When this leaf is true, Ze enables linux_cp_plugin.so and linux_nl_plugin.so in startup.conf, and writes
+                    the linux-cp and linux-nl sections. When it is false, no other lcp leaf reaches startup.conf and
+                    the netns leaf is not validated. The default is true. LCP gives each VPP interface a TAP mirror in
+                    Linux, so a routing daemon binds an ordinary Linux socket.";
             }
 
             leaf sync {
@@ -180,6 +255,10 @@ module ze-vpp-conf {
                 description
                     "Sync VPP state changes (link, MTU, IP)
                      to Linux TAP mirrors.";
+                ze:help "When this leaf is true, Ze writes lcp-sync into the linux-cp section of startup.conf. A link, MTU or
+                    address change made in VPP then reaches the Linux TAP mirror. When it is false, Ze omits the line and
+                    the two sides drift apart. The default is true, and lcp enabled MUST also be true before Ze writes
+                    the line.";
             }
 
             leaf auto-subint {
@@ -188,6 +267,10 @@ module ze-vpp-conf {
                 description
                     "Auto-create sub-TAPs for dot1q/QinQ
                      sub-interfaces.";
+                ze:help "When this leaf is true, Ze writes lcp-auto-subint into the linux-cp section of startup.conf. A dot1q
+                    or QinQ sub-interface created in VPP then gets its own Linux sub-TAP. When it is false, Ze omits the
+                    line, so a sub-interface has no mirror in Linux and only its parent interface does. The default is
+                    true, and lcp enabled MUST also be true before Ze writes the line.";
             }
 
             leaf netns {
@@ -196,6 +279,14 @@ module ze-vpp-conf {
                 description
                     "Network namespace for LCP TAP interfaces.
                      Routing daemons run in this namespace.";
+                ze:help "Ze writes this name into the linux-cp section of startup.conf as default netns. VPP then creates the
+                    TAP mirrors under /var/run/netns/NAME. An EMPTY value is valid, and Ze then omits the line. It is
+                    the one value that leaves the TAPs in the namespace Ze runs in. An absent leaf is not
+                    the same as an empty one, because Ze seeds the default \"dataplane\" when the leaf is absent. With
+                    any name, Ze binds BGP in its own namespace and cannot bind on an LCP TAP address, which the
+                    doctor check vpp-lcp-netns reports. A name with a path separator, a space or an unprintable
+                    character is refused at commit. VPP truncates a name at a space, so the namespace it then opens
+                    under /var/run/netns/ does not exist.";
             }
         }
 

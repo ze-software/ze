@@ -19,90 +19,147 @@ module ze-dhcp-server-conf {
 
     container service {
         description "Service settings";
+        // Several modules declare this container and the config tree merges them,
+        // so this text states the same fact as ze-as112-conf in its own words.
+        ze:help "The container holds the settings of each service Ze runs. The dhcp-server container under it
+                 configures the DHCPv4 server.";
 
         container dhcp-server {
             description "DHCP server settings";
+            ze:help "DHCP server settings. Ze speaks DHCPv4 only (RFC 2131 and RFC 2132), so every address leaf under
+                     this container is IPv4. The server binds one listener for each name in listen-interface, and
+                     every listener answers for every configured subnet.";
 
             leaf enabled {
                 type boolean;
                 default false;
                 description "Enable DHCP server";
+                ze:help "Enable the DHCP server. Left false, the plugin still parses and validates the config, and it
+                    binds no socket and builds no handler. A commit that sets it true rebuilds one handler for each
+                    subnet and binds the listeners again.";
             }
 
             leaf-list listen-interface {
                 type string;
                 description "Interfaces to serve DHCP on";
+                ze:help "Interfaces to serve DHCP on. Ze binds one UDP listener for each name in the list. A name that
+                    fails to bind is logged as an error and skipped. When no name binds, the server logs that it is
+                    not serving and answers nothing.";
             }
 
             container pxe {
                 description "PXE boot server settings (RFC 4578)";
+                ze:help "PXE boot server settings (RFC 4578). Ze adds these options only when the client vendor class
+                        in option 60 starts with PXEClient:. An ordinary DHCP client sees none of them. With pxe
+                        enabled, a commit also requires tftp-server, bootfile-bios and bootfile-uefi.";
 
                 leaf enabled {
                     type boolean;
                     default false;
                     description "Enable PXE boot option injection";
+                    ze:help "Enable PXE boot option injection. Set true, a commit also requires tftp-server,
+                        bootfile-bios and bootfile-uefi, and it names the missing one. Left false, Ze adds no PXE
+                        option even for a client that identifies itself as PXEClient.";
                 }
 
                 leaf tftp-server {
                     type string;
                     ze:validate "ipv4-address";
                     description "TFTP server IP address for PXE boot (option 66, siaddr)";
+                    ze:help "TFTP server IP address for PXE boot. Ze writes the address into the siaddr field of the
+                        reply (RFC 2131 Section 4.3.1) and its text form into option 66 (RFC 2132 Section 9.9). The
+                        address has to be IPv4. An iPXE client receives neither, because boot-script-url answers it
+                        instead.";
                 }
 
                 leaf bootfile-bios {
                     type string;
                     description "Boot file path for BIOS clients (option 67)";
+                    ze:help "Boot file path for BIOS clients, sent as option 67. Ze sends it whenever the first client
+                        architecture in option 93 is any value other than 7 (RFC 4578 Section 2.1). An absent or
+                        malformed option 93 reads as architecture 0, which is BIOS, so this path is the fallback.";
                 }
 
                 leaf bootfile-uefi {
                     type string;
                     description "Boot file path for UEFI clients (option 67)";
+                    ze:help "Boot file path for UEFI clients, sent as option 67. Ze sends it only when the first client
+                        architecture in option 93 is 7, which is UEFI x64 (RFC 4578 Section 2.1). Every other
+                        architecture receives bootfile-bios.";
                 }
 
                 leaf boot-script-url {
                     type string;
                     description "HTTP URL for iPXE boot script (sent as option 67 to iPXE clients)";
+                    ze:help "HTTP URL for the iPXE boot script. Ze sends it as option 67 only to a client whose user
+                        class in option 77 starts with iPXE. That reply carries option 60 and option 67 alone, so
+                        the iPXE client receives no option 66, no option 43 and no siaddr. A commit rejects a URL
+                        that does not start with http:// or https://, and one longer than 255 characters.";
                 }
             }
 
             list shared-network {
                 key "name";
                 description "Named network grouping of subnets";
+                ze:help "Named network grouping of subnets. The name is a label for the operator, and Ze puts it on no
+                    packet. Ze sorts the groups by name and builds one handler for each subnet in that order. A
+                    request is answered by the first handler that accepts it.";
 
                 leaf name {
                     type string;
                     description "Shared network name";
+                    ze:help "Shared network name, and the key of this list. Ze sorts the groups by this name. The order
+                        decides which subnet answers first when a request matches more than one subnet.";
                 }
 
                 list subnet {
                     key "prefix";
                     description "Subnet with address pool and options";
+                    ze:help "Subnet with address pool and options. Each subnet becomes one handler with its own address
+                        pool and lease table. A request that carries no relay address, no client address and no
+                        requested address matches every subnet. The first handler with a free address answers it.";
 
                     leaf prefix {
                         type string;
                         ze:validate "ipv4-prefix";
                         description "Subnet prefix (e.g. 192.168.1.0/24)";
+                        ze:help "Subnet prefix, and the key of this list. The prefix has to be IPv4, and a commit
+                            rejects any other family. Ze tests each range address, each static mapping address and
+                            the relay address of a request against this prefix. The prefix also gives the subnet
+                            mask the reply carries in option 1.";
                     }
 
                     list range {
                         key "name";
                         description "Named dynamic address pool range";
+                        ze:help "Named dynamic address pool range. A subnet holds 10 ranges at most. Ze sorts them by
+                            start address and rejects a commit where two of them overlap. Ze allocates in that
+                            order.";
 
                         leaf name {
                             type string;
                             description "Range name";
+                            ze:help "Range name, and the key of this list. The name appears in the commit error that
+                                reports an overlap, and on no packet. A start and a stop written with no name are
+                                read as one range named default.";
                         }
 
                         leaf start {
                             type string;
                             ze:validate "ipv4-address";
                             description "First allocatable address";
+                            ze:help "First allocatable address, and the address is allocatable. It has to fall inside
+                                the subnet prefix, and it has to be less than or equal to stop. A commit names which
+                                of the two rules it broke.";
                         }
 
                         leaf stop {
                             type string;
                             ze:validate "ipv4-address";
                             description "Last allocatable address";
+                            ze:help "Last allocatable address, and the address is allocatable. It has to fall inside the
+                                subnet prefix. A range of one address is written with the same value in start and
+                                stop.";
                         }
                     }
 
@@ -112,43 +169,70 @@ module ze-dhcp-server-conf {
                         }
                         default 86400;
                         description "Lease duration in seconds";
+                        ze:help "Lease duration in seconds, 60 to 604800, default 86400. Ze sends it as option 51. It
+                            also sends the renewal time T1 as half of it, and the rebinding time T2 as seven
+                            eighths of it. RFC 2131 Section 4.4.5 states those two fractions. The lease table drops
+                            a binding after the same time.";
                     }
 
                     leaf default-router {
                         type string;
                         ze:validate "ipv4-address";
                         description "Default gateway address (option 3)";
+                        ze:help "Default gateway address, sent as option 3. Ze also uses it as the DHCP server
+                            identifier of this subnet, in option 54. With no default-router the identifier falls
+                            back to the start address of the first range, and then to the network address of the
+                            prefix. A REQUEST that names a different server identifier is left unanswered.";
                     }
 
                     leaf-list dns-server {
                         type string;
                         ze:validate "ipv4-address";
                         description "DNS server addresses (option 6)";
+                        ze:help "DNS server addresses, sent as option 6. Write them in preference order, because Ze
+                            sends them in the order it reads them. A commit rejects more than 63 addresses, which is
+                            what one DHCP option holds, and it rejects an address that is not IPv4.";
                     }
 
                     leaf domain-name {
                         type string;
                         description "Domain name for clients (option 15)";
+                        ze:help "Domain name for clients, sent as option 15. Ze sends the string as it is written. A
+                            commit rejects a value longer than 255 characters, which is the most one DHCP option
+                            holds.";
                     }
 
                     list static-mapping {
                         key "name";
                         description "Static MAC-to-IP binding";
+                        ze:help "Static MAC-to-IP binding. Ze answers a client whose MAC address matches with the mapped
+                            address, and it never consults the dynamic pool for that client. A mapped address that
+                            falls inside a range is marked in the pool, so no other client is offered it.";
 
                         leaf name {
                             type string;
                             description "Mapping name";
+                            ze:help "Mapping name, and the key of this list. The name appears in the commit error that
+                                reports a bad mapping, and on no packet. Ze sorts the mappings of a subnet by this
+                                name.";
                         }
 
                         leaf mac-address {
                             type string;
                             description "Client MAC address (xx:xx:xx:xx:xx:xx)";
+                            ze:help "Client MAC address. Ze reads the colon form aa:bb:cc:dd:ee:ff, the hyphen form and
+                                the dotted form. Ze matches the value against the client hardware address of the
+                                request. A mapping with no mac-address is rejected at commit.";
                         }
 
                         leaf ip-address {
                             type string;
                             ze:validate "ipv4-address";
                             description "Fixed IP address for this client";
+                            ze:help "Fixed IP address for this client. It has to fall inside the subnet prefix, and a
+                                commit rejects an address outside it. The address does not have to fall inside a
+                                range. When it does, Ze marks it allocated so the dynamic pool never offers it to
+                                another client.";
                         }
                     }
                 }

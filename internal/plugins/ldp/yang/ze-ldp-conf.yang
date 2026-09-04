@@ -7,15 +7,27 @@ module ze-ldp-conf {
 
     container ldp {
         description "Label Distribution Protocol configuration";
+        ze:help "The engine stays idle until lsr-id carries an address, and it says so in
+                 the log. Ze then sends Hello messages to 224.0.0.2 port 646 and opens a TCP
+                 session on port 646 to each neighbor it discovers.";
 
         leaf lsr-id {
             type string;
             description "LSR identifier (IPv4 address format)";
+            ze:help "Ze refuses a value that is not an IP address, and stays idle while the
+                     leaf is empty. The first 4 bytes of every LDP PDU header carry this
+                     identifier. Ze also originates a label binding for the address itself,
+                     so a neighbor can reach this LSR by its identifier.";
         }
 
         leaf transport-address {
             type string;
             description "Transport address for TCP sessions";
+            ze:help "Ze advertises this address in the transport address TLV of each Hello,
+                     which is the address a neighbor connects to. Ze also binds it as the
+                     source address of the TCP connection it opens. With the leaf empty, the
+                     Hello carries no transport address TLV and the kernel picks the source
+                     address.";
         }
 
         leaf hello-interval {
@@ -25,6 +37,9 @@ module ze-ldp-conf {
             default 5;
             units seconds;
             description "Hello message interval";
+            ze:help "The default is 5 seconds and the range is 1 to 65535. Ze sends one
+                     Hello for each interface at this period. A shorter interval finds a
+                     neighbor faster and puts more packets on the link.";
         }
 
         leaf hello-hold-time {
@@ -34,6 +49,10 @@ module ze-ldp-conf {
             default 15;
             units seconds;
             description "Hello adjacency hold time";
+            ze:help "The default is 15 seconds, which is 3 hello intervals. Ze advertises
+                     this value in each Hello, and a neighbor drops the adjacency when no
+                     Hello arrives inside it. Keep it more than hello-interval, because a hold time
+                     under one interval drops the adjacency between two Hellos.";
         }
 
         leaf keepalive-time {
@@ -48,6 +67,12 @@ module ze-ldp-conf {
         leaf-list interfaces {
             type string;
             description "Interfaces on which LDP discovery is enabled";
+            ze:help "Ze runs one discovery listener for each interface of this list. An
+                     empty list runs one listener that the system assigns to an interface
+                     itself. A reload starts discovery on an interface added to the list and
+                     stops it on one removed, and it leaves the other interfaces alone. The
+                     connected prefixes of these interfaces are the FECs this LSR is egress
+                     for.";
         }
     }
 }

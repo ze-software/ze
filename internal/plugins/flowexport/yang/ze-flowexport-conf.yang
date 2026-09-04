@@ -7,20 +7,32 @@ module ze-flowexport-conf {
 
     container flow-export {
         description "Flow export (sFlow, NetFlow v9, IPFIX) configuration";
+        ze:help "Flow export configuration. Ze exports interface counters to every collector. It exports per-flow
+                 records as well when the conntrack container or the sampling container is enabled. Each collector
+                 names its own protocol, so one device can feed an sFlow collector and an IPFIX collector at the
+                 same time.";
 
         list collector {
             key "name";
             description "A flow export collector endpoint";
+            ze:help "A flow export collector endpoint. Ze opens one UDP sender for each entry and encodes for the
+                protocol that entry names. address and protocol are both mandatory, so a commit that leaves either
+                one out is rejected. Each datagram is 1400 bytes at most, to stay under a common path MTU.";
 
             leaf name {
                 type string;
                 description "Collector name";
+                ze:help "Collector name, and the key of this list. The name labels this collector in the export
+                    metrics and in the log lines that report a send failure. It reaches no datagram.";
             }
 
             leaf address {
                 type zt:ip-address;
                 mandatory true;
                 description "Collector IP address";
+                ze:help "Collector IP address, and the leaf is mandatory. The address and port together are where Ze
+                    sends every datagram of this collector. A commit that gives a value Ze cannot parse as an
+                    address is rejected.";
             }
 
             leaf port {
@@ -29,11 +41,17 @@ module ze-flowexport-conf {
                 }
                 default 6343;
                 description "Collector UDP port";
+                ze:help "Collector UDP port. The default 6343 is the port sFlow collectors listen on, so a NetFlow v9
+                    or an IPFIX collector usually needs its own port written here. The port is per collector, so two
+                    entries can send to one address on two ports.";
             }
 
             leaf source-address {
                 type zt:ip-address;
                 description "Source IP address for outbound flow export datagrams";
+                ze:help "Source IP address for outbound flow export datagrams. Ze binds the UDP socket of this
+                    collector to the address. Left out, the kernel selects a source from its route to the collector.
+                    The value does not reach the sFlow datagram header, which carries agent-address instead.";
             }
 
             leaf protocol {
@@ -50,6 +68,9 @@ module ze-flowexport-conf {
                 }
                 mandatory true;
                 description "Export protocol";
+                ze:help "Export protocol, and the leaf is mandatory. The value selects the encoder Ze builds for this
+                    collector. It also decides which of the other leaves are read. sub-agent-id and agent-address
+                    are read by sflow alone, and observation-domain by netflow9 and ipfix alone.";
             }
 
             leaf polling-interval {
@@ -58,6 +79,9 @@ module ze-flowexport-conf {
                 }
                 default 20;
                 description "Counter polling interval in seconds";
+                ze:help "Counter polling interval in seconds, 1 to 3600, default 20. Ze sends the interface counters to
+                    this collector no more often than this. The counter snapshot is shared between collectors, so a
+                    short interval on one collector does not make another one faster.";
             }
 
             leaf template-refresh {
@@ -66,36 +90,59 @@ module ze-flowexport-conf {
                 }
                 default 600;
                 description "Template refresh interval in seconds (NetFlow v9, IPFIX)";
+                ze:help "Template refresh interval in seconds, 1 to 86400, default 600. NetFlow v9 and IPFIX resend the
+                    record template on this interval, so a collector that restarts can decode the records again. The
+                    counter template and the flow template each keep their own timer. The sFlow encoder has no
+                    template and does nothing with the value.";
             }
 
             leaf sub-agent-id {
                 type uint32;
                 default 0;
                 description "sFlow sub-agent identifier";
+                ze:help "sFlow sub-agent identifier, default 0. Ze writes it into the sFlow v5 datagram header. It
+                    separates several sFlow agents that share one agent-address, so a collector can keep their
+                    sequence numbers apart. A netflow9 or ipfix collector does not read the leaf.";
             }
 
             leaf observation-domain {
                 type uint32;
                 default 0;
                 description "IPFIX/NetFlow v9 observation domain ID";
+                ze:help "IPFIX and NetFlow v9 observation domain ID, default 0. Ze writes it into the message header of
+                    every counter message and every flow message of those two protocols. A collector uses it to keep
+                    the record streams of one exporter apart. An sflow collector does not read the leaf.";
             }
 
             leaf agent-address {
                 type zt:ip-address;
                 description "sFlow agent address (device's own stable IP, e.g. loopback)";
+                ze:help "sFlow agent address, which is the device's own stable IP address. Ze writes it into the sFlow
+                    v5 datagram header, so a collector identifies the exporter by one address whichever interface
+                    the datagram left. Left out, Ze writes 0.0.0.0. A netflow9 or ipfix collector does not read the
+                    leaf.";
             }
         }
 
         container sampling {
             description "Packet sampling (tc sample + psample) exported as sFlow flow samples";
+            ze:help "Packet sampling exported as sFlow flow samples. Ze installs a tc sample action on each listed
+                    interface and reads the sampled headers from the kernel psample netlink family. The path is
+                    Linux only. A setup failure is logged and leaves that interface unsampled, and the rest of the
+                    exporter keeps running.";
 
             list interface {
                 key "name";
                 description "Per-interface packet sampling configuration";
+                ze:help "Per-interface packet sampling configuration. Ze installs the tc action for each entry on its
+                    own, so a failure on one entry does not stop another. Ze maps each sample the kernel delivers
+                    back to its entry by kernel interface index.";
 
                 leaf name {
                     type string;
                     description "Interface to sample";
+                    ze:help "Interface to sample, and the key of this list. Ze installs the tc sample action on this
+                        interface and resolves its kernel index once, so a sample is reported under this name.";
                 }
 
                 leaf rate {
@@ -103,6 +150,9 @@ module ze-flowexport-conf {
                         range "1..1000000";
                     }
                     description "Sampling rate (1-in-N packets)";
+                    ze:help "Sampling rate, as one packet in N. The leaf has no default, so an entry that leaves it out
+                        fails the commit with 'rate 0 out of range 1-1000000'. Ze passes the value to the tc sample
+                        action, and the kernel does the sampling.";
                 }
 
                 leaf trunc-size {
@@ -111,6 +161,10 @@ module ze-flowexport-conf {
                     }
                     default 128;
                     description "Bytes of each sampled packet header to capture";
+                    ze:help "Bytes of each sampled packet header to capture, 64 to 1500, default 128. The tc sample
+                        action truncates the frame to this length before the kernel passes it up. A larger value
+                        carries more of the packet into the sFlow flow sample, and it costs more bandwidth toward
+                        the collector.";
                 }
 
                 leaf group {
@@ -119,17 +173,27 @@ module ze-flowexport-conf {
                     }
                     default 1;
                     description "psample group ID";
+                    ze:help "psample group ID, default 1. Ze writes it into the tc sample action, which tags each
+                        sample the kernel emits. Ze does not read it back. The reader joins the psample packets
+                        multicast group and maps each sample to its interface by index. This value therefore does
+                        not select which samples Ze reads.";
                 }
             }
         }
 
         container conntrack {
             description "Per-flow record export from conntrack (NetFlow v9, IPFIX)";
+            ze:help "Per-flow record export from conntrack. Ze dumps the kernel conntrack table on a timer and turns
+                    each live entry into a flow record for the NetFlow v9 and IPFIX collectors. The same records
+                    fill the recent-flow ring that 'show flow recent' and the DDoS characterization read.";
 
             leaf enabled {
                 type boolean;
                 default false;
                 description "Export per-flow records from the conntrack table";
+                ze:help "Export per-flow records from the conntrack table. Left false, Ze starts no conntrack worker and
+                    allocates no recent-flow ring. 'show flow recent' then has nothing to read, and the DDoS
+                    characterization loses its flow input and falls back to its coarse target.";
             }
 
             leaf active-timeout {
@@ -138,6 +202,9 @@ module ze-flowexport-conf {
                 }
                 default 60;
                 description "Seconds between conntrack table dumps";
+                ze:help "Seconds between conntrack table dumps, 1 to 3600, default 60. Each dump turns the live
+                    conntrack entries into flow records. Ze also drops its own tracking state for a flow it has not
+                    seen for twice this time. A short timeout therefore shortens that memory too.";
             }
 
             leaf recent-flow-ring {
@@ -154,11 +221,18 @@ module ze-flowexport-conf {
 
         container enrichment {
             description "Flow record enrichment from the BGP RIB";
+            ze:help "Flow record enrichment from the BGP RIB. Ze keeps a prefix-to-AS radix tree that BGP best-path
+                    changes feed. A flow record reads its next hop and its AS numbers from that tree. The tree is
+                    swapped whole, so a record never reads a half-built tree.";
 
             leaf bgp {
                 type boolean;
                 default false;
                 description "Enrich flow records with BGP next-hop (and AS where available)";
+                ze:help "Enrich flow records with the BGP next hop, and with the AS numbers where the RIB carries them.
+                    Ze subscribes to the RIB best-path changes and rebuilds the lookup tree at most once per rebuild
+                    interval. A full-table replay event carries no AS_PATH, so those entries hold no AS until the
+                    next incremental change corrects them.";
             }
         }
     }

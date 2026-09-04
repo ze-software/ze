@@ -22,6 +22,10 @@ module ze-l2tp-conf {
             default true;
             description "Enable L2TP subsystem. Defaults to true when the
                          l2tp block is present; set to false to disable.";
+            ze:help "The l2tp block itself starts the subsystem. This leaf stops the subsystem
+                where the block must stay, and it is filler where no other setting is needed. A
+                change is restart-only. The reload logs that it ignored the flip and asks for a
+                restart, and the running state stays as it is.";
         }
 
         leaf max-tunnels {
@@ -126,6 +130,11 @@ module ze-l2tp-conf {
             description
                 "Number of events in each per-session event ring.
                  When full, oldest events are overwritten.";
+            ze:help "Ze pre-allocates one ring for each session the subsystem can hold, and each
+                ring holds this many slots. The value therefore multiplies into the memory the
+                subsystem takes at startup. A full ring overwrites its oldest event. A session therefore keeps its
+                most recent events and loses the older ones. A change is restart-only, and the
+                reload logs that it ignored it.";
         }
 
         leaf sample-retention-seconds {
@@ -141,6 +150,11 @@ module ze-l2tp-conf {
 
         container authentication {
             description "PPP authentication phase settings for L2TP sessions.";
+            ze:help "The container holds the timing of the PPP authentication phase, and nothing
+                else. The backend that answers a credential sits under the auth container, which the
+                l2tp-auth-local plugin and the l2tp-auth-radius plugin fill. Both leaves here
+                hot-apply: a new value reaches the next session, and a session that is already up
+                keeps the value it started with.";
 
             leaf timeout {
                 type uint16 {
@@ -165,6 +179,10 @@ module ze-l2tp-conf {
 
         container ncp {
             description "NCP (Network Control Protocol) settings for L2TP sessions.";
+            ze:help "NCP is the phase after PPP authentication, where each side negotiates one
+                network-layer protocol. The two enable leaves choose which protocols Ze offers, and
+                the timeout leaf bounds the phase. Each leaf hot-applies to a new session, and a
+                session that is already up keeps what it negotiated.";
 
             leaf enable-ipcp {
                 type boolean;
@@ -172,6 +190,11 @@ module ze-l2tp-conf {
                 description
                     "Enable the IPCP NCP (RFC 1332) for new L2TP sessions.
                      When false, no IPv4 address is negotiated.";
+                ze:help "IPCP (RFC 1332) is what gives the subscriber an IPv4 address. The default
+                    true offers it on each new session. Set it false and Ze sets DisableIPCP on the
+                    kernel PPP channel of a new session. That session then gets no IPv4 address, and
+                    only IPv6CP can succeed. The leaf hot-applies, and a running session keeps the
+                    address it holds.";
             }
 
             leaf enable-ipv6cp {
@@ -206,6 +229,11 @@ module ze-l2tp-conf {
                     length "1..64";
                 }
                 description "Operator-assigned remote name (dial-target key).";
+                ze:help "The name is the list key, and it is what the rest of the config points at.
+                    `request l2tp outgoing-call remote <name>` names it, and so does a PPPoE relay
+                    binding. Ze refuses a relay binding that names a remote which does not exist,
+                    because its YANG engine carries no leafref. The length is 1 to 64
+                    characters.";
             }
 
             leaf address {
@@ -214,6 +242,10 @@ module ze-l2tp-conf {
                 description
                     "Remote control-plane IP address to dial. The SCCRQ
                      destination (RFC 2661 Section 6.1).";
+                ze:help "Ze sends the SCCRQ to this address, with the port leaf beside it. The leaf
+                    is mandatory, so a remote without one is refused at commit. Ze parses the
+                    address and the port into one UDP endpoint when it loads the config. A value it
+                    cannot parse is refused there, and not at dial time.";
             }
 
             leaf port {
@@ -278,15 +310,27 @@ module ze-l2tp-conf {
 
         container l2tp {
             description "L2TP listener endpoints";
+            ze:help "The container holds the UDP endpoints the L2TP subsystem listens on, and
+                nothing about a tunnel. A change to an endpoint is restart-only. The reload logs
+                that it ignored the change and asks for a restart, and Ze keeps the socket it
+                holds.";
 
             list server {
                 key "name";
                 ze:listener;
                 description "L2TP server listen endpoints (UDP)";
+                ze:help "Each entry is one UDP socket Ze binds for L2TPv2, and RFC 2661 assigns port
+                    1701. Config validation refuses two listeners that share a protocol and a port
+                    where their addresses overlap. `ze doctor` tries to bind each entry and names
+                    the one the host refuses.";
 
                 leaf name {
                     type string;
                     description "Server instance name";
+                    ze:help "The name is the list key and it identifies the endpoint in the config.
+                        It reaches no packet: the ip leaf and the port leaf are what Ze binds. Write
+                        one entry for each address, or for each address family, that L2TP must
+                        answer on.";
                 }
 
                 uses zt:listener {

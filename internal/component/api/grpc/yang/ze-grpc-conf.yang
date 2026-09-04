@@ -17,28 +17,51 @@ module ze-grpc-conf {
 
     container environment {
         description "Environment settings (shared parent; merged across modules)";
+        ze:help "Ze merges same-named containers across modules, so this container is one
+                 tree that every service module writes into. ze-grpc-conf contributes the
+                 grpc container alone.";
 
         container api-server {
             description "API engine settings (shared parent; merged across modules)";
+            ze:help "The token that ze-api-conf declares beside this container is shared by
+                     REST and gRPC, so an operator writes the bearer token once for both
+                     transports.";
 
             container grpc {
                 description "gRPC API transport. Authenticated non-loopback listeners
                              require tls-cert and tls-key.";
+                ze:help "A listen address that is not loopback must carry authentication and
+                         TLS, and Ze refuses to start the server without them. Without TLS
+                         the bearer token that gates each call crosses the network in clear.
+                         Ze accepts TLS 1.2 as its lowest version.";
 
                 leaf enabled {
                     type boolean;
                     default false;
                     description "Enable gRPC API server";
+                    ze:help "The default is false, so config starts no gRPC listener until
+                             the leaf is true. The environment variable
+                             ze.api-server.grpc.enabled starts the transport with no leaf
+                             written. Ze parses the addresses and the TLS pair even when the
+                             transport stays off.";
                 }
 
                 list server {
                     key "name";
                     ze:listener;
                     description "gRPC API listen endpoints";
+                    ze:help "The ze:listener extension marks this list, so config validation
+                             collects each endpoint and refuses a second listener that binds
+                             the same protocol, port and address. An empty list still binds
+                             one endpoint, 0.0.0.0 port 50051, from the refine defaults
+                             under it.";
 
                     leaf name {
                         type string;
                         description "Server instance name";
+                        ze:help "The name is the list key alone. Ze binds the ip and the
+                                 port of each entry and reads no name, so the name only
+                                 keeps two entries of the list apart.";
                     }
 
                     uses zt:listener {
@@ -54,12 +77,19 @@ module ze-grpc-conf {
                 leaf tls-cert {
                     type string;
                     description "Path to TLS certificate file for gRPC";
+                    ze:help "Write tls-cert and tls-key together. Ze refuses to start the
+                             server when one of the two is written and the other is not. Ze
+                             reads the pair from disk at start, so a path that names no file
+                             stops the server with an error.";
                 }
 
                 leaf tls-key {
                     type string;
                     ze:sensitive;
                     description "Path to TLS private key file for gRPC";
+                    ze:help "The leaf names the file that holds the private key of tls-cert,
+                             and Ze reads the two together at start. Ze marks the leaf
+                             ze:sensitive, so ze config dump prints the value $9$-encoded.";
                 }
             }
         }

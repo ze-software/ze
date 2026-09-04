@@ -25,6 +25,9 @@ module ze-loop-detection {
             leaf name {
                 type string;
                 description "Filter instance name (referenced in peer filter chains)";
+                ze:help "Ze puts the name at the front of the import chain of every peer that does not carry it.
+                    An instance therefore applies with no chain edit. The first instance a peer chain names wins for
+                    that peer. Write inactive:NAME in the chain to turn loop detection off for one peer.";
             }
 
             leaf allow-own-as {

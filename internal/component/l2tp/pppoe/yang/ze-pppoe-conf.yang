@@ -34,6 +34,9 @@ module ze-pppoe-conf {
             type string;
             default "ze";
             description "Access Concentrator Name advertised in PADO (RFC 2516 Section 5.2).";
+            ze:help "The default is ze. Ze writes the value into the AC-Name tag, 0x0102, of
+                     each discovery reply it builds. A client that hears several
+                     concentrators reads this name to pick one.";
         }
 
         leaf-list service-name {
@@ -80,6 +83,10 @@ module ze-pppoe-conf {
             default 5;
             description "AC-Cookie validity duration in seconds. Cookies older
                          than this are rejected in PADR validation.";
+            ze:help "The default is 5 seconds and the range is 1 to 300. The cookie is 20
+                     bytes: 16 bytes of a truncated HMAC-SHA256 over the two MAC addresses,
+                     and 4 bytes of Unix timestamp. Each interface holds its own random key,
+                     so a cookie of one interface never verifies on another.";
         }
 
         leaf max-sessions {
@@ -95,8 +102,12 @@ module ze-pppoe-conf {
                 range "1..10000";
             }
             default 100;
-            description "Maximum PADI packets accepted per second per source MAC.
-                         Excess PADIs are silently discarded.";
+            description "Maximum PADI packets accepted per second on one interface.";
+            ze:help "The default is 100 and the range is 1 to 10000. Ze counts the PADI
+                     packets of one interface inside a one-second window and discards
+                     every packet over the count. Ze also discards a second PADI from one
+                     source MAC address inside the same second. The range starts at 1, so
+                     no configuration turns the limiter off.";
         }
 
         list interface {
@@ -107,18 +118,31 @@ module ze-pppoe-conf {
             leaf name {
                 type string;
                 description "Network interface name (e.g. eth0, eth0.100).";
+                ze:help "The name is the list key, and Ze resolves it to a kernel interface
+                         when the subsystem starts. An interface Ze cannot resolve is logged
+                         and gets no server, and the other interfaces still listen. Each
+                         interface holds its own session table, its own PADI limiter and its
+                         own cookie key.";
             }
 
             leaf-list service-name {
                 type string;
                 description "Per-interface Service-Name filter. Overrides the
                              global service-name list when set.";
+                ze:help "Ze answers a PADI whose Service-Name tag holds a value of this
+                         list, and it answers a PADI whose tag is empty. A PADI naming any
+                         other service gets no PADO. An empty list here takes the global
+                         list, and an empty global list accepts every Service-Name.";
             }
 
             leaf max-sessions {
                 type uint16;
                 description "Per-interface session limit. Defaults to the global
                              max-sessions when unset.";
+                ze:help "Ze takes the global max-sessions when this leaf is absent or 0. The
+                         session identifiers come from a bitmap over the 16-bit space, and
+                         identifier 0 is reserved. A PADR that arrives at the limit gets no
+                         session, and Ze reports that the maximum is reached.";
             }
         }
     }

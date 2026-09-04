@@ -50,10 +50,19 @@ module ze-types {
         leaf ip {
             type ip-address;
             description "Listen IP address";
+            ze:help "The listener binds this address. 0.0.0.0 binds every IPv4 address of
+                     the host, and :: binds every IPv6 address. Config validation refuses
+                     two listeners that share a protocol and a port when their addresses
+                     overlap. A wildcard address overlaps every address of its own family,
+                     and an IPv4 address never overlaps an IPv6 address.";
         }
         leaf port {
             type listener-port;
             description "Listen TCP port; 0 means OS-assigned";
+            ze:help "The port range is 0 to 65535. Port 0 makes the operating system pick a
+                     free port at bind time, so no client can know the port before the
+                     listener starts. ze doctor tries to bind each configured endpoint and
+                     reports the one the host refuses.";
         }
     }
 

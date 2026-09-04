@@ -56,6 +56,10 @@ module ze-traffic-control-conf {
 
     container traffic {
         description "Traffic subsystem: QoS control and byte-usage accounting.";
+        ze:help "Two subtrees sit under it, and they are independent. control programs the
+queueing disciplines of each interface, which decides which packet leaves first. usage
+counts bytes with an eBPF program, and it changes no packet. Each subtree comes from its
+own plugin, so removing one plugin removes that subtree alone.";
 
         container control {
             description "Traffic control configuration of each interface.";

@@ -776,15 +776,25 @@ module ze-system-conf {
 
             container maintenance-window {
                 description "Time window when binary replacement may occur. Download and verification proceed at any time.";
+                ze:help "Ze reads the window only when start and end both carry a time. Ze
+                         downloads and verifies at any hour, and it waits for the window
+                         before it replaces the binary. Outside the window Ze reports that
+                         the update waits, and it keeps the verified file.";
 
                 leaf start {
                     type string;
                     description "Start time HH:MM in local time.";
+                    ze:help "Ze refuses a value that is not HH:MM, with an hour of 0 to 23
+                             and a minute of 0 to 59. A start later than end makes the
+                             window cross midnight, so 22:00 to 02:00 is four hours.";
                 }
 
                 leaf end {
                     type string;
                     description "End time HH:MM in local time.";
+                    ze:help "The end is not part of the window: Ze stages at start and at
+                             every minute up to end, and not at end itself. Ze refuses a
+                             value that is not HH:MM.";
                 }
             }
 
@@ -797,11 +807,20 @@ module ze-system-conf {
                 leaf immediate {
                     type empty;
                     description "Restart automatically after staging (5s drain delay). Mutually exclusive with time.";
+                    ze:help "The leaf is empty, so writing it is the whole instruction. Ze
+                             waits 5 seconds after it stages the binary and then runs the
+                             new one. Ze refuses a configuration that carries both immediate
+                             and time.";
                 }
 
                 leaf time {
                     type string;
                     description "Daily restart time, HH:MM in local time. Mutually exclusive with immediate.";
+                    ze:help "Ze stages the binary as soon as the maintenance window permits,
+                             then waits for this time of day to run it. A time outside the
+                             maintenance window is permitted, and Ze logs a warning that
+                             names both. Ze refuses a configuration that carries both
+                             immediate and time.";
                 }
             }
         }

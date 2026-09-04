@@ -32,6 +32,11 @@ module ze-mrt-conf {
             default 0;
             description
                 "File rotation interval in seconds. Zero disables rotation.";
+            ze:help "The value 0 keeps one file open until the daemon stops.
+                     A value of more than 0 makes Ze close the file once it has been open
+                     that many seconds. Ze then opens the next one, and the strftime codes
+                     in file give the new name. A file of -
+                     writes to standard output, which never rotates.";
         }
     }
 
@@ -46,6 +51,10 @@ module ze-mrt-conf {
             description
                 "Use BGP4MP_ET (type 17) with microsecond resolution
                  instead of BGP4MP (type 16).";
+            ze:help "The default is false, so each record header carries type 16, BGP4MP.
+                     RFC 6396 Section 5.3 names type 17 as BGP4MP_ET, and that header
+                     carries 4 more bytes for the microsecond field. The switch reaches all
+                     three streams at once.";
         }
 
         leaf add-path {
@@ -54,6 +63,11 @@ module ze-mrt-conf {
             description
                 "Force add-path subtypes even when not negotiated
                  with the peer.";
+            ze:help "The default is false. When the leaf is true, Ze writes the ADD-PATH subtypes
+                     of RFC 8050. A BGP4MP record then carries subtype 9, and a
+                     TABLE_DUMP_V2 dump carries the ADD-PATH RIB subtypes. Ze writes the ADD-PATH subtype whether or not the
+                     session negotiated ADD-PATH, so the record declares a path identifier
+                     that the message can lack.";
         }
 
         leaf-list peer-filter {
@@ -61,6 +75,10 @@ module ze-mrt-conf {
             description
                 "If set, only record messages from/to these peer addresses.
                  Empty list means record all peers.";
+            ze:help "Ze compares each entry with the peer address of the message, so a
+                     message of another peer reaches no file. The filter reaches the BGP
+                     messages alone: Ze writes a state change record for every peer,
+                     whatever this list holds.";
         }
 
         leaf direction {
@@ -72,6 +90,10 @@ module ze-mrt-conf {
             default both;
             description
                 "Which direction of BGP messages to record.";
+            ze:help "The default is both, and both records each direction. received keeps
+                     the messages the peer sent to Ze, and sent keeps the messages Ze sent
+                     to the peer. The filter reaches the BGP messages alone, so a state change record is written
+                     whatever the value.";
         }
 
         container updates {
@@ -105,6 +127,10 @@ module ze-mrt-conf {
                 }
                 description
                     "Output file path with strftime patterns.";
+                ze:help "The strftime codes in the path name the file Ze opens, exactly as
+                         they do in a dump stream. Ze writes this stream only when the path is set
+                         and interval is more than 0. A path of - writes to standard
+                         output.";
             }
 
             leaf interval {
@@ -114,6 +140,10 @@ module ze-mrt-conf {
                 default 3600;
                 description
                     "RIB dump interval in seconds. Minimum 60.";
+                ze:help "The default is 3600 seconds and the range is 60 to 86400. Each dump
+                         writes one PEER_INDEX_TABLE record and then the RIB entries of
+                         every address family, which RFC 6396 Section 4.3.1 requires in that
+                         order.";
             }
         }
     }

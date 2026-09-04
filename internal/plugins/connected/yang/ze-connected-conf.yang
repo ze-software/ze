@@ -15,6 +15,13 @@ module ze-connected-conf {
 
     container connected {
         description "Connected route redistribution. Presence enables the plugin.";
+        ze:help "The container carries no leaf, so writing it is the whole configuration.
+                 The plugin watches each interface address event and emits the network
+                 prefix of that address on the redistribute event bus. It counts the
+                 addresses of one prefix, so two addresses in one subnet announce the prefix
+                 once. The withdrawal waits for the last address of that prefix. The plugin
+                 registers the connected route source, and a redistribute statement names
+                 that source.";
         ze:config-root "connected";
     }
 }

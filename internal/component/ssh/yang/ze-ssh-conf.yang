@@ -17,6 +17,12 @@ module ze-ssh-conf {
             key "name";
             description "SSH public keys for key-based authentication.
                          Each entry is a named key (e.g. user@host).";
+            ze:help "Ze joins the type and the key of each entry into one authorized_keys
+                     line. A client key that equals any entry of this user authenticates
+                     that user. A key that does not parse is logged and skipped, and the
+                     other keys of the user still match. A user that carries a key and no
+                     profile authenticates, and the authorizer then decides what they can
+                     run.";
 
             leaf name {
                 type string;

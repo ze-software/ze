@@ -17,6 +17,10 @@ module ze-sysctl-conf {
 
     container sysctl {
         description "Kernel tunable management.";
+        ze:help "A setting entry applies to the host, and a profile entry applies to the
+                 interface units that name the profile. Ze validates a key it knows against the type and the
+                 range of that key. Ze accepts a key it does not know, and the kernel then
+                 refuses a value it cannot take.";
 
         list setting {
             key "name";
@@ -26,12 +30,21 @@ module ze-sysctl-conf {
             leaf name {
                 type string;
                 description "Kernel-native sysctl key name.";
+                ze:help "Ze turns each dot of the key into a path separator and writes the
+                         value under /proc/sys. A key under net.ipv4.conf or net.ipv6.conf
+                         keeps the dots of the interface name, so eth0.100 reaches
+                         net/ipv4/conf/eth0.100. Ze refuses a key that carries two dots in a
+                         row.";
             }
 
             leaf value {
                 type string;
                 mandatory true;
                 description "Value to set for this key.";
+                ze:help "The leaf is mandatory, so Ze refuses a setting with no value. Ze
+                         writes the text into the /proc/sys file of the key. A key Ze knows
+                         is checked first: a bool key takes 0 or 1, and a range key takes an
+                         integer inside its own bounds.";
             }
         }
 
@@ -44,12 +57,21 @@ module ze-sysctl-conf {
             leaf name {
                 type zt:node-name;
                 description "Profile name (lowercase alphanumeric with hyphens).";
+                ze:help "Ze ships five profiles under the names dsr, router, hardened,
+                         multihomed and proxy. An entry that carries one of these names
+                         replaces that profile for every interface unit. An interface unit
+                         names a profile, and Ze then applies the settings of the profile to
+                         that unit.";
             }
 
             list setting {
                 key "name";
                 max-elements 50;
                 description "Kernel tunables in this profile.";
+                ze:help "The list holds 50 entries at most. Ze applies these settings to
+                         each interface unit that names the profile, and it replaces <iface>
+                         in each key with the name of that unit. One profile therefore
+                         serves every interface.";
 
                 leaf name {
                     type string;
@@ -57,12 +79,20 @@ module ze-sysctl-conf {
                         "Kernel-native sysctl key name.
                          Use <iface> for per-interface keys
                          (substituted at apply time).";
+                    ze:help "Ze replaces <iface> with the name of the interface unit the
+                             profile is applied to, so one key serves every unit. A key
+                             with no placeholder is written once, for the host. The rest
+                             of the naming is the same as a top-level setting.";
                 }
 
                 leaf value {
                     type string;
                     mandatory true;
                     description "Value to set for this key.";
+                    ze:help "The leaf is mandatory, so Ze refuses a profile setting with no
+                             value. Every interface unit that names this profile gets the
+                             same value, because only the key carries the <iface>
+                             placeholder.";
                 }
             }
         }

@@ -19,21 +19,49 @@ module ze-tacacs-conf {
 
             container tacacs {
                 description "TACACS+ server configuration (RFC 8907)";
+                ze:help
+                    "The TACACS+ backend joins the AAA chain at priority 100, in
+                     front of the local backend at priority 200. Ze builds the
+                     backend only where the server list holds one entry or more,
+                     so a container with no server leaves the chain unchanged.
+                     Authentication runs as soon as one server exists. The
+                     authorization leaf and the accounting leaf each turn on
+                     their own half.";
 
                 list server {
                     key "address";
                     ordered-by user;
                     description "TACACS+ servers, tried in configured order";
+                    ze:help
+                        "Ze tries the servers in the order you write them and
+                         moves to the next one when a connection or an exchange
+                         fails. The order is the config order, because the list
+                         is ordered-by user. Where every server fails, the AAA
+                         chain moves on to the local backend, so the local
+                         accounts still answer.";
 
                     leaf address {
                         type zt:ip-address;
                         description "Server IP address";
+                        ze:help
+                            "The type takes an IPv4 address or an IPv6 address,
+                             and it takes no hostname. The address is the list
+                             key, so one address holds one entry. Ze joins the
+                             address and the port with net.JoinHostPort, which
+                             puts an IPv6 address in brackets.";
                     }
 
                     leaf port {
                         type uint16;
                         default 49;
                         description "TCP port (default 49)";
+                        ze:help
+                            "Port 49 is the port IANA assigns to TACACS+, and
+                             RFC 8907 Section 3.4 names it. Ze opens one TCP
+                             connection to this port and reuses it where the
+                             server agrees to the single-connect flag. The type
+                             sets no lower bound, so a commit takes 0 and every
+                             connection to that server then fails.";
                     }
 
                     leaf key {
@@ -49,35 +77,79 @@ module ze-tacacs-conf {
                     }
                     default 5;
                     description "Per-server connection timeout in seconds";
+                    ze:help
+                        "The value bounds two things for each server: the TCP
+                         connect, and the read of one exchange. Ze gives it to
+                         net.Dialer.Timeout and to the deadline of the
+                         connection. With four servers and the default 5, a full
+                         failover takes at most 20 seconds before the AAA chain
+                         reaches the local backend.";
                 }
 
                 leaf source-address {
                     type zt:ip-address;
                     description "Source IP for outbound TACACS+ connections";
+                    ze:help
+                        "Ze binds the local end of the outbound TCP connection to
+                         this address. Use it where the TACACS+ server accepts
+                         one address for this device, for example a loopback
+                         address. Where the leaf is absent, the kernel picks the
+                         address of the outgoing interface.";
                 }
 
                 leaf authorization {
                     type boolean;
                     default false;
                     description "Enable per-command TACACS+ authorization";
+                    ze:help
+                        "The default false authorizes each command from the local
+                         profiles alone and sends the server nothing. Set it true
+                         and Ze sends an AUTHOR REQUEST for each command, with
+                         service=shell, cmd=<verb> and one cmd-arg for each
+                         argument (RFC 8907 Section 6). PASS_ADD and PASS_REPL
+                         run the command, and FAIL refuses it. Ze sends privilege
+                         level 1 on every one of these requests.";
                 }
 
                 leaf strict-fallback {
                     type boolean;
                     default false;
                     description "Deny authorization when TACACS+ is unavailable instead of falling back to local RBAC";
+                    ze:help
+                        "The leaf decides one case: the server did not answer, or
+                         it answered ERROR or a status Ze does not know. The
+                         default false then authorizes the command from the local
+                         profiles, so a server outage does not lock the operator
+                         out. Set it true and Ze refuses the command instead.
+                         Neither value changes a FAIL from the server, which
+                         always refuses the command. The leaf reaches nothing
+                         while authorization is false.";
                 }
 
                 leaf accounting {
                     type boolean;
                     default false;
                     description "Enable command execution accounting";
+                    ze:help
+                        "Set it true and Ze sends an accounting record for each
+                         command a user runs. One background worker sends the
+                         records, so a slow server does not delay the command.
+                         The queue holds 64 records, and Ze counts each record it
+                         drops because the queue is full. That count is what
+                         shows a server which cannot keep up.";
                 }
             }
 
             list tacacs-profile {
                 key "level";
                 description "Maps TACACS+ privilege level to ze authorization profile";
+                ze:help
+                    "The list turns the privilege level Ze resolves for a
+                     session into the ze authorization profiles of that session.
+                     A level with no entry here denies the login, so this mapping
+                     is what grants access, and not the PASS from the server. Ze
+                     also removes a reserved profile name from the set, and a
+                     level that then resolves to nothing denies the login too.";
 
                 leaf level {
                     type uint8 {

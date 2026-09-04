@@ -150,6 +150,11 @@ module ze-telemetry-conf {
                     type string;
                     ze:bcrypt;
                     description "Bcrypt-hashed HTTP Basic Authentication password. Write plaintext via plaintext-password.";
+                    ze:help "Ze compares the password of each request with this hash, and it
+                             compares the username in constant time. A value that is not a
+                             bcrypt hash stops the metrics server with an error, and the
+                             config check warns about it at commit. With basic-auth enabled,
+                             a username and this password are both required.";
                 }
 
                 leaf plaintext-password {
@@ -166,6 +171,11 @@ module ze-telemetry-conf {
 
             container netdata {
                 description "Netdata-compatible OS collector metrics. These settings do not affect Ze-native metrics.";
+                ze:help "The default of enabled is true, so an absent container still runs
+                         the collectors. The three settings under it replace the deprecated
+                         prefix, interval and collector leaves beside this container. Ze
+                         reads a deprecated leaf only when the matching leaf here is absent,
+                         and it logs the path it read.";
 
                 leaf enabled {
                     type boolean;
@@ -194,12 +204,20 @@ module ze-telemetry-conf {
                 default 1;
                 status deprecated;
                 description "Deprecated: use netdata/interval. Netdata-compatible OS collector sampling interval in seconds.";
+                ze:help "Write netdata/interval instead. Ze reads this leaf only when the
+                         netdata container carries no interval leaf, and it then logs the
+                         deprecated path it read. The range is 1 to 60 seconds and the
+                         default is 1.";
             }
 
             list collector {
                 key "name";
                 status deprecated;
                 description "Deprecated: use netdata/collector. Per-Netdata-collector overrides (enable/disable, interval).";
+                ze:help "Write netdata/collector instead. Ze reads this list only when the
+                         netdata container carries no collector list, and it then logs the
+                         deprecated path it read. A netdata collector list replaces this one
+                         whole, and the two are never merged.";
 
                 leaf name {
                     type string;
@@ -223,6 +241,10 @@ module ze-telemetry-conf {
                         range "1..60";
                     }
                     description "Override sampling interval for this collector (seconds). Inherits global interval if not set.";
+                    ze:help "The range is 1 to 60 seconds. An absent leaf gives the
+                             collector the interval of the netdata container. The leaf lives
+                             under a deprecated list, so write netdata/collector/interval
+                             instead.";
                 }
             }
         }

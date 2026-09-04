@@ -3,6 +3,7 @@ module ze-role {
     prefix role;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
 
     description "RFC 9234 BGP Role plugin for ZeBGP";
 
@@ -35,21 +36,34 @@ module ze-role {
     grouping role-config {
         container role {
             description "RFC 9234 BGP Role configuration";
+            ze:help "The container turns on the role rules for this peer. A peer with no role container sends no
+                Role capability, and Ze accepts whatever role the peer declares.";
 
             leaf import {
                 type role-type;
                 description "Declares local role and enables RFC 9234 ingress rules (replaces Phase 1 name keyword)";
+                ze:help "Ze sends the role in the Role capability, code 9, and it is the only leaf that makes Ze
+                    send it. RFC 9234 Section 4.2 Table 2 permits provider with customer, rs with rs-client, and
+                    peer with peer. Ze rejects any other pair with a NOTIFICATION of code 2 and subcode 11.";
             }
 
             leaf-list export {
                 type export-token;
                 description "Controls which destination peer roles may receive routes from this peer";
+                ze:help "An empty list filters nothing, and the ingress and egress rules of RFC 9234 Section 5 still
+                    run. default expands to the set RFC 9234 Section 5 gives the local role. provider sends to
+                    customer and rs-client. customer sends to provider, rs and peer. rs sends to rs-client,
+                    rs-client sends to rs and provider, and peer sends to customer and rs-client. unknown matches a
+                    peer that sent no Role capability, and a peer whose OPEN Ze never recorded.";
             }
 
             leaf strict {
                 type boolean;
                 default false;
                 description "Require peer to send Role capability";
+                ze:help "The default false accepts a peer that sends no Role capability, which RFC 9234 Section 4.2
+                    asks for. true rejects that session with a NOTIFICATION of code 2 and subcode 11. The leaf needs
+                    import beside it, because Ze validates no OPEN for a peer that declares no local role.";
             }
         }
     }

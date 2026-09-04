@@ -12,17 +12,30 @@ module ze-authz-conf {
 
     container system {
         description "System-level settings";
+        // Several modules declare this container and the config tree merges them,
+        // so this text states what THIS module attaches under it.
+        ze:help "The container holds the system-wide settings. This module attaches the local user accounts under
+                 authentication, and the command authorization profiles under authorization.";
 
         container authentication {
             description "System authentication settings";
+            ze:help "System authentication settings. The user list under it holds the local accounts, which the local
+                     AAA backend reads. That backend runs after TACACS+ in the chain, so it answers when the remote
+                     server is unreachable. A configuration with no user rejects every local login.";
 
             list user {
                 key "name";
                 description "Authenticated user (local)";
+                ze:help "Authenticated user (local). Each entry is one local account. password carries the bcrypt hash
+                    the login compares against, and profile names the authorization profiles the account carries.
+                    A commit rejects an entry whose name is reserved for a built-in identity.";
 
                 leaf name {
                     type string;
                     description "Username";
+                    ze:help "Username, and the key of this list. Ze matches the name a client presents at login
+                        against this key. A commit rejects a reserved name, so an account cannot take the name of
+                        the break-glass recovery identity.";
                 }
 
                 leaf password {
@@ -51,24 +64,38 @@ module ze-authz-conf {
                 leaf-list profile {
                     type string;
                     description "Authorization profile name(s) assigned to this user";
+                    ze:help "Authorization profile names assigned to this user. A commit rejects a name that no profile
+                        under system authorization defines, and it rejects a reserved name. Once one profile
+                        exists, a user with no name here authenticates and is then denied every command.";
                 }
             }
         }
 
         container authorization {
             description "Profile-based command authorization";
+            ze:help "Profile-based command authorization. Ze builds the authorization store only when this container
+                     holds at least one profile. With no profile written, no store exists and every authenticated
+                     user runs every command. The first profile therefore changes the answer for every user, and a
+                     user with no profile assigned is denied from that point.";
 
             list profile {
                 key "name";
                 description "Named authorization profile with run and edit sections";
+                ze:help "Named authorization profile with a run section and an edit section. A user can carry several
+                    profiles. Ze takes the action of the first profile that holds a matching entry. When no entry
+                    of any profile matches, the section default of the first profile applies.";
 
                 leaf name {
                     type string;
                     description "Profile identifier";
+                    ze:help "Profile identifier, and the key of this list. A user profile leaf-list, and a TACACS+
+                        privilege level mapping, each name a profile by this key. A commit rejects a reserved name,
+                        so a profile cannot take the name of a built-in identity.";
                 }
 
                 container run {
                     description "Operational command authorization (read-only commands)";
+                    ze:help "Operational command authorization, which is the set of read-only commands. Ze evaluates this section when the dispatcher marks the command read-only, and the edit section for every other command.";
 
                     leaf default-action {
                         type enumeration {
@@ -76,15 +103,26 @@ module ze-authz-conf {
                             enum deny;
                         }
                         description "Action when no entry matches";
+                        ze:help "Action when no entry of this section matches the command. Ze reads the value allow,
+                            and it leaves the section at deny for every other state, the absent leaf included. A
+                            user who carries several profiles falls back to the default of the first profile whose
+                            section was reached.";
                     }
 
                     list entry {
                         key "number";
                         description "Ordered authorization entry";
+                        ze:help "Ordered authorization entry. Ze sorts the entries of the section by number and takes
+                            the action of the first one that matches. A command that matches no entry falls to
+                            default-action. An entry with an empty match is rejected at commit.";
 
                         leaf number {
                             type uint32;
-                            description "Sequence number (auto-assigned)";
+                            description "Sequence number that orders this entry in the section.";
+                            ze:help "Sequence number, and the key of this list. Ze sorts the entries by this number and
+                                evaluates them in that order, so the number decides which entry wins. Write the
+                                numbers with gaps, such as 10 and 20, to leave room for a later entry between
+                                them.";
                         }
 
                         leaf action {
@@ -93,22 +131,36 @@ module ze-authz-conf {
                                 enum deny;
                             }
                             description "Authorization action";
+                            ze:help "Authorization action for a command this entry matches. Ze reads the value allow, and
+                                it leaves the entry at deny for every other state, the absent leaf included. The
+                                first matching entry decides, so a deny stops the search even where a later entry
+                                allows.";
                         }
 
                         leaf match {
                             type string;
                             description "Command path prefix or regex pattern";
+                            ze:help "Command path prefix, or a regular expression when regex is true. A prefix
+                                comparison ignores case and stops at a word boundary. 'show bgp' therefore matches
+                                'show bgp' and 'show bgp summary', and it does not match 'show bgpx'. An empty match
+                                is rejected at commit. A match that names no command Ze knows is logged as a
+                                warning and kept, because a plugin can register its commands later.";
                         }
 
                         leaf regex {
                             type boolean;
                             description "If true, match is a regular expression";
+                            ze:help "If true, match is a regular expression. Ze compiles the pattern at commit and
+                                rejects one it cannot compile. The pattern is not anchored, so it matches anywhere
+                                inside the command text. Write ^ and $ where the whole command has to match. A regex
+                                entry is case sensitive, unlike a prefix entry.";
                         }
                     }
                 }
 
                 container edit {
                     description "Configuration command authorization (write commands)";
+                    ze:help "Configuration command authorization, which is the set of commands that change the config. Ze evaluates this section for every command the dispatcher does not mark read-only.";
 
                     leaf default-action {
                         type enumeration {
@@ -116,15 +168,26 @@ module ze-authz-conf {
                             enum deny;
                         }
                         description "Action when no entry matches";
+                        ze:help "Action when no entry of this section matches the command. Ze reads the value allow,
+                            and it leaves the section at deny for every other state, the absent leaf included. A
+                            user who carries several profiles falls back to the default of the first profile whose
+                            section was reached.";
                     }
 
                     list entry {
                         key "number";
                         description "Ordered authorization entry";
+                        ze:help "Ordered authorization entry. Ze sorts the entries of the section by number and takes
+                            the action of the first one that matches. A command that matches no entry falls to
+                            default-action. An entry with an empty match is rejected at commit.";
 
                         leaf number {
                             type uint32;
-                            description "Sequence number (auto-assigned)";
+                            description "Sequence number that orders this entry in the section.";
+                            ze:help "Sequence number, and the key of this list. Ze sorts the entries by this number and
+                                evaluates them in that order, so the number decides which entry wins. Write the
+                                numbers with gaps, such as 10 and 20, to leave room for a later entry between
+                                them.";
                         }
 
                         leaf action {
@@ -133,16 +196,29 @@ module ze-authz-conf {
                                 enum deny;
                             }
                             description "Authorization action";
+                            ze:help "Authorization action for a command this entry matches. Ze reads the value allow, and
+                                it leaves the entry at deny for every other state, the absent leaf included. The
+                                first matching entry decides, so a deny stops the search even where a later entry
+                                allows.";
                         }
 
                         leaf match {
                             type string;
                             description "Command path prefix or regex pattern";
+                            ze:help "Command path prefix, or a regular expression when regex is true. A prefix
+                                comparison ignores case and stops at a word boundary. 'show bgp' therefore matches
+                                'show bgp' and 'show bgp summary', and it does not match 'show bgpx'. An empty match
+                                is rejected at commit. A match that names no command Ze knows is logged as a
+                                warning and kept, because a plugin can register its commands later.";
                         }
 
                         leaf regex {
                             type boolean;
                             description "If true, match is a regular expression";
+                            ze:help "If true, match is a regular expression. Ze compiles the pattern at commit and
+                                rejects one it cannot compile. The pattern is not anchored, so it matches anywhere
+                                inside the command text. Write ^ and $ where the whole command has to match. A regex
+                                entry is case sensitive, unlike a prefix entry.";
                         }
                     }
                 }

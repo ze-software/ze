@@ -15,6 +15,12 @@ module ze-kernel-conf {
 
     container kernel {
         description "Kernel route redistribution. Presence enables the plugin.";
+        ze:help "The container carries no leaf, so writing it is the whole configuration.
+                 The plugin watches the kernel routing table and emits each route on the
+                 redistribute event bus. A route whose netlink protocol is RTPROT_KERNEL or
+                 RTPROT_REDIRECT is dropped, so a connected subnet route and an ICMP
+                 redirect route never reach BGP. The plugin registers the kernel route
+                 source, and a redistribute statement names that source.";
         ze:config-root "kernel";
     }
 }

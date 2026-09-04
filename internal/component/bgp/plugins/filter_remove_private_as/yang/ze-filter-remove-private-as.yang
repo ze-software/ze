@@ -17,10 +17,14 @@ module ze-filter-remove-private-as {
             ze:filter;
             key "name";
             description "Named action filter that removes RFC 6996 Private Use ASNs.";
+            ze:help "Ze rewrites AS_PATH and AS4_PATH, and the filter runs on an import chain and on an export
+                chain. A path that carries no Private Use ASN passes through unchanged.";
 
             leaf name {
                 type string;
                 description "Filter instance name.";
+                ze:help "A peer filter chain names this instance as remove-private-as:NAME. A chain that names an
+                    instance Ze does not hold rejects every route of that peer, because the filter fails closed.";
             }
 
             leaf replace-with {
@@ -30,6 +34,9 @@ module ze-filter-remove-private-as {
                     }
                 }
                 description "Replacement mode. When absent, Private Use ASNs are stripped.";
+                ze:help "RFC 6996 Section 5 gives the ranges, which are 64512 to 65534 and 4200000000 to
+                    4294967294. An absent leaf strips each of those ASNs, so the path loses one hop for each.
+                    peer-as writes the ASN of the peer in its place, so the path keeps its length.";
             }
         }
     }

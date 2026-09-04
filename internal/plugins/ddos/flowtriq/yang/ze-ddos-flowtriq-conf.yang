@@ -3,6 +3,7 @@ module ze-ddos-flowtriq-conf {
   prefix ddos-flowtriq;
 
   import ze-ddos-detect-conf { prefix dd; }
+  import ze-extensions { prefix ze; }
 
   description "Flowtriq cloud reporting configuration. Augments the shared `ddos`
                container (owned by ze-ddos-detect-conf) with the `flowtriq` subtree.";
@@ -18,19 +19,32 @@ module ze-ddos-flowtriq-conf {
         type boolean;
         default false;
         description "Enable reporting DDoS incidents to the Flowtriq cloud API.";
+        ze:help "false is the default, and the reporter then posts nothing. true makes api-key and
+                 node-uuid required, and Ze refuses the config when either one is empty. The reporter
+                 answers an attack with one HTTP POST, and it stops no traffic.";
       }
       leaf api-key {
         type string { length "1..512"; }
         description "Flowtriq API bearer token.";
+        ze:help "Ze sends the value in the Authorization header of each request, as a Bearer token.
+                 The length is 1 to 512 characters. The leaf is required when enabled is true, and Ze
+                 refuses the config without it.";
       }
       leaf node-uuid {
         type string { length "1..128"; }
         description "Node UUID for Flowtriq agent identification.";
+        ze:help "Ze sends the value in the X-Node-UUID header of each request, which is how the
+                 service tells this router from another. The length is 1 to 128 characters. The leaf
+                 is required when enabled is true.";
       }
       leaf api-base {
         type string;
         default "https://flowtriq.com/api/v1";
         description "Flowtriq API base URL.";
+        ze:help "Ze appends a path to this value, so a trailing slash gives a double slash in the
+                 request. /agent/incidents opens and closes an incident, and /agent/heartbeat reports
+                 the baseline. Each request has a timeout of 10 seconds. After 5 failures Ze stops
+                 posting for 60 seconds, then tries again.";
       }
     }
   }

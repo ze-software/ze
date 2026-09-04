@@ -30,6 +30,9 @@ module ze-filter-community-match {
                 type string;
                 description "Filter instance name (referenced in peer filter chains
                              as community-match:NAME).";
+                ze:help "The filter answers accept or reject for the whole UPDATE, and never rewrites it. A chain
+                    that names a list Ze does not hold rejects every route of that peer, because the filter fails
+                    closed.";
             }
 
             list entry {
@@ -66,6 +69,9 @@ module ze-filter-community-match {
                     }
                     default standard;
                     description "Which community attribute type to check.";
+                    ze:help "Ze reads the one attribute the leaf names. An entry of type standard therefore does
+                        not see a value that sits in the LARGE COMMUNITIES attribute. Write one entry for each
+                        attribute the route can carry the value in.";
                 }
 
                 leaf action {
@@ -79,6 +85,9 @@ module ze-filter-community-match {
                     }
                     default accept;
                     description "Action applied when this community is found in the route.";
+                    ze:help "The first entry whose community the route carries decides the UPDATE, and no later
+                        entry is read. A route that carries none of the listed communities is rejected, so a list
+                        needs no closing reject entry.";
                 }
             }
         }

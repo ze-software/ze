@@ -26,6 +26,9 @@ module ze-ddos-flowspec-conf {
         }
         default alert;
         description "Action on attack detection: alert (log only) or enforce (announce FlowSpec).";
+        ze:help "alert is the default. The responder then logs the announcement it would make, and
+                 announces nothing. enforce is the value that puts a rule on the wire. The leaf gates
+                 every announce path, the blackhole-fallback fast path included.";
       }
       leaf action {
         type enumeration {
@@ -55,21 +58,37 @@ module ze-ddos-flowspec-conf {
         type uint32 { range "1..86400"; }
         default 300;
         description "Minimum seconds before the first leak-probe after announcement.";
+        ze:help "The responder counts one second for each AttackOngoing event the detector emits, and
+                 the detector emits one for each traffic sample. The rule stays at full strength for
+                 this long, and the first leak-probe follows. A probe that saturates doubles the wait,
+                 up to backoff-cap. The range is 1 to 86400 seconds, and 300 is the default.";
       }
       leaf probe-interval {
         type uint16 { range "1..3600"; }
         default 60;
         description "Seconds between leak-probe attempts after hold-down.";
+        ze:help "After the hold-down ends the responder waits this long. It then narrows the rule to
+                 probe-rate and watches what arrives. 60 is the default, and the range is 1 to 3600
+                 seconds. A shorter interval finds the end of an attack sooner, and it also lets more
+                 attack traffic through each time.";
       }
       leaf probe-window {
         type uint16 { range "1..300"; }
         default 10;
         description "Seconds to observe leaked traffic during a probe.";
+        ze:help "The responder withdraws the rule when the observed rate stays under probe-rate for
+                 this whole window. One second at or above probe-rate ends the probe at once, and the
+                 rule goes back to full strength. 10 is the default, and the range is 1 to 300
+                 seconds.";
       }
       leaf probe-rate {
         type uint32 { range "1..max"; }
         default 1000000;
         description "Bits per second to allow during a leak-probe.";
+        ze:help "The responder compares the rate it measures behind the filter against this value. At
+                 or above it, the attack still runs: the rule is tightened again and the hold-down
+                 doubles. Under it for a whole probe-window, the rule is withdrawn. 1000000 bits per
+                 second is the default, and the value must be 1 or more.";
       }
       leaf announce-rate-limit {
         type uint16 { range "1..600"; }
@@ -80,11 +99,18 @@ module ze-ddos-flowspec-conf {
         type uint32 { range "0..604800"; }
         default 3600;
         description "Maximum seconds a FlowSpec rule stays announced (0 = no cap).";
+        ze:help "The responder measures this against the wall clock, and not against the probe. An
+                 attack that goes quiet stops the AttackOngoing events the probe counts, which is the
+                 case the probe cannot see. 0 removes the cap, so the rule then stays until a probe
+                 withdraws it. 3600 is the default, and the range is 0 to 604800 seconds.";
       }
       leaf backoff-cap {
         type uint32 { range "1..604800"; }
         default 3600;
         description "Maximum hold-down after exponential backoff.";
+        ze:help "Each probe that saturates doubles the current hold-down, and this value stops the
+                 doubling. Ze refuses a backoff-cap under hold-down, and the upper bound is 604800
+                 seconds. 3600 is the default, which stops the wait at one hour.";
       }
       leaf blackhole-fallback {
         type boolean;

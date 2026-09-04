@@ -20,6 +20,8 @@ module ze-filter-family {
             ze:filter;
             key "name";
             description "Named address-family filter instance.";
+            ze:help "One instance matches one family, because family holds one value and is mandatory. A chain that
+                must catch two families names two instances.";
 
             leaf name {
                 type string;

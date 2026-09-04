@@ -146,12 +146,22 @@ cert leaf empty in that case, and one that sets cert without key.";
                 leaf cert {
                     type string;
                     description "Path to PEM-encoded certificate file (or a chain).";
+                    ze:help "Ze serves the endpoint over HTTPS only when cert and key are
+                             both set, and over HTTP when one of the two is empty. Ze reads
+                             the pair at start and accepts TLS 1.2 as its lowest version. A
+                             pair that fails to load stops the MCP server, and Ze prints the
+                             reason. ze doctor reads the file and reports it missing, or
+                             near its expiry date.";
                 }
 
                 leaf key {
                     type string;
                     ze:sensitive;
                     description "Path to PEM-encoded private-key file.";
+                    ze:help "Ze refuses a key file that group or other can read, and refuses
+                             a symbolic link, when it runs as a user other than root. The
+                             MCP server does not start in that case. Under root Ze reads the
+                             file whatever its mode, because root reads every file anyway.";
                 }
             }
 

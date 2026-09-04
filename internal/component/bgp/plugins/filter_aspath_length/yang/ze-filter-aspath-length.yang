@@ -7,9 +7,10 @@ module ze-filter-aspath-length {
 
     description "AS-path length filter type for the BGP policy framework.
                  Named filters that accept or reject routes based on AS_PATH
-                 hop count. Path length follows RFC 4271 Section 9.1.2.2:
-                 AS_SEQUENCE entries counted individually, AS_SET counted as 1,
-                 confederation segments not counted.
+                 hop count. Ze counts every ASN of the path, so a member of an
+                 AS_SET and an ASN of a confederation segment each count as one
+                 hop. That count is the filter's own, and it is not the length
+                 the decision process of RFC 4271 Section 9.1.2.2 compares.
                  Referenced from peer filter chains as as-path-length:NAME.";
 
     revision 2026-05-25 {
@@ -29,6 +30,8 @@ module ze-filter-aspath-length {
                 type string;
                 description "Filter instance name (referenced in peer filter
                              chains as as-path-length:NAME).";
+                ze:help "The filter answers accept or reject for the whole UPDATE, and never rewrites it. A chain
+                    that names a filter Ze does not hold rejects every route of that peer.";
             }
 
             leaf max {
@@ -37,6 +40,8 @@ module ze-filter-aspath-length {
                 }
                 description "Maximum allowed AS-path length (inclusive).
                              Routes with longer paths are rejected.";
+                ze:help "An absent leaf leaves the upper bound open, so a filter that states neither bound accepts
+                    every route. Ze counts every ASN of the path, so a member of an AS_SET counts as one hop.";
             }
 
             leaf min {
@@ -45,6 +50,9 @@ module ze-filter-aspath-length {
                 }
                 description "Minimum required AS-path length (inclusive).
                              Routes with shorter paths are rejected.";
+                ze:help "An absent leaf leaves the lower bound open. A route that carries no AS_PATH counts 0
+                    hops. min 1 therefore rejects a route Ze originated, and a route an iBGP peer sent with an
+                    empty path.";
             }
         }
     }

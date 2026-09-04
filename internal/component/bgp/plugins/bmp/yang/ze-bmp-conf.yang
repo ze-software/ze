@@ -18,24 +18,40 @@ module ze-bmp-conf {
 
     container environment {
         description "Environment settings for BMP receiver";
+        ze:help "The bmp container under it holds the receiver alone. The BMP sender of Ze
+                 lives under bgp bmp, so a box that only sends BMP writes nothing here.";
 
         container bmp {
             description "BMP receiver settings";
+            ze:help "The receiver starts only when enabled is true and the server list holds
+                     one entry at least. Ze stores each Route Monitoring message it accepts
+                     in the BMP RIB, and show bmp rib reads that RIB.";
 
             leaf enabled {
                 type boolean;
                 default false;
                 description "Enable BMP receiver";
+                ze:help "The default is false. The receiver needs this leaf true and one
+                         server entry at least, so enabled true on its own binds no address.";
             }
 
             list server {
                 key "name";
                 ze:listener;
                 description "BMP receiver listen endpoints";
+                ze:help "The ze:listener extension marks this list, so config validation
+                         refuses a second listener that binds the same protocol, port and
+                         address. Ze opens one TCP listener for each entry. A bind that
+                         fails is logged, and the other entries keep their listener. An
+                         empty list binds nothing, because the receiver has no default
+                         endpoint.";
 
                 leaf name {
                     type string;
                     description "Listener instance name";
+                    ze:help "The name is the list key alone. Ze binds the ip and the port of
+                             each entry and reads no name, so the name only keeps two
+                             entries of the list apart.";
                 }
 
                 uses zt:listener {
@@ -54,6 +70,10 @@ module ze-bmp-conf {
                 }
                 default 100;
                 description "Maximum concurrent BMP sessions";
+                ze:help "The default is 100 and the range is 1 to 1000. The count is per
+                         listener, so two server entries admit twice this number of
+                         sessions. Over the limit Ze closes the new connection and logs a
+                         warning, and the sessions already open keep running.";
             }
 
             leaf route-action {
@@ -76,35 +96,56 @@ module ze-bmp-conf {
     grouping bmp-bgp-config {
         container bmp {
             description "BMP sender and protocol options";
+            ze:help "The container holds the sender. The BMP receiver of Ze listens under environment bmp, so a box
+                that only receives BMP writes nothing here.";
 
             container sender {
                 presence "BMP sender enabled";
                 description "Stream BMP data to external collectors";
+                ze:help "The container carries presence, so Ze starts the sender when you write it and stops every
+                    collector session when you delete it. Ze sends an Initiation message first on each connection,
+                    which RFC 7854 Section 4.3 requires.";
 
                 list collector {
                     key "name";
                     description "BMP collector endpoints to connect to";
+                    ze:help "Ze dials each collector from its own session. Ze retries a failed connection after 30
+                        seconds, then doubles the wait to a limit of 720 seconds. A collector whose address, port
+                        and source-address a reload does not change keeps its session, and keeps everything the
+                        collector learned on it.";
 
                     leaf name {
                         type string;
                         description "Collector instance name";
+                        ze:help "The name is the list key and names the collector in every bmp log line. Ze does not
+                            send the name to the collector. A rename ends the session with a Termination message and
+                            opens a new one.";
                     }
 
                     leaf address {
                         type zt:ip-address;
                         mandatory true;
                         description "Collector IP address";
+                        ze:help "The leaf is mandatory, because a collector with no address has nothing to dial.
+                            The address is part of the session identity. A reload that changes it ends the session
+                            with a Termination message, then opens a new one.";
                     }
 
                     leaf port {
                         type zt:port;
                         default 11019;
                         description "Collector TCP port";
+                        ze:help "11019 is also the default port of the BMP receiver of Ze, under environment bmp
+                            server. Two Ze boxes therefore connect with no port written on either side. The port is
+                            part of the session identity, so a reload that changes it opens a new session.";
                     }
 
                     leaf source-address {
                         type zt:ip-address;
                         description "Source IP address for outbound BMP connections";
+                        ze:help "Ze binds the address on the outbound connection. When the leaf is absent, the kernel
+                            picks the source address of the route to the collector. The address is part of the
+                            session identity, so a reload that changes it opens a new session.";
                     }
                 }
 
@@ -116,12 +157,20 @@ module ze-bmp-conf {
                     }
                     default "all";
                     description "Which routes to stream: pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out, RFC 8671), or all";
+                    ze:help "pre-policy streams the UPDATE messages Ze received, post-policy streams the UPDATE
+                        messages Ze sent, and all streams both. A change to the leaf bounces every monitored peer
+                        with a Peer Down and a Peer Up, which RFC 8671 Section 7.2 requires. The BMP session itself
+                        stays up.";
                 }
 
                 leaf route-mirroring {
                     type boolean;
                     default false;
                     description "Enable Route Mirroring (RFC 7854 S4.7): stream verbatim copies of all BGP messages to collectors";
+                    ze:help "Ze mirrors every OPEN, UPDATE, NOTIFICATION, KEEPALIVE and ROUTE-REFRESH message it
+                        processes, in a TLV of type 0. The stream carries every message of every peer, so the
+                        default is false. A change to the leaf bounces every monitored peer with a Peer Down and a
+                        Peer Up, which RFC 8671 Section 7.2 requires.";
                 }
 
                 leaf loc-rib {

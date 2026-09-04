@@ -26,8 +26,14 @@ or ospf.";
 
             leaf protocol {
                 type string;
-                // No ze:validate here: consumers register at plugin startup,
-                // after YANG parse. Validated at runtime by the orchestrator.
+                // No ze:validate here. A consumer registers at plugin startup,
+                // which is after the YANG parse, so this leaf cannot be checked
+                // against the consumer registry at parse time. Nothing checks it
+                // at run time either: the orchestrator dispatches over the
+                // consumers that registered, and a destination naming a protocol
+                // nobody serves simply matches none of them. `ze doctor` reports
+                // it instead, under doctor-redistribute-unknown-destination
+                // (internal/component/doctor/checks_redistribute.go).
                 description "Name of the protocol that receives the redistributed routes.";
                 ze:help "bgp, ospf and isis are examples. The leaf carries no ze:validate,
 because a destination protocol registers its consumer at plugin startup, after the YANG

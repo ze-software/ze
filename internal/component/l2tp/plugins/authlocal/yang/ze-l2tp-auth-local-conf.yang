@@ -5,30 +5,46 @@ module ze-l2tp-auth-local-conf {
 
     description
         "Static local user list for L2TP PPP authentication.
-         When no users are configured, all sessions are accepted
-         (permissive default for testing/development).";
+         When no users are configured, every session is rejected.";
 
     container l2tp {
         // Repeat the canonical description owned by ze-l2tp-conf.yang verbatim,
         // so the tree merge does not warn on a mismatch. This module only
         // attaches its own subtree to the shared node.
         description "L2TPv2 tunnel subsystem settings (RFC 2661).";
+        ze:help "L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with
+                 any content implies the subsystem is enabled. Use 'enabled false' to
+                 disable it explicitly, or 'enabled true' as a filler when no other settings
+                 are needed.";
 
         container auth {
             description "PPP authentication for L2TP subscriber sessions.";
+            ze:help "The container holds the backend that answers a credential. The
+                     l2tp-auth-local plugin fills the local container under it, and the
+                     l2tp-auth-radius plugin fills the radius container. The timing of the
+                     PPP authentication phase sits under l2tp authentication instead.";
 
             container local {
                 description "Authenticate a subscriber against users declared in this config.";
-                ze:help "Ze accepts every session when no user is declared here, which is a
-                         permissive default meant for development. Declare one user and every
-                         session is then checked against the list.";
+                ze:help "Ze rejects every session while no user is declared here, and it logs
+                         that no user is configured. A session is matched against the list by
+                         its PPP username, and an unknown username is rejected. Local
+                         authentication answers PAP and CHAP-MD5, and it rejects MS-CHAPv2.";
 
                 list user {
                     key "name";
                     description "One subscriber account, keyed by its PPP username.";
+                    ze:help "Ze looks the PPP username up in this list and rejects a
+                             username no entry carries. An empty list rejects every session.
+                             The match is exact, so user and user@example.net are two
+                             accounts.";
                     leaf name {
                         type string;
                         description "PPP username.";
+                        ze:help "The name is the list key, and it is the username the
+                                 subscriber sends in the PAP or CHAP packet. Ze logs the
+                                 username of each session it accepts and of each one it
+                                 rejects.";
                     }
                     leaf password {
                         type string;
@@ -36,6 +52,11 @@ module ze-l2tp-auth-local-conf {
                         description
                             "Shared secret for PAP cleartext and
                              CHAP-MD5/MS-CHAPv2 challenge-response.";
+                        ze:help "PAP compares the SHA-256 of the received password with the
+                                 SHA-256 of this value, in constant time. CHAP-MD5 computes
+                                 MD5 over the identifier, this value and the challenge,
+                                 which RFC 1994 Section 4.1 defines. CHAP needs the secret
+                                 in clear, so this leaf holds no hash.";
                     }
                 }
             }

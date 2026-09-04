@@ -14,6 +14,12 @@ module ze-anomaly-shape-conf {
   augment "/ad:anomaly" {
     container shape {
       description "Autonomous responder: shadow (log-only) or armed (live per-source firewall actions).";
+      ze:help "The responder reads the incidents the detect subtree publishes,
+               and it acts on a source incident alone. In armed mode it writes an
+               nftables table named ze_anomaly-shape, with one term for each
+               armed source. The chain of that table attaches to the input hook
+               at priority -200, so it acts on the traffic addressed to this
+               host.";
 
       leaf mode {
         type enumeration { enum shadow; enum armed; }
@@ -26,21 +32,41 @@ module ze-anomaly-shape-conf {
         type enumeration { enum limit; enum drop; }
         default limit;
         description "Armed action: rate-limit the source (surgical) or drop it (fallback).";
+        ze:help "limit writes an nftables counter and a rate limit on the source
+                 prefix, and it reads limit-rate, limit-unit and limit-burst.
+                 drop writes a counter and discards every packet from that
+                 source. Ze applies the action to each armed source, and it
+                 applies nothing while mode is shadow.";
       }
       leaf limit-rate {
         type uint64 { range "1..max"; }
         default 1000;
         description "Rate for the limit action, in packets per limit-unit.";
+        ze:help "The rate counts packets, and limit-unit gives the time. The
+                 default 1000, with the default unit second, lets 1000 packets a
+                 second through from each armed source. A value of 0 is refused
+                 at commit while the action is limit. The leaf changes nothing
+                 while the action is drop.";
       }
       leaf limit-unit {
         type enumeration { enum second; enum minute; enum hour; enum day; }
         default second;
         description "Time unit for limit-rate.";
+        ze:help "The unit divides limit-rate. A rate of 1000 with the unit minute
+                 lets 1000 packets a minute through. Ze gives the word to the
+                 nftables limit expression, and a word outside the four is
+                 refused at commit. The leaf changes nothing while the action is
+                 drop.";
       }
       leaf limit-burst {
         type uint32;
         default 0;
         description "Burst allowance for the limit action.";
+        ze:help "The burst is the number of packets Ze lets through above the
+                 rate before it starts to drop. The default 0 gives no
+                 allowance, so the rate applies from the first packet. Ze gives
+                 the value to the nftables limit expression. The leaf changes
+                 nothing while the action is drop.";
       }
       leaf auto-revert-ttl {
         type uint16 { range "5..3600"; }
@@ -53,11 +79,22 @@ module ze-anomaly-shape-conf {
         type uint16 { range "1..1024"; }
         default 16;
         description "Maximum concurrently-armed live actions; further arm attempts are refused.";
+        ze:help "Ze counts the sources that carry a live action. At this cap Ze
+                 refuses to arm one more source, writes a warning, and raises the
+                 arm-refused metric. A source that is armed already costs the
+                 count nothing, because that path only refreshes its
+                 auto-revert-ttl. The cap bounds the firewall table an incident
+                 storm can produce.";
       }
       leaf kill-switch {
         type boolean;
         default false;
         description "When true, revert every armed action and force the responder to shadow.";
+        ze:help "Ze runs the revert when it reads the config, so it also removes
+                 what an earlier instance of the responder left in the firewall.
+                 The responder then answers every incident as shadow does, and it
+                 writes a log line in place of a rule. Set the leaf back to false
+                 to let the responder arm again.";
       }
       leaf-list allowlist {
         type zt:ip-prefix;

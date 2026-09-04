@@ -17,14 +17,23 @@ module ze-geodns-conf {
 
     container service {
         description "Service settings";
+        ze:help "The container holds the settings of each service Ze runs, and the geodns container under it
+            configures the GeoDNS server.";
 
         container geodns {
             description "GeoDNS server: per-source-IP DNS answers";
+            ze:help "GeoDNS answers a query from the client address rather than from the name alone. A `source`
+                entry maps a client prefix to a `host-set`, and the longest prefix that holds the client address
+                wins. The same name can then answer a different address to each client. Ze is authoritative for the
+                `zone` entries only, and it serves no AXFR.";
 
             leaf enabled {
                 type boolean;
                 default false;
                 description "Enable the GeoDNS server";
+                ze:help "The default is false, so geodns binds no listener and answers no query. A true value binds
+                    each `listener` entry for UDP and TCP, and it binds the DoT and DoH listeners that are enabled.
+                    A false value unbinds every listener.";
             }
 
             list listener {
@@ -40,6 +49,9 @@ module ze-geodns-conf {
                         length "1..255";
                     }
                     description "Listener instance name";
+                    ze:help "The name is the key of the entry and nothing else reads it. Ze binds the `ip` and
+                        `port` of each entry, in name order. Use a name that says what the endpoint is for, for
+                        example v4-public or v6-loopback.";
                 }
 
                 uses zt:listener {
@@ -76,6 +88,10 @@ module ze-geodns-conf {
                 }
                 default "edns0-then-packet";
                 description "Where the client IP used for source selection is read from";
+                ze:help "edns0-then-packet, the default, reads the address from the EDNS0 client-subnet option (RFC
+                    7871) and falls back to the packet source address. packet ignores the option and always reads the
+                    packet source. edns0 reads only the option. A query with no option then matches no `source`
+                    prefix, so a name the zone owns draws an empty NOERROR answer.";
             }
 
             leaf-list zone {
@@ -91,16 +107,28 @@ module ze-geodns-conf {
                 type zt:ipv4-address;
                 max-elements 9;
                 description "Nameserver IPv4 addresses; ns1..nsN.<zone> A glue is synthesised (max 9)";
+                ze:help "Ze builds one NS record for each entry, named ns1.<zone> to nsN.<zone> in list order, and
+                    one A glue record beside it. The glue name is synthesized and never configured. A commit is
+                    refused when a zone is long enough to make nsN.<zone> break the length bounds RFC 1035 sets.
+                    The records go in the Answer of an NS query and in the Authority of every other answer.";
             }
 
             container soa {
                 description "SOA record fields (synthesised; geodns serves no AXFR)";
+                ze:help "Ze builds the SOA record of each zone from these leaves. It serves no AXFR, so no secondary
+                    acts on `refresh`, `retry` and `expire`, and those three only carry their value in the record.
+                    `minimum` is the one field an answer depends on, because Ze stamps it as the TTL of the SOA
+                    record and as its MINTTL.";
 
                 leaf mname {
                     type string {
                         length "1..255";
                     }
                     description "Primary nameserver (SOA MNAME). Defaults to ns1.<first-zone> when unset.";
+                    ze:help "The value becomes the MNAME field of the SOA record. Ze adds the trailing dot when the
+                        value has none. An unset leaf makes Ze build ns1.<zone> for each zone it serves, so the
+                        name follows the zone the query asked for. A commit is refused when the name breaks the
+                        length bounds RFC 1035 sets.";
                 }
                 leaf contact {
                     type string {
@@ -108,6 +136,9 @@ module ze-geodns-conf {
                     }
                     default "hostmaster";
                     description "Responsible-party mailbox label (SOA RNAME), e.g. hostmaster";
+                    ze:help "The value becomes the RNAME field of the SOA record. A value with no dot is read as the
+                        mailbox local part under the zone, so the default builds hostmaster.<zone>. A value that
+                        holds a dot is used as a whole domain name, with the trailing dot added.";
                 }
                 leaf serial-mode {
                     type enumeration {
@@ -123,25 +154,41 @@ module ze-geodns-conf {
                     }
                     default "auto-epoch";
                     description "How the 32-bit SOA serial is generated";
+                    ze:help "auto-epoch, the default, takes the Unix time in seconds at commit. It raises that by one
+                        when the result is not more than the previous serial, so two commits in one second still
+                        increase. auto-datetime builds YYYYMMDDnn (RFC 1912), and the 32-bit field leaves two counter
+                        digits, so it holds 100 revisions in one day. fixed serves the `serial` leaf unchanged.";
                 }
                 leaf serial {
                     type uint32;
                     description "SOA serial used when serial-mode is fixed";
+                    ze:help "Ze reads this leaf only when `serial-mode` is fixed, and it then serves the value
+                        unchanged. The other two modes compute the serial and ignore the leaf. In fixed mode you own
+                        the increase after each change, under the serial arithmetic RFC 1982 defines.";
                 }
                 leaf refresh {
                     type uint32;
                     default 3600;
                     description "SOA refresh seconds";
+                    ze:help "The value goes into the REFRESH field of the SOA record, in seconds. It tells a
+                        secondary how long to wait before it checks the serial again. geodns serves no AXFR, so no
+                        secondary acts on it, and the value changes no answer Ze gives.";
                 }
                 leaf retry {
                     type uint32;
                     default 600;
                     description "SOA retry seconds";
+                    ze:help "The value goes into the RETRY field of the SOA record, in seconds. It tells a secondary
+                        how long to wait after a failed refresh. geodns serves no AXFR, so no secondary acts on it,
+                        and the value changes no answer Ze gives.";
                 }
                 leaf expire {
                     type uint32;
                     default 300;
                     description "SOA expire seconds";
+                    ze:help "The value goes into the EXPIRE field of the SOA record, in seconds. It tells a secondary
+                        when to stop the service of a zone it can no longer refresh. geodns serves no AXFR, so no
+                        secondary acts on it, and the value changes no answer Ze gives.";
                 }
                 leaf minimum {
                     type uint32 {
@@ -157,29 +204,45 @@ module ze-geodns-conf {
             list host-set {
                 key "name";
                 description "Named, reusable set of host records; referenced by source entries";
+                ze:help "A host set is one answer set. Ze picks the set for a query from the client address, through
+                    the `source` prefix that matches it. One set can serve several source prefixes. The same
+                    hostname can appear in several sets with a different address in each. That is what makes the
+                    answer depend on the client.";
 
                 leaf name {
                     type string {
                         length "1..255";
                     }
                     description "Host-set name (referenced by source/host-set)";
+                    ze:help "The name is the value a `source/host-set` leaf carries. A commit is refused when a
+                        source names a set that no entry here declares.";
                 }
 
                 list host {
                     key "name";
                     description "A hostname and its records";
+                    ze:help "One entry holds one name and the records Ze answers for it inside this set. A commit is
+                        refused when the entry carries no address and `type` is not SRV. It is also refused when
+                        `type` and the address family disagree.";
 
                     leaf name {
                         type string {
                             length "1..255";
                         }
                         description "Fully-qualified hostname (must end in a configured zone)";
+                        ze:help "The name MUST end in one of the `zone` entries, and a commit that breaks that is
+                            refused. Ze adds the trailing dot when the value has none. The name also gives existence
+                            to each node between it and the zone apex. A query for one of those parent names then
+                            draws an empty NOERROR answer rather than NXDOMAIN.";
                     }
                     leaf ttl {
                         type uint32 {
                             range "0..2147483647";
                         }
                         description "Record TTL; defaults to default-ttl when unset";
+                        ze:help "The value is the TTL in seconds of every record of this host. An unset leaf takes
+                            `default-ttl`. 0 is permitted here and refused on `default-ttl`, and it asks a resolver
+                            to cache the answer for no time. The range is the TTL range RFC 2181 section 8 sets.";
                     }
                     leaf type {
                         type enumeration {
@@ -188,30 +251,53 @@ module ze-geodns-conf {
                             enum SRV;
                         }
                         description "Record type; omit to auto-detect A vs AAAA per address";
+                        ze:help "An unset leaf reads each `address` entry on its own, and answers A for an IPv4
+                            address and AAAA for an IPv6 address. A refuses the commit for an IPv6 address, and AAAA
+                            refuses it for an IPv4 address. SRV reads the `srv` container and ignores `address`.";
                     }
                     leaf-list address {
                         type zt:ip-address;
                         description "One or more A/AAAA addresses (v4 => A, v6 => AAAA when type omitted)";
+                        ze:help "Each entry becomes one A record or one AAAA record for the host, and one query
+                            answers all of them. Ze refuses the commit for a host with no entry here, unless `type`
+                            is SRV.";
                     }
                     container srv {
                         description "SRV record fields (when type is SRV)";
+                        ze:help "Ze reads this container only when `type` is SRV. All four leaves are then required,
+                            and a commit that omits one is refused with 'need priority weight port target'. An SRV
+                            host answers one record, and `address` on it is ignored.";
                         leaf priority {
                             type uint16;
                             description "SRV priority";
+                            ze:help "RFC 2782 states that 'A client MUST attempt to contact the target host with the
+                                lowest-numbered priority it can reach'. That text is in the section 'The format of
+                                the SRV RR'. Targets that share a priority are ordered by `weight`. The range is 0
+                                to 65535.";
                         }
                         leaf weight {
                             type uint16;
                             description "SRV weight";
+                            ze:help "RFC 2782, 'The format of the SRV RR', calls the weight 'a relative weight for
+                                entries with the same priority'. The same text states that 'Larger weights SHOULD be
+                                given a proportionately higher probability of being selected'. Use 0 when one target
+                                has no selection to do. The range is 0 to 65535.";
                         }
                         leaf port {
                             type uint16;
                             description "SRV port";
+                            ze:help "The value is the TCP or UDP port the service listens on at `target`. The range
+                                is 0 to 65535. Ze copies the number into the record and checks nothing about it.";
                         }
                         leaf target {
                             type string {
                                 length "1..255";
                             }
                             description "SRV target hostname";
+                            ze:help "The value is the hostname that runs the service. Ze adds the trailing dot when
+                                the value has none. A commit is refused when the name breaks the length bounds RFC
+                                1035 sets. Ze adds no address record for the target, so a client resolves that name
+                                in a second query.";
                         }
                     }
                 }
@@ -226,12 +312,18 @@ module ze-geodns-conf {
                 leaf prefix {
                     type zt:ip-prefix;
                     description "Client source prefix in CIDR (e.g. 82.219.0.0/16, 82.219.4.10/32, 0.0.0.0/0)";
+                    ze:help "The prefix is the key of the entry. Ze masks it at commit, so 10.0.0.1/8 is stored as
+                        10.0.0.0/8. The longest prefix that holds the client address wins, and a /32 or a /128 pins
+                        one client. Add 0.0.0.0/0 and ::/0 to answer every client that no other prefix holds.";
                 }
                 leaf host-set {
                     type string {
                         length "1..255";
                     }
                     description "Name of the host-set to answer for clients matching this prefix";
+                    ze:help "The value names a `host-set` entry. A commit that names an unknown set is refused with
+                        'references unknown host-set', and a source with no value here is refused as well. A client
+                        this prefix matches is answered from that set alone.";
                 }
             }
 
@@ -246,6 +338,10 @@ module ze-geodns-conf {
                     type boolean;
                     default false;
                     description "Enable the DNS-over-TLS listener (RFC 7858).";
+                    ze:help "The default is false, so geodns binds no DNS-over-TLS listener. A true value binds every
+                        `listener` IP on `listen-port`, beside the cleartext endpoints. When the certificate material
+                        does not load, Ze logs the error and starts no secure listener. The cleartext listeners stay
+                        bound.";
                 }
 
                 leaf listen-port {
@@ -254,6 +350,9 @@ module ze-geodns-conf {
                     description
                         "TCP port for the DoT listener; the RFC 7858 well-known
                          'domain-s' port is 853.";
+                    ze:help "The DoT listener binds this TCP port on every `listener` IP, and it uses no UDP. A
+                        commit with the value 0 is refused. Move the port off 853 only when a client can be told the
+                        new one, because a DoT client uses 853 by default.";
                 }
 
                 leaf cert-file {
@@ -269,6 +368,10 @@ module ze-geodns-conf {
                     description
                         "Path to the PEM private key matching cert-file. Must be
                          set together with cert-file.";
+                    ze:help "The value is the path to the PEM private key of `cert-file`, and the two go together.
+                        Ze re-reads the pair on each commit, so a rotated key is picked up with no restart. This
+                        leaf and `certificate` are mutually exclusive, and a commit that sets both is refused. Leave
+                        both this leaf and `cert-file` unset to select an ephemeral self-signed certificate.";
                 }
 
                 leaf certificate {
@@ -294,12 +397,19 @@ module ze-geodns-conf {
                     type boolean;
                     default false;
                     description "Enable the DNS-over-HTTPS listener (RFC 8484).";
+                    ze:help "The default is false, so geodns binds no DNS-over-HTTPS listener. A true value binds
+                        every `listener` IP on `listen-port` at `path`. DoH takes the certificate material of the
+                        `tls` container, so it needs no `tls/enabled`. A certificate that does not load starts no
+                        secure listener, and the cleartext listeners stay bound.";
                 }
 
                 leaf listen-port {
                     type zt:port;
                     default 443;
                     description "TCP port for the DoH HTTPS listener (RFC 8484).";
+                    ze:help "The DoH listener binds this TCP port on every `listener` IP. A commit with the value 0
+                        is refused. Move the port when a web server already holds 443 on the same address, because
+                        the second bind of one address and port fails.";
                 }
 
                 leaf path {
@@ -308,6 +418,9 @@ module ze-geodns-conf {
                     description
                         "HTTP request path the DoH endpoint answers on (RFC 8484
                          URI Template); defaults to /dns-query.";
+                    ze:help "The DoH endpoint answers this path alone. An empty value keeps the default /dns-query.
+                        RFC 8484 section 3 states that 'The DoH client is configured with a URI Template [RFC6570]'.
+                        A client MUST therefore be told a path that is not the default.";
                 }
             }
         }

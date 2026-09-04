@@ -14,18 +14,37 @@ module ze-traffic-usage-conf {
     augment "/tc:traffic" {
         container usage {
             description "Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).";
+            ze:help "Ze attaches two eBPF programs to each accounted interface with TCX, one on
+                ingress and one on egress. They count bytes into per-interface LRU hash maps, keyed
+                by L4 port and protocol. Where track-ip is true they also key by IPv4 address. One
+                poll loop reads the maps and publishes the counts as metric series. The programs
+                count only: they drop no packet and they change none.";
 
             leaf enabled {
                 type boolean;
                 default false;
                 description "Enable traffic-usage accounting.";
+                ze:help "The default false attaches nothing and starts no poll loop. Set it true and
+                    the config also needs one enabled interface or more under interfaces. Without
+                    one, the commit is refused and the error names the missing interface list. An accounting
+                    that would report nothing never reaches the kernel.";
             }
 
             container interfaces {
                 description "Interfaces to account on.";
+                ze:help "Ze accounts on the interfaces listed here and on no other. An interface
+                    with no entry is not accounted, and an entry whose enabled leaf is false is
+                    dropped before the attach. With usage enabled and this list empty, the commit is
+                    refused.";
                 list interface {
                     key "name";
                     description "Per-interface traffic-usage accounting.";
+                    ze:help "The entry names one interface and can override three leaves of the
+                        usage container: track-ip, stale-timeout and max-entries. What the entry
+                        does not set, it takes from the leaf of the same name under usage. An entry
+                        with a name and no body is accounted with every global value. A change to
+                        track-ip or to max-entries makes Ze detach the eBPF programs and attach them
+                        again, because both decide the shape of the maps.";
                     leaf name {
                         type string {
                             length "1..255";
@@ -39,10 +58,20 @@ module ze-traffic-usage-conf {
                         type boolean;
                         default true;
                         description "Account traffic on this interface.";
+                        ze:help "The default true accounts on the interface, so an entry with no
+                            body needs nothing more. Set it false and Ze drops the entry before it
+                            attaches anything. The accounting on that interface stops, and the rest
+                            of the list is not touched. To stop the whole feature, use the enabled
+                            leaf under usage.";
                     }
                     leaf track-ip {
                         type boolean;
                         description "Override the global track-ip for this interface (inherits the global value when unset).";
+                        ze:help "The leaf overrides the track-ip leaf under usage for this interface
+                            alone, and an unset leaf takes the global value. True adds two more LRU
+                            maps to this interface, one for ingress and one for egress, keyed by
+                            IPv4 address. A change makes Ze attach the eBPF programs again, because
+                            the map set changes.";
                     }
                     leaf stale-timeout {
                         type uint32;
@@ -55,6 +84,12 @@ module ze-traffic-usage-conf {
                             range "1..4294967295";
                         }
                         description "Override the global max-entries (per-map LRU capacity) for this interface (inherits when unset).";
+                        ze:help "The leaf overrides the max-entries leaf under usage for this
+                            interface alone, and an unset leaf takes the global value. The value is
+                            the capacity of each LRU map of the interface, so it also sets the
+                            memory the interface costs. An effective value of 0 is refused at
+                            commit. A change makes Ze attach the eBPF programs again, because a map
+                            takes its capacity at creation.";
                     }
                 }
             }
@@ -65,12 +100,22 @@ module ze-traffic-usage-conf {
                 }
                 default 1000;
                 description "Map poll interval in milliseconds (100ms..1h).";
+                ze:help "One poll loop reads every map of every accounted interface at this period,
+                    so the value sets how fresh a metric series is. The default 1000 reads once a
+                    second. A value outside 100 milliseconds to 1 hour is refused at commit. The
+                    eBPF programs count at line rate whatever this value is, so a longer interval
+                    loses no bytes.";
             }
 
             leaf stale-timeout {
                 type uint32;
                 default 300000;
                 description "Remove a metric series unseen within this many milliseconds; 0 disables cleanup.";
+                ze:help "Ze removes a metric series it has not seen within this time, which stops
+                    the series of a talker that left from staying forever. The value 0 disables the
+                    cleanup, so every series stays until the plugin stops. An interface can
+                    override the value with its own stale-timeout leaf. An interface value that is
+                    not 0 and less than 1 second is refused at commit.";
             }
 
             leaf track-ip {
@@ -87,6 +132,11 @@ module ze-traffic-usage-conf {
                 }
                 default 10240;
                 description "Per-map LRU capacity; least-recently-used entries are evicted beyond this, keeping top talkers.";
+                ze:help "The value is the capacity of each LRU map, and an interface takes it unless
+                    its own max-entries leaf overrides it. Ze creates two maps for each accounted
+                    interface, and two more where track-ip is true, so the value sets the memory the
+                    accounting costs. Beyond the capacity the kernel evicts the least recently used
+                    entry, which keeps the top talkers and loses the quiet ones.";
             }
         }
     }

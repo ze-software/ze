@@ -2,6 +2,8 @@ module ze-tftp-server-conf {
     namespace "urn:ze:tftp-server:conf";
     prefix tftpsrv;
 
+    import ze-extensions { prefix ze; }
+
     description "TFTP server configuration for Ze (RFC 1350)";
 
     revision 2026-01-01 {
@@ -10,24 +12,44 @@ module ze-tftp-server-conf {
 
     container service {
         description "Service settings";
+        ze:help "Ze merges same-named containers across modules, so the service tree holds
+                 the settings of every service Ze runs, beside the routing configuration.
+                 This module contributes the tftp-server container alone.";
 
         container tftp-server {
             description "Read-only TFTP server (RFC 1350)";
+            ze:help "The server answers a read request on UDP port 69 and refuses every
+                     write request, so no client can put a file on this host. Ze accepts
+                     octet mode alone, and answers any other mode with an illegal operation
+                     error. Ze negotiates the blksize option of RFC 2348 and the tsize
+                     option of RFC 2349, and it does not support the windowsize option.";
 
             leaf enabled {
                 type boolean;
                 default false;
                 description "Enable TFTP server";
+                ze:help "The default is false. When the leaf is true, Ze refuses the
+                         configuration unless root-directory names a directory. A
+                         configuration that names no listen-interface binds no socket, and
+                         Ze then logs that the server does not serve.";
             }
 
             leaf-list listen-interface {
                 type string;
                 description "Interfaces to serve TFTP on";
+                ze:help "Ze opens one UDP socket for each interface of this list and binds
+                         the socket to that interface with SO_BINDTODEVICE. A logical
+                         interface name is resolved to its kernel device first. An interface
+                         that fails to bind is logged, and the others keep their socket.";
             }
 
             leaf root-directory {
                 type string;
                 description "Directory to serve files from";
+                ze:help "Ze resolves each requested file under this directory and follows
+                         every symbolic link first. A file that lands outside the directory
+                         gets an access violation error, so a client cannot read the rest of
+                         the disk. The leaf is required when enabled is true.";
             }
 
             leaf max-transfers {
@@ -36,6 +58,10 @@ module ze-tftp-server-conf {
                 }
                 default 10;
                 description "Maximum concurrent TFTP transfers";
+                ze:help "The default is 10 and the range is 1 to 1000. The count is shared
+                         by every listener of the server. Over the limit Ze answers the read
+                         request with a TFTP error that carries the text service
+                         unavailable, and the transfers already open keep running.";
             }
         }
     }

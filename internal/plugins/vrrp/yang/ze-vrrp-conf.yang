@@ -28,6 +28,14 @@ module ze-vrrp-conf {
         container vrrp {
             ze:backend "netlink";
             description "VRRP virtual routers hosted on this IPv4 unit.";
+            ze:help "Ze runs each group as its own state machine, on a macvlan
+                     device that carries the group's virtual MAC. The device name
+                     starts with zv4 and takes the parent ifindex and the VRID,
+                     inside the 15-character kernel limit. The container carries
+                     ze:backend netlink, so a tree with interface backend vpp is
+                     refused at verify with \"VRRP requires the netlink interface
+                     backend\". A VRID is unique for one unit and one family, so
+                     the same VRID CAN run on the IPv6 unit beside it.";
 
             list group {
                 key "name";
@@ -39,6 +47,14 @@ module ze-vrrp-conf {
                     type zt:node-name;
                     description "Config-level group name (free-form label, used as list key).
                                  Not sent on the wire.";
+                    ze:help "Ze keys the running instance on interface, unit, family
+                             and this name. So a change to vrid reconfigures the
+                             same virtual router, and a change to the name removes
+                             one virtual router and creates another. The name is 1
+                             to 255 characters of letters, digits, underscore,
+                             hyphen and dot. The first character MUST be a letter, a
+                             digit or an underscore. Every VRRP error message opens
+                             with the name, because the operator typed it.";
                 }
 
                 leaf vrid {
@@ -152,6 +168,14 @@ module ze-vrrp-conf {
         container vrrp {
             ze:backend "netlink";
             description "VRRP virtual routers hosted on this IPv6 unit.";
+            ze:help "Ze runs each group as its own state machine, on a macvlan
+                     device that carries the group's virtual MAC. The device name
+                     starts with zv6 and takes the parent ifindex and the VRID,
+                     inside the 15-character kernel limit. Every group here is
+                     VRRPv3, because VRRPv2 is IPv4 only, so this tree carries no
+                     version leaf. The container carries ze:backend netlink, so a
+                     tree with interface backend vpp is refused at verify with
+                     \"VRRP requires the netlink interface backend\".";
 
             list group {
                 key "name";
@@ -163,6 +187,14 @@ module ze-vrrp-conf {
                     type zt:node-name;
                     description "Config-level group name (free-form label, used as list key).
                                  Not sent on the wire.";
+                    ze:help "Ze keys the running instance on interface, unit, family
+                             and this name. So a change to vrid reconfigures the
+                             same virtual router, and a change to the name removes
+                             one virtual router and creates another. The name is 1
+                             to 255 characters of letters, digits, underscore,
+                             hyphen and dot. The first character MUST be a letter, a
+                             digit or an underscore. Every VRRP error message opens
+                             with the name, because the operator typed it.";
                 }
 
                 leaf vrid {
@@ -202,6 +234,15 @@ module ze-vrrp-conf {
                     type boolean;
                     default "true";
                     description "Preempt_Mode (RFC 9568 Section 6.4.2).";
+                    ze:help "The state machine reads this leaf in the Backup state
+                             only. With true, Ze discards an advertisement whose
+                             priority is lower than its own, so the Master_Down
+                             timer runs out and promotes this router. With false,
+                             Ze accepts that advertisement and re-arms the timer,
+                             so this router stays Backup while the Active router
+                             still sends. The default is true, and
+                             preempt-delay-seconds delays the takeover after the
+                             first losing advertisement.";
                 }
 
                 leaf preempt-delay-seconds {
@@ -229,6 +270,16 @@ module ze-vrrp-conf {
                     type boolean;
                     default "false";
                     description "Accept_Mode (RFC 9568 Section 6.1/6.4.3), v3 semantics.";
+                    ze:help "A non-owner Active router accepts packets addressed to
+                             the virtual addresses. Ze enforces the leaf in the
+                             dataplane, with an nftables input chain in the ze_vrrp
+                             table. With false, the chain accepts ICMPv6 types 135
+                             and 136 before it examines any address (RFC 9568
+                             Section 6.1). Neighbor Discovery for the virtual
+                             addresses still answers. The chain drops local delivery
+                             of every other packet to a virtual address, and leaves
+                             forwarding for the virtual MAC untouched. The address
+                             owner accepts whatever this leaf says.";
                 }
             }
         }

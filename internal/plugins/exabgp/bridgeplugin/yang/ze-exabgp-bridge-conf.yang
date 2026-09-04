@@ -27,6 +27,10 @@ module ze-exabgp-bridge-conf {
     container exabgp {
         description
             "Top-level container for ExaBGP-compatibility configuration.";
+        ze:help "The bridge itself lives in the bridge container under this root, which
+                 keeps the root free for other ExaBGP compatibility settings. The plugin is
+                 registered as exabgp-bridge, so plugin { internal exabgp-bridge } starts
+                 it. The bridge refuses to start until bridge run names a script.";
 
         container bridge {
             description "In-process ExaBGP bridge settings.";

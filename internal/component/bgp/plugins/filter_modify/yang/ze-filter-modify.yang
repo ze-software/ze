@@ -96,11 +96,18 @@ and keeps every other attribute unchanged.";
                 leaf local-preference {
                     type uint32;
                     description "Set LOCAL_PREF attribute (RFC 4271 type 5).";
+                    ze:help "Ze replaces the value the route carried. RFC 4271 Section 5.1.5 forbids the attribute
+                        in an UPDATE to an external peer, so the value serves the local decision process and the
+                        internal peers. The leaf is mutually exclusive with increment local-preference and decrement
+                        local-preference.";
                 }
 
                 leaf med {
                     type uint32;
                     description "Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).";
+                    ze:help "Ze replaces the metric the route carried, and writes one on a route that carried none.
+                        The leaf is mutually exclusive with del med, increment med and decrement med, and Ze refuses
+                        a modifier that carries two of them.";
                 }
 
                 leaf origin {
@@ -116,6 +123,9 @@ and keeps every other attribute unchanged.";
                         }
                     }
                     description "Set ORIGIN attribute (RFC 4271 type 1).";
+                    ze:help "The decision process reads the attribute at step 3, after LOCAL_PREF and the AS_PATH
+                        length. igp wins over egp, and egp wins over incomplete. Ze replaces whatever the route
+                        carried.";
                 }
 
                 leaf next-hop {
@@ -138,31 +148,46 @@ holds. The range 1 to 32 stops the path from growing without a limit.";
                 leaf-list community-add {
                     type string;
                     description "Standard community values to add (ASN:VAL format).";
+                    ze:help "Ze adds the values to the COMMUNITIES attribute of RFC 1997 and keeps every community
+                        already on the route. Ze reads each value at config load, and refuses the modifier when one
+                        does not parse.";
                 }
 
                 leaf-list community-remove {
                     type string;
                     description "Standard community values to remove (ASN:VAL format).";
+                    ze:help "Ze removes only the values named here, and keeps every other community of the route.
+                        A value the route does not carry costs nothing. Ze reads each value at config load, and
+                        refuses the modifier when one does not parse.";
                 }
 
                 leaf-list large-community-add {
                     type string;
                     description "Large community values to add (GA:LD1:LD2 format).";
+                    ze:help "The LARGE COMMUNITIES attribute is RFC 8092, type 32, and it carries three 4-byte
+                        fields. A 4-byte ASN therefore fits, which a standard community cannot hold.";
                 }
 
                 leaf-list large-community-remove {
                     type string;
                     description "Large community values to remove (GA:LD1:LD2 format).";
+                    ze:help "Ze removes only the values named here, and leaves the standard and extended communities
+                        of the route untouched. A value the route does not carry costs nothing.";
                 }
 
                 leaf-list extended-community-add {
                     type string;
                     description "Extended community values to add (target:ASN:NN or hex).";
+                    ze:help "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16, and each value is 8 bytes.
+                        target names a Route Target and origin names a Route Origin. A hex string writes the 8 bytes
+                        Ze has no keyword for.";
                 }
 
                 leaf-list extended-community-remove {
                     type string;
                     description "Extended community values to remove (target:ASN:NN or hex).";
+                    ze:help "Ze removes only the values named here, and leaves the standard and large communities of
+                        the route untouched. A value the route does not carry costs nothing.";
                 }
             }
 
@@ -199,6 +224,8 @@ with set for the same attribute.";
                         range "1..4294967295";
                     }
                     description "Increment LOCAL_PREF by this value.";
+                    ze:help "A route that carries no LOCAL_PREF counts as 100, which is the value FRR and BIRD use
+                        for a route with none. RFC 4271 Section 9.1.1 leaves that number to local policy.";
                 }
 
                 leaf med {
@@ -206,6 +233,8 @@ with set for the same attribute.";
                         range "1..4294967295";
                     }
                     description "Increment MED by this value.";
+                    ze:help "A route that carries no MULTI_EXIT_DISC counts as 0, which RFC 4271 Section 9.1.2.2
+                        gives as the value of an absent metric. The result therefore equals the increment.";
                 }
 
                 leaf aigp {
@@ -213,6 +242,10 @@ with set for the same attribute.";
                         range "1..4294967295";
                     }
                     description "Increment AIGP metric by this value.";
+                    ze:help "Ze runs the operation only on a route that already carries an AIGP TLV, and creates
+                        none. RFC 7311 Section 3.4.1 forbids a speaker to add the attribute to a route whose path
+                        leaves the AIGP domain. Section 4.1 removes a route with no AIGP from the decision rather
+                        than scoring it.";
                 }
             }
 
@@ -227,6 +260,8 @@ exclusive with set for the same attribute.";
                         range "1..4294967295";
                     }
                     description "Decrement LOCAL_PREF by this value.";
+                    ze:help "A route that carries no LOCAL_PREF counts as 100 before the subtraction. A decrement
+                        larger than the current value writes 0 rather than wrapping.";
                 }
 
                 leaf med {
@@ -234,6 +269,8 @@ exclusive with set for the same attribute.";
                         range "1..4294967295";
                     }
                     description "Decrement MED by this value.";
+                    ze:help "A route that carries no MULTI_EXIT_DISC counts as 0, so the result is 0 and Ze writes a
+                        metric the route did not have. Use del med to remove the attribute instead.";
                 }
 
                 leaf aigp {
@@ -241,6 +278,8 @@ exclusive with set for the same attribute.";
                         range "1..4294967295";
                     }
                     description "Decrement AIGP metric by this value.";
+                    ze:help "Ze runs the operation only on a route that already carries an AIGP TLV. A route with
+                        none is left alone, because RFC 7311 Section 3.4.1 forbids Ze to add the attribute.";
                 }
             }
         }

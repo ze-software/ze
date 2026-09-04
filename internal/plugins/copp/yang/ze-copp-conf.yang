@@ -24,20 +24,37 @@ module ze-copp-conf {
 
     container control-plane-protection {
         description "Control-plane policing configuration.";
+        ze:help "Ze compiles the containers under it into one nftables table named ze_copp,
+                 which carries a base input chain at priority 0. The ze_ prefix is what
+                 makes the firewall backend own that table and withdraw it when you delete
+                 the configuration. The bgp container is the only policy Ze builds today.";
 
         container bgp {
             presence "BGP control-plane policing enabled";
             description "Rate-limit new TCP connections to the BGP listen port.";
+            ze:help "The container carries presence, so Ze builds the ze_copp table when you
+                     write it and removes the table when you delete it. The chain accepts an
+                     established or related connection first, then a connection from each
+                     trusted-source prefix, and applies the rate to what is left.";
 
             leaf rate {
                 type rate-spec;
                 mandatory true;
                 description "Rate limit for new connections (e.g., 100/second).";
+                ze:help "The leaf is mandatory, so Ze refuses the container without it. The
+                         value is a count, an optional byte unit, and a time unit, as in
+                         100/second or 1mbytes/second. The limit reaches a new TCP
+                         connection to a protected port alone, because the chain accepts an
+                         established connection before it.";
             }
 
             leaf burst {
                 type uint32;
                 description "Burst size (packets or bytes matching the rate unit).";
+                ze:help "The unit follows the unit of rate: a packet count where rate counts
+                         packets, and a byte count where rate names a byte unit. The leaf
+                         has no default, and Ze gives the kernel a burst of 0 when it is
+                         absent.";
             }
 
             leaf-list protected-port {
@@ -55,6 +72,10 @@ module ze-copp-conf {
                 description
                     "Source prefixes that bypass the rate limit.
                      Typically the addresses of configured BGP peers.";
+                ze:help "Ze adds one accept term for each prefix, above the rate limit term.
+                         The term matches TCP from that source to a protected port, so a
+                         trusted peer never meets the limit. Ze refuses a value that is not
+                         an IPv4 prefix or an IPv6 prefix.";
             }
 
             leaf over-limit-policy {

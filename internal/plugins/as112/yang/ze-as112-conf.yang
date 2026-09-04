@@ -179,6 +179,11 @@ module ze-as112-conf {
                     type boolean;
                     default false;
                     description "Enable the DNS-over-TLS listener (RFC 7858).";
+                    ze:help "The default is false. Ze binds DoT on every IP the cleartext
+                             listeners use, on listen-port. DoT is TCP only, because RFC
+                             7858 Section 3.1 defines no UDP counterpart. When the TLS
+                             material fails to load, Ze starts no secure listener and the
+                             cleartext listeners keep running.";
                 }
 
                 leaf listen-port {
@@ -205,6 +210,12 @@ module ze-as112-conf {
                     description
                         "Path to the PEM private key matching cert-file. Must be
                          set together with cert-file.";
+                    ze:help "Ze reads cert-file and key-file on each apply, so a rotated
+                             pair reaches the listener without a restart. One of the two
+                             alone stops the secure listeners with an error, and the
+                             cleartext listeners keep running. The certificate leaf names a
+                             PKI store entry instead, and Ze refuses a config that writes
+                             both sources.";
                 }
 
                 leaf certificate {
@@ -238,12 +249,21 @@ module ze-as112-conf {
                     type boolean;
                     default false;
                     description "Enable the DNS-over-HTTPS listener (RFC 8484).";
+                    ze:help "The default is false. Ze binds DoH on every IP the cleartext
+                             listeners use, on listen-port, at path. The listener drives the
+                             same handler as cleartext DNS, so allow-from answers a DoH
+                             client exactly as it answers a UDP client. A query the handler
+                             refuses gets HTTP 403.";
                 }
 
                 leaf listen-port {
                     type zt:port;
                     default 443;
                     description "TCP port for the DoH HTTPS listener (RFC 8484).";
+                    ze:help "The default is 443, and the range is 1 to 65535. Ze refuses a
+                             port of 0. A GET carries the query base64url-encoded in the dns
+                             parameter, and a POST carries it in an application/dns-message
+                             body of 65535 bytes at most.";
                 }
 
                 leaf path {

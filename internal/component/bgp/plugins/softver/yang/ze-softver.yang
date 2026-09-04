@@ -3,6 +3,7 @@ module ze-softver {
     prefix softver;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
 
     description
         "Software Version capability plugin for ZeBGP (draft-abraitis-bgp-version-capability, code 75).
@@ -16,6 +17,10 @@ module ze-softver {
         container software-version {
             presence "Software Version capability enabled";
             description "Software Version capability (code 75).";
+            ze:help "The container carries presence, so writing it makes Ze send the capability of
+                draft-abraitis-bgp-version-capability to this peer. The value is the fixed string Ze/0.1.0, and no
+                leaf changes it. A container on the peer replaces the container on the group rather than adding to
+                it.";
             leaf mode {
                 type enumeration {
                     enum enable { description "Advertise capability (default)."; }

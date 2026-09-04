@@ -12,14 +12,25 @@ module ze-image-server-conf {
 
     container service {
         description "Service settings";
+        ze:help "Ze merges same-named containers across modules, so the service tree holds
+                 the settings of every service Ze runs, beside the routing configuration.
+                 This module contributes the image-server container alone.";
 
         container image-server {
             description "HTTP image server for PXE provisioning";
+            ze:help "The server answers three paths under /install: the disk image, the boot
+                     files of the installer, and the zefs database the target starts with.
+                     Ze registers a path only when the leaves that feed it are set, so a
+                     path with nothing behind it answers 404.";
 
             leaf enabled {
                 type boolean;
                 default false;
                 description "Enable image server";
+                ze:help "The default is false. When the leaf is true, Ze refuses the
+                         configuration unless image-directory or boot-directory names a
+                         directory. The plugin binds the port when the configuration is
+                         applied, and a bind that fails is reported in the log.";
             }
 
             leaf-list listen-interface {
@@ -33,26 +44,46 @@ module ze-image-server-conf {
                 }
                 default 80;
                 description "HTTP listen port";
+                ze:help "The default is 80 and the range is 1 to 65535. Ze binds this port
+                         on the IPv4 address of the first listen-interface. With no
+                         interface named, Ze binds the port on every address of the host.";
             }
 
             leaf image-directory {
                 type string;
                 description "Directory containing gokrazy disk images";
+                ze:help "Ze serves the files of this directory under /install/image/. An
+                         empty leaf registers no such path, and a client then gets 404. A
+                         request that reaches the path while the directory holds no image
+                         gets 503.";
             }
 
             leaf boot-directory {
                 type string;
                 description "Directory containing installer kernel, initrd, iPXE config";
+                ze:help "Ze serves the files of this directory under /install/boot/. An
+                         empty leaf registers no such path, and a client then gets 404. Ze
+                         builds /install/boot/boot.ipxe itself, and only when
+                         listen-interface names an interface whose address it can resolve.";
             }
 
             leaf ssh-username {
                 type string;
                 description "Admin username for installed target (written to served zefs)";
+                ze:help "Ze writes this name and the password hash into a zefs database, and
+                         serves that database at /install/database.zefs. The target reads it
+                         and gets its first administrator. Write ssh-username and
+                         ssh-password-hash together, because Ze refuses one without the
+                         other.";
             }
 
             leaf ssh-password-hash {
                 type string;
                 description "Bcrypt hash of admin password (written to served zefs)";
+                ze:help "Ze refuses a value that bcrypt cannot read, so the target never
+                         gets a database with an unusable password. Only the hash reaches
+                         the served zefs database, so the cleartext password does not cross
+                         the PXE network.";
             }
 
             leaf rescue-auth {

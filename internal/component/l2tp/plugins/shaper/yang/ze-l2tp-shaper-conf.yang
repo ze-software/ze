@@ -14,6 +14,10 @@ module ze-l2tp-shaper-conf {
         // so the tree merge does not warn on a mismatch. This module only
         // attaches its own subtree to the shared node.
         description "L2TPv2 tunnel subsystem settings (RFC 2661).";
+        ze:help "L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with
+                 any content implies the subsystem is enabled. Use 'enabled false' to
+                 disable it explicitly, or 'enabled true' as a filler when no other settings
+                 are needed.";
 
         container shaper {
             description "Traffic shaping applied to each L2TP subscriber interface.";
@@ -31,6 +35,11 @@ module ze-l2tp-shaper-conf {
                 }
                 default tbf;
                 description "Queueing discipline type for subscriber interfaces.";
+                ze:help "The default is tbf, and the value reaches every subscriber
+                         interface. With tbf Ze installs one class that carries the rate of
+                         the session. With htb Ze installs one default class whose rate and
+                         ceiling are both that rate, so the class cannot borrow. Ze refuses
+                         a token that is not tbf or htb.";
             }
             leaf default-rate {
                 type zt:rate;

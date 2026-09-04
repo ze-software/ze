@@ -16,22 +16,33 @@ module ze-healthcheck-conf {
             key "name";
             unique "group";
             description "Healthcheck probe definition";
+            ze:help "A probe runs its command on a timer and holds its own state machine. The states are INIT,
+                RISING, UP, FALLING, DOWN and DISABLED. Two probes cannot drive one watchdog group, because Ze
+                refuses a config that repeats a group name.";
 
             leaf name {
                 type string;
                 description "Probe identifier";
+                ze:help "The name is the list key. show bgp healthcheck NAME reports the state and the metrics of
+                    one probe, and clear bgp healthcheck NAME restarts its state machine at INIT.";
             }
 
             leaf command {
                 type string;
                 mandatory true;
                 description "Shell command to execute for health check (exit 0 = success)";
+                ze:help "Ze runs the command through /bin/sh -c. Exit 0 is a success, and every other exit status is
+                    a failure. Ze reads at most 64 KB of the output of the command and writes it to the log.";
             }
 
             leaf group {
                 type string;
                 mandatory true;
                 description "Watchdog group name (exclusive: one probe per group)";
+                ze:help "The value matches the watchdog name of an update block. UP announces every route of the
+                    group, and DOWN withdraws those routes or re-announces them with down-metric. Ze refuses a
+                    second probe that names the same group. Ze also refuses the name med, and a name that holds a
+                    space.";
             }
 
             leaf interval {
@@ -40,6 +51,8 @@ module ze-healthcheck-conf {
                 }
                 default 5;
                 description "Seconds between checks (0 = single check then dormant)";
+                ze:help "The interval governs the UP, DOWN and DISABLED states. RISING and FALLING use fast-interval
+                    instead. 0 runs one check, then the probe stays dormant until Ze stops it.";
             }
 
             leaf fast-interval {
@@ -48,6 +61,8 @@ module ze-healthcheck-conf {
                 }
                 default 1;
                 description "Seconds between checks during RISING/FALLING states";
+                ze:help "RISING and FALLING are the states that count toward rise and fall, so the shorter interval
+                    makes the probe reach UP or DOWN sooner. Every other state uses interval.";
             }
 
             leaf timeout {
@@ -56,6 +71,8 @@ module ze-healthcheck-conf {
                 }
                 default 5;
                 description "Command timeout in seconds";
+                ze:help "Ze kills the process group of the command with SIGKILL when the command runs longer than
+                    the timeout. A killed command counts as a failure, so it advances the fall count.";
             }
 
             leaf rise {
@@ -64,6 +81,9 @@ module ze-healthcheck-conf {
                 }
                 default 3;
                 description "Consecutive successes before UP";
+                ze:help "The probe counts successes in RISING and reaches UP at this count. One failure resets the
+                    count to 1 and moves the probe to FALLING. The value 1 skips RISING, so the first success
+                    reaches UP.";
             }
 
             leaf fall {
@@ -72,6 +92,9 @@ module ze-healthcheck-conf {
                 }
                 default 3;
                 description "Consecutive failures before DOWN";
+                ze:help "The probe counts failures in FALLING and reaches DOWN at this count. One success resets the
+                    count to 1 and moves the probe to RISING. The value 1 skips FALLING, so the first failure
+                    reaches DOWN.";
             }
 
             leaf withdraw-on-down {
@@ -86,70 +109,104 @@ module ze-healthcheck-conf {
                 type boolean;
                 default false;
                 description "Admin disable: probe enters DISABLED state immediately";
+                ze:help "Ze runs no check and skips the addresses of ip-setup at startup. The watchdog action for
+                    DISABLED runs at once, so Ze withdraws the group or re-announces it with disabled-metric. clear
+                    bgp healthcheck refuses a probe that carries true.";
             }
 
             leaf debounce {
                 type boolean;
                 default false;
                 description "When true, only dispatch watchdog commands on state changes";
+                ze:help "The default false dispatches the watchdog command after every check, which re-announces the
+                    same metric on each pass. true dispatches the command only when the state changes.";
             }
 
             leaf up-metric {
                 type uint32;
                 default 100;
                 description "MED value when UP";
+                ze:help "Ze runs request bgp watchdog announce GROUP med VALUE, so the value reaches every route of
+                    the group as its MED attribute. A peer that compares two paths prefers the lower MED.";
             }
 
             leaf down-metric {
                 type uint32;
                 default 1000;
                 description "MED value when DOWN (used when withdraw-on-down is false)";
+                ze:help "The default 1000 is higher than the default up-metric of 100. A peer that holds a second
+                    path therefore prefers that path while the probe is DOWN. withdraw-on-down true withdraws the
+                    routes instead, and the value is then unused.";
             }
 
             leaf disabled-metric {
                 type uint32;
                 default 500;
                 description "MED value when DISABLED (used when withdraw-on-down is false)";
+                ze:help "The default 500 sits between up-metric and down-metric, so a peer prefers a disabled box
+                    over a failed one. withdraw-on-down true withdraws the routes instead, and the value is then
+                    unused.";
             }
 
             container ip-setup {
                 description "VIP management on local interface (internal plugin mode only)";
+                ze:help "Ze adds the addresses at startup, unless disable carries true, and removes every address it
+                    added when the probe stops. The container does nothing until interface and ip both carry a
+                    value.";
 
                 leaf interface {
                     type string;
                     description "Target interface for VIPs (e.g., lo, dummy0)";
+                    ze:help "Ze resolves the logical interface name to its kernel device before it adds an address.
+                        An empty leaf leaves the addresses of ip unused.";
                 }
 
                 leaf dynamic {
                     type boolean;
                     default false;
                     description "When true, remove IPs on DOWN/DISABLED, restore on UP";
+                    ze:help "The default false leaves the addresses on the interface for as long as the probe runs.
+                        true removes them when the probe reaches DOWN or DISABLED, and adds them again on UP.";
                 }
 
                 leaf-list ip {
                     type string;
                     description "VIP addresses in CIDR notation (e.g., 10.0.0.1/32)";
+                    ze:help "Ze records each address it added and removes only those, so an address another
+                        component put on the interface stays. An address Ze fails to add is written to the log, and
+                        the probe continues.";
                 }
             }
 
             leaf-list on-up {
                 type string;
                 description "Shell commands to execute on transition to UP (30s timeout)";
+                ze:help "Ze runs the commands when the probe REACHES UP, and not on each later check that keeps it
+                    there. The environment carries PATH, HOME, USER and STATE only, and STATE holds the state name.
+                    Ze runs at most 10 hook commands at once.";
             }
 
             leaf-list on-down {
                 type string;
                 description "Shell commands to execute on transition to DOWN (30s timeout)";
+                ze:help "Ze runs the commands when the probe REACHES DOWN, and not on each later check that keeps it
+                    there. A failure of a hook command reaches the log and changes no state. The environment carries
+                    PATH, HOME, USER and STATE only.";
             }
 
             leaf-list on-disabled {
                 type string;
                 description "Shell commands to execute on transition to DISABLED (30s timeout)";
+                ze:help "Ze reaches DISABLED from the disable leaf, never from a check result, so these commands run
+                    at startup when disable is true. The environment carries PATH, HOME, USER and STATE only.";
             }
 
             leaf-list on-change {
                 type string;
                 description "Shell commands to execute on any state transition (30s timeout, runs after state-specific hooks)";
+                ze:help "STATE in the environment carries the name of the state the probe reached, so one command
+                    CAN serve every transition. RISING and FALLING are transitions too, and they run these commands
+                    with no state command of their own.";
             }
         }
     }
@@ -157,6 +214,8 @@ module ze-healthcheck-conf {
     augment "/bgp:bgp" {
         container healthcheck {
             description "Healthcheck probes for service-aware BGP route management";
+            ze:help "A probe runs a shell command on a timer and drives one watchdog group. The routes it controls
+                are the update blocks whose watchdog name matches the group of the probe.";
             uses probe-config;
         }
     }

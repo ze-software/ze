@@ -28,12 +28,18 @@ module ze-filter-prefix {
                 type string;
                 description "Filter instance name (referenced in peer filter chains
                              as bgp-filter-prefix:NAME).";
+                ze:help "A chain that names a list Ze does not hold rejects every route of that peer, because the
+                    filter fails closed. The same happens for an UPDATE that arrives before the config reached the
+                    plugin.";
             }
 
             list entry {
                 key "prefix";
                 ordered-by user;
                 description "Ordered match entry. First match wins per route prefix.";
+                ze:help "Ze judges each prefix of an UPDATE on its own. An UPDATE whose prefixes are all accepted
+                    passes unchanged, and one whose prefixes are all rejected is dropped. A mixed UPDATE is
+                    rewritten to carry the accepted prefixes only. An UPDATE that carries no prefix is accepted.";
 
                 leaf prefix {
                     type union {
@@ -42,6 +48,9 @@ module ze-filter-prefix {
                     }
                     description "IPv4 or IPv6 CIDR prefix to match.
                                  Match requires the route prefix be a subnet of this prefix.";
+                    ze:help "The prefix is the list key, so one entry holds one prefix and its length window. The
+                        length of the prefix is the lower bound of that window until ge moves it. A prefix Ze cannot
+                        parse rejects the UPDATE.";
                 }
 
                 leaf ge {
@@ -50,6 +59,9 @@ module ze-filter-prefix {
                     }
                     description "Minimum match length (greater-than-or-equal).
                                  Defaults to the prefix length of this entry.";
+                    ze:help "Ze refuses a value of more than 32 on an IPv4 entry, and more than 128 on an IPv6
+                        entry. Ze also refuses a ge greater than the le of the same entry. Write 0.0.0.0/0 with ge 8
+                        and le 24 to accept every route between /8 and /24.";
                 }
 
                 leaf le {
@@ -58,6 +70,9 @@ module ze-filter-prefix {
                     }
                     description "Maximum match length (less-than-or-equal).
                                  Defaults to 32 for IPv4 or 128 for IPv6.";
+                    ze:help "The default accepts every length inside the entry, so an entry with no le and no ge
+                        matches the prefix and everything under it. Ze refuses a value greater than the family
+                        maximum rather than letting the entry match nothing.";
                 }
 
                 leaf action {
@@ -72,6 +87,9 @@ module ze-filter-prefix {
                     }
                     default accept;
                     description "Action applied when this entry matches a route prefix.";
+                    ze:help "The first entry that matches a route prefix decides it, and no later entry is read for
+                        that prefix. A prefix that matches no entry is rejected, so a list needs no closing reject
+                        entry.";
                 }
             }
         }

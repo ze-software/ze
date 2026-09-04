@@ -20,6 +20,9 @@ module ze-bfd-conf {
 
     container bfd {
         description "BFD control configuration for Ze.";
+        ze:help "The container holds the plugin switch, the reusable profiles, and the sessions an
+            operator pins. A session that BGP or a static route asks for at runtime does not appear
+            here. A protocol client reaches the plugin through its Service interface instead.";
 
         leaf enabled {
             type boolean;
@@ -58,6 +61,9 @@ module ze-bfd-conf {
             leaf name {
                 type string;
                 description "Profile name used as the reference key.";
+                ze:help "A session names this value in its own profile leaf. Ze refuses a session whose
+                    profile leaf names no declared profile, so a typo stops the config load. A profile
+                    no session names is parsed and changes nothing.";
             }
 
             leaf detect-multiplier {
@@ -83,6 +89,11 @@ module ze-bfd-conf {
                 description
                     "Minimum inter-packet gap the local end can handle,
                      in microseconds.";
+                ze:help "Ze advertises the value as Required Min RX Interval, and a peer that obeys it
+                    does not transmit faster. The detection time is the peer's Detect Multiplier times
+                    the larger of this value and the peer's Desired Min TX Interval. While echo mode
+                    runs, Ze raises the advertised value to 1000000 microseconds and starts a Poll
+                    sequence, because the echo packets already prove the path.";
             }
 
             leaf passive {
@@ -150,6 +161,10 @@ module ze-bfd-conf {
                     type uint8;
                     mandatory true;
                     description "Auth Key ID (RFC 5880 Section 6.7.1).";
+                    ze:help "Ze writes the value into the authentication section of every Control packet
+                        it sends. Ze discards a received packet that carries another value, which RFC 5880
+                        Section 6.7.2 requires for Simple Password. Both ends must name the same key-id
+                        and the same secret. The range is 0 to 255.";
                 }
 
                 leaf secret {
@@ -174,23 +189,41 @@ module ze-bfd-conf {
             leaf peer {
                 type string;
                 description "Peer IPv4 or IPv6 address.";
+                ze:help "The value is the first word after the list name, so single-hop-session
+                    203.0.113.9 names this peer. Ze refuses an address it cannot parse, and IPv4 and IPv6
+                    are both accepted. RFC 5881 Section 5 requires a received TTL of 255, so Ze discards
+                    a Control packet from this peer that crossed a router.";
             }
             leaf local {
                 type string;
                 description "Local source address (optional).";
+                ze:help "While the leaf is absent, the kernel selects the source address. The address
+                    is part of the session key. A change to it therefore releases the running session,
+                    and creates a new one at the next config load.";
             }
             leaf interface {
                 type string;
                 description "Egress interface name.";
+                ze:help "Ze binds the socket of the loop to this interface with SO_BINDTODEVICE. One
+                    socket serves every session of one VRF and hop mode. Ze binds it only when each
+                    session in the default VRF names the same interface. A mix of names leaves the
+                    socket unbound, with a warning in the log. In a VRF other than default the VRF
+                    device wins, and this leaf is dropped.";
             }
             leaf vrf {
                 type string;
                 default "default";
                 description "Routing instance the session runs in. The default instance is named default.";
+                ze:help "A name other than default binds the socket to the VRF device of that name. The
+                    interface leaf of every session in that VRF is then dropped, and Ze logs the names it
+                    dropped once for each loop. An empty value is read as default.";
             }
             leaf profile {
                 type string;
                 description "Named profile to inherit timer parameters from.";
+                ze:help "Ze refuses a name that no profile declares. Without this leaf the session takes
+                    the engine values: a detect multiplier of 3, and 1000000 microseconds for both the
+                    transmit target and the receive floor.";
             }
             leaf shutdown {
                 type boolean;
@@ -198,6 +231,10 @@ module ze-bfd-conf {
                 description
                     "When true, the session stays in AdminDown state.
                      RFC 5880 Section 6.8.16.";
+                ze:help "The session keeps its configuration and its place in the list, and Ze holds it
+                    in AdminDown. Ze applies the value again at each reload, so a change from true to
+                    false brings the session back with no restart. Delete the list entry to remove the
+                    session instead.";
             }
         }
 
@@ -205,19 +242,36 @@ module ze-bfd-conf {
             key "peer local vrf";
             description
                 "Multi-hop BFD session (RFC 5883). Port 4784, no GTSM.";
+            ze:help "The 255-TTL test of a single-hop session cannot work over several hops. The
+                min-ttl leaf is the cheap protection here, and authentication is the strong one. Ze
+                refuses an entry whose profile enables echo. RFC 5883 Section 3 states that the Echo
+                function MUST NOT be used over multiple hops. The local leaf is required here, and it
+                is optional on a single-hop session.";
 
             leaf peer {
                 type string;
                 description "Address of the remote system this session runs to.";
+                ze:help "The value is the first word after the list name, so multi-hop-session
+                    203.0.113.9 names this peer. Ze refuses an address it cannot parse, and IPv4 and
+                    IPv6 are both accepted. The peer, the local address and the VRF together identify
+                    the session.";
             }
             leaf local {
                 type string;
                 description "Local source address. Required for multi-hop.";
+                ze:help "Ze refuses an entry that omits this leaf. The address is the source of every
+                    Control packet Ze sends, and it is part of the session key. RFC 5883 Section 4.1
+                    states that two sessions between the same pair of systems must differ in at least
+                    one endpoint address. The reason is that the first packet carries a Your
+                    Discriminator of 0.";
             }
             leaf vrf {
                 type string;
                 default "default";
                 description "Routing instance the session runs in. The default instance is named default.";
+                ze:help "A name other than default binds the socket to the VRF device of that name. Ze
+                    runs one socket for each pair of VRF and hop mode, so every multi-hop session in one
+                    VRF shares it. An empty value is read as default.";
             }
             leaf min-ttl {
                 type uint8;
@@ -225,10 +279,18 @@ module ze-bfd-conf {
                 description
                     "Minimum acceptable TTL on receive. Weak replacement
                      for GTSM on multi-hop paths.";
+                ze:help "Ze discards a Control packet whose TTL is less than this value, and the test is
+                    inclusive, so a TTL equal to it passes. A peer sends with a TTL of 255, so 254 allows
+                    one router between the peer and Ze. Raise the value toward 255 when the peer is
+                    fewer hops away, because a higher floor rejects a packet sent from further away.";
             }
             leaf profile {
                 type string;
                 description "Name of the timer profile this session takes its intervals from.";
+                ze:help "Ze refuses a name that no profile declares, and it refuses a profile that
+                    enables echo. Without this leaf the session takes the engine values: a detect
+                    multiplier of 3, and 1000000 microseconds for both the transmit target and the
+                    receive floor.";
             }
             leaf shutdown {
                 type boolean;

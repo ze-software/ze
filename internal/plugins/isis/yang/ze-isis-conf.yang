@@ -11,6 +11,9 @@ module ze-isis-conf {
 
     container isis {
         description "IS-IS routing instance configuration.";
+        ze:help "The presence of this container starts the IS-IS component. At least one `net` leaf MUST be set for
+            the engine to run. A commit with no net is accepted, and the engine then stays idle, opens no circuit and
+            originates no LSP.";
         ze:config-root "isis";
 
         // ISO/IEC 10589 section 6.2: a NET is an Area Address (1..13 octets) +
@@ -34,6 +37,9 @@ module ze-isis-conf {
             }
             ze:validate "isis-system-id";
             description "6-byte System ID (xxxx.xxxx.xxxx); derived from NET if unset.";
+            ze:help "When this leaf is not set, Ze takes the System ID from the 6 octets before the NSEL of the first
+                `net`. When it is set, the value MUST equal that derived value. A mismatch refuses the commit with
+                'system-id does not match the system id derived from net'.";
         }
 
         leaf level {
@@ -44,6 +50,9 @@ module ze-isis-conf {
             }
             default "l1-l2";
             description "Routing level of this Intermediate System.";
+            ze:help "l1 holds only the Level-1 database and keeps this IS inside its own area. l2 holds only the
+                Level-2 database and makes this IS a backbone router. l1-l2, the default, holds both databases and
+                originates one LSP set at each level. A circuit forms an adjacency only at a level this leaf keeps.";
         }
 
         leaf lsp-lifetime {
@@ -51,6 +60,10 @@ module ze-isis-conf {
             default 1200;
             units seconds;
             description "Maximum LSP remaining lifetime.";
+            ze:help "The value stamps the Remaining Lifetime of every LSP this IS originates. A neighbor purges the
+                LSP when that field reaches 0, so a refresh MUST land first. The default of 1200 seconds pairs with
+                the 900-second refresh default. This value also bounds the refresh. A refresh of 0, or one
+                that is not less than this value, falls back to half of it.";
         }
 
         leaf lsp-refresh-interval {
@@ -58,12 +71,21 @@ module ze-isis-conf {
             default 900;
             units seconds;
             description "LSP refresh interval.";
+            ze:help "Ze re-originates its own LSP set at this period, which bumps the sequence number and resets the
+                Remaining Lifetime to `lsp-lifetime`. Without the refresh a quiet node ages out of every neighbor's
+                database and disappears from the topology. A value of 0, or a value that is not less than
+                `lsp-lifetime`, falls back to half of `lsp-lifetime`. A refresh then always lands before the purge.";
         }
 
         leaf overload {
             type boolean;
             default false;
             description "Set the overload bit (RFC 3787).";
+            ze:help "The bit goes into the type block of this node's own LSP number zero. RFC 3787 section 4 states
+                that 'Section 7.2.8.1 of ISO 10589 instructs other systems not to use the overloaded IS as a transit
+                router'. Ze's own SPF obeys the bit the same way. It settles an overloaded node, so the prefixes
+                that node advertises stay reachable. It expands none of that node's links, so no path runs through
+                the node. Set the bit to hold transit traffic away while BGP converges after a restart.";
         }
 
         // RFC 5301 section 3: the dynamic hostname (TLV 137) advertised by this
@@ -86,23 +108,38 @@ module ze-isis-conf {
 
         container interfaces {
             description "IS-IS-enabled interfaces.";
+            ze:help "Only an interface with an entry here runs IS-IS. Ze opens no circuit on an interface that this
+                list omits, so no adjacency forms on it and its connected prefixes reach no LSP.";
             list interface {
                 key "name";
                 description "Per-interface IS-IS configuration.";
+                ze:help "Ze opens one circuit for each entry that is enabled and not passive. A link that comes up
+                    after start opens its circuit at that moment, and a link that goes down closes it. The connected
+                    prefixes of an enabled entry become TLV 135 and TLV 236 reachability in the node's own LSP.";
 
                 leaf name {
                     type string;
                     description "Interface name.";
+                    ze:help "The value MUST be the kernel interface name, for example eth0. Ze reads the interface
+                        index, the source MAC address and the MTU from the transport under that name. Ze tracks no
+                        circuit while the transport reports no interface under it.";
                 }
                 leaf enabled {
                     type boolean;
                     default true;
                     description "IS-IS enabled on this interface.";
+                    ze:help "The default is true, so an entry runs IS-IS without this leaf. A false value keeps the
+                        entry in the configuration and opens no circuit. It also stops the connected prefixes of the
+                        interface from reaching the node's own LSP, which a passive interface still advertises.";
                 }
                 leaf passive {
                     type boolean;
                     default false;
                     description "Advertise the interface but form no adjacencies.";
+                    ze:help "Ze opens no circuit for a passive interface, so it sends no hello and forms no
+                        adjacency. The connected prefixes of the interface still become TLV 135 and TLV 236 entries
+                        in the node's own LSP, at the metric `metric` sets. Use it on a loopback and on a customer
+                        LAN, where the prefix MUST be reachable and no IS-IS neighbor exists.";
                 }
                 leaf circuit-type {
                     type enumeration {
@@ -111,6 +148,11 @@ module ze-isis-conf {
                     }
                     default "broadcast";
                     description "Circuit type.";
+                    ze:help "broadcast, the default, runs the DIS election and sources a pseudo-node LSP when this
+                        IS wins. It advertises the LAN as one TLV 22 entry that points at the pseudo-node. It also
+                        sources a periodic CSNP while this IS is DIS. point-to-point runs no election and no
+                        pseudo-node. It sends a point-to-point hello with TLV 240 and one initial CSNP when the
+                        adjacency reaches Up.";
                 }
                 leaf level {
                     type enumeration {
@@ -120,6 +162,10 @@ module ze-isis-conf {
                     }
                     default "l1-l2";
                     description "Per-interface level override.";
+                    ze:help "This narrows the instance `level` for one circuit. l1 forms only a Level-1 adjacency on
+                        the circuit, l2 only a Level-2 adjacency, and l1-l2 forms both. The circuit floods LSPs and
+                        advertises its reachability only at the levels it forms. A level the instance `level` does
+                        not hold stays off whatever this leaf says.";
                 }
                 // RFC 5305: wide metric, 24-bit (TLV 22) / 32-bit (TLV 135). The
                 // per-interface circuit metric is bounded to the 24-bit wide range.
@@ -127,39 +173,102 @@ module ze-isis-conf {
                     type uint32 { range "1..16777215"; }
                     default 10;
                     description "Wide metric (RFC 5305).";
+                    ze:help "The circuit advertises this cost in TLV 22, and its connected prefixes advertise it in
+                        TLV 135 and TLV 236. RFC 5305 section 3 states that 'The metric octets are encoded as a
+                        24-bit unsigned integer', which is the 1 to 16777215 range here. SPF adds the value once for
+                        each hop, so a lower value makes the circuit preferred. `level-1/metric` and `level-2/metric`
+                        replace it at one level.";
                 }
                 leaf hello-interval {
                     type uint16 { range "1..65535"; }
                     default 10;
                     units seconds;
                     description "Hello interval.";
+                    ze:help "Ze sends an IIH on this circuit at this period. The IIH carries a holding time of this
+                        value multiplied by `hold-multiplier`, clamped into 1 to 65535 seconds. A neighbor drops the
+                        adjacency when no IIH arrives inside the holding time it was told. A shorter interval detects
+                        a dead neighbor faster and costs more packets on the link.";
                 }
                 leaf hold-multiplier {
                     type uint8 { range "1..255"; }
                     default 3;
                     description "Hold time = hello-interval * hold-multiplier.";
+                    ze:help "Ze advertises `hello-interval` multiplied by this value as the holding time in each IIH,
+                        clamped into 1 to 65535 seconds. The default of 3 lets two hellos be lost before a neighbor
+                        drops the adjacency. The clamp means that no configuration can advertise a holding time of 0,
+                        which would time the adjacency out at once.";
                 }
                 leaf priority {
                     type uint8 { range "0..127"; }
                     default 64;
                     description "DIS election priority (broadcast circuits).";
+                    ze:help "The value rides in each LAN hello and decides the DIS election on a broadcast circuit.
+                        The highest priority wins, and the highest SNPA MAC address breaks a tie. A priority of 0 is
+                        valid and only lowers the preference, so it does not stop this IS from winning an election it
+                        is alone in. The leaf changes nothing on a point-to-point circuit.";
                 }
 
                 container level-1 {
                     description "Level-1 per-interface overrides.";
-                    leaf metric { type uint32 { range "1..16777215"; } description "L1 wide metric override."; }
+                    ze:help "A leaf here replaces the circuit-wide value for Level-1 only. One circuit can then carry a
+                        different cost or a different DIS preference at each level. A leaf that is not set keeps the
+                        circuit-wide value. A circuit that does not form Level-1 ignores the whole container.";
+                    leaf metric {
+                        type uint32 { range "1..16777215"; }
+                        description "L1 wide metric override.";
+                        ze:help "Ze advertises this cost for the circuit in the Level-1 LSP, in place of `metric`. An
+                            unset leaf keeps the circuit-wide metric. The value also becomes the metric of the
+                            connected prefixes the circuit contributes at Level-1.";
+                    }
                     leaf hello-interval { type uint16 { range "1..65535"; } units seconds; description "L1 hello-interval override."; }
                     leaf hold-multiplier { type uint8 { range "1..255"; } description "L1 hold-multiplier override."; }
-                    leaf priority { type uint8 { range "0..127"; } description "L1 DIS priority override."; }
-                    leaf auth-key-chain { type string; description "L1 per-interface (IIH) key-chain reference."; }
+                    leaf priority {
+                        type uint8 { range "0..127"; }
+                        description "L1 DIS priority override.";
+                        ze:help "Ze uses this priority in the Level-1 DIS election, in place of `priority`. An unset
+                            leaf keeps the circuit-wide priority, and so does the value 0: Ze reads an override only
+                            when it is more than 0. To ask for the lowest preference, set the circuit-wide `priority`
+                            to 0.";
+                    }
+                    leaf auth-key-chain {
+                        type string;
+                        description "L1 per-interface (IIH) key-chain reference.";
+                        ze:help "The value names a `key-chains` entry. Ze then signs and verifies the Level-1 IIH on
+                            this circuit with that chain. RFC 5304 section 2 states that 'IS-IS Hello PDUs SHALL use
+                            the Link Level Authentication String'. This leaf covers the hello only. The LSP, CSNP and
+                            PSNP take the chain that `isis/level-1/auth-key-chain` names.";
+                    }
                 }
                 container level-2 {
                     description "Level-2 per-interface overrides.";
-                    leaf metric { type uint32 { range "1..16777215"; } description "L2 wide metric override."; }
+                    ze:help "A leaf here replaces the circuit-wide value for Level-2 only. One circuit can then carry a
+                        different cost or a different DIS preference at each level. A leaf that is not set keeps the
+                        circuit-wide value. A circuit that does not form Level-2 ignores the whole container.";
+                    leaf metric {
+                        type uint32 { range "1..16777215"; }
+                        description "L2 wide metric override.";
+                        ze:help "Ze advertises this cost for the circuit in the Level-2 LSP, in place of `metric`. An
+                            unset leaf keeps the circuit-wide metric. The value also becomes the metric of the
+                            connected prefixes the circuit contributes at Level-2.";
+                    }
                     leaf hello-interval { type uint16 { range "1..65535"; } units seconds; description "L2 hello-interval override."; }
                     leaf hold-multiplier { type uint8 { range "1..255"; } description "L2 hold-multiplier override."; }
-                    leaf priority { type uint8 { range "0..127"; } description "L2 DIS priority override."; }
-                    leaf auth-key-chain { type string; description "L2 per-interface (IIH) key-chain reference."; }
+                    leaf priority {
+                        type uint8 { range "0..127"; }
+                        description "L2 DIS priority override.";
+                        ze:help "Ze uses this priority in the Level-2 DIS election, in place of `priority`. An unset
+                            leaf keeps the circuit-wide priority, and so does the value 0: Ze reads an override only
+                            when it is more than 0. To ask for the lowest preference, set the circuit-wide `priority`
+                            to 0.";
+                    }
+                    leaf auth-key-chain {
+                        type string;
+                        description "L2 per-interface (IIH) key-chain reference.";
+                        ze:help "The value names a `key-chains` entry. Ze then signs and verifies the Level-2 IIH on
+                            this circuit with that chain. RFC 5304 section 2 states that 'IS-IS Hello PDUs SHALL use
+                            the Link Level Authentication String'. This leaf covers the hello only. The LSP, CSNP and
+                            PSNP take the chain that `isis/level-2/auth-key-chain` names.";
+                    }
                 }
 
                 list address-family {
@@ -167,12 +276,22 @@ module ze-isis-conf {
                     description
                         "Per-interface address families on this circuit (single-topology;
                          both ride the shared SPF tree).";
+                    ze:help "Ze reads this list for one decision: does the circuit carry
+                             IPv6. An ipv6-unicast entry adds the IPv6 NLPID to TLV 129 and
+                             makes the hello carry TLV 232. TLV 129 carries the IPv4 NLPID
+                             on every circuit. Both families ride one SPF tree, because this
+                             IS-IS is single-topology.";
                     leaf af {
                         type enumeration {
                             enum ipv4-unicast { description "IPv4 unicast."; }
                             enum ipv6-unicast { description "IPv6 unicast."; }
                         }
                         description "Address family key.";
+                        ze:help "The value is the list key, so one entry names one family.
+                                 The ipv6-unicast entry is what turns IPv6 on for the
+                                 circuit. TLV 232 then carries the link-local address of
+                                 the interface, and the circuit originates its IPv6
+                                 prefixes in TLV 236.";
                     }
                 }
             }
@@ -181,16 +300,29 @@ module ze-isis-conf {
         list key-chains {
             key "name";
             description "Named authentication key chains for hitless key rotation.";
+            ze:help "A chain holds the keys that sign and verify IS-IS PDUs. Ze authenticates nothing until an
+                `auth-key-chain` leaf names the chain. A key whose algorithm token Ze does not know, or whose secret
+                does not decode, is dropped from the chain and signs nothing.";
             leaf name {
                 type string { length "1..63"; }
                 description "Key-chain name; referenced by per-interface and per-level auth leaves.";
+                ze:help "The name is the value an `auth-key-chain` leaf carries, at the instance level and on each
+                    circuit. One chain CAN serve both levels and every circuit at the same time.";
             }
             list key {
                 key "key-id";
                 description "Keys in this chain.";
+                ze:help "Ze reads the keys in configuration order, which is key-id order. The first key whose send
+                    lifetime holds the current time signs a PDU. Every key whose accept lifetime holds that time is
+                    accepted on receive, up to 16 keys, which is what makes a rotation lose no adjacency.";
                 leaf key-id {
                     type uint16 { range "0..65535"; }
                     description "Key identifier carried in TLV 10 (RFC 5310).";
+                    ze:help "RFC 5310 section 2 calls the Key ID 'a two-octet unsigned integer used to uniquely
+                        identify an IS-IS SA'. The same section states that 'The receiver determines the active SA by
+                        looking at the Key ID field in the incoming PDU'. Both ends of an adjacency MUST hold the
+                        same key-id for the same secret. When this leaf is absent, Ze takes the value from the list
+                        key.";
                 }
                 leaf algorithm {
                     type enumeration {
@@ -204,32 +336,88 @@ module ze-isis-conf {
                     }
                     default "hmac-md5";
                     description "Authentication algorithm.";
+                    ze:help "cleartext sends the secret in the PDU as auth type 1, so it detects a misconfiguration
+                        and stops no attacker. hmac-md5, the default, is auth type 54 (RFC 5304). The five SHA
+                        choices are auth type 3 (RFC 5310) and range from HMAC-SHA-1 to HMAC-SHA-512. Ze drops a key
+                        whose token it does not know, so a typo here leaves that key out of the chain.";
                 }
                 leaf secret {
                     type string { length "1..255"; }
                     ze:sensitive;
                     description "Shared secret, masked and $9$-encoded at rest.";
+                    ze:help "The commit encodes the value with the reversible $9$ encoding, the same one PPPoE and
+                        WireGuard use, and the configuration output masks it. Ze decodes it in memory to derive the
+                        HMAC key. A value that does not decode drops the key from the chain. Both ends of an
+                        adjacency MUST hold the same plaintext secret under the same key-id.";
                 }
                 container send-lifetime {
                     description "When this key may be used to sign (hitless rotation).";
-                    leaf start { type string; description "RFC3339 start timestamp."; }
-                    leaf end { type string; description "RFC3339 end timestamp."; }
+                    ze:help "Ze signs with the first key in the chain whose send window holds the current time. A key
+                        with no send-lifetime signs from the moment it is committed. When no key in the chain has an
+                        open send window, Ze sends the PDU unsigned, and a neighbor under authentication rejects it.";
+                    leaf start {
+                        type string;
+                        description "RFC3339 start timestamp.";
+                        ze:help "The format is RFC 3339, for example 2026-01-01T00:00:00Z. An empty value leaves the
+                            start open. A value Ze cannot parse also leaves the start open, and it does not drop the
+                            key.";
+                    }
+                    leaf end {
+                        type string;
+                        description "RFC3339 end timestamp.";
+                        ze:help "The format is RFC 3339, for example 2026-06-01T00:00:00Z. An empty value leaves the
+                            end open, so the key signs forever. Set the end of the old key after the start of the new
+                            one, so the two windows overlap and the rotation loses no adjacency.";
+                    }
                 }
                 container accept-lifetime {
                     description "When this key is accepted on receive (hitless rotation).";
-                    leaf start { type string; description "RFC3339 start timestamp."; }
-                    leaf end { type string; description "RFC3339 end timestamp."; }
+                    ze:help "Ze accepts a received PDU signed with any key whose accept window holds the current
+                        time, up to 16 keys in one chain. Open the accept window of the new key before its send
+                        window. Every neighbor then accepts the new key before any of them signs with it.";
+                    leaf start {
+                        type string;
+                        description "RFC3339 start timestamp.";
+                        ze:help "The format is RFC 3339, for example 2026-01-01T00:00:00Z. An empty value leaves the
+                            start open, so the key is accepted from the moment it is committed. A value Ze cannot
+                            parse also leaves the start open.";
+                    }
+                    leaf end {
+                        type string;
+                        description "RFC3339 end timestamp.";
+                        ze:help "The format is RFC 3339, for example 2026-06-01T00:00:00Z. An empty value leaves the
+                            end open. Keep the accept window of the old key open until every neighbor signs with the
+                            new key.";
+                    }
                 }
             }
         }
 
         container level-1 {
             description "Level-1 (area) per-level configuration.";
-            leaf auth-key-chain { type string; description "L1 per-level (LSP/SNP, area key) key-chain reference."; }
+            ze:help "The leaves here apply to Level-1 across the whole instance, and not to one circuit. RFC 5304
+                section 2 calls the key they select the Area Authentication string.";
+            leaf auth-key-chain {
+                type string;
+                description "L1 per-level (LSP/SNP, area key) key-chain reference.";
+                ze:help "The value names a `key-chains` entry. Ze then signs and verifies every Level-1 LSP, CSNP and
+                    PSNP with that chain. RFC 5304 section 2 states that 'Level 1 Sequence Number PDUs SHALL use the
+                    Area Authentication string as in Level 1 Link State PDUs'. The IIH is separate and takes the
+                    per-interface chain.";
+            }
         }
         container level-2 {
             description "Level-2 (domain) per-level configuration.";
-            leaf auth-key-chain { type string; description "L2 per-level (LSP/SNP, domain key) key-chain reference."; }
+            ze:help "The leaves here apply to Level-2 across the whole instance, and not to one circuit. RFC 5304
+                section 2 calls the key they select the domain authentication string.";
+            leaf auth-key-chain {
+                type string;
+                description "L2 per-level (LSP/SNP, domain key) key-chain reference.";
+                ze:help "The value names a `key-chains` entry. Ze then signs and verifies every Level-2 LSP, CSNP and
+                    PSNP with that chain. RFC 5304 section 2 states that 'Level 2 Sequence Number PDUs SHALL use the
+                    domain authentication string as in Level 2 Link State PDUs'. The IIH is separate and takes the
+                    per-interface chain.";
+            }
         }
     }
 }
