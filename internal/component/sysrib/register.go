@@ -147,9 +147,16 @@ func runSysRIBPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// previousDist tracks the last applied admin distances for rollback.
-	// Initialized from OnConfigure so the first reload rollback restores startup state.
-	var previousDist map[string]int
+	// previousDist tracks the last applied admin distances for rollback, and is
+	// seeded with the DECLARATION rather than left nil.
+	//
+	// OnConfigure never fires for a config with no `rib {` block, which is all
+	// but one config in this tree, so a nil here meant the rollback below
+	// substituted an EMPTY map: every producer reverted to its bootstrap
+	// constant and effectivePriority warned once per protocol, until restart.
+	// That is the empty-map fallback this work exists to remove, re-entered
+	// through the rollback path.
+	previousDist := declared
 	var activeJournal *sdk.Journal
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -198,9 +205,13 @@ func runSysRIBPlugin(conn net.Conn) int {
 			},
 			func() error {
 				// Rollback: restore previous admin distances.
+				// oldDist is never nil: previousDist is seeded with the
+				// declaration at start. An empty map here would strip every
+				// protocol of its declared distance, which is worse than any
+				// failed apply it would be rolling back.
 				rollbackDist := oldDist
-				if rollbackDist == nil {
-					rollbackDist = make(map[string]int)
+				if len(rollbackDist) == 0 {
+					rollbackDist = declared
 				}
 				s.mu.Lock()
 				s.adminDist = rollbackDist

@@ -1387,8 +1387,16 @@ func TestDistanceRollbackRestoresThePreviousMap(t *testing.T) {
 		"rollback must restore the map the daemon was running before the failed apply")
 }
 
-// TestDeclaredDistancesApplyWithNoRibBlock covers AC-1 at the path that
-// actually fails, which is the one the earlier tests missed.
+// TestDeclaredDistancesApplyWithNoRibBlock covers the VALUE half of AC-1 and
+// NOT the wiring half.
+//
+// It asserts that the declaration resolves completely with no config at all,
+// which is the value runSysRIBPlugin seeds from. It does NOT reach
+// runSysRIBPlugin, publishDistances or distance.Set: deleting the seeding block
+// leaves this test green, and no test in the tree calls either symbol. A closure
+// gate faulted an earlier version of this comment for claiming it "asserts where
+// the daemon starts". It does not. Proving the daemon seeds needs a case that
+// starts one.
 //
 // A config with no `rib {` block delivers NO section: ExtractConfigSubtree
 // returns nil for an absent path, so OnConfigure never runs for this root.
@@ -1410,8 +1418,9 @@ func TestDeclaredDistancesApplyWithNoRibBlock(t *testing.T) {
 	require.Equal(t, 0, declared["connected"])
 	require.Len(t, declared, 6, "every protocol the schema declares")
 
-	// And the fallback must NOT be reached, so no warning is emitted on an
-	// ordinary configuration.
+	// And the fallback must NOT be reached for a map shaped like the seed, so no
+	// warning is emitted on an ordinary configuration. This builds its own
+	// sysRIB rather than observing the daemon's.
 	s := newSysRIB()
 	s.adminDist = declared
 	require.Equal(t, 20, s.effectivePriority("ebgp", 999))

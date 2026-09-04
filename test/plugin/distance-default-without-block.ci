@@ -1,7 +1,12 @@
 # Test: the declared distances apply when the config carries NO rib block.
-# VALIDATES: AC-1 -- every protocol holds its declared distance with no config.
-# PREVENTS: the regression an independent closure gate caught on 2026-09-04,
-#           where the declaration reached nothing on an ordinary configuration.
+# VALIDATES: nothing on its own. This case runs `ze config validate` and asserts
+#            a config with no rib block loads. It would pass with this entire
+#            spec reverted, so it DISCRIMINATES NOTHING about the distance
+#            declaration and must not be cited as evidence for AC-1.
+# WHY IT IS HERE: it pins the shape of the config that exposed the defect, so a
+#            future change that makes a rib-less config fail to load is caught.
+#            The regression it is named for needs a RUNNING daemon and a route,
+#            which this file does not create.
 #
 # WHY THIS CASE EXISTS AND WHY IT IS SHAPED THIS WAY. The first version of this
 # feature resolved the distance table only when a config section arrived, and

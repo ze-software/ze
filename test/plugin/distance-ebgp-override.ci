@@ -1,6 +1,9 @@
 # Test: an operator raising the eBGP distance is accepted and takes effect.
-# VALIDATES: AC-2 -- a partial block keeps the other five declared values.
-# VALIDATES: AC-6 -- a changed distance is what the daemon runs on.
+# VALIDATES: the config surface of AC-2 only -- that a partial block is accepted
+#            beside five defaulted leaves. It does NOT prove the other five keep
+#            their values at runtime, because nothing here reads them back.
+# NOT AC-6: there is no reload in this file and no daemon. An earlier version of
+#            this header claimed AC-6 and a closure gate faulted it.
 #
 # WHAT THIS PROVES AND WHAT IT DOES NOT. It drives the real binary over the real
 # config path, so it proves the container parses, that a single named leaf is

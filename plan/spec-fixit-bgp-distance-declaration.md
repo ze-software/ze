@@ -208,7 +208,7 @@ renaming it buys nothing and buries the real change in 35 files.
 | A-2 | No in-tree config or test depends on the empty-map path, where the BGP-stamped value survives | BROKEN. 131 configs under `test/`, `demos/` and `contrib/` write a `rib {` block and only 2 name a distance, so 129 were taking the empty-map branch and now take the declared map | Closing the hole changes what those configs install, and a `.ci` expectation moves | done | broken |
 | A-3 | The name `admin-distance` appears on THREE surfaces, not two, and only the internal Go identifier stays | Phase 1 audit, 2026-09-04, recorded below | A rename crossing into the RIB concept touches 35 files for no gain and buries the real change | The phase 1 audit, complete | confirmed |
 | A-4 | Two YANG modules can be renamed with no migration path | `CLAUDE.md`: "Ze is PRE-RELEASE... There is NO release, NO version, NO tag, and NO user of `main`" | A shipped config would break on upgrade | The owner's standing pre-release directive | confirmed |
-| A-5 | The config validator refuses an unknown container, so the deleted `bgp { admin-distance }` spelling is an error rather than a silence | BROKEN. `walkTree` (`internal/component/config/yang/validator.go:620`) iterates `entry.Dir`, the SCHEMA's children, and checks each against the data; it never iterates the data. Its own comment says "unknown fields from other modules are silently skipped", and `validators.go:731` states "nothing in the config walk emits ErrTypeUnknown". The parsers DO error on an unknown field (`parser_freeform.go:132`, `parser_list.go:106`) but `loader.go:275` says parse "records each unknown field as a warning and PRUNES it from the tree", and which path this block takes is unestablished | An operator's old config loads with the block ignored and their distance silently not applied | `TestOldBgpAdminDistanceSpellingIsRefused`, written before the deletion | broken |
+| A-5 | The config validator refuses an unknown container, so the deleted `bgp { admin-distance }` spelling is an error rather than a silence | BROKEN. `walkTree` (`internal/component/config/yang/validator.go:620`) iterates `entry.Dir`, the SCHEMA's children, and checks each against the data; it never iterates the data. Its own comment says "unknown fields from other modules are silently skipped", and `validators.go:731` states "nothing in the config walk emits ErrTypeUnknown". The parsers DO error on an unknown field (`parser_freeform.go:132`, `parser_list.go:106`) but `loader.go:275` says parse "records each unknown field as a warning and PRUNES it from the tree", and which path this block takes is unestablished | An operator's old config loads with the block ignored and their distance silently not applied | `TestAdminDistanceIsRetiredNotSilent`, written before the deletion | broken |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -232,7 +232,7 @@ renaming it buys nothing and buries the real change in 35 files.
 |-------------|---|--------------|------|
 | An operator starts ze with a config carrying NO `rib { distance { } }` block, and a BGP eBGP route competes with a static route for one prefix | → | the distance map carries all six protocols, and `effectivePriority` returns 20 against 10 | `TestDistanceMapIsPopulatedWithoutAConfigBlock` |
 | An operator writes `rib { distance { ebgp 250; } }` and an eBGP route competes with an OSPF route | → | `effectivePriority` returns 250, and the OSPF route wins | `test/plugin/distance-ebgp-override.ci` |
-| An operator writes the old `bgp { admin-distance { ebgp 30; } }` spelling | → | the config validator refuses the unknown container | `TestOldBgpAdminDistanceSpellingIsRefused` |
+| An operator writes the old `bgp { admin-distance { ebgp 30; } }` spelling | → | the config validator refuses the unknown container | `TestAdminDistanceIsRetiredNotSilent` |
 | A config reload changes `rib { distance { ebgp } }` | → | `reapplyAdminDistances` recomputes every stored route and the FIB is republished | `TestDistanceReloadRecomputesStoredRoutes` |
 
 ## Acceptance Criteria
@@ -249,7 +249,7 @@ renaming it buys nothing and buries the real change in 35 files.
 | AC-7 | A reload with a distance change is rolled back | The previous map is restored and the selection returns to what it was |
 | AC-8 | A protocol reports a route whose type names no declared distance | The route is not installed at a silent 0, and the condition is logged with the protocol name |
 | AC-9 | The six numbers are read anywhere outside their declaration | They are derived from it, AT THE PRODUCER. `locrib.selectBest` ranks on the stamped value and `(*sysRIB).run` consumes one already-arbitrated best, so deriving them in sysrib alone leaves cross-protocol selection on the producer constants. The constants survive as a bootstrap value reachable only before the first configure |
-| AC-10 | An operator sets `rib { distance { ebgp 250 } }` and an eBGP route meets an OSPF route for one prefix | The eBGP path is STAMPED 250, so `locrib.selectBest` prefers the OSPF path at 110. This is the behavior AC-2 and AC-5 promised and the pre-seam design did not deliver |
+| AC-10 | An operator sets `rib { distance { ebgp 250 } }` and an eBGP route meets an OSPF route for one prefix | The eBGP path is STAMPED 250. UNPROVEN BEYOND THE STAMP: `TestBgpStampsTheDeclaredDistanceNotItsOwn` asserts the stamped value and inserts no OSPF path, so "the OSPF route wins" is inferred from `selectBest` ranking on that value rather than observed. A test holding one prefix from two protocols is owed |
 | AC-11 | A route is stamped before sysrib's first configure has run | The producer's own bootstrap constant is used, never 0. Zero is the best possible distance and the value `connected` holds, so a zero stamped by accident beats every protocol |
 
 ## End-to-End User Stories
@@ -258,7 +258,7 @@ renaming it buys nothing and buries the real change in 35 files.
 |---|-----------|--------------------|-----------------------|
 | 1 | Runs ze with a minimal config and expects the classical distances to apply | config to sysrib to `effectivePriority` to `locrib` selection to FIB | `TestDistanceMapIsPopulatedWithoutAConfigBlock` |
 | 2 | Raises the eBGP distance so an OSPF route wins | `rib { distance { ebgp 250; } }` to the map to selection to the installed route | `test/plugin/distance-ebgp-override.ci` |
-| 3 | Loads a config written against the old schema | the old spelling to the validator to a refusal naming it | `TestOldBgpAdminDistanceSpellingIsRefused` |
+| 3 | Loads a config written against the old schema | the old spelling to the validator to a refusal naming it | `TestAdminDistanceIsRetiredNotSilent` |
 | 4 | Changes a distance at runtime and reloads | reload to `reapplyAdminDistances` to republished best changes | `TestDistanceReloadRecomputesStoredRoutes` |
 
 ## 🧪 TDD Test Plan
@@ -270,7 +270,7 @@ renaming it buys nothing and buries the real change in 35 files.
 | `TestDistancePartialBlockKeepsTheOtherDefaults` | `internal/component/sysrib/sysrib_test.go` | AC-2 | |
 | `TestEffectivePriorityResolvesEveryProtocolType` | `internal/component/sysrib/sysrib_test.go` | AC-1 and AC-8: every `ProtocolType.String()` value has a distance | |
 | `TestUnknownProtocolTypeIsLoggedNotZeroed` | `internal/component/sysrib/sysrib_test.go` | AC-8 | |
-| `TestOldBgpAdminDistanceSpellingIsRefused` | `internal/component/config/yang/validator_test.go` | AC-4, and A-5 before the deletion | |
+| `TestAdminDistanceIsRetiredNotSilent` | `internal/component/config/yang/validator_test.go` | AC-4, and A-5 before the deletion | |
 | `TestDistanceReloadRecomputesStoredRoutes` | `internal/component/sysrib/sysrib_test.go` | AC-6 | |
 | `TestDistanceRollbackRestoresThePreviousMap` | `internal/component/sysrib/sysrib_test.go` | AC-7 | |
 | `TestBgpStampsTheDeclaredDistanceNotItsOwn` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | AC-3, AC-10. Observed RED under a bypassed seam: `0x14` where `0xfa` was required | |
@@ -290,7 +290,7 @@ renaming it buys nothing and buries the real change in 35 files.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `distance-config-surface` | `test/plugin/distance-config-surface.ci` | The new container validates, the block is optional, BOTH retired spellings are refused by name, and `ebgp 0` is refused | |
-| STILL OWED: an end-to-end case installing a route | `test/plugin/` | An operator raises the eBGP distance above OSPF's and the OSPF route is the one INSTALLED. The config surface above does not prove this; `TestBgpStampsTheDeclaredDistanceNotItsOwn` proves the declaration reaches the stamp, and `locrib.selectBest` ranks on it, but no test drives both through a running daemon | |
+| STILL OWED, and this is a DEFERRAL WITHOUT A SHARD: an end-to-end case installing a route | `test/plugin/` | An operator raises the eBGP distance above OSPF's and the OSPF route is the one INSTALLED. The config surface above does not prove this; `TestBgpStampsTheDeclaredDistanceNotItsOwn` proves the declaration reaches the stamp, and `locrib.selectBest` ranks on it, but no test drives both through a running daemon | |
 
 ### Interop Tests (Scope: config)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -301,8 +301,8 @@ renaming it buys nothing and buries the real change in 35 files.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| One declaration of every protocol's distance | unit | `TestBgpStampsNoDistanceOfItsOwn`, plus a grep recorded in the audit showing no second literal 20 or 200 in Go or YANG |
-| The declaration is always populated | functional | `test/plugin/distance-default-without-block.ci`, driving the real daemon with no `rib` block and asserting the static route is installed over the eBGP one |
+| One declaration of every protocol's distance | unit | `TestBgpStampsTheDeclaredDistanceNotItsOwn`, plus a grep recorded in the audit showing no second literal 20 or 200 in Go or YANG |
+| The declaration is always populated | unit, NOT functional | `TestDeclaredDistancesApplyWithNoRibBlock` asserts the declaration resolves completely with no config. NOTHING proves the DAEMON seeds from it: no test reaches `runSysRIBPlugin`, `publishDistances` or `distance.Set`. `test/plugin/distance-default-without-block.ci` runs `ze config validate` only and would pass with this spec reverted, so it is not evidence. OPEN |
 | Nothing is discarded in silence | unit | `TestUnknownProtocolTypeIsLoggedNotZeroed` |
 | The rename does not cross into the RIB concept | audit | The recorded count on each side of the A-3 boundary, and a diff touching no file under `internal/core/rib/locrib/` |
 
@@ -413,7 +413,7 @@ renaming it buys nothing and buries the real change in 35 files.
 2. **Phase: Wiring (MANDATORY FIRST)** - the two `.ci` tests, the empty-map unit
    test, and the validator test A-5 needs
    - Tests: `TestDistanceMapIsPopulatedWithoutAConfigBlock`,
-     `TestOldBgpAdminDistanceSpellingIsRefused`,
+     `TestAdminDistanceIsRetiredNotSilent`,
      `test/plugin/distance-default-without-block.ci`
    - Files: `internal/component/sysrib/sysrib_test.go`,
      `internal/component/config/yang/validator_test.go`, the two new `.ci` files
@@ -431,7 +431,7 @@ renaming it buys nothing and buries the real change in 35 files.
    - Verify: the log line names the protocol
 5. **Phase: delete the duplicates** - the BGP container, its reader, and the Go
    copy of 20 and 200
-   - Tests: `TestBgpStampsNoDistanceOfItsOwn`
+   - Tests: `TestBgpStampsTheDeclaredDistanceNotItsOwn`
    - Files: `ze-bgp-conf.yang`, `rib_admin_distance_config.go`, `rib.go`,
      `rib_bestchange.go`
    - Verify: no second literal 20 or 200 remains, and the old spelling is refused
