@@ -73,3 +73,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | 5db0ba0d | spec: close spec-radius-admin-chap | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | test(radius): prove the EAP admin login against a mock and FreeRADIUS | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | test(radius): prove the EAP admin login against a mock and FreeRADIUS | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | 5db0ba0d | docs(radius): the EAP page names the FreeRADIUS section that runs | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

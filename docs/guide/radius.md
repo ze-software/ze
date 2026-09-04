@@ -208,6 +208,37 @@ certificate and key, which is a different credential model and a later feature.
 Ze does not negotiate among several methods either. It NAKs toward the one
 `auth-method` names, so a server that offers something else ends the login.
 
+### Configuring FreeRADIUS for `eap-mschapv2`
+
+A FreeRADIUS 3.2 server needs one `authenticate` section that an operator does
+not expect, and the conventional spelling of it is never reached.
+`rlm_eap_mschapv2` runs the peer's NT-Response through the `mschap` module as an
+inner request. It resolves the section to run with
+`dict_valbyname(PW_AUTH_TYPE, 0, "MSCHAP")`, and falls back to `"MS-CHAP"` only
+when that lookup misses
+(`src/modules/rlm_eap/types/rlm_eap_mschapv2/rlm_eap_mschapv2.c:83` in
+`release_3_2_7`). FreeRADIUS registers an Auth-Type value for every module
+instance it loads, so `mschap` is already registered and the case-insensitive
+first lookup takes it. Name the section after the module instance:
+
+```
+authenticate {
+    Auth-Type mschap {
+        mschap
+    }
+    eap
+}
+```
+
+A section written `Auth-Type MS-CHAP { mschap }` loads without complaint and is
+never run. The server then answers a correct NT-Response with
+`Auth-Type sub-section not found.  Ignoring.` in its log and an EAP-Failure on
+the wire, which reads like a wrong password and is not one. Measured on
+2026-09-04 against `docker.io/freeradius/freeradius-server:3.2.7`. The lab's
+whole virtual server, with the reasoning beside the section, is
+`test/interop-radius/site-default`.
+
+<!-- source: test/interop-radius/site-default -- the authenticate sections the lab server runs -->
 <!-- source: internal/component/radius/authenticator_eap.go -- authenticateEAP, eapCredential -->
 <!-- source: internal/component/radius/eap.go -- appendEAPMessage, eapPacketFrom -->
 <!-- source: internal/component/radius/packet.go -- SignMessageAuthenticator -->
@@ -306,8 +337,9 @@ INFO SSH auth success subsystem=ssh username=alice remote=10.0.0.1:51408 source=
 bcrypt user accepted the credentials.
 
 <!-- source: internal/test/mock/radius/radius.go -- ze-test radius-mock for .ci tests -->
+<!-- source: internal/test/mock/radius/eap.go -- the mock's EAP branch: buildEAPResponse, verifyRequestSignature -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
-<!-- source: test/interop-radius/scenarios/ -- the three interop scenario directories -->
+<!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->
 
 ## Operational notes
 

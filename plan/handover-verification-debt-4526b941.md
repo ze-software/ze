@@ -54,7 +54,7 @@ shards, not this session's 47.
 **The discovery-index rows are cleared of their blocker.** HEAD's
 `ai/PACKAGE-MAP.md` was stale against HEAD's own tree, not against uncommitted
 work: `c54d97dcdb` moved the EAP peer to `internal/core/eap` and the map kept the
-`internal/component/ike/eap` row, so `discovery-index/check` was a guaranteed red
+`internal/component/ike/eap` row, so `discovery-index/check` was a guaranteed red <!-- doc-links: ignore (the pre-move path, named to record the stale row that was repaired) -->
 for every commit made since. `f2917cde4` carries that one row and stage 37 now
 reports "checked 753 packages, ai/PACKAGE-MAP.md up to date". The full
 regeneration this file asks for below is still owed, once
