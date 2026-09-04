@@ -197,7 +197,7 @@ type loopbackEntry struct {
 // as its schema default.
 //
 // 254 ranks a learned default below every route an operator or a routing
-// protocol produces, the way rib/admin-distance
+// protocol produces, the way rib/distance
 // (internal/component/sysrib/yang/ze-rib-conf.yang) ranks connected 0, static
 // 10, ebgp 20, ospf 110, isis 115 and ibgp 200. It is also the administrative
 // distance a Cisco IOS DHCP client gives the default route it learns, which is

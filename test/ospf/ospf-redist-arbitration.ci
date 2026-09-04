@@ -1,4 +1,4 @@
-# Test: OSPFv2 Loc-RIB and sysrib admin-distance arbitration.
+# Test: OSPFv2 Loc-RIB and sysrib distance arbitration.
 #
 # VALIDATES: spec-ospf-8-spf-rib -- OSPF publishes admin distance 110 into the
 # Loc-RIB, sysrib consumes the Loc-RIB best-change path, a lower-distance static

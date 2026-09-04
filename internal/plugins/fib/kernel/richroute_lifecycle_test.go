@@ -36,7 +36,7 @@ func TestRichBackendWithdrawDeletesInstalledPrefix(t *testing.T) {
 	pfx := netip.MustParsePrefix("10.99.0.0/24")
 	nh := netip.MustParseAddr("192.0.2.1")
 
-	// The forked route-install .ci values: admin-distance 110, metric 10. A
+	// The forked route-install .ci values: distance 110, metric 10. A
 	// non-zero metric alone makes hasRichFields() true, so this takes addRichRoute.
 	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: routeaction.Add, Prefix: pfx, NextHop: nh, Protocol: "bgp", Metric: 10},

@@ -674,7 +674,7 @@ subscriber). Suggested: 0 (same as connected/direct), configurable via:
 
 ```yang
 rib {
-    admin-distance {
+    distance {
         l2tp 0;
     }
 }

@@ -408,7 +408,7 @@ func TestNetlinkIntegration_RemoveRichRouteWithMetric(t *testing.T) {
 
 		const prefix = "10.99.7.0/24"
 
-		// The forked-route-install .ci values: admin-distance 110, metric 10.
+		// The forked-route-install .ci values: distance 110, metric 10.
 		// A non-zero Metric alone makes hasRichFields() true, so this Add goes
 		// through addRichRoute and lands with RTA_PRIORITY=10.
 		f.processEvent(makeSysribPayload([]incomingChange{{
