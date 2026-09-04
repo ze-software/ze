@@ -226,7 +226,7 @@ func registerRibAnswerShapes() {
 	command.RegisterColumns([]string{cmdRibRPF},
 		command.ColumnOrder{
 			"source", fieldFamily, "found",
-			"matched-prefix", fieldNextHop, "admin-distance", "metric",
+			"matched-prefix", fieldNextHop, "distance", "metric",
 		},
 	)
 

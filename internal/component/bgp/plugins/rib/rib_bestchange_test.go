@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/memguard"
 	"github.com/ze-software/ze/internal/core/replay"
+	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -1809,4 +1810,85 @@ func TestForwardHandleConcurrentAddRef(t *testing.T) {
 	}
 	wg.Wait()
 	assert.Equal(t, int32(goroutines), h.refs.Load())
+}
+
+// TestBgpStampsTheDeclaredDistanceNotItsOwn covers AC-3 of
+// spec-fixit-bgp-distance-declaration, and it is the test the whole spec turns
+// on.
+//
+// locrib.selectBest (internal/core/rib/locrib/entry.go) ranks paths on the value
+// stamped HERE, and (*sysRIB).run consumes one already-arbitrated best per
+// prefix, so a distance resolved in sysrib alone can never change cross-protocol
+// selection. The operator's `rib { distance { ebgp N } }` has to arrive at this
+// stamp. Before 2026-09-04 it did not: this plugin owned a private
+// `bgp { admin-distance }` container and stamped from its own atomics.
+//
+// PREVENTS: the declaration going back to deciding nothing, which passed every
+// unit test the previous design had because each one asserted the constant.
+func TestBgpStampsTheDeclaredDistanceNotItsOwn(t *testing.T) {
+	ribdistance.Set(func(protocol string) (uint8, bool) {
+		if protocol == "ebgp" {
+			return 250, true
+		}
+		return 0, false
+	})
+	defer ribdistance.Set(nil)
+
+	r := newTestRIBManager(t)
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+
+	peerAddr := netip.MustParseAddr("192.0.2.1")
+	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	prefix := ipv4Prefix(24, 10, 0, 0)
+	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
+
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
+
+	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, ok)
+
+	best, found := loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
+	require.True(t, found)
+	assert.Equal(t, uint8(250), best.AdminDistance,
+		"the declaration must reach the stamp; 20 here means the operator's config decides nothing")
+
+	// An OSPF path at the classical 110 now BEATS this eBGP route, which is the
+	// operator-visible point of the whole change (User Story 2). Without the
+	// seam the eBGP path would be stamped 20 and win.
+	assert.Greater(t, best.AdminDistance, uint8(110),
+		"eBGP raised to 250 must rank worse than OSPF's 110 inside the Loc-RIB")
+}
+
+// TestBgpFallsBackToItsBootstrapBeforeConfigure pins the other half: the seam is
+// unset until sysrib's first configure, and an unset seam must NOT stamp zero.
+// Zero is the best possible distance, the one `connected` holds, so a route
+// stamped 0 by accident would beat every other protocol.
+func TestBgpFallsBackToItsBootstrapBeforeConfigure(t *testing.T) {
+	ribdistance.Set(nil)
+
+	r := newTestRIBManager(t)
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+
+	peerAddr := netip.MustParseAddr("192.0.2.1")
+	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	prefix := ipv4Prefix(24, 10, 0, 0)
+	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
+
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
+
+	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, ok)
+
+	best, found := loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
+	require.True(t, found)
+	assert.Equal(t, DefaultAdminDistanceEBGP, best.AdminDistance,
+		"an unset seam must give the classical 20, never 0")
 }

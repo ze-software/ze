@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -219,10 +220,16 @@ func (in *Installer) insert(r RouteEntry) {
 		// Mirror BGP rib_bestchange.go: InsertForward with a value-typed Path and no
 		// ForwardHandle. redistevents is not on the FIB install path.
 		in.insertPath(r.Prefix, locrib.Path{
-			Source:             ospfProtocolID,
-			Instance:           instance,
-			NextHop:            nh.Addr,
-			AdminDistance:      in.distance,
+			Source:   ospfProtocolID,
+			Instance: instance,
+			NextHop:  nh.Addr,
+			// The DECLARATION decides. locrib.selectBest ranks paths on what is
+			// stamped here and runs before sysrib sees the route, so
+			// `rib { distance { ospf N } }` has to reach this line to change
+			// cross-protocol selection. in.distance is the bootstrap value,
+			// reachable only before the first configure. Read HERE rather than
+			// at construction so a reload takes effect.
+			AdminDistance:      ribdistance.OrDefault("ospf", in.distance),
 			Metric:             metric,
 			BackupNextHop:      backupNH,
 			BackupRepairLabels: repair,

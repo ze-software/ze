@@ -90,8 +90,8 @@ type CommandHandler func(r *RIBManager, selector string, args []string) (string,
 
 // ribCommandEntry holds a registered command handler and its help text.
 type ribCommandEntry struct {
-	Handler CommandHandler
-	Help    string
+	Handler     CommandHandler
+	Description string
 }
 
 // registeredCommands is the command dispatch table, populated at startup.
@@ -107,7 +107,7 @@ func registerCommand(name, help string, handler CommandHandler) error {
 	if _, exists := registeredCommands[name]; exists {
 		return fmt.Errorf("RIB command %q already registered", name)
 	}
-	registeredCommands[name] = &ribCommandEntry{Handler: handler, Help: help}
+	registeredCommands[name] = &ribCommandEntry{Handler: handler, Description: help}
 	return nil
 }
 
@@ -219,7 +219,7 @@ func doRegisterBuiltinCommands() {
 
 	for _, b := range builtins {
 		for _, name := range b.names {
-			registeredCommands[name] = &ribCommandEntry{Handler: b.handler, Help: b.help}
+			registeredCommands[name] = &ribCommandEntry{Handler: b.handler, Description: b.help}
 		}
 	}
 
@@ -499,7 +499,7 @@ func (r *RIBManager) rpfLookup(args []string) (string, any, error) {
 		"found":          true,
 		"matched-prefix": pfx.String(),
 		"next-hop":       nextHop,
-		"admin-distance": best.AdminDistance,
+		"distance":       best.AdminDistance,
 		"metric":         best.Metric,
 	}, nil
 }
@@ -576,12 +576,12 @@ func ribHelp() any {
 // ribCommandList returns all RIB commands, built from the command registry.
 func ribCommandList() any {
 	type entry struct {
-		Name string `json:"name"`
-		Help string `json:"help"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
 	}
 	cmds := make([]entry, 0, len(registeredCommands))
 	for name, e := range registeredCommands {
-		cmds = append(cmds, entry{Name: name, Help: e.Help})
+		cmds = append(cmds, entry{Name: name, Description: e.Description})
 	}
 	sort.Slice(cmds, func(i, j int) bool { return cmds[i].Name < cmds[j].Name })
 	return map[string]any{"commands": cmds}

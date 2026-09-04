@@ -58,6 +58,27 @@ plugin {
 }
 ```
 
+### `rib { distance { } }`
+
+The administrative distance of each protocol, which decides who wins when two
+protocols hold the same prefix. Lower wins.
+
+| Leaf | Default | Accepts |
+|------|---------|---------|
+| `connected` | 0 | 0..255 |
+| `static` | 10 | 1..255 |
+| `ebgp` | 20 | 1..255 |
+| `ospf` | 110 | 1..255 |
+| `isis` | 115 | 1..255 |
+| `ibgp` | 200 | 1..255 |
+
+The block is optional and the defaults apply without it. Only `connected` may be
+0: it is the best possible distance, so any other protocol set to 0 would beat a
+directly connected route. RFC 4271 mandates no values; these follow the Cisco and
+Juniper convention. The former spelling `admin-distance`, and the separate
+`bgp { admin-distance { } }` container, are both retired, and a config using
+either is refused with a message naming this one.
+
 A peer holds two containers. `connection` holds the transport settings: the
 local and remote address, the port, MD5, and TTL security. `session` holds the
 protocol settings: the AS numbers, the router ID, the address families, and the

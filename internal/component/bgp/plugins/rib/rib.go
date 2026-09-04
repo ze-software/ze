@@ -379,15 +379,22 @@ type RIBManager struct {
 	// Populated from bgp/multipath/relax-as-path in the Stage 2 configure callback.
 	relaxASPath atomic.Bool
 
-	// adminDistanceEBGP is the admin distance stamped on best-path mirrors
-	// into the shared Loc-RIB for routes learned from external BGP peers.
-	// Default 20 (Cisco/Juniper convention; RFC 4271 does not mandate a
-	// value). Populated from bgp/admin-distance/ebgp in the Stage 2 configure
-	// callback. YANG enforces the 1..255 range.
+	// adminDistanceEBGP is the distance stamped on best-path mirrors into the
+	// shared Loc-RIB for routes learned from external BGP peers, and
+	// adminDistanceIBGP is the same for internal ones. They hold
+	// DefaultAdminDistanceEBGP and DefaultAdminDistanceIBGP and are no longer
+	// configurable here: `rib { distance { } }` is the one declaration an
+	// operator writes, and sysrib resolves it (effectivePriority,
+	// internal/component/sysrib/sysrib.go).
+	//
+	// They stay atomics rather than becoming plain constants because the stamp
+	// site runs on the forwarding path while configure runs on another
+	// goroutine, and because the producer-side copy is a KNOWN duplication with
+	// a spec of its own: locrib.selectBest (internal/core/rib/locrib/entry.go)
+	// arbitrates cross-protocol on the value stamped here and never sees the
+	// declaration. IS-IS (spf.DefaultAdminDistance 115) and OSPF (110) hold the
+	// same shape.
 	adminDistanceEBGP atomic.Uint32
-
-	// adminDistanceIBGP is the admin distance stamped on best-path mirrors
-	// for iBGP peers. Default 200; see adminDistanceEBGP.
 	adminDistanceIBGP atomic.Uint32
 
 	// blackholeCfg holds the RFC 7999 honoring configuration, keyed by peer
@@ -612,8 +619,8 @@ func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 		bestPathInterner: newBestPrevInterner(),
 	}
 	r.maximumPaths.Store(1)
-	r.adminDistanceEBGP.Store(20)
-	r.adminDistanceIBGP.Store(200)
+	r.adminDistanceEBGP.Store(uint32(DefaultAdminDistanceEBGP))
+	r.adminDistanceIBGP.Store(uint32(DefaultAdminDistanceIBGP))
 	return r
 }
 
@@ -689,14 +696,6 @@ func runRIBPlugin(conn net.Conn) int {
 			}
 			r.relaxASPath.Store(relax)
 
-			ebgpAD, ibgpAD := extractAdminDistanceConfig(section.Data)
-			if ebgpAD > 0 {
-				r.adminDistanceEBGP.Store(uint32(ebgpAD))
-			}
-			if ibgpAD > 0 {
-				r.adminDistanceIBGP.Store(uint32(ibgpAD))
-			}
-
 			// RFC 7999 honoring. A parse failure REFUSES the configuration
 			// rather than leaving the previous map in place: this decides
 			// whether a peer can make Ze discard traffic, and a rejected edit
@@ -715,8 +714,8 @@ func runRIBPlugin(conn net.Conn) int {
 		logger().Debug("rib configured",
 			"maximum-paths", r.maximumPaths.Load(),
 			"relax-as-path", r.relaxASPath.Load(),
-			"admin-distance-ebgp", r.adminDistanceEBGP.Load(),
-			"admin-distance-ibgp", r.adminDistanceIBGP.Load(),
+			"distance-ebgp", r.adminDistanceEBGP.Load(),
+			"distance-ibgp", r.adminDistanceIBGP.Load(),
 			"blackhole-honor-rules", r.blackholeHonorRuleCount(),
 		)
 		return nil
@@ -741,6 +740,11 @@ func runRIBPlugin(conn net.Conn) int {
 		// request token except to stamp it onto the emitted batches.
 		if eb := getEventBus(); eb != nil {
 			ribevents.ReplayRequest.Subscribe(eb, r.replayBestPaths)
+			// The redistribution hop asks with its own vocabulary, and it asks
+			// for one target rather than for everybody: the orchestrator fires
+			// this when a consumer registers, and a consumer that registered
+			// after this table filled would otherwise hold nothing.
+			redistevents.ReplayRequestEvent.Subscribe(eb, r.replayRedistribute)
 		}
 		return nil
 	})

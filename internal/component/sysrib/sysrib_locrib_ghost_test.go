@@ -3,7 +3,7 @@
 // VALIDATES: a Loc-RIB best switching from protocol A to protocol B arrives as a
 // single FromLocRIB ChangeUpdate carrying only B; processEvent REPLACES the whole
 // per-prefix entry so A's stale slot is dropped (no ghost) and cannot win
-// recomputeBest after an admin-distance change. The Loc-RIB already arbitrated, so
+// recomputeBest after a distance change. The Loc-RIB already arbitrated, so
 // a single authoritative best per prefix is correct.
 // PREVENTS: the ghost-entry regression where a FromLocRIB update upserted B but left
 // A in s.routes[key], letting stale A resurface as best.
@@ -71,7 +71,7 @@ func TestSysribLocRIBBestSwitchDropsGhost(t *testing.T) {
 
 // TestSysribEventBusKeepsPerProtocol guards that the NON-Loc-RIB (event-bus) path
 // is unchanged: two independent protocols for one prefix both remain in
-// s.routes[key] so cross-protocol admin-distance arbitration still works there.
+// s.routes[key] so cross-protocol distance arbitration still works there.
 func TestSysribEventBusKeepsPerProtocol(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)

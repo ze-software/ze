@@ -102,3 +102,40 @@ func TestFlattenedContainerRoundTrips(t *testing.T) {
 		t.Error("serialize is not stable across a reparse")
 	}
 }
+
+// TestAdminDistanceIsRetiredNotSilent covers AC-4 and AC-4b of
+// spec-fixit-bgp-distance-declaration, and it exists because the obvious guard
+// does not work.
+//
+// A-5 of that spec assumed the YANG validator would refuse the deleted
+// container. It does not: walkTree (internal/component/config/yang/validator.go)
+// iterates the SCHEMA's children and checks each against the data, and never
+// iterates the data, so it emits nothing for a key it does not know. Its own
+// comment says "unknown fields from other modules are silently skipped", and
+// validators.go states outright that nothing in the config walk emits
+// ErrTypeUnknown.
+//
+// So the retired-keyword table is the ONLY thing standing between an operator's
+// existing `admin-distance` block and its distances silently reverting to the
+// declared defaults.
+//
+// PREVENTS: deleting or renaming a config container without leaving the old
+// spelling able to say what replaced it.
+func TestAdminDistanceIsRetiredNotSilent(t *testing.T) {
+	hint := RetiredKeywordHint("admin-distance")
+	if hint == "" {
+		t.Fatal("admin-distance produces no hint; an operator's old config loses its distances in silence")
+	}
+	if !strings.Contains(hint, "distance") {
+		t.Errorf("hint does not name the replacement spelling: %q", hint)
+	}
+	if !strings.Contains(hint, "rib {") {
+		t.Errorf("hint does not tell the operator WHERE the container moved to: %q", hint)
+	}
+
+	// A name that was never a keyword must stay silent, or every typo would be
+	// reported as a retirement.
+	if got := RetiredKeywordHint("admin-distances"); got != "" {
+		t.Errorf("a name that was never a keyword produced a hint: %q", got)
+	}
+}

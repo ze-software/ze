@@ -282,7 +282,7 @@ func TestSysRIBNoChangeOnSameRoute(t *testing.T) {
 	assert.Empty(t, changes2, "no change when same route is re-announced")
 }
 
-// VALIDATES: AC-1 -- Config sysrib { admin-distance { ebgp 30; } }, eBGP route arrives.
+// VALIDATES: AC-1 -- Config rib { distance { ebgp 30; } }, eBGP route arrives.
 // sysrib stores route with priority 30, not the incoming 20.
 // PREVENTS: Configured admin distance not overriding incoming priority.
 func TestSysRIBAdminDistanceOverride(t *testing.T) {
@@ -302,12 +302,12 @@ func TestSysRIBAdminDistanceOverride(t *testing.T) {
 	assert.Equal(t, 30, route.priority, "sysrib must override incoming priority 20 with configured 30")
 }
 
-// VALIDATES: AC-2 -- Config with default admin-distance, eBGP route arrives.
+// VALIDATES: AC-2 -- Config with default distance, eBGP route arrives.
 // sysrib uses default 20 from YANG default.
 // PREVENTS: Default admin distances not being applied.
 func TestSysRIBDefaultAdminDistance(t *testing.T) {
 	s := newSysRIB()
-	// Simulate YANG defaults: when sysrib { admin-distance { } } is present
+	// Simulate YANG defaults: when rib { distance { } } is present
 	// but no leaves are overridden, YANG defaults apply.
 	s.adminDist = map[string]int{"connected": 0, "static": 10, "ebgp": 20, "ospf": 110, "isis": 115, "ibgp": 200}
 
@@ -324,7 +324,7 @@ func TestSysRIBDefaultAdminDistance(t *testing.T) {
 	assert.Equal(t, 20, route.priority, "YANG default ebgp distance is 20")
 }
 
-// VALIDATES: AC-3 -- Config sysrib { admin-distance { ibgp 150; } }, iBGP route arrives.
+// VALIDATES: AC-3 -- Config rib { distance { ibgp 150; } }, iBGP route arrives.
 // sysrib stores route with priority 150.
 // PREVENTS: iBGP admin distance override not working.
 func TestSysRIBAdminDistanceOverrideIBGP(t *testing.T) {
@@ -459,6 +459,70 @@ func TestSysRIBAdminDistanceReload(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), changes[family.IPv4Unicast][0].NextHop)
 }
 
+// TestUnknownProtocolTypeIsLoggedNotZeroed covers AC-8. The two states that
+// reach the fallback are not supposed to happen, and both used to reach it in
+// silence. The route still installs at the value the protocol stamped, which is
+// the safe direction, but an operator can now see that it did.
+func TestUnknownProtocolTypeIsLoggedNotZeroed(t *testing.T) {
+	s := newSysRIB()
+	s.adminDist = map[string]int{"ebgp": 20}
+
+	require.Equal(t, 20, s.effectivePriority("ebgp", 99),
+		"a declared protocol answers from the declaration, not from what was stamped")
+
+	require.Equal(t, 99, s.effectivePriority("no-such-protocol", 99),
+		"an undeclared protocol keeps the stamped value rather than falling to zero")
+	require.True(t, s.distanceSpoken["no-such-protocol"], "and it is reported once")
+
+	// The second call must not report again: one line per protocol, not one per
+	// route. Without this the log would carry a line for every UPDATE.
+	require.Equal(t, 99, s.effectivePriority("no-such-protocol", 99))
+	require.Len(t, s.distanceSpoken, 1, "the set holds one entry per protocol")
+}
+
+// TestDistanceMapIsPopulatedWithoutAConfigBlock covers AC-1 of
+// spec-fixit-bgp-distance-declaration.
+//
+// A distance an operator did not write is still a distance the daemon owes an
+// answer for. Until this spec the map was EMPTY for a config carrying no `rib`
+// section, and effectivePriority read that emptiness as permission to trust
+// whatever the producing protocol stamped. Which declaration decided therefore
+// depended on whether a block written for some other protocol happened to
+// exist, and no log line marked the switch.
+//
+// The YANG defaults do not close this on their own: config.ApplyDefaults
+// (internal/component/config/schema_defaults.go) is called from two sites, both
+// on a peer entry, so a `default 20` on a rib leaf is schema metadata that
+// never reaches this parser.
+func TestDistanceMapIsPopulatedWithoutAConfigBlock(t *testing.T) {
+	declared := map[string]int{
+		"connected": 0,
+		"static":    10,
+		"ebgp":      20,
+		"ospf":      110,
+		"isis":      115,
+		"ibgp":      200,
+	}
+
+	for _, cfg := range []string{`{}`, `{"other":{}}`, `{"rib":{}}`} {
+		got, err := parseAdminDistanceConfig(cfg)
+		require.NoError(t, err)
+		require.Equalf(t, declared, got,
+			"config %s: every protocol owes a distance whether or not the operator wrote one", cfg)
+	}
+}
+
+// TestDistancePartialBlockKeepsTheOtherDefaults covers AC-2. An operator who
+// names one protocol has not disclaimed the other five.
+func TestDistancePartialBlockKeepsTheOtherDefaults(t *testing.T) {
+	got, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ospf":90}}}`)
+	require.NoError(t, err)
+	require.Equal(t, 90, got["ospf"], "the operator's value wins")
+	require.Equal(t, 20, got["ebgp"], "and the others keep their declared value")
+	require.Equal(t, 200, got["ibgp"])
+	require.Len(t, got, 6, "naming one protocol does not drop the rest")
+}
+
 // VALIDATES: parseAdminDistanceConfig correctly parses JSON config tree.
 // PREVENTS: Config parsing errors breaking admin distance override.
 func TestParseAdminDistanceConfig(t *testing.T) {
@@ -468,20 +532,30 @@ func TestParseAdminDistanceConfig(t *testing.T) {
 		expected map[string]int
 		wantErr  bool
 	}{
+		// Every case below returns all six protocols. The map used to come
+		// back holding only what the operator wrote, and empty for a config
+		// with no block, which is what let effectivePriority silently change
+		// which declaration decided (spec-fixit-bgp-distance-declaration).
 		{
-			name:     "full config",
-			json:     `{"rib":{"admin-distance":{"ebgp":30,"ibgp":150,"static":10}}}`,
-			expected: map[string]int{"ebgp": 30, "ibgp": 150, "static": 10},
+			name: "operator values win, the rest keep their declared value",
+			json: `{"rib":{"distance":{"ebgp":30,"ibgp":150,"static":10}}}`,
+			expected: map[string]int{
+				"connected": 0, "static": 10, "ebgp": 30, "ospf": 110, "isis": 115, "ibgp": 150,
+			},
 		},
 		{
-			name:     "no admin-distance block",
-			json:     `{"rib":{}}`,
-			expected: map[string]int{},
+			name: "no distance block",
+			json: `{"rib":{}}`,
+			expected: map[string]int{
+				"connected": 0, "static": 10, "ebgp": 20, "ospf": 110, "isis": 115, "ibgp": 200,
+			},
 		},
 		{
-			name:     "no sysrib block",
-			json:     `{"other":{}}`,
-			expected: map[string]int{},
+			name: "no sysrib block",
+			json: `{"other":{}}`,
+			expected: map[string]int{
+				"connected": 0, "static": 10, "ebgp": 20, "ospf": 110, "isis": 115, "ibgp": 200,
+			},
 		},
 		{
 			name:    "invalid json",
@@ -1240,4 +1314,75 @@ func captureSysribEvents(bus *testEventBus) []testEvent {
 		}
 	}
 	return out
+}
+
+// TestEffectivePriorityResolvesEveryProtocolType covers AC-1 and AC-8 together:
+// every protocol the route layer can name must resolve from the declaration, or
+// the fallback path is reachable in normal operation rather than only before
+// configure.
+func TestEffectivePriorityResolvesEveryProtocolType(t *testing.T) {
+	dist, err := parseAdminDistanceConfig(`{}`)
+	require.NoError(t, err)
+
+	s := newSysRIB()
+	s.adminDist = dist
+
+	// The two the BGP route layer produces, via routeaction.ProtocolType.String().
+	for _, proto := range []string{"ebgp", "ibgp"} {
+		got := s.effectivePriority(proto, 999)
+		require.NotEqual(t, 999, got,
+			"%s fell through to the stamped value; the declaration does not name it", proto)
+		require.Emptyf(t, s.distanceSpoken, "%s should not have been reported", proto)
+	}
+
+	// And the four other protocols that insert into the shared Loc-RIB.
+	for _, proto := range []string{"connected", "static", "ospf", "isis"} {
+		require.NotEqual(t, 999, s.effectivePriority(proto, 999),
+			"%s is not resolved by the declaration", proto)
+	}
+}
+
+// TestDistanceReloadRecomputesStoredRoutes covers AC-6, and
+// TestDistanceRollbackRestoresThePreviousMap covers AC-7. Both matter more since
+// publishDistances (register.go) pushes onto the shared seam: a reload that
+// updated s.adminDist without the seam would move sysrib and leave every
+// producer stamping the old value.
+func TestDistanceReloadRecomputesStoredRoutes(t *testing.T) {
+	s := newSysRIB()
+
+	first, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ebgp":30}}}`)
+	require.NoError(t, err)
+	s.adminDist = first
+	require.Equal(t, 30, s.effectivePriority("ebgp", 999))
+
+	second, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ebgp":250}}}`)
+	require.NoError(t, err)
+	s.adminDist = second
+	require.Equal(t, 250, s.effectivePriority("ebgp", 999),
+		"a reload must change what subsequent routes resolve to")
+
+	// A leaf the operator REMOVED reverts to the declared default rather than
+	// lingering at its previous configured value.
+	third, err := parseAdminDistanceConfig(`{"rib":{}}`)
+	require.NoError(t, err)
+	s.adminDist = third
+	require.Equal(t, 20, s.effectivePriority("ebgp", 999),
+		"dropping the leaf returns the schema default, not the last configured value")
+}
+
+func TestDistanceRollbackRestoresThePreviousMap(t *testing.T) {
+	s := newSysRIB()
+
+	previous, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ebgp":30}}}`)
+	require.NoError(t, err)
+	s.adminDist = previous
+
+	candidate, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ebgp":250}}}`)
+	require.NoError(t, err)
+	s.adminDist = candidate
+	require.Equal(t, 250, s.effectivePriority("ebgp", 999))
+
+	s.adminDist = previous
+	require.Equal(t, 30, s.effectivePriority("ebgp", 999),
+		"rollback must restore the map the daemon was running before the failed apply")
 }

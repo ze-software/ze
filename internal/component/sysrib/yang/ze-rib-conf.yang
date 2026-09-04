@@ -6,9 +6,16 @@ module ze-rib-conf {
 
     description
         "System RIB configuration for Ze.
-         Admin distance settings control cross-protocol route selection.
-         Lower distance wins. Used by the rib plugin to override
-         incoming priority values from protocol RIBs.";
+         The distance container controls cross-protocol route selection.
+         Lower distance wins. It is the one declaration of every protocol's
+         administrative distance.";
+
+    revision 2026-09-04 {
+        description
+            "Rename admin-distance to distance, and make this the only
+             declaration: the bgp admin-distance container is deleted and every
+             protocol reads its distance from here.";
+    }
 
     revision 2026-04-04 {
         description "Add admin-distance container.";
@@ -17,9 +24,13 @@ module ze-rib-conf {
     container rib {
         description "System RIB configuration.";
 
-        container admin-distance {
+        container distance {
             description "Administrative distance per protocol.";
-            ze:help "The lower value wins. The system RIB uses the distance to select the best route across protocols.";
+            ze:help "Administrative distance ranks one protocol against another for the same prefix, and the lower
+                value wins. It is NOT an IGP metric and NOT the IGP distance to a next hop: those measure a path,
+                this ranks the protocol that offered it. RFC 4271 mandates no values; these follow the Cisco and
+                Juniper convention. This container is the only place any protocol's distance is declared, and every
+                protocol takes its value from here whether or not you write the block.";
 
             leaf connected {
                 type uint8;
@@ -28,31 +39,41 @@ module ze-rib-conf {
             }
 
             leaf static {
-                type uint8;
+                type uint8 {
+                    range "1..255";
+                }
                 default 10;
                 description "Static routes.";
             }
 
             leaf ebgp {
-                type uint8;
+                type uint8 {
+                    range "1..255";
+                }
                 default 20;
                 description "External BGP routes.";
             }
 
             leaf ospf {
-                type uint8;
+                type uint8 {
+                    range "1..255";
+                }
                 default 110;
                 description "OSPF routes.";
             }
 
             leaf isis {
-                type uint8;
+                type uint8 {
+                    range "1..255";
+                }
                 default 115;
                 description "IS-IS routes.";
             }
 
             leaf ibgp {
-                type uint8;
+                type uint8 {
+                    range "1..255";
+                }
                 default 200;
                 description "Internal BGP routes.";
             }

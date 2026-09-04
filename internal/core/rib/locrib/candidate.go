@@ -63,7 +63,7 @@ type Path struct {
 	// Labels, it is carry-through metadata: Loc-RIB never uses it for
 	// arbitration (selection is AdminDistance then Metric). The producing BGP
 	// RIB sets it from the peer ASN relationship, and sysrib reads it to key
-	// its own admin-distance override by protocol type ("ebgp"/"ibgp") without
+	// its own distance override by protocol type ("ebgp"/"ibgp") without
 	// re-deriving the class from the (operator-overridable) AdminDistance.
 	// False for non-BGP sources. Excluded from Equal/key: a single
 	// (Source, Instance) cannot change its eBGP/iBGP class because a peer's

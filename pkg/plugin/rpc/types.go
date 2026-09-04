@@ -846,7 +846,7 @@ type RouteInstallEntry struct {
 	Prefix             string   `json:"prefix"`
 	Instance           uint32   `json:"instance"`
 	NextHop            string   `json:"next-hop,omitempty"`
-	AdminDistance      uint8    `json:"admin-distance"`
+	AdminDistance      uint8    `json:"distance"`
 	Metric             uint32   `json:"metric"`
 	Labels             []uint32 `json:"labels,omitempty"`
 	IsEBGP             bool     `json:"is-ebgp,omitempty"`
@@ -1081,7 +1081,7 @@ const (
 	OperationRemoveListener     ConfigOperationType = "remove-listener"
 	OperationAddStaticRoute     ConfigOperationType = "add-static-route"
 	OperationRemoveStaticRoute  ConfigOperationType = "remove-static-route"
-	OperationSetAdminDistance   ConfigOperationType = "set-admin-distance"
+	OperationSetAdminDistance   ConfigOperationType = "set-distance"
 	OperationSetSysctl          ConfigOperationType = "set-sysctl"
 	OperationStartDHCP          ConfigOperationType = "start-dhcp"
 	OperationStopDHCP           ConfigOperationType = "stop-dhcp"

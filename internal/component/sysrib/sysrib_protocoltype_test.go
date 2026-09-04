@@ -19,9 +19,9 @@ import (
 // VALIDATES: bgpProtocolTypeFromPath reports eBGP/iBGP from the path's IsEBGP
 // flag (matching the live event-bus ProtocolType produced by the BGP RIB) for
 // ANY admin distance, and Unspecified for non-BGP sources.
-// PREVENTS: an operator bgp/admin-distance override (eBGP distance != 20 or
+// PREVENTS: an operator rib/distance override (eBGP distance != 20 or
 // iBGP != 200) silently demoting a BGP route to BGPProtocolUnspecified at
-// replay, which dropped sysrib's per-type admin-distance override and made the
+// replay, which dropped sysrib's per-type distance override and made the
 // startup-replayed best differ from the live-path classification.
 func TestBGPProtocolTypeFromPath(t *testing.T) {
 	redistevents.ResetForTest()
@@ -55,7 +55,7 @@ func TestBGPProtocolTypeFromPath(t *testing.T) {
 //
 // VALIDATES: a startup-replayed eBGP best whose admin distance was overridden
 // away from the default 20 is still classified eBGP, so a sysrib-level "ebgp"
-// admin-distance override applies to it.
+// distance override applies to it.
 // PREVENTS: the regression where the replay path derived the class from the
 // (operator-overridable) AdminDistance: a distance of 40 was neither 20 nor 200,
 // so the route fell back to the generic "bgp" type and missed the per-type
@@ -89,5 +89,5 @@ func TestSysRIBReplayClassifiesOverriddenAdminDistance(t *testing.T) {
 
 	require.NotNil(t, route)
 	assert.Equal(t, 30, route.priority,
-		"overridden-distance eBGP replay must still receive the ebgp admin-distance override")
+		"overridden-distance eBGP replay must still receive the ebgp distance override")
 }

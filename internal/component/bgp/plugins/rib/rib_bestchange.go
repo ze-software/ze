@@ -26,7 +26,9 @@ import (
 	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/replay"
+	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 	"github.com/ze-software/ze/internal/core/rib/store"
@@ -947,11 +949,17 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			return
 		}
 		// AdminDistance is the classical Cisco/Juniper default (eBGP=20, iBGP=200)
-		// unless the operator overrode it under bgp/admin-distance; Metric carries MED.
-		distance := uint8(r.adminDistanceIBGP.Load()) //nolint:gosec // YANG 1..255
+		// unless the operator overrode it under rib/distance; Metric carries MED.
+		// The DECLARATION decides, not this plugin's constant. locrib.selectBest
+		// ranks paths on what is stamped here and runs before sysrib sees the
+		// route, so the operator's `rib { distance { } }` has to reach this line
+		// or it cannot change cross-protocol selection at all. The atomics are
+		// the bootstrap value, reachable only before the first configure.
+		proto, fallback := "ibgp", uint8(r.adminDistanceIBGP.Load()) //nolint:gosec // YANG 1..255
 		if isEBGP {
-			distance = uint8(r.adminDistanceEBGP.Load()) //nolint:gosec // YANG 1..255
+			proto, fallback = "ebgp", uint8(r.adminDistanceEBGP.Load()) //nolint:gosec // YANG 1..255
 		}
+		distance := ribdistance.OrDefault(proto, fallback)
 		r.locRIB.InsertForward(fam, pfx, locrib.Path{
 			Source:        bgpProtocolID,
 			Instance:      pathID,
@@ -1390,6 +1398,54 @@ func (r *RIBManager) replayBestPaths(req *replay.Request) {
 		return
 	}
 
+	for famName, changes := range r.collectBestPaths() {
+		batch := &bestChangeBatch{
+			Protocol: protocolNameBGP,
+			Family:   famName,
+			ReplayID: req.ReplayID,
+			Changes:  changes,
+		}
+		if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {
+			logger().Warn("replay emit failed", "error", err)
+		}
+	}
+}
+
+// replayRedistribute answers a redistribution replay request with the entire
+// current best-path table, through the redistribution bridge alone.
+//
+// The redistribute orchestrator fires one when a consumer registers. Such a
+// consumer would otherwise hold nothing this speaker learned before it existed.
+// Startup order decides whether that happens, and nothing orders the plugin
+// tiers.
+//
+// It does NOT emit on (bgp-rib, best-change). That hop has its own request
+// vocabulary and its own subscriber, sysrib. Answering one request on both hops
+// would hand sysrib a table it did not ask for.
+//
+// Caller MUST NOT hold r.peerMu.
+func (r *RIBManager) replayRedistribute(req *redistevents.ReplayRequest) {
+	eb := getEventBus()
+	if eb == nil || req == nil || req.ReplayID == 0 {
+		return
+	}
+	for famName, changes := range r.collectBestPaths() {
+		bgpredist.EmitBestChange(eb, &bestChangeBatch{
+			Protocol: protocolNameBGP,
+			Family:   famName,
+			ReplayID: req.ReplayID,
+			Changes:  changes,
+		})
+	}
+}
+
+// collectBestPaths walks the whole best-path table and returns one add entry
+// per stored path, keyed by family. A family holding nothing is absent rather
+// than present and empty, so a caller emits no batch for it.
+//
+// It is the shared half of the two replay answers above, which differ only in
+// which hop they emit on. Caller MUST NOT hold r.peerMu.
+func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 	families := r.bestPrev.familyList()
 	changesByFamily := make(map[family.Family][]bestChangeEntry, len(families))
 	for _, fam := range families {
@@ -1455,19 +1511,8 @@ func (r *RIBManager) replayBestPaths(req *replay.Request) {
 		}
 	}
 
-	for famName, changes := range changesByFamily {
-		batch := &bestChangeBatch{
-			Protocol: protocolNameBGP,
-			Family:   famName,
-			ReplayID: req.ReplayID,
-			Changes:  changes,
-		}
-		if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {
-			logger().Warn("replay emit failed", "error", err)
-		}
-	}
-
-	logger().Info("best-path replay published", "families", len(changesByFamily))
+	logger().Info("best-path replay collected", "families", len(changesByFamily))
+	return changesByFamily
 }
 
 // publishBestChanges emits a best-change batch on the EventBus under

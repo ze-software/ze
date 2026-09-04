@@ -2011,7 +2011,29 @@ The leaf defaults to 254. A default route ze learns from the network (a DHCP lea
 a PPPoE session) is installed at that metric, so it ranks below a static route and
 below every route a routing protocol produces. The number matches the order
 `rib distance` uses for protocols: connected 0, static 10, ebgp 20, ospf 110,
-isis 115, ibgp 200. It is also the administrative distance a Cisco IOS DHCP client
+isis 115, ibgp 200. Those six are declared in one place and every protocol reads
+its own from there:
+
+```
+rib {
+    distance {
+        connected 0;
+        static 10;
+        ebgp 20;
+        ospf 110;
+        isis 115;
+        ibgp 200;
+    }
+}
+```
+
+The block is optional and the values above apply whether or not you write it.
+Administrative distance ranks one protocol against another for the same prefix,
+and the lower value wins; it is not an IGP metric and not the IGP distance to a
+next hop. Only `connected` accepts 0, because 0 is the best possible value and a
+protocol set to it would beat a directly connected route. `admin-distance` was
+the former spelling, and a config still using it is refused with a message
+naming the replacement. It is also the administrative distance a Cisco IOS DHCP client
 gives the default route it learns, which is the same ranking decision on another
 vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
 metric ze writes to the kernel.

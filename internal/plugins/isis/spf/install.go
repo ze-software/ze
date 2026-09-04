@@ -10,7 +10,7 @@
 // Contracts "Route install vs redistribution".
 //
 // Admin distance: IS-IS sets a single AdminDistance (115) on every locrib.Path,
-// looked up by sysrib effectivePriority from the existing rib.admin-distance.isis
+// looked up by sysrib effectivePriority from the existing rib.distance.isis
 // leaf. locrib.Path has no protoType/level field, so the L1-over-L2 preference is
 // resolved INSIDE SPF (route.go) before exactly one Path per prefix is published
 // (umbrella A-3).
@@ -31,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -38,7 +39,7 @@ import (
 // allocated once at init (mirrors bgpProtocolID in the BGP RIB plugin). It is the
 // Source set on every locrib.Path SPF inserts and the key sysrib uses to look up
 // the IS-IS admin distance. The single name "isis" matches the existing
-// rib.admin-distance.isis leaf and the single redistribution source (isis-11).
+// rib.distance.isis leaf and the single redistribution source (isis-11).
 var isisProtocolID = redistevents.RegisterProtocol("isis")
 
 // ProtocolID returns the registered IS-IS Loc-RIB / redistribute protocol ID.
@@ -49,7 +50,7 @@ func ProtocolID() redistevents.ProtocolID { return isisProtocolID }
 
 // DefaultAdminDistance is the IS-IS administrative distance set on every
 // locrib.Path (classical default 115). sysrib overrides it from the
-// rib.admin-distance.isis leaf via effectivePriority; this is the value placed on
+// rib.distance.isis leaf via effectivePriority; this is the value placed on
 // the Path so that, absent config, IS-IS ranks at 115 against other protocols.
 const DefaultAdminDistance uint8 = 115
 
@@ -251,10 +252,16 @@ func (in *Installer) insert(r RouteEntry) {
 		// the ForwardHandle nil contract). Routed through insertPath so a forked
 		// installer ships to the engine over RPC instead of the local Loc-RIB.
 		in.insertPath(r.Prefix, locrib.Path{
-			Source:        isisProtocolID,
-			Instance:      instance,
-			NextHop:       nh.Addr,
-			AdminDistance: in.distance,
+			Source:   isisProtocolID,
+			Instance: instance,
+			NextHop:  nh.Addr,
+			// The DECLARATION decides. locrib.selectBest ranks paths on what is
+			// stamped here and runs before sysrib sees the route, so
+			// `rib { distance { isis N } }` has to reach this line to change
+			// cross-protocol selection. in.distance is the bootstrap value,
+			// reachable only before the first configure. Read HERE rather than
+			// at construction so a reload takes effect.
+			AdminDistance: ribdistance.OrDefault("isis", in.distance),
 			Metric:        metric,
 		})
 	}

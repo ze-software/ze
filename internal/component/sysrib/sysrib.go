@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -21,6 +22,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
+	"github.com/ze-software/ze/internal/component/config"
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -193,55 +195,120 @@ type sysRIB struct {
 	// address means the route is FIB-installed; absence means the NH was
 	// unreachable and the route is FIB-withdrawn (but still RIB-present).
 	resolvedNH map[prefixKey]netip.Addr
-	// adminDist maps protocol type (e.g., "ebgp", "ibgp", "static") to
-	// configured admin distance. Empty when no sysrib config is present,
-	// in which case incoming priorities pass through unchanged.
+	// adminDist maps protocol type (e.g., "ebgp", "ibgp", "static") to its
+	// administrative distance. parseAdminDistanceConfig returns every protocol
+	// the schema declares, so this is complete once configure has run, and is
+	// nil only before it.
 	adminDist map[string]int
-	mu        sync.RWMutex
+	// distanceSpoken names the protocols this process has already reported an
+	// unresolved distance for. A route arriving before configure, or a protocol
+	// the schema does not declare, is worth ONE line each: without the set it
+	// would be one line per route, and with no line at all the value that
+	// decides what the kernel installs would change in silence
+	// (ai/rules/principles.md).
+	distanceSpoken map[string]bool
+	mu             sync.RWMutex
 }
 
 func newSysRIB() *sysRIB {
 	return &sysRIB{
-		routes:     make(map[prefixKey]map[string]*protocolRoute),
-		best:       make(map[prefixKey]*protocolRoute),
-		lastECMP:   make(map[prefixKey][]sysribevents.ECMPPath),
-		resolvedNH: make(map[prefixKey]netip.Addr),
+		distanceSpoken: make(map[string]bool),
+		routes:         make(map[prefixKey]map[string]*protocolRoute),
+		best:           make(map[prefixKey]*protocolRoute),
+		lastECMP:       make(map[prefixKey][]sysribevents.ECMPPath),
+		resolvedNH:     make(map[prefixKey]netip.Addr),
 	}
 }
 
-// parseAdminDistanceConfig extracts the admin-distance map from the sysrib
-// config section JSON. Returns an empty map if no admin-distance block is present.
+// adminDistanceSchemaPath is where the one declaration of every protocol's
+// administrative distance lives. The YANG carries the numbers because it has to
+// anyway, for validation, for the editor's completion and for the generated
+// config reference; a Go copy beside it would be the second declaration
+// (ai/rules/principles.md).
+const adminDistanceSchemaPath = "rib/distance"
+
+// parseAdminDistanceConfig returns every protocol's administrative distance:
+// the operator's value where one is written, and the schema's declared value
+// everywhere else.
+//
+// The map is COMPLETE whether or not the operator wrote the block, and that is
+// the point of it. It used to come back empty for a config with no `rib`
+// section, and effectivePriority read that emptiness as permission to trust
+// whatever the producing protocol had stamped. So which declaration decided
+// depended on whether a block written for some other protocol happened to
+// exist, and no log line marked the switch.
+//
+// A YANG `default` does not arrive on its own. config.ApplyDefaults is what
+// puts one into a tree, and the peer path is the only other caller
+// (applyPeerSchemaDefaults, internal/component/bgp/config/peers.go), so a
+// consumer reading a config section directly sees the leaf simply missing.
+//
+// The protocol set is DISCOVERED from the schema rather than listed here, so a
+// protocol added to the YANG gets a distance with no edit to this file.
+//
+// An unreadable schema is an ERROR rather than an empty map. This value decides
+// which route the kernel installs, so refusing to configure is the safe
+// direction and guessing is not: a silent empty map is the defect this function
+// was rewritten to remove, and reintroducing it here would move it rather than
+// fix it. applyPeerSchemaDefaults swallows the same two errors; do not copy that.
 func parseAdminDistanceConfig(jsonData string) (map[string]int, error) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(jsonData), &tree); err != nil {
 		return nil, fmt.Errorf("unmarshal sysrib config: %w", err)
 	}
 
-	sysribTree, ok := tree["rib"].(map[string]any)
-	if !ok {
-		return make(map[string]int), nil
-	}
-
-	adTree, ok := sysribTree["admin-distance"].(map[string]any)
-	if !ok {
-		return make(map[string]int), nil
-	}
-
-	result := make(map[string]int, len(adTree))
-	for proto, v := range adTree {
-		num, ok := v.(float64)
-		if !ok {
-			return nil, fmt.Errorf("admin-distance %s: expected number, got %T", proto, v)
+	declared := map[string]any{}
+	if sysribTree, ok := tree["rib"].(map[string]any); ok {
+		if adTree, ok := sysribTree["distance"].(map[string]any); ok {
+			declared = adTree
 		}
-		result[proto] = int(num)
+	}
+
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return nil, fmt.Errorf("distance: load schema: %w", err)
+	}
+	node, err := schema.Lookup(adminDistanceSchemaPath)
+	if err != nil {
+		return nil, fmt.Errorf("distance: resolve %s: %w", adminDistanceSchemaPath, err)
+	}
+	config.ApplyDefaults(declared, node)
+
+	result := make(map[string]int, len(declared))
+	for proto, v := range declared {
+		num, err := adminDistanceValue(v)
+		if err != nil {
+			return nil, fmt.Errorf("distance %s: %w", proto, err)
+		}
+		result[proto] = num
 	}
 
 	return result, nil
 }
 
+// adminDistanceValue reads the three shapes a distance arrives in: a JSON
+// number, a native int from direct tree delivery, and the string a YANG default
+// carries (LeafNode.Default is declared as a string).
+func adminDistanceValue(v any) (int, error) {
+	switch n := v.(type) {
+	case float64:
+		return int(n), nil
+	case int:
+		return n, nil
+	case string:
+		parsed, err := strconv.Atoi(n)
+		if err != nil {
+			return 0, fmt.Errorf("expected number, got %q", n)
+		}
+		return parsed, nil
+	default:
+		return 0, fmt.Errorf("expected number, got %T", v)
+	}
+}
+
 // incomingBatch aliases the (bgp-rib, best-change) payload type. sysrib
 // receives one of these per BGP best-change and fans it out to the FIB
-// plugins after admin-distance arbitration.
+// plugins after distance arbitration.
 type incomingBatch = ribevents.BestChangeBatch
 
 // incomingChange aliases a single entry in the incoming batch.
@@ -256,14 +323,30 @@ type outgoingChange = sysribevents.BestChangeEntry
 // batch per family and emits via the typed BestChange handle.
 type outgoingBatch = sysribevents.BestChangeBatch
 
-// effectivePriority returns the configured admin distance for a protocol type
-// if one exists, otherwise returns the incoming priority unchanged.
+// effectivePriority returns a protocol's administrative distance, which decides
+// which route the kernel installs when two protocols hold one prefix.
+//
+// The answer is the declaration's, and the incoming priority is a fallback for
+// two states that are not supposed to happen: a route arriving before the
+// configure callback has run, and a protocol the schema does not declare.
+// Neither is silent any more. Until 2026-09-04 both were, and the emptiness of
+// the map was itself a fallback condition, so which of two declarations decided
+// depended on whether an operator had written a block for some other protocol.
+//
+// REQUIRES: the caller holds s.mu for writing. The spoken set is written here.
 func (s *sysRIB) effectivePriority(protocolType string, incomingPriority int) int {
-	if len(s.adminDist) == 0 {
-		return incomingPriority
-	}
 	if d, ok := s.adminDist[protocolType]; ok {
 		return d
+	}
+
+	if !s.distanceSpoken[protocolType] {
+		s.distanceSpoken[protocolType] = true
+		reason := "protocol is not declared in the schema"
+		if len(s.adminDist) == 0 {
+			reason = "a route arrived before the distance configuration"
+		}
+		logger().Warn("sysrib: no declared administrative distance, using the value the protocol stamped",
+			"protocol", protocolType, "reason", reason, "stamped", incomingPriority)
 	}
 	return incomingPriority
 }
@@ -333,10 +416,10 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 			// REPLACES the whole per-prefix entry: a best switching from protocol A to
 			// B drops A's now-stale slot. That was the ghost-entry -- A used to linger
 			// until its own withdraw and could wrongly win recomputeBest after an
-			// admin-distance reconfig. Intra-protocol ECMP siblings ride on
+			// distance reconfig. Intra-protocol ECMP siblings ride on
 			// pr.ecmpNextHops (not separate map entries), so a single slot preserves
 			// ECMP. The event-bus fallback (each protocol emits independently) keeps
-			// the per-protocol upsert so its cross-protocol admin-distance arbitration
+			// the per-protocol upsert so its cross-protocol distance arbitration
 			// still works.
 			pr := &protocolRoute{
 				protocol:         proto,
@@ -360,7 +443,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 			if batch.FromLocRIB {
 				// Loc-RIB authoritative single best: replace the whole per-prefix
 				// entry so a prior best from a different protocol cannot linger as a
-				// ghost and wrongly win recomputeBest after an admin-distance change.
+				// ghost and wrongly win recomputeBest after a distance change.
 				s.routes[key] = map[string]*protocolRoute{proto: pr}
 			} else {
 				if s.routes[key] == nil {
@@ -942,7 +1025,7 @@ func (s *sysRIB) run(ctx context.Context) {
 }
 
 // processLocRIBChange handles a single Loc-RIB change: converts it to
-// the internal batch shape, runs admin-distance arbitration, publishes
+// the internal batch shape, runs distance arbitration, publishes
 // downstream, and triggers NH cascade if the changed prefix covers any
 // tracked next-hops.
 func (s *sysRIB) processLocRIBChange(c locrib.Change) {
@@ -1149,7 +1232,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 }
 
 // replayPath seeds sysrib with an already-present best from locrib at startup.
-// Runs the change through processEvent as a synthetic Add so admin-distance
+// Runs the change through processEvent as a synthetic Add so distance
 // overrides and downstream emission work the same as any live change. ECMP is
 // supplied from the PathGroup snapshot so pre-existing multipath groups do not
 // collapse to the primary next-hop on replay.
@@ -1173,7 +1256,7 @@ func (s *sysRIB) replayPath(fam family.Family, pfx netip.Prefix, p locrib.Path, 
 // bgpProtocolTypeFromPath derives the BGP protocol type for a locrib Path.
 // Only BGP paths produce a meaningful result; non-BGP sources return
 // BGPProtocolUnspecified (the caller uses the batch-level protocol name
-// for admin-distance lookup in that case).
+// for distance lookup in that case).
 func bgpProtocolTypeFromPath(p locrib.Path) routeaction.ProtocolType {
 	name := redistevents.ProtocolName(p.Source)
 	if name != "bgp" {
@@ -1181,7 +1264,7 @@ func bgpProtocolTypeFromPath(p locrib.Path) routeaction.ProtocolType {
 	}
 	// Read the producer's eBGP/iBGP classification directly. Deriving it from
 	// AdminDistance (20/200) silently lost the class whenever the operator
-	// overrode bgp/admin-distance, making this replay path disagree with the
+	// overrode rib/distance, making this replay path disagree with the
 	// live event-bus ProtocolType. The BGP RIB sets Path.IsEBGP from the peer
 	// ASN relationship; mirror its 2-state resolve() (iBGP unless eBGP).
 	if p.IsEBGP {

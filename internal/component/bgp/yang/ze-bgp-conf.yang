@@ -61,32 +61,6 @@ module ze-bgp-conf {
             }
         }
 
-        container admin-distance {
-            description "Admin distance stamped on a BGP best-path mirrored into the shared Loc-RIB.";
-            ze:help "The lower distance wins against another protocol that holds the same prefix. The defaults follow the
-                Cisco and Juniper convention. RFC 4271 mandates no values.";
-
-            leaf ebgp {
-                type uint8 {
-                    range "1..255";
-                }
-                default 20;
-                description "Admin distance for routes learned from external BGP peers.";
-                ze:help "The default is 20. Ze arbitrates a prefix held by two protocols on the distance first, and
-                    on the metric second. 20 therefore wins against the OSPF distance of 110.";
-            }
-
-            leaf ibgp {
-                type uint8 {
-                    range "1..255";
-                }
-                default 200;
-                description "Admin distance for routes learned from internal BGP peers.";
-                ze:help "The default is 200, which is more than the OSPF distance of 110. An OSPF route therefore
-                    wins against an iBGP route for the same prefix.";
-            }
-        }
-
         container session {
             description "Global BGP session defaults";
             ze:help "A group value overrides this global value, and a peer value overrides the group value. The

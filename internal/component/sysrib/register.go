@@ -12,6 +12,7 @@ import (
 	sysribyang "github.com/ze-software/ze/internal/component/sysrib/yang"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -56,6 +57,28 @@ func init() {
 	}
 }
 
+// publishDistances installs the resolved table on the shared seam
+// (internal/core/rib/distance) so the PRODUCERS stamp the operator's value.
+//
+// This is not a convenience. locrib.selectBest ranks paths on what the producer
+// stamped and runs BEFORE sysrib sees the route: sysrib consumes one
+// already-arbitrated best per prefix. A distance that reaches sysrib alone
+// therefore cannot change cross-protocol selection, however carefully it was
+// resolved. The seam is how the one declaration reaches the only layer that can
+// act on it.
+//
+// Called from every site that assigns s.adminDist, the rollback included, so
+// the seam and the map cannot disagree.
+func publishDistances(dist map[string]int) {
+	distance.Set(func(protocol string) (uint8, bool) {
+		d, ok := dist[protocol]
+		if !ok || d < 0 || d > 255 {
+			return 0, false
+		}
+		return uint8(d), true //nolint:gosec // bounded immediately above
+	})
+}
+
 func verifySysRIBConfig(sections []sdk.ConfigSection) error {
 	for _, section := range sections {
 		if section.Root != configRootRIB {
@@ -82,7 +105,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	s := newSysRIB()
 
-	// pendingDist holds the validated admin-distance map between verify and apply.
+	// pendingDist holds the validated distance map between verify and apply.
 	var pendingDist map[string]int
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
@@ -111,14 +134,15 @@ func runSysRIBPlugin(conn net.Conn) int {
 			}
 			dist, err := parseAdminDistanceConfig(section.Data)
 			if err != nil {
-				logger().Error("admin-distance config parse failed", "error", err)
+				logger().Error("distance config parse failed", "error", err)
 				return err
 			}
 			s.mu.Lock()
 			s.adminDist = dist
 			s.mu.Unlock()
+			publishDistances(dist)
 			previousDist = dist
-			logger().Info("admin-distance config loaded", "distances", dist)
+			logger().Info("distance config loaded", "distances", dist)
 		}
 		return nil
 	})
@@ -136,6 +160,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 			func() error {
 				s.mu.Lock()
 				s.adminDist = dist
+				publishDistances(dist)
 				s.mu.Unlock()
 
 				changes := s.reapplyAdminDistances()
@@ -154,6 +179,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 				}
 				s.mu.Lock()
 				s.adminDist = rollbackDist
+				publishDistances(rollbackDist)
 				s.mu.Unlock()
 
 				changes := s.reapplyAdminDistances()
@@ -172,7 +198,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 		previousDist = dist
 		activeJournal = j
-		logger().Info("admin-distance config reloaded via transaction", "distances", dist)
+		logger().Info("distance config reloaded via transaction", "distances", dist)
 		return nil
 	})
 

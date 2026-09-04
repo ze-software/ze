@@ -1,0 +1,80 @@
+# Test: the rib { distance { } } config surface after the declaration was unified.
+# VALIDATES: AC-4 -- the retired bgp { admin-distance { } } spelling is refused.
+# VALIDATES: AC-4b -- the retired rib { admin-distance { } } spelling is refused.
+# VALIDATES: the guard restored on the five non-connected leaves (ebgp 0 refused).
+# PREVENTS: a container rename that silently drops an operator's distances.
+#
+# WHAT THIS CASE DOES NOT PROVE. It exercises the config surface only. That the
+# declaration reaches the PRODUCER's stamp, which is the thing the whole change
+# turns on, is proven by TestBgpStampsTheDeclaredDistanceNotItsOwn
+# (internal/component/bgp/plugins/rib/rib_bestchange_test.go), which was observed
+# RED under a bypassed seam: 0x14 where 0xfa was required. Read that test, not
+# this one, for the cross-protocol behaviour.
+
+# --- Valid: the new container validates. ------------------------------------
+stdin=dist-valid:terminator=EOF_VALID
+rib {
+	distance {
+		connected 0;
+		static 10;
+		ebgp 250;
+		ospf 110;
+		isis 115;
+		ibgp 200;
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=dist-valid:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Valid: the block is optional; the declared defaults apply without it. ---
+stdin=dist-absent:terminator=EOF_ABSENT
+rib {
+}
+EOF_ABSENT
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=dist-absent:exit=0
+expect=exit:code=0
+
+# --- Retired: the bgp container is gone and says what replaced it. ----------
+stdin=dist-old-bgp:terminator=EOF_OLDBGP
+bgp {
+	admin-distance {
+		ebgp 30;
+	}
+}
+EOF_OLDBGP
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=dist-old-bgp:exit=1
+expect=exit:code=1
+expect=stdout:contains=admin-distance
+
+# --- Retired: the old rib spelling is refused the same way. ------------------
+stdin=dist-old-rib:terminator=EOF_OLDRIB
+rib {
+	admin-distance {
+		ebgp 30;
+	}
+}
+EOF_OLDRIB
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=dist-old-rib:exit=1
+expect=exit:code=1
+expect=stdout:contains=admin-distance
+
+# --- Guard: 0 is the BEST distance, so only connected may hold it. ----------
+# Deleting bgp { admin-distance } removed leaves that carried range "1..255".
+# The surviving rib leaves were left bare uint8 and accepted ebgp 0, which beats
+# a directly connected route. The range is restored and this case pins it.
+stdin=dist-zero:terminator=EOF_ZERO
+rib {
+	distance {
+		ebgp 0;
+	}
+}
+EOF_ZERO
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=dist-zero:exit=1
+expect=exit:code=1
