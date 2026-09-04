@@ -829,6 +829,15 @@ func checkESNBothOffered(ctx context.Context, lab *scenarioLab) error {
 	return lab.verifyTunnelTraffic(ctx, "no traffic after ze selected non-extended sequence numbers")
 }
 
+// espFormChangeDirections is the claim checkESPFormChange can make, and Ze's
+// inbound KERNEL SA is deliberately absent from it.
+//
+// The scenario exists on the two peers disagreeing about ESP form, so Ze's kernel
+// refuses the inbound state (the XfrmInStateMismatch rise this checker asserts)
+// and Ze receives that ESP in userspace instead. Demanding the fourth direction
+// here would red a scenario that is behaving exactly as designed.
+var espFormChangeDirections = []espDirection{zeEncrypts, swanDecrypts, swanEncrypts}
+
 func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
 	if err := establish(ctx, lab); err != nil {
 		return err
@@ -862,22 +871,13 @@ func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
 	if err != nil {
 		return err
 	}
-	zeBefore, err := lab.xfrmCounters(ctx, zePeer)
+	before, err := lab.espCounters(ctx, espFormChangeDirections)
 	if err != nil {
 		return err
 	}
-	swanBefore, err := lab.xfrmCounters(ctx, swanPeer)
-	if err != nil {
-		return err
-	}
-	for _, direction := range []struct{ peer, target string }{{zePeer, swanIP}, {swanPeer, zeIP}} {
-		output := lab.ping(ctx, direction.peer, direction.target, 3)
-		loss := regexp.MustCompile(`(\d+)% packet loss`).FindStringSubmatch(output)
-		if len(loss) != 2 {
-			return fmt.Errorf("%s to %s did not carry lossless ESP: %s", direction.peer, direction.target, output)
-		}
-		if loss[1] != "0" {
-			return fmt.Errorf("%s to %s did not carry lossless ESP: %s", direction.peer, direction.target, output)
+	for _, probe := range []struct{ peer, target string }{{zePeer, swanIP}, {swanPeer, zeIP}} {
+		if err := lab.requireLosslessPing(ctx, probe.peer, probe.target, 3); err != nil {
+			return err
 		}
 	}
 	mismatchAfter, err := xfrmStat(ctx, lab, zePeer, "XfrmInStateMismatch")
@@ -887,19 +887,14 @@ func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
 	if mismatchAfter <= mismatchBefore {
 		return fmt.Errorf("XfrmInStateMismatch did not rise; userspace receive path was not exercised")
 	}
-	zeAfter, err := lab.xfrmCounters(ctx, zePeer)
+	after, err := lab.espCounters(ctx, espFormChangeDirections)
 	if err != nil {
 		return err
 	}
-	if err := assertESPAdvanced(zeBefore, zeAfter, "Ze accepted no ESP across the form disagreement"); err != nil {
-		return err
-	}
-	swanAfter, err := lab.xfrmCounters(ctx, swanPeer)
-	if err != nil {
-		return err
-	}
-	if err := assertESPAdvanced(swanBefore, swanAfter, "strongSwan accepted no ESP from Ze"); err != nil {
-		return err
+	for _, want := range espFormChangeDirections {
+		if err := assertESPAdvanced(before[want.peer], after[want.peer], want); err != nil {
+			return fmt.Errorf("ESP did not flow across the form disagreement: %w", err)
+		}
 	}
 	dropsAfter, err := rawESPDrops(ctx, lab)
 	if err != nil {

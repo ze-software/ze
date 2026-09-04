@@ -39,6 +39,14 @@ const (
 	zeCLIPassword  = "testpass"
 	zeCLIPort      = "2222"
 	zePasswordHash = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO" // #nosec G101 -- published bcrypt hash for the fixture-only testpass account, not a secret.
+
+	// swanLabConfig holds the charon settings every strongSwan peer in this lab
+	// needs, and today that is one: bypass-lan off, without which the PASS shunt
+	// for the lab subnet outranks the Child SA policy and no scenario can observe
+	// protected traffic. It sorts BEFORE a scenario's own 99-interop.conf, so a
+	// scenario drop-in still composes with it.
+	swanLabConfig = "strongswan-lab.conf"
+	swanLabTarget = "/etc/strongswan.d/98-lab.conf"
 )
 
 var networkPrefix = netip.MustParsePrefix("172.28.0.0/24")
@@ -200,7 +208,10 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 
 	peers := make([]interoplab.PeerConfig, 0, 3)
 	if swanConfig := filepath.Join(source.Directory, "swanctl.conf"); fileExists(swanConfig) {
-		mounts := []interoplab.Mount{{Source: swanConfig, Target: "/etc/swanctl/conf.d/interop.conf", ReadOnly: true}}
+		mounts := []interoplab.Mount{
+			{Source: swanConfig, Target: "/etc/swanctl/conf.d/interop.conf", ReadOnly: true},
+			{Source: filepath.Join(root, "test", "interop-ipsec", swanLabConfig), Target: swanLabTarget, ReadOnly: true},
+		}
 		if daemonConfig := filepath.Join(source.Directory, "strongswan.conf"); fileExists(daemonConfig) {
 			mounts = append(mounts, interoplab.Mount{Source: daemonConfig, Target: "/etc/strongswan.d/99-interop.conf", ReadOnly: true})
 		}

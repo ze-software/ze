@@ -102,14 +102,6 @@ func checkerFixture(fake *fakeCheckerLab) *scenarioLab {
 	return newScenarioLab(check, 5*time.Millisecond, &scenarioState{})
 }
 
-func xfrmCounter(spi string, bytes int) string {
-	return "src 172.28.0.2 dst 172.28.0.3\n" +
-		"\tproto esp spi " + spi + " reqid 1 mode tunnel\n" +
-		"\tlifetime current:\n" +
-		"\t\t" + strconv.Itoa(bytes) + "(bytes), 1(packets)\n" +
-		"\tlifetime config:\n"
-}
-
 // VALIDATES: A successful PSK handshake is accepted only after strongSwan's IKE
 // and Child SAs, both kernels' XFRM state, and both peers' ESP counters are read.
 // PREVENTS: a control-plane-only fixture passing when the peer cannot decrypt ESP.
@@ -118,9 +110,9 @@ func TestPSKCheckerRequiresSuccessfulHandshakeAndPeerESP(t *testing.T) {
 	fake.answer(swanPeer, []string{"swanctl", "--list-sas"}, "ze: ESTABLISHED\nze-child: INSTALLED\n")
 	fake.answer(zePeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\n")
 	fake.answer(swanPeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\nproto esp spi 0x2\n")
-	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, xfrmCounter("0x1", 10), xfrmCounter("0x1", 20))
-	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, xfrmCounter("0x2", 30), xfrmCounter("0x2", 40))
-	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, "4 packets transmitted\n")
+	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, losslessPing(4))
 
 	if err := checkPSKSiteToSite(context.Background(), checkerFixture(fake)); err != nil {
 		t.Fatalf("successful handshake rejected: %v", err)
@@ -134,9 +126,9 @@ func TestPSKCheckerRejectsPeerThatAcceptedNoESP(t *testing.T) {
 	fake.answer(swanPeer, []string{"swanctl", "--list-sas"}, "ze: ESTABLISHED\nze-child: INSTALLED\n")
 	fake.answer(zePeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\n")
 	fake.answer(swanPeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\nproto esp spi 0x2\n")
-	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, xfrmCounter("0x1", 10), xfrmCounter("0x1", 20))
-	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, xfrmCounter("0x2", 30), xfrmCounter("0x2", 30))
-	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, "4 packets transmitted\n")
+	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(10, 600))
+	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, losslessPing(4))
 
 	err := checkPSKSiteToSite(context.Background(), checkerFixture(fake))
 	if err == nil || !strings.Contains(err.Error(), "strongSwan accepted no ESP") {
@@ -235,15 +227,32 @@ func TestEmptyLogsFailClosed(t *testing.T) {
 	}
 }
 
-// VALIDATES: XFRM traffic counters are associated with their own SPI and only
-// lifetime-current bytes are counted.
-// PREVENTS: rekeyed or configured lifetime bytes being mistaken for traffic.
-func TestParseXFRMCountersBySPI(t *testing.T) {
+// VALIDATES: Two SAs that share one SPI in opposite directions stay distinct,
+// and only lifetime-current bytes are counted.
+// PREVENTS: rekeyed or configured lifetime bytes being mistaken for traffic, and
+// the sender's outbound SA folding into the receiver's inbound SA, which carries
+// the same SPI because the receiver chose it (RFC 4301 Section 4.1).
+func TestParseXFRMCountersKeepsDirection(t *testing.T) {
 	output := "src a dst b\n\tproto esp spi 0x1\n\tlifetime current:\n\t\t12(bytes), 1(packets)\n\tlifetime config:\n\t\t99(bytes)\n" +
-		"src c dst d\n\tproto esp spi 0x2\n\tlifetime current:\n\t\t7(bytes), 1(packets)\n"
-	want := map[string]uint64{"0x1": 12, "0x2": 7}
-	if got := parseXFRMCounters(output); !reflect.DeepEqual(got, want) {
+		"src b dst a\n\tproto esp spi 0x1\n\tlifetime current:\n\t\t7(bytes), 1(packets)\n"
+	want := map[saKey]uint64{
+		{source: "a", target: "b", spi: "0x1"}: 12,
+		{source: "b", target: "a", spi: "0x1"}: 7,
+	}
+	got, err := parseXFRMCounters(output)
+	if err != nil {
+		t.Fatalf("direction-correct dump refused: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("counters = %v, want %v", got, want)
+	}
+}
+
+// VALIDATES: An SA record printed under no src/dst header is refused.
+// PREVENTS: a zero-valued direction that compares equal to a real one.
+func TestParseXFRMCountersRefusesADumpWithNoDirection(t *testing.T) {
+	if _, err := parseXFRMCounters("\tproto esp spi 0x1\n\tlifetime current:\n\t\t12(bytes), 1(packets)\n"); err == nil {
+		t.Fatal("headerless SA record accepted with no direction")
 	}
 }
 
@@ -259,26 +268,33 @@ func TestPEMBase64DERFailsClosed(t *testing.T) {
 	}
 }
 
-// VALIDATES: ESP acceptance compares counters only for SPIs that survive the observation window.
-// PREVENTS: A normal rekey deletion failing traffic proof or disjoint snapshots passing it.
+// VALIDATES: ESP acceptance compares counters only for SPIs that survive the
+// observation window, and reads only the SAs the claimed direction names.
+// PREVENTS: A normal rekey deletion failing traffic proof, disjoint snapshots
+// passing it, and the reverse direction's SA satisfying the claim.
 func TestAssertESPAdvancedUsesSurvivingSPIs(t *testing.T) {
+	out := saKey{source: zeIP, target: swanIP, spi: "0xaaaa"}
+	retired := saKey{source: zeIP, target: swanIP, spi: "0xbbbb"}
+	in := saKey{source: swanIP, target: zeIP, spi: "0xaaaa"}
 	if err := assertESPAdvanced(
-		map[string]uint64{"0xaaaa": 100, "0xbbbb": 900},
-		map[string]uint64{"0xaaaa": 101},
-		"peer accepted no ESP",
+		map[saKey]uint64{out: 100, retired: 900},
+		map[saKey]uint64{out: 101},
+		zeEncrypts,
 	); err != nil {
 		t.Fatalf("surviving SPI advance rejected: %v", err)
 	}
 	for _, test := range []struct {
 		name   string
-		before map[string]uint64
-		after  map[string]uint64
+		before map[saKey]uint64
+		after  map[saKey]uint64
 	}{
-		{"no counter advanced", map[string]uint64{"0x1": 10}, map[string]uint64{"0x1": 10}},
-		{"disjoint SPIs", map[string]uint64{"0x1": 10}, map[string]uint64{"0x2": 11}},
+		{"no counter advanced", map[saKey]uint64{out: 10}, map[saKey]uint64{out: 10}},
+		{"disjoint SPIs", map[saKey]uint64{out: 10}, map[saKey]uint64{retired: 11}},
+		{"only the reverse direction advanced", map[saKey]uint64{out: 10, in: 10}, map[saKey]uint64{out: 10, in: 99}},
+		{"no SA in this direction at all", map[saKey]uint64{in: 10}, map[saKey]uint64{in: 99}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if err := assertESPAdvanced(test.before, test.after, "peer accepted no ESP"); err == nil {
+			if err := assertESPAdvanced(test.before, test.after, zeEncrypts); err == nil {
 				t.Fatal("non-advancing ESP snapshot accepted")
 			}
 		})
@@ -513,4 +529,305 @@ func ipsecHasPeer(peers []interoplab.PeerConfig, name string) bool {
 		}
 	}
 	return false
+}
+
+// xfrmSA renders one simplex SA record in the shape `ip -s xfrm state` prints,
+// with the `src <addr> dst <addr>` header that names the direction it carries.
+//
+// RFC 4301 Section 4.1: "An SA is a simplex "connection" that affords security
+// services to the traffic carried by it." A peer dump therefore holds one record
+// per direction, and both peers name one direction by the SAME SPI, because the
+// receiver chooses it.
+func xfrmSA(source, target, spi string, bytes int) string {
+	return "src " + source + " dst " + target + "\n" +
+		"\tproto esp spi " + spi + " reqid 1 mode tunnel\n" +
+		"\tlifetime current:\n" +
+		"\t\t" + strconv.Itoa(bytes) + "(bytes), 1(packets)\n" +
+		"\tlifetime config:\n" +
+		"\t\t99(bytes)\n"
+}
+
+// espDump renders what one peer prints for a bidirectional Child SA: the SA
+// carrying Ze to strongSwan under spiToSwan, and the SA carrying strongSwan to
+// Ze under spiToZe. Both peers see both records and both SPIs.
+func espDump(toSwanBytes, toZeBytes int) string {
+	return xfrmSA(zeIP, swanIP, "0x1", toSwanBytes) + xfrmSA(swanIP, zeIP, "0x2", toZeBytes)
+}
+
+func losslessPing(count int) string {
+	return strconv.Itoa(count) + " packets transmitted, " + strconv.Itoa(count) +
+		" packets received, 0% packet loss\n"
+}
+
+func lostPing(count int) string {
+	return strconv.Itoa(count) + " packets transmitted, 0 packets received, 100% packet loss\n"
+}
+
+// VALIDATES: The one direction strongSwan never encrypted is refused, which is
+// the state measured in psk-site-to-site on 2026-08-30 with charon bypass-lan
+// loaded: Ze encrypts the echo request, strongSwan decrypts it, and the reply
+// leaves in the clear.
+// PREVENTS: one stimulus satisfying two clauses, because Ze encrypting advances
+// its own outbound SA and strongSwan inbound SA under one SPI.
+func TestVerifyTunnelTrafficRejectsOneWayTraffic(t *testing.T) {
+	fake := scriptedLab()
+	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 500))
+	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 500))
+	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, lostPing(4))
+
+	err := checkerFixture(fake).verifyTunnelTraffic(context.Background(), "traffic did not flow through the XFRM tunnel")
+	if err == nil {
+		t.Fatal("one-way ESP accepted as a bidirectional tunnel proof")
+	}
+}
+
+// VALIDATES: The directed proof is reached through the registered psk-site-to-site
+// checker, not by calling the assertion directly.
+// PREVENTS: a strengthened helper that no scenario consumes.
+func TestPSKCheckerRejectsTrafficThatStrongSwanNeverEncrypted(t *testing.T) {
+	fake := scriptedLab()
+	fake.answer(swanPeer, []string{"swanctl", "--list-sas"}, "ze: ESTABLISHED\nze-child: INSTALLED\n")
+	fake.answer(zePeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\nproto esp spi 0x2\n")
+	fake.answer(swanPeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\nproto esp spi 0x2\n")
+	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 500))
+	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 500))
+	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, losslessPing(4))
+
+	err := checkPSKSiteToSite(context.Background(), checkerFixture(fake))
+	if err == nil || !strings.Contains(err.Error(), "strongSwan encrypted nothing toward Ze") {
+		t.Fatalf("non-discriminating verdict: %v", err)
+	}
+}
+
+// VALIDATES: A ping that lost packets fails the tunnel proof even when every
+// directed SA advanced.
+// PREVENTS: the discarded ping verdict this spec exists to restore.
+func TestVerifyTunnelTrafficRejectsLossyPing(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		output string
+	}{
+		{"total loss", lostPing(4)},
+		{"one percent, the first invalid value above zero", "100 packets transmitted, 99 packets received, 1% packet loss\n"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fake := scriptedLab()
+			fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+			fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+			fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, test.output)
+
+			err := checkerFixture(fake).verifyTunnelTraffic(context.Background(), "traffic did not flow through the XFRM tunnel")
+			if err == nil || !strings.Contains(err.Error(), "packet loss") {
+				t.Fatalf("lossy ping verdict = %v", err)
+			}
+		})
+	}
+}
+
+// VALIDATES: A lossless ping over a clear path never passes on its own.
+// PREVENTS: the bypass-lan signature, where an unprotected ping succeeds and no
+// SA carries anything.
+func TestVerifyTunnelTrafficRejectsPingWithNoESP(t *testing.T) {
+	fake := scriptedLab()
+	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(10, 500))
+	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(10, 500))
+	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, losslessPing(4))
+
+	err := checkerFixture(fake).verifyTunnelTraffic(context.Background(), "traffic did not flow through the XFRM tunnel")
+	if err == nil || !strings.Contains(err.Error(), "did not advance") {
+		t.Fatalf("clear-path ping verdict = %v", err)
+	}
+}
+
+// VALIDATES: Ping output with no packet-loss summary is a failure.
+// PREVENTS: a regexp that found no match being read as success, which would make
+// the check answer for a ping that never reported.
+func TestVerifyTunnelTrafficRejectsUnparseablePing(t *testing.T) {
+	fake := scriptedLab()
+	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, "ping: bad address 172.28.0.3\n")
+
+	err := checkerFixture(fake).verifyTunnelTraffic(context.Background(), "traffic did not flow through the XFRM tunnel")
+	if err == nil || !strings.Contains(err.Error(), "printed no packet-loss summary") {
+		t.Fatalf("unreadable ping verdict = %v", err)
+	}
+}
+
+// VALIDATES: Each of the four simplex SAs names itself when it is the one that
+// stalled, and a retired SA is worded apart from a stalled counter.
+// PREVENTS: a reader who cannot tell "strongSwan sent nothing" from "Ze received
+// nothing", and a rekey reading as a traffic failure.
+func TestVerifyTunnelTrafficNamesTheDirectionThatStalled(t *testing.T) {
+	rekeyed := xfrmSA(zeIP, swanIP, "0x1", 20) + xfrmSA(swanIP, zeIP, "0x3", 700)
+	for _, test := range []struct {
+		name                  string
+		zeBefore, zeAfter     string
+		swanBefore, swanAfter string
+		want                  string
+	}{
+		{"ze outbound stalled", espDump(10, 500), espDump(10, 600), espDump(10, 500), espDump(20, 600),
+			"Ze encrypted nothing toward strongSwan"},
+		{"strongSwan inbound stalled", espDump(10, 500), espDump(20, 600), espDump(10, 500), espDump(10, 600),
+			"strongSwan accepted no ESP from Ze"},
+		{"strongSwan outbound stalled", espDump(10, 500), espDump(20, 600), espDump(10, 500), espDump(20, 500),
+			"strongSwan encrypted nothing toward Ze"},
+		{"ze inbound stalled", espDump(10, 500), espDump(20, 500), espDump(10, 500), espDump(20, 600),
+			"Ze decrypted no ESP from strongSwan"},
+		{"ze inbound SA retired between the snapshots", espDump(10, 500), rekeyed, espDump(10, 500), espDump(20, 600),
+			"no surviving SA"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fake := scriptedLab()
+			fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, test.zeBefore, test.zeAfter)
+			fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, test.swanBefore, test.swanAfter)
+			fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, losslessPing(4))
+
+			err := checkerFixture(fake).verifyTunnelTraffic(context.Background(), "traffic did not flow through the XFRM tunnel")
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("verdict = %v, want it to name %q", err, test.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: A caller that claims no direction is refused.
+// PREVENTS: an empty claim set reading as a proof that everything moved.
+func TestVerifyESPDirectionsRefusesAnEmptyClaim(t *testing.T) {
+	err := checkerFixture(scriptedLab()).verifyESPDirections(context.Background(), "nothing claimed", nil)
+	if err == nil || !strings.Contains(err.Error(), "claimed no ESP direction") {
+		t.Fatalf("empty claim verdict = %v", err)
+	}
+}
+
+// VALIDATES: pingLoss reads the boundary values ping emits and refuses output it
+// cannot read.
+// PREVENTS: an unreadable summary defaulting to zero loss.
+func TestPingLossBoundaries(t *testing.T) {
+	for _, test := range []struct {
+		output string
+		want   int
+	}{
+		{"4 packets transmitted, 4 packets received, 0% packet loss", 0},
+		{"100 packets transmitted, 99 packets received, 1% packet loss", 1},
+		{"4 packets transmitted, 0 packets received, 100% packet loss", 100},
+	} {
+		t.Run(test.output, func(t *testing.T) {
+			got, err := pingLoss(test.output)
+			if err != nil || got != test.want {
+				t.Fatalf("loss = %d, error = %v, want %d", got, err, test.want)
+			}
+		})
+	}
+	if _, err := pingLoss("4 packets transmitted\n"); err == nil {
+		t.Fatal("output with no summary read as zero loss")
+	}
+	if _, err := pingLoss(""); err == nil {
+		t.Fatal("empty ping output read as zero loss")
+	}
+}
+
+// VALIDATES: esp-form-change asserts Ze outbound, strongSwan inbound and
+// strongSwan outbound, and passes while Ze's inbound KERNEL SA stays still.
+// PREVENTS: forcing the fourth direction on a scenario whose whole subject is Ze
+// receiving that ESP in userspace, and letting strongSwan stop encrypting unseen.
+func TestESPFormChangeClaimsThreeDirections(t *testing.T) {
+	if len(espFormChangeDirections) != 3 {
+		t.Fatalf("esp-form-change claims %d directions", len(espFormChangeDirections))
+	}
+	for _, want := range espFormChangeDirections {
+		if want == zeDecrypts {
+			t.Fatal("esp-form-change claims Ze's inbound kernel SA, which that scenario refuses by design")
+		}
+	}
+	checker, ok := scenarioCheckers["esp-form-change"]
+	if !ok {
+		t.Fatal("native integration registry does not execute esp-form-change")
+	}
+	newLab := func(swanBefore, swanAfter string) *scenarioLab {
+		fake := scriptedLab()
+		fake.answer(swanPeer, []string{"swanctl", "--list-sas"}, "ze: ESTABLISHED\nze-child: INSTALLED\n")
+		fake.answer(zePeer, []string{"ip", "xfrm", "state"},
+			"src 172.28.0.3 dst 172.28.0.2\n\tproto esp spi 0x2 encap type espinudp sport 4500 dport 4500\n"+
+				"src 172.28.0.2 dst 172.28.0.3\n\tproto esp spi 0x1\n")
+		fake.answer(zePeer, []string{"cat", "/proc/net/raw"},
+			"  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode ref pointer drops\n"+
+				"   1: 00000000:0032 00000000:0000 07 00000000:00000000 00:00000000 00000000     0        0 12345 2 0000000000000000 0\n")
+		fake.answer(zePeer, []string{"cat", "/proc/net/xfrm_stat"}, "XfrmInStateMismatch 5\n", "XfrmInStateMismatch 9\n")
+		// Ze's inbound SA (src swan dst ze, 0x2) stays at 500 in Ze's own dump,
+		// because the kernel refuses the form and userspace receives instead.
+		fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 500))
+		fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, swanBefore, swanAfter)
+		fake.answer(zePeer, []string{"ping", "-c", "3", "-W", "2", swanIP}, losslessPing(3))
+		fake.answer(swanPeer, []string{"ping", "-c", "3", "-W", "2", zeIP}, losslessPing(3))
+		fake.peerLogs[swanPeer] = interoplab.LogResult{Available: true, Text: "charon started\n"}
+		return checkerFixture(fake)
+	}
+
+	if err := checker(context.Background(), newLab(espDump(10, 500), espDump(20, 600))); err != nil {
+		t.Fatalf("form disagreement rejected while Ze's inbound kernel SA correctly stood still: %v", err)
+	}
+	err := checker(context.Background(), newLab(espDump(10, 500), espDump(20, 500)))
+	if err == nil || !strings.Contains(err.Error(), "strongSwan encrypted nothing toward Ze") {
+		t.Fatalf("verdict with strongSwan sending no ESP = %v", err)
+	}
+}
+
+// VALIDATES: Every prepared scenario that starts a strongSwan peer mounts the
+// lab-wide charon drop-in read-only under /etc/strongswan.d/.
+// PREVENTS: a scenario running with charon's bypass-lan shunt still installed,
+// where an unprotected ping succeeds and no SA carries anything.
+func TestEveryStrongSwanPeerMountsTheSharedLabDropIn(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources, err := interoplab.Discover(
+		filepath.Join(root, "test", "interop-ipsec", "scenarios"),
+		"",
+		checkerAdapters(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	environment := interoplab.Environment{
+		Image:          defaultFRRImage,
+		SessionTimeout: 90 * time.Second,
+		Suffix:         "lab-dropin-test",
+	}
+	network := interoplab.Network{Name: "ze-ipsec-lab-dropin-test", IPv4: networkPrefix}
+	wantSource := filepath.Join(root, "test", "interop-ipsec", "strongswan-lab.conf")
+	if _, err := os.Stat(wantSource); err != nil {
+		t.Fatalf("shared lab drop-in missing: %v", err)
+	}
+	for _, source := range sources {
+		prepared, err := scenarioPlan(root, environment, source, &scenarioState{}).
+			Prepare(t.Context(), interoplab.PrepareContext{Source: source, Network: network})
+		if err != nil {
+			t.Fatalf("prepare %s: %v", source.Name, err)
+		}
+		if prepared.Cleanup != nil {
+			if err := prepared.Cleanup(); err != nil {
+				t.Errorf("cleanup %s: %v", source.Name, err)
+			}
+		}
+		if !ipsecHasPeer(prepared.Peers, swanPeer) {
+			t.Errorf("%s starts no strongSwan peer", source.Name)
+			continue
+		}
+		swan := ipsecPeerByName(t, prepared.Peers, swanPeer)
+		found := false
+		for _, mount := range swan.Mounts {
+			if mount.Source != wantSource {
+				continue
+			}
+			found = true
+			if mount.Target != "/etc/strongswan.d/98-lab.conf" || !mount.ReadOnly {
+				t.Errorf("%s lab drop-in mounted as %#v", source.Name, mount)
+			}
+		}
+		if !found {
+			t.Errorf("%s strongSwan peer does not mount the shared lab drop-in: %#v", source.Name, swan.Mounts)
+		}
+	}
 }

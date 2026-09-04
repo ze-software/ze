@@ -72,8 +72,6 @@ func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 		"eap-nak-method-negotiation":     {"strongswan.conf"},
 		"initiator-rekey-answer-narrows": {"ze-env"},
 		"ipsec-bgp-redistribute-frr":     {"frr.conf"},
-		"natt-transport-inner-checksum":  {"strongswan.conf"},
-		"natt-tunnel-inner-checksum":     {"strongswan.conf"},
 		"peer-reload-narrowing":          {"ze-narrowed.conf"},
 		"responder-eap-mschapv2":         {"strongswan.conf"},
 		"responder-eap-tls13":            {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
@@ -128,5 +126,38 @@ func TestIPsecTreeIsGoOnly(t *testing.T) {
 	}
 	if ipsec.Action != "integration/interop-ipsec" {
 		t.Fatalf("native action = %q", ipsec.Action)
+	}
+}
+
+// VALIDATES: charon's bypass-lan plugin is disabled in exactly one place, the
+// lab-wide drop-in every strongSwan peer mounts.
+// PREVENTS: a scenario reintroducing a private copy, which is two files setting
+// one value with nothing to arbitrate a disagreement (`ai/rules/no-layering.md`).
+func TestNoScenarioCarriesItsOwnBypassLanOverride(t *testing.T) {
+	shared, err := os.ReadFile("strongswan-lab.conf")
+	if err != nil {
+		t.Fatalf("shared lab drop-in unreadable: %v", err)
+	}
+	if !strings.Contains(string(shared), "bypass-lan") {
+		t.Fatal("strongswan-lab.conf no longer settles bypass-lan for the lab")
+	}
+	err = filepath.WalkDir("scenarios", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		body, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if strings.Contains(string(body), "bypass-lan") {
+			t.Errorf("%s carries its own bypass-lan setting; the lab settles it in strongswan-lab.conf", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -45,6 +45,8 @@ var (
 	espSPIPattern  = regexp.MustCompile(`proto esp spi (0x[0-9a-fA-F]+)`)
 	xfrmBytes      = regexp.MustCompile(`(\d+)\(bytes\)`)
 	srcDstPattern  = regexp.MustCompile(`^src (\S+) dst (\S+)`)
+
+	pingLossPattern = regexp.MustCompile(`(\d+)% packet loss`)
 )
 
 type scenarioLab struct {
@@ -204,25 +206,58 @@ func (l *scenarioLab) xfrmPolicy(ctx context.Context, peer string) (string, erro
 	return output, nil
 }
 
-func (l *scenarioLab) xfrmCounters(ctx context.Context, peer string) (map[string]uint64, error) {
+// saKey identifies ONE security association by the endpoints and SPI its own
+// `ip -s xfrm state` record prints.
+//
+// RFC 4301 Section 4.1: "An SA is a simplex \"connection\" that affords security
+// services to the traffic carried by it." A protected bidirectional flow is two
+// SAs, and the RECEIVER chooses the SPI, so the sender's outbound SA and the
+// receiver's inbound SA carry the SAME SPI value. Direction can therefore come
+// only from source and destination, and a map keyed by SPI alone folds the two
+// peers' views of one direction into one entry.
+type saKey struct {
+	source string
+	target string
+	spi    string
+}
+
+func (l *scenarioLab) xfrmCounters(ctx context.Context, peer string) (map[saKey]uint64, error) {
 	output, err := l.exec(ctx, peer, "ip", "-s", "xfrm", "state")
 	if err != nil {
 		return nil, err
 	}
-	return parseXFRMCounters(output), nil
+	counters, err := parseXFRMCounters(output)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", peer, err)
+	}
+	return counters, nil
 }
 
-func parseXFRMCounters(output string) map[string]uint64 {
-	counters := make(map[string]uint64)
-	spi := ""
+// parseXFRMCounters reads the lifetime-current byte count of every SA in one
+// peer's dump, keyed by the direction that SA carries.
+//
+// An SPI printed under no `src ... dst ...` header has no direction, and a
+// zero-valued direction would compare equal to a real one, so the dump is
+// refused rather than counted (`ai/rules/principles.md`).
+func parseXFRMCounters(output string) (map[saKey]uint64, error) {
+	counters := make(map[saKey]uint64)
+	key := saKey{}
 	current := false
 	for line := range strings.SplitSeq(output, "\n") {
 		if line != "" && line[0] != ' ' && line[0] != '\t' {
-			spi = ""
+			key = saKey{}
 			current = false
+			if match := srcDstPattern.FindStringSubmatch(line); match != nil {
+				key.source = match[1]
+				key.target = match[2]
+			}
+			continue
 		}
 		if match := spiPattern.FindStringSubmatch(line); match != nil {
-			spi = match[1]
+			if key.source == "" || key.target == "" {
+				return nil, fmt.Errorf("ip -s xfrm state printed spi %s under no src/dst header, so its direction is unknown: %s", match[1], output)
+			}
+			key.spi = match[1]
 			current = false
 			continue
 		}
@@ -235,33 +270,101 @@ func parseXFRMCounters(output string) map[string]uint64 {
 			current = false
 			continue
 		}
-		if !current || spi == "" {
+		if !current || key.spi == "" {
 			continue
 		}
 		for _, match := range xfrmBytes.FindAllStringSubmatch(line, -1) {
 			value, err := strconv.ParseUint(match[1], 10, 64)
 			if err == nil {
-				counters[spi] += value
+				counters[key] += value
 			}
 		}
 	}
-	return counters
+	return counters, nil
 }
 
-func assertESPAdvanced(before, after map[string]uint64, who string) error {
-	common := make([]string, 0)
-	for spi, earlier := range before {
-		later, ok := after[spi]
+// espDirection names ONE simplex SA: the peer whose kernel reports it, and the
+// endpoints whose traffic it protects. summary is what a reader is told when
+// that SA moved no bytes.
+type espDirection struct {
+	peer    string
+	source  string
+	target  string
+	summary string
+}
+
+var (
+	zeEncrypts   = espDirection{peer: zePeer, source: zeIP, target: swanIP, summary: "Ze encrypted nothing toward strongSwan"}
+	swanDecrypts = espDirection{peer: swanPeer, source: zeIP, target: swanIP, summary: "strongSwan accepted no ESP from Ze"}
+	swanEncrypts = espDirection{peer: swanPeer, source: swanIP, target: zeIP, summary: "strongSwan encrypted nothing toward Ze"}
+	zeDecrypts   = espDirection{peer: zePeer, source: swanIP, target: zeIP, summary: "Ze decrypted no ESP from strongSwan"}
+)
+
+// espBothDirections follows one round trip through the tunnel: Ze encrypts,
+// strongSwan decrypts, strongSwan encrypts, Ze decrypts. No single packet
+// satisfies all four, which is why they are claimed separately.
+var espBothDirections = []espDirection{zeEncrypts, swanDecrypts, swanEncrypts, zeDecrypts}
+
+// directionCounters selects the SAs one peer reports for one direction.
+func directionCounters(counters map[saKey]uint64, want espDirection) map[string]uint64 {
+	selected := make(map[string]uint64)
+	for key, bytes := range counters {
+		if key.source == want.source && key.target == want.target {
+			selected[key.spi] = bytes
+		}
+	}
+	return selected
+}
+
+func sortedCounters(counters map[string]uint64) string {
+	spis := make([]string, 0, len(counters))
+	for spi := range counters {
+		spis = append(spis, spi)
+	}
+	sort.Strings(spis)
+	var out textbuf.Buffer
+	for index, spi := range spis {
+		if index > 0 {
+			out.Byte(' ')
+		}
+		out.Str(spi).Byte('=').Int(int64(counters[spi]))
+	}
+	return out.String()
+}
+
+// assertESPAdvanced reports whether the ONE SA the direction names moved bytes
+// between two snapshots of its peer's dump.
+//
+// Only SPIs present in BOTH snapshots are compared, so a rekey that retires an
+// SA between the two reads does not fail the check. The three failures are told
+// apart on purpose: a direction with no SA at all, a direction whose every SA
+// was retired, and a direction whose surviving SA did not move.
+func assertESPAdvanced(before, after map[saKey]uint64, want espDirection) error {
+	beforeBytes := directionCounters(before, want)
+	if len(beforeBytes) == 0 {
+		return fmt.Errorf("%s: %s reports no SA for src %s dst %s", want.summary, want.peer, want.source, want.target)
+	}
+	afterBytes := directionCounters(after, want)
+	common := make([]string, 0, len(beforeBytes))
+	for spi, previous := range beforeBytes {
+		latest, ok := afterBytes[spi]
 		if !ok {
 			continue
 		}
 		common = append(common, spi)
-		if later > earlier {
+		if latest > previous {
 			return nil
 		}
 	}
+	if len(common) == 0 {
+		return fmt.Errorf("%s: no surviving SA for src %s dst %s at %s (before=%s after=%s)",
+			want.summary, want.source, want.target, want.peer,
+			sortedCounters(beforeBytes), sortedCounters(afterBytes))
+	}
 	sort.Strings(common)
-	return fmt.Errorf("%s (before=%v after=%v, common SPIs %v)", who, before, after, common)
+	return fmt.Errorf("%s: src %s dst %s at %s did not advance (before=%s after=%s, common SPIs %v)",
+		want.summary, want.source, want.target, want.peer,
+		sortedCounters(beforeBytes), sortedCounters(afterBytes), common)
 }
 
 func (l *scenarioLab) checkXFRMCount(ctx context.Context, peer string, expected int) error {
@@ -280,28 +383,94 @@ func (l *scenarioLab) ping(ctx context.Context, peer, target string, count int) 
 	return l.execQuiet(ctx, peer, "ping", "-c", strconv.Itoa(count), "-W", "2", target)
 }
 
+// pingLoss reads the loss percentage out of a ping summary.
+//
+// An absent summary is a FAILURE and never a pass. A run that printed no summary
+// measured nothing, so reading the missing match as success would make the check
+// answer for a ping that never reported (`ai/rules/principles.md`).
+func pingLoss(output string) (int, error) {
+	match := pingLossPattern.FindStringSubmatch(output)
+	if match == nil {
+		return 0, fmt.Errorf("printed no packet-loss summary: %s", output)
+	}
+	loss, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0, fmt.Errorf("printed an unreadable packet-loss percentage %q: %s", match[1], output)
+	}
+	return loss, nil
+}
+
+// requireLosslessPing drives count echo requests from peer to target and refuses
+// any loss, and any output whose summary it cannot read.
+func (l *scenarioLab) requireLosslessPing(ctx context.Context, peer, target string, count int) error {
+	output := l.ping(ctx, peer, target, count)
+	loss, err := pingLoss(output)
+	if err != nil {
+		return fmt.Errorf("ping from %s to %s %w", peer, target, err)
+	}
+	if loss != 0 {
+		return fmt.Errorf("ping from %s to %s lost %d%% of %d packets: %s", peer, target, loss, count, output)
+	}
+	return nil
+}
+
+// espCounters reads each claimed peer's SA byte counters once, in the order the
+// directions name them.
+func (l *scenarioLab) espCounters(ctx context.Context, wanted []espDirection) (map[string]map[saKey]uint64, error) {
+	counters := make(map[string]map[saKey]uint64, len(wanted))
+	for _, want := range wanted {
+		if _, seen := counters[want.peer]; seen {
+			continue
+		}
+		peerCounters, err := l.xfrmCounters(ctx, want.peer)
+		if err != nil {
+			return nil, err
+		}
+		counters[want.peer] = peerCounters
+	}
+	return counters, nil
+}
+
+// verifyTunnelTraffic proves that ESP moved in BOTH directions and that the ping
+// which stimulated it completed without loss.
 func (l *scenarioLab) verifyTunnelTraffic(ctx context.Context, message string) error {
-	zeBefore, err := l.xfrmCounters(ctx, zePeer)
+	return l.verifyESPDirections(ctx, message, espBothDirections)
+}
+
+// verifyESPDirections proves that ESP bytes moved on every simplex SA the caller
+// claims, and that a ping between the two peers completed without loss.
+//
+// The ping verdict is necessary and it is NOT sufficient. charon's bypass-lan
+// plugin installs a PASS shunt for every locally attached subnet, and a shunt is
+// exactly what lets an UNPROTECTED ping succeed, so reachability says nothing
+// about protection. The directed counters say what was protected, and the ping
+// ties those bytes to a completed round trip.
+//
+// The claimed set is a parameter because checkESPFormChange cannot claim Ze's
+// inbound KERNEL SA. That scenario exists on the two peers disagreeing about ESP
+// form, so Ze receives that ESP in userspace and the kernel state correctly stays
+// still.
+func (l *scenarioLab) verifyESPDirections(ctx context.Context, message string, wanted []espDirection) error {
+	if len(wanted) == 0 {
+		return fmt.Errorf("%s: the checker claimed no ESP direction, so nothing was observed", message)
+	}
+	before, err := l.espCounters(ctx, wanted)
 	if err != nil {
 		return err
 	}
-	swanBefore, err := l.xfrmCounters(ctx, swanPeer)
+	if err := l.requireLosslessPing(ctx, zePeer, swanIP, 4); err != nil {
+		return fmt.Errorf("%s: %w", message, err)
+	}
+	after, err := l.espCounters(ctx, wanted)
 	if err != nil {
 		return err
 	}
-	l.ping(ctx, zePeer, swanIP, 4)
-	zeAfter, err := l.xfrmCounters(ctx, zePeer)
-	if err != nil {
-		return err
+	for _, want := range wanted {
+		if err := assertESPAdvanced(before[want.peer], after[want.peer], want); err != nil {
+			return fmt.Errorf("%s: %w", message, err)
+		}
 	}
-	if err := assertESPAdvanced(zeBefore, zeAfter, message); err != nil {
-		return err
-	}
-	swanAfter, err := l.xfrmCounters(ctx, swanPeer)
-	if err != nil {
-		return err
-	}
-	return assertESPAdvanced(swanBefore, swanAfter, "strongSwan accepted no ESP from Ze")
+	return nil
 }
 
 func (l *scenarioLab) espSPIs(ctx context.Context, peer string) (map[string]struct{}, error) {

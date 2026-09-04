@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 7/7 |
 | Deferral shard | `-` (create `plan/deferrals/fixit-tunnel-traffic-proof-is-one-directional.md` on the first deferral) |
 | Handoff | - |
-| Updated | 2026-08-30 |
+| Updated | 2026-09-03 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -152,7 +152,7 @@ The spec has four goals.
       for its outbound SA. `TestPSKCheckerRejectsPeerThatAcceptedNoESP` proves the
       checker discriminates against a stalled peer counter, which the real lab
       cannot produce.
-- [ ] `test/interop-ipsec/parity_test.go` - pins the exact 24-scenario population
+- [ ] `test/interop-ipsec/parity_test.go` - pins the exact 25-scenario population
       and, per scenario, the extra input files that must exist. `natt-transport-
       inner-checksum`, `natt-tunnel-inner-checksum`, `eap-tls13`,
       `responder-eap-mschapv2` and `responder-eap-tls13` name `strongswan.conf`.
@@ -224,28 +224,28 @@ The spec has four goals.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | Every scenario reaches the proof through its registered checker; `TestPSKCheckerRejectsTrafficThatStrongSwanNeverEncrypted` and `TestESPFormChangeClaimsThreeDirections` drive `scenarioCheckers`, not the helper |
+| No unintended coupling (components stay isolated) | Yes | The change is confined to `internal/le/interoplab/ipsec/` and the suite's fixtures. No product package is touched |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `checkESPFormChange`'s inline `% packet loss` regexp is DELETED and both call sites now share `requireLosslessPing`; `srcDstPattern` was already in the file and is now read rather than ignored |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | Test infrastructure, off every wire path. `sortedCounters` uses `textbuf.Buffer` rather than `fmt.Sprintf` |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `scenarioCheckers` is unchanged and no scenario is named in a switch. The claimed direction set is a parameter, so a caller states its own claim rather than the helper branching on the scenario |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `ip -s xfrm state` prints a `src <addr> dst <addr>` header for every SA on both images | `parseXFRMCounters` already treats that unindented line as a record boundary; `espPolicyPairs` parses the same shape from `ip xfrm policy` | The direction key cannot be built and the mechanism fails | Run A prints the raw dump for both peers into the run log before any parsing change is trusted | unvalidated |
-| A-2 | Ze's outbound SA is `src 172.28.0.2 dst 172.28.0.3` and strongSwan's outbound SA is `src 172.28.0.3 dst 172.28.0.2`, in tunnel mode as well as transport | `zeIP` and `swanIP` constants, and the tunnel endpoints are the container addresses in every scenario `ze.conf` | Direction keys never match and every scenario reds for the wrong reason | The same Run A dump, read per peer | unvalidated |
-| A-3 | Disabling `bypass-lan` lab-wide leaves container control traffic working, because every query and every readiness probe runs over `docker exec` rather than the lab network | `prepareScenario` readiness probe and `(*scenarioLab).exec` both use the lab's exec path | A scenario hangs at readiness or a query times out | Run B over all 24 scenarios | unvalidated |
-| A-4 | No scenario config sets `charon.plugins.bypass-lan` for any purpose other than disabling it | The three files read in Current Behavior carry only that setting | A shared drop-in and a scenario drop-in disagree and the winner is undefined | `TestNoScenarioCarriesItsOwnBypassLanOverride` | unvalidated |
-| A-5 | `checkESPFormChange` cannot claim Ze's INBOUND kernel SA, because the scenario exists on the forms disagreeing and Ze receives that ESP in userspace | The checker asserts `XfrmInStateMismatch` rose, which is the kernel refusing the inbound state | Forcing four directions there reds a scenario that is behaving correctly | The scenario's own Run B verdict, and `TestESPFormChangeClaimsThreeDirections` | unvalidated |
-| A-6 | The nine scenarios' reds in Run B are lab artifacts of the shunt, not Ze defects | The journal row measures the shunt as the cause in `psk-site-to-site` only | A real Ze inbound-path defect is in scope and this spec grows | Run B, per scenario, with the routing table of AC-9 | unvalidated |
+| A-1 | `ip -s xfrm state` prints a `src <addr> dst <addr>` header for every SA on both images | `parseXFRMCounters` already treats that unindented line as a record boundary; `espPolicyPairs` parses the same shape from `ip xfrm policy` | The direction key cannot be built and the mechanism fails | Run A prints the raw dump for both peers into the run log before any parsing change is trusted | confirmed. Raw `ip -s xfrm state` captured from both live containers, 2026-09-04, scenario `psk-site-to-site`: every SA record on both images opens with `src <addr> dst <addr>` |
+| A-2 | Ze's outbound SA is `src 172.28.0.2 dst 172.28.0.3` and strongSwan's outbound SA is `src 172.28.0.3 dst 172.28.0.2`, in tunnel mode as well as transport | `zeIP` and `swanIP` constants, and the tunnel endpoints are the container addresses in every scenario `ze.conf` | Direction keys never match and every scenario reds for the wrong reason | The same Run A dump, read per peer | confirmed. Same dump. Ze's outbound is `src 172.28.0.2 dst 172.28.0.3` and strongSwan's outbound is `src 172.28.0.3 dst 172.28.0.2`, both `mode tunnel`, and BOTH peers hold BOTH records. The two peers name one direction by the same SPI, `0xc12fa7e3` for ze to strongSwan and `0xf008af63` for strongSwan to ze, which is the conflation the old aggregate map made |
+| A-3 | Disabling `bypass-lan` lab-wide leaves container control traffic working, because every query and every readiness probe runs over `docker exec` rather than the lab network | `prepareScenario` readiness probe and `(*scenarioLab).exec` both use the lab's exec path | A scenario hangs at readiness or a query times out | Run B over all 24 scenarios | confirmed. Run B: 24 of 25 green, no readiness timeout anywhere the shunt removal could reach |
+| A-4 | No scenario config sets `charon.plugins.bypass-lan` for any purpose other than disabling it | The three files read in Current Behavior carry only that setting | A shared drop-in and a scenario drop-in disagree and the winner is undefined | `TestNoScenarioCarriesItsOwnBypassLanOverride` | confirmed. `grep -rn bypass-lan test/interop-ipsec/scenarios/` returns nothing, and `TestNoScenarioCarriesItsOwnBypassLanOverride` walks every scenario file |
+| A-5 | `checkESPFormChange` cannot claim Ze's INBOUND kernel SA, because the scenario exists on the forms disagreeing and Ze receives that ESP in userspace | The checker asserts `XfrmInStateMismatch` rose, which is the kernel refusing the inbound state | Forcing four directions there reds a scenario that is behaving correctly | The scenario's own Run B verdict, and `TestESPFormChangeClaimsThreeDirections` | confirmed. `esp-form-change` is GREEN in Run B with three claims, and `TestESPFormChangeClaimsThreeDirections` drives both polarities of the registered checker |
+| A-6 | The nine scenarios' reds in Run B are lab artifacts of the shunt, not Ze defects | The journal row measures the shunt as the cause in `psk-site-to-site` only | A real Ze inbound-path defect is in scope and this spec grows | Run B, per scenario, with the routing table of AC-9 | confirmed. All nine were the shunt: every one is GREEN in Run B with four directed claims, so no Ze inbound-decapsulation defect was hiding behind the one-way proof |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | With `bypass-lan` off and a 0.0.0.0/0 Child SA selector, strongSwan's unrelated traffic is matched by the tunnel policy and the container misbehaves | A scenario that passed in Run A times out at readiness in Run B | charon's `bypass-lan` accepts `interfaces_ignore`, so the shunt can be suppressed on the lab interface alone rather than removing the plugin. The per-scenario override is NOT restored |
+| R-1 | With `bypass-lan` off and a 0.0.0.0/0 Child SA selector, strongSwan's unrelated traffic is matched by the tunnel policy and the container misbehaves | A scenario that passed in Run A times out at readiness in Run B | DID NOT OCCUR. No scenario green in Run A is red in Run B. The fallback (`interfaces_ignore`) was not needed and is not used |
 | R-2 | A rekey lands between the two snapshots and one direction has no surviving SA, so a correct scenario reds | `child-rekey` or `responder-raises-child-rekey` reds with an empty direction | The message distinguishes "no surviving SA in this direction" from "the SA did not advance", and the checker waits for the rekey to settle before it measures |
 | R-3 | The unit fixtures are corrected to satisfy the new assertion rather than to describe what the containers emit, and the tests become self-agreeing again | A fixture whose src and dst were chosen to make a test pass | Every fixture header is taken from the Run A raw dump of the real containers, and the dump is quoted in the spec at closure |
 | R-4 | Run A is measured against an image another session rebuilt under the shared tag | The image ID differs between the Run A and Run B logs with no build in between | Let the harness build, quote the `docker build -q` image ID beside each run, per `docs/architecture/testing/interop.md` |
@@ -281,7 +281,7 @@ The spec has four goals.
 | AC-6 | A direction whose SPI is present before and absent after, the rest advancing | The error names that direction as having no surviving SA, with wording distinct from a stalled counter |
 | AC-7 | `checkESPFormChange` running against a form disagreement | It asserts Ze outbound, strongSwan inbound and strongSwan outbound, and does NOT require Ze's inbound kernel SA, because that ESP is received in userspace |
 | AC-8 | Every prepared scenario plan that carries a strongSwan peer | Its mount list carries the shared lab drop-in, read-only, at a path under `/etc/strongswan.d/` |
-| AC-9 | The full 24-scenario suite run twice: Run A with the strengthened assertion and the shunt still installed, Run B with the shunt removed lab-wide | Both verdict sets are recorded per scenario in the Goal Validation section, each naming the image ID the harness built. Every scenario red in Run A and green in Run B is reported as having been passing on one direction only |
+| AC-9 | The full 25-scenario suite run twice: Run A with the strengthened assertion and the shunt still installed, Run B with the shunt removed lab-wide | Both verdict sets are recorded per scenario in the Goal Validation section, each naming the image ID the harness built. Every scenario red in Run A and green in Run B is reported as having been passing on one direction only |
 | AC-10 | Any scenario still red in Run B | It is rooted to a producer and fixed in this spec: a Ze defect at the Ze source, a lab artifact in the lab fixture. No scenario is weakened, skipped or deleted |
 | AC-11 | A grep for `bypass-lan` over `test/interop-ipsec/scenarios/` after the change | Returns nothing. The setting exists once, in the shared file, and the three per-scenario copies are gone |
 | AC-12 | A reader consulting `docs/architecture/testing/interop.md` about vacuity | Finds a fifth trap row describing an assertion whose clauses are satisfied by one stimulus, and a note naming the shared strongSwan drop-in and why `bypass-lan` is off |
@@ -293,34 +293,49 @@ The spec has four goals.
      still installed. Run B is the same assertion with the shunt gone lab-wide.
      Routing is owed for every Run B red, and for nothing else. -->
 
-Run A image ID: pending. Run B image ID: pending.
+Run A, 2026-09-04, `ZE_IPSEC_INTEROP_SUFFIX=runa2`, 12 passed / 13 failed.
+Images the harness built: ze `sha256:174baf47e64fa9b3c85b12a08aeb7f703b43b0d8a4bd1a221d8e28cdce93b8a2`,
+strongSwan `sha256:f63e2d3bf38243db87e3daa39fe5d2bf07127950ecfd1cefd8d5dd91c9727796`.
+
+Run B, 2026-09-04, `ZE_IPSEC_INTEROP_SUFFIX=runb`, 24 passed / 1 failed.
+Images the harness built: ze `sha256:5fa652c3c98ff266a49aff3f27a31c5bca3a26a62fcc75f82ef60a2fe27c327c`,
+strongSwan `sha256:f63e2d3bf38243db87e3daa39fe5d2bf07127950ecfd1cefd8d5dd91c9727796`.
+
+A THIRD run preceded both and is void, recorded here because its verdict was
+plausible and wrong. It answered 21 passed / 4 failed with `psk-site-to-site`
+GREEN under the shunt, and the tell was in the text rather than in any warning:
+`esp-form-change` failed with `ze to 172.28.0.3 did not carry lossless ESP`, the
+wording the working tree had already replaced. `bin/le` was stale, so the run
+measured the previous assertion. `./le --update` was run before Run A. Journal:
+`plan/journal/stale-artifact-reused.md`, 2026-09-04.
 
 | Scenario | Calls `verifyTunnelTraffic` | Run A | Run B | Routing |
 |----------|------------------------------|-------|-------|---------|
-| `child-rekey` | Yes | pending | pending | pending |
-| `child-rekey-narrowing` | No | pending | pending | pending |
-| `clear-reestablish` | No | pending | pending | pending |
-| `cookie-challenge` | Yes | pending | pending | pending |
-| `delete-while-window-held` | No | pending | pending | pending |
-| `eap-mschapv2` | Yes | pending | pending | pending |
-| `eap-tls` | No | pending | pending | pending |
-| `eap-tls13` | Yes | pending | pending | pending |
-| `esn-both-offered` | Yes | pending | pending | pending |
-| `esn-extended-only-refused` | No | pending | pending | pending |
-| `esp-form-change` | No, uses the directed assertion with three claims | pending | pending | pending |
-| `initiator-rekey-answer-narrows` | No | pending | pending | pending |
-| `invalid-ke-retry` | Yes | pending | pending | pending |
-| `ipsec-bgp-redistribute-frr` | No | pending | pending | pending |
-| `natt-transport-inner-checksum` | No | pending | pending | pending |
-| `natt-tunnel-inner-checksum` | No | pending | pending | pending |
-| `peer-reload-narrowing` | No | pending | pending | pending |
-| `psk-site-to-site` | Yes | pending | pending | pending |
-| `responder-accepts-reinit` | No | pending | pending | pending |
-| `responder-eap-mschapv2` | No | pending | pending | pending |
-| `responder-eap-tls13` | No | pending | pending | pending |
-| `responder-ike-rekey` | No | pending | pending | pending |
-| `responder-psk` | Yes | pending | pending | pending |
-| `responder-raises-child-rekey` | Yes | pending | pending | pending |
+| `child-rekey` | Yes | RED | GREEN | Was passing on ONE direction only |
+| `child-rekey-narrowing` | No | GREEN | GREEN | Unaffected |
+| `clear-reestablish` | No | GREEN | GREEN | Unaffected |
+| `cookie-challenge` | Yes | RED | GREEN | Was passing on ONE direction only |
+| `delete-while-window-held` | No | GREEN | GREEN | Unaffected |
+| `eap-mschapv2` | Yes | RED | GREEN | Was passing on ONE direction only |
+| `eap-nak-method-negotiation` | No | GREEN | GREEN | Unaffected |
+| `eap-tls` | No | GREEN | GREEN | Unaffected |
+| `eap-tls13` | Yes | RED | GREEN | Was passing on ONE direction only |
+| `esn-both-offered` | Yes | RED | GREEN | Was passing on ONE direction only |
+| `esn-extended-only-refused` | No | GREEN | GREEN | Unaffected |
+| `esp-form-change` | No, uses the directed assertion with three claims | RED | GREEN | R-1 shunt effect, not a one-way pass: Run A took away the private disable this scenario used to carry, and the lab-wide file gives it back. It already pinged both ways before this spec |
+| `initiator-rekey-answer-narrows` | No | GREEN | GREEN | Unaffected |
+| `invalid-ke-retry` | Yes | RED | GREEN | Was passing on ONE direction only |
+| `ipsec-bgp-redistribute-frr` | No | RED | RED | PRE-EXISTING, not caused by this change. Root cause already named at the producer: the daemon answers `send refused: no peer this selector names attaches this process with the required send permission` because the scenario's `ze.conf` BGP peer carries no `attach process` block, so the IPsec-derived prefix never reaches the wire (`plan/journal/test-against-broken-path.md`, 2026-08-23; `plan/journal/unwired-feature.md`, 2026-08-22). Confirmed at HEAD by the void run, which executed the OLD `prepareScenario` and so mounted nothing for this scenario, and failed identically |
+| `natt-transport-inner-checksum` | No | RED | GREEN | R-1 shunt effect: Run A took away the private disable, the lab-wide file gives it back |
+| `natt-tunnel-inner-checksum` | No | RED | GREEN | R-1 shunt effect: Run A took away the private disable, the lab-wide file gives it back |
+| `peer-reload-narrowing` | No | GREEN | GREEN | Unaffected |
+| `psk-site-to-site` | Yes | RED | GREEN | Was passing on ONE direction only. This is the scenario the 2026-08-30 measurement was taken in |
+| `responder-accepts-reinit` | No | GREEN | GREEN | Unaffected |
+| `responder-eap-mschapv2` | No | GREEN | GREEN | Unaffected |
+| `responder-eap-tls13` | No | GREEN | GREEN | Unaffected |
+| `responder-ike-rekey` | No | GREEN | GREEN | Unaffected |
+| `responder-psk` | Yes | RED | GREEN | Was passing on ONE direction only |
+| `responder-raises-child-rekey` | Yes | RED | GREEN | Was passing on ONE direction only |
 
 A scenario red in Run A and green in Run B was passing on one direction only.
 A scenario red in Run B is a hidden gap, and its Routing cell names the producer
@@ -364,7 +379,7 @@ does not call the assertion is a `bypass-lan` side effect and belongs to R-1.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `TestNativeScenarioRegistryIsExact` | `test/interop-ipsec/parity_test.go` | The 24-scenario population and lexical order survive the fixture deletions | |
+| `TestNativeScenarioRegistryIsExact` | `test/interop-ipsec/parity_test.go` | The 25-scenario population and lexical order survive the fixture deletions | |
 | `TestScenarioPlansPreserveTopologyAndInputs` | `internal/le/interoplab/ipsec/ipsec_test.go` | The prepared plans still carry every mount each scenario needs, plus the new shared one | |
 
 ### Interop Tests (Scope: protocol)
@@ -473,7 +488,7 @@ plain `rm` and name the paths to `./le commit create` (`ai/rules/git-safety.md`)
    - Tests: every remaining unit row of the TDD plan
    - Files: `helpers.go`, `checkers.go`, `ipsec_test.go`
    - Verify: phase 1's tests go green, and each stalled direction names itself
-4. **Phase: Run A, the recorded RED** -- the full 24-scenario suite with the shunt
+4. **Phase: Run A, the recorded RED** -- the full 25-scenario suite with the shunt
    still installed
    - Files: none. A measurement
    - Verify: the red set is recorded per scenario with the harness image ID, and
@@ -543,13 +558,32 @@ plain `rm` and name the paths to `./le commit create` (`ai/rules/git-safety.md`)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| The tunnel proof covers BOTH directions | interop scenario with a red phase | Run B of `psk-site-to-site` green with four directed claims, against Run A of the same scenario red on "strongSwan encrypted nothing toward Ze". Both runs quote the `docker build -q` image ID |
-| The ping verdict is no longer discarded | unit test at the entry point | `TestVerifyTunnelTrafficRejectsLossyPing` and `TestVerifyTunnelTrafficRejectsUnparseablePing`, both driven through `verifyTunnelTraffic` |
+| The tunnel proof covers BOTH directions | interop scenario with a red phase | Run B of `psk-site-to-site` GREEN with four directed claims (ze `sha256:5fa652c3c9`), against Run A of the same scenario RED under the shunt (ze `sha256:174baf47e6`). The Run A red reads `traffic did not flow through the XFRM tunnel: ping from ze to 172.28.0.3 lost 100% of 4 packets`. Eight sibling scenarios red the same way and all nine are green in Run B |
+| The ping verdict is no longer discarded | unit test at the entry point | `TestVerifyTunnelTrafficRejectsLossyPing` (total loss and 1 percent) and `TestVerifyTunnelTrafficRejectsUnparseablePing`, both driven through `verifyTunnelTraffic`. Live confirmation: the Run A red set is produced BY this clause, which the previous code discarded |
 | A lossless ping alone cannot pass | unit test | `TestVerifyTunnelTrafficRejectsPingWithNoESP`: 0 percent loss, no SA advance, refused. This is the shunt's own signature |
-| Which scenarios were passing on one direction only | recorded measurement | The AC-9 table: 24 scenarios, Run A verdict and Run B verdict, one row each |
-| Every hidden gap is routed, none dropped | per-scenario routing | The AC-10 column of the same table: each Run B red names its producer and the commit that fixed it |
-| `bypass-lan` is settled in one place | inventory test plus grep | `TestNoScenarioCarriesItsOwnBypassLanOverride`, and `TestEveryStrongSwanPeerMountsTheSharedLabDropIn` over the prepared plans |
-| The class is written where the next reader meets it | documentation | The fifth row of the vacuity-trap table in `docs/architecture/testing/interop.md`, and the updated Fix cell of the 2026-08-30 row in `plan/journal/green-that-could-not-have-been-red.md` |
+| The four directed claims discriminate | unit test with an observed red phase | `TestVerifyTunnelTrafficRejectsOneWayTraffic` and `TestPSKCheckerRejectsTrafficThatStrongSwanNeverEncrypted` were both run against the PREVIOUS assertion and both FAILED, on the exact 2026-08-30 fixture: `one-way ESP accepted as a bidirectional tunnel proof`, and `non-discriminating verdict: <nil>`. `TestVerifyTunnelTrafficNamesTheDirectionThatStalled` then pins one message per stalled direction |
+| Which scenarios were passing on one direction only | recorded measurement | The Measurement Record above: NINE, one per `verifyTunnelTraffic` call site. `child-rekey`, `cookie-challenge`, `eap-mschapv2`, `eap-tls13`, `esn-both-offered`, `invalid-ke-retry`, `psk-site-to-site`, `responder-psk`, `responder-raises-child-rekey` |
+| Every hidden gap is routed, none dropped | per-scenario routing | The Routing column: nine one-way passes now proven both ways, three shunt effects (`esp-form-change` and the two `natt-*`) answered by the lab-wide file, and one PRE-EXISTING red rooted to a producer named in two earlier journal rows and confirmed at HEAD by the void run |
+| `bypass-lan` is settled in one place | inventory test plus grep | `TestNoScenarioCarriesItsOwnBypassLanOverride`, and `TestEveryStrongSwanPeerMountsTheSharedLabDropIn` over the 25 prepared plans. `grep -rn bypass-lan test/interop-ipsec/scenarios/` returns nothing |
+| The class is written where the next reader meets it | documentation | The fifth row of the vacuity-trap table in `docs/architecture/testing/interop.md`, its new "The strongSwan lab drop-in" section, and the updated Fix cell of the 2026-08-30 row in `plan/journal/green-that-could-not-have-been-red.md` |
+
+**A-1 and A-2, measured.** `ip -s xfrm state` on both live containers,
+`psk-site-to-site`, 2026-09-04. The record headers, with the byte counters
+elided:
+
+```
+ze peer (172.28.0.2)          strongSwan peer (172.28.0.3)
+src 172.28.0.2 dst 172.28.0.3   src 172.28.0.3 dst 172.28.0.2
+  proto esp spi 0xc12fa7e3        proto esp spi 0xf008af63
+src 172.28.0.3 dst 172.28.0.2   src 172.28.0.2 dst 172.28.0.3
+  proto esp spi 0xf008af63        proto esp spi 0xc12fa7e3
+```
+
+Both peers hold both SAs, and each direction carries ONE SPI that both peers
+name. That is why the old map, keyed by SPI alone, could not tell Ze's outbound
+SA from strongSwan's inbound SA: they are the same SPI. The unit fixtures
+(`espDump`, `internal/le/interoplab/ipsec/ipsec_test.go`) are written to this
+shape, which settles R-3.
 
 Interop: the peer daemon is strongSwan 5.9.14 on Alpine 3.21, already the lab's
 peer. No new scenario is created and no scenario is renamed.
