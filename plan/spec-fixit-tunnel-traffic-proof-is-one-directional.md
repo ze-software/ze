@@ -678,3 +678,225 @@ requirement level moves.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `parseXFRMCounters` keys each SA on `saKey{source, target, spi}` read from the
+  record's own `src <addr> dst <addr>` header, and REFUSES a dump that prints an
+  SPI under no header rather than returning a zero-valued direction that would
+  compare equal to a real one (`internal/le/interoplab/ipsec/helpers.go`).
+- `espDirection` names one simplex SA. `espBothDirections` is the four-claim set
+  one round trip follows, and `verifyESPDirections` asserts each claim separately
+  through `assertESPAdvanced`, which keeps the surviving-SPI comparison a rekey
+  needs and tells three failures apart: no SA, no surviving SA, no advance.
+- `verifyESPDirections` refuses an EMPTY claim set. A checker that claims no
+  direction has observed nothing, so a zero-length slice is an error and never a
+  pass (`ai/rules/principles.md`).
+- `pingLoss` and `requireLosslessPing` replace the discarded `ping` call at both
+  sites. An absent `% packet loss` summary is a failure, not a pass.
+- `checkESPFormChange` moves onto the shared loss reader and the directed
+  assertion, claiming `espFormChangeDirections` (three). That variable has exactly
+  one non-test consumer, so the narrower claim is per-scenario and not a lab-wide
+  relaxation, and the checker's own `XfrmInStateMismatch` rise assertion is the
+  positive evidence that Ze's inbound kernel state correctly stayed still.
+- `bypass-lan` is settled once, lab-wide. `test/interop-ipsec/strongswan-lab.conf`
+  mounts at `/etc/strongswan.d/98-lab.conf` for every strongSwan peer
+  (`prepareScenario`, `ipsec.go`), and the three per-scenario `strongswan.conf`
+  copies are DELETED (`ai/rules/no-layering.md`).
+
+### Bugs Found/Fixed
+- The dataplane proof of nine strongSwan scenarios could not fail. Covered now by
+  `TestVerifyTunnelTrafficRejectsOneWayTraffic`,
+  `TestPSKCheckerRejectsTrafficThatStrongSwanNeverEncrypted`,
+  `TestVerifyTunnelTrafficRejectsLossyPing` and
+  `TestVerifyTunnelTrafficRejectsPingWithNoESP`.
+- The lab's `bypass-lan` shunt made strongSwan encrypt nothing toward Ze in 22 of
+  25 scenarios. Covered by `TestNoScenarioCarriesItsOwnBypassLanOverride` and
+  `TestEveryStrongSwanPeerMountsTheSharedLabDropIn`.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md`: the trap table now reads "Five traps",
+  carries the fifth row ("An assertion whose clauses are all satisfied by ONE
+  stimulus"), the worked reading of `verifyTunnelTraffic` with the RFC 4301
+  Section 4.1 quotation, and a new "The strongSwan lab drop-in" section. It
+  carries three source anchors, naming `helpers.go` for the directed ESP counters
+  and the lossless-ping clause, `ipsec.go` for `prepareScenario` mounting the lab
+  drop-in, and `strongswan-lab.conf` for the lab-wide charon settings.
+- `plan/journal/green-that-could-not-have-been-red.md`: the 2026-08-30 row's Fix
+  cell records the lab-wide outcome and both run image IDs.
+- `docs/guide/ipsec.md`: checked, no edit owed. It names one scenario directory,
+  `test/interop-ipsec/scenarios/eap-tls13`, which keeps its own `strongswan.conf`.
+  None of the three deleted files is named on the page.
+- BOTH doc edits landed in a FOREIGN commit, `367b0c359b` (2026-09-04,
+  `fix(bgp): a policy filter reads the five attributes it was never given`), which
+  swept them out of the shared working tree eleven hours after `16b2db78c9`. The
+  content at HEAD is this spec's and is correct; only the attribution is wrong.
+
+### Deviations from Plan
+- `TestParseXFRMCountersBySPI`, cited in "Behavior to preserve", no longer exists.
+  It asserted the SPI-only key, which IS the defect, so it was deleted with a
+  justification row in `test/weakened.md` at `16b2db78c9` and replaced by
+  `TestParseXFRMCountersKeepsDirection` over the same producer, plus
+  `TestParseXFRMCountersRefusesADumpWithNoDirection`. The `lifetime config` and
+  `stats` exclusion the cell wanted preserved is still asserted, by the
+  replacement.
+- AC-10 is answered for the reds this change PRODUCED and not by this spec for the
+  one it merely reported. See the Acceptance Criteria table.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation session left Phase 7's documentation uncommitted in the shared working tree after committing the code | A peer session's whole-file staging swept `docs/architecture/testing/interop.md` and `plan/journal/green-that-could-not-have-been-red.md` into `367b0c359b`, a BGP filter commit that owns neither | Closure ran `git log -S "Five traps"` over the page and got a commit from another spec | Journal row in `plan/journal/claim-outlives-the-evidence-it-cites.md`. `ai/rules/documentation.md` puts the page edit in the SAME work as the code, which here means the SAME commit |
+| assumption | The spec routed `ipsec-bgp-redistribute-frr` to `(*Peer).maySend` refusing a peer with no `attach process` block, and left it unfixed as pre-existing | A sibling commit fixed it at the source twelve hours later. `wireRedistributeDelivery` now DERIVES the orchestrator's `send [ update ]` on every peer whenever a rule names `destination bgp`, which this scenario's config does | Closure read the producer and found `wireRedistributeDelivery` in `internal/component/bgp/config/redistribute_binding.go`, added by `1ec5b741f8` | The Routing cell is marked staled in the Acceptance Criteria table. The scenario was NOT re-run, so its verdict at HEAD is unobserved |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Prove both directions | Done | `verifyESPDirections` (`helpers.go`) | Four directed claims plus a lossless ping |
+| Report which scenarios passed on one direction only | Done | Measurement Record, nine rows | Run A red / Run B green, one per `verifyTunnelTraffic` call site |
+| Route every red the report produces | Done | Measurement Record, Routing column | Three shunt effects answered by the lab-wide file; nine one-way passes now proven both ways |
+| Settle `bypass-lan` lab-wide, in one place | Done | `test/interop-ipsec/strongswan-lab.conf`, `swanLabConfig` and `swanLabTarget` (`ipsec.go`) | Three per-scenario copies deleted |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestParseXFRMCountersKeepsDirection` | `saKey{source, target, spi}` (`helpers.go`) |
+| AC-2 | Done | `TestVerifyTunnelTrafficRejectsOneWayTraffic` | `swanEncrypts.summary` is "strongSwan encrypted nothing toward Ze" |
+| AC-3 | Done | `TestVerifyTunnelTrafficRejectsLossyPing` | `requireLosslessPing` (`helpers.go`) |
+| AC-4 | Done | `TestVerifyTunnelTrafficRejectsPingWithNoESP` | The shunt's own signature |
+| AC-5 | Done | `TestVerifyTunnelTrafficRejectsUnparseablePing` | `pingLoss` returns an error on no match |
+| AC-6 | Done | `TestVerifyTunnelTrafficNamesTheDirectionThatStalled` | `assertESPAdvanced` separates "no surviving SA" from "did not advance" |
+| AC-7 | Done | `TestESPFormChangeClaimsThreeDirections` | `espFormChangeDirections` has ONE non-test consumer, `checkESPFormChange` |
+| AC-8 | Done | `TestEveryStrongSwanPeerMountsTheSharedLabDropIn` | Walks `interoplab.Discover` and the real `Prepare`, not a fixed list |
+| AC-9 | Done | Measurement Record | Both runs recorded per scenario with their image IDs |
+| AC-10 | Partial | Measurement Record, Routing column | Every red this change PRODUCED is fixed here: three shunt effects, answered by the lab-wide file. The one red it merely REPORTED, `ipsec-bgp-redistribute-frr`, was red before this change, does not call `verifyTunnelTraffic`, and holds the same verdict on both sides of the shunt. It was rooted to a producer and NOT fixed here. That producer no longer refuses at HEAD: `wireRedistributeDelivery` (`internal/component/bgp/config/redistribute_binding.go`, added by `1ec5b741f8`) derives `attach process redistribute-orchestrator { send [ update ] }` on every peer when a rule names `destination bgp`, which this scenario's config does, so `(*Peer).maySend` finds the binding the refusal reported missing. The scenario was not re-run, so the verdict at HEAD is unobserved |
+| AC-11 | Done | `grep -rn bypass-lan test/interop-ipsec/scenarios/` returns nothing | Also `TestNoScenarioCarriesItsOwnBypassLanOverride` |
+| AC-12 | Done | `docs/architecture/testing/interop.md` | "Five traps", the fifth row, and "The strongSwan lab drop-in" section all present |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestParseXFRMCountersKeepsDirection` | Done | `ipsec_test.go` | |
+| `TestVerifyTunnelTrafficRejectsOneWayTraffic` | Done | same | |
+| `TestVerifyTunnelTrafficRejectsLossyPing` | Done | same | |
+| `TestVerifyTunnelTrafficRejectsPingWithNoESP` | Done | same | |
+| `TestVerifyTunnelTrafficRejectsUnparseablePing` | Done | same | |
+| `TestVerifyTunnelTrafficNamesTheDirectionThatStalled` | Done | same | |
+| `TestPSKCheckerRejectsTrafficThatStrongSwanNeverEncrypted` | Done | same | |
+| `TestPSKCheckerRequiresSuccessfulHandshakeAndPeerESP` | Done | same | Fixtures corrected to the measured dump shape |
+| `TestPSKCheckerRejectsPeerThatAcceptedNoESP` | Done | same | |
+| `TestAssertESPAdvancedUsesSurvivingSPIs` | Done | same | |
+| `TestESPFormChangeClaimsThreeDirections` | Done | same | |
+| `TestEveryStrongSwanPeerMountsTheSharedLabDropIn` | Done | same | |
+| `TestScenarioPlansPreserveTopologyAndInputs` | Done | same | |
+| `TestNoScenarioCarriesItsOwnBypassLanOverride` | Done | `parity_test.go` | |
+| `TestEveryNativeScenarioHasCompleteInputs` | Done | same | The two `natt-*` rows lost `strongswan.conf` |
+| `TestNativeScenarioRegistryIsExact` | Done | same | 25-scenario population unchanged |
+| `TestParseXFRMCountersBySPI` | Changed | deleted | Replaced; see Deviations and `test/weakened.md` at `16b2db78c9` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/interoplab/ipsec/helpers.go` | Done | |
+| `internal/le/interoplab/ipsec/checkers.go` | Done | |
+| `internal/le/interoplab/ipsec/ipsec.go` | Done | |
+| `internal/le/interoplab/ipsec/ipsec_test.go` | Done | |
+| `test/interop-ipsec/parity_test.go` | Done | |
+| `test/interop-ipsec/strongswan-lab.conf` | Done | Created |
+| The three per-scenario `strongswan.conf` files | Done | Deleted |
+| `docs/architecture/testing/interop.md` | Done | Landed in `367b0c359b`, not `16b2db78c9` |
+| `docs/guide/ipsec.md` | Changed | Read, no edit owed |
+| `plan/journal/green-that-could-not-have-been-red.md` | Done | Landed in `367b0c359b` |
+
+### Audit Summary
+- **Total items:** 12 AC + 17 tests + 10 files = 39
+- **Done:** 36
+- **Partial:** 1 (AC-10, see its Notes; the owner decides whether the reported-not-produced red narrows the criterion)
+- **Skipped:** 0
+- **Changed:** 2 (`TestParseXFRMCountersBySPI`, `docs/guide/ipsec.md`)
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | done | The spec declares `Deferral shard: -` and no `plan/deferrals/fixit-tunnel-traffic-proof-is-one-directional.md` exists. `ls plan/deferrals/` names no shard for this stem |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-tunnel-traffic-proof-is-one-directional-f89390ec-889f-4a7a-8172-1e2cfd108a12.md` (8 files, verdict=clean) |
+| `./le spec session review check` | OK, 5 code files, clean, hashes match |
+| Rounds | 1 |
+| Reviewer lenses used | producer verification of the three load-bearing claims; fail-closed audit of every new comparison; no-layering inventory; `ze-go-style.md` pass over the changed Go; AC-by-AC re-derivation; staleness sweep of every pasted number against the tree at HEAD |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | "Behavior to preserve" cites `TestParseXFRMCountersBySPI`, which the same commit deleted | this spec | Recorded in Deviations and in the Tests audit table. No product change: the behavior is still asserted by `TestParseXFRMCountersKeepsDirection` |
+| 2 | NOTE | The `ipsec-bgp-redistribute-frr` Routing cell names a refusal the tree can no longer produce for that config | Measurement Record | Recorded in the AC-10 Notes and the Mistake Log with the sibling commit that removed the cause |
+| 3 | NOTE | `saKey` and `espDirection` hold addresses as strings where `ze-go-style.md` prefers `netip.Addr` | `helpers.go` | Not changed. Both sides of every comparison come from one producer's text or from the `zeIP` and `swanIP` constants that build the fixture, and the values never leave the suite. Raised as a NOTE, which does not block |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/interop-ipsec/strongswan-lab.conf` | Yes | `cat` returned the drop-in carrying the measured 175423 against 399999 priority reading and `charon { plugins { bypass-lan { load = no } } }` |
+| `test/interop-ipsec/scenarios/esp-form-change/strongswan.conf` | No, deleted as planned | `find test/interop-ipsec/scenarios -name strongswan.conf` returns four paths, all in the parity `extra` map: `eap-nak-method-negotiation`, `responder-eap-mschapv2`, `eap-tls13`, `responder-eap-tls13` |
+| `test/interop-ipsec/scenarios/natt-transport-inner-checksum/strongswan.conf` | No, deleted as planned | same `find` |
+| `test/interop-ipsec/scenarios/natt-tunnel-inner-checksum/strongswan.conf` | No, deleted as planned | same `find` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-8 | Every unit assertion holds at HEAD | `./le job run label ipsec-unit command go test -tags ze_le,<feature tags> -count=1 ./internal/le/interoplab/ipsec/ ./test/interop-ipsec/` exited 0: `ok internal/le/interoplab/ipsec 2.359s`, `ok test/interop-ipsec 0.580s`. Every one of the 17 TDD test names was then confirmed present by `grep -c "^func <name>("`, one hit each, except the deleted `TestParseXFRMCountersBySPI` at zero |
+| AC-7 | Three claims are per-scenario, not a relaxation | `grep -rn espFormChangeDirections internal/le/interoplab/` shows one non-test consumer, `checkESPFormChange`. The nine `verifyTunnelTraffic` sites take `espBothDirections`, all four |
+| AC-11 | No per-scenario `bypass-lan` survives | `grep -rn bypass-lan test/interop-ipsec/scenarios/` printed nothing |
+| AC-12 | The trap table holds five rows | The page reads "Five traps make a scenario pass whatever the code does", and the table under it carries a header plus five data rows, the fifth being "An assertion whose clauses are all satisfied by ONE stimulus" |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le integration` selects `psk-site-to-site` | `checkPSKSiteToSite` to `verifyTunnelTraffic` | Yes. The call is the last statement of the registered checker, and `scenarioCheckers` names it under `psk-site-to-site` |
+| `./le integration` selects `esp-form-change` | `checkESPFormChange` to `espFormChangeDirections` | Yes. `scenarioCheckers` names it under `esp-form-change`, and the checker loops the three claims through `assertESPAdvanced` |
+| `prepareScenario` builds every strongSwan peer | shared drop-in mount | Yes. The mount list is built inside the `swanctl.conf` branch and always carries `{Source: <root>/test/interop-ipsec/strongswan-lab.conf, Target: /etc/strongswan.d/98-lab.conf, ReadOnly: true}`, so no strongSwan peer is built without it |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The raw `ip -s xfrm state` dump quoted in Goal Validation; `parseXFRMCounters` now REFUSES a dump that breaks it, so the assumption is enforced rather than trusted |
+| A-2 | confirmed | Same dump: `src 172.28.0.2 dst 172.28.0.3 spi 0xc12fa7e3` and `src 172.28.0.3 dst 172.28.0.2 spi 0xf008af63`, both peers holding both records |
+| A-3 | confirmed | Run B, 24 of 25 green, no readiness timeout |
+| A-4 | confirmed | `grep -rn bypass-lan test/interop-ipsec/scenarios/` returns nothing, and `TestNoScenarioCarriesItsOwnBypassLanOverride` walks every file under `scenarios` with `filepath.WalkDir` and also requires `strongswan-lab.conf` to still carry the setting, so it cannot go green by both copies disappearing |
+| A-5 | confirmed | `esp-form-change` GREEN in Run B with three claims, and the omitted fourth is compensated by the checker's own `XfrmInStateMismatch` rise assertion, which is positive evidence that Ze's inbound kernel state correctly stayed still |
+| A-6 | confirmed | All nine are green in Run B with four directed claims |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Test infrastructure (#10) and internal architecture (#12) | `docs/architecture/testing/interop.md`: "Five traps", the fifth row, the worked `verifyTunnelTraffic` reading, "The strongSwan lab drop-in", and three source anchors | Yes, at HEAD. Landed in `367b0c359b` |
+| User guide (#6) | `grep -n "strongswan.conf\|scenarios/" docs/guide/ipsec.md` returns one line, naming `test/interop-ipsec/scenarios/eap-tls13`, which still exists and still carries its own `strongswan.conf` | Yes, no edit owed |
+| RFC behavior (#9) | `./le rfc check` reports nothing under `internal/le/interoplab/ipsec/`, no RFC 4301 finding, and no stale discrimination record for any tag in this suite. `git show 16b2db78c9` over the two directories shows no added or removed `RFC requirement:` line, so no tagged unit was added or changed and none owes a record | Yes, no requirement level moved |
+| Everything else (#1-5, #7-8, #11, #13-15) | No product surface changed. `git show --stat 16b2db78c9` touches only `internal/le/`, `test/interop-ipsec/`, `plan/` and `test/weakened.md` | Yes, N-A |
+
+## Core Insight
+
+An SPI is chosen by the RECEIVER, so both peers name one direction by the same
+SPI value. Any assertion that reads a peer's SA set as an aggregate therefore has
+one observation wearing two names, and the two peers' counters after one stimulus
+look exactly like two independent confirmations. RFC 4301 Section 4.1 had already
+said what the unit was: "An SA is a simplex "connection" that affords security
+services to the traffic carried by it." Reading per peer was reading a unit the
+protocol does not define, and the fix was to read the unit the RFC names.
+
+The generalization is the fifth vacuity trap, now on
+`docs/architecture/testing/interop.md`: name the single event that satisfies every
+clause of an assertion, then ask which clause a peer that did nothing would still
+satisfy.
