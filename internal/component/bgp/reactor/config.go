@@ -825,6 +825,47 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
 	return nil
 }
 
+// EnsureProcessBinding grants a peer the receive tokens a DERIVED binding owes
+// a process. It does nothing when the peer's own config already names that
+// process.
+//
+// receive and send are written in the operator's own vocabulary. Each is the
+// space-separated list `attach process <name> { receive [ ... ]; send [ ... ]; }`
+// takes, and the same parsers read them. A derived grant and a typed one
+// therefore cannot mean two different things. Either one CAN be empty.
+//
+// Precedence lives here, beside parseProcessBindingsFromTree. That function is
+// the one site that appends what the operator wrote.
+//
+// A binding an operator typed is the operator's decision about what that
+// process is fed. A derived binding never widens it. The peer's attach block is
+// the receive authorization for every delivery to that process
+// (Server.PeerScopedProcs, internal/component/plugin/server/delivery_graph.go).
+// A second binding for one process would grant events nobody asked for.
+//
+// An error here is a Ze defect rather than an operating one. Both lists come
+// from a caller's own constant, never from the config file.
+func EnsureProcessBinding(ps *PeerSettings, processName, receive, send string) error {
+	if ps == nil || processName == "" {
+		return nil
+	}
+	for i := range ps.ProcessBindings {
+		if ps.ProcessBindings[i].PluginName == processName {
+			return nil
+		}
+	}
+
+	binding := ProcessBinding{PluginName: processName}
+	if err := parseReceiveFlags(receive, &binding); err != nil {
+		return fmt.Errorf("derived binding for process %q: %w", processName, err)
+	}
+	if err := parseSendFlags(send, &binding); err != nil {
+		return fmt.Errorf("derived binding for process %q: %w", processName, err)
+	}
+	ps.ProcessBindings = append(ps.ProcessBindings, binding)
+	return nil
+}
+
 // parseReceiveFlags grants event types on a ProcessBinding from a
 // space-separated list. Unknown event types cause a config parse error
 // (fail-on-unknown per config.md).
