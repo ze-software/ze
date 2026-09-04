@@ -122,3 +122,72 @@ func TestTeardownSessionOnTunnelEmitsAdminReset(t *testing.T) {
 		t.Errorf("cause = %d, want %d", events[0].Cause, l2tpevents.TerminateCauseAdminReset)
 	}
 }
+
+// VALIDATES: a TUNNEL teardown emits one (l2tp, session-down) for every session
+// the tunnel carried, each carrying that session's own username and the cause
+// the operator path names.
+// PREVENTS: the tunnel half of the defect the session half already fixed. The
+// route observer heard the teardown and the event bus did not, so RADIUS sent
+// no Accounting-Stop, the pool released no address and the shaper dropped no
+// rules for any subscriber on a tunnel an operator cleared.
+func TestTeardownTunnelByIDEmitsSessionDownPerSession(t *testing.T) {
+	r := newReactorForSnapshot(t)
+	r.listener = newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), slog.Default())
+	bus := newCauseBus()
+	r.eventBus = bus
+	insertEstablishedTunnel(t, r, 11, 22, netip.MustParseAddrPort("10.0.0.9:1701"),
+		&L2TPSession{localSID: 7, state: L2TPSessionEstablished, username: "grace"},
+		&L2TPSession{localSID: 8, state: L2TPSessionEstablished, username: "ada"})
+
+	if err := r.teardownTunnelByID(11); err != nil {
+		t.Fatalf("teardownTunnelByID: %v", err)
+	}
+
+	events := bus.downEvents()
+	if len(events) != 2 {
+		t.Fatalf("session-down events = %d, want 2", len(events))
+	}
+	byUsername := map[uint16]string{}
+	for _, e := range events {
+		if e.TunnelID != 11 {
+			t.Errorf("tunnel id = %d, want 11", e.TunnelID)
+		}
+		if e.Cause != l2tpevents.TerminateCauseAdminReset {
+			t.Errorf("cause = %d, want %d", e.Cause, l2tpevents.TerminateCauseAdminReset)
+		}
+		byUsername[e.SessionID] = e.Username
+	}
+	if byUsername[7] != "grace" {
+		t.Errorf("username for sid 7 = %q, want %q", byUsername[7], "grace")
+	}
+	if byUsername[8] != "ada" {
+		t.Errorf("username for sid 8 = %q, want %q", byUsername[8], "ada")
+	}
+}
+
+// VALIDATES: TeardownAllTunnels reaches the same emission through its own
+// caller, and names Admin Reset for it.
+// PREVENTS: a second operator verb keeping the silence the first one lost.
+func TestTeardownAllTunnelsEmitsSessionDown(t *testing.T) {
+	r := newReactorForSnapshot(t)
+	r.listener = newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), slog.Default())
+	bus := newCauseBus()
+	r.eventBus = bus
+	insertEstablishedTunnel(t, r, 11, 22, netip.MustParseAddrPort("10.0.0.9:1701"),
+		&L2TPSession{localSID: 9, state: L2TPSessionEstablished, username: "alan"})
+
+	if n := r.TeardownAllTunnels(); n != 1 {
+		t.Fatalf("TeardownAllTunnels = %d, want 1", n)
+	}
+
+	events := bus.downEvents()
+	if len(events) != 1 {
+		t.Fatalf("session-down events = %d, want 1", len(events))
+	}
+	if events[0].Username != "alan" {
+		t.Errorf("username = %q, want %q", events[0].Username, "alan")
+	}
+	if events[0].Cause != l2tpevents.TerminateCauseAdminReset {
+		t.Errorf("cause = %d, want %d", events[0].Cause, l2tpevents.TerminateCauseAdminReset)
+	}
+}

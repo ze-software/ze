@@ -1,4 +1,6 @@
 // Design: docs/guide/l2tp.md -- operator-initiated teardown
+// RFC: rfc/short/rfc2661.md -- StopCCN and CDN Result Codes
+// RFC: rfc/short/rfc2866.md -- Acct-Terminate-Cause named by each teardown
 // Related: reactor.go -- owns tunnelsByLocalID and tunnelsByPeer
 // Related: snapshot.go -- read-side API, sibling to this write-side API
 
@@ -25,11 +27,27 @@ var (
 	ErrInvalidID = errors.New("l2tp: invalid id (must be 1..65535)")
 )
 
+// tornSession is one session a tunnel teardown removed. The teardown reads it
+// out of the tunnel map before that map is cleared, so the notifications below
+// the unlock still know which sessions ended and who was on them.
+type tornSession struct {
+	localSID uint16
+	username string
+}
+
 // teardownTunnelByID sends a StopCCN Result Code 6 (administrative
 // shutdown) for the tunnel with the given local TID. The tunnel's
 // sessions are cleared and any kernel resources drained the same way
 // peer-initiated StopCCN does. Returns ErrTunnelNotFound when the TID
 // is unknown.
+//
+// Every session the tunnel carried gets one (l2tp, session-down) naming RFC
+// 2866 Section 5.10 value 6, "Administrator reset the port or session". Both
+// callers are operator clears: Subsystem.TeardownTunnel behind `clear l2tp
+// tunnel id <tid>`, and TeardownAllTunnels behind `clear l2tp tunnel all`. A
+// caller that ends a tunnel for another reason MUST take a cause parameter
+// here rather than inherit this one, the way teardownSessionByID does for the
+// two RADIUS timers.
 //
 // Caller MUST NOT hold tunnelsMu; this method acquires it internally
 // and releases it before writing to the UDP socket (matching the
@@ -44,12 +62,15 @@ func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
 		r.tunnelsMu.Unlock()
 		return fmt.Errorf("%w: local-tid=%d", ErrTunnelNotFound, localTID)
 	}
-	// Collect session IDs before teardownStopCCN clears the session map
-	// so the route observer receives one OnSessionDown per session that
-	// was live when the operator requested the teardown.
-	torn := make([]uint16, 0, len(t.sessions))
-	for sid := range t.sessions {
-		torn = append(torn, sid)
+	// Collect each session before teardownStopCCN clears the session map, so
+	// the route observer and the event bus both hear about every session that
+	// was live when the operator requested the teardown. The username is read
+	// in this same pass because it lives only on the session struct the clear
+	// is about to drop, and an empty one reaches RADIUS as a Stop record with
+	// no User-Name.
+	torn := make([]tornSession, 0, len(t.sessions))
+	for sid, sess := range t.sessions {
+		torn = append(torn, tornSession{localSID: sid, username: sess.username})
 	}
 	now := r.params.Clock()
 	outbound := t.teardownStopCCN(now, resultAdministrative)
@@ -57,9 +78,13 @@ func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
 	r.tunnelsMu.Unlock()
 
 	if r.routeObserver != nil {
-		for _, sid := range torn {
-			r.routeObserver.OnSessionDown(localTID, sid)
+		for _, s := range torn {
+			r.routeObserver.OnSessionDown(localTID, s.localSID)
 		}
+	}
+	for _, s := range torn {
+		r.emitSessionDown(localTID, s.localSID, s.username, l2tpevents.TerminateCauseAdminReset)
+		ClearSessionMetadata(localTID, s.localSID)
 	}
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
