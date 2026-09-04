@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | plan/spec-radius-acct-session-attributes.md |
-| Phase | 1/6 |
+| Phase | 5/6 (schema, typed set, wiring, filter and the two `.ci` landed in `6bd1653b41`; the doc hunks wait on two pages several sessions hold) |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-04 |
