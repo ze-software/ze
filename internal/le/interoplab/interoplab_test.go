@@ -205,6 +205,9 @@ func TestDockerBuildRejectsEmptyImageID(t *testing.T) {
 
 // VALIDATES: an image with a slower external build can set its own bounded timeout.
 // PREVENTS: a declared per-image budget collapsing to the machine build budget.
+// The field only ever LENGTHENS a bound past the machine budget, so no suite
+// declares one today: a number below that budget shortens it and kills a build
+// the machine would finish.
 func TestDockerBuildUsesDeclaredTimeout(t *testing.T) {
 	runner := &recordingRunner{run: func(processCommand) (processResult, error) {
 		return processResult{Stdout: "sha256:slow\n"}, nil

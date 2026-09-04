@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
@@ -413,10 +412,14 @@ func TestScenarioPlansPreserveImagesConfigsAndArguments(t *testing.T) {
 	if images[0].Context != root || images[1].Context != suite || images[2].Context != suite {
 		t.Fatalf("image contexts = %#v", images)
 	}
-	wantTimeouts := []time.Duration{10 * time.Minute, 15 * time.Minute, 10 * time.Minute}
-	gotTimeouts := []time.Duration{images[0].Timeout, images[1].Timeout, images[2].Timeout}
-	if !reflect.DeepEqual(gotTimeouts, wantTimeouts) {
-		t.Fatalf("image timeouts = %v, want %v", gotTimeouts, wantTimeouts)
+	// No image declares a Timeout, so each takes the machine build budget.
+	// A declared number here SHORTENS the bound to below that budget, which is
+	// how this suite once capped its ze image at 10 minutes against a build
+	// measured at 40m39s on a loaded host.
+	for _, image := range images {
+		if image.Timeout != 0 {
+			t.Fatalf("image %q declares a %s build timeout, which caps the machine budget", image.Name, image.Timeout)
+		}
 	}
 
 	clientPeers, err := prepareZeClient(

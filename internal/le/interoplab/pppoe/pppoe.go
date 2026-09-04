@@ -124,6 +124,12 @@ func ScenarioNames() []string {
 	return names
 }
 
+// imageBuilds declares the three images this suite builds. None of them sets a
+// Timeout, so each takes the machine build budget that BUILD_TIMEOUT names
+// (`interoplab.Docker`). That field lengthens a bound for an image slower than
+// the machine budget, and none of these three is: the accel and client images
+// are one `apk add` on alpine, and Dockerfile.ze copies the whole tree and
+// compiles ze, which is the build the machine budget was measured on.
 func imageBuilds(root string) []interoplab.ImageBuild {
 	directory := filepath.Join(root, suitePath)
 	return []interoplab.ImageBuild{
@@ -133,7 +139,6 @@ func imageBuilds(root string) []interoplab.ImageBuild {
 			Dockerfile: filepath.Join(directory, "Dockerfile.ze"),
 			Context:    root,
 			Required:   true,
-			Timeout:    10 * time.Minute,
 		},
 		{
 			Name:       accelImageName,
@@ -141,7 +146,6 @@ func imageBuilds(root string) []interoplab.ImageBuild {
 			Dockerfile: filepath.Join(directory, "Dockerfile.accel"),
 			Context:    directory,
 			Required:   true,
-			Timeout:    15 * time.Minute,
 		},
 		{
 			Name:       clientImageName,
@@ -149,7 +153,6 @@ func imageBuilds(root string) []interoplab.ImageBuild {
 			Dockerfile: filepath.Join(directory, "Dockerfile.client"),
 			Context:    directory,
 			Required:   true,
-			Timeout:    10 * time.Minute,
 		},
 	}
 }

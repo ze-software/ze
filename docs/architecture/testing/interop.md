@@ -465,8 +465,14 @@ Each build is bounded at 90 minutes, and `BUILD_TIMEOUT` sets that bound in whol
 seconds for a machine slower or faster than that one. The bound stops a wedged
 Docker daemon and is not a budget for the build, so a build that finishes returns
 at once and a generous bound costs nothing. A value that does not parse, or that
-is not positive, keeps the 90 minutes. An image that needs more than the machine
-bound declares its own `ImageBuild.Timeout`.
+is not positive, keeps the 90 minutes.
+
+An image that needs more than the machine bound declares its own
+`ImageBuild.Timeout`, and that field only ever LENGTHENS a bound. A number below
+the machine bound shortens it, which kills a build the machine would finish, so
+no suite declares one. The PPPoE suite did until 2026-09-04: 10 minutes for its
+ze image, 15 for accel-ppp and 10 for the client, each written when the shipped
+default was 10 minutes and each a cap once the default became 90.
 
 Subsequent runs with `NO_BUILD=1` skip rebuilds. Once the images exist, the full
 suite takes roughly 5-10 minutes depending on session establishment times.
