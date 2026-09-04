@@ -499,7 +499,10 @@ func (l *scenarioLab) assertAuthFailureRecorded(ctx context.Context, username st
 }
 
 // assertNoAuthSourceLocal refuses a login the local backend satisfied. It reads
-// the log once, after the failure line above proved the log is being written.
+// the log ONCE rather than waiting, and the assertion that FOLLOWS it is what
+// makes that safe: assertRejectStopsChain calls assertAuthFailureRecorded next,
+// which waits for ze's own failure line, so a log this read found empty cannot
+// end the scenario green. Reading absence here is not a verdict on its own.
 func (l *scenarioLab) assertNoAuthSourceLocal(ctx context.Context, username string) error {
 	text, err := l.readZeLog(ctx)
 	if err != nil {
