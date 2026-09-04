@@ -21,7 +21,7 @@ firewall component for nftables backend access.
 
 <!-- source: internal/plugins/policyroute/translate.go -- table and term construction -->
 
-All policies merge into one nftables table (type route, hook prerouting,
+All policies merge into one nftables table (type filter, hook prerouting,
 priority -150) with one chain, and terms named `<policy>-<rule>`. Rule ordering
 stays simple, and several tables competing for hook priority does not arise. The
 interface wildcard is prepended to every rule.

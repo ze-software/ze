@@ -189,7 +189,8 @@ declares are pulled in. Keying on the label made the resolver treat the plugin a
 external and skip expansion, so both hard and optional dependencies were dropped
 with no error: a route server configured that way ran with no `bgp-adj-rib-in`
 and therefore no peer-up Adj-RIB-In replay.
-<!-- source: internal/component/config/loader.go -- registryName, ExpandDependencies -->
+<!-- source: internal/component/config/loader.go -- ExpandDependencies -->
+<!-- source: internal/component/plugin/resolve.go -- RegistryName -->
 
 A config root that no plugin and no hub handler claims is stored and delivered to
 nobody, so it has no effect. `ze doctor` reports it as
