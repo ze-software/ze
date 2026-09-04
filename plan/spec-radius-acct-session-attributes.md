@@ -513,3 +513,213 @@ work.
 ### Closure
 - [ ] The row in `plan/spec-finish-l2tp.md` resolved and repointed
 - [ ] Citations repointed
+
+## Implementation Summary
+
+### What Was Implemented
+- Event-Timestamp (55) on every Accounting-Request (`f38bb0e2da`), appended by
+  `buildAcctPacket` (`internal/component/l2tp/plugins/authradius/acct.go`).
+- Calling-Station-Id (31) carried from `callInfo.callingNumber` through the auth
+  event onto `acctSession`, and omitted rather than sent empty (`547910de0d`).
+- A typed `TerminateCause` (`internal/component/l2tp/events/terminate_cause.go`)
+  set at every teardown emitter, carried on `SessionDownPayload`, and appended as
+  Acct-Terminate-Cause (49) on the Stop record alone (`1262ea2cae`).
+- The accounting retransmit re-encodes: `setAcctDelayTime` stamps Acct-Delay-Time
+  (41) before the first send and again before each retry, and `encodeRequest`
+  takes a fresh Identifier and recomputes the RFC 2866 Section 3 authenticator.
+  The Access-Request path still replays its first buffer (`5674137ff`).
+- `checkAccountingAttributes` in the interop checker
+  (`internal/le/interoplab/l2tp/checkers.go`), swept into `ad6a5bd7f0` by another
+  session's concurrent commit (`plan/journal/concurrent-session-corruption.md`).
+- At closure: `internal/component/radius/acct_delay_time_retransmit_test.go`, the
+  AC-7/AC-8 test the TDD table named and nobody wrote.
+
+### Bugs Found/Fixed
+- AC-7 and AC-8 had no test asserting the delay VALUE moves. The only retransmit
+  test watched the Identifier, so it would pass against a client that moved the
+  Identifier and left a constant zero delay, which is the osvbng shape this spec
+  exists to avoid. Fixed by `TestAcctDelayTimeUpdatesOnRetransmit`, whose red
+  phase was forced and observed. Row in `plan/journal/stale-spec-claims-done.md`.
+- `rfc/short/rfc2866.md` pinned the pre-change behavior: RFC2866-3-3 read
+  "retransmitted request MUST use the same Identifier", dropping the RFC's own
+  condition "where the contents are identical", and its Enrolment reason named a
+  renamed test and a producer line range that no longer exists. Fixed and
+  regenerated. Row in `plan/journal/claim-outlives-the-evidence-it-cites.md`.
+
+### Documentation Updates
+- `docs/architecture/l2tp/bng-1-radius-attributes.md`: the attribute table, the
+  teardown-cause mapping and the boundary narrative landed in `f38bb0e2da`,
+  `547910de0d` and `1262ea2cae`.
+- `docs/guide/l2tp.md`: the operator-facing list landed in `1262ea2cae` and
+  `ad6a5bd7f0`. `docs/labs/l2tp-interop.md` landed in `ad6a5bd7f0`.
+- `rfc/short/rfc2866.md` Meta and RFC2866-3-3, then `./le rfc index-update`, which
+  regenerated `rfc/enrolled.txt`, `rfc/requirements/rfc2866.md` and
+  `docs/features/rfc-status.md`.
+- NOT LANDED, and the reason is not this spec's: the Acct-Delay-Time row and the
+  "makes the accounting retransmit re-encode" block in
+  `docs/architecture/l2tp/bng-1-radius-attributes.md` are written in the working
+  tree and sit in the same file as `spec-radius-attribute-exclusion`'s
+  uncommitted `attributes exclude` hunks. A file stages whole, so landing mine
+  lands theirs under this message. `ai/rules/never-destroy-work.md` and
+  `ai/rules/principles.md` both say leave it, and that spec's own Phase line
+  already says its doc hunks wait on this page.
+- `./le doc check verify` FAILS at HEAD on the CLI command catalog and the HTML
+  command index, from another session's in-flight command-help work. No failure
+  names a RADIUS or L2TP accounting surface, `bng-1-radius-attributes.md`,
+  `rfc/short/rfc2866.md` or `docs/features/rfc-status.md`.
+
+### Deviations from Plan
+- The AC-7/AC-8 test lives in
+  `internal/component/radius/acct_delay_time_retransmit_test.go`, not in
+  `client_test.go` as the TDD table said. A new file keeps the commit gate away
+  from the tagged functions `client_test.go` already carries.
+- `TestAccountingRequestAuthenticatorMatchesRFC2866` was not written under that
+  name. `TestRFC2866AccountingRequestAuthFormula` already asserts AC-10 against an
+  independent MD5 reference, so a second test of the same formula was cut.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4 was carried as `unvalidated` to closure | The Access-Request path is provably untouched: `Exchange` re-encodes only under `attempt > 0 && pkt.Code == CodeAccountingReq`, and `encodeRequest` returns `pkt.Authenticator` unchanged for every other code | read at the producer during closure, `internal/component/radius/client.go` | A-4 marked confirmed, with `TestAccessRequestRetransmitIsByteIdentical` as its evidence |
+| approach | The Deliverables Checklist read "green (phase 5)" for `TestAcctDelayTimeUpdatesOnRetransmit`, and its TDD Status cell was empty | The test did not exist. AC-7 and AC-8 rested on an Identifier assertion that a constant-zero delay would still pass | closure step 1 grepped for each named test | Test written, red phase forced, journal row in `stale-spec-claims-done.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Emit all four attributes, no config knob | Done | `authradius/acct.go` `buildAcctPacket`, `radius/client.go` `setAcctDelayTime` | The owner's 2026-09-03 ruling. `spec-radius-attribute-exclusion` later added an opt-OUT, which does not change this default |
+| Acct-Terminate-Cause on Stop only | Done | `authradius/acct.go` `buildAcctPacket` | RFC 2866 Section 5.10, against Juniper's table |
+| The client owns the delay and re-encodes per retry | Done | `radius/client.go` `Exchange`, `encodeRequest`, `setAcctDelayTime` | RFC 2866 Sections 3, 4.1 and 5.2 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestAcctPacketCarriesEventTimestamp` | |
+| AC-2 | Done | `TestAcctPacketCarriesCallingStationId`, `TestAcctSessionCallingStationID`, `TestHandleICRQStoresCallingNumber` | |
+| AC-3 | Done | `TestAcctPacketOmitsEmptyCallingStationId` | |
+| AC-4, AC-5 | Done | `TestTerminateCauseOnStopOnly` | |
+| AC-6 | Done | `TestTerminateCausePerTeardownPath`, `TestTeardownSessionByIDEmitsCause`, `TestTeardownSessionOnTunnelEmitsAdminReset` | |
+| AC-7, AC-8 | Done | `TestAcctDelayTimeUpdatesOnRetransmit`, `TestRFC2866AccountingRetransmitTakesANewIdentifier` | The first was written at closure; see the Mistake Log |
+| AC-9 | Done | `TestAccessRequestRetransmitIsByteIdentical` | |
+| AC-10 | Done | `TestRFC2866AccountingRequestAuthFormula`, and the independent MD5 in `TestAcctDelayTimeUpdatesOnRetransmit` over the retransmitted datagram | |
+| AC-11 | Done | `TestRFC2866AcctFailureKeepsSession`, `TestRFC2866SessionTeardownIndependentOfAccounting` | Pre-existing and unchanged |
+| AC-12 | Done | A-2's five consumers, all green | |
+| AC-13 | Done | No leaf, no default and no env var added by this spec | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestAcctPacketCarriesEventTimestamp` | Done | `authradius/acct_test.go` | |
+| `TestAcctPacketCarriesCallingStationId` | Done | same | |
+| `TestAcctPacketOmitsEmptyCallingStationId` | Done | same | |
+| `TestTerminateCauseOnStopOnly` | Done | same | |
+| `TestTerminateCausePerTeardownPath` | Done | same | |
+| `TestAcctDelayTimeUpdatesOnRetransmit` | Done | `radius/acct_delay_time_retransmit_test.go` | Different file; written at closure |
+| `TestAccessRequestRetransmitIsByteIdentical` | Done | `radius/client_test.go` | |
+| `TestAccountingRequestAuthenticatorMatchesRFC2866` | Changed | `radius/rfc2866_accounting_test.go` `TestRFC2866AccountingRequestAuthFormula` | Same assertion under the existing name; see Deviations |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/l2tp/session_fsm.go` | Done | |
+| `internal/component/l2tp/ppp/auth_events.go` | Changed | The value travels on `ppp/events.go` and `session.go` instead |
+| `internal/component/l2tp/events/events.go` | Done | |
+| `internal/component/l2tp/events/terminate_cause.go` | Done | Created |
+| `internal/component/l2tp/plugins/authradius/acct.go` | Done | |
+| `internal/component/radius/client.go` | Done | |
+| `internal/component/radius/packet.go` | Changed | `AccountingRequestAuth` was already separable, so no edit was needed |
+| `docs/architecture/l2tp/bng-1-radius-attributes.md`, `docs/guide/l2tp.md` | Partial | See Documentation Updates: the Acct-Delay-Time hunk is written and blocked behind another spec's hunks in the same file |
+
+### Audit Summary
+- **Total items:** 25
+- **Done:** 21
+- **Partial:** 1 (the Acct-Delay-Time doc hunk, blocked by a shared file, written and named)
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Ze's Accounting-Requests carry the four attributes every comparable BNG sends | functional | `test/l2tp/radius-acct-wire.ci` asserts all four off the wire across Start, Interim-Update and Stop, reading what the RADIUS mock DECODED rather than what ze built |
+| Acct-Terminate-Cause appears on Stop and nowhere else (RFC 2866 Section 5.10) | functional | The same `.ci` asserts ABSENCE on the Start and on the Interim-Update and `Acct-Terminate-Cause 2` on the Stop, which an append one line too early fails |
+| The delay ze reports is honest on a retransmission, unlike osvbng's constant zero | unit, with a forced red | `TestAcctDelayTimeUpdatesOnRetransmit` reads both datagrams: delay 0 on the first, at least 1 after a 1.1s retry, a distinct Identifier, and a Request Authenticator equal to an independent MD5 of the second datagram. Setting `seconds = uint32(elapsed / time.Second)` to a constant zero fails it with "the retransmission reported Acct-Delay-Time 0 after a 1.1s wait" |
+| The Access-Request path is unaffected | unit | `TestAccessRequestRetransmitIsByteIdentical` compares the captured datagrams byte for byte, and was written BEFORE the divergence existed |
+| A real RADIUS server decodes what ze sends | interop | **NOT DEMONSTRATED.** `04-radius-acct-attrs` is CHANGED AND UNRUN. See Deferrals Resolved |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| `plan/deferrals/radius-subscriber-attributes.md`, row 2: Calling-Station-Id, Event-Timestamp, Acct-Delay-Time and Acct-Terminate-Cause present in the dictionary but not emitted | done | Built by this spec. The row now names `buildAcctPacket` and `setAcctDelayTime` and points at `docs/architecture/l2tp/bng-1-radius-attributes.md` |
+| `plan/deferrals/radius-subscriber-attributes.md`, row 1: interim-update scheduling as a timer wheel | deferred | Untouched by this spec, homed at `plan/future/spec-radius-acct-timewheel.md`. The shard stays for it, so it is not removed |
+| The interop scenario `04-radius-acct-attrs` | deferred | CHANGED AND UNRUN, and not runnable here. This host is darwin with no `l2tp_ppp`, colima's kernel carries no module either, and `internal/le/qemu/` holds guest labs for PPPoE and VRRP alone, so `ai/rules/platform-linux.md` has no lever. `modulesAvailable` (`internal/le/interoplab/l2tp/l2tp.go`) fails the lab closed rather than passing on nothing, which is correct and is the reason there is no result to report. CI on a Linux host is what runs it |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/radius-acct-session-attributes-f89390ec-889f-4a7a-8172-1e2cfd108a12.md` (29 files, verdict=clean) |
+| `./le spec session review check` | OK, hashes match |
+| Rounds | 2. Round 1 found the two ISSUEs below; round 2 read the fixes and found nothing |
+| Reviewer lenses used | wiring + functional coverage, logic + guard audit + removed-behavior, RFC conformance + documentation drift, and the `ze-go-style` pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-7 and AC-8 had no test asserting the Acct-Delay-Time VALUE updates on a retransmission, and the Deliverables Checklist claimed one green that was never written | `internal/component/radius/client.go` `setAcctDelayTime`, and the spec's own tables | `internal/component/radius/acct_delay_time_retransmit_test.go`, with `wireAttrValue` extracted from `wireCarriesAttr` so one packet walk serves both. Red phase forced and observed |
+| 2 | ISSUE | The RFC ledger pinned the behavior this spec correctly changed: RFC2866-3-3 dropped the RFC's "where the contents are identical" condition, and its Enrolment reason named a renamed test and a dead producer line range | `rfc/short/rfc2866.md` | Requirement row and Enrolment reason rewritten against `rfc/full/rfc2866.txt` Section 4.1, then `./le rfc index-update` |
+
+NOTEs, recorded and not blocking: the Acct-Delay-Time doc hunk cannot be staged
+alone (Documentation Updates), and `04-radius-acct-attrs` is unrun on this host
+(Deferrals Resolved).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/l2tp/events/terminate_cause.go` | yes | `gopls symbols` lists `TerminateCause` and its constants |
+| `internal/component/radius/acct_delay_time_retransmit_test.go` | yes | created this session, and `go test` ran it |
+| `test/l2tp/radius-acct-wire.ci` | yes | `git diff` shows the four added `expect=` lines |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-7, AC-8 | The delay is stamped on the first send and updated on the retransmission, with a new Identifier and a new authenticator | `--- PASS: TestAcctDelayTimeUpdatesOnRetransmit (1.10s)`, and `--- FAIL ... reported Acct-Delay-Time 0 after a 1.1s wait` with the producer broken |
+| AC-9 | The Access-Request retransmit is byte-identical | `--- PASS: TestAccessRequestRetransmitIsByteIdentical (0.20s)` |
+| AC-10 | The accounting authenticator is the RFC 2866 Section 3 MD5 | `--- PASS: TestRFC2866AccountingRequestAuthFormula (0.00s)` |
+| AC-4, AC-5 | Acct-Terminate-Cause on Stop only | `grep -n 'func TestTerminateCauseOnStopOnly' internal/component/l2tp/plugins/authradius/acct_test.go` returns line 563 |
+| AC-13 | No config surface was added by this spec | The `attributes exclude` container in the authradius YANG belongs to `spec-radius-attribute-exclusion`, whose own Task section says so |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A subscriber PPP session starting, running an acct-interval, and losing carrier | `test/l2tp/radius-acct-wire.ci` | Read, not inferred: the fixture peer sends the ICRQ Calling Number AVP 22, then `checkRecordAttributes` reads the RADIUS mock's decode of all three records. `./le repository check` reports no unwired export in `internal/component/l2tp` or `internal/component/radius` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `callInfo.callingNumber` is assigned in `session_fsm.go` and in `relay_sink.go` |
+| A-2 | confirmed | Five consumers, each constructing by field name, and all five packages green |
+| A-3 | broken, repaired | `emitSessionDown` now covers the four teardown paths that emitted nothing; `plan/journal/guard-added-to-one-half-of-a-pair.md` |
+| A-4 | confirmed | `Exchange` re-encodes only under `attempt > 0 && pkt.Code == CodeAccountingReq`, and `encodeRequest` returns `pkt.Authenticator` unchanged for every other code. `TestAccessRequestRetransmitIsByteIdentical` is the assertion |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| The teardown-cause mapping table in `bng-1-radius-attributes.md` | `internal/component/l2tp/events/terminate_cause.go`, read at closure: every constant's doc comment quotes its RFC 2866 Section 5.10 sentence, and `session_run.go` emits `TerminateCauseLostCarrier` on the echo path | yes |
+| `rfc/short/rfc2866.md` RFC2866-3-3 | `rfc/full/rfc2866.txt` Section 4.1, quoted in the row | yes |
+| `docs/features/rfc-status.md` RFC 2866 row | Generated by `./le rfc index-update` from the Meta table above | yes |
+| The Acct-Delay-Time row and re-encode block in `bng-1-radius-attributes.md` | Written against `radius/client.go` `Exchange`, `encodeRequest` and `setAcctDelayTime`; NOT staged, because the file also holds another spec's hunks | written, not landed |
+
+## Core Insight
+
+Three of the four attributes were plumbing, and the fourth was a statement about
+the client. What nearly escaped is that the same split applies to the TESTS: an
+Identifier assertion is plumbing and a delay assertion is the statement, and only
+one of them can tell osvbng's constant zero from an honest value. This record's
+Deliverables row said the statement was proven. Its TDD Status cell, left empty,
+said it was not. The empty cell was right.

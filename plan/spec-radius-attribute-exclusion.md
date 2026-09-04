@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | protocol |
-| Depends | plan/spec-radius-acct-session-attributes.md |
+| Depends | spec-radius-acct-session-attributes, closed 2026-09-04 |
 | Phase | 5/6 (schema, typed set, wiring, filter and the two `.ci` landed in `6bd1653b41`; the doc hunks wait on two pages several sessions hold) |
 | Deferral shard | - |
 | Handoff | - |
@@ -23,9 +23,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`plan/spec-radius-acct-session-attributes.md` makes ze emit Calling-Station-Id,
-Event-Timestamp, Acct-Delay-Time and Acct-Terminate-Cause unconditionally, on the
-owner's ruling to copy Juniper. That ruling is right and it leaves an operator no
+Ze emits Calling-Station-Id, Event-Timestamp, Acct-Delay-Time and
+Acct-Terminate-Cause unconditionally, on the owner's ruling to copy Juniper.
+`spec-radius-acct-session-attributes` did that and closed on 2026-09-04, and
+`docs/architecture/l2tp/bng-1-radius-attributes.md` is where the four attributes
+are now described. That ruling is right and it leaves an operator no
 way to suppress one attribute their server or their billing pipeline dislikes.
 
 Give them Juniper's answer, because Juniper has one and the owner asked for it to

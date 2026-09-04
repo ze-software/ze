@@ -86,6 +86,15 @@ func TestAccountingRequestOmitsAcctDelayTimeOnRequest(t *testing.T) {
 // whether attrType is among them.
 func wireCarriesAttr(t *testing.T, packet []byte, attrType uint8) bool {
 	t.Helper()
+	_, found := wireAttrValue(t, packet, attrType)
+	return found
+}
+
+// wireAttrValue walks the attributes of an encoded RADIUS packet and returns the
+// value octets of the first attrType it finds. The second result says whether
+// the attribute was there at all, which is what an absence assertion needs.
+func wireAttrValue(t *testing.T, packet []byte, attrType uint8) ([]byte, bool) {
+	t.Helper()
 	for off := HeaderLen; off < len(packet); {
 		if off+2 > len(packet) {
 			t.Fatalf("attribute header runs past the packet at offset %d", off)
@@ -94,10 +103,13 @@ func wireCarriesAttr(t *testing.T, packet []byte, attrType uint8) bool {
 		if length < 2 {
 			t.Fatalf("attribute at offset %d declares length %d", off, length)
 		}
+		if off+length > len(packet) {
+			t.Fatalf("attribute at offset %d declares length %d, which runs past the packet", off, length)
+		}
 		if packet[off] == attrType {
-			return true
+			return packet[off+2 : off+length], true
 		}
 		off += length
 	}
-	return false
+	return nil, false
 }

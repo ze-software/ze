@@ -236,6 +236,13 @@ func tunnelRadiusAccounting(ctx context.Context, args []string) error {
 	}
 }
 
+// tunnelRadiusDescribe renders one received RADIUS packet as a single
+// RADIUS-RX line the peer fixture reads back out of radius-rx.log. It decodes
+// the attributes the l2tp accounting tests assert on, which are the session
+// identity attributes and the four the subscriber records carry
+// unconditionally: Calling-Station-Id (31), Acct-Delay-Time (41),
+// Acct-Terminate-Cause (49) and Event-Timestamp (55). An attribute it does not
+// name is skipped, so a packet is never rejected for carrying more.
 func tunnelRadiusDescribe(packet []byte) string {
 	name := "Access-Request"
 	if packet[0] == 4 {
@@ -251,6 +258,8 @@ func tunnelRadiusDescribe(packet []byte) string {
 		switch packet[offset] {
 		case 1:
 			fields = append(fields, "User-Name="+string(value))
+		case 31:
+			fields = append(fields, "Calling-Station-Id="+string(value))
 		case 4:
 			if len(value) == 4 {
 				fields = append(fields, "NAS-IP-Address="+net.IP(value).String())
@@ -264,8 +273,20 @@ func tunnelRadiusDescribe(packet []byte) string {
 				status := map[uint32]string{1: "Start", 2: "Stop", 3: "Interim-Update"}[binary.BigEndian.Uint32(value)]
 				fields = append(fields, "Acct-Status-Type="+status)
 			}
+		case 41:
+			if len(value) == 4 {
+				fields = append(fields, "Acct-Delay-Time="+strconv.FormatUint(uint64(binary.BigEndian.Uint32(value)), 10))
+			}
 		case 44:
 			fields = append(fields, "Acct-Session-Id="+string(value))
+		case 49:
+			if len(value) == 4 {
+				fields = append(fields, "Acct-Terminate-Cause="+strconv.FormatUint(uint64(binary.BigEndian.Uint32(value)), 10))
+			}
+		case 55:
+			if len(value) == 4 {
+				fields = append(fields, "Event-Timestamp="+strconv.FormatUint(uint64(binary.BigEndian.Uint32(value)), 10))
+			}
 		case 87:
 			fields = append(fields, "NAS-Port-Id="+string(value))
 		}

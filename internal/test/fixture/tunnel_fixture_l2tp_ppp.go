@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -33,12 +34,20 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 	if err != nil || len(avps[9]) != 2 || len(avps[11]) == 0 {
 		return errors.New("SCCRP missing Assigned Tunnel ID or Challenge")
 	}
-	state := &tunnelAccountingPeer{conn: conn, target: target, localTID: binary.BigEndian.Uint16(avps[9]), ns: 1, nr: 1}
+	state := &tunnelAccountingPeer{
+		conn: conn, target: target, localTID: binary.BigEndian.Uint16(avps[9]),
+		ns: 1, nr: 1, startedAt: time.Now().Unix(),
+	}
 	digest := md5.Sum( //nolint:gosec // RFC 2661 Section 4.4.3 makes the Challenge Response a CHAP value, and RFC 1994 CHAP is MD5
 		append(append([]byte{3}, tunnelL2TPTestSecret()...), avps[11]...))
 	state.sendControl(append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(3)), tunnelL2TPAVP(true, 13, digest[:])...), 0)
 	icrq := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(10)), tunnelL2TPAVP(true, 14, tunnelL2TPU16(700))...)
 	icrq = append(icrq, tunnelL2TPAVP(true, 15, tunnelL2TPU32(42))...)
+	// RFC 2661 Section 4.4.3 Calling Number (AVP 22): "encodes the originating
+	// number for the incoming call ... The M-bit for this AVP MUST be set to
+	// 1." parseICRQ stores it, and ze repeats it as Calling-Station-Id
+	// (RFC 2865 Section 5.31) in every Accounting-Request of the session.
+	icrq = append(icrq, tunnelL2TPAVP(true, 22, []byte(tunnelCallingNumber))...)
 	state.sendControl(icrq, 0)
 	deadline := time.Now().Add(10 * time.Second)
 	for state.zeSID == 0 && time.Now().Before(deadline) {
@@ -85,6 +94,17 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 	return state.checkRadius(ctx)
 }
 
+// tunnelCallingNumber is the originating number this peer puts in the ICRQ.
+// It is a UK number from the range Ofcom reserves for drama and testing, and
+// it carries no space, because the RADIUS-RX log line is read field by field.
+const tunnelCallingNumber = "+441632960123"
+
+// tunnelTerminateCauseLostCarrier is RFC 2866 Section 5.10 value 2, "DCD was
+// dropped on the port". Ze reports it when its LCP echo probes stop being
+// answered, which is how this peer ends the session: it goes silent, and ze
+// tears the session down on its own timer.
+const tunnelTerminateCauseLostCarrier = "2"
+
 type tunnelAccountingPeer struct {
 	conn           *net.UDPConn
 	target         *net.UDPAddr
@@ -97,6 +117,13 @@ type tunnelAccountingPeer struct {
 	ourRequestAddr net.IP
 	ourIPCPAcked   bool
 	negotiatedAddr net.IP
+	// silent stops this peer answering LCP echo probes, and makes ze's own
+	// teardown messages expected rather than a failure. It is set once the
+	// Interim-Update has been asserted, to drive the Accounting-Stop.
+	silent bool
+	// startedAt is the wall clock this peer began at. Event-Timestamp is
+	// asserted against it, so a zero or a stale stamp cannot pass.
+	startedAt int64
 }
 
 func (peer *tunnelAccountingPeer) sendControl(body []byte, sid uint16) {
@@ -167,8 +194,16 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 				avps, _ := tunnelL2TPParseAVPs(packet)
 				switch tunnelL2TPMessageType(avps) {
 				case 4:
+					if peer.silent {
+						return nil
+					}
 					return errors.New("ze tore the tunnel down")
 				case 14:
+					// A CDN is what ze owes a session it has torn down, so it
+					// is the expected end of the silent phase, not a failure.
+					if peer.silent {
+						return nil
+					}
 					return errors.New("ze disconnected the call")
 				default:
 					_, _ = peer.conn.WriteToUDP(tunnelL2TPControl(peer.localTID, 0, peer.ns, peer.nr, nil), peer.target)
@@ -199,6 +234,12 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 		payload = payload[2:]
 	}
 	if len(payload) < 6 {
+		return nil
+	}
+	// A silent peer has stopped answering: no echo reply, no CHAP, no IPCP.
+	// That is the state ze reports as Lost Carrier once its echo probes go
+	// unanswered past the limit.
+	if peer.silent {
 		return nil
 	}
 	protocol := binary.BigEndian.Uint16(payload[:2])
@@ -318,7 +359,9 @@ func tunnelIPCPAddress(options []byte) net.IP {
 }
 
 func (peer *tunnelAccountingPeer) checkRadius(ctx context.Context) error {
-	access, err := peer.waitRadius(ctx, func(line string) bool { return strings.HasPrefix(line, "RADIUS-RX Access-Request ") })
+	access, err := peer.waitRadius(ctx, "Access-Request", 30*time.Second, func(line string) bool {
+		return strings.HasPrefix(line, "RADIUS-RX Access-Request ")
+	})
 	if err != nil {
 		return err
 	}
@@ -337,7 +380,7 @@ func (peer *tunnelAccountingPeer) checkRadius(ctx context.Context) error {
 		return fmt.Errorf("Access-Request NAS-Port-Id %q does not match template", authPortID)
 	}
 	fmt.Printf("OK: Access-Request NAS-Port-Id resolved from the template as %s\n", authPortID)
-	accounting, err := peer.waitRadius(ctx, func(line string) bool {
+	accounting, err := peer.waitRadius(ctx, "Accounting-Start", 30*time.Second, func(line string) bool {
 		return strings.HasPrefix(line, "RADIUS-RX Accounting-Request ") && strings.Contains(line, "Acct-Status-Type=Start")
 	})
 	if err != nil {
@@ -354,11 +397,115 @@ func (peer *tunnelAccountingPeer) checkRadius(ctx context.Context) error {
 		return fmt.Errorf("NAS-Port-Id is not stable across auth and accounting: %s", accounting)
 	}
 	fmt.Printf("OK: Accounting-Start carries the same NAS-Port-Id %s\n", authPortID)
+	if err := peer.checkRecordAttributes("Accounting-Start", accounting, ""); err != nil {
+		return err
+	}
+	// The Interim-Update is the second record ze sends, one acct-interval
+	// after the session came up. The config sets that leaf to 60 seconds,
+	// which is the floor its YANG range allows, so this wait is the slowest
+	// part of the test and the deadline is sized well past it.
+	interim, err := peer.waitRadius(ctx, "Accounting Interim-Update", 100*time.Second, func(line string) bool {
+		return strings.HasPrefix(line, "RADIUS-RX Accounting-Request ") && strings.Contains(line, "Acct-Status-Type=Interim-Update")
+	})
+	if err != nil {
+		return err
+	}
+	if err := peer.checkRecordAttributes("Accounting-Interim-Update", interim, ""); err != nil {
+		return err
+	}
+	// Going silent ends the session the way a subscriber whose link died ends
+	// it: ze's LCP echo probes stop being answered and ze tears the session
+	// down itself, reporting Lost Carrier. The config runs those probes at one
+	// second, so the teardown follows within a few seconds.
+	peer.silent = true
+	fmt.Println("OK: peer stopped answering LCP echo probes")
+	stop, err := peer.waitRadius(ctx, "Accounting-Stop", 60*time.Second, func(line string) bool {
+		return strings.HasPrefix(line, "RADIUS-RX Accounting-Request ") && strings.Contains(line, "Acct-Status-Type=Stop")
+	})
+	if err != nil {
+		return err
+	}
+	return peer.checkRecordAttributes("Accounting-Stop", stop, tunnelTerminateCauseLostCarrier)
+}
+
+// checkRecordAttributes asserts, on one decoded RADIUS-RX line, the four
+// attributes every subscriber Accounting-Request carries: Event-Timestamp
+// (RFC 2869 Section 5.3), Calling-Station-Id (RFC 2865 Section 5.31),
+// Acct-Delay-Time (RFC 2866 Section 5.2) and Acct-Terminate-Cause (RFC 2866
+// Section 5.10).
+//
+// cause is the Section 5.10 value the record must report. An EMPTY cause means
+// the attribute MUST be absent, because Section 5.10 says it "can only be
+// present in Accounting-Request records where the Acct-Status-Type is set to
+// Stop". That absence is the assertion an append in the wrong place fails.
+func (peer *tunnelAccountingPeer) checkRecordAttributes(record, line, cause string) error {
+	stamp, found := tunnelRadiusValue(line, "Event-Timestamp")
+	if !found {
+		return fmt.Errorf("%s carries no Event-Timestamp: %s", record, line)
+	}
+	seconds, err := strconv.ParseInt(stamp, 10, 64)
+	if err != nil {
+		return fmt.Errorf("%s Event-Timestamp %q is not an integer: %s", record, stamp, line)
+	}
+	if seconds < peer.startedAt {
+		return fmt.Errorf("%s Event-Timestamp %d predates the run, which began at %d", record, seconds, peer.startedAt)
+	}
+	if seconds > time.Now().Unix()+1 {
+		return fmt.Errorf("%s Event-Timestamp %d is in the future of this peer's clock", record, seconds)
+	}
+	station, found := tunnelRadiusValue(line, "Calling-Station-Id")
+	if !found {
+		return fmt.Errorf("%s carries no Calling-Station-Id: %s", record, line)
+	}
+	if station != tunnelCallingNumber {
+		return fmt.Errorf("%s Calling-Station-Id is %q, not the ICRQ Calling Number %q", record, station, tunnelCallingNumber)
+	}
+	delay, found := tunnelRadiusValue(line, "Acct-Delay-Time")
+	if !found {
+		return fmt.Errorf("%s carries no Acct-Delay-Time: %s", record, line)
+	}
+	if _, err := strconv.ParseUint(delay, 10, 32); err != nil {
+		return fmt.Errorf("%s Acct-Delay-Time %q is not an unsigned integer: %s", record, delay, line)
+	}
+	reported, found := tunnelRadiusValue(line, "Acct-Terminate-Cause")
+	if cause == "" {
+		if found {
+			return fmt.Errorf("%s carries Acct-Terminate-Cause=%s, which RFC 2866 Section 5.10 allows on a Stop record alone: %s", record, reported, line)
+		}
+		fmt.Printf("OK: %s carries Event-Timestamp %s, Calling-Station-Id %s, Acct-Delay-Time %s and no Acct-Terminate-Cause\n",
+			record, stamp, station, delay)
+		return nil
+	}
+	if !found {
+		return fmt.Errorf("%s carries no Acct-Terminate-Cause: %s", record, line)
+	}
+	if reported != cause {
+		return fmt.Errorf("%s reports Acct-Terminate-Cause %s, not %s", record, reported, cause)
+	}
+	fmt.Printf("OK: %s carries Event-Timestamp %s, Calling-Station-Id %s, Acct-Delay-Time %s and Acct-Terminate-Cause %s\n",
+		record, stamp, station, delay, reported)
 	return nil
 }
 
-func (peer *tunnelAccountingPeer) waitRadius(ctx context.Context, predicate func(string) bool) (string, error) {
-	deadline := time.Now().Add(30 * time.Second)
+// tunnelRadiusValue reads one NAME=VALUE field out of a decoded RADIUS-RX
+// line. The second return says whether the attribute was there at all, which
+// is what an absence assertion needs.
+func tunnelRadiusValue(line, name string) (string, bool) {
+	prefix := name + "="
+	for field := range strings.FieldsSeq(line) {
+		if value, found := strings.CutPrefix(field, prefix); found {
+			return value, true
+		}
+	}
+	return "", false
+}
+
+// waitRadius reads radius-rx.log until one line satisfies predicate, and keeps
+// answering ze in the meantime so the session stays up while it waits. The
+// description names what the caller waited for, so a timeout says which record
+// never arrived.
+func (peer *tunnelAccountingPeer) waitRadius(ctx context.Context, description string, timeout time.Duration, predicate func(string) bool) (string, error) {
+	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		contents, _ := os.ReadFile("radius-rx.log")
 		for line := range strings.SplitSeq(string(contents), "\n") {
@@ -376,5 +523,5 @@ func (peer *tunnelAccountingPeer) waitRadius(ctx context.Context, predicate func
 			return "", ctx.Err()
 		}
 	}
-	return "", errors.New("RADIUS packet did not arrive")
+	return "", fmt.Errorf("%s did not arrive within %s", description, timeout)
 }

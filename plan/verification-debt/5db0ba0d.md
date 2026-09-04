@@ -76,3 +76,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | 5db0ba0d | docs(radius): the EAP page names the FreeRADIUS section that runs | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | spec(radius): the exclusion spec is at 5 of 6, not 1 | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | spec(radius): the exclusion spec is at 5 of 6, not 1 | discovery-index freshness | ai/PACKAGE-MAP.md holds several other sessions' regenerated rows; this commit adds no package | open |
+| 2026-09-04 | 5db0ba0d | test(radius): the four session attributes proven on the RADIUS wire | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | test(radius): the four session attributes proven on the RADIUS wire | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | 5db0ba0d | spec: close spec-radius-acct-session-attributes | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

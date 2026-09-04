@@ -1,12 +1,28 @@
-# Test: NAS-Port-Id and Framed-IP-Address on the RADIUS wire, for a real PPP session.
+# Test: the subscriber session attributes on the RADIUS wire, for a real PPP session.
 # VALIDATES: spec-radius-subscriber-attributes AC-1, AC-2, AC-5 -- ze puts the
 #            operator's nas-port-id-format text in the Access-Request and in the
 #            Accounting-Request, the same text in both (RFC 2869 Section 5.17), and
 #            the IPCP-negotiated subscriber address in the Accounting-Request with
 #            Acct-Status-Type=Start (RFC 2865 Section 5.8, RFC 2866 Section 4.1).
+#            spec-radius-acct-session-attributes AC-1 to AC-5 and AC-7 -- every
+#            record carries Event-Timestamp (RFC 2869 Section 5.3),
+#            Calling-Station-Id (RFC 2865 Section 5.31) and Acct-Delay-Time
+#            (RFC 2866 Section 5.2), and only the Stop record carries
+#            Acct-Terminate-Cause (RFC 2866 Section 5.10).
 # PREVENTS:  either attribute regressing with only unit tests and the Docker interop
 #            lab to catch it. test/l2tp/radius-nas-port-id.ci owns the config surface
 #            and never reaches the wire; this test owns the wire, in the gated .ci path.
+#            It also prevents the Stop-only rule regressing where a unit test cannot
+#            see it: the peer reads what the server DECODED for all three records, so
+#            an Acct-Terminate-Cause appended one line too early shows up on the Start
+#            and on the Interim-Update.
+#
+# The three records take about seventy seconds to arrive, and the wait is the
+# acct-interval leaf rather than slack. Its YANG range is 60..3600 seconds
+# (ze-l2tp-auth-radius-conf.yang), so 60 is the earliest an Interim-Update can
+# legally be asked for. The Stop follows within seconds: cqm-enabled true drops
+# the PPP echo interval to 1s (ze-l2tp-conf.yang), the peer then stops answering
+# the probes, and ze ends the session with Lost Carrier after three misses.
 #
 # A session that reaches an assigned IPv4 needs kernel PPPoL2TP, which needs
 # CAP_NET_ADMIN, so this test is needs-linux and runs in QEMU as root
@@ -48,10 +64,12 @@ l2tp {
     enabled true
     shared-secret s3cr3t
     auth-method chap-md5
+    cqm-enabled true
     auth {
         radius {
             nas-identifier lns1
             nas-port-id-format "{nas-id}:{tunnel-id}.{session-id}"
+            acct-interval 60
             timeout 5
             retries 2
             server mock {
@@ -87,10 +105,11 @@ option=env:var=TEST_NAS_ID:value=lns1
 
 cmd=background:seq=1:exec=ze-test fixture l2tp/radius-acct-wire/radius $PORT2 testing123
 cmd=background:seq=2:exec=ze -:stdin=config
-# 90s, well past the peer's own 30s deadlines: a stall must end with the peer's
-# diagnostic (which state it reached), never with an opaque runner timeout. The
-# happy path takes about 5s.
-cmd=foreground:seq=3:exec=ze-test fixture l2tp/radius-acct-wire $PORT:timeout=90s:exit=0
+# 240s, well past the peer's own deadlines, of which the longest is the 100s it
+# allows the Interim-Update: a stall must end with the peer's diagnostic (which
+# record never arrived), never with an opaque runner timeout. The happy path
+# takes about 70s, nearly all of it the 60s acct-interval.
+cmd=foreground:seq=3:exec=ze-test fixture l2tp/radius-acct-wire $PORT:timeout=240s:exit=0
 expect=exit:code=0
 expect=stdout:pattern=OK: CHAP Response sent for challenge identifier [0-9]+ as subscriber@ze
 expect=stdout:contains=OK: CHAP Success received
@@ -98,3 +117,7 @@ expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.7.10
 expect=stdout:contains=OK: Access-Request NAS-Port-Id resolved from the template as
 expect=stdout:pattern=NAS-Port-Id resolved from the template as lns1:[0-9]+\.[0-9]+
 expect=stdout:contains=OK: Accounting-Start Framed-IP-Address matches the IPCP-negotiated address 10.99.7.10
+expect=stdout:pattern=OK: Accounting-Start carries Event-Timestamp [0-9]+, Calling-Station-Id \+441632960123, Acct-Delay-Time [0-9]+ and no Acct-Terminate-Cause
+expect=stdout:pattern=OK: Accounting-Interim-Update carries Event-Timestamp [0-9]+, Calling-Station-Id \+441632960123, Acct-Delay-Time [0-9]+ and no Acct-Terminate-Cause
+expect=stdout:contains=OK: peer stopped answering LCP echo probes
+expect=stdout:pattern=OK: Accounting-Stop carries Event-Timestamp [0-9]+, Calling-Station-Id \+441632960123, Acct-Delay-Time [0-9]+ and Acct-Terminate-Cause 2
