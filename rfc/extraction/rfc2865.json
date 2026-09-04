@@ -768,7 +768,7 @@
       "quote": "If the NAS does not support challenge/response, it MUST treat an Access-Challenge as though it had received an Access-Reject instead.",
       "disposition": "mapped",
       "mapped-to": "RFC2865-4.4-1",
-      "reason": "Binds a NAS with no challenge/response support, which is ze. Captured as RFC2865-4.4-1. Found unmet by this walk and fixed: the admin authenticator returned a generic error for an Access-Challenge, and ChainAuthenticator reads a non-rejection error as an infra failure and asks the next backend, so a server demanding a second factor handed the login to the local password database."
+      "reason": "Binds a NAS with no challenge/response support, which ze is on the PAP and CHAP paths: neither has a way back to the operator for a second request, so `(*radiusAuthenticator).result` (`internal/component/radius/authenticator.go`) answers an Access-Challenge with aaa.ErrAuthRejected. The two EAP auth-methods DO support challenge/response and consume every challenge in `authenticateEAP` before that function is reached, so this rule does not bind them and RFC2865-5.24-1 does. Captured as RFC2865-4.4-1. Found unmet by this walk and fixed: the admin authenticator returned a generic error for an Access-Challenge, and ChainAuthenticator reads a non-rejection error as an infra failure and asks the next backend, so a server demanding a second factor handed the login to the local password database."
     },
     {
       "id": "4.4:4",
@@ -898,9 +898,9 @@
     {
       "id": "5.24:1",
       "quote": "This Attribute is available to be sent by the server to the client in an Access-Challenge and MUST be sent unmodified from the client to the server in the new Access-Request reply to that challenge, if any.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds a NAS that SUPPORTS challenge/response, a role ze does not implement. Section 4.4 provides for a NAS without it and states what it owes instead, which is RFC2865-4.4-1: treat the Access-Challenge as an Access-Reject. There is therefore no 'new Access-Request reply to that challenge' for ze to carry State in. The producer that would act as it if ze did is ze's RADIUS code, which is a client only: `Exchange` and `SendToServers` (`internal/component/radius/client.go`) send a request and match the reply, and `Authenticate` (`internal/component/radius/authenticator.go`) consumes the response. Nothing serves, proxies or re-authenticates."
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5.24-1",
+      "reason": "Binds a NAS that SUPPORTS challenge/response, and ze became one: the two EAP auth-methods answer an Access-Challenge with a new Access-Request. `authenticateEAP` (`internal/component/radius/authenticator_eap.go`) reads the challenge's State with resp.FindAttr(AttrState) and hands it to `eapCredential`, which appends the value unread. Captured as RFC2865-5.24-1. This site was excluded as `binds-another-role` until 2026-09-04, on the ground that Section 4.4 let ze treat every Access-Challenge as an Access-Reject; that was true of the PAP and CHAP paths and stopped being true of the tree when plan/spec-radius-admin-eap.md added the EAP challenge loop."
     },
     {
       "id": "5.24:2",

@@ -261,7 +261,8 @@ the authenticator fails it.
 | `TestRadiusAdminEapStopsAtTheRoundCap` | `internal/component/radius/authenticator_test.go` | AC-9 | |
 | `TestRadiusAdminEapOneEAPPacketPerRadiusPacket` | `internal/component/radius/authenticator_test.go` | AC-13 | |
 | `TestRadiusAdminEapReachesTheWire` | `internal/component/radius/aaa_test.go` | Wiring, AC-2 | |
-| `TestExtractConfigAuthMethodEap` | `internal/component/radius/config_test.go` | AC-1 | |
+| `TestExtractConfigAuthMethod` | `internal/component/radius/config_test.go` | AC-1 | done |
+| `TestRadiusAuthMethodEnumCoversTheEapValues` | `internal/component/config/radius_auth_method_eap_enum_test.go` | AC-1, the schema half | done |
 
 ### Boundary Tests (numeric inputs)
 | Input | Boundary | Expected |
@@ -570,3 +571,181 @@ working-tree diff also carries another session's hunks
 ### Closure
 - [ ] Deferral rows naming this spec resolved
 - [ ] Citations repointed
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The EAP peer moved from `internal/component/ike/eap` to `internal/core/eap`,
+  so RADIUS does not depend on IKE (`c54d97dcdb`).
+- RFC 3579 enrolled with 50 requirement ids, 31 of them MUST-level
+  (`3182090331`).
+- `AttrEAPMessage` at 79, `SignMessageAuthenticator`, the EAP-Message split and
+  concatenation (`internal/component/radius/eap.go`), the challenge loop
+  (`authenticator_eap.go`) and the two `auth-method` enum values (`0488b5dfac`).
+- The `.ci`, the mock's EAP branch and the `radius-admin-eap-freeradius`
+  scenario (`40a08b6a54`); the FreeRADIUS page section (`d36bd35f84`).
+- Closure added seven more MUST-level proofs, each with both polarities and a
+  discrimination record: RFC3579-1.2-1, -2.1-1, -2.1-3, -2.2-1, -2.6.4-1, -3-1
+  and -4.3.6-2, in `internal/component/radius/rfc3579_nas_obligations_test.go`.
+  Each was behavior this spec had already implemented and left unproven.
+- `RFC2865-5.24-1` is a NEW requirement id. The State-echo obligation was
+  excluded in `rfc/extraction/rfc2865.json` as `binds-another-role`, on the
+  ground that ze does not support challenge/response. This spec made ze one, so
+  the site is now `mapped` and proven by
+  `internal/component/radius/rfc2865_state_echo_test.go`.
+
+### Bugs Found/Fixed
+- `TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes` could not have gone
+  red for the defect its prose named. Journal row in
+  `plan/journal/green-that-could-not-have-been-red.md`; fixture change approved
+  by Thomas on 2026-09-04 and recorded in `test/rfc-changed.md`.
+- Four discrimination records on `(*Client).Exchange` (`RFC2865-3-8` both
+  polarities, `-4.1-5`, `-4.1-6`) were staled by this spec changing that
+  function. Re-recorded.
+
+### Documentation Updates
+- `docs/guide/radius.md`, `docs/architecture/testing/interop.md` (phases 7-8).
+- `rfc/short/rfc3579.md`: the Enrolment reason, the Support coverage and the
+  Support remaining rows all stated things that were false at HEAD, and eleven
+  `{gap}` reasons justified themselves with premises this spec had falsified.
+  All rewritten against what the code does now.
+- `docs/features.md` carries this spec's RADIUS row hunk in the working tree
+  beside another session's CoPP hunk, so it is NOT in this commit
+  (`ai/rules/never-destroy-work.md`).
+
+### Deviations from Plan
+| Deviation | Why |
+|-----------|-----|
+| The closure added seven requirement proofs the implementation phases did not | The phases implemented the behavior and left the ledger recording it as a gap, with reasons naming producers that no longer did what they said. `ai/rules/rfc-compliance.md` makes proving a reachable MUST mandatory, not optional |
+| `concludeWithNotification` proves RFC3579-2.6.4-1; `concludeAtIdentityWithEAPFailure` proves RFC3579-2.6.3-1 and -2.6.3-2 | Two different observables are needed. The ordering rule needs a packet the peer always REPORTS, which a Notification is. The access-decision rule needs a packet the peer REJECTS, which only an EAP-Failure arriving before `peerStateMethodDone` is |
+
+## Mistake Log
+| # | Mistake | Cost | Root cause | Prevention |
+|---|---------|------|------------|------------|
+| 1 | The implementation phases left seven implemented MUSTs recorded as `{gap}`, with reasons citing producers they had themselves changed | Closure had to write 14 tests and 15 records | A `{gap}` annotation satisfies `./le rfc check` whatever its text says, so nothing mechanical reads the reason | When a change makes a producer named in a `{gap}` reason do something else, re-read every reason naming that producer, in the same work |
+| 2 | A new tagged test asserted a log line the product does not emit | One blocked edit and one owner question | The claim was written from what the loop looked like it would do, not from the peer's state machine | Read the state machine of the component the assertion depends on before writing the claim. `peerStateMethodDone` silences the report the first body needed |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Implemented | Evidence |
+|-------------|-------------|----------|
+| RFC 3579 enrolled | yes | `rfc/short/rfc3579.md`, `rfc/enrolled.txt` |
+| EAP-Message at 79 | yes | `AttrEAPMessage`, `internal/component/radius/dict.go` |
+| An outbound Message-Authenticator signer | yes | `SignMessageAuthenticator`, `internal/component/radius/packet.go` |
+| A State loop in `Authenticate` | yes | `authenticateEAP`, `internal/component/radius/authenticator_eap.go` |
+
+### Acceptance Criteria
+All thirteen verified below in Pre-Commit Verification.
+
+### Tests from TDD Plan
+Every named test exists and runs. `TestExtractConfigAuthMethodEap` never existed;
+the coverage it named is `TestExtractConfigAuthMethod`, and the TDD table now
+names that plus the schema-side `TestRadiusAuthMethodEnumCoversTheEapValues`.
+
+### Files from Plan
+Every file in "Files to Create" exists. `internal/core/eap/` is the moved package.
+
+### Audit Summary
+Complete. The one gap the audit found was the TDD table cell above, and the
+seven unproven MUSTs, both closed here.
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence | Verified |
+|------------------|----------|----------|
+| The Access-Challenge branch stops being a rejection for the EAP methods | `TestRadiusAdminEapChallengeLoopCarriesState` drives a multi-round exchange to Access-Accept; `TestRadiusAdminEapPapPathUnchanged` holds the rejection for PAP | yes |
+| Ze answers EAP as the peer, over SSH and web alike, with no login-transport change | `test/plugin/aaa-radius-eap.ci` runs a real login through the daemon and asserts `auth success ... source=radius` | yes |
+| A real server accepts ze's framing, signature and State | `radius-admin-eap-freeradius` against FreeRADIUS 3.2.7, with both forced reds recorded under "Discrimination Record (Phase 7)" | yes |
+| The conversation cannot be held open by a hostile server | `TestRadiusAdminEapStopsAtTheRoundCap` asserts at most 20 requests and an elapsed time under the budget; `ctx.Err()` is the first statement of every loop iteration | yes |
+| An unverified reply is discarded, not treated as a rejection | `TestRadiusAdminEapDiscardsUnauthenticatedChallenge` asserts `NotErrorIs(err, ErrAuthRejected)` AND `requestCount() > 2`, so the request stayed outstanding | yes |
+| The RFC 3748 ledger is unchanged by the move | `./le rfc check` reports nothing for rfc3748 | yes |
+
+## Deferrals Resolved
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| None. The spec declares no deferral shard and `plan/deferrals/spec-radius-admin-eap.md` does not exist | n/a | `ls plan/deferrals/spec-radius-admin-eap.md` reports no such file |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/radius-admin-eap-f89390ec-889f-4a7a-8172-1e2cfd108a12.md` (15 files, verdict=clean) |
+| `./le spec session review check` | `review_gate: OK (4 code files, clean, hashes match)` |
+| Rounds | 2 |
+| Reviewer lenses used | RFC conformance and ledger truth; guard and fail-closed behavior; test discrimination (would this go red); Go style over every changed file; documentation and citation freshness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Seven MUST-level requirements were implemented and recorded as `{gap}`, so the public ledger understated conformance and eleven gap reasons named producers that no longer did what they said | `rfc/short/rfc3579.md` | 14 tagged tests in `rfc3579_nas_obligations_test.go`, 15 discrimination records, and every reason rewritten against HEAD |
+| 2 | BLOCKER | `rfc/extraction/rfc2865.json` site `5.24:1` excluded the State-echo MUST as `binds-another-role` because ze does not support challenge/response, which this spec made false | `rfc/extraction/rfc2865.json` | Converted to `mapped` as `RFC2865-5.24-1`, proven by `rfc2865_state_echo_test.go` both ways |
+| 3 | ISSUE | A committed tagged test could not have gone red for the defect its prose named | `TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes` | Fixture concludes at the identity round so the peer objects; owner-approved in `test/rfc-changed.md`, journal row written |
+| 4 | ISSUE | Four discrimination records no longer verified after this spec changed `(*Client).Exchange` | `rfc/discrimination/rfc2865.json` | Re-recorded, all four verify |
+| 5 | ISSUE | A Deliverables/TDD cell named a test that does not exist | `plan/spec-radius-admin-eap.md` | Corrected to `TestExtractConfigAuthMethod` and the schema test beside it |
+| 6 | NOTE | `docs/features.md` and `docs/architecture/testing/interop.md` carry another session's hunks | working tree | Left unstaged and named in the Documentation Record |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/eap/` | yes | `ls internal/core/eap/` lists 47 entries |
+| `internal/component/radius/eap.go` | yes | `ls` reports 4.0K |
+| `internal/component/radius/eap_test.go` | yes | `ls` reports 8.0K |
+| `rfc/full/rfc3579.txt` | yes | `ls` reports 103K |
+| `rfc/short/rfc3579.md` | yes | `ls` reports 25K |
+| `test/plugin/aaa-radius-eap.ci` | yes | `ls` reports 739 bytes |
+| `test/interop-radius/scenarios/radius-admin-eap-freeradius/` | yes | `ls` lists `users` and `ze.conf` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | PAP and CHAP unchanged, Access-Challenge still rejects | `TestRadiusAdminEapPapPathUnchanged`, `TestRFC2865AccessChallengeIsRejection`, both green |
+| AC-2 | The first Access-Request carries EAP-Response/Identity | `TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage`, `TestRadiusAdminEapUserNameIsThePeerIdentity` |
+| AC-3 | Message-Authenticator per RFC 3579 Section 3.2 | `TestSignMessageAuthenticatorMatchesRFC3579`, vector computed outside ze |
+| AC-4 | Split at 253 octets into consecutive attributes | `TestEAPMessageSplitsAtTheAttributeLimit` |
+| AC-5 | Concatenation on the way in | `TestEAPMessageConcatenatesOnTheWayIn` |
+| AC-6 | An unverified challenge is DISCARDED | `TestRadiusAdminEapDiscardsUnauthenticatedChallenge` asserts the request stayed outstanding |
+| AC-7 | State carried byte for byte, never parsed | `TestRadiusAdminStateIsReturnedUnmodified` checks each round's own value |
+| AC-8 | No State sent when none was received | `TestRadiusAdminStateIsNotManufactured` |
+| AC-9 | Round cap and time budget both bound the loop | `TestRadiusAdminEapStopsAtTheRoundCap` |
+| AC-10 | Profiles map as PAP maps them, `source=radius` | `TestRadiusAdminEapProfileMapping`; `.ci` asserts `source=radius` |
+| AC-11 | Access-Reject stops the chain | `TestRadiusAdminEapAccessRejectDeniesAccess` |
+| AC-12 | Tier clean, IKE green, RFC 3748 ledger unchanged | `./le tier check` OK; `internal/core/eap` green; `./le rfc check` silent on rfc3748 |
+| AC-13 | One EAP packet per RADIUS packet | `TestRadiusAdminEapOneEAPPacketPerRadiusPacket` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `auth-method eap-mschapv2` in the config tree | `TestRadiusAdminEapReachesTheWire` builds a `config.Tree`, sets the leaf, and calls `radiusBackend{}.Build`, so a leaf that parses and never reaches the authenticator fails it | yes, read the body |
+| An operator SSH login | `test/plugin/aaa-radius-eap.ci` runs `ze-test fixture plugin/aaa-radius-eap` and expects `auth success.*source=radius`, `method=eap` and `reply=Access-Challenge` | yes, read the body |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | the move landed in one commit, `c54d97dcdb` |
+| A-2 | confirmed | `(*PeerSession).Process` takes a `*Packet` and the RADIUS caller passes one |
+| A-3 | confirmed | `request.Password` reaches `eap.NewPeerSession` in `authenticateEAP` |
+| A-4 | confirmed | `internal/component/ike/wire/payload_eap_carrier_test.go` holds the IKE-carrier assertions; `internal/core/eap` non-test code names no IKE package |
+| A-5 | confirmed | `maxEAPRounds` is 20 and `TestRadiusAdminEapStopsAtTheRoundCap` asserts the server sees no more than that, in less than the budget |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/radius.md` names the two methods and the FreeRADIUS section | phase 7 and 8 commits; the `Auth-Type mschap` finding is recorded beside the lab config | yes |
+| RFC status row regenerated | `./le rfc index-update` wrote `docs/features/rfc-status.md` from `rfc/short/` | yes |
+| `rfc/short/rfc3579.md` Meta rows describe HEAD | Enrolment reason, Support coverage and Support remaining rewritten; `AttrEAPMessage` is at `dict.go`, `SignMessageAuthenticator` at `packet.go` | yes |
+| `docs/features.md` RADIUS row | edited in the working tree, NOT staged: the same file carries another session's CoPP hunk | no, and named |
+| CLI reference | no CLI command changed; only the `auth-method` enum, which the YANG carries | n/a |
+
+## Core Insight
+
+A `{gap}` annotation is prose, and no gate reads prose. So the reason a
+requirement is unmet keeps passing `./le rfc check` long after the change that
+made it false. This spec implemented seven MUSTs and left every one recorded as
+a gap whose stated reason named a producer the same commit had rewritten. The
+ledger read as 10 of 31 when the tree was at 17 of 31, and nothing mechanical
+could see the difference. When a change touches a producer, the `{gap}` reasons
+naming that producer are part of the change.

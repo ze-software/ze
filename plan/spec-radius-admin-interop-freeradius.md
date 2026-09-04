@@ -31,9 +31,9 @@ ze's own Go program in a container.
 
 That was acceptable while the admin backend sent one credential. It is not now.
 Commit `0971cff50d` added CHAP, so ze computes a digest a server must reproduce
-from its own stored password, and `plan/spec-radius-admin-eap.md` adds a
-multi-round exchange with a Message-Authenticator ze signs and a State attribute
-ze echoes. A mock built beside ze's encoder agrees with ze by construction. A
+from its own stored password, and `spec-radius-admin-eap` (closed 2026-09-04)
+added a multi-round exchange with a Message-Authenticator ze signs and a State
+attribute ze echoes. A mock built beside ze's encoder agrees with ze by construction. A
 real server is the only thing that can disagree.
 
 **The skeleton this replaces was wrong about the cost, and the correction is why

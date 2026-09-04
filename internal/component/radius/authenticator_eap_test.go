@@ -103,6 +103,40 @@ type eapMockServer struct {
 	lastState []byte
 	// echoedState is the State each Access-Request after the first carried.
 	echoedState [][]byte
+
+	// corruptEAPFrom rewrites the encapsulated EAP packet's Length field, from
+	// this round on, to declare more octets than the attributes carry. That is
+	// the shape eap.DecodePacket refuses as "invalid length". Zero never
+	// corrupts; round 1 is the first challenge.
+	corruptEAPFrom int
+	// notifyBeforeMethodReply sends one EAP Notification Request (Type 2) in
+	// place of the round that would carry the method's reply. The peer's method
+	// Response is stashed rather than dropped, so the method resumes on the next
+	// round exactly where it paused.
+	notifyBeforeMethodReply bool
+	// notifyDone records that the Notification round has been sent.
+	notifyDone bool
+	// stashed is the method Response held back across the Notification round.
+	stashed *eap.Packet
+	// rejectCarriesEAPSuccess puts an EAP-Success inside an Access-Reject, so a
+	// test can assert the RADIUS code denies whatever the EAP packet claims.
+	rejectCarriesEAPSuccess bool
+	// concludeWithNotification puts an EAP Notification Request inside the
+	// concluding reply, in place of the EAP-Success. A Notification is the one
+	// packet a concluding EAP-Message can carry that the peer always REPORTS: a
+	// well-formed EAP-Failure arriving after the method succeeded is silently
+	// discarded (RFC 3748 Section 4.2, (*eap.PeerSession).Process), so it leaves
+	// no trace of having been processed at all.
+	concludeWithNotification bool
+	// concludeAtIdentityWithEAPFailure answers the FIRST Access-Request, the one
+	// carrying the EAP-Response/Identity, with the concluding code and an
+	// EAP-Failure inside it. A server may conclude at any round, and this is the
+	// round at which an EAP-Failure makes the peer OBJECT rather than discard:
+	// the peer is still in peerStateIdentity, which is not the peerStateMethodDone
+	// that RFC 3748 Section 4.2 reserves the silent discard for. It is the only
+	// fixture in which the two sources of a verdict genuinely disagree AND the
+	// disagreement is visible to the caller.
+	concludeAtIdentityWithEAPFailure bool
 }
 
 // newEAPMockServer starts a RADIUS server running the EAP authenticator for
@@ -138,6 +172,16 @@ func (s *eapMockServer) answer(t *testing.T, req, secret []byte, session *eap.Se
 	forge := s.forgeAfter > 0 && round >= s.forgeAfter
 	forever, dropState, code := s.challengeForever, s.dropState, s.acceptWith
 	failEAP := s.concludeWithEAPFailure
+	corrupt := s.corruptEAPFrom > 0 && round >= s.corruptEAPFrom
+	notify := s.notifyBeforeMethodReply && !s.notifyDone && round > 0
+	if notify {
+		s.notifyDone = true
+	}
+	stashed := s.stashed
+	s.stashed = nil
+	rejectWithSuccess := s.rejectCarriesEAPSuccess
+	concludeNotify := s.concludeWithNotification
+	concludeAtIdentity := s.concludeAtIdentityWithEAPFailure && round == 0
 	s.mu.Unlock()
 
 	verifyRequestSignature(t, req, secret)
@@ -157,7 +201,34 @@ func (s *eapMockServer) answer(t *testing.T, req, secret []byte, session *eap.Se
 	response, err := eap.DecodePacket(encoded)
 	require.NoError(t, err)
 
-	next := session.Process(response)
+	var next *eap.Packet
+	switch {
+	case concludeAtIdentity:
+		// The session is not advanced: the server concluded before the method ran,
+		// which is what leaves the peer in peerStateIdentity when the Failure
+		// arrives.
+		next = &eap.Packet{Code: eap.CodeFailure, Identifier: response.Identifier}
+	case notify:
+		// RFC 3748 Section 5.2 lets a Notification Request ride between the
+		// method's rounds. The peer's method Response is stashed rather than fed
+		// to the session, so the method resumes on the next round: what is under
+		// test is that the displayable message changed nothing, and a session
+		// advanced by it would hide that.
+		s.mu.Lock()
+		s.stashed = response
+		s.mu.Unlock()
+		next = &eap.Packet{
+			Code: eap.CodeRequest, Identifier: response.Identifier + 1,
+			Type: eap.TypeNotification, TypeData: []byte("your password expires in 3 days"),
+		}
+	case stashed != nil:
+		// The incoming packet is the peer's Notification Response, which the
+		// method has no use for. The stashed method Response is what the session
+		// was waiting for.
+		next = session.Process(stashed)
+	default:
+		next = session.Process(response)
+	}
 	if next == nil {
 		return nil
 	}
@@ -174,21 +245,45 @@ func (s *eapMockServer) answer(t *testing.T, req, secret []byte, session *eap.Se
 		// changes, which is the disagreement RFC 3579 Section 2.6.3 is written for.
 		next = &eap.Packet{Code: eap.CodeFailure, Identifier: next.Identifier}
 	}
-	replyCode := uint8(CodeAccessChallenge)
-	attrs, err := appendEAPMessage(nil, next.Encode())
-	require.NoError(t, err)
+	replyCode, concluded := uint8(CodeAccessChallenge), false
 	switch {
+	case concludeAtIdentity:
+		replyCode, concluded = code, true
+	case notify:
 	case forever:
 	case failEAP && next.Code == eap.CodeFailure:
-		replyCode = code
-		attrs = append(attrs, reply...)
-		attrs = append(attrs, Attr{Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)})
+		replyCode, concluded = code, true
 	case next.Code == eap.CodeSuccess:
-		replyCode = code
-		attrs = append(attrs, reply...)
-		attrs = append(attrs, Attr{Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)})
+		replyCode, concluded = code, true
 	case next.Code == eap.CodeFailure:
 		replyCode = CodeAccessReject
+	}
+
+	if replyCode == CodeAccessReject && rejectWithSuccess {
+		// The RADIUS code stays Access-Reject; only the encapsulated packet
+		// claims otherwise. RFC 3579 Section 2.1 makes the code the denial.
+		next = &eap.Packet{Code: eap.CodeSuccess, Identifier: next.Identifier}
+	}
+	if concluded && concludeNotify {
+		next = &eap.Packet{
+			Code: eap.CodeRequest, Identifier: next.Identifier,
+			Type: eap.TypeNotification, TypeData: []byte("your session ends at 18:00"),
+		}
+	}
+
+	encodedNext := next.Encode()
+	if corrupt {
+		// A Length field declaring eight octets more than the attributes carry:
+		// eap.DecodePacket (internal/core/eap/eap.go) refuses `eapLen > len(data)`
+		// as "invalid length". The RADIUS framing stays well formed, so the only
+		// thing that can reject this packet is the EAP header validation.
+		binary.BigEndian.PutUint16(encodedNext[2:4], uint16(len(encodedNext)+8))
+	}
+	attrs, err := appendEAPMessage(nil, encodedNext)
+	require.NoError(t, err)
+	if concluded {
+		attrs = append(attrs, reply...)
+		attrs = append(attrs, Attr{Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)})
 	}
 	if replyCode == CodeAccessChallenge && !dropState {
 		state := []byte{'z', 'e', byte(round), 0xa5}
@@ -752,8 +847,18 @@ func TestRadiusAdminEapLongPacketCrossesTheAttributeBoundary(t *testing.T) {
 // Access-Accept ended the login as an infrastructure error and the AAA chain
 // carried on to the next backend. That put the encapsulated packet back in
 // charge of the access decision through the error path, which is exactly what
-// Section 2.6.3 forbids, and no test could see it while only the
-// Reject-plus-Success direction was covered.
+// Section 2.6.3 forbids.
+//
+// The fixture concludes at the IDENTITY round, and that is load-bearing rather
+// than incidental. Until 2026-09-04 it concluded after the method, where the
+// peer is in peerStateMethodDone and RFC 3748 Section 4.2 makes
+// (*PeerSession).Process DISCARD the EAP-Failure silently: processEAPMessage
+// returned a nil error, so an early `return eapErr` would have returned nil too
+// and this test could not have gone red for the defect it names. Concluding
+// before the method runs leaves the peer in peerStateIdentity, where the same
+// Failure produces ErrEAPFailure and the early return would end the login.
+// Recorded in plan/journal/green-that-could-not-have-been-red.md; the fixture
+// change is Thomas's, approved 2026-09-04 and recorded in test/rfc-changed.md.
 //
 // RFC requirement: RFC3579-2.6.3-1 negative -- a decision that followed
 // anything OTHER than the RADIUS Packet Type would refuse this login; it
@@ -768,7 +873,7 @@ func TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes(t *testing.T) {
 	srv := newEAPMockServer(t, secret, eap.TypeMD5Challenge, "Hello",
 		[]Attr{{Type: AttrFilterID, Value: []byte("admin")}})
 	srv.mu.Lock()
-	srv.concludeWithEAPFailure = true
+	srv.concludeAtIdentityWithEAPFailure = true
 	srv.mu.Unlock()
 
 	a := eapAuthenticator(t, srv.addr, secret, AuthMethodEAPMD5)
