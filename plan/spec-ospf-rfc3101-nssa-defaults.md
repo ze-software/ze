@@ -5,9 +5,9 @@
 | Status | ready |
 | Scope | protocol |
 | Depends | learned 972 (OSPF AF seam), learned 975 (OSPFv3 NSSA redistribution) |
-| Phase | RESEARCH and DESIGN complete. Implementation runs on Opus 4.8 |
+| Phase | IMPLEMENTATION partly landed. AC-1 to AC-4 are in `01f8306378`; AC-5 to AC-14 are outstanding. Implementation carries no model requirement (`ai/rules/planning.md`) |
 | Deferral shard | `-` |
-| Updated | 2026-08-02 |
+| Updated | 2026-09-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -289,6 +289,39 @@ Two entry points, one per direction.
 | AC-12 | A reader of `docs/features/rfc-status.md` and `docs/guide/ospf.md` | Both state the NSSA default behaviour for BOTH address families, carry source anchors, and the Remaining count agrees with the real `{gap}` count |
 | AC-13 | Any reachable router state, including mid-transition, with at least one attached NSSA | What Ze ADVERTISES and what Ze ORIGINATES agree: whenever the self Router-LSA carries the B-bit, every attached NSSA holds its required default (Type-7 for a regular NSSA, Type-3 or `::/0` for a no-summary one), and whenever the B-bit is clear, Ze originates no border-router default in any area. The single-producer refactor is the means of achieving this, not the assertion |
 | AC-14 | A backbone interface transitioning down then up on a router attached to a no-summary NSSA | The area never holds zero defaults as a result of the two consumers disagreeing. Any remaining absence is bounded by the single producer's own update, not by a race between producers |
+
+### Verification note, 2026-09-04
+
+An independent read of the producers at `ead2e374eb`. Two commits carry the work so far:
+`e4b6455b84` (2026-08-02) landed the OSPFv2 half and this spec, and `01f8306378`
+(2026-08-29) landed the OSPFv3 half. Four of the five "Behavior to change" bullets are
+implemented; the Section 2.4 mutual-exclusivity bullet is not.
+`INTEROP_SCENARIO=ospf-stub-nssa-frr ./le integration interop` passes at this HEAD.
+
+| AC | Verdict | Producer read |
+|----|---------|---------------|
+| AC-1 | implemented | `applyNSSADefaults` (`internal/plugins/ospf/nssa.go`) binds `originate` to `v6OriginateNSSADefault` (`internal/plugins/ospf/origination_v6_nssa.go`) on a v6 codec, and passes `propagate` as `!isABR`, so an ABR default is P-clear |
+| AC-2 | implemented | `v6ApplyAreaTypePolicy` (`internal/plugins/ospf/origination_v6_stub.go`) appends `::/0` at `p.DefaultCost` when `p.NoSummary`; `applyNSSADefaults` leaves `wantType7` false for a no-summary area |
+| AC-3 | implemented | the same family branch; `v6NSSAKey` keys `ospfv3types.LSTypeNSSA` |
+| AC-4 | implemented | `v6WithdrawExternal` (`internal/plugins/ospf/origination_v6_external.go`) adds `v6NSSAKey(router, v6NSSADefaultLSID)` for every attachment to the keep-set |
+| AC-5 | NOT implemented | `applyNSSADefaults` sets `wantType7` true on `!isABR && a.NSSADefaultOriginate && hasFA[a.AreaID]` with no `NoSummary` term, so an internal router still originates a Type-7 default into a no-summary NSSA. No `TestOSPFNSSAInternalDefaultExcludedByNoSummary` exists |
+| AC-6 | code present, v6 proof missing | the gate in `ComputeExternalWith` (`internal/plugins/ospf/spf/external.go`) filters on `h.Type.NSSA()`, so it is family-neutral. `TestOSPFNSSABorderRouterDefaultPBit` (`internal/plugins/ospf/spf/external_nssa_test.go`) drives it through the OSPFv2 `type7LSA` helper only, and `ospf-nssa-two-abr-frr` does not exist |
+| AC-7 | code present, v6 proof missing | the `in.NSSAPolicies[area].NoSummary` arm of the same gate. Same proof gap as AC-6 |
+| AC-8 | code present, unproven | the gate is scoped by `in.NSSABorderRouter` in `ComputeExternalWith`, so a non-border router installs. No test drives the permissive direction |
+| AC-9 | NOT implemented | `test/ospf/` holds only `ospf-nssa.ci`; `ospf-nssa-abr-default.ci` does not exist |
+| AC-10 | unit-proven, daemon proof missing | the forwarding-address condition is `hasFA[a.AreaID]` in `applyNSSADefaults`, proven for v6 by `TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress`. `test/ospf/ospf-nssa-internal-default.ci` does not exist |
+| AC-11 | NOT implemented | `rfc/short/rfc3101.md` carries no checklist id for the Section 2.7 MUST NOT; the highest Section 2.7 id is RFC3101-2.7-2 |
+| AC-12 | NOT implemented | `docs/guide/ospf.md` still states that OSPFv3 does not yet originate this default correctly, which `01f8306378` made false. `docs/features/rfc-status.md` was corrected by that commit |
+| AC-13 | NOT implemented | three sites still compute ABR status independently: `isAreaBorderRouter` (`internal/plugins/ospf/lsdb/origination.go`), `ospfspf.IsABR` in `applyNSSADefaults`, and `IsABR` in `Computer.Run` (`internal/plugins/ospf/spf/computer.go`) |
+| AC-14 | NOT implemented | no `TestOSPFNSSANoSummaryDefaultSurvivesBackboneFlap` exists, and AC-13's single producer is its precondition |
+
+Seven unit tests landed in `internal/plugins/ospf/origination_v6_nssa_default_test.go`. Four
+named tests in the TDD plan have no counterpart in the tree:
+`TestOSPFNSSAInternalDefaultExcludedByNoSummary`, `TestOSPFv3NSSABorderRouterDefaultPBit`,
+`TestOSPFNSSANonBorderRouterInstallsPClearDefault` and
+`TestOSPFNSSADefaultAgreesWithRouterLSABBit`. None of the three new interop scenarios and
+none of the four new `.ci` files exist.
+
 
 ## End-to-End User Stories
 
