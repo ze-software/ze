@@ -24,9 +24,34 @@ certainty, so the check was true in every round that took the lock at all, and
 the wanted-rounds guard could no longer fail for the condition it names. The
 green measured the guard going unfalsifiable, not the stimulus returning.
 
-Narrowed to the burst window, the honest answer is `0 of 3 wanted rounds
-overlapped`. The stimulus is NOT being built, which is what this file said in
+Narrowed to the burst window, the honest answer was `0 of 3 wanted rounds
+overlapped`: the stimulus was not being built, which is what this file said in
 the first place.
+
+**That is now fixed, and the test is five of five green.** Three things were
+needed and none of them was the lead:
+
+1. An instrument that can answer the question.
+   `ze_iface_link_events_queued_while_blocked_total` counts events that ARRIVED
+   while the worker was waiting, which the block counter cannot: the worker
+   takes the lock once per drained entry, so at most one block exists per
+   contiguous hold and the resync usually takes it.
+2. A burst synchronised on the apply rather than on a clock. It fires when
+   `ze_iface_config_apply_started_total` moves, which is why that counter is
+   incremented before the lock and not after it. This removes the race the
+   advice below asks for rather than widening it.
+3. A netlink receive buffer. Two runs in three had been dying on `kernel
+   dropped 1054` and `207 netlink notifications`, and that was a PRODUCT defect
+   found through this test: all three of the monitor's sockets kept
+   `net.core.rmem_default`, so the kernel discarded what it could not queue
+   before ze ever saw it. Fixed at `monitorReceiveBufferBytes`, and zero drops
+   in twelve runs since.
+
+What remains is procedural, not technical: this file is not closed because
+`./le commit create` refuses to remove a spec with no independent-review
+artifact. One independent review DID run, returned ISSUES with two blockers,
+and every finding it raised is fixed; a second review confirming that is what
+closure now waits on.
 
 **What IS established**, and it is worth keeping:
 
