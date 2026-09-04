@@ -39,6 +39,11 @@ type radiusConfig struct {
 	// carries no Message-Authenticator attribute. RFC 5176 Section 3.4 makes
 	// the attribute optional, so the default is false.
 	RequireMessageAuthenticator bool
+
+	// Exclusions is the `attributes exclude` container: the attributes this
+	// deployment holds back, each with the packet kinds it is held back from.
+	// A nil map is the deployment that named none, and it holds nothing back.
+	Exclusions attributeExclusions
 }
 
 // errNoRADIUSConfig is returned when the config tree has no auth.radius block.
@@ -140,6 +145,15 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 		}
 		cfg.CoAPort = v
 	}
+
+	// The schema is what refuses an attribute Ze must always send and a packet
+	// kind an attribute cannot reach (yang/ze-l2tp-auth-radius-conf.yang), so
+	// this reads a container the loader has already checked.
+	exclusions, err := parseAttributeExclusions(radiusBlock)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Exclusions = exclusions
 
 	requireMA, err := boolFromAny(radiusBlock["require-message-authenticator"])
 	if err != nil {

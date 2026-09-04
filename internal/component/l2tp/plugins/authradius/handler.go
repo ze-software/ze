@@ -25,6 +25,16 @@ type radiusAuth struct {
 	serverAddr      string
 	sourceAddress   net.IP
 	nasPortIDFormat string
+	exclusions      attributeExclusions
+}
+
+// attributePolicy is what the operator configured about the attribute list of
+// one Access-Request: the template that ADDS NAS-Port-Id, and the exclusions
+// that REMOVE attributes. The two travel together because one request answers
+// to both, and a function that took them apart would need a parameter for each.
+type attributePolicy struct {
+	nasPortIDFormat string
+	exclusions      attributeExclusions
 }
 
 func newRADIUSAuth() *radiusAuth {
@@ -46,6 +56,16 @@ func (a *radiusAuth) swapClient(c *radius.Client, nasID, serverAddr string, sour
 	return old
 }
 
+// setExclusions installs the attributes this deployment holds back. It is
+// separate from swapClient because the two answer different questions: which
+// server a request goes to, and which attributes the request carries. A reload
+// applies to every request built after it.
+func (a *radiusAuth) setExclusions(exclusions attributeExclusions) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.exclusions = exclusions
+}
+
 // handle is the AuthHandler registered with the l2tp package.
 // It spawns a goroutine per request for async RADIUS I/O, returning
 // Handled=true so the drain goroutine skips its own AuthResponse call.
@@ -55,7 +75,7 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 	nasID := a.nasID
 	sAddr := a.serverAddr
 	srcAddr := a.sourceAddress
-	portIDFormat := a.nasPortIDFormat
+	policy := attributePolicy{nasPortIDFormat: a.nasPortIDFormat, exclusions: a.exclusions}
 	a.mu.RUnlock()
 
 	if client == nil {
@@ -68,11 +88,11 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 	}
 
 	incAuthSent(sAddr, sAddr)
-	go a.doRADIUS(req, client, nasID, srcAddr, portIDFormat, respond)
+	go a.doRADIUS(req, client, nasID, srcAddr, policy, respond)
 	return l2tp.AuthResult{Handled: true}
 }
 
-func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, nasID string, sourceAddr net.IP, nasPortIDFormat string, respond l2tp.AuthRespondFunc) {
+func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, nasID string, sourceAddr net.IP, policy attributePolicy, respond l2tp.AuthRespondFunc) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger().Error("l2tp-auth-radius: goroutine panic",
@@ -92,7 +112,7 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 		return
 	}
 
-	attrs, ok := buildAccessRequestAttrs(req, nasID, sourceAddr, nasPortIDFormat)
+	attrs, ok := buildAccessRequestAttrs(req, nasID, sourceAddr, policy)
 	if !ok {
 		// RFC 2865 Section 4.1: "An Access-Request MUST contain either a
 		// User-Password or a CHAP-Password or a State." The peer supplied no
@@ -190,13 +210,15 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 }
 
 // buildAccessRequestAttrs is the full attribute list of one Access-Request:
-// the RFC 2865 set every request carries, plus the operator's NAS-Port-Id.
+// the RFC 2865 set every request carries, plus the operator's NAS-Port-Id, less
+// whatever the operator held back.
 //
-// The two are built separately because they answer to different sources.
+// The parts are built separately because they answer to different sources.
 // buildAuthAttrs carries what the RFC and the credential method require, and
-// nasPortIDFormat carries what the operator configured. An empty format adds
-// nothing, so an unconfigured deployment sends exactly today's attributes.
-func buildAccessRequestAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP, nasPortIDFormat string) ([]radius.Attr, bool) {
+// the policy carries what the operator configured. An empty policy adds nothing
+// and removes nothing, so an unconfigured deployment sends exactly the
+// attributes it sent before this feature existed.
+func buildAccessRequestAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP, policy attributePolicy) ([]radius.Attr, bool) {
 	attrs, ok := buildAuthAttrs(req, nasID, sourceAddr)
 	if !ok {
 		return nil, false
@@ -205,14 +227,23 @@ func buildAccessRequestAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr 
 	// RFC 2869 Section 5.17: NAS-Port-Id names the access port in text, for a
 	// NAS that cannot conveniently number its ports. An LNS port is the tunnel
 	// and session pair, so the operator's template composes it.
-	if attr, ok := nasPortIDAttr(nasPortIDFormat, nasPortIDFacts{
+	if attr, ok := nasPortIDAttr(policy.nasPortIDFormat, nasPortIDFacts{
 		nasID:     nasID,
 		tunnelID:  req.TunnelID,
 		sessionID: req.SessionID,
 	}); ok {
 		attrs = append(attrs, attr)
 	}
-	return attrs, true
+
+	// The exclusions are applied HERE, to the finished list, and never as a
+	// condition on one of the appends above. RFC 2865 Section 4.1: "It MUST
+	// contain either a NAS-IP-Address attribute or a NAS-Identifier attribute
+	// (or both)", and "An Access-Request MUST contain either a User-Password or
+	// a CHAP-Password or a State". The schema names neither the NAS identity nor a
+	// credential attribute, so what survives is still a conformant
+	// Access-Request. NAS-Port-Id is the one attribute an operator can remove
+	// from this list, and the same section makes User-Name a SHOULD.
+	return policy.exclusions.filter(attrs, packetAccessRequest), true
 }
 
 // buildAuthAttrs builds the RFC 2865 attribute set for one Access-Request, and

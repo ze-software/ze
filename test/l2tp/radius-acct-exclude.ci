@@ -1,0 +1,56 @@
+# Test: an attribute exclusion is accepted by the config surface.
+# VALIDATES: spec-radius-attribute-exclusion AC-2, AC-3, AC-5, AC-6 -- an operator
+#            can hold an attribute back from every record type by naming it alone,
+#            from the record types a packet-type list names, and from the
+#            Access-Request alone, and two entries stand side by side.
+# PREVENTS:  the container being read by the plugin but absent from the YANG module,
+#            which would reject the whole config an operator wrote for it, and the
+#            reverse: a container the schema accepts and parseAttributeExclusions
+#            refuses.
+#
+# The attribute list on the wire is proven in process by
+# TestExcludedAttributeIsAbsentFromTheWire
+# (internal/component/l2tp/plugins/authradius/exclude_test.go), which encodes the
+# Accounting-Request and walks its octets. This test owns the config surface: it
+# runs the same OnConfigVerify path the daemon runs at boot, offline, with no
+# kernel and no RADIUS server needed.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true;
+    auth {
+        radius {
+            nas-identifier lns1;
+            nas-port-id-format "{nas-id}:{tunnel-id}.{session-id}";
+            acct-interval 300;
+            server main {
+                address 127.0.0.1;
+                port 11812;
+                shared-key testing123;
+            }
+            attributes {
+                exclude {
+                    calling-station-id {
+                        packet-type [ accounting-interim ];
+                    }
+                    acct-terminate-cause;
+                    nas-port-id {
+                        packet-type [ access-request ];
+                    }
+                }
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.255.6.1;
+            start 10.255.6.10;
+            end 10.255.6.50;
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

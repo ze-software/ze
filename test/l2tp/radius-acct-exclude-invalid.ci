@@ -1,0 +1,38 @@
+# Test: an attribute RFC 2866 makes mandatory cannot be excluded.
+# VALIDATES: spec-radius-attribute-exclusion AC-8, AC-9 -- the enum names none of
+#            Acct-Status-Type, Acct-Session-Id, NAS-Identifier or NAS-IP-Address, so
+#            the config that names one is refused and the refusal names the word.
+# PREVENTS:  an operator writing a line that suppresses an attribute RFC 2866
+#            Section 5.13 counts as "1  Exactly one instance of this attribute MUST
+#            be present" and getting no diagnostic either way. Junos 18.1R1 offers a
+#            numeric form whose unsupported configurations "have no effect"; ze
+#            takes the curated form so the refusal happens where the operator can
+#            still fix it.
+#
+# Offline: this is the same OnConfigVerify the daemon runs at boot, so a config
+# that fails here fails there.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true;
+    auth {
+        radius {
+            nas-identifier lns1;
+            server main {
+                address 127.0.0.1;
+                port 11812;
+                shared-key testing123;
+            }
+            attributes {
+                exclude {
+                    acct-session-id;
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=unknown field in exclude: acct-session-id

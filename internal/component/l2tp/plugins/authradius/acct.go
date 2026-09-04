@@ -102,6 +102,7 @@ type radiusAcct struct {
 	nextSess        uint32
 	serverAddr      string
 	nasPortIDFormat string
+	exclusions      attributeExclusions
 }
 
 type sessionKey struct {
@@ -133,6 +134,26 @@ func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Dur
 	a.serverAddr = serverAddr
 	a.nasPortIDFormat = nasPortIDFormat
 	a.interval = interval
+}
+
+// setExclusions installs the attributes this deployment holds back. It is
+// separate from setClient because the two answer different questions: which
+// server a record goes to, and which attributes the record carries. A reload
+// applies to every record built after it, and a record already on the wire
+// keeps the list it was built with.
+func (a *radiusAcct) setExclusions(exclusions attributeExclusions) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.exclusions = exclusions
+}
+
+// exclusionsNow reads the set the last reload installed. buildAcctPacket calls
+// this rather than reading the field, because the field is written under a.mu
+// and buildAcctPacket runs with the lock released.
+func (a *radiusAcct) exclusionsNow() attributeExclusions {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.exclusions
 }
 
 func (a *radiusAcct) genSessionID(tunnelID, sessionID uint16) string {
@@ -363,9 +384,25 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 		attrs = append(attrs, radius.Attr{Type: radius.AttrAcctTerminateCause, Value: radius.AttrUint32(uint32(terminateCauseOrNASError(sess.terminateCause)))})
 	}
 
+	// The operator's `attributes exclude` container is applied HERE, to the
+	// finished list, and never as a condition on one of the appends above: a
+	// condition per append grows with the attribute list and lets an attribute
+	// added later miss the feature. RFC 2866 Section 5.13 keeps Acct-Status-Type,
+	// Acct-Session-Id and the NAS identity out of the container, so whatever an
+	// operator excludes, what survives is still a conformant Accounting-Request.
+	exclusions := a.exclusionsNow()
+	kind := acctPacketKind(statusType)
+
 	return &radius.Packet{
 		Code:  radius.CodeAccountingReq,
-		Attrs: attrs,
+		Attrs: exclusions.filter(attrs, kind),
+		// Acct-Delay-Time is the one excludable attribute this function does not
+		// append. RFC 2866 Section 5.2 counts "how many seconds the client has
+		// been trying to send this record for", which only the client knows, so the
+		// client writes the attribute (radius/client.go, setAcctDelayTime). Its
+		// exclusion therefore travels on the packet rather than through the
+		// filter above.
+		OmitAcctDelayTime: exclusions.excludes(radius.AttrAcctDelayTime, kind),
 	}
 }
 

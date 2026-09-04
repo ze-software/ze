@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | plan/spec-radius-acct-session-attributes.md |
-| Phase | - |
+| Phase | 1/6 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-09-03 |
+| Updated | 2026-09-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -206,7 +206,8 @@ lets a future attribute be added without its exclusion working.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The six excludable attributes are all `0-1` in RFC 2866 Section 5.13 or absent from its table | read in `rfc/full/rfc2866.txt` | The enum offers a conformance hole | AC-8 | confirmed |
 | A-2 | Ze emits no Acct-On and no Acct-Off | `dict.go` defines Start, Stop and Interim-Update only, and the plugin uses those three | The message-type enum is short by two | read at the producer | confirmed |
-| A-3 | Filtering the assembled list cannot reorder attributes in a way a server rejects | RFC 2866 Section 3: "The order of attributes of different types is not required to be preserved" | Filtering must preserve position | AC-9 | unvalidated |
+| A-3 | Filtering the assembled list cannot reorder attributes in a way a server rejects | RFC 2866 Section 3: "The order of attributes of different types is not required to be preserved" | Filtering must preserve position | AC-7, `TestExcludePreservesTheRemainingOrder` | confirmed |
+| A-4 | `buildAcctPacket` appends every excludable attribute, so one filter point per builder reaches all six | the spec's own reading of the builder | One attribute needs a second mechanism | read at the producer | **broken** |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -217,9 +218,21 @@ lets a future attribute be added without its exclusion working.
 
 ## Blast Radius
 
-`internal/component/l2tp/plugins/authradius` only, plus its YANG. The RADIUS
-client and the admin RADIUS path are untouched: this is subscriber config, and
-the admin path sends a different and much smaller attribute set.
+`internal/component/l2tp/plugins/authradius` and its YANG, plus two additive
+lines in the RADIUS client. The admin RADIUS path is untouched: this is
+subscriber config, and the admin path sends a different and much smaller
+attribute set.
+
+**A-4 broke while the filter was written.** `buildAcctPacket` does NOT append
+Acct-Delay-Time: `(*radius.Client).Exchange` writes it, through
+`setAcctDelayTime` (`internal/component/radius/client.go`), because RFC 2866
+Section 5.2 counts "how many seconds the client has been trying to send this
+record for" and only the client knows that. A filter over the assembled list
+therefore never sees the attribute, so the exclusion travels to the client as
+`radius.Packet.OmitAcctDelayTime`, checked once where the client stamps. The
+field's zero value stamps, so every other caller is unchanged and no existing
+test moved. Dropping `acct-delay-time` from the enum instead would have been a
+scope reduction, which needs the owner rather than the author.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 | Entry Point | → | Feature Code | Test |
@@ -264,6 +277,13 @@ reaches a builder fails it.
 | `TestExcludeRefusesUnknownWords` | same | AC-9 | |
 | `TestFullyExcludedRecordIsStillConformant` | `.../acct_test.go` | AC-10 | |
 | `TestExcludedAttributeIsAbsentFromTheWire` | same | Wiring | |
+| `TestExcludeAcctDelayTimePerPacketType` | `.../exclude_test.go` | AC-3 for the attribute the client stamps | |
+| `TestAccountingRequestOmitsAcctDelayTimeOnRequest` | `internal/component/radius/acct_delay_time_omit_test.go` | AC-2 for Acct-Delay-Time, read off the wire a UDP socket received | |
+
+Every unit test above lives in
+`internal/component/l2tp/plugins/authradius/exclude_test.go` rather than in the
+three files this table names. One concern in one file, and none of the existing
+RFC-tagged test files is touched.
 
 ### Boundary Tests (numeric inputs)
 | Input | Boundary | Expected |
@@ -275,7 +295,14 @@ reaches a builder fails it.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `radius-acct-exclude` | `test/l2tp/radius-acct-exclude.ci` | An operator suppresses one attribute from Interim records and the wire shows it | |
+| `radius-acct-exclude` | `test/l2tp/radius-acct-exclude.ci` | An operator writes three exclusions and the config surface accepts them | |
+| `radius-acct-exclude-invalid` | `test/l2tp/radius-acct-exclude-invalid.ci` | An operator names Acct-Session-Id and the config surface refuses it | |
+
+The wire-level scenario is NOT delivered. It needs the accounting peer fixture
+(`internal/test/fixture/tunnel_fixture_l2tp_ppp.go`, `checkRecordAttributes`) to
+assert an ABSENT attribute, and that function is another session's uncommitted
+work in this checkout. The two tests above own the config surface, and
+`TestExcludedAttributeIsAbsentFromTheWire` owns the octets in process.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Peer implementation | Asserts |

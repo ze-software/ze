@@ -181,6 +181,7 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 		primaryAddr = cfg.Servers[0].Address
 	}
 	oldClient := authInstance.swapClient(client, cfg.NASIdentifier, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
+	authInstance.setExclusions(cfg.Exclusions)
 	// Claim the auth slot HERE, not in init(). The slot holds one handler
 	// (internal/component/l2tp/subscriber/handler_registry.go), and this plugin
 	// and l2tp-auth-local both sit in the same binary, so an init()-time claim
@@ -194,6 +195,7 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 		return authInstance.handle(req, respond)
 	})
 	acctInstance.setClient(client, cfg.NASIdentifier, cfg.AcctInterval, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
+	acctInstance.setExclusions(cfg.Exclusions)
 	if oldClient != nil {
 		oldClient.Close() //nolint:errcheck // best-effort on replaced client
 	}
