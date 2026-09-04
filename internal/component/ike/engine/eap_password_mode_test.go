@@ -15,9 +15,9 @@ import (
 	"testing"
 
 	ikecrypto "github.com/ze-software/ze/internal/component/ike/crypto"
-	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 // eapPasswordSecret is the credential every case below configures. A producer that

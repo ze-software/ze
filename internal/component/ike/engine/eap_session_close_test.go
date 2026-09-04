@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 // eapTLSEngineFrame is the frame a parked EAP-TLS engine goroutine carries on

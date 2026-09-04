@@ -11,11 +11,11 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 // pemBlockCertificate is the PEM block type of an X.509 certificate

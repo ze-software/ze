@@ -29,9 +29,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 // authModeSweepMax bounds the sweep over ipsec.AuthMode. The type is an iota enum
