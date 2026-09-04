@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
@@ -47,6 +48,11 @@ func EmitBestChange(bus ze.EventBus, in *ribevents.BestChangeBatch) {
 	out.Protocol = ProtocolID
 	out.AFI = uint16(in.Family.AFI)
 	out.SAFI = uint8(in.Family.SAFI)
+	// Carried, not dropped. A zero ReplayID is the incremental path. A nonzero
+	// one answers a replay request the orchestrator correlates back to one
+	// target. Dropping it would turn a replay into a fan-out to every consumer,
+	// re-adding a route each of them already holds.
+	out.ReplayID = in.ReplayID
 	for i := range in.Changes {
 		entry, ok := convertBestChange(&in.Changes[i])
 		if ok {
@@ -93,4 +99,50 @@ func convertBestChange(in *ribevents.BestChangeEntry) (redistevents.RouteChangeE
 		Metric:   in.Metric,
 		OriginAS: in.OriginAS,
 	}, true
+}
+
+// LocRIBPlugin is the registry name of the plugin that holds the Loc-RIB whose
+// best-path changes EmitBestChange publishes. A `redistribute` rule naming a
+// source this package registers produces nothing until that plugin receives the
+// peer's UPDATEs. The derived process binding in
+// internal/component/bgp/config/redistribute_binding.go grants them.
+//
+// The name is spelled here rather than imported, because the BGP engine never
+// imports a plugin (ai/rules/architecture.md).
+// TestLocRIBPluginNamesARegisteredPlugin compares this copy against the
+// registry row it names, so it cannot drift from
+// internal/component/bgp/plugins/rib/register.go.
+const LocRIBPlugin = "bgp-rib"
+
+// OrchestratorPlugin is the registry name of the plugin that dispatches a
+// redistribution batch to a consumer. A `destination bgp` rule reaches a peer's
+// wire through that plugin.
+//
+// A peer grants a process the right to put a message on its wire with
+// `attach process <name> { send [ update ] }`
+// (Peer.maySend, internal/component/bgp/reactor/send_permission.go).
+//
+// The name is spelled here for the reason LocRIBPlugin is, and
+// TestOrchestratorPluginNamesARegisteredPlugin holds it to the registry row.
+const OrchestratorPlugin = "redistribute-orchestrator"
+
+// DestinationIsBGP reports whether a `redistribute` destination name is the
+// consumer this package registers, meaning routes bound for a BGP peer's wire.
+func DestinationIsBGP(name string) bool {
+	return name == bgpConsumerName
+}
+
+// SourceIsBGP reports whether a `redistribute` source name resolves to routes
+// this package produces, meaning the Loc-RIB's best paths.
+//
+// It asks the source registry rather than comparing against the three names
+// RegisterBGPSources writes. A source a later BGP component registers under the
+// same protocol is then answered here, and this function stays as it is
+// (ai/rules/principles.md, registration over enumeration).
+func SourceIsBGP(name string) bool {
+	src, ok := redistribute.LookupSource(name)
+	if !ok {
+		return false
+	}
+	return src.Protocol == protocolName
 }
