@@ -64,13 +64,21 @@ type ifaceMetrics struct {
 	// middle of a burst. It never says the consumer was left believing the
 	// wrong final state.
 	resolverEventsDropped metrics.CounterVec
-	// configApplies counts config applies that REACHED the DHCP and RA
+	// configApplies counts config applies that STARTED the DHCP and RA
 	// reconcile (register.go), incremented before dhcpMu is taken rather than
 	// after it is released, so the count is already visible while the lock is
 	// held. It is the ONLY signal
 	// that says a reload got that far: an apply that refuses earlier, or a
 	// SIGHUP the transaction layer finds no changes in, never reaches the
 	// increment, so a flat count during a reload says the apply did not happen.
+	//
+	// It counts a START, which is why it is not named for an apply. The
+	// increment happens before the lock, so a reconcile that panics or a
+	// process that dies mid-hold leaves a count that no completion counter
+	// contradicts. Both in-tree precedents, ze_as112_config_reload_total and
+	// ze_geodns_config_reload_total, are CounterVecs labelled by result and
+	// counted AFTER the fact; they argue for a started/completed pair, and a
+	// pair is the honest next step if anyone needs to see a wedged reconcile.
 	//
 	// It is here because its absence was expensive. On 2026-09-03 a red
 	// functional test was read as "the reload no longer holds the lock", and
@@ -110,8 +118,8 @@ func bindMetricsRegistry(reg metrics.Registry) {
 			"Link events whose worker waited for the lock a config commit holds", []string{metricLabelName}),
 		resolverEventsDropped: reg.CounterVec("ze_iface_resolver_events_dropped_total",
 			"Oldest resolver link events discarded to make room on a full subscriber channel", []string{metricLabelName}),
-		configApplies: reg.Counter("ze_iface_config_applies_total",
-			"Config applies that reached the DHCP and RA reconcile, counted as they take the lock link event handling needs"),
+		configApplies: reg.Counter("ze_iface_config_apply_started_total",
+			"Config applies that STARTED the DHCP and RA reconcile, counted as they take the lock link event handling needs. No completion counter exists, so a wedged reconcile reads the same as a healthy one"),
 	}
 	ifaceMetricsPtr.Store(m)
 }

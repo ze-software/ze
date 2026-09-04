@@ -2,7 +2,7 @@ package iface
 
 import "testing"
 
-// VALIDATES: ze_iface_config_applies_total is registered under that exact name
+// VALIDATES: ze_iface_config_apply_started_total is registered under that exact name
 // and countConfigApply increments it.
 //
 // PREVENTS: the instrument gap that made a red functional test cost three QEMU
@@ -14,9 +14,9 @@ import "testing"
 func TestConfigAppliesCounterIsRegisteredAndCounts(t *testing.T) {
 	reg := bindCapturingMetrics(t)
 
-	counter, ok := reg.counters["ze_iface_config_applies_total"]
+	counter, ok := reg.counters["ze_iface_config_apply_started_total"]
 	if !ok {
-		t.Fatalf("ze_iface_config_applies_total is not registered; registry has %v", counterNames(reg))
+		t.Fatalf("ze_iface_config_apply_started_total is not registered; registry has %v", counterNames(reg))
 	}
 	if got := counter.get(); got != 0 {
 		t.Fatalf("a fresh counter reads %v, want 0", got)

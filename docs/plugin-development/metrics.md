@@ -208,6 +208,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_iface_link_events_coalesced_total` | CounterVec | name | iface (link event queue) |
 | `ze_iface_carrier_resyncs_total` | CounterVec | name | iface (carrier resync) |
 | `ze_iface_resolver_events_dropped_total` | CounterVec | name | iface (resolver fan-out) |
+| `ze_iface_link_worker_blocked_total` | CounterVec | name | iface (link event worker) |
+| `ze_iface_config_apply_started_total` | Counter | | iface (config apply) |
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
 

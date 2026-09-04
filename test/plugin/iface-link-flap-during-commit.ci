@@ -24,7 +24,8 @@
 # metric contradicts it, so the END STATE converges within about a second
 # whether or not one event survived. What separates the two producers is
 # whether that self-heal had to fire. Each round therefore asserts three
-# things, and the test needs all three:
+# things, and the test needs all three (a fourth, (4) below, is a floor on the
+# stimulus rather than an assertion about the product):
 #
 #   1. the kernel's ::/0 route on zeflapv0 reaches 254 + 1024
 #      AC-5's own words: the metric matches live carrier after the commit.
@@ -47,6 +48,15 @@
 #   3. ze_iface_carrier_resyncs_total{name=zeflapv0} never moves
 #      No transition was lost: the event path alone carried the link to its
 #      final state. This is the assertion the dropping producer fails.
+#   4. ze_iface_config_apply_started_total rose at some point in the run
+#      The SIGHUP reached the interface apply at all. A round that sees it flat
+#      RETRIES rather than failing, because reloads are serialized and a slow
+#      one lands its count in the next round; only a whole run with no apply is
+#      red. It is a global counter with no round identity, so a rise cannot be
+#      attributed to a particular round's commit: it is a floor, not a proof.
+#      Without it, a run where the SIGHUP never reached the reconcile is
+#      indistinguishable from one where the burst merely mistimed, and that
+#      ambiguity cost one session two hours on 2026-09-03.
 #
 # (3) is an absence, and an absence is evidence only when the mechanism behind
 # it is alive. It is: TestCarrierResyncRepairsAContradictedRouteMetric

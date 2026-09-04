@@ -12,32 +12,56 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## RESOLVED 2026-09-04, and the title is wrong
+## NOT RESOLVED. This section claimed it was, on 2026-09-04, and that was wrong.
 
-**The test could always build its stimulus. The counter reading it was blind.**
-Fixed in `055b97a29`; `iface-link-flap-during-commit` is four of four green in
-QEMU on the arm64 runtime kernel 7.2.
+**Retracted the same day.** The claim was "the test could always build its
+stimulus, the counter reading it was blind", on the evidence of four green runs
+after `055b97a29`. An independent review found why those runs were green, and a
+re-run confirmed it: the fixture read its block counter over a window that
+opened BEFORE the SIGHUP, so a block recorded during the lead, before the burst
+existed, satisfied it. The reload's hold contains a 1 Hz resync tick with
+certainty, so the check was true in every round that took the lock at all, and
+the wanted-rounds guard could no longer fail for the condition it names. The
+green measured the guard going unfalsifiable, not the stimulus returning.
 
-The premise below, that the reload stopped holding `dhcpMu` across the burst, is
-FALSE and is kept only so the reasoning is legible. `hostname` belongs to the
-iface subtree despite the config being named `ze-bgp.conf`, no gate on the
-SIGHUP path skips the apply, and `DHCPClient.Stop` still waits on each of forty
-clients in turn, unchanged since the 1.1 to 3.3 s hold was measured. What failed
-was `ze_iface_link_worker_blocked_total{name="zeflapv0"}`: the worker labels a
-block with the name on the queue entry it was about to handle, the carrier
-resync pushed every second carries no name, so the block lands on the empty
-label and the burst coalesces behind it. The fixture read the named series.
+Narrowed to the burst window, the honest answer is `0 of 3 wanted rounds
+overlapped`. The stimulus is NOT being built, which is what this file said in
+the first place.
 
-The full account, both defects, the four measurements and the two designs
-surveyed and rejected, is in `plan/journal/gate-fires-outside-its-population.md`.
+**What IS established**, and it is worth keeping:
 
-This file is NOT closed, because `./le commit create` refuses a `remove` of a
-spec with no independent-review artifact, and manufacturing one to delete a
-skeleton resolved the same evening is not what that gate is for. It is left for
-the owner to close or drop. One piece of follow-on work is real and is recorded
-in the journal row rather than here: `internal/component/iface` publishes no
-config-apply counter, which is why answering "did the reload reach the apply"
-cost three QEMU cycles and two agents.
+- The counter blindness is real. `pushResync`
+  (`internal/component/iface/link_queue.go`) builds a key with no interface
+  name, so its block counts under `name=""`, and reading
+  `{name="zeflapv0"}` alone misses it. Verified at source.
+- The reload does reach the apply and does take `dhcpMu`. `hostname` is in the
+  iface subtree, no gate on the SIGHUP path skips it, and `DHCPClient.Stop`
+  still waits on forty clients in turn.
+- **The counter cannot answer the question the test asks.** The worker takes the
+  lock once per drained entry, so at most one block is counted per contiguous
+  hold; when the resync wins that race the burst's own entry never TryLocks. A
+  wide window over-reports, a narrow one under-reports. No reading of
+  `ze_iface_link_worker_blocked_total` establishes "the burst met a held lock".
+
+So the work this file names is REAL and is not the work it originally described.
+It is not "restore a lost stimulus by tuning a lead". It is "give this test an
+instrument that can see events queued while the worker is blocked", because the
+one it has cannot. An event-queued-while-blocked counter is the shape that
+answers it; `ze_iface_config_apply_started_total` (added in this work) answers
+the weaker question of whether the apply began at all.
+
+A second, independent failure showed up in the same re-runs and is not
+diagnosed: two of three runs died on `kernel dropped 1054` and `207 netlink
+notifications`. The zero-drops assertion is load-dependent and the round loop
+now completes more rounds than it used to, which is the obvious suspect and is
+NOT established.
+
+The full account is in `plan/journal/gate-fires-outside-its-population.md`.
+
+Read the rest of this file knowing the section above supersedes it. The Task
+section still carries the reasoning as it stood at two earlier moments, each
+marked where it was wrong, because the sequence is the useful part: a true
+premise, a real defect found underneath it, and a green that was neither.
 
 ## Task
 
@@ -54,20 +78,20 @@ QEMU VM on 2026-09-03, `ze_iface_link_worker_blocked_total` did not move in any
 of six attempts ... The test is red for the scenario never being built rather
 than for the product regressing."
 
-The four measurements are real. The conclusion drawn from them was not. The
-counter did not move BECAUSE IT COULD NOT: the worker labels a block with the
-interface name on the queue entry it was about to handle, the carrier resync
-pushed every second carries no name, so the block lands on the empty label while
-the burst coalesces behind it, and the fixture was reading
-`{name="zeflapv0"}`. The scenario was built on every one of those runs.
+The four measurements are real. The conclusion drawn from them was not, and the
+correction drawn next was not either. The counter did not move partly because it
+could not see a resync's block, which lands on the empty label; that defect is
+real. But "the scenario was built on every one of those runs", written here on
+2026-09-04, does not follow and a narrow-window re-run contradicts it.
 
 The lead was suspected next and was also innocent. One second, chosen when forty
 DHCP clients held the lock for a measured 1.1 to 3.3 s, and 100 ms on the same
 host, both gave "zero of six" for the same reason: neither changes what the
 counter can see. `flapCommitLead08` stays at one second and carries that warning.
 
-Goal, as achieved in `055b97a29`: read a fact about the DAEMON from every series
-of the counter rather than from one interface's label. Four of four green after.
+Goal, as attempted in `055b97a29`: read a fact about the DAEMON from every series
+of the counter rather than from one interface's label. That produced four green
+runs and the green was an artefact of the window, not of the fix. See the top.
 The three questions this file opened are answered, and the answers are worth
 keeping because each was a candidate cause that turned out to be innocent:
 
@@ -81,7 +105,8 @@ keeping because each was a candidate cause that turned out to be innocent:
    (`internal/plugins/iface/dhcp/dhcp_linux.go`) closes the stop channel and
    then waits on done, forty times in sequence, and nothing has moved that work
    out from under the lock since the 1.1 to 3.3 s figure was taken.
-3. **Which design restores the stimulus?** None was needed. Two were surveyed
+3. **Which design restores the stimulus?** Still open, and now the whole
+   question. Two were surveyed
    and are recorded in the journal row for whoever meets this class again: a
    `zetest` rendezvous inside the apply removes the timing race but costs a
    production call site with an empty body, and a participant fixture holding

@@ -174,6 +174,19 @@ func flapCounter08(ctx context.Context, port, metric string) (float64, error) {
 	return namedCounter08(body, metric, flapDevice08), nil
 }
 
+// flapApplies08 reads how many config applies reached the DHCP and RA reconcile
+// under dhcpMu. It is the counter whose absence made a red run unreadable: a
+// round whose overlap count is zero is one of two very different faults, either
+// the commit never reached the apply or the burst missed a window that did
+// happen, and nothing distinguished them until this existed.
+func flapApplies08(ctx context.Context, port string) (float64, error) {
+	body, err := scrape08(ctx, port)
+	if err != nil {
+		return 0, err
+	}
+	return totalCounter08(body, "ze_iface_config_apply_started_total"), nil
+}
+
 // flapBlocked08 reads whether the link worker WAITED for the config commit, and
 // it must sum every series rather than read `name="zeflapv0"`.
 //
@@ -191,19 +204,6 @@ func flapCounter08(ctx context.Context, port, metric string) (float64, error) {
 // So `{name="zeflapv0"}` reads zero through a genuine overlap. Reading it was
 // the defect: the run reported "0 of 3 wanted rounds overlapped" four times on
 // a daemon that was holding the lock exactly as the test intended.
-// flapApplies08 reads how many config applies reached the DHCP and RA reconcile
-// under dhcpMu. It is the counter whose absence made a red run unreadable: a
-// round whose overlap count is zero is one of two very different faults, either
-// the commit never reached the apply or the burst missed a window that did
-// happen, and nothing distinguished them until this existed.
-func flapApplies08(ctx context.Context, port string) (float64, error) {
-	body, err := scrape08(ctx, port)
-	if err != nil {
-		return 0, err
-	}
-	return totalCounter08(body, "ze_iface_config_applies_total"), nil
-}
-
 func flapBlocked08(ctx context.Context, port string) (float64, error) {
 	body, err := scrape08(ctx, port)
 	if err != nil {
@@ -298,13 +298,10 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	// flapAttempts08, and the daemon's own counter says whether it happened
 	// rather than a route metric sampled at exactly the right instant.
 	stalled := 0
+	applyMisses := 0
 	pressures := make([]float64, 0, flapRounds08)
 	for round := range flapAttempts08 {
 		pressureBefore, err := flapCounter08(ctx, port, "ze_iface_link_events_coalesced_total")
-		if err != nil {
-			return err
-		}
-		blockedBefore, err := flapBlocked08(ctx, port)
 		if err != nil {
 			return err
 		}
@@ -320,6 +317,17 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 			return ctx.Err()
 		case <-time.After(flapCommitLead08):
 		}
+		// Read the block counter HERE, immediately before the burst, not before
+		// the SIGHUP. A window that opened at the commit spanned the whole lead,
+		// and the reload's hold is long enough to contain a resync tick with
+		// certainty, so a block recorded before the burst even existed made
+		// `overlapped` true in every round that took the lock at all. That made
+		// the wanted-rounds guard below unfalsifiable for the condition it
+		// names. Narrowed to the burst window it can fail again.
+		blockedBefore, err := flapBlocked08(ctx, port)
+		if err != nil {
+			return err
+		}
 		if _, _, err := runCommand08(ctx, true, "ip", "-force", "-batch", "flap.batch"); err != nil {
 			return err
 		}
@@ -327,17 +335,30 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		if err != nil {
 			return err
 		}
-		// The commit must actually reach the interface apply. Without this the
-		// round can only report that the worker was never blocked, which reads
-		// as "the burst mistimed" and sent one session down a two-hour dead end
-		// on 2026-09-03. A flat apply counter says the SIGHUP did not get as
-		// far as the reconcile, which is a different fault with a different fix.
+		// Whether the commit reached the interface apply. Without it the round
+		// can only report that the worker was never blocked, which reads as
+		// "the burst mistimed" and sent one session down a two-hour dead end on
+		// 2026-09-03; a flat apply counter is a different fault with a
+		// different fix.
+		//
+		// A flat sample here RETRIES, it does not fail the run. Reloads are
+		// serialized on one channel and a round is only about 4.2 s wide, so a
+		// reload slower than that lands its count in the NEXT round, and
+		// failing here would abort a run for a late SIGHUP. That is the exact
+		// class of defect the overlap assertion above had, fixed one commit
+		// earlier, and it should not be reintroduced in a new place. The
+		// end-of-run wanted-rounds guard is what turns repeated misses red.
+		//
+		// The counter is global with no round identity, so a rise cannot be
+		// attributed to THIS round's SIGHUP: a previous round's late apply
+		// satisfies it too. It is a floor, not a proof.
 		appliesNow, err := flapApplies08(ctx, port)
 		if err != nil {
 			return err
 		}
 		if appliesNow <= appliesBefore {
-			return fmt.Errorf("round %d: ze_iface_config_applies_total did not move (%g), so the SIGHUP never reached the interface apply and no commit held the lock this round", round, appliesNow)
+			fmt.Fprintf(os.Stderr, "FLAP: round %d saw no config apply yet (%g); the SIGHUP has not reached the reconcile, retrying\n", round, appliesNow)
+			applyMisses++
 		}
 		overlapped := blockedNow > blockedBefore
 		if !Poll(ctx, 750, 20*time.Millisecond, func() bool { metric, ok := flapDefaultMetric08(ctx); return ok && metric == flapDownMetric08 }) {
@@ -410,6 +431,9 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	}
 	if resyncs := resyncsNow - resyncsBefore; resyncs != 0 {
 		return fmt.Errorf("carrier resync counter rose by %g, want 0: event path lost a transition", resyncs)
+	}
+	if applyMisses == flapAttempts08 {
+		return fmt.Errorf("no round of %d saw ze_iface_config_apply_started_total move: the SIGHUP never reached the interface apply, so no commit ever held the lock and the scenario could not be built", flapAttempts08)
 	}
 	if stalled < flapWanted08 {
 		return fmt.Errorf("only %d of %d wanted rounds overlapped a commit in %d attempts: the burst kept arriving after the reload finished, so the scenario was never built (ze_iface_link_worker_blocked_total did not move)", stalled, flapWanted08, flapAttempts08)

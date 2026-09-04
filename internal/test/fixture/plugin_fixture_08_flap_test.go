@@ -56,9 +56,24 @@ func TestTotalCounter08SelectsTheMetricAndReadsBareSeries(t *testing.T) {
 		t.Errorf("totalCounter08 over a series with no labels = %v, want 7", got)
 	}
 	// A different counter whose name merely starts the same must not be summed
-	// in: the metric name is anchored, not a prefix match.
+	// in. This one is caught by the mandatory space after the labels, not by an
+	// anchor, so it does NOT test the anchors and the two cases below do.
 	const sibling = "ze_iface_link_worker_blocked_total_extra{name=\"x\"} 5\n"
 	if got := totalCounter08(sibling, "ze_iface_link_worker_blocked_total"); got != 0 {
 		t.Errorf("totalCounter08 matched a longer metric name, got %v, want 0", got)
+	}
+	// The leading anchor. A metric whose name ENDS with the target is a
+	// different series and must not be summed in. Dropping `^` from the pattern
+	// makes this read 5, and nothing else in either test notices.
+	const prefixed = "ze_vpp_ze_iface_link_worker_blocked_total{name=\"x\"} 5\n"
+	if got := totalCounter08(prefixed, "ze_iface_link_worker_blocked_total"); got != 0 {
+		t.Errorf("totalCounter08 matched a metric ending in the target name, got %v, want 0", got)
+	}
+	// The trailing anchor. Prometheus may append a millisecond timestamp after
+	// the value; the value must not be read out of a line whose shape the
+	// pattern does not fully describe. Dropping `$` makes this read 5.
+	const timestamped = "ze_iface_link_worker_blocked_total{name=\"x\"} 5 1700000000000\n"
+	if got := totalCounter08(timestamped, "ze_iface_link_worker_blocked_total"); got != 0 {
+		t.Errorf("totalCounter08 read a value off a timestamped series, got %v, want 0", got)
 	}
 }

@@ -472,13 +472,37 @@ func formatHex(h string) string {
 	return h
 }
 
+// truncateOutput keeps the head AND the tail of a long capture, because a
+// failure's diagnosis is usually in neither half alone: startup lines say what
+// the daemon became, and the last lines say what it was doing when it failed.
+//
+// It kept the first maxLines only until 2026-09-04, and that cost a session
+// several hours. A fixture printing a per-round diagnostic had every one of
+// those lines relayed and then cut, while the single line it printed before its
+// loop survived, so the output looked exactly as though the later prints had
+// never happened. The session concluded the plugin stderr relay dropped them,
+// wrote that in a journal row and a spec, committed both, and had to retract
+// them: the relay has no cap and does not stop at ready
+// (attachStderrRelay, internal/component/plugin/process/process.go). Head-only
+// truncation is indistinguishable from a producer that went silent.
+//
+// The elision line names how many lines went, so a reader can tell a truncated
+// capture from a short one.
 func truncateOutput(s string, maxLines int) string {
 	lines := strings.Split(s, "\n")
 	if len(lines) <= maxLines {
 		return s
 	}
+	head := maxLines / 2
+	tail := maxLines - head
+	elided := len(lines) - maxLines
 	var tb textbuf.Buffer
-	return tb.Join(lines[:maxLines], "\n").Str("\n... (truncated)").String()
+	tb.Join(lines[:head], "\n")
+	tb.Str("\n... (")
+	tb.Int(int64(elided))
+	tb.Str(" lines elided; head and tail shown)\n")
+	tb.Join(lines[len(lines)-tail:], "\n")
+	return tb.String()
 }
 
 func indentLines(s, indent string) string {

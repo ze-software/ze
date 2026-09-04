@@ -316,7 +316,15 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
 		r.childPathEnv(),
 		"ze.storage.blob=false",
-		"SLOG_LEVEL=DEBUG", // Enable debug logging for tracing
+		// SLOG_LEVEL=DEBUG was set here until 2026-09-04 and nothing has ever
+		// read it: slogutil resolves a level from `ze.log*` alone
+		// (internal/core/slogutil), and a grep for the name finds no consumer
+		// anywhere in the tree. It read as though these children logged at
+		// debug, and a session investigating a failure believed that and drew a
+		// conclusion from an absence of log lines that were never going to be
+		// emitted. The knob that works is `option=env:var=ze.log:value=debug`
+		// in the .ci, or `ze.log.<subsystem>` for one component; note the iface
+		// component's subsystem is `interface`, so `ze.log.iface` is not it.
 		// Plugin startup stall watchdog. Derived from this test's own budget, not
 		// a constant: see pluginStageStall (plugin_stage_stall.go).
 		r.pluginStageStallEnv(testBudget),

@@ -322,7 +322,7 @@ type lockedBuilder struct {
 // speaks (ai/rules/evidence.md): a positive `expect=stdout:pattern=`
 // whose needle lands past the cap fails over a capture that looks complete, and
 // the failure reads as "the daemon never printed it". The runner sets
-// SLOG_LEVEL=DEBUG for every client, so 10 MB is reachable.
+// every client, so 10 MB is reachable.
 const truncationMarker = "\n[ze-test: output truncated at maxOutputBytes; the capture below this line is incomplete]\n"
 
 // appendCapped stores as much of s as the cap allows and records whether it had

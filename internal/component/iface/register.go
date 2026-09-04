@@ -488,6 +488,10 @@ func runEngine(conn net.Conn) int {
 		// suppression runs BEFORE the router-discovered subscription below: it
 		// publishes raRoutePriority, which is what tells that handler ze owns
 		// those routes.
+		// The startup apply counts too. It reaches the same reconcile and takes
+		// the same lock, so leaving it out made the counter answer 0 for a boot
+		// config and contradicted its own help string.
+		countConfigApply()
 		dhcpMu.Lock()
 		reconcileDHCP(cfg, eb, activeDHCP, log)
 		suppressRAForConfig(cfg, suppressedRA, activeRouters, raRoutePriority, eb, log)
