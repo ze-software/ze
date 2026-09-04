@@ -580,6 +580,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`, `docs/contributing/documentation-testing.md`, `./le inventory`, `./le docvalid`, `./le docs-to-code` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |
 | command grammar, verb-first, command alias, deprecated alias, grammar gate | `ai/rules/cli.md` (Mechanical Enforcement), `./le cli-grammar`, `docs/architecture/cli/root-namespace-grammar.md` |
+| which verb, verb semantics, read-only verb, idempotent command, side effect, selector placement, narrowing versus shaping, least surprise | `docs/architecture/cli/command-verbs.md` |
 | flag or keyword, --flag, flag register, flag registry, offline flag, client flag to the daemon, --json versus pipe | `ai/rules/cli.md` (`--flag` or Keyword), `./le cli-grammar`, `internal/component/command/grammar/flags.go`, `docs/architecture/cli/root-namespace-grammar.md` |
 | DispatchCommandArgs, typed inter-plugin dispatch, tokenizer bypass | `docs/architecture/api/process-protocol.md`, `ai/digests/plugin-transport.md`, `ai/rules/plugins.md` |
 | RawMessage, double marshal, callback passthrough, SDK callback | `docs/architecture/api/process-protocol.md`, `ai/digests/api-ipc.md` |
