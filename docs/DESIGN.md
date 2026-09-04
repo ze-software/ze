@@ -349,7 +349,6 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-healthcheck` | Link/target health-dependent route withdrawal |
 | `bgp-bmp` | BMP monitoring station (RFC 7854) |
 | `bgp-rr` | Route reflector (RFC 4456) |
-| `bgp-redistribute` | Redistribute learned routes into system RIB and system routes into BGP |
 | `redistribute-orchestrator` | Dispatch redistributed routes to registered protocol consumers |
 | `bfd` | BFD session management (RFC 5880, RFC 5881, RFC 5883) |
 | `rib` | Shared route information base service |

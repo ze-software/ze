@@ -139,8 +139,7 @@ recorded nothing is listed as `unknown`.
 | `bgp-softver` | Software version capability (code 75) |
 | `bgp-llnh` | Link-local next-hop for IPv6 |
 | `bgp-healthcheck` | Health-dependent route withdrawal |
-| `bgp-redistribute` | Redistribute learned routes into system RIB |
-| `redistribute-orchestrator` | Dispatch redistributed routes to registered protocol consumers (sources: `bgp`/`ibgp`/`ebgp`, `connected`, `static`, `kernel`, `l2tp`, `isis`, `as112`; consumers: `bgp`, `isis`) <!-- source: internal/plugins/as112/redistribute.go -- registerAS112Sources --> |
+| `redistribute-orchestrator` | Dispatch redistributed routes to registered protocol consumers (sources: `bgp`/`ibgp`/`ebgp`, `connected`, `static`, `kernel`, `l2tp`, `isis`, `ospf`, `ipsec`, `as112`; consumers: `bgp`, `isis`, `ospf`) <!-- source: internal/plugins/as112/redistribute.go -- registerAS112Sources --> |
 | `loop` | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
 <!-- source: internal/component/bgp/plugins/ -- BGP plugin implementations -->
 
