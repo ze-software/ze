@@ -161,12 +161,18 @@ with no metric while the one it does not keeps 100. Scenario 62: a raw export
 filter removes MED from the destination base on the route-server egress rail,
 and GoBGP still receives MED.
 
-The configured removal's gate reads the WIRE rather than the filter text.
-`appendSingleAttr` (`internal/component/bgp/reactor/filter_format.go`) switches
-on `*attribute.MED` while the parser builds the value form `attribute.MED`, so
-`med` never reaches the text a filter is handed. `medRemoveHasWork`
-(`internal/component/bgp/reactor/filter_delta.go`) is where that is answered, and
-scenario 61 is what measured it.
+The configured removal's gate reads the filter text alone. `medRemoveHasWork`
+(`internal/component/bgp/reactor/filter_delta.go`) asks whether the subject names
+`med`, which covers both ways a metric can be there: the peer sent it, and
+`appendSingleAttr` (`internal/component/bgp/reactor/filter_format.go`) renders it;
+or an earlier filter in the chain set it, and `applyFilterDelta`
+(`filter_chain.go`) merged that into the same subject.
+
+Until 2026-09-04 the gate read the WIRE as well, because `appendSingleAttr`
+matched `*attribute.MED` while the parser builds the value form `attribute.MED`,
+so `med` reached no filter and a text-only gate refused every removal. Scenario
+61 is what measured that. The renderer now names the attribute, so the wire
+reading was a second declaration of one fact and it is gone.
 
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- medRemoveHasWork, ExtractMEDRemoveOps -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterAttrs.merge, the chain order between med and med-remove -->

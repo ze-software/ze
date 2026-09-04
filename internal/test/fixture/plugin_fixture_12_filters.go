@@ -37,7 +37,7 @@ func p12RegisterFilterFixtures() {
 	Register("plugin/redistribute-import-modify", p12FilterImportDriver(
 		"filter-modify-test",
 		"set-localpref",
-		[]string{"local-preference"},
+		[]string{fieldLocalPreference},
 		sdk.FilterModify,
 		"filter modified %d route(s)",
 	))
@@ -167,7 +167,7 @@ func p12FilterExportModifyDriver() Driver {
 	registration := sdk.Registration{Filters: []sdk.FilterDecl{{
 		Name:       "set-export-localpref",
 		Direction:  sdk.FilterExport,
-		Attributes: []string{"local-preference"},
+		Attributes: []string{fieldLocalPreference},
 		OnError:    sdk.OnErrorReject,
 	}}}
 	handler := func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {

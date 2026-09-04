@@ -1043,6 +1043,67 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("bgp-med-increment-gobgp", func(t *testing.T) {
+		const (
+			incremented = "10.63.0.0/24"
+			control     = "10.63.1.0/24"
+			sourceAS    = "65005"
+			source      = "172.30.0.9"
+			sent        = "100"
+			computed    = "150"
+			// What the increment writes when the filter subject does not name
+			// `med`: the arithmetic starts from the RFC 4271 Section 9.1.2.2
+			// absent base of 0 instead of from the route's metric.
+			fromAbsentBase = "50"
+		)
+		table := gobgpTable(
+			gobgpRouteLine(incremented, source, sourceAS, "[{Origin: i} {Med: "+computed+"} [65005:1]]"),
+			gobgpRouteLine(control, source, sourceAS, "[{Origin: i} {Med: "+sent+"}]"),
+		)
+		if err := requireGoBGPSourceBlock(table, incremented, sourceAS, source); err != nil {
+			t.Fatalf("the matched route was not read as the injected one: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, incremented, gobgpMEDAttribute, computed); err != nil {
+			t.Fatalf("the incremented metric was rejected: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, control, gobgpMEDAttribute, sent); err != nil {
+			t.Fatalf("the control route's kept metric was rejected: %v", err)
+		}
+		// The defect this scenario exists to catch. `increment 50` computing
+		// from an absent-attribute base writes 50 on a route that carried 100,
+		// and that must not read as the wanted 150.
+		absentBase := gobgpTable(gobgpRouteLine(incremented, source, sourceAS, "[{Origin: i} {Med: "+fromAbsentBase+"}]"))
+		if requireGoBGPAttributeValue(absentBase, incremented, gobgpMEDAttribute, computed) == nil {
+			t.Fatal("arithmetic on the absent base passed as arithmetic on the route's metric")
+		}
+		// No arithmetic at all leaves the injected metric in place.
+		untouched := gobgpTable(gobgpRouteLine(incremented, source, sourceAS, "[{Origin: i} {Med: "+sent+"}]"))
+		if requireGoBGPAttributeValue(untouched, incremented, gobgpMEDAttribute, computed) == nil {
+			t.Fatal("a route the policy never touched passed as incremented")
+		}
+		// A blanket rewrite would satisfy the first assertion, so the control
+		// has to refuse the computed value.
+		blanket := gobgpTable(gobgpRouteLine(control, source, sourceAS, "[{Origin: i} {Med: "+computed+"}]"))
+		if requireGoBGPAttributeValue(blanket, control, gobgpMEDAttribute, sent) == nil {
+			t.Fatal("a blanket rewrite passed as an operation the operator selected")
+		}
+		// A stripped metric is not a value, and it must not read as one.
+		stripped := gobgpTable(gobgpRouteLine(incremented, source, sourceAS, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(stripped, incremented, gobgpMEDAttribute, computed) == nil {
+			t.Fatal("a route with no metric at all passed as incremented")
+		}
+		if requireGoBGPSourceBlock(gobgpTable(gobgpRouteLine(incremented, source, "65004", "[{Origin: i}]")), incremented, sourceAS, source) == nil {
+			t.Fatal("a route from another AS passed as the injected one")
+		}
+		// This body derives every address from the selected network, so it owes
+		// the selected-network guard: networkHostAddress panics on the zero Addr
+		// instead of answering.
+		unselectedIncrement := checkerGuardFailure(t, checkMEDIncrementFromRouteValue, interoplab.Network{})
+		if !strings.Contains(unselectedIncrement, "no selected IPv4 network") {
+			t.Fatalf("a lab with no selected network was not named before the first query: %s", unselectedIncrement)
+		}
+	})
+
 	t.Run("bgp-rfc7606-typed-nlri-discard", func(t *testing.T) {
 		report := func(lines ...string) string {
 			return strings.Join(lines, "\n") + "\n"

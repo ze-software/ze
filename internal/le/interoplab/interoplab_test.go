@@ -174,8 +174,8 @@ func TestDockerBuildNetworkAndContainerArguments(t *testing.T) {
 	if got := runner.commands[0].Arguments; !reflect.DeepEqual(got, wantBuild) {
 		t.Errorf("build argv = %#v, want %#v", got, wantBuild)
 	}
-	if runner.commands[0].Timeout != 10*time.Minute {
-		t.Errorf("build timeout = %s, want 10m", runner.commands[0].Timeout)
+	if runner.commands[0].Timeout != dockerBuildTimeoutDefault {
+		t.Errorf("build timeout = %s, want %s", runner.commands[0].Timeout, dockerBuildTimeoutDefault)
 	}
 	wantRun := []string{
 		"docker", "run", "-d", "--name", "lab-peer", "--network", "lab-net", "--ip", "172.31.0.3",
@@ -204,7 +204,7 @@ func TestDockerBuildRejectsEmptyImageID(t *testing.T) {
 }
 
 // VALIDATES: an image with a slower external build can set its own bounded timeout.
-// PREVENTS: the accel-ppp 15-minute producer budget collapsing to the 10-minute default.
+// PREVENTS: a declared per-image budget collapsing to the machine build budget.
 func TestDockerBuildUsesDeclaredTimeout(t *testing.T) {
 	runner := &recordingRunner{run: func(processCommand) (processResult, error) {
 		return processResult{Stdout: "sha256:slow\n"}, nil
@@ -225,6 +225,58 @@ func TestDockerBuildUsesDeclaredTimeout(t *testing.T) {
 	}
 	if _, err := docker.Build(t.Context(), ImageBuild{Tag: "bad", Timeout: -time.Second}); err == nil {
 		t.Fatal("Build accepted a negative timeout")
+	}
+}
+
+// VALIDATES: an image that declares no timeout takes the machine budget, and
+// BUILD_TIMEOUT sets that budget in whole seconds.
+// PREVENTS: one wall-clock constant killing a build that the machine completes,
+// which is what a 2-CPU host did to the 40-minute ze interop image.
+func TestDockerBuildTakesTheMachineBudget(t *testing.T) {
+	absent := func(string) (string, bool) { return "", false }
+	if got := machineBuildTimeout(absent); got != dockerBuildTimeoutDefault {
+		t.Errorf("budget with no variable = %s, want %s", got, dockerBuildTimeoutDefault)
+	}
+	answers := map[string]time.Duration{
+		"1800": 30 * time.Minute,
+		"7200": 2 * time.Hour,
+		"":     dockerBuildTimeoutDefault,
+		"soon": dockerBuildTimeoutDefault,
+		"0":    dockerBuildTimeoutDefault,
+		"-60":  dockerBuildTimeoutDefault,
+	}
+	for value, want := range answers {
+		lookup := func(name string) (string, bool) {
+			if name != "BUILD_TIMEOUT" {
+				t.Errorf("read variable %q, want BUILD_TIMEOUT", name)
+			}
+			return value, true
+		}
+		if got := machineBuildTimeout(lookup); got != want {
+			t.Errorf("budget for BUILD_TIMEOUT=%q = %s, want %s", value, got, want)
+		}
+	}
+
+	runner := &recordingRunner{run: func(processCommand) (processResult, error) {
+		return processResult{Stdout: "sha256:machine\n"}, nil
+	}}
+	docker := newDocker(runner)
+	docker.buildTimeout = 45 * time.Minute
+	if _, err := docker.Build(t.Context(), ImageBuild{Name: "ze", Tag: "ze-interop", Dockerfile: "Dockerfile.ze", Context: "/src"}); err != nil {
+		t.Fatalf("Build returned an error: %v", err)
+	}
+	if runner.commands[0].Timeout != 45*time.Minute {
+		t.Errorf("undeclared build timeout = %s, want 45m", runner.commands[0].Timeout)
+	}
+}
+
+// VALIDATES: the constructor every suite calls reads BUILD_TIMEOUT itself.
+// PREVENTS: the knob answering in a unit test and reaching no interop run,
+// because NewDocker is the only Docker a suite builds an image with.
+func TestNewDockerReadsTheMachineBudget(t *testing.T) {
+	t.Setenv("BUILD_TIMEOUT", "1200")
+	if got := NewDocker().buildTimeout; got != 20*time.Minute {
+		t.Errorf("NewDocker build budget = %s, want 20m", got)
 	}
 }
 

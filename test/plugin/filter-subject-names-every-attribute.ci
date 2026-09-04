@@ -1,0 +1,90 @@
+# Test: the filter subject names every attribute Ze advertises
+# VALIDATES: AC-1 -- a route carrying ORIGIN, MULTI_EXIT_DISC, LOCAL_PREF,
+#            ATOMIC_AGGREGATE and CLUSTER_LIST reaches an import filter with all
+#            five named in FilterUpdateInput.Update.
+# PREVENTS:  the five silent drops appendSingleAttr made for the life of the
+#            function. Its type switch named a pointer form for each of the five,
+#            and knownAttrParsers boxes the value form, so a Go type switch arm
+#            that no producer can match dropped the attribute with nothing logged.
+#            A filter asked to judge one of the five judged the route without it.
+#
+# Flow:
+# 1. ze-peer sends one UPDATE over an IBGP session carrying all five attributes,
+#    plus AS_PATH and NEXT_HOP, for 10.0.0.0/24.
+# 2. The import chain calls filter-subject-test:record-subject.
+# 3. The fixture plugin records FilterUpdateInput.Update and fails when any of
+#    the five names is absent from it.
+#
+# The session is IBGP because LOCAL_PREF and CLUSTER_LIST belong on an internal
+# session (RFC 4271 Section 5.1.5, RFC 4456 Section 8); an EBGP peer sending
+# either is the case a receiver is entitled to discard.
+
+# Source peer sends one route carrying all five attributes.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Marker(16) + Len=004F(79) + Type=02 + WdLen=0000 + AttrLen=0034(52)
+#   ORIGIN:           40010102                      (incomplete)
+#   AS_PATH:          40020A02020000FDE90000FDEA    (AS_SEQ [65001 65002])
+#   NEXT_HOP:         4003040A000001                (10.0.0.1)
+#   MULTI_EXIT_DISC:  80040400000064                (100)
+#   LOCAL_PREF:       40050400000096                (150)
+#   ATOMIC_AGGREGATE: 400600                        (no value)
+#   CLUSTER_LIST:     800A080101010102020202        (1.1.1.1 2.2.2.2)
+#   NLRI:             180A0000                      (10.0.0.0/24)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004F02000000344001010240020A02020000FDE90000FDEA4003040A0000018004040000006440050400000096400600800A080101010102020202180A0000
+EOF_PEER
+
+# ze configuration: one external filter plugin on the import chain.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external filter-subject-test {
+        run "ze-test fixture plugin/filter-subject-names-every-attribute";
+        encoder json;
+    }
+}
+bgp {
+    router-id 1.2.3.4;
+    session {
+        asn {
+            local 65000
+        }
+    }
+    filter {
+        import [ filter-subject-test:record-subject ];
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip auto
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65000
+            }
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The subject the daemon handed the filter, printed by the fixture. Each name is
+# asserted separately so a red says WHICH attribute is missing.
+expect=stderr:pattern=OK: the subject names all five attributes
+expect=stderr:pattern=origin incomplete
+expect=stderr:pattern=med 100
+expect=stderr:pattern=local-preference 150
+expect=stderr:pattern=atomic-aggregate
+expect=stderr:pattern=cluster-list 1.1.1.1 2.2.2.2

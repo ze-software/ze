@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -21,28 +22,51 @@ const (
 	dockerInfoTimeout    = 15 * time.Second
 	dockerCommandTimeout = 30 * time.Second
 	dockerRunTimeout     = 60 * time.Second
-	dockerBuildTimeout   = 10 * time.Minute
 	dockerPullTimeout    = 10 * time.Minute
 	dockerLogsTimeout    = 15 * time.Second
 	dockerStopSecondsMax = 300
 )
 
+// dockerBuildTimeoutVariable names the machine's build budget in whole seconds.
+const dockerBuildTimeoutVariable = "BUILD_TIMEOUT"
+
+// dockerBuildTimeoutDefault bounds one docker build on a machine that declares
+// nothing. The bound exists to stop a wedged Docker daemon, not to budget a
+// build, so it is deliberately generous: a build that finishes returns at once,
+// and the only cost of a large bound is a slower report of a daemon that hung.
+//
+// The number covers the slowest build measured, and the spread is the point.
+// test/interop/Dockerfile.ze copies the whole tree and compiles ze twice with no
+// cache mount. On 2026-09-04 the same image took 40m39s on a colima VM of 2 CPUs
+// and 2 GB whose host disk was full and whose guest was thrashing, and 2m48s on
+// the same VM once the disk was repaired. The 10 minutes this constant held
+// until then killed the first of those, which the machine completed by hand.
+//
+// So the bound cannot be the thing that decides a verdict: it has to survive the
+// bad day, and no constant is right for every machine. BUILD_TIMEOUT overrides
+// this one in both directions, so a slower machine raises it and a build host
+// that wants a wedge reported in minutes lowers it.
+const dockerBuildTimeoutDefault = 90 * time.Minute
+
 // Docker runs the closed set of Docker operations that an interop leaf needs.
 // It is safe for concurrent use when its process runner is safe for concurrent use.
 type Docker struct {
-	runner processRunner
+	runner       processRunner
+	buildTimeout time.Duration
 }
 
 // ImageBuild identifies one image that a suite builds before it starts scenarios.
 type ImageBuild struct {
-	Name       string        `json:"name"`
-	Tag        string        `json:"tag"`
-	Dockerfile string        `json:"dockerfile"`
-	Context    string        `json:"context"`
-	BuildArgs  []string      `json:"build-args,omitempty"`
-	Timeout    time.Duration `json:"timeout,omitempty"`
-	Required   bool          `json:"required"`
-	Pull       bool          `json:"pull"`
+	Name       string   `json:"name"`
+	Tag        string   `json:"tag"`
+	Dockerfile string   `json:"dockerfile"`
+	Context    string   `json:"context"`
+	BuildArgs  []string `json:"build-args,omitempty"`
+	// Timeout bounds this one build. Zero takes the machine budget, which
+	// dockerBuildTimeoutDefault answers for and BUILD_TIMEOUT overrides.
+	Timeout  time.Duration `json:"timeout,omitempty"`
+	Required bool          `json:"required"`
+	Pull     bool          `json:"pull"`
 }
 
 // ImageResult records the immutable reference that containers in this run use.
@@ -154,10 +178,34 @@ func (e *commandError) Error() string {
 
 func (e *commandError) Unwrap() error { return e.Cause }
 
-// NewDocker returns the real Docker client used by interop suites.
-func NewDocker() *Docker { return newDocker(systemProcessRunner{}) }
+// NewDocker returns the real Docker client used by interop suites. It reads the
+// machine's build budget once, so no suite carries that knob through its plan.
+func NewDocker() *Docker {
+	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv)}
+}
 
-func newDocker(runner processRunner) *Docker { return &Docker{runner: runner} }
+func newDocker(runner processRunner) *Docker {
+	return &Docker{runner: runner, buildTimeout: dockerBuildTimeoutDefault}
+}
+
+// machineBuildTimeout reads the machine's build budget in whole seconds. A value that
+// does not parse, or that is not positive, keeps the shipped default rather
+// than inventing a different fallback, which is how ReadEnvironment answers an
+// unreadable SESSION_TIMEOUT.
+func machineBuildTimeout(lookup func(string) (string, bool)) time.Duration {
+	value, ok := lookup(dockerBuildTimeoutVariable)
+	if !ok {
+		return dockerBuildTimeoutDefault
+	}
+	seconds, err := strconv.Atoi(value)
+	if err != nil {
+		return dockerBuildTimeoutDefault
+	}
+	if seconds <= 0 {
+		return dockerBuildTimeoutDefault
+	}
+	return time.Duration(seconds) * time.Second
+}
 
 // Probe fails when Docker is absent, unresponsive, or refuses the current context.
 func (d *Docker) Probe(ctx context.Context) error {
@@ -169,7 +217,7 @@ func (d *Docker) Probe(ctx context.Context) error {
 func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, error) {
 	timeout := build.Timeout
 	if timeout == 0 {
-		timeout = dockerBuildTimeout
+		timeout = d.buildTimeout
 	}
 	if timeout <= 0 {
 		return ImageResult{Name: build.Name, Tag: build.Tag}, errors.New("Docker build timeout must be positive")

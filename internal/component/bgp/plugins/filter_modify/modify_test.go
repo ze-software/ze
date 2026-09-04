@@ -1,9 +1,15 @@
 package filter_modify
 
 import (
+	"encoding/binary"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -306,10 +312,15 @@ func TestBuildDynamicDeltaIncrement(t *testing.T) {
 			wantPart:   "local-preference 4294967295",
 		},
 		{
-			name:       "increment_missing_attr_treats_as_zero",
+			// Absent LOCAL_PREF starts from the declared base of 100, not from
+			// 0. RFC 4271 Section 9.1.1 supplies no number, so this is local
+			// policy, and 100 is what FRR and BIRD use. Until 2026-09-04 this
+			// case expected 50, which was the zero reached by a failed lookup
+			// rather than a value anybody chose.
+			name:       "increment_absent_lp_starts_from_the_declared_base",
 			def:        &modifyDef{increments: []incdec{{attr: "local-preference", value: 50}}},
 			updateText: "origin igp as-path 65001",
-			wantPart:   "local-preference 50",
+			wantPart:   "local-preference 150",
 		},
 		{
 			name:       "increment_aigp",
@@ -517,27 +528,106 @@ func TestHandleFilterUpdateIncrement(t *testing.T) {
 	}
 }
 
-func TestExtractUint32Attr(t *testing.T) {
+// TestReadUint32AttrReportsAbsenceDistinctly covers AC-17. The reading this
+// function returns is what separates a route carrying 0 from a route carrying
+// nothing, and the old signature returned 0 for both.
+func TestReadUint32AttrReportsAbsenceDistinctly(t *testing.T) {
 	tests := []struct {
-		name       string
-		updateText string
-		attr       string
-		want       uint32
+		name        string
+		updateText  string
+		attr        string
+		wantValue   uint32
+		wantReading attrReading
 	}{
-		{"present", "origin igp local-preference 100 as-path 65001", "local-preference", 100},
-		{"absent", "origin igp as-path 65001", "local-preference", 0},
-		{"at_end", "origin igp med 50", "med", 50},
-		{"zero_value", "origin igp local-preference 0 as-path 65001", "local-preference", 0},
-		{"max_value", "origin igp local-preference 4294967295 as-path 65001", "local-preference", 4294967295},
+		{"present", "origin igp local-preference 100 as-path 65001", localPreferenceAttr, 100, attrPresent},
+		{"absent", "origin igp as-path 65001", localPreferenceAttr, 0, attrAbsent},
+		{"at_end", "origin igp med 50", medAttr, 50, attrPresent},
+		{"a real zero is not an absence", "origin igp local-preference 0 as-path 65001", localPreferenceAttr, 0, attrPresent},
+		{"max_value", "origin igp local-preference 4294967295 as-path 65001", localPreferenceAttr, 4294967295, attrPresent},
+		{"wider than uint32 is not an absence", "origin igp aigp 4294967296 nlri x", aigpAttr, 0, attrUnreadable},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractUint32Attr(tt.updateText, tt.attr)
-			if got != tt.want {
-				t.Errorf("extractUint32Attr(%q, %q) = %d, want %d", tt.updateText, tt.attr, got, tt.want)
-			}
+			got, reading := readUint32Attr(tt.updateText, tt.attr)
+			require.Equal(t, tt.wantReading, reading, "the reading")
+			require.Equal(t, tt.wantValue, got, "the value")
 		})
 	}
+}
+
+// TestDecrementMedOnAbsentAttributeMaterialisesZero covers AC-14. RFC 4271
+// Section 9.1.2.2 supplies the 0 the subtraction starts from, the result floors,
+// and the pair IS written, so the route gains a metric it did not carry. FRR
+// reaches the same route: route_set_metric defaults to 0 on the presence flag
+// and calls bgp_attr_set_med unconditionally.
+func TestDecrementMedOnAbsentAttributeMaterialisesZero(t *testing.T) {
+	def := &modifyDef{name: "DEC-MED", decrements: []incdec{{attr: medAttr, value: 30}}}
+	got := buildDynamicDelta(def, "origin igp as-path 65001 nlri ipv4/unicast add 10.0.0.0/24")
+	require.Equal(t, "med 0", got, "the RFC default floors, and the attribute is written")
+}
+
+// TestDecrementMedOnAPresentAttributeSubtracts covers AC-5, and is the case the
+// renderer fix made reachable: before it the subject never named med, so this
+// computed from 0 and answered "med 0" for every route.
+func TestDecrementMedOnAPresentAttributeSubtracts(t *testing.T) {
+	def := &modifyDef{name: "DEC-MED", decrements: []incdec{{attr: medAttr, value: 30}}}
+	got := buildDynamicDelta(def, "origin igp med 100 as-path 65001 nlri ipv4/unicast add 10.0.0.0/24")
+	require.Equal(t, "med 70", got)
+}
+
+// TestIncrementLocalPrefOnAbsentAttributeStartsFromTheDefault covers AC-15.
+// RFC 4271 Section 9.1.1 supplies no number, so 100 is Ze's declared local
+// policy, matching FRR's BGP_DEFAULT_LOCAL_PREF and BIRD's default_local_pref.
+func TestIncrementLocalPrefOnAbsentAttributeStartsFromTheDefault(t *testing.T) {
+	def := &modifyDef{name: "INC-LP", increments: []incdec{{attr: localPreferenceAttr, value: 50}}}
+	got := buildDynamicDelta(def, "origin igp as-path 65001 nlri ipv4/unicast add 10.0.0.0/24")
+	require.Equal(t, "local-preference 150", got, "100 plus 50")
+}
+
+// TestAigpArithmeticOnAbsentAttributeCreatesNothing covers AC-16, which is a
+// conformance requirement rather than a preference. RFC 7311 Section 3.4.1: "A
+// BGP speaker MUST NOT add the AIGP attribute to any route whose path leads
+// outside the AIGP administrative domain to which the BGP speaker belongs."
+// Section 4.1 is why no number could stand in for the absence either: a route
+// with no AIGP TLV is removed from consideration rather than scored, so a
+// substituted 0 would make it best where the RFC makes it lose.
+func TestAigpArithmeticOnAbsentAttributeCreatesNothing(t *testing.T) {
+	text := "origin igp as-path 65001 nlri ipv4/unicast add 10.0.0.0/24"
+
+	inc := &modifyDef{name: "INC-AIGP", increments: []incdec{{attr: aigpAttr, value: 50}}}
+	require.Empty(t, buildDynamicDelta(inc, text), "increment must not create an AIGP attribute")
+
+	dec := &modifyDef{name: "DEC-AIGP", decrements: []incdec{{attr: aigpAttr, value: 30}}}
+	require.Empty(t, buildDynamicDelta(dec, text), "decrement must not create one either")
+
+	// A route that DOES carry one is arithmetic as usual.
+	carried := "origin igp aigp 42 as-path 65001 nlri ipv4/unicast add 10.0.0.0/24"
+	require.Equal(t, "aigp 92", buildDynamicDelta(inc, carried))
+}
+
+// TestAbsentValueTableCoversEveryArithmeticAttribute covers AC-18. Every leaf
+// the YANG increment and decrement containers accept is named here with the
+// decision taken for it, so a fourth leaf cannot arrive and silently inherit a
+// zero nobody chose: it fails this test until somebody decides.
+func TestAbsentValueTableCoversEveryArithmeticAttribute(t *testing.T) {
+	decided := map[string]bool{
+		localPreferenceAttr: true,  // base declared: 100
+		medAttr:             true,  // base declared: 0
+		aigpAttr:            false, // deliberately no base, RFC 7311 Section 3.4.1
+	}
+
+	for attr, wantBase := range decided {
+		_, declared := absentBase[attr]
+		require.Equalf(t, wantBase, declared, "%s: the table and the decision disagree", attr)
+
+		_, run := currentForArithmetic("origin igp nlri ipv4/unicast add 10.0.0.0/24", attr)
+		require.Equalf(t, wantBase, run, "%s: arithmetic on an absent attribute", attr)
+	}
+
+	require.Len(t, absentBase, 2, "a new base needs a row in this test's decision map")
+
+	_, run := currentForArithmetic("origin igp nlri ipv4/unicast add 10.0.0.0/24", "no-such-attribute")
+	require.False(t, run, "an attribute with no declared base gets no arithmetic")
 }
 
 // VALIDATES: spec-rfc4271-med-across-as AC-5 -- the public del { med; }
@@ -664,4 +754,95 @@ func TestHandleFilterUpdateMEDRemoveIsImportOnly(t *testing.T) {
 			}
 		})
 	}
+}
+
+// medSubjectAttr wraps one attribute value in its wire header, which is what
+// the parsers in knownAttrParsers read.
+func medSubjectAttr(flags attribute.AttributeFlags, code attribute.AttributeCode, value []byte) []byte {
+	buf := make([]byte, 3+len(value))
+	attribute.WriteHeaderTo(buf, 0, flags, code, uint16(len(value))) //nolint:gosec // test data, bounded
+	copy(buf[3:], value)
+	return buf
+}
+
+// medSubjectFromWire renders the filter subject the reactor hands this plugin
+// for a route carrying MULTI_EXIT_DISC, through the producer itself.
+//
+// The arithmetic below is measured against the text the daemon really emits. A
+// hand-written subject cannot see a renderer that names no metric, and that is
+// exactly the defect this spec repairs: appendSingleAttr named a pointer type
+// no parser builds, so every med increment computed from an absent attribute.
+func medSubjectFromWire(t *testing.T, med uint32) string {
+	t.Helper()
+
+	value := make([]byte, 4)
+	binary.BigEndian.PutUint32(value, med)
+
+	packed := medSubjectAttr(attribute.FlagTransitive, attribute.AttrOrigin, []byte{0})
+	packed = append(packed, medSubjectAttr(attribute.FlagTransitive, attribute.AttrASPath,
+		[]byte{byte(attribute.ASSequence), 1, 0x00, 0x00, 0xFD, 0xE9})...)
+	packed = append(packed, medSubjectAttr(attribute.FlagTransitive, attribute.AttrNextHop,
+		[]byte{10, 0, 0, 1})...)
+	packed = append(packed, medSubjectAttr(attribute.FlagOptional, attribute.AttrMED, value)...)
+
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	require.NoError(t, err)
+
+	subject := string(reactor.AppendUpdateForFilter(nil,
+		attribute.NewAttributesWire(packed, ctxID), nil, nil))
+	require.Contains(t, subject, "med ",
+		"the fixture is only a fixture if the renderer names the metric")
+	return subject
+}
+
+// TestIncrementMedComputesFromTheRouteValue covers AC-4. The route carries 100,
+// the operator asked for 50 more, and the delta says 150.
+//
+// The subject comes from AppendUpdateForFilter rather than from a string typed
+// here, so the test fails when the renderer stops naming the metric. With the
+// five pointer arms in place the subject named no med, currentForArithmetic
+// took the absent base of 0, and the same configuration answered "med 50".
+func TestIncrementMedComputesFromTheRouteValue(t *testing.T) {
+	defs := map[string]*modifyDef{
+		"INC-MED": {name: "INC-MED", increments: []incdec{{attr: medAttr, value: 50}}},
+	}
+	defsByName.Store(&defs)
+	defer defsByName.Store(nil)
+
+	out := handleFilterUpdate(&sdk.FilterUpdateInput{
+		Filter:    "INC-MED",
+		Direction: "import",
+		Peer:      "10.0.0.1",
+		PeerAS:    65001,
+		Update:    medSubjectFromWire(t, 100),
+	})
+
+	require.Equal(t, sdk.FilterModify, out.Action)
+	require.Equal(t, "med 150", out.Update, "100 from the route plus the configured 50")
+}
+
+// TestDecrementMedComputesFromTheRouteValue covers AC-5, the same route through
+// the opposite operation: 100 less 30 is 70.
+//
+// TestDecrementMedOnAPresentAttributeSubtracts asserts the same arithmetic over
+// buildDynamicDelta from a hand-written subject. This one drives the plugin's
+// entry point on the text the reactor produced, so it also fails when the
+// renderer, the plugin dispatch, or the delta the plugin returns changes.
+func TestDecrementMedComputesFromTheRouteValue(t *testing.T) {
+	defs := map[string]*modifyDef{
+		"DEC-MED": {name: "DEC-MED", decrements: []incdec{{attr: medAttr, value: 30}}},
+	}
+	defsByName.Store(&defs)
+	defer defsByName.Store(nil)
+
+	out := handleFilterUpdate(&sdk.FilterUpdateInput{
+		Filter:    "DEC-MED",
+		Direction: "import",
+		Peer:      "10.0.0.1",
+		PeerAS:    65001,
+		Update:    medSubjectFromWire(t, 100),
+	})
+
+	require.Equal(t, sdk.FilterModify, out.Action)
+	require.Equal(t, "med 70", out.Update, "100 from the route less the configured 30")
 }

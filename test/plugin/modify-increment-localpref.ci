@@ -1,11 +1,13 @@
 # Test: modify filter increments local-preference on import
-# VALIDATES: AC-1 -- increment local-preference from absent (0) by 50
+# VALIDATES: AC-15 -- increment local-preference from the declared base (100) by 50
 # PREVENTS: Increment not computed, static delta returned instead
 #
 # Flow:
 # 1. ze-peer sends EBGP UPDATE (no LOCAL_PREF, per RFC 4271)
 # 2. Filter chain calls bgp-filter-modify:INC-LP
-# 3. Plugin sees no local-preference (treated as 0), increments by 50, returns delta "local-preference 50"
+# 3. Plugin sees no local-preference, starts from the declared base of 100
+#    (RFC 4271 Section 9.1.1 leaves the value to local policy; 100 is what FRR
+#    and BIRD use), increments by 50, returns delta "local-preference 150"
 # 4. Engine applies wire-level modification
 
 option=env:var=ze.log.bgp.filter.modify:value=info
@@ -71,4 +73,4 @@ cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-modify --plugin ze.bgp-adj-r
 expect=exit:code=0
 expect=stderr:pattern=modify apply
 expect=stderr:pattern=filter=INC-LP
-expect=stderr:pattern=local-preference 50
+expect=stderr:pattern=local-preference 150

@@ -91,7 +91,10 @@ func buildDynamicDelta(def *modifyDef, updateText string) string {
 
 	for i := range def.increments {
 		op := &def.increments[i]
-		current := extractUint32Attr(updateText, op.attr)
+		current, run := currentForArithmetic(updateText, op.attr)
+		if !run {
+			continue
+		}
 		sum := min(uint64(current)+uint64(op.value), math.MaxUint32)
 		if buf.Len() > 0 {
 			buf.Byte(' ')
@@ -101,7 +104,10 @@ func buildDynamicDelta(def *modifyDef, updateText string) string {
 
 	for i := range def.decrements {
 		op := &def.decrements[i]
-		current := extractUint32Attr(updateText, op.attr)
+		current, run := currentForArithmetic(updateText, op.attr)
+		if !run {
+			continue
+		}
 		if buf.Len() > 0 {
 			buf.Byte(' ')
 		}
@@ -123,20 +129,85 @@ func buildDynamicDelta(def *modifyDef, updateText string) string {
 	return buf.String()
 }
 
-// extractUint32Attr extracts a uint32 attribute value from filter text.
-// Returns 0 if the attribute is not found or cannot be parsed.
-func extractUint32Attr(updateText, attrName string) uint32 {
+// attrReading says what the subject holds for one attribute name. A single
+// uint32 cannot: a returned 0 would mean "the route carries 0", "the route
+// carries nothing" and "the value did not parse" at once, and the three want
+// different answers (ai/rules/principles.md).
+type attrReading uint8
+
+const (
+	attrAbsent     attrReading = iota // the subject does not name the attribute
+	attrPresent                       // named, and the value parsed as a uint32
+	attrUnreadable                    // named, but the value did not parse
+)
+
+// absentBase is the value the arithmetic starts from when the route carries no
+// such attribute. An attribute with NO ENTRY has no base, and its arithmetic is
+// refused rather than computed from a zero nobody chose.
+//
+// med: RFC 4271 Section 9.1.2.2 supplies the number. "If route n has no
+// MULTI_EXIT_DISC attribute, the function returns the lowest possible
+// MULTI_EXIT_DISC value (i.e., 0)."
+//
+// local-preference: RFC 4271 Section 9.1.1 declines to supply one -- "The exact
+// nature of this policy information, and the computation involved, is a local
+// matter" -- so this is a local policy decision rather than a standard value.
+// 100 is what FRR (BGP_DEFAULT_LOCAL_PREF) and BIRD (default_local_pref) use.
+//
+// aigp is DELIBERATELY ABSENT, and its absence is the rule rather than an
+// omission. RFC 7311 Section 4.1: "If any routes have an AIGP attribute
+// containing an AIGP TLV, remove from consideration all routes that do not have
+// an AIGP attribute containing an AIGP TLV." A route with no AIGP is eliminated
+// rather than scored, so no number stands in for it, and a substituted 0 would
+// make it the BEST route where the RFC makes it lose. Section 3.4.1 forbids
+// creating one here in any case: "A BGP speaker MUST NOT add the AIGP attribute
+// to any route whose path leads outside the AIGP administrative domain to which
+// the BGP speaker belongs."
+var absentBase = map[string]uint32{
+	medAttr:             0,
+	localPreferenceAttr: 100,
+}
+
+// readUint32Attr reads one attribute's value out of the update text, and says
+// which of the three cases it found.
+func readUint32Attr(updateText, attrName string) (uint32, attrReading) {
 	prefix := attrName + " "
 	_, rest, ok := strings.Cut(updateText, prefix)
 	if !ok {
-		return 0
+		return 0, attrAbsent
 	}
 	token, _, _ := strings.Cut(rest, " ")
 	v, err := strconv.ParseUint(token, 10, 32)
 	if err != nil {
-		return 0
+		return 0, attrUnreadable
 	}
-	return uint32(v) //nolint:gosec // G115: bounded by ParseUint 32-bit
+	return uint32(v), attrPresent //nolint:gosec // G115: bounded by ParseUint 32-bit
+}
+
+// currentForArithmetic returns the value an increment or a decrement computes
+// from, and whether the operation runs at all.
+//
+// It runs on the value the route carries, or on the declared base for an
+// attribute the route does not carry. It does NOT run when no base is declared,
+// and it does NOT run on a value ze rendered and cannot read back: computing
+// from a substituted 0 there would write a metric the route never had.
+func currentForArithmetic(updateText, attrName string) (uint32, bool) {
+	value, reading := readUint32Attr(updateText, attrName)
+	switch reading {
+	case attrPresent:
+		return value, true
+	case attrAbsent:
+		base, declared := absentBase[attrName]
+		if !declared {
+			return 0, false
+		}
+		return base, true
+	case attrUnreadable:
+		logger().Warn("filter-modify: attribute value did not parse, arithmetic skipped",
+			"attribute", attrName)
+		return 0, false
+	}
+	return 0, false
 }
 
 // readBool coerces a config presence value to a boolean. Config delivery uses

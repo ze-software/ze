@@ -37,6 +37,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	clusterListScenario:                     checkClusterListLengthTieBreak,
 	"bgp-local-pref-strip-gobgp":            checkLocalPrefStrip,
 	"bgp-med-across-as-gobgp":               checkMEDAcrossAS,
+	"bgp-med-increment-gobgp":               checkMEDIncrementFromRouteValue,
 	"bgp-med-remove-configured-gobgp":       checkMEDRemovalConfiguration,
 	scenarioWireEditAPIOriginBIRD:           checkWireEditAPIOriginBIRD,
 	"bgp-relay-withdraw-reflector-frr":      checkReflectorWithdrawal,
@@ -1118,4 +1119,109 @@ func zeRIBBestRows(ctx context.Context, lab interoplab.CheckerLab) (int, error) 
 		}
 	}
 	return len(rows), nil
+}
+
+// checkMEDIncrementFromRouteValue proves `increment { med 50 }` computes from
+// the metric the route arrived with, judged at a foreign RIB.
+//
+// The engine builds one filter subject per UPDATE (AppendUpdateForFilter,
+// reactor/filter_format.go) and bgp-filter-modify reads the current metric out
+// of it (readUint32Attr, plugins/filter_modify/modify.go). A subject that does
+// not name `med` makes the arithmetic start from the RFC 4271 Section 9.1.2.2
+// absent base of 0, so the increment writes 50 where the route carried 100.
+// The three outcomes are three different numbers, which is why the injected
+// metric is 100 rather than 0: 150 is the arithmetic on the route's value, 50
+// is the arithmetic on a substituted base, and 100 is no arithmetic at all.
+//
+// This is not an RFC carrier. `increment` is a ze policy operation, and the
+// only RFC text in reach is the absent base the arithmetic must NOT use here.
+func checkMEDIncrementFromRouteValue(ctx context.Context, check *interoplab.CheckContext) error {
+	const (
+		name = "bgp-med-increment-gobgp"
+		// inject.msg announces both prefixes with MULTI_EXIT_DISC 100. Only this
+		// one carries community 65005:1, which is the condition the INC-MED
+		// import policy matches.
+		incrementedPrefix = "10.63.0.0/24"
+		// The in-run positive control. Same session, same route-server rail,
+		// same policy chain, outside the match container, so it keeps the metric
+		// the injector put on the wire.
+		controlPrefix = "10.63.1.0/24"
+		// What the injector sends for both, and what the control keeps.
+		sourceMetric = "100"
+		// 100 + 50. The subject names `med`, so the arithmetic reads 100.
+		incrementedMetric = "150"
+		// The injector's AS, read back at GoBGP as proof that the route it holds
+		// is the relayed one rather than something ze rebuilt.
+		sourceAS = "65005"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+
+	// Assertion 1. networkHostAddress reads the selected network's octets, and
+	// it panics on the zero Addr rather than answering.
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("MED increment scenario has no selected IPv4 network"))
+	}
+	zeAddress := networkHostAddress(check.Network, 2)
+	sourceAddress := networkHostAddress(check.Network, 9)
+
+	// Assertion 2. The destination session, read from GoBGP itself. Every
+	// assertion below reads that daemon's RIB, so a session that never came up
+	// would make each of them fail for a reason unrelated to the arithmetic.
+	session := operation{kind: opGoBGPSession, argument: zeAddress}
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(2, err)
+	}
+
+	// Assertions 3 and 4. Both prefixes arrived. An attribute assertion over a
+	// RIB that holds nothing is satisfied by the relay being broken.
+	arrivals := []operation{
+		{kind: opGoBGPRoute, argument: incrementedPrefix, timeout: 120 * time.Second},
+		{kind: opGoBGPRoute, argument: controlPrefix, timeout: 120 * time.Second},
+	}
+	for index := range arrivals {
+		if err := runOperation(ctx, check.Network, check.Lab, &arrivals[index]); err != nil {
+			return fail(index+3, err)
+		}
+	}
+
+	// Assertion 5. The arithmetic ran on the metric the route carried. The
+	// destination is INTERNAL to ze, so ze's automatic Section 5.1.4 strip does
+	// not fire (medPropagationAllowedTo, reactor/forward_med.go) and the value
+	// GoBGP decodes is the one the import chain computed.
+	incremented, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, incrementedPrefix}, nil)
+	if err != nil {
+		return fail(5, err)
+	}
+	if err := requireGoBGPSourceBlock(incremented, incrementedPrefix, sourceAS, sourceAddress); err != nil {
+		return fail(5, err)
+	}
+	if err := requireGoBGPAttributeValue(incremented, incrementedPrefix, gobgpMEDAttribute, incrementedMetric); err != nil {
+		return fail(5, err)
+	}
+
+	// Assertion 6. The operation is what an operator selects and never a
+	// blanket rewrite. This route travels the same session, the same rail and
+	// the same policy chain, and it keeps what the injector sent. Without this
+	// polarity a ze that set every relayed metric to 150 would satisfy
+	// assertion 5.
+	control, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, controlPrefix}, nil)
+	if err != nil {
+		return fail(6, err)
+	}
+	if err := requireGoBGPSourceBlock(control, controlPrefix, sourceAS, sourceAddress); err != nil {
+		return fail(6, err)
+	}
+	if err := requireGoBGPAttributeValue(control, controlPrefix, gobgpMEDAttribute, sourceMetric); err != nil {
+		return fail(6, err)
+	}
+
+	// Assertion 7. The session survived. Rewriting an attribute on the import
+	// chain rebuilds the UPDATE payload, and a peer that answered a malformed
+	// rebuild with a NOTIFICATION would hold no route to read a metric off.
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(7, err)
+	}
+	return nil
 }

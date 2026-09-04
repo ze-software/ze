@@ -310,35 +310,35 @@ func ExtractMEDRemoveOps(modAttrs *filterAttrs, mods *filterapi.ModAccumulator) 
 }
 
 // medRemoveHasWork reports whether a med-remove directive has a metric to take
-// off the route. There are two ways one can be there, and both count.
+// off the route. There are two ways one can be there, and the SUBJECT answers
+// for both.
 //
-// THE ROUTE ARRIVED WITH IT, which only the WIRE can answer. appendSingleAttr
-// (filter_format.go) switches on *attribute.MED while knownAttrParsers builds
-// the value form attribute.MED (core/bgp/attribute/wire.go, simple.go), so the
-// case never matches and `med` never reaches the text a filter is given.
-// Reading modAttrs alone makes the removal silently do nothing, measured
-// against GoBGP on 2026-08-15
-// (test/interop/scenarios/bgp-med-remove-configured-gobgp).
+// RFC 4271 Section 5.1.4: "A BGP speaker MUST implement a mechanism (based on
+// local configuration) that allows the MULTI_EXIT_DISC attribute to be removed
+// from a route."
 //
-// A FILTER EARLIER IN THE SAME CHAIN SET IT, which only the TEXT can answer.
-// `filter import [ modify:SET-MED modify:DROP-MED ]` is legal config --
-// validateNoConflict (filter_modify/config.go) refuses the pair inside ONE
-// definition, not across a chain -- and textDeltaToModOps records that Set, so
-// without this arm the operator's second filter is ignored on a route that
-// arrived with no metric.
+// THE ROUTE ARRIVED WITH IT. appendSingleAttr (filter_format.go) renders `med`
+// into the subject whenever the wire carries MULTI_EXIT_DISC, so the metric the
+// peer sent is in the text this predicate reads.
 //
-// A nil or unreadable attribute section answers TRUE: the operator asked for a
-// removal, and a rebuild that changes no byte is a cheaper mistake than a
-// configured removal that silently does not happen.
-func medRemoveHasWork(modAttrs *filterAttrs, attrs *attribute.AttributesWire) bool {
-	if modAttrs.has(faMED) {
-		return true
-	}
-	if attrs == nil {
-		return true
-	}
-	present, err := attrs.Has(attribute.AttrMED)
-	return err != nil || present
+// A FILTER EARLIER IN THE SAME CHAIN SET IT. `filter import [ modify:SET-MED
+// modify:DROP-MED ]` is legal config -- validateNoConflict
+// (filter_modify/config.go) refuses the pair inside ONE definition, not across a
+// chain -- and applyFilterDelta (filter_chain.go) merges each filter's delta
+// INTO the current subject, so a Set by an earlier filter is in the same text.
+//
+// One reading serves both because the subject is a SUPERSET of what the route
+// arrived with: policyFilterFunc seeds `current` with the full rendered subject
+// and only ever rewrites it through applyFilterDelta. Reading the wire as a
+// second source would be two declarations of one fact with nothing to arbitrate
+// them (ai/rules/principles.md).
+//
+// This rests on every caller of AppendUpdateForFilter passing a nil declared
+// list, so the subject is never narrowed to a subset that could drop `med`.
+// TestFilterSubjectCallersPassNoDeclaredList (filter_format_attrs_test.go) is
+// what fails if that stops being true.
+func medRemoveHasWork(modAttrs *filterAttrs) bool {
+	return modAttrs.has(faMED)
 }
 
 type communityDirective struct {

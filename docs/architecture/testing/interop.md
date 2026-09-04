@@ -20,8 +20,9 @@ This page is the infrastructure it is owed against.
 | IPsec (IKEv2, EAP, MOBIKE) | Docker: strongSwan | `test/interop-ipsec/` | `./le integration interop-ipsec` |
 | L2TP | Docker | `test/interop-l2tp/` | `./le deployment l2tp-test`, and `./le deployment l2tp-ppp-test` for the full PPP and NCP path |
 | PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le deployment docker-pppoe-accel-test` |
+| RADIUS (admin login: PAP, CHAP, EAP, Filter-Id) | Docker: FreeRADIUS | `test/interop-radius/scenarios/` | `./le integration interop-radius` |
 
-<!-- source: internal/le/integration/gates.go -- interop and interop-ipsec verbs -->
+<!-- source: internal/le/integration/gates.go -- interop, interop-ipsec and interop-radius verbs -->
 <!-- source: internal/le/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
 
 Every suite discovers its scenarios the same way. `Discover`
@@ -184,7 +185,7 @@ A scenario added to ALREADY-WORKING code never had a red phase, so its
 discrimination is unproven until you force one. That is not TDD's red-then-green:
 a regression test and a scenario for existing behaviour both start green.
 
-Four traps make a scenario pass whatever the code does. Check each by its tell
+Five traps make a scenario pass whatever the code does. Check each by its tell
 before you call the scenario evidence:
 
 | Vacuity trap | Why it passes anyway | The tell |
@@ -193,6 +194,122 @@ before you call the scenario evidence:
 | A test asserting the ABSENCE of something (no log line, no allocation, no route) | Deleting the mechanism leaves the same absence | Ask what would still be absent if the code were removed |
 | A test whose fixture is at an extreme (all fields set, maximum value) | An off-by-one or a partial break still handles the extreme | Boundary the fixture: test one below and one above |
 | A test whose data reaches the peer by a DIFFERENT path than the one changed | The unchanged path still delivers | Trace which code path actually produces the asserted bytes |
+| An assertion whose clauses are all satisfied by ONE stimulus | Each clause reads as an independent observation, and they are one observation written twice | Name the single event that satisfies every clause. Then ask which clause a peer that did nothing would still satisfy |
+
+The fifth trap is what the IPsec suite carried until 2026-09-04, and it is worth
+reading in full because the shape recurs. `verifyTunnelTraffic`
+(`internal/le/interoplab/ipsec/helpers.go`) pinged from Ze to strongSwan and
+passed when each peer's ESP byte counters advanced. Both clauses were satisfied by
+that ONE ping: Ze encrypting the echo request advances Ze's outbound SA, and
+strongSwan decrypting the same request advances strongSwan's inbound SA. Nothing
+required strongSwan to have encrypted anything toward Ze.
+
+RFC 4301 Section 4.1 says why the aggregate could not discriminate:
+
+> An SA is a simplex "connection" that affords security services to the traffic
+> carried by it.
+
+A protected bidirectional flow is two SAs, and the RECEIVER chooses the SPI, so
+both peers name one direction by the same SPI value. Measured in
+`psk-site-to-site`: Ze holds `src 172.28.0.2 dst 172.28.0.3 spi 0xc12fa7e3` and
+`src 172.28.0.3 dst 172.28.0.2 spi 0xf008af63`, and strongSwan holds those same
+two SPIs. A counter map keyed by SPI alone therefore folds the two peers' views of
+one direction into one entry. `verifyESPDirections` now reads each simplex SA by
+its own `src`/`dst` header and takes the set of directions its caller can claim,
+and it also refuses a ping whose `% packet loss` summary is missing or non-zero.
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- directed ESP counters and the lossless-ping clause -->
+
+### The strongSwan lab drop-in
+
+Every scenario that starts a strongSwan peer mounts
+`test/interop-ipsec/strongswan-lab.conf` read-only at
+`/etc/strongswan.d/98-lab.conf`. It carries the charon settings the whole lab
+needs, and today that is one: `charon.plugins.bypass-lan.load = no`.
+
+charon loads `bypass-lan` by default, and that plugin installs a PASS shunt for
+every locally attached subnet. This lab puts both containers on 172.28.0.0/24, so
+the shunt covers the peer. Measured on 2026-08-30 in `psk-site-to-site`, the shunt
+sits at priority 175423 against the Child SA policy's 399999, the lower number
+wins, and every packet strongSwan sends to Ze leaves in the clear. A ping still
+succeeds under that shunt, which is exactly why a lossless ping is necessary and
+not sufficient evidence that a tunnel carried anything.
+
+A scenario's own `strongswan.conf` still mounts at
+`/etc/strongswan.d/99-interop.conf` and composes with the lab file. A scenario
+MUST NOT set `bypass-lan` itself: `TestNoScenarioCarriesItsOwnBypassLanOverride`
+(`test/interop-ipsec/parity_test.go`) refuses a second copy, because two files
+setting one value is a disagreement with nothing to arbitrate it.
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- prepareScenario mounts the lab drop-in -->
+<!-- source: test/interop-ipsec/strongswan-lab.conf -- the lab-wide charon settings -->
+
+### The FreeRADIUS admin-login suite
+
+`internal/le/interoplab/radius/` runs ze's operator login against a real
+FreeRADIUS server at a pinned tag, pulled through `ImageBuild{Pull: true}`. It
+exists because every other RADIUS proof ze holds runs against a mock ze wrote:
+`test/plugin/aaa-radius-admin.ci` drives `internal/test/mock/radius/radius.go`,
+and the L2TP lab's peer is `internal/le/interoplab/l2tp/radiusmock/`, which is
+ze's own Go program in a container. A mock built beside ze's encoder agrees with
+ze by construction, and ze now computes a CHAP digest a server must reproduce
+from its own stored password. Only a server ze did not write can disagree.
+
+It is its own suite rather than four more L2TP scenarios. The L2TP lab probes
+for the `l2tp_ppp` or `pppol2tp` kernel module and refuses to run without it,
+which is correct for a suite that carries PPP sessions. Admin login is ze's SSH
+listener, a UDP socket and a RADIUS server, so this lab declares no preflight
+beyond its own ze cross-compile, mounts no module tree, asks for no capability
+and runs nothing privileged. `TestSuiteNeedsNoKernelModule` holds that.
+
+Every checker reads BOTH sides. Ze's log saying `source=radius` is not enough on
+its own, because a login the local bcrypt backend satisfied produces a line of
+the same shape and no server traffic at all. The lab therefore mounts a
+`linelog` module at `/etc/raddb/mods-enabled/ze_request_log` that writes one
+line per answered request to `/var/log/freeradius/ze-request.log`, carrying the
+verdict, the User-Name, the PRESENCE of a User-Password, of a CHAP-Password and
+of an EAP-Message, and the NAS-Identifier. Presence and not value: a fixture
+must not put a password or a digest in a log file. `parseServerRecord` refuses a
+line missing any of the six fields, so a truncated or reformatted line is never
+read as a partial verdict.
+
+An EAP login is several requests and FreeRADIUS runs no `post-auth` section for
+an Access-Challenge, so the reply that asked the question records nothing. A
+second module, `ze_state_echo_log`, is called from `authorize` on a request
+carrying both an EAP-Message and a State, and writes `verdict=state-echo`. That
+is the server's own evidence that ze returned the State unmodified, which
+RFC 2865 Section 5.24 requires, and that the login was a conversation rather
+than one request.
+
+| Scenario | Ze's side | The server's side |
+|----------|-----------|-------------------|
+| `radius-admin-pap-freeradius` | An operator logs in over ze's real SSH listener, ze's log says `source=radius`, the Filter-Id profile denies `show bgp`, and the local account's own password is refused | `verdict=accept` with a User-Password present, a CHAP-Password absent and ze's NAS-Identifier, then `verdict=reject` for the wrong password |
+| `radius-admin-chap-freeradius` | The same, with `auth-method chap` against a `Cleartext-Password` entry | `verdict=accept` with a CHAP-Password present and NO User-Password beside it, which is what RFC 2865 Section 4.1 demands of an Access-Request |
+| `radius-admin-chap-hashed-freeradius` | The CHAP login is REFUSED, and ze authenticates the user through no backend at all | A `radclient` probe first proves the same entry accepts the same password over PAP, then `verdict=reject` for the CHAP request |
+| `radius-admin-eap-freeradius` | The same, with `auth-method eap-mschapv2`. Ze answers the EAP conversation itself from the operator's password, Naks the server's MD5-Challenge toward MSCHAPv2, and returns the State on every later round | `verdict=state-echo` for at least one round carrying the State the server issued, then `verdict=accept`, both with an EAP-Message present and NEITHER password attribute beside it |
+
+The third scenario is the one that proves `docs/guide/radius.md` is telling the
+truth. RFC 2865 Section 2.2:
+
+> For example, CHAP requires that the user's password be available in cleartext
+> to the server so that it can encrypt the CHAP challenge and compare that to
+> the CHAP response.  If the password is not available in cleartext to the
+> RADIUS server then the server MUST send an Access-Reject to the client.
+
+A rejection on its own would also follow from a typo in the user file, which is
+the fourth vacuity trap wearing another face: the asserted result would be
+produced by a different cause than the one under test. The `radclient` PAP probe
+removes it, because the storage form is then the only thing left to explain the
+CHAP rejection.
+
+Two credentials share one username on purpose. `radiusop` exists in the server's
+user file AND in ze's local account list with a DIFFERENT password, so the
+scenario can send the local password while RADIUS rejects it: a chain that fell
+through to local bcrypt would accept that login. `localop` exists only locally
+and the server answers nothing for it, which is the positive control that proves
+the SSH listener and the local backend are both live before any refusal is read
+as evidence.
+<!-- source: internal/le/interoplab/radius/radius.go -- the suite, its pinned image, its peers and its probes -->
+<!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
+<!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
 
 ### Typed checker operations
 
@@ -332,14 +449,29 @@ INTEROP_SCENARIO=bgp-ebgp-ipv4-frr ./le integration interop
 VERBOSE=1 ./le integration interop
 NO_BUILD=1 ./le integration interop
 FRR_IMAGE=quay.io/frrouting/frr:10.3 ./le integration interop
+BUILD_TIMEOUT=7200 ./le integration interop
 ```
 
 Interop tests require Docker and are not part of the offline precommit gate.
 They are a separate protocol-validation action.
 
-The first run builds Docker images (takes a few minutes). Subsequent runs with `NO_BUILD=1`
-skip rebuilds. The full suite takes roughly 5-10 minutes depending on session establishment
-times.
+The first run builds the Docker images. How long that takes is a property of the
+build host, and the spread is wide. `Dockerfile.ze` copies the whole tree and
+compiles ze twice with no cache mount. One colima VM of 2 CPUs and 2 GB built it
+in 2m48s on 2026-09-04, and the same VM took 40m39s for it earlier that day, when
+the host disk was full and the guest was thrashing.
+
+Each build is bounded at 90 minutes, and `BUILD_TIMEOUT` sets that bound in whole
+seconds for a machine slower or faster than that one. The bound stops a wedged
+Docker daemon and is not a budget for the build, so a build that finishes returns
+at once and a generous bound costs nothing. A value that does not parse, or that
+is not positive, keeps the 90 minutes. An image that needs more than the machine
+bound declares its own `ImageBuild.Timeout`.
+
+Subsequent runs with `NO_BUILD=1` skip rebuilds. Once the images exist, the full
+suite takes roughly 5-10 minutes depending on session establishment times.
+<!-- source: internal/le/interoplab/docker.go -- dockerBuildTimeoutDefault, buildTimeout -->
+
 
 ### Debugging Failures
 

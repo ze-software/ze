@@ -2,12 +2,15 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 )
 
 // frefs builds a FilterRef chain from canonical strings, treating an
@@ -417,4 +420,70 @@ func TestPolicyFilterFuncFlagsNonDecisions(t *testing.T) {
 	resp := r.policyFilterFunc(nil)("p", "f", "export", "10.0.0.2", 65002, "origin igp")
 	assert.Equal(t, PolicyReject, resp.Action, "no filter engine must fail closed")
 	assert.True(t, resp.Failed, "a guard miss is not a policy decision")
+}
+
+// filterSubjectFixture returns the subject the product renders for one UPDATE
+// carrying every attribute attrNameToCode advertises and one IPv4 unicast
+// prefix, through the arm every runtime caller reaches (a nil declared list).
+//
+// The subject is RENDERED, never typed. A hand-written subject is what let five
+// attributes reach no filter for the whole life of appendSingleAttr: a test
+// that types its own text asserts what its author believed the product emits,
+// and that belief was wrong for every one of those days
+// (plan/journal/silent-fall-through.md).
+//
+// The equality check below is the fixture's own guard. A wire this helper
+// cannot parse renders as an empty subject, and a test that then asserts the
+// ABSENCE of something passes for that reason rather than for the reason it was
+// written -- which is what medAttrsWire (forward_med_test.go) did while it
+// built its wire on a context id nothing had registered.
+func filterSubjectFixture(t *testing.T) string {
+	t.Helper()
+
+	attrs := attrsFixtureWire(t)
+	packed := attrs.Packed()
+
+	// RFC 4271 Section 4.3: Withdrawn Routes Length, Withdrawn Routes, Total
+	// Path Attribute Length, Path Attributes, then the NLRI.
+	body := make([]byte, 0, 4+len(packed)+4)
+	body = binary.BigEndian.AppendUint16(body, 0)
+	body = binary.BigEndian.AppendUint16(body, uint16(len(packed))) //nolint:gosec // test data, bounded
+	body = append(body, packed...)
+	body = append(body, 24, 10, 0, 0) // 10.0.0.0/24
+
+	wireUpdate := wireu.NewWireUpdate(body, attrs.SourceContext())
+	subject := string(AppendUpdateForFilter(nil, attrs, wireUpdate, nil))
+
+	require.Equal(t, attrsFixtureSubject+" nlri ipv4/unicast add 10.0.0.0/24", subject,
+		"the fixture must render the whole subject, or every test reading it proves nothing")
+	return subject
+}
+
+// TestFilterSubjectRoundTripsThroughParseAndFormat renders the subject a filter
+// chain carries, reads it back with parseFilterAttrs, and renders it again with
+// formatFilterAttrs.
+//
+// VALIDATES: AC-8 -- the round trip is byte stable over all thirteen attribute
+// names and the NLRI block, which is assumption A-3.
+// PREVENTS: a chain that changes one attribute silently reshaping the others.
+// applyFilterDelta (filter_chain.go) merges every delta INTO the parsed subject
+// and re-renders the whole of it, so a name the parser drops leaves the route
+// at the first modify, and a name the two orders disagree about moves. The
+// caller then compares the result with the text it sent (filter_ordered.go) and
+// rebuilds the payload for a route no filter asked to change.
+func TestFilterSubjectRoundTripsThroughParseAndFormat(t *testing.T) {
+	subject := filterSubjectFixture(t)
+
+	parsed := parseFilterAttrs(subject)
+
+	for name := range attrNameToCode {
+		id, known := filterAttrNameToID[name]
+		require.True(t, known, "every advertised name needs a parser id: "+name)
+		assert.True(t, parsed.has(id), "the parser must read "+name+" back out of the rendered subject")
+	}
+	assert.True(t, parsed.has(faNLRI), "the NLRI block must survive the parse")
+	assert.Empty(t, parsed.unknownName, "every token the renderer wrote must be a name the parser knows")
+
+	assert.Equal(t, subject, formatFilterAttrs(parsed),
+		"render, parse and re-render must produce the same bytes")
 }

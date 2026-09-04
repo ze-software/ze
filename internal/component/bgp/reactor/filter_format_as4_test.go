@@ -52,6 +52,24 @@ func as4FilterPath4(asns ...uint32) []byte {
 	return value
 }
 
+// as4FilterConfedThenSeq2 encodes an AS_CONFED_SEQUENCE followed by an
+// AS_SEQUENCE, both with two-octet AS numbers. This is the AS_PATH shape a
+// speaker inside a confederation sends to an OLD peer: RFC 5065 puts the
+// confederation segment at the head, and RFC 6793 Section 3 forbids it in the
+// AS4_PATH beside it.
+func as4FilterConfedThenSeq2(confed, seq []uint32) []byte {
+	value := make([]byte, 0, 4+len(confed)*2+len(seq)*2)
+	value = append(value, byte(attribute.ASConfedSequence), byte(len(confed)))
+	for _, asn := range confed {
+		value = binary.BigEndian.AppendUint16(value, uint16(asn)) //nolint:gosec // test data, mappable by construction
+	}
+	value = append(value, byte(attribute.ASSequence), byte(len(seq)))
+	for _, asn := range seq {
+		value = binary.BigEndian.AppendUint16(value, uint16(asn)) //nolint:gosec // test data, mappable by construction
+	}
+	return value
+}
+
 // as4FilterWire builds the AttributesWire a session of the given ASN4 width
 // would hand the filter chain.
 func as4FilterWire(t *testing.T, asn4 bool, attrs ...[]byte) *attribute.AttributesWire {
@@ -68,10 +86,13 @@ func as4FilterWire(t *testing.T, asn4 bool, attrs ...[]byte) *attribute.Attribut
 // as4FilterNextHop is the companion attribute every fixture below carries, so
 // the subject holds more than the AS path and the separator is exercised.
 //
-// NEXT_HOP rather than ORIGIN: the ORIGIN, MULTI_EXIT_DISC, LOCAL_PREF and
-// CLUSTER_LIST arms of appendSingleAttr match a pointer type the parsers never
-// produce, so those four attributes reach no filter at all
-// (plan/journal/silent-fall-through.md, 2026-08-15 and 2026-09-03).
+// NEXT_HOP rather than ORIGIN, and the reason is now historical. The ORIGIN,
+// MULTI_EXIT_DISC, LOCAL_PREF, ATOMIC_AGGREGATE and CLUSTER_LIST arms of
+// appendSingleAttr each named a pointer type no parser builds, so those five
+// attributes reached no filter and could not serve as a companion here
+// (plan/journal/silent-fall-through.md, 2026-08-15 and 2026-09-03). The arms
+// name the value form since 2026-09-04, so any of the five would serve now.
+// NEXT_HOP stays because every assertion below is written against it.
 func as4FilterNextHop() []byte {
 	return as4FilterAttr(attribute.FlagTransitive, attribute.AttrNextHop, []byte{10, 0, 0, 1})
 }
@@ -156,6 +177,36 @@ func TestFilterSubjectShorterASPathIgnoresAS4Path(t *testing.T) {
 	subject := string(AppendAttrsForFilter(nil, attrs, nil))
 	assert.Equal(t, "as-path [65001 23456]", subject,
 		"an AS4_PATH holding more AS numbers than the AS_PATH is ignored")
+}
+
+// TestFilterSubjectKeepsConfederationHopsOnReconstruction drives the merge with
+// an AS_PATH whose leading segment is an AS_CONFED_SEQUENCE, which RFC 6793
+// Section 3 forbids the AS4_PATH from carrying, so the AS_PATH is the only
+// place those AS numbers exist.
+//
+// RFC 6793 Section 4.2.3: "Note that a valid AS_CONFED_SEQUENCE or AS_CONFED_SET
+// path segment SHALL be prepended if it is either the leading path segment or
+// is adjacent to a path segment that is prepended."
+//
+// VALIDATES: the confederation segment reaches the subject whole, and spends
+// none of the prepend budget, so 65001 is still taken from the AS_SEQUENCE
+// beside it. RFC 5065 counts no AS number for the segment, and the merge
+// spends the budget on the same basis it was computed.
+// PREVENTS: a merge that charges the budget for confederation AS numbers, which
+// cuts the segment at the first hop and drops the AS_SEQUENCE hop that should
+// have been taken. Every confederation-aware filter then judges a path missing
+// the member AS numbers it exists to match.
+func TestFilterSubjectKeepsConfederationHopsOnReconstruction(t *testing.T) {
+	attrs := as4FilterWire(t, false,
+		as4FilterAttr(attribute.FlagTransitive, attribute.AttrASPath,
+			as4FilterConfedThenSeq2([]uint32{64512, 64513}, []uint32{65001, attribute.ASTrans})),
+		as4FilterAttr(attribute.FlagOptional|attribute.FlagTransitive, attribute.AttrAS4Path,
+			as4FilterPath4(as4FilterNonMappable)),
+	)
+
+	subject := string(AppendAttrsForFilter(nil, attrs, nil))
+	assert.Equal(t, "as-path [64512 64513 65001 199524]", subject,
+		"the leading confederation segment is prepended whole and costs no budget")
 }
 
 // TestFilterSubjectMalformedAS4PathIsDiscarded drives the one branch a peer can

@@ -308,6 +308,12 @@ func appendAllAttrs(buf []byte, attrs *attribute.AttributesWire) []byte {
 	return buf
 }
 
+// filterUnnamedAttrPhrase is the one leading phrase the unnamed-type warning
+// carries, so an operator's log scanner matches one string (ai/rules/cli.md).
+// It names the consequence rather than the cause: the attribute is absent from
+// the subject, so every filter on the chain judges the route without it.
+const filterUnnamedAttrPhrase = "filter text: attribute dropped, no renderer names its type"
+
 // appendSingleAttr appends one attribute as "<name> <value>" text into buf,
 // with a leading space separator when first is false. Returns the updated
 // buffer and the updated first flag (false if anything was appended).
@@ -319,17 +325,17 @@ func appendSingleAttr(buf []byte, attr attribute.Attribute, first bool) ([]byte,
 	sep := len(buf)
 
 	switch a := attr.(type) {
-	case *attribute.Origin:
+	case attribute.Origin:
 		buf = a.AppendText(buf)
 	case *attribute.ASPath:
 		buf = a.AppendText(buf)
 	case *attribute.NextHop:
 		buf = a.AppendText(buf)
-	case *attribute.MED:
+	case attribute.MED:
 		buf = a.AppendText(buf)
-	case *attribute.LocalPref:
+	case attribute.LocalPref:
 		buf = a.AppendText(buf)
-	case *attribute.AtomicAggregate:
+	case attribute.AtomicAggregate:
 		buf = a.AppendText(buf)
 	case *attribute.Aggregator:
 		// (*Aggregator).AppendText emits just the element form "<asn>:<ip>"
@@ -347,7 +353,7 @@ func appendSingleAttr(buf []byte, attr attribute.Attribute, first bool) ([]byte,
 		buf = a.AppendText(buf)
 	case attribute.OriginatorID:
 		buf = a.AppendText(buf)
-	case *attribute.ClusterList:
+	case attribute.ClusterList:
 		buf = a.AppendText(buf)
 	case attribute.LargeCommunities:
 		buf = a.AppendText(buf)
@@ -355,6 +361,24 @@ func appendSingleAttr(buf []byte, attr attribute.Attribute, first bool) ([]byte,
 		buf = a.AppendText(buf)
 	case *attribute.AIGP:
 		buf = a.AppendText(buf)
+	default:
+		// A GUARD MISS, and the only one this switch can have. Every arm above
+		// names the type its parser returns (knownAttrParsers,
+		// internal/core/bgp/attribute/wire.go), and attrForFilter hands over
+		// nothing else, so no peer can reach this branch: arriving here is a Ze
+		// defect. Five arms named a pointer form no parser builds, and this
+		// branch is what would have said so on the first UPDATE.
+		//
+		// The subject is built once for the whole chain, so a dropped attribute
+		// is dropped for every filter on that peer at once, and the chain still
+		// runs to a verdict. Degrade and SPEAK, for the reason asPathForFilter
+		// states above: silence puts the wrong subject on the branch nobody
+		// looks at, and nothing else would ever report it. Every line goes
+		// through fwdLogger, so ze.log.bgp.reactor.forward damps it.
+		//
+		// No compile-time exhaustiveness check can replace this. The switch is
+		// over an interface, and any package can implement attribute.Attribute.
+		fwdLogger().Warn(filterUnnamedAttrPhrase, "type", reflect.TypeOf(attr))
 	}
 
 	if len(buf) == sep {

@@ -1,0 +1,87 @@
+# filter-match-on-origin -- an operator writes a policy that decides on ORIGIN, and each
+# route gets the verdict the operator wrote.
+#
+# VALIDATES: AC-11 -- a filter matching on `origin incomplete` rejects a route carrying
+#            ORIGIN incomplete, and the same filter accepts a route carrying ORIGIN igp.
+#            The verdict is reached on a subject that names origin, and it reaches the
+#            route: the rejected prefix is not stored and the accepted one is.
+# PREVENTS:  a policy deciding on an attribute it was never shown. appendSingleAttr named
+#            *attribute.Origin while knownAttrParsers boxes attribute.Origin, so no arm
+#            matched, nothing was logged, and every route reached the filter with no
+#            origin token at all. A policy written to separate the two took the same
+#            verdict on both.
+#
+# Flow:
+# 1. ze-peer announces 10.0.0.0/24 with ORIGIN incomplete and 10.1.0.0/24 with ORIGIN igp.
+# 2. The import chain calls origin-policy:reject-incomplete for each route.
+# 3. The fixture reads the origin token out of FilterUpdateInput.Update, answers reject
+#    for incomplete and accept for igp, and then reads what the daemon stored.
+#
+# The session is EXTERNAL (65000 -> 65001), which is where a policy about how a neighbor
+# learned its routes belongs. ORIGIN is a well-known mandatory attribute on either kind of
+# session (RFC 4271 Section 5.1.1), so nothing here depends on the choice.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# The rejected route: ORIGIN incomplete.
+#   ORIGIN:   40010102            incomplete
+#   AS_PATH:  40020602010000FDE9  AS_SEQUENCE[65001], 4-byte ASNs
+#   NEXT_HOP: 40030401010101      1.1.1.1
+#   NLRI:     180A0000            10.0.0.0/24
+# attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+4 = 47 = 0x2F.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010240020602010000FDE940030401010101180A0000
+# The accepted route: the same frame with ORIGIN igp and 10.1.0.0/24.
+#   ORIGIN:   40010100            igp
+#   NLRI:     180A0100            10.1.0.0/24
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0100
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external origin-policy {
+		run "ze-test fixture plugin/filter-match-on-origin"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ origin-policy:reject-incomplete ]
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# Each verdict is asserted separately, with the origin the policy read, so a red says
+# which route was judged on what.
+expect=stderr:pattern=OK: 10.0.0.0/24 was rejected on its origin and 10.1.0.0/24 was accepted
+expect=stderr:pattern=origin-policy: prefix=10.0.0.0/24 origin=incomplete action=reject
+expect=stderr:pattern=origin-policy: prefix=10.1.0.0/24 origin=igp action=accept
+reject=stderr:pattern=origin=<unnamed>

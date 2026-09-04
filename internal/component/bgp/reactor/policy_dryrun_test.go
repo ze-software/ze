@@ -1,9 +1,14 @@
 package reactor
 
 import (
+	"encoding/binary"
+	"encoding/json"
 	"slices"
 	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -322,4 +327,76 @@ func TestComputeWireChangesAS4Path(t *testing.T) {
 			}
 		}
 	})
+}
+
+// dryRunUpdateBody builds the body of an UPDATE carrying the five attributes
+// the renderer used to drop, beside the AS_PATH and NEXT_HOP every route
+// carries and one NLRI. This is the body an operator pastes into
+// `ze policy test`, so the test reads what that operator is shown.
+func dryRunUpdateBody(t *testing.T) []byte {
+	t.Helper()
+
+	var attrs []byte
+	attrs = append(attrs, as4FilterAttr(attribute.FlagTransitive, attribute.AttrOrigin, []byte{2})...)
+	attrs = append(attrs, as4FilterAttr(attribute.FlagTransitive, attribute.AttrASPath,
+		as4FilterPath4(65001, 65002))...)
+	attrs = append(attrs, as4FilterNextHop()...)
+	attrs = append(attrs, as4FilterAttr(attribute.FlagOptional, attribute.AttrMED,
+		[]byte{0, 0, 0, 100})...)
+	attrs = append(attrs, as4FilterAttr(attribute.FlagTransitive, attribute.AttrLocalPref,
+		[]byte{0, 0, 0, 150})...)
+	attrs = append(attrs, as4FilterAttr(attribute.FlagTransitive, attribute.AttrAtomicAggregate, nil)...)
+	attrs = append(attrs, as4FilterAttr(attribute.FlagOptional, attribute.AttrClusterList,
+		[]byte{1, 1, 1, 1, 2, 2, 2, 2})...)
+
+	// No withdrawn routes, then the attribute length, the attributes, and one
+	// NLRI prefix.
+	body := []byte{0, 0}
+	body = binary.BigEndian.AppendUint16(body, uint16(len(attrs))) //nolint:gosec // test data, bounded
+	body = append(body, attrs...)
+	body = append(body, 24, 10, 0, 0)
+
+	return body
+}
+
+// TestPolicyDryRunSubjectNamesEveryAttribute runs `ze policy test` over an
+// UPDATE carrying ORIGIN, MULTI_EXIT_DISC, LOCAL_PREF, ATOMIC_AGGREGATE and
+// CLUSTER_LIST, on the session those last two belong on (RFC 4271 Section 5.1.5
+// and RFC 4456 Section 8 both scope them to an internal session).
+//
+// VALIDATES: AC-13 -- the before text the operator reads names all five, and
+// the JSON rendering of the same result carries that string unchanged, so the
+// answer is the same whichever surface the operator asked through.
+// PREVENTS: the dry-run explaining a policy over a route it renders wrong. This
+// is the only place an operator can inspect the subject before configuring a
+// chain, so a missing attribute here teaches them the filter never sees it.
+func TestPolicyDryRunSubjectNamesEveryAttribute(t *testing.T) {
+	r := New(&Config{})
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65000, 0x01010101)
+	peer := NewPeer(settings)
+	peer.state.Store(int32(PeerStateEstablished))
+	r.peers[settings.PeerKey()] = peer
+
+	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
+		"192.0.2.1", directionImport, "", dryRunUpdateBody(t), true)
+	require.NoError(t, err)
+
+	for _, name := range []string{
+		policyAttrOrigin,
+		policyAttrMED,
+		policyAttrLocalPreference,
+		policyAttrAtomicAggregate,
+		policyAttrClusterList,
+	} {
+		assert.Contains(t, result.TextBefore, name,
+			"the operator must be shown every attribute the route carries")
+	}
+	assert.Equal(t, "origin incomplete as-path [65001 65002] next-hop 10.0.0.1 med 100 "+
+		"local-preference 150 atomic-aggregate cluster-list 1.1.1.1 2.2.2.2 "+
+		"nlri ipv4/unicast add 10.0.0.0/24", result.TextBefore)
+
+	rendered, err := json.Marshal(result)
+	require.NoError(t, err)
+	assert.Contains(t, string(rendered), result.TextBefore,
+		"`| json` must carry the same subject the text rendering shows")
 }

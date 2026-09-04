@@ -219,7 +219,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		// converts the directive. The rewritten payload below replaces the
 		// WireUpdate before the RIB plugin runs Decision Process phases 1 and 2,
 		// which is the ordering that section requires of a removal.
-		if medRemoveHasWork(modAttrs, attrsWire) {
+		if medRemoveHasWork(modAttrs) {
 			ExtractMEDRemoveOps(modAttrs, &importMods)
 		}
 		nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)

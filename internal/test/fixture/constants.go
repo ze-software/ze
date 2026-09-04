@@ -92,6 +92,7 @@ const (
 	fieldKind               = "kind"
 	fieldLeaf               = "leaf"
 	fieldLocalAS            = "local-as"
+	fieldLocalPreference    = "local-preference" // The LOCAL_PREF name in the filter text protocol.
 	fieldMessage            = "message"
 	fieldMode               = "mode"
 	fieldName               = "name" // The field in a payload.

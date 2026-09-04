@@ -1319,33 +1319,38 @@ func BenchmarkFilterModifyEgress(b *testing.B) {
 // applyFactsMED (forward_med.go) refuses the same cost in the same words, and
 // the route-server fast path is what both are protecting.
 //
-// THE GATE READS BOTH THE WIRE AND THE TEXT, and this is where each half is
-// pinned. appendSingleAttr (filter_format.go) switches on *attribute.MED while
-// knownAttrParsers builds the value form attribute.MED, so `med` never reaches
-// the text a filter is given: a text-only gate reads every route as metric-less
-// and the configured removal silently stops happening, measured against GoBGP
-// on 2026-08-15. A wire-only gate fails the other way: `import [ modify:SET-MED
-// modify:DROP-MED ]` on a route that arrived WITHOUT a metric leaves the Set
-// standing, because the only metric in play is the one the chain just added.
+// THE GATE READS THE SUBJECT ALONE, and this is where both of the ways a metric
+// can be there are pinned. appendSingleAttr (filter_format.go) renders `med`
+// whenever the wire carries MULTI_EXIT_DISC, and applyFilterDelta
+// (filter_chain.go) merges every filter's delta INTO the current subject, so a
+// metric the peer sent and a metric an earlier filter set are both in the one
+// text. The wire was a second reading of the first of those, and it is gone.
+//
+// The route that arrived WITHOUT a metric is the case that keeps the gate: it
+// must still answer false, or `modify { del { med } }` forces a payload rebuild
+// for a byte that is not there.
 func TestMEDRemoveNeedsAMetricToRemove(t *testing.T) {
 	s := newMEDSource([]byte{0x00, 0x00, 0x00, 0x64})
 	bare := buildModTestPayload(slices.Concat(s.origin, s.community), s.nlri)
 	noAttrs := parseFilterAttrs("origin igp")
 
-	require.True(t, medRemoveHasWork(noAttrs, medAttrsWire(t, s.payload)),
-		"the metric fixture carries attribute 4 on the wire")
-	require.False(t, medRemoveHasWork(noAttrs, medAttrsWire(t, bare)),
-		"the bare fixture does not")
-	assert.True(t, medRemoveHasWork(noAttrs, nil),
-		"an unreadable attribute section records the removal the operator asked for")
-	assert.True(t, medRemoveHasWork(parseFilterAttrs("origin igp med 50 med-remove"), medAttrsWire(t, bare)),
-		"a metric an earlier filter in the chain set is a metric to remove")
-
 	// The text a filter is actually handed for the metric-carrying route. It
-	// names no metric, which is why the wire half of the gate exists.
+	// names the metric, which is what lets one reading serve the whole gate.
 	text := string(AppendUpdateForFilter(nil, medAttrsWire(t, s.payload), wireu.NewWireUpdate(s.payload, 0), nil))
-	assert.NotContains(t, text, "med ",
-		"the filter text omits MULTI_EXIT_DISC, so a text-only gate would refuse every removal")
+	bareText := string(AppendUpdateForFilter(nil, medAttrsWire(t, bare), wireu.NewWireUpdate(bare, 0), nil))
+	require.Contains(t, text, "med 100",
+		"the subject names MULTI_EXIT_DISC, so the gate needs no second reading of the wire")
+	require.NotContains(t, bareText, "med ",
+		"the bare fixture carries no metric, so nothing names one")
+
+	require.True(t, medRemoveHasWork(parseFilterAttrs(text)),
+		"the metric the peer sent is a metric to remove")
+	require.False(t, medRemoveHasWork(parseFilterAttrs(bareText)),
+		"a route that arrived with no metric gives the removal nothing to do")
+	require.False(t, medRemoveHasWork(noAttrs),
+		"and neither does a subject naming no metric at all")
+	assert.True(t, medRemoveHasWork(parseFilterAttrs("origin igp med 50 med-remove")),
+		"a metric an earlier filter in the chain set is a metric to remove")
 
 	var mods filterapi.ModAccumulator
 	ExtractMEDRemoveOps(parseFilterAttrs(applyFilterDelta(text, "med-remove")), &mods)
@@ -1406,7 +1411,7 @@ func TestMEDRemoveObeysTheChainOrder(t *testing.T) {
 		modAttrs := parseFilterAttrs(applyFilterDelta(applyFilterDelta(bareText, "med 200"), "med-remove"))
 		var mods filterapi.ModAccumulator
 		textDeltaToModOps(parseFilterAttrs(bareText), modAttrs, &mods)
-		require.True(t, medRemoveHasWork(modAttrs, medAttrsWire(t, bare)),
+		require.True(t, medRemoveHasWork(modAttrs),
 			"the metric the chain added is the work the removal has to do")
 		ExtractMEDRemoveOps(modAttrs, &mods)
 
@@ -1416,4 +1421,68 @@ func TestMEDRemoveObeysTheChainOrder(t *testing.T) {
 		assert.NotContains(t, rebuiltAttrs(t, result), byte(attribute.AttrMED),
 			"the metric the chain added is the metric the chain removed, so none reaches the wire")
 	})
+}
+
+// TestTextDeltaRecordsNothingForAnUnchangedSubject runs the subject the product
+// renders through a chain that changes nothing about it, twice: once with every
+// filter answering accept, and once with a filter that SETS an attribute to the
+// value the route already carries.
+//
+// VALIDATES: AC-6 and AC-7 -- the chain output text equals its input, and
+// textDeltaToModOps records no operation for an attribute whose before and
+// after values are equal.
+// PREVENTS: a rebuild of the UPDATE body for a route no filter asked to change,
+// and the removal arm of textDeltaToModOps stripping an attribute nobody asked
+// to strip (assumption A-2). Both conditions filter_ordered.go reads before it
+// calls buildModifiedPayload are asserted here: the text comparison and the
+// operation count. The five names below reached no filter until the renderer
+// was repaired, so their slots were empty in both maps and neither arm could
+// fire on them; now that the subject carries them, a round trip that reshaped
+// the text would make every route on every session look modified.
+func TestTextDeltaRecordsNothingForAnUnchangedSubject(t *testing.T) {
+	subject := filterSubjectFixture(t)
+
+	// assertNoWork asserts the two conditions the import site reads before it
+	// rebuilds a payload (filter_ordered.go): the chain returned the text it was
+	// given, and the delta holds no wire operation and no NLRI override.
+	assertNoWork := func(t *testing.T, text string) {
+		t.Helper()
+		assert.Equal(t, subject, text, "a chain that changes nothing must return the text it was handed")
+
+		var mods filterapi.ModAccumulator
+		textDeltaToModOps(parseFilterAttrs(subject), parseFilterAttrs(text), &mods)
+		assert.Equal(t, 0, mods.Len(), "no attribute value changed, so no wire operation is owed: %v",
+			goldenOps(mods.Ops()))
+		assert.Nil(t, extractLegacyNLRIOverride(subject, text), "the NLRI block is unchanged too")
+	}
+
+	t.Run("every filter accepts", func(t *testing.T) {
+		res := PolicyFilterChain(frefs("a:accept", "b:accept"), "import", "10.0.0.1", 65000, subject,
+			func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+				return PolicyResponse{Action: PolicyAccept}
+			})
+		require.Equal(t, PolicyAccept, res.Action)
+		assertNoWork(t, res.Text)
+	})
+
+	// One row for each attribute the renderer dropped until this spec, set to
+	// the value attrsFixtureWire puts on the wire. AC-7 names local-preference;
+	// the other four reach the same arm of textDeltaToModOps and were equally
+	// unreachable before, so each one is a row rather than a claim.
+	for _, delta := range []string{
+		"origin incomplete",
+		"med 100",
+		"local-preference 150",
+		"atomic-aggregate",
+		"cluster-list 1.1.1.1 2.2.2.2",
+	} {
+		t.Run("a filter sets "+delta, func(t *testing.T) {
+			res := PolicyFilterChain(frefs("a:set"), "import", "10.0.0.1", 65000, subject,
+				func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+					return PolicyResponse{Action: PolicyModify, Delta: delta}
+				})
+			require.Equal(t, PolicyAccept, res.Action)
+			assertNoWork(t, res.Text)
+		})
+	}
 }

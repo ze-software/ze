@@ -234,7 +234,7 @@ func computeWireChanges(beforeAttrs, afterAttrs *filterAttrs, attrs *attribute.A
 	textDeltaToModOps(beforeAttrs, afterAttrs, &mods)
 	ExtractRemovePrivateASOps(afterAttrs, attrs, asn4, peerAS, &mods)
 	ExtractASPathPrependOps(afterAttrs, localAS, &mods)
-	if direction == directionImport && medRemoveHasWork(afterAttrs, attrs) {
+	if direction == directionImport && medRemoveHasWork(afterAttrs) {
 		ExtractMEDRemoveOps(afterAttrs, &mods)
 	}
 

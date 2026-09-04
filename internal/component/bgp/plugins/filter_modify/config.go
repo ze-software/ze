@@ -308,7 +308,10 @@ func validateNoConflict(def *modifyDef) error {
 	setAttrs := map[string]bool{}
 	if def.delta != "" {
 		for _, attr := range []string{localPreferenceAttr, medAttr, aigpAttr} {
-			if extractUint32Attr(def.delta, attr) > 0 || containsAttrName(def.delta, attr) {
+			// containsAttrName ANCHORS on a token boundary, so it answers for
+			// a set of any value including 0. The value read that used to sit
+			// beside it added nothing this cannot see and matched unanchored.
+			if containsAttrName(def.delta, attr) {
 				setAttrs[attr] = true
 			}
 		}
