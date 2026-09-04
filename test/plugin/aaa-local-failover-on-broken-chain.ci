@@ -1,0 +1,70 @@
+# Test: an AAA chain the daemon cannot BUILD falls over to the local accounts.
+#
+# OWNER RULING, 2026-09-04: "failover to local user if aaa fails MUST be the
+# documented behaviour." This drives it through the daemon on the path that did
+# the opposite until 058567f39.
+#
+# The config carries a bgp block ON PURPOSE. That selects the infraSetup boot
+# path, which gated the whole ssh server on a non-nil AAA bundle: a keyless
+# TACACS+ server made the build fail, the bundle stayed nil, and ssh was never
+# started. The operator kept a forwarding router and lost every way into it.
+#
+# The tacacs server declares no key. RFC 8907 Section 10.5.2 requires a shared
+# secret and forbids a client to set TAC_PLUS_UNENCRYPTED_FLAG, so
+# tacacsBackend.Build refuses the server and the whole bundle build fails.
+#
+# VALIDATES: with the AAA chain unbuilt, ssh still starts and a LOCAL account
+#            logs in.
+# PREVENTS: a mistyped AAA block locking the operator out of a running daemon.
+#           Without the fix the fixture cannot connect at all, because there is
+#           no listener to connect to.
+#
+# THE LOGIN IS ALL THIS PROVES. Authorization is a separate answer and it is
+# unchanged: a nil AAA bundle installs no policy, so liveAAABundleAuthorizer
+# denies every command even though the login resolved the admin profile. The
+# fixture reads that refusal to tell a successful login from a failed one, and
+# `show bgp` is REFUSED here. An operator who reaches the box this way can log
+# in and cannot yet act, which is recorded in
+# plan/journal/guard-blocks-its-own-authors-repair.md.
+
+stdin=ze-conf:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65533; remote 65533; } }
+	}
+}
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+		tacacs {
+			server 127.0.0.1 { port 49; }
+			timeout 2
+		}
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment { ssh { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+EOF_CONF
+
+# The daemon runs in the BACKGROUND and the fixture in the foreground. It cannot
+# be an in-config observer that shuts the daemon down at the end: `request
+# shutdown` travels the same dispatch path and the nil-bundle authorizer refuses
+# it too, so the daemon would outlive the test and the run would time out.
+cmd=background:seq=1:exec=ze -:stdin=ze-conf
+cmd=foreground:seq=2:exec=ze-test fixture plugin/aaa-local-failover $PORT2:timeout=30s
+expect=exit:code=0
+# The chain really did fail to build. Without this the test would also pass
+# against a daemon whose TACACS+ config was simply ignored.
+expect=stderr:pattern=no shared secret configured for this TACACS\+ server
+expect=stderr:contains=AAA backend build failed
+# And the operator still got in, on a local account.
+expect=stderr:pattern=auth success.*source=local
+expect=stderr:pattern=OK: local login succeeded with the AAA chain unbuilt
+reject=stderr:pattern=source=tacacs
+reject=stderr:pattern=ZE-OBSERVER-FAIL

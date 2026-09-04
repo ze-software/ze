@@ -27,6 +27,7 @@ func init() {
 	Register("plugin/tacacs-auth", pluginShellExtra4TacacsAuth)
 	Register("plugin/tacacs-author", pluginShellExtra4TacacsAuthor)
 	Register("plugin/tacacs-fallback", pluginShellExtra4TacacsFallback)
+	Register("plugin/aaa-local-failover", pluginShellExtra4AAALocalFailover)
 	Register("plugin/tacacs-local-only", pluginShellExtra4TacacsLocalOnly)
 	Register("plugin/tacacs-readonly", pluginShellExtra4TacacsReadonly)
 	Register("plugin/tacacs-singleconnect", pluginShellExtra4TacacsSingleConnect)
@@ -372,6 +373,42 @@ func pluginShellExtra4TacacsFallback(ctx context.Context, args []string) error {
 		time.Sleep(300 * time.Millisecond)
 		return nil
 	})
+}
+
+// pluginShellExtra4AAALocalFailover proves the AUTHENTICATION half of the
+// failover the owner ruled on 2026-09-04: with the AAA chain unbuilt, a local
+// account still logs in over ssh.
+//
+// It asserts the login and NOT a command, because the two halves have different
+// answers today. A nil AAA bundle establishes no policy, so
+// liveAAABundleAuthorizer denies every command even though the login resolved
+// the admin profile. The refusal below is that denial, and reading it is how
+// this fixture tells "the session opened and the command was refused" from "the
+// login failed", which look the same from a bare exec error.
+//
+// Change the authorization half and this fixture goes red, which is correct: it
+// pins what the daemon does today, and the daemon would be doing something else.
+func pluginShellExtra4AAALocalFailover(_ context.Context, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("aaa-local-failover: got %d arguments, want 1", len(args))
+	}
+	// Not an in-config observer: this fixture drives the daemon from OUTSIDE,
+	// because a plugin's own `request shutdown` travels the dispatch path the
+	// nil-bundle authorizer refuses, so an observer could never end the run.
+	return func() error {
+		_, err := pluginShellExtra4Command("127.0.0.1", args[0], "admin", "testpass", "show bgp")
+		if err == nil {
+			return errors.New("the command was ALLOWED: a nil AAA bundle installs no policy, so authorization must still deny")
+		}
+		if strings.Contains(err.Error(), "unable to authenticate") || strings.Contains(err.Error(), "handshake") {
+			return fmt.Errorf("the local account could not log in, so the failover did not happen: %w", err)
+		}
+		if !strings.Contains(err.Error(), "command restricted by access control") {
+			return fmt.Errorf("expected an authorization refusal after a successful local login, got: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, "OK: local login succeeded with the AAA chain unbuilt, and authorization denied the command")
+		return nil
+	}()
 }
 
 func pluginShellExtra4TacacsLocalOnly(ctx context.Context, args []string) error {
