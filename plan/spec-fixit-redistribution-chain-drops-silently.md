@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | plugin |
 | Depends | - |
-| Phase | 6/6 implementation done; goal validation 1 of 3 scenarios green, see the dated note under Goal Validation |
+| Phase | BLOCKED on a gap outside this spec. Implementation is complete and committed; goal validation is 1 of 3 scenarios green. AC-2 needs a Type-7 NSSA-LSA ze does not originate (`plan/journal/unwired-feature.md`, 2026-09-03), which is separate work. See the dated note under Goal Validation |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-04 |
