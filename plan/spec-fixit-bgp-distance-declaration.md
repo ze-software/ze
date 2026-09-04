@@ -224,7 +224,7 @@ renaming it buys nothing and buries the real change in 35 files.
 |----------|--------|
 | What breaks if this is wrong? | Which route the kernel installs when two protocols hold the same prefix. A wrong distance silently prefers a BGP route over a connected one, or the reverse, on every prefix both carry |
 | How is it reverted? | A single commit revert. Config files naming `distance` would need the old spelling back, which is why the rename lands in one commit with the code |
-| Who else touches this path? | ISIS already reads `rib.admin-distance.isis` through `effectivePriority` (`internal/plugins/isis/spf/install.go`). `plan/spec-bgp-attribute-defaults.md` adds the sibling `attribute` container under `bgp { defaults { } }` and depends on this spec landing first |
+| Who else touches this path? | ISIS already reads `rib.admin-distance.isis` through `effectivePriority` (`internal/plugins/isis/spf/install.go`). `spec-bgp-attribute-defaults` adds the sibling `attribute` container under `bgp { defaults { } }` and depends on this spec landing first. That spec closed on 2026-09-04, so read `internal/component/bgp/yang/ze-bgp-conf.yang` and `docs/config-reference.md` rather than the spec |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

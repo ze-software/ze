@@ -82,7 +82,7 @@ decides.
 | 10 | `lost-local-pref` | Highest LOCAL_PREF wins | 4271 | Default 100 if absent |
 | 11 | `lost-as-path-length` | Shortest AS_PATH wins | 4271 | AS_SET counts as 1 |
 | 12 | `lost-origin` | Lowest ORIGIN wins (IGP=0 < EGP=1 < INCOMPLETE=2) | 4271 | |
-| 13 | `lost-med` | Lowest MED wins (same neighbor AS only) | 4271 | Compared only when first AS matches |
+| 13 | `lost-med` | Lowest MED wins (same neighbor AS only) | 4271 | Compared only when first AS matches. Section 9.1.2.2 (c) gives a route that carries no MULTI_EXIT_DISC the lowest possible value, 0, so an absent attribute wins this step |
 | 14 | `lost-ebgp-over-ibgp` | eBGP preferred over iBGP | 4271 | eBGP = PeerASN != LocalASN |
 | 15 | `lost-igp-cost` | Lowest IGP cost to next-hop | 4271 | Not yet implemented |
 | 16 | `lost-router-id` | Lowest Router ID / ORIGINATOR_ID wins | 4271/4456 | Numeric IP comparison |

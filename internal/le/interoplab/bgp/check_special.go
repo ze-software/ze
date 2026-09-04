@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -35,6 +36,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"bgp-addpath-rail-agreement-speaker":    checkAddPathRailAgreement,
 	"bgp-addpath-readvertise-collision-frr": checkAddPathReadvertiseCollision,
 	clusterListScenario:                     checkClusterListLengthTieBreak,
+	"bgp-attribute-default-localpref-gobgp": checkAttributeDefaultLocalPref,
 	"bgp-local-pref-strip-gobgp":            checkLocalPrefStrip,
 	"bgp-med-across-as-gobgp":               checkMEDAcrossAS,
 	"bgp-med-increment-gobgp":               checkMEDIncrementFromRouteValue,
@@ -1221,6 +1223,120 @@ func checkMEDIncrementFromRouteValue(ctx context.Context, check *interoplab.Chec
 	// Assertion 7. The session survived. Rewriting an attribute on the import
 	// chain rebuilds the UPDATE payload, and a peer that answered a malformed
 	// rebuild with a NOTIFICATION would hold no route to read a metric off.
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(7, err)
+	}
+	return nil
+}
+
+// checkAttributeDefaultLocalPref proves the base an operator configures in
+// bgp { defaults { attribute { local-preference } } } is the value the modifier
+// arithmetic starts from for a route that carries no LOCAL_PREF.
+//
+// RFC 4271 Section 9.1.1 supplies no number for the degree of preference: "The
+// exact nature of this policy information, and the computation involved, is a
+// local matter." Ze declares 100 in ze-bgp-conf.yang and lets an operator move
+// it, and this lab is what proves the operator's number reaches the plugin
+// (parseAttributeDefaults, plugins/filter_modify/config.go) rather than stopping
+// at the config tree.
+//
+// The two outcomes are twenty apart on purpose. The chain adds 50 to whatever
+// base applies: 130 is the configured 80, and 150 is the schema's declared 100,
+// which is what a build whose plumbing never reaches the plugin computes.
+//
+// This is not an RFC carrier. Section 9.1.1 is why the value is configurable
+// rather than fixed, and it states no requirement this lab can enforce.
+func checkAttributeDefaultLocalPref(ctx context.Context, check *interoplab.CheckContext) error {
+	const (
+		name = "bgp-attribute-default-localpref-gobgp"
+		// inject.msg announces both prefixes with no LOCAL_PREF. Only this one
+		// carries community 65005:1, which is the condition the INC-LP import
+		// policy matches.
+		configuredPrefix = "10.64.0.0/24"
+		// The in-run control. Same session, same route-server rail, same policy
+		// chain, outside the match container. Ze inserts no LOCAL_PREF of its
+		// own on egress, so this route reaches GoBGP carrying none.
+		controlPrefix = "10.64.1.0/24"
+		// 80 + 50, where 80 is the base ze.conf configures.
+		configuredPreference = "130"
+		// The injector's AS, read back at GoBGP as proof that the route it holds
+		// is the relayed one rather than something ze rebuilt.
+		sourceAS = "65005"
+		// The injector, and the NEXT_HOP its UPDATEs carry. inject.msg writes
+		// those octets as raw hex, so they name a peer on the base network
+		// alone.
+		injectorAddress = baseIPv4Prefix + "9"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+
+	// Assertion 1. renderScenario rewrites text rather than hex, so on any other
+	// selected network the relayed routes carry a next hop belonging to nobody,
+	// GoBGP refuses them, and every assertion below would read a renumbered lab
+	// as an arithmetic defect. The zero Network is not the base network either,
+	// so this one guard covers it too.
+	baseNetwork := netip.MustParseAddr(baseIPv4Prefix + "0")
+	if check.Network.IPv4.Addr() != baseNetwork {
+		return fail(1, fmt.Errorf("scenario runs on network %s, and the injected NEXT_HOP octets name a peer only on %s", check.Network.IPv4, baseNetwork))
+	}
+
+	// Assertion 2. The destination session, read from GoBGP itself. Every
+	// assertion below reads that daemon's RIB, so a session that never came up
+	// would make each of them fail for a reason unrelated to the arithmetic.
+	session := operation{kind: opGoBGPSession, argument: zeLabAddress}
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(2, err)
+	}
+
+	// Assertions 3 and 4. Both prefixes arrived. An attribute assertion over a
+	// RIB that holds nothing is satisfied by the relay being broken, and the
+	// control's assertion is an ABSENCE, which an empty RIB satisfies best of
+	// all.
+	arrivals := []operation{
+		{kind: opGoBGPRoute, argument: configuredPrefix, timeout: 120 * time.Second},
+		{kind: opGoBGPRoute, argument: controlPrefix, timeout: 120 * time.Second},
+	}
+	for index := range arrivals {
+		if err := runOperation(ctx, check.Network, check.Lab, &arrivals[index]); err != nil {
+			return fail(index+3, err)
+		}
+	}
+
+	// Assertion 5. The arithmetic started from the configured base. The
+	// destination is INTERNAL to ze, so RFC 4271 Section 5.1.5's prohibition
+	// does not fire (applyFactsLocalPref, reactor/forward_local_pref.go) and the
+	// value GoBGP decodes is the one the import chain computed.
+	configured, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, configuredPrefix}, nil)
+	if err != nil {
+		return fail(5, err)
+	}
+	if err := requireGoBGPSourceBlock(configured, configuredPrefix, sourceAS, injectorAddress); err != nil {
+		return fail(5, err)
+	}
+	if err := requireGoBGPAttributeValue(configured, configuredPrefix, gobgpLocalPrefAttribute, configuredPreference); err != nil {
+		return fail(5, err)
+	}
+
+	// Assertion 6. The operation is what an operator selects and never a blanket
+	// rewrite. This route travels the same session, the same rail and the same
+	// policy chain, and nothing on the forward rails inserts attribute 5, so it
+	// arrives with none. Without this polarity a ze that wrote a preference onto
+	// every relayed route would satisfy assertion 5.
+	control, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, controlPrefix}, nil)
+	if err != nil {
+		return fail(6, err)
+	}
+	if err := requireGoBGPSourceBlock(control, controlPrefix, sourceAS, injectorAddress); err != nil {
+		return fail(6, err)
+	}
+	if err := requireGoBGPAttributeAbsent(control, controlPrefix, gobgpLocalPrefAttribute); err != nil {
+		return fail(6, err)
+	}
+
+	// Assertion 7. The session survived. Writing an attribute on the import
+	// chain rebuilds the UPDATE payload, and a peer that answered a malformed
+	// rebuild with a NOTIFICATION would hold no route to read a preference off.
 	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
 		return fail(7, err)
 	}

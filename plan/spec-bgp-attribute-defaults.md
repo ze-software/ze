@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | config |
 | Depends | spec-fixit-filter-subject-drops-five-attributes, spec-fixit-bgp-distance-declaration (ordering only) |
-| Phase | DESIGN complete. Awaiting owner approval |
+| Phase | CLOSURE, 2026-09-04. Implementation complete and the closure sections are appended |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-04 |
@@ -149,10 +149,10 @@ so `defaults` holds `attribute` alone and this spec creates both.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config file to plugin | a config section delivered to the plugin's configure callback | No |
-| Reactor to plugin | `rpc.FilterUpdateInput.Update`, the text subject | No |
-| Plugin to reactor | `rpc.FilterUpdateOutput.Update`, the delta | No |
-| Operator to peer | the re-announced route's MULTI_EXIT_DISC or LOCAL_PREF | No |
+| Config file to plugin | a config section delivered to the plugin's configure callback | Yes: `test/plugin/attribute-default-localpref-configured.ci` writes the block in a config file |
+| Reactor to plugin | `rpc.FilterUpdateInput.Update`, the text subject | Yes: the same `.ci`, and `TestAttributeDefaultsReloadTakesEffect` at `handleFilterUpdate` |
+| Plugin to reactor | `rpc.FilterUpdateOutput.Update`, the delta | Yes: the same two |
+| Operator to peer | the re-announced route's MULTI_EXIT_DISC or LOCAL_PREF | Yes: `bgp-attribute-default-localpref-gobgp`, where GoBGP decodes LocalPref 130 |
 
 ### Integration Points
 - `absentBase` and `currentForArithmetic`, which already have the shape a
@@ -164,19 +164,19 @@ so `defaults` holds `attribute` alone and this spec creates both.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| Registration over hardcoding | No | |
-| One declaration of one fact | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The value travels config file, config section, `applyBGPConfig`, `absentBase`, `currentForArithmetic`, delta, wire. The interop scenario reads the far end of that path at GoBGP |
+| Registration over hardcoding | Yes | `parseAttributeDefaults` builds its map from the schema container's own children, so a leaf added to `bgp/defaults/attribute` needs no edit in the plugin, and a key the container does not declare is refused |
+| One declaration of one fact | Yes | The two numbers are `default` statements in `ze-bgp-conf.yang`. `TestAbsentBaseComesFromConfig` compares the plugin's base against `config.SchemaDefaultInt` and then proves an empty base leaves no compiled-in fallback |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `absentBase` has exactly one reader, `currentForArithmetic` | Both are declared in `modify.go` and the map is package-private | A second reader would keep a path on the old constants after the config lands | `gopls references` on the symbol, recorded in the audit | unvalidated |
-| A-2 | The plugin's configure callback runs before any filter update is handled, so a route never computes from an unset base | `filter_modify.go` already warns "filter-update before configure" for the definitions map, which means the ordering is not guaranteed and is already handled | A route arriving first would compute from a zero value rather than the declared default | A test that calls the update path before configure and asserts the declared defaults apply | unvalidated |
+| A-1 | `absentBase` has exactly one reader, `currentForArithmetic` | Both are declared in `modify.go` and the map is package-private | A second reader would keep a path on the old constants after the config lands | `gopls references` on the symbol, recorded in the audit | confirmed, 2026-09-04. `gopls references` on the declaration answered three sites: `currentForArithmetic` (`modify.go`) and two in `modify_test.go`, which is `TestAbsentValueTableCoversEveryArithmeticAttribute` reading the map twice. One non-test reader |
+| A-2 | The plugin's configure callback runs before any filter update is handled, so a route never computes from an unset base | `filter_modify.go` already warns "filter-update before configure" for the definitions map, which means the ordering is not guaranteed and is already handled | A route arriving first would compute from a zero value rather than the declared default | A test that calls the update path before configure and asserts the declared defaults apply | broken as an ordering claim, and the design does not rest on it. `handleFilterUpdate` still rejects a filter update that arrives before configure, and `absentBaseFor` (`modify.go`) answers that window from the schema's own defaults rather than from a zero value. `TestDefaultsApplyBeforeConfigure` drives it with the store held nil |
 | A-3 | `bgp { defaults { } }` exists by the time this spec lands | BROKEN, 2026-09-04. The distance spec was expected to create it holding `admin-distance`, but its investigation moved administrative distance to `rib { distance { } }` and DELETED the BGP container outright, so nothing creates `bgp { defaults { } }`. Confirmed: no `container defaults` in `internal/component/bgp/yang/ze-bgp-conf.yang` | This spec creates the container itself, which is now the design rather than a duplication | done | broken |
-| A-4 | Nothing outside the modifier reads a default MED or LOCAL_PREF today | The two numbers were introduced by `spec-fixit-filter-subject-drops-five-attributes` and live in one map | A second consumer would need the same values and would be a second declaration | A grep for the literals 100 and 0 near LOCAL_PREF and MED handling | unvalidated |
+| A-4 | Nothing outside the modifier reads a default MED or LOCAL_PREF today | The two numbers were introduced by `spec-fixit-filter-subject-drops-five-attributes` and live in one map | A second consumer would need the same values and would be a second declaration | A grep for the literals 100 and 0 near LOCAL_PREF and MED handling | broken, 2026-09-04. Six producers write 100 as the LOCAL_PREF ze emits toward an internal peer when the operator configured none, and none reads a declaration. That is the OTHER half of FRR's `default_local_pref`, which Known Limitations already places outside this spec, so the design holds. The find is one row in `plan/journal/helper-bypassed-by-an-open-coded-copy.md`. Nothing outside the modifier reads a default MED |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -232,14 +232,17 @@ so `defaults` holds `attribute` alone and this spec creates both.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAbsentBaseComesFromConfig` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-10: no literal 0 or 100 remains in the map's declaration | |
-| `TestConfiguredLocalPrefBaseFeedsTheArithmetic` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-2 | |
-| `TestConfiguredMedBaseFeedsTheArithmetic` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-3 and AC-4 | |
-| `TestConfiguredBaseIsUnusedWhenTheRouteCarriesTheAttribute` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-5 | |
-| `TestDefaultsApplyBeforeConfigure` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-8 and A-2 | |
-| `TestAttributeDefaultsReloadTakesEffect` | `internal/component/bgp/plugins/filter_modify/config_test.go` | AC-7 | |
-| `TestAigpDefaultLeafDoesNotExist` | `internal/component/config/yang/validator_test.go` | AC-6 | |
-| `TestAbsentMedStillComparesAsZeroInPhaseTwo` | `internal/component/bgp/plugins/rib/` best-path test | AC-9: the configured base does not reach the Decision Process | |
+| `TestAbsentBaseComesFromConfig` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-10: no literal 0 or 100 remains in the map's declaration | PASSES |
+| `TestConfiguredLocalPrefBaseFeedsTheArithmetic` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-2 | PASSES |
+| `TestConfiguredMedBaseFeedsTheArithmetic` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-3 and AC-4 | PASSES |
+| `TestConfiguredBaseIsUnusedWhenTheRouteCarriesTheAttribute` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-5 | PASSES |
+| `TestConfiguredBaseArithmeticHoldsAtTheBoundaries` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | the arithmetic row of the boundary table: saturation at the top, floor at 0 | PASSES |
+| `TestDefaultsApplyBeforeConfigure` | `internal/component/bgp/plugins/filter_modify/modify_test.go` | AC-8 and A-2 | PASSES |
+| `TestAttributeDefaultsReloadTakesEffect` | `internal/component/bgp/plugins/filter_modify/config_test.go` | AC-7 | PASSES |
+| `TestAttributeDefaultsRefusedConfigInstallsNothing` | `internal/component/bgp/plugins/filter_modify/config_test.go` | a delivery that does not parse installs neither the base nor the modifiers | PASSES |
+| `TestAttributeDefaultLeafRangeHoldsAtTheBoundaries` | `internal/component/bgp/plugins/filter_modify/config_test.go` | the two leaf rows of the boundary table, through `config.ValidateLeafValue` | PASSES |
+| `TestAigpDefaultLeafDoesNotExist` | `internal/component/bgp/plugins/filter_modify/config_test.go` | AC-6. NOT the file this table first named: `internal/component/config/yang` cannot host it, because the lookup needs the bgp module and `internal/component/bgp/yang` imports that package, so an in-package test there is an import cycle | PASSES |
+| `TestAbsentMedStillComparesAsZeroInPhaseTwo` | `internal/component/bgp/plugins/rib/` best-path test | AC-9: the configured base does not reach the Decision Process | not this agent's phase |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -251,13 +254,13 @@ so `defaults` holds `attribute` alone and this spec creates both.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `attribute-default-localpref-configured` | `test/plugin/attribute-default-localpref-configured.ci` | An operator sets the default to 80, a peer announces a route with no LOCAL_PREF, and an observing peer reads 130 | |
-| `modify-increment-localpref` | `test/plugin/modify-increment-localpref.ci` | The existing test, re-run to prove the declared defaults still apply with no block written | |
+| `attribute-default-localpref-configured` | `test/plugin/attribute-default-localpref-configured.ci` | An operator sets the default to 80, a peer announces a route with no LOCAL_PREF, and the delta is 130 | written; the `./le functional plugin` result is in the phase report |
+| `modify-increment-localpref` | `test/plugin/modify-increment-localpref.ci` | The existing test, re-run to prove the declared defaults still apply with no block written | unchanged; same run |
 
 ### Interop Tests (Scope: config)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-attribute-default-localpref-gobgp` | `test/interop/scenarios/bgp-attribute-default-localpref-gobgp` | GoBGP | GoBGP announces a route carrying no LOCAL_PREF, ze's import chain increments by 50 from a configured base of 80, and a second GoBGP reads 130. Reverting the config plumbing makes it read 150 | |
+| `bgp-attribute-default-localpref-gobgp` | `test/interop/scenarios/bgp-attribute-default-localpref-gobgp` | GoBGP | A raw injector announces a route carrying no LOCAL_PREF, ze's import chain increments by 50 from a configured base of 80, and GoBGP reads 130. Reverting the config plumbing makes it read 150 | PASSES. RED recorded 2026-09-04: with `absentBaseFor` reverted to ignore the stored value and the `ze-interop` image rebuilt, the run failed `assertion 5: GoBGP decoded LocalPref 150 for 10.64.0.0/24, want 130`. Restored, green again |
 
 ## Goal Validation (BLOCKING)
 
@@ -500,3 +503,252 @@ configurable rather than fixed.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `bgp { defaults { attribute { med, local-preference } } }` in
+  `internal/component/bgp/yang/ze-bgp-conf.yang`. Both leaves carry
+  `range "0..4294967295"` and a default, each leaf's `ze:help` carries the RFC
+  sentence behind its own number, and the container's description carries RFC
+  7311's reason for having no `aigp` leaf.
+- `parseAttributeDefaults` (`internal/component/bgp/plugins/filter_modify/config.go`)
+  reads that container, refuses a key the container does not declare, and fills
+  a leaf the operator left out from the schema through `config.ApplyDefaults`.
+  `attributeDefaultsContainer` resolves the container once per process, because
+  `config.YANGSchema` rebuilds and re-resolves every module on each call.
+- `applyBGPConfig` (`filter_modify.go`) installs one delivery: the base first,
+  then the modifiers, and neither when the delivery does not parse.
+- `absentBaseFor` and `declaredAbsentBase` (`modify.go`) replace the
+  package-level `absentBase` map. No literal 0 or 100 remains in the plugin.
+- AC-9's proof in `internal/component/bgp/plugins/rib/rfc4271_test.go`, with
+  `RFC4271-9.1.2.2-4` declared in `rfc/short/rfc4271.md` and its discrimination
+  record in `rfc/discrimination/rfc4271.json`. No product file under
+  `plugins/rib/` changed, which is what step 4 predicted.
+- `test/plugin/attribute-default-localpref-configured.ci`, and the interop
+  scenario `test/interop/scenarios/bgp-attribute-default-localpref-gobgp` with
+  its checker `checkAttributeDefaultLocalPref`
+  (`internal/le/interoplab/bgp/check_special.go`).
+
+### Bugs Found/Fixed
+- The `absentBase` doc comment quoted a sentence RFC 4271 does not contain. The
+  verified Section 9.1.2.2 (c) sentence now sits in the `med` leaf's `ze:help`.
+  Row: `plan/journal/reference-checked-claim-unchecked.md`.
+- Six producers write 100 as the LOCAL_PREF ze emits toward an internal peer,
+  with no declaration behind any of them (A-4, broken). Out of this spec's
+  scope by Known Limitations. Row:
+  `plan/journal/helper-bypassed-by-an-open-coded-copy.md`.
+- The redistribution section of `docs/guide/configuration.md` claimed an
+  intra-BGP `IngressFilter` reads the `redistribute` block and anchored on
+  `redistribute_ingress/filter.go`, a package commit `1ec5b741f8` deleted.
+  Fixed here because closure was already carrying that page. Row:
+  `plan/journal/claim-outlives-the-evidence-it-cites.md`.
+
+### Documentation Updates
+- `docs/architecture/core-design.md`, the route attribute modifier section, with
+  anchors on `parseAttributeDefaults` and on `absentBaseFor, currentForArithmetic`.
+- `docs/config-reference.md`, a new `bgp { defaults { attribute { } } }` section
+  with the two leaves, their defaults, their range, and what they do NOT govern.
+  Anchor: `ze-bgp-conf.yang -- container defaults`.
+- `docs/guide/configuration.md`, the block and its example beside the modifier
+  table. Same anchor.
+- `docs/guide/plugins.md`, one paragraph saying the first two rows of the
+  absent-attribute table are configurable and naming the leaves.
+- `docs/architecture/route-selection.md`, the `lost-med` row, which now states
+  that Section 9.1.2.2 (c) gives a route with no MULTI_EXIT_DISC the lowest
+  possible value.
+- `./le doc check verify` FAILS on this tree, and on nothing this spec owns: 8
+  stale `../gh-pages/reference/command-equivalents/` pages, four command
+  descriptions belonging to other sessions, and a stale `ai/DOCS-TO-CODE.md`
+  warning. Its source-anchor stage is now clean, which it was not before the
+  `docs/guide/configuration.md` repair above.
+
+### Deviations from Plan
+- A-3 was broken before implementation started: nothing created
+  `bgp { defaults { } }`, so this spec created the container as well as
+  `attribute`.
+- AC-6's test could not live in `internal/component/config/yang`: the lookup
+  needs the bgp module, and `internal/component/bgp/yang` imports that package,
+  so an in-package test there is an import cycle. It lives in
+  `filter_modify/config_test.go`.
+- `filter_modify/schema_modules_test.go` was added and is not in Files to
+  Create. The package's own test binary links only what it imports, and the
+  YANG loader resolves the module CLOSURE, so `ze-hub-conf` has to be registered
+  for a lookup in `ze-bgp-conf` to resolve.
+- `internal/le/interoplab/bgp/check_special.go` and its branch in `bgp_test.go`
+  were needed for the interop scenario and are not in Files to Modify. A
+  scenario with no registered checker asserts nothing.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 assumed `bgp { defaults { } }` would exist by the time this spec landed, created by the distance spec | That spec moved administrative distance to `rib { distance { } }` and deleted the BGP container outright, so nothing created it | `grep "container defaults" internal/component/bgp/yang/ze-bgp-conf.yang` answered nothing | This spec creates the container. Files to Modify records it |
+| assumption | A-4 assumed nothing outside the modifier reads a default MED or LOCAL_PREF | Six producers write 100 as the LOCAL_PREF toward an internal peer, none of them reading a declaration | The grep the assumption itself named | Journal row in `plan/journal/helper-bypassed-by-an-open-coded-copy.md`. Out of scope by Known Limitations, which already named the second job as wanting its own spec |
+| assumption | A-2 assumed the configure callback always runs before the first filter update | `handleFilterUpdate` rejects an update that arrives first, so the ordering is not guaranteed and the plugin already handles it | Reading `handleFilterUpdate` rather than trusting the assumption | The design does not rest on the ordering: `absentBaseFor` answers the window from the schema, and `TestDefaultsApplyBeforeConfigure` drives it |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An operator can set the two values | Done | `container defaults`, `internal/component/bgp/yang/ze-bgp-conf.yang` | Both leaves range-constrained, both with a default |
+| `absentBase` derives from config rather than declaring the numbers | Done | `absentBaseFor`, `internal/component/bgp/plugins/filter_modify/modify.go` | The map literal is gone; the plugin holds no 0 and no 100 |
+| MED keeps the RFC's number as its default, LOCAL_PREF is declared as local policy | Done | the two leaves' `ze:help` in `ze-bgp-conf.yang` | Section 9.1.2.2 quoted at `med`, Section 9.1.1 at `local-preference` |
+| The `defaults` container is created by this spec | Done | `ze-bgp-conf.yang` | A-3 broken; recorded in the Mistake Log |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestAbsentBaseComesFromConfig`, `TestDefaultsApplyBeforeConfigure`, `test/plugin/modify-increment-localpref.ci` | The unchanged `.ci` still asserts 150 with no block written |
+| AC-2 | Done | `TestConfiguredLocalPrefBaseFeedsTheArithmetic`, `test/plugin/attribute-default-localpref-configured.ci`, `bgp-attribute-default-localpref-gobgp` | GoBGP decodes 130 |
+| AC-3 | Done | `TestConfiguredMedBaseFeedsTheArithmetic` | 50 less 30 is 20 |
+| AC-4 | Done | `TestConfiguredMedBaseFeedsTheArithmetic` | 50 less 80 floors at 0 |
+| AC-5 | Done | `TestConfiguredBaseIsUnusedWhenTheRouteCarriesTheAttribute` | 100 and 200 from the route, not 50 and 80 from the config |
+| AC-6 | Done | `TestAigpDefaultLeafDoesNotExist` | The lookup fails, the container declares two children, and `parseAttributeDefaults` refuses an `aigp` key |
+| AC-7 | Done | `TestAttributeDefaultsReloadTakesEffect` | 100, then 80, then 100 again, so a latched base fails |
+| AC-8 | Done | `TestDefaultsApplyBeforeConfigure` | The store held nil, and the arithmetic answers 150 and 50 |
+| AC-9 | Done | `TestAbsentMedStillComparesAsZeroInPhaseTwo`, `TestAbsentMedTiesAnExplicitMedOfZero` | No file under `plugins/rib/` needed a change |
+| AC-10 | Done | `TestAbsentBaseComesFromConfig`, and `grep -n "100" internal/component/bgp/plugins/filter_modify/*.go` outside tests answers only a community example | The base is compared against `config.SchemaDefaultInt`, then emptied to prove no compiled-in fallback |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestAbsentBaseComesFromConfig` | Done | `filter_modify/modify_test.go` | |
+| `TestConfiguredLocalPrefBaseFeedsTheArithmetic` | Done | `filter_modify/modify_test.go` | |
+| `TestConfiguredMedBaseFeedsTheArithmetic` | Done | `filter_modify/modify_test.go` | |
+| `TestConfiguredBaseIsUnusedWhenTheRouteCarriesTheAttribute` | Done | `filter_modify/modify_test.go` | |
+| `TestConfiguredBaseArithmeticHoldsAtTheBoundaries` | Done | `filter_modify/modify_test.go` | |
+| `TestDefaultsApplyBeforeConfigure` | Done | `filter_modify/modify_test.go` | |
+| `TestAttributeDefaultsReloadTakesEffect` | Done | `filter_modify/config_test.go` | Driven through `handleFilterUpdate`, not through `buildDynamicDelta` |
+| `TestAttributeDefaultsRefusedConfigInstallsNothing` | Done | `filter_modify/config_test.go` | |
+| `TestAttributeDefaultLeafRangeHoldsAtTheBoundaries` | Done | `filter_modify/config_test.go` | Through `config.ValidateLeafValue` |
+| `TestAigpDefaultLeafDoesNotExist` | Changed | `filter_modify/config_test.go` | Moved out of `internal/component/config/yang`: import cycle. Recorded in Deviations |
+| `TestAbsentMedStillComparesAsZeroInPhaseTwo` | Done | `plugins/rib/rfc4271_test.go` | Plus `TestAbsentMedTiesAnExplicitMedOfZero`, the negative polarity |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/yang/ze-bgp-conf.yang` | Done | `defaults` and `attribute` both created |
+| `internal/component/bgp/plugins/filter_modify/modify.go` | Done | |
+| `internal/component/bgp/plugins/filter_modify/config.go` | Done | |
+| `internal/component/bgp/plugins/filter_modify/filter_modify.go` | Done | |
+| `docs/guide/plugins.md` | Done | |
+| `docs/architecture/core-design.md` | Done | |
+| `docs/config-reference.md`, `docs/guide/configuration.md` | Done | |
+| `test/plugin/attribute-default-localpref-configured.ci` | Done | |
+| `test/interop/scenarios/bgp-attribute-default-localpref-gobgp/` | Done | Four files |
+| `internal/component/bgp/plugins/filter_modify/config_test.go` | Changed | Not in the plan; AC-6 and AC-7 live here |
+| `internal/component/bgp/plugins/filter_modify/schema_modules_test.go` | Changed | Not in the plan; the test binary's module closure |
+| `internal/le/interoplab/bgp/check_special.go`, `bgp_test.go` | Changed | Not in the plan; the scenario's checker |
+| `internal/component/bgp/plugins/rib/rfc4271_test.go`, `rfc/short/rfc4271.md`, `rfc/requirements/rfc4271.md`, `rfc/discrimination/rfc4271.json`, `docs/architecture/route-selection.md` | Changed | AC-9's proof and its ledger row |
+
+### Audit Summary
+- **Total items:** 10 AC, 11 tests, 13 file rows
+- **Done:** 10 AC, 10 tests, 9 file rows
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 1 test (AC-6's file), 4 file rows added beyond the plan, each in Deviations
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none: the spec's metadata declares `Deferral shard: -`, and `ls plan/deferrals/spec-bgp-attribute-defaults.md` reports no such file | done | Nothing was deferred. The two out-of-scope finds are journal rows, not deferrals: `plan/journal/helper-bypassed-by-an-open-coded-copy.md` and `plan/journal/reference-checked-claim-unchecked.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-attribute-defaults-78c6feb8-8c75-4b7f-b997-a31a03785caf.md`, 11 code files |
+| `./le spec session review check` | `review_gate: OK (11 code files, clean, hashes match)` |
+| Rounds | 1. Round 1 found 0 BLOCKER and 0 ISSUE, so no code changed and a second pass would read the same bytes |
+| Reviewer lenses used | wiring and top-down feature walk; functional and interop coverage; documentation drift and source anchors; removed-behavior and test-rewrite audit; logic, guard and zero-value audit; allocation and hot-path performance; security over the config input; the `ze-go-style` pass over every changed Go file; RFC conformance over RFC 4271 Sections 9.1.1 and 9.1.2.2 and RFC 7311 Sections 3.4.1 and 4.1 |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER and no ISSUE. The five NOTEs are in the artifact's findings block and none of them blocks | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/attribute-default-localpref-configured.ci` | Yes | `ls` lists it; its `expect=stderr:pattern=local-preference 130` is the assertion |
+| `test/interop/scenarios/bgp-attribute-default-localpref-gobgp/` | Yes | `ls` lists `gobgp.toml`, `inject-args`, `inject.msg`, `ze.conf` |
+| `test/plugin/modify-increment-localpref.ci` | Yes | `ls` lists it, unchanged by this spec |
+| `rfc/discrimination/rfc4271.json` | Yes | `ls` lists it; it holds both polarities of `RFC4271-9.1.2.2-4` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The declared defaults apply with no block written | `./le functional plugin` run of 2026-09-04 22:51: `427/735 PASS modify-increment-localpref`, which asserts 150 |
+| AC-2 | A configured 80 makes the delta 130 | Same run: `72/735 PASS attribute-default-localpref-configured`. GoBGP read 130 in the interop run, and 150 with the plumbing reverted |
+| AC-6 | No `aigp` leaf exists | `grep -n aigp internal/component/bgp/yang/ze-bgp-conf.yang` answers one line, the container description that says why there is none |
+| AC-9 | Phase 2 still compares an absent MULTI_EXIT_DISC as 0 | `rfc/requirements/rfc4271.md` carries `RFC4271-9.1.2.2-4` with both polarities, and `./le rfc check` names no rfc4271 violation |
+| AC-10 | No literal 0 or 100 is left in the plugin | `grep -n "100" internal/component/bgp/plugins/filter_modify/*.go` outside tests answers one line, the `65000:100` community example in a comment |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| An operator writes `local-preference 80` and a route with no LOCAL_PREF meets `increment { local-preference 50; }` | `test/plugin/attribute-default-localpref-configured.ci` | Yes: the file writes the block in the daemon's config and expects `local-preference 130` on the modify apply line. It passed in the 2026-09-04 22:51 suite run |
+| An operator writes no block at all | `test/plugin/modify-increment-localpref.ci` | Yes: unchanged, still expects 150, passed in the same run |
+| An operator's number reaches a foreign peer | `test/interop/scenarios/bgp-attribute-default-localpref-gobgp` | Yes: `checkAttributeDefaultLocalPref` reads GoBGP's RIB for LocalPref 130 on the tagged prefix and for no LocalPref at all on the control prefix |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `gopls references` on the declaration answered `currentForArithmetic` and two test sites. One non-test reader |
+| A-2 | broken as an ordering claim | `handleFilterUpdate` rejects a filter update that arrives before configure, so the ordering was never guaranteed. The design does not rest on it: `absentBaseFor` answers that window from the schema, driven by `TestDefaultsApplyBeforeConfigure` |
+| A-3 | broken | No `container defaults` existed in `ze-bgp-conf.yang`. This spec creates it |
+| A-4 | broken | Six producers write 100 as the LOCAL_PREF toward an internal peer. Journal row written; out of scope by Known Limitations |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1, 2, 5, 6: the new block and the modifier's absent-attribute table | `docs/config-reference.md`, `docs/guide/configuration.md` and `docs/guide/plugins.md` each state the two leaves, their defaults and their range, checked against `container defaults` in `ze-bgp-conf.yang` | Yes |
+| 9: the RFC row | `rfc/short/rfc4271.md` declares `RFC4271-9.1.2.2-4` in the RFC's own words, and `docs/features/rfc-status.md` regenerated to `101 gated: 76 proven` | Yes |
+| 11: the comparison table | `grep -n "default-local-pref\|local_pref\|BGP_DEFAULT_LOCAL_PREF" docs/comparison.md docs/features.md` answers nothing: no row names this knob, so no row needs a change | Yes, No update needed |
+| 12: internal architecture | `docs/architecture/core-design.md` gained the paragraph and two anchors on the producing functions | Yes |
+| 16: existing anchors on changed files | The source-anchor stage of `./le doc check verify` reports every anchor on this spec's files resolving. The one stale anchor it found named a package another commit deleted, and this closure repaired it | Yes |
+| 3, 4, 7, 8, 10, 13, 14, 15: CLI, API, wire format, SDK, test infrastructure, route metadata, metrics, registrations | No command, RPC, event, send type, capability, metric or plugin registration changed. This spec's file set holds no `register.go`, no `pkg/plugin/rpc` file and no `testdata/*.snapshot` | Yes, No update needed |
+
+### Gate state at closure
+
+`./le verify current mode changed` reports 52 lint issues over this checkout and
+NONE of them names a file this spec touches: they are `goconst`, `gocritic`,
+`godot`, `gofmt`, `gosec`, `misspell`, `modernize`, `nilnil`, `noctx`,
+`unconvert`, `unparam` and `unused` findings in `internal/test/fixture`,
+`internal/component/iface`, `internal/component/ike`, `internal/test/mock/radius`
+and `redistribute_egress`, each belonging to another session's uncommitted work
+(`ai/rules/principles.md`).
+
+`./le verify worktree` judges HEAD rather than this checkout: it runs
+`git worktree add --detach <path> <sha>` at the current HEAD SHA
+(`internal/le/verify/lifecycle.go`) and verifies that tree. Its lint stages
+report 67 host issues, a `typecheck` failure where
+`internal/component/doctor/checks_redistribute_test.go` and
+`checks_mpls_linux_test.go` both declare `codes`, and 2 `nilnil` findings in the
+capability flavor. All are HEAD's, and one of them, a `godot` finding on
+`filter_modify/modify.go`, names the very comment this spec DELETED.
+
+`./le repository check` is down to one issue, `AllRPCDocs` in
+`internal/component/config/yang/cli/tree.go`, which belongs to another session.
+`./le rfc check` names no rfc4271 violation. `./le doc check verify` fails on 8
+stale `../gh-pages/` pages, four foreign command descriptions and a stale
+`ai/DOCS-TO-CODE.md`; its source-anchor stage is clean.
+
+## Core Insight
+
+A YANG `default` is a declaration, not a mechanism. Nothing applies it to a
+container that is not a peer entry until a consumer asks
+`config.ApplyDefaults` for that container by name, so the value an operator
+never wrote is simply absent from the tree the plugin is handed. A reader that
+indexes the map instead gets 0, which for both of these leaves is a value an
+operator could legitimately have chosen. That is why `parseAttributeDefaults`
+resolves the schema container rather than defaulting in Go, and why the class
+is a journal row: three consumers now do this by hand
+(`plan/journal/declared-default-applied-by-each-consumer.md`).

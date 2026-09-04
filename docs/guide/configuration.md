@@ -1106,13 +1106,14 @@ change events) lives in each protocol component; the orchestrator
 
 The orchestrator auto-loads when `redistribute {}` is present in the
 config (it claims `ConfigRoots: ["redistribute"]`). No `plugin { external
-redistribute-orchestrator { ... } }` block is required. The intra-BGP
-IngressFilter rides the registry's filter chain at init time and needs no
-plugin spin-up.
+redistribute-orchestrator { ... } }` block is required. No ingress filter reads
+the `redistribute` block: a rule states which routes move BETWEEN protocols, and
+gating BGP's own Adj-RIB-In on one dropped every received route, so the
+`bgp-redistribute` ingress plugin was removed.
 
 <!-- source: internal/component/config/redistribute/evaluator.go -- shared Global evaluator -->
 <!-- source: internal/component/config/redistribute/consumer.go -- consumer registry -->
-<!-- source: internal/component/bgp/plugins/redistribute_ingress/filter.go -- ingress ACL consumer -->
+<!-- source: internal/component/plugin/all/ingress_redistribution_test.go -- no registered ingress filter drops an UPDATE for the redistribute block -->
 <!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- orchestrator -->
 
 ### Prefix-List Filter
@@ -1422,6 +1423,28 @@ bgp {
 | `origin` | enum | igp, egp, incomplete | Set ORIGIN |
 | `next-hop` | IP address | IPv4 | Set NEXT_HOP |
 | `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times |
+
+`increment` and `decrement` compute from the value the route carries. When the
+route carries none, they start from `bgp { defaults { attribute { } } }`:
+
+```
+bgp {
+    defaults {
+        attribute {
+            med              0;
+            local-preference 100;
+        }
+    }
+}
+```
+
+Those are the values without the block, and each leaf takes 0 to 4294967295.
+They govern this arithmetic alone. A changed `med` does not move the Decision
+Process, which compares an absent MULTI_EXIT_DISC as 0 whatever the leaf holds.
+There is no `aigp` leaf, because RFC 7311 Section 4.1 removes a route with no
+AIGP TLV from consideration rather than scoring it. The full table is
+[Route Attribute Modifier](plugins.md#route-attribute-modifier-bgp-filter-modify).
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container defaults -->
 
 `del { med; }` is the mechanism RFC 4271 Section 5.1.4 requires a speaker to
 implement. It takes effect on an `import` chain only. That section requires the

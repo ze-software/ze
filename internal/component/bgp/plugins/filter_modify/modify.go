@@ -1,6 +1,8 @@
 // Design: docs/architecture/core-design.md -- route attribute modifier
 // Related: config.go -- modify definition config parsing
 // Related: filter_modify.go -- SDK entry point and handleFilterUpdate
+// RFC: rfc/short/rfc4271.md -- Sections 9.1.1 and 9.1.2.2 decide the absent-attribute bases
+// RFC: rfc/short/rfc7311.md -- Sections 3.4.1 and 4.1 are why aigp gets no base
 //
 // The modifier builds a text delta containing only the declared attributes.
 // The engine handles merging via applyFilterDelta (text-level overlay) and
@@ -22,6 +24,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -141,32 +144,48 @@ const (
 	attrUnreadable                    // named, but the value did not parse
 )
 
-// absentBase is the value the arithmetic starts from when the route carries no
-// such attribute. An attribute with NO ENTRY has no base, and its arithmetic is
-// refused rather than computed from a zero nobody chose.
+// absentBaseFor returns the value the arithmetic starts from when the route
+// carries no such attribute, and whether one is declared for it. An attribute
+// with NO ENTRY has no base, and its arithmetic is refused rather than computed
+// from a zero nobody chose.
 //
-// med: RFC 4271 Section 9.1.2.2 supplies the number. "If route n has no
-// MULTI_EXIT_DISC attribute, the function returns the lowest possible
-// MULTI_EXIT_DISC value (i.e., 0)."
+// The values are the operator's, and the numbers behind them are declared in
+// ze-bgp-conf.yang at bgp/defaults/attribute. Each leaf's ze:help carries the
+// RFC reasoning for its own number, and the container's description says why
+// aigp has no leaf at all. Nothing here restates those sentences
+// (ai/rules/principles.md).
 //
-// local-preference: RFC 4271 Section 9.1.1 declines to supply one -- "The exact
-// nature of this policy information, and the computation involved, is a local
-// matter" -- so this is a local policy decision rather than a standard value.
-// 100 is what FRR (BGP_DEFAULT_LOCAL_PREF) and BIRD (default_local_pref) use.
-//
-// aigp is DELIBERATELY ABSENT, and its absence is the rule rather than an
-// omission. RFC 7311 Section 4.1: "If any routes have an AIGP attribute
-// containing an AIGP TLV, remove from consideration all routes that do not have
-// an AIGP attribute containing an AIGP TLV." A route with no AIGP is eliminated
-// rather than scored, so no number stands in for it, and a substituted 0 would
-// make it the BEST route where the RFC makes it lose. Section 3.4.1 forbids
-// creating one here in any case: "A BGP speaker MUST NOT add the AIGP attribute
-// to any route whose path leads outside the AIGP administrative domain to which
-// the BGP speaker belongs."
-var absentBase = map[string]uint32{
-	medAttr:             0,
-	localPreferenceAttr: 100,
+// Before OnConfigure has delivered a config section, the answer is the schema's
+// own defaults. declaredAbsentBase reads the same container with no operator
+// value over it, so a route handled in that window computes from the declared
+// number rather than from a zero nobody chose.
+func absentBaseFor(attrName string) (uint32, bool) {
+	base := absentBase.Load()
+	if base == nil {
+		base = declaredAbsentBase()
+	}
+	if base == nil {
+		return 0, false
+	}
+	value, declared := (*base)[attrName]
+	return value, declared
 }
+
+// declaredAbsentBase reads the schema defaults once, for the window between
+// daemon start and the first OnConfigure delivery.
+//
+// It answers nil when the schema cannot be read. Refusing the arithmetic is
+// what an attribute with no declared base already gets, and it is the only safe
+// answer: a substituted zero would write a metric the route never had.
+var declaredAbsentBase = sync.OnceValue(func() *map[string]uint32 {
+	base, err := parseAttributeDefaults(nil)
+	if err != nil {
+		logger().Error("filter-modify: attribute defaults unreadable, arithmetic on an absent attribute is refused",
+			"error", err)
+		return nil
+	}
+	return &base
+})
 
 // readUint32Attr reads one attribute's value out of the update text, and says
 // which of the three cases it found.
@@ -197,7 +216,7 @@ func currentForArithmetic(updateText, attrName string) (uint32, bool) {
 	case attrPresent:
 		return value, true
 	case attrAbsent:
-		base, declared := absentBase[attrName]
+		base, declared := absentBaseFor(attrName)
 		if !declared {
 			return 0, false
 		}
@@ -236,7 +255,11 @@ func readOptionalUint32(v any) (uint32, bool) {
 		}
 		return uint32(n), true
 	case int:
-		if n < 0 {
+		// int is 64 bits on every platform ze builds for, so the upper bound is
+		// owed here exactly as it is on the int64 branch. Without it a value
+		// above the range truncates and reports true, and the caller reads a
+		// small metric the operator never wrote.
+		if n < 0 || n > 4294967295 {
 			return 0, false
 		}
 		return uint32(n), true //nolint:gosec // G115: bounds-checked above

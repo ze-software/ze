@@ -572,14 +572,17 @@ The orchestrator **auto-loads** when `redistribute {}` appears in the
 config. No `plugin { internal redistribute-orchestrator { use redistribute-orchestrator; } }`
 block is required.
 
-A rule whose source is a BGP one needs no plumbing either. `import bgp` names
-the daemon's Loc-RIB, held by the `bgp-rib` plugin, and a plugin sees a peer's
-UPDATEs only through an `attach process` grant. Ze derives that one binding from
-the rule: every peer gains `receive [ update state refresh ]` toward the process
-`bgp-rib` runs under, unless the peer's config already names that process, in
-which case the operator's binding stands unchanged. It is the only binding in
-the delivery index Ze writes for you.
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireLocRIBDelivery -->
+The rules need no `attach process` plumbing either. Ze derives two bindings from
+the `redistribute` root, and they are the only bindings in the delivery index Ze
+writes for you. A peer whose config already names the process keeps its own
+binding unchanged.
+
+| The rule | The derived binding |
+|----------|---------------------|
+| `import bgp` | `receive [ update state refresh ]` toward `bgp-rib`, because the Loc-RIB is the source and a plugin sees a peer's UPDATEs only through a grant |
+| `destination bgp` | `receive [ state ]` and `send [ update ]` toward `redistribute-orchestrator`, because that plugin puts the route on the peer's wire |
+
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 
 Reactor per-peer NEXT_HOP substitution applies: when the producer leaves
 `NextHop` zero, the reactor stamps each peer's local session address as the
@@ -811,6 +814,13 @@ left alone:
 | `med` | starts from 0, and the result is written, so a route that had no metric gains one | RFC 4271 Section 9.1.2.2 names 0 as the value of an absent MULTI_EXIT_DISC |
 | `local-preference` | starts from 100 | RFC 4271 Section 9.1.1 leaves the value to local policy. 100 is the value FRR and BIRD use |
 | `aigp` | nothing is written, and the route keeps no AIGP attribute | RFC 7311 Section 4.1 removes a route with no AIGP TLV from consideration rather than scoring it, and Section 3.4.1 forbids adding the attribute outside the AIGP administrative domain |
+
+The first two values are configurable, and the table shows what they are when
+nothing is written: `bgp { defaults { attribute { med 0; local-preference 100;
+} } }`. Both leaves take 0 to 4294967295. They govern this arithmetic alone, so
+a changed `med` does NOT move the Decision Process, which compares an absent
+MULTI_EXIT_DISC as 0 whatever the leaf holds. There is no `aigp` leaf, for the
+reason the third row gives.
 
 `decrement { med 30; }` on a route that carried no metric therefore leaves
 `med 0` on the route. An RFC-default receiver reads an absent MED and a MED of 0

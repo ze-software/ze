@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -616,15 +617,18 @@ func TestAbsentValueTableCoversEveryArithmeticAttribute(t *testing.T) {
 		aigpAttr:            false, // deliberately no base, RFC 7311 Section 3.4.1
 	}
 
+	declaredBase, err := parseAttributeDefaults(nil)
+	require.NoError(t, err, "the schema declares the bases and must be readable")
+
 	for attr, wantBase := range decided {
-		_, declared := absentBase[attr]
+		_, declared := declaredBase[attr]
 		require.Equalf(t, wantBase, declared, "%s: the table and the decision disagree", attr)
 
 		_, run := currentForArithmetic("origin igp nlri ipv4/unicast add 10.0.0.0/24", attr)
 		require.Equalf(t, wantBase, run, "%s: arithmetic on an absent attribute", attr)
 	}
 
-	require.Len(t, absentBase, 2, "a new base needs a row in this test's decision map")
+	require.Len(t, declaredBase, 2, "a new leaf under bgp/defaults/attribute needs a row in this test's decision map")
 
 	_, run := currentForArithmetic("origin igp nlri ipv4/unicast add 10.0.0.0/24", "no-such-attribute")
 	require.False(t, run, "an attribute with no declared base gets no arithmetic")
@@ -845,4 +849,145 @@ func TestDecrementMedComputesFromTheRouteValue(t *testing.T) {
 
 	require.Equal(t, sdk.FilterModify, out.Action)
 	require.Equal(t, "med 70", out.Update, "100 from the route less the configured 30")
+}
+
+// absentSubject is a route that carries neither MULTI_EXIT_DISC nor LOCAL_PREF,
+// which is the case every test below is about.
+const absentSubject = "origin igp as-path 65001 nlri ipv4/unicast add 10.0.0.0/24"
+
+// configureAttributeDefaults installs one bgp { defaults { attribute { } } }
+// block the way OnConfigure installs it: through parseAttributeDefaults, so the
+// test drives the config path rather than a map written by hand. The previous
+// base is restored, because the store is package state several tests share.
+func configureAttributeDefaults(t *testing.T, attributeBlock map[string]any) {
+	t.Helper()
+	base, err := parseAttributeDefaults(map[string]any{
+		"defaults": map[string]any{"attribute": attributeBlock},
+	})
+	require.NoError(t, err)
+	storeAbsentBase(t, &base)
+}
+
+// storeAbsentBase installs a base for one test and restores what was there.
+//
+// The parameter is a POINTER because the store is one, and because nil is a
+// state a test needs: it is what the plugin holds before the first configure.
+//
+//nolint:gocritic // ptrToRefParam: nil is the pre-configure state under test
+func storeAbsentBase(t *testing.T, base *map[string]uint32) {
+	t.Helper()
+	previous := absentBase.Load()
+	t.Cleanup(func() { absentBase.Store(previous) })
+	absentBase.Store(base)
+}
+
+// TestAbsentBaseComesFromConfig covers AC-10: the two numbers are declared once,
+// in ze-bgp-conf.yang, and the plugin keeps no copy of either.
+//
+// The second half is what makes the first half mean something. A plugin that
+// still held the literals would answer 0 and 100 from a base that declares
+// neither, and it would satisfy the schema comparison above by having been
+// written to the same numbers.
+func TestAbsentBaseComesFromConfig(t *testing.T) {
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+
+	base, err := parseAttributeDefaults(nil)
+	require.NoError(t, err)
+
+	for _, leaf := range []string{medAttr, localPreferenceAttr} {
+		declared, err := config.SchemaDefaultInt(schema, attributeDefaultsPath+"/"+leaf)
+		require.NoErrorf(t, err, "%s: the schema is the declaration and must carry a default", leaf)
+		require.Equalf(t, uint32(declared), base[leaf], "%s: the base is not the schema's number", leaf) //nolint:gosec // G115: a YANG uint32 default
+	}
+
+	storeAbsentBase(t, &map[string]uint32{})
+	for _, attr := range []string{medAttr, localPreferenceAttr} {
+		_, run := currentForArithmetic(absentSubject, attr)
+		require.Falsef(t, run, "%s: a base that declares nothing must leave no compiled-in number behind", attr)
+	}
+}
+
+// TestConfiguredLocalPrefBaseFeedsTheArithmetic covers AC-2. RFC 4271 Section
+// 9.1.1 calls the degree of preference "a local matter", so the number an
+// operator writes is the number the arithmetic starts from.
+//
+// The value is the STRING form, which is what a YANG leaf is delivered as.
+func TestConfiguredLocalPrefBaseFeedsTheArithmetic(t *testing.T) {
+	configureAttributeDefaults(t, map[string]any{localPreferenceAttr: "80"})
+
+	def := &modifyDef{name: "INC-LP", increments: []incdec{{attr: localPreferenceAttr, value: 50}}}
+	require.Equal(t, "local-preference 130", buildDynamicDelta(def, absentSubject), "80 plus 50")
+}
+
+// TestConfiguredMedBaseFeedsTheArithmetic covers AC-3 and AC-4. The decrement
+// still floors at 0, so a configured base does not let the arithmetic run under
+// the smallest MULTI_EXIT_DISC the wire can carry.
+//
+// The value is the JSON number form, which is what the config section carries
+// when it arrives as JSON rather than as a native tree.
+func TestConfiguredMedBaseFeedsTheArithmetic(t *testing.T) {
+	configureAttributeDefaults(t, map[string]any{medAttr: float64(50)})
+
+	subtract30 := &modifyDef{name: "DEC-MED", decrements: []incdec{{attr: medAttr, value: 30}}}
+	require.Equal(t, "med 20", buildDynamicDelta(subtract30, absentSubject), "50 less 30")
+
+	subtract80 := &modifyDef{name: "DEC-MED-FLOOR", decrements: []incdec{{attr: medAttr, value: 80}}}
+	require.Equal(t, "med 0", buildDynamicDelta(subtract80, absentSubject), "the decrement floors at 0")
+}
+
+// TestConfiguredBaseIsUnusedWhenTheRouteCarriesTheAttribute covers AC-5. A base
+// answers for an attribute the route does NOT carry, and this is the case that
+// tells a base that is read too widely from one that is read correctly.
+func TestConfiguredBaseIsUnusedWhenTheRouteCarriesTheAttribute(t *testing.T) {
+	configureAttributeDefaults(t, map[string]any{
+		medAttr:             "50",
+		localPreferenceAttr: "80",
+	})
+
+	carried := "origin igp med 100 local-preference 200 as-path 65001 nlri ipv4/unicast add 10.0.0.0/24"
+
+	incMed := &modifyDef{name: "INC-MED", increments: []incdec{{attr: medAttr, value: 30}}}
+	require.Equal(t, "med 130", buildDynamicDelta(incMed, carried), "100 from the route, not 50 from the config")
+
+	incPref := &modifyDef{name: "INC-LP", increments: []incdec{{attr: localPreferenceAttr, value: 30}}}
+	require.Equal(t, "local-preference 230", buildDynamicDelta(incPref, carried), "200 from the route, not 80")
+}
+
+// TestConfiguredBaseArithmeticHoldsAtTheBoundaries covers the boundary rows of
+// the spec's numeric table. The base is a uint32, so the top of the range is a
+// value an operator can write, and an increment on top of it saturates rather
+// than wrapping to a small metric.
+func TestConfiguredBaseArithmeticHoldsAtTheBoundaries(t *testing.T) {
+	const uint32Max = "4294967295"
+
+	configureAttributeDefaults(t, map[string]any{medAttr: uint32Max, localPreferenceAttr: uint32Max})
+
+	incMed := &modifyDef{name: "INC-MED", increments: []incdec{{attr: medAttr, value: 1}}}
+	require.Equal(t, "med "+uint32Max, buildDynamicDelta(incMed, absentSubject), "the sum saturates")
+
+	decMed := &modifyDef{name: "DEC-MED", decrements: []incdec{{attr: medAttr, value: 1}}}
+	require.Equal(t, "med 4294967294", buildDynamicDelta(decMed, absentSubject))
+
+	configureAttributeDefaults(t, map[string]any{medAttr: "0", localPreferenceAttr: "0"})
+
+	require.Equal(t, "med 1", buildDynamicDelta(incMed, absentSubject), "0 is a value an operator can write")
+	require.Equal(t, "med 0", buildDynamicDelta(decMed, absentSubject), "and the decrement floors on it")
+}
+
+// TestDefaultsApplyBeforeConfigure covers AC-8 and validates assumption A-2. The
+// ordering between the first filter update and the first configure delivery is
+// not guaranteed, so the window is answered from the schema's own numbers.
+// Nothing computes from a zero the operator did not choose.
+func TestDefaultsApplyBeforeConfigure(t *testing.T) {
+	storeAbsentBase(t, nil)
+
+	incPref := &modifyDef{name: "INC-LP", increments: []incdec{{attr: localPreferenceAttr, value: 50}}}
+	require.Equal(t, "local-preference 150", buildDynamicDelta(incPref, absentSubject), "100 plus 50")
+
+	incMed := &modifyDef{name: "INC-MED", increments: []incdec{{attr: medAttr, value: 50}}}
+	require.Equal(t, "med 50", buildDynamicDelta(incMed, absentSubject), "0 plus 50")
+
+	incAigp := &modifyDef{name: "INC-AIGP", increments: []incdec{{attr: aigpAttr, value: 50}}}
+	require.Empty(t, buildDynamicDelta(incAigp, absentSubject), "and aigp still gets no base")
 }

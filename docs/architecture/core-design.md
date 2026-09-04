@@ -939,6 +939,17 @@ shape of each one, is "The Attribute Names in the Filter Text Protocol" in
 `docs/architecture/api/process-protocol.md`. A filter's declared attribute list
 records what it reads and does not narrow the subject.
 
+The route attribute modifier (`bgp-filter-modify`) computes an `increment` or a
+`decrement` from the value the subject carries. When the subject carries none,
+the value it starts from comes from `bgp { defaults { attribute { } } }`, read
+at each config delivery rather than per route. The two leaves and their RFC
+reasoning are declared there, in `ze-bgp-conf.yang`, and the plugin holds no
+number of its own. The operator-facing table is "Route Attribute Modifier" in
+`docs/guide/plugins.md`.
+
+<!-- source: internal/component/bgp/plugins/filter_modify/config.go -- parseAttributeDefaults -->
+<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- absentBaseFor, currentForArithmetic -->
+
 A filter may declare `overrides` to remove a default filter from the chain for
 peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as`).
 

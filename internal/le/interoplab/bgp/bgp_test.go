@@ -1043,6 +1043,68 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("bgp-attribute-default-localpref-gobgp", func(t *testing.T) {
+		const (
+			configured = "10.64.0.0/24"
+			control    = "10.64.1.0/24"
+			sourceAS   = "65005"
+			source     = "172.30.0.9"
+			path       = "65001 " + sourceAS
+			// 80 from bgp { defaults { attribute { local-preference } } },
+			// plus the chain's 50.
+			computed = "130"
+			// What the same chain writes when the configured base never reaches
+			// the plugin: the schema's declared 100 plus 50.
+			fromDeclaredBase = "150"
+		)
+		table := gobgpTable(
+			gobgpRouteLine(configured, source, path, "[{Origin: i} {LocalPref: "+computed+"} [65005:1]]"),
+			gobgpRouteLine(control, source, path, "[{Origin: i}]"),
+		)
+		if err := requireGoBGPSourceBlock(table, configured, sourceAS, source); err != nil {
+			t.Fatalf("the matched route was not read as the injected one: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, configured, gobgpLocalPrefAttribute, computed); err != nil {
+			t.Fatalf("the configured base's result was rejected: %v", err)
+		}
+		if err := requireGoBGPAttributeAbsent(table, control, gobgpLocalPrefAttribute); err != nil {
+			t.Fatalf("the control route's absent preference was rejected: %v", err)
+		}
+		// The defect this scenario exists to catch. The chain computing from the
+		// schema's declared base writes 150, and that must not read as the
+		// configured 130.
+		declaredBase := gobgpTable(gobgpRouteLine(configured, source, path, "[{Origin: i} {LocalPref: "+fromDeclaredBase+"}]"))
+		if requireGoBGPAttributeValue(declaredBase, configured, gobgpLocalPrefAttribute, computed) == nil {
+			t.Fatal("arithmetic on the declared base passed as arithmetic on the configured one")
+		}
+		// No preference at all is not a value, and it must not read as one.
+		stripped := gobgpTable(gobgpRouteLine(configured, source, path, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(stripped, configured, gobgpLocalPrefAttribute, computed) == nil {
+			t.Fatal("a route with no preference at all passed as the computed one")
+		}
+		// A blanket rewrite would satisfy the assertion above, so the control
+		// has to refuse a preference of any value.
+		blanket := gobgpTable(gobgpRouteLine(control, source, path, "[{Origin: i} {LocalPref: "+computed+"}]"))
+		if requireGoBGPAttributeAbsent(blanket, control, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a blanket rewrite passed as an operation the operator selected")
+		}
+		// A preference of zero is a preference, and the control asserts an
+		// ABSENCE rather than a small number.
+		zeroed := gobgpTable(gobgpRouteLine(control, source, path, "[{Origin: i} {LocalPref: 0}]"))
+		if requireGoBGPAttributeAbsent(zeroed, control, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a preference carrying zero read as an absent attribute")
+		}
+		if requireGoBGPSourceBlock(gobgpTable(gobgpRouteLine(configured, source, "65001", "[{Origin: i}]")), configured, sourceAS, source) == nil {
+			t.Fatal("a path without the injected AS passed as the relayed source block")
+		}
+		// inject.msg writes the NEXT_HOP as raw hex, so the body owes the
+		// base-network guard rather than the selected-network one.
+		renumbered := checkerGuardFailure(t, checkAttributeDefaultLocalPref, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+		}
+	})
+
 	t.Run("bgp-med-increment-gobgp", func(t *testing.T) {
 		const (
 			incremented = "10.63.0.0/24"

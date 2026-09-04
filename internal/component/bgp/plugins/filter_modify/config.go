@@ -18,15 +18,28 @@ package filter_modify
 
 import (
 	"fmt"
+	"maps"
 	"strings"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	// The schema lookup in parseAttributeDefaults needs the bgp module in the
+	// loader, and the module puts itself there from this package's init
+	// (configyang.RegisterModule, bgp/yang/register.go). The daemon links it for
+	// other reasons; this package's own test binary does not.
+	_ "github.com/ze-software/ze/internal/component/bgp/yang"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
 	maxNameLen = 256
+	// attributeDefaultsPath is the schema container that DECLARES the value the
+	// arithmetic starts from for an attribute the route does not carry. The
+	// numbers live there and nowhere else (ai/rules/principles.md), and the RFC
+	// reasoning for each one is the ze:help on its leaf.
+	attributeDefaultsPath = "bgp/defaults/attribute"
 )
 
 var setBlockAllowedKeys = map[string]bool{
@@ -47,6 +60,87 @@ var incDecAttrs = map[string]bool{
 	localPreferenceAttr: true,
 	medAttr:             true,
 	aigpAttr:            true,
+}
+
+// attributeDefaultsContainer resolves the schema container ONCE for the life of
+// the process.
+//
+// The YANG modules are compiled into the binary, so the answer cannot change
+// while the daemon runs, and config.YANGSchema puts every module through the
+// loader and the resolver. Paying that on each config delivery would put a
+// whole-schema resolve on the reload path for two numbers, and a plugin that
+// reloads is a plugin an operator is waiting on.
+var attributeDefaultsContainer = sync.OnceValues(func() (*config.ContainerNode, error) {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return nil, fmt.Errorf("attribute defaults: load schema: %w", err)
+	}
+	node, err := schema.Lookup(attributeDefaultsPath)
+	if err != nil {
+		return nil, fmt.Errorf("attribute defaults: resolve %s: %w", attributeDefaultsPath, err)
+	}
+	container, ok := node.(*config.ContainerNode)
+	if !ok {
+		return nil, fmt.Errorf("attribute defaults: %s is not a container", attributeDefaultsPath)
+	}
+	return container, nil
+})
+
+// parseAttributeDefaults reads bgp { defaults { attribute { } } }, the value an
+// increment or a decrement starts from for an attribute the route does not
+// carry. One entry per leaf the container declares, so an attribute the
+// container does not name gets no arithmetic at all (currentForArithmetic).
+//
+// A leaf the operator left out arrives here from the schema itself:
+// ApplyDefaults writes the YANG default into the map, which is how a default
+// reaches a section that is not a peer entry (config/schema_defaults.go, and
+// sysrib.parseAdminDistanceConfig does the same for rib { distance { } }).
+//
+// An unreadable schema is an ERROR rather than an empty map. An empty map
+// refuses every arithmetic on an absent attribute and looks exactly like a
+// route that carried its own value, so the operator would read a metric that
+// silently stopped being adjusted.
+func parseAttributeDefaults(bgpCfg map[string]any) (map[string]uint32, error) {
+	declared := map[string]any{}
+	if defaultsBlock, ok := bgpCfg["defaults"].(map[string]any); ok {
+		if attrBlock, ok := defaultsBlock["attribute"].(map[string]any); ok {
+			// Copied rather than used in place: ApplyDefaults writes into the map
+			// it is given, and the config tree this section arrived in belongs to
+			// the caller.
+			maps.Copy(declared, attrBlock)
+		}
+	}
+
+	container, err := attributeDefaultsContainer()
+	if err != nil {
+		return nil, err
+	}
+
+	// A key the container does not declare is REFUSED rather than kept. YANG
+	// validation already refuses one at config load, and this is the second
+	// check the pair rule asks for: a hand-written or migrated tree reaches the
+	// plugin without passing that validation, and an `aigp` key that survived
+	// would give the arithmetic a base RFC 7311 Section 4.1 says no number can
+	// stand in for. The allowed set is the container's own children, so it
+	// cannot disagree with the schema.
+	for key := range declared {
+		if !container.Has(key) {
+			return nil, fmt.Errorf("attribute defaults: unknown key %q (declared: %s)",
+				key, strings.Join(container.Children(), ", "))
+		}
+	}
+
+	config.ApplyDefaults(declared, container)
+
+	base := make(map[string]uint32, len(declared))
+	for attr, raw := range declared {
+		value, ok := readOptionalUint32(raw)
+		if !ok {
+			return nil, fmt.Errorf("attribute defaults: %s: %v is not an unsigned 32-bit value", attr, raw)
+		}
+		base[attr] = value
+	}
+	return base, nil
 }
 
 func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {

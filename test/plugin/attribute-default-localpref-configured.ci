@@ -1,0 +1,90 @@
+# Test: a configured absent-attribute base feeds the modifier arithmetic
+# VALIDATES: AC-2 -- bgp { defaults { attribute { local-preference 80; } } } is
+#   the value increment { local-preference 50; } starts from, so the delta is 130
+# PREVENTS: The configured base never reaching the plugin, which reads as the
+#   declared 100 and a delta of 150. The two numbers are 20 apart on purpose:
+#   130 is the operator's base, 150 is the schema default, and no third value
+#   can be mistaken for either.
+#
+# Flow:
+# 1. ze-peer sends EBGP UPDATE (no LOCAL_PREF, per RFC 4271 Section 5.1.5)
+# 2. Filter chain calls bgp-filter-modify:INC-LP
+# 3. The plugin sees no local-preference and starts from the base the config
+#    declared (parseAttributeDefaults, plugins/filter_modify/config.go), adds
+#    50, and returns delta "local-preference 130"
+# 4. Engine applies wire-level modification
+#
+# test/plugin/modify-increment-localpref.ci is the other half: the same route
+# and the same chain with no defaults block written, where the schema's own 100
+# applies and the delta is 150.
+
+option=env:var=ze.log.bgp.filter.modify:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+# Native observer waits for the imported route before clean shutdown.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-modify-inc {
+		run "ze-test fixture plugin/modify-increment-localpref"
+		encoder json
+	}
+}
+bgp {
+	defaults {
+		attribute {
+			local-preference 80
+		}
+	}
+
+	policy {
+		modify INC-LP {
+			increment {
+				local-preference 50
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ modify:INC-LP ]
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-modify --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+expect=stderr:pattern=modify apply
+expect=stderr:pattern=filter=INC-LP
+expect=stderr:pattern=local-preference 130

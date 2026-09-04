@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc4271",
+  "records": [
+    {
+      "rid": "RFC4271-9.1.2.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_test.go::TestAbsentMedStillComparesAsZeroInPhaseTwo",
+      "unit-sha": "897b7f3114e6eefd",
+      "claim-sha": "bc0af3ed669da6ef",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands.go::extractCandidate",
+      "producer-sha": "a361e1be8623aad6",
+      "break": "body of extractCandidate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_test.go::TestAbsentMedTiesAnExplicitMedOfZero",
+      "unit-sha": "6b83bf089ca5e88c",
+      "claim-sha": "526cd38c39d24aa8",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands.go::extractCandidate",
+      "producer-sha": "a361e1be8623aad6",
+      "break": "body of extractCandidate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

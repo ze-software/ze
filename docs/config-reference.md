@@ -431,6 +431,29 @@ The `set { }` container holds `local-preference`, `med`, `origin`, `next-hop`,
 container holds `med`. The `increment { }` and `decrement { }` containers are unchanged.
 <!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- list modify -->
 
+### `bgp { defaults { attribute { } } }`
+
+The value an `increment` or a `decrement` starts from when the route carries no
+such attribute.
+
+| Leaf | Default | Accepts |
+|------|---------|---------|
+| `med` | 0 | 0..4294967295 |
+| `local-preference` | 100 | 0..4294967295 |
+
+The block is optional and the defaults apply without it. RFC 4271 Section
+9.1.2.2 supplies med's 0. Section 9.1.1 supplies no number for the degree of
+preference and calls it a local matter, so 100 is a choice, and it is the value
+FRR and BIRD use.
+
+The leaves govern this arithmetic alone. A changed `med` does NOT move the
+Decision Process, which compares an absent MULTI_EXIT_DISC as 0 whatever the
+leaf holds, and `local-preference` does not supply the LOCAL_PREF an
+eBGP-learned route carries into iBGP readvertisement. There is no `aigp` leaf:
+RFC 7311 Section 4.1 removes a route with no AIGP TLV from consideration rather
+than scoring it, so no number stands in for the absence.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container defaults -->
+
 ## Protocol Event Capture
 
 A peer can write every inbound message to a bounded JSONL file as raw wire

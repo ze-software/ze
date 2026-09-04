@@ -92,6 +92,53 @@ module ze-bgp-conf {
             }
         }
 
+        // The value policy arithmetic starts from for an attribute a route does
+        // not carry. The two numbers are declared HERE and nowhere else:
+        // bgp-filter-modify reads this container (parseAttributeDefaults,
+        // plugins/filter_modify/config.go) and holds no constant of its own.
+        container defaults {
+            description "Values ze supplies when a route carries no such attribute.";
+            ze:help "The container holds attribute alone today. A default that is not an attribute value gets its own
+                container beside it, so an operator's existing leaves never move.";
+
+            container attribute {
+                description "The value an increment or a decrement starts from when the route carries no such
+                    attribute. There is deliberately no aigp leaf: RFC 7311 Section 4.1 removes a route with no AIGP
+                    TLV from consideration rather than scoring it, so no number stands in for the absence, and Section
+                    3.4.1 forbids ze to add the attribute to a route whose path leads outside the AIGP administrative
+                    domain.";
+                ze:help "The leaves govern the arithmetic in bgp { policy { modify NAME { increment } } } and its
+                    decrement sibling alone. They do NOT move the Decision Process: RFC 4271 Section 9.1.2.2 compares
+                    an absent MULTI_EXIT_DISC as 0 whatever med says here.";
+
+                leaf med {
+                    type uint32 {
+                        range "0..4294967295";
+                    }
+                    default 0;
+                    description "The MULTI_EXIT_DISC value policy arithmetic starts from when the route carries none.";
+                    ze:help "RFC 4271 Section 9.1.2.2 supplies this number: \"Routes that do not have the
+                        MULTI_EXIT_DISC attribute are considered to have the lowest possible MULTI_EXIT_DISC value.\"
+                        A larger value makes an increment write a larger metric onto a route that arrived without one,
+                        and the speaker that receives it reads a larger metric as a worse path. The Decision Process
+                        comparison stays at 0 whatever this leaf holds.";
+                }
+
+                leaf local-preference {
+                    type uint32 {
+                        range "0..4294967295";
+                    }
+                    default 100;
+                    description "The LOCAL_PREF value policy arithmetic starts from when the route carries none.";
+                    ze:help "RFC 4271 Section 9.1.1 supplies no number: \"The exact nature of this policy information,
+                        and the computation involved, is a local matter.\" 100 is the value FRR
+                        (BGP_DEFAULT_LOCAL_PREF) and BIRD (default_local_pref) use, and it is the default here for
+                        that reason alone. The leaf governs the modifier arithmetic. It does NOT supply the LOCAL_PREF
+                        an eBGP-learned route carries into iBGP readvertisement, which ze does not do.";
+                }
+            }
+        }
+
         // Named filter policy definitions. Filter type plugins augment this
         // container with their own lists marked ze:filter. Each list entry
         // is a named filter instance referenced in peer filter { import/export }
