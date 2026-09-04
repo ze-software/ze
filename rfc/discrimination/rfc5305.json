@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc5305",
+  "records": [
+    {
+      "rid": "RFC5305-3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded",
+      "unit-sha": "6f6017dd862b3248",
+      "claim-sha": "abf450cff96f6aaf",
+      "route": "mutant",
+      "producer": "internal/plugins/isis/spf/spf.go::relax",
+      "producer-sha": "5ac620f16e6dbdc8",
+      "break": "line 227: \"e.Metric \u003e= types.MaxMetric\" -\u003e \"false\""
+    }
+  ]
+}

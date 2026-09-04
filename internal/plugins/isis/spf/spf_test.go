@@ -5,10 +5,12 @@
 // first-hops; equal-cost paths yield multiple first-hops (ECMP); an overloaded
 // node is reachable as a destination but excluded as transit (RFC 3787); the
 // 32-bit prefix metric is read in full and a >= MAX_PATH_METRIC path is
-// unreachable with no wrap (RFC 5305 sec 3); the debounce coalesces a burst of
-// triggers into one run per level.
+// unreachable with no wrap (RFC 5305 sec 3); a link advertised at the maximum
+// LINK metric (2^24-1) is excluded from the computation while a link one below
+// it is used (RFC 5305 sec 3); the debounce coalesces a burst of triggers into
+// one run per level.
 // PREVENTS: a regression in path cost, first-hop derivation, overload handling,
-// metric-width accumulation, or trigger thrash.
+// metric-width accumulation, maximum-link-metric exclusion, or trigger thrash.
 
 package spf
 
@@ -300,6 +302,62 @@ func TestISISMetricWidth(t *testing.T) {
 		if r.Prefix.String() == "10.99.0.0/24" {
 			t.Errorf("prefix at MAX_PATH_METRIC total was installed (metric %d), want excluded", r.Metric)
 		}
+	}
+}
+
+// TestISISSPFMaxLinkMetricExcluded verifies the RFC 5305 section 3 maximum-LINK-
+// metric exclusion, and that it stays a link bound rather than sliding into the
+// accumulated path bound: an edge at exactly 2^24-1 is never relaxed, while an
+// edge one below it is relaxed and accumulates like any other metric.
+//
+// Topology: root A, then B behind a single A-B link whose metric is the only
+// variable, then C behind B at metric 10. An excluded A-B link takes C with it,
+// because nothing reaches C except through a link SPF refused to walk.
+//
+// RFC requirement: RFC5305-3-1 positive -- a link one below the maximum (16777214) is relaxed normally: B is reached at 16777214 with first-hop B, and C behind it at 16777224, so the exclusion does not refuse a merely wide metric and does not clamp one.
+// RFC requirement: RFC5305-3-1 negative -- a link advertised at the maximum link metric (16777215 = 2^24-1) is not considered during the normal SPF computation: B is absent from the SPF result and so is C behind it, while the edge itself is still carried in the graph for purposes other than the normal SPT (RFC 5305 sec 3).
+func TestISISSPFMaxLinkMetricExcluded(t *testing.T) {
+	const maxLink = uint32(types.MaxMetric) // 2^24 - 1 == 16777215
+
+	build := func(metricAB uint32) (*Graph, *Result) {
+		src := newStubSource()
+		src.bidir(srcID(1), srcID(2), metricAB)
+		src.bidir(srcID(2), srcID(3), 10)
+		g := BuildGraph(src, Level1)
+		return g, Compute(g, sysID(1), Level1)
+	}
+
+	// One below the maximum: an ordinary link, walked and accumulated.
+	_, res := build(maxLink - 1)
+	br := res.Nodes[srcID(2)]
+	if br == nil {
+		t.Fatal("B unreachable over a link at 16777214, want reachable (only 16777215 is excluded)")
+	}
+	if br.Metric != uint64(maxLink-1) {
+		t.Errorf("B metric = %d, want %d (the link metric, unclamped)", br.Metric, maxLink-1)
+	}
+	if len(br.FirstHops) != 1 || br.FirstHops[0] != sysID(2) {
+		t.Errorf("B first-hops = %v, want [node 2]", br.FirstHops)
+	}
+	if cr := res.Nodes[srcID(3)]; cr == nil || cr.Metric != uint64(maxLink-1)+10 {
+		t.Errorf("C result = %+v, want reachable at %d (16777214 + 10)", cr, uint64(maxLink-1)+10)
+	}
+
+	// At the maximum: the link is out of the normal SPF computation, so B is not
+	// reached over it and C behind B is not reached at all.
+	g, res := build(maxLink)
+	if _, ok := res.Nodes[srcID(1)]; !ok {
+		t.Fatal("root A missing from the SPF result: the run produced nothing, so the assertions below prove nothing")
+	}
+	if b, ok := res.Nodes[srcID(2)]; ok {
+		t.Errorf("B reached at metric %d over a maximum-metric link, want excluded (RFC 5305 sec 3)", b.Metric)
+	}
+	if c, ok := res.Nodes[srcID(3)]; ok {
+		t.Errorf("C reached at metric %d through a maximum-metric link, want unreachable", c.Metric)
+	}
+	edges := g.Nodes[srcID(1)].Edges
+	if len(edges) != 1 || edges[0].Metric != maxLink {
+		t.Errorf("A edges = %+v, want the maximum-metric link retained in the graph (it is advertised on purpose)", edges)
 	}
 }
 

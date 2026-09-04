@@ -51,7 +51,9 @@ type Edge struct {
 	// pseudo-node with pseudonode != 0).
 	To types.SourceID
 	// Metric is the 24-bit IS-reachability edge metric (RFC 5305 sec 3). A
-	// pseudo-node edge is 0.
+	// pseudo-node edge is 0. An edge at the maximum link metric (2^24-1) is kept
+	// in the graph and skipped by the normal SPF computation (spf.go relax), so
+	// a link advertised for traffic engineering alone stays visible here.
 	Metric uint32
 }
 

@@ -6,7 +6,9 @@
 // RFC: rfc/short/rfc5305.md -- the IS-reachability edge metric is 24-bit; the
 //   IP/IPv6 prefix metric is 32-bit. Path cost is accumulated in a 64-bit
 //   accumulator and clamped at MAX_PATH_METRIC (0xFE000000) so a sum of wide
-//   metrics never wraps (sec 3, sec 4).
+//   metrics never wraps (sec 3, sec 4). A link advertised at the maximum LINK
+//   metric (2^24-1) is excluded from this computation entirely (sec 3, relax):
+//   it stays in the graph for traffic engineering, and never carries a route.
 // RFC: rfc/short/rfc3787.md -- a node with the overload bit is reachable as a
 //   destination but is NOT used as a transit node: SPF does not relax edges OUT
 //   of an overloaded node (its own prefixes still attach).
@@ -204,7 +206,28 @@ func Compute(g *Graph, root types.SystemID, level Level) *Result {
 // pseudo-node contributes no first-hop and the member routers behind the
 // pseudo-node are seeded with their own System ID when the pseudo-node's edges
 // are relaxed (firstHopsFor).
+//
+// Two separate bounds drop an edge here, and they are different requirements of
+// RFC 5305 section 3: the LINK bound below (a 24-bit edge metric of exactly
+// types.MaxMetric) and the accumulated PATH bound (MaxPathMetric).
 func relax(h *spfHeap, tents map[types.SourceID]*tent, cur *tent, fromID, rootID types.SourceID, e Edge) {
+	// RFC 5305 Section 3: "If a link is advertised with the maximum link metric
+	// (2^24 - 1), this link MUST NOT be considered during the normal SPF
+	// computation. This will allow advertisement of a link for purposes other
+	// than building the normal Shortest Path Tree. An example is a link that is
+	// available for traffic engineering, but not for hop-by-hop routing."
+	//
+	// The exclusion lives here, at the one place an edge is CONSIDERED, rather
+	// than in BuildGraph: the RFC keeps such a link advertised on purpose, so the
+	// graph must still hold it for every reader that is not the normal SPT. The
+	// wire metric is 24-bit (types.MetricFromBytes decodes 3 octets), so on
+	// LSDB-sourced data this test and an equality test select the same edges;
+	// Edge.Metric is a plain uint32, and a value above the maximum is excluded
+	// for the same reason rather than treated as a shorter link.
+	if e.Metric >= types.MaxMetric {
+		return
+	}
+
 	nd := clampMetric(cur.dist, uint64(e.Metric))
 	if nd >= MaxPathMetric {
 		return // unreachable: the edge pushes the path past MAX_PATH_METRIC
