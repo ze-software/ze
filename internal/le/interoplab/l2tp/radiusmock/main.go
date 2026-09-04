@@ -25,8 +25,12 @@ const (
 	attributeUserName         = 1
 	attributeNASIPAddress     = 4
 	attributeFramedIPAddress  = 8
+	attributeCallingStationID = 31
 	attributeAccountingStatus = 40
+	attributeAccountingDelay  = 41
 	attributeAccountingID     = 44
+	attributeTerminateCause   = 49
+	attributeEventTimestamp   = 55
 	attributeNASPortID        = 87
 
 	packetHeaderOctets = 20
@@ -178,6 +182,24 @@ func describe(code byte, attributes []attribute) string {
 		case attributeUserName:
 			fields = append(fields, tb.Reset().Str("User-Name=").
 				Str(validText(attribute.value)).String())
+		case attributeCallingStationID:
+			fields = append(fields, tb.Reset().Str("Calling-Station-Id=").
+				Str(validText(attribute.value)).String())
+		case attributeAccountingDelay:
+			if len(attribute.value) == 4 {
+				fields = append(fields, tb.Reset().Str("Acct-Delay-Time=").
+					Uint32(binary.BigEndian.Uint32(attribute.value)).String())
+			}
+		case attributeTerminateCause:
+			if len(attribute.value) == 4 {
+				fields = append(fields, tb.Reset().Str("Acct-Terminate-Cause=").
+					Uint32(binary.BigEndian.Uint32(attribute.value)).String())
+			}
+		case attributeEventTimestamp:
+			if len(attribute.value) == 4 {
+				fields = append(fields, tb.Reset().Str("Event-Timestamp=").
+					Uint32(binary.BigEndian.Uint32(attribute.value)).String())
+			}
 		}
 	}
 	name := tb.Reset().Str("code-").Uint8(code).String()

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,12 @@ const (
 	peerPrefix      = "10.100.0.2/32"
 	zeAddress       = "172.29.0.2"
 	pppLinkType     = "ppp"
+
+	// terminateCauseAdminReset is RFC 2866 Section 5.10 value 6,
+	// "Administrator reset the port or session". TeardownAllSessions reports
+	// it, so it is the cause a `clear l2tp session all` puts on the Stop
+	// record (internal/component/l2tp/teardown.go, TeardownAllSessions).
+	terminateCauseAdminReset = "6"
 )
 
 type labOperations interface {
@@ -174,7 +181,7 @@ func checkRadiusAttributes(ctx context.Context, lab labOperations, timeout time.
 	if _, err := waitPPPInterface(ctx, lab, peerZe, timeout); err != nil {
 		return err
 	}
-	access, err := waitRadiusLine(ctx, lab, "Access-Request", timeout)
+	access, err := waitRadiusLine(ctx, lab, "Access-Request", "", timeout)
 	if err != nil {
 		return err
 	}
@@ -189,7 +196,7 @@ func checkRadiusAttributes(ctx context.Context, lab labOperations, timeout time.
 	if !matched {
 		return fmt.Errorf("Access-Request NAS-Port-Id %q does not match lns1:{tunnel-id}.{session-id}", authPortID)
 	}
-	accounting, err := waitRadiusLine(ctx, lab, "Accounting-Request", timeout)
+	accounting, err := waitRadiusLine(ctx, lab, "Accounting-Request", "", timeout)
 	if err != nil {
 		return err
 	}
@@ -207,6 +214,86 @@ func checkRadiusAttributes(ctx context.Context, lab labOperations, timeout time.
 	}
 	if accountingPortID != authPortID {
 		return fmt.Errorf("NAS-Port-Id differs across auth and accounting: %s != %s", authPortID, accountingPortID)
+	}
+	if err := checkAccountingAttributes("Accounting-Start", accounting, ""); err != nil {
+		return err
+	}
+	if err := clearSessions(ctx, lab); err != nil {
+		return err
+	}
+	stop, err := waitRadiusLine(ctx, lab, "Accounting-Request", "Acct-Status-Type=Stop", timeout)
+	if err != nil {
+		return err
+	}
+	return checkAccountingAttributes("Accounting-Stop", stop, terminateCauseAdminReset)
+}
+
+// clearSessions asks ze to disconnect every subscriber session, which is the
+// teardown an operator performs and the one that names its RFC 2866 Section
+// 5.10 cause: TeardownAllSessions reports Admin Reset. The request goes in
+// over the REST surface the scenario's ze.conf opens, the same way
+// checkInitiator drives a dial.
+func clearSessions(ctx context.Context, lab labOperations) error {
+	arguments := []string{
+		"wget", "-qO-",
+		"--header=Authorization: Bearer secret",
+		"--header=Content-Type: application/json",
+		"--post-data={\"command\":\"clear l2tp session all\"}",
+		"http://127.0.0.1:17012/api/v1/execute",
+	}
+	result, err := lab.Exec(ctx, peerZe, arguments, nil)
+	if err != nil && strings.TrimSpace(result.Stdout+result.Stderr) == "" {
+		return fmt.Errorf("clear every L2TP session: %w", err)
+	}
+	return nil
+}
+
+// checkAccountingAttributes asserts the session attributes ze adds to every
+// subscriber Accounting-Request, on one line the RADIUS peer decoded.
+//
+// cause is the RFC 2866 Section 5.10 value the record must report in
+// Acct-Terminate-Cause. An EMPTY cause means the attribute MUST be absent:
+// Section 5.10 allows it "only ... in Accounting-Request records where the
+// Acct-Status-Type is set to Stop".
+//
+// Calling-Station-Id MUST be absent in this lab whatever the record. xl2tpd
+// builds its ICRQ from Message Type, Assigned Call ID, Call Serial Number and
+// Bearer Type alone (control.c, the ICRQ branch of control_finish), so no
+// Calling Number AVP 22 reaches ze, and RFC 2865 Section 5 forbids sending the
+// text attribute empty.
+func checkAccountingAttributes(record, line, cause string) error {
+	stamp, err := radiusField(line, "Event-Timestamp")
+	if err != nil {
+		return fmt.Errorf("%s: %w", record, err)
+	}
+	seconds, err := strconv.ParseInt(stamp, 10, 64)
+	if err != nil {
+		return fmt.Errorf("%s Event-Timestamp %q is not an integer", record, stamp)
+	}
+	// The lab runs on the checker's own kernel clock, so a stamp more than an
+	// hour from it is a constant, a zero or a wrong unit rather than a time.
+	drift := time.Since(time.Unix(seconds, 0))
+	if drift > time.Hour || drift < -time.Hour {
+		return fmt.Errorf("%s Event-Timestamp %s is %s from the lab clock", record, stamp, drift)
+	}
+	if _, err := radiusField(line, "Acct-Delay-Time"); err != nil {
+		return fmt.Errorf("%s: %w", record, err)
+	}
+	if station, err := radiusField(line, "Calling-Station-Id"); err == nil {
+		return fmt.Errorf("%s carries Calling-Station-Id=%s, and xl2tpd sends no Calling Number AVP: %s", record, station, line)
+	}
+	reported, err := radiusField(line, "Acct-Terminate-Cause")
+	if cause == "" {
+		if err == nil {
+			return fmt.Errorf("%s carries Acct-Terminate-Cause=%s, which RFC 2866 Section 5.10 allows on a Stop record alone: %s", record, reported, line)
+		}
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("%s: %w", record, err)
+	}
+	if reported != cause {
+		return fmt.Errorf("%s reports Acct-Terminate-Cause %s, not %s: %s", record, reported, cause, line)
 	}
 	return nil
 }
@@ -396,10 +483,13 @@ func routeObject(data map[string]any) bool {
 	return hasPaths || hasPrefix
 }
 
-func waitRadiusLine(ctx context.Context, lab labOperations, kind string, timeout time.Duration) (string, error) {
+// waitRadiusLine reads the RADIUS peer's log until one RADIUS-RX line names
+// kind and contains selector. An EMPTY selector takes the first line of that
+// kind, which is what an ordering assertion needs.
+func waitRadiusLine(ctx context.Context, lab labOperations, kind, selector string, timeout time.Duration) (string, error) {
 	var tb textbuf.Buffer
 	prefix := tb.Str("RADIUS-RX ").Str(kind).Byte(' ').String()
-	description := tb.Reset().Str(kind).Str(" at RADIUS peer").String()
+	description := tb.Reset().Str(kind).Byte(' ').Str(selector).Str(" at RADIUS peer").String()
 	line, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: timeout, Interval: time.Second, Description: description,
 	}, func(probeCtx context.Context) (string, error) {
@@ -411,7 +501,10 @@ func waitRadiusLine(ctx context.Context, lab labOperations, kind string, timeout
 			return "", errors.New("RADIUS logs unavailable")
 		}
 		for candidate := range strings.SplitSeq(result.Text, "\n") {
-			if strings.HasPrefix(candidate, prefix) {
+			if !strings.HasPrefix(candidate, prefix) {
+				continue
+			}
+			if strings.Contains(candidate, selector) {
 				return candidate, nil
 			}
 		}

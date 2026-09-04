@@ -293,13 +293,22 @@ which RFC 2869 Section 5.3 defines. Calling-Station-Id (type 31) is the L2TP
 Calling Number AVP the peer sent, or the subscriber MAC address on the PPPoE
 relay path.
 
+Acct-Delay-Time (type 41) reports how many seconds ze has been trying to send
+that record, counted from its first attempt, which is what RFC 2866 Section 5.2
+asks for. It is zero on the first transmission and it is updated on every
+retransmission. RFC 2866 Section 4.1 makes that update change the Identifier
+and the Request Authenticator as well, so a server that sees a repeat of an
+accounting record sees a new Identifier. An Access-Request is unaffected: its
+retransmission is byte for byte the first packet, with the same Identifier,
+which is what RFC 2865 Section 2.5 requires.
+
 The Stop record adds Acct-Terminate-Cause (type 49), and no other record
 carries it. RFC 2866 Section 5.10: "This attribute indicates how the session was
 terminated, and can only be present in Accounting-Request records where the
 Acct-Status-Type is set to Stop." The value is one of that section's integers:
-User Request (1) for an LCP Terminate, Lost Carrier (2) for unanswered LCP echo
-probes, Idle Timeout (4) and Session Timeout (5) for the two RADIUS timers,
-Admin Reset (6) for an operator clear and for a RADIUS Disconnect-Request, Admin
+User Request (1) when LCP reaches Closed or Stopped, Lost Carrier (2) for
+unanswered LCP echo probes, Idle Timeout (4) and Session Timeout (5) for the
+two RADIUS timers, Admin Reset (6) for an operator clear and for a RADIUS Disconnect-Request, Admin
 Reboot (7) for the sessions ze stops on shutdown, NAS Request (10) when the PPP
 driver stops a running session, and NAS Error (9) for a failure ze detected or a
 teardown it cannot attribute. Ze reports NAS Error rather than guessing a more

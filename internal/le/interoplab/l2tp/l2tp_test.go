@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +55,8 @@ func (l *recordingLab) Exec(_ context.Context, peer string, arguments []string, 
 		return interoplab.CommandResult{Stdout: `{"prefix":"10.100.0.2/32","paths":[{}]}` + "\n"}, nil
 	case command == "wget -qO- --header=Authorization: Bearer secret --header=Content-Type: application/json --post-data={\"command\":\"request l2tp outgoing-call remote xl2tpd called 12345\"} http://127.0.0.1:17012/api/v1/execute":
 		return interoplab.CommandResult{Stdout: `{"error":"peer cannot answer OCRQ"}` + "\n"}, nil
+	case strings.Contains(command, `{"command":"clear l2tp session all"}`):
+		return interoplab.CommandResult{Stdout: `{"result":"1 session cleared"}` + "\n"}, nil
 	default:
 		return interoplab.CommandResult{}, errors.New("unexpected exec: " + peer + " " + command)
 	}
@@ -92,10 +95,18 @@ func (l *recordingLab) Logs(_ context.Context, peer string, _ int) (interoplab.L
 	case peerLAC:
 		text = "xl2tpd: Listening on IP address 0.0.0.0\nConnection established\nOutgoing-Call-Request\n"
 	case peerRadius:
+		// Event-Timestamp is read against the clock, so the fake stamps NOW.
+		// A constant here would age into a failure. The records carry no
+		// Calling-Station-Id because xl2tpd sends no Calling Number AVP, and
+		// only the Stop names a cause: the checker asserts both absences.
+		stamp := "Event-Timestamp=" + strconv.FormatInt(time.Now().Unix(), 10)
 		text = strings.Join([]string{
 			"radius-mock listening on 0.0.0.0:1812",
 			"RADIUS-RX Access-Request User-Name=alice NAS-Port-Id=lns1:12.34",
-			"RADIUS-RX Accounting-Request Acct-Status-Type=Start Framed-IP-Address=10.100.0.2 NAS-Port-Id=lns1:12.34",
+			"RADIUS-RX Accounting-Request Acct-Status-Type=Start Framed-IP-Address=10.100.0.2 " +
+				"NAS-Port-Id=lns1:12.34 " + stamp + " Acct-Delay-Time=0",
+			"RADIUS-RX Accounting-Request Acct-Status-Type=Stop Framed-IP-Address=10.100.0.2 " +
+				"NAS-Port-Id=lns1:12.34 " + stamp + " Acct-Delay-Time=0 Acct-Terminate-Cause=6",
 		}, "\n")
 	default:
 		return interoplab.LogResult{}, errors.New("unexpected logs peer: " + peer)
@@ -283,7 +294,18 @@ func TestCheckersRecordPeerParticipation(t *testing.T) {
 		{
 			name:      scenarioRadiusAttrs,
 			wantPeers: []string{peerZe, peerLAC, peerRadius},
-			wantCalls: []recordedCall{{operation: "logs", peer: peerRadius}},
+			wantCalls: []recordedCall{
+				{operation: "logs", peer: peerRadius},
+				{
+					operation: "exec", peer: peerZe,
+					arguments: []string{
+						"wget", "-qO-", "--header=Authorization: Bearer secret",
+						"--header=Content-Type: application/json",
+						"--post-data={\"command\":\"clear l2tp session all\"}",
+						"http://127.0.0.1:17012/api/v1/execute",
+					},
+				},
+			},
 		},
 	}
 	for _, test := range tests {

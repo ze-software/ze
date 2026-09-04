@@ -48,6 +48,29 @@ func TestDescribeAccountingRequest(t *testing.T) {
 	}
 }
 
+// VALIDATES: the peer decodes the four session attributes every subscriber
+// Accounting-Request carries, so the checker can assert on them.
+// PREVENTS: an attribute reaching the wire and going unread, which would let
+// scenario 04 pass over a record the server never decoded.
+func TestDescribeSessionAttributes(t *testing.T) {
+	attributes := []attribute{
+		{kind: attributeAccountingStatus, value: []byte{0, 0, 0, 2}},
+		{kind: attributeCallingStationID, value: []byte("+441632960123")},
+		{kind: attributeAccountingDelay, value: []byte{0, 0, 0, 3}},
+		{kind: attributeTerminateCause, value: []byte{0, 0, 0, 6}},
+		{kind: attributeEventTimestamp, value: []byte{0x68, 0xb8, 0x1e, 0x00}},
+	}
+	got := describe(codeAccountingRequest, attributes)
+	for _, field := range []string{
+		"Acct-Status-Type=Stop", "Calling-Station-Id=+441632960123",
+		"Acct-Delay-Time=3", "Acct-Terminate-Cause=6", "Event-Timestamp=1756896768",
+	} {
+		if !strings.Contains(got, field) {
+			t.Errorf("description %q missing %q", got, field)
+		}
+	}
+}
+
 // VALIDATES: malformed RADIUS attribute lengths stop parsing within the packet bound.
 // PREVENTS: a peer-controlled attribute length panicking the mock and false-failing the interop scenario.
 func TestParseAttributesRejectsMalformedLength(t *testing.T) {

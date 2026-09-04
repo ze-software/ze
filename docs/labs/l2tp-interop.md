@@ -106,10 +106,31 @@ Framed-IP-Address (RFC 2865 Section 5.8) in the Accounting-Start carrying the
 address pppd actually negotiated (RFC 2866 Section 4.1). The assertion reads
 what the server decoded, not what ze logged.
 
+The Start record also proves the session attributes ze adds to every
+Accounting-Request: Event-Timestamp within an hour of the lab clock, and
+Acct-Delay-Time present. It proves two absences as well. Acct-Terminate-Cause
+is absent, which RFC 2866 Section 5.10 requires of every record that is not a
+Stop. Calling-Station-Id is absent because xl2tpd's ICRQ carries Message Type,
+Assigned Call ID, Call Serial Number and Bearer Type alone, so no Calling
+Number AVP reaches ze, and RFC 2865 Section 5 forbids sending a text attribute
+of length zero.
+
+The checker then POSTs `clear l2tp session all` to ze's REST surface on
+`127.0.0.1:17012` and reads the Stop record that follows. That teardown is the
+operator one, so the Stop reports Admin Reset, RFC 2866 Section 5.10 value 6.
+
 The typed plan starts the Go RADIUS peer on `172.29.0.5` before Ze and xl2tpd.
 The peer answers Access-Request and Accounting-Request packets and writes the
 decoded attributes that the checker compares. This scenario uses the same
 PPPoL2TP preflight as 01 and 02.
+
+`auth-method chap-md5` in this scenario's `ze.conf` is load-bearing, unlike the
+same leaf in `test/l2tp/radius-acct-wire.ci`. xl2tpd sends no RFC 2661 Section
+4.4.5 proxy LCP AVPs, so ze negotiates LCP itself and the leaf picks the
+method. Read in xl2tpd v1.3.18 and v1.3.19: `avpsend.c` has no builder for AVP
+26, 27 or 28, and the ICRQ and ICCN branches of `control.c` carry none. The
+authentication has to reach a credential, because RFC 2865 Section 4.1 admits
+no Access-Request without one.
 
 ## Relationship to Other Evidence
 

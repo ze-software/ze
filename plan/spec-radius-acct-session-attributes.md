@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 5/7 (phases 1-5 done; functional, interop and docs remain) |
+| Phase | 7/7 (every phase implemented; the interop scenario is changed and UNRUN, see its row) |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-04 |
@@ -268,12 +268,65 @@ fails it.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `radius-acct-wire` | `test/l2tp/radius-acct-wire.ci` | extended to assert all four across Start, Interim and Stop | |
+| `radius-acct-wire` | `test/l2tp/radius-acct-wire.ci` | extended to assert all four across Start, Interim and Stop | extended; see the run note below |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Peer implementation | Asserts | Status |
 |----------|--------------------|---------|--------|
 | `04-radius-acct-attrs` (`test/interop-l2tp/scenarios/`) | xl2tpd LAC plus the lab's RADIUS mock | A real server records the attributes, and the Stop record's cause survives a round trip into the server's own store | **CHANGED AND UNRUN.** See below |
+
+**What the functional test now asserts, and how it produces three records.**
+The peer's ICRQ carries the RFC 2661 Section 4.4.3 Calling Number AVP 22, so
+Calling-Station-Id has a source. `checkRecordAttributes`
+(`internal/test/fixture/tunnel_fixture_l2tp_ppp.go`) then reads what the RADIUS
+mock DECODED for each of the three records and asserts Event-Timestamp inside
+the run's own window, Calling-Station-Id equal to that Calling Number,
+Acct-Delay-Time present and numeric, and Acct-Terminate-Cause ABSENT on the
+Start and on the Interim-Update and equal to 2 on the Stop. The absence is
+AC-5, and it is the assertion an append in the wrong place fails.
+
+The Interim-Update costs 60 seconds of wall clock, and that is the leaf rather
+than slack: `acct-interval` has a YANG range of 60..3600 seconds, and
+`acctInterval` returns a configured value unclamped, so 60 is the earliest an
+interim can legally be asked for. The Stop is driven by the peer going silent:
+`cqm-enabled true` drops the PPP echo interval to 1 second, the peer stops
+answering, and `session_run.go` reports Lost Carrier after three misses. The
+whole test takes about 70 seconds and its runner deadline is 240.
+
+**The `.ci` change is written and UNCOMMITTED, and the owner has to release
+it.** `test/l2tp/radius-acct-wire.ci` carries an `RFC requirement:` tag, so
+`./le commit create` refuses the change without a row in `test/rfc-changed.md`,
+and that row is the OWNER's decision which an author may not write for
+themselves (the file's own "Who writes the row"). The gate is right about what
+it saw: `test/rfc-changed.md` lists "An assertion ADDED to a tagged test" as a
+change needing approval, "because stronger is still different". The tag's own
+claim, RFC2866-4.1-1 positive over Framed-IP-Address, is untouched. The row the
+owner would approve reads: `radius-acct-wire`, assertions added for the four
+session attributes across Start, Interim and Stop, with no change to the
+Framed-IP-Address claim the tag makes.
+
+**It is also UNRUN, and three attempts say why.** The test is `needs-linux`, so
+it runs in the QEMU guest (`./le qemu run kernel <vmlinuz> command '...'`). Two
+guest runs failed to BUILD the tree, each on a different package a concurrent
+session was mid-edit in: `internal/component/bgp/config/peers.go:112` at 09:35
+and `internal/component/radius/authenticator_eap.go:102` at 10:15. A third
+attempt, cross-compiling the binaries on the host instead, failed on an
+incomplete `vendor/` and a missing build-cache entry while the disk sat at 99%.
+None of the three is evidence about this change. The kernel has `CONFIG_PPPOL2TP=y`
+(`gokrazy/kernel/runtime.config`), so the guest route is sound when the tree is
+quiet.
+
+**Two teardown paths were rejected for that Stop, and each is a defect the
+journal now records.** A peer CDN removes the session in `handleCDN`
+(`internal/component/l2tp/session_fsm.go:331`) through `removeSession`
+(`session.go:243`), and neither emits `(l2tp, session-down)`, so `handlePPPEvent`
+finds no session and returns: a subscriber hanging up produces NO Accounting-Stop
+(`plan/journal/guard-added-to-one-half-of-a-pair.md`, 2026-09-04). A peer LCP
+Terminate-Request moves LCP to Stopping, and `performAction`
+(`ppp/session_run.go:1007`) treats ZRC and IRC as no-ops with no restart timer,
+so the session never reaches Stopped and never ends
+(`plan/journal/silent-fall-through.md`, 2026-09-04). The echo path was chosen
+because it is the one that emits.
 
 **`04-radius-acct-attrs` is changed and has not been run.** This host is darwin,
 `l2tp_ppp`/`pppol2tp` is absent, and `modulesAvailable` (`internal/le/interoplab/l2tp/l2tp.go:410`)
@@ -286,6 +339,19 @@ off ze's wire. The checker (`checkRadiusAttributes`,
 `internal/le/interoplab/l2tp/checkers.go`) does not yet assert the three new
 attributes; extending it is phase 6.
 
+**What the interop checker now asserts.** `checkRadiusAttributes`
+(`internal/le/interoplab/l2tp/checkers.go`) keeps its NAS-Port-Id and
+Framed-IP-Address assertions and adds `checkAccountingAttributes` over the
+Start: Event-Timestamp within an hour of the lab clock, Acct-Delay-Time
+present, Acct-Terminate-Cause ABSENT, and Calling-Station-Id ABSENT. That last
+one is AC-3 against a real peer, because xl2tpd sends no Calling Number AVP and
+RFC 2865 Section 5 forbids sending the text attribute empty. The checker then
+POSTs `clear l2tp session all` to ze's REST surface, which this scenario's
+`ze.conf` now opens on 127.0.0.1:17012, and asserts the Stop record reports
+Admin Reset (6). That teardown was chosen because `TeardownAllSessions` reaches
+`teardownSessionOnTunnel`, which is the half phase 3 repaired and the one that
+emits.
+
 **Why the scenario could not pass, verified at the producer.** `buildAuthAttrs`
 (`internal/component/l2tp/plugins/authradius/handler.go`) returns `nil, false`
 for `ppp.AuthMethodNone`, so no Access-Request leaves ze, and
@@ -293,22 +359,27 @@ for `ppp.AuthMethodNone`, so no Access-Request leaves ze, and
 scenario's `auth-method none` therefore made it unpassable. `297b790446`
 changed `ze.conf` to `auth-method chap-md5`, and nothing else in the directory.
 
-**The change is REASONED, not verified.** It rests on xl2tpd sending no RFC 2661
-proxy LCP AVPs, which nobody read out of xl2tpd's source or a capture. The ze
-half IS verified: `EvaluateProxyLCP` (`internal/component/l2tp/ppp/proxy.go:69`)
-returns `errProxyLCPMissing` when any of the three AVPs is empty, so `isProxy`
-is false and `session_run.go` negotiates LCP directly, where the `auth-method`
-leaf selects the method. If xl2tpd DOES send them, ze short-circuits,
-`authMethodFromAuthProto` (`internal/component/l2tp/ppp/auth.go:97`) reads
-Auth-Protocol out of the LAC's Last-Sent CONFREQ, the leaf is inert exactly as
-it was in `test/l2tp/radius-acct-wire.ci`, and the repair is fixture-side as in
-`bab29e430`.
+**The change is now MEASURED, and it is right.** It rested on xl2tpd sending no
+RFC 2661 Section 4.4.5 proxy LCP AVPs, which nobody had read. Read on
+2026-09-04, in xl2tpd's own source at tags v1.3.18 and v1.3.19 and at master:
+`avpsend.c` declares 26 `add_*_avp` builders and not one of them writes AVP 26,
+27 or 28, and the ICRQ and ICCN branches of `control.c` send Message Type,
+Assigned Call ID, Call Serial Number, Bearer Type, Random Vector, TX and RX
+Connect Speed and Framing Type alone. The ICCN branch carries the comment "We
+don't need any kind of proxy PPP stuff". Alpine 3.21 packages one of those
+released tags (`test/interop-l2tp/Dockerfile.lac`).
 
-**How to settle it in one grep.** Ze logs `ppp: proxy LCP short-circuit` with
-`auth-proto` and `auth-method` (`session_run.go:154`), and ONLY when `isProxy`
-is true. Absent line means the leaf is load-bearing and the edit is right.
-Present line means read `auth-proto`: 0 maps to `AuthMethodNone` whatever the
-config says, and so does CHAP with an empty algorithm byte (`auth.go:102`).
+So ze takes no short-circuit: `EvaluateProxyLCP`
+(`internal/component/l2tp/ppp/proxy.go:69`) returns `errProxyLCPMissing`, ze
+negotiates LCP directly, and the `auth-method chap-md5` leaf IS load-bearing in
+this scenario. The `297b790446` edit stands.
+
+**What would overturn it:** an xl2tpd build carrying a proxy-LCP patch, or a
+different LAC image. The one-command check on a Linux host stays valid: ze logs
+`ppp: proxy LCP short-circuit` with `auth-proto` (`session_run.go:154`) ONLY
+when `isProxy` is true, so an absent line confirms the reading. A present line
+means reading `auth-proto`, where 0 maps to `AuthMethodNone` whatever the config
+says, and so does CHAP with an empty algorithm byte (`auth.go:102`).
 
 **The log-level caveat does NOT apply to this scenario, checked at the
 producers.** The line is at Info, and `ze.log.l2tp=debug` is added only for
@@ -371,12 +442,12 @@ absent line in THIS scenario is therefore evidence.
 ### Deliverables Checklist
 | Deliverable | Verification method | Status |
 |-------------|--------------------|--------|
-| Four attributes on the wire | `test/l2tp/radius-acct-wire.ci` | |
-| Stop-only cause | `TestTerminateCauseOnStopOnly` | |
-| Honest delay on retransmit | `TestAcctDelayTimeUpdatesOnRetransmit` | |
-| Access path unaffected | `TestAccessRequestRetransmitIsByteIdentical` | |
-| Interop proof | `radius-acct-attrs` scenario | |
-| Docs updated | the two page diffs | |
+| Four attributes on the wire | `test/l2tp/radius-acct-wire.ci` | extended over Start, Interim and Stop |
+| Stop-only cause | `TestTerminateCauseOnStopOnly` | green (phase 3) |
+| Honest delay on retransmit | `TestAcctDelayTimeUpdatesOnRetransmit` | green (phase 5) |
+| Access path unaffected | `TestAccessRequestRetransmitIsByteIdentical` | green (phase 4) |
+| Interop proof | `radius-acct-attrs` scenario | CHANGED AND UNRUN on this host |
+| Docs updated | `docs/architecture/l2tp/bng-1-radius-attributes.md`, `docs/guide/l2tp.md`, `docs/labs/l2tp-interop.md` | done |
 
 ### Security Review Checklist
 | Check | What to look for |
