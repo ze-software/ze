@@ -122,18 +122,31 @@ marshaled to JSON, which turns a `[]string` into a `[]any`.
 
 | Node | Members | In process | After JSON |
 |------|---------|------------|------------|
+| leaf | set | `string`, whatever the YANG type | `string`, whatever the YANG type |
 | leaf-list | none active | key absent | key absent |
 | leaf-list | exactly one | bare `string` | bare `string` |
 | leaf-list | two or more | `[]string` | `[]any` |
 | list | any count, one included | `map[string]any` keyed by the list key | `map[string]any` keyed by the list key |
 
-Two consequences decide how a reader is written. A leaf-list is not always a
-slice, so asserting one drops the value at exactly one member. A list is never a
-slice at any count, and its key leaf is the map key rather than a field inside
-the entry, so asserting a slice drops it at every count.
+Three consequences decide how a reader is written. A plain leaf is a STRING at
+both ends, whatever its YANG type says. `Tree.values` is a `map[string]string`
+and the lowering copies it through, so a `boolean` leaf arrives as `"true"` and
+a `uint16` leaf as `"30"`. A leaf-list is not always a slice, so asserting one
+drops the value at exactly one member. A list is never a slice at any count.
+Its key leaf is the map key rather than a field inside the entry, so asserting a
+slice drops it at every count.
 
-Read both through `internal/core/configvalue` (`LeafList`, `ListEntries`) rather
-than asserting a type. The obligation is stated in the configuration rule.
+Read all three through `internal/core/configvalue` (`Bool`, `Int`, `LeafList`,
+`ListEntries`) rather than asserting a type. The obligation is stated in the
+configuration rule.
+
+A `.(bool)` or `.(float64)` assertion on a delivered leaf never succeeds, and it
+fails the way an absent value fails. The reader keeps its default and nothing is
+logged, so the operator's setting is discarded in silence. Three shipped call
+sites read that way, in `fib/kernel` and the L2TP pool. One of them delegated
+every subscriber a /56 whatever `delegation-length` said. A hand-typed test
+fixture hides it, because a fixture carrying `"delegation-length":48` as a JSON
+number is a payload the producer never emits.
 
 The lowering is ONE WAY. A bare string is a plain leaf and a one-member
 leaf-list alike, so no lowered map can be rebuilt into a Tree without the schema
@@ -165,7 +178,7 @@ unordered list with `configvalue.ListEntries`. The obligation is stated in the
 configuration rule.
 
 <!-- source: internal/component/config/tree.go -- (*Tree).ToMap, (*Tree).ToPluginMap -->
-<!-- source: internal/core/configvalue/configvalue.go -- LeafList, ListEntries -->
+<!-- source: internal/core/configvalue/configvalue.go -- Bool, Int, LeafList, ListEntries -->
 <!-- source: internal/core/configorder/configorder.go -- Entries, OrderKey -->
 
 ### Inactive prefix (deactivate / activate)
@@ -841,14 +854,16 @@ owns before it starts waiting, so a route a program pushes during the wait goes
 straight to the wire, in front of the marker, where a route belonging to the
 initial update belongs.
 
-**One binding is DERIVED, and only one.** A `redistribute` rule whose source is
-a BGP one names the daemon's Loc-RIB as the route source, and the Loc-RIB is the
-`bgp-rib` plugin, which reads a peer's UPDATEs only through an `attach process`
-grant. The config builder therefore adds that grant itself: every peer gains a
-binding for the process `bgp-rib` runs under, carrying `receive [ update state
-refresh ]`. A peer that already names that process keeps its own binding
-unchanged, and a config that names no BGP source gains nothing.
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireLocRIBDelivery -->
+**Two bindings are DERIVED, and only two.** Both come from the `redistribute`
+root, and each is granted only when a rule implies it. A peer that already names
+the process keeps its own binding unchanged.
+
+| The rule | The derived binding |
+|----------|---------------------|
+| a source registered under the BGP protocol, such as `import bgp` | `receive [ update state refresh ]` toward the process `bgp-rib` runs under, because the Loc-RIB is the source and reads a peer's UPDATEs only through an `attach process` grant |
+| `destination bgp` | `receive [ state ]` and `send [ update ]` toward the process `redistribute-orchestrator` runs under, because that plugin puts the route on the peer's wire and `send` is what permits it |
+
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 
 ---
 
