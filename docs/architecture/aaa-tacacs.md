@@ -67,6 +67,11 @@ That refusal holds only while a bundle is already installed. After a boot whose
 build dropped every backend the slot is nil, the rebuild is skipped, and a
 corrected config needs a restart.
 
+`ze doctor` names the risk before any of this happens. `doctor-aaa-no-local-fallback`
+warns when a remote backend is configured and no `system.authentication.user`
+is, because the chain's fallback is an ACCOUNT and that config declares none.
+
+<!-- source: internal/component/aaa/doctor.go -- checkAAALocalFallback -->
 <!-- source: internal/component/aaa/types.go -- backendRegistry.Build, which drops and composes -->
 <!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition -->
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthorizer -->

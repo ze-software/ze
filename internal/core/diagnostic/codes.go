@@ -661,6 +661,28 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-bgp-peer-no-role"},
 	},
 	{
+		Code:  "doctor-redistribute-unknown-source",
+		Title: "redistribute imports a source no component registered",
+		Description: "A `redistribute { destination <proto> { import <source> } }` rule names a source that is in no " +
+			"component's source registry. Ze refuses to start on it, because a nil evaluator would disable every " +
+			"redistribution rule in the file rather than the one line that is wrong. Remedy: correct the source " +
+			"name, or compile in the component that registers it. `ze config schema redistribute` lists the " +
+			"sources this build registers.",
+		Examples: []string{exampleDoctorJSON, "ze explain doctor-redistribute-unknown-source"},
+	},
+	{
+		Code:  "doctor-redistribute-unknown-destination",
+		Title: "redistribute names a destination protocol nothing can consume",
+		Description: "A `redistribute { destination <proto> }` block names a protocol that registered no " +
+			"redistribution identity, so no consumer can ever answer to that name and every rule under the block " +
+			"is inert. The daemon starts and says nothing, because a destination nobody serves and a destination " +
+			"that rejects every route produce the same silence. This is a warning rather than an error: a " +
+			"consumer registers at plugin startup, so a build that omits the destination protocol is a " +
+			"legitimate reason for the name to be unknown here. Remedy: correct the protocol name, or compile in " +
+			"the protocol that consumes it.",
+		Examples: []string{exampleDoctorJSON, "ze explain doctor-redistribute-unknown-destination"},
+	},
+	{
 		Code:        "doctor-tacacs-unreachable",
 		Title:       "TACACS+ servers unreachable",
 		Description: "No configured TACACS+ authentication server accepted a TCP connection within the probe timeout.",
@@ -677,6 +699,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "RADIUS admin servers unreachable",
 		Description: "No configured system/authentication/radius server answered an Access-Request probe, so operator logins via RADIUS may fall through to local or fail.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-radius-admin-unreachable"},
+	},
+	{
+		Code:        "doctor-aaa-no-local-fallback",
+		Title:       "No local account to fall back to",
+		Description: "A remote AAA backend (RADIUS or TACACS+) is configured and no system/authentication/user is. The chain asks the remote backend first and reaches the local one only when the remote fails to ANSWER, so that fallback is an account: with none declared, an unreachable server or a backend whose config will not build leaves the box with no login at all.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-aaa-no-local-fallback"},
 	},
 	{
 		Code:        "doctor-hub-unreachable",

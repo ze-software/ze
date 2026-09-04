@@ -69,7 +69,18 @@ for the same reason.
 
 So a config error you commit is caught, while the same error already in the file
 at boot is not. Keep a local account that works on a box whose logins come from
-a central server. `docs/architecture/aaa-tacacs.md` carries the mechanism.
+a central server.
+
+`ze doctor` says so before you find out the hard way:
+
+```
+ze doctor --json router.conf
+ze explain doctor-aaa-no-local-fallback
+```
+
+It warns where a RADIUS or TACACS+ server is configured and no
+`system.authentication.user` is. `docs/architecture/aaa-tacacs.md` carries the
+mechanism.
 
 <!-- source: internal/component/aaa/types.go -- backendRegistry.Build -->
 <!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition -->
