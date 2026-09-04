@@ -669,7 +669,7 @@ func TestRevealCandidateExplanationUsesLongHelp(t *testing.T) {
 	}
 	m.textInput.SetValue("set bgp ")
 	m.completions = []Completion{{
-		Text:        "admin-distance",
+		Text:        "multipath",
 		Description: summary,
 		LongHelp:    explanation,
 		Type:        completionKeyword,
@@ -688,7 +688,7 @@ func TestRevealCandidateExplanationUsesLongHelp(t *testing.T) {
 	if revealed.revealLevel() != revealExplanation {
 		t.Errorf("reveal level = %d, want revealExplanation", revealed.revealLevel())
 	}
-	if !strings.Contains(revealed.View().Content, "admin-distance") {
+	if !strings.Contains(revealed.View().Content, "multipath") {
 		t.Error("the box does not name the config path it explains")
 	}
 }

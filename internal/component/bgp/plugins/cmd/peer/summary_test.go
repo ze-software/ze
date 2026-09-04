@@ -1214,7 +1214,7 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		{command: "show bgp rib commands", orders: []command.ColumnOrder{ribRoutes}},
 		{command: "show bgp rib rpf", orders: []command.ColumnOrder{{
 			"source", "family", "found",
-			"matched-prefix", "next-hop", "admin-distance", "metric",
+			"matched-prefix", "next-hop", "distance", "metric",
 		}}},
 		{command: "show bgp rib status", orders: []command.ColumnOrder{{
 			"running", "peers", "routes-in", "routes-out", "stale-routes",

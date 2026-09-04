@@ -273,7 +273,7 @@ func TestDeclaredColumnsExistInPayload(t *testing.T) {
 		// not-found branch writes source, family and found alone, and an order
 		// never hides or invents a key, so naming all seven is correct for both.
 		{cmdRibRPF, decodeFixture(t, `{"source":"192.0.2.9","family":"ipv4 unicast","found":true,`+
-			`"matched-prefix":"192.0.2.0/24","next-hop":"198.51.100.1","admin-distance":20,"metric":0}`)},
+			`"matched-prefix":"192.0.2.0/24","next-hop":"198.51.100.1","distance":20,"metric":0}`)},
 		{cmdRibBest, bestPathRow(t)},
 	}
 
