@@ -143,10 +143,17 @@ Pick a real command the profile denies when you write your own check. A command 
 
 ### How authorization decides
 
-Once you define any `system.authorization` profile, authorization is in use and it fails closed:
+Once you define any `system.authorization` profile, authorization is in use and it fails closed for a user the profiles do not cover:
 
 - A user who authenticates but resolves **no applicable profile** is **denied every command**, not granted access. Assign every account a profile. A profile reaches an account either through `system.authentication.user <name> profile ...` (local users) or through the TACACS+/RADIUS priv-level mapping (remote users).
 - A box that defines **no** `system.authorization` profile at all stays fully permissive: with authorization unconfigured there is nothing to enforce.
+
+There is a third state, and it is the one to plan for.
+
+- When the daemon cannot BUILD the AAA chain the config describes, authentication and authorization both fall back to the local accounts and the local profiles. A TACACS+ server declared with no shared secret does this, and so does any other error while the chain is built. The failover exists so you can log in and repair the config. A login that runs no command does not let you.
+- **On a box with no `system.authorization` profile, that fallback is fully permissive.** Falling back to the local policy means falling back to whatever it says, and a box with no profile says allow. This is the same state such a box runs in every day, so nothing a working chain refused becomes permitted. It does mean a central-auth box whose chain breaks is ungoverned until you fix it.
+
+This is the reason this guide has you define profiles at all. **A box that relies on TACACS+ or RADIUS for authorization, and declares no local profile, has no authorization the moment its chain fails to build.** Define local profiles even where a central server decides day to day. `docs/architecture/aaa-tacacs.md` carries the mechanism.
 
 The daemon log states which rule decided, so you can tell "denied by profile" from "denied because no profile applied":
 

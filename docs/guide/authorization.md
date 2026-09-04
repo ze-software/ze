@@ -55,6 +55,33 @@ assignment order. The first profile with a matching entry wins. If no
 profile has a matching entry, the first profile's `default-action`
 applies.
 
+### What decides when the AAA chain will not build
+
+The rules above assume the daemon built its AAA chain. Where the build FAILED,
+the verdict comes from the accepted LOCAL policy: the profiles this page
+describes, read from the running config. A TACACS+ server declared with no
+shared secret puts the daemon in that state. So does any other error while the
+chain is built.
+
+Both halves fall back together. Authentication answers from the local accounts
+and authorization from the local profiles, so an operator can log in and repair
+the config. `docs/guide/authentication.md` carries the login half.
+
+**A box with no profile at all is fully permissive in that state.** Falling back
+to the local policy means falling back to what it says, and with no profile it
+says allow. The section above states that rule for a running daemon, and it
+holds here for the same reason. An installed AAA chain that carries no
+authorizer answers the same way, so the fallback permits nothing a working chain
+refused.
+
+The consequence is worth planning for. A box that leaves authorization to a
+central server, and declares no local profile, is ungoverned from the moment its
+chain fails to build. It stays so until an operator repairs it. Declare local
+profiles on such a box even though a central server decides day to day.
+
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthorizer, liveLocalAuthorizer -->
+<!-- source: internal/component/authz/register.go -- StoreAuthorizer, which allows on a nil store -->
+
 ## Matching rules
 
 ### Prefix matching (default)
