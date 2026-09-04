@@ -513,7 +513,7 @@ func (bp *BMPPlugin) closeDumpFamilies(scope *dumpScope, ss *senderSession) {
 
 	id, ok := bp.localIdentity()
 	if !ok {
-		logger().Warn("bmp: loc-rib dump not closed: no bgp router-id and local asn configured yet")
+		logger().Warn("bmp: loc-rib dump not closed: the router identity is unknown; set `bgp router-id` and `bgp session asn local`")
 		return
 	}
 
@@ -618,7 +618,7 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 	}
 	id, ok := bp.localIdentity()
 	if !ok {
-		logger().Warn("bmp: loc-rib route monitoring suppressed: no bgp router-id and local asn configured yet")
+		logger().Warn("bmp: loc-rib route monitoring suppressed: the router identity is unknown; set `bgp router-id` and `bgp session asn local`")
 		return
 	}
 	peer := locRIBPeerHeader(id, installed)
@@ -668,7 +668,7 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 func (bp *BMPPlugin) ensureLocRIBPeerUp(senders []*senderSession) {
 	id, ok := bp.localIdentity()
 	if !ok {
-		logger().Warn("bmp: loc-rib peer up suppressed: no bgp router-id and local asn configured yet")
+		logger().Warn("bmp: loc-rib peer up suppressed: the router identity is unknown; set `bgp router-id` and `bgp session asn local`")
 		return
 	}
 	// Zero Timestamp: a Peer Up encapsulates no route (RFC 9069 Section 5.1).
@@ -734,7 +734,7 @@ func (bp *BMPPlugin) primeLocRIBPeerUp(ss *senderSession) {
 		// The claim is given back: nothing was announced, so the next batch has
 		// to try again once the configuration has arrived.
 		ss.locRIBUpSent.Store(false)
-		logger().Warn("bmp: loc-rib peer up suppressed: no bgp router-id and local asn configured yet",
+		logger().Warn("bmp: loc-rib peer up suppressed: the router identity is unknown; set `bgp router-id` and `bgp session asn local`",
 			"collector", ss.name)
 		return
 	}
@@ -850,7 +850,7 @@ func (bp *BMPPlugin) sendLocRIBPeerDown() {
 	// carries it too.
 	id, ok := bp.localIdentity()
 	if !ok {
-		logger().Warn("bmp: loc-rib peer down suppressed: no bgp router-id and local asn configured yet")
+		logger().Warn("bmp: loc-rib peer down suppressed: the router identity is unknown; set `bgp router-id` and `bgp session asn local`")
 		return
 	}
 	peer := locRIBPeerHeader(id, time.Time{})

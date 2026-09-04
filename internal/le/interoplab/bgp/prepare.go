@@ -47,7 +47,7 @@ environment {
 
 var containerRoles = []string{
 	"ze", peerFRR, peerBIRD, peerGoBGP, peerBMP, peerRPKI, peerInject, peerSpeaker,
-	peerSpeaker2, peerKeepalived, peerStayRTR,
+	peerSpeaker2, peerKeepalived, peerStayRTR, peerPMACCT,
 }
 
 func scenarioPlans(root, producer, suffix string, sources []interoplab.ScenarioSource) ([]interoplab.ScenarioPlan, error) {
@@ -252,7 +252,14 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		return interoplab.Mount{Source: source, Target: target, ReadOnly: true}
 	}
 
-	if configContains(filepath.Join(scenario, "ze.conf"), "bmp {") {
+	// A scenario carrying pmbmpd.conf reads ze's BMP stream with pmacct, so ze's
+	// own collector is not started for it: two collectors would be two readings
+	// of one stream, and only the third-party one is interop evidence.
+	pmacctConfig := filepath.Join(scenario, "pmbmpd.conf")
+	if regularFile(pmacctConfig) {
+		peers = append(peers, interoplab.PeerConfig{Name: peerPMACCT, Container: containerName(peerPMACCT, suffix), Image: peerPMACCT, Host: 13,
+			Mounts: []interoplab.Mount{mount(pmacctConfig, "/etc/pmacct/pmbmpd.conf")}, Command: []string{"-f", "/etc/pmacct/pmbmpd.conf"}})
+	} else if configContains(filepath.Join(scenario, "ze.conf"), "bmp {") {
 		peers = append(peers, interoplab.PeerConfig{Name: peerBMP, Container: containerName(peerBMP, suffix), Image: "ze", Host: 6,
 			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: []string{"interop-bgp", "bmp-collector"}})
 	}
@@ -312,8 +319,16 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: command})
 	}
 	if path := filepath.Join(scenario, "frr.conf"); regularFile(path) {
+		// The shared daemons file names which FRR daemons run and what each one
+		// is started with. A scenario needing a bgpd MODULE, `-M bmp` for one
+		// that drives ze's BMP receiver, carries its own copy rather than adding
+		// the module to every scenario in the suite.
+		daemons := filepath.Join(producer, "daemons")
+		if scenarioDaemons := filepath.Join(scenario, "daemons"); regularFile(scenarioDaemons) {
+			daemons = scenarioDaemons
+		}
 		peers = append(peers, interoplab.PeerConfig{Name: peerFRR, Container: containerName(peerFRR, suffix), Image: peerFRR, Host: 3,
-			Mounts:       []interoplab.Mount{mount(path, "/etc/frr/frr.conf"), mount(filepath.Join(producer, "daemons"), "/etc/frr/daemons"), mount(filepath.Join(producer, "vtysh.conf"), "/etc/frr/vtysh.conf")},
+			Mounts:       []interoplab.Mount{mount(path, "/etc/frr/frr.conf"), mount(daemons, "/etc/frr/daemons"), mount(filepath.Join(producer, "vtysh.conf"), "/etc/frr/vtysh.conf")},
 			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", "show version")})
 	}
 	if path := filepath.Join(scenario, "bird.conf"); regularFile(path) {

@@ -17,6 +17,7 @@ const (
 	peerSpeaker2   = "speaker2"
 	peerKeepalived = "keepalived"
 	peerStayRTR    = "stayrtr"
+	peerPMACCT     = "pmacct"
 )
 
 // Programs a scenario runs inside a peer container. cmdGoBGP has the spelling
@@ -108,6 +109,7 @@ const (
 const (
 	zeCLICommand       = "cli"
 	zeShowBGPRIBStatus = "show bgp rib status"
+	zeShowBMPPeers     = "show bmp peers"
 )
 
 // ze-test subcommands. A peer built from the Ze image runs one as its
@@ -120,7 +122,39 @@ const (
 	zeLabAddress       = "172.30.0.2"
 	frrLabAddress      = "172.30.0.3"
 	gobgpLabAddress    = "172.30.0.5"
+	pmacctLabAddress   = "172.30.0.13"
 	vrrpVirtualAddress = "172.30.0.100"
+)
+
+// The pmacct BMP collector: the file its msglog writes, and the JSON tokens the
+// RFC 9069 scenario reads out of it.
+//
+// pmacct decodes the Loc-RIB Peer Up itself, so every needle below is a value
+// pmacct printed after parsing ze's bytes rather than a string ze emitted. That
+// is what makes the scenario interop evidence: `bmp_peer_up_info_3` is the
+// VRF/Table Name Information TLV (RFC 9069 Section 5.2.1), hex-encoded by
+// pmacct, and "67-6C-6F-62-61-6C" is `global`.
+const (
+	pmacctMsgLogPath        = "/var/log/pmacct/bmp.log"
+	pmacctPeerTypeLocRIB    = `"peer_type": 3`
+	pmacctPeerTypeLocRIBStr = `"peer_type_str": "Loc-RIB Instance Peer"`
+	pmacctLocRIBPeerAS      = `"peer_asn": 65044`
+	pmacctLocRIBBGPID       = `"bgp_id": "172.30.0.2"`
+	pmacctTableNameGlobal   = `"bmp_peer_up_info_3": "67-6C-6F-62-61-6C"`
+	pmacctPeerDownReasonSix = `"reason_type": 6`
+
+	// The identity of the BGP SESSION ze runs with FRR, which the scenario
+	// overrides away from the router's own on purpose. A Loc-RIB header built
+	// from a cached sent OPEN reports these two, and RFC 9069 Section 5.1 asks
+	// for the router's global values instead.
+	pmacctSessionPeerAS = `"peer_asn": 65099`
+	pmacctSessionBGPID  = `"bgp_id": "10.99.99.99"`
+
+	// The two fields the emulated peer carries when ze knows no identity at
+	// all. pmacct printed exactly these on 2026-09-04 against a daemon whose
+	// OPEN cache was empty, which RFC 9069 Section 1.1 makes a normal state.
+	pmacctUnknownPeerAS = `"peer_asn": 0`
+	pmacctUnknownBGPID  = `"bgp_id": "0.0.0.0"`
 )
 
 // Prefixes the inject peer announces to the daemon under test. The first
@@ -269,6 +303,8 @@ const (
 	scenarioVPNFRR                           = "bgp-vpn-frr"
 	scenarioVPNGoBGP                         = "bgp-vpn-gobgp"
 	scenarioWireEditAPIOriginBIRD            = "bgp-wire-edit-api-origin-bird"
+	scenarioLocRIBPMACCT                     = "bmp-locrib-pmacct"
+	scenarioLocRIBReceiverFRR                = "bmp-locrib-receiver-frr"
 )
 
 // The looking-glass demo topology. Six /24 links carry two routers each, at

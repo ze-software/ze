@@ -15,6 +15,13 @@ import (
 
 const defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
 
+// defaultPMACCTImage is the third-party BMP collector the RFC 9069 Loc-RIB
+// scenario reads ze's stream with. pmacct decodes the Loc-RIB Instance Peer
+// type, the Peer Up Information TLVs and the Peer Down reason itself, so what
+// it writes is another implementation's reading of ze's bytes rather than ze's
+// own.
+const defaultPMACCTImage = "pmacct/pmbmpd:latest"
+
 // Options selects one exact scenario and controls image reuse. Empty fields use
 // the documented environment and process-id defaults.
 type Options struct {
@@ -74,6 +81,7 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 			{Name: peerKeepalived, Tag: "keepalived-interop", Dockerfile: filepath.Join(producer, "Dockerfile.keepalived"), Context: producer, Required: true},
 			{Name: peerStayRTR, Tag: "stayrtr-interop", Dockerfile: filepath.Join(producer, "Dockerfile.stayrtr"), Context: producer},
 			{Name: peerFRR, Tag: environment.Image, Pull: true, Required: true},
+			{Name: peerPMACCT, Tag: defaultPMACCTImage, Pull: true},
 		},
 		Scenarios: plans,
 		NoBuild:   options.NoBuild,

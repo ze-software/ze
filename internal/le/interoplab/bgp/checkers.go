@@ -387,6 +387,62 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: "10.44.0.0/24"},
 	},
+	// RFC 9069 Loc-RIB monitoring, SENDER side, read by a collector that is not
+	// ze. pmacct decodes the per-peer header, the Peer Up Information TLVs and
+	// the Peer Down reason itself, so every needle below is pmacct's reading of
+	// ze's bytes.
+	//
+	// RFC 9069 Section 5.1 is what the two identity assertions carry: "Peer
+	// Autonomous System (AS): Set to the primary router BGP autonomous system
+	// number (ASN)", and "Peer BGP ID: ... otherwise, set to the global instance
+	// router-id." ze.conf configures 65044 and 172.30.0.2, and pmacct must print
+	// both. Section 5.2.1 is the table name: "The default value of "global" MUST
+	// be used for the default Loc-RIB instance with a zero-filled
+	// distinguisher."
+	//
+	// The scenario OVERRIDES both values on the FRR session, to 65099 and
+	// 10.99.99.99, and that override is what makes the row below discriminate.
+	// A router that overrides neither has one identity, so a Loc-RIB header
+	// built from a cached sent OPEN and one built from configuration carry the
+	// same two numbers and no assertion can tell them apart.
+	scenarioLocRIBPMACCT: {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opWaitContains, peer: peerPMACCT, command: []string{cmdCat, pmacctMsgLogPath},
+			contains: []string{
+				pmacctPeerTypeLocRIB, pmacctPeerTypeLocRIBStr,
+				pmacctLocRIBPeerAS, pmacctLocRIBBGPID, pmacctTableNameGlobal,
+			},
+			timeout: 90 * time.Second},
+		// The absence is the discrimination, and it is not an absence a missing
+		// mechanism satisfies: the proof needles above are the same two fields
+		// carrying their configured values, so a run that sent no Peer Up at all
+		// fails the proof rather than passing this row. The two absent strings
+		// are what pmacct printed against the daemon before the identity came
+		// from configuration.
+		{kind: opRequireAbsent, peer: peerPMACCT, command: []string{cmdCat, pmacctMsgLogPath},
+			absent: []string{
+				pmacctSessionPeerAS, pmacctSessionBGPID,
+				pmacctUnknownPeerAS, pmacctUnknownBGPID,
+			},
+			proof: []string{pmacctLocRIBPeerAS, pmacctLocRIBBGPID}},
+	},
+	// RFC 9069 Loc-RIB monitoring, RECEIVER side. FRR's bmpd sends a Loc-RIB
+	// feed at ze's BMP listener, so what ze parses is a third party's fabricated
+	// OPEN rather than its own.
+	//
+	// RFC 9069 Section 6.1.1: "Each emulated peer instance MUST send a Peer Up
+	// with the OPEN message indicating the address family capabilities. A BMP
+	// receiver MUST process these capabilities to know which peer belongs to
+	// which address family." `show bmp peers` is where ze reports that reading,
+	// so the family, the AS and the BGP ID together prove the OPEN was parsed:
+	// a receiver that walked the OPEN bytes as Information TLVs records none of
+	// the three.
+	scenarioLocRIBReceiverFRR: {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opWaitContains, peer: "ze", command: zeCommand(zeShowBMPPeers),
+			contains: []string{"65045", frrLabAddress, "ipv4/unicast"},
+			timeout:  120 * time.Second},
+	},
 	"isis-auth-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowISISNeighbor}, contains: []string{"Up"}, timeout: 90 * time.Second},
 	},
