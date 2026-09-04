@@ -36,10 +36,18 @@ ze's CLI verbatim.
 
 This makes ze's CLI a second external contract, for the ExaBGP forms that carry
 no `neighbor` prefix. Those forms are ExaBGP commands and ze commands with one
-spelling. `bridgeSurface` records the nine wire methods this covers. They are the six
-`announce` and `withdraw` forms with `peer raw`, `peer update` and `help`. Each
-is exempt from the verb-first grammar, because the line protocol fixes its
-spelling.
+spelling. `bridgeSurface` records the nine wire methods that are exempt from the
+verb-first grammar. They do not all reach an operator the same way, and the
+difference decides what a rename costs.
+
+| Wire method | How a script reaches it | What a rename costs |
+|---|---|---|
+| `announce-unicast`, `announce-blackhole`, `announce-flowspec`, `withdraw-tag`, `withdraw-id`, `withdraw-all`, `help` | passthrough, as the bare ExaBGP form | a break for every script that writes the bare form |
+| `peer-update` | translator output, from `neighbor <address> announce` | one edit in the translator |
+| `peer-raw` | neither, because the translator never writes it | one edit, and no script is affected |
+
+`peer raw` is exempt because it starts with a noun, not because the line
+protocol names it.
 
 A change to one of those nine spellings is a compatibility break for an ExaBGP
 script. A change to a command the translator builds is not. The two sets are
