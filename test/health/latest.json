@@ -3,24 +3,26 @@
     {
       "action": "Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.",
       "annotations": {
-        "gap": 501,
-        "not-applicable": 834,
+        "feature-declined": 1,
+        "gap": 508,
+        "lower-layer": 26,
+        "not-applicable": 828,
         "single-polarity": 370
       },
-      "detail": "57.8% of the 3002 gated MUSTs the 144 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 3264 gated MUSTs across 179 enrolled RFCs -- and of the 1845 of those not proven in both polarities: 834 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 501 known gap (unimplemented, genuinely untested), 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- and 140 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work.",
-      "gated_without_any_test": 140,
+      "detail": "58.1% of the 3034 gated MUSTs the 145 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 3296 gated MUSTs across 180 enrolled RFCs -- and of the 1850 of those not proven in both polarities: 828 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 508 known gap (unimplemented, genuinely untested), 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 26 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 1 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 117 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work.",
+      "gated_without_any_test": 117,
       "key": "rfc-proof-density",
       "label": "RFC MUST requirements proven by test, over the RFCs ze implements",
       "proof_density": {
-        "denominator": 3002,
-        "numerator": 1736,
-        "percent": 57.8
+        "denominator": 3034,
+        "numerator": 1763,
+        "percent": 58.1
       },
       "question": "Q2",
-      "rfcs_total": 179,
+      "rfcs_total": 180,
       "rfcs_without_any_proof": 36,
       "status": "ok",
-      "value": "1736 / 3002",
+      "value": "1763 / 3034",
       "worst": [
         {
           "gated": 55,
@@ -72,9 +74,9 @@
       "question": "Q2",
       "status": "warn",
       "unproven": {
-        "denominator": 179,
+        "denominator": 180,
         "numerator": 36,
-        "percent": 20.1
+        "percent": 20.0
       },
       "unproven_rfcs": [
         "draft-abraitis-bgp-version-capability",
@@ -114,21 +116,21 @@
         "rfc9319",
         "rfc9514"
       ],
-      "value": "36 / 179"
+      "value": "36 / 180"
     },
     {
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 27445,
-        "numerator": 133,
+        "denominator": 27925,
+        "numerator": 134,
         "percent": 0.5
       },
       "key": "assert-nothing",
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "warn",
-      "value": "133 / 27445 (floor 132)",
+      "value": "134 / 27925 (floor 132)",
       "worst": [
         {
           "file": "internal/chaos/chaos_test.go",
@@ -187,18 +189,18 @@
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
         "bench_funcs": 132,
-        "ci_files": 1814,
-        "et_files": 169,
+        "ci_files": 1852,
+        "et_files": 170,
         "fuzz_funcs": 79,
-        "test_files": 3684,
-        "test_funcs": 27476
+        "test_files": 3763,
+        "test_funcs": 27956
       },
-      "detail": "3684 Go test files, 79 fuzz targets, 132 benchmarks, 1814 .ci scenarios, 169 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "3763 Go test files, 79 fuzz targets, 132 benchmarks, 1852 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "27476 test functions"
+      "value": "27956 test functions"
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",
@@ -218,13 +220,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 3684,
-        "numerator": 1307,
-        "percent": 35.5
+        "denominator": 3763,
+        "numerator": 1338,
+        "percent": 35.6
       },
       "question": "Q2",
       "status": "ok",
-      "value": "1307 / 3684",
+      "value": "1338 / 3763",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -240,7 +242,7 @@
         },
         {
           "area": "internal/core/rib",
-          "files": 11,
+          "files": 12,
           "negative": 0,
           "percent": 0.0
         },
@@ -264,15 +266,9 @@
         },
         {
           "area": "internal/component/doctor",
-          "files": 17,
+          "files": 18,
           "negative": 1,
-          "percent": 5.9
-        },
-        {
-          "area": "internal/component/lg",
-          "files": 17,
-          "negative": 1,
-          "percent": 5.9
+          "percent": 5.6
         },
         {
           "area": "internal/component/sysrib",
@@ -285,6 +281,12 @@
           "files": 11,
           "negative": 1,
           "percent": 9.1
+        },
+        {
+          "area": "internal/component/cmd",
+          "files": 19,
+          "negative": 2,
+          "percent": 10.5
         }
       ]
     },
@@ -298,7 +300,7 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 613,
+          "packages": 615,
           "with_ci": 31,
           "with_fuzz": 31,
           "with_rfc_tag": 101
