@@ -129,18 +129,18 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, secret []byte, serve
 	buf := Bufs.Get()
 	defer Bufs.Put(buf)
 
-	wirePkt := prepareWirePacket(pkt, secret)
-	n, err := wirePkt.EncodeTo(buf, 0)
-	if err != nil {
-		return nil, fmt.Errorf("radius: encode: %w", err)
+	// The instant the client began trying to send this record. RFC 2866
+	// Section 5.2 defines Acct-Delay-Time as "how many seconds the client has
+	// been trying to send this record", so it is measured from here and not
+	// from the event the record describes.
+	firstAttempt := time.Now()
+	if pkt.Code == CodeAccountingReq {
+		setAcctDelayTime(pkt, 0)
 	}
 
-	requestAuth := pkt.Authenticator
-	// RFC 2866 Section 3: Accounting-Request authenticator is computed.
-	if pkt.Code == CodeAccountingReq {
-		auth := AccountingRequestAuth(buf, n, secret)
-		copy(buf[4:4+AuthenticatorLen], auth[:])
-		requestAuth = auth
+	n, requestAuth, err := encodeRequest(pkt, secret, buf)
+	if err != nil {
+		return nil, err
 	}
 
 	addr, err := net.ResolveUDPAddr("udp4", serverAddr)
@@ -152,17 +152,48 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, secret []byte, serve
 	if err != nil {
 		return nil, err
 	}
-	defer c.unregisterWaiter(key, waiter)
+	// The key and the waiter MOVE on an accounting retransmission, so the
+	// cleanup reads whichever pair is current rather than the first one.
+	defer func() { c.unregisterWaiter(key, waiter) }()
 
 	timeout := c.config.Timeout
 
 retryLoop:
-	for range c.config.Retries {
+	for attempt := range c.config.Retries {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		// RFC 2865 Section 2.5: retransmit uses same ID and authenticator.
+		// The two request codes want OPPOSITE things from this loop.
+		//
+		// RFC 2865 Section 2.5 governs an Access-Request: nothing about it
+		// changes between attempts, so it is replayed byte for byte and the
+		// server can still match the reply. TestAccessRequestRetransmitIsByte-
+		// Identical holds that.
+		//
+		// RFC 2866 Section 4.1 governs an Accounting-Request: "if
+		// Acct-Delay-Time is included in the attributes of an Accounting-Request
+		// then the Acct-Delay-Time value will be updated when the packet is
+		// retransmitted, changing the content of the Attributes field and
+		// requiring a new Identifier and Request Authenticator." Section 3 makes
+		// that authenticator an MD5 over the attributes, so it moves with them
+		// by construction. A constant delay is not a shortcut around this: it
+		// reports a number that is never true after the first attempt.
+		if attempt > 0 && pkt.Code == CodeAccountingReq {
+			c.unregisterWaiter(key, waiter)
+			setAcctDelayTime(pkt, time.Since(firstAttempt))
+			pkt.Identifier = c.NextID()
+			n, requestAuth, err = encodeRequest(pkt, secret, buf)
+			if err != nil {
+				return nil, err
+			}
+			key = responseKey{server: addr.String(), id: pkt.Identifier}
+			waiter, err = c.registerWaiter(key, requestAuth, secret)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		c.mu.Lock()
 		if c.closed {
 			c.mu.Unlock()
@@ -202,6 +233,50 @@ retryLoop:
 	}
 
 	return nil, fmt.Errorf("radius: all %d retries exhausted for %s", c.config.Retries, serverAddr)
+}
+
+// encodeRequest writes the packet into buf and returns its length and the
+// Request Authenticator the reply will be verified against.
+//
+// An Accounting-Request's authenticator is DERIVED from the bytes rather than
+// carried in the packet: RFC 2866 Section 3 computes it over "the Code +
+// Identifier + Length + 16 zero octets + request attributes + shared secret",
+// so it has to be recomputed whenever any attribute changes.
+func encodeRequest(pkt *Packet, secret, buf []byte) (int, [AuthenticatorLen]byte, error) {
+	wirePkt := prepareWirePacket(pkt, secret)
+	n, err := wirePkt.EncodeTo(buf, 0)
+	if err != nil {
+		return 0, [AuthenticatorLen]byte{}, fmt.Errorf("radius: encode: %w", err)
+	}
+	if pkt.Code != CodeAccountingReq {
+		return n, pkt.Authenticator, nil
+	}
+	auth := AccountingRequestAuth(buf, n, secret)
+	copy(buf[4:4+AuthenticatorLen], auth[:])
+	return n, auth, nil
+}
+
+// setAcctDelayTime records how long the client has been trying to send this
+// record, replacing any value already present rather than appending a second
+// one: RFC 2866 Section 5.13 gives Acct-Delay-Time a count of 0-1.
+//
+// A sub-second elapsed time is zero seconds, which is the truth on the first
+// attempt and is why the attribute is written before the first send as well as
+// before each retransmission. What would be false is leaving that zero in place
+// on a later attempt.
+func setAcctDelayTime(pkt *Packet, elapsed time.Duration) {
+	seconds := uint32(0)
+	if elapsed > 0 {
+		seconds = uint32(elapsed / time.Second)
+	}
+	value := AttrUint32(seconds)
+	for index := range pkt.Attrs {
+		if pkt.Attrs[index].Type == AttrAcctDelayTime {
+			pkt.Attrs[index].Value = value
+			return
+		}
+	}
+	pkt.Attrs = append(pkt.Attrs, Attr{Type: AttrAcctDelayTime, Value: value})
 }
 
 func (c *Client) readLoop() {

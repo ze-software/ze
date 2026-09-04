@@ -164,10 +164,19 @@ func TestRFC2866AccountingRequestAuthRejectsTampering(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2866-3-3 positive -- a retransmitted Accounting-Request carries the
-// same Identifier as the original transmission (RFC 2865 Section 2.5 retransmit rules,
-// applied to Accounting-Request by RFC 2866 Section 3).
-func TestRFC2866AccountingRetransmitSameIdentifier(t *testing.T) {
+// RFC requirement: RFC2866-3-3 positive -- a retransmitted Accounting-Request that carries
+// Acct-Delay-Time takes a NEW Identifier, because the delay value is updated on every
+// attempt. RFC 2866 Section 4.1: "if Acct-Delay-Time is included in the attributes of an
+// Accounting-Request then the Acct-Delay-Time value will be updated when the packet is
+// retransmitted, changing the content of the Attributes field and requiring a new Identifier
+// and Request Authenticator." RFC 2865 Section 2.5 states the same rule from the other side:
+// a new Identifier is required exactly when attributes change.
+//
+// The unchanged-attributes half of that rule is proven where it is still reachable, on the
+// Access-Request path, by TestAccessRequestRetransmitIsByteIdentical. Ze stamps
+// Acct-Delay-Time on every Accounting-Request it sends, so an accounting retransmission
+// whose attributes do not change is a packet ze no longer produces.
+func TestRFC2866AccountingRetransmitTakesANewIdentifier(t *testing.T) {
 	secret := []byte("acct-secret")
 	addr, ids := startRecordingAcctServer(t, secret, true)
 
@@ -200,10 +209,14 @@ func TestRFC2866AccountingRetransmitSameIdentifier(t *testing.T) {
 	if len(got) < 2 {
 		t.Fatalf("expected at least 2 datagrams (original + retransmit), got %d", len(got))
 	}
-	for i, id := range got {
-		if id != got[0] {
-			t.Fatalf("datagram %d used Identifier %d, want %d: retransmit must reuse the Identifier", i, id, got[0])
+	seen := make(map[byte]int, len(got))
+	for index, id := range got {
+		if first, repeated := seen[id]; repeated {
+			t.Fatalf("datagram %d reused Identifier %d from datagram %d: a retransmission that "+
+				"updates Acct-Delay-Time changes the Attributes field, which RFC 2866 Section 4.1 "+
+				"says requires a new Identifier", index, id, first)
 		}
+		seen[id] = index
 	}
 }
 

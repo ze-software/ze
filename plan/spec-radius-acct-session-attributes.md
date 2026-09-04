@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 3/7 (Event-Timestamp, Calling-Station-Id and the cause are done; the client and Acct-Delay-Time are not) |
+| Phase | 5/7 (phases 1-5 done; functional, interop and docs remain) |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-04 |
