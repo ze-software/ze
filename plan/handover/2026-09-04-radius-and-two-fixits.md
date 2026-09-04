@@ -164,6 +164,54 @@ control user. `conformingPAP` grants that user in both `silentUsers` and
 parsing, which is where the obvious suspicion falls. Whoever resumes should start
 by instrumenting `runLogin`'s branch selection rather than re-reading the policy.
 
+**CORRECTION, and the paragraph above is why it is worth reading twice.** The
+cause WAS the parsing, and this reasoning walked past it. `parseStubLogin`
+declares its results `(user, password, command)` and built them
+`(password, user, command)`. The types are identical, so it compiled, and every
+stub login arrived as user `testpass` with password `localop`. Reproducing the
+extraction and seeing both values come back correctly is what made it look ruled
+out: the values were checked as a SET and never against the variable each landed
+in. `TestParseStubLoginReadsEachFieldInOrder` now pins the positions. Fixed with
+the whole suite in `2bea01249`.
+
+## Addendum 2: three-way entanglement in the working tree, 2026-09-04
+
+Three agents ran in trees I judged disjoint and were not. The sequencing error is
+recorded here so the attribution survives, because a commit from any session
+stages whole paths and nine files were already swept once tonight into an
+unrelated commit (`ad6a5bd7f0`).
+
+**Who owns which uncommitted path.**
+
+| Owner | Paths |
+|-------|-------|
+| RADIUS attribute exclusion (spec complete and green, uncommitted) | `internal/component/l2tp/plugins/authradius/{exclude.go,exclude_test.go}` (new), and its hunks in `acct.go`, `config.go`, `handler.go`, `register.go`, `yang/ze-l2tp-auth-radius-conf.yang`; `test/l2tp/{radius-acct-exclude.ci,radius-acct-exclude-invalid.ci}` (new); `internal/component/radius/acct_delay_time_omit_test.go` (new) and the `OmitAcctDelayTime` / `stampsAcctDelayTime` hunks in `internal/component/radius/{client.go,packet.go}`; two hunks in `docs/guide/l2tp.md` and `docs/architecture/l2tp/bng-1-radius-attributes.md` |
+| RADIUS admin EAP (running) | `internal/component/radius/{eap.go,eap_test.go,authenticator_eap.go,authenticator_eap_test.go}` (new) and its hunks in `authenticator.go`, `dict.go`, `packet.go`, `config.go`, `yang/ze-radius-conf.yang` |
+| Peer CDN teardown cause (running) | `internal/component/l2tp/peer_teardown_cause_test.go` (new) and its hunks in `session.go`, `session_fsm.go`, `session_initiator.go`, `reactor.go`, `tunnel_fsm.go`, `tunnel.go`, `teardown.go`, `events/terminate_cause.go` |
+| Accounting phases 6-7 (reported) | `test/l2tp/radius-acct-wire.ci` and `internal/test/fixture/tunnel_fixture_l2tp_{ppp,radius}.go` |
+| OTHER SESSIONS, not this one | `internal/test/fixture/plugin_fixture_12*`, `plugin_fixture_filter_*`, `register_filter_origin.go`, `register_modify_increment_med.go`, `constants.go`; the pool, pppoe and l2tp YANG files; the remaining hunks in both doc pages |
+
+**Why none of the exclusion work is committed.** `./le commit create` stages
+whole paths. `internal/component/radius/{client.go,packet.go}` carry the EAP
+session's uncommitted Message-Authenticator work, so naming them carries it;
+omitting them leaves the authradius code referencing `Packet.OmitAcctDelayTime`,
+which does not exist at HEAD, so the commit would not build. It lands after EAP.
+
+**`internal/component/l2tp` does not compile right now.** The CDN agent's
+refactor gives `teardownSession`, `removeSession` and `clearSessions` a
+`TerminateCause` argument that nine call sites do not yet pass. Mid-flight, not a
+defect.
+
+**One finding worth keeping even if the code is redone.** Assumption A-4 of the
+exclusion spec is BROKEN: `buildAcctPacket` does not append Acct-Delay-Time at
+all. `(*radius.Client).Exchange` stamps it through `setAcctDelayTime`, because
+RFC 2866 Section 5.2 counts what only the client knows. So a filter over the
+builder's attribute list can never see that attribute, and excluding it needs the
+client to be told not to stamp it. That is why `Packet.OmitAcctDelayTime` exists,
+with the zero value stamping so every other caller is unchanged. A record that
+omits it may then be replayed byte for byte, which Section 4.1 permits precisely
+because the attribute is absent.
+
 **One real defect was found and fixed on the way, and it is left UNCOMMITTED in
 the working tree** (`internal/le/interoplab/radius/radius_test.go`).
 `parseStubLogin` read the command with `stubField(script, " -c ")` over the

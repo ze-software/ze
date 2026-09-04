@@ -58,3 +58,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | 5db0ba0d | test(l2tp): the interop checker reads the accounting attributes | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-04 | 5db0ba0d | test(radius): prove admin login against a real FreeRADIUS server | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | test(radius): prove admin login against a real FreeRADIUS server | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-04 | 5db0ba0d | plan: record who owns each uncommitted path in the l2tp tangle | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | plan: record who owns each uncommitted path in the l2tp tangle | discovery-index freshness | ai/PACKAGE-MAP.md holds several other sessions' regenerated rows; this commit adds no package | open |
