@@ -22,7 +22,7 @@ Accounting-Request carries.
 
 | Function | Status | Notes |
 |----------|--------|-------|
-| Authentication | Production | PAP (RFC 2865 User-Password, hidden per §5.2 with the shared secret) or CHAP (§5.3 CHAP-Password with a §5.40 CHAP-Challenge). `auth-method` selects one; the default is `pap`. |
+| Authentication | Production | PAP (RFC 2865 User-Password, hidden per §5.2 with the shared secret), CHAP (§5.3 CHAP-Password with a §5.40 CHAP-Challenge), or EAP with MD5-Challenge or MS-CHAPv2 inside EAP-Message attributes (RFC 3579 §3.1). `auth-method` selects one; the default is `pap`. |
 | Authorization | Via profiles | An Access-Accept reply attribute (default Filter-Id) maps the user to local RBAC profiles. |
 | Accounting | Not in MVP | Admin-session accounting is deferred; subscriber accounting stays in the L2TP path. |
 
@@ -59,7 +59,7 @@ system {
 | `radius.timeout` | uint16 (1-60) | 3 | Per-server request timeout in seconds |
 | `radius.retries` | uint8 (0-10) | 3 | Transmit attempts per server before failover |
 | `radius.source-address` | ip-address | none | Local source IP for outbound RADIUS UDP |
-| `radius.auth-method` | enum `pap`, `chap` | `pap` | Credential the Access-Request carries. `chap` needs the server to hold the password in cleartext (see below) |
+| `radius.auth-method` | enum `pap`, `chap`, `eap-md5`, `eap-mschapv2` | `pap` | Credential the Access-Request carries. `chap` and `eap-md5` need the server to hold the password in cleartext; `eap-mschapv2` needs the NT hash (see below) |
 | `radius.profile-attribute` | enum `filter-id` | `filter-id` | Access-Accept reply attribute carrying profile name(s) |
 | `radius.default-profile` | leaf-list | none | Profiles applied when the Access-Accept carries no `profile-attribute` |
 
@@ -87,12 +87,19 @@ system {
 5. **Access-Reject** -- explicit rejection. The chain stops here; local bcrypt
    is NOT tried. This prevents a wrong password against RADIUS from succeeding
    via a stale local hash.
-6. **Access-Challenge** -- treated as an Access-Reject, and the chain stops.
-   Admin login sends one Access-Request and reads one answer, so ze does not
-   support challenge/response here (RFC 2865 §4.4). This is how the transports
-   are wired, not a limit of SSH: ze registers password and public-key auth
-   only, and SSH keyboard-interactive, which does have a round trip back to the
-   operator, is not registered.
+6. **Access-Challenge** -- the answer depends on `auth-method`.
+   - With `pap` or `chap` it is treated as an Access-Reject and the chain stops.
+     Those two send one Access-Request and read one answer, so ze does not
+     support challenge/response for them (RFC 2865 §4.4). This is how the
+     transports are wired, not a limit of SSH: ze registers password and
+     public-key auth only, and SSH keyboard-interactive, which does have a round
+     trip back to the operator, is not registered.
+   - With `eap-md5` or `eap-mschapv2` it is a round of the EAP conversation. Ze
+     answers as the EAP peer, using the password the operator already typed, and
+     sends a new Access-Request carrying the peer's EAP-Response and the
+     challenge's State attribute unchanged (RFC 2865 §5.24). No round trip to
+     the operator is needed, which is why EAP works over SSH password auth and
+     the web login form alike. See [EAP](#eap) below.
 7. **Timeout / all servers unreachable** -- treated as an infrastructure error,
    so the chain falls through to the next backend (local bcrypt). An
    unreachable RADIUS server never locks the operator out.
@@ -106,24 +113,27 @@ unreachable server falls through to local rather than hanging the login.
 ## Choosing the credential
 
 `auth-method` selects what the Access-Request carries. RFC 2865 §4.1 permits one
-of the two and never both: "An Access-Request MUST contain either a
-User-Password or a CHAP-Password or a State. An Access-Request MUST NOT contain
-both a User-Password and a CHAP-Password." Ze sends exactly one.
+credential and never two, and RFC 3579 §3.3 Note 1 extends the same exclusion to
+EAP: "An Access-Request that contains either a User-Password or CHAP-Password or
+ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than
+one type of those four attributes." Ze sends exactly one.
 
-| | `pap` (default) | `chap` |
-|---|---|---|
-| Attribute | User-Password (2) | CHAP-Password (3) plus CHAP-Challenge (60) |
-| What travels | The password, XORed with MD5(secret + Request Authenticator) (§5.2) | MD5(identifier, password, challenge) (§5.3) |
-| Recoverable from a capture | Yes, by anyone holding the shared secret: the §5.2 hiding is a reversible XOR | No |
-| Server must store | A hash or the cleartext | The cleartext |
+| | `pap` (default) | `chap` | `eap-md5` | `eap-mschapv2` |
+|---|---|---|---|---|
+| Attribute | User-Password (2) | CHAP-Password (3) plus CHAP-Challenge (60) | EAP-Message (79) plus Message-Authenticator (80) | EAP-Message (79) plus Message-Authenticator (80) |
+| What travels | The password, XORed with MD5(secret + Request Authenticator) (§5.2) | MD5(identifier, password, challenge) (§5.3) | MD5(identifier, password, challenge), inside EAP (RFC 3748 §5.4) | The MS-CHAPv2 NT-Response (RFC 2759 §4) |
+| Recoverable from a capture | Yes, by anyone holding the shared secret: the §5.2 hiding is a reversible XOR | No | No | No |
+| Server must store | A hash or the cleartext | The cleartext | The cleartext | The NT hash |
+| RADIUS round trips | 1 | 1 | 2 or more | 3 or more |
 
 **The cost of `chap` is at the server.** RFC 2865 §2.2: "CHAP requires that the
 user's password be available in cleartext to the server so that it can encrypt
 the CHAP challenge and compare that to the CHAP response. If the password is not
 available in cleartext to the RADIUS server then the server MUST send an
 Access-Reject to the client." A server that stores password hashes rejects every
-`chap` login. Check how your server stores operator passwords before you select
-it. Your local bcrypt account is a separate credential and still works, so a
+`chap` login, which the `radius-admin-chap-hashed-freeradius` interop scenario
+proves against a real FreeRADIUS rather than asserting. Check how your server
+stores operator passwords before you select it. Your local bcrypt account is a separate credential and still works, so a
 wrong choice is recoverable.
 
 Ze is the NAS and holds the operator's password, so it generates the challenge
@@ -143,6 +153,65 @@ both.
 
 <!-- source: internal/component/radius/chap.go -- chapCredential, chapResponse -->
 <!-- source: internal/component/radius/authenticator.go -- radiusAuthenticator.credential -->
+
+## EAP
+
+`eap-md5` and `eap-mschapv2` run a full RADIUS/EAP conversation (RFC 3579).
+**Ze answers EAP itself, as the peer.** The operator types a password into SSH or
+the web login, ze holds it, and ze runs the EAP method against the server on the
+operator's behalf. Nothing in the login transport changes and no EAP frame
+reaches the operator's client, so both methods work over every login surface.
+
+One login is a sequence of Access-Requests:
+
+1. Ze sends its own EAP-Request/Identity to its peer half, and puts the
+   EAP-Response/Identity that comes back into EAP-Message attributes. The
+   User-Name attribute carries the Type-Data of that Response (RFC 3579 §2.1).
+2. The server answers Access-Challenge, carrying its EAP-Request and usually a
+   State attribute.
+3. Ze feeds the EAP-Request to its peer and sends the peer's EAP-Response in a
+   new Access-Request, with the State copied byte for byte. Ze never reads
+   State: RFC 2865 §5.24 says "the client MUST NOT interpret the attribute
+   locally".
+4. The exchange ends on Access-Accept or Access-Reject. Profiles map exactly as
+   they do for PAP.
+
+Each round is a **new** Access-Request with its own Identifier and Request
+Authenticator, not a retransmission of the previous one.
+
+**Every EAP packet is protected.** RFC 3579 §3.1: "the Message-Authenticator
+attribute MUST be used to protect all Access-Request, Access-Challenge,
+Access-Accept, and Access-Reject packets containing an EAP-Message attribute."
+Ze signs each request with HMAC-MD5 over the whole packet, keyed with the shared
+secret and with the signature field taken as sixteen zero octets (§3.2). A reply
+whose Message-Authenticator does not verify is **silently discarded**, not
+rejected: the Access-Request stays outstanding and the client retransmits, so a
+forged packet cannot end a login. If the conversation then runs out of retries
+the login fails as an infrastructure error and the chain tries the next backend.
+
+An EAP packet longer than 253 octets is split across consecutive EAP-Message
+attributes, and the values of a reply's attributes are concatenated back into
+one packet (§3.1). One RADIUS packet carries exactly one EAP packet.
+
+**Two bounds end a conversation the server will not conclude,** and the server
+can disable neither. The EAP peer counts every round against its own cap of 20,
+and the login carries the same time budget every `auth-method` carries. Either
+one ends the login with an infrastructure error, so the chain falls through to
+local rather than hanging.
+
+**Choosing between them.** `eap-md5` carries the same cleartext-password
+requirement as `chap`, for the same reason: the server recomputes an MD5 over the
+password. `eap-mschapv2` needs the NT hash instead, which is what a server backed
+by Active Directory or by a `samba` password database holds. EAP-TLS is
+implemented in ze's EAP peer and is **not** offered here: it needs an operator
+certificate and key, which is a different credential model and a later feature.
+Ze does not negotiate among several methods either. It NAKs toward the one
+`auth-method` names, so a server that offers something else ends the login.
+
+<!-- source: internal/component/radius/authenticator_eap.go -- authenticateEAP, eapCredential -->
+<!-- source: internal/component/radius/eap.go -- appendEAPMessage, eapPacketFrom -->
+<!-- source: internal/component/radius/packet.go -- SignMessageAuthenticator -->
+<!-- source: internal/core/eap -- NewPeerSession, PeerSession.Process -->
 
 ## Profile mapping
 
@@ -204,6 +273,21 @@ The `.ci` tests in `test/plugin/` cover the main behaviours:
 | `aaa-radius-admin.ci` | Access-Accept + Filter-Id -> admin profile, log shows `source=radius`, no local fallback consulted |
 | `aaa-radius-fallback.ci` | Server unreachable -> local bcrypt accepted, log shows `source=local`, RADIUS did not silently succeed |
 | `aaa-radius-chap.ci` | `auth-method chap` -> the server verifies ze's digest and accepts; the mock rejects a request carrying both credentials, so a green run also proves no User-Password was sent |
+| `aaa-radius-eap.ci` | `auth-method eap-mschapv2` -> the mock challenges, ze answers with the State copied back, and the login completes. The mock computes the Message-Authenticator itself and DISCARDS a request whose signature does not verify, so a signer covering the wrong octets ends this test in a timeout |
+
+Those four drive `internal/test/mock/radius/radius.go`, which ze wrote. A mock
+built beside ze's own encoder agrees with ze by construction, so a second set of
+proofs runs the same paths against a real FreeRADIUS server at a pinned tag:
+
+| Interop scenario | Asserts |
+|------------------|---------|
+| `radius-admin-pap-freeradius` | An operator logs in over ze's SSH listener, FreeRADIUS records `verdict=accept` for the request ze sent, ze's log says `source=radius`, the Filter-Id profile decides which commands run, and the local account's own password is refused rather than accepted by a fall-through |
+| `radius-admin-chap-freeradius` | A server ze did not write reproduces ze's CHAP digest from its own `Cleartext-Password` entry, and its record shows a CHAP-Password with no User-Password beside it |
+| `radius-admin-chap-hashed-freeradius` | The §2.2 consequence above is real: the same entry stored hashed accepts the same password over PAP and refuses it over CHAP, and ze authenticates the operator through no backend at all |
+| `radius-admin-eap-freeradius` | `auth-method eap-mschapv2` completes against a server ze did not write: FreeRADIUS computes the Message-Authenticator, the MS-CHAPv2 challenge and the authenticator response from its own code, and its record shows an EAP-Message with neither password attribute beside it and at least one round that carried the State back |
+
+Run them with `./le integration interop-radius`, or one at a time with
+`RADIUS_INTEROP_SCENARIO=<name>`. They need Docker and no kernel module.
 
 Unit coverage lives in `internal/component/radius/{config,authenticator,aaa,chap,doctor}_test.go`.
 The `auth-method` enum is pinned against the schema by
@@ -222,15 +306,18 @@ INFO SSH auth success subsystem=ssh username=alice remote=10.0.0.1:51408 source=
 bcrypt user accepted the credentials.
 
 <!-- source: internal/test/mock/radius/radius.go -- ze-test radius-mock for .ci tests -->
+<!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
+<!-- source: test/interop-radius/scenarios/ -- the three interop scenario directories -->
 
 ## Operational notes
 
 - **Shared secrets** are stored as `$9$`-encoded ciphertext, never as
   plaintext. The CLI never echoes them; `ze config dump --strip-private`
   replaces them with `/* SECRET-DATA */`.
-- **PAP or CHAP**, selected by `auth-method`, default `pap`. EAP admin auth is
-  follow-up work. The L2TP subscriber path handles CHAP and MS-CHAPv2 for PPP
-  sessions through its own code, and this leaf does not affect it.
+- **PAP, CHAP, EAP-MD5 or EAP-MSCHAPv2**, selected by `auth-method`, default
+  `pap`. EAP-TLS is not offered: it needs an operator certificate and key. The
+  L2TP subscriber path handles CHAP and MS-CHAPv2 for PPP sessions through its
+  own code, and this leaf does not affect it.
 - **Same client** as the L2TP subscriber path (`internal/component/radius`),
   so retransmit, failover, and Response-Authenticator verification behave
   identically. That client is `udp4`, so RADIUS admin servers must be IPv4.

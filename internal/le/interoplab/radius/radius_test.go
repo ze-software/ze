@@ -45,6 +45,11 @@ type labPolicy struct {
 	recordRequests bool
 	// papProbeAccepted is what radclient hears back from the server.
 	papProbeAccepted bool
+	// challenges is true when the login runs several rounds and the server
+	// records each request that came back carrying its State. A login answered
+	// in one request, or one whose State ze failed to echo, is the defect the
+	// EAP scenario's third assertion exists to catch.
+	challenges bool
 }
 
 func conformingPAP() labPolicy {
@@ -74,6 +79,14 @@ func conformingCHAPHashed() labPolicy {
 	return policy
 }
 
+func conformingEAP() labPolicy {
+	policy := conformingPAP()
+	policy.serverPasswords = map[string]string{radiusUser: eapPassword}
+	policy.shape = eapShape
+	policy.challenges = true
+	return policy
+}
+
 // stubLab answers the protocol-neutral CheckerLab from labPolicy, with no
 // Docker and no container.
 type stubLab struct {
@@ -93,6 +106,17 @@ func (s *stubLab) record(verdict, user string) {
 	s.records = append(s.records, wantRecord(verdict, user, s.policy.shape).String())
 }
 
+// challenge records the intermediate round of a conversation that ran in
+// several requests, each carrying back the State the server issued. A
+// single-request login records none, which is what makes the EAP scenario's
+// State assertion discriminating.
+func (s *stubLab) challenge(user string) {
+	if !s.policy.challenges {
+		return
+	}
+	s.record(verdictStateEcho, user)
+}
+
 // runLogin walks the chain: RADIUS first, then local when RADIUS gave no
 // answer at all, then authorization over the attached profile.
 func (s *stubLab) runLogin(user, password, command string) string {
@@ -107,11 +131,13 @@ func (s *stubLab) runLogin(user, password, command string) string {
 			s.zeLog = append(s.zeLog, "INFO SSH auth success username="+user+" remote=127.0.0.1:1 source="+sourceLocal)
 		}
 	case s.policy.serverPasswords[user] == password && (s.policy.shape.CHAPPassword == credentialAbsent || s.policy.serverCanCHAP):
+		s.challenge(user)
 		s.record(verdictAccept, user)
 		authenticated = true
 		profile = s.policy.profile
 		s.zeLog = append(s.zeLog, "INFO SSH auth success username="+user+" remote=127.0.0.1:1 source="+sourceRADIUS)
 	default:
+		s.challenge(user)
 		s.record(verdictReject, user)
 		if s.policy.fallThrough && s.policy.localPasswords[user] == password {
 			authenticated = true
@@ -361,6 +387,61 @@ func TestCHAPHashedCheckerPolarities(t *testing.T) {
 	}
 }
 
+func TestEAPCheckerPolarities(t *testing.T) {
+	cases := []struct {
+		name    string
+		policy  func() labPolicy
+		wantErr string
+	}{
+		{
+			name:   "a server that runs the whole conversation passes",
+			policy: conformingEAP,
+		},
+		{
+			name: "a login answered in one request fails, because no EAP conversation ran",
+			policy: func() labPolicy {
+				policy := conformingEAP()
+				policy.challenges = false
+				return policy
+			},
+			wantErr: "verdict=state-echo",
+		},
+		{
+			name: "a request carrying a password credential beside the EAP-Message fails",
+			policy: func() labPolicy {
+				policy := conformingEAP()
+				policy.shape = papShape
+				return policy
+			},
+			wantErr: "FreeRADIUS record",
+		},
+		{
+			name: "a chain that falls through to local after Access-Reject fails",
+			policy: func() labPolicy {
+				policy := conformingEAP()
+				policy.fallThrough = true
+				return policy
+			},
+			wantErr: "the chain fell through",
+		},
+		{
+			name: "a server that keeps no record fails, because ze's own log cannot prove the request arrived",
+			policy: func() labPolicy {
+				policy := conformingEAP()
+				policy.recordRequests = false
+				return policy
+			},
+			wantErr: "FreeRADIUS record",
+		},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := checkEAP(context.Background(), newStubLab(testCase.policy()))
+			assertCheckerVerdict(t, err, testCase.wantErr)
+		})
+	}
+}
+
 func assertCheckerVerdict(t *testing.T, err error, wantErr string) {
 	t.Helper()
 	if wantErr == "" {
@@ -412,7 +493,7 @@ func TestParseLoginOutput(t *testing.T) {
 }
 
 func TestParseServerRecord(t *testing.T) {
-	complete := "verdict=accept user=radiusop user-password=present chap-password=absent nas-identifier=ze-interop-nas"
+	complete := "verdict=accept user=radiusop user-password=present chap-password=absent eap-message=absent nas-identifier=ze-interop-nas"
 	record, ok := parseServerRecord(complete)
 	if !ok {
 		t.Fatalf("a complete line was refused: %s", complete)
@@ -426,7 +507,11 @@ func TestParseServerRecord(t *testing.T) {
 		"",
 		"verdict=accept user=radiusop",
 		"verdict=accept user=radiusop user-password=present chap-password=absent",
-		"user=radiusop user-password=present chap-password=absent nas-identifier=ze-interop-nas",
+		"user=radiusop user-password=present chap-password=absent eap-message=absent nas-identifier=ze-interop-nas",
+		// A line written by the linelog format this lab carried before EAP: the
+		// eap-message field is absent, so it says nothing about whether an
+		// EAP-Message arrived and is not a verdict this checker can read.
+		"verdict=accept user=radiusop user-password=present chap-password=absent nas-identifier=ze-interop-nas",
 	} {
 		if _, ok := parseServerRecord(line); ok {
 			t.Fatalf("an incomplete line was read as a verdict: %q", line)

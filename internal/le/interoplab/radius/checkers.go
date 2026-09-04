@@ -43,6 +43,7 @@ const (
 	// the matching entries in this same repository.
 	papPassword  = "fixture-pap-secret"  //nolint:gosec // G101: a published lab fixture, matched by test/interop-radius/scenarios/*/users.
 	chapPassword = "fixture-chap-secret" //nolint:gosec // G101: a published lab fixture, matched by test/interop-radius/scenarios/*/users.
+	eapPassword  = "fixture-eap-secret"  //nolint:gosec // G101: a published lab fixture, matched by test/interop-radius/scenarios/*/users.
 
 	// deniedCommand is denied by the interop-operator profile and allowed by
 	// admin. allowedCommand is allowed by both.
@@ -59,6 +60,13 @@ const (
 
 	verdictAccept = "accept"
 	verdictReject = "reject"
+	// verdictStateEcho is one intermediate round of an EAP conversation: a
+	// request that arrived carrying both an EAP-Message and the State the server
+	// issued. It is the only evidence that the login was a conversation at all,
+	// because an accept looks the same whether it took one request or four, and
+	// FreeRADIUS runs no post-auth section for the Access-Challenge that asked
+	// the question.
+	verdictStateEcho = "state-echo"
 	// verdictSilent is the lab server's deliberate non-answer for localUser.
 	// It is recorded rather than inferred, so the control proves the server SAW
 	// the request and chose silence, instead of proving nothing arrived.
@@ -102,6 +110,7 @@ type serverRecord struct {
 	User          string
 	UserPassword  string
 	CHAPPassword  string
+	EAPMessage    string
 	NASIdentifier string
 }
 
@@ -112,6 +121,7 @@ type recordWant struct {
 	User          string
 	UserPassword  string
 	CHAPPassword  string
+	EAPMessage    string
 	NASIdentifier string
 }
 
@@ -120,6 +130,7 @@ func (w recordWant) matches(record serverRecord) bool {
 		w.User == record.User &&
 		w.UserPassword == record.UserPassword &&
 		w.CHAPPassword == record.CHAPPassword &&
+		w.EAPMessage == record.EAPMessage &&
 		w.NASIdentifier == record.NASIdentifier
 }
 
@@ -130,11 +141,17 @@ func (w recordWant) matches(record serverRecord) bool {
 type credentialShape struct {
 	UserPassword string
 	CHAPPassword string
+	EAPMessage   string
 }
 
 var (
-	papShape  = credentialShape{UserPassword: credentialPresent, CHAPPassword: credentialAbsent}
-	chapShape = credentialShape{UserPassword: credentialAbsent, CHAPPassword: credentialPresent}
+	papShape  = credentialShape{UserPassword: credentialPresent, CHAPPassword: credentialAbsent, EAPMessage: credentialAbsent}
+	chapShape = credentialShape{UserPassword: credentialAbsent, CHAPPassword: credentialPresent, EAPMessage: credentialAbsent}
+	// eapShape carries NEITHER password attribute: RFC 3579 Section 2.1 puts the
+	// credential inside the EAP conversation, so a User-Password or a
+	// CHAP-Password beside an EAP-Message is ze sending a second credential the
+	// operator did not configure.
+	eapShape = credentialShape{UserPassword: credentialAbsent, CHAPPassword: credentialAbsent, EAPMessage: credentialPresent}
 )
 
 // wantRecord builds the fully specified expectation for one request ze sent.
@@ -144,6 +161,7 @@ func wantRecord(verdict, user string, shape credentialShape) recordWant {
 		User:          user,
 		UserPassword:  shape.UserPassword,
 		CHAPPassword:  shape.CHAPPassword,
+		EAPMessage:    shape.EAPMessage,
 		NASIdentifier: nasIdentifier,
 	}
 }
@@ -153,6 +171,7 @@ func (w recordWant) String() string {
 	return tb.Str("verdict=").Str(w.Verdict).Str(" user=").Str(w.User).
 		Str(" user-password=").Str(w.UserPassword).
 		Str(" chap-password=").Str(w.CHAPPassword).
+		Str(" eap-message=").Str(w.EAPMessage).
 		Str(" nas-identifier=").Str(w.NASIdentifier).String()
 }
 
@@ -169,6 +188,54 @@ func checkPAP(ctx context.Context, lab *scenarioLab) error {
 // what Section 4.1 demands of an Access-Request.
 func checkCHAP(ctx context.Context, lab *scenarioLab) error {
 	return checkAcceptedLogin(ctx, lab, chapShape, chapPassword, "RADIUS CHAP")
+}
+
+// checkEAP proves ze completes a multi-round EAP conversation with a server ze
+// did not write.
+//
+// It is the only scenario whose evidence includes an intermediate round. The
+// server's record of an Access-Challenge is what says the login was a
+// conversation: RFC 3579 Section 3.1 puts the EAP packets in EAP-Message
+// attributes and RFC 2865 Section 5.24 makes ze copy the State back, and
+// neither obligation exists for a login that took one request.
+//
+// It also proves what a mock cannot. FreeRADIUS computes the Message-
+// Authenticator, the MS-CHAPv2 NT-Response and the authenticator response from
+// its own code, so ze's arithmetic has to agree with an implementation ze does
+// not share a line with.
+func checkEAP(ctx context.Context, lab *scenarioLab) error {
+	if err := lab.assertLocalControl(ctx, eapShape); err != nil {
+		return err
+	}
+
+	result, err := lab.login(ctx, radiusUser, eapPassword, allowedCommand)
+	if err != nil {
+		return fmt.Errorf("assertion 2: %w", err)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("assertion 2: %s could not run %q through RADIUS EAP-MSCHAPv2 (exit %d): %s",
+			radiusUser, allowedCommand, result.ExitCode, result.Output)
+	}
+	if err := lab.assertAuthSource(ctx, radiusUser, sourceRADIUS); err != nil {
+		return fmt.Errorf("assertion 2: %w", err)
+	}
+
+	// The conversation, not just its verdict. RFC 2865 Section 5.24 makes ze
+	// return the State "unmodified", and this record is the server's own
+	// evidence that it arrived: a login that reached Access-Accept with no round
+	// carrying State before it did not run EAP at all.
+	if err := lab.assertServerRecord(ctx, wantRecord(verdictStateEcho, radiusUser, eapShape)); err != nil {
+		return fmt.Errorf("assertion 3: %w", err)
+	}
+	if err := lab.assertServerRecord(ctx, wantRecord(verdictAccept, radiusUser, eapShape)); err != nil {
+		return fmt.Errorf("assertion 4: %w", err)
+	}
+
+	if err := lab.assertFilterIDProfile(ctx, eapPassword); err != nil {
+		return fmt.Errorf("assertion 5: %w", err)
+	}
+
+	return lab.assertRejectStopsChain(ctx, localPassword, eapShape, 6)
 }
 
 // checkAcceptedLogin is the walk both accepting scenarios take. Only three
@@ -530,11 +597,11 @@ func serverRecorded(text string, want recordWant) bool {
 	return false
 }
 
-// parseServerRecord reads one linelog line. It answers false unless all five
+// parseServerRecord reads one linelog line. It answers false unless all six
 // fields are present, so a truncated or reformatted line is never read as a
 // partial verdict.
 func parseServerRecord(line string) (serverRecord, bool) {
-	fields := make(map[string]string, 5)
+	fields := make(map[string]string, 6)
 	for field := range strings.FieldsSeq(line) {
 		key, value, found := strings.Cut(field, "=")
 		if found {
@@ -546,10 +613,11 @@ func parseServerRecord(line string) (serverRecord, bool) {
 		User:          fields["user"],
 		UserPassword:  fields["user-password"],
 		CHAPPassword:  fields["chap-password"],
+		EAPMessage:    fields["eap-message"],
 		NASIdentifier: fields["nas-identifier"],
 	}
 	if record.Verdict == "" || record.User == "" || record.UserPassword == "" ||
-		record.CHAPPassword == "" || record.NASIdentifier == "" {
+		record.CHAPPassword == "" || record.EAPMessage == "" || record.NASIdentifier == "" {
 		return serverRecord{}, false
 	}
 	return record, true

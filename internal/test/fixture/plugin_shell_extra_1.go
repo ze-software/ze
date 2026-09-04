@@ -34,6 +34,7 @@ type extra1Daemon struct {
 func init() {
 	Register("plugin/aaa-radius-admin", extra1RadiusAdmin)
 	Register("plugin/aaa-radius-chap", extra1RadiusChap)
+	Register("plugin/aaa-radius-eap", extra1RadiusEap)
 	Register("plugin/aaa-radius-fallback", extra1RadiusFallback)
 	Register("plugin/answer-unknown-command", extra1AnswerUnknownCommand)
 	Register("plugin/as112-probe-anycast-not-loopback", extra1AS112ProbeAnycast)

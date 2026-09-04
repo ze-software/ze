@@ -71,3 +71,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-04 | 5db0ba0d | feat(radius): let an operator hold an accounting attribute back | discovery-index freshness | ai/PACKAGE-MAP.md holds several other sessions' regenerated rows; this commit adds no package | open |
 | 2026-09-04 | 5db0ba0d | spec(radius): close radius-admin-chap with its interop proof landed | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-04 | 5db0ba0d | spec: close spec-radius-admin-chap | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | test(radius): prove the EAP admin login against a mock and FreeRADIUS | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-04 | 5db0ba0d | test(radius): prove the EAP admin login against a mock and FreeRADIUS | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

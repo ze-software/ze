@@ -1,0 +1,13 @@
+# Test: RADIUS admin authentication over EAP-MSCHAPv2 succeeds over SSH
+# VALIDATES: `auth-method eap-mschapv2` runs a multi-round EAP conversation, the
+# server challenges, ze returns the State unmodified and signs every
+# Access-Request, and the login completes with source=radius.
+# PREVENTS: an Access-Challenge read as a rejection, a Message-Authenticator
+# computed over the wrong octets (the server discards it and the login times
+# out), a dropped State, and a password credential sent under an EAP method.
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/aaa-radius-eap:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=auth success.*source=radius
+expect=stderr:pattern=method=eap
+expect=stderr:pattern=reply=Access-Challenge

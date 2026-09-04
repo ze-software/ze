@@ -52,6 +52,7 @@ const (
 	scenarioPAP        = "radius-admin-pap-freeradius"
 	scenarioCHAP       = "radius-admin-chap-freeradius"
 	scenarioCHAPHashed = "radius-admin-chap-hashed-freeradius"
+	scenarioEAP        = "radius-admin-eap-freeradius"
 
 	// nasIdentifier is the container hostname, and ze sends it as
 	// NAS-Identifier (RFC 2865 Section 4.1) because radiusBackend.Build reads
@@ -125,6 +126,7 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioPAP:        checker(checkPAP, timeout),
 		scenarioCHAP:       checker(checkCHAP, timeout),
 		scenarioCHAPHashed: checker(checkCHAPHashed, timeout),
+		scenarioEAP:        checker(checkEAP, timeout),
 	}
 }
 

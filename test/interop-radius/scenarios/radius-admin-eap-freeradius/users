@@ -1,0 +1,10 @@
+# FreeRADIUS mods-config/files/authorize for radius-admin-eap-freeradius.
+#
+# The password is stored in CLEARTEXT, which is what lets the mschap module
+# derive the NT password hash EAP-MSCHAPv2 needs. RFC 2759 Section 8 hashes the
+# password itself, so a server holding only a digest of it cannot compute the
+# NT-Response or the authenticator response ze verifies in return.
+#
+# "fixture-eap-secret" is a published fixture value that protects nothing.
+radiusop	Cleartext-Password := "fixture-eap-secret"
+		Filter-Id = "interop-operator"

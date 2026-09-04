@@ -264,3 +264,101 @@ environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
 	fmt.Fprint(os.Stderr, daemon.contents())
 	return nil
 }
+
+// extra1RadiusEap logs an operator in over SSH with `auth-method eap-mschapv2`,
+// so the login runs a multi-round EAP conversation over RADIUS instead of one
+// request and one answer.
+//
+// The mock verifies the Message-Authenticator of every Access-Request itself,
+// with its own HMAC-MD5 (internal/test/mock/radius/eap.go), and discards a
+// request whose signature does not verify, which RFC 3579 Section 3.1 requires.
+// So a signer that covered the wrong octets ends this fixture in a timeout
+// rather than in a login. The mock also refuses a round whose State it did not
+// issue, which is what makes the State copy of RFC 2865 Section 5.24 load
+// bearing here.
+func extra1RadiusEap(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("aaa-radius-eap takes no arguments: %q", args)
+	}
+	if err := extra1TouchReady(); err != nil {
+		return err
+	}
+	mock, address, err := extra1StartRadiusMock(ctx)
+	if err != nil {
+		return err
+	}
+	defer extra1StopRadiusMock(mock)
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "mock at %s\n", address)
+	config := fmt.Sprintf(`bgp {
+	peer peer1 {
+		connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65533; remote 65533; } }
+	}
+}
+system {
+	authentication {
+		radius {
+			server %s { port %s; key "ze-mock-key"; }
+			timeout 2;
+			auth-method eap-mschapv2;
+		}
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
+`, host, port)
+	daemon, sshPort, err := extra1RunDaemon(ctx, "aaa-radius-eap.conf", config, nil)
+	if err != nil {
+		return err
+	}
+	defer daemon.stop()
+	fmt.Fprintf(os.Stderr, "ssh on :%s\n", sshPort)
+	configDir, err := extra1InitCLI(ctx, sshPort)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(configDir) //nolint:errcheck // fixture cleanup
+	if err := extra1Wait(ctx, 500*time.Millisecond); err != nil {
+		return err
+	}
+	if output, err := extra1CLI(ctx, configDir, sshPort, "admin", "testpass", "show bgp"); err != nil {
+		return fmt.Errorf("show bgp via RADIUS EAP auth: %w\nOUTPUT: %s\nMOCK: %s\n%s",
+			err, output, mock.contents(), daemon.contents())
+	}
+	fmt.Fprintln(os.Stderr, "OK: show bgp ran via RADIUS EAP auth")
+	if err := extra1Wait(ctx, 300*time.Millisecond); err != nil {
+		return err
+	}
+	if !Poll(ctx, 20, 100*time.Millisecond, func() bool {
+		return extra1ContainsBoth(daemon.contents(), "auth success", "source=radius")
+	}) {
+		return fmt.Errorf("daemon did not record RADIUS authentication: %s", daemon.contents())
+	}
+	if !strings.Contains(mock.contents(), "method=eap") {
+		return fmt.Errorf("the server did not read an EAP credential: %s", mock.contents())
+	}
+	// The Access-Challenge is what separates this path from PAP and CHAP: the
+	// login only completes if ze answered a challenge, carried the State back and
+	// signed the next request.
+	if !strings.Contains(mock.contents(), "reply=Access-Challenge") {
+		return fmt.Errorf("the server never challenged, so no EAP conversation ran: %s", mock.contents())
+	}
+	if !strings.Contains(mock.contents(), "reply=Access-Accept") {
+		return fmt.Errorf("the server never accepted the conversation: %s", mock.contents())
+	}
+	if strings.Contains(mock.contents(), "discarded") {
+		return fmt.Errorf("the server discarded a request from ze: %s", mock.contents())
+	}
+	if strings.Contains(mock.contents(), "method=pap") || strings.Contains(mock.contents(), "method=chap") {
+		return fmt.Errorf("a password credential reached the server under auth-method eap-mschapv2: %s", mock.contents())
+	}
+	fmt.Fprint(os.Stderr, mock.contents())
+	fmt.Fprint(os.Stderr, daemon.contents())
+	return nil
+}

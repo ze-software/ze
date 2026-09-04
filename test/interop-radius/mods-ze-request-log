@@ -8,9 +8,16 @@
 # ze_request_log writes the two answered verdicts, and ze_silent_log writes the
 # one deliberately unanswered request, so a reader parses one format.
 #
-# Tmp-String-0 and Tmp-String-1 carry the PRESENCE of the two credentials, never
-# their values, so the file holds no password and no digest. sites-enabled/default
-# sets both before either module runs.
+# Tmp-String-0, Tmp-String-1 and Tmp-String-2 carry the PRESENCE of the three
+# credential shapes, never their values, so the file holds no password and no
+# digest. sites-enabled/default sets all three before any module runs.
+#
+# ze_state_echo_log writes the intermediate rounds of a conversation, which no
+# other module here can see: post-auth does not run for an Access-Challenge, so
+# the reply that asked the question records nothing. It is called from authorize
+# on a request carrying both an EAP-Message and a State, which is the client
+# answering a challenge, and it is the evidence that the login was a
+# conversation rather than one request.
 linelog ze_request_log {
 	filename = ${logdir}/ze-request.log
 	escape_filenames = no
@@ -18,15 +25,22 @@ linelog ze_request_log {
 	format = ""
 	reference = "messages.%{%{reply:Packet-Type}:-unknown}"
 	messages {
-		Access-Accept = "verdict=accept user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none}"
-		Access-Reject = "verdict=reject user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none}"
-		unknown = "verdict=unhandled user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none}"
+		Access-Accept = "verdict=accept user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} eap-message=%{Tmp-String-2} nas-identifier=%{%{NAS-Identifier}:-none}"
+		Access-Reject = "verdict=reject user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} eap-message=%{Tmp-String-2} nas-identifier=%{%{NAS-Identifier}:-none}"
+		unknown = "verdict=unhandled user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} eap-message=%{Tmp-String-2} nas-identifier=%{%{NAS-Identifier}:-none}"
 	}
+}
+
+linelog ze_state_echo_log {
+	filename = ${logdir}/ze-request.log
+	escape_filenames = no
+	permissions = 0644
+	format = "verdict=state-echo user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} eap-message=%{Tmp-String-2} nas-identifier=%{%{NAS-Identifier}:-none}"
 }
 
 linelog ze_silent_log {
 	filename = ${logdir}/ze-request.log
 	escape_filenames = no
 	permissions = 0644
-	format = "verdict=silent user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none}"
+	format = "verdict=silent user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} eap-message=%{Tmp-String-2} nas-identifier=%{%{NAS-Identifier}:-none}"
 }

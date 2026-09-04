@@ -104,13 +104,14 @@ func Run(args []string) int {
 	}
 
 	keyBytes := []byte(key)
+	eap := newEAPServer()
 	buf := make([]byte, radius.MaxPacketLen)
 	for {
 		n, from, err := conn.ReadFromUDP(buf)
 		if err != nil {
 			return 0
 		}
-		reply := handleRequest(buf[:n], keyBytes, users, logAll)
+		reply := handleRequest(buf[:n], keyBytes, users, eap, logAll)
 		if reply == nil {
 			continue
 		}
@@ -122,10 +123,17 @@ func Run(args []string) int {
 
 // handleRequest decodes an Access-Request and returns the encoded response, or
 // nil if the packet is not a decodable Access-Request.
-func handleRequest(data, key []byte, users userList, logPackets bool) []byte {
+func handleRequest(data, key []byte, users userList, eap *eapServer, logPackets bool) []byte {
 	pkt, err := radius.Decode(data)
 	if err != nil || pkt.Code != radius.CodeAccessRequest {
 		return nil
+	}
+
+	// RFC 3579 Section 3.1 gives an EAP conversation its own shape: several
+	// rounds, an Access-Challenge between them, and a Message-Authenticator on
+	// every packet. eap.go answers it, and nothing below is reached for it.
+	if pkt.FindAttr(radius.AttrEAPMessage) != nil {
+		return eap.handle(data, pkt, key, users, logPackets)
 	}
 
 	name := string(pkt.FindAttr(radius.AttrUserName))
@@ -205,10 +213,14 @@ func verifyCHAP(chapPassword []byte, password string, challenge []byte) bool {
 }
 
 func codeName(code uint8) string {
-	if code == radius.CodeAccessAccept {
+	switch code {
+	case radius.CodeAccessAccept:
 		return "Access-Accept"
+	case radius.CodeAccessChallenge:
+		return "Access-Challenge"
+	default:
+		return "Access-Reject"
 	}
-	return "Access-Reject"
 }
 
 // decodeUserPassword reverses the RFC 2865 Section 5.2 User-Password hiding.

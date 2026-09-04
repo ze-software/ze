@@ -1,13 +1,14 @@
 # Ze RADIUS interop lab: the whole virtual server, written out.
 #
 # This replaces the shipped sites-enabled/default rather than editing it. The
-# shipped file carries EAP, MS-CHAP, realms, proxying and accounting, none of
-# which the admin-login path uses, and a reader of this lab must be able to see
-# every step the server takes between the Access-Request and its reply.
+# shipped file carries realms, proxying and accounting, none of which the
+# admin-login path uses, and a reader of this lab must be able to see every step
+# the server takes between the Access-Request and its reply.
 #
 # authorize runs chap before files so the chap module can set Auth-Type = CHAP
 # from a CHAP-Password, and pap after files so it can read whatever password
-# form the users file supplied.
+# form the users file supplied. eap runs beside them and answers only a request
+# carrying EAP-Message, so the PAP and CHAP scenarios pass through it untouched.
 server default {
 	listen {
 		type = auth
@@ -26,6 +27,7 @@ server default {
 		update request {
 			&Tmp-String-0 := "absent"
 			&Tmp-String-1 := "absent"
+			&Tmp-String-2 := "absent"
 		}
 		if (&User-Password) {
 			update request {
@@ -36,6 +38,22 @@ server default {
 			update request {
 				&Tmp-String-1 := "present"
 			}
+		}
+		if (&EAP-Message) {
+			update request {
+				&Tmp-String-2 := "present"
+			}
+		}
+
+		# A request carrying BOTH an EAP-Message and a State is the client
+		# answering a challenge, and it is recorded here rather than in post-auth
+		# because post-auth does not run for an Access-Challenge: the reply that
+		# asked the question leaves no record of its own. RFC 2865 Section 5.24
+		# makes the echo the client's obligation, so this line is the server's
+		# evidence that ze carried the State back and that the login was a
+		# conversation rather than one request.
+		if (&EAP-Message && &State) {
+			ze_state_echo_log
 		}
 
 		# localop is the lab's control account, and the server answers nothing
@@ -56,6 +74,16 @@ server default {
 		}
 
 		chap
+
+		# eap answers only a request carrying EAP-Message and returns noop for
+		# every other one, so the PAP and CHAP scenarios pass through it
+		# unchanged. "ok = return" ends authorize for an EAP conversation before
+		# files and pap can set an Auth-Type of their own, which is what routes
+		# the request to the eap module in authenticate.
+		eap {
+			ok = return
+		}
+
 		files
 		pap
 	}
@@ -67,6 +95,25 @@ server default {
 		Auth-Type CHAP {
 			chap
 		}
+		# EAP-MSCHAPv2 runs the peer's MS-CHAPv2 Response through the mschap
+		# module as an inner request, so the eap module needs this section even
+		# though nothing on the wire carries an MS-CHAP-Password attribute.
+		#
+		# The section is named after the MODULE INSTANCE, not after MS-CHAP, and
+		# the difference is not cosmetic: rlm_eap_mschapv2 resolves the section
+		# it runs with dict_valbyname(PW_AUTH_TYPE, 0, "MSCHAP") and falls back
+		# to "MS-CHAP" only when that misses
+		# (src/modules/rlm_eap/types/rlm_eap_mschapv2/rlm_eap_mschapv2.c:83 in
+		# release_3_2_7). FreeRADIUS registers an Auth-Type value for every
+		# module instance it loads, so "mschap" is already there and the
+		# case-insensitive first lookup takes it. A section named MS-CHAP then
+		# exists and is never reached, and the server answers a correct
+		# NT-Response with "Auth-Type sub-section not found.  Ignoring." and an
+		# EAP-Failure. Measured here on 2026-09-04.
+		Auth-Type mschap {
+			mschap
+		}
+		eap
 	}
 
 	post-auth {

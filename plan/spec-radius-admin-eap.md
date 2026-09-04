@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | spec-radius-admin-chap (closed 2026-09-04) |
-| Phase | 6/8 |
+| Phase | 7/8 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-04 |
@@ -274,12 +274,17 @@ the authenticator fails it.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `aaa-radius-eap` | `test/plugin/aaa-radius-eap.ci` | EAP admin login accepted over a full challenge exchange, log shows `source=radius` | |
+| `aaa-radius-eap` | `test/plugin/aaa-radius-eap.ci` | EAP admin login accepted over a full challenge exchange, log shows `source=radius` | done |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Peer implementation | Asserts |
 |----------|--------------------|---------|
 | `radius-admin-eap-freeradius` | FreeRADIUS configured for EAP-MSCHAPv2 | A real server accepts ze's Message-Authenticator, its EAP-Message framing and its State handling. A mock built from ze's own encoder would prove none of these |
+
+The scenario is registered in `scenarioCheckerMap`
+(`internal/le/interoplab/radius/radius.go`) and its checker is `checkEAP`
+(`checkers.go`). Its polarities run with no container in
+`TestEAPCheckerPolarities`.
 
 ## Files to Modify
 - `internal/component/ike/**` -- import paths only, from the move.
@@ -351,8 +356,8 @@ the authenticator fails it.
 | EAP-Message framing | `TestEAPMessageSplitsAtTheAttributeLimit` | |
 | Challenge loop | `TestRadiusAdminEapChallengeLoopCarriesState` | |
 | Wiring from config to wire | `TestRadiusAdminEapReachesTheWire` | |
-| Functional proof | `test/plugin/aaa-radius-eap.ci` | |
-| Interop proof | `radius-admin-eap-freeradius` scenario | |
+| Functional proof | `test/plugin/aaa-radius-eap.ci` | done |
+| Interop proof | `radius-admin-eap-freeradius` scenario | done |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -402,6 +407,123 @@ RADIUS-side plumbing that fits in one file plus a loop.
 - RFC 2865 Section 5.24, already enrolled.
 - RFC 3748, already enrolled; this spec adds no EAP-layer behavior and must
   leave that ledger unchanged.
+
+## Discrimination Record (Phase 7)
+
+`ai/rules/interop-and-goal-validation.md` requires a forced RED for each new
+proof: break the producing behavior, rebuild the artifact the test drives,
+observe the red, restore, observe the green. Every break below was applied
+through a Go build overlay, so no file in `internal/component/radius` was
+modified on disk: another session held that package.
+
+### `test/plugin/aaa-radius-eap.ci`
+
+Baseline, the fixture run against the isolated binary pair:
+
+```
+OK: show bgp ran via RADIUS EAP auth
+radius-mock: Access-Request user=admin method=eap eap-type=1 reply=Access-Challenge
+radius-mock: Access-Request user=admin method=eap eap-type=26 reply=Access-Challenge
+radius-mock: Access-Request user=admin method=eap eap-type=26 reply=Access-Accept
+```
+
+**Break 1 -- the State is not returned.** Removed the `AttrState` append from
+`eapCredential` (`internal/component/radius/authenticator_eap.go`), which is the
+RFC 2865 Section 5.24 obligation AC-7 names, and rebuilt the daemon:
+
+```
+radius-mock: Access-Request user=admin method=eap eap-type=1 reply=Access-Challenge
+radius-mock: Access-Request user=admin method=eap eap-type=26 reply=Access-Reject
+ZE-OBSERVER-FAIL: show bgp via RADIUS EAP auth: exit status 1
+```
+
+The mock refuses a round whose State it did not issue, so the second round is
+rejected and the login fails. Exit 1.
+
+**Break 2 -- the Message-Authenticator covers the wrong octets.** Changed
+`mac.Write(packet)` to `mac.Write(packet[:len(packet)-1])` in
+`SignMessageAuthenticator` (`internal/component/radius/packet.go`) and rebuilt:
+
+```
+radius-mock: EAP Access-Request discarded user=admin reason="message-authenticator does not verify"
+radius-mock: EAP Access-Request discarded user=admin reason="message-authenticator does not verify"
+radius-mock: EAP Access-Request discarded user=admin reason="message-authenticator does not verify"
+ZE-OBSERVER-FAIL: show bgp via RADIUS EAP auth: exit status 1
+```
+
+Three discards, one for each retransmission, then the login times out. That is
+the silent discard of RFC 3579 Section 3.1 observed from the server's side, and
+it is what makes the signature load bearing here: the mock computes the HMAC
+itself (`internal/test/mock/radius/eap.go`, `verifyRequestSignature`) rather
+than calling ze's signer.
+
+### `radius-admin-eap-freeradius`
+
+Baseline, `./le --name eapdev integration interop-radius` over all four
+scenarios: exit 0.
+
+**Break A -- the State is not returned.** The same overlay as Break 1,
+cross-compiled into `test/interop-radius/ze-linux`, packed into the lab image,
+and selected with `NO_BUILD=1` so the suite ran that image:
+
+```
+── radius-admin-eap-freeradius ──
+  ✗ FAIL: assertion 2: radiusop could not run "show version" through RADIUS
+    EAP-MSCHAPv2 (exit 1): ssh: handshake failed
+```
+
+Assertion 1, the localop control, still passed, so the lab was healthy and the
+red is ze's.
+
+**Break B -- ze puts the wrong credential on the wire.** Set `auth-method pap`
+in `test/interop-radius/scenarios/radius-admin-eap-freeradius/ze.conf`, with an
+unbroken daemon:
+
+```
+── radius-admin-eap-freeradius ──
+  ✗ FAIL: assertion 1: wait for FreeRADIUS record 'verdict=silent user=localop
+    user-password=absent chap-password=absent eap-message=absent
+    nas-identifier=ze-interop-nas' timed out before the peer became ready
+```
+
+It reds at the FIRST assertion, because the control request already carries the
+wrong credential and the checker reads the server's record of what ARRIVED.
+Restored, the scenario passes.
+
+### What the FreeRADIUS run found
+
+The scenario failed on its first attempt against a server configuration that
+looked correct, and the cause was in the lab rather than in ze:
+
+```
+(2) eap: Calling submodule eap_mschapv2 to process data
+(2) eap_mschapv2: Auth-Type sub-section not found.  Ignoring.
+(2) eap: Sending EAP Failure (code 4) ID 2 length 4
+```
+
+`rlm_eap_mschapv2` resolves the section it runs with
+`dict_valbyname(PW_AUTH_TYPE, 0, "MSCHAP")` and falls back to `"MS-CHAP"` only
+when that misses (`rlm_eap_mschapv2.c:83`, release_3_2_7). FreeRADIUS registers
+an Auth-Type value for every module instance it loads, so `mschap` is already
+there and the case-insensitive first lookup takes it. The lab's section is
+therefore named `Auth-Type mschap`, and `test/interop-radius/site-default`
+carries that reasoning beside it.
+
+A second lab finding is why the scenario reads `verdict=state-echo` rather than
+a challenge line: FreeRADIUS runs no `post-auth` section for an
+Access-Challenge, so the reply that asks the question records nothing. The
+`ze_state_echo_log` module writes the round from `authorize` instead, on a
+request carrying both an EAP-Message and a State.
+
+The exchange the server logged is the whole conversation, ze's Nak included:
+
+```
+(0) eap: Using default_eap_type = MD5
+(1) eap: Peer sent packet with method EAP NAK (3)
+(1) eap: Found mutually acceptable type MSCHAPv2 (26)
+(2) eap: Calling submodule eap_mschapv2 to process data
+    Sent Access-Accept
+```
 
 ## Checklist
 
