@@ -375,37 +375,36 @@ func pluginShellExtra4TacacsFallback(ctx context.Context, args []string) error {
 	})
 }
 
-// pluginShellExtra4AAALocalFailover proves both halves of the failover the
-// owner ruled on 2026-09-04, and they answer differently on purpose.
+// pluginShellExtra4AAALocalFailover proves the rule the owner stated on
+// 2026-09-04: with a user in both places, the AAA backend is asked first, and
+// the local account answers only when AAA could not.
 //
-// AUTHENTICATION fails over: with the AAA chain unbuilt, ssh starts and a local
-// account logs in, which is how the operator sees the failure at all.
+// Here the TACACS+ backend declares no shared secret, so it never builds.
+// aaa.Build DROPS it and composes the chain without it, which leaves the local
+// backend at priority 200 in place. The operator logs in against the local
+// account and runs a command, because the local backend also contributes the
+// authorizer the dispatcher consults.
 //
-// AUTHORIZATION FAILS CLOSED: "we should fail close - no user no login". A
-// fallback to the local RBAC policy was tried and reverted the same day,
-// because a box declaring no system.authorization profile would then allow
-// every command while its chain was broken. So the session opens and runs
-// nothing, and repair goes through the console.
+// Build used to abort on the first backend error, which took the local backend
+// down with the broken one and left the daemon with no authenticator at all.
 //
-// Reading the refusal TEXT is what separates the two halves. A login that
-// failed and a command that was refused look the same from a bare exec error,
-// and only one of them is the contract.
-//
-// Not an in-config observer: the daemon is driven from OUTSIDE, because a
-// plugin's own `request shutdown` travels the same dispatch path and an
-// observer could not end the run while that path is denied.
+// Not an in-config observer: the daemon is driven from OUTSIDE, so the run ends
+// even where a dispatch path is refused.
 func pluginShellExtra4AAALocalFailover(_ context.Context, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("aaa-local-failover: got %d arguments, want 1", len(args))
 	}
-	_, err := pluginShellExtra4Command("127.0.0.1", args[0], "admin", "testpass", "show bgp")
-	if err == nil {
-		return errors.New("the command was ALLOWED: a nil AAA bundle installs no policy, so authorization must refuse")
+	output, err := pluginShellExtra4Command("127.0.0.1", args[0], "admin", "testpass", "show bgp")
+	if err != nil {
+		if strings.Contains(err.Error(), "command restricted by access control") {
+			return fmt.Errorf("the local account logged in and the command was REFUSED, so the local backend contributed no authorizer: %w", err)
+		}
+		return fmt.Errorf("the local account could not log in with the tacacs backend dropped: %w", err)
 	}
-	if !strings.Contains(err.Error(), "command restricted by access control") {
-		return fmt.Errorf("the local account could not log in, so authentication did not fail over: %w", err)
+	if strings.TrimSpace(output) == "" {
+		return errors.New("show bgp answered nothing, so the command did not actually run")
 	}
-	fmt.Fprintln(os.Stderr, "OK: local login succeeded with the AAA chain unbuilt, and authorization refused the command")
+	fmt.Fprintln(os.Stderr, "OK: the local account logged in and ran a command with the tacacs backend dropped")
 	return nil
 }
 

@@ -63,6 +63,6 @@ expect=stderr:pattern=no shared secret configured for this TACACS\+ server
 expect=stderr:contains=AAA backend build failed
 # And the operator still got in, on a local account.
 expect=stderr:pattern=auth success.*source=local
-expect=stderr:pattern=OK: local login succeeded with the AAA chain unbuilt
+expect=stderr:pattern=OK: the local account logged in and ran a command
 reject=stderr:pattern=source=tacacs
 reject=stderr:pattern=ZE-OBSERVER-FAIL

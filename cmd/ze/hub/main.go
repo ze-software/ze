@@ -942,8 +942,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		aaaLog := slogutil.Logger("hub.aaa")
 		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, bootUsers, liveAcceptedLocalUsers, aaaLog)
 		if aaaErr != nil {
-			aaaLog.Warn("AAA backend build failed", "error", aaaErr)
-			aaaBundle = nil
+			// A backend that would not build is dropped and the rest of the
+			// chain still composed, so KEEP what Build returned. Discarding it
+			// here took the local backend down with the broken one and left
+			// the daemon with no authenticator at all.
+			aaaLog.Error("AAA backend build failed, that backend cannot authenticate", "error", aaaErr)
 		}
 		registerAAAAccountingProvider(aaaBundle)
 		swapAAABundle(aaaBundle, aaaLog)

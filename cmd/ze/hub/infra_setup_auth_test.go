@@ -456,17 +456,17 @@ func TestInfraSetupReentryDoesNotRetryFailedNoBGPAAABoot(t *testing.T) {
 	assert.Equal(t, 1, initialBuilds)
 	assert.Zero(t, candidateBuilds, "runtime hook reentry must not retry a failed boot build")
 	assert.Nil(t, aaaBundle.Load())
-	// REVERSED on 2026-09-04 by owner ruling: failover to the local user when
-	// AAA fails MUST be the documented behavior. This row used to require the
-	// opposite, that a nil boot-owned bundle leaves ssh unbuilt, and called it
-	// failing closed.
+	// This scenario registers ONE backend and it fails to build, so nothing
+	// composed at all: aaa.Build drops the broken backend, finds no
+	// authenticator left, and returns no bundle. ssh is not started, because a
+	// listener that can authenticate nobody is a port rather than a service.
 	//
-	// Skipping ssh is not failing closed. It removes the surface the operator
-	// repairs the broken AAA config over, while the daemon keeps forwarding.
-	// Authorization still denies on a nil bundle (liveAAABundleAuthorizer), and
-	// the authenticator ssh receives falls back to the local accounts, which is
-	// what the other two management surfaces already did.
-	assert.True(t, sshBuilt, "a nil boot-owned bundle must still start ssh, which fails over to the local accounts")
+	// The interesting case is the OTHER one, and it is not this test's: a
+	// broken backend beside a working local one leaves the local backend in the
+	// chain, ssh starts, and the local account answers. That is proven in
+	// internal/component/aaa/chain_survives_a_failed_backend_test.go and in
+	// TestSSHIsStartedWhenTheChainComposed.
+	assert.False(t, sshBuilt, "no backend composed, so there is nothing for ssh to authenticate against")
 }
 
 // postStartDispatcherForTest installs a boot bundle, runs infraSetup and its

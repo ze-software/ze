@@ -295,10 +295,28 @@ func (r *backendRegistry) Build(params BuildParams) (*Bundle, error) {
 	bundle := &Bundle{}
 	var authChain []Authenticator
 	var authorizerOwner, accountantOwner string
+	var dropped []error
 	for _, b := range backends {
 		contrib, err := b.Build(params)
 		if err != nil {
-			return nil, fmt.Errorf("aaa backend %q: %w", b.Name(), err)
+			// A backend that will not BUILD is dropped, and the rest of the
+			// chain is composed without it. Aborting here instead took the
+			// LOCAL backend down with the broken one, because local sits at
+			// priority 200 and never got built: a keyless TACACS+ server left
+			// the daemon with no authenticator at all, rather than with the
+			// local accounts the chain exists to fall back to.
+			//
+			// The error is still RETURNED, beside the bundle. A reload refuses
+			// on it and keeps the running chain (cmd/ze/hub/main_reload.go),
+			// while boot logs it and runs with what composed. The two want
+			// different answers from one build, so Build gives both rather
+			// than choosing.
+			dropped = append(dropped, fmt.Errorf("aaa backend %q: %w", b.Name(), err))
+			if params.Logger != nil {
+				params.Logger.Error("aaa: backend dropped from the chain, its users cannot authenticate",
+					"backend", b.Name(), "error", err)
+			}
+			continue
 		}
 		if contrib.Authenticator != nil {
 			authChain = append(authChain, contrib.Authenticator)
@@ -327,7 +345,9 @@ func (r *backendRegistry) Build(params BuildParams) (*Bundle, error) {
 		}
 	}
 	if len(authChain) == 0 {
-		return nil, errNoAuthenticationBackendConfigured
+		// Nothing composed, so there is no chain to fall back within. The
+		// caller gets no bundle, and no bundle authenticates nobody.
+		return nil, errors.Join(append(dropped, errNoAuthenticationBackendConfigured)...)
 	}
 	var authenticator Authenticator
 	if len(authChain) == 1 {
@@ -338,5 +358,5 @@ func (r *backendRegistry) Build(params BuildParams) (*Bundle, error) {
 	// Bind the selected authorizer to each successful authentication result.
 	// The transport carries that immutable view through command dispatch.
 	bundle.Authenticator = WithProfileAuthorizer(authenticator, bundle.Authorizer)
-	return bundle, nil
+	return bundle, errors.Join(dropped...)
 }
