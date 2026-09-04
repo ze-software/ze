@@ -37,11 +37,16 @@ const (
 	// demonstrated that six of six is achievable on a fast host, so demanding
 	// it would trade a flaky test for a permanently red one.
 	flapWanted08 = flapRounds08 / 2
-	// flapCommitLead08 is how long the burst waits after the SIGHUP. The reload
-	// must reach reconcileDHCP and take dhcpMu before the burst starts, and it
-	// must still be holding it when the burst lands. There is no counter that
-	// says "the apply is running", so the lead is timing and the round loop's
-	// retries cover a miss.
+	// flapCommitLead08 is how long the round waits for the config apply to
+	// START before bursting anyway. It is a DEADLINE now, not a lead: the burst
+	// fires as soon as ze_iface_config_apply_started_total moves, which says the
+	// reload has reached the reconcile and is about to hold dhcpMu for as long
+	// as stopping forty DHCP clients takes.
+	//
+	// That removes the guess this constant used to be. A fixed lead was a bet on
+	// how long the transaction layer takes before iface's apply runs, and on
+	// 2026-09-04 it was lost often enough that one pass overlapped a single
+	// round of six where three are wanted.
 	//
 	// One second, the value chosen when forty DHCP clients held the lock for a
 	// measured 1.1 to 3.3 s, and it is still the right value: the stop side of
@@ -187,8 +192,20 @@ func flapApplies08(ctx context.Context, port string) (float64, error) {
 	return totalCounter08(body, "ze_iface_config_apply_started_total"), nil
 }
 
-// flapBlocked08 reads whether the link worker WAITED for the config commit, and
-// it must sum every series rather than read `name="zeflapv0"`.
+// flapBlocked08 reads whether events ARRIVED while the link worker was waiting
+// for the config commit, which is the question this test actually asks.
+//
+// It reads ze_iface_link_events_queued_while_blocked_total and not
+// ze_iface_link_worker_blocked_total. The block counter cannot answer it at all:
+// the worker takes dhcpMu once per drained entry, so at most one block exists
+// per contiguous hold, and the 1 Hz carrier resync usually takes it while the
+// burst coalesces behind it and finds the lock free. Reading the block counter
+// over a window wide enough to see that resync was true in every round that
+// took the lock, which made the wanted-rounds guard below unfalsifiable and
+// produced four green runs that measured nothing; over a window narrow enough
+// to exclude it, it read zero through a genuine hold. This counter has no
+// window: the queue marks the wait, and an event pushed during it is counted
+// whatever else happens, coalesced or not.
 //
 // The worker labels the block with the name on the queue entry it was about to
 // handle (`countLinkWorkerBlocked(key.ifaceName)`,
@@ -209,7 +226,23 @@ func flapBlocked08(ctx context.Context, port string) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return totalCounter08(body, "ze_iface_link_worker_blocked_total"), nil
+	return totalCounter08(body, "ze_iface_link_events_queued_while_blocked_total"), nil
+}
+
+// flapDeviceQueued08 reads how many events for THIS DEVICE arrived while the
+// worker was blocked. It is the count coalescing is asserted against, and it is
+// per-label where flapBlocked08 is a total, because those are different facts:
+// one event meeting a held lock proves the overlap, and folding needs TWO
+// events for the SAME key. A round where the burst began as the hold ended has
+// a real overlap and nothing to fold, and demanding coalescing of it fails the
+// test for the queue doing nothing wrong. Round 5 of a run on 2026-09-04 did
+// exactly that.
+func flapDeviceQueued08(ctx context.Context, port string) (float64, error) {
+	body, err := scrape08(ctx, port)
+	if err != nil {
+		return 0, err
+	}
+	return namedCounter08(body, "ze_iface_link_events_queued_while_blocked_total", flapDevice08), nil
 }
 
 func flapCommit08(pid int) error {
@@ -312,10 +345,23 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		if err := flapCommit08(pid); err != nil {
 			return err
 		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(flapCommitLead08):
+		// Wait for the apply to START rather than for a fixed lead. The counter
+		// is incremented before dhcpMu is taken, so a rise says the reload has
+		// reached the reconcile and is about to hold the lock for as long as
+		// stopping forty DHCP clients takes. Bursting on that signal removes the
+		// guess: a lead was a bet on how long the transaction layer takes before
+		// iface's apply runs, and it was lost often enough that only one round
+		// in six overlapped on a slower pass.
+		//
+		// A miss is not fatal. The poll gives up after flapCommitLead08 and the
+		// burst goes anyway, so a round where the signal never arrives behaves
+		// as it did before rather than failing here; the end-of-run guard is
+		// what turns repeated misses red.
+		if !Poll(ctx, int(flapCommitLead08/(20*time.Millisecond)), 20*time.Millisecond, func() bool {
+			now, pollErr := flapApplies08(ctx, port)
+			return pollErr == nil && now > appliesBefore
+		}) {
+			fmt.Fprintf(os.Stderr, "FLAP: round %d saw no apply within %s of the SIGHUP; bursting anyway\n", round, flapCommitLead08)
 		}
 		// Read the block counter HERE, immediately before the burst, not before
 		// the SIGHUP. A window that opened at the commit spanned the whole lead,
@@ -332,6 +378,10 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 			return err
 		}
 		blockedNow, err := flapBlocked08(ctx, port)
+		if err != nil {
+			return err
+		}
+		deviceQueued, err := flapDeviceQueued08(ctx, port)
 		if err != nil {
 			return err
 		}
@@ -375,9 +425,9 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		}
 		pressure := pressureNow - pressureBefore
 		pressures = append(pressures, pressure)
-		// The coalescing assertion belongs to a round that OVERLAPPED, and to
-		// no other. `overlapped` reads the daemon's own
-		// ze_iface_link_worker_blocked_total, so it says whether the worker was
+		// The coalescing assertion belongs to a round where at least two events
+		// for this device met the hold, and to no other. `overlapped` reads the daemon's own
+		// ze_iface_link_events_queued_while_blocked_total, so it says whether the worker was
 		// ever held; a round where it was not is a round where the burst had
 		// nothing to outrun, and demanding coalescing of it fails the test for
 		// the scenario not happening rather than for the product regressing.
@@ -389,7 +439,10 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		// fails here: the worker was held, events arrived, and the queue did
 		// not fold them. The scenario-never-built case is caught once, at the
 		// end, by `stalled < flapWanted08`, which names the cause.
-		if overlapped && pressure <= 0 {
+		// Two events for the same key had to meet the hold for the queue to have
+		// anything to fold. `overlapped` alone is one event, which proves the
+		// scenario and proves nothing about coalescing.
+		if deviceQueued >= 2 && pressure <= 0 {
 			return fmt.Errorf("round %d: worker was blocked and the coalesced counter did not move; the queue did not fold events it held", round)
 		}
 		// Counting is the ONLY thing the overlap gates. The rest of the round,
@@ -436,7 +489,7 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		return fmt.Errorf("no round of %d saw ze_iface_config_apply_started_total move: the SIGHUP never reached the interface apply, so no commit ever held the lock and the scenario could not be built", flapAttempts08)
 	}
 	if stalled < flapWanted08 {
-		return fmt.Errorf("only %d of %d wanted rounds overlapped a commit in %d attempts: the burst kept arriving after the reload finished, so the scenario was never built (ze_iface_link_worker_blocked_total did not move)", stalled, flapWanted08, flapAttempts08)
+		return fmt.Errorf("only %d of %d wanted rounds overlapped a commit in %d attempts: the burst kept arriving after the reload finished, so the scenario was never built (ze_iface_link_events_queued_while_blocked_total did not move)", stalled, flapWanted08, flapAttempts08)
 	}
 	fmt.Fprintf(os.Stderr, "OK: %d rounds of %d transitions during commits, stalled=%d, pressure=%v, resyncs=0\n", flapRounds08, flapTransitions08, stalled, pressures)
 	return nil

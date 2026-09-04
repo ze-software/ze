@@ -60,6 +60,31 @@ func newMonitor(eb ze.EventBus) *monitor {
 	}
 }
 
+// monitorReceiveBufferBytes is SO_RCVBUF for each of the three netlink sockets
+// this monitor subscribes on. Without it they keep the kernel default, which is
+// net.core.rmem_default, commonly 208 KiB and not sized for anything in
+// particular.
+//
+// The kernel drops a multicast notification it cannot queue, and the loss
+// happens before ze sees it: no amount of care on the reader side recovers a
+// notification that was never delivered. A link that flaps rapidly, a bulk
+// address change, or a neighbour table churning during a scan all produce
+// bursts far faster than a Go channel hand-off, and a router that silently
+// misses link-state transitions under exactly those conditions is a real
+// operational defect rather than a test artefact.
+//
+// Measured on the arm64 QEMU VM on 2026-09-04: with the default buffer,
+// test/plugin/iface-link-flap-during-commit lost 1054 and 207 notifications in
+// two of three runs at 101 transitions per burst, which is well under the 401
+// its own header records as where loss had previously been measured.
+//
+// One MiB, and not forced. SetReceiveBufferSize without the force flag asks for
+// the size and the kernel clamps it to net.core.rmem_max, so a host with a
+// smaller ceiling gets what it allows rather than an error. The forcing variant
+// takes SO_RCVBUFFORCE, needs CAP_NET_ADMIN and overrides the sysctl, which is
+// not a decision a monitor should make for the operator.
+const monitorReceiveBufferBytes = 1 << 20
+
 func (m *monitor) start() error {
 	if !m.started.CompareAndSwap(false, true) {
 		return errIfaceMonitorAlreadyStarted
@@ -69,16 +94,22 @@ func (m *monitor) start() error {
 	addrCh := make(chan netlink.AddrUpdate, 64)
 	neighCh := make(chan netlink.NeighUpdate, 64)
 
-	if err := netlink.LinkSubscribe(linkCh, m.stopCh); err != nil {
+	if err := netlink.LinkSubscribeWithOptions(linkCh, m.stopCh, netlink.LinkSubscribeOptions{
+		ReceiveBufferSize: monitorReceiveBufferBytes,
+	}); err != nil {
 		m.started.Store(false)
 		return fmt.Errorf("iface monitor: link subscribe: %w", err)
 	}
-	if err := netlink.AddrSubscribe(addrCh, m.stopCh); err != nil {
+	if err := netlink.AddrSubscribeWithOptions(addrCh, m.stopCh, netlink.AddrSubscribeOptions{
+		ReceiveBufferSize: monitorReceiveBufferBytes,
+	}); err != nil {
 		m.stopFn.Do(func() { close(m.stopCh) })
 		m.started.Store(false)
 		return fmt.Errorf("iface monitor: addr subscribe: %w", err)
 	}
-	if err := netlink.NeighSubscribe(neighCh, m.stopCh); err != nil {
+	if err := netlink.NeighSubscribeWithOptions(neighCh, m.stopCh, netlink.NeighSubscribeOptions{
+		ReceiveBufferSize: monitorReceiveBufferBytes,
+	}); err != nil {
 		m.stopFn.Do(func() { close(m.stopCh) })
 		m.started.Store(false)
 		return fmt.Errorf("iface monitor: neigh subscribe: %w", err)
