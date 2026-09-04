@@ -45,7 +45,8 @@ func startTestManagedServer(t *testing.T) (*ManagedServer, string) {
 		return nil, ErrClientConfigNotFound
 	}
 	srv, err := NewManagedServer(ManagedServerConfig{
-		Addrs: []string{"127.0.0.1:0"},
+		Authority: newTestCA(t),
+		Addrs:     []string{"127.0.0.1:0"},
 		ClientSecrets: map[string]string{
 			testClientName:  testClientSecret,
 			testClient2Name: testClient2Secret,
@@ -311,6 +312,7 @@ func TestManagedServeResilientBinding(t *testing.T) {
 
 	readConfig := func(name string) ([]byte, error) { return []byte(testClientConfig), nil }
 	srv2, err := NewManagedServer(ManagedServerConfig{
+		Authority:     newTestCA(t),
 		Addrs:         []string{occupied, "127.0.0.1:0"}, // one colliding, one free
 		ClientSecrets: map[string]string{testClientName: testClientSecret},
 		ReadConfig:    readConfig,
@@ -339,6 +341,7 @@ func TestManagedServeAllAddressesUnavailable(t *testing.T) {
 	_ = srv1
 
 	srv2, err := NewManagedServer(ManagedServerConfig{
+		Authority:     newTestCA(t),
 		Addrs:         []string{occupied}, // only address is already in use
 		ClientSecrets: map[string]string{testClientName: testClientSecret},
 		ReadConfig:    func(name string) ([]byte, error) { return []byte(testClientConfig), nil },

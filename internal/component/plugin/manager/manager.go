@@ -14,6 +14,7 @@ import (
 	parent "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
@@ -43,6 +44,13 @@ type Manager struct {
 
 	// Hub config for TLS acceptor (external plugins).
 	hubConfig *parent.HubConfig
+
+	// The certificate authority the TLS acceptor takes its leaf from, and whose
+	// root every plugin process validates that leaf against. Injected because
+	// internal/component/pki already reaches internal/component/plugin, so this
+	// package cannot import it. nil means no acceptor can be built, and
+	// ensureAcceptor says so rather than self-signing.
+	hubAuthority parent.Authority
 
 	// Single shared ProcessManager — every spawn phase appends to the same
 	// pm.processes map so AllProcesses returns every running plugin regardless
@@ -79,6 +87,15 @@ func NewManager() *Manager {
 // Must be called before StartAll if external plugins are configured.
 func (m *Manager) SetHubConfig(cfg *parent.HubConfig) {
 	m.hubConfig = cfg
+}
+
+// SetHubAuthority sets the certificate authority the TLS acceptor takes its
+// leaf from. Must be called before StartAll whenever an acceptor can be needed,
+// which is whenever external plugins or an explicit hub server block are
+// configured. Without it ensureAcceptor fails rather than serving a certificate
+// no peer can validate.
+func (m *Manager) SetHubAuthority(ca parent.Authority) {
+	m.hubAuthority = ca
 }
 
 // SetMetricsRegistry stores the registry and forwards it to an existing
@@ -226,10 +243,12 @@ func (m *Manager) ensureAcceptor(configs []parent.PluginConfig) error {
 		return nil
 	}
 
-	// Creation (auto-generated server block, cert, listener, per-client secret
-	// lookup, accept loop) is shared with the hub orchestrator's subsystem
-	// path -- see parent.NewHubAcceptor. Only the policy above is engine-local.
-	acceptor, err := parent.NewHubAcceptor(m.hubConfig)
+	// Creation (auto-generated server block, issued leaf, listener, per-client
+	// secret lookup, accept loop) is shared with the subsystem path -- see
+	// parent.NewHubAcceptor. Only the policy above is engine-local.
+	// clock.RealClock{} is the option written out at the call site: it decides
+	// when the served leaf is reissued, and a daemon runs on wall time.
+	acceptor, err := parent.NewHubAcceptor(m.hubConfig, m.hubAuthority, clock.RealClock{})
 	if err != nil {
 		return fmt.Errorf("plugin TLS acceptor: %w", err)
 	}

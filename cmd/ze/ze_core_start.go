@@ -387,11 +387,11 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		Token:         cli.Secret,
 		TLSInsecure:   env.GetBool("ze.managed.tls.insecure", false),
 		SourceAddress: cli.SourceAddress,
-		// Without this the configured leaf reaches nothing and only the
-		// environment variable can pin the hub, so a client configured through
-		// its config file falls through to the system CA it cannot satisfy.
-		CertificateFingerprint: cli.CertificateFingerprint,
-		Version:                fleet.VersionHash(data),
+		// Without this the configured leaf reaches nothing, so a client
+		// configured through its config file falls through to the system CA it
+		// cannot satisfy.
+		CA:      cli.CA,
+		Version: fleet.VersionHash(data),
 		Handler: &managed.Handler{
 			Validate: func(cfgData []byte) error {
 				_, parseErr := config.LoadConfig(string(cfgData), "", nil)
@@ -413,13 +413,17 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 	// rather than a second tls.Config spelled here. This path is first boot:
 	// there is no config yet, so it carries the token to a hub the client has
 	// never spoken to, and it was the least authenticated exchange of them all.
-	// Only the environment variable is available, which is where a first-boot
-	// client's server, name and token come from too.
-	tlsConf := managed.ClientTLSConfig(&managed.ClientConfig{
-		Server:                 server,
-		TLSInsecure:            env.GetBool("ze.managed.tls.insecure", false),
-		CertificateFingerprint: env.Get("ze.managed.tls.certificate-fingerprint"),
+	// No config means no pki ca entry to name, so the anchor here is the system
+	// pool, which fails closed against a privately issued hub. A first boot
+	// against such a hub is what ze.managed.tls.insecure is for, and the client
+	// names its ca once it holds a config.
+	tlsConf, tlsErr := managed.ClientTLSConfig(&managed.ClientConfig{
+		Server:      server,
+		TLSInsecure: env.GetBool("ze.managed.tls.insecure", false),
 	})
+	if tlsErr != nil {
+		return nil, fmt.Errorf("hub trust anchor: %w", tlsErr)
+	}
 
 	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", server)
 	if err != nil {

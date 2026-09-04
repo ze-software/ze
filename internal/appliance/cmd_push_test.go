@@ -3,7 +3,9 @@
 package appliance
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -630,4 +632,124 @@ func fleetDeviceName(i int) string {
 	buf = append(buf, "dev"...)
 	buf = strconv.AppendInt(buf, int64(i), 10)
 	return string(buf)
+}
+
+// servedPair returns the appliance's current certificate and key as a
+// tls.Certificate, which is the material the DEVICE serves after its image was
+// assembled from those files.
+func servedPair(t *testing.T, dir, name string) tls.Certificate {
+	t.Helper()
+
+	certPEM, err := os.ReadFile(filepath.Join(dir, name, "secrets", "tls", "cert.pem")) //nolint:gosec // test-controlled path
+	if err != nil {
+		t.Fatalf("read cert.pem: %v", err)
+	}
+	keyPEM, err := os.ReadFile(filepath.Join(dir, name, "secrets", "tls", "key.pem")) //nolint:gosec // test-controlled path
+	if err != nil {
+		t.Fatalf("read key.pem: %v", err)
+	}
+	pair, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("the appliance material is not a usable pair: %v", err)
+	}
+	return pair
+}
+
+// startDeviceServer runs the updater protocol behind the material a device
+// serves, and points the named appliance's config at it.
+func startDeviceServer(t *testing.T, dir, name string, served tls.Certificate) {
+	t.Helper()
+
+	srv := httptest.NewUnstartedServer(updaterMux(t, &mockOpts{}))
+	srv.TLS = &tls.Config{Certificates: []tls.Certificate{served}, MinVersion: tls.VersionTLS13}
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+
+	host, port := testServerHostPort(srv)
+	cfg, err := LoadConfig(ConfigPath(dir, name))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	cfg.Device.Address = host
+	cfg.Device.UpdatePort = port
+	if saveErr := saveConfig(ConfigPath(dir, name), cfg); saveErr != nil {
+		t.Fatalf("save config: %v", saveErr)
+	}
+
+	imgPath := filepath.Join(dir, name, "ze-20260510-120000.img")
+	if writeErr := os.WriteFile(imgPath, []byte("image"), 0o600); writeErr != nil {
+		t.Fatalf("write image: %v", writeErr)
+	}
+}
+
+// TestPushTrustsAReissuedLeaf covers AC-9 and A-2. The device's certificate was
+// reissued after the build host wrote its trust file, so the leaf the device
+// now serves appears nowhere in that file. The push still succeeds, because the
+// file's anchor is the ISSUER: the certificate authority that signed both
+// leaves. A trust file holding a copy of one leaf could not do this.
+func TestPushTrustsAReissuedLeaf(t *testing.T) {
+	dir := initTestAppliance(t, "reissued", nil)
+	baseDir = dir
+
+	certPath := filepath.Join(dir, "reissued", "secrets", "tls", "cert.pem")
+	trustFile, err := os.ReadFile(certPath) //nolint:gosec // test-controlled path
+	if err != nil {
+		t.Fatalf("read the trust file: %v", err)
+	}
+
+	if code := runReplaceCert([]string{"reissued"}); code != exitOK {
+		t.Fatalf("replace-cert returned %d", code)
+	}
+	served := servedPair(t, dir, "reissued")
+
+	reissued, err := os.ReadFile(certPath) //nolint:gosec // test-controlled path
+	if err != nil {
+		t.Fatalf("read the reissued certificate: %v", err)
+	}
+	if bytes.Equal(trustFile, reissued) {
+		t.Fatal("replace-cert left the certificate unchanged, so this test would prove nothing")
+	}
+
+	// The operator still holds the file written at initialization; only the
+	// device moved on.
+	if writeErr := os.WriteFile(certPath, trustFile, 0o600); writeErr != nil {
+		t.Fatalf("restore the trust file: %v", writeErr)
+	}
+
+	startDeviceServer(t, dir, "reissued", served)
+
+	env.ResetCache()
+	if code := runPush([]string{"reissued"}); code != exitOK {
+		t.Fatalf("push returned %d, want 0: the pool holds the issuer, so a reissued leaf must verify", code)
+	}
+}
+
+// TestPushRefusesALeafFromAnotherAuthority is the other half of AC-9. Trusting
+// an issuer must not become trusting anybody: a device presenting a leaf that
+// this appliance's root did not sign is refused.
+func TestPushRefusesALeafFromAnotherAuthority(t *testing.T) {
+	dir := initTestAppliance(t, "anchored", nil)
+	baseDir = dir
+
+	// A second appliance has its own certificate authority, so its leaf is
+	// signed by a root the first appliance never saw.
+	otherCfg := DefaultConfig("stranger")
+	otherCfgPath := filepath.Join(dir, "stranger-input.json")
+	data, err := json.MarshalIndent(&otherCfg, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if writeErr := os.WriteFile(otherCfgPath, data, 0o600); writeErr != nil {
+		t.Fatal(writeErr)
+	}
+	if code := runInit([]string{"--config", otherCfgPath, "stranger"}); code != exitOK {
+		t.Fatalf("init of the second appliance returned %d", code)
+	}
+
+	startDeviceServer(t, dir, "anchored", servedPair(t, dir, "stranger"))
+
+	env.ResetCache()
+	if code := runPush([]string{"anchored"}); code == exitOK {
+		t.Fatal("push accepted a device whose leaf this appliance's root did not sign")
+	}
 }

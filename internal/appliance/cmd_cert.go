@@ -14,7 +14,7 @@ import (
 )
 
 // errTLSFlagPair refuses half of a replacement. Accepting one flag alone would
-// silently fall through to self-signed regeneration and destroy the material
+// silently fall through to issuing a new certificate and destroy the material
 // the operator meant to keep.
 var errTLSFlagPair = errors.New("--cert and --key must be given together")
 
@@ -39,7 +39,7 @@ func runReplaceCert(args []string) int {
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: ze appliance replace-cert [options] <name>\n\n")
-		fmt.Fprintf(os.Stderr, "Without --cert/--key, regenerates a self-signed certificate.\n\n")
+		fmt.Fprintf(os.Stderr, "Without --cert/--key, issues a new certificate from the appliance CA.\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		fs.PrintDefaults()
 	}
@@ -90,7 +90,7 @@ func runReplaceCert(args []string) int {
 		fmt.Printf("certificate replaced for appliance %q (CA-signed)\n", name)
 		return exitOK
 	}
-	fmt.Printf("certificate regenerated for appliance %q (self-signed, %d years)\n", name, cfg.TLS.ValidityYears)
+	fmt.Printf("certificate reissued for appliance %q (appliance CA, %d years)\n", name, cfg.TLS.ValidityYears)
 	return exitOK
 }
 
@@ -106,7 +106,7 @@ func runReplaceCert(args []string) int {
 //
 // certSource and keySource name the material in the error, so the operator
 // reads which of the two was refused. Both entry points pass the path the
-// operator typed; the self-signed path passes a phrase, because no file the
+// operator typed; the issuing path passes a phrase, because no file the
 // operator can open holds the material.
 func validateTLSPair(certPEM, keyPEM []byte, certSource, keySource string) error {
 	if block, _ := pem.Decode(certPEM); block == nil {

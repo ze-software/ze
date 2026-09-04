@@ -291,6 +291,9 @@ func TestPrivateKeysMarked(t *testing.T) {
 		"meta/auth/local/password":        true,
 		"meta/web/cert":                   true,
 		"meta/web/key":                    true,
+		// The local CA root key is Private; its certificate is not, because an
+		// operator copies that certificate into a peer's trust anchor.
+		"meta/ca/key": true,
 	}
 
 	for _, e := range AllEntries() {

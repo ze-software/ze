@@ -5,6 +5,7 @@ module ze-pki-cmd {
     import ze-cli-show-cmd  { prefix clishowcmd; }
     description "PKI show commands: certificate listing and detailed inspection.
          Relocated from the central show schema for plugin self-containment.";
+    revision 2026-09-03 { description "show pki local-ca pem exports the root of the certificate authority this daemon issues its own components' certificates from. It is a separate noun from certificate, which addresses an operator-configured store entry by name, because the local root is generated at first start and is named by nothing."; }
     revision 2026-08-30 { description "Each output form of show pki certificate name is its own command: pem, bundle pem and fingerprint. The forms are mutually exclusive tails, so the model states them as sibling containers rather than a description stating an alternation a handler switch reads."; }
     revision 2026-06-03 { description "Initial revision: relocated from ze-cli-show-cmd."; }
 
@@ -21,6 +22,22 @@ module ze-pki-cmd {
                 ze:help "Shows name, type (CA or device), subject, issuer, expiry, and validity status.
 Check here to find certificates approaching expiration.";
             }
+            container local-ca {
+                config false;
+                description "The certificate authority this daemon issues its own components' certificates from.";
+                ze:help "Ze generates this root at its first start and keeps it. It signs the leaf the plugin
+                         hub and the management hub serve. It is not one of the certificates the pki block
+                         configures, and it has no name.";
+                container pem {
+                    config false;
+                    ze:command "ze-show:pki-local-ca-pem";
+                    description "Export the root certificate of the local certificate authority as PEM.";
+                    ze:help "Give this text to each client that must trust this node, in its
+                             `pki ca <name> certificate` block. The output holds the certificate only:
+                             the root private key never leaves the daemon.";
+                }
+            }
+
             container certificate {
                 config false;
                 description "Inspect a specific certificate in detail or export forms.";

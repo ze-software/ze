@@ -203,6 +203,27 @@ Template keys use `{param}` placeholders for variable segments. The `Key()` meth
 
 Discovery: `ze data registered` lists all public key patterns. `ze data registered <pattern>` shows details for one.
 
+The Private flag hides a PATTERN from that listing. It is not a file mode, and
+ZeFS has no per-key mode: `BlobStore.WriteFile` accepts its `perm` argument and
+ignores it, and `storeFileInfo.Mode()` returns `0o444` for every entry that is
+not a directory. The mode that
+protects stored key material is the blob file's own. `atomicWrite` creates it
+with `os.CreateTemp`, which gives 0600, and renames it into place, so the whole
+store is 0600 from the moment it is created.
+<!-- source: pkg/zefs/store.go -- BlobStore.WriteFile, atomicWrite -->
+<!-- source: pkg/zefs/file.go -- storeFileInfo.Mode -->
+
+Two registered keys hold the daemon's own certificate authority. `meta/ca/cert`
+is the root certificate, which is public material an operator copies into a
+peer's trust anchor, so it stays listable. `meta/ca/key` is the root private key
+and is Private.
+<!-- source: pkg/zefs/keys.go -- KeyCACert, KeyCAKey -->
+<!-- source: internal/component/pki/ca.go -- LoadOrGenerateRoot -->
+
+Both are written once, on the first daemon start that finds no root, and read on
+every start after it. A restart therefore presents the same root, so a copy an
+operator already distributed keeps working.
+
 ## In-place writes
 
 When a value changes but fits within its existing slot capacity, `flush()` uses `pwrite` to update only the changed entry and the container header, avoiding a full file rewrite.

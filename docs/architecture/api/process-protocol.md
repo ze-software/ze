@@ -836,6 +836,48 @@ are loaded, so the dispatcher may not yet know about the target command.
 registry after every phase completes, so the dispatch is guaranteed to resolve.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go — OnStarted vs OnAllPluginsReady -->
 
+### The Attribute Names in the Filter Text Protocol
+
+`FilterUpdateInput.Update` is a space-separated list of `<name> <value>` pairs,
+followed by the `nlri` block. The engine renders one subject for the whole
+chain, so every filter on a peer reads the same text.
+
+Thirteen attribute names can appear. An attribute the UPDATE does not carry
+produces no pair at all, so a plugin reads absence and never a default value.
+The order below is the order the engine emits.
+
+| Name | Attribute | Value shape | Example |
+|------|-----------|-------------|---------|
+| `origin` | ORIGIN (RFC 4271 Section 5.1.1) | One token: `igp`, `egp` or `incomplete` | `origin igp` |
+| `as-path` | AS_PATH with AS4_PATH merged in (RFC 6793 Section 4.2.3) | One AS number, or a bracketed list | `as-path [65001 65002]` |
+| `next-hop` | NEXT_HOP (RFC 4271 Section 5.1.3) | One address | `next-hop 10.0.0.1` |
+| `med` | MULTI_EXIT_DISC (RFC 4271 Section 5.1.4) | One unsigned decimal | `med 100` |
+| `local-preference` | LOCAL_PREF (RFC 4271 Section 5.1.5) | One unsigned decimal | `local-preference 150` |
+| `atomic-aggregate` | ATOMIC_AGGREGATE (RFC 4271 Section 5.1.6) | The bare token, with no value | `atomic-aggregate` |
+| `aggregator` | AGGREGATOR (RFC 4271 Section 5.1.7) | `<asn>:<address>` | `aggregator 65000:4.4.4.4` |
+| `community` | COMMUNITIES (RFC 1997) | One community, or a bracketed list. A well-known value renders as its name | `community [65000:100 no-export]` |
+| `originator-id` | ORIGINATOR_ID (RFC 4456 Section 8) | One address | `originator-id 3.3.3.3` |
+| `cluster-list` | CLUSTER_LIST (RFC 4456 Section 8) | Dotted decimal identifiers in wire order, separated by spaces, with no brackets | `cluster-list 1.1.1.1 2.2.2.2` |
+| `extended-community` | EXTENDED COMMUNITIES (RFC 4360) | Sixteen lowercase hexadecimal characters for each, or a bracketed list | `extended-community 0002fde800000064` |
+| `aigp` | AIGP (RFC 7311) | One unsigned decimal metric | `aigp 42` |
+| `large-community` | LARGE COMMUNITIES (RFC 8092) | `<global>:<local1>:<local2>`, or a bracketed list | `large-community 65000:1:2` |
+
+<!-- source: internal/component/bgp/reactor/filter_format.go -- attrNameToCode, appendAllAttrs, appendSingleAttr -->
+<!-- source: internal/core/bgp/attribute/text_append.go -- the AppendText method of each type -->
+
+`FilterDecl.Attributes` records the attributes a filter reads. It does not
+narrow this list: the subject is built once for the chain and carries every
+attribute the UPDATE holds.
+
+The engine writes one warning and no pair when it holds an attribute no renderer
+names. The chain then runs on the subject it has. An operator sees the line
+under the `ze.log.bgp.reactor.forward` subsystem.
+
+**A plugin MUST look up a keyword and MUST NOT count tokens from the start of
+the string.** Ze added `origin`, `med`, `local-preference`, `atomic-aggregate`
+and `cluster-list` to the subject on 2026-09-04. A plugin that reads a name is
+unaffected. A plugin that reads a position is not.
+
 ### The AS Path in the Filter Text Protocol
 
 The `as-path` pair of `FilterUpdateInput.Update` carries the AS path
@@ -1126,15 +1168,38 @@ For external plugins (Python, Rust, etc.) -- runs as separate process:
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv -->
 
 1. Engine starts TLS listener from `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` config
-2. Engine forks child with env vars: `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (per-plugin unique token), `ZE_PLUGIN_CERT_FP` (server cert SHA-256 fingerprint), `ZE_PLUGIN_NAME`
-3. Child verifies server cert fingerprint during TLS handshake, authenticates with `#0 auth {"token":"...","name":"..."}`
+2. Engine forks child with env vars: `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (per-plugin unique token), `ZE_PLUGIN_CA_PEM` (the PEM certificate authority root that issued the listener's certificate), `ZE_PLUGIN_NAME`
+3. Child validates the engine certificate chain against that root and nothing else, then authenticates with `#0 auth {"token":"...","name":"..."}`
 4. Engine validates token matches the per-plugin token generated for that name (name binding prevents impersonation)
 5. Token is cleared from the child's OS environment after first read (`Secret: true` registration)
 6. Single bidirectional connection using `MuxConn` (responses routed by `#<id>`, requests via `Requests()` channel)
 7. No `DirectBridge` -- always uses newline-framed RPC over TLS
 8. Same 5-stage handshake over the same connection
+
+**The trust anchor is the issuer, not one certificate.** `TLSConfigWithRoot`
+builds the client config from `ZE_PLUGIN_CA_PEM` alone. It fails closed: an
+empty root and an unparsable root each return an error and no config, so no
+child holds a config it cannot verify a peer with. A certificate the engine
+reissues still validates, because the anchor outlives it. The engine reissues on
+its next start, and also while it runs: the acceptor serves through
+`plugin.ServingLeaf`, which answers `tls.Config.GetCertificate` and mints a
+fresh leaf once two thirds of the current one's life is spent. A plugin that
+connects back on day two therefore meets a valid certificate.
+
+Two dialers reach the acceptor, and both go through `TLSConfigWithRoot`:
+`sdk.dialAndAuth`, which a standalone plugin binary uses, and `cli.connFromEnv`,
+which the framework every in-tree system plugin registers through uses when the
+engine starts it out of process. Neither writes its token before the chain
+validates.
+
+`ZE_PLUGIN_HUB_HOST` is the acceptor host, except that an unspecified listen
+address (`0.0.0.0` or `::`) is handed to the child as `127.0.0.1`. The issued
+certificate carries no SAN for an unspecified address, and the plugin runs
+beside the engine, so the loopback is both reachable and verifiable.
 <!-- source: internal/component/plugin/process/process.go -- startExternal env var setup -->
-<!-- source: internal/component/plugin/ipc/tls.go -- TokenForPlugin, CertFingerprint, combinedLookup -->
+<!-- source: internal/component/plugin/ipc/tls.go -- TokenForPlugin, TLSConfigWithRoot, StartListeners, PluginAcceptor.RootPEM, combinedLookup -->
+<!-- source: internal/component/plugin/cli/cli.go -- connFromEnv -->
+<!-- source: internal/component/plugin/leaf.go -- ServingLeaf -->
 
 ### Benefits of Long-Lived Design
 
@@ -1478,9 +1543,9 @@ Transport: single TLS connection per plugin.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv -->
 
 1. Engine reads `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` from config
-2. Engine starts TLS listener(s) (one per `server` entry), creates `PluginAcceptor` with cert fingerprint
-3. Engine generates per-plugin token, forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (unique per plugin), `ZE_PLUGIN_CERT_FP`, `ZE_PLUGIN_NAME` env vars
-4. Child verifies server cert fingerprint, connects via TLS, sends `#0 auth {"token":"...","name":"..."}`
+2. Engine starts TLS listener(s) (one per `server` entry), creates `PluginAcceptor` holding the certificate authority root that issued the served certificate
+3. Engine generates per-plugin token, forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (unique per plugin), `ZE_PLUGIN_CA_PEM`, `ZE_PLUGIN_NAME` env vars
+4. Child validates the engine chain against that root, connects via TLS, sends `#0 auth {"token":"...","name":"..."}`
 5. Engine authenticates: per-plugin token lookup by name (constant-time comparison), name binding enforced
 6. Token cleared from child OS environment after first read
 7. Single `MuxConn` handles bidirectional RPC (responses by `#<id>`, requests via `Requests()` channel)

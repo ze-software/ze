@@ -5,22 +5,34 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"net"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+// testServerCert returns a self-signed pair for a listener these tests dial
+// with verification off. What signs the certificate is not what they check:
+// the auth handshake, the token routing and the accept loop are. Chain
+// validation against an issuer is tls_root_test.go.
+func testServerCert(t *testing.T) tls.Certificate {
+	t.Helper()
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithNames("127.0.0.1:0", nil, time.Hour)
+	require.NoError(t, err)
+	pair, err := tls.X509KeyPair(certPEM, keyPEM)
+	require.NoError(t, err)
+	return pair
+}
 
 // selfSignedTLSConfig returns a TLS config with an auto-generated self-signed cert
 // for testing. Both server and client configs are returned.
 func selfSignedTLSConfig(t *testing.T) (server, client *tls.Config) {
 	t.Helper()
-	cert, err := GenerateSelfSignedCert()
-	require.NoError(t, err)
+	cert := testServerCert(t)
 
 	server = &tls.Config{
 		Certificates: []tls.Certificate{cert},
@@ -203,11 +215,12 @@ func TestTLSAuthMalformed(t *testing.T) {
 func TestTLSListenerMultiAddr(t *testing.T) {
 	t.Parallel()
 
-	cert, err := GenerateSelfSignedCert()
-	require.NoError(t, err)
+	cert := testServerCert(t)
 
 	addrs := []string{"127.0.0.1:0", "127.0.0.1:0"}
-	listeners, listenErr := StartListeners(addrs, cert)
+	listeners, listenErr := StartListeners(addrs, func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return &cert, nil
+	})
 	require.NoError(t, listenErr)
 	require.Len(t, listeners, 2)
 
@@ -221,52 +234,26 @@ func TestTLSListenerMultiAddr(t *testing.T) {
 	}
 }
 
-// TestGenerateSelfSignedCert verifies cert generation produces a valid TLS certificate.
+// TestStartListenersRefusesWithNoCertificateSource: a listener with nothing to
+// present binds and then fails every handshake with "no certificates
+// configured", which reads to the operator as a client problem. Refuse at the
+// bind instead, where the caller is named.
 //
-// VALIDATES: Self-signed cert is valid for TLS handshake.
-// PREVENTS: TLS handshake failures from bad cert generation.
-func TestGenerateSelfSignedCert(t *testing.T) {
+// MUTATION: drop the getCertificate nil check and this binds a listener that
+// answers no handshake.
+func TestStartListenersRefusesWithNoCertificateSource(t *testing.T) {
 	t.Parallel()
 
-	cert, err := GenerateSelfSignedCert()
-	require.NoError(t, err)
-
-	// Verify cert can be used in a TLS config.
-	conf := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS12,
-	}
-
-	ln, listenErr := tls.Listen("tcp", "127.0.0.1:0", conf)
-	require.NoError(t, listenErr)
-	defer ln.Close() //nolint:errcheck // test cleanup
-
-	// Verify a client can connect.
-	clientConf := &tls.Config{
-		InsecureSkipVerify: true, //nolint:gosec // test only
-		MinVersion:         tls.VersionTLS12,
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	doneCh := make(chan struct{})
-	go func() {
-		defer close(doneCh)
-		conn, acceptErr := ln.Accept()
-		if acceptErr != nil {
-			return
+	listeners, err := StartListeners([]string{"127.0.0.1:0"}, nil)
+	if err == nil {
+		for _, ln := range listeners {
+			ln.Close() //nolint:errcheck,gosec // cleanup on a path the test says must not happen
 		}
-		defer conn.Close() //nolint:errcheck // test cleanup
-		// Complete TLS handshake before closing.
-		if tlsConn, ok := conn.(*tls.Conn); ok {
-			_ = tlsConn.HandshakeContext(ctx)
-		}
-	}()
-
-	conn, dialErr := (&tls.Dialer{Config: clientConf}).DialContext(ctx, "tcp", ln.Addr().String())
-	require.NoError(t, dialErr)
-	require.NoError(t, conn.Close())
-	<-doneCh
+		t.Fatal("StartListeners bound a listener with no certificate source")
+	}
+	if len(listeners) != 0 {
+		t.Fatalf("a refused StartListeners returned %d listeners", len(listeners))
+	}
 }
 
 // TestSendAuthFormat verifies SendAuth uses the expected RPC framing.
@@ -314,7 +301,7 @@ func TestPluginAcceptorStartStop(t *testing.T) {
 	serverTLS, _ := selfSignedTLSConfig(t)
 	ln := startTestListener(t, serverTLS)
 
-	acceptor := NewPluginAcceptor(ln, "test-secret-that-is-long-enough-32ch", "")
+	acceptor := NewPluginAcceptor(ln, "test-secret-that-is-long-enough-32ch", nil)
 	acceptor.Start()
 
 	addr := acceptor.Addr()
@@ -336,7 +323,7 @@ func TestPluginAcceptorWaitForPlugin(t *testing.T) {
 	serverTLS, clientTLS := selfSignedTLSConfig(t)
 	ln := startTestListener(t, serverTLS)
 
-	acceptor := NewPluginAcceptor(ln, "acceptor-secret-at-least-32-chars", "")
+	acceptor := NewPluginAcceptor(ln, "acceptor-secret-at-least-32-chars", nil)
 	acceptor.Start()
 	defer acceptor.Stop()
 
@@ -377,7 +364,7 @@ func TestPluginAcceptorWaitTimeout(t *testing.T) {
 	serverTLS, _ := selfSignedTLSConfig(t)
 	ln := startTestListener(t, serverTLS)
 
-	acceptor := NewPluginAcceptor(ln, "timeout-secret-at-least-32-chars", "")
+	acceptor := NewPluginAcceptor(ln, "timeout-secret-at-least-32-chars", nil)
 	acceptor.Start()
 	defer acceptor.Stop()
 
@@ -399,7 +386,7 @@ func TestPluginAcceptorWaitAfterStop(t *testing.T) {
 	serverTLS, _ := selfSignedTLSConfig(t)
 	ln := startTestListener(t, serverTLS)
 
-	acceptor := NewPluginAcceptor(ln, "stop-secret-at-least-32-chars-x", "")
+	acceptor := NewPluginAcceptor(ln, "stop-secret-at-least-32-chars-x", nil)
 	acceptor.Start()
 
 	errCh := make(chan error, 1)
@@ -718,7 +705,7 @@ func TestTokenForPluginUniqueness(t *testing.T) {
 	serverTLS, _ := selfSignedTLSConfig(t)
 	ln := startTestListener(t, serverTLS)
 
-	acceptor := NewPluginAcceptor(ln, "shared-secret-at-least-32-chars!", "")
+	acceptor := NewPluginAcceptor(ln, "shared-secret-at-least-32-chars!", nil)
 	defer acceptor.Stop()
 
 	token1, err1 := acceptor.TokenForPlugin("bgp-rib")
@@ -734,148 +721,4 @@ func TestTokenForPluginUniqueness(t *testing.T) {
 	token1again, err3 := acceptor.TokenForPlugin("bgp-rib")
 	require.NoError(t, err3)
 	assert.Equal(t, token1, token1again, "same plugin must get same token")
-}
-
-// TestCertFingerprintComputation verifies that CertFingerprint returns a stable
-// SHA-256 hex digest of the DER-encoded certificate.
-//
-// VALIDATES: Cert fingerprint is deterministic SHA-256 of DER bytes.
-// PREVENTS: Wrong hash algorithm or encoding producing unstable fingerprints.
-func TestCertFingerprintComputation(t *testing.T) {
-	t.Parallel()
-
-	cert, err := GenerateSelfSignedCert()
-	require.NoError(t, err)
-
-	fp1 := CertFingerprint(cert)
-	fp2 := CertFingerprint(cert)
-
-	assert.NotEmpty(t, fp1)
-	assert.Equal(t, fp1, fp2, "fingerprint must be deterministic")
-	assert.Len(t, fp1, 64, "SHA-256 hex is 64 characters")
-}
-
-// TestCertFingerprintVerification verifies that a TLS connection succeeds when the
-// client verifies the server cert fingerprint.
-//
-// VALIDATES: AC-6 -- cert fingerprint matches -> TLS connects.
-// PREVENTS: Valid fingerprints being rejected.
-func TestCertFingerprintVerification(t *testing.T) {
-	t.Parallel()
-
-	cert, err := GenerateSelfSignedCert()
-	require.NoError(t, err)
-	fp := CertFingerprint(cert)
-
-	serverConf := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS12,
-	}
-	ln, listenErr := tls.Listen("tcp", "127.0.0.1:0", serverConf)
-	require.NoError(t, listenErr)
-	defer ln.Close() //nolint:errcheck // test cleanup
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	doneCh := make(chan error, 1)
-	go func() {
-		conn, acceptErr := ln.Accept()
-		if acceptErr != nil {
-			doneCh <- acceptErr
-			return
-		}
-		defer conn.Close() //nolint:errcheck // test cleanup
-		if tlsConn, ok := conn.(*tls.Conn); ok {
-			doneCh <- tlsConn.HandshakeContext(ctx)
-		}
-	}()
-
-	clientConf := TLSConfigWithFingerprint(fp)
-	conn, dialErr := (&tls.Dialer{Config: clientConf}).DialContext(ctx, "tcp", ln.Addr().String())
-	require.NoError(t, dialErr)
-	require.NoError(t, conn.Close())
-
-	require.NoError(t, <-doneCh)
-}
-
-// TestCertFingerprintMismatch verifies that a TLS connection fails when the
-// fingerprint doesn't match.
-//
-// VALIDATES: AC-7 -- wrong fingerprint -> TLS handshake fails.
-// PREVENTS: Accepting connections to a server with a different cert.
-func TestCertFingerprintMismatch(t *testing.T) {
-	t.Parallel()
-
-	cert, err := GenerateSelfSignedCert()
-	require.NoError(t, err)
-
-	serverConf := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS12,
-	}
-	ln, listenErr := tls.Listen("tcp", "127.0.0.1:0", serverConf)
-	require.NoError(t, listenErr)
-	defer ln.Close() //nolint:errcheck // test cleanup
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	go func() {
-		conn, acceptErr := ln.Accept()
-		if acceptErr != nil {
-			return
-		}
-		defer conn.Close() //nolint:errcheck // test cleanup
-		if tlsConn, ok := conn.(*tls.Conn); ok {
-			_ = tlsConn.HandshakeContext(ctx) // Will fail because client rejects
-		}
-	}()
-
-	// Use a fake fingerprint that doesn't match.
-	wrongFP := "deadbeef" + strings.Repeat("00", 28)
-	clientConf := TLSConfigWithFingerprint(wrongFP)
-	_, dialErr := (&tls.Dialer{Config: clientConf}).DialContext(ctx, "tcp", ln.Addr().String())
-	require.Error(t, dialErr)
-	assert.Contains(t, dialErr.Error(), "fingerprint mismatch")
-}
-
-// TestCertFingerprintFallback verifies that an empty fingerprint falls back
-// to InsecureSkipVerify behavior.
-//
-// VALIDATES: AC-8 -- no fingerprint -> InsecureSkipVerify (backwards compat).
-// PREVENTS: Breaking manual external plugins that don't have a fingerprint.
-func TestCertFingerprintFallback(t *testing.T) {
-	t.Parallel()
-
-	cert, err := GenerateSelfSignedCert()
-	require.NoError(t, err)
-
-	serverConf := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS12,
-	}
-	ln, listenErr := tls.Listen("tcp", "127.0.0.1:0", serverConf)
-	require.NoError(t, listenErr)
-	defer ln.Close() //nolint:errcheck // test cleanup
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	go func() {
-		conn, acceptErr := ln.Accept()
-		if acceptErr != nil {
-			return
-		}
-		defer conn.Close() //nolint:errcheck // test cleanup
-		if tlsConn, ok := conn.(*tls.Conn); ok {
-			_ = tlsConn.HandshakeContext(ctx)
-		}
-	}()
-
-	// Empty fingerprint should fall back to InsecureSkipVerify.
-	clientConf := TLSConfigWithFingerprint("")
-	conn, dialErr := (&tls.Dialer{Config: clientConf}).DialContext(ctx, "tcp", ln.Addr().String())
-	require.NoError(t, dialErr)
-	require.NoError(t, conn.Close())
 }

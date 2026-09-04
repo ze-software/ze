@@ -339,6 +339,12 @@ A plugin runs internal, as a goroutine sharing the daemon's process through
 TLS/RPC through `startExternal`. Plugin code reaches the engine through the
 SDK's RPC layer, which hides the difference.
 
+What authenticates that TLS is documented once, on
+[process-protocol.md](../api/process-protocol.md), because it is a property of
+the transport rather than of this boundary: `startExternal` hands the child the
+engine's certificate authority root, and the child validates the chain against
+it.
+
 A plugin that instead calls a plain exported Go function in another
 `internal/component/*` package reaches straight into that package's
 process-local state. The call works when the plugin runs internal, because the

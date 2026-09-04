@@ -518,9 +518,12 @@ Bus topics in the sysctl pipeline:
 ### Route Filters
 
 Plugins can declare named filters at stage 1 for import and/or export filtering.
-Each filter specifies which attributes it needs, and the engine sends only those
-attributes as text for each UPDATE. Filters respond accept, reject, or modify
-(delta-only). See [Route Filters](redistribution.md) for configuration.
+A filter declares which attributes it reads. That declaration does not narrow
+what it receives. The engine builds one subject for the whole chain, and the
+subject names every attribute the UPDATE carries. See
+[The Attribute Names in the Filter Text Protocol](../architecture/api/process-protocol.md)
+for the names and their value shapes. Filters respond accept, reject, or modify
+(delta-only). See [Route Filters and Redistribution](redistribution.md) for configuration.
 
 A single plugin can offer multiple named filters. Config references them as
 `<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`).
@@ -569,25 +572,38 @@ The orchestrator **auto-loads** when `redistribute {}` appears in the
 config. No `plugin { internal redistribute-orchestrator { use redistribute-orchestrator; } }`
 block is required.
 
+A rule whose source is a BGP one needs no plumbing either. `import bgp` names
+the daemon's Loc-RIB, held by the `bgp-rib` plugin, and a plugin sees a peer's
+UPDATEs only through an `attach process` grant. Ze derives that one binding from
+the rule: every peer gains `receive [ update state refresh ]` toward the process
+`bgp-rib` runs under, unless the peer's config already names that process, in
+which case the operator's binding stands unchanged. It is the only binding in
+the delivery index Ze writes for you.
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireLocRIBDelivery -->
+
 Reactor per-peer NEXT_HOP substitution applies: when the producer leaves
 `NextHop` zero, the reactor stamps each peer's local session address as the
 NEXT_HOP. Producers that have an explicit address pass it through verbatim.
 
-**Late-join replay:** a route injected by a source into `destination bgp` also
-reaches a BGP peer that establishes AFTER the injection. On a peer's down->up
-edge the orchestrator emits a `redistevents.ReplayRequest` carrying an opaque
-`ReplayID` token; each producer re-emits its current set with the token echoed,
-and the orchestrator targets only the newly-established peer. Producers stay
-peer-agnostic; the orchestrator holds the `ReplayID -> peer` mapping. Out-of-process
-producers re-emit asynchronously, so the mapping is held for a TTL. This closes the
-gap for dynamic/inbound peers not present in the reactor map at injection time.
+**Late-join replay:** a producer emits once, so whoever arrives after that emit
+holds nothing. Two arrivals are late, and each fires a replay request carrying an
+opaque `ReplayID` token that every producer echoes on a re-emit of its CURRENT
+set. Producers stay target-agnostic: the orchestrator alone holds the
+`ReplayID -> target` mapping, and it holds it for a TTL because an
+out-of-process producer re-emits asynchronously.
+
+| The late arrival | What the replay reaches |
+|------------------|-------------------------|
+| a BGP peer's down-to-up edge | that ONE peer, through the BGP consumer. This closes the gap for a dynamic or inbound peer not in the reactor map at injection time |
+| a destination protocol's consumer becoming registered | that ONE consumer, with the ordinary all-peers fan-out. Nothing orders the plugin startup tiers, so a producer can emit before the consumer exists |
 
 Counters: `ze_bgp_redistribute_events_received`, `_announcements`,
 `_withdrawals`, `_filtered_protocol_total`, `_filtered_rule_total`,
-`ze_bgp_redistribute_replay_total{source}` (routes replayed to a newly-established peer).
+`ze_bgp_redistribute_replay_total{source}` (routes replayed, to a newly
+established peer or to a consumer that registered late).
 
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- late-join replay-on-peer-up -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin, watchConsumers -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onPeerUp, onConsumerRegistered -->
 <!-- source: internal/core/redistevents/registry.go -- ProtocolID + producer registration -->
 
 ### Prefix-List Filter (`bgp-filter-prefix`)
@@ -786,6 +802,22 @@ or `decrement { med 30; }`. Supported attributes: local-preference, med, aigp.
 Increment saturates at uint32 max (4294967295). Decrement floors at 0.
 Set and increment/decrement for the same attribute are mutually exclusive.
 
+The arithmetic reads the attribute the route carries. When the route carries
+none, `med` and `local-preference` start from a declared default and `aigp` is
+left alone:
+
+| Attribute | Absent on the route | Why |
+|-----------|--------------------|-----|
+| `med` | starts from 0, and the result is written, so a route that had no metric gains one | RFC 4271 Section 9.1.2.2 names 0 as the value of an absent MULTI_EXIT_DISC |
+| `local-preference` | starts from 100 | RFC 4271 Section 9.1.1 leaves the value to local policy. 100 is the value FRR and BIRD use |
+| `aigp` | nothing is written, and the route keeps no AIGP attribute | RFC 7311 Section 4.1 removes a route with no AIGP TLV from consideration rather than scoring it, and Section 3.4.1 forbids adding the attribute outside the AIGP administrative domain |
+
+`decrement { med 30; }` on a route that carried no metric therefore leaves
+`med 0` on the route. An RFC-default receiver reads an absent MED and a MED of 0
+the same way, so this changes nothing for it. A receiver configured to treat a
+missing MED as the worst value reads them differently, and for that peer the
+route is promoted.
+
 **Community Add/Remove**: `set { community-add [ 65000:200 ]; community-remove
 [ 65000:100 ]; large-community-add [ 65000:100:200 ]; }`. Adds or removes
 individual community values (standard, large, extended) without replacing the
@@ -942,8 +974,11 @@ plugin {
 
 External plugins communicate with Ze through the same newline-framed YANG RPC
 protocol as internal plugins: `#<id> <verb> [json]`. External processes connect
-to the plugin hub over TLS with the `ZE_PLUGIN_HUB_*` environment supplied by
-the engine. The Go SDK in `pkg/plugin/sdk` is the reference implementation. A
+to the plugin hub over TLS with the `ZE_PLUGIN_*` environment supplied by the
+engine. That environment carries the hub address, a per-plugin token, and in
+`ZE_PLUGIN_CA_PEM` the certificate authority root that issued the hub's
+certificate. A plugin validates the hub's chain against that root and dials no
+hub without it. The Go SDK in `pkg/plugin/sdk` is the reference implementation. A
 plugin written in another language implements the same documented wire
 protocol; no first-party Python launcher or helper is required.
 

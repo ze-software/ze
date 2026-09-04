@@ -467,8 +467,10 @@ By default, appliances live in `~/.config/ze/appliances/`. Override with `--dir`
     secrets/                   # 0700 permissions
       .encrypted               # marker (present = secrets encrypted)
       tls/
-        cert.pem               # public certificate (plaintext)
+        cert.pem               # device certificate, then the appliance CA root (plaintext)
         key.pem                # private key (encrypted if passphrase set)
+        ca-cert.pem            # appliance CA root certificate (plaintext)
+        ca-key.pem             # appliance CA root key (encrypted if passphrase set)
       password.hash            # bcrypt hash (encrypted if passphrase set)
       update.token             # gokrazy OTA token (encrypted if passphrase set)
       authorized_keys          # SSH public keys (plaintext)
@@ -495,6 +497,11 @@ ze appliance replace-cert lab --cert ca.pem --key ca.key
 ze appliance rekey lab
 ze appliance clone lab lab2
 ```
+
+Without `--cert` and `--key`, `replace-cert` issues a new device certificate
+from the appliance's own certificate authority, which `ze appliance init`
+generated. The root does not change, so a device you already pushed to stays
+reachable: `ze appliance push` trusts the issuer rather than one certificate.
 
 `replace-cert` validates the material before it writes anything. It refuses a
 certificate and a key that are not a pair. It refuses a file that holds no PEM
@@ -543,7 +550,7 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `iso [--image] [--output] [--kernel] [--initrd] [--target] [--builder] [<name>]` | Bootable installer ISO from an existing image |
 | `iso --check` | Check ISO prerequisites without building |
 | `passwd <name>` | Change SSH password |
-| `replace-cert <name>` | Replace TLS cert (regenerate or `--cert`/`--key` for CA); refuses material that is not a valid pair |
+| `replace-cert <name>` | Replace TLS cert (reissue from the appliance CA, or `--cert`/`--key` for material from another CA); refuses material that is not a valid pair |
 | `rekey <name>` | Change encryption passphrase |
 | `clone <src> <dst>` | Copy config, not secrets |
 | `list` | List appliances with hostname and arch |
@@ -672,7 +679,7 @@ Push a built image to a running gokrazy device via its HTTPS update endpoint:
     ze appliance push --all
     ze appliance push --all --parallel 4
 
-Push uses the update token (from `secrets/update.token`) for HTTP basic auth, and verifies the device TLS certificate against the stored `cert.pem`. No system CA pool is consulted.
+Push uses the update token (from `secrets/update.token`) for HTTP basic auth, and verifies the device TLS certificate against the stored `cert.pem`. That file holds the device certificate and the appliance CA root that issued it, so the anchor is the ISSUER: a certificate reissued with `ze appliance replace-cert` still verifies, and the device does not have to be pushed again first. No system CA pool is consulted.
 <!-- source: internal/appliance/cmd_push.go -- loadDeviceTLS, authTransport -->
 
 When `--image` is set, the file name must resolve to a regular file inside the

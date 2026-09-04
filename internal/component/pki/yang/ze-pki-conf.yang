@@ -21,8 +21,9 @@ module ze-pki-conf {
         list ca {
             key "name";
             description "Trusted CA certificate.";
-            ze:help "Trusted CA certificate. The certificate leaf holds a base64-encoded DER X.509 certificate, with no
-                PEM headers.";
+            ze:help "Trusted CA certificate. The certificate leaf takes a PEM document, headers and line breaks
+                included, which is what 'ze show pki local-ca pem' prints and what a .crt file holds. Base64-encoded
+                DER with no PEM headers is also read.";
 
             leaf name {
                 type string;
@@ -32,7 +33,11 @@ module ze-pki-conf {
             leaf certificate {
                 type string;
                 mandatory true;
-                description "Base64-encoded DER X.509 CA certificate.";
+                description "X.509 CA certificate, as a PEM document or as base64-encoded DER.";
+                ze:help "The trust anchor itself, with no private key. Paste the PEM as it is printed, headers and
+                    line breaks included, which is what 'ze show pki local-ca pem' gives you and what a .crt file
+                    holds. Base64-encoded DER with no headers is also read, for a config written before PEM was
+                    accepted.";
             }
         }
 
@@ -49,14 +54,17 @@ module ze-pki-conf {
             leaf certificate {
                 type string;
                 mandatory true;
-                description "Base64-encoded DER X.509 device certificate.";
+                description "X.509 device certificate, as a PEM document or as base64-encoded DER.";
+                ze:help "The certificate this node presents. Paste the PEM as it is printed, headers and line
+                    breaks included, which is what a .crt file holds. Base64-encoded DER with no headers is also
+                    read, for a config written before PEM was accepted. The matching key goes in private key.";
             }
 
             leaf-list intermediate {
                 type string;
                 ordered-by user;
-                description "Intermediate CA certificates in base64-encoded DER, from the issuer toward the trust anchor.";
-                ze:help "Base64-encoded DER intermediate CA certificates. Give them in order, from the one that issued this
+                description "Intermediate CA certificates, from the issuer toward the trust anchor.";
+                ze:help "Intermediate CA certificates, each a PEM document or base64-encoded DER. Give them in order, from the one that issued this
                     certificate toward the trust anchor. Ze stores them beside the device certificate for chain
                     building, and sends them after it in the IKE_AUTH chain. RFC 7296 Section 3.6 requires an
                     implementation be capable of being configured to send up to four X.509 certificates. This device
@@ -69,9 +77,9 @@ module ze-pki-conf {
                 leaf key {
                     type string;
                     ze:sensitive;
-                    description "Private key in base64-encoded DER format.";
-                    ze:help "Private key in base64-encoded DER format. The config file stores it as $9$, and Ze decodes it on
-                        load. The supported encodings are PKCS8, SEC1 (ECDSA), and PKCS1 (RSA).";
+                    description "Private key, as a PEM document or as base64-encoded DER.";
+                    ze:help "Private key, as a PEM document or as base64-encoded DER. The config file stores it as $9$, and Ze
+                        decodes it on load. The supported encodings are PKCS8, SEC1 (ECDSA), and PKCS1 (RSA).";
                 }
             }
         }

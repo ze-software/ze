@@ -104,6 +104,23 @@ func Load(cfg *PKIConfig) error {
 	return nil
 }
 
+// Snapshot returns the configuration the store holds right now, so a caller
+// about to install another one can put this one back. The reload path is that
+// caller: it captures the running store before it installs the commit's, and
+// restores it when a later stage refuses the commit (cmd/ze/hub/main_reload.go,
+// restorePKI).
+//
+// The maps belong to the installed state and MUST NOT be mutated. Load shares
+// them the same way, so a snapshot handed straight back to Load reinstalls
+// exactly what was running rather than a re-derivation of it.
+func Snapshot() *PKIConfig {
+	s := get()
+	return &PKIConfig{
+		CACerts:      s.caCerts,
+		Certificates: s.certificates,
+	}
+}
+
 func get() *storeState {
 	s := current.Load()
 	if s == nil {

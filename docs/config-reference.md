@@ -7,9 +7,13 @@ examples for every feature, see [guide/configuration.md](guide/configuration.md)
 
 Ze uses a JUNOS-like hierarchical format. YANG-driven parsing: each config
 node's type (leaf, leaf-list, container, list) determines how it is parsed.
-Unknown keys are rejected with a suggestion for the closest valid key.
+Unknown keys are rejected with a suggestion for the closest valid key. A key ze
+once accepted and has since retired is rejected with the spelling that replaces
+it: `process` becomes `attach process`, and `certificate-fingerprint` becomes
+`ca <pki-ca-name>` on a `plugin hub client` block.
 <!-- source: internal/component/config/tokenizer.go -- tokenizer for JUNOS-like syntax -->
 <!-- source: internal/component/config/yang/loader.go -- YANG-driven config parsing -->
+<!-- source: internal/component/config/retired.go -- retiredKeywords, RetiredKeywordHint -->
 
 | Element | Syntax | Example |
 |---------|--------|---------|
@@ -638,27 +642,30 @@ The router's web interface does not expose its own version (to avoid helping att
 ```
 pki {
     ca corp-root {
-        certificate "<base64-DER>";
+        certificate "<PEM or base64-DER>";
     }
     certificate lan {
-        certificate  "<base64-DER>";
-        intermediate [ "<base64-DER>" ];
-        private { key "<base64-DER>"; }
+        certificate  "<PEM or base64-DER>";
+        intermediate [ "<PEM or base64-DER>" ];
+        private { key "<PEM or base64-DER>"; }
     }
 }
 ```
 
-X.509 certificates and private keys for IPsec and TLS. Each value is a
-base64-encoded DER certificate, with no PEM header lines. The private key is
-stored as `$9$` in the config file and is decoded on load. PKCS8, SEC1 (ECDSA)
-and PKCS1 (RSA) key encodings are read.
+X.509 certificates and private keys for IPsec and TLS. Each value is a PEM
+document, quoted, with its header lines and line breaks kept, or the same
+material as base64-encoded DER on one line. A value that opens `-----BEGIN` is
+read as PEM and a broken one is refused as PEM, so a truncated paste is never
+reported as a base64 error. The private key is stored as `$9$` in the config
+file and is decoded on load. PKCS8, SEC1 (ECDSA) and PKCS1 (RSA) key encodings
+are read.
 
 | Node | Type | Description |
 |------|------|-------------|
-| `ca <name> { certificate }` | string, mandatory | Trusted CA certificate |
-| `certificate <name> { certificate }` | string, mandatory | Device certificate |
-| `certificate <name> { intermediate }` | leaf-list of string, ordered | Intermediate CAs, in order from the issuer of this certificate toward the trust anchor |
-| `certificate <name> { private { key } }` | string, sensitive | Private key for the device certificate |
+| `ca <name> { certificate }` | string, mandatory | Trusted CA certificate, PEM or base64 DER |
+| `certificate <name> { certificate }` | string, mandatory | Device certificate, PEM or base64 DER |
+| `certificate <name> { intermediate }` | leaf-list of string, ordered | Intermediate CAs, PEM or base64 DER, in order from the issuer of this certificate toward the trust anchor |
+| `certificate <name> { private { key } }` | string, sensitive | Private key for the device certificate, PEM or base64 DER |
 
 RFC 7296 Section 3.6 asks an implementation to be able to send up to four X.509
 certificates. This device certificate plus three intermediates is that maximum.
@@ -669,9 +676,10 @@ warnings (30 days) and errors (expired).
 
 ### TLS Listeners
 
-The web server, and the DoT and DoH listeners of `as112` and `geodns`, serve a
-certificate named in the PKI store. Each listener sends the leaf certificate and
-every intermediate the store entry holds, so a client can build the full chain.
+The web server, the looking glass, and the DoT and DoH listeners of `as112` and
+`geodns`, serve a certificate named in the PKI store. Each listener sends the
+leaf certificate and every intermediate the store entry holds, so a client can
+build the full chain.
 
 ```
 environment {
@@ -679,6 +687,11 @@ environment {
         enabled     true;
         certificate lan;
         server main { ip 0.0.0.0; port 3443; }
+    }
+    looking-glass {
+        enabled     true;
+        certificate lan;
+        server main { ip 0.0.0.0; port 8443; }
     }
 }
 
@@ -691,15 +704,22 @@ service {
 | Leaf | Type | Default | Description |
 |------|------|---------|-------------|
 | `environment/web/certificate` | string, 1 to 255 characters, `[A-Za-z0-9._-]` | (none) | PKI store entry served on the HTTPS listener |
+| `environment/looking-glass/certificate` | string, same pattern | (none) | PKI store entry served on the looking glass |
 | `service/as112/tls/certificate` | string, same pattern | (none) | PKI store entry served on DoT and DoH |
 | `service/geodns/tls/certificate` | string, same pattern | (none) | PKI store entry served on DoT and DoH |
 
-An unset `environment/web/certificate` means Ze generates a self-signed
-certificate and serves that. A name the store does not hold, or an entry with no
-private key, stops the web server and rejects the reload. Ze never falls back to
-a self-signed certificate for a configured name. A reload rotates the material
-through a per-handshake lookup, with no rebind. The environment variable
-`ze.web.certificate` overrides the config file.
+An unset `certificate` means Ze generates a self-signed certificate and serves
+that. A name the store does not hold, or an entry with no private key, stops the
+listener. On the web listener and on the looking glass, Ze exits at startup and
+names the certificate. A reload that names one is rejected as a whole. Ze never
+falls back to a self-signed certificate for a configured name.
+
+On both of those listeners a reload rotates the material through a per-handshake
+lookup, with no rebind. The environment variables `ze.web.certificate` and
+`ze.looking-glass.certificate` override the config file.
+
+The looking glass reads a certificate from the PKI store, which needs no blob
+storage. Its blob store holds the self-signed certificate only.
 
 For `as112` and `geodns`, `certificate` and the older `cert-file` / `key-file`
 pair are mutually exclusive, and setting both is a configuration error. The PKI
@@ -707,6 +727,7 @@ store lives in the hub process, so an externally started `as112` or `geodns`
 cannot resolve a store name. Its secure listeners then do not start and the
 error is logged. Cleartext DNS is unaffected.
 <!-- source: internal/component/web/yang/ze-web-conf.yang -- leaf certificate -->
+<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->
 <!-- source: internal/plugins/as112/yang/ze-as112-conf.yang -- container tls -->
 <!-- source: internal/plugins/geodns/yang/ze-geodns-conf.yang -- container tls -->
 
@@ -922,8 +943,10 @@ l2tp {
 
 The placeholders are `{nas-id}`, `{tunnel-id}` and `{session-id}`, and every
 other character is copied. The 253-octet limit is the largest value a RADIUS
-attribute can carry (RFC 2865 Section 5). An unknown placeholder is refused at
-commit time, and so is a `{nas-id}` with no `nas-identifier` set.
+attribute can carry (RFC 2865 Section 5). Three templates are refused at commit
+time: one naming an unknown placeholder, one using `{nas-id}` with no
+`nas-identifier` set, and one whose widest resolution passes 253 octets because
+the `nas-identifier` it expands is long.
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- leaf nas-port-id-format -->
 
 ## Removed Syntax

@@ -150,13 +150,13 @@ ze plugin bgp-nlri-evpn --decode
 ## Engine Mode (no flags, no args)
 
 For engine-plugin communication. The process manager starts the plugin with
-`ZE_PLUGIN_HUB_*` environment variables, then the plugin connects back to the
+`ZE_PLUGIN_*` environment variables, then the plugin connects back to the
 hub TLS listener and speaks newline-framed YANG RPC.
 
 ### Invocation
 
 ```bash
-# Started by engine with ZE_PLUGIN_HUB_* env vars
+# Started by engine with ZE_PLUGIN_* env vars
 ze plugin bgp-nlri-evpn
 ```
 

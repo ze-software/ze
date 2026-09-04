@@ -148,13 +148,13 @@ The YANG schema drives the entire UI. No hardcoded field lists.
 
 ## TLS
 
-Self-signed ECDSA P-256 certificate, valid 365 days. When listening on `0.0.0.0`, all non-loopback interface IPs are added as SANs so the cert is valid regardless of which IP the client connects to.
+Self-signed ECDSA P-256 certificate, valid 365 days. `WebCertHosts` is the one declaration of the SAN set: localhost, the two loopback addresses, the listen address, and any extra name the caller gives. When listening on `0.0.0.0`, all non-loopback interface IPs are added so the cert is valid regardless of which IP the client connects to. The appliance build host takes the same list and has its certificate authority issue the leaf instead (`architecture/appliance/builder.md`).
 
 Certificates are persisted in zefs (`meta/web/cert`, `meta/web/key`) via the `CertStore` interface. On restart, the existing cert is loaded instead of regenerated, so browsers don't need to re-accept.
 
 TLS handshake errors from browsers rejecting self-signed certs are suppressed in the server error log.
 
-<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, LoadOrGenerateCert, addInterfaceIPs, CertStore -->
+<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, LoadOrGenerateCert, WebCertHosts, CertStore -->
 
 ## Security Headers
 
@@ -218,7 +218,7 @@ All source files in `internal/component/lg/` reference this document via `// Des
 
 | File | Responsibility |
 |------|---------------|
-| `server.go` | HTTP server lifecycle, mux setup, TLS support, CommandDispatcher. `NewLGServer` builds the one handler chain: security headers over `errorfragment.Middleware` over the bearer gate over the mux |
+| `server.go` | HTTP server lifecycle, mux setup, TLS, CommandDispatcher. `NewLGServer` builds the one handler chain: security headers over `errorfragment.Middleware` over the bearer gate over the mux |
 | `handler_api.go` | Birdwatcher-compatible REST API (JSON, snake_case), input validation |
 | `handler_ui.go` | HTMX pages (peers, lookup, search), SSE events, asset serving |
 | `handler_graph.go` | AS path topology SVG endpoint |
@@ -235,6 +235,21 @@ All source files in `internal/component/lg/` reference this document via `// Des
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers, SSE -->
 <!-- source: internal/component/lg/graph.go -- buildGraph, extractASPath -->
 <!-- source: internal/component/lg/layout.go -- computeLayout, renderGraphSVG -->
+
+### LG TLS
+
+`NewLGServer` takes the PEM material from its caller: a self-signed certificate,
+or a leaf-then-intermediates chain from the PKI store. It puts the parsed pair
+behind `tls.Config.GetCertificate` and clears `Certificates`, so `crypto/tls`
+reads the certificate once for each handshake instead of once for each listener.
+
+`UpdateTLSCertificate` replaces that pair on a running server. A bound listener
+is untouched, so an open connection survives the rotation and the next handshake
+serves the new chain. Material that does not parse is refused and the previous
+certificate keeps serving. The contract every PKI-serving listener follows is
+`docs/architecture/pki/tls-listeners.md`.
+
+<!-- source: internal/component/lg/server.go -- getCertificate, UpdateTLSCertificate -->
 
 ### LG Refused Requests
 

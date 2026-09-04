@@ -41,6 +41,23 @@ the agent expires after a bounded duration.
 - `cert.pem` and `key.pem` have one write path, `writeTLSSecrets`. Both
   `ze appliance init` and `ze appliance replace-cert` reach the two files
   through it, so both get the same guarantees.
+- Each appliance has its own certificate authority, in `ca-cert.pem` and
+  `ca-key.pem` beside the material it signs. `ze appliance init` generates the
+  root once and every later `ze appliance replace-cert` issues from that same
+  root, so a device certificate can change and the trust an operator already
+  distributed keeps working. The root key goes through the appliance
+  passphrase, exactly as `key.pem` does, and `ze appliance rekey` re-encrypts
+  both keys.
+- `cert.pem` holds the device certificate FIRST and the root SECOND. Four
+  readers take the first block only: `certExpiry`, `validateTLSPair`,
+  `checkCertExpiry` and `selfcert.NewTLSConfig` on the device itself. The
+  serving certificate is the answer each of them wants. `loadDeviceTLS` reads
+  the whole file and trusts the root it finds there (`ota-push.md`).
+- Operator-supplied material (`--cert` and `--key`) is stored as it arrives. An
+  appliance given a certificate from an external authority grows no local one.
+- The root lives one year longer than the certificate it signs, because a chain
+  stops verifying the moment its issuer expires. `tls.validity-years` stays the
+  life of the SERVING certificate, which is what an operator sets it for.
 - The material is validated before either file is touched. The certificate and
   the key must parse, and they must be a pair. This is the check the web server
   makes at boot, so material the command accepts is material the listener
@@ -54,6 +71,7 @@ the agent expires after a bounded duration.
 
 <!-- source: internal/appliance/cmd_passwd.go -- password rotation -->
 <!-- source: internal/appliance/cmd_cert.go -- TLS certificate replacement, validateTLSPair, writeTLSPair -->
+<!-- source: internal/appliance/ca.go -- applianceRootStore, issueWebLeaf -->
 <!-- source: internal/appliance/cmd_rekey.go -- passphrase change -->
 <!-- source: internal/appliance/cmd_clone.go -- config-only clone -->
 <!-- source: internal/appliance/cmd_list.go -- fleet listing -->

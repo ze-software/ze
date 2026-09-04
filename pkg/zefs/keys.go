@@ -48,3 +48,18 @@ var (
 	KeyConfigActiveHash     = MustRegister(KeyEntry{Pattern: "meta/config/active-hash", Description: "SHA-256 of the running active config (fleet drift detection)"})
 	KeyConfigUpdateHistory  = MustRegister(KeyEntry{Pattern: "meta/config/update-history", Description: "Self-update event history (JSON)"})
 )
+
+// The certificate authority Ze issues its own components' certificates from.
+// The root CERTIFICATE is public material an operator copies into a peer's
+// trust anchor, so it stays listable. The root KEY is Private, which keeps its
+// pattern out of "ze data registered". Neither flag is a file mode: ZeFS has no
+// per-key mode, and the 0600 that protects the key is on the blob file itself
+// (store.go, atomicWrite).
+//
+// They are their own declaration rather than two more lines of the block above,
+// so that a later key added here does not read as an edit to every var in that
+// block. The documentation drift check reads a Go declaration whole.
+var (
+	KeyCACert = MustRegister(KeyEntry{Pattern: "meta/ca/cert", Description: "Local CA root certificate (PEM)"})
+	KeyCAKey  = MustRegister(KeyEntry{Pattern: "meta/ca/key", Description: "Local CA root private key (PEM)", Private: true})
+)

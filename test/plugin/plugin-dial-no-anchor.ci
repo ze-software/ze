@@ -1,0 +1,71 @@
+# spec-local-ca AC-4: a plugin given no trust anchor FAILS TO REGISTER, rather
+# than connecting to whatever answered on the address.
+# Exercises: sdk.NewFromTLSEnv -> dialAndAuth -> ipc.TLSConfigWithRoot
+# Verifies: with ZE_PLUGIN_CA_PEM removed the SDK returns no plugin, and the
+#           SAME process with the engine root restored registers normally.
+#
+# This is the defect the whole spec exists to remove. TLSConfigWithFingerprint
+# answered an EMPTY fingerprint with InsecureSkipVerify and no comparison, so
+# the call the compiled observer makes below returned a live, registered plugin
+# over a connection nothing had verified, and the plugin then wrote its own auth
+# token to it.
+#
+# The assertion lives in the compiled driver because it is about a Go value: a
+# non-nil *sdk.Plugin IS the registration, and no log line can stand for it.
+# internal/test/fixture/plugin_fixture_dial_no_anchor.go carries it.
+
+# ze-peer: accepts connection
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external dial-no-anchor-test {
+        run "ze-test fixture plugin/dial-no-anchor"
+        encoder json
+    }
+}
+
+bgp {
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 10000
+                    }
+                }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OK: a plugin with no trust anchor did not register

@@ -41,7 +41,7 @@ func main() {
 }
 ```
 
-Ze starts an external plugin with a per-plugin token and TLS certificate fingerprint in `ZE_PLUGIN_HUB_*` environment variables. `sdk.NewFromEnv` consumes these values and connects to the engine.
+Ze starts an external plugin with a per-plugin token in `ZE_PLUGIN_HUB_TOKEN` and the certificate authority root that issued the engine certificate in `ZE_PLUGIN_CA_PEM`. `sdk.NewFromEnv` consumes these values and connects to the engine.
 
 ## Guide set
 
@@ -59,7 +59,7 @@ The [plugin operator guide](guide/plugins.md) covers loading, dependencies, proc
 ## Security model
 
 - Each external process receives a token bound to its configured plugin name.
-- The SDK pins the engine certificate when the fingerprint is supplied.
+- The SDK validates the engine certificate chain against the supplied authority root, and refuses to dial without one.
 - Configuration verification must fail closed on invalid candidate state.
 - Commands remain subject to the shared dispatcher and authorisation path.
 - Plugin output must be structured and bounded because it crosses process and operator boundaries.

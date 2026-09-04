@@ -315,7 +315,7 @@ func loadDeviceTLS(baseDir, name string) (*tls.Config, error) {
 		if block == nil {
 			break
 		}
-		if block.Type != "CERTIFICATE" {
+		if block.Type != pemBlockCertificate {
 			continue
 		}
 		cert, parseErr := x509.ParseCertificate(block.Bytes)

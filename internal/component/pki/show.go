@@ -41,7 +41,48 @@ func init() {
 			WireMethod: "ze-show:pki-certificate-fingerprint",
 			Handler:    handleShowPKICertificateFingerprint,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:pki-local-ca-pem",
+			Handler:    handleShowPKILocalCAPEM,
+		},
 	)
+}
+
+// afterLocalCAPEM names the export keyword in an unexpected-argument answer.
+const afterLocalCAPEM = "the local certificate authority export"
+
+// handleShowPKILocalCAPEM answers the local certificate authority root in PEM,
+// which an operator pastes into a client's `pki ca <name> certificate` block so
+// that client trusts the ISSUER rather than a copy of one leaf.
+//
+// The private key is not reachable from here. Root exposes no accessor for it,
+// by design: it leaves the pki package only into a signing operation.
+//
+// The subject and the expiry travel with the PEM because an operator
+// distributing a root has to know which root they copied and how long it lasts,
+// and reading either out of the PEM needs a second tool.
+func handleShowPKILocalCAPEM(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if extra := unexpectedAfter(args, afterLocalCAPEM); extra != nil {
+		return extra, nil
+	}
+
+	root := loadedRoot()
+	if root == nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  "pki: this daemon has loaded no local certificate authority root",
+		}, nil
+	}
+
+	cert := root.Certificate()
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: plugin.Map{
+			fieldPEM:      string(root.CertificatePEM()),
+			"subject":     cert.Subject.String(),
+			fieldNotAfter: cert.NotAfter.UTC().Format(time.RFC3339),
+		},
+	}, nil
 }
 
 func handleShowPKICertificates(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {

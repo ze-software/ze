@@ -28,6 +28,21 @@ Ze configuration uses a JUNOS-like hierarchy of sections, keywords, and values. 
 The parser is YANG-driven: each config node's type (leaf, leaf-list, container, list) determines how it is parsed. No custom `ze:syntax` annotations are used in ze-native config.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- module ze-bgp-conf structure -->
 
+### Retired keywords
+
+A keyword ze once accepted and no longer does parses as an unknown field, and
+the field name alone does not tell an operator what to write instead.
+`retiredKeywords` maps each one to its replacement, and every unknown-field
+refusal in the hierarchical parser, the set parser and the metadata parser
+carries that replacement in the message.
+
+The parser accepts ONE spelling, so this table is the message and never a second
+grammar. Ze rewrites no file: the operator edits the keyword. Two keywords are
+retired today, `process` (write `attach process`) and `certificate-fingerprint`
+(write `ca <pki-ca-name>`, naming the certificate authority root exported from
+the hub with `ze show pki local-ca pem`).
+<!-- source: internal/component/config/retired.go -- retiredKeywords, RetiredKeywordHint -->
+
 ---
 
 ## Basic Syntax Patterns
@@ -119,6 +134,11 @@ the entry, so asserting a slice drops it at every count.
 
 Read both through `internal/core/configvalue` (`LeafList`, `ListEntries`) rather
 than asserting a type. The obligation is stated in the configuration rule.
+
+The lowering is ONE WAY. A bare string is a plain leaf and a one-member
+leaf-list alike, so no lowered map can be rebuilt into a Tree without the schema
+that declared the node. A consumer that needs a Tree takes the PARSED one
+(`preparePKIConfig`, `cmd/ze/hub/main_pki.go`), never a rebuild of the map.
 
 A list is delivered as a map, and a map states no order, so the operator's ENTRY
 ORDER needs a second key to survive lowering. There are two lowerings.
@@ -821,6 +841,40 @@ owns before it starts waiting, so a route a program pushes during the wait goes
 straight to the wire, in front of the marker, where a route belonging to the
 initial update belongs.
 
+**One binding is DERIVED, and only one.** A `redistribute` rule whose source is
+a BGP one names the daemon's Loc-RIB as the route source, and the Loc-RIB is the
+`bgp-rib` plugin, which reads a peer's UPDATEs only through an `attach process`
+grant. The config builder therefore adds that grant itself: every peer gains a
+binding for the process `bgp-rib` runs under, carrying `receive [ update state
+refresh ]`. A peer that already names that process keeps its own binding
+unchanged, and a config that names no BGP source gains nothing.
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireLocRIBDelivery -->
+
+---
+
+## Redistribute Block
+
+`redistribute { destination <proto> { import <source> } }` is read once at load
+and again on every SIGHUP reload, and a config it cannot turn into rules
+REFUSES the load. Three shapes fail, each naming what the operator typed: a
+source no component registered, a family name that is not a registered address
+family, and a `destination` that imports nothing.
+
+The refusal replaced a warning. The warning left the global evaluator nil, which
+disabled every redistribution rule in the file rather than the one line that was
+wrong, and its only trace was a startup log line. `ze doctor` reports the same
+two faults ahead of the daemon, under `doctor-redistribute-unknown-source` and
+`doctor-redistribute-unknown-destination`; the second is a warning, because a
+destination protocol registers its consumer at plugin startup and a build
+without that protocol is a legitimate reason for the name to be unknown.
+
+An empty rule list installs an EMPTY evaluator rather than leaving the previous
+one standing, so a reload that removed the last `redistribute` block stops
+redistributing.
+<!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
+<!-- source: internal/component/bgp/config/loader_create.go -- initRedistribute -->
+<!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules -->
+
 ---
 
 ## Filter Block
@@ -1261,6 +1315,32 @@ bgp {
 ```
 
 ---
+
+## YANG Defaults Do Not Reach a Config On Their Own
+
+A `default` statement on a YANG leaf is SCHEMA METADATA. It is not a value in
+the parsed config tree, and a component that reads its config section directly
+sees the leaf as absent.
+
+`config.ApplyDefaults` (`internal/component/config/schema_defaults.go`) is what
+puts a declared default into a tree, and it must be called with the schema node
+for the subtree being filled. Two things follow, and both have produced defects:
+
+- A component that never calls it reads every unwritten leaf as missing. If it
+  then treats missing as zero, or as "no configuration", the declared default is
+  documentation that no code obeys.
+- Where a component DOES call it, the pattern is three steps: `config.YANGSchema()`,
+  `schema.Lookup("<container path>")`, then `config.ApplyDefaults(subtree, node)`.
+  `applyPeerSchemaDefaults` (`internal/component/bgp/config/peers.go`) fills peer
+  entries this way, and `parseAdminDistanceConfig`
+  (`internal/component/sysrib/sysrib.go`) fills the protocol distance table.
+
+**A failure to load the schema is not a reason to carry on with an empty tree.**
+`applyPeerSchemaDefaults` returns silently on both error paths; the distance
+parser returns the error instead, because that value decides which route the
+kernel installs and a silent empty answer is indistinguishable from a
+deliberate one. Which behavior is right depends on what the missing defaults
+would cause, and the choice is made deliberately rather than by copying.
 
 ## Custom YANG Extensions
 

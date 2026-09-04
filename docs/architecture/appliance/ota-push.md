@@ -11,7 +11,7 @@ A/B root partition. It speaks the gokrazy update protocol through the
 | Decision | Reason |
 |----------|--------|
 | Authentication is injected as an `http.RoundTripper` wrapper | the updater makes its own requests, a feature probe among them. Credentials on the stream call alone would fail the probe |
-| TLS verifies against the stored `cert.pem` only | devices carry self-signed certificates, so the system CA pool cannot help |
+| TLS verifies against the stored `cert.pem` only | no public authority signed the device certificate, so the system CA pool cannot help. The file holds the device certificate and the appliance root that issued it, and the pool trusts the ISSUER, so a certificate reissued by `ze appliance replace-cert` still verifies |
 | HTTP basic auth with an empty user and the token as the password | this is the scheme the gokrazy update API expects |
 | `--testboot` uses the updater's testboot path rather than switch | the device reverts on its own when the new root fails to boot |
 | `--no-reboot` streams and switches without rebooting | batch updates decide their own reboot order |

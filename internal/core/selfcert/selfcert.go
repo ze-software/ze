@@ -93,37 +93,16 @@ func GenerateWebCertWithNames(listenAddr string, extraNames []string, validity t
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
-		DNSNames:              []string{"localhost"},
-		IPAddresses: []net.IP{
-			net.IPv4(127, 0, 0, 1),
-			net.IPv6loopback,
-		},
 	}
 
-	// Add SANs for the listen address. When listening on the unspecified
-	// address (0.0.0.0 or ::), add all non-loopback interface IPs so the
-	// certificate is valid regardless of which IP the client connects to.
-	if listenAddr != "" {
-		host, _, splitErr := net.SplitHostPort(listenAddr)
-		if splitErr != nil {
-			host = listenAddr
-		}
-		if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() {
-			if ip.IsUnspecified() {
-				addInterfaceIPs(&template)
-			} else {
-				template.IPAddresses = append(template.IPAddresses, ip)
-			}
-		}
-	}
-
-	// Add extra DNS names, or IP SANs when they parse as IPs.
-	for _, name := range extraNames {
-		if ip := net.ParseIP(name); ip != nil {
+	// A host that parses as an IP address becomes an IP SAN, and every other
+	// host a DNS SAN.
+	for _, host := range WebCertHosts(listenAddr, extraNames) {
+		if ip := net.ParseIP(host); ip != nil {
 			template.IPAddresses = append(template.IPAddresses, ip)
-		} else {
-			template.DNSNames = append(template.DNSNames, name)
+			continue
 		}
+		template.DNSNames = append(template.DNSNames, host)
 	}
 
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
@@ -141,14 +120,47 @@ func GenerateWebCertWithNames(listenAddr string, extraNames []string, validity t
 	return certPEM, keyPEM, nil
 }
 
-// addInterfaceIPs appends all non-loopback unicast IPs from network interfaces
-// to tmpl.IPAddresses. Used when listening on 0.0.0.0 so the cert is valid for
-// any local IP the client connects to.
-func addInterfaceIPs(tmpl *x509.Certificate) {
+// WebCertHosts returns the subject alternative names a Ze web certificate
+// carries: localhost and the two loopback addresses, the host part of
+// listenAddr, and every extra name the caller names. It is the one declaration
+// of that set. GenerateWebCertWithNames builds its own template from it, and
+// the appliance build host passes it to the certificate authority, so a
+// self-signed leaf and an issued one identify the same listener.
+//
+// Listening on the unspecified address expands to the interface addresses of
+// the machine this call runs on, so a client that reaches the listener by any
+// of them still verifies the name.
+func WebCertHosts(listenAddr string, extraNames []string) []string {
+	hosts := make([]string, 0, len(extraNames)+4)
+	hosts = append(hosts, "localhost", net.IPv4(127, 0, 0, 1).String(), net.IPv6loopback.String())
+
+	if listenAddr != "" {
+		host, _, splitErr := net.SplitHostPort(listenAddr)
+		if splitErr != nil {
+			host = listenAddr
+		}
+		if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() {
+			if ip.IsUnspecified() {
+				hosts = append(hosts, interfaceHosts()...)
+			} else {
+				hosts = append(hosts, ip.String())
+			}
+		}
+	}
+
+	return append(hosts, extraNames...)
+}
+
+// interfaceHosts returns every non-loopback unicast IP of this machine's
+// interfaces. It answers for the unspecified listen address, where the
+// certificate has to be valid for whichever local IP the client connects to.
+func interfaceHosts() []string {
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		return
+		return nil
 	}
+
+	var hosts []string
 	for _, iface := range ifaces {
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
 			continue
@@ -165,9 +177,10 @@ func addInterfaceIPs(tmpl *x509.Certificate) {
 			if ipNet.IP.IsLoopback() || ipNet.IP.IsLinkLocalUnicast() {
 				continue
 			}
-			tmpl.IPAddresses = append(tmpl.IPAddresses, ipNet.IP)
+			hosts = append(hosts, ipNet.IP.String())
 		}
 	}
+	return hosts
 }
 
 // NewTLSConfig creates a tls.Config from PEM-encoded certificate and key data.

@@ -195,7 +195,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.host", Type: envTypeString, Default: "127.0.0.1", Description: "TLS host for plugin-to-engine connection"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.port", Type: envTypeString, Default: "12700", Description: "TLS port for plugin-to-engine connection"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: envTypeString, Description: "Auth token for plugin-to-engine TLS (required for external plugins)", Private: true, Secret: true})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.cert.fp", Type: envTypeString, Description: "SHA-256 fingerprint of engine TLS cert for pinning"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.ca.pem", Type: envTypeString, Description: "PEM certificate authority root the plugin validates the engine's certificate against (required)"})
 )
 
 // Default plugin transport address (matches hub config default listen address).
@@ -224,10 +224,16 @@ func dialAndAuth(ctx context.Context, name string) (net.Conn, error) {
 		return nil, fmt.Errorf("ze.plugin.hub.token must be set")
 	}
 
-	certFP := env.Get("ze.plugin.cert.fp")
+	// The engine's certificate authority root, and the only thing this process
+	// checks the engine against. An absent or unparsable root ends the dial
+	// here: there is no configuration in which this plugin writes its token to
+	// a peer it did not verify.
+	tlsConf, err := ipc.TLSConfigWithRoot([]byte(env.Get("ze.plugin.ca.pem")))
+	if err != nil {
+		return nil, fmt.Errorf("engine trust anchor: %w", err)
+	}
 
 	addr := net.JoinHostPort(host, port)
-	tlsConf := ipc.TLSConfigWithFingerprint(certFP)
 
 	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", addr)
 	if err != nil {
@@ -253,11 +259,12 @@ func dialAndAuth(ctx context.Context, name string) (net.Conn, error) {
 }
 
 // NewFromTLSEnv creates a plugin by reading ze.plugin.hub.host, ze.plugin.hub.port,
-// ze.plugin.hub.token, and ze.plugin.cert.fp env vars (dot or underscore notation).
+// ze.plugin.hub.token, and ze.plugin.ca.pem env vars (dot or underscore notation).
 // Connects to the engine via TLS, authenticates, and returns a single-conn plugin.
 // ze.plugin.hub.host defaults to 127.0.0.1, ze.plugin.hub.port defaults to 12700.
-// ze.plugin.hub.token is required.
-// If ze.plugin.cert.fp is set, the TLS handshake verifies the server cert fingerprint.
+// ze.plugin.hub.token and ze.plugin.ca.pem are both required: the handshake
+// validates the engine's certificate chain against that root and against
+// nothing else.
 func NewFromTLSEnv(name string) (*Plugin, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -8,13 +8,46 @@
 package plugin
 
 import (
+	"crypto/tls"
 	"testing"
+	"time"
 
 	parent "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/selfcert"
 )
+
+// testAuthority stands in for the daemon's certificate authority. These tests
+// are about which config opens the listener, not about what signed the
+// certificate, so one self-signed pair serving as both the leaf and its own
+// anchor is enough, and it keeps the manager package free of a dependency on
+// pki. No handshake runs against it.
+type testAuthority struct {
+	pair    tls.Certificate
+	rootPEM []byte
+}
+
+func newTestAuthority(t *testing.T) *testAuthority {
+	t.Helper()
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithNames("", []string{"127.0.0.1"}, time.Hour)
+	if err != nil {
+		t.Fatalf("test authority: %v", err)
+	}
+	pair, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("test authority: %v", err)
+	}
+	return &testAuthority{pair: pair, rootPEM: certPEM}
+}
+
+func (a *testAuthority) IssueLeaf(_ string, _ []string) (tls.Certificate, error) {
+	return a.pair, nil
+}
+
+func (a *testAuthority) CertificatePEM() []byte { return a.rootPEM }
 
 func TestEnsureAcceptorExplicitHubConfigWithoutExternals(t *testing.T) {
 	m := NewManager()
+	m.SetHubAuthority(newTestAuthority(t))
 	m.SetHubConfig(&parent.HubConfig{
 		Servers: []parent.HubServerConfig{{
 			Name:   "local",

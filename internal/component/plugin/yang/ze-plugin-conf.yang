@@ -39,8 +39,9 @@ module ze-plugin-conf {
                     type string { length "1..64"; }
                     description "Name of the pki certificate the managed-client listener on this block serves.";
                     ze:help "Name of a pki certificate the managed-client listener on this block serves. An empty name serves a
-                        self-signed certificate that changes on every restart. No CA can vouch for that one, so a client
-                        must pin its fingerprint or skip verification.";
+                        certificate this daemon's own certificate authority issues, and reissues as it ages. Export that
+                        authority root with 'show pki local-ca pem' and name it in each client's pki ca block, so a client
+                        validates the chain rather than one certificate.";
                 }
 
                 list client {
@@ -90,13 +91,17 @@ module ze-plugin-conf {
                     description "Source IP address for outbound hub connections.";
                 }
 
-                leaf certificate-fingerprint {
-                    type string { pattern "[0-9a-fA-F]{64}"; }
-                    description "Fingerprint of the hub certificate, overridden by ze.managed.tls.certificate-fingerprint.";
-                    ze:help "SHA-256 fingerprint of the hub certificate, in hex. The client refuses any other certificate and
-                        sends no token to it. Use it when the hub certificate comes from no CA the client trusts. The hub
-                        logs this value when its managed listener starts. The ze.managed.tls.certificate-fingerprint
-                        environment variable overrides this leaf.";
+                leaf ca {
+                    type string {
+                        length "1..255";
+                        pattern '[A-Za-z0-9._-]+';
+                    }
+                    description "Name of the pki ca entry holding the hub certificate authority root.";
+                    ze:help "Name of a pki ca entry holding the certificate authority root of the hub this client connects to.
+                        The client validates the hub certificate chain against that root and refuses any other chain, so it
+                        sends no token to a hub it did not authenticate. Export the root from the hub and paste it into a
+                        pki ca block on this client. A leaf the hub reissues still validates, because the root is the anchor
+                        and not the certificate.";
                 }
             }
         }

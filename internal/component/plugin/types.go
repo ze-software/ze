@@ -358,9 +358,9 @@ type HubClientConfig struct {
 	Port          uint16 // Remote hub port
 	Secret        string `json:"-"` // Auth token
 	SourceAddress string // Optional source IP for outbound connection
-	// CertificateFingerprint pins the hub certificate by hex SHA-256, for a hub
-	// whose certificate no CA in this client's trust store issued.
-	CertificateFingerprint string
+	// CA names the pki ca entry holding the hub's certificate authority root,
+	// for a hub whose certificate no public CA issued.
+	CA string
 }
 
 // Address returns "host:port" for net.Dial.

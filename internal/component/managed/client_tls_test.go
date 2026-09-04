@@ -1,77 +1,127 @@
 // VALIDATES: a managed client authenticates the hub before it sends its token --
-// a pinned certificate fingerprint is honored, a wrong certificate ends the
-// handshake, and the default (no pin, no tls-insecure) fails closed
-// (spec-managed-server-hardening AC-1/AC-2).
-// PREVENTS: the shipping posture this replaced, where the only way to reach a hub
-// serving a self-signed certificate was ze.managed.tls.insecure, which sends the
-// client's token to whatever answered on the hub address.
+// it validates the chain against the pki ca entry it names, refuses a hub that
+// entry did not anchor, refuses outright when the named entry resolves to
+// nothing, and keeps working when the hub reissues its leaf under the same root
+// (spec-local-ca AC-3/AC-4/AC-7/AC-12).
+// PREVENTS: the pin this replaced, which named one certificate and died with it,
+// and the posture before that, where reaching a hub serving a certificate no
+// public CA issued meant ze.managed.tls.insecure and a token sent to whatever
+// answered on the hub address.
 
 package managed
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
-	"encoding/hex"
-	"encoding/pem"
+	"crypto/x509"
+	"math/big"
 	"net"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 const testHubToken = "0123456789abcdef0123456789abcdef"
 
-// recordingHub is a TLS listener that reports what each connection produced.
-// It records the first line an accepted connection sent after a successful
-// handshake, or the handshake error. That answers the one question this file
-// asks: did the client's token reach a server it had not authenticated?
-type recordingHub struct {
-	addr        string
-	fingerprint string
-	firstLine   chan string
-	handshakeNG chan error
+// testRoot generates one certificate authority in a temporary blob store, the
+// way a daemon does on first start.
+func testRoot(t *testing.T) *pki.Root {
+	t.Helper()
+	dir := t.TempDir()
+	store, err := storage.NewBlob(dir+"/database.zefs", dir)
+	if err != nil {
+		t.Fatalf("open blob store: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := store.Close(); closeErr != nil {
+			t.Errorf("close blob store: %v", closeErr)
+		}
+	})
+
+	root, err := pki.LoadOrGenerateRoot(store)
+	if err != nil {
+		t.Fatalf("LoadOrGenerateRoot: %v", err)
+	}
+	if _, readErr := store.ReadFile(zefs.KeyCACert.Pattern); readErr != nil {
+		t.Fatalf("the generated root was not stored: %v", readErr)
+	}
+	return root
 }
 
-func startRecordingHub(t *testing.T) *recordingHub {
+// installCA puts root into the pki store under name, which is what an operator
+// does by pasting the exported root into a pki ca block. The store is package
+// state, so the test restores it.
+func installCA(t *testing.T, name string, root *pki.Root) {
+	t.Helper()
+	cert := root.Certificate()
+	if err := pki.Load(&pki.PKIConfig{
+		CACerts: map[string]*pki.CACertEntry{
+			name: {Name: name, Certificate: cert, Raw: cert.Raw},
+		},
+		Certificates: map[string]*pki.CertificateEntry{},
+	}); err != nil {
+		t.Fatalf("load pki ca %s: %v", name, err)
+	}
+	t.Cleanup(func() {
+		if err := pki.Load(nil); err != nil {
+			t.Errorf("clear pki store: %v", err)
+		}
+	})
+}
+
+// issuingHub is a TLS listener that issues a FRESH leaf from root for every
+// handshake, which is what a hub does across a restart: the leaf changes and
+// the root does not. It records the first line an accepted connection sent
+// after a successful handshake, or the handshake error, which answers the one
+// question this file asks: did the client's token reach a server it had not
+// authenticated?
+type issuingHub struct {
+	addr        string
+	firstLine   chan string
+	handshakeNG chan error
+	serials     chan *big.Int
+}
+
+func startIssuingHub(t *testing.T, root *pki.Root) *issuingHub {
 	t.Helper()
 
-	certPEM, keyPEM, err := selfcert.GenerateWebCertWithNames("127.0.0.1:0", nil, time.Hour)
-	if err != nil {
-		t.Fatalf("generate hub certificate: %v", err)
+	hub := &issuingHub{
+		firstLine:   make(chan string, 4),
+		handshakeNG: make(chan error, 4),
+		serials:     make(chan *big.Int, 4),
 	}
-	pair, err := tls.X509KeyPair(certPEM, keyPEM)
-	if err != nil {
-		t.Fatalf("hub key pair: %v", err)
-	}
-	block, _ := pem.Decode(certPEM)
-	if block == nil {
-		t.Fatal("hub certificate PEM did not decode")
-	}
-	sum := sha256.Sum256(block.Bytes)
 
-	ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
-		Certificates: []tls.Certificate{pair},
-		MinVersion:   tls.VersionTLS13,
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		MinVersion: tls.VersionTLS13,
+		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			cert, issueErr := root.IssueLeaf("ze-managed-hub", []string{"127.0.0.1"})
+			if issueErr != nil {
+				return nil, issueErr
+			}
+			leaf, parseErr := x509.ParseCertificate(cert.Certificate[0])
+			if parseErr != nil {
+				return nil, parseErr
+			}
+			select {
+			case hub.serials <- leaf.SerialNumber:
+			default:
+			}
+			return &cert, nil
+		},
 	})
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	t.Cleanup(func() { ln.Close() }) //nolint:errcheck // test cleanup
-
-	hub := &recordingHub{
-		addr:        ln.Addr().String(),
-		fingerprint: hex.EncodeToString(sum[:]),
-		firstLine:   make(chan string, 4),
-		handshakeNG: make(chan error, 4),
-	}
+	t.Cleanup(func() { listener.Close() }) //nolint:errcheck // test cleanup
+	hub.addr = listener.Addr().String()
 
 	go func() {
 		for {
-			conn, acceptErr := ln.Accept()
+			conn, acceptErr := listener.Accept()
 			if acceptErr != nil {
 				return // listener closed by cleanup
 			}
@@ -84,7 +134,7 @@ func startRecordingHub(t *testing.T) *recordingHub {
 // serve completes the handshake and reads one line. Both outcomes are recorded:
 // a handshake failure means the client refused this hub, and a line means the
 // client trusted it enough to write.
-func (h *recordingHub) serve(conn net.Conn) {
+func (h *issuingHub) serve(conn net.Conn) {
 	defer conn.Close() //nolint:errcheck // test cleanup
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -107,7 +157,7 @@ func (h *recordingHub) serve(conn net.Conn) {
 }
 
 // wroteToken reports whether the client sent its auth frame within the timeout.
-func (h *recordingHub) wroteToken(t *testing.T, timeout time.Duration) (string, bool) {
+func (h *issuingHub) wroteToken(t *testing.T, timeout time.Duration) (string, bool) {
 	t.Helper()
 	select {
 	case line := <-h.firstLine:
@@ -126,55 +176,59 @@ func runOnce(t *testing.T, cfg *ClientConfig) error {
 	return runConnection(ctx, cfg, newBackoff(time.Millisecond, time.Second, 0))
 }
 
-// TestManagedClientPinsCertificate: AC-1 -- a client carrying the hub's
-// fingerprint completes the handshake against a certificate no CA issued. It
-// sends its token over that connection.
+// TestManagedClientValidatesAgainstConfiguredRoot: AC-12 -- a client naming a
+// pki ca entry validates the hub's chain against that root and sends its token
+// over the connection.
 //
-// MUTATION: delete the pin branch in clientTLSConfig and this fails -- the
-// system CA pool cannot verify the hub certificate, so the handshake ends
-// before any token is written.
-func TestManagedClientPinsCertificate(t *testing.T) {
-	hub := startRecordingHub(t)
+// MUTATION: drop the RootCAs assignment in clientTLSConfig and this fails: the
+// system pool cannot verify a leaf a private root issued.
+func TestManagedClientValidatesAgainstConfiguredRoot(t *testing.T) {
+	root := testRoot(t)
+	installCA(t, "fleet-hub", root)
+	hub := startIssuingHub(t, root)
+
 	cfg := &ClientConfig{
-		Name:                   "edge-01",
-		Server:                 hub.addr,
-		Token:                  testHubToken,
-		CertificateFingerprint: hub.fingerprint,
-		Handler:                &Handler{Validate: func([]byte) error { return nil }},
+		Name:    "edge-01",
+		Server:  hub.addr,
+		Token:   testHubToken,
+		CA:      "fleet-hub",
+		Handler: &Handler{Validate: func([]byte) error { return nil }},
 	}
 
 	_ = runOnce(t, cfg) // the hub closes after one line, so this always ends in an error
 
 	line, ok := hub.wroteToken(t, 3*time.Second)
 	if !ok {
-		t.Fatal("client with the correct fingerprint did not reach the hub")
+		t.Fatal("a client holding the hub root did not reach the hub")
 	}
 	if !strings.Contains(line, testHubToken) {
 		t.Fatalf("auth frame does not carry the token: %q", line)
 	}
 }
 
-// TestManagedClientRefusesWrongCertificate: AC-2 -- a client carrying a
-// fingerprint the hub does not present refuses the connection and sends
-// nothing. This is the impostor case: the token must not leave the client.
+// TestManagedClientRefusesAnotherIssuer: AC-3 -- a hub whose leaf the
+// configured root did not issue ends the handshake and gets no token. This is
+// the impostor case.
 //
-// MUTATION: return an InsecureSkipVerify config from the pin branch (no
-// VerifyConnection) and this fails -- the handshake completes and the token
-// arrives.
-func TestManagedClientRefusesWrongCertificate(t *testing.T) {
-	hub := startRecordingHub(t)
-	wrong := strings.Repeat("ab", 32) // 64 hex digits, not this hub's certificate
+// MUTATION: set InsecureSkipVerify in the ca branch of clientTLSConfig and this
+// fails: the handshake completes and the token arrives.
+func TestManagedClientRefusesAnotherIssuer(t *testing.T) {
+	trusted := testRoot(t)
+	stranger := testRoot(t)
+	installCA(t, "fleet-hub", trusted)
+	hub := startIssuingHub(t, stranger)
+
 	cfg := &ClientConfig{
-		Name:                   "edge-01",
-		Server:                 hub.addr,
-		Token:                  testHubToken,
-		CertificateFingerprint: wrong,
-		Handler:                &Handler{Validate: func([]byte) error { return nil }},
+		Name:    "edge-01",
+		Server:  hub.addr,
+		Token:   testHubToken,
+		CA:      "fleet-hub",
+		Handler: &Handler{Validate: func([]byte) error { return nil }},
 	}
 
 	err := runOnce(t, cfg)
 	if err == nil {
-		t.Fatal("client accepted a hub whose certificate it did not pin")
+		t.Fatal("a client accepted a hub its configured root did not anchor")
 	}
 	if !strings.Contains(err.Error(), "tls handshake") {
 		t.Fatalf("error = %v, want a TLS handshake failure", err)
@@ -184,69 +238,98 @@ func TestManagedClientRefusesWrongCertificate(t *testing.T) {
 	}
 }
 
-// TestManagedClientDefaultFailsClosed: with no fingerprint and no tls-insecure,
-// the trust anchor is the system CA pool, which cannot verify a self-signed hub.
-// The connection must fail rather than proceed.
+// TestManagedClientRefusesWithNoAnchor: AC-4 -- there is no configuration in
+// which an absent anchor produces a successful connection. A named ca entry
+// that resolves to nothing is an error and no config at all, and a client that
+// names none falls to the system pool, which cannot verify a private hub.
 //
-// MUTATION: set InsecureSkipVerify in the default branch of clientTLSConfig and
-// this fails -- the handshake completes and the token arrives.
-func TestManagedClientDefaultFailsClosed(t *testing.T) {
-	hub := startRecordingHub(t)
+// MUTATION: return the system-pool config when the named entry is missing, and
+// the first case fails: a broken reference becomes a working connection
+// attempt against an anchor the operator never chose.
+func TestManagedClientRefusesWithNoAnchor(t *testing.T) {
+	root := testRoot(t)
+
+	t.Run("named-entry-does-not-resolve", func(t *testing.T) {
+		installCA(t, "fleet-hub", root)
+		hub := startIssuingHub(t, root)
+
+		cfg := &ClientConfig{
+			Name:    "edge-01",
+			Server:  hub.addr,
+			Token:   testHubToken,
+			CA:      "no-such-ca",
+			Handler: &Handler{Validate: func([]byte) error { return nil }},
+		}
+
+		err := runOnce(t, cfg)
+		if err == nil {
+			t.Fatal("a client whose named ca entry does not exist connected anyway")
+		}
+		if !strings.Contains(err.Error(), "no-such-ca") {
+			t.Fatalf("error = %v, want the unresolved ca name", err)
+		}
+		if line, ok := hub.wroteToken(t, time.Second); ok {
+			t.Fatalf("client sent %q with no trust anchor at all", line)
+		}
+	})
+
+	t.Run("no-ca-configured", func(t *testing.T) {
+		hub := startIssuingHub(t, root)
+
+		cfg := &ClientConfig{
+			Name:    "edge-01",
+			Server:  hub.addr,
+			Token:   testHubToken,
+			Handler: &Handler{Validate: func([]byte) error { return nil }},
+		}
+
+		if err := runOnce(t, cfg); err == nil {
+			t.Fatal("a client accepted an unverifiable hub certificate by default")
+		}
+		if line, ok := hub.wroteToken(t, time.Second); ok {
+			t.Fatalf("client sent %q to an unverified hub", line)
+		}
+	})
+}
+
+// TestManagedClientSurvivesAHubRestart: AC-7 -- the hub issues a fresh leaf,
+// which is what a restart produces, and the same client config still connects.
+// The anchor is the issuer, so nothing about the client changes.
+//
+// The hub here issues on every handshake, so the second connection meets a leaf
+// with a different serial. That is the property, and it needs no port reuse to
+// demonstrate.
+//
+// MUTATION: put the leaf rather than the root in the pool built by
+// clientTLSConfig and the second connection fails: the leaf it pinned is gone.
+func TestManagedClientSurvivesAHubRestart(t *testing.T) {
+	root := testRoot(t)
+	installCA(t, "fleet-hub", root)
+	hub := startIssuingHub(t, root)
+
 	cfg := &ClientConfig{
 		Name:    "edge-01",
 		Server:  hub.addr,
 		Token:   testHubToken,
+		CA:      "fleet-hub",
 		Handler: &Handler{Validate: func([]byte) error { return nil }},
 	}
 
-	if err := runOnce(t, cfg); err == nil {
-		t.Fatal("client accepted an unverifiable hub certificate by default")
-	}
-	if line, ok := hub.wroteToken(t, time.Second); ok {
-		t.Fatalf("client sent %q to an unverified hub", line)
-	}
-}
-
-// TestManagedClientFingerprintSources: the environment variable overrides the
-// configured leaf (ai/rules/config.md precedence), and hex case does not matter
-// because crypto/hex writes lowercase and an operator can paste uppercase.
-//
-// MUTATION: drop the env lookup in certificateFingerprint and the override case
-// fails. Drop strings.ToLower and the uppercase case fails.
-func TestManagedClientFingerprintSources(t *testing.T) {
-	hub := startRecordingHub(t)
-	upper := strings.ToUpper(hub.fingerprint)
-
-	t.Run("uppercase-leaf", func(t *testing.T) {
-		cfg := &ClientConfig{
-			Name:                   "edge-01",
-			Server:                 hub.addr,
-			Token:                  testHubToken,
-			CertificateFingerprint: upper,
-			Handler:                &Handler{Validate: func([]byte) error { return nil }},
-		}
+	serials := make([]*big.Int, 0, 2)
+	for attempt := range 2 {
 		_ = runOnce(t, cfg)
 		if _, ok := hub.wroteToken(t, 3*time.Second); !ok {
-			t.Fatal("uppercase fingerprint did not match the hub certificate")
+			t.Fatalf("connection %d did not reach the hub", attempt+1)
 		}
-	})
+		select {
+		case serial := <-hub.serials:
+			serials = append(serials, serial)
+		case <-time.After(time.Second):
+			t.Fatalf("connection %d recorded no served certificate", attempt+1)
+		}
+	}
 
-	t.Run("env-overrides-leaf", func(t *testing.T) {
-		if err := env.Set(envCertificateFingerprint, hub.fingerprint); err != nil {
-			t.Fatalf("set %s: %v", envCertificateFingerprint, err)
-		}
-		t.Cleanup(func() { _ = env.Set(envCertificateFingerprint, "") })
-
-		cfg := &ClientConfig{
-			Name:                   "edge-01",
-			Server:                 hub.addr,
-			Token:                  testHubToken,
-			CertificateFingerprint: strings.Repeat("cd", 32), // wrong leaf, right env
-			Handler:                &Handler{Validate: func([]byte) error { return nil }},
-		}
-		_ = runOnce(t, cfg)
-		if _, ok := hub.wroteToken(t, 3*time.Second); !ok {
-			t.Fatal("env fingerprint did not override the configured leaf")
-		}
-	})
+	if serials[0].Cmp(serials[1]) == 0 {
+		t.Fatal("the hub served the same leaf twice, so no reissue was exercised")
+	}
 }

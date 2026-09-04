@@ -307,8 +307,15 @@ CLI flag overrides (optional, for troubleshooting):
 | `--name <name>` | `ze.managed.name` | Override client name |
 | `--token <token>` | `ze.managed.token` | Override auth token |
 | `--connect-timeout <dur>` | `ze.managed.connect.timeout` | Connection timeout (default: 5s) |
-| (none) | `ze.managed.tls.certificate-fingerprint` | Pin the hub certificate before any config exists |
 | (none) | `ze.managed.tls.insecure` | Skip server certificate verification (development only) |
+
+First boot has no config, so it can name no `pki ca` entry. `fetchInitialConfig`
+builds its trust anchor through the same `managed.ClientTLSConfig` every later
+connection uses, and with no `ca` name that anchor is the system CA pool. A hub
+whose certificate its own authority issued is unverifiable against that pool, so
+a first boot against one needs `ze.managed.tls.insecure`. The client names its
+`ca` once it holds a config, and every connection after that is verified.
+<!-- source: cmd/ze/ze_core_start.go -- fetchInitialConfig, extractManagedClientConfig -->
 
 Priority: CLI flag > env var > config block > blob metadata.
 
@@ -320,7 +327,7 @@ Priority: CLI flag > env var > config block > blob metadata.
 |---------|-----------|
 | Token per client | Each client has its own secret; token bound to name at auth |
 | Token in config | Config blob permissions 0600; token not logged |
-| TLS MITM | TLS 1.3 minimum. The client authenticates the hub before it sends its token, against the CA that issued the hub certificate or against the fingerprint it pins. See "Hub certificate and client trust" below. `ze.managed.tls.insecure` turns verification off and is for development only. |
+| TLS MITM | TLS 1.3 minimum. The client authenticates the hub before it sends its token, against the certificate authority its `ca` leaf names or against the system CA pool. See "Hub certificate and client trust" below. `ze.managed.tls.insecure` turns verification off and is for development only. |
 | Client impersonation | Per-client secret + name binding; one connection per name |
 | Config isolation | Client can only fetch its own config (name implicit from auth session) |
 | Multiple servers | Different secrets for different trust levels (local vs. remote) |
@@ -342,9 +349,12 @@ plugin {
 }
 ```
 
-With no `certificate` the listener serves a self-signed certificate that changes
-on every restart. No client can verify that certificate, so the name is what a
-production hub sets. Every server block that accepts managed clients serves one
+The name wins whenever it is set, and a name that resolves to nothing is an
+error rather than a fallback. With no `certificate` the listener serves a leaf
+the daemon's own certificate authority issued. That authority is generated at
+the hub's first start and kept, so the leaf changes and the issuer does not: the
+listener reissues the leaf as it ages, and a restart mints another. A client
+anchored on the root needs no change for either. Every server block that accepts managed clients serves one
 certificate: a config where two of them name different certificates is refused
 at load.
 
@@ -353,27 +363,46 @@ A client authenticates the hub in one of two ways:
 | The hub certificate | The client configuration |
 |---------------------|--------------------------|
 | Comes from a CA in the client's trust store | Nothing. Verification against the system CA pool is the default |
-| Comes from a private CA, or is self-signed | `certificate-fingerprint`, the hex SHA-256 of the hub certificate |
+| Comes from a private CA, or from the hub's own authority | `ca`, naming a `pki ca` entry that holds the issuing root |
 
 ```
+pki {
+    ca fleet-hub-root {
+        certificate "MIIB...";
+    }
+}
+
 plugin {
     hub {
         client edge-01 {
             host 10.0.0.1;
             port 1791;
             secret "...";
-            certificate-fingerprint "3b1f...";
+            ca fleet-hub-root;
         }
     }
 }
 ```
 
-The hub logs the fingerprint when its managed listener starts, which is where
-the operator copies it from. `ze.managed.tls.certificate-fingerprint` carries the
-same value before a client has any config, and overrides the leaf.
+`ze show pki local-ca pem` on the hub prints its authority root, which is where
+the operator copies it from. The root is public material: the command prints the
+certificate, its subject and its expiry, and the private key has no accessor.
+The `certificate` leaf of a `pki ca` block takes that PEM document as it stands,
+in quotes, headers and line breaks included. Base64 DER is read too, so a config
+written before is unchanged. Then name that block from `ca`.
+
+The anchor is the ISSUER, so a hub that presents a new certificate after a
+restart stays reachable with no client change. A hex fingerprint could not do
+that: it named one certificate and died with it. Ze no longer accepts the
+`certificate-fingerprint` leaf, and a config still carrying it is refused with
+an error naming `ca <pki-ca-name>` as the replacement.
 
 The client sends its token only after the handshake, so a certificate the client
 cannot authenticate ends the connection before the token is written.
+<!-- source: internal/component/plugin/server/managed_serve.go -- managedCertificate, managedLeafHosts -->
+<!-- source: internal/component/managed/tls.go -- clientTLSConfig, ClientTLSConfig -->
+<!-- source: internal/component/pki/show.go -- handleShowPKILocalCAPEM -->
+<!-- source: internal/component/config/retired.go -- retiredKeywords, RetiredKeywordHint -->
 
 ---
 

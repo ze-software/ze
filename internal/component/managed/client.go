@@ -43,16 +43,16 @@ type ClientConfig struct {
 	Token       string // Auth token
 	Version     string // Current config version hash (empty on first boot)
 	TLSInsecure bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
-	// CertificateFingerprint pins the hub certificate by its hex SHA-256
-	// fingerprint (plugin/hub/client/certificate-fingerprint). It authenticates
-	// a hub whose certificate no CA in the client's trust store issued, which
-	// is what a self-signed or privately issued fleet hub presents. Empty means
-	// the trust anchor comes from the system CA pool. See clientTLSConfig.
-	CertificateFingerprint string
-	SourceAddress          string // Optional source IP for outbound connection
-	Handler                *Handler
-	OnCommit               func([]byte) error // Called to transactionally commit fetched config
-	CheckManaged           func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
+	// CA names the pki ca entry holding the hub's certificate authority root
+	// (plugin/hub/client/ca). It authenticates a hub whose certificate no
+	// public CA issued, which is what a private fleet hub presents, and it
+	// keeps authenticating it after the hub reissues its leaf. Empty means the
+	// trust anchor comes from the system CA pool. See clientTLSConfig.
+	CA            string
+	SourceAddress string // Optional source IP for outbound connection
+	Handler       *Handler
+	OnCommit      func([]byte) error // Called to transactionally commit fetched config
+	CheckManaged  func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
 }
 
 // RunManagedClient connects to the hub and maintains the connection with
@@ -107,7 +107,10 @@ func serverNameFromAddr(server string) string {
 // fetch config, run heartbeat + notification loop. Returns on any error
 // (caller retries with backoff). Resets backoff on successful auth.
 func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) error {
-	tlsConf := clientTLSConfig(cfg)
+	tlsConf, err := clientTLSConfig(cfg)
+	if err != nil {
+		return err
+	}
 
 	connectCtx, connectCancel := context.WithTimeout(ctx, connectTimeout)
 	defer connectCancel()

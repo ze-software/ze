@@ -2,7 +2,9 @@ package fixture
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
@@ -47,6 +49,7 @@ func init() {
 		"plugin/peer-selector-asn":           {pluginName: "peer-selector-asn", scenario: fixture10PeerSelectorASN},
 		"plugin/peer-selector-name-and-ip":   {pluginName: "peer-selector", scenario: fixture10PeerSelectorNameIP},
 		"plugin/ping-show":                   {pluginName: "ping-show-test", scenario: fixture10PingShow},
+		"plugin/pki-ca-root-export":          {pluginName: "pki-ca-root-export-test", scenario: fixture10PKICARootExport},
 		"plugin/pki-certificate-export-show": {pluginName: "pki-export-show-test", scenario: fixture10PKIExport},
 		// Both declare SignalsSessionReady because both push their whole route
 		// set into the peer's INITIAL routing update, and the .ci expects the
@@ -805,6 +808,53 @@ func fixture10PKIExport(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("ca-bundle: expected error for CA certificate")
 	}
 	fmt.Fprintln(os.Stderr, "OK: PKI PEM, bundle, fingerprint, CA, and CA refusal contracts held")
+	return nil
+}
+
+// fixture10PKICARootExport reads the local certificate authority root through
+// the command an operator uses to distribute it. It waits for the End-of-RIB
+// first, for the reason fixture10PKIExport states.
+func fixture10PKICARootExport(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := fixture10WaitEOR(ctx, plugin, "*", 100); err != nil {
+		return err
+	}
+	root, err := fixture10PKIData(ctx, plugin, "show pki local-ca pem", "local-ca")
+	if err != nil {
+		return err
+	}
+
+	// The whole payload, not the PEM field alone: a key that reached any other
+	// field would be just as published.
+	rendered, err := json.Marshal(root)
+	if err != nil {
+		return fmt.Errorf("local-ca: marshal the export: %w", err)
+	}
+	if strings.Contains(string(rendered), "PRIVATE KEY") {
+		return errors.New("local-ca: the export names a private key")
+	}
+
+	text, _ := root["pem"].(string)
+	block, rest := pem.Decode([]byte(text))
+	if block == nil {
+		return fmt.Errorf("local-ca: the export is not PEM: %q", text)
+	}
+	if strings.TrimSpace(string(rest)) != "" {
+		return errors.New("local-ca: the export carries a second PEM block")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("local-ca: parse the exported certificate: %w", err)
+	}
+	if !cert.IsCA {
+		return errors.New("local-ca: the exported certificate is not a certificate authority")
+	}
+	if root["subject"] != cert.Subject.String() {
+		return fmt.Errorf("local-ca: the payload names subject %v, the PEM says %q", root["subject"], cert.Subject.String())
+	}
+	if root["not-after"] != cert.NotAfter.UTC().Format(time.RFC3339) {
+		return fmt.Errorf("local-ca: the payload names expiry %v, the PEM says %q", root["not-after"], cert.NotAfter.UTC().Format(time.RFC3339))
+	}
+	fmt.Fprintln(os.Stderr, "OK: the local CA root export is a CA certificate and carries no private key")
 	return nil
 }
 

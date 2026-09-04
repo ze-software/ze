@@ -1,0 +1,29 @@
+# spec-local-ca AC-12 and user story 2, with TWO REAL DAEMONS.
+#
+# VALIDATES: the operator exports the hub's certificate authority root
+#            (`show pki local-ca pem`), pastes it into the client's `pki ca`
+#            block, and the client fetches its config over a chain it validated
+#            against that root and nothing else.
+# PREVENTS: a fleet client that authenticates its hub by comparing one
+#           certificate. The hub is restarted between the export and the fetch,
+#           so the leaf the client validates is one the hub issued AFTER the
+#           operator copied the root. A pin on the old leaf cannot survive that;
+#           an issuer can.
+#
+# This is also the two-daemon managed test spec-managed-server-hardening left
+# outstanding. Both ends are `ze start`: a fake hub would prove the client half
+# and say nothing about what a real hub serves.
+#
+# The `foreign` half is the control. Its client is given a well-formed root the
+# hub never used, everything else held equal, and it MUST NOT fetch. Without it
+# a client that verified nothing would pass the first half.
+#
+# The assertions are compiled because the verdict is a daemon's own committed
+# state: internal/test/fixture/misc_fixture_managed_ca_trust.go reads the
+# client's `file/active/edge-01.conf` out of its blob store.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=ze-test fixture managed/hub-ca-trust -hub-plugin-port $PORT -hub-managed-port $PORT2 -scenario both:timeout=180s
+expect=exit:code=0
+expect=stderr:contains=OK: the managed client fetched its config over a chain validated against the exported hub root

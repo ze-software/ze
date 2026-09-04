@@ -273,6 +273,7 @@ ze-show:pki-certificate-bundle-pem
 ze-show:pki-certificate-fingerprint
 ze-show:pki-certificate-pem
 ze-show:pki-certificates
+ze-show:pki-local-ca-pem
 ze-show:policy-chain
 ze-show:policy-list
 ze-show:policy-routes

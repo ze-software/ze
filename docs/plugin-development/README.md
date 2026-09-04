@@ -106,12 +106,12 @@ The engine sets these environment variables before launching the plugin process:
 | `ZE_PLUGIN_HUB_HOST` | TLS host to connect to (default 127.0.0.1) |
 | `ZE_PLUGIN_HUB_PORT` | TLS port to connect to (default 12700) |
 | `ZE_PLUGIN_HUB_TOKEN` | Per-plugin auth token (unique per plugin, cleared from env after read) |
-| `ZE_PLUGIN_CERT_FP` | SHA-256 fingerprint of the engine's TLS certificate (for cert pinning) |
+| `ZE_PLUGIN_CA_PEM` | PEM certificate authority root that issued the engine's TLS certificate |
 | `ZE_PLUGIN_NAME` | Plugin name as configured in ze |
 
 Each plugin receives its own unique auth token. The token is bound to the plugin name: a plugin cannot use its token to authenticate as a different plugin. The token is automatically cleared from the OS environment after the SDK reads it, so it is not visible in `/proc/<pid>/environ`.
 
-When `ZE_PLUGIN_CERT_FP` is set, the SDK verifies the engine's TLS certificate fingerprint during the handshake, preventing man-in-the-middle attacks.
+`ZE_PLUGIN_CA_PEM` is required. The SDK validates the engine's certificate chain against that root and against nothing else, so a man in the middle needs a certificate the engine's own authority issued. An absent or unparsable root is an error before the dial, not a connection with verification turned off.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, env var registrations -->
 <!-- source: internal/component/plugin/process/process.go -- startExternal env var setup -->
 
@@ -211,7 +211,7 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 
 | Function | Purpose |
 |----------|---------|
-| `sdk.NewFromEnv(name)` | Connect via TLS using `ZE_PLUGIN_HUB_*` env vars. Returns `(*Plugin, error)` |
+| `sdk.NewFromEnv(name)` | Connect via TLS using the `ZE_PLUGIN_*` env vars above. Returns `(*Plugin, error)` |
 | `sdk.NewWithConn(name, conn)` | Create from existing `net.Conn` (internal plugins, testing) |
 
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv, NewWithConn -->

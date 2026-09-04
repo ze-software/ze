@@ -1,9 +1,11 @@
 // VALIDATES: the two trust leaves parse and reach the structs the managed server and
-// the managed client read -- plugin/hub/server/certificate and
-// plugin/hub/client/certificate-fingerprint (spec-managed-server-hardening AC-1).
+// the managed client read -- plugin/hub/server/certificate and plugin/hub/client/ca --
+// and the retired certificate-fingerprint leaf is refused with its replacement named
+// (spec-managed-server-hardening AC-1, spec-local-ca AC-5).
 // PREVENTS: a leaf that validates in YANG and is dropped in extraction, which leaves
-// the hub on a self-signed certificate and the client with no pin while the operator
-// reads their configured value back from `show configuration`.
+// the hub on a certificate nothing issued and the client with no anchor while the
+// operator reads their configured value back from `show configuration`. And a config
+// still spelling the pin loading as if it did something.
 
 package config
 
@@ -30,14 +32,15 @@ var hubTrustConfig = `plugin {
             host 10.0.0.1
             port 1790
             secret edge01-secret-that-is-at-least-32ch
-            certificate-fingerprint ` + strings.Repeat("ab", 32) + `
+            ca fleet-hub-root
         }
     }
 }
 `
 
 // TestHubTrustLeavesReachTheStructs parses a config that names a hub certificate
-// and pins its fingerprint, then reads both back through ExtractHubConfig.
+// and the certificate authority the client anchors on, then reads both back
+// through ExtractHubConfig.
 //
 // MUTATION: drop either assignment in extractHubServerConfig /
 // extractHubClientConfig and the matching assertion fails on the zero value.
@@ -52,16 +55,35 @@ func TestHubTrustLeavesReachTheStructs(t *testing.T) {
 	assert.Equal(t, "fleet-hub", hub.Servers[0].Certificate)
 
 	require.Len(t, hub.Clients, 1)
-	assert.Equal(t, strings.Repeat("ab", 32), hub.Clients[0].CertificateFingerprint)
+	assert.Equal(t, "fleet-hub-root", hub.Clients[0].CA)
 }
 
-// TestHubFingerprintRejectsNonHex proves the leaf's pattern is enforced: a
-// truncated or non-hex fingerprint is a typo that would otherwise leave the
-// client refusing every certificate the hub can present.
-func TestHubFingerprintRejectsNonHex(t *testing.T) {
-	bad := strings.Replace(hubTrustConfig, strings.Repeat("ab", 32), "not-a-fingerprint", 1)
+// TestHubCARejectsAnUnusableName proves the leaf's pattern is enforced. The
+// value names a pki ca entry, and an entry name carries no spaces or slashes,
+// so a value that holds one is a typo the client would otherwise fail on at
+// its first connection.
+func TestHubCARejectsAnUnusableName(t *testing.T) {
+	bad := strings.Replace(hubTrustConfig, "ca fleet-hub-root", `ca "fleet hub/root"`, 1)
 	_, err := LoadConfig(bad, filepath.Join(t.TempDir(), "hub-bad.conf"), nil)
 	require.Error(t, err)
+}
+
+// TestFingerprintConfigIsRefused: AC-5 -- a config still carrying the retired
+// certificate-fingerprint leaf is refused, and the refusal names the
+// certificate authority that replaced it. Ze rewrites no file, so the operator
+// needs the replacement spelling in the error.
+//
+// MUTATION: drop the certificate-fingerprint row from retiredKeywords and this
+// fails on the message: the config is still refused, but as a bare unknown
+// field that tells the operator nothing about what to write.
+func TestFingerprintConfigIsRefused(t *testing.T) {
+	retired := strings.Replace(hubTrustConfig, "ca fleet-hub-root",
+		"certificate-fingerprint "+strings.Repeat("ab", 32), 1)
+
+	_, err := LoadConfig(retired, filepath.Join(t.TempDir(), "hub-retired.conf"), nil)
+	require.Error(t, err, "a config carrying the retired pin must be refused, not silently ignored")
+	assert.Contains(t, err.Error(), "certificate-fingerprint")
+	assert.Contains(t, err.Error(), "ca <pki-ca-name>")
 }
 
 // TestHubRefusesDisagreeingCertificates: two blocks that accept managed clients

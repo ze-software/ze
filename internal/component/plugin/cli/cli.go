@@ -242,6 +242,13 @@ func availableFeatures(cfg PluginConfig) string {
 
 // connFromEnv returns a connection for RPC communication with the engine.
 // Connects to the engine via TLS using ze.plugin.hub.token/host/port env vars.
+//
+// The engine is authenticated against ze.plugin.ca.pem, the certificate
+// authority root the engine puts in every plugin child's environment
+// (process.go, startExternal). It FAILS CLOSED: with no root this returns an
+// error and no connection, because the next thing written to that socket is
+// the plugin's own token. Until 2026-09-04 this path set InsecureSkipVerify
+// and wrote the token to whatever answered on the address.
 func connFromEnv() (net.Conn, error) {
 	token := env.Get("ze.plugin.hub.token")
 	if token == "" {
@@ -260,11 +267,12 @@ func connFromEnv() (net.Conn, error) {
 		name = "go-plugin"
 	}
 
-	addr := net.JoinHostPort(host, port)
-	tlsConf := &tls.Config{
-		InsecureSkipVerify: true, //nolint:gosec // engine uses self-signed cert
-		MinVersion:         tls.VersionTLS13,
+	tlsConf, anchorErr := ipc.TLSConfigWithRoot([]byte(env.Get("ze.plugin.ca.pem")))
+	if anchorErr != nil {
+		return nil, fmt.Errorf("engine trust anchor: %w", anchorErr)
 	}
+
+	addr := net.JoinHostPort(host, port)
 	conn, dialErr := (&tls.Dialer{Config: tlsConf}).DialContext(
 		context.Background(), "tcp", addr,
 	)

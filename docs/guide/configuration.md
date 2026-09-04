@@ -439,7 +439,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `ttl-security` | Minimum TTL for incoming packets | No |
 | `outgoing-ttl` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
-| `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding) | No (default: disable) |
+| `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer that carries an ACTIVE export filter is excluded from this path, and the `bgp-rs` plugin relays to it instead, so both peers must name that plugin in an `attach process` block or the peer receives nothing | No (default: disable) |
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
 
@@ -1613,22 +1613,26 @@ TLS, and other certificate-based features.
 ```
 pki {
     ca <name> {
-        certificate <base64-DER>
+        certificate "<PEM or base64-DER>"
     }
     certificate <name> {
-        certificate <base64-DER>
-        intermediate <base64-DER>        # optional intermediate CA
+        certificate  "<PEM or base64-DER>"
+        intermediate "<PEM or base64-DER>"   # optional intermediate CA
         private {
-            key $9$...                   # auto-encoded via ze:sensitive
+            key $9$...                       # auto-encoded via ze:sensitive
         }
     }
 }
 ```
 
+Each value is a PEM document, quoted so its line breaks are kept, or the same
+material as base64-encoded DER on one line. Paste what a tool prints: a value
+that opens `-----BEGIN` is read as PEM.
+
 CA certificates are trusted roots for chain validation. Device certificates
 include the certificate itself and optionally a private key (PKCS8, SEC1/ECDSA,
-or PKCS1/RSA in base64-encoded DER). Private keys use `$9$` sensitive encoding
-and are never shown in CLI output.
+or PKCS1/RSA). Private keys use `$9$` sensitive encoding and are never shown in
+CLI output.
 
 Chain validation runs at config load: device certificates must chain to a loaded
 CA. Expired certificates are rejected with a descriptive error.
@@ -2006,7 +2010,7 @@ restored.
 The leaf defaults to 254. A default route ze learns from the network (a DHCP lease,
 a PPPoE session) is installed at that metric, so it ranks below a static route and
 below every route a routing protocol produces. The number matches the order
-`rib admin-distance` uses for protocols: connected 0, static 10, ebgp 20, ospf 110,
+`rib distance` uses for protocols: connected 0, static 10, ebgp 20, ospf 110,
 isis 115, ibgp 200. It is also the administrative distance a Cisco IOS DHCP client
 gives the default route it learns, which is the same ranking decision on another
 vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
@@ -2768,27 +2772,33 @@ never block CLI operation. Default is `disabled`.
 
 ### TLS Certificates From the PKI Store
 
-Three TLS listeners can serve a certificate held in the `pki {}` store instead
-of a self-signed one: the web/API HTTPS listener, and the DoT/DoH listeners of
-the as112 and geodns services. Each has a `certificate` leaf that names a
-`pki { certificate <name> }` entry.
+Four TLS listeners can serve a certificate held in the `pki {}` store instead
+of a self-signed one: the web/API HTTPS listener, the looking glass, and the
+DoT/DoH listeners of the as112 and geodns services. Each has a `certificate`
+leaf that names a `pki { certificate <name> }` entry. The web listener and the
+looking glass have one leaf each, so each serves the certificate that matches
+its own hostname.
 
 ```
 pki {
     ca corp-ca {
-        certificate <base64-DER>;
+        certificate "<PEM or base64-DER>";
     }
     certificate lan {
-        certificate <base64-DER>;
-        intermediate <base64-DER>;
+        certificate  "<PEM or base64-DER>";
+        intermediate "<PEM or base64-DER>";
         private {
-            key <base64-DER>;
+            key "<PEM or base64-DER>";
         }
     }
 }
 
 environment {
     web {
+        enabled true;
+        certificate lan;
+    }
+    looking-glass {
         enabled true;
         certificate lan;
     }
@@ -2812,20 +2822,23 @@ no intermediate serves the leaf alone.
 | Rule | Detail |
 |------|--------|
 | Default | No `certificate` leaf means ze generates and serves a self-signed certificate, which is the behavior of every release before this leaf existed. |
-| Fail closed | A `certificate` that names no store entry, or names one with no `private { key }`, stops the listener. ze never falls back to a self-signed certificate for a name the operator configured. Web: the daemon refuses to start, and a reload naming a bad certificate is rejected. DoT/DoH: the secure listeners do not start, the error is logged, and cleartext DNS is unaffected. |
+| Fail closed | A `certificate` that names no store entry, or names one with no `private { key }`, stops the listener. ze never falls back to a self-signed certificate for a name the operator configured. Web and looking glass: the daemon refuses to start, and a reload naming a bad certificate is rejected. DoT/DoH: the secure listeners do not start, the error is logged, and cleartext DNS is unaffected. |
+| Plaintext | A listener with TLS off presents no certificate, so its `certificate` leaf is inert. `looking-glass { tls false }` with a `certificate` starts and reloads with the name unread, rather than failing over a name nothing serves. |
 | Mutually exclusive | In a `tls {}` container, `certificate` and `cert-file`/`key-file` are two sources of the same material. Setting both is rejected at commit. |
 | Name | 1 to 255 characters, `A-Z a-z 0-9 . _ -`. It is a store key, never a file path. |
-| Rotation | Changing the referenced certificate's material and reloading rotates it live. The web listener serves the new chain from the next handshake without rebinding, so open SSE streams survive. DoT/DoH rebind, because their listener signature folds in the certificate fingerprint. |
+| Rotation | Changing the referenced certificate's material and reloading rotates it live. The web listener and the looking glass serve the new chain from the next handshake without rebinding, so an open SSE stream and a viewer's open connection both survive. DoT/DoH rebind, because their listener signature folds in the certificate fingerprint. |
 | One commit | A single commit can add a certificate AND reference it. The reload installs the store before any consumer applies its config. |
-| Env override | `ze.web.certificate` sets the web certificate and takes precedence over the config file. |
+| Env override | `ze.web.certificate` and `ze.looking-glass.certificate` set their listener's certificate and take precedence over the config file. |
+| Blob storage | A named certificate comes from the `pki {}` container, so the looking glass serves one on a deployment that never ran `ze init`. Its blob store holds the self-signed certificate only. The web server needs blob storage whatever it serves, because its credentials and config live there. |
 | Pre-flight | `ze doctor` reports a reference that is missing, keyless, expired, or whose intermediate does not reach a configured CA, as `doctor-tls-reference` or `doctor-tls-expired`. Run it before deploying. |
 
 An external geodns plugin process cannot read the in-process store: a
 `certificate` reference there fails loudly and the secure listeners stay down.
 
 <!-- source: internal/component/pki/tls.go -- ServerTLSMaterial, CheckCertReference -->
-<!-- source: cmd/ze/hub/service_web.go -- webTLSMaterial (fail-closed selection) -->
-<!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate (rotation seam) -->
+<!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial (fail-closed selection, both listeners) -->
+<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate, updateLGCertificate (one rotation seam per listener) -->
 <!-- source: internal/core/dnsserver/secure.go -- SecureConfig.Certificate, buildSecureTLS resolver branch -->
 
 ### Named Listeners
@@ -3373,7 +3386,8 @@ plugin {
             host 10.0.0.1;
             port 1791;
             secret "per-client-token-min-32-chars!!!";
-            source-address 198.51.100.1;  // optional: bind outbound hub TLS to this local IP
+            source-address 198.51.100.1;  # optional: bind outbound hub TLS to this local IP
+            ca central-hub-root;          # optional: pki ca entry holding the hub's issuing root
         }
     }
 }
@@ -3382,8 +3396,26 @@ plugin {
 Every ze instance has at least one `server` block (for local plugins and SSH).
 Secrets must be at least 32 characters. See [Fleet Configuration](fleet-config.md) for details.
 
+`ca` names a `pki ca` entry, and that entry holds the certificate authority root
+of the hub this client connects to. The client validates the hub's certificate
+chain against that root and refuses any other chain, so it sends its secret to
+no hub it did not authenticate. Run `ze show pki local-ca pem` on the hub, paste
+what it prints into a `pki { ca <name> { certificate "..."; } }` block here, and
+name that block from `ca`. The `certificate` leaf takes the PEM document as it
+stands, headers and line breaks included, so nothing is edited by hand. Base64
+DER is read too, so a config written before this is unchanged.
+Leave `ca` unset when a public CA issued the hub certificate:
+the system CA pool is the default. A hub that presents a new certificate after a
+restart still validates, because the anchor is the issuer.
+
+The `certificate-fingerprint` leaf this replaces is retired. A config still
+carrying it is refused, and the error names `ca <pki-ca-name>` as the spelling
+to write instead.
+
 <!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- hub YANG schema -->
 <!-- source: internal/component/config/loader_extract.go -- ExtractHubConfig -->
+<!-- source: internal/component/managed/tls.go -- clientTLSConfig -->
+<!-- source: internal/component/config/retired.go -- retiredKeywords -->
 
 ## Outbound Source Address
 

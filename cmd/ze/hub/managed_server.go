@@ -53,6 +53,15 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		return nil // No managed clients configured on any server block.
 	}
 
+	// The daemon's certificate authority issues the listener's leaf when no
+	// certificate is named. LoadOrGenerateRoot reads the root the hub already
+	// generated at startup, so this is a load and never a second root.
+	caRoot, caErr := zepki.LoadOrGenerateRoot(store)
+	if caErr != nil {
+		managedServerLog().Error("managed config server disabled: local certificate authority", "error", caErr)
+		return nil
+	}
+
 	srv, err := pluginserver.NewManagedServer(pluginserver.ManagedServerConfig{
 		Addrs:         addrs,
 		ClientSecrets: secrets,
@@ -60,13 +69,13 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 			return store.ReadFile(pluginserver.ClientConfigKey(name))
 		},
 		Metrics: registry.GetMetricsRegistry(),
-		// Without these two the listener serves an ephemeral self-signed
-		// certificate no client can verify, so the only deployment that connects
-		// is one that turned verification off. The resolver is injected because
-		// pki imports plugin/server; managedCertificate fails closed when a name
-		// is configured and does not resolve.
+		// The resolver and the authority are both injected because pki imports
+		// plugin/server. A named certificate wins and fails closed when it does
+		// not resolve; with no name the authority issues a leaf whose root the
+		// operator exports into each client's pki ca block.
 		Certificate:         certificate,
 		TLSMaterialResolver: zepki.ServerTLSMaterial,
+		Authority:           caRoot,
 	})
 	if err != nil {
 		managedServerLog().Error("managed config server disabled", "error", err)

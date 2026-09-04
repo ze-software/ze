@@ -921,6 +921,7 @@ ze show pki certificate name <name> pem                 # PEM-encoded certificat
 ze show pki certificate name <name> bundle pem          # Certificate + private key in one PEM
 ze show pki certificate name <name> fingerprint         # SHA-256 fingerprint (colon-separated hex)
 ze show pki certificate name <name> fingerprint sha512  # SHA-512 fingerprint
+ze show pki local-ca pem                                # Root of the local certificate authority
 ```
 
 **`show pki certificates`** returns a sorted list of all loaded
@@ -941,7 +942,19 @@ only). Useful for clients that need a single PEM file (e.g. OpenConnect).
 **`show pki certificate name <name> fingerprint [sha256|sha384|sha512]`**
 returns the DER fingerprint as colon-separated hex. Defaults to SHA-256.
 
-<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate, handleShowPKICertificatePEM, handleShowPKICertificateBundlePEM, handleShowPKICertificateFingerprint -->
+**`show pki local-ca pem`** returns the root certificate of the local
+certificate authority, which ze generates at its first start and signs
+its own components' certificates with. The answer carries the PEM, the
+subject, and the expiry date. It never carries the root private key.
+
+This root is not one of the certificates the `pki {}` section configures,
+and it has no name. Give the PEM to each node that must trust this one,
+in that node's `pki { ca <name> { certificate <base64> } }` block. The
+client then validates the ISSUER, so it keeps working when this node
+issues itself a new leaf.
+
+<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate, handleShowPKICertificatePEM, handleShowPKICertificateBundlePEM, handleShowPKICertificateFingerprint, handleShowPKILocalCAPEM -->
+<!-- source: internal/component/pki/ca.go -- LoadOrGenerateRoot, Root.CertificatePEM -->
 
 ### show firewall
 
@@ -2135,6 +2148,13 @@ The peer selector comes first (`peer <sel>`, matching `show bgp peer <sel> ...`)
 Optional: `source-asn4 false` to test with ASN2 encoding context (default: ASN4). This is what makes AS4_PATH (RFC 6793) the active path carrier.
 
 Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express).
+
+`text-before` and `text-after` name every attribute the UPDATE carries. Five of
+those names first appeared on 2026-09-04: `origin`, `med`, `local-preference`,
+`atomic-aggregate` and `cluster-list`. The renderer named a Go type no parser
+built for each of them, so the dry-run output was silent about all five. See
+[The Attribute Names in the Filter Text Protocol](../architecture/api/process-protocol.md)
+for the full set.
 
 This command does not forward routes, update the RIB, populate cache, or mutate peer state.
 <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyTest -->

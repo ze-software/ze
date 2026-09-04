@@ -22,7 +22,9 @@ import (
 	"sync"
 	"time"
 
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -76,7 +78,30 @@ type ManagedServerConfig struct {
 	// nil means no store reference is supported. A Certificate name given
 	// anyway is an error, never a silent fallback.
 	TLSMaterialResolver func(name string) (certPEM, keyPEM []byte, err error)
+
+	// Authority is the daemon's certificate authority, used to issue the
+	// listener's leaf when Certificate names nothing. Injected for the same
+	// reason as TLSMaterialResolver: pki imports this package.
+	//
+	// nil with no Certificate name is an error, never a self-signed fallback.
+	// A leaf nothing issued is one a client can neither validate nor rotate.
+	Authority plugin.Authority
+
+	// Clock decides when an ISSUED leaf is reissued. nil installs
+	// clock.RealClock{}, and a test passes a fake clock to move the leaf's
+	// expiry rather than wait for it. A named certificate reads no clock: the
+	// operator owns that material and Ze never replaces it.
+	Clock clock.Clock
 }
+
+// managedLeafCommonName names the managed listener in the subject of the leaf
+// it serves when no pki certificate is configured. It is not a hostname and is
+// never matched against one; the SANs are.
+const managedLeafCommonName = "ze-managed-hub"
+
+// managedLoopbackHost is where a co-located client reaches the managed
+// listener, so every issued leaf carries it whatever else is bound.
+const managedLoopbackHost = "127.0.0.1"
 
 // ManagedServer authenticates managed fleet clients (per-client secret), answers
 // config-fetch/config-ack/ping over MuxConn, and pushes config-changed to connected
@@ -85,9 +110,13 @@ type ManagedServer struct {
 	svc    *ManagedConfigService
 	lookup func(name string) (string, bool)
 	addrs  []string
-	cert   tls.Certificate
-	// certName is the configured pki certificate name, empty for the
-	// self-signed fallback. Kept only so Start can name it in its log.
+
+	// getCertificate answers the served certificate for each handshake. It is
+	// tls.Config.GetCertificate, so an issued leaf is reissued as it ages
+	// rather than served past its expiry.
+	getCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error)
+	// certName is the configured pki certificate name, empty when the leaf was
+	// issued by the daemon root. Kept only so Start can name it in its log.
 	certName string
 
 	mu    sync.Mutex
@@ -111,16 +140,16 @@ type ManagedServer struct {
 // NewManagedServer builds a managed server. ReadConfig is required.
 //
 // The listener serves the named pki store certificate when cfg.Certificate is
-// set. A managed client then verifies the hub the way it verifies any other TLS
-// server: against the CA that issued the certificate, or against the
-// fingerprint it pins. With no name it serves an ephemeral self-signed
-// certificate. That certificate is encrypted, unverifiable, and different after
-// every restart, so it is for development only.
+// set. With no name it serves a leaf cfg.Authority issued from the daemon's
+// root. A managed client verifies either one the same way, by validating the
+// chain against a CA it holds: the public CA that issued the named certificate,
+// or the daemon root the operator exported into the client's pki ca block. The
+// root outlives a restart, so a reissued leaf needs no client change.
 func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	if cfg.ReadConfig == nil {
 		return nil, errors.New("managed server: ReadConfig is required")
 	}
-	cert, err := managedCertificate(cfg)
+	getCertificate, err := managedCertificate(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -135,12 +164,12 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 			s, ok := secrets[name]
 			return s, ok
 		},
-		addrs:    cfg.Addrs,
-		cert:     cert,
-		certName: cfg.Certificate,
-		conns:    make(map[string]*rpc.MuxConn),
-		notifyCh: make(chan string, managedNotifyBuffer),
-		sem:      make(chan struct{}, managedMaxConns),
+		addrs:          cfg.Addrs,
+		getCertificate: getCertificate,
+		certName:       cfg.Certificate,
+		conns:          make(map[string]*rpc.MuxConn),
+		notifyCh:       make(chan string, managedNotifyBuffer),
+		sem:            make(chan struct{}, managedMaxConns),
 		mConnected: reg.Gauge("ze_managed_clients_connected",
 			"Number of managed fleet clients currently connected to the hub."),
 		mFetch: reg.CounterVec("ze_managed_config_fetch_total",
@@ -150,44 +179,71 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	}, nil
 }
 
-// managedCertificate returns the certificate the managed listener serves.
+// managedCertificate returns what answers the managed listener's certificate
+// for each handshake, as tls.Config.GetCertificate.
 //
-// It FAILS CLOSED on a configured name. An unresolvable name returns an error
-// and no certificate, and the caller disables the listener. It never falls back
-// to the self-signed path. Such a listener looks like a working deployment
-// while the config names a real certificate, until a client refuses the
-// handshake. hub.webTLSMaterial fails closed for the same reason.
-func managedCertificate(cfg ManagedServerConfig) (tls.Certificate, error) {
-	if cfg.Certificate == "" {
-		cert, err := pluginipc.GenerateSelfSignedCert()
-		if err != nil {
-			return tls.Certificate{}, fmt.Errorf("managed server: generate cert: %w", err)
+// The CONFIGURED name is answered first and issuance is never reached when one
+// is set. It FAILS CLOSED there: an unresolvable name returns an error and no
+// certificate, and the caller disables the listener. Such a listener looks like
+// a working deployment while the config names a real certificate, until a
+// client refuses the handshake. pki.ServerTLSMaterial, the resolver injected
+// here, fails closed for the same reason.
+//
+// A named certificate is answered UNCHANGED at every handshake. That material
+// is the operator's, so Ze does not reissue it, and renewing it is the
+// operator's job through the pki store.
+//
+// With no name the daemon's certificate authority issues the leaf, and
+// ServingLeaf reissues it as it ages: a hub that runs longer than one leaf
+// lives keeps presenting a valid certificate. No authority is an error too: a
+// self-signed leaf is one no client can validate and no operator can rotate.
+func managedCertificate(cfg ManagedServerConfig) (func(*tls.ClientHelloInfo) (*tls.Certificate, error), error) {
+	if cfg.Certificate != "" {
+		if cfg.TLSMaterialResolver == nil {
+			var tb textbuf.Buffer
+			tb.Str("managed server: certificate ").Str(cfg.Certificate).
+				Str(" is configured but this hub resolves no certificate names")
+			return nil, errors.New(tb.String())
 		}
-		return cert, nil
+		certPEM, keyPEM, err := cfg.TLSMaterialResolver(cfg.Certificate)
+		if err != nil {
+			return nil, fmt.Errorf("managed server: certificate %q: %w", cfg.Certificate, err)
+		}
+		pair, err := tls.X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			return nil, fmt.Errorf("managed server: certificate %q: %w", cfg.Certificate, err)
+		}
+		return func(*tls.ClientHelloInfo) (*tls.Certificate, error) { return &pair, nil }, nil
 	}
-	if cfg.TLSMaterialResolver == nil {
-		var tb textbuf.Buffer
-		tb.Str("managed server: certificate ").Str(cfg.Certificate).
-			Str(" is configured but this hub resolves no certificate names")
-		return tls.Certificate{}, errors.New(tb.String())
+
+	if cfg.Authority == nil {
+		return nil, errors.New("managed server: no certificate name and no certificate authority")
 	}
-	certPEM, keyPEM, err := cfg.TLSMaterialResolver(cfg.Certificate)
+	leaf, err := plugin.NewServingLeaf(cfg.Authority, managedLeafCommonName, managedLeafHosts(cfg.Addrs), cfg.Clock)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("managed server: certificate %q: %w", cfg.Certificate, err)
+		return nil, fmt.Errorf("managed server: %w", err)
 	}
-	pair, err := tls.X509KeyPair(certPEM, keyPEM)
-	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("managed server: certificate %q: %w", cfg.Certificate, err)
-	}
-	return pair, nil
+	return leaf.Certificate, nil
 }
 
-// CertificateFingerprint returns the hex SHA-256 fingerprint of the served
-// certificate. It is what an operator writes into a client's
-// plugin/hub/client/certificate-fingerprint leaf, and Start logs it for that
-// reason.
-func (s *ManagedServer) CertificateFingerprint() string {
-	return pluginipc.CertFingerprint(s.cert)
+// managedLeafHosts returns the SANs the issued leaf needs: the loopback every
+// co-located client reaches, plus the host of each listen address that names
+// one. An unspecified address (0.0.0.0 or ::) names no host a peer can verify,
+// so it contributes nothing and the loopback stands for it.
+func managedLeafHosts(addrs []string) []string {
+	hosts := make([]string, 0, len(addrs)+1)
+	hosts = append(hosts, managedLoopbackHost)
+	for _, addr := range addrs {
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil || host == "" || host == managedLoopbackHost {
+			continue
+		}
+		if ip := net.ParseIP(host); ip != nil && ip.IsUnspecified() {
+			continue
+		}
+		hosts = append(hosts, host)
+	}
+	return hosts
 }
 
 // Addrs returns the bound listener addresses (useful when a port-0 was requested,
@@ -212,7 +268,7 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 	// not the whole managed server. The collision is logged loudly so the operator can
 	// move managed clients to their own server block.
 	for _, addr := range s.addrs {
-		lns, err := pluginipc.StartListeners([]string{addr}, s.cert)
+		lns, err := pluginipc.StartListeners([]string{addr}, s.getCertificate)
 		if err != nil {
 			managedLogger().Error("managed listener disabled: address unavailable "+
 				"(does it collide with the plugin acceptor's server block?)", "addr", addr, "error", err)
@@ -233,11 +289,10 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 	s.wg.Go(s.closeOnDone) // long-lived: closes listeners on shutdown
 	managedLogger().Info("managed config server listening",
 		"listeners", len(s.listeners),
-		"certificate-fingerprint", s.CertificateFingerprint(),
 		"certificate", s.certName)
 	if s.certName == "" {
-		managedLogger().Warn("managed config server: no certificate configured, so it serves a self-signed " +
-			"certificate that changes on every restart. Set plugin/hub/server/certificate to a pki certificate name")
+		managedLogger().Info("managed config server: no certificate configured, so it serves a leaf issued by " +
+			"this daemon's certificate authority. Export the root and name it in each client's pki ca block")
 	}
 	return nil
 }

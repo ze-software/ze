@@ -19,9 +19,9 @@ ze start --web 8443                              # Start daemon + web on port 84
 ze start --web 8443 --insecure-web               # No authentication (forces 127.0.0.1)
 ```
 
-When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address.
+When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address. `WebCertHosts` builds that list, and a listen address of `0.0.0.0` adds every non-loopback interface address of the machine.
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartInsecureWeb -->
-<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames -->
+<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames, WebCertHosts -->
 
 | Flag | Description |
 |------|-------------|

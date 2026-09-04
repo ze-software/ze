@@ -1,24 +1,67 @@
 // Design: docs/architecture/api/process-protocol.md — TLS transport for external plugins
-// Related: manager/manager.go — Manager.ensureAcceptor (engine/YANG-daemon path) builds its acceptor here
-// Related: ../hub/hub.go — Orchestrator.ensureAcceptor (hub orchestrator path) builds its acceptor here
-// Related: server/subsystem.go — SubsystemManager/SubsystemHandler receive the acceptor built here
+// Related: manager/manager.go — Manager.ensureAcceptor, the only caller, builds its acceptor here
+// Related: server/subsystem.go — SubsystemManager/SubsystemHandler take an acceptor through SetAcceptor
 
 package plugin
 
 import (
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"net"
 
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/clock"
+)
+
+// Authority is the daemon's certificate authority as an internal listener uses
+// it: it issues a short-lived leaf for one of Ze's own components, and it
+// publishes the root a peer validates that leaf against. commonName names the
+// component and hosts are the SANs the peer verifies.
+//
+// The two halves are ONE value because they must agree. A leaf and a root that
+// arrive through separate parameters can name different roots, and the peer
+// that meets the disagreement is a process away from the caller that caused it.
+//
+// It is INJECTED rather than imported. internal/component/pki already reaches
+// this package (pki/show.go -> plugin/server -> plugin/ipc), so importing pki
+// here would close a cycle. *pki.Root is the production implementation and
+// cmd/ze/hub is where the two meet. This is the shape
+// ManagedServerConfig.TLSMaterialResolver already uses for the same reason.
+type Authority interface {
+	IssueLeaf(commonName string, hosts []string) (tls.Certificate, error)
+	CertificatePEM() []byte
+}
+
+// hubLeafCommonName names the hub acceptor in the subject of the certificate it
+// serves. It is not a hostname and is never matched against one; the SANs are.
+const hubLeafCommonName = "ze-plugin-hub"
+
+// loopbackHost is where the auto-generated hub binds and what every co-located
+// plugin dials, so it is both the listen address and a SAN on the served leaf.
+const loopbackHost = "127.0.0.1"
+
+// errHubAcceptorNoAuthority refuses an acceptor that has no way to obtain a
+// certificate. There is no self-signed fallback: a certificate nothing issued
+// is one no peer can validate and no operator can rotate, which is the failure
+// the certificate authority exists to replace.
+//
+// errHubAcceptorNoRoot refuses one whose authority publishes no root. Every
+// plugin the acceptor serves takes that root as its only trust anchor, so an
+// empty one refuses every connect-back, one process away and with no cause
+// named there.
+var (
+	errHubAcceptorNoAuthority = errors.New("plugin: hub acceptor requires a certificate authority")
+	errHubAcceptorNoRoot      = errors.New("plugin: hub acceptor certificate authority published no root")
 )
 
 // NewHubAcceptor creates and STARTS a TLS acceptor for external plugin
-// connect-back, and is the single implementation of that lifecycle. Both
-// orchestrators that fork external plugins use it: the engine's PluginManager
-// (bgp/YANG daemon config) and the hub Orchestrator's SubsystemManager (pure
-// `plugin { external ... }` config). A second copy is what let the hub path
-// ship with no acceptor at all.
+// connect-back, and is the single implementation of that lifecycle. Every
+// orchestrator that forks external plugins takes its acceptor from here:
+// Manager.ensureAcceptor builds one, and SubsystemManager.SetAcceptor receives
+// one. A second copy is what let the hub path ship with no acceptor at all.
 //
 // cfg may be nil or carry no server block, in which case a single loopback
 // server on an OS-assigned port with a fresh random secret is generated: an
@@ -26,26 +69,44 @@ import (
 // through ZE_PLUGIN_HUB_TOKEN, so no operator-visible secret is required.
 // When cfg does declare servers, the FIRST block is used.
 //
+// ca supplies the certificate the acceptor serves and the root each plugin
+// validates it against. It MUST NOT be nil: an acceptor with no certificate
+// authority is an error, never a self-signed fallback. The served leaf is
+// REISSUED from ca as it ages, so an acceptor that runs longer than one leaf
+// lives keeps presenting a valid certificate (see ServingLeaf).
+//
+// clk is the clock that decides when the leaf is due. Pass clock.RealClock{}
+// outside a test.
+//
 // Caller obligations: the returned acceptor is already accepting connections.
 // The caller owns it and MUST call Stop on it during shutdown, or the listener
 // and its accept goroutine leak.
-func NewHubAcceptor(cfg *HubConfig) (*ipc.PluginAcceptor, error) {
+func NewHubAcceptor(cfg *HubConfig, ca Authority, clk clock.Clock) (*ipc.PluginAcceptor, error) {
+	if ca == nil {
+		return nil, errHubAcceptorNoAuthority
+	}
+
+	rootPEM := ca.CertificatePEM()
+	if len(rootPEM) == 0 {
+		return nil, errHubAcceptorNoRoot
+	}
+
 	server, err := hubAcceptorServer(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	cert, err := ipc.GenerateSelfSignedCert()
+	leaf, err := NewServingLeaf(ca, hubLeafCommonName, hubLeafHosts(server), clk)
 	if err != nil {
-		return nil, fmt.Errorf("generate TLS cert: %w", err)
+		return nil, fmt.Errorf("hub acceptor: %w", err)
 	}
 
-	listeners, err := ipc.StartListeners([]string{server.Address()}, cert)
+	listeners, err := ipc.StartListeners([]string{server.Address()}, leaf.Certificate)
 	if err != nil {
 		return nil, fmt.Errorf("start TLS listeners on %s: %w", server.Address(), err)
 	}
 
-	acceptor := ipc.NewPluginAcceptor(listeners[0], server.Secret, ipc.CertFingerprint(cert))
+	acceptor := ipc.NewPluginAcceptor(listeners[0], server.Secret, rootPEM)
 
 	// Wire per-client secrets if the server block has any.
 	if len(server.Clients) > 0 {
@@ -80,8 +141,24 @@ func hubAcceptorServer(cfg *HubConfig) (HubServerConfig, error) {
 	}
 	return HubServerConfig{
 		Name:   "auto",
-		Host:   "127.0.0.1",
+		Host:   loopbackHost,
 		Port:   0,
 		Secret: hex.EncodeToString(tokenBytes[:]),
 	}, nil
+}
+
+// hubLeafHosts returns the SANs the hub's certificate needs: the loopback
+// address every co-located plugin dials, plus the configured listen address
+// when it names one specific host. An unspecified address (0.0.0.0 or ::) names
+// no host a peer can verify, so it adds nothing.
+func hubLeafHosts(server HubServerConfig) []string {
+	hosts := make([]string, 0, 2)
+	hosts = append(hosts, loopbackHost)
+	if server.Host == "" || server.Host == loopbackHost {
+		return hosts
+	}
+	if ip := net.ParseIP(server.Host); ip != nil && ip.IsUnspecified() {
+		return hosts
+	}
+	return append(hosts, server.Host)
 }

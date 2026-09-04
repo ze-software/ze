@@ -1,0 +1,48 @@
+# spec-local-ca AC-5: a config still carrying `certificate-fingerprint` is
+# REFUSED, and the refusal names the certificate authority that replaces it.
+#
+# A pin names one certificate and dies with it, so the leaf was deleted rather
+# than deprecated (ai/rules/no-layering.md). A deleted leaf parses as an unknown
+# field, and the field name alone does not tell an operator what to write
+# instead. RetiredKeywordHint (internal/component/config/retired.go) is what
+# carries the replacement into the parse error.
+#
+# The accepted counterpart is asserted second. Without it this file would still
+# pass if `plugin hub client` stopped accepting any trust anchor at all, which
+# is a refusal of the wrong thing.
+stdin=retired:terminator=EOF_RETIRED
+plugin {
+	hub {
+		client central-hub {
+			host 127.0.0.1
+			port 1791
+			secret "edge-secret-that-is-at-least-32-chars"
+			certificate-fingerprint aa11bb22cc33dd44ee55ff6677889900aabbccddeeff00112233445566778899
+		}
+	}
+}
+EOF_RETIRED
+
+stdin=ca:terminator=EOF_CA
+plugin {
+	hub {
+		client central-hub {
+			host 127.0.0.1
+			port 1791
+			secret "edge-secret-that-is-at-least-32-chars"
+			ca central-hub-root
+		}
+	}
+}
+EOF_CA
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=retired
+expect=exit:code=1
+# The exit code alone does not say WHY: any unknown field produces it. These two
+# lines are the discriminator, and they come from the retired-keyword table
+# rather than from the generic unknown-field message.
+expect=stdout:contains=certificate-fingerprint is retired
+expect=stdout:contains=write ca <pki-ca-name>
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ca
+expect=exit:code=0
+expect=stdout:contains=configuration valid

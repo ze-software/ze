@@ -3,13 +3,13 @@
 // Related: socketpair.go — package marker for plugin IPC
 // Related: ../process/process.go — startExternal calls WaitForPlugin after forking
 // Related: ../../../../pkg/plugin/sdk/sdk.go — NewFromTLSEnv dials TLS and calls SendAuth
+// Related: ../acceptor.go — NewHubAcceptor issues the served leaf from the daemon root
 
 package ipc
 
 import (
+	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -20,10 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/big"
 	"net"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -31,11 +29,22 @@ import (
 )
 
 var (
-	errAuthFailedInvalidToken         = errors.New("auth failed: invalid token")
-	errServerPresentedNoCertificates  = errors.New("server presented no certificates")
-	errCertificateFingerprintMismatch = errors.New("certificate fingerprint mismatch")
-	errNoListenAddressesConfigured    = errors.New("no listen addresses configured")
-	errAcceptorStopped                = errors.New("acceptor stopped")
+	errAuthFailedInvalidToken      = errors.New("auth failed: invalid token")
+	errNoListenAddressesConfigured = errors.New("no listen addresses configured")
+	errAcceptorStopped             = errors.New("acceptor stopped")
+
+	// errNoTrustAnchor and errTrustAnchorNotPEM refuse a client config that has
+	// nothing to validate the engine against. Neither is a fallback: a config
+	// with no anchor accepts whatever answered on the address, which is what
+	// the certificate authority exists to replace.
+	errNoTrustAnchor     = errors.New("no certificate authority root supplied")
+	errTrustAnchorNotPEM = errors.New("certificate authority root is not a PEM certificate")
+
+	// errNoCertificateSource refuses a listener with nothing to present. A
+	// tls.Config carrying neither Certificates nor GetCertificate fails every
+	// handshake with "no certificates configured", one layer away from the
+	// caller that built it.
+	errNoCertificateSource = errors.New("no certificate source for the TLS listener")
 )
 
 // setTCPNoDelay disables Nagle's algorithm on a connection if it wraps a TCP socket.
@@ -335,76 +344,32 @@ func authenticateWithName(ctx context.Context, conn net.Conn, expectedToken, exp
 	return params.Name, nil
 }
 
-// CertFingerprint returns the hex-encoded SHA-256 fingerprint of a TLS certificate's
-// DER-encoded bytes. Used to pass the server cert identity to plugins for pinning.
-func CertFingerprint(cert tls.Certificate) string {
-	if len(cert.Certificate) == 0 {
-		return ""
+// TLSConfigWithRoot returns a TLS client config that validates the server's
+// certificate chain against rootPEM and nothing else. rootPEM is the daemon's
+// certificate authority root, which reaches an external plugin process in its
+// environment and a managed client through its pki ca block.
+//
+// It FAILS CLOSED. An absent root and an unparsable one each return an error
+// and no config, so there is no state in which a caller holds a usable config
+// it cannot verify a peer with. The pinning this replaced answered an empty
+// fingerprint with InsecureSkipVerify and no comparison, which accepted
+// whatever answered on the address.
+//
+// The returned config sets no ServerName: crypto/tls takes it from the dial
+// address, so the leaf's SANs are what the peer is checked against.
+func TLSConfigWithRoot(rootPEM []byte) (*tls.Config, error) {
+	if len(bytes.TrimSpace(rootPEM)) == 0 {
+		return nil, errNoTrustAnchor
 	}
-	sum := sha256.Sum256(cert.Certificate[0])
-	return hex.EncodeToString(sum[:])
-}
 
-// TLSConfigWithFingerprint returns a TLS client config that verifies the server
-// certificate matches the given SHA-256 fingerprint. If fingerprint is empty,
-// uses InsecureSkipVerify (useful during development or when fingerprint is unavailable).
-func TLSConfigWithFingerprint(fingerprint string) *tls.Config {
-	fingerprint = strings.TrimSpace(fingerprint)
-	if fingerprint == "" {
-		return &tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec // no fingerprint available
-			MinVersion:         tls.VersionTLS13,
-		}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(rootPEM) {
+		return nil, errTrustAnchorNotPEM
 	}
 
 	return &tls.Config{
-		InsecureSkipVerify: true, //nolint:gosec // cert verified via VerifyConnection fingerprint check
-		MinVersion:         tls.VersionTLS13,
-		VerifyConnection: func(cs tls.ConnectionState) error {
-			if len(cs.PeerCertificates) == 0 {
-				return errServerPresentedNoCertificates
-			}
-			actual := sha256.Sum256(cs.PeerCertificates[0].Raw)
-			actualHex := hex.EncodeToString(actual[:])
-			if subtle.ConstantTimeCompare([]byte(actualHex), []byte(fingerprint)) != 1 {
-				return errCertificateFingerprintMismatch
-			}
-			return nil
-		},
-	}
-}
-
-// GenerateSelfSignedCert creates an ephemeral self-signed TLS certificate.
-// Used when no user-provided certificate is configured.
-func GenerateSelfSignedCert() (tls.Certificate, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("generate key: %w", err)
-	}
-
-	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("generate serial: %w", err)
-	}
-
-	template := &x509.Certificate{
-		SerialNumber:          serial,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(24 * time.Hour), // Short-lived ephemeral cert.
-		KeyUsage:              x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		IPAddresses:           []net.IP{net.IPv4(127, 0, 0, 1)},
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("create certificate: %w", err)
-	}
-
-	return tls.Certificate{
-		Certificate: [][]byte{certDER},
-		PrivateKey:  key,
+		RootCAs:    pool,
+		MinVersion: tls.VersionTLS13,
 	}, nil
 }
 
@@ -412,14 +377,23 @@ func GenerateSelfSignedCert() (tls.Certificate, error) {
 // Returns all listeners on success, or an error if any address fails to bind.
 // Returns an error if addrs is empty.
 // On error, all successfully created listeners are closed before returning.
-func StartListeners(addrs []string, cert tls.Certificate) ([]net.Listener, error) {
+//
+// getCertificate answers the certificate for EACH handshake, as
+// tls.Config.GetCertificate. A fixed Certificates entry was what let a listener
+// that outlives one leaf keep presenting the expired one: the leaves Ze issues
+// for its own components live 24 hours and a router runs for months.
+// plugin.ServingLeaf is the production implementation and reissues on demand.
+func StartListeners(addrs []string, getCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error)) ([]net.Listener, error) {
 	if len(addrs) == 0 {
 		return nil, errNoListenAddressesConfigured
 	}
+	if getCertificate == nil {
+		return nil, errNoCertificateSource
+	}
 
 	tlsConf := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS13,
+		GetCertificate: getCertificate,
+		MinVersion:     tls.VersionTLS13,
 	}
 
 	var listeners []net.Listener
@@ -450,7 +424,7 @@ type PluginAcceptor struct {
 	secretLookup func(name string) (string, bool) // Per-client secret lookup (nil = shared secret only)
 	pluginTokens map[string]string                // Per-plugin tokens: name -> random token
 	tokenMu      sync.Mutex                       // Protects pluginTokens
-	certFP       string                           // Hex-encoded SHA-256 of server cert DER
+	rootPEM      []byte                           // CA root a plugin validates the served leaf against
 	pending      sync.Map                         // name (string) -> chan net.Conn
 	sem          chan struct{}
 	ctx          context.Context
@@ -459,14 +433,16 @@ type PluginAcceptor struct {
 
 // NewPluginAcceptor creates an acceptor that authenticates connections on the
 // given listener using the shared secret. Call Start() to begin accepting.
-// certFP is the hex-encoded SHA-256 fingerprint of the server cert (from CertFingerprint).
-func NewPluginAcceptor(listener net.Listener, secret, certFP string) *PluginAcceptor {
+// rootPEM is the certificate authority root that issued the listener's leaf;
+// startExternal hands it to each child process, which validates the chain
+// against it.
+func NewPluginAcceptor(listener net.Listener, secret string, rootPEM []byte) *PluginAcceptor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &PluginAcceptor{
 		listener:     listener,
 		secret:       secret,
 		pluginTokens: make(map[string]string),
-		certFP:       certFP,
+		rootPEM:      rootPEM,
 		sem:          make(chan struct{}, maxPendingConns),
 		ctx:          ctx,
 		cancel:       cancel,
@@ -510,9 +486,11 @@ func (pa *PluginAcceptor) TokenForPlugin(name string) (string, error) {
 	return token, nil
 }
 
-// CertFP returns the hex-encoded SHA-256 fingerprint of the server certificate.
-func (pa *PluginAcceptor) CertFP() string {
-	return pa.certFP
+// RootPEM returns the certificate authority root that issued the served leaf.
+// It is public material: a plugin process needs it to validate the chain, and
+// it carries no private key.
+func (pa *PluginAcceptor) RootPEM() []byte {
+	return pa.rootPEM
 }
 
 // Start begins the accept loop in a goroutine. Each accepted connection is

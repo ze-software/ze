@@ -11,14 +11,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -280,6 +278,12 @@ func readPassphraseForInit(pw io.Writer) []byte {
 //
 // Operator-supplied material is validated before either file is touched. The
 // key buffer is zeroed once the write is done, as the passphrase already is.
+//
+// With no operator material, the appliance issues its own certificate from its
+// own certificate authority (ca.go), and cert.pem then holds the leaf followed
+// by the root. Operator-supplied material is stored exactly as it arrives, so
+// an appliance given a certificate from an external authority grows no local
+// one.
 func writeTLSSecrets(baseDir, name string, cfg *applianceConfig, certFile, keyFile string, passphrase []byte) error {
 	var tb textbuf.Buffer
 	certPath := tb.Str(tLSDir(baseDir, name)).Str("/cert.pem").String()
@@ -305,15 +309,9 @@ func writeTLSSecrets(baseDir, name string, cfg *applianceConfig, certFile, keyFi
 		return writeTLSPair(certPath, keyPath, certData, keyData, passphrase)
 	}
 
-	validity := time.Duration(cfg.TLS.ValidityYears) * 365 * 24 * time.Hour
-	var extraNames []string
-	if cfg.TLS.CertName != "" {
-		extraNames = []string{cfg.TLS.CertName}
-	}
-	listenAddr := cfg.SSH.Host
-	certPEM, keyPEM, err := selfcert.GenerateWebCertWithNames(listenAddr, extraNames, validity)
+	certPEM, keyPEM, err := issueWebLeaf(baseDir, name, cfg, passphrase)
 	if err != nil {
-		return fmt.Errorf("generate TLS certificate: %w", err)
+		return err
 	}
 	defer ZeroBytes(keyPEM)
 	if err := validateTLSPair(certPEM, keyPEM, "the generated certificate", "the generated key"); err != nil {
