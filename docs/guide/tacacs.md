@@ -41,7 +41,7 @@ system {
 |------|------|---------|-------|
 | `tacacs.server <ip>` | list, ordered-by-user | - | Tried in declaration order on connection failure |
 | `tacacs.server <ip>.port` | uint16 | 49 | TCP |
-| `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret, stored as `$9$` ciphertext. Ze refuses to start with a server that has none |
+| `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret. A server with none refuses the commit, and at boot disables the whole AAA bundle |
 | `tacacs.timeout` | uint16 (1-300) | 5 | Per-server connection timeout in seconds |
 | `tacacs.source-address` | ip-address | none | Local source IP for outbound TACACS+ TCP |
 | `tacacs.authorization` | boolean | false | Enable per-command TACACS+ authorization |
@@ -57,11 +57,42 @@ TAC_PLUS_UNENCRYPTED_FLAG", which is the only honest wire form for an
 unobfuscated body. A client with no secret therefore has no conformant packet to
 send.
 
-Ze refuses a server declared without a key at load, and names the address. The
-packet writer refuses one too. No path reaches the socket with a cleartext body
-under a header that claims otherwise.
+Two refusals follow, and neither one stops the daemon. The AAA build refuses a
+server declared without a key and names the address. The packet writer refuses
+one too. No path reaches the socket with a cleartext body under a header that
+claims otherwise.
+
+What the refusal does depends on WHEN the bundle is built, and the three answers
+differ.
+
+| When | What happens |
+|------|--------------|
+| `ze config commit` or a reload, with an AAA bundle already running | The commit is REFUSED and the running chain is kept. You see the error |
+| The same, after a boot whose build already failed | Nothing. The rebuild is skipped while the bundle is nil, so a corrected config needs a restart |
+| Boot | The failure is logged, the bundle is left nil, and startup continues |
+
+A nil bundle denies every authorization, so no operator passes an authorization
+check. Authentication depends on whether the config runs BGP.
+
+| Boot config | What a nil bundle does to login |
+|-------------|-------------------------------|
+| With a `bgp` block | SSH is not started at all |
+| Without one | SSH starts and falls back to LOCAL users, so a local password still logs in |
+
+That second row is deliberate: a live indirection over an absent bundle would
+reject every login, which is worse than falling back. It does mean a keyless
+TACACS+ block silently downgrades a no-BGP box to local accounts. Run
+`ze config validate` before a reboot.
+
+The `ze:sensitive` marking hides the key from `show` and from the web editor. It
+does NOT encrypt what the commit path writes. Ze decodes a `$9$` value you write
+by hand, and the editor stores a key as you typed it. Only `ze config dump`
+encodes on the way out, so a dump round-trips and the key stays hidden.
 
 <!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build -->
+<!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
+<!-- source: cmd/ze/hub/main.go -- the boot warning, noBGPAAAWiring -->
+<!-- source: internal/component/ssh/ssh.go -- the LocalAuthenticator fallback -->
 <!-- source: internal/component/tacacs/packet.go -- MarshalInto, ErrNoSharedSecret -->
 
 ## Authentication flow

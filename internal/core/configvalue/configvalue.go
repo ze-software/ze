@@ -24,6 +24,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // LeafList coerces a YANG leaf-list value into its members, in the order the
@@ -122,17 +123,20 @@ func ListEntries(v any) []ListEntry {
 	return entries
 }
 
-// Bool coerces a YANG boolean leaf into its value. It accepts every shape the
-// producer and the delivery after it can present: a Go bool for an in-process
-// component, and the strings "true" and "false" for a plugin, because
-// Tree.values is a map[string]string and JSON delivery carries the leaf as the
-// string the operator wrote.
+// Bool coerces a YANG boolean leaf into its value.
+//
+// A plain leaf arrives as the STRING the operator wrote, at both ends of the
+// delivery. Tree.values is a map[string]string and (*Tree).toMap copies it
+// through unchanged, so an in-process component and a plugin both read "true"
+// rather than true. A Go bool is accepted anyway, because a test that builds
+// its own map is the one caller that can hold one, and refusing it there would
+// teach the test a shape the daemon never sends.
 //
 // The second return says whether a value was read. A caller that gets false
 // keeps its own default; it MUST NOT read the first return, which is the zero
 // value and is indistinguishable from a configured false.
 //
-// A plugin that asserts .(bool) on the delivered map never succeeds, so the
+// A reader that asserts .(bool) on the delivered map never succeeds, so the
 // operator's setting is discarded with no message anywhere. That is the failure
 // this function ends, and it is the same one LeafList ends for a leaf-list.
 func Bool(v any) (bool, bool) {
@@ -151,9 +155,13 @@ func Bool(v any) (bool, bool) {
 }
 
 // Int coerces a YANG integer leaf into its value, over the same delivery shapes
-// as Bool. An in-process component sees the Go type the caller stored, a plugin
-// sees the decimal string the operator wrote, and a map that has been through
-// encoding/json holds a float64 for any number a Go producer put there.
+// as Bool: the decimal STRING the operator wrote, at both ends.
+//
+// A float64 is accepted as well, and it is the shape any number takes once a
+// map has been through encoding/json. No Ze producer puts a number in a
+// delivered config today, and accepting one costs a branch rather than a
+// silence: were a producer to start, the alternative is this function
+// answering false and every caller keeping its default with nothing logged.
 //
 // A float is accepted only when it is a whole number in range, because a YANG
 // integer leaf has no fractional value and rounding one would answer a question
@@ -164,15 +172,19 @@ func Bool(v any) (bool, bool) {
 // cannot tell a configured zero from an absent leaf any other way.
 func Int(v any) (int64, bool) {
 	switch value := v.(type) {
-	case int:
-		return int64(value), true
-	case int64:
-		return value, true
 	case float64:
 		if value != math.Trunc(value) {
 			return 0, false
 		}
-		if value < math.MinInt64 || value > math.MaxInt64 {
+		// The upper bound is written as the negated minimum, not as MaxInt64.
+		// MaxInt64 is 2^63-1, which float64 cannot hold: converting it for the
+		// comparison rounds it UP to 2^63, so a value of exactly 2^63 passes
+		// the test and int64() then converts a number no int64 holds. That
+		// conversion is implementation-defined, and it answers 2^63-1 on arm64
+		// and -2^63 on amd64: a wrong value labelled valid, differently on each
+		// machine. MinInt64 is -2^63 and IS exactly representable, so its
+		// negation is the first float64 above the range and >= refuses it.
+		if value < math.MinInt64 || value >= -float64(math.MinInt64) {
 			return 0, false
 		}
 		return int64(value), true
@@ -185,4 +197,37 @@ func Int(v any) (int64, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// Section unwraps a config section delivered to a plugin, given the ConfigRoot
+// the plugin declared.
+//
+// A section arrives wrapped in its FULL path, one map per segment:
+// ExtractConfigSubtree (internal/component/config/plugin_verify.go) wraps the
+// extracted node outward for every segment, so a plugin declaring the root
+// "fib/kernel" receives {"fib":{"kernel":{...}}} rather than the inner object.
+// A reader that indexes the delivered map by leaf name finds nothing, keeps
+// every default, and logs nothing: the silent discard this package exists to
+// end, one level up from the type assertions LeafList and Bool answer.
+//
+// It returns nil when the wrapper does not hold the declared path, which is
+// what a section carrying a different root looks like. A single-segment root
+// still wraps, so "storage" arrives as {"storage":{...}} and unwraps here too.
+//
+// Five plugins hand-roll this walk today, each with its own error per level
+// (parseFibVPPConfigSection is the fullest). They are unmigrated: this is the
+// one declaration for a caller that wants it.
+func Section(root string, delivered map[string]any) map[string]any {
+	current := delivered
+	for _, segment := range strings.Split(root, "/") {
+		if segment == "" {
+			continue
+		}
+		next, ok := current[segment].(map[string]any)
+		if !ok {
+			return nil
+		}
+		current = next
+	}
+	return current
 }

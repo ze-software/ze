@@ -449,8 +449,17 @@ func actionSummary(actions []firewall.Action) string {
 			var bMss textbuf.Buffer
 			parts = append(parts, bMss.Reset().Str("tcp-mss ").Int(int64(v.Size)).String())
 		case firewall.Limit:
+			// An inverted limiter matches the packets ABOVE the rate, which is
+			// the opposite set, so the word is part of the rule rather than a
+			// detail. Omitting it shows a reader a rule that accepts the
+			// traffic it drops (formatLimit, firewall/cmd/show.go). copp writes
+			// one for over-limit-policy drop.
 			var bLim textbuf.Buffer
-			parts = append(parts, bLim.Reset().Str("limit ").Int(int64(v.Rate)).Byte('/').Str(v.Unit).String())
+			bLim.Reset().Str("limit ")
+			if v.Over {
+				bLim.Str("over ")
+			}
+			parts = append(parts, bLim.Int(int64(v.Rate)).Byte('/').Str(v.Unit).String())
 		default:
 			parts = append(parts, fmt.Sprintf("%T", a))
 		}

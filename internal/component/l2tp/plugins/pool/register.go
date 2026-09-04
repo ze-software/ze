@@ -735,8 +735,17 @@ func parseIPv6PDPool(block map[string]any) (*ipv6PrefixPool, error) {
 	// was delegated a /56 whatever the config said, and named-ipv6-pool marks
 	// the leaf mandatory, which forced the operator to supply a value the code
 	// then discarded.
+	//
+	// An ABSENT leaf and an UNREADABLE one are separated here, because keeping
+	// the /56 default for the second is the same silent discard. Absence is a
+	// warning and the default stands; a value that does not read is refused,
+	// so the operator learns which of their pools is wrong.
 	delegLen := 56
-	if v, ok := configvalue.Int(block["delegation-length"]); ok {
+	if raw, present := block["delegation-length"]; present {
+		v, ok := configvalue.Int(raw)
+		if !ok {
+			return nil, fmt.Errorf("%s: ipv6-pd delegation-length is %q, want a prefix length", Name, raw)
+		}
 		delegLen = int(v)
 	} else {
 		logger().Warn("l2tp-pool: ipv6-pd delegation-length not set, defaulting to /56")

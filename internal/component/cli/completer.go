@@ -1158,14 +1158,23 @@ func (c *Completer) findModuleEntry(name string) *gyang.Entry {
 // container's Kind/Node/etc.). Returns nil for an empty list; returns the
 // single input unchanged when len==1 to avoid wrapping real entries.
 //
-// The one exception to "first entry wins" is the operator-facing prose. Ze
-// lets several modules declare the same node so that a plugin can attach its
-// leaves without importing the module that owns the node, and every one of
-// those declarations carries its own ze:help. Taking the first left the
-// explanations of all the others unreachable, and the winner was decided by
-// nothing more than the alphabetical order of the module names. The merged
-// entry therefore carries every declaration's help, joined, so the ? box
-// tells the operator what each module contributes here.
+// The one exception to "first entry wins" is the LONG explanation. Ze lets
+// several modules declare the same node so that a plugin can attach its leaves
+// without importing the module that owns the node, and every one of those
+// declarations carries its own ze:help. Taking the first left the explanations
+// of all the others unreachable, and the winner was decided by nothing more
+// than the alphabetical order of the module names. The merged entry therefore
+// carries every declaration's help, joined.
+//
+// Description is NOT an exception, and a one-line row cannot make it one: it
+// shows one text, and nothing in the schema says which module OWNS a shared
+// node. So the row still names the first module in sorted order, which reads
+// wrong wherever a plugin's module sorts before the module that defines the
+// node. `interface` is the measured case (ze-cos-conf before ze-iface-conf).
+//
+// The joined text is not measured against command.MaxLongHelpBytes. That bound
+// governs one DECLARATION, and the ? box draws what fits in any case
+// (renderExplanationBox, model_render.go).
 func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
 	if len(entries) == 0 {
 		return nil

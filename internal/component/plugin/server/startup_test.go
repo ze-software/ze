@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -1143,6 +1144,55 @@ func TestValidateHelpDecls(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestValidateHelpDeclsRefusesTheRetiredKey drives the retired-key guard from
+// the function a plugin registration reaches. `help` named the summary on Ze's
+// own daemon-to-CLI answer until 2026-09-03, so a plugin author who copied that
+// spelling declares a command whose Description decodes EMPTY, which no reader
+// can tell from a command that states no summary.
+//
+// The empty case is the one that matters: `"help": ""` and an absent key both
+// leave the Go field at its zero value, and only the json.RawMessage shape
+// tells them apart. A guard that missed it would let the wrong spelling through
+// whenever the plugin author sent an empty string.
+//
+// VALIDATES: AC-10 -- a Stage 1 CommandDecl carrying a retired key is refused,
+// and the error names the retired key and its replacement.
+// PREVENTS: every command of that plugin rendering with no summary, silently.
+func TestValidateHelpDeclsRefusesTheRetiredKey(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload string
+	}{
+		{name: "retired key with a value", payload: `{"name":"show x","help":"Show x."}`},
+		{name: "retired key with an empty value", payload: `{"name":"show x","help":""}`},
+		{name: "retired key beside the current one", payload: `{"name":"show x","description":"Show x.","help":"Show x."}`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var decl rpc.CommandDecl
+			require.NoError(t, json.Unmarshal([]byte(tc.payload), &decl))
+
+			err := validateHelpDecls([]rpc.CommandDecl{decl})
+			require.Error(t, err, "the retired key was accepted")
+			assert.Contains(t, err.Error(), retiredSummaryKey, "the refusal must name the retired key")
+			assert.Contains(t, err.Error(), summaryKey, "the refusal must name its replacement")
+			assert.Contains(t, err.Error(), "show x", "the refusal must name the command")
+		})
+	}
+}
+
+// TestValidateHelpDeclsAcceptsADeclarationWithNoRetiredKey is the negative half:
+// without it a guard that refused every declaration would pass the test above.
+func TestValidateHelpDeclsAcceptsADeclarationWithNoRetiredKey(t *testing.T) {
+	var decl rpc.CommandDecl
+	require.NoError(t, json.Unmarshal([]byte(`{"name":"show x","description":"Show x.","long-help":"The explanation."}`), &decl))
+
+	require.NoError(t, validateHelpDecls([]rpc.CommandDecl{decl}))
+	assert.Equal(t, "Show x.", decl.Description)
+	assert.Nil(t, decl.RetiredHelp, "an absent retired key leaves the field nil")
 }
 
 // TestValidatePipeDeclsBoundsTheDescription checks the alias summary is held to

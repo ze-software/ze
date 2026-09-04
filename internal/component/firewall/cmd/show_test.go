@@ -102,6 +102,12 @@ func TestFormatActionTypes(t *testing.T) {
 		{"limit bytes 1M", firewall.Limit{Rate: 1024 * 1024, Unit: "second", Burst: 5, Dimension: firewall.RateDimensionBytes}, "limit rate 1mbytes/second burst 5"},
 		{"limit bytes 500K", firewall.Limit{Rate: 500 * 1024, Unit: "minute", Burst: 0, Dimension: firewall.RateDimensionBytes}, "limit rate 500kbytes/minute burst 0"},
 		{"limit bytes bare", firewall.Limit{Rate: 12345, Unit: "second", Burst: 0, Dimension: firewall.RateDimensionBytes}, "limit rate 12345bytes/second burst 0"},
+		// An inverted limiter matches the packets ABOVE the rate, which is the
+		// opposite set. Rendering it like the plain form would show an operator
+		// a rule that accepts the traffic it drops. copp writes it for
+		// over-limit-policy drop.
+		{"limit packets, inverted", firewall.Limit{Rate: 100, Unit: "second", Burst: 20, Over: true, Dimension: firewall.RateDimensionPackets}, "limit rate over 100/second burst 20"},
+		{"limit bytes, inverted", firewall.Limit{Rate: 1024 * 1024, Unit: "second", Burst: 5, Over: true, Dimension: firewall.RateDimensionBytes}, "limit rate over 1mbytes/second burst 5"},
 		{"mark set", firewall.SetMark{Value: 0x10}, "mark set 0x10"},
 		{"connmark set", firewall.SetConnMark{Value: 0x20, Mask: 0xFF}, "connection-mark set 0x20"},
 		{"dscp set", firewall.SetDSCP{Value: 46}, "dscp set 46"},

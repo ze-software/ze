@@ -46,15 +46,18 @@ func TestIntReadsEveryDeliveryShape(t *testing.T) {
 		ok    bool
 	}{
 		{"json delivery", "56", 56, true},
-		{"in process, int", 56, 56, true},
-		{"in process, int64", int64(56), 56, true},
 		{"through encoding/json", 56.0, 56, true},
+		{"a Go int, which no producer sends", 56, 0, false},
 		{"negative", "-1", -1, true},
 		{"zero is a value", "0", 0, true},
 		{"absent", nil, 0, false},
 		{"fractional", 56.5, 0, false},
 		{"not a number", "fifty-six", 0, false},
 		{"a boolean", true, 0, false},
+		{"the largest float64 below the top of int64", 9223372036854774784.0, 9223372036854774784, true},
+		{"one past the top of int64", 9223372036854775808.0, 0, false},
+		{"the bottom of int64", -9223372036854775808.0, -9223372036854775808, true},
+		{"one past the bottom of int64", -9223372036854777856.0, 0, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			value, ok := Int(tc.in)

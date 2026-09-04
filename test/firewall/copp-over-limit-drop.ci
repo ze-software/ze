@@ -1,0 +1,39 @@
+# Test: over-limit-policy drop reaches the over-limit packets and nothing else.
+#
+# VALIDATES: the chain policy stays accept under `over-limit-policy drop`, and
+#            the drop rides the rate-limit rule as an INVERTED nftables limiter.
+# PREVENTS: the operator losing the box. A base input chain whose policy is drop
+#           discards every packet reaching the end of the chain, and the CoPP
+#           terms name TCP to the protected ports and nothing else, so SSH, ICMP
+#           and every other service would go with it on the first apply.
+#
+# The unit test on translatePolicy cannot see this: the Limit.Over field only
+# becomes `limit rate over` inside lowerLimit (internal/plugins/firewall/nft/
+# lower_linux.go), which needs a real kernel. This reads the rendered table.
+
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+control-plane-protection {
+    bgp {
+        rate 100/second;
+        burst 20;
+        over-limit-policy drop;
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.copp:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test fixture firewall/copp-over-limit-drop:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=copp table applied
+expect=stdout:contains=table inet ze_copp
+# The chain accepts what its terms do not name. This is the lock-out guard.
+expect=stdout:pattern=policy accept
+reject=stdout:pattern=policy drop
+# The drop is on the limiter, and the limiter is inverted. nft spells the burst
+# unit differently by version, so the rule is matched on the parts that carry
+# the meaning: the inversion, the rate, and the drop that follows them.
+expect=stdout:pattern=limit rate over 100/second.* drop

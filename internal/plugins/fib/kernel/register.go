@@ -36,19 +36,45 @@ func parseFIBConfig(sections []sdk.ConfigSection) (fibConfig, error) {
 		if sec.Root != configRoot || sec.Data == "" {
 			continue
 		}
-		var tree map[string]any
-		if err := json.Unmarshal([]byte(sec.Data), &tree); err != nil {
+		var delivered map[string]any
+		if err := json.Unmarshal([]byte(sec.Data), &delivered); err != nil {
 			return cfg, fmt.Errorf("fib/kernel: invalid config JSON: %w", err)
+		}
+		// The section arrives wrapped in its full root path, so configRoot
+		// "fib/kernel" delivers {"fib":{"kernel":{...}}}. Indexing the outer
+		// map by leaf name found nothing and kept every default, which is why
+		// neither setting had ever reached a running daemon.
+		tree := configvalue.Section(configRoot, delivered)
+		if tree == nil {
+			return cfg, fmt.Errorf("fib/kernel: config section carries no %q object", configRoot)
 		}
 		// The delivered map carries every leaf as the string the operator
 		// wrote: Tree.values is a map[string]string and toMap copies it
 		// through unchanged (internal/component/config/tree.go). A .(bool) or
 		// .(float64) assertion here never succeeds, so both settings were
 		// silently discarded and the defaults stood whatever the config said.
-		if v, ok := configvalue.Bool(tree["flush-on-stop"]); ok {
+		//
+		// An ABSENT leaf and an UNREADABLE one are separated here rather than
+		// inside the reader: both make configvalue answer false, and keeping
+		// the default for the second is the same silence this replaced. The
+		// map lookup says which, so a malformed value is refused and named.
+		if raw, present := tree["flush-on-stop"]; present {
+			v, ok := configvalue.Bool(raw)
+			if !ok {
+				return cfg, fmt.Errorf("fib/kernel: flush-on-stop is %q, want true or false", raw)
+			}
 			cfg.FlushOnStop = v
 		}
-		if v, ok := configvalue.Int(tree["sweep-delay"]); ok && v > 0 {
+		// 0 is a value, not an absence. ze-fib-conf.yang declares sweep-delay
+		// as a uint16 with no range, so `sweep-delay 0` commits, and it asks
+		// for the sweep to run at once rather than after a reconvergence
+		// window. Guarding on v > 0 would keep the 30-second default over it,
+		// which is the operator's setting discarded in silence.
+		if raw, present := tree["sweep-delay"]; present {
+			v, ok := configvalue.Int(raw)
+			if !ok || v < 0 {
+				return cfg, fmt.Errorf("fib/kernel: sweep-delay is %q, want a whole number of seconds", raw)
+			}
 			cfg.SweepDelay = time.Duration(v) * time.Second
 		}
 	}

@@ -1,12 +1,34 @@
 # RFC 8907 Section 10.5.2: "There MUST always be a shared secret set on the
 # server for the client requesting the connection", and "TACACS+ clients MUST
 # NOT set TAC_PLUS_UNENCRYPTED_FLAG". A client with no key therefore has no
-# conformant packet to send, so a server declared without one refuses the load.
+# conformant packet to send, and tacacsBackend.Build refuses such a server.
 #
-# VALIDATES: a tacacs server declared with no key stops the daemon starting.
-# PREVENTS: the daemon running with a server whose every packet body, the PAP
-#           User-Password included, would go out in cleartext under a header
-#           whose unencrypted flag is clear.
+# WHAT THE REFUSAL DOES, measured rather than assumed. It depends on WHEN the
+# bundle is built:
+#   - at BOOT, both build sites log the failure and set the bundle nil
+#     (`cmd/ze/hub/main.go` no-BGP branch, `cmd/ze/hub/infra_setup.go`). A nil
+#     bundle denies every authorization (aaa_lifecycle.go). It does NOT deny
+#     every login: on the no-BGP path taken by THIS config, noBGPAAAWiring
+#     returns a nil authenticator on purpose and ssh.Server.Start substitutes a
+#     LocalAuthenticator, so a local password still works. The BGP path is the
+#     one that leaves SSH unstarted.
+#   - at RELOAD, `ze config commit` REFUSES and rolls back
+#     (`cmd/ze/hub/main_reload.go`, "reload: rebuild aaa bundle"), but only
+#     while a bundle is already live: the rebuild is skipped when it is nil.
+#
+# THE EXIT CODE BELOW DISCRIMINATES NOTHING. Measured on 2026-09-04: this same
+# config WITH a key also ends in exit 1 at the same 242ms, because `ze -` given
+# a config that starts no BGP and no plugin has nothing to run. It is asserted
+# only because the runner expects success from a foreground command that
+# declares no code. The stderr line is the whole proof: it carries
+# ErrNoSharedSecret, which nothing but this guard produces, and it is absent
+# from the run whose server declares a key.
+#
+# VALIDATES: a tacacs server declared with no key is refused by name when the
+#            AAA bundle is built.
+# PREVENTS: the daemon authenticating against a server whose every packet body,
+#           the PAP User-Password included, would go out in cleartext under a
+#           header whose unencrypted flag is clear.
 
 stdin=ze-conf:terminator=EOF_CONF
 system {
@@ -22,5 +44,9 @@ system {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+# See the note above: this asserts what `ze -` does with a config that runs
+# nothing, not what the guard does.
 expect=exit:code=1
-expect=stderr:pattern=no shared secret configured
+# This is the discriminating assertion. Remove the guard in tacacsBackend.Build
+# and the line goes with it.
+expect=stderr:pattern=no shared secret configured for this TACACS\+ server

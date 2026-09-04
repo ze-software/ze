@@ -29,8 +29,10 @@ module ze-ddos-flowtriq-conf {
         description "Flowtriq API bearer token.";
         ze:help "Ze sends the value in the Authorization header of each request, as a Bearer token.
                  The length is 1 to 512 characters. The leaf is required when enabled is true, and Ze
-                 refuses the config without it. The leaf is marked sensitive, so the token is stored
-                 $9$-encoded on disk and every display path prints a placeholder in its place.";
+                 refuses the config without it. The leaf is marked sensitive, so every display path
+                 prints a placeholder in place of the token. A $9$-encoded value written by hand is
+                 decoded on read. Ze does not encode it for you, so a token typed into the editor is
+                 written to the config file as you typed it.";
       }
       leaf node-uuid {
         type string { length "1..128"; }

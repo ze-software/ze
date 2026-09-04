@@ -426,3 +426,55 @@ func TestPluginCommandDeclWithoutHelpKeepsSummary(t *testing.T) {
 		t.Errorf("description key = %v, want the summary preserved", got)
 	}
 }
+
+// TestCommandDeclRoundTripsBothKeys checks the Stage 1 wire spelling of a
+// command's two texts. The summary travels under `description` and the
+// explanation under `long-help`, and neither is derived from the other, so a
+// plugin that states one and not the other must reach the daemon that way.
+//
+// The key names are the contract with every plugin, in Go or in any other
+// language, so a rename here silently blanks a surface rather than failing a
+// build. Reading the raw JSON rather than only the Go struct is what catches it.
+//
+// VALIDATES: AC-8 -- the summary is published under `description` and the
+// explanation under `long-help`, and the retired key `help` is absent from what
+// a Go plugin writes.
+// PREVENTS: a renamed key blanking the completion row or the help page of every
+// plugin command, with nothing to say why.
+func TestCommandDeclRoundTripsBothKeys(t *testing.T) {
+	decl := CommandDecl{
+		Name:        "show widget",
+		Description: "List every widget the daemon holds.",
+		LongHelp:    "Each row names one widget.\nA widget belongs to the plugin that declared it.",
+	}
+
+	encoded, err := json.Marshal(decl)
+	require.NoError(t, err)
+
+	var keys map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(encoded, &keys))
+	assert.Contains(t, keys, "description", "the summary must travel under description")
+	assert.Contains(t, keys, "long-help", "the explanation must travel under long-help")
+	assert.NotContains(t, keys, "help", "a Go plugin must never write the retired key")
+
+	var decoded CommandDecl
+	require.NoError(t, json.Unmarshal(encoded, &decoded))
+	assert.Equal(t, decl.Description, decoded.Description)
+	assert.Equal(t, decl.LongHelp, decoded.LongHelp)
+	assert.Nil(t, decoded.RetiredHelp)
+}
+
+// TestCommandDeclOmitsTheExplanationItDoesNotDeclare is the negative half. A
+// plugin that states only a summary must not put an empty `long-help` on the
+// wire, because an empty explanation and an absent one are the same fact and
+// the reader must not have to tell them apart.
+func TestCommandDeclOmitsTheExplanationItDoesNotDeclare(t *testing.T) {
+	encoded, err := json.Marshal(CommandDecl{Name: "show widget", Description: "List every widget."})
+	require.NoError(t, err)
+
+	var keys map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(encoded, &keys))
+	assert.Contains(t, keys, "description")
+	assert.NotContains(t, keys, "long-help", "an undeclared explanation stays off the wire")
+	assert.NotContains(t, keys, "help")
+}

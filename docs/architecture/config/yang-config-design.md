@@ -618,9 +618,15 @@ plugin self-containment requires. `class-of-service` reaches `interface` that
 way.
 
 `mergeAugmentedEntries` unions those declarations into one virtual entry. The
-`ze:help` of every declaration is JOINED into that entry. The `?` box therefore
-tells the operator what each module contributes at the node. A module that
-declares no help cannot erase one that does.
+`ze:help` of every declaration is JOINED into that entry, separated by a blank
+line and in module-name order. A module that declares no help can no longer
+erase one that does.
+
+The join carries no module NAME, so the operator reads N paragraphs and cannot
+tell which module wrote each one. The `?` box also draws what fits and no more:
+`renderExplanationBox` wraps to the rows the box has, prints `... N more`, and
+no key scrolls it. A node several modules explain can therefore hold more text
+than the box will ever show.
 
 The one-line `description` can show only one text, and it is the first in
 module-name order. Nothing in the schema says which module OWNS a shared node,

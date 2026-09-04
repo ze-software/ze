@@ -14,6 +14,7 @@ import (
 
 func init() {
 	registerTableSnapshot("firewall/copp-bgp", "inet", "ze_copp")
+	registerTableSnapshot("firewall/copp-over-limit-drop", "inet", "ze_copp")
 	Register("firewall/copp-trusted", coppTrusted)
 	Register("firewall/copp-withdraw", coppWithdraw)
 	Register("firewall/ddos-local-withdraw", ddosLocalWithdraw)

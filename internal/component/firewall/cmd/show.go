@@ -225,13 +225,23 @@ func formatMasquerade(m firewall.Masquerade) string {
 // keeps the displayed number a whole integer (`1048576bytes/second`
 // stays as `1048576bytes/second` only when it is NOT a clean 1Mi; the
 // loop below downgrades the suffix when the rate is exactly divisible).
+//
+// An INVERTED limiter says so, because the word decides which packets the rule
+// matches and the two readings are opposites. `limit rate 100/second` matches
+// while the bucket has credit; `limit rate over 100/second` matches once it is
+// empty. Rendering both the same way would show an operator a rule that accepts
+// the traffic it drops. nft spells the inversion `over`, and so does this.
 func formatLimit(l firewall.Limit) string {
 	var b textbuf.Buffer
+	b.Str("limit rate ")
+	if l.Over {
+		b.Str("over ")
+	}
 	if l.Dimension == firewall.RateDimensionBytes {
 		rate, suffix := byteRateSuffix(l.Rate)
-		return b.Reset().Str("limit rate ").Uint(rate).Str(suffix).Byte('/').Str(l.Unit).Str(" burst ").Uint32(l.Burst).String()
+		return b.Uint(rate).Str(suffix).Byte('/').Str(l.Unit).Str(" burst ").Uint32(l.Burst).String()
 	}
-	return b.Str("limit rate ").Uint(l.Rate).Byte('/').Str(l.Unit).Str(" burst ").Uint32(l.Burst).String()
+	return b.Uint(l.Rate).Byte('/').Str(l.Unit).Str(" burst ").Uint32(l.Burst).String()
 }
 
 // byteRateSuffix picks the largest byte prefix (gbytes, mbytes, kbytes,
