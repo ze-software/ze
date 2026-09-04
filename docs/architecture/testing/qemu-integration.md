@@ -10,7 +10,10 @@ with full kernel capabilities.
 ```bash
 # Stage the kernel every QEMU target boots. A hit costs a copy.
 ./le build-artifacts host
-./le qemu all-tests
+
+# all-tests runs INSIDE the guest. le qemu run boots the guest and carries it in.
+./le qemu run kernel tmp/kernel/build/vmlinuz packages "coreutils iproute2" \
+  command "./le qemu all-tests"
 ```
 
 Prerequisites: `qemu` (`brew install qemu` on macOS). On macOS the run uses HVF
@@ -36,8 +39,8 @@ Both entry points run one VM for the whole population, never one VM per test.
 | Command | Population |
 |---------|------------|
 | `./le qemu netns-test suites <comma-separated-suites>` | The selected kernel-dependent functional suites. A tight iteration loop |
-| `./le qemu all-tests` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package |
-| `./le qemu all-tests only needs-linux` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
+| `./le qemu run ... command "./le qemu all-tests"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package |
+| `./le qemu run ... command "./le qemu all-tests only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
 
 Neither entry point needs per-test wiring. The suites are the same ones the
 native runner discovers, so the QEMU pass finds a new `needs-linux` test with no
@@ -45,6 +48,50 @@ registration.
 
 <!-- source: internal/le/qemu/alltests.go -- AllTestsRun.Run, the phase population -->
 <!-- source: internal/le/qemu/guestlabs.go -- the netns-test suite selection -->
+
+### `all-tests` is a GUEST action, and four things must be true before it runs
+
+`le qemu all-tests` refuses to start outside the VM: `internal/le/qemu/actions.go`
+registers it with "This action runs inside the VM. Its caller is the command
+value passed to the host qemu run action." Typed on the host it answers
+`qemu: the repository is not mounted: /workspace` and nothing runs. The host
+driver is always `./le qemu run ... command "<the guest command>"`.
+
+Four preconditions, each of which fails with a message that does NOT name the
+precondition. Measured 2026-09-04, six guest boots to establish:
+
+| Precondition | What its absence looks like |
+|--------------|-----------------------------|
+| `packages coreutils` | `timeout: unrecognized option: kill-after=15s` and BusyBox usage, once per suite. EVERY functional suite reports failed to launch and no `.ci` test runs. `suiteCommand` (`internal/le/qemu/alltests.go`) passes GNU `timeout --kill-after=15s`, and Alpine ships BusyBox `timeout` |
+| `packages iproute2` | `ZE-OBSERVER-FAIL: ... ip: invalid argument 'replace' to 'ip'`. BusyBox `ip` has no `neigh replace`, so an observer that programs a neighbour dies in test setup, before any assertion |
+| The three binaries, under canonical names | `qemu: bin/ze-stripped is missing or not executable -- cross-compile it on the host first`. `le qemu run` shares the checkout, where the cross-built artifacts carry `-linux-arm64` suffixes, so name them with `ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_TEST_BIN`. `shim()` symlinks them to `ze`, `ze-stripped` and `ze-test` because the tools dispatch on basename |
+| The `bgp` verb before the suite | The `ze plugin` help text, and exit 1. `ze-test plugin <name>` is read as the `ze plugin` command; the suite form is `ze-test bgp <suite> <name>`, which is what `vmSuites` passes (`alltests.go`) |
+
+`le qemu run` installs only `git curl musl-dev` beyond the base image
+(`internal/le/qemu/run.go`), so anything else a test shells out to has to be
+named in `packages`.
+
+### Running ONE `.ci` test in a throwaway guest
+
+The tight loop for a single Linux-only test, about 30 seconds of test after the
+boot. It does the binary shim by hand because that is `all-tests`'s job and this
+path skips `all-tests`:
+
+```bash
+./le qemu run kernel tmp/kernel/build/vmlinuz packages "coreutils iproute2" \
+  command "mkdir -p /tmp/zb \
+    && ln -sf /workspace/bin/ze-linux-arm64 /tmp/zb/ze \
+    && ln -sf /workspace/bin/ze-test-linux-arm64 /tmp/zb/ze-test \
+    && ln -sf /workspace/bin/ze-stripped-linux-arm64 /tmp/zb/ze-stripped \
+    && cd /workspace && PATH=/tmp/zb:\$PATH ze-test bgp plugin <test-name>"
+```
+
+Wrap it in `./le job run label <name> quiet command ...` so it takes its turn
+with the other sessions on the machine.
+
+<!-- source: internal/le/qemu/actions.go -- all-tests is registered as a guest action -->
+<!-- source: internal/le/qemu/alltests.go -- suiteCommand, shim, the ZE_*_BIN knobs -->
+<!-- source: internal/le/qemu/run.go -- runBootstrapCommand and the package list -->
 
 ### How `option=needs-linux` behaves on each host
 

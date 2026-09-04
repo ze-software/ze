@@ -12,6 +12,52 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## The instrument landed and the test PASSES (2026-09-04 evening, session 2d2bc99a)
+
+This is EVIDENCE, not a closure. The status stays `skeleton` and the checklist
+stays unticked, for the reasons at the end of this section.
+
+`d0affb5e4b` built `ze_iface_link_events_queued_while_blocked_total`, which is
+exactly the instrument the section below says does not exist, and wired it into
+the fixture (`plugin_fixture_08_flap.go:224`). Measured once on the arm64 QEMU
+guest, runtime kernel 7.2:
+
+```
+27.7s    1/1  PASS  322  iface-link-flap-during-commit
+```
+
+The daemon and fixture binaries were both cross-built AFTER the counter landed
+(`bin/ze-linux-arm64` 14:01, `bin/ze-test-linux-arm64` 14:10, counter committed
+13:06), so this is not a stale binary reporting on old code.
+
+**Why this green is not the third false one.** Both earlier greens came from
+reading `ze_iface_link_worker_blocked_total` over a TIME WINDOW, and the file
+below explains why no window works: wide enough to see the 1 Hz resync's block
+and the guard is true in every round that took the lock at all, narrow enough to
+exclude it and it reads zero through a genuine hold. The new counter has no
+window. The queue marks the wait and a push during it is counted whatever else
+happens, so a pass means rounds genuinely overlapped rather than that the guard
+went unfalsifiable. A run that did not overlap would have ended with
+`only N of 3 wanted rounds overlapped`, and it did not.
+
+**What is still NOT established, and blocks closing this file:**
+
+- ONE run, on an idle VM. The standard this test was held to before was six.
+- The second failure this file names, two of three runs dying on
+  `kernel dropped 1054` and `207 netlink notifications` with the zero-drops
+  assertion suspected of being load-dependent, did not appear here. One quiet
+  run does not disprove a load-dependent failure.
+- The checklist below requires `./le verify worktree` green. The population was
+  22 stages red on 2026-09-04 morning and has not been re-measured since.
+
+**How to run it**, because reconstructing this cost six guest boots and the
+recipe is now in `docs/architecture/testing/qemu-integration.md`: `le qemu
+all-tests` is a GUEST action, the Alpine guest needs `packages "coreutils
+iproute2"` or BusyBox `timeout` and `ip` defeat it, the binaries need canonical
+names, and a single test is `ze-test bgp plugin iface-link-flap-during-commit`.
+
+Read the section below knowing the counter it calls missing now exists.
+
 ## NOT RESOLVED. This section claimed it was, on 2026-09-04, and that was wrong.
 
 **Retracted the same day.** The claim was "the test could always build its
