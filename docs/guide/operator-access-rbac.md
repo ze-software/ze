@@ -150,10 +150,10 @@ Once you define any `system.authorization` profile, authorization is in use and 
 
 There is a third state, and it is the one to plan for.
 
-- When the daemon cannot BUILD the AAA chain the config describes, **authorization refuses every command**. A TACACS+ server declared with no shared secret does this, and so does any other error while the chain is built. With no chain installed there is no policy to consult, so nothing is authorized.
-- **Authentication still falls back to the local accounts**, so you can log in and SEE the failure. No local user means no login: ssh rejects every attempt when the config declares no user.
+- When a backend cannot be BUILT, it is dropped and the chain composes without it. A TACACS+ server declared with no shared secret does this. The local backend then answers the login. The profiles above govern the command, so a box with local profiles keeps working to its own rules.
+- When EVERY backend fails to build there is no chain. Nothing authenticates, ssh is not started, and every command is refused.
 
-The two halves answer differently on purpose. A daemon that cannot build the chain its config describes must not become the daemon that authorizes most freely. A session opens, runs nothing, and repair goes through the console.
+So local profiles are what carry a box through a broken central server. A box that leaves authorization to TACACS+ or RADIUS and declares none of its own has nothing to fall back to. That is the reason this guide has you define them.
 
 `docs/architecture/aaa-tacacs.md` carries the mechanism.
 

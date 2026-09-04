@@ -81,10 +81,10 @@ module ze-tacacs-conf {
                              a commit, through the AAA rebuild rather than
                              through the schema: a missing mandatory field is
                              only a warning. At BOOT the same failure is logged
-                             and startup continues with no AAA bundle. Login
-                             falls over to the local accounts and authorization
-                             refuses every command, so repair goes through the
-                             console. The leaf is marked
+                             and this backend is DROPPED from the chain. A user
+                             who exists locally still logs in, and the local
+                             profiles still govern the command. The leaf is
+                             marked
                              sensitive, so every display path prints a
                              placeholder. A $9$-encoded value written by hand is
                              decoded on read, and the commit path writes back

@@ -78,8 +78,9 @@ module ze-authz-conf {
                      user runs every command. The first profile therefore changes the answer for every user, and a
                      user with no profile assigned is denied from that point.
 
-                     A daemon whose AAA chain FAILS TO BUILD reaches none of this and refuses every command.
-                     Login still answers from the local accounts, so repair goes through the console.";
+                     A backend that FAILS TO BUILD is dropped and the chain composes without it, so these
+                     profiles still govern where the local backend survived. Where every backend fails,
+                     nothing authenticates and every command is refused.";
 
             list profile {
                 key "name";

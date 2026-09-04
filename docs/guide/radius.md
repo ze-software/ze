@@ -285,23 +285,25 @@ to the next.
 
 The order above is what happens when RADIUS ANSWERS. A RADIUS block the daemon
 cannot build a client from is a different case. So is a TACACS+ server declared
-with no shared secret in the same config. The whole AAA chain then fails to
-build, and no backend answers at all.
+with no shared secret in the same config.
 
-**Login falls over to the local accounts, on ssh and on web. Authorization does
-not: it fails closed.** You log in, see the failure, and repair the box from the
-console. With no chain installed there is no policy to consult. A daemon that
-cannot build the chain its config describes must not authorize most freely. No
-local user means no login either.
+**That backend is dropped and the rest of the chain composes without it.** A
+user who exists locally still logs in against the local backend, and the local
+authorization profiles still govern what they run. The daemon logs the drop at
+ERROR.
 
-A commit is refused rather than failed over, and only while a chain is already
-running. The same error already in the file at boot is logged and startup
-continues.
+The order does not change. The remote backend is asked first and a reject stops
+the chain. Only a failure to ANSWER reaches the local account, and the local
+password must be right.
+
+Where EVERY backend fails to build there is no chain. Nothing authenticates and
+ssh is not started. A commit that would produce that is refused while a chain is
+already running.
 
 `docs/guide/authentication.md` carries the operator view and
 `docs/architecture/aaa-tacacs.md` the mechanism.
 
-<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition and its authenticator fallback -->
+<!-- source: internal/component/aaa/types.go -- backendRegistry.Build -->
 <!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
 
 ## Readiness check

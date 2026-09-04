@@ -35,47 +35,44 @@ the missing-database case which grants access for emergency recovery.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
 
-## A backend that will not build: login falls over, authorization does not
+## A backend that will not build is dropped, and the others still answer
 
 The table above is about who CAN log in. This is about a backend that never
 starts. A TACACS+ server declared with no shared secret is one case, and any
 error while the AAA chain is built is another.
 
-**The daemon keeps running, and login falls over to the local accounts.** That
-is the documented behavior on every management surface, ssh and web alike. It is
-deliberate. A login is how you SEE the failure. A daemon that took ssh away
-would leave you with a running forwarding plane and no way to look at it.
+**That backend is dropped and the rest of the chain composes without it.** A
+user who exists locally still logs in, against the local backend, and the local
+authorization profiles still govern what they run. The daemon logs the drop at
+ERROR and keeps running.
 
-It is not how you repair the box. See the next paragraph: the session you get
-runs nothing.
+Which backend answers is the chain's ordinary rule, and it does not change here:
 
-**Authorization does NOT fall over. It fails closed.** With no chain installed
-there is no policy to consult, so every command is refused. You log in, you see
-the failure, and you repair the box from the console.
+- The remote backend is asked first, because it sits ahead of local in priority.
+- A REJECT stops the chain. A wrong password at a reachable server does not fall
+  through to your local hash.
+- Any other failure tries the next backend, so an unreachable or unbuildable
+  server reaches the local account.
+- The local password must be right. The fallback is an ACCOUNT, never an open
+  door.
 
-That asymmetry is deliberate. A login costs nothing and is how you learn the
-chain is broken. A command under no policy is the thing being refused. A
-daemon that cannot build the chain its config describes must not become the
-daemon that authorizes most freely.
-
-**No local user means no login at all.** ssh rejects every attempt when the
-config declares no user, and never falls back to an open session.
+**No user, no login.** Where every backend fails to build there is no chain at
+all, so nothing can authenticate. ssh is not started: a listener that
+authenticates nobody is a port rather than a service. Every command is refused
+for the same reason.
 
 | When | What happens |
 |------|--------------|
-| `ze config commit`, with a chain already running | The commit is REFUSED and the running chain is kept |
-| The same, after a boot whose build failed | Nothing. The rebuild is skipped while no chain is installed, so a corrected config needs a restart |
-| Boot | The failure is logged, and login falls over to the local accounts |
+| `ze config commit`, with a chain already running | REFUSED. The commit is rolled back and the running chain is kept |
+| The same, after a boot that composed no chain | Nothing. The rebuild is skipped, so a corrected config needs a restart |
+| Boot | The broken backend is logged and dropped. What composed answers |
 
-Two consequences worth planning for. A central-auth box that reboots with a
-broken AAA block comes up on local accounts, so keep one that works. And a
-config error you commit is caught, while the same error already in the file at
-boot is not.
+So a config error you commit is caught, while the same error already in the file
+at boot is not. Keep a local account that works on a box whose logins come from
+a central server. `docs/architecture/aaa-tacacs.md` carries the mechanism.
 
-`docs/architecture/aaa-tacacs.md` carries the mechanism.
-
-<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition and its authenticator fallback -->
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthenticator, liveAAABundleAuthorizer -->
+<!-- source: internal/component/aaa/types.go -- backendRegistry.Build -->
+<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition -->
 <!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
 
 ## Adding a user

@@ -55,25 +55,23 @@ assignment order. The first profile with a matching entry wins. If no
 profile has a matching entry, the first profile's `default-action`
 applies.
 
-### What happens when the AAA chain will not build
+### What happens when a backend will not build
 
-The rules above assume the daemon built its AAA chain. Where the build FAILED,
-none of them applies: **every command is refused.** With no chain installed
-there is no policy to consult, and the profiles this page describes are reached
-only through a built chain.
+The rules above assume a chain. Where a BACKEND failed to build, it is dropped
+and the chain composes from the rest.
 
-A TACACS+ server declared with no shared secret puts the daemon in that state.
-So does any other error while the chain is built.
+These rules then still apply. The first authorizer any surviving backend
+contributed decides. Where the local backend survived, that is the local RBAC
+store this page describes.
 
-Authentication still falls back to the local accounts, so an operator can log in
-and see the failure. The session runs nothing, and repair goes through the
-console. `docs/guide/authentication.md` carries the login half.
+A TACACS+ server declared with no shared secret puts a daemon in that state. So
+does any other error while the chain is built.
 
-A fallback to these profiles was tried on 2026-09-04 and reverted the same day.
-It made a box that declares no profile allow every command while its chain was
-broken. Falling back to a policy means falling back to what it says, and an
-absent one says allow.
+Where EVERY backend failed there is no chain, and then **every command is
+refused.** Nothing was installed to consult, and no session exists to ask: ssh
+is not started either, because nothing can authenticate.
 
+<!-- source: internal/component/aaa/types.go -- backendRegistry.Build -->
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthorizer -->
 
 ## Matching rules

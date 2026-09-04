@@ -62,33 +62,24 @@ server declared without a key and names the address. The packet writer refuses
 one too. No path reaches the socket with a cleartext body under a header that
 claims otherwise.
 
-What the refusal does depends on WHEN the bundle is built, and the three answers
-differ.
+What a keyless server costs depends on what else the config declares.
 
-| When | What happens |
-|------|--------------|
-| `ze config commit` or a reload, with an AAA bundle already running | The commit is REFUSED and the running chain is kept. You see the error |
-| The same, after a boot whose build already failed | Nothing. The rebuild is skipped while the bundle is nil, so a corrected config needs a restart |
-| Boot | The failure is logged, the bundle is left nil, and startup continues |
+**The tacacs backend is dropped and the rest of the chain composes without it.**
+A user who exists locally still logs in against the local backend, and the local
+authorization profiles still govern what they run. The daemon logs the drop at
+ERROR.
 
-**Login fails over. Authorization fails closed.**
+| What the config has | What happens |
+|---------------------|--------------|
+| A local user as well | that user logs in, and their profiles decide what they run |
+| No other backend that builds | nothing authenticates, and ssh is not started |
 
-| Surface | What a nil bundle does |
-|---------|------------------------|
-| ssh | starts, and the local accounts answer the login |
-| web | the same |
-| every command | REFUSED, because no policy is installed to consult |
+The chain order is unchanged. TACACS+ is asked first where it built, a reject
+stops the chain, and only a failure to ANSWER reaches the local account.
 
-You log in, see the failure, and repair the box from the console. No local user
-means no login either.
-
-That is the documented behavior rather than an accident. A login is what makes
-the repair possible. A daemon that took ssh away would leave the operator with a
-running forwarding plane and no way in. `docs/architecture/aaa-tacacs.md`
-carries the full contract.
-
-It does mean a keyless TACACS+ block downgrades the box to local accounts until
-somebody notices. Run `ze config validate` before a reboot.
+A commit is REFUSED rather than dropped, and only while a chain is already
+running. The same error already in the file at boot is logged and startup
+continues. So `ze config validate` before a reboot.
 
 The `ze:sensitive` marking hides the key from `show` and from the web editor. It
 does NOT encrypt what the commit path writes. Ze decodes a `$9$` value you write

@@ -29,54 +29,47 @@ The same rule is what keeps the recovery path open. An operator who makes
 TACACS+ the only backend can still be rescued by the ZeFS super-admin, which
 sits outside the AAA chain by design.
 
-## A chain the daemon cannot BUILD: login falls over, authorization does not
+## A backend that will not BUILD is dropped, and the chain carries on
 
 The section above is about a backend that ANSWERS. This one is about a backend
 that never starts. A TACACS+ server declared with no shared secret is one case,
 and any error out of `Build` is another.
 
-Two owner rulings settle it, both given on 2026-09-04. **Failover to the local
-accounts is the documented behavior**, and **authorization fails closed: no
-user, no login.** A daemon whose AAA chain failed to build keeps running and
-authenticates from the local bcrypt accounts. It authorizes nothing.
+`Build` DROPS such a backend, logs it at ERROR, and composes the chain from what
+is left.
 
-| Surface | What a nil bundle does |
-|---------|------------------------|
-| ssh | starts, and its authenticator answers from the local accounts |
-| web | the same, through the fallback its live authenticator carries |
-| authorization, every surface | REFUSES every command |
+It used to return on the first error instead. That took the LOCAL backend down
+with the broken one, because local sits at priority 200 and was never reached. A
+keyless TACACS+ server left the daemon with no authenticator at all.
 
-The two halves answer differently, and the asymmetry is the design.
+So the rule an operator needs is the chain's own, and the section above states
+it. A user who exists in both places is asked of the remote backend first. The
+local account answers only where the remote one failed to ANSWER. A reject is an
+answer.
 
-**Authentication falls over so the operator can SEE the failure.** A daemon that
-took ssh away would leave a running forwarding plane and no way to look at it.
-No local account means no login: ssh rejects every attempt when the config
-declares no user, and never falls back to an open session.
+| What broke | Who authenticates | Who authorizes |
+|------------|-------------------|----------------|
+| A backend will not build | the backends that did, in priority order | the first authorizer they contributed, which is the local RBAC store where local built |
+| Every backend will not build | nobody. There is no bundle, and ssh is not started | nothing, and no session exists to ask |
 
-**Authorization fails closed because there is no policy to consult.** A fallback
-to the local RBAC policy was tried on 2026-09-04 and reverted the same day. It
-made a box that declares no `system authorization` profile allow EVERY command
-while its chain was broken. Falling back to a policy means falling back to what
-it says, and an absent one says allow. A daemon that cannot build the
-chain its config describes must not be the daemon that authorizes most freely.
+That second row is what "no user, no login" means. A listener that can
+authenticate nobody is a port rather than a service, so `infraSetup` does not
+start one. `liveAAABundleAuthorizer` refuses every command for the same reason:
+no bundle means no policy was ever installed to consult.
 
-So a failed build leaves a session that opens and runs nothing, and repair goes
-through the console. That cost is deliberate. It is paid once, by an operator
-who mistyped an AAA block, rather than continuously by every box that runs
-without local profiles.
+**A reload refuses rather than dropping anything.** `ze config commit` rebuilds
+the chain, and `Build` returns the dropped backend's error beside the composed
+bundle. The reload path treats that error as a refusal and keeps the running
+chain, while boot logs it and runs with what composed. One build, two callers,
+two answers.
 
-The failover is not a second chain. The live indirection reads the bundle slot
-on every request. A reload that repairs the config installs a bundle, and the
-local accounts stop answering with no restart.
+That refusal holds only while a bundle is already installed. After a boot whose
+build dropped every backend the slot is nil, the rebuild is skipped, and a
+corrected config needs a restart.
 
-**A reload refuses rather than failing over.** `ze config commit` rebuilds the
-chain, and a build error rolls the commit back and keeps the running one. This
-holds only while a bundle is already installed. After a boot whose build failed
-the slot is nil, the rebuild is skipped, and a corrected config needs a restart.
-
-<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition and its authenticator fallback -->
-<!-- source: cmd/ze/hub/main.go -- noBGPAAAWiring -->
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthenticator, liveAAABundleAuthorizer -->
+<!-- source: internal/component/aaa/types.go -- backendRegistry.Build, which drops and composes -->
+<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthorizer -->
 <!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
 
 ## An unmapped privilege level is a denial
