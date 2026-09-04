@@ -347,6 +347,10 @@ func (p *Prepared) Text() string {
 	if p.Push {
 		text.Str("push=AUTHORIZED\n")
 	}
+	// The staged paths and their size against HEAD, last so it sits directly
+	// above the prompt. A file that reads bigger than the author expects is
+	// another session's work riding along; see FileStat for why this prints.
+	text.Str(StatText(p.Stats))
 	if p.DryRun {
 		text.Str("--- message ---\n").Str(p.MessageText).Str("--- script ---\n").Str(p.ScriptText)
 	}

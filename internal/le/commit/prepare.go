@@ -62,6 +62,9 @@ type Prepared struct {
 	Removed     []string               `json:"removed"`
 	Weakened    []testweakened.Finding `json:"weakened,omitempty"`
 	RFCChanges  []RFCChange            `json:"rfc-changes,omitempty"`
+	// Stats is how much of each staged path this commit carries, measured
+	// against HEAD. See FileStat: it is printed, never enforced.
+	Stats []FileStat `json:"stats,omitempty"`
 }
 
 // Create validates every gate over the prospective commit, writes the message
@@ -178,6 +181,7 @@ func Create(root string, options *Options) (Prepared, error) {
 	result.Push = authorisation != ""
 	result.DryRun = options.DryRun
 	result.Added = paths
+	result.Stats = fileStats(root, paths)
 	result.Removed = removed
 	if options.DryRun {
 		result.MessageText = message
