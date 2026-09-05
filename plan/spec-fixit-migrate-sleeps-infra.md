@@ -5,7 +5,43 @@
 | Status | in-progress |
 | Depends | migrate-plugin-sleeps (committed edfe4c0e1), payload-predicate-waits (committed) |
 | Phase | 2/9 |
-| Updated | 2026-08-14 |
+| Updated | 2026-09-05 |
+
+## Closure 2026-09-05: the premise expired, the work is done
+
+**Read this before any number, phase, or bucket below.** Every correction block
+under it is older than this one.
+
+The spec exists to remove blind `time.sleep()` from `test/**/*.ci`. That
+population is now EMPTY. `collectSleepRatchet`
+(`internal/le/testhealth/collect.go`) counts `time.sleep(` over the tracked
+`test/**/*.ci` set and compares it to the ceiling in `test/.ci-sleep-baseline`:
+
+```
+$ grep -rn "time\.sleep(" test --include=*.ci | wc -l
+0
+$ git ls-files 'test/**/*.ci' | wc -l
+1864
+```
+
+The 1864 files are intact, so the zero is a conversion result and not a deleted
+corpus. The only surviving `sleep` tokens in `.ci` are prose in comments and the
+`poll-sleep` config keyword in `test/parse/vpp-poll-sleep.ci`.
+
+The spec's named P1 deliverable no longer exists to build.
+`test/scripts/ze_api.py` was deleted on 2026-08-28 by `eae282592` with no
+successor file, so `wait_for_daemon_ready` has no home. The waits it was to
+provide are in the tree under two other producers:
+
+| What P1/P2/P3 asked for | Producer today |
+|-------------------------|----------------|
+| daemon readiness poll for standalone drivers and observers | `waitDaemon`, `internal/test/fixture/netfilter_fixture.go` |
+| bounded wait on a daemon stderr pattern | the declarative `await=stderr:contains=[:timeout=]` fence, `internal/test/runner/await_stderr.go` |
+
+The ratchet ceiling is 52 and the count is 0, so the gate reads OK with 52 of
+headroom. **Lowering the ceiling to 0 is deliberately NOT part of this closure.**
+A ratchet change is its own one-line commit with its own reasoning, and folding
+it into a closure would hide it.
 
 ## Provenance
 
@@ -368,7 +404,7 @@ Infra (production/test-support) files, each additive:
 ### Wrong Assumptions
 | Assumed | True | Discovered | Impact |
 |---------|------|------------|--------|
-| P6: redistribute UPDATEs bypass the updates-sent counter (per the deferral comment on bgp-redistribute-announce.ci) | `reactor_notify.go` calls `peer.IncrUpdatesSent()` for EVERY sent UPDATE incl. redistribute/forward-pool sends; `show bgp peer <n> detail` exposes `updates-sent`/`eor-sent`/`state` (`internal/component/bgp/plugins/cmd/peer/peer.go`) | 2026-07-14 audit (read producer + `redistribute-as112-announce.ci` uses exactly this signal) | P6 needs NO new outbound signal; the counter already exists |
+| P6: redistribute UPDATEs bypass the updates-sent counter (per the deferral comment on bgp-redistribute-announce.ci) | `reactor_notify.go` calls `peer.incrUpdatesSent()` (declared `Peer.incrUpdatesSent`, `peer_stats.go`; unexported since this row was written) for EVERY sent UPDATE incl. redistribute/forward-pool sends; `show bgp peer <n> detail` exposes `updates-sent`/`eor-sent`/`state` (`internal/component/bgp/plugins/cmd/peer/peer.go`) | 2026-07-14 audit (read producer + `redistribute-as112-announce.ci` uses exactly this signal) | P6 needs NO new outbound signal; the counter already exists |
 | P4: a fib reflecting-`show` must be built | `show fib kernel` already exists and returns the `installed` map as `[{prefix,next-hop}]` JSON (`fib/kernel/register.go`, `backend.go`) | 2026-07-14 audit | P4 needs NO new production code; fib-kernel conversion is a `dispatch_until('show fib kernel', ...)` poll (still QEMU-gated) |
 | "Build the signal, then conversion is mechanical" (Core Insight) | The signals mostly already exist; the real blocker is an engine BEHAVIOR (below), so conversion is NOT mechanical | 2026-07-14 redistribute investigation | Spec framing (P1..P8 = build infra) is largely wrong; the work is per-test root-causing, not infra-building |
 ### Failed Approaches
@@ -540,30 +576,95 @@ unhomed:**
   other. This makes `internal/le/stressrepro/run.go` unusable against the web suite,
   and it is a live hazard for two agents in a shared checkout.
 ### Bugs Found/Fixed
+- None attributable to this closure. The engine stall this spec once blamed (P0)
+  was root-caused elsewhere to two test-harness defects and no engine stall; the
+  Provenance block records that carve-out.
+
 ### Documentation Updates
+- None owed. The two surfaces the Documentation Update Checklist names are
+  already documented against the producers that replaced this spec's planned
+  ones: `docs/architecture/testing/ci-format.md` documents
+  `await=stderr:contains=<text>[:timeout=<dur>]`, and
+  `docs/architecture/testing/runner-architecture.md` carries a
+  `<!-- source: internal/test/runner/await_stderr.go -- defaultAwaitStderrTimeout -->`
+  anchor for the fence's timeout derivation. No page names
+  `wait_for_daemon_ready` or `test/scripts/ze_api.py`.
+
 ### Deviations from Plan
+- P1 was never built as specified and never will be: its host file
+  `test/scripts/ze_api.py` was retired on 2026-08-28 (`eae282592`). The waits
+  landed in Go instead (`waitDaemon`, `await=stderr`), which is why the sleep
+  count reached zero without the named helper ever existing.
+- The QEMU-gated bulk (AC-8) was carved out to `spec-fixit-sleeps-qemu-bulk`
+  before this spec closed. Its own target population is now empty too; see
+  Work Not Done.
 
 ## Implementation Audit
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Remove every convertible blind `time.sleep()` from `test/**/*.ci` | Done | `test/**/*.ci` | count is 0 over 1864 tracked files, measured by `collectSleepRatchet` (`internal/le/testhealth/collect.go`) |
+| Keep genuinely deliberate timers, documented | Done (vacuous) | `test/**/*.ci` | none survived: the population is empty, so there is no kept timer to document |
+| Lower `test/.ci-sleep-baseline` as each piece lands | Done | `test/.ci-sleep-baseline` | 125 -> 52 across seven signed delta lines, each carrying its own reasoning |
+
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 P1 `wait_for_daemon_ready` | Changed | `waitDaemon`, `internal/test/fixture/netfilter_fixture.go` | the named Python helper was never built and its file is gone (`eae282592`, 2026-08-28). The static/firewall/policy/traffic drivers it was to convert hold 0 sleeps |
+| AC-2 P2 daemon-stderr wait | Done | `internal/test/runner/await_stderr.go`, parsed by `(*EncodingTests).parseLine` (`internal/test/runner/record_parse.go`) | declarative `await=stderr:contains=<text>[:timeout=<dur>]`, bounded; unit tests in `internal/test/runner/await_stderr_test.go` |
+| AC-3 P3 dataplane-programmed | Done | `waitDaemon` (`internal/test/fixture/netfilter_fixture.go`) + `policyTableOutput` (`internal/test/fixture/netfilter_fixture_policy.go`) | `test/policy` 12 -> 0 and `test/firewall` 8 -> 0; both baseline deltas carry the Linux verification and the source mutation that proves non-vacuity |
+| AC-4 P4 fib reflecting-show | Changed | `fibKernel.showInstalled`, `internal/plugins/fib/kernel/backend.go` | the signal already existed, so no surface was built. The fib tests hold 0 sleeps |
+| AC-5 P5 reject-fence | Done | Implementation Summary, reject bucket | the injected-counted-message fence is recorded in Design Insights; the named reject tests hold 0 sleeps |
+| AC-6 P6 redistribute/control-message signal | Changed | `Peer.incrUpdatesSent` (`internal/component/bgp/reactor/peer_stats.go`), called from `reactor_notify.go` | the counter already existed; no new signal was built. It has since been UNEXPORTED, so the Mistake Log's `peer.IncrUpdatesSent` spelling is stale. The redistribute tests hold 0 sleeps |
+| AC-7 P7 RS inbound-anchor | Done | Implementation Summary, RS bucket | all-peers `eor-sent` via `show bgp` |
+| AC-8 P8 QEMU verification | Done | `test/.ci-sleep-baseline` delta comments | each Linux-only delta records its `./le qemu netns-test` run and a source mutation proving the waits are not vacuous |
+| AC-9 P9 KEEP re-examination + ratchet | Done | `test/.ci-sleep-baseline` | target was "only documented deliberate timers remain"; the count reached 0, so nothing was kept |
+
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| P2 stderr-wait parse/exec | Done, relocated | `internal/test/runner/await_stderr_test.go` | the plan named `engine_steps_test.go`; the directive got its own file |
+| P4 reflecting-show unit test | Not needed | `internal/plugins/fib/kernel/` | no new surface was built (AC-4 Changed) |
+| P6 outbound-sent signal unit test | Not needed | `internal/component/bgp/reactor/` | no new signal was built (AC-6 Changed) |
+| each converted `.ci` | Done | `test/**/*.ci` | 1864 tracked files, 0 sleeps |
+
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `test/scripts/ze_api.py` | Gone | deleted 2026-08-28 by `eae282592`, no successor file |
+| `internal/test/runner/engine_steps.go`, `runner_exec.go` | Changed | the primitive landed in `internal/test/runner/await_stderr.go` instead |
+| `internal/plugins/fib/kernel/` | Untouched | AC-4 needed no new surface |
+| `internal/component/bgp/reactor/` | Untouched | AC-6 needed no new signal |
+| `docs/architecture/testing/ci-format.md` | Done | documents `await=stderr:contains=` at the directive reference |
+| the converted `.ci` files | Done | 0 sleeps tree-wide |
+| `test/.ci-sleep-baseline` | Done | 125 -> 52 |
+
 ### Audit Summary
+- **Total items:** 23 (3 requirements, 9 acceptance criteria, 4 tests, 7 files)
+- **Done:** 14
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4 (AC-1, AC-4, AC-6, and the runner files whose planned edits the
+  actual producer made unnecessary; each recorded in Deviations)
+- **Not applicable:** 5 (2 unit tests for surfaces that were never built, 2
+  packages left untouched for the same reason, and the retired
+  `test/scripts/ze_api.py`)
 
 ## Goal Validation (BLOCKING)
 | Goal | Evidence Type | Concrete Evidence |
 |------|---------------|-------------------|
-| remaining convertible sleeps eliminated | ratchet + functional | (fill per piece) |
-| linux-only conversions verified | QEMU | (fill: ./le qemu run command "./le qemu all-tests") |
-| only deliberate timers remain | audit | (fill) |
+| remaining convertible sleeps eliminated | ratchet | `grep -rn "time\.sleep(" test --include=*.ci \| wc -l` = 0 against a ceiling of 52. Same population and same needle as `collectSleepRatchet` (`internal/le/testhealth/collect.go`), which reads `t.trackedMatching("test", ".ci")` and counts `time.sleep(` |
+| linux-only conversions verified | QEMU | the `-12` and `-8` delta blocks in `test/.ci-sleep-baseline` record `./le qemu netns-test suites policy` at 3x 6/6 and the firewall suite at 3x 23/23, each on Linux |
+| the waits are not vacuous | source mutation | same delta blocks: skipping `firewall.ApplyAll` fails all 6 policy tests, skipping `rm.applyAll` fails exactly 002 and 005, dropping set elements in `nft/lower_linux.go` fails exactly firewall test 9, and pointing an `await=stderr:` fence at a needle no producer emits fails at its own timeout |
+| only deliberate timers remain | audit | stronger than the goal: zero remain. The surviving `sleep` tokens in `.ci` are comment prose and the `poll-sleep` config keyword in `test/parse/vpp-poll-sleep.ci` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Lower the `test/.ci-sleep-baseline` ceiling from 52 to 0 | a ratchet change is its own one-line commit with its own reasoning; folding it into a closure hides it | nobody yet: it is a one-line change, named here and in the closure report |
+| The QEMU-gated bulk framing (AC-8's `~150` tests) | carved out before this spec closed, and its own population is now empty too | `spec-fixit-sleeps-qemu-bulk` (bare stem: this spec is removed, and that spec cites it) |
+| Reproduce and fix `test/plugin/forward-overflow-two-tier.ci` (inherited row, below) | already terminal elsewhere: the reproduction attempt was run and failed, which is the one condition `ai/rules/completion.md` sets for recording instead of fixing | `plan/known-failures/bgp-plugin-forward-overflow-two-tier.md` |
 
 ## Checklist
 
@@ -574,9 +675,63 @@ Migration-adapted TDD (each converted `.ci` IS its own functional test; infra pi
 - [ ] `./le verify current mode full`, the affected native functional suites, and QEMU are green before each piece's commit.
 
 ## Review Gate
-### Run 1 (initial)
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-migrate-sleeps-infra-zeclose-sleeps.md` |
+| `./le spec session review check` | CLEAN |
+| Rounds | 1 |
+| Reviewer lenses used | premise re-verification (producer read: `collectSleepRatchet`), deliverable existence (`test/scripts/ze_api.py` deletion + successors), spec-text truthfulness, citation clearance, doc-page staleness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | The spec's Files to Modify names `test/scripts/ze_api.py` as a live target although it was deleted on 2026-08-28 | `plan/spec-fixit-migrate-sleeps-infra.md`, Files to Modify | already annotated `doc-links: ignore` by an earlier session; the Closure block now states it in the spec's own voice |
+| 2 | NOTE | `plan/spec-fixit-sleeps-qemu-bulk.md` cited this spec by full path, which commit B would dangle | `plan/spec-fixit-sleeps-qemu-bulk.md`, Origin | restated to the bare stem `spec-fixit-migrate-sleeps-infra` |
+| 3 | NOTE | The Mistake Log named `peer.IncrUpdatesSent()`; the symbol is `Peer.incrUpdatesSent` and has been unexported since the row was written | `plan/spec-fixit-migrate-sleeps-infra.md`, Mistake Log; producer `internal/component/bgp/reactor/peer_stats.go` | spelling corrected in the row and in the AC-6 audit cell |
+| 4 | NOTE | The AC-3 audit cell put `policyTableOutput` in `netfilter_fixture.go` | `plan/spec-fixit-migrate-sleeps-infra.md`, Implementation Audit | repointed at `internal/test/fixture/netfilter_fixture_policy.go` |
+
+### Run 1 (initial, superseded by the table above)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/.ci-sleep-baseline` | yes | `cat test/.ci-sleep-baseline` sums to 52 across seven signed delta lines |
+| `internal/test/runner/await_stderr.go` | yes | `grep -rn "await=stderr" internal/test/runner/*.go` names it and `await_stderr_test.go` |
+| `internal/test/fixture/netfilter_fixture.go` | yes | `gopls symbols` reports `waitDaemon` at `108:6` |
+| `test/scripts/ze_api.py` | NO | `ls: cannot access 'test/scripts': No such file or directory`; deleted by `eae282592` |
+| the named `.ci` tests (prefix-filter-reject, bgp-rs-mod-copy, fib-blackhole, static-boot-apply, policy-reload) | yes | each `ls` OK under `test/plugin`, `test/static`, `test/policy` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-9 | every conversion target is empty | `grep -rn "time\.sleep(" test --include=*.ci \| wc -l` = 0 over `git ls-files 'test/**/*.ci' \| wc -l` = 1864 |
+| AC-2 | the stderr fence exists and is bounded | `internal/test/runner/await_stderr.go` plus its refusal tests for an empty needle and an unparseable timeout in `await_stderr_test.go` |
+| AC-3 | the daemon-readiness wait exists in Go | `waitDaemon` at `internal/test/fixture/netfilter_fixture.go:108` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| driver waits for daemon readiness | `test/policy/policy-reload.ci` | yes: no `time.sleep(`; the wait is `waitDaemon` inside the Go fixture, which the `-12` baseline delta documents |
+| `.ci` waits on a daemon stderr pattern | `test/traffic/traffic-vpp-reject-*.ci` | yes: the `-3` baseline delta records the conversion to `await=stderr:contains=` and the non-vacuity check |
+| observer waits for nft/tc programmed | `test/firewall/*.ci` | yes: `-8` delta, 3x 23/23 on Linux with a source mutation failing exactly test 9 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 (`daemon.ready` implies nft/tc programmed) | broken | it did not: the `-8` delta records that `daemon.ready` does not cover the SSH CLI listener, which binds separately from `OnConfigure`, so the wait was repointed rather than deleted |
+| A-2 (fib installs observable via a `show`) | confirmed | `fibKernel.showInstalled` (`internal/plugins/fib/kernel/backend.go`) returns the `installed` map; the 2026-08-03 correction block records the producer read |
+| A-3 (sentinel ordering) | confirmed | the injected-counted-message fence in Design Insights, proven on rfc7606-withdraw (`9e2bb1821`) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #10 test infrastructure (`docs/architecture/testing/ci-format.md`) | line 838 carries `await=stderr:contains=<text>[:timeout=<dur>]`, matching `internal/test/runner/await_stderr.go` | yes |
+| #8 test-support surfaces (`ai/rules/testing.md`, `docs/functional-tests.md`) | no page names `wait_for_daemon_ready` or `test/scripts/ze_api.py`: `grep -rl wait_for_daemon_ready` hits only `test/.ci-sleep-baseline`, this spec, `plan/journal/reload-rolls-back-instead-of-applying.md` and a triage doc | yes, nothing owed |
 
 ## Work Inherited From a Deferral Row
 
@@ -589,3 +744,11 @@ Migration-adapted TDD (each converted `.ci` IS its own functional test; infra pi
 Deferred by spec-mcp2026-1-stateless-core.
 
 Reproduce, then fix, one observed failure of `test/plugin/forward-overflow-two-tier.ci`
+
+**Resolved 2026-09-05, elsewhere and before this closure.** The item is terminal
+in `plan/known-failures/bgp-plugin-forward-overflow-two-tier.md`, which records
+the reproduction attempt (80 invocations under
+`internal/le/stressrepro/run.go`, 8 concurrent `ze-test` processes, 32 burners,
+not reproduced) and names what the attempt did not try. That shard is the record
+`ai/rules/completion.md` permits for a failure actively tried and not
+reproduced, so this spec's removal drops nothing.

@@ -53,7 +53,8 @@ ratcheted down in the same change.
 
 ## Origin
 
-Carved out of `plan/spec-fixit-migrate-sleeps-infra.md` (the umbrella), whose Design
+Carved out of `spec-fixit-migrate-sleeps-infra` (the umbrella, CLOSED and removed
+from the tree on 2026-09-05 with the `test/**/*.ci` sleep count at 0), whose Design
 Insights name a "QEMU-gated needs-linux bulk (~150)" that the darwin dev host cannot
 verify, and whose Implementation Summary states no further clean host-verifiable blind
 sleeps remain. Skeleton written 2026-07-15 alongside `spec-fixit-sleeps-cli-harness`.
