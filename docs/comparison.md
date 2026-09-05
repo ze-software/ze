@@ -111,7 +111,11 @@ type 1 (E1) adds the internal cost to the ASBR, type 2 (E2) keeps the advertised
 metric, and E1 always wins over E2. Ze also implements stub, totally-stubby, and
 NSSA areas (RFC 3101) with Type 7 origination, highest-Router-ID translator
 election, Type 7 to Type 5 translation, and the §2.5 preference -- matching the
-FRR/bird NSSA feature set. On the opaque-LSA carrier (RFC 5250) Ze
+FRR/bird NSSA feature set. The §2.4 border-router default is originated into
+every attached NSSA in both address families with no operator leaf, and the two
+install-side gates on a received Type 7 default (P-bit clear, summary import
+suppressed) apply to both; FRR gates the same origination on
+`default-information-originate`. On the opaque-LSA carrier (RFC 5250) Ze
 matches FRR's Traffic Engineering LSA (RFC 3630/5392) and Router Information LSA
 (RFC 7770): it advertises the informational capability bits (graceful restart,
 stub router, TE) in an Opaque type-4 LSA for OSPFv2 and a function-code-12 LSA for

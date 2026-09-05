@@ -2,11 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | learned 972 (OSPF AF seam), learned 975 (OSPFv3 NSSA redistribution) |
-| Phase | IMPLEMENTATION partly landed. AC-1 to AC-4 are in `01f8306378`; AC-5 to AC-14 are outstanding. Implementation carries no model requirement (`ai/rules/planning.md`) |
-| Updated | 2026-09-04 |
+| Phase | IMPLEMENTATION partly landed. AC-1 to AC-4 are in `01f8306378`. AC-5 to AC-12 are in the working tree (see the 2026-09-05 note). AC-13 and AC-14, and the three interop scenarios, are outstanding and are their own work packages. Implementation carries no model requirement (`ai/rules/planning.md`) |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -320,6 +320,48 @@ named tests in the TDD plan have no counterpart in the tree:
 `TestOSPFNSSANonBorderRouterInstallsPClearDefault` and
 `TestOSPFNSSADefaultAgreesWithRouterLSABBit`. None of the three new interop scenarios and
 none of the four new `.ci` files exist.
+
+
+### Implementation note, 2026-09-05
+
+AC-5 through AC-12 are implemented in the working tree. AC-13, AC-14 and the three new
+interop scenarios are NOT, and were cut into their own work packages rather than trimmed.
+
+| AC | State | Producer / evidence |
+|----|-------|---------------------|
+| AC-5 | done | `wantsType7Default` (`internal/plugins/ospf/nssa.go`) returns false on `noSummary` before any other term; `TestOSPFNSSAInternalDefaultExcludedByNoSummary` (`internal/plugins/ospf/nssa_default_test.go`) drives both families through `applyNSSADefaults` with a usable forwarding address, so each family carries its own control run |
+| AC-6 | done | `TestOSPFv3NSSABorderRouterDefaultPBit` (`internal/plugins/ospf/nssa_install_gate_v6_test.go`) drives `v6Strategy.ComputeExternal` over a peer-originated 0x2007 default in all three states |
+| AC-7 | done | the `summary import suppressed` subtest of the same unit |
+| AC-8 | done | `TestOSPFNSSANonBorderRouterInstallsPClearDefault` in `internal/plugins/ospf/spf/external_nssa_test.go` (OSPFv2) and `TestOSPFv3NSSANonBorderRouterInstallsPClearDefault` in `internal/plugins/ospf/nssa_install_gate_v6_test.go` (OSPFv3) |
+| AC-9 | done | `TestOSPFNSSAABRDefaultFunctional` reads `databaseSnapshotByType` through the `dbSubviewType` entry the `ze-show:ospf-database-nssa-external` handler resolves; carried by `test/ospf/ospf-nssa-abr-default.ci` |
+| AC-10 | done | `TestOSPFNSSAInternalDefaultFunctional`, carried by `test/ospf/ospf-nssa-internal-default.ci`; the run with a usable forwarding address is the control for the absence assertion |
+| AC-11 | done | `RFC3101-2.7-3 [MUST NOT]` added to `rfc/short/rfc3101.md`, enforced at `applyAreaTypePolicy` and `v6ApplyAreaTypePolicy`, tagged in both polarities in both families. 13 discrimination records in `rfc/discrimination/rfc3101.json`; `./le rfc discriminate stem rfc3101` reports no stale record |
+| AC-12 | done | `rfc/short/rfc3101.md` Meta rows (which generate the `docs/features/rfc-status.md` row), `docs/guide/ospf.md`, `docs/guide/configuration.md`, `docs/features.md`, `docs/comparison.md`, `docs/functional-tests.md`, `docs/architecture/wire/ospfv3.md` (a new NSSA-LSA section, the page had none), `docs/architecture/ospf/ospf-11-stub-nssa.md`, `ospfv3-5-nssa-redist.md`, `ospfv3-6-interop-coverage.md`, and the `default-originate` YANG help |
+| AC-13 | outstanding | four sites still compute ABR status independently: `lsdb.isAreaBorderRouter`, `v6IsAreaBorderRouter` (`internal/plugins/ospf/origination_v6.go`), `ospfspf.IsABR` in `applyNSSADefaults`, and `IsABR` in `Computer.Run`. All four are the same predicate over the same derivation; what differs is the snapshot and the instant |
+| AC-14 | outstanding | AC-13 is its precondition |
+
+**Why AC-13 and AC-14 are a separate package.** The second default-route consumer is the
+summary originator, reached through `IsABR(in.Areas)` in `spf/summary.go` and
+`origination_v6_summary.go`, not through `applyNSSADefaults`. Making the advertised
+Router-LSA B-bit the producer for it means either a new `AFPrefixStrategy` method or a new
+`Computer` input, and that value then decides every stub, totally-stubby, NSSA and normal
+area's summary set rather than the NSSA default alone. That is a different blast radius from
+AC-5..AC-12 and it owes its own commit and its own review.
+
+**Deferred evidence, and the command that produces it.** The three interop scenarios named
+in the Interop Tests table below are not written. When the box is quiet:
+`INTEROP_SCENARIO=<name> ./le integration interop`, then
+`./le rfc discriminate-record ... route revert` on each new checker.
+
+### Assumption status, 2026-09-05
+
+| ID | Status | What settled it |
+|----|--------|-----------------|
+| A-1 | confirmed | `TestOSPFv3NSSABorderRouterDefaultPBit` reaches the gates in `ComputeExternalWith` through `v6Strategy.ComputeExternal` with no v6 gate code added |
+| A-2 | confirmed | `TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA` drives `v6ApplyAreaTypePolicy` with `Type: nssa, NoSummary: true` |
+| A-3 | confirmed | `TestOSPFv3NSSADefaultLSIDDoesNotCollide` |
+| A-6 | confirmed | the three new `.ci` files sit in the `ospf` and `ospfv3` suites; `./le rfc check` reports no rfc3101 finding |
+| A-7 | unvalidated | it is an assumption about FRR's ABR default, and it is only reachable from the interop scenarios this package did not write |
 
 
 ## End-to-End User Stories

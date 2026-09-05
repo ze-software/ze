@@ -29,6 +29,14 @@ func (p AreaSummaryPolicy) isStubOrNSSA() bool {
 // area suppresses every Type-3 except its default. Stub areas and no-summary
 // NSSAs get one Type-3 default at default-cost. A regular NSSA gets its default
 // from the Type-7 originator.
+//
+// RFC 3101 Section 2.7: "When OSPF's summary routes are not imported, the default LSA
+// originated by an NSSA border router into the NSSA should be a Type-3 summary-LSA."
+//
+// RFC 3101 Section 2.7: "When summary routes are imported into the NSSA, the default LSA
+// originated by a NSSA border router into the NSSA must not be a Type-3 summary-LSA;
+// otherwise its default route would be chosen over the potentially more preferred default
+// routes of Type-7 default LSAs." So a regular NSSA leaves here with no default of its own.
 func applyAreaTypePolicy(desired []summaryDesired, p AreaSummaryPolicy) []summaryDesired {
 	if !p.isStubOrNSSA() {
 		return desired
@@ -43,6 +51,10 @@ func applyAreaTypePolicy(desired []summaryDesired, p AreaSummaryPolicy) []summar
 		}
 		out = append(out, d)
 	}
+	// RFC requirement: RFC3101-2.7-2 -- a no-summary NSSA takes its
+	// border-router default as a Type-3 summary-LSA.
+	// RFC requirement: RFC3101-2.7-3 -- an NSSA that imports summary
+	// routes MUST NOT take its border-router default as a Type-3 summary-LSA.
 	if p.Type == AreaTypeStub || p.Type == AreaTypeNSSA && p.NoSummary {
 		out = append(out, summaryDesired{
 			Type:   types.LSTypeSummaryNetwork,

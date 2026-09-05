@@ -143,14 +143,7 @@ func (e *engine) applyNSSADefaults() {
 		if a.AreaType != areaTypeNSSA || !attached[a.AreaID] {
 			continue
 		}
-		// RFC requirement: RFC3101-2.4-5 -- an NSSA border router
-		// MUST originate a default into every attached regular NSSA.
-		// RFC requirement: RFC3101-2.4-2 -- a P-set Type-7 LSA
-		// MUST carry a non-zero forwarding address.
-		wantType7 := isABR && !a.NoSummary
-		if !isABR && a.NSSADefaultOriginate && hasFA[a.AreaID] {
-			wantType7 = true
-		}
+		wantType7 := wantsType7Default(isABR, a.NoSummary, a.NSSADefaultOriginate, hasFA[a.AreaID])
 		if wantType7 {
 			desired[a.AreaID] = struct{}{}
 			if originate(a.AreaID, a.DefaultCost, !isABR) {
@@ -170,6 +163,45 @@ func (e *engine) applyNSSADefaults() {
 		e.originateSelfLSAs()
 		e.refreshExternalMetrics(db, cfg.RouterID)
 	}
+}
+
+// wantsType7Default reports whether this router originates a Type-7 default LSA into one
+// attached NSSA. The decision carries no address family: the caller binds the producer that
+// encodes it (RFC 5340 Section 4.4.3.7: "The procedure for originating NSSA-LSAs in IPv6 is
+// the same as the IPv4 procedure documented in [NSSA]").
+//
+// Four RFC 3101 rules decide it, and each one can only subtract:
+//
+// RFC 3101 Section 2.4: "NSSA border routers must originate an LSA for the default
+// destination into all their directly attached NSSAs in order to support intra-AS routing
+// and inter-AS routing." A border router therefore needs no operator leaf.
+//
+// RFC 3101 Section 2.7: "When OSPF's summary routes are not imported, the default LSA
+// originated by an NSSA border router into the NSSA should be a Type-3 summary-LSA."
+// A no-summary NSSA takes its default from the summary originator instead, so this
+// producer stands down there.
+//
+// RFC 3101 Section 1.3: "The Type-7 default LSAs originated by NSSA internal routers and
+// the no-summary option are mutually exclusive features." An internal router's
+// `default-originate` is therefore inert in a no-summary NSSA, whose Type-3 default exists
+// precisely to keep inter-area traffic off a Type-7 default.
+//
+// RFC 3101 Section 2.4: "The LSAs of these networks must have a valid non-zero forwarding
+// address." An internal router's default is P-set, so it needs one.
+func wantsType7Default(isABR, noSummary, defaultOriginate, hasForwardingAddr bool) bool {
+	// RFC requirement: RFC3101-2.7-2 -- a no-summary NSSA takes its
+	// border-router default as a summary-LSA, so none is originated here.
+	if noSummary {
+		return false
+	}
+	// RFC requirement: RFC3101-2.4-5 -- an NSSA border router MUST
+	// originate a default into every attached regular NSSA, with no operator gate.
+	if isABR {
+		return true
+	}
+	// RFC requirement: RFC3101-2.4-2 -- an internal router's default is
+	// P-set, so it MUST carry a non-zero forwarding address or not be originated.
+	return defaultOriginate && hasForwardingAddr
 }
 
 // electNSSATranslator reports whether self is the elected Type 7 -> Type 5 translator

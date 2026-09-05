@@ -10,8 +10,11 @@ now applies.
   the v4 path applied the area-type policy. A v6 stub ABR now originates a
   single `::/0` Inter-Area-Prefix default at `default-cost`, suppresses
   Inter-Area-Router-LSAs into stub and NSSA areas, and under totally-stubby
-  suppresses the other inter-area prefixes. This is symmetric with the v4 policy
-  in `ospf-11-stub-nssa.md`.
+  suppresses the other inter-area prefixes. A no-summary NSSA takes the same
+  `::/0` default, which is the OSPFv3 form of the Type-3 summary-LSA RFC 3101
+  Section 2.7 names; a regular NSSA takes none there, which is the same
+  section's MUST NOT. This is symmetric with the v4 policy in
+  `ospf-11-stub-nssa.md`.
   <!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
   <!-- source: internal/plugins/ospf/origination_v6_summary.go -- v6OriginateSummaries -->
 - **The native repository check carries an interface-seam exemption.** A method

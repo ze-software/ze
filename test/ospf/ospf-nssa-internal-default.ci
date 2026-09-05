@@ -1,0 +1,13 @@
+# Test: OSPFv2 NSSA internal-router default route through the operator's read path
+# (RFC 3101 Section 2.4, spec-ospf-rfc3101-nssa-defaults AC-10).
+#
+# VALIDATES: an operator sets `nssa { default-originate true }` on a single-area NSSA
+# router. `show ospf database nssa-external` reports the default when the interface
+# carries a usable forwarding address, and reports nothing when it does not, which is
+# what RFC 3101 Section 2.4 requires of the P-set LSA that leaf asks for.
+# PREVENTS: an absence assertion with no control. The run with a usable address is what
+# tells "the forwarding-address rule fired" apart from "this router originates nothing".
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFNSSAInternalDefaultFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

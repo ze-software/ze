@@ -135,11 +135,19 @@ func (e *engine) externalScopeFor(cfg ospfConfig, running []interfaceConfig, act
 	return nssas, attachedNormal || len(nssas) == 0
 }
 
+// nssaIPv4Address is this router's OSPFv2 Type-7 forwarding address on name: its IPv4
+// interface address, or the zero address when the interface carries none. RFC 3101
+// Section 2.4 reads a zero forwarding address as "data traffic will be forwarded to the
+// LSA's originator", so the caller uses it to decide whether a P-set LSA may be originated.
 func (e *engine) nssaIPv4Address(name string) [4]byte {
-	if e.ipv4Address != nil {
-		return e.ipv4Address(name)
+	if e.forwardingAddress == nil {
+		return interfaceIPv4Address(name)
 	}
-	return interfaceIPv4Address(name)
+	addr, ok := e.forwardingAddress(name)
+	if !ok || !addr.Is4() {
+		return [4]byte{}
+	}
+	return addr.As4()
 }
 
 // WithdrawExternal implements ospfredistribute.ExternalInjector: MaxAge-purge the

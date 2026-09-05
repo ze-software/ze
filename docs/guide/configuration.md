@@ -237,6 +237,13 @@ seconds, `0..65535`, default 40), and `default-originate` (originate a Type 7
 default into the NSSA). In `address-family ipv6`, the area entry currently
 selects only `area-type`.
 
+`default-originate` is an internal-router leaf. An NSSA border router originates
+the default RFC 3101 requires whatever the leaf says, so setting it there changes
+nothing, and it is inert in an area that also sets `no-summary true` because RFC
+3101 section 1.3 makes an internal router's Type 7 default and the no-summary
+option mutually exclusive. The two leaves together validate and load; the area
+takes its default from the border router's summary-LSA.
+
 ```
 ospf {
     router-id 10.0.0.1
@@ -246,12 +253,10 @@ ospf {
         }
         area 0.0.0.9 {
             area-type nssa
-            no-summary true
             default-cost 20
             nssa {
                 translate-role candidate
                 stability-interval 40
-                default-originate true
             }
         }
     }

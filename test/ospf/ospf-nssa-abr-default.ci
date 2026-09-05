@@ -1,0 +1,14 @@
+# Test: OSPFv2 NSSA border-router default route through the operator's read path
+# (RFC 3101 Section 2.4, spec-ospf-rfc3101-nssa-defaults AC-9).
+#
+# VALIDATES: an operator configures the backbone plus one NSSA, sets no
+# `nssa { default-originate }` leaf, and `show ospf database nssa-external` reports the
+# self-originated default for `0.0.0.0`. The same subview reports nothing for the
+# backbone, because a Type-7 LSA never leaves its NSSA.
+# PREVENTS: a default proven only at the engine boundary. The subview an operator reads
+# filters on the LS Type string, so a default keyed with the wrong type is invisible
+# there while every engine-level assertion still passes.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFNSSAABRDefaultFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

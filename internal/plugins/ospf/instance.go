@@ -143,12 +143,16 @@ type engine struct {
 	// self-originated default. It lets reconciliation withdraw defaults from
 	// areas removed from config. Guarded by nssaMu.
 	nssaDefaultAreas map[types.AreaID]struct{}
-	// ipv4Address is the live forwarding-address lookup. Tests replace it with
-	// a deterministic lookup. A nil value uses interfaceIPv4Address.
-	ipv4Address    func(string) [4]byte
-	sink           *eventSink
-	receiveOnce    sync.Once
-	retransmitOnce sync.Once
+	// forwardingAddress is the interface forwarding-address lookup, one seam for both
+	// address families. A nil value reads the live interface through interfaceIPv4Address
+	// or interfaceIPv6ForwardingAddress. A test sets it to a deterministic lookup, which
+	// is the only way a unit test can give a router a usable forwarding address: RFC 3101
+	// Section 2.4 makes one a precondition for a P-set Type-7 LSA, so every rule that
+	// applies after that precondition is unreachable without it.
+	forwardingAddress func(string) (netip.Addr, bool)
+	sink              *eventSink
+	receiveOnce       sync.Once
+	retransmitOnce    sync.Once
 	// defaultInfoOriginated records whether this engine currently originates the
 	// Type 5 default via `default-information originate`. redistDefaultInjected records
 	// whether a `redistribute` rule currently injects 0.0.0.0/0. Both intents share the

@@ -117,3 +117,36 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 		assert.Empty(t, routes)
 	})
 }
+
+// TestOSPFNSSANonBorderRouterInstallsPClearDefault is the permissive direction of the two
+// gates above: both are scoped by ExternalInput.NSSABorderRouter, so a router that is not
+// an NSSA border router installs the P-clear default its border router originated. Without
+// this case a gate that dropped every Type-7 default would pass every refusal assertion.
+func TestOSPFNSSANonBorderRouterInstallsPClearDefault(t *testing.T) {
+	root := testRID(t, "1.1.1.1")
+	nssa := areaID(t, "0.0.0.5")
+	routeTable := []RouteEntry{{
+		Prefix:   netip.MustParsePrefix("192.168.0.0/24"),
+		Metric:   3,
+		Type:     RouteIntraArea,
+		NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.9")}},
+	}}
+
+	db := ospflsdb.New(nil)
+	require.True(t, db.Install(nssa, type7LSA(t, "0.0.0.0", "0.0.0.0", "3.3.3.3", 10, false)))
+
+	// RFC requirement: RFC3101-2.4-4 negative -- the install rule binds an NSSA
+	// border router, so a router that is not one takes the P-clear default.
+	// RFC requirement: RFC3101-2.5-1 negative -- the suppressed-summary rule
+	// likewise binds an NSSA border router only.
+	routes := ComputeExternal(ExternalInput{
+		Source: db, Root: root, Routes: routeTable,
+		NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: false,
+		NSSAPolicies: map[types.AreaID]AreaSummaryPolicy{
+			nssa: {Type: AreaTypeNSSA, NoSummary: true},
+		},
+		MaxPaths: 8,
+	})
+	require.Len(t, routes, 1, "an NSSA internal router installs the border router's P-clear default")
+	assert.Equal(t, netip.MustParsePrefix("0.0.0.0/0"), routes[0].Prefix)
+}

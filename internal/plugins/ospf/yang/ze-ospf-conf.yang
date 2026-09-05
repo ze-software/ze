@@ -921,8 +921,11 @@ translator keeps translating for this long after it loses the role.";
                         type boolean;
                         default false;
                         description "Originate a Type 7 default route into the NSSA.";
-                        ze:help "This leaf applies to an internal NSSA router. An NSSA
-border router always originates the required default route.";
+                        ze:help "This leaf applies to an internal NSSA router that has a
+usable forwarding address. An NSSA border router always originates the required
+default route, so the leaf changes nothing there. It is also inert when the area
+sets no-summary true: RFC 3101 section 1.3 makes an internal router's Type 7
+default and the no-summary option mutually exclusive.";
                     }
                 }
                 container authentication {

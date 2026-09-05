@@ -20,6 +20,21 @@ inject nothing.
   <!-- source: internal/plugins/ospf/v3/packet/lsa_nssa.go -- NSSAPropagate -->
 - **The P-bit rides in the prefix options, not a header Options bit**, per
   OSPFv3.
+- **The NSSA default route reuses the same producer, at a reserved Link State
+  ID.** RFC 5340 Section 4.4.3.7 maps RFC 3101 Section 2.4 onto OSPFv3
+  unchanged, so the default is an ordinary NSSA-LSA with a zero-length prefix.
+  It takes LSID 0, which redistribution can never allocate because
+  `v6InjectExternal` pre-increments its counter, and its key joins the
+  withdrawal keep-set so an unrelated redistribution withdrawal cannot sweep it.
+  <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault, v6NSSADefaultLSID -->
+  <!-- source: internal/plugins/ospf/origination_v6_external.go -- v6WithdrawExternal -->
+- **One forwarding-address seam serves both families.** RFC 3101 Section 2.4
+  makes a usable forwarding address a precondition for a P-set Type 7 LSA, so a
+  unit test that cannot supply one cannot reach any rule that comes after it.
+  The engine holds a single nil-by-default lookup that both the OSPFv2 and the
+  OSPFv3 helper consult; production leaves it nil and reads the live interface.
+  <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- forwardingAddressForAF -->
+  <!-- source: internal/plugins/ospf/redist_wiring.go -- nssaIPv4Address -->
 - **The scope decision lives in the engine**, so the redistribution framework
   stays address-family generic. An ASBR in an NSSA injects Type-7, and a
   normal-area ASBR keeps Type-5 AS-wide.

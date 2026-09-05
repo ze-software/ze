@@ -1,0 +1,14 @@
+# Test: OSPFv3 NSSA border-router default route through the operator's read path
+# (RFC 3101 Section 2.4 mapped by RFC 5340 Section 4.4.3.7,
+# spec-ospf-rfc3101-nssa-defaults AC-1 and AC-3).
+#
+# VALIDATES: an OSPFv3 NSSA border router originates its default with no operator leaf,
+# `show ospf database nssa-external` reports it, and the LSA behind that row carries the
+# 0x2007 NSSA-LSA type rather than the OSPFv2 0x0007.
+# PREVENTS: an OSPFv3 area store holding an OSPFv2-keyed Type 7. RFC 5340 Appendix
+# A.4.2.1 reads 0x0007 as function code 7 at link-local flooding scope, so the NSSA's
+# internal routers would see no default while the subview still showed a row.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFv3NSSAABRDefaultFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

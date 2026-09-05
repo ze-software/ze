@@ -29,6 +29,12 @@ import (
 // RFC 3101 Section 2.7: "When OSPF's summary routes are not imported, the default LSA
 // originated by an NSSA border router into the NSSA should be a Type-3 summary-LSA."
 // The OSPFv3 equivalent of that Type-3 is the Inter-Area-Prefix-LSA (RFC 5340 Section 4.4).
+//
+// RFC 3101 Section 2.7: "When summary routes are imported into the NSSA, the default LSA
+// originated by a NSSA border router into the NSSA must not be a Type-3 summary-LSA;
+// otherwise its default route would be chosen over the potentially more preferred default
+// routes of Type-7 default LSAs." A regular NSSA therefore leaves here with no default at
+// all, and takes the Type-7 one applyNSSADefaults originates instead.
 func v6ApplyAreaTypePolicy(nets []v6SummaryNet, routers []v6SummaryRouter, p ospfspf.AreaSummaryPolicy) ([]v6SummaryNet, []v6SummaryRouter) {
 	if p.Type != ospfspf.AreaTypeStub && p.Type != ospfspf.AreaTypeNSSA {
 		return nets, routers
@@ -39,6 +45,8 @@ func v6ApplyAreaTypePolicy(nets []v6SummaryNet, routers []v6SummaryRouter, p osp
 	}
 	// RFC requirement: RFC3101-2.7-2 -- a no-summary NSSA takes its
 	// border-router default as a summary-LSA, not as a Type-7.
+	// RFC requirement: RFC3101-2.7-3 -- an NSSA that imports summary
+	// routes MUST NOT take its border-router default as a summary-LSA.
 	if p.Type == ospfspf.AreaTypeStub || p.NoSummary {
 		nets = append(nets, v6SummaryNet{Prefix: netip.PrefixFrom(netip.IPv6Unspecified(), 0), Metric: p.DefaultCost})
 		sort.Slice(nets, func(i, j int) bool { return nets[i].Prefix.Compare(nets[j].Prefix) < 0 })

@@ -15,8 +15,32 @@ and Type 7 to Type 5 translation.
 - **Stub default injection lives in the SPF summary originator, not in the
   LSDB.** The desired Type 3 and Type 4 set per destination area is computed
   there: drop Type 4, suppress Type 3 under `no-summary`, and inject one Type 3
-  default for a stub area.
+  default for a stub area and for a no-summary NSSA. A regular NSSA gets none,
+  which is the RFC 3101 Section 2.7 MUST NOT: a summary-LSA default there would
+  be preferred over the Type 7 defaults the section wants chosen instead.
   <!-- source: internal/plugins/ospf/spf/area_type.go -- applyAreaTypePolicy -->
+  <!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
+- **The NSSA default-route decision carries no address family, and only the LSA
+  it produces does.** RFC 5340 Section 4.4.3.7 maps the RFC 3101 procedure onto
+  OSPFv3 unchanged, so the reconciler binds an originate/purge pair per family
+  once and then applies one shared predicate per area: a border router always
+  wants a Type 7 default, a no-summary NSSA never does (its default comes from
+  the summary originator above), and an internal router wants one only with
+  `default-originate` and a usable forwarding address. Fusing the policy into
+  the OSPFv2 producer is what let an OSPFv3 ABR originate an OSPFv2-keyed Type 7
+  into a shared LSDB, which a conforming peer reads at link-local scope.
+  <!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
+  <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault -->
+- **The two install-side gates are address-family neutral by construction.**
+  A border router refuses a received Type 7 default whose P-bit is clear
+  (Section 2.4) and every Type 7 default while it suppresses summary import
+  (Section 2.5). Both filter through the scope-aware `types.LSType.NSSA()`
+  helper, which matches the OSPFv2 `0x0007` and the OSPFv3 `0x2007` alike, so
+  the receive side needed no OSPFv3 code while the origination side needed a
+  whole branch. Both are scoped to a border router: an NSSA internal router
+  installs the P-clear default its border router originated.
+  <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
+  <!-- source: internal/plugins/ospf/types/lstype.go -- LSType.NSSA -->
 - **The P-bit rule decides the need for translation at ORIGINATION time.** The
   external scope function returns the attached NSSAs with a representative
   intra-NSSA forwarding address, and whether this router can inject a Type 5

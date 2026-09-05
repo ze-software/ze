@@ -24,7 +24,7 @@ type nssaAttachmentV6 struct {
 // IPv6 AF carries a global IPv6 forwarding address. ok is false when no usable address exists.
 func (e *engine) forwardingAddressForAF(name string) ([16]byte, bool) {
 	if e.af.isIPv4() {
-		v4 := interfaceIPv4Address(name)
+		v4 := e.nssaIPv4Address(name)
 		if v4 == ([4]byte{}) {
 			return [16]byte{}, false
 		}
@@ -32,7 +32,14 @@ func (e *engine) forwardingAddressForAF(name string) ([16]byte, bool) {
 		copy(fa[:4], v4[:])
 		return fa, true
 	}
-	return interfaceIPv6ForwardingAddress(name)
+	if e.forwardingAddress == nil {
+		return interfaceIPv6ForwardingAddress(name)
+	}
+	addr, ok := e.forwardingAddress(name)
+	if !ok || !v6UsableForwardingAddress(addr) {
+		return [16]byte{}, false
+	}
+	return addr.As16(), true
 }
 
 func (e *engine) externalScopeV6() (nssas []nssaAttachmentV6, canType5 bool) {

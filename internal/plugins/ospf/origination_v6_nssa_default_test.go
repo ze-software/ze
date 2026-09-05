@@ -105,6 +105,8 @@ func TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA(t *testing.T) {
 	// RFC requirement: RFC3101-2.7-2 positive -- when summary import is
 	// suppressed, the border-router default is a summary-LSA; the OSPFv3
 	// equivalent is the Inter-Area-Prefix-LSA (RFC 5340 sec 4.4).
+	// RFC requirement: RFC3101-2.7-3 negative -- the prohibition is
+	// conditional on summary import, so suppressing it restores the default.
 	nets, routers := v6ApplyAreaTypePolicy(nil, []v6SummaryRouter{{}},
 		ospfspf.AreaSummaryPolicy{Type: ospfspf.AreaTypeNSSA, NoSummary: true, DefaultCost: 17})
 	require.Len(t, nets, 1, "a no-summary NSSA receives exactly one inter-area prefix, the default")
@@ -112,6 +114,8 @@ func TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA(t *testing.T) {
 	assert.Equal(t, uint32(17), nets[0].Metric, "the default carries the area default-cost")
 	assert.Empty(t, routers, "a stub or NSSA area never receives an Inter-Area-Router-LSA")
 
+	// RFC requirement: RFC3101-2.7-3 positive -- an NSSA that imports
+	// summary routes receives no summary-LSA default from its border router.
 	regular, _ := v6ApplyAreaTypePolicy(nil, nil,
 		ospfspf.AreaSummaryPolicy{Type: ospfspf.AreaTypeNSSA, DefaultCost: 17})
 	assert.Empty(t, regular, "a regular NSSA takes its default as an NSSA-LSA, not an inter-area prefix")

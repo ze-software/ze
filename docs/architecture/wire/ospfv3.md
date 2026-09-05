@@ -86,6 +86,43 @@ the link-local source confines scope on the link. The received hop limit is
 carried upward so a later policy check needs no transport change.
 <!-- source: internal/plugins/ospf/v3/transport/backend_linux.go -- Send, deliver -->
 
+## NSSA-LSA and the NSSA default (RFC 3101, RFC 5340)
+
+RFC 5340 §4.4.3.7 maps RFC 3101 onto OSPFv3 unchanged: "The procedure for
+originating NSSA-LSAs in IPv6 is the same as the IPv4 procedure documented in
+[NSSA]." Only the carriage differs, in three places.
+
+**LS Type.** The NSSA-LSA is `0x2007` (RFC 5340 App A.4.8): area flooding scope
+`0b01` in the S1/S2 bits, function code 7. The OSPFv2 value `0x0007` carries no
+scope bits, so a conforming OSPFv3 peer reads it as function code 7 at
+link-local scope and never floods it through the area. That is why every NSSA
+path that originates or purges an LSA either dispatches on address family or
+classifies through `types.LSType.NSSA()`, which matches both values, rather than
+comparing against the OSPFv2 constant.
+
+**Body.** The NSSA-LSA body is byte-identical to the AS-External-LSA body
+(App A.4.8 refers to App A.4.7): E-bit and 24-bit metric, then the OSPFv3 prefix
+(PrefixLength, PrefixOptions, one reserved octet, and `ceil(PrefixLength/32)`
+address words), then the optional 128-bit forwarding address, external route tag
+and referenced LS type, each present only when its flag bit is set. The default
+destination is a zero-length prefix, so it carries no address words at all.
+
+**P-bit.** OSPFv2 carries the RFC 3101 propagate bit in the LSA header Options.
+OSPFv3 has no such Options bit in an area-scope LSA header, so the P-bit rides in
+the prefix's PrefixOptions (`OptPrefixP`). An NSSA border router's default is
+originated P-clear there (RFC 3101 §2.4), and an internal router's
+`default-originate` sets it only when a global forwarding address is available.
+Link-local, loopback, unspecified, multicast and 4-in-6 addresses are all refused
+as a forwarding address (App A.4.7).
+
+The no-summary NSSA default takes the other carriage: an Inter-Area-Prefix-LSA
+(`0x2003`) for `::/0` at the area default-cost, which is the OSPFv3 equivalent of
+the Type-3 summary-LSA RFC 3101 §2.7 names.
+<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault, v6OriginateNSSALSA, v6NSSAKey -->
+<!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
+<!-- source: internal/plugins/ospf/v3/packet/lsa_external.go -- ExternalLSA -->
+<!-- source: internal/plugins/ospf/types/lstype.go -- LSType.NSSA -->
+
 ## Segment Routing (RFC 8666)
 
 The IPv6 family carries Segment Routing over the RFC 8362 Extended LSAs, added as

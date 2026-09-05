@@ -89,6 +89,8 @@ func TestOSPFNSSAType3SummaryImport(t *testing.T) {
 	assert.False(t, slices.Contains(imported, type4), "NSSA drops the Type-4 ASBR summary")
 	// RFC requirement: RFC3101-2.7-2 negative -- a regular NSSA does not
 	// receive the no-summary Type-3 default.
+	// RFC requirement: RFC3101-2.7-3 positive -- an NSSA that imports
+	// summary routes receives no Type-3 default from its border router.
 	assert.False(t, slices.Contains(imported, defaultRoute), "regular NSSA gets no Type-3 default")
 
 	// RFC requirement: RFC3101-2.7-1 negative -- a no-summary NSSA
@@ -100,6 +102,8 @@ func TestOSPFNSSAType3SummaryImport(t *testing.T) {
 	// Type-3 default when summary import is disabled.
 	// RFC requirement: RFC3101-2.4-5 positive -- the no-summary NSSA still
 	// receives the required default-destination LSA.
+	// RFC requirement: RFC3101-2.7-3 negative -- the prohibition is
+	// conditional on summary import, so suppressing it restores the Type-3 default.
 	assert.True(t, slices.Contains(suppressed, defaultRoute), "no-summary NSSA gets a Type-3 default")
 }
 
@@ -123,6 +127,8 @@ func TestOSPFNSSANoSummaryDefaultInjection(t *testing.T) {
 		// originates a Type-3 default when summary import is disabled.
 		// RFC requirement: RFC3101-2.4-5 positive -- the no-summary
 		// NSSA receives the required default-destination LSA.
+		// RFC requirement: RFC3101-2.7-3 negative -- the prohibition
+		// is conditional, so a no-summary NSSA does take the Type-3 default.
 		lsa, ok := db.LookupLSA(nssa, summaryDefaultKey(root))
 		require.True(t, ok)
 		body, err := lsa.DecodeSummary()
@@ -142,6 +148,8 @@ func TestOSPFNSSANoSummaryDefaultInjection(t *testing.T) {
 
 		// RFC requirement: RFC3101-2.7-2 negative -- a regular
 		// NSSA gets no Type-3 default.
+		// RFC requirement: RFC3101-2.7-3 positive -- the border router
+		// of an NSSA that imports summary routes originates no Type-3 default there.
 		_, ok := db.LookupLSA(nssa, summaryDefaultKey(root))
 		assert.False(t, ok)
 	})

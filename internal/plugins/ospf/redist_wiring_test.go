@@ -133,14 +133,14 @@ func selfNSSACount(eng *engine, area types.AreaID, router types.RouterID) int {
 func TestExternalScopeSelectsDeterministicNonZeroNSSAFA(t *testing.T) {
 	eng, _ := newRedistEngine(t, `{"ospf":{"router-id":"10.0.3.1","areas":{"area":{"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa"}}}}}`)
 	nssa := types.AreaID{0, 0, 0, 5}
-	eng.ipv4Address = func(name string) [4]byte {
+	eng.forwardingAddress = func(name string) (netip.Addr, bool) {
 		switch name {
 		case "eth0":
-			return ip4Of("192.0.2.1")
+			return netip.MustParseAddr("192.0.2.1"), true
 		case "eth1":
-			return ip4Of("192.0.2.2")
+			return netip.MustParseAddr("192.0.2.2"), true
 		default:
-			return [4]byte{}
+			return netip.Addr{}, false
 		}
 	}
 	running := []interfaceConfig{
@@ -235,7 +235,7 @@ func TestEngineNSSAInternalDefaultOriginate(t *testing.T) {
 	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.5.1","areas":{"area":{"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa","default-cost":"7","nssa":{"default-originate":true}}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.5"}}}}}`)
 	nssa := types.AreaID{0, 0, 0, 5}
 	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: nssa}
-	eng.ipv4Address = func(string) [4]byte { return ip4Of("192.0.2.1") }
+	eng.forwardingAddress = func(string) (netip.Addr, bool) { return netip.MustParseAddr("192.0.2.1"), true }
 
 	eng.applyNSSADefaults()
 	key := types.LSAKey{Type: types.LSTypeNSSA, AdvertisingRouter: rid}
@@ -258,7 +258,7 @@ func TestEngineNSSAInternalDefaultRequiresForwardingAddress(t *testing.T) {
 	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.5.1","areas":{"area":{"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa","nssa":{"default-originate":true}}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.5"}}}}}`)
 	nssa := types.AreaID{0, 0, 0, 5}
 	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: nssa}
-	eng.ipv4Address = func(string) [4]byte { return [4]byte{} }
+	eng.forwardingAddress = func(string) (netip.Addr, bool) { return netip.Addr{}, false }
 
 	eng.applyNSSADefaults()
 

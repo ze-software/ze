@@ -117,13 +117,15 @@ An NSSA (`area-type nssa`, RFC 3101) is stub-like but permits local external red
 <!-- source: internal/plugins/ospf/lsdb/nssa.go -- OriginateNSSA, PurgeNSSA -->
 <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA -->
 
-In OSPFv2, every NSSA border router originates a default into each directly attached NSSA. A regular NSSA gets a P-clear Type 7 default. A no-summary NSSA gets a Type 3 default. OSPFv3 does not yet originate this default correctly: see the RFC 3101 row in `docs/features/rfc-status.md`. In both address families the border router rejects received Type 7 defaults when the P-bit is clear or summary import is disabled.
-<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults -->
+Every NSSA border router originates a default into each directly attached NSSA, in both address families and with no operator leaf to enable it (RFC 3101 §2.4). A regular NSSA gets a P-clear Type 7 default: an OSPFv2 Type 7 LSA, or the OSPFv3 NSSA-LSA (`0x2007`) that carries the P-bit in its prefix options rather than in the LSA header. A no-summary NSSA gets the default through the summary path instead, as an OSPFv2 Type 3 summary-LSA or the OSPFv3 `::/0` Inter-Area-Prefix-LSA, and gets no Type 7 default at all (RFC 3101 §2.7). In both address families the border router rejects received Type 7 defaults when the P-bit is clear or summary import is disabled; a router that is not an NSSA border router installs them.
+<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
+<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault -->
 <!-- source: internal/plugins/ospf/spf/area_type.go -- applyAreaTypePolicy -->
+<!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
 
-An internal NSSA router can originate a P-set default with `nssa { default-originate true }` when it has a usable forwarding address.
-<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults -->
+An internal NSSA router can originate a P-set default with `nssa { default-originate true }` when it has a usable forwarding address. The leaf is an internal-router setting: a border router originates its default anyway, so the leaf changes nothing there, and it is inert in a no-summary NSSA because RFC 3101 §1.3 makes an internal router's Type 7 default and the no-summary option mutually exclusive.
+<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
 <!-- source: internal/plugins/ospf/lsdb/nssa.go -- OriginateNSSA -->
 
 Among the ABRs attached to an NSSA, exactly one is elected the Type 7 to Type 5 translator (RFC 3101 §3.5): the translator-candidate ABR with the highest Router ID. Each ABR whose role is not `never` advertises the Nt-bit in its Router-LSA to stand as a candidate; a `never` ABR clears the Nt-bit and is excluded from the election, so it cannot wedge translation off for a willing lower-Router-ID candidate. The role is configurable per area (`nssa { translate-role candidate|always|never }`), sticky across a `stability-interval`. The elected translator re-originates each P=1, non-zero-FA Type 7 as a Type 5 onto the backbone (P cleared, Advertising Router set to the translator, forwarding address / metric / tag preserved), counted by `ze_ospf_nssa_translations_total{area}`. A non-elected ABR does not translate, so no duplicate Type 5 reaches the backbone. When the same external prefix is known via a Type 7 (P=1), a Type 5, and a Type 7 (P=0), the external route computation prefers them in that order (RFC 3101 §2.5) ahead of the §16.4 cost.
