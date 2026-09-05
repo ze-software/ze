@@ -38,27 +38,12 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/changed"
 )
 
 // featureManifest is the single source of truth for the compile-out-able
 // features, relative to the tree.
 const featureManifest = "feature-gates.txt"
-
-// ScopeTagsKey is the dot-notation spelling of ZE_VERIFY_SCOPE_TAGS: the file
-// holding this run's feature-tag answer, written once by the verify runner and
-// read by every stage that run starts. Unset means every row is judged, which
-// is what a standalone gate invocation gets.
-const ScopeTagsKey = "ze.verify.scope.tags"
-
-var scopeTagsEntry = env.MustRegister(env.EnvEntry{
-	Key:         ScopeTagsKey,
-	Type:        "string",
-	Default:     "",
-	Description: "the file naming the feature tags this verify run's change set reaches; unset judges every matrix row",
-	// Private keeps the key out of `ze env list`. It is a build-host path the
-	// verify runner owns, and an operator has nothing to do with it.
-	Private: true,
-})
 
 // The two tags every matrix row supplies. They are never declared in the
 // manifest, because every build carries them.
@@ -142,7 +127,7 @@ func (n Notice) Text() string {
 // The feature-tag answer comes from the environment, which is how the verify
 // runner hands one run's scope to every stage it starts.
 func Derive(tree string) (Matrix, Notice, error) {
-	return DeriveScoped(tree, env.Get(scopeTagsEntry.Key))
+	return DeriveScoped(tree, env.Get(changed.ScopeTagsKey))
 }
 
 // DeriveScoped is Derive with the feature-tag answer named explicitly.

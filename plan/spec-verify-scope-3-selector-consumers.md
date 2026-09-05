@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | tooling |
-| Depends | `plan/spec-verify-scope-2-change-set-selector.md` |
+| Depends | spec-verify-scope-2-change-set-selector (closed 2026-09-05; the selector is `internal/le/changed/selector.go`, and the run publishes its answers through `publishChangeScope`, `internal/le/verify/engine/scope.go`) |
 | Phase | 3/3 -- the staticcheck half is built, green, documented and review-fixed. The approved phases 3 and 4 (the suite map and the tier derivation) moved to `plan/spec-verify-scope-5-suite-coverage-map.md`, because no static signal attributes a `.ci` file to a Go package |
 | Handoff | - |
 | Updated | 2026-08-19 |

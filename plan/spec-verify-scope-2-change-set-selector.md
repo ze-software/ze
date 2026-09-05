@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/spec-verify-scope-0-umbrella.md` |
-| Phase | 1-5 done (the selector, its classification table, the narrowed fail-open, and the consumers), plus `test/runner/verify-scope-selector.ci` and the rules text. Closure is next |
+| Phase | 1-5 done (the selector, its classification table, the narrowed fail-open, and the consumers), plus `test/runner/verify-scope-selector.ci` and the rules text. Closure re-landed phase 5's publication, which the le-personality port had dropped (`plan/journal/refactor-removes-feature.md`, 2026-09-02) |
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -307,7 +307,7 @@ measurement which would let a later spec take depth 1 safely, and
 | an unclassified changed path | → | the named-and-narrowed branch | `TestSelectorNamesAKindNoRuleNames` |
 | `go.mod`, `go.sum` or a `vendor/` path | → | the fail-open branch | `TestSelectorWidensWhenTheModuleGraphMoves` |
 | a change under `internal/component/ssh` | → | the tag-aware reverse graph | `TestSelectorSeesGatedImporters` |
-| `_./le changed scope` | → | the selector's package list | `TestChangedPkgsConsumersReadTheSelector` |
+| `./le changed packages` | → | the selector's package list, or the answer this run published | `TestThePackagesVerbAnswersThePrecomputedFile`, `TestAScopeFileIsReadWhenNoArgumentAsksADifferentQuestion` |
 
 ## Acceptance Criteria
 
@@ -319,7 +319,7 @@ measurement which would let a later spec take depth 1 safely, and
 | AC-4 | A changed path matches no known kind | The selector names that path on stderr and answers with the packages that could read it, exit 0. Selecting EVERYTHING is what a module-graph move earns (`go.mod`, `go.sum`, `vendor/`). The third Decision in Current Behavior replaced the `./...` answer for an unclassified path, and this row follows it |
 | AC-5 | `feature-gates.txt` gains a row | The selector's answer changes with it, with no second file to edit |
 | AC-6 | The selector runs on the current tree | It completes in under 30 seconds |
-| AC-7 | A `.py` or `rfc/` path changes | The package list still includes `./scripts/dev`, as today |
+| AC-7 | An `rfc/` corpus path changes | The package list includes the Go package that reads that corpus. The row said `./scripts/dev` when it was written; the le-personality port retired `scripts/` and the Python tooling with it, so the live answer is `./internal/le/rfc` (`rfcCorpusPrefix`, `internal/le/changed/selector.go`) |
 | AC-8 | The selector runs on a working tree carrying the kinds a real session dirties: `.sh`, `.mk`, `internal/le/` native action tables, `.md` under `plan/`, `ai/` and `docs/`, `.ci` under `test/`, `.yml` under `.github/` | The package answer is materially smaller than `./...`. Each of those kinds maps to the tooling packages that READ it, not to the whole tree |
 | AC-9 | A path of a kind the selector has no rule for | It is NAMED on stderr and seeds the packages that could read it: the package it sits in when that directory holds Go source, the tooling packages otherwise. It does not widen to `./...`. This row's original wording predates the third Decision in Current Behavior and said the opposite; the Decision governs |
 
@@ -337,22 +337,22 @@ measurement which would let a later spec take depth 1 safely, and
 | `TestSelectorMapsTheFunctionalCorpusToItsWalkers` | `internal/le/changed/selector_test.go` | AC-8: a `.ci`, `.et` or `.wb` seeds the Go test packages that WALK the committed corpus, never an empty set | PASS |
 | `TestSelectorMapsGoTreesTheUnitBuildNeverCompiles` | `internal/le/changed/selector_test.go` | `cmd/ze-installer`, the module root and `gokrazy/modcache` stop widening the whole run for no gain | PASS |
 | `TestSelectorScopesARealisticDirtyTree` | `internal/le/changed/selector_test.go` | AC-8 end to end: thirteen dirtied paths, four of them unclassified, answer under 20 packages | PASS |
-| `TestSelectorFailsOpenOnUnsafePath` | `internal/le/changed/selector_test.go` | Security review: a path that cannot be one make word widens the answer | PASS |
+| `TestSelectorFailsOpenWhenTheSeedIsNoPackage` | `internal/le/changed/selector_test.go` | Security review: a seed the toolchain does not report as a package widens the answer and names the directory | PASS |
 | `TestSelectorSeesGatedImporters` | `internal/le/changed/selector_test.go` | AC-1: a `//go:build ze_ssh` importer is visible | PASS |
 | `TestSelectorSeesGatedImportersInFixture` | `internal/le/changed/selector_test.go` | AC-1 on a fixture whose only edge to the importer is the gated file | PASS |
 | `TestSelectorTagAnswerNamesTheReachedFeature` | `internal/le/changed/selector_test.go` | AC-3: `ze_ssh` is named, `ze_bgp` is not | PASS |
-| `TestSelectorMapsPythonAndRFCPaths` | `internal/le/changed/selector_test.go` | AC-7: a `.py` or `rfc/` path still selects `./scripts/dev` | PASS |
+| `TestSelectorMapsNativeRFCAndCorpusPaths` | `internal/le/changed/selector_test.go` | AC-7: an `rfc/` corpus path selects `./internal/le/rfc` | PASS |
 | `TestSelectorBoundsCoreFanOut` | `internal/le/changed/selector_test.go` | AC-2: a core change stays well under the closure and says what it dropped | PASS |
 | `TestSelectorRunsUnderBudget` | `internal/le/changed/selector_test.go` | AC-6: 2.43s measured against the 30s budget | PASS |
 | `TestSelectorReadsManifestAtRunTime` | `internal/le/changed/selector_test.go` | AC-5: no copy of `feature-gates.txt` | PASS |
-| `TestVerifyRunSelectsTheChangeSetOncePerRun` | `internal/le/verify/engine/verifyengine_test.go` | The run selects once and names the answer to every stage | PASS |
-| `TestVerifyRunPublishesTheChangeSetPerRun` | `internal/le/verify/engine/verifyengine_test.go` | Two runs of one checkout publish at different paths | PASS |
-| `TestVerifyRunWidensWhenTheChangeSetCannotBeSelected` | `internal/le/verify/engine/verifyengine_test.go` | An unanswered selection widens to `./...`, never to nothing | PASS |
-| `TestChangedPkgsReadsThePublishedChangeSet` | `internal/le/verify/engine/verifyengine_test.go` | The script the recipes call answers from the published file | PASS |
-| `TestChangedPkgs*` (9 tests) | `internal/le/` | The recipes' answer comes from the selector, committed-since-green term included | PASS |
-| `TestChangedPkgsWidensWithNoTrustedGreenBaseline` | `internal/le/` | No green commit widens to `./...`, on each of the three conditions that produce one | PASS |
-| `TestChangedPkgsReadsAnAbsoluteStatusFileOverride` | `internal/le/` | `ZE_VERIFY_STATUS_FILE` naming an absolute path is read at that path | PASS |
-| `TestSelectScopePackagesRunsTheRealSelector` | `internal/le/verify/engine/verifyengine_test.go` | The production selector call, not the injected stub | PASS |
+| `TestVerifyRunNamesTheFeatureScopeToEveryStage` | `internal/le/verify/engine/scope_test.go` | The run selects once and names both answers to every stage it starts | PASS |
+| `TestVerifyRunPublishesTheChangeSetPerRun` | `internal/le/verify/engine/scope_test.go` | Two runs of one checkout publish at different paths | PASS |
+| `TestVerifyRunPublishesTheScopedAnswerAGatedChangeProduces` | `internal/le/verify/engine/scope_test.go` | The published answer is the SCOPED one a gated edit earns, not the wide one. It goes red when `publishChangeScope` is not called | PASS |
+| `TestVerifyRunRestoresTheChangeScopeItNamed` | `internal/le/verify/engine/scope_test.go` | A run does not leave its answer behind to scope whatever runs next in the process | PASS |
+| `TestVerifyRunWidensWhenTheChangeSetCannotBeSelected` | `internal/le/verify/engine/scope_test.go` | A refused selection names neither answer, and unset is the widest reading of both | PASS |
+| `TestThePackagesVerbAnswersThePrecomputedFile`, `TestAScopeFileIsReadWhenNoArgumentAsksADifferentQuestion`, `TestAScopeFileThatCannotBeReadWidensToEveryPackage`, `TestAMissingScopeFileWidensToEveryPackage`, `TestAnArgumentBypassesThePrecomputedAnswer` | `internal/le/changed/actions_test.go`, `internal/le/changed/scope_test.go` | The consumer's answer comes from the run's published file, and every route that cannot read it widens | PASS |
+| `TestSelectorWidensWithNoTrustedGreenBaseline` | `internal/le/changed/selector_test.go` | No green commit widens to `./...`, on each of the three conditions that produce one | PASS |
+| `TestSelectorReadsAnAbsoluteStatusFileOverride` | `internal/le/changed/selector_test.go` | `ZE_VERIFY_STATUS_FILE` naming an absolute path is read at that path | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -437,7 +437,7 @@ measurement which would let a later spec take depth 1 safely, and
    - Files: `internal/le/changed/selector.go`, `internal/le/` native action tables
    - Verify: `./le changed scope` runs and the test fails on empty output
 2. **Phase: Classification** -- path to package, path to feature tag, unclassified to fail-open
-   - Tests: `TestSelectorFailsOpenOnUnknownPath`, `TestSelectorReadsManifestAtRunTime`
+   - Tests: `TestSelectorNamesAKindNoRuleNames`, `TestSelectorReadsManifestAtRunTime`
    - Files: `internal/le/changed/selector.go`
    - Verify: AC-3, AC-4, AC-5, AC-7 hold
 3. **Phase: Tag-aware reverse graph** -- a gated importer becomes visible
@@ -531,3 +531,170 @@ measurement which would let a later spec take depth 1 safely, and
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `Scope.resolveSelector` and its helpers (`internal/le/changed/selector.go`): one selector answering the packages to retest and the feature tags the change reaches, from one tag-aware `go list` bounded at depth 2.
+- `nonGoPathRules`, `packageDirsFor`, `unclassifiedDirs`, `uncompiledTreeReaders` (same file): the classification table and the narrowed fail-open, so a dirtied tree answers its readers instead of `./...`.
+- `ScopeFileKey`, `Scope.Resolve`, `Scope.fromFile`, `widen` (`internal/le/changed/scope.go`): the consumer route, which reads the answer a run published and widens on every route that cannot.
+- `publishChangeScope`, `selectChangeSet`, `nameChangeScope` (`internal/le/verify/engine/scope.go`), called from `runMode` (`run.go`): the run selects once before its first stage, writes both answers into its own log directory, and names them in `ZE_VERIFY_SCOPE_PACKAGES` and `ZE_VERIFY_SCOPE_TAGS`.
+- `test/runner/verify-scope-selector.ci` with `verifyScopeSelectorDriver` (`internal/test/fixture/misc_fixture_runner_scope.go`): the end-to-end proof over the real action.
+
+### Bugs Found/Fixed
+- **The run published nothing.** The le-personality port (`eae282592`) kept the selector and dropped `selectChangeSet` and the scope environment `execStage` exported, so no stage could read either answer: every verify judged all 38 staticcheck matrix rows, and `docs/contributing/running-commands.md` stated a producer the tree did not hold. Found by grepping for `ScopeFileKey`'s writers and confirmed against `runMode`, which set `ZE_VERIFY_MODE` alone. Fixed by `publishChangeScope`; covered by `TestVerifyRunPublishesTheScopedAnswerAGatedChangeProduces`, which goes red when the call is removed (observed). The 2026-09-02 row in `plan/journal/refactor-removes-feature.md` records it and now records the fix.
+- **The green-baseline guard had lost its tests.** `greenBaseline` (`selector.go`) is what stops a clean unproven tree from selecting nothing, and the tests the spec named for it went with the shell they were written against. Restored as `TestSelectorWidensWithNoTrustedGreenBaseline` and `TestSelectorReadsAnAbsoluteStatusFileOverride`.
+- **A `.ci` scenario claimed a naming it never read.** `verifyScopeSelectorDriver` printed `unclassified-path-is-named` while discarding the selector's stderr, so the whole guarantee for an unnamed kind could disappear with the scenario still green. It now asserts `no rule names <path>` and, for each module-graph move, `<path> changed, so a dependency moved`.
+- **The tag key was declared away from its producer.** `ScopeTagsKey` lived in `staticcheckfeaturematrix`, its consumer, so the run could not name it without importing that package, and `staticcheckfeaturematrix_test.go` already imports the engine: an import cycle. The key now sits in `internal/le/changed/scope.go` beside `ScopeFileKey`, because the two are one contract published by one run from one walk of one graph, and the package that produces both answers names both files. The engine imports `changed` alone.
+
+### Documentation Updates
+- `docs/architecture/testing/verify-freshness-scope.md`: the publication paragraph now names its producer and the two file names, and states what an unpublished answer means. Anchor: `internal/le/verify/engine/scope.go -- publishChangeScope`.
+- `docs/contributing/running-commands.md` needed no edit: its sentence "only a verify run publishes the feature-tag answer that `ZE_VERIFY_SCOPE_TAGS` (`ScopeTagsKey`) names" was the claim the missing producer falsified, and it is true again.
+- `docs/functional-tests.md` already carries the scoped matrix and the six-way cut.
+
+### Deviations from Plan
+- **AC-7 named `./scripts/dev`, a package the tree no longer holds.** `scripts/` and the Python tooling were retired by the le-personality port. The row now reads the live answer, `./internal/le/rfc` for an `rfc/` corpus path, which is the same guarantee against the tree as it stands.
+- **The TDD table named nine `TestChangedPkgs*` tests and four `TestVerifyRun*` tests that no longer existed under those names.** Corrected in place to the tests that exist, with the engine tests written by this closure.
+- The retired `changed-pkgs.sh` is not "a thin caller or deleted": the whole shell layer is gone, and `internal/le/changed` is the native replacement.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The spec's TDD table was read as a record of tests that exist | Thirteen rows named tests retired with the shell they were written against, and four named a producer the port had removed | Grepping each name before pasting it as closure evidence | Every row now names a test this closure ran; the missing producer was rebuilt rather than re-recorded |
+| approach | The publication looked like sub-spec 3's work, because sub-spec 3 is the consumers spec | This spec's own Files to Modify names `internal/le/verify/engine/run.go`, "run the selector once before the first stage" | Reading both specs' Files to Modify before deciding where the fix belonged | The producer landed here; sub-spec 3 verifies its consumer |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One selector answering both questions from one walk | Done | `resolveSelector`, `internal/le/changed/selector.go` | `changeSet` carries `packages` and `tags` from the same graph |
+| Tag-aware reverse dependencies, so a gated importer is visible | Done | `loadPackageGraph` | one `go list -tags ze_core,<36 manifest tags>` |
+| The expansion stops being the transitive closure | Done | `reverseWalk`, `expandPackages` | `defaultDepth = 2`, and the drop is stated on stderr |
+| Every later consumer reads that one answer | Done | `publishChangeScope` (`internal/le/verify/engine/scope.go`), `Scope.fromFile` (`scope.go`), `readChangeScope` (`internal/le/staticcheckfeaturematrix`) | one selection per run, named to every stage |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSelectorSeesGatedImporters`, `TestSelectorSeesGatedImportersInFixture` | `./cmd/ze/hub` is in the answer for one SSH file |
+| AC-2 | Done | `TestSelectorBoundsCoreFanOut` | bounded well under the closure, and `writeDropLog` records what was dropped |
+| AC-3 | Done | `TestSelectorTagAnswerNamesTheReachedFeature` | `ze_ssh` named, `ze_bgp` not |
+| AC-4 | Done | `TestSelectorWidensWhenTheModuleGraphMoves`, `TestSelectorNamesAKindNoRuleNames` | the module graph widens; an unclassified path is named and narrowed |
+| AC-5 | Done | `TestSelectorReadsManifestAtRunTime` | `featureManifestPath` is read per run, never copied |
+| AC-6 | Done | `TestSelectorRunsUnderBudget` | measured against the 30s budget |
+| AC-7 | Done (restated) | `TestSelectorMapsNativeRFCAndCorpusPaths` | `./scripts/dev` no longer exists; the corpus seeds `./internal/le/rfc` |
+| AC-8 | Done | `TestSelectorMapsToolingInputKinds`, `TestSelectorMapsTheFunctionalCorpusToItsWalkers`, `TestSelectorScopesARealisticDirtyTree` | thirteen dirtied paths answer under twenty packages |
+| AC-9 | Done | `TestSelectorNamesAKindNoRuleNames`, `TestSelectorSeedsThePackageAnUnclassifiedPathSitsIn` | named on stderr, seeded to its readers |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every selector case in the TDD table | PASS | `internal/le/changed/selector_test.go` | `go test ./internal/le/changed/...` ok 93.896s |
+| The five publication cases | PASS | `internal/le/verify/engine/scope_test.go` | written by this closure; three go red without `publishChangeScope` |
+| `TestTheAnswerARunPublishesScopesTheMatrixAndIsDealtWhole` | PASS | `internal/le/verify/engine/matrix_cut_test.go` | written by this closure: the join neither package's own tests can see |
+| The two green-baseline cases | PASS | `internal/le/changed/selector_test.go` | written by this closure |
+| `verify-scope-selector` | Exists, driver strengthened | `test/runner/verify-scope-selector.ci` | the unclassified and module-move scenarios now read stderr |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/changed/selector.go` | Done | 1155 lines |
+| `internal/le/changed/selector_test.go` | Done | plus the two restored guard tests |
+| `test/runner/verify-scope-selector.ci` | Done | |
+| `internal/le/verify/engine/run.go` | Done | `runMode` calls `publishChangeScope` before the first stage |
+| the retired `changed-pkgs.sh` | Changed | the shell layer is gone; `internal/le/changed` is the native replacement |
+
+### Audit Summary
+- **Total items:** 26
+- **Done:** 25
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the retired `changed-pkgs.sh`, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One selector answers which packages must be retested | functional | `test/runner/verify-scope-selector.ci` pins `./cmd/ze`, `./cmd/ze/hub`, `./internal/component/ssh` exactly for one SSH file, and fails if the answer names anything more |
+| It answers which build-tag features the change can reach | functional | the same scenario pins `ze_ssh` alone as the tag answer |
+| It over-selects rather than under-selects | functional and unit | the same scenario drives `go.mod`, `go.sum` and a `vendor/` path to `./...` and asserts the stderr names the move; `TestSelectorWidensWithNoTrustedGreenBaseline` covers the three unproven-tree conditions |
+| Every later consumer reads that one answer | unit, discriminated | `TestVerifyRunNamesTheFeatureScopeToEveryStage` proves every stage of a run reads the same two paths; `TestVerifyRunPublishesTheScopedAnswerAGatedChangeProduces` proves the published answer is the scoped one, and was observed RED with `publishChangeScope` uncalled (three failing cases) and GREEN with it restored |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Suite selection from the change set | No static signal attributes a `.ci` file to a Go package | `plan/spec-verify-scope-5-suite-coverage-map.md` |
+| A gate that compiles `examples/plugin/go` | A tracked Go module no gate builds can rot silently; it is a separate module and outside the selector's subject | none yet; recorded here and in the comment on `packageDirsFor` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/verify-scope-2-change-set-selector-zeclose-vs2.md` |
+| `review check` | `review_gate: OK (7 code files, clean, hashes match ...)`. It also NOTEs the model as `unknown`: this closure ran as a subagent with no transcript of its own, so `CurrentModel` could not read one |
+| Rounds | 3. Round 1 found findings 1 to 4, round 2 found 5 and 6 in the fix for 1, round 3 was clean |
+| Reviewer lenses used | wiring and producer reachability; guard-fails-closed; test vacuity and discrimination; Go style (`docs/contributing/ze-go-style.md`); documentation against producer |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Nothing writes `ZE_VERIFY_SCOPE_PACKAGES` or `ZE_VERIFY_SCOPE_TAGS`, so the run publishes no answer and no consumer is scoped | `runMode`, `internal/le/verify/engine/run.go` | `publishChangeScope` (`internal/le/verify/engine/scope.go`), called before the first stage |
+| 2 | ISSUE | The `.ci` driver prints `unclassified-path-is-named` while discarding stderr, so the naming guarantee is unasserted | `verifyScopeSelectorDriver`, `internal/test/fixture/misc_fixture_runner_scope.go` | the driver reads stderr and asserts `no rule names <path>` and the dependency-move line |
+| 3 | ISSUE | `greenBaseline`'s three widening conditions and its absolute-override read have no test | `greenBaseline`, `internal/le/changed/selector.go` | `TestSelectorWidensWithNoTrustedGreenBaseline`, `TestSelectorReadsAnAbsoluteStatusFileOverride` |
+| 4 | ISSUE | Thirteen TDD rows and AC-7 name tests and a package the tree no longer holds, so the spec's own record is false | this spec | every row rewritten to the test that exists; AC-7 restated against `./internal/le/rfc` |
+| 5 | ISSUE | `ScopeTagsKey` is declared in its CONSUMER, so the producer cannot name it without an import cycle | `staticcheckfeaturematrix.ScopeTagsKey` | the key moved beside its twin in `internal/le/changed/scope.go`; the matrix now reads it from the package that produces the answer |
+| 6 | NOTE | Nothing asserts that a SCOPED matrix is still dealt whole across the six pieces: the cut is proven over the unscoped 38 rows alone | `Matrix.Part`, `internal/le/staticcheckfeaturematrix` | `TestTheAnswerARunPublishesScopesTheMatrixAndIsDealtWhole` (`internal/le/verify/engine/matrix_cut_test.go`) drives the run's own published answer into `DeriveScoped` and deals the three surviving rows across the population's pieces |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/changed/selector.go` | Yes | `-rw-rw-r-- 44532 Sep 5 12:35` |
+| `internal/le/changed/selector_test.go` | Yes | `-rw-rw-r-- 38844 Sep 5 14:21` |
+| `test/runner/verify-scope-selector.ci` | Yes | `-rw-rw-r-- 1790 Aug 30 22:52` |
+| `internal/le/verify/engine/scope.go` | Yes | `-rw-rw-r-- 5251 Sep 5 14:12` |
+| `internal/le/verify/engine/scope_test.go` | Yes | `-rw-rw-r-- 8109 Sep 5 14:16` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | a gated importer is selected | `test/runner/verify-scope-selector.ci` asserts the answer is `./cmd/ze`, `./cmd/ze/hub`, `./internal/component/ssh` and nothing else |
+| AC-3 | the tag answer is `ze_ssh` alone | the same scenario, `# tags` section |
+| AC-6 | the selector answers under 30s | `TestSelectorRunsUnderBudget` PASS inside `ok github.com/ze-software/ze/internal/le/changed 93.896s` |
+| AC-4, AC-9 | an unclassified path is named and narrowed; a module move widens | `TestSelectorNamesAKindNoRuleNames`, `TestSelectorWidensWhenTheModuleGraphMoves` PASS |
+| every AC | the whole package is green | `go test ./internal/le/changed/... ./internal/le/verify/engine/ ./internal/le/staticcheckfeaturematrix/` exit 0 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le changed scope` | `test/runner/verify-scope-selector.ci` | Yes, read the driver: it runs `bin/le changed scope print <mode> paths-from <file>` for five path kinds and asserts both answers and the stderr |
+| an unclassified changed path | the same | Yes, `demos/terminal/rpki/demo.cast`, stderr asserted |
+| `go.mod`, `go.sum`, `vendor/` | the same | Yes, all three, `./...` and the reason asserted |
+| a change under `internal/component/ssh` | the same | Yes, the exact three-package answer |
+| `./le changed packages` | unit | `TestThePackagesVerbAnswersThePrecomputedFile`, `TestAScopeFileIsReadWhenNoArgumentAsksADifferentQuestion` |
+| a verify run naming the answer to every stage | unit | `TestVerifyRunNamesTheFeatureScopeToEveryStage`, discriminated by the observed red |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed, with the boundary named | `loadPackageGraph` uses `ze_core` plus the 36 manifest tags; the ten non-feature `ze_*` tags select a program flavor and the unit suite never compiles those files |
+| A-2 | confirmed in its consequential direction, false as a literal statement | `reachedTags` calls an unmatched package always-on, which answers with EVERY tag: the error is over-selection, never a hidden gate |
+| A-3 | confirmed for the single-run shape | one all-tags `go list` measured at 2.60s against 94.6s for a per-tag loop; `TestSelectorRunsUnderBudget` holds it under 30s |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #10 test infrastructure | `docs/functional-tests.md` carries the scoped matrix, the six-way cut and the unscoped suite selection | Yes |
+| #12 internal architecture | `docs/architecture/testing/verify-freshness-scope.md` carries the selector contract, the per-kind table and now the publication producer | Yes, edited this closure |
+| #16 source anchors on changed files | the per-kind table anchors `internal/le/changed/selector.go`; `internal/le/verify/engine/scope.go` gained one | Yes |
+| #17 examples for this area | `docs/contributing/running-commands.md` describes the scoped targets and the `ZE_VERIFY_SCOPE_TAGS` producer, which the fix restored | Yes |
+| every other row | No | The scope is build tooling: no YANG, no CLI verb, no RPC, no plugin, no wire format, no RFC tier |
+
+## Core Insight
+
+A port that keeps a CONSUMER and drops its PRODUCER leaves every gate correct and only slower, so nothing can go red and nobody can be told. The staticcheck matrix kept reading `ZE_VERIFY_SCOPE_TAGS`, kept widening on the empty answer it always got, and kept judging all 38 rows. The only way to see it was to ask who WRITES the variable. A registered env key with no writer is the shape to grep for.

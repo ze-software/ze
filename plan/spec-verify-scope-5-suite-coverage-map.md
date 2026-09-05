@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | tooling |
-| Depends | `plan/spec-verify-scope-2-change-set-selector.md` |
+| Depends | spec-verify-scope-2-change-set-selector (closed 2026-09-05; the selector is `internal/le/changed/selector.go` and `docs/architecture/testing/verify-freshness-scope.md`) |
 | Phase | 1/5 |
 | Handoff | - |
 | Updated | 2026-08-19 |

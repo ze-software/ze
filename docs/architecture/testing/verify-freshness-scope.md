@@ -24,7 +24,9 @@ Three properties of the narrower question matter to a caller:
 
 `./le changed packages` and `./le changed group-packages` derive the package scope from the current change set. Non-Go inputs seed the packages that consume them, and every unresolved case widens to `./...`. An empty answer is never used as a successful narrow selection.
 
-The verify runner resolves the selection once and publishes its package and feature-tag answers to the run's artifact directory. Every scoped stage reads those files. This keeps the unit pass and the staticcheck matrix on the same snapshot, and it avoids a second reverse-import walk after another session changes the checkout.
+The verify runner resolves the selection once and publishes its package and feature-tag answers to the run's artifact directory. `publishChangeScope` writes `scope-packages.txt` and `scope-tags.txt` beside the run's logs and names each one in `ZE_VERIFY_SCOPE_PACKAGES` and `ZE_VERIFY_SCOPE_TAGS`. Every scoped stage reads those files. This keeps the unit pass and the staticcheck matrix on the same snapshot, and it avoids a second reverse-import walk after another session changes the checkout. A run that cannot select publishes neither name, and unset is the widest reading of both: the stage selects its own packages and the matrix judges every row.
+
+<!-- source: internal/le/verify/engine/scope.go -- publishChangeScope -->
 
 `internal/le/staticcheckfeaturematrix.Answer` retains the all-features and core-only rows, plus the feature-omission rows the selected tags can affect. A negated build constraint counts as a use of the tag because that file compiles in the omission row.
 

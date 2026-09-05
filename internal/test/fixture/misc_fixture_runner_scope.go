@@ -129,15 +129,14 @@ func verifyScopeSelectorDriver(ctx context.Context, args []string) error {
 	}
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 	env := os.Environ()
-	run := func(path, printing string) (string, int, error) {
+	run := func(path, printing string) (string, string, int, error) {
 		input := filepath.Join(work, "scope.paths")
 		if err := os.WriteFile(input, []byte(path+"\n"), 0o600); err != nil {
-			return "", -1, err
+			return "", "", -1, err
 		}
-		stdout, _, code, err := rawCommandStreams(ctx, root, env, le, "changed", "scope", "print", printing, "paths-from", input)
-		return stdout, code, err
+		return rawCommandStreams(ctx, root, env, le, "changed", "scope", "print", printing, "paths-from", input)
 	}
-	out, code, err := run("internal/component/ssh/ssh.go", "both")
+	out, _, code, err := run("internal/component/ssh/ssh.go", "both")
 	if err != nil || code != 0 {
 		return fmt.Errorf("SSH selector exit=%d: %w %s", code, err, out)
 	}
@@ -154,19 +153,30 @@ func verifyScopeSelectorDriver(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stdout, "ssh-selects-its-gated-importer") //nolint:errcheck // progress output
 	fmt.Fprintln(os.Stdout, "ssh-reaches-one-feature")        //nolint:errcheck // progress output
-	out, code, err = run("demos/terminal/rpki/demo.cast", "packages")
+	const unclassified = "demos/terminal/rpki/demo.cast"
+	out, diagnostics, code, err := run(unclassified, "packages")
 	if err != nil || code != 0 {
 		return fmt.Errorf("unclassified selector exit=%d: %w %s", code, err, out)
 	}
+	// The stderr line is the whole guarantee for a kind no rule names: the
+	// answer is never silently narrow, and the operator holds the path that
+	// would need a rule. Reading stdout alone would let the naming disappear
+	// with this scenario still green.
+	if !strings.Contains(diagnostics, "no rule names "+unclassified) {
+		return fmt.Errorf("the selector did not name %s on stderr: %s", unclassified, diagnostics)
+	}
+	fmt.Fprintln(os.Stdout, "unclassified-path-is-named") //nolint:errcheck // progress output
 	if strings.TrimSpace(out) == "./..." {
 		return errors.New("unclassified path selected every package")
 	}
-	fmt.Fprintln(os.Stdout, "unclassified-path-is-named")               //nolint:errcheck // progress output
 	fmt.Fprintln(os.Stdout, "unclassified-path-narrows-to-its-readers") //nolint:errcheck // progress output
 	for _, path := range []string{fileGoMod, "go.sum", "vendor/example.com/dep/dep.go"} {
-		out, code, err = run(path, "packages")
+		out, diagnostics, code, err = run(path, "packages")
 		if err != nil || code != 0 || strings.TrimSpace(out) != "./..." {
 			return fmt.Errorf("dependency %s did not widen: exit=%d %w %s", path, code, err, out)
+		}
+		if !strings.Contains(diagnostics, path+" changed, so a dependency moved") {
+			return fmt.Errorf("the selector did not name %s as the move: %s", path, diagnostics)
 		}
 	}
 	fmt.Fprintln(os.Stdout, "dependency-move-widens-and-names-the-path") //nolint:errcheck // progress output

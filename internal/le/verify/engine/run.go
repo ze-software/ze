@@ -178,6 +178,12 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 	}
 	report.LogDir = filepath.ToSlash(logRel)
 
+	// The change set is selected once, here, and named to every stage below.
+	// Selecting it per stage would let two stages of one run judge two
+	// different trees (scope.go).
+	restoreScope := publishChangeScope(root, logDir)
+	defer restoreScope()
+
 	var combined textbuf.Buffer
 	combined.Str("Ze verify protocol run: ").Str(started.UTC().Format(time.RFC3339)).
 		Str("\nMode: ").Str(mode).Str("\nCommit: ").Str(commit).Str("\n\n")

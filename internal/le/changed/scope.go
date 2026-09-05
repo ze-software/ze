@@ -35,6 +35,26 @@ var scopeFileEntry = env.MustRegister(env.EnvEntry{
 	Private: true,
 })
 
+// ScopeTagsKey is the dot-notation spelling of ZE_VERIFY_SCOPE_TAGS: the file
+// holding this run's feature-tag answer. It sits beside ScopeFileKey because
+// the two are one contract, published by one run from one walk of one graph:
+// this package produces both answers, so this package names both files.
+//
+// Its consumer is the Staticcheck feature matrix, which subtracts the rows the
+// answer cannot move. Unset means every row is judged, which is what a
+// standalone gate invocation gets.
+const ScopeTagsKey = "ze.verify.scope.tags"
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         ScopeTagsKey,
+	Type:        "string",
+	Default:     "",
+	Description: "the file naming the feature tags this verify run's change set reaches; unset judges every matrix row",
+	// Private keeps the key out of `ze env list`. It is a build-host path the
+	// verify runner owns, and an operator has nothing to do with it.
+	Private: true,
+})
+
 // ScopeReport is the selector's structured answer.
 //
 // Print controls only the plain-text rendering. Packages and Tags both remain

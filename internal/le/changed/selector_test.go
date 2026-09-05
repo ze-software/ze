@@ -861,3 +861,84 @@ func repoRoot(t *testing.T) string {
 	}
 	return root
 }
+
+// writeScopeStatus writes a verify certificate into the fixture and answers its
+// path. The selector reads it to find the commit the last passing run proved.
+func writeScopeStatus(t *testing.T, root, body string) string {
+	t.Helper()
+	directory := filepath.Join(root, "tmp")
+	if err := os.MkdirAll(directory, 0o750); err != nil {
+		t.Fatalf("create the fixture status directory: %v", err)
+	}
+	path := filepath.Join(directory, "ze-verify.status")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write the fixture verify status: %v", err)
+	}
+	return path
+}
+
+// TestSelectorWidensWithNoTrustedGreenBaseline drives the guard that decides
+// whether the change set can be narrowed at all.
+//
+// The change set is the working tree PLUS everything committed since the last
+// proven commit. With no proven commit the second term is every commit in
+// history, so a CLEAN tree would otherwise select nothing and report green over
+// code no stage ran, and a scoped green is commit evidence. Each condition below
+// produces that state, and each must widen and say which one it was.
+func TestSelectorWidensWithNoTrustedGreenBaseline(t *testing.T) {
+	cases := []struct {
+		name      string
+		status    string
+		writeFile bool
+		names     string
+	}{
+		{name: "no status file at all", writeFile: false, names: "cannot be read"},
+		{name: "the last run was red", writeFile: true, status: "exit=1\nmode=full\ngit_sha=0123456789abcdef0123456789abcdef01234567\n", names: "records exit=1"},
+		{name: "the run named no commit", writeFile: true, status: "exit=0\nmode=full\ngit_sha=unknown\n", names: "git_sha=unknown"},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			binary := scopeSelectorAction(t)
+			root := writeScopeFixture(t)
+			if testCase.writeFile {
+				writeScopeStatus(t, root, testCase.status)
+			}
+
+			stdout, stderr, code := runScopeSelector(t, binary, root)
+			if code != 0 {
+				t.Fatalf("selector exited %d\nstderr:\n%s", code, stderr)
+			}
+			if got := scopeLines(stdout); !slices.Equal(got, []string{"./..."}) {
+				t.Fatalf("an unproven tree answered %v, want the wide answer", got)
+			}
+			if !strings.Contains(stderr, testCase.names) {
+				t.Fatalf("the widening does not name the condition %q\nstderr:\n%s", testCase.names, stderr)
+			}
+		})
+	}
+}
+
+// TestSelectorReadsAnAbsoluteStatusFileOverride pins the one path arithmetic the
+// override has. filepath.Join(root, "/abs") yields "<root>/abs", which no file
+// answers to, so a joined absolute override would widen every run on a status
+// file the operator did supply.
+func TestSelectorReadsAnAbsoluteStatusFileOverride(t *testing.T) {
+	binary := scopeSelectorAction(t)
+	root := writeScopeFixture(t)
+	elsewhere := filepath.Join(t.TempDir(), "named-by-the-operator.status")
+	if err := os.WriteFile(elsewhere, []byte("exit=0\nmode=full\ngit_sha=unknown\n"), 0o600); err != nil {
+		t.Fatalf("write the override status file: %v", err)
+	}
+	t.Setenv("ZE_VERIFY_STATUS_FILE", elsewhere)
+
+	stdout, stderr, code := runScopeSelector(t, binary, root)
+	if code != 0 {
+		t.Fatalf("selector exited %d\nstderr:\n%s", code, stderr)
+	}
+	if got := scopeLines(stdout); !slices.Equal(got, []string{"./..."}) {
+		t.Fatalf("the override answered %v, want the wide answer its git_sha=unknown earns", got)
+	}
+	if !strings.Contains(stderr, elsewhere) {
+		t.Fatalf("the selector read a path other than the absolute override\nstderr:\n%s", stderr)
+	}
+}
