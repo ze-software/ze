@@ -1,0 +1,9 @@
+option=file:api-healthcheck-withdraw.conf
+1:cmd:announce eor ipv4 unicast
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+1:cmd:neighbor * announce route 10.0.0.1/32 next-hop self origin igp local-preference 100
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0031:02:00000015400101004002004003047F00000140050400000064200A000001
+1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100},"announce":{"ipv4 unicast":{"127.0.0.1":[{"nlri":"10.0.0.1/32"}]}}}}}}
+1:cmd:neighbor * withdraw route 10.0.0.1/32 next-hop self
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001C:02:0005200A0000010000
+1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"withdraw":{"ipv4 unicast":[{"nlri":"10.0.0.1/32"}]}}}}}

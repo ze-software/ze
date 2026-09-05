@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,6 +27,13 @@ import (
 )
 
 const exabgpSuiteEncoding = "encoding"
+const exabgpSuiteAPI = "api"
+
+// exabgpSuites are the predecessor test populations, each a subdirectory of
+// test/exabgp-compat holding .ci fixtures. encoding drives ze from a migrated
+// config alone; api drives it through the ExaBGP bridge, which runs the script
+// the config's process block names.
+var exabgpSuites = []string{exabgpSuiteEncoding, exabgpSuiteAPI}
 
 const predecessorPrefix = "exabgp-"
 const predecessorTestDir = predecessorPrefix + "compat"
@@ -85,9 +93,6 @@ func zeTestExabgpMain(args []string) error {
 		suiteName = args[0]
 		args = args[1:]
 	}
-	if suiteName != exabgpSuiteEncoding {
-		return errors.New("only predecessor encoding tests are available")
-	}
 	if len(args) > 0 && isHelpArg(args[0]) {
 		printExaBGPUsage()
 		return nil
@@ -103,7 +108,7 @@ func zeTestExabgpMain(args []string) error {
 		return fmt.Errorf("find base dir: %w", err)
 	}
 
-	suite, err := discoverExaBGPSuite(baseDir)
+	suite, err := discoverExaBGPSuite(baseDir, suiteName)
 	if err != nil {
 		return err
 	}
@@ -183,7 +188,7 @@ func zeTestExabgpMain(args []string) error {
 }
 
 func isKnownExaBGPSuite(name string) bool {
-	return name == exabgpSuiteEncoding
+	return slices.Contains(exabgpSuites, name)
 }
 
 func parseExaBGPCLI(args []string) (exabgpCLI, error) {
@@ -250,9 +255,9 @@ Examples:
 `)
 }
 
-func discoverExaBGPSuite(baseDir string) (*exabgpSuite, error) {
+func discoverExaBGPSuite(baseDir, suiteName string) (*exabgpSuite, error) {
 	root := filepath.Join(baseDir, "test", predecessorTestDir)
-	pattern := filepath.Join(root, "encoding", "*.ci")
+	pattern := filepath.Join(root, suiteName, "*.ci")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
@@ -313,8 +318,11 @@ func parseExaBGPCI(root string, rec *runner.Record, ciFile string) (*exabgpTestE
 			continue
 		}
 		if after, ok := strings.CutPrefix(line, "option=tcp_connections:"); ok {
+			// Zero is a real answer, not an absent one: api-peer-lifecycle
+			// expects NO connection from ze, because its peer is created from
+			// the API rather than declared in the config.
 			count, err := strconv.Atoi(after)
-			if err != nil || count <= 0 {
+			if err != nil || count < 0 {
 				var tb textbuf.Buffer
 				return nil, errors.New(tb.Str("invalid tcp_connections in ").Str(ciFile).String())
 			}
@@ -718,7 +726,7 @@ func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary str
 		if err != nil {
 			return "", fmt.Errorf("migrate %s: %w", source, err)
 		}
-		config.Write(output)
+		config.WriteString(absoluteBridgeRun(string(output), filepath.Dir(source)))
 		config.Byte('\n')
 	}
 	file, err := os.CreateTemp("", "ze-exabgp-native-*.conf")
@@ -737,6 +745,37 @@ func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary str
 		return "", err
 	}
 	return path, nil
+}
+
+// absoluteBridgeRun rewrites the ExaBGP bridge's run command to an absolute
+// path rooted at the directory the ExaBGP config came from.
+//
+// An ExaBGP config names its process script relative to itself, as
+// `run ./run/api-announce.run`, and the migrated config is written to a
+// temporary file somewhere else entirely. The relative path would then resolve
+// against the daemon's working directory, where the script does not exist, and
+// the bridge would start nothing.
+//
+// Only a run line under the bridge is rewritten, and only when its value is
+// relative. An absolute path is already unambiguous and is left alone.
+func absoluteBridgeRun(migrated, configDir string) string {
+	const runKeyword = "run "
+	lines := strings.Split(migrated, "\n")
+	for index, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		command, ok := strings.CutPrefix(trimmed, runKeyword)
+		if !ok {
+			continue
+		}
+		command = strings.Trim(command, `"`)
+		if command == "" || filepath.IsAbs(command) {
+			continue
+		}
+		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+		var tb textbuf.Buffer
+		lines[index] = tb.Str(indent).Str(runKeyword).Quoted(filepath.Join(configDir, command)).String()
+	}
+	return strings.Join(lines, "\n")
 }
 
 type exaProcess struct {

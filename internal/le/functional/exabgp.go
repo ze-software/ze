@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"path/filepath"
 	"time"
 
@@ -212,14 +213,22 @@ func runExaBGP(ctx context.Context, root string, runner exaBGPRunner) (
 		return report, 1
 	}
 
-	last := len(report.Children) - 1
-	if report.Children[last].Stdout == "" {
-		if report.Children[last].Stderr == "" {
-			report.Children[last].Code = 1
-			report.Children[last].Error = "ExaBGP suite produced no output"
-			report.Code = 1
-			return report, 1
+	// A suite that says nothing has not passed: it did not run. The check reads
+	// EVERY subject rather than the last one, because this stage runs two suites
+	// since 2026-09-05 and a guard on the last child alone would let a silent
+	// encoding run through on the strength of the api run's output.
+	for index := range report.Children {
+		child := &report.Children[index]
+		if !strings.HasPrefix(child.Stage, "exabgp-") {
+			continue
 		}
+		if child.Stdout != "" || child.Stderr != "" {
+			continue
+		}
+		child.Code = 1
+		child.Error = "ExaBGP suite produced no output"
+		report.Code = 1
+		return report, 1
 	}
 
 	report.Code = 0
@@ -315,16 +324,27 @@ func exaBGPCommands(
 		zePathEnvironment,
 		zeTestPathEnvironment,
 	)
-	commands = append(commands, exaBGPCommand{
-		Stage: "exabgp",
-		Arguments: []string{
-			"uv", "run", "--with", "paramiko", set.zeTestPath(),
-			"exabgp", "--all", "--timeout", timeout,
-		},
-		Directory:         toolchain.Root,
-		Environment:       runEnvironment,
-		ReportEnvironment: runReportEnvironment,
-	})
+	// The two predecessor populations, both of them. `encoding` drives ze from a
+	// migrated config alone; `api` drives it through the ExaBGP bridge, which
+	// runs the script the config's process block names.
+	//
+	// Until 2026-09-05 this stage ran `encoding` and nothing else, and
+	// zeTestExabgpMain refused every other name with "only predecessor encoding
+	// tests are available". So `exabgp-test` was 42 config-to-wire cases and the
+	// ExaBGP API line protocol had no gate at all, which is how 46 run scripts
+	// came to sit in the tree with no runner.
+	for _, suite := range []string{"encoding", "api"} {
+		commands = append(commands, exaBGPCommand{
+			Stage: "exabgp-" + suite,
+			Arguments: []string{
+				"uv", "run", "--with", "paramiko", set.zeTestPath(),
+				"exabgp", suite, "--all", "--timeout", timeout,
+			},
+			Directory:         toolchain.Root,
+			Environment:       runEnvironment,
+			ReportEnvironment: runReportEnvironment,
+		})
+	}
 	return commands, nil
 }
 

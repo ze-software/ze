@@ -91,9 +91,9 @@ func readExaBGPCase(path string) (map[int][][]byte, uint32, error) {
 		if len(parts) < 4 || parts[1] != "raw" {
 			continue
 		}
-		connection, err := strconv.Atoi(parts[0])
-		if err != nil || connection <= 0 {
-			return nil, 0, fmt.Errorf("invalid raw connection in %q", line)
+		connection, err := exabgpCaseConnection(parts[0])
+		if err != nil {
+			return nil, 0, fmt.Errorf("invalid raw connection in %q: %w", line, err)
 		}
 		wire, err := hex.DecodeString(strings.Join(parts[2:], ""))
 		if err != nil {
@@ -102,6 +102,40 @@ func readExaBGPCase(path string) (map[int][][]byte, uint32, error) {
 		result[connection] = append(result[connection], wire)
 	}
 	return result, asn, scanner.Err()
+}
+
+// exabgpCaseConnection reads the connection a `.ci` expectation belongs to.
+//
+// The prefix comes in two shapes and both are upstream's. A NUMBER is the
+// connection itself, so `1:raw:` is the first session. A LETTER names the
+// connection and the digits after it are the sequence within that connection,
+// so `A1:raw:` and `A2:raw:` are the first and second frames of connection A,
+// and `B1:raw:` opens connection B. The lettered shape is what the multi-session
+// cases use: api-teardown, api-reload, api-peer-lifecycle and api-notification.
+//
+// A parser that read the whole prefix as an integer refused every lettered case
+// by name, which is how it was found, and one that read only the leading digits
+// would silently merge two connections into one and assert their frames in the
+// wrong order.
+func exabgpCaseConnection(prefix string) (int, error) {
+	if prefix == "" {
+		return 0, errors.New("empty connection prefix")
+	}
+	first := prefix[0]
+	if first >= 'A' && first <= 'Z' {
+		return int(first-'A') + 1, nil
+	}
+	if first >= 'a' && first <= 'z' {
+		return int(first-'a') + 1, nil
+	}
+	connection, err := strconv.Atoi(prefix)
+	if err != nil {
+		return 0, err
+	}
+	if connection <= 0 {
+		return 0, fmt.Errorf("connection %d is not a session", connection)
+	}
+	return connection, nil
 }
 
 func serveExaBGPConnection(connection net.Conn, asn uint32, expected [][]byte) error {

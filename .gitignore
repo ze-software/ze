@@ -132,3 +132,8 @@ gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
 # path it lives in neither ZeFS nor the config directory.
 meta/ca/
 **/hub/meta/
+
+# Python bytecode. The ExaBGP compatibility run scripts are Python, so every
+# run of test/exabgp-compat leaves __pycache__ beside them.
+__pycache__/
+*.pyc

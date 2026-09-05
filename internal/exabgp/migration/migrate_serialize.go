@@ -53,6 +53,28 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		}
 	}
 
+	// Write the exabgp bridge root. It is emitted BEFORE the plugin block that
+	// declares the bridge, so a reader meets the script the config runs before
+	// the plugin that runs it.
+	//
+	// The serializer walks named containers by hand rather than generically, so
+	// a container nothing emits is silently dropped however correctly the
+	// migration built it. That is what happened to every ExaBGP `process` block
+	// until 2026-09-05 (internal/exabgp/migration/migrate.go, migrateProcesses).
+	if exabgp := tree.GetContainer("exabgp"); exabgp != nil && isRoot {
+		if bridge := exabgp.GetContainer("bridge"); bridge != nil {
+			buf.WriteString(indent)
+			buf.WriteString("exabgp {\n")
+			buf.WriteString(indent)
+			buf.WriteString("\tbridge {\n")
+			serializeTreeIndent(bridge, buf, indent+"\t\t", false)
+			buf.WriteString(indent)
+			buf.WriteString("\t}\n")
+			buf.WriteString(indent)
+			buf.WriteString("}\n")
+		}
+	}
+
 	// Write plugin blocks - new syntax: plugin { internal|external NAME { ... } }.
 	// Built-in plugins (declared with `use <builtin>`) take the `internal` keyword;
 	// external processes (declared with `run <command>`) take `external`.

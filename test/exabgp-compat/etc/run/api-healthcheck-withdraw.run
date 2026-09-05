@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+
+import time
+
+from exabgp_api import send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    # Simulate healthcheck announce then withdraw cycle
+    # Uses 'neighbor *' prefix and 'next-hop self' like the real healthcheck module
+    send('neighbor * announce route 10.0.0.1/32 next-hop self origin igp local-preference 100')
+    time.sleep(0.3)
+    send('neighbor * withdraw route 10.0.0.1/32 next-hop self')
+
+    wait_for_ack(expected_count=2)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()

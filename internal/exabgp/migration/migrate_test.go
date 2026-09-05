@@ -408,13 +408,19 @@ neighbor 10.0.0.1 {
 	result, err := MigrateFromExaBGP(tree)
 	require.NoError(t, err, "migrate")
 
-	// Processes should NOT be converted to plugins (protocol incompatible).
-	plugins := result.Tree.GetList("plugin")
-	for name := range plugins {
-		assert.NotContains(t, name, "compat", "should not create bridge plugin")
-	}
+	// The process becomes the in-process ExaBGP bridge, which is the adapter
+	// between the two protocols: the script keeps writing ExaBGP API text and
+	// the bridge answers the ze command that sends it. This asserted the
+	// opposite until 2026-09-05, when the migration stopped dropping the half of
+	// the config that produces routes.
+	rendered := SerializeTree(result.Tree)
+	assert.Contains(t, rendered, "exabgp {", "the bridge root declares the script")
+	assert.Contains(t, rendered, "run /path/to/plugin.py", "the script the bridge runs")
+	assert.Contains(t, rendered, "internal exabgp-bridge", "the bridge plugin is declared")
+	assert.Contains(t, rendered, "attach process exabgp-bridge", "the peer attaches the bridge")
 
-	// Processes should be stored in result for wrapper to handle.
+	// The process is still reported, because `ze exabgp migrate` prints it for a
+	// reader and the wrapper reads it.
 	require.Len(t, result.Processes, 1, "expected 1 external process")
 	assert.Equal(t, "my-plugin", result.Processes[0].Name)
 	assert.Equal(t, "/path/to/plugin.py", result.Processes[0].RunCmd)
@@ -1104,11 +1110,13 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 		assert.Contains(t, got, "route-refresh enable")
 
 	case "process":
-		// ExaBGP processes are stored in result.Processes for the wrapper to handle
-		// (protocol incompatible — ExaBGP uses stdout text, Ze uses YANG RPC sockets).
+		// The process becomes the ExaBGP bridge, which runs the script and
+		// translates its ExaBGP API text into ze commands. The input fixture's
+		// own comment has asked for this since it was written; the golden file
+		// disagreed with it until 2026-09-05.
 		assert.Len(t, result.Processes, 1, "expected 1 external process")
-		// No bridge plugins should be created in the migrated config.
-		assert.NotContains(t, got, "-compat", "should not create bridge plugin in config")
+		assert.Contains(t, got, "internal exabgp-bridge", "the bridge plugin is declared")
+		assert.Contains(t, got, "attach process exabgp-bridge", "the peer attaches the bridge")
 
 	case "nexthop":
 		// Should have nexthop block inside capability.

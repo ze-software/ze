@@ -16,7 +16,7 @@ func TestDiscoverExaBGPSuiteAssignsNumericIDsInDisplayOrder(t *testing.T) {
 	writeExaBGPFixture(t, base, "zeta", "conf-zeta.conf", 1)
 	writeExaBGPFixture(t, base, "alpha", "conf-alpha.conf", 3)
 
-	suite, err := discoverExaBGPSuite(base)
+	suite, err := discoverExaBGPSuite(base, exabgpSuiteEncoding)
 	if err != nil {
 		t.Fatalf("discover ExaBGP suite: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestDiscoverExaBGPSuiteParsesSerialOption(t *testing.T) {
 	base := t.TempDir()
 	writeExaBGPFixture(t, base, "watchdog", "conf-watchdog.conf", 1, "option=serial")
 
-	suite, err := discoverExaBGPSuite(base)
+	suite, err := discoverExaBGPSuite(base, exabgpSuiteEncoding)
 	if err != nil {
 		t.Fatalf("discover ExaBGP suite: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestParseExaBGPCIRejectsMissingConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	suite, err := discoverExaBGPSuite(base)
+	suite, err := discoverExaBGPSuite(base, exabgpSuiteEncoding)
 	if err == nil {
 		t.Fatalf("discover suite unexpectedly succeeded: %#v", suite)
 	}
@@ -188,7 +188,7 @@ func TestExaBGPFixturePreflightNamesMissingLoopback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	suite, err := discoverExaBGPSuite(base)
+	suite, err := discoverExaBGPSuite(base, exabgpSuiteEncoding)
 	if err != nil {
 		t.Fatalf("discover ExaBGP suite: %v", err)
 	}

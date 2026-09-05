@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+
+"""Run the healthcheck module for functional testing.
+
+Check command succeeds once (creates marker file), then fails.
+With --rise 1 --fall 1, the healthcheck announces on first success
+and withdraws on first failure.
+"""
+
+import os
+import sys
+import tempfile
+
+marker = os.path.join(tempfile.gettempdir(), f'exabgp-hc-test-{os.getpid()}')
+
+# Shell one-liner: succeed once (create marker), then fail
+check_cmd = f'test ! -f {marker} && touch {marker} || exit 1'
+
+sys.argv = [
+    'healthcheck',
+    '--cmd', check_cmd,
+    '--withdraw-on-down',
+    '--no-ip-setup',
+    '--no-syslog',
+    '--no-ack',
+    '--rise', '1',
+    '--fall', '1',
+    '--interval', '1',
+    '--fast-interval', '0.5',
+    '--ip', '10.0.0.1/32',
+]
+
+try:
+    from exabgp.application.healthcheck import main
+    main()
+finally:
+    try:
+        os.unlink(marker)
+    except OSError:
+        pass

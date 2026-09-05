@@ -48,8 +48,8 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	if code != 0 || report.Code != 0 {
 		t.Fatalf("exit = %d report code = %d error = %q", code, report.Code, report.Error)
 	}
-	if len(recorder.commands) != 3 {
-		t.Fatalf("commands = %d, want two builds and one subject", len(recorder.commands))
+	if len(recorder.commands) != 4 {
+		t.Fatalf("commands = %d, want two builds and two subjects", len(recorder.commands))
 	}
 
 	ze := recorder.commands[0]
@@ -71,18 +71,24 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 		t.Fatalf("ze-test tags = %q", got)
 	}
 
-	subject := recorder.commands[2]
-	wantSubject := []string{
-		"uv", "run", "--with", "paramiko", zeTest.Artifact,
-		"exabgp", "--all", "--timeout", "180s",
+	// Two subjects since 2026-09-05, one per predecessor population. Each names
+	// its suite, because `ze-test exabgp` alone runs encoding and nothing else.
+	for index, suite := range []string{"encoding", "api"} {
+		subject := recorder.commands[2+index]
+		wantSubject := []string{
+			"uv", "run", "--with", "paramiko", zeTest.Artifact,
+			"exabgp", suite, "--all", "--timeout", "180s",
+		}
+		if !reflect.DeepEqual(subject.Arguments, wantSubject) {
+			t.Fatalf("subject %s = %#v, want %#v", suite, subject.Arguments, wantSubject)
+		}
+		if subject.Directory != root {
+			t.Fatalf("subject %s directory = %q, want %q", suite, subject.Directory, root)
+		}
 	}
-	if !reflect.DeepEqual(subject.Arguments, wantSubject) {
-		t.Fatalf("subject = %#v, want %#v", subject.Arguments, wantSubject)
-	}
-	if subject.Directory != root {
-		t.Fatalf("subject directory = %q, want %q", subject.Directory, root)
-	}
-	environment := exaBGPEffectiveEnvironment(subject.Environment)
+	// The environment is the same for both subjects, so it is read from the
+	// first one rather than asserted twice.
+	environment := exaBGPEffectiveEnvironment(recorder.commands[2].Environment)
 	if environment["CGO_ENABLED"] != "0" {
 		t.Fatalf("CGO_ENABLED = %q, want 0", environment["CGO_ENABLED"])
 	}
@@ -123,7 +129,9 @@ func TestRunExaBGPPreservesFirstFailureCodeAndCleanup(t *testing.T) {
 	}{
 		{name: "ze build", stage: "build-ze", code: 37, wantCalls: 1},
 		{name: "ze-test build", stage: "build-ze-test", code: 38, wantCalls: 2},
-		{name: "compatibility subject", stage: "exabgp", code: 42, wantCalls: 3},
+		// The encoding stage failing stops the run before the api stage, which is
+		// the point of the first-failure contract: three calls, not four.
+		{name: "compatibility subject", stage: "exabgp-encoding", code: 42, wantCalls: 3},
 	}
 	for _, one := range tests {
 		t.Run(one.name, func(t *testing.T) {
@@ -171,15 +179,24 @@ func TestRunExaBGPFailsClosedOnMissingArtifactAndOutput(t *testing.T) {
 	t.Run("suite output", func(t *testing.T) {
 		root := exaBGPFixture(t)
 		recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
-			"exabgp": {},
+			"exabgp-encoding": {},
 		}}
 		report, code := runExaBGP(t.Context(), root, recorder)
 		if code != 1 || report.Code != 1 {
 			t.Fatalf("exit = %d report code = %d, want 1", code, report.Code)
 		}
-		last := report.Children[len(report.Children)-1]
-		if last.Error != "ExaBGP suite produced no output" {
-			t.Fatalf("suite error = %q", last.Error)
+		// The silent suite is the one that must carry the error, and it is not
+		// necessarily the last child: this stage runs two suites, and a guard
+		// that only read the last one would pass a silent encoding run on the
+		// strength of the api run's output.
+		var named string
+		for _, child := range report.Children {
+			if child.Error == "ExaBGP suite produced no output" {
+				named = child.Stage
+			}
+		}
+		if named != "exabgp-encoding" {
+			t.Fatalf("no child names the silent suite: %#v", report.Children)
 		}
 	})
 }
@@ -303,7 +320,7 @@ func exaBGPEffectiveEnvironment(entries []string) map[string]string {
 func TestExaBGPReportTextNamesTheChildThatCouldNotStart(t *testing.T) {
 	root := exaBGPFixture(t)
 	recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
-		"exabgp": {
+		"exabgp-encoding": {
 			Error: `exec: "uv": executable file not found in $PATH`,
 			Code:  127,
 		},
@@ -315,7 +332,7 @@ func TestExaBGPReportTextNamesTheChildThatCouldNotStart(t *testing.T) {
 	}
 	text := report.Text()
 	for _, want := range []string{
-		"functional/exabgp-test: stage exabgp exited 127",
+		"functional/exabgp-test: stage exabgp-encoding exited 127",
 		`exec: "uv": executable file not found in $PATH`,
 	} {
 		if !strings.Contains(text, want) {
@@ -337,7 +354,7 @@ func TestExaBGPReportTextSaysSomethingWhenEveryChildPassed(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0", code)
 	}
-	if want := "functional/exabgp-test: 3 children passed\n"; report.Text() != want {
+	if want := "functional/exabgp-test: 4 children passed\n"; report.Text() != want {
 		t.Errorf("text = %q, want %q", report.Text(), want)
 	}
 }

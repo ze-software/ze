@@ -164,25 +164,88 @@ func injectRIBPlugin(tree *config.Tree) {
 	tree.AddListEntry("plugin", "bgp-rib", ribPlugin)
 }
 
-// migrateProcesses collects ExaBGP process definitions for the wrapper to handle.
-// ExaBGP processes cannot run as Ze plugins because the protocols are incompatible
-// (ExaBGP uses stdout text API, Ze uses YANG RPC over socket pairs).
-// Returns an empty map -- no process bindings are created since there are no plugins.
-func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]string {
-	for _, entry := range tree.GetListOrdered("process") {
-		processTree := entry.Value
-		if runCmd, ok := processTree.Get("run"); ok {
-			runCmd = strings.Trim(runCmd, `"'`)
-			result.Processes = append(result.Processes, ExternalProcess{
-				Name:   entry.Key,
-				RunCmd: runCmd,
-			})
-		}
-	}
+// bridgePluginName is the registry name of the in-process ExaBGP bridge, and it
+// is the plugin every migrated ExaBGP process binds to.
+const bridgePluginName = "exabgp-bridge"
 
-	// Return empty map: no plugins created, so no process bindings should reference them.
-	// Ze validates that process bindings reference defined plugins -- undefined refs are fatal.
-	return make(map[string]string)
+// migrateProcesses converts ExaBGP process definitions into the in-process
+// ExaBGP bridge.
+//
+// The bridge is the adapter between the two protocols: the script keeps writing
+// ExaBGP API text on its stdout, and the bridge reads each line and answers the
+// ze command that sends it (`TranslateLine`, internal/exabgp/bridge). So a
+// migrated config starts the operator's script and their announcements reach
+// the wire.
+//
+// This dropped every process until 2026-09-05, on the reasoning that "ExaBGP
+// processes cannot run as Ze plugins because the protocols are incompatible".
+// The bridge is what makes them compatible and it postdates that comment, so
+// the config was losing the half of itself that produces routes: the script was
+// collected into result.Processes, printed to stderr as `process:NAME:CMD`, and
+// read by nothing.
+//
+// The bridge root holds ONE script, so a config declaring several processes
+// binds the first and WARNS about the rest. Dropping the others in silence is
+// the failure this function is being repaired for.
+func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]string {
+	processMap := make(map[string]string)
+	var tb textbuf.Buffer
+	for _, entry := range tree.GetListOrdered("process") {
+		runCmd, ok := entry.Value.Get("run")
+		if !ok {
+			continue
+		}
+		runCmd = strings.Trim(runCmd, `"'`)
+		result.Processes = append(result.Processes, ExternalProcess{
+			Name:   entry.Key,
+			RunCmd: runCmd,
+		})
+		if len(processMap) != 0 {
+			result.Warnings = append(result.Warnings, tb.Reset().
+				Str("process ").Str(entry.Key).
+				Str(" is not migrated: the exabgp bridge runs one script and ").
+				Str(processMap[bridgeBoundProcess(processMap)]).
+				Str(" already has it. Run the second script from the first, or start it beside ze").
+				String())
+			continue
+		}
+		injectBridgePlugin(result.Tree, runCmd)
+		processMap[entry.Key] = bridgePluginName
+	}
+	return processMap
+}
+
+// bridgeBoundProcess answers the one ExaBGP process name the bridge took. The
+// map holds at most one entry by construction, so the loop reads it without
+// deciding anything.
+func bridgeBoundProcess(processMap map[string]string) string {
+	for name := range processMap {
+		return name
+	}
+	return ""
+}
+
+// injectBridgePlugin declares the bridge and the script it runs:
+//
+//	exabgp { bridge { run "<command>" } }
+//	plugin { internal exabgp-bridge { use exabgp-bridge } }
+//
+// The family leaf is left out on purpose. It refines the ADD-PATH capability
+// encoding the bridge negotiates for the script, and the neighbor already
+// declares the families this config asks for.
+//
+// dst is the RESULT tree. Writing to the source tree loses the block: the
+// source is read and discarded, and only result.Tree reaches the serializer.
+func injectBridgePlugin(dst *config.Tree, runCmd string) {
+	bridge := config.NewTree()
+	bridge.Set("run", runCmd)
+	exabgp := config.NewTree()
+	exabgp.SetContainer("bridge", bridge)
+	dst.SetContainer("exabgp", exabgp)
+
+	plugin := config.NewTree()
+	plugin.Set("use", bridgePluginName)
+	dst.AddListEntry("plugin", bridgePluginName, plugin)
 }
 
 // migrateNeighbors converts ExaBGP neighbors to ZeBGP peers inside groups.
@@ -922,10 +985,20 @@ func extractProcessNames(tree *config.Tree) []string {
 	return nil
 }
 
-// addProcessBinding attaches one process with default send flags.
+// addProcessBinding attaches one process.
+//
+// The bridge gets every event and every send type. An ExaBGP script with
+// `encoder json` is written against the full event stream, so a narrower
+// receive list would drop the messages it reports on, and it announces and
+// withdraws, so a narrower send list would refuse the routes it originates.
 func addProcessBinding(dst *config.Tree, name string) {
 	proc := config.NewTree()
-	proc.Set("send", "[ update ]")
+	if name == bridgePluginName {
+		proc.Set("receive", "[ * ]")
+		proc.Set("send", "[ * ]")
+	} else {
+		proc.Set("send", "[ update ]")
+	}
 	attachedProcesses(dst).AddListEntry("process", name, proc)
 }
 
