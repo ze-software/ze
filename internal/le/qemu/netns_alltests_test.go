@@ -2,6 +2,7 @@ package qemu
 
 import (
 	"errors"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -214,4 +215,26 @@ func valueOf(environ []string, key string) string {
 		}
 	}
 	return ""
+}
+
+// The dropped user has to exec through the shim directory. A root-only one
+// answers ze's plugin relay with "Permission denied", the plugin never starts,
+// and the test times out naming neither the directory nor the user.
+func TestTheShimDirectoryIsTraversableByTheDroppedUser(t *testing.T) {
+	run := vmFixture(t)
+	if err := os.MkdirAll(run.BinDir, 0o700); err != nil {
+		t.Fatalf("pre-create the shim directory: %v", err)
+	}
+	if err := run.shim(); err != nil {
+		t.Fatalf("shim: %v", err)
+	}
+
+	info, err := os.Stat(run.BinDir)
+	if err != nil {
+		t.Fatalf("stat the shim directory: %v", err)
+	}
+	if info.Mode().Perm()&0o005 != 0o005 {
+		t.Errorf("the shim directory is %v, want it readable and traversable by every user:"+
+			" a suite in a per-test namespace execs ze-test through it as uid %s", info.Mode().Perm(), netnsUID)
+	}
 }

@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/qemu-integration.md -- what the VM proves
-// Overview: alltests.go -- the run whose suite children this reads
+// Related: alltests.go -- the run whose suite children this reads
 // Related: alltests_report.go -- where the count is carried
 //
 // alltests_tally.go reads the number of tests a functional suite EXECUTED out

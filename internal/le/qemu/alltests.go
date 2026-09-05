@@ -689,8 +689,22 @@ func (a *allTestsRun) workspacePath(path string) string {
 //
 // Some UI tests exec `ze-stripped` through PATH, and the host cross-compiles to
 // arch-suffixed names so that bin/ze stays the host-native binary.
+//
+// The directory is TRAVERSABLE BY EVERY USER, not only by root. A suite in the
+// per-test network namespace runs ze as an ordinary user, ze relays a plugin
+// through `ze-test` on this PATH, and a 0750 root-owned directory answers that
+// exec with `/bin/sh: ze-test: Permission denied`. The plugin then never
+// starts and the test times out on a symptom that names neither the directory
+// nor the user: measured on 2026-09-05, 18 test/ospf tests timed out that way.
+// The links point into the read-only checkout, so a wider directory exposes
+// nothing the guest does not already share.
 func (a *allTestsRun) shim() error {
-	if err := os.MkdirAll(a.BinDir, 0o750); err != nil {
+	if err := os.MkdirAll(a.BinDir, 0o755); err != nil { //nolint:gosec // see the comment above: the dropped user must exec through it
+		return err
+	}
+	// MkdirAll leaves an EXISTING directory's mode alone, and a previous run in
+	// the same guest made this one 0750.
+	if err := os.Chmod(a.BinDir, 0o755); err != nil { //nolint:gosec // same reason
 		return err
 	}
 	for name, target := range map[string]string{
