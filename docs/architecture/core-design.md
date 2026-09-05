@@ -1346,6 +1346,15 @@ first configure. An unset seam reports that it did not answer rather than
 returning 0, because 0 is the BEST distance and the one `connected` holds, so a
 zero stamped by accident would beat every other protocol.
 
+A bootstrap constant and the YANG default it stands in for must hold the same
+number, and `TestBootstrapDistancesMatchTheDeclaration`
+(`internal/component/sysrib`) holds them equal. The two agree today, so nothing
+observable changes when they come apart: the seam publishes the schema defaults
+at process start and the constants are never read. The check derives its
+population from the packages that call the seam rather than from a list of
+producers, so a protocol added to `rib { distance { } }` and a producer added
+beside it are both covered with no edit to the check.
+
 After distance selection, the system RIB performs two additional phases:
 
 1. **Recursive NH resolution** (`nhresolver.go`): resolves next-hops that are not
