@@ -25,7 +25,7 @@ RFC 1661 Section 4.6 states four MUST-level obligations on the LCP restart
 machinery, and Section 4.4 states a fifth on the Zero-Restart-Count action. Ze
 implements none of the five. They are enrolled and declared as gaps
 (`RFC1661-4.6-1` through `RFC1661-4.6-4` and `RFC1661-4.4-2` in
-`rfc/short/rfc1661.md`), and no spec owns them: `plan/spec-finish-l2tp.md` names
+`rfc/short/rfc1661.md`), and no spec owns them: `plan/pre-release/spec-finish-l2tp.md` names
 "LCP restart-counter (L163)" in one bullet of a consolidation skeleton that names
 no requirement id and may be dropped. This spec is that home.
 
@@ -184,7 +184,7 @@ a no-op: nothing in this spec reaches the Starting state.
 |----------|--------|
 | What breaks if this is wrong? | Every L2TP and PPPoE subscriber session. A counter that expires early tears down healthy sessions; one that never expires leaves half-negotiated sessions open. A `tld` notification sent on the wrong edge tears down IP state under a live subscriber. |
 | How is it reverted? | Single commit revert. The config leaves are additive and absent leaves resolve to the RFC defaults, so no config migration is owed. |
-| Who else touches this path? | `internal/component/l2tp/**` outside `ppp/` was edited on 2026-09-05 for RFC 2661 mandatory-AVP handling (commit `e396d7424`); read `config.go` and `reactor_kernel.go` fresh. `plan/spec-finish-l2tp.md` names the same restart-counter work in one bullet and must be edited to point here. `plan/spec-l2tp-ipv6-subscriber.md` shares the NCP path `tld` now notifies. |
+| Who else touches this path? | `internal/component/l2tp/**` outside `ppp/` was edited on 2026-09-05 for RFC 2661 mandatory-AVP handling (commit `e396d7424`); read `config.go` and `reactor_kernel.go` fresh. `plan/pre-release/spec-finish-l2tp.md` names the same restart-counter work in one bullet and must be edited to point here. `plan/spec-l2tp-ipv6-subscriber.md` shares the NCP path `tld` now notifies. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -308,7 +308,7 @@ adds a NAMED scenario and does not extend the numbered set.
 - `docs/guide/pppoe.md` - the same container on the PPPoE page
 - `docs/research/l2tpv2-ze-integration.md` - declared by `start_session.go`; the transport-to-PPP boundary gains four fields
 - `docs/architecture/l2tp/bng-5-pppoe.md` - declared by `pppoe/server.go`; the PPPoE session's LCP timing becomes operator-configurable
-- `plan/spec-finish-l2tp.md` - point its "LCP restart-counter (L163)" bullet at this spec
+- `plan/pre-release/spec-finish-l2tp.md` - point its "LCP restart-counter (L163)" bullet at this spec
 
 ## Files to Create
 - `internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang` - the module declaring the `lcp` grouping, its four leaves, and the RFC's SHOULD values as `default`
