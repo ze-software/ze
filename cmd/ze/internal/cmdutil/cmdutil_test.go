@@ -211,6 +211,34 @@ func TestTrailingValueCommandsResolveFromArgv(t *testing.T) {
 	})
 }
 
+// TestInlineSelectorAndATailBothResolve pins the one argv shape that carries
+// both: a destination typed inline, and a message typed after the form word.
+//
+// `send bgp <selector> raw <encoding> <data>` is that shape. The walk used to
+// lift the selector and stop, which left `hex` and the data in the path, so the
+// client answered `unknown command` for a line the daemon accepts. Reaching the
+// daemon at all is what this asserts, so it drives ResolveCommand rather than a
+// helper: the client refuses before any dispatch, and no daemon-side test can
+// see that refusal.
+//
+// VALIDATES: the path ends at the declared command, the tail stays a set of
+// values, and the selector keeps the interior slot it was typed in.
+// PREVENTS: an operator being unable to inject raw octets from argv, which is
+// the whole reason the raw form exists.
+func TestInlineSelectorAndATailBothResolve(t *testing.T) {
+	argv := []string{"send", "bgp", "192.0.2.1", "raw", "hex", "DEADBEEF"}
+
+	res, ok := ResolveCommand(argv, "send")
+	if !ok || !res.Valid || !res.Declared {
+		t.Fatalf("`ze %s` does not resolve (ok=%v valid=%v declared=%v)", strings.Join(argv, " "), ok, res.Valid, res.Declared)
+	}
+
+	const want = "send bgp 192.0.2.1 raw hex DEADBEEF"
+	if got := res.dispatchString(); got != want {
+		t.Errorf("dispatch = %q, want %q: a selector with a tail behind it keeps the slot it was typed in, because the daemon adopts a trailing one only when it is the lone spare token", got, want)
+	}
+}
+
 // valueCommandFloor is the smallest sample this test accepts.
 //
 // The model held 95 such commands and 104 verb forms over them when this floor

@@ -298,7 +298,7 @@ func printDispatchKeys(rw *helpfmt.RenderWriter) {
 func printUpdateSyntax(rw *helpfmt.RenderWriter) {
 	rw.Line("## Update Text Syntax")
 	rw.Line("")
-	rw.Line("  peer <selector> update text [attributes] nlri <family> <action> <prefix>...")
+	rw.Line("  send bgp <selector> update text [attributes] nlri <family> <action> <prefix>...")
 	rw.Line("")
 	rw.Line("  Selectors:  * (all), <ip-address>, <peer-name>")
 	rw.Line("  Actions:    add <prefix>, del <prefix>, eor")
@@ -319,7 +319,7 @@ func printUpdateSyntax(rw *helpfmt.RenderWriter) {
 	rw.Line("    label <N>                         (MPLS label for labeled/VPN)")
 	rw.Line("")
 	rw.Line("  Example:")
-	rw.Line("    peer * update text origin igp next-hop 1.1.1.1 local-preference 100 nlri ipv4/unicast add 10.0.0.0/24")
+	rw.Line("    send bgp * update text origin igp next-hop 1.1.1.1 local-preference 100 nlri ipv4/unicast add 10.0.0.0/24")
 	rw.Line("")
 }
 
@@ -561,7 +561,7 @@ func printRecipes(rw *helpfmt.RenderWriter) {
 	rw.Line("    ze config validate example.conf && ze --mcp 9718 example.conf")
 	rw.Line("")
 	rw.Line("  Announce a route (CLI):")
-	rw.Line("    ze cli -c \"peer * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24\"")
+	rw.Line("    ze cli -c \"send bgp * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24\"")
 	rw.Line("")
 	rw.Line("  Announce a route (MCP; POST to /mcp with the headers from the MCP Tools section):")
 	rw.Line("    {\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"ze_announce\",")

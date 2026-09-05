@@ -74,6 +74,9 @@ type Resolution struct {
 	// Values are the positional values lifted out of Path, in the order they
 	// were typed. Empty when the argv named a command and nothing else.
 	Values []string
+	// InlineAt is the index in Relative that an inline selector was typed
+	// BEFORE, or -1 when no selector was lifted. Values[0] is that selector.
+	InlineAt int
 	// Format is the trailing yaml/json/table keyword, empty when none was typed.
 	Format string
 	// Valid reports that Relative names a node in Tree.
@@ -137,11 +140,11 @@ func ResolveCommand(args []string, cmdName string) (Resolution, bool) {
 		return Resolution{}, false
 	}
 
-	res := Resolution{Tree: cli.BuildVerbCommandTree(cmdName)}
+	res := Resolution{Tree: cli.BuildVerbCommandTree(cmdName), InlineAt: -1}
 
 	// Separate the command words from the positional values typed after or
 	// inside them, for example `show bgp peer edge1 detail`.
-	localRel, localValues := extractLocalValues(verbWords, res.Tree)
+	localRel, localValues, _ := extractLocalValues(verbWords, res.Tree)
 	res.Local, _ = cli.AbsoluteVerbPath(cmdName, localRel)
 	res.LocalValues = localValues
 
@@ -152,14 +155,14 @@ func ResolveCommand(args []string, cmdName string) (Resolution, bool) {
 	if len(verbWords) == 0 {
 		return res, false // every word was the format keyword
 	}
-	res.Relative, res.Values = ExtractValues(verbWords, res.Tree, cmdName)
+	res.Relative, res.Values, res.InlineAt = ExtractValues(verbWords, res.Tree, cmdName)
 	res.Path, res.Declared = cli.AbsoluteVerbPath(cmdName, res.Relative)
 	res.Valid = IsValidCommand(res.Relative, res.Tree)
 	return res, true
 }
 
 // dispatchString is the command line the daemon is asked to run: the absolute
-// path with the positional values put back after it.
+// path with the positional values put back where the daemon binds them.
 //
 // RunCommand is the production caller. It is a method rather than four lines
 // inside RunCommand because RunCommand ends in an SSH dispatch, so a test that
@@ -172,6 +175,28 @@ func ResolveCommand(args []string, cmdName string) (Resolution, bool) {
 // action word, which is the form the daemon is keyed on.
 func (r Resolution) dispatchString() string {
 	var tb textbuf.Buffer
+
+	// An inline selector followed by a TAIL keeps the slot it was typed in.
+	// The daemon adopts a trailing selector only when it is the lone spare
+	// token (validateCommandArgs, internal/component/plugin/server/command.go),
+	// so moving this one behind the tail would leave the command with no
+	// destination and the dispatcher would refuse it. Typed where it was, it
+	// fills the interior slot matchCommandTokens binds.
+	if r.InlineAt >= 0 && len(r.Values) > 1 {
+		// Path carries the verb in front of Relative, so the selector sits one
+		// word further along than the index the walk recorded.
+		split := r.InlineAt + 1
+		tb.Join(r.Path[:split], " ")
+		tb.Byte(' ').Str(r.Values[0])
+		for _, word := range r.Path[split:] {
+			tb.Byte(' ').Str(word)
+		}
+		for _, value := range r.Values[1:] {
+			tb.Byte(' ').Str(value)
+		}
+		return tb.String()
+	}
+
 	tb.Join(r.Path, " ")
 	for _, value := range r.Values {
 		tb.Byte(' ').Str(value)
@@ -370,7 +395,7 @@ func commandList(tree *cli.Command) []CommandEntry {
 // the same way, so this is the two resolvers agreeing rather than a client-side
 // loss, and the alternative -- refusing a value because it could have been a
 // typo -- is the defect above.
-func ExtractValues(words []string, tree *cli.Command, verb string) (treeWords, values []string) {
+func ExtractValues(words []string, tree *cli.Command, verb string) (treeWords, values []string, inlineAt int) {
 	return extractValues(words, tree, func(prefix []string) bool {
 		return endsDeclaredCommand(verb, prefix)
 	})
@@ -392,25 +417,27 @@ func ExtractValues(words []string, tree *cli.Command, verb string) (treeWords, v
 // The INLINE shape still applies here, because it REORDERS rather than trims: a
 // handler registered at `show bgp peer detail` is not reachable from the words
 // `show bgp peer edge1 detail` in the order they were typed.
-func extractLocalValues(words []string, tree *cli.Command) (treeWords, values []string) {
+func extractLocalValues(words []string, tree *cli.Command) (treeWords, values []string, inlineAt int) {
 	return extractValues(words, tree, nil)
 }
 
 // extractValues is the shared walk. endsCommand is the TRAILING boundary and is
 // nil for a caller that has its own.
 //
-// IT EXTRACTS AT MOST ONE GROUP AND RETURNS. The inline branch returns the
-// moment it lifts a selector instead of resuming the walk on the words after
-// it, so an inline selector followed by a further value would leave that value
-// in Relative and the client would answer `unknown command` for a line
-// matchCommandTokens accepts. No argv reaches that today: an inline target must
-// declare a mandatory leaf (hasImplicitSelectorArg), and every node in the tree
-// that does is childless, so nothing can follow it but the value the trailing
-// branch already takes whole. This is the walk's shape, not a live defect;
-// giving a mandatory-leaf node children is what would make it one.
-func extractValues(words []string, tree *cli.Command, endsCommand func(prefix []string) bool) (treeWords, values []string) {
+// The inline branch lifts the selector and WALKS ON over the words behind it,
+// because one command takes both shapes: `send bgp <selector> raw <encoding>
+// <data>` names its destination inline and its message after the form word.
+// Stopping at the selector would leave the tail in the path, and the client
+// would answer `unknown command` for a line matchCommandTokens accepts.
+//
+// The walk on is a recursive call over a shorter argv, and one word leaves on
+// each call, so the depth is at most len(words). Each lifted value keeps the
+// position it was typed in relative to the others, which is the order the
+// daemon binds them in (validateCommandArgs reads the definitions in the order
+// inheritArgDefs left them, the anchored selector first).
+func extractValues(words []string, tree *cli.Command, endsCommand func(prefix []string) bool) (treeWords, values []string, inlineAt int) {
 	if len(words) < 2 {
-		return words, nil
+		return words, nil, -1
 	}
 
 	current := tree
@@ -420,19 +447,20 @@ func extractValues(words []string, tree *cli.Command, endsCommand func(prefix []
 			continue
 		}
 		if shouldExtractSelector(current, words, i) {
-			treeWords = make([]string, 0, len(words)-1)
-			treeWords = append(treeWords, words[:i]...)
-			treeWords = append(treeWords, words[i+1:]...)
-			return treeWords, words[i : i+1 : i+1]
+			rest := make([]string, 0, len(words)-1)
+			rest = append(rest, words[:i]...)
+			rest = append(rest, words[i+1:]...)
+			tailWords, tailValues, _ := extractValues(rest, tree, endsCommand)
+			return tailWords, append(words[i:i+1:i+1], tailValues...), i
 		}
 		// i == 0 would leave no words naming a command at all, and RunCommand
 		// reads Relative[0] to build its suggestion.
 		if i > 0 && endsCommand != nil && endsCommand(words[:i]) {
-			return words[:i:i], words[i:]
+			return words[:i:i], words[i:], -1
 		}
-		return words, nil
+		return words, nil, -1
 	}
-	return words, nil
+	return words, nil, -1
 }
 
 // endsDeclaredCommand reports whether rel, verb-relative, names a command some
