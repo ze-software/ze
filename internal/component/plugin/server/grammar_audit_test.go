@@ -85,10 +85,13 @@ func TestRuntimeBuiltinSurfaceGrammar(t *testing.T) {
 	if checked < 100 {
 		t.Fatalf("audited too few builtin command paths (%d); builtin registration or YANG map is broken", checked)
 	}
-	// The exemption branch must be exercised on real data: the fixed bridge surface
-	// (announce/withdraw/peer-raw/peer-update/help) is intentionally not verb-first
-	// and must be skipped, never flagged. At least announce+withdraw are always present.
-	assert.GreaterOrEqual(t, exempt["bridge"], 2,
+	// The exemption branch must be exercised on real data. The bridge surface is
+	// ONE member since 2026-09-05: `ze-bgp:help`, the bridge's own word, spelled
+	// the same on both sides of the line protocol. The eight BGP methods that
+	// used to sit beside it answer at `send bgp <selector> <form>` and are
+	// checked rather than exempt, so a floor of 2 here would demand an exemption
+	// nothing is owed.
+	assert.GreaterOrEqual(t, exempt["bridge"], 1,
 		"bridge-exempt builtins not found; exemption path not exercised")
 
 	t.Logf("audited %d builtin command paths; exempt: %v", checked, exempt)

@@ -269,24 +269,25 @@ func CheckRootNamespace(roots []string, namespaces map[string]bool) []Finding {
 	return out
 }
 
-// bridgeSurface is the text-bridge compatibility surface: announce/withdraw/peer/help
-// commands that deliberately mirror a legacy line protocol and are the one operator
-// surface intentionally not verb-first (E1). A documented set, not an ad-hoc
-// allowlist -- each is a line-protocol verb whose grammar is fixed by that protocol.
-// `withdraw` names three of them because the one command that parsed four tail
-// grammars behind a keyword switch became three commands, one per form
-// (plan/spec-generated-command-usage.md, class (e)). The line protocol they
-// mirror is unchanged, so the exemption follows the split rather than the name.
+// bridgeSurface is the text-bridge compatibility surface (E1): a command an
+// ExaBGP script reaches by writing the same word on both sides, so its spelling
+// is fixed by that line protocol rather than by ze's grammar.
+//
+// ONE command carries that reason. `help` is the bridge's own word, it is spelled
+// `help` in ExaBGP and in ze, and it is the single line the bridge still passes
+// through to the dispatcher unchanged (internal/exabgp/bridge/bridge_command.go,
+// TranslateLine).
+//
+// Eight BGP methods left this map on 2026-09-05 and are CHECKED now. Six were
+// ze's own announce and withdraw spellings, which no ExaBGP script reached
+// because ExaBGP spells them `route` or a family; the translator writes them now,
+// so a script reaches them by writing ExaBGP. `ze-bgp:peer-update` was already
+// translator output, and `ze-bgp:peer-raw` was never reachable from the line
+// protocol at all. All nine answer at `send bgp <selector> <form>`, under a verb
+// command.Verbs holds, so they need no exemption to pass
+// (plan/immediate/spec-fixit-send-names-its-destination.md, AC-13).
 var bridgeSurface = map[string]bool{
-	"ze-bgp:announce-unicast":   true,
-	"ze-bgp:announce-blackhole": true,
-	"ze-bgp:announce-flowspec":  true,
-	"ze-bgp:withdraw-tag":       true,
-	"ze-bgp:withdraw-id":        true,
-	"ze-bgp:withdraw-all":       true,
-	"ze-bgp:peer-raw":           true,
-	"ze-bgp:peer-update":        true,
-	"ze-bgp:help":               true,
+	"ze-bgp:help": true,
 }
 
 // ExemptCategory reports whether a command (identified by its handler wire method)
@@ -294,7 +295,7 @@ var bridgeSurface = map[string]bool{
 // and which category. Exemptions are keyed on the structural identity of the handler
 // namespace, never on a per-command string allowlist (AC-7):
 //
-//	E1 bridge        : the text-bridge compatibility verbs (announce/withdraw/peer/help)
+//	E1 bridge        : the one text-bridge word spelled the same on both sides (help)
 //	E2 wire-protocol : plugin/system process-boundary directives (ze-plugin:, ze-system:, ze-bgp:plugin-)
 //	E3 editor        : editor mode switches (ze-editor:)
 func ExemptCategory(wireMethod string) (string, bool) {

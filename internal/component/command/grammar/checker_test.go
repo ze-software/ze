@@ -267,17 +267,11 @@ func TestRootNamespaceGrammar(t *testing.T) { // R9 across surfaces, root namesp
 
 func TestExemptCategory(t *testing.T) {
 	cases := map[string]string{
-		"ze-bgp:announce-unicast":   "bridge",
-		"ze-bgp:announce-blackhole": "bridge",
-		"ze-bgp:announce-flowspec":  "bridge",
-		"ze-bgp:withdraw-tag":       "bridge",
-		"ze-bgp:withdraw-id":        "bridge",
-		"ze-bgp:withdraw-all":       "bridge",
-		"ze-bgp:peer-raw":           "bridge",
-		"ze-plugin:command-list":    "wire-protocol",
-		"ze-system:command-list":    "wire-protocol",
-		"ze-bgp:plugin-encoding":    "wire-protocol",
-		"ze-editor:mode-command":    "editor",
+		"ze-bgp:help":            "bridge",
+		"ze-plugin:command-list": "wire-protocol",
+		"ze-system:command-list": "wire-protocol",
+		"ze-bgp:plugin-encoding": "wire-protocol",
+		"ze-editor:mode-command": "editor",
 	}
 	for wm, wantCat := range cases {
 		cat, ok := ExemptCategory(wm)
@@ -289,16 +283,25 @@ func TestExemptCategory(t *testing.T) {
 	if _, ok := ExemptCategory("ze-show:interface"); ok {
 		t.Errorf("ze-show:interface should not be exempt")
 	}
-	// The exemption follows the SPLIT, not the name. `withdraw` became three
-	// commands, so the retired single wire method must not carry an exemption
-	// no command claims (ai/rules/no-layering.md).
-	if _, ok := ExemptCategory("ze-bgp:withdraw"); ok {
-		t.Error("ze-bgp:withdraw is retired and must carry no exemption")
+	// The nine BGP send methods left E1 on 2026-09-05 and are CHECKED now. Each
+	// answers at `send bgp <selector> <form>`, under a verb command.Verbs holds,
+	// so each passes the verb-first rule on its own and an exemption would be an
+	// allowlist entry with no reason left (ai/rules/no-layering.md).
+	for _, retired := range []string{
+		"ze-bgp:announce-unicast", "ze-bgp:announce-blackhole", "ze-bgp:announce-flowspec",
+		"ze-bgp:withdraw-tag", "ze-bgp:withdraw-id", "ze-bgp:withdraw-all",
+		"ze-bgp:peer-raw", "ze-bgp:peer-update", "ze-bgp:cache-forward",
+	} {
+		if _, ok := ExemptCategory(retired); ok {
+			t.Errorf("%s answers under send bgp and must carry no exemption", retired)
+		}
 	}
-	// announce took the same split for the same reason, so it owes the same
-	// retirement: three forms, three wire methods, and no exemption left
-	// behind on the name that used to carry the keyword switch.
-	if _, ok := ExemptCategory("ze-bgp:announce"); ok {
-		t.Error("ze-bgp:announce is retired and must carry no exemption")
+	// The exemption also follows the SPLIT, not the name. `withdraw` and
+	// `announce` each became three commands, so neither retired single wire
+	// method may carry an exemption no command claims.
+	for _, retired := range []string{"ze-bgp:withdraw", "ze-bgp:announce"} {
+		if _, ok := ExemptCategory(retired); ok {
+			t.Errorf("%s is retired and must carry no exemption", retired)
+		}
 	}
 }

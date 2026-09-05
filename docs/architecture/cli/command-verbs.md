@@ -84,7 +84,7 @@ registration check derive their verb set from it.
 | `create` | Action | Something that did not exist exists after the command, today a live kernel resource | The kernel | Yes | 5 |
 | `update` | Action | Data held for something that exists is rewritten | The config draft, or a cached set | Yes | 13 |
 | `debug` | Action | Live protocol state is perturbed on purpose | The wire | No | 4 |
-| `send` | Action | Bytes the operator supplies leave the router for a destination the operator names | The wire, and the peer that reads it | No | 0 while the move runs: `send bgp raw` answers, but the inventory reports each wire method at its SHORTEST path, and that is still `peer raw` |
+| `send` | Action | Bytes the operator supplies leave the router for a destination the operator names | The wire, and the peer that reads it | No | 9 |
 | `cache` | Action | Declared, and no command uses it at root | - | - | 0 |
 | `commit` | Action | Declared, and no command uses it at root | - | - | 0 |
 
@@ -92,17 +92,23 @@ The three read rows state the rule. The tree breaks it in 18 places, and "Where
 a read verb changes the system" lists every one.
 
 The counts come from `./le command list`, which reads the live handlers and
-schemas and reports 363 commands on this checkout. Run it rather than trusting
+schemas and reports 364 commands on this checkout. Run it rather than trusting
 this column.
 <!-- source: internal/le/command/list/commandlist.go -- Collect, Answer -->
 
-Five roots outside the thirteen carry commands, and each is exempt for a stated
+Three roots outside the thirteen carry commands, and each is exempt for a stated
 reason:
 
-- `peer` and `announce` mirror the ExaBGP text line protocol,
 - `plugin` and `system` are process-boundary directives rather than operator
   commands,
-- `help` is the bridge's own word.
+- `help` is the bridge's own word, spelled the same in ExaBGP and in ze, and it
+  is the one line the bridge still passes through unchanged.
+
+`peer` and `announce` were on that list until 2026-09-05, as the roots mirroring
+the ExaBGP text line protocol. Both are gone: their nine wire methods answer at
+`send bgp <selector> <form>` and the bridge TRANSLATES the ExaBGP spellings into
+them, so no script reaches a ze spelling and none of the nine needs an exemption.
+E1 has one member.
 
 `grammar.ExemptCategory` keys the exemption on the handler wire method, never on
 a command name.
