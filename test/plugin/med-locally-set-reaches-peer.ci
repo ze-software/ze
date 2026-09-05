@@ -18,7 +18,7 @@
 # LOCAL_PREF off it, so asking for one would pin the sibling's behavior rather than this one's.
 
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=peer * update text origin igp med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32
+cmd=api:conn=1:seq=1:text=send bgp * update text origin igp med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32
 #   ORIGIN:    40010100            IGP
 #   AS_PATH:   40020602010000FDE8  AS_SEQUENCE[65000], the local AS prepended (Section 5.1.2)
 #   NEXT_HOP:  40030465016501      101.1.101.1
