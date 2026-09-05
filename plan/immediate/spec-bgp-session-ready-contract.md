@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | - |
 | Phase | 4/4 |
-| Updated | 2026-09-02 |
+| Updated | 2026-09-05 |
 
 ## Post-Compaction Recovery
 
@@ -483,7 +483,7 @@ almost every config that arms the wait.
 | `bgp-route-refresh` | no | A capability decoder with no send path (A-4), and no config binds it with a route-push grant any more. |
 
 ## Known Limitations
-- **`test/plugin/api-raw.ci` is RED in 2 of 5 post-change runs and this change exposed it.** The `raw-test` fixture waits for establishment, then dispatches `peer peer1 raw hex ...`, and the dispatch answers `not connected`. The peer's two expectations are ze's own KEEPALIVE and the End-of-RIB, and an injected KEEPALIVE is byte-identical to ze's own, so the peer completes and closes before the injection lands. The 2.5s stall used to hold the session open past that race. Two defects sit under it: the assertion cannot tell the injected frame from ze's own, and the fixture races the peer's completion. Not repaired here: it would be the FOURTH test-scaffolding repair in one session, which `ai/rules/pre-release.md` stops.
+- **`test/plugin/api-raw.ci` was RED in 2 of 5 post-change runs, this change exposed it, and another session repaired it the same day.** The `raw-test` fixture waited for establishment, then dispatched `peer peer1 raw hex ...`, and the dispatch answered `not connected`: the injected frame was a KEEPALIVE, byte-identical to the one ze sends at establishment, so the peer completed its list on ze's own traffic and closed before the injection landed. The 2.5s stall used to hold the session open past that race. Both defects under it are FIXED in `88ce9b4ea` (2026-09-02), read at closure on 2026-09-05: the file now expects a ROUTE-REFRESH, which ze builds only where a command asks for one and this scenario asks for none, and the fixture waits for the session to leave Established. The functional suite was NOT re-run at closure (owner directive: the box is shared), so this records the repair rather than a fresh green.
 - Only in-repo configs were scanned. Operator configs in the wild may bind other plugins with a route-push grant; a third-party plugin that pushes into the initial update and does not declare is not waited for, which is Option A's accepted cost (R-1).
 - **The peer-up barrier still has the namespace defect this spec fixed for the session-ready declaration.** `countPeerUpBarrier` (`internal/component/bgp/server/events.go`) asks `registry.RequiresPeerUpBarrier(proc.Name())`, `bgp-rs` is the only plugin that declares `PeerUpBarrier`, and the scenarios attach it as `rs`, so the count is zero and that barrier never arms on those peers. Both producers were read on 2026-09-02. Not fixed here: it is a second barrier with its own before/after measurement, and the row is in `plan/journal/gate-excludes-part-of-its-population.md`.
 - The suite's residual failures differ from run to run in a checkout several sessions are editing at once. Five `./le functional plugin` runs on 2026-09-02 answered 638, 640, 640, 642 and 639 of 650, and their failing sets share only five ids out of eleven. That is the class `plan/journal/parallel-copies-collide-on-a-deterministic-port.md` records for `test/plugin` under a high `-p`, which names `bgp-rs-fastpath-ebgp-shared` and `rfc7606-54-*` among its members. `api sync timed out` appears ZERO times in all five runs, so the barrier this work arms never runs to its bound, and the most a peer's marker can now be delayed is that bound. Only `session-ready-contract` is read as this work's signal.
@@ -550,7 +550,7 @@ Second pass, for the namespace resolution:
 ### Deviations from Plan
 - Q3 and Q5 were already answered by the tree and needed no decision. The barrier holds NAMES and dedups by process (`391fcee8d1`), so a duplicate report cannot fill another slot; the 500ms floor no longer exists.
 - Q4 has no case left to decide (A-4).
-- NOT DONE: `test/plugin/api-raw.ci` fails in 2 of 5 post-change runs. See Known Limitations.
+- `test/plugin/api-raw.ci` failed in 2 of 5 post-change runs and was repaired by another session in `88ce9b4ea` the same day. See Known Limitations.
 
 ## Implementation Audit
 
@@ -565,9 +565,9 @@ Second pass, for the namespace resolution:
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Done, before this spec | `Peer.waitForAPISync` Warn with `silent=` (`391fcee8d1`) | Names the silent processes rather than a shortfall count, which is more than AC-1 asked |
+| AC-1 | Done, before this spec, and tested | `TestAPISyncTimeoutNamesTheProcessThatNeverReported` (`reactor/peer_initial_sync_test.go`) over `Peer.waitForAPISync` (`391fcee8d1`) | Names the silent processes rather than a shortfall count, which is more than AC-1 asked. The test asserts `silent=mute` is logged and that the process which reported is not named |
 | AC-2 | Done | `TestInitialUpdateReporters` case "one qualifying binding beside one that does not" | A two-binding peer waits for the declarer only, and the behavior is pinned rather than incidental |
-| AC-3 | Done, by construction | `Peer.SignalAPIReady`: `apiSyncSignalled` is a SET keyed by process | A second report from one process is not credited twice (`391fcee8d1`) |
+| AC-3 | Done, and tested | `TestInitialSyncBarrierCreditsOnlyTheProcessesItNames` (`reactor/peer_initial_sync_test.go`) over `Peer.SignalAPIReady`, where `apiSyncSignalled` is a SET keyed by process | The test reports twice from one named process and asserts the barrier stays shut while the second named process still owes routes (`391fcee8d1`) |
 | AC-4 | Done | `test/plugin/session-ready-contract.ci`: `API sync complete` then `sent EOR`, 767 ms for the whole file | The barrier releases on the report, not on the timeout |
 | AC-5 | Done | `TestInitialUpdateReporters` cases "declaring plugin with no peer-state grant" and "non-declaring plugin" | A plugin that will not send at establishment is not waited for |
 | AC-6 | Done | `test/plugin/api-route-refresh.ci` passes in both suite runs of 2026-09-02, no sleep added | The file is unchanged by this work |
@@ -584,6 +584,8 @@ Second pass, for the namespace resolution:
 | `TestDeclaresSessionReadyResolvesTheProcessAlias` | Done (added 2026-09-02) | `internal/component/plugin/server/events_session_ready_test.go` | RED with the resolution removed: "the alias must be answered from the registration its use spelling names" |
 | `TestDeclaresSessionReadyReadsTheStageOneDeclaration` | Done (added 2026-09-02) | same file | Keeps the external route open beside the alias resolution |
 | `session-ready-contract` | Done (added 2026-09-02) | `test/plugin/session-ready-contract.ci` | The end-to-end file the plan named; its red is recorded in its own header |
+| `TestRRReportsSessionReadyOnEveryPathOutOfReplay`, `TestRRDoesNotReportForAStaleGeneration` | Done (added 2026-09-05, closure round 4) | `internal/component/bgp/plugins/rr/session_ready_test.go` | Both paths out of `replayForPeer` report, and a stale generation does not. RED observed with `defer rr.signalSessionReady` removed |
+| `TestPersistReportsSessionReadyOnBothCompletionPaths`, `TestPersistDoesNotReportForAStaleGeneration`, `TestPersistReportsSessionReadyFromThePeerUpEvent` | Done (added 2026-09-05, closure round 4) | `internal/component/bgp/plugins/persist/session_ready_test.go` | Both completion paths report, a stale generation does not, and the state-up event reaches the report. RED observed with both `ps.signalSessionReady` calls removed |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -614,7 +616,9 @@ Second pass, for the namespace resolution:
 | The declaration reaches a plugin the operator RENAMED, which is how nearly every scenario binds one | functional test, both directions | `test/plugin/session-ready-contract.ci` binds `bgp-rib` as `ribout`. Resolution removed and the daemon rebuilt: `plugin session ready from a process this peer's barrier does not name ... process=ribout barrier=[]`, then the marker, and the file fails on `stderr does not contain "API sync complete"`. Resolution restored: `waiting for API sync expected=1`, `API sync complete`, `sent EOR`, and the file passes in 767 ms. `TestDeclaresSessionReadyResolvesTheProcessAlias` was observed RED against the same removal. |
 | Every plugin whose code claims it declares does declare | source | `SignalsSessionReady: true` in six `register.go` files: `rib`, `rs`, `adj_rib_in`, `watchdog`, `persist`, `rr`. `grep -rn SignalsSessionReady internal/component/bgp/plugins/*/register.go` answers six, which is the number the commit message, the per-plugin table and three doc pages state. |
 
-**A test was NOT written for `bgp-persist` and `bgp-rr`'s new reports.** `./le functional reload` is 40/40 and carries `test/reload/persist-across-restart.ci`, and `plugin/rr-basic` passes, but neither asserts the report. Both plugins were previously counted and stalled, so the reports restore an ordering nothing pins.
+**`bgp-persist` and `bgp-rr`'s new reports gained their tests at closure (2026-09-05, round 4).** They had none when the code landed, which mattered because both plugins DECLARE, so every peer that attaches them with a route-push grant and a peer-state grant now holds its End-of-RIB for them: an unreported path is a 2s stall on that peer. `internal/component/bgp/plugins/rr/session_ready_test.go` and `internal/component/bgp/plugins/persist/session_ready_test.go` drive the report over each path out of `replayForPeer`, over the stale-generation refusal, and for persist over the state-up event itself. Discrimination walked on 2026-09-05: with `defer rr.signalSessionReady(peerAddr, gen)` and both `ps.signalSessionReady(peerAddr)` calls removed, the five positive cases go RED (`session_ready_test.go:122`, `:132` in rr; `:123`, `:133`, `:173` in persist) and GREEN with the producers restored.
+
+The persist test could not be written on the package's own `updateRouteHook` seam: `signalSessionReady` dispatches through `ps.plugin`, and `newTestPersistServer` leaves that nil, so the function returned at its first line and no existing test could see the report. The test builds a real `sdk.Plugin` over a `rpc.DirectBridge` instead, which adds no product code.
 
 ## Review Gate
 
@@ -641,11 +645,59 @@ Second pass, for the namespace resolution:
 | 3.3 | NOTE | `collectOrphanedDependencies` (`plugin/server/startup_autoload.go`) asks the same question under a process name and is a seventh reader. Reachability unverified | `plugin/server/startup_autoload.go` | Recorded. Same class as the journalled `countPeerUpBarrier` |
 | 3.4 | NOTE | `hasConfiguredPlugin` now also matches a binary basename, so `run /usr/local/bin/bgp-rib` suppresses an auto-load | `plugin/server/server.go` | Accepted. The bare spelling always did this; the change makes the path-qualified one consistent |
 
+### Run 4 -- closure review, independent of every implementation context, 2026-09-05
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 4.1 | ISSUE | `bgp-persist` and `bgp-rr` gained BOTH the declaration and the report in this work, and no test pinned the report on any path. A declaring plugin is NAMED in the barrier of every peer that grants it the route-push and peer-state rails, so an unreported path is a 2s stall on that peer, and the package's own `updateRouteHook` seam cannot see the report because `signalSessionReady` dispatches through `ps.plugin`, which `newTestPersistServer` leaves nil | `(*PersistServer).signalSessionReady` and `(*PersistServer).replayForPeer` (`persist/server.go`), `(*routeReflector).signalSessionReady` and `(*routeReflector).replayForPeer` (`rr/rr.go`) | Fixed. Two test files, five positive cases, each observed RED with the report removed from the producer and GREEN with it restored. Recorded under Goal Validation |
+| 4.2 | NOTE | The AC table under-claimed the tree: AC-1 read "Done, before this spec" and AC-3 "Done, by construction", while `TestAPISyncTimeoutNamesTheProcessThatNeverReported` and `TestInitialSyncBarrierCreditsOnlyTheProcessesItNames` each pin exactly what those ACs ask | this spec, Implementation Audit | Record corrected. No product change, and a record defect earns no further round |
+| 4.3 | NOTE | The Known Limitations entry for `test/plugin/api-raw.ci` and the matching `NOT DONE` deviation were stale: both defects it names were repaired by another session in `88ce9b4ea` on 2026-09-02, the same day this spec recorded them. The file now expects a ROUTE-REFRESH, which no other producer in this scenario emits | `test/plugin/api-raw.ci` | Record corrected in both places |
+| 4.4 | NOTE | `registry.SignalsSessionReady` reads `plugins[name]` BEFORE it asks the runtime seam, so a process an operator names after a DIFFERENT registered plugin (`plugin { internal bgp-gr { use bgp-rib } }`) is answered from `bgp-gr`'s registration and the seam that would resolve `use bgp-rib` is never reached. Nothing rejects that config: `InternalPluginNameValidator` (`config/validators.go`) validates the `use` VALUE, not the alias key | `registry.SignalsSessionReady` (`plugin/registry/registry.go`) | Recorded, not fixed. Inverting the precedence opens a symmetric hole in the same direction: `(*Server).declaresSessionReady` answers false for a name the process manager does not hold, so a seam-first lookup would drop a declaring plugin whenever the reactor asks before or without a running process. Closing both needs machinery the pathological config does not earn (`ai/rules/simplicity.md`). Same class as 3.4 |
+
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-session-ready-contract-644c18af-0c07-4cae-bd15-d866d73f0718.md` |
+| Rounds | 4 |
+| Verdict | CLEAN (0 BLOCKER, 0 ISSUE outstanding) |
+| Check | `./le spec session review check` -- `review_gate: OK (2 code files, clean, hashes match)` |
+| Reviewer | closure agent, independent of every implementation context |
+
+Run 4 found one ISSUE and two NOTEs. The ISSUE is fixed with its tests and its
+recorded RED. Both NOTEs are recorded above and neither is a product change, so
+run 4 is the last round (`ai/rules/planning.md`, "A finding in the record is not
+a finding in the product").
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Nothing in this spec's scope | Every AC has product code verified at its producing function and a test that goes red without it. The two items under Known Limitations are defects this work EXPOSED rather than scope it dropped, and neither is outstanding: `test/plugin/api-raw.ci` was repaired by another session in `88ce9b4ea`, and `countPeerUpBarrier`'s namespace defect carries its row in `plan/journal/gate-excludes-part-of-its-population.md` | none owed |
+
 ## Pre-Commit Verification
+
+**What was NOT run at closure, and why.** The owner directed on 2026-09-05 that
+this closure run no QEMU, no `./le verify worktree` and no functional suite,
+because a concurrent session is driving the ExaBGP compatibility suite on the
+same box. A commit owes no green gate in this tree (`ai/rules/pre-release.md`).
+What WAS run is scoped: `go test` over the six plugin packages this spec touches,
+`./le verify lint run scope` over the two it changed at closure,
+`./le repository check`, `./le doc check links` and `./le spec citation`.
+
+**Baseline reds in this checkout, attributed and not this spec's.** Read on
+2026-09-05 before any edit. `internal/component/config/validators.go` is
+uncommitted and mid-edit by another session (`undefined: configvalue`), which
+blocks the `internal/component/bgp/reactor` test build transitively.
+`rfc7705_local_as_test.go` is uncommitted and `TestLocalASFourOctetTowardTwoOctetPeer`
+runs past the package's 10m timeout. `TestForwardRSTranscodePoolBalance`
+(`forward_readbuf_leak_test.go:598`) is red on a read-buffer count. `./le
+repository check` reports 55 issues, every one of them under `ospf`, `ipsec`,
+`api`, `cli`, `config`, `pki`, `vpp`, `crashlog` or `pcap`, and none in this
+spec's surface. `./le doc check links` reports 28 broken references, none of
+them this spec's.
+
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
@@ -653,6 +705,8 @@ Second pass, for the namespace resolution:
 | `test/plugin/session-ready-contract.ci` | yes | Ran as case 630 of `./le functional plugin`, PASS in 767 ms |
 | `internal/component/plugin/server/events_session_ready_test.go` | yes | `go test` over the package with the feature tag set: ok |
 | `internal/component/bgp/reactor/initial_update_reporters_test.go` | yes | Same run: ok |
+| `internal/component/bgp/plugins/rr/session_ready_test.go` | yes | Added at closure. `go test` over the package: ok, `./le verify lint run scope ./internal/component/bgp/plugins/rr/...`: 0 issues |
+| `internal/component/bgp/plugins/persist/session_ready_test.go` | yes | Added at closure. `go test` over the package: ok, `./le verify lint run scope ./internal/component/bgp/plugins/persist/...`: 0 issues |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
@@ -662,6 +716,8 @@ Second pass, for the namespace resolution:
 | AC-4 | The barrier releases on the report | `session-ready-contract.ci`: `waiting for API sync expected=1`, `API sync complete`, `sent EOR` |
 | AC-6 | `api-route-refresh.ci` passes with no sleep added | Green in both suite runs of 2026-09-02; the file is untouched by this work |
 | Six declarers | The tree matches every claim about the number | `grep -rn "SignalsSessionReady: true" internal/component/bgp/plugins/*/register.go` answers 6 |
+| Declarers report | Every plugin that declares also emits the report | `grep "plugin session ready"` over `internal/` names six production emitters (`rib/rib_replay.go`, `rs/server_handlers.go`, `adj_rib_in/rib.go`, `watchdog/watchdog.go`, `persist/server.go`, `rr/rr.go`), the same six that carry the field |
+| persist and rr reports | Both new reports are pinned by a test with an observed red | `go test ./internal/component/bgp/plugins/rr/ ./internal/component/bgp/plugins/persist/` ok on 2026-09-05; the same run FAILS on `session_ready_test.go:122`, `:132`, `:123`, `:133`, `:173` with the reports removed from their producers |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |

@@ -201,7 +201,7 @@ The static path replaces steps 1 to 6 with the static plugin emitting a batch un
 |----------|--------|
 | What breaks if this is wrong? | Every UPDATE on every peer gains a delivery to the Loc-RIB it did not have. A defect there costs CPU and memory per UPDATE on a full table, and a wrong refusal in `initRedistribute` stops a daemon that starts today. |
 | How is it reverted? | Single commit revert. No config migration, nothing persisted, and no wire state survives a restart. |
-| Who else touches this path? | `plan/immediate/spec-review-redistribute-orchestrator.md` (status `design`) covers the producer/consumer registration asymmetry in the same orchestrator and names the same live-versus-snapshot split. `plan/immediate/spec-bgp-session-ready-contract.md` touches the peer-up path the replay coordinator hooks. |
+| Who else touches this path? | `plan/immediate/spec-review-redistribute-orchestrator.md` (status `design`) covers the producer/consumer registration asymmetry in the same orchestrator and names the same live-versus-snapshot split. The initial-sync barrier `docs/architecture/api/architecture.md` describes reads the same peer-up path the replay coordinator hooks (`spec-bgp-session-ready-contract`, closed 2026-09-05). |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

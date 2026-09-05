@@ -209,7 +209,7 @@ corrected under their existing ids.
 |----------|--------|
 | What breaks if this is wrong? | A route the operator's policy denies is advertised to other route-server clients at an IXP. That is a route leak with a third party's traffic behind it, and it is visible outside this repository |
 | How is it reverted? | Single commit revert. Nothing persists: the Adj-RIB-In is in-memory and rebuilt on peer-up, and the new event type is inert with no subscriber |
-| Who else touches this path? | A concurrent session is editing `internal/component/bgp/reactor` (`api_sync_test.go`, `SignalPeerAPIReady`). `plan/immediate/spec-bgp-session-ready-contract.md` owns the initial-sync barrier. `plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md` owns the rfc7947 sign-off this spec unblocks |
+| Who else touches this path? | A concurrent session is editing `internal/component/bgp/reactor` (`api_sync_test.go`, `SignalPeerAPIReady`). The initial-sync barrier is built and documented at `docs/architecture/api/architecture.md` (`spec-bgp-session-ready-contract`, closed 2026-09-05). `plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md` owns the rfc7947 sign-off this spec unblocks |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
