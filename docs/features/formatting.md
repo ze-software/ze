@@ -1,9 +1,19 @@
 # Output Formatting
 
-Every command's output goes through the same pipe pipeline, whether you're
-poking around interactively or scripting against ze. One operator set,
-three ways to use it: set a persistent default, pipe it inline, or apply it
+A command that answers with DATA sends that answer through the pipe pipeline,
+whether you're poking around interactively or scripting against ze. One operator
+set, three ways to use it: set a persistent default, pipe it inline, or apply it
 offline to already-captured output.
+
+Which operators a given command owes is a property of that command, not of the
+language: `ze help command --json` publishes the list per command, and an
+operator the command's answer cannot support is refused by name rather than
+answered wrongly. A command that only ever prints text, with no handler on any
+surface answering with data, reaches no pipe layer at all and publishes no
+operator: `show data cat` returns the bytes of one stored file, and wrapping
+them in a record would corrupt its one use.
+<!-- source: cmd/ze/help_command.go -- operatorsFor, pathHasOnlyPlainLocalHandler -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 
 ### The simple way: set a default once
 
@@ -31,7 +41,7 @@ also be set permanently through YANG config.
 
 ### Piping inline
 
-Append `| <operator>` to any command, shell-like:
+Append `| <operator>` to a command that answers with data, shell-like:
 
 ```
 show bgp peer list | table
@@ -46,27 +56,27 @@ or `raw`. Two together are rejected. Filter and display operators chain freely.
 The complete, current set is generated from the operator catalog:
 [`pipe-operators.generated.md`](pipe-operators.generated.md). It is the list to
 build a tool against, and `./le doc check verify` fails when it and the product
-disagree. The table below describes what each operator does for a reader.
+disagree. That page carries every operator's name, class, argument, repetition
+and description, so this page does not list them again. A second copy is how
+five surfaces came to publish five different sets.
 
-| Operator | Kind | Description |
-|----------|------|-------------|
-| `table` | format | Box-drawing table rendering |
-| `text` | format | Space-aligned columns, no box-drawing |
-| `json [compact]` | format | Pretty (default) or compact JSON |
-| `ndjson` | format | One compact JSON object per line |
-| `yaml` | format | YAML output |
-| `raw` | format | The dispatcher's JSON, byte for byte. For a program that parses the answer |
-| `match <pattern>` | filter | Case-insensitive grep on output lines |
-| `count` | filter | Count items (JSON-aware: array length or map size) |
-| `first <n>` / `last <n>` | filter | Take first or last N items |
-| `display <field>...` | filter | Answer with these fields, in this order |
-| `fill [alpha] [reverse]` | display | Bring the remaining columns back, in a named order |
-| `resolve` | display | Add reverse DNS names for IP address values |
-| `origin` | display | Add ASN and network name for IP address values |
-| `log` | display | Append each update instead of replacing (monitor commands) |
-| `no-more` | display | Disable paging (currently a no-op) |
+Three of its columns are worth reading before you build against it:
 
-<!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
+- **Class** says what the operator acts on. `acts on any answer` is owed by
+  every command that reaches the pipe layer. `acts on rows` is owed only where
+  the answer has rows, and is refused by name where it does not. `acts on a
+  stream of updates` means something only while a command keeps answering.
+- **Surface** says where the operator runs. `save` is `local process only`,
+  because a chain the daemon expands would write on the daemon's filesystem.
+- **Repeated** says what a second occurrence in one chain means: `applies again,
+  in order` composes, `no effect` is idempotent, and `refused` is refused by
+  name rather than silently answering the last one.
+
+`resolve` and `origin` decorate a field the command DECLARES to hold an IP
+address, and are refused over a command that declares none.
+
+<!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog, RenderOperatorReference -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, validateRepeats -->
 
 A display operator changes how an answer is shown. A data operator changes what
 the answer holds. The two are independent, so a display mode never suppresses a
@@ -113,11 +123,13 @@ ze show bgp peer list | ze pipe first 5
 ```
 
 `ze pipe` reads stdin (up to 256 MB), applies the pipe chain given as
-arguments, and writes the result to stdout. It's the same operator table
-above, minus the display-only operators that only make sense inside a live
-session (`log`, `no-more`).
+arguments, and writes the result to stdout. It reads the same catalog. `| log`
+is refused there, by name, because it needs a command that keeps answering;
+`| no-more` is accepted and does nothing, because paging belongs to a live
+session. Standalone input carries no declaration, so `| resolve` and `| origin`
+walk every field whose value parses as an address rather than the declared ones.
 
-`ze pipe help` lists every operator, split into the two classes below.
+`ze pipe help` lists every operator, split into the three classes below.
 
 <!-- source: cmd/ze/ze_core_pipe.go -- runPipe, pipeUsage -->
 
@@ -135,12 +147,13 @@ Each entry carries the operator's `name`, its `class`, the `shapes` of answer
 it acts on, whether it takes an `arg`, what a second occurrence in one chain
 means (`repeat`), and a one-line `description`.
 
-The two classes are the contract:
+The three classes are the contract:
 
 | Class | Meaning |
 |-------|---------|
 | `global` | acts on the answer whatever it holds. Every command that reaches the pipe layer owes these |
 | `data` | acts on rows or fields, so a command owes it only where its answer has them |
+| `stream` | acts on a SEQUENCE of answers, so it means something only where a command keeps answering. `log` is the one operator in it, and a one-shot command refuses it by name |
 
 `shapes` names the answer shapes the operator applies to, using the same words
 the answer head uses on the wire: `doc` for one document or one value, `map`

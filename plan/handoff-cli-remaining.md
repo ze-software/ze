@@ -108,10 +108,12 @@ Why the gate is worth respecting here rather than routed around: six phases, a
 full self-review of the diff, and a 194-case suite all returned clean while
 AC-11 was false. Running the product falsified it on the first command.
 
-When the review returns clean, closure is two commits: `create --replace` for A
-(spec + journal), then `create --append --remove plan/immediate/spec-cli-pipe-operator-coverage.md`
-for B. The deferral shard this handoff also named went with the whole
-`plan/deferrals/` tree on 2026-09-05, so closure removes the spec alone. <!-- doc-links: ignore (the tree was deleted on purpose; this line records that it was) -->
+**Done on 2026-09-05.** An independent context ran the review, found seven stale
+documentation claims the spec had left on `docs/features/formatting.md`,
+`docs/features.md` and `docs/architecture/api/commands.md`, fixed them, and
+closed `spec-cli-pipe-operator-coverage` in the two commits this item planned.
+The deferral shard this handoff also named went with the whole
+`plan/deferrals/` tree on 2026-09-05, so closure removed the spec alone. <!-- doc-links: ignore (the tree was deleted on purpose; this line records that it was) -->
 
 ## 5. Not left over, recorded so nobody re-derives it
 

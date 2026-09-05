@@ -758,7 +758,14 @@ request bgp rib withdraw <peer> <family> <prefix>       # Remove route from Adj-
 show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match in Loc-RIB)
 ```
 
-Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `resolve`, `origin`, `log`, `no-more`, `display`, and `fill` apply to the answer the command produced. The DAEMON runs them, on every surface. `execMiddleware` splits the chain off an SSH exec command and applies it. `ze cli` sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor `environment cli format default`.
+Generic pipes apply to the answer the command produced. The operator language has exactly one statement, `pipeCatalog`, and [`docs/features/pipe-operators.generated.md`](../../features/pipe-operators.generated.md) is that table published; naming the operators here again is the drift this catalog exists to end. What a given command owes is published per command by `ze help command --json`, derived from the shape it declares, and an operator the shape cannot support is refused by name before the command runs.
+
+For a command the daemon serves, the DAEMON runs the chain. `execMiddleware` splits it off an SSH exec command and applies it, and `ze cli -c` sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor `environment cli format default`. A command the client serves in its own process through `RegisterLocalData` is the exception: `ServeLocal` runs the same chain over the local payload, before any daemon is contacted. `| save` is refused on every chain the daemon expands, because the file would be written on the daemon's filesystem with the daemon's privileges.
+<!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
+<!-- source: internal/component/command/pipe_save.go -- validateSaveOps -->
+<!-- source: internal/component/command/local_data.go -- ServeLocal -->
+<!-- source: cmd/ze/help_command.go -- operatorsFor -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
@@ -1157,8 +1164,12 @@ schema and one that does not therefore answer one document for the same data.
 <!-- source: internal/component/plugin/server/command.go -- routeToProcess, pluginAnswerRows -->
 
 The value a built payload carries is unchanged, byte for byte. Only the frame
-around it changed, and it changed for every peer. Nothing declares an answer
-shape, so there is one frame and every reader knows it before the first line.
+around it changed, and it changed for every peer. No declaration selects the
+frame: `CommandDecl.Shape` states what the ANSWER holds, for the pipe layer to
+publish and to refuse against, and the walk length alone decides which frame
+carries it. So there is one frame and every reader knows it before the first
+line.
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl.Shape -->
 
 The rows are pulled as the operator's rendering writes them, so the engine never
 holds the whole collection for a walk that streams. A row wider than one wire

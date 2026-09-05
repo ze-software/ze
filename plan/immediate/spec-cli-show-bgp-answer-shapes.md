@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | cli |
-| Depends | `plan/immediate/spec-cli-pipe-operator-coverage.md` |
+| Depends | `spec-cli-pipe-operator-coverage` (closed 2026-09-05) |
 | Phase | 5/5 |
 | Handoff | - |
 | Updated | 2026-08-24 |

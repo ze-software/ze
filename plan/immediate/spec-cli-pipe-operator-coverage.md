@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | done |
 | Scope | cli |
 | Depends | `plan/audit-pipe-operator-coverage.md`, `plan/audit-presentation-pipes.md`, `plan/audit-command-pipe-vs-subcommand.md` |
 | Phase | 6/6 |
 | Handoff | `plan/handoff-cli-remaining.md` |
-| Updated | 2026-08-28 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -380,12 +380,12 @@ Ze's own answer format and is covered by the round-trip unit test above.
 
 ### Documentation Update Checklist (BLOCKING)
 
-- [ ] `docs/features/formatting.md` prose corrected after the foreign migration lands: the universal claim, and `match` as line grep
+- [x] `docs/features/formatting.md` prose corrected at closure: the universal claim, the hand-copied 15-operator table (deleted, the page links the generated one), the two-class table (`stream` added), the `match` line-grep description, and the `ze pipe` sentence about `log` and `no-more`
 - [x] `docs/guide/cli.md` stops presenting 5 operators as the set, and stops spelling `match <regex>` for a `strings.Contains` match
-- [ ] `docs/architecture/api/commands.md` address-field claim corrected after the foreign migration lands; the page is published to the website
+- [x] `docs/architecture/api/commands.md` corrected at closure: the second hand-copied operator list is gone, the client-served and daemon-expanded halves are separated, `save`'s refusal is stated, and the "Nothing declares an answer shape" sentence now says what it means. The page is published: `internal/le/site/docsmanifest.go` carries `architecture/api/commands.md`
 - [x] `docs/guide/config-editor.md` says its `|` vocabulary is a different language from the operational one
 - [x] `docs/architecture/api/wire-format.md` reviewed; D-3 records why the unchanged answer head does not carry address declarations
-- [ ] Release note for R-1 and R-2 lands after the foreign migration owner commits the existing file
+- [x] Release note for R-1 and R-2 landed: `website/changes/discord/2026-08-17-weekly.md` is tracked and committed
 
 ## Implementation Steps
 
@@ -416,7 +416,7 @@ run a chain.
 ### Deliverables Checklist
 
 - [x] Every AC has a named test
-- [ ] Each user-visible break has a tracked release note; the existing file is foreign-owned and untracked
+- [x] Each user-visible break has a tracked release note: `website/changes/discord/2026-08-17-weekly.md` is committed and names `| save`, the per-command `operators` / `answer-shape` / `pipe-aliases` keys, and the `show bgp rib` row shape
 - [x] The generated page exists and the gate fails when it drifts
 
 ### Security Review Checklist
@@ -643,15 +643,24 @@ carries no rows, where it used to assert an empty string.
 
 The independent gate completed after the earlier self-review recorded below.
 Twenty-six passes followed each product fix until the last two passes returned
-zero blockers and zero issues.
+zero blockers and zero issues. The closure that finally ran, eight days later,
+added two more passes over the PUBLISHED surface and found seven false
+documentation claims in it.
+
+The artifact below is the CLOSURE's, and it is the one `./le commit create`
+reads. The 2026-08-28 artifact,
+`tmp/review/cli-pipe-operator-coverage-55d210d4-6348-48ab-9fd4-30966ec229f4.md`,
+recorded `OK (14 code files, clean, hashes match)` that day under
+`Thomas said ok finish on 2026-08-27`; `tmp/` was cleaned since, so the file is
+gone and only this row records it.
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/cli-pipe-operator-coverage-55d210d4-6348-48ab-9fd4-30966ec229f4.md` |
-| `./le spec session review check` | `OK (14 code files, clean, hashes match)` on 2026-08-28 |
-| Rounds | 26. Rounds 15-24 found native renderer and structural validator defects; round 25 verified their fixes and round 26 verified post-clean lint corrections |
-| Owner authorisation | `Thomas said ok finish on 2026-08-27` |
-| Reviewer lenses | `PipeRound14Coverage`, `PipeRound25Docs`, `PipeRound26Regression` |
+| Artifact | `tmp/review/cli-pipe-operator-coverage-644c18af-0c07-4cae-bd15-d866d73f0718.md` |
+| `./le spec session review check` | `OK (6 code files, clean, hashes match)` on 2026-09-05 |
+| Rounds | 28 in total. Rounds 1-26 read the diff on 2026-08-27 and 2026-08-28; the closure's rounds 27 and 28 read the published surface on 2026-09-05 and are the two the artifact records |
+| Owner authorisation | `Thomas said ok finish on 2026-08-27`, for rounds 6-26 |
+| Reviewer lenses | `PipeRound14Coverage`, `PipeRound25Docs`, `PipeRound26Regression`, `PipeClosureDocsSurface`, `PipeClosureGuardTrace` |
 
 The self-review and its two findings remain below as historical evidence. The
 independent review starts at “Independent review, round 1”.
@@ -1177,6 +1186,55 @@ corrections. The compiled-coverage review remains clean.
 
 **Independent round 26: 0 BLOCKER, 0 ISSUE. CLEAN.**
 
+### Independent closure review, rounds 27 and 28 (2026-09-05)
+
+Rounds 1 to 26 all ran on 2026-08-27 and 2026-08-28, and none of them could
+prepare a commit, because the External Closure Blocker above held. The closure
+context that finally ran is a context that wrote none of this code, and it
+re-read the surface rather than re-reading the record. It found seven false
+documentation claims, all in the three pages that section named as still owing
+corrections, and none of them reported by any earlier round.
+
+**Round 27 (seven findings, all documentation, all fixed):**
+
+| # | Sev | Finding | Producer that falsifies it |
+|---|-----|---------|----------------------------|
+| C-1 | ISSUE | `docs/features/formatting.md` opened "Every command's output goes through the same pipe pipeline" and said "Append `\| <operator>` to any command" | `operatorsFor` returns no operator at all when `pathHasOnlyPlainLocalHandler` holds (`cmd/ze/help_command.go`) |
+| C-2 | ISSUE | The same page carried a hand-written 15-operator table. It called `match` a "grep on output lines", described `resolve` and `origin` with no address-field condition, and omitted `save`. It is the sixth copy AC-1 exists to prevent, and the Goal Gate row "No hand-copied operator list remains in the tree" was ticked over it | `applyMatch` filters ROWS on structured input and greps lines only on a rendered answer; `pipeCatalog` holds 17 operators (`internal/component/command/pipe.go`, `pipe_catalog.go`) |
+| C-3 | ISSUE | The same page published "The two classes are the contract" over `global` and `data` | `PipeClass` has three constants; `ClassStream` was added by AC-8's second branch and never reached this page (`internal/component/command/pipe_catalog.go`) |
+| C-4 | ISSUE | `docs/features.md` "Resolution CLI and Pipes" said `\| resolve` and `\| origin` "enrich any command's JSON output" | `validateDeclaredShape` refuses an operator whose `NeedsAddressField` is set unless `AddressFieldsForCommand` answers a non-empty list (`internal/component/command/pipe.go`) |
+| C-5 | ISSUE | `docs/features.md` "IPsec CLI and Diagnostics" said "All show commands produce JSON and support full pipe operators". No IPsec command calls `RegisterAddressFields`, so the address operators are refused there | the same producer; the IPsec commands register wire methods and no address fields (`internal/component/ike/cmd/show_ipsec.go`) |
+| C-6 | ISSUE | `docs/architecture/api/commands.md` carried a second hand-copied list, omitting `save`, `count`, `first` and `last`, and asserted "The DAEMON runs them, on every surface" | `ServeLocal` runs the chain in the CLIENT process for a `RegisterLocalData` command, and `validateSaveOps` refuses `save` on every daemon-expanded chain (`internal/component/command/local_data.go`, `pipe_save.go`) |
+| C-7 | ISSUE | `docs/features.md` "Pipe Output Limiting" said `\| first N` and `\| last N` "work on any command's JSON output". They act on ROWS and are refused over an answer with none | `rowSet` and `selectRows` decide, and `rowOperatorRefusal` names the refusal (`internal/component/command/answer_shape.go`, `pipe.go`) |
+
+A seventh, `docs/architecture/api/commands.md` "Nothing declares an answer
+shape", was corrected in the same pass: `CommandDecl.Shape` is a Stage 1
+declaration (`pkg/plugin/rpc/types.go`). The sentence's real point, that no
+declaration selects the WIRE FRAME, survives and is now what it says.
+
+**Round 28 (verification of the round-27 fixes): 0 BLOCKER, 0 ISSUE. CLEAN.**
+Each new sentence was re-derived at its producer: `operatorsFor` with
+`pathHasOnlyPlainLocalHandler`, `validateStreamOps` for the `log` refusal, the
+`pipeNoMore` arm of `ApplyPipes` for the accepted no-op, and
+`ProcessStandalonePipesChecked` for the `allAddressFields` widening `ze pipe`
+gets.
+
+**What round 27 says about rounds 1 to 26.** Every one of them read the DIFF.
+Seven false sentences sat in three pages the spec's own Documentation Update
+Checklist had already flagged with unticked boxes, and 26 passes over the code
+did not close one of them, because a page nobody edited appears in no diff. The
+same shape as the AC-11 lesson one layer out: the check that found it was
+reading the published surface, not the change.
+
+**Code lenses run in round 27, all clean.** Wiring (`./le repository check`
+names no export in this surface), the save guard's fail-closed path
+(`FilesystemAuthorityUnknown` is the zero value and denies;
+`ProcessPipesDefaultFormatChecked` keeps the refusing name), the guard driven
+from its real entry points (`internal/test/fixture/plugin_fixture_10_process.go`
+drives an authenticated SSH PTY, `ze cli -c` over SSH exec and the web, and
+asserts no file was created), and the peer-reachable-`panic` trace
+(`RegisterPluginShapes` returns an error where the in-tree registrations panic).
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and
@@ -1224,13 +1282,13 @@ Not applicable.
 - [x] Every AC has a test that FAILS without the change
 - [x] The wiring test passes with no core edit
 - [x] Goal Validation table is full, with evidence per goal
-- [x] No hand-copied operator list remains in the tree
+- [x] No hand-copied operator list remains in the tree. This was ticked prematurely: two survived in `docs/features/formatting.md` and `docs/architecture/api/commands.md` until the closure review deleted them on 2026-09-05
 
 ### TDD
 
 - [x] Tests written
 - [x] Tests FAIL (red) before implementation
-- [ ] Tests PASS (paste output)
+- [x] Tests PASS. At closure, `./le job run label unit-command command go test ./internal/component/command/...` returned exit 0: `ok internal/component/command 3.267s`, `ok .../command/grammar 0.011s`, `ok .../command/registry 2.656s`, the last of which carries the AC-10 population ratchet
 - [x] Implementation passes
 - [x] Discrimination proven: catalog, rendered-surface, refusal, and local-data coverage mutations redden their named tests
 
@@ -1238,28 +1296,22 @@ Not applicable.
 
 - [x] `./le changed scope` was reviewed; the selected all-package result came from foreign migration status
 - [x] `./le verify current mode full` evidence is recorded at committed tree `08cba7efd`, under the name that gate carried then
-- [ ] `./le verify worktree` is re-run over the closing commit, because the gate now runs against a commit in a throwaway worktree rather than in place (`ai/rules/git-safety.md`)
-- [x] Review Gate 0 BLOCKER / 0 ISSUE
-- [x] the retired deferral shard "cli-pipe-operator-coverage" has no rows and is ready for removal
-- [ ] Citation and foreign-owned documentation edits landed
+- [ ] `./le verify worktree` is NOT re-run over the closing commit. The owner directed this closure to leave the shared machine to the ExaBGP compatibility suite, and a commit owes no green gate in this pre-release tree (`ai/rules/pre-release.md`). The gate is owed before a push, and this closure does not push
+- [x] Review Gate 0 BLOCKER / 0 ISSUE, over 28 rounds
+- [x] the retired deferral shard "cli-pipe-operator-coverage" is already gone: the whole `plan/deferrals/` tree was removed on 2026-09-05, so Commit B removes the spec alone
+- [x] Citation and documentation edits landed. Four full-path citations restated as the bare stem (`plan/handoff-cli-remaining.md`, `plan/handover/11-cli-operator-2026-08-23.md` twice, `plan/immediate/spec-cli-show-bgp-answer-shapes.md`, `plan/immediate/spec-fixit-selector-narrows-through-a-pipe.md`); the fifth, in `plan/verification-debt/acb7c2cd.md`, already carries a `doc-links: ignore` naming this closure as the reason. `./le spec citation` exits 0 and `./le doc check links` names none of these files
 
-## External Closure Blocker
+## External Closure Blocker -- CLEARED 2026-09-05
 
-The review gate and every product check are complete. The remaining blocker is
-one ownership constraint: concurrent `le` migration changes already modify the
-files that carry two citations and part of the documentation review. This
-closure must not stage those foreign edits. Commit A and Commit B therefore
-remain unprepared, and the spec stays at `verification`.
+The migration owner landed the changes on 2026-08-30. Every one of the six
+paths this section named is tracked and clean, and the release note
+`website/changes/discord/2026-08-17-weekly.md` is committed with the `save` and
+per-command publication lines it owed. The closure ran the six edits itself, and
+the independent round below records what re-reading the three documentation
+pages found beyond them.
 
-The migration owner must land the current changes first. The closure context
-then has six exact edits: restate the historical citation in
-`plan/handoff-cli-remaining.md` as `spec-cli-pipe-operator-coverage`; change the
-`Depends` cell in `plan/immediate/spec-cli-show-bgp-answer-shapes.md` to the same bare
-stem; correct the pipe availability and address-field claims in
-`docs/features/formatting.md`, `docs/features.md`, and
-`docs/architecture/api/commands.md`; and include the existing release note
-`website/changes/discord/2026-08-17-weekly.md`. The final report carries the
-native closure commands.
+The section is kept rather than deleted because it is the only record of why
+this spec sat at `verification` for eight days.
 
 ## Implementation Summary
 
@@ -1296,7 +1348,7 @@ The review fixed every blocker and issue it found. The durable detail is in the
 | D-4 | Local payload rendering was byte-identical from the start | `WriteAnswer` had to become the shared newline policy | Product execution found the two spellings differed by one newline |
 | D-5 | Wiki and website generators consume only `ze help command --json` | The website consumes the JSON contract; native `wikicatalog.Collect` reads the same registries directly | The migration removed the Python hop while preserving one producer contract |
 | D-6 | Seven separate `.ci` and `.et` files carry the functional plan | `pipe-local-command.ci`, `pipe-interactive-save.ci`, `pipe-review-entry-contracts.ci`, and `pipe-review-remote-contracts.ci` consolidate the entry paths | The consolidated fixtures exercise the real local, interactive, web, SSH exec, and SSH PTY boundaries |
-| D-7 | Closure docs and citations land with Commit A | Six required paths already carry foreign migration work | The migration owner must land those edits first; this closure will then apply only its own lines |
+| D-7 | Closure docs and citations land with Commit A | They landed with Commit A on 2026-09-05, eight days late | The migration owner held six paths until 2026-08-30. The delay is what the closure review's rounds 27 and 28 then found: three of those six pages carried claims the implementation had falsified, and 26 rounds over the diff had seen none of them |
 
 ## Mistake Log
 
@@ -1308,6 +1360,7 @@ The review fixed every blocker and issue it found. The durable detail is in the
 | approach | A streaming conversion nested a read lock behind a queued writer | Go `RWMutex` blocks that later reader | Lint and deadlock trace | Construct under the lock and drain after release |
 | assumption | Two local spellings shared the renderer and therefore the bytes | Their newline writers differed | Byte comparison in AC-11 | Both call `WriteAnswer` |
 | assumption | The wiki would remain a JSON consumer | Native migration reads the registries through `wikicatalog.Collect` | Producer audit at closure | Recorded D-5 and verified both consumers derive the same contract |
+| approach | Twenty-six review rounds over the diff were treated as covering the spec's own Documentation Update Checklist | Seven false claims sat in three pages the checklist had left UNTICKED, and no round saw one | The closure read the three pages against the producers rather than reading the diff again | Corrected all six and deleted the two surviving hand-copied operator lists. A page nobody edited appears in no diff, so a diff-shaped review cannot reach it, however many times it runs |
 
 ## Implementation Audit
 
@@ -1411,21 +1464,40 @@ The unknown-argument finding belongs to command grammar and is recorded in
 `plan/audit-command-pipe-vs-subcommand.md`; it was never a deferral from this
 spec.
 
+## Work Not Done
+
+No row. Every acceptance criterion is implemented and proven, the Implementation
+Audit records 0 Partial and 0 Skipped, and the six documentation edits the
+External Closure Blocker held landed in Commit A rather than being homed
+elsewhere.
+
+Two things the spec deliberately did NOT do are answers rather than gaps, and
+both are recorded in Known Limitations above: `show data cat` and `show yang doc`
+keep their plain printing handlers, because a byte stream and rendered prose have
+nothing for a row operator to act on.
+
+One defect this closure met is recorded and not fixed, and it is not a Work Not
+Done row because no acceptance criterion covers it: a pipe refusal raised at
+APPLY time reaches `ze cli -c` and the SSH exec channel on stdout with exit 0.
+Known Limitations above stated it, and Commit B removes this file, so it is
+written to `plan/journal/silent-fall-through.md` with its producer and the reason
+the fix is not a one-liner.
+
 ## Documentation Updates
 
 | Category or page | Yes/No | Source-aware result |
 |------------------|--------|---------------------|
-| Feature list | Yes | `docs/features.md` must replace its universal address and row-operator claims after the foreign migration lands |
+| Feature list | Yes | Done at closure. `docs/features.md` "Resolution CLI and Pipes" no longer says the address operators enrich any command's output, and the IPsec row no longer says its show commands support full pipe operators. Both are refused where no `RegisterAddressFields` call exists |
 | User guide | Yes | `docs/guide/cli.md` now says `match <text>` and points readers to the per-command contract |
 | Config syntax | No | No YANG leaf or config parser changed |
-| CLI reference | Yes | `docs/features/formatting.md` must state per-command availability; `docs/features/pipe-operators.generated.md` is catalog-generated |
-| API/RPC docs | Yes | `docs/architecture/api/commands.md` and `process-protocol.md` describe declarations and refusal; address fields now admit and limit transforms |
+| CLI reference | Yes | Done at closure. `docs/features/formatting.md` states per-command availability, drops its own operator table for a link to the generated one, and publishes three classes rather than two. `docs/features/pipe-operators.generated.md` is catalog-generated and unchanged |
+| API/RPC docs | Yes | Done at closure for the last of it. `docs/architecture/api/commands.md` and `process-protocol.md` describe declarations and refusal; the second hand-copied operator list is gone, the client-served path is named beside the daemon one, and `CommandDecl.Shape` is no longer contradicted by a sentence saying nothing declares a shape |
 | Plugin SDK | Yes | `pkg/plugin/rpc/types.go` `CommandDecl` documents shape, columns, and address fields |
 | Wire format | No | `AppendAnswerHead` and `parseAnswerHead` still carry item type, key, and columns; D-3 moved address declarations to Stage 1 |
 | RFC compliance | No | No RFC or routing wire behavior changed |
 | Comparison table | No | Support level did not change |
 | Test infrastructure | Yes | Native docvalid, wikicatalog, local-data population, and functional entry fixtures are documented in this audit |
-| Architecture design | Yes | `docs/architecture/api/commands.md` is the durable design destination |
+| Architecture design | Yes | `docs/architecture/api/commands.md` is the durable design destination, and is published: `internal/le/site/docsmanifest.go` carries `architecture/api/commands.md` |
 | Config editor | Yes | `docs/guide/config-editor.md` distinguishes editor filters from operational pipe operators |
 | Release note | Yes | `website/changes/discord/2026-08-17-weekly.md` names `save`, per-command publication, and RIB shape changes |
 
@@ -1440,13 +1512,13 @@ applies.
 
 | File | Exists | Fresh evidence |
 |------|--------|----------------|
-| `internal/component/command/pipe_catalog.go` | yes | `stat`: 14565 bytes |
-| `internal/component/command/answer_shape.go` | yes | `stat`: 15792 bytes |
-| `docs/features/pipe-operators.generated.md` | yes | `stat`: 2146 bytes |
-| `test/ui/pipe-local-command.ci` | yes | `stat`: 1626 bytes |
-| `test/ui/pipe-interactive-save.ci` | yes | `stat`: 1415 bytes |
-| `test/ui/pipe-review-entry-contracts.ci` | yes | `stat`: 762 bytes |
-| `test/plugin/pipe-review-remote-contracts.ci` | yes | `stat`: 748 bytes |
+| `internal/component/command/pipe_catalog.go` | yes | `stat`: 15193 bytes on 2026-09-05 (14565 on 2026-08-28; `e592a7ea4` moved it to `textbuf`) |
+| `internal/component/command/answer_shape.go` | yes | `stat`: 15792 bytes on 2026-09-05, unchanged since 2026-08-28 |
+| `docs/features/pipe-operators.generated.md` | yes | `stat`: 2141 bytes on 2026-09-05 (2146 on 2026-08-28) |
+| `test/ui/pipe-local-command.ci` | yes | `stat`: 1793 bytes on 2026-09-05 (1626 on 2026-08-28) |
+| `test/ui/pipe-interactive-save.ci` | yes | `stat`: 1415 bytes on 2026-09-05, unchanged |
+| `test/ui/pipe-review-entry-contracts.ci` | yes | `stat`: 762 bytes on 2026-09-05, unchanged |
+| `test/plugin/pipe-review-remote-contracts.ci` | yes | `stat`: 748 bytes on 2026-09-05, unchanged |
 
 ### AC Verified
 
@@ -1504,7 +1576,10 @@ fixture registrations rather than comments or copied command names.
 
 ### Gates
 
-| Gate | Result |
+The first block is the implementation session's, on 2026-08-28. The second is
+the closure's, on 2026-09-05, over a tree that had moved on by 400 commits.
+
+| Gate (2026-08-28) | Result |
 |------|--------|
 | Review artifact hash check | `OK (14 code files, clean, hashes match)` after closure edits |
 | Focused tagged packages | PASS: docvalid, wikicatalog, localdatacoverage, CLI, registry |
@@ -1514,10 +1589,29 @@ fixture registrations rather than comments or copied command names.
 | `./le changed scope` | Selected all packages because isolated verification had no status |
 | Lint/aggregate docs | Remaining red findings are foreign migration changes, including the already deleted obsolete runtime-evidence test |
 
+| Gate (2026-09-05, closure) | Result |
+|------|--------|
+| `./le spec session review check` | `OK (6 code files, clean, hashes match tmp/review/cli-pipe-operator-coverage-644c18af-0c07-4cae-bd15-d866d73f0718.md)` |
+| `go test ./internal/component/command/...` under `./le job run` | PASS, exit 0, three packages, including the AC-10 population ratchet in `command/registry` |
+| `./le repository check` | 18 ISSUE, every one under `internal/component/ike`, `pki`, `vpp` or `kernelcap`, all another session's uncommitted work. None in this surface |
+| `./le commit audit` | 16 `[WEAKENED]`, every one under `internal/core/eap`. Another session's RFC work |
+| `./le spec citation` | exit 0, after the four citation restatements |
+| `./le doc check links` | 27 broken references, none naming a file this closure touched or the spec it removes |
+| `./le docvalid doc-drift` | COULD NOT RUN. `ze help command --json` does not build while `internal/component/doctor/checks_linux.go` carries another session's unused imports. The gate compares `docs/features/pipe-operators.generated.md` against `command.RenderOperatorReference()`, and this closure changed neither |
+| `./le verify worktree` | NOT RUN, by owner direction: the shared machine is driving the ExaBGP compatibility suite. A commit owes no green gate here, and this closure does not push |
+
 ## Journal Decision
 
-No journal row is added at closure. The implementation already recorded the
-test-vacuity, consumer-sweep, lock-order, and self-review lessons when they were
-found. The closure followed the existing rule that a clean review artifact does
-not replace the documentation checklist, so it taught no new mechanism or
-constraint.
+This paragraph said no row was owed. The closure review falsified it, so one row
+goes to `plan/journal/stale-spec-claims-done.md`.
+
+The lesson is not that the documentation was stale. It is that TWENTY-SIX
+independent review rounds could not see it, because every one of them read the
+DIFF, and a page nobody edited appears in no diff. The spec's own Documentation
+Update Checklist named the three pages and left their boxes UNTICKED through all
+26 rounds, and the Goal Gate row beside them was ticked over two hand-copied
+operator lists that were still in the tree. Round count is not coverage when
+every round has the same shape.
+
+The implementation's own lessons stay where they were recorded: test vacuity,
+the consumer sweep, the lock order, and the self-review limit.

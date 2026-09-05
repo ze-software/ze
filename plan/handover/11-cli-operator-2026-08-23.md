@@ -56,7 +56,9 @@ and it blocks the 51 conversions. Section 2 of `plan/handoff-cli-remaining.md`.
 
 ## 2. The one spec that did not close, and why
 
-`plan/immediate/spec-cli-pipe-operator-coverage.md`, Status `verification`.
+`spec-cli-pipe-operator-coverage`, Status `verification` on the day this
+handover was written. It closed on 2026-09-05, after the independent review this
+section asks for.
 
 Implementation complete. All 16 ACs verified against the **built product**, not
 the diff. Both Review Gate defects fixed and committed. References already
@@ -81,14 +83,9 @@ phases, a full self-review and a 194-case suite all passed while that was true.
 Nothing in the suite compared two surfaces of one command *to each other*. That
 is the argument for the gate, made by the gate.
 
-When the review returns clean, closure is two commits:
-
-| Commit | Command |
-|--------|---------|
-| A | `create --replace` with the spec + the journal row |
-| B | `create --append --remove plan/immediate/spec-cli-pipe-operator-coverage.md` and `--remove plan/deferrals/cli-pipe-operator-coverage.md` |
-
-That shard holds zero rows; do not leave it behind as an empty file.
+Closure ran as two commits on 2026-09-05: A carried the spec and the journal
+row, and B removed the spec. The deferral shard named here went with the whole
+`plan/deferrals/` tree earlier the same day, so B removed the spec alone.
 
 > **Note.** The closure trigger is the journal row's **Spec column**. A row
 > naming the spec declares a closure whether you meant one or not — it refused
