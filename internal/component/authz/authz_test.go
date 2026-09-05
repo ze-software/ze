@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/aaa"
@@ -1148,5 +1149,52 @@ func TestStoreAuthorizerBoundProfilesDoNotCrossSessions(t *testing.T) {
 	}
 	if !writeSession.Authorize("same-user", "", "set system host-name router", false) {
 		t.Fatal("the second session did not receive its own write profile")
+	}
+}
+
+// TestBuiltinReadOnlyProfileDeniesEverySendByDefault pins the second half of
+// AC-16 of plan/spec-fixit-send-names-its-destination.md: the denial is reached
+// by two defaults, and by no entry that names the verb.
+//
+// The first default is IsReadOnlyPath, an ALLOWLIST of the read verbs that
+// answers false for a verb it has never heard of, so a send is judged as a
+// write. The second is the profile's Edit section, which denies with no entries
+// at all. Neither mentions `send`, which is the property this test exists to
+// hold: an entry added later would move the decision off the defaults, where a
+// reader can no longer tell an allow from a deny by reading the section header.
+//
+// VALIDATES: a read-only user is denied a send on the write path, and the
+// built-in profile names the verb nowhere.
+// PREVENTS: `send` being allowlisted as a read verb, or an entry for it being
+// added to the built-in profile, either of which opens the wire to an operator
+// who holds reads alone.
+func TestBuiltinReadOnlyProfileDeniesEverySendByDefault(t *testing.T) {
+	const sendRaw = "send bgp 192.0.2.1 raw hex 00"
+
+	if pluginserver.IsReadOnlyPath(sendRaw) {
+		t.Fatalf("IsReadOnlyPath(%q) = true, want false: a send writes to a wire", sendRaw)
+	}
+
+	profile := builtinReadOnlyProfile()
+	for _, section := range []struct {
+		name    string
+		entries []Entry
+	}{{"run", profile.Run.Entries}, {"edit", profile.Edit.Entries}} {
+		for _, entry := range section.entries {
+			if strings.Contains(entry.Match, "send") {
+				t.Errorf("built-in read-only %s section names send in entry %q: the denial must stay a default",
+					section.name, entry.Match)
+			}
+		}
+	}
+	if profile.Edit.Default != Deny {
+		t.Fatalf("built-in read-only edit default = %v, want Deny", profile.Edit.Default)
+	}
+
+	store := NewStore()
+	store.AddProfile(builtinReadOnlyProfile())
+	store.AssignProfiles("watcher", []string{"read-only"})
+	if got := store.Authorize("watcher", sendRaw, false); got != Deny {
+		t.Fatalf("Store.Authorize(%q, isReadOnly=false) = %v, want Deny", sendRaw, got)
 	}
 }

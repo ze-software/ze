@@ -26,4 +26,38 @@ session if used carelessly.";
             leaf selector { type string; mandatory true; description "Peer selector"; }
         }
     }
+
+    container send {
+        config false;
+        // The top-level send verb root. The protocol keyword comes FIRST, so the
+        // one free-form slot stands behind a closed set that says how to read it.
+        // Each protocol declares its own destination leaf on its own container:
+        // nothing central enumerates the protocols, and nothing reads a
+        // destination's kind from the shape of its value.
+        description "Put an operator-supplied message on a wire.";
+        ze:help "The protocol keyword picks the wire. The value after it names the
+                 destination, and each protocol states the vocabulary for that value.";
+
+        container bgp {
+            config false;
+            // The selector leaf sits HERE, on the protocol container, because
+            // inheritArgDefs anchors a container's leaves to that container's
+            // keyword. The anchor is what binds the bare token after `bgp`
+            // (anchoredDef, internal/component/plugin/server/command.go).
+            description "Send a message to the BGP peer sessions a selector picks.";
+            ze:help "The selector accepts an address, a configured peer name, an AS pattern,
+                     a glob, a comma-separated list, or *. A selector that matches no
+                     session sends to nothing, and it does not send to every peer.";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
+
+            container raw {
+                config false;
+                ze:command "ze-bgp:peer-raw";
+                description "Send raw bytes into a peer's TCP stream (dangerous).";
+                ze:help "Injects arbitrary bytes with no BGP framing or validation. Intended
+for conformance testing and fuzzing only. Will likely break the
+session if used carelessly.";
+            }
+        }
+    }
 }

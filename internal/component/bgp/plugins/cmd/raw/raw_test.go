@@ -103,3 +103,32 @@ func TestParseMessageType(t *testing.T) {
 		})
 	}
 }
+
+// TestSendRawReachesOnePeerAtItsNewPath drives the new grammar through the real
+// dispatcher: `send`, then the protocol, then the destination, then the form.
+//
+// The goal is the SELECTOR SLOT, not the payload. `bgp` declares the peer
+// selector leaf, inheritArgDefs anchors it to that keyword, and anchoredDef
+// binds the bare token that follows it. Nothing else in the chain changes, so
+// this test is the whole answer to assumption A-1 of
+// plan/spec-fixit-send-names-its-destination.md: the move needs no new dispatch
+// machinery.
+//
+// VALIDATES: the token after `bgp` reaches CommandContext.Peer, ResolveSinglePeer
+// narrows it to one session, and the bytes arrive at that peer unchanged.
+// PREVENTS: the destination being read as an argument of `raw`, which would send
+// the operator's bytes to every peer or to none.
+func TestSendRawReachesOnePeerAtItsNewPath(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newDispatchContext(reactor, plugin.OperatorSender())
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "send bgp 192.0.2.1 raw update hex DEADBEEF")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.Equal(t, "192.0.2.1", ctx.Peer,
+		"the token after bgp is the destination and must reach the context's peer field")
+
+	require.Len(t, reactor.rawMessages, 1)
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), reactor.rawMessages[0].addr)
+	assert.Equal(t, []byte{0xDE, 0xAD, 0xBE, 0xEF}, reactor.rawMessages[0].payload)
+}

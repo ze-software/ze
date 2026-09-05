@@ -28,9 +28,9 @@ const (
 //
 // The vocabulary was agreed as verb-first: show, monitor, clear, set, request,
 // resolve, commit and update, plus the engine mutation verb delete,
-// the runtime cache verb, the runtime-lifecycle verb create, and the diagnostic verb
-// debug. Adding a verb here is a deliberate vocabulary decision, not a convenience:
-// a small, learnable verb set is the point.
+// the runtime cache verb, the runtime-lifecycle verb create, the diagnostic verb
+// debug, and the wire verb send. Adding a verb here is a deliberate vocabulary
+// decision, not a convenience: a small, learnable verb set is the point.
 // verbShow is the read verb every show tree hangs from.
 const verbShow = "show"
 
@@ -53,6 +53,13 @@ var Verbs = map[string]verbRole{
 	// mutation (which is set/delete on a config path). delete is the VerbMutation
 	// above and serves both the config-tree and runtime-resource senses.
 	"create": VerbAction,
+	// Bytes the operator supplies leave the router for a destination the operator
+	// names: send <protocol> <selector> <form>. It is a verb of its own and not a
+	// noun under request, because request changes THIS system and a send puts a
+	// message OUTSIDE it (docs/architecture/cli/command-verbs.md, row L-8).
+	// The protocol keyword comes before the destination, so a closed set stands in
+	// front of the one free-form slot and says how to read it.
+	"send": VerbAction,
 	// Diagnostic actions that PERTURB live protocol state for testing/introspection
 	// (e.g. OSPF ext-14 crafted-LSA injection). Distinct from show/monitor, which
 	// only read state: a debug command changes what the router does. Double-gated by

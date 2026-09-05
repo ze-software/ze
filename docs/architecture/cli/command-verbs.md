@@ -65,9 +65,9 @@ fixed keyword. That ambiguity is what every rule below exists to prevent.
 
 ## The verb classes
 
-Twelve verbs are canonical, and `send` is the thirteenth: decided by Thomas on
-2026-09-05 and not yet declared, which
-`plan/spec-fixit-send-names-its-destination.md` implements. `command.Verbs` is
+Thirteen verbs are canonical. `send` is the newest: decided by Thomas on
+2026-09-05 and declared by
+`plan/spec-fixit-send-names-its-destination.md`. `command.Verbs` is
 the one statement of the set, and both the grammar gate and the plugin
 registration check derive their verb set from it.
 <!-- source: internal/component/command/verbs.go -- Verbs, verbRole -->
@@ -84,7 +84,7 @@ registration check derive their verb set from it.
 | `create` | Action | Something that did not exist exists after the command, today a live kernel resource | The kernel | Yes | 5 |
 | `update` | Action | Data held for something that exists is rewritten | The config draft, or a cached set | Yes | 13 |
 | `debug` | Action | Live protocol state is perturbed on purpose | The wire | No | 4 |
-| `send` | Action | Bytes the operator supplies leave the router for a destination the operator names | The wire, and the peer that reads it | No | 0, and the verb is not declared yet |
+| `send` | Action | Bytes the operator supplies leave the router for a destination the operator names | The wire, and the peer that reads it | No | 0 while the move runs: `send bgp raw` answers, but the inventory reports each wire method at its SHORTEST path, and that is still `peer raw` |
 | `cache` | Action | Declared, and no command uses it at root | - | - | 0 |
 | `commit` | Action | Declared, and no command uses it at root | - | - | 0 |
 
@@ -96,7 +96,7 @@ schemas and reports 363 commands on this checkout. Run it rather than trusting
 this column.
 <!-- source: internal/le/command/list/commandlist.go -- Collect, Answer -->
 
-Five roots outside the twelve carry commands, and each is exempt for a stated
+Five roots outside the thirteen carry commands, and each is exempt for a stated
 reason:
 
 - `peer` and `announce` mirror the ExaBGP text line protocol,

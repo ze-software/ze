@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | - |
+| Phase | 1/9 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-05 |
@@ -603,7 +603,7 @@ exactly what this design changes.
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The selector binds through the existing anchored-leaf mechanism with no dispatcher change | `matchCommandTokens` and `anchoredDef` already bind `peer <sel> announce unicast` this way, and the anchor is the container that declares the leaf, which is now `bgp` | new dispatch machinery is needed, which changes the size of the work | a wiring test that dispatches `send bgp <sel> raw hex ...` before any handler moves | unvalidated |
+| A-1 | The selector binds through the existing anchored-leaf mechanism with no dispatcher change | `matchCommandTokens` and `anchoredDef` already bind `peer <sel> announce unicast` this way, and the anchor is the container that declares the leaf, which is now `bgp` | new dispatch machinery is needed, which changes the size of the work | a wiring test that dispatches `send bgp <sel> raw hex ...` before any handler moves | confirmed: `TestSendRawReachesOnePeerAtItsNewPath` dispatches the new path through the real server and the selector reaches `CommandContext.Peer`. No dispatcher file is edited |
 | A-2 | The moved nodes pass R1 to R9 with no gate change once they leave `bridgeSurface` | `CheckNode` fires R6 only for a mandatory free-form argument on a node with a subcommand child whose name is not a selector kind; the send forms carry modifier groups and leaves, not subcommands | the gate needs a rule amendment, which is a separate design decision | `./le cli-grammar` on the moved tree, before the exemption is removed and after | unvalidated |
 | A-3 | The selector leaf keeps the model's existing name, so no second spelling enters `applyExtractedSelectors` | `selectorLeaf` is the one constant binding a YANG leaf to the context's peer field; six call sites read `ResolveSinglePeer` and five are outside this population | a rename touches five unrelated handlers or adds a second name for one concept | grep for `selectorLeaf` and `PeerSelector` after the move; no new spelling appears | unvalidated |
 | A-4 | Every argument the three under-declared handlers read can be stated as a typed leaf, except the update route expression | the announce and withdraw forms already declare theirs; `handleRaw` reads three tokens; `handleCacheForwardRPC` reads two | the declaration is partial and the journal row stays open for a member of this population | the generated usage line for each moved command, asserted in a `.ci` | unvalidated |
@@ -690,15 +690,15 @@ exactly what this design changes.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestSendRawReachesOnePeerAtItsNewPath` | `internal/component/bgp/plugins/cmd/raw/raw_test.go` | the selector binds from the slot after `bgp`, and `handleRaw` receives it | |
+| `TestSendRawReachesOnePeerAtItsNewPath` | `internal/component/bgp/plugins/cmd/raw/raw_test.go` | the selector binds from the slot after `bgp`, and `handleRaw` receives it | PASS |
 | `TestSendRawRefusesAWildcardSelector` | `internal/component/bgp/plugins/cmd/raw/raw_test.go` | `*`, an exclusion and a two-peer selector are each refused by name | |
-| `TestSendRefusesAMissingSelector` | `internal/component/plugin/server/command_test.go` | every send registration carries `RequiresSelector`, and a send with nothing bound is refused rather than defaulted to `*` | |
+| `TestSendRefusesAMissingSelector` | `internal/component/plugin/server/send_test.go` | every send registration carries `RequiresSelector`, and a send with nothing bound is refused rather than defaulted to `*` | PASS. It sits in the `server_test` package, not `command_test.go`: the real command tree needs `internal/component/plugin/all`, which the in-package tests cannot import |
 | `TestSendArgumentsAreDeclared` | `internal/component/bgp/plugins/cmd/raw/raw_test.go` | the generated usage line for each moved command names every argument its handler reads | |
 | `TestOldSendPathsMatchNothing` | `internal/component/plugin/server/command_test.go` | each of the fifteen old paths resolves to no node | |
 | `TestSendAddsNoWireMethod` | `internal/component/plugin/server/command_test.go` | AC-7: the send wire-method set is identical before and after, so the change is a respelling | |
 | `TestSendSubtreeIsCheckedNotExempt` | `internal/component/command/grammar/checker_test.go` | `ExemptCategory` answers false for the eight moved methods and true for `ze-bgp:help`, and E1 has one member | |
-| `TestVerbRegistryCanonical` (existing) | `internal/component/command/verbs_test.go` | AC-17: the golden `want` map gains `send` with the role `VerbAction`, and the length assertion moves from twelve to thirteen | |
-| `TestSendIsDeniedToAReadOnlyProfile` | `internal/component/plugin/server/command_test.go` | AC-16: a read-only profile is refused a `send` command through the dispatcher, and the refusal comes from the `Edit` section default rather than from an entry naming the verb | |
+| `TestVerbRegistryCanonical` (existing) | `internal/component/command/verbs_test.go` | AC-17: the golden `want` map gains `send` with the role `VerbAction`, and the length assertion moves from twelve to thirteen | PASS. `TestSendIsAVerbTheGrammarGateAccepts` (`send_test.go`) adds the gate half: `grammar.CheckName("send bgp raw")` is empty |
+| `TestSendIsDeniedToAReadOnlyProfile` | `internal/component/plugin/server/send_test.go` | AC-16: a read-only profile is refused a `send` command through the dispatcher, and the refusal comes from the `Edit` section default rather than from an entry naming the verb | PASS. Its second half, that no entry names `send`, is `TestBuiltinReadOnlyProfileDeniesEverySendByDefault` in `internal/component/authz/authz_test.go`: `builtinReadOnlyProfile` is unexported, so no other package can read the profile it builds |
 | `TestAnnounceFormsAreInstantiatedOnce` | `internal/component/bgp/plugins/cmd/announce/announce_test.go` | each form is reachable at exactly one path, and `*` reproduces the old bare behavior | |
 | `TestWithdrawIDMatchesTheRecordedSelector` | `internal/component/bgp/plugins/cmd/announce/withdraw_forms_test.go` | R-7: the wildcard and a named selector each behave as the two old paths did | |
 | `TestBridgeTranslatesTheNeighborForms` | `internal/exabgp/bridge/bridge_test.go` | all fourteen construction sites emit `send bgp <ip> ...` from `neighbor`-prefixed input, and no accepted form is lost | |
