@@ -294,10 +294,10 @@ func AllRPCDocs() ([]rPCDoc, error) {
 			continue
 		}
 		docs = append(docs, rPCDoc{
-			CLICommand: cliPath,
-			Help:       lookupYANGDesc(cmdTree, cliPath),
-			ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
-			WireMethod: reg.WireMethod,
+			CLICommand:  cliPath,
+			Description: lookupYANGDesc(cmdTree, cliPath),
+			ReadOnly:    pluginserver.IsReadOnlyPath(cliPath),
+			WireMethod:  reg.WireMethod,
 		})
 	}
 
@@ -370,10 +370,10 @@ func lookupYANGDesc(root *command.Node, cliPath string) string {
 
 // rPCDoc holds documentation for a single operational command.
 type rPCDoc struct {
-	CLICommand string
-	Help       string
-	ReadOnly   bool
-	WireMethod string
-	Input      []yang.LeafMeta // Input parameter leaves from YANG
-	Output     []yang.LeafMeta // Output parameter leaves from YANG
+	CLICommand  string
+	Description string
+	ReadOnly    bool
+	WireMethod  string
+	Input       []yang.LeafMeta // Input parameter leaves from YANG
+	Output      []yang.LeafMeta // Output parameter leaves from YANG
 }
