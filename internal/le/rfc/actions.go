@@ -23,6 +23,17 @@ var actions = leaction.New(area,
 			{Keyword: keyStem, Value: keyStem},
 		},
 		AnswerArgs: extractionCreateAnswer},
+	leaction.Action{Verb: "extraction-classify", Why: "apply ONE authored decision per site and per section to the skeleton, from a decisions " +
+		"file naming the stem it walks. It writes no disposition the file does not name and " +
+		"matches no locator pattern, so it transcribes a walk rather than performing one; a site " +
+		"the file leaves out stays unclassified and is named in the report. binds-another-role " +
+		"must cite a producer the reason carries, and feature-out-of-scope must quote the " +
+		"sentence that makes the feature optional, checked against the RFC's own text",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyDecisions, Value: keyPath},
+		},
+		AnswerArgs: extractionClassifyAnswer},
 	leaction.Action{Verb: "extraction-status", Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
 		"signed and enrolled counts, the per-register split, and the unsigned backlog",
 		Answer: extractionStatusAnswer},
@@ -110,6 +121,26 @@ func extractionCreateAnswer(args leaction.Arguments) (any, int) {
 		return nil, 2
 	}
 	report, err := createExtraction(tree, stem)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	return report, 0
+}
+
+// extractionClassifyAnswer applies one decisions file in this checkout.
+func extractionClassifyAnswer(args leaction.Arguments) (any, int) {
+	path, held := args[keyDecisions]
+	if !held {
+		leaction.ReportError(errors.New("rfc extraction-classify requires decisions <path>"))
+		return nil, 2
+	}
+	tree, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	report, err := classifyExtraction(tree, path)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

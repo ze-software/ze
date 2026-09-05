@@ -101,6 +101,7 @@ nothing re-checked. Record the walk instead, in an artifact a machine re-checks 
 ./le rfc extraction-create stem $ARGUMENTS   # skeleton to session scratch, never to rfc/extraction/
                                              # then classify every site and section by hand,
                                              # then move the file in as the command says
+./le rfc extraction-classify decisions <path>  # or write the decisions in one file and apply them
 ./le rfc check                               # re-derives the inventory and judges it
 ```
 

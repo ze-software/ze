@@ -63,6 +63,12 @@ const (
 	DispositionMapped   = "mapped"
 	DispositionExcluded = "excluded"
 	exclusionDuplicate  = "duplicate-of"
+	// bindsAnotherRole is the one kind the repository presumes WRONG, and
+	// featureOutOfScope the one whose reason must quote the sentence that made
+	// the feature optional. Both are read by name in extraction_classify.go,
+	// which asks more of them than the parser does.
+	bindsAnotherRole  = "binds-another-role"
+	featureOutOfScope = "feature-out-of-scope"
 )
 
 // exclusionKinds is the closed vocabulary, each kind beside what it says about
@@ -104,7 +110,7 @@ var exclusionKinds = map[string]exclusionKind{
 	"not-a-requirement": {Group: ExclusionScope,
 		Meaning: "the sentence states a fact or describes another document, and directs no " +
 			"implementation"},
-	"binds-another-role": {Group: ExclusionScope,
+	bindsAnotherRole: {Group: ExclusionScope,
 		Meaning: "the obligation is addressed to a role Ze never acts as"},
 	exclusionDuplicate: {Group: ExclusionScope,
 		Meaning: "the same obligation is already captured under another requirement id"},
@@ -113,7 +119,7 @@ var exclusionKinds = map[string]exclusionKind{
 	"advisory-in-context": {Group: ExclusionScope,
 		Meaning: "the sentence advises on applying a rule stated elsewhere and adds no " +
 			"obligation of its own"},
-	"feature-out-of-scope": {Group: ExclusionScope,
+	featureOutOfScope: {Group: ExclusionScope,
 		Meaning: "the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this " +
 			"obligation is conditional on offering it"},
 	relocatedToSpec: {Group: ExclusionDebt,
@@ -154,7 +160,7 @@ func ExclusionKindGroup(kind string) (string, bool) {
 // it, and the label reads on the public ledger as "not our problem" where the
 // truth is usually "our problem, unbuilt". A page that published the count
 // without that context would repeat the flattery the ledger exists to prevent.
-func ExclusionPresumedWrong(kind string) bool { return kind == "binds-another-role" }
+func ExclusionPresumedWrong(kind string) bool { return kind == bindsAnotherRole }
 
 // dispositionKinds is what each un-enrolled kind SAYS, for a reader outside
 // this project.
@@ -508,30 +514,39 @@ func rejectUnknownKeys(obj map[string]any, allowed map[string]bool, where string
 // there. A pointer whose target nothing can resolve is the shrug the kind
 // exists not to be.
 func relocationFields(entry map[string]any, where, stem string) (string, string, error) {
+	rel, _ := entry["relocated-to"].(string)
+	rid, _ := entry["reserved-id"].(string)
+	return validateRelocation(rel, rid, where, stem)
+}
+
+// validateRelocation holds the two relocation fields to their shapes, wherever
+// they were authored: in a landed artifact, or in the decisions file
+// `extraction-classify` applies. One declaration, so the writer cannot accept a
+// relocation the reader refuses.
+func validateRelocation(relocatedTo, reservedID, where, stem string) (string, string, error) {
 	var tb textbuf.Buffer
-	rel, isText := entry["relocated-to"].(string)
-	if !isText || !specPathRE.MatchString(strings.TrimSpace(rel)) {
+	rel := strings.TrimSpace(relocatedTo)
+	if !specPathRE.MatchString(rel) {
 		return "", "", parseErr(tb.Str(where).Str(": ").Str(relocatedToSpec).
 			Str(" needs a 'relocated-to' naming the spec that owes this obligation, as ").
 			Str("<bucket>/spec-<name>.md with <bucket> one of ").
-			Str(strings.Join(specDirNames(), ", ")).Str("; got ").Str(pyRepr(entry["relocated-to"])).
+			Str(strings.Join(specDirNames(), ", ")).Str("; got ").Str(pyRepr(relocatedTo)).
 			Str(". A known-failure file, a learned summary and any document outside a ").
 			Str("release bucket are none of them a spec ").
 			Str("(ai/rules/rfc-compliance.md)"))
 	}
 	var want textbuf.Buffer
 	prefix := want.Str(Prefix(stem)).Byte('-').String()
-	rid, isRID := entry["reserved-id"].(string)
-	trimmed := strings.TrimSpace(rid)
-	if !isRID || !strings.HasPrefix(trimmed, prefix) || !idRE.MatchString(trimmed) {
+	trimmed := strings.TrimSpace(reservedID)
+	if !strings.HasPrefix(trimmed, prefix) || !idRE.MatchString(trimmed) {
 		return "", "", parseErr(tb.Str(where).Str(": ").Str(relocatedToSpec).
 			Str(" needs a 'reserved-id', the requirement id the destination spec ").
 			Str("reserves for this obligation, as ").Str(prefix).Str("<section>-<n>; got ").
-			Str(pyRepr(entry["reserved-id"])).
+			Str(pyRepr(reservedID)).
 			Str(". Without it the relocation points at a document rather than at a row, ").
 			Str("and the spec could satisfy the gate while owing nothing"))
 	}
-	return strings.TrimSpace(rel), trimmed, nil
+	return rel, trimmed, nil
 }
 
 // ParseExtractionArtifact reads and validates one rfc/extraction/<stem>.json.

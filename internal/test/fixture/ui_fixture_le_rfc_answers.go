@@ -264,6 +264,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	}
 	wantListed := map[string]string{
 		"extraction-create":   wordWrites,
+		"extraction-classify": wordWrites,
 		"extraction-status":   fieldChecks,
 		"tagged-scope":        fieldChecks,
 		"discriminate":        fieldChecks,
@@ -274,7 +275,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		actionIndexUpdate:     wordWrites,
 	}
 	leRFCAnswersRequire(reflect.DeepEqual(listed, wantListed),
-		"rfc listing does not name nine actions with exactly four writers:\n%s", listing.stdout)
+		"rfc listing does not name ten actions with exactly five writers:\n%s", listing.stdout)
 	for _, action := range []string{"extraction-status", actionCheck, actionSelftest, "reseal", actionIndexUpdate} {
 		refused := runLE(root, "rfc", action, "rfc7606")
 		leRFCAnswersRequire(refused.code == 2,
@@ -283,7 +284,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		leRFCAnswersRequire(strings.Contains(refused.stderr, "takes no arguments"),
 			"rfc %s refusal omitted 'takes no arguments': %q", action, refused.stderr)
 	}
-	for _, action := range []string{"extraction-create", "tagged-scope"} {
+	for _, action := range []string{"extraction-create", "extraction-classify", "tagged-scope"} {
 		refused := runLE(root, "rfc", action, "rfc7606")
 		leRFCAnswersRequire(refused.code == 2,
 			"rfc %s accepted an unkeyed value or exited %d\nstdout:\n%s\nstderr:\n%s",

@@ -1,8 +1,9 @@
 # Extraction sign-offs
 
 One file per RFC, `rfc/extraction/<stem>.json`. Derived as a skeleton by
-`./le rfc extraction-create stem <stem>`, classified by hand, and re-checked by
-`./le rfc check` on every run.
+`./le rfc extraction-create stem <stem>`, classified by hand, applied by
+`./le rfc extraction-classify decisions <path>`, and re-checked by `./le rfc check` on
+every run.
 
 **The skeleton is written to this session's scratch, not here.** It reaches
 `rfc/extraction/` only when every site and every section already carries a
@@ -69,10 +70,10 @@ go green fails the check naming the field and the locator.
 ## Why a generated skeleton can never pass
 
 The writer emits `"disposition": null` for every site and every section, and an
-unclassified site FAILS the check. There is no `--sign-off` mode, no default disposition
-and no bulk classifier, so generating artifacts en masse makes the gate **redder**, never
-greener. That is a structural answer to a social failure mode, which is what the
-2026-07-20 owner ruling asked for.
+unclassified site FAILS the check. There is no `--sign-off` mode and no default
+disposition, so generating artifacts en masse makes the gate **redder**, never greener.
+That is a structural answer to a social failure mode, which is what the 2026-07-20 owner
+ruling asked for.
 
 That answer had one hole, and the owner named it on 2026-08-30: the generator wrote
 its unclassified output HERE, so the command's own product was a gate failure and the
@@ -80,6 +81,37 @@ directory had no defence against a batch of them. It now writes an unclassified 
 to the session scratch, and `./le rfc check` leads with a census naming the file and the
 count when one arrives here by hand. The two guards answer different arrivals: the first
 is what the command can produce, the second is what a person can copy.
+
+## Applying a walk
+
+`./le rfc extraction-classify decisions <path>` writes the decisions of one walk into the
+skeleton. It transcribes, and it authors nothing: it writes no disposition the decisions
+file does not name, holds no default, matches no locator pattern, and refuses a decision
+for a site the source does not derive. Where a site is left out it stays `null`, and the
+report names it, because an obligation no honest disposition fits is a question for the
+owner rather than a null annotated away. The placement rule above is unchanged, so a walk
+with a remainder goes to the session scratch and never here.
+
+The decisions file names the stem it walks, and it carries only what a reviewer decides:
+
+| Field | Meaning |
+|---|---|
+| `stem` | the RFC this file decides. There is no second keyword to disagree with it |
+| `signed-off`, `reviewer`, `register-reason`, `resign-reason` | written into the artifact when present, and carried forward from the landed sign-off when not |
+| `sites[]` | `id` plus either a decision (`disposition` and the fields its kind owes) or a `residual` note |
+| `sections[]` | `id`, `disposition`, and the `skip-kind`, `reason` and `unsourced-ids` a section owes |
+
+Two authored fields reach no artifact. `producer` is what `binds-another-role` owes: the
+file that would act as the role if Ze did, or the role itself where Ze holds no code for
+it. It must appear in the reason, and where it names a path that path must exist in this
+tree, so a citation a reader cannot open is refused. `residual` is why a site was left
+unclassified; it is printed in the report and it cannot withdraw a decision the landed
+artifact already holds.
+
+The three kind-specific refusals are the rule (`ai/rules/rfc-compliance.md`) made
+mechanical: `binds-another-role` is PRESUMED WRONG and costs a producer, and
+`feature-out-of-scope` must quote the sentence that makes the feature optional, checked
+against the RFC's own text or against the text of a document the reason names by number.
 
 ## The register
 
@@ -187,11 +219,11 @@ which sites are left.
 | Kind | Means | Extra obligation |
 |---|---|---|
 | `not-a-requirement` | the keyword is in non-normative use: a quotation, a description of another system, boilerplate the extractor did not strip | the reason names which |
-| `binds-another-role` | the obligation binds a role Ze does not implement (a CA, a registry, an IANA action, the peer) | the reason names the role |
+| `binds-another-role` | the obligation binds a role Ze does not implement (a CA, a registry, an IANA action, the peer) | the reason names the role, and `extraction-classify` costs it a `producer` the reason carries |
 | `duplicate-of` | restates an obligation already captured | `mapped-to` must name an id that some OTHER site maps |
 | `cross-document` | the obligation belongs to another RFC the sentence cites | -- |
 | `advisory-in-context` | the capitalised keyword sits inside a SHOULD/MAY construction the splitter mis-cut | the reason quotes the enclosing construction |
-| `feature-out-of-scope` | the RFC makes a feature OPTIONAL, ze decided not to offer it, and the obligation is conditional on offering it | the reason quotes the sentence that makes the feature optional, names the producer showing ze does not offer it, and says the absent feature is disclosed on `docs/features/rfc-status.md`, through the summary's own `Support` rows |
+| `feature-out-of-scope` | the RFC makes a feature OPTIONAL, ze decided not to offer it, and the obligation is conditional on offering it | the reason quotes the sentence that makes the feature optional, and `extraction-classify` checks that quote against the source text; it also names the producer showing ze does not offer it, and says the absent feature is disclosed on `docs/features/rfc-status.md`, through the summary's own `Support` rows |
 | `relocated-to-spec` | the obligation IS owed, by a named spec, and it left this summary by an owner ruling | `relocated-to` names the spec, `reserved-id` names the id reserved for it there |
 
 ### `feature-out-of-scope`: a DECISION, not a gap

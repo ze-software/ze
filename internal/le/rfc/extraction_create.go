@@ -115,15 +115,42 @@ func createExtraction(tree, stem string) (extractionCreateReport, error) {
 	if err := validateExtractionStem(stem); err != nil {
 		return extractionCreateReport{}, err
 	}
-
-	gated := summaryGatedCount(tree, stem)
-	inventory, err := NewDeriver(tree).Inventory(stem, gated)
+	document, err := deriveExtractionDocument(tree, stem)
 	if err != nil {
 		return extractionCreateReport{}, err
 	}
+
+	report := extractionCreateReport{
+		Destination:          relTo(tree, treePath(tree, extractionRel+"/"+stem+".json")),
+		Register:             document.Register,
+		Sites:                len(document.Sites),
+		Sections:             len(document.Sections),
+		UnclassifiedSites:    countUnclassifiedSites(document.Sites),
+		UnclassifiedSections: countUnclassifiedSections(document.Sections),
+	}
+	report.Path, report.Placed, err = placeExtractionDocument(tree, stem, document)
+	if err != nil {
+		return extractionCreateReport{}, err
+	}
+	return report, nil
+}
+
+// deriveExtractionDocument derives one stem's skeleton from the source text,
+// carrying forward the decisions the landed sign-off still holds for the same
+// sentence.
+//
+// It is the whole authored-versus-derived boundary in one function: every field
+// a caller may go on to change is a disposition, and everything else comes back
+// from the source (rfc/extraction/README.md).
+func deriveExtractionDocument(tree, stem string) (extractionDocument, error) {
+	gated := summaryGatedCount(tree, stem)
+	inventory, err := NewDeriver(tree).Inventory(stem, gated)
+	if err != nil {
+		return extractionDocument{}, err
+	}
 	if inventory == nil {
 		var message textbuf.Buffer
-		return extractionCreateReport{}, errors.New(message.Str(stem).
+		return extractionDocument{}, errors.New(message.Str(stem).
 			Str(" has no source text at rfc/full/").Str(stem).Str(".txt or rfc/drafts/").
 			Str(stem).Str(".txt. Fetch it (https://www.rfc-editor.org/rfc/").Str(stem).
 			Str(".txt) before extracting: with no source there is no inventory to derive and no register to sign under").String())
@@ -134,42 +161,37 @@ func createExtraction(tree, stem string) (extractionCreateReport, error) {
 	if _, statErr := os.Stat(path); statErr == nil {
 		parsed, parseErr := ParseExtractionArtifact(tree, path)
 		if parseErr != nil {
-			return extractionCreateReport{}, parseErr
+			return extractionDocument{}, parseErr
 		}
 		previous = &parsed
 	} else if !os.IsNotExist(statErr) {
 		var message textbuf.Buffer
-		return extractionCreateReport{}, errors.New(message.Str(relTo(tree, path)).Str(": cannot read: ").Err(statErr).String())
+		return extractionDocument{}, errors.New(message.Str(relTo(tree, path)).Str(": cannot read: ").Err(statErr).String())
 	}
+	return newExtractionDocument(inventory, previous), nil
+}
 
-	document := newExtractionDocument(inventory, previous)
-	report := extractionCreateReport{
-		Destination:          relTo(tree, path),
-		Register:             document.Register,
-		Sites:                len(document.Sites),
-		Sections:             len(document.Sections),
-		UnclassifiedSites:    countUnclassifiedSites(document.Sites),
-		UnclassifiedSections: countUnclassifiedSections(document.Sections),
-	}
-
-	// The whole guard, in one condition. A refresh whose every decision carried
-	// forward is already a sign-off and belongs in the corpus; anything else is
-	// a skeleton, and a skeleton in the corpus reds the gate.
+// placeExtractionDocument writes document where its own classification allows,
+// and answers the tree-relative path and whether that was the corpus.
+//
+// The whole guard, in one condition. A document whose every site and section
+// carries a disposition is a sign-off and belongs in the corpus; anything else
+// is a skeleton, and a skeleton in the corpus reds the gate for the whole
+// corpus rather than for itself.
+func placeExtractionDocument(tree, stem string, document extractionDocument) (string, bool, error) {
 	directory := treePath(tree, extractionRel)
-	if report.UnclassifiedSites+report.UnclassifiedSections > 0 {
-		directory, err = extractionScratch(tree)
+	placed := true
+	if countUnclassifiedSites(document.Sites)+countUnclassifiedSections(document.Sections) > 0 {
+		scratch, err := extractionScratch(tree)
 		if err != nil {
-			return extractionCreateReport{}, err
+			return "", false, err
 		}
-	} else {
-		report.Placed = true
+		directory, placed = scratch, false
 	}
-
 	if err := writeExtractionDocument(tree, directory, stem, document); err != nil {
-		return extractionCreateReport{}, err
+		return "", false, err
 	}
-	report.Path = relTo(tree, filepath.Join(directory, stem+".json"))
-	return report, nil
+	return relTo(tree, filepath.Join(directory, stem+".json")), placed, nil
 }
 
 // extractionScratch answers this session's skeleton directory, created.

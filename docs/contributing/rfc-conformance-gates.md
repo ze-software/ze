@@ -347,7 +347,8 @@ that fixes that bound, and it is a precondition of a new enrolment
 |------|-----------------|
 | Write the skeleton | `./le rfc extraction-create stem <stem>` |
 | Classify every derived site and section by hand | the file the command names, under this session's scratch |
-| Move the classified walk into the corpus | `mv <scratch>/rfc-extraction/<stem>.json rfc/extraction/<stem>.json` |
+| Apply a whole walk's decisions at once | `./le rfc extraction-classify decisions <path>` |
+| Move a hand-classified walk into the corpus | `mv <scratch>/rfc-extraction/<stem>.json rfc/extraction/<stem>.json` |
 | Re-check the arithmetic | `./le rfc check` |
 | Read the published backlog | `ai/RFC-REQUIREMENTS.md`, "Extraction sign-off" |
 | Read the counts machine-readably | `./le rfc extraction-status` |
@@ -366,6 +367,20 @@ artifact under `rfc/extraction/` fails `./le rfc check` for the whole corpus, so
 a generator that wrote one in place made its own output a gate failure, and a
 batch of them a corpus-wide one. A refresh whose every decision carries forward
 IS a sign-off, so that one is written in place as before.
+
+**`extraction-classify` applies a walk; it does not perform one.** A long RFC
+derives hundreds of sites, so the decisions live in one file the reviewer
+authors and the command transcribes: no default, no locator pattern, no
+disposition the file does not name, and a refusal for a decision naming a site
+the source does not derive. The same placement rule governs its output, so a
+walk that left a site undecided goes to the scratch, and the report names every
+such site with the `residual` note the file recorded for it. The kinds that cost
+more are the two the rule presumes against: `binds-another-role` needs a
+`producer` the reason carries, refused when it names a path this tree does not
+hold, and `feature-out-of-scope` needs the sentence that makes the feature
+optional quoted verbatim, checked against the RFC's own text or against a
+document the reason names by number. The field-by-field contract is
+`rfc/extraction/README.md`, "Applying a walk".
 
 **A sign-off counts when its stem is enrolled, and the rest is named rather than
 hidden.** Credit and the backlog must describe one set, so a walk completed

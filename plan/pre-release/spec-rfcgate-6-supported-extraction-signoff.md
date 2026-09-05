@@ -855,10 +855,13 @@ measurement comes from.
 
 ### Four walks of 2026-08-31, none able to sign
 
-The artifacts and their replay scripts are committed at
-`plan/rfcgate-6-partial-walks/`. Each carries the id, the whole RFC sentence and
-the producing function for every finding, so this section names what changes a decision and
-does not copy them.
+The artifacts are committed at `plan/rfcgate-6-partial-walks/`. Each carries the id, the
+whole RFC sentence and the producing function for every finding, so this section names what
+changes a decision and does not copy them. The two Python replay scripts that stood beside
+them were removed on 2026-09-05 on the owner's word, once `./le rfc extraction-classify`
+gave the walk a native way to apply its decisions; git history holds them, and
+`plan/pre-release/spec-rfc3748-undeclared-met-obligations.md` carries the fourteen RFC 3748
+residual findings whole.
 
 | Stem | Sites | Classified | Why it cannot sign | Owner decision owed |
 |------|-------|------------|--------------------|---------------------|

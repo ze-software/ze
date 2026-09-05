@@ -504,16 +504,17 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 			writes[row.Verb] = true
 		}
 	}
-	// Exactly four actions change the tree, and each one owns its output:
-	// extraction-create owns one rfc/extraction artifact, discriminate-record
-	// owns one rfc/discrimination artifact, re-seal owns rfc/audit/, and the
-	// generator owns ai/RFC-REQUIREMENTS.md plus rfc/requirements/. Read-only is
-	// the default and the listing prints the exception, so a reader never has to
-	// look it up.
-	if len(writes) != 4 || !writes["extraction-create"] || !writes["discriminate-record"] ||
-		!writes["reseal"] || !writes["index-update"] {
-		t.Errorf("the actions that write are %v, want exactly "+
-			"[discriminate-record extraction-create index-update reseal]", sortedKeys(writes))
+	// Exactly five actions change the tree, and each one owns its output:
+	// extraction-create and extraction-classify own one rfc/extraction
+	// artifact between them, the first deriving it and the second applying an
+	// authored walk to it; discriminate-record owns one rfc/discrimination
+	// artifact, re-seal owns rfc/audit/, and the generator owns
+	// ai/RFC-REQUIREMENTS.md plus rfc/requirements/. Read-only is the default
+	// and the listing prints the exception, so a reader never has to look it up.
+	if len(writes) != 5 || !writes["extraction-create"] || !writes["extraction-classify"] ||
+		!writes["discriminate-record"] || !writes["reseal"] || !writes["index-update"] {
+		t.Errorf("the actions that write are %v, want exactly [discriminate-record "+
+			"extraction-classify extraction-create index-update reseal]", sortedKeys(writes))
 	}
 	if Subs() == "" {
 		t.Error("help renders no hint under the command")

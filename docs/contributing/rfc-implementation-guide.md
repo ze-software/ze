@@ -701,6 +701,7 @@ by what was extracted. Record the walk in an artifact the gate re-checks:
 ./le rfc extraction-create stem rfcNNNN   # skeleton to session scratch, never to rfc/extraction/
                                           # classify every site and section by hand,
                                           # then move the file in as the command says
+./le rfc extraction-classify decisions <path>  # or write the decisions in one file and apply them
 ./le rfc check                            # re-derives the inventory and judges it
 ```
 
