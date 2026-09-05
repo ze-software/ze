@@ -49,13 +49,22 @@ const (
 	guestBinDir    = "/tmp/ze-qemu-bin"
 )
 
-// killAfterFlag is how long `timeout` waits after its own signal before it kills
-// the process group, spelled as the flag it is passed as. A stuck ze or plugin
-// child cannot wedge the run past it. killAfter names the same duration alone,
-// for a reader and for the test that rebuilds the expected command line.
+// killAfterFlag and killAfterSeconds are how long `timeout` waits after its own
+// signal before it kills the process group. A stuck ze or plugin child cannot
+// wedge the run past it.
+//
+// The spelling is the GUEST's. /usr/bin/timeout in the Alpine guest is a symlink
+// to BusyBox 1.37.0, whose usage is `timeout [-s SIG] [-k KILL_SECS] SECS PROG
+// ARGS`. It answers `timeout: unrecognized option: kill-after=15s` to the GNU
+// long form and exits 1, so every suite printed the BusyBox usage under its own
+// header and ran no test at all, and a reader who greps the log for a suite name
+// finds it (plan/journal/gate-excludes-part-of-its-population.md, 2026-09-05).
+// `-k 15` is accepted by BusyBox and by GNU coreutils, so one spelling serves a
+// guest with either, and the wrapper no longer depends on `packages coreutils`.
+// Both forms were run in the guest before this was written.
 const (
-	killAfter     = "15s"
-	killAfterFlag = "--kill-after=15s"
+	killAfterFlag    = "-k"
+	killAfterSeconds = "15"
 )
 
 // These defaults belong to the native guest action. The host passes explicit
@@ -626,8 +635,8 @@ func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
 // `timeout` runs the suite in its own process group. On expiry, it kills the
 // whole group. Thus a stuck ze or plugin child cannot wedge the run.
 func (a *allTestsRun) suiteCommand(suite vmSuite) []string {
-	argv := make([]string, 0, len(suite.Args)+6)
-	argv = append(argv, "timeout", killAfterFlag, a.Timeout, filepath.Join(a.BinDir, "ze-test"))
+	argv := make([]string, 0, len(suite.Args)+7)
+	argv = append(argv, "timeout", killAfterFlag, killAfterSeconds, a.Timeout, filepath.Join(a.BinDir, "ze-test"))
 	argv = append(argv, suite.Args...)
 
 	switch suite.Concurrency {

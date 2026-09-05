@@ -208,9 +208,14 @@ func TestASkippedSuiteEmitsNoCommandAndIsStillReported(t *testing.T) {
 	}
 }
 
-// The suite command is the script's command, with the `timeout` wrapper. The
-// wall-clock cap runs the suite in its own process group. Thus a stuck ze cannot
-// wedge the run.
+// VALIDATES: a suite runs under the `timeout` wrapper, in the short `-k SECS`
+// spelling the guest's BusyBox `timeout` accepts.
+// PREVENTS: the way this ran nothing. BusyBox 1.37.0 answers the GNU
+// `--kill-after=15s` long form with `unrecognized option` and exits 1, so all 28
+// suites printed the usage text under their own headers and no .ci test ran
+// (plan/journal/gate-excludes-part-of-its-population.md, 2026-09-05). The
+// wall-clock cap still runs the suite in its own process group, so a stuck ze
+// cannot wedge the run.
 func TestASuiteRunsUnderTheWallClockCap(t *testing.T) {
 	run := vmFixture(t)
 	rec := &recorder{}
@@ -218,7 +223,7 @@ func TestASuiteRunsUnderTheWallClockCap(t *testing.T) {
 	run.Execute()
 
 	first := strings.Join(rec.calls[0], " ")
-	want := "timeout --kill-after=" + killAfter + " 900s " + filepath.Join(run.BinDir, "ze-test") +
+	want := "timeout -k " + killAfterSeconds + " 900s " + filepath.Join(run.BinDir, "ze-test") +
 		" bgp encode --all -p 4"
 	if first != want {
 		t.Errorf("the first suite command is\n  %s\nwant\n  %s", first, want)

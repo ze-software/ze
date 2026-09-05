@@ -99,10 +99,23 @@ func TestRunSSHPortBoundaries(t *testing.T) {
 	}
 }
 
+// fixtureGoRelease is the Go release the fixture checkout declares. It is not a
+// release this repository ever builds with, so a plan that answers it can only
+// have read the fixture's go.mod.
+const fixtureGoRelease = "1.99.7"
+
 func fixtureRun(t *testing.T, arch string) *Run {
 	t.Helper()
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	// The Go release the guest installs is DERIVED from the checkout's go
+	// directive, so a fixture tree is a checkout only once it carries one. The
+	// version is deliberately not this repository's: a test that names 1.27.0
+	// would still pass against a constant that happened to say 1.27.0.
+	goMod := "module fixture\n\ngo " + fixtureGoRelease + "\n"
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(goMod), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cache := filepath.Join(root, "cache")
@@ -338,8 +351,13 @@ func TestScratchSymlinkResolvesHostAndGuestPaths(t *testing.T) {
 }
 
 // VALIDATES: bootstrap, package installation, Go setup, and SSH options retain
-// the script's complete payloads.
+// the script's complete payloads, and the Go release the guest unpacks is the
+// one the checkout's go directive declares.
 // PREVENTS: a missing bootstrap command, package, cache export, or SSH option.
+// PREVENTS: the way this ran nothing. A hand-maintained Go version went a minor
+// behind go.mod, so the guest unpacked one toolchain and every `go` command
+// downloaded another, until the run died on the SSH deadline
+// (plan/journal/gate-excludes-part-of-its-population.md, 2026-09-05).
 func TestRunBuildsBootstrapSetupAndSSHCommands(t *testing.T) {
 	run := fixtureRun(t, ArchAMD64)
 	run.Options.Packages = []string{"xl2tpd", "ppp"}
@@ -350,8 +368,11 @@ func TestRunBuildsBootstrapSetupAndSSHCommands(t *testing.T) {
 	if plan.BootstrapCommand != runBootstrapCommand {
 		t.Fatalf("bootstrap command changed:\n%s", plan.BootstrapCommand)
 	}
+	if plan.GoVersion != fixtureGoRelease {
+		t.Errorf("the plan installs Go %q, want the %q its go.mod declares", plan.GoVersion, fixtureGoRelease)
+	}
 	for _, needle := range []string{
-		"apk add --no-cache xl2tpd ppp", "go1.25.9.linux-amd64.tar.gz",
+		"apk add --no-cache xl2tpd ppp", "go" + fixtureGoRelease + ".linux-amd64.tar.gz",
 		"export GOCACHE=\"/workspace/tmp/qemu/go-cache\"",
 		"mount -t tmpfs tmpfs /workspace/tmp/evidence",
 	} {

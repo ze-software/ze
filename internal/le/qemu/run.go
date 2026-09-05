@@ -27,13 +27,13 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/goversion"
 	"github.com/ze-software/ze/internal/le/leaction"
 )
 
 const (
 	AlpineVersion = "3.21"
 	AlpineMinor   = "3"
-	GoVersion     = "1.25.9"
 )
 
 const (
@@ -379,13 +379,17 @@ func (r *Run) Plan(ctx context.Context) (RunPlan, error) {
 	if err != nil {
 		return plan, err
 	}
-	setup, err := r.setupCommand()
+	goRelease, err := goversion.DeclaredRelease(r.Tree)
+	if err != nil {
+		return plan, fmt.Errorf("read the Go release the guest must install: %w", err)
+	}
+	setup, err := r.setupCommand(goRelease)
 	if err != nil {
 		return plan, err
 	}
 	plan = RunPlan{
 		Tree: r.Tree, AlpineVersion: AlpineVersion, AlpineMinor: AlpineMinor,
-		AlpineArch: runAlpineArch(r.ops.GOARCH), GoVersion: GoVersion,
+		AlpineArch: runAlpineArch(r.ops.GOARCH), GoVersion: goRelease,
 		QEMUBinary: runQEMUBinary(r.ops.GOARCH), ISO: iso, Kernel: kernel,
 		Memory: r.Options.Memory, CPUs: r.Options.CPUs, SSHPort: port,
 		BootTimeoutSeconds:    int64(r.Options.Boot / time.Second),
@@ -544,7 +548,13 @@ func shellQuote(value string) string {
 	return b.Byte('\'').String()
 }
 
-func (r *Run) setupCommand() (string, error) {
+// setupCommand answers the one shell line the guest runs before the caller's
+// command. goRelease is the Go release the guest unpacks, read from the go
+// directive of go.mod by the caller. It is a parameter rather than a constant
+// here because a copy of that declaration drifted once already, and a guest a
+// minor behind downloads a second toolchain on its first `go` command
+// (internal/le/goversion, DeclaredRelease).
+func (r *Run) setupCommand(goRelease string) (string, error) {
 	arch := ArchAMD64
 	if runAlpineArch(r.ops.GOARCH) == "aarch64" {
 		arch = ArchARM64
@@ -589,10 +599,10 @@ func (r *Run) setupCommand() (string, error) {
 		parts = append(parts, mkdir, mount)
 	}
 	b.Reset()
-	goTar := b.Str("GO_TAR=\"/workspace/tmp/qemu/go-dl/go").Str(GoVersion).
+	goTar := b.Str("GO_TAR=\"/workspace/tmp/qemu/go-dl/go").Str(goRelease).
 		Str(".linux-").Str(arch).Str(".tar.gz\"").String()
 	b.Reset()
-	goURL := b.Str("https://go.dev/dl/go").Str(GoVersion).Str(".linux-").Str(arch).Str(".tar.gz").String()
+	goURL := b.Str("https://go.dev/dl/go").Str(goRelease).Str(".linux-").Str(arch).Str(".tar.gz").String()
 	parts = append(parts,
 		"cd /workspace", "mkdir -p /workspace/tmp/qemu/go-dl", goTar,
 		b.Reset().Str("[ -f \"$GO_TAR\" ] || curl -fsSL -o \"$GO_TAR\" \"").Str(goURL).Str("\"").String(),

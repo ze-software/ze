@@ -12,9 +12,15 @@ with full kernel capabilities.
 ./le build-artifacts host
 
 # all-tests runs INSIDE the guest. le qemu run boots the guest and carries it in.
-./le qemu run kernel tmp/kernel/build/vmlinuz packages "coreutils iproute2" \
+./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2" \
   command "./le qemu all-tests"
 ```
+
+The Go release the guest unpacks is DERIVED from the `go` directive of `go.mod`
+(`goversion.DeclaredRelease`), so the guest and the host compile with one
+toolchain. It was a constant in `internal/le/qemu/run.go` until 2026-09-05, went
+a minor behind, and every guest `go` command then downloaded a second toolchain
+until the run died on `error: command ssh exceeded its deadline`.
 
 Prerequisites: `qemu` (`brew install qemu` on macOS). On macOS the run uses HVF
 acceleration when it is available and falls back to TCG software emulation.
@@ -58,18 +64,26 @@ value passed to the host qemu run action." Typed on the host it answers
 driver is always `./le qemu run ... command "<the guest command>"`.
 
 Four preconditions, each of which fails with a message that does NOT name the
-precondition. Measured 2026-09-04, six guest boots to establish:
+precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish:
 
 | Precondition | What its absence looks like |
 |--------------|-----------------------------|
-| `packages coreutils` | `timeout: unrecognized option: kill-after=15s` and BusyBox usage, once per suite. EVERY functional suite reports failed to launch and no `.ci` test runs. `suiteCommand` (`internal/le/qemu/alltests.go`) passes GNU `timeout --kill-after=15s`, and Alpine ships BusyBox `timeout` |
 | `packages iproute2` | `ZE-OBSERVER-FAIL: ... ip: invalid argument 'replace' to 'ip'`. BusyBox `ip` has no `neigh replace`, so an observer that programs a neighbour dies in test setup, before any assertion |
 | The three binaries, under canonical names | `qemu: bin/ze-stripped is missing or not executable -- cross-compile it on the host first`. `le qemu run` shares the checkout, where the cross-built artifacts carry `-linux-arm64` suffixes, so name them with `ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_TEST_BIN`. `shim()` symlinks them to `ze`, `ze-stripped` and `ze-test` because the tools dispatch on basename |
+| The three binaries, STATICALLY linked | `start ze: fork/exec ` + the shim path + `: no such file or directory`, under every `.ci` test of every suite: 326 identical failures for one cause. A `ze` built on a glibc host names the glibc loader, which musl Alpine does not have, so the loader answers ENOENT and the message names the binary rather than the loader. `verify()` (`alltests.go`) stats the file and cannot see this. Build with `CGO_ENABLED=0`, which is what the native toolchain sets (`internal/le/gotoolchain`), and check the answer with `file` |
 | The `bgp` verb before the suite | The `ze plugin` help text, and exit 1. `ze-test plugin <name>` is read as the `ze plugin` command; the suite form is `ze-test bgp <suite> <name>`, which is what `vmSuites` passes (`alltests.go`) |
 
 `le qemu run` installs only `git curl musl-dev` beyond the base image
 (`internal/le/qemu/run.go`), so anything else a test shells out to has to be
 named in `packages`.
+
+`coreutils` was a fifth precondition until 2026-09-05. The suite wrapper passed
+GNU `timeout --kill-after=15s`, which the guest's BusyBox `timeout` answers with
+`unrecognized option` and exit 1, so every suite printed the usage text under its
+own header and ran no test. The wrapper now passes `-k 15`, which BusyBox and GNU
+coreutils both accept (`killAfterFlag`, `internal/le/qemu/alltests.go`). A run
+with `packages "iproute2"` alone reached ten suites and several thousand `.ci`
+tests on 2026-09-05, with no BusyBox usage text anywhere in its log.
 
 ### Running ONE `.ci` test in a throwaway guest
 
@@ -78,7 +92,7 @@ boot. It does the binary shim by hand because that is `all-tests`'s job and this
 path skips `all-tests`:
 
 ```bash
-./le qemu run kernel tmp/kernel/build/vmlinuz packages "coreutils iproute2" \
+./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2" \
   command "mkdir -p /tmp/zb \
     && ln -sf /workspace/bin/ze-linux-arm64 /tmp/zb/ze \
     && ln -sf /workspace/bin/ze-test-linux-arm64 /tmp/zb/ze-test \

@@ -242,6 +242,27 @@ func TestTheGoDirectiveIsTheOnlyDeclaration(t *testing.T) {
 	}
 }
 
+// VALIDATES: the go directive is read as a patch-qualified release, and a
+// directive that carries no patch is refused rather than answered short.
+// PREVENTS: a caller that DOWNLOADS a toolchain building a go.dev URL for
+// go1.27, which that server does not publish, from a read that looked like it
+// succeeded. The QEMU harness reads this to name the tarball the guest unpacks
+// (internal/le/qemu, Run.setupCommand).
+func TestTheGoDirectiveIsReadAsAReleaseOnlyWhenItCarriesAPatch(t *testing.T) {
+	release, err := declaredRelease("module x\n\ngo 1.27.4\n")
+	if err != nil {
+		t.Fatalf("declaredRelease of a patch-qualified directive: %v", err)
+	}
+	if release != "1.27.4" {
+		t.Errorf("declaredRelease = %q, want %q", release, "1.27.4")
+	}
+	for _, body := range []string{"module x\n\ngo 1.27\n", "module x\n", "module x\ngo 1.27.0\ngo 1.26.0\n"} {
+		if release, err := declaredRelease(body); err == nil {
+			t.Errorf("declaredRelease(%q) answered %q, want a refusal", body, release)
+		}
+	}
+}
+
 // VALIDATES: the checkout's own go.mod is readable, and Check refuses to judge
 // against an empty declaration.
 // PREVENTS: a read failure reaching the comparison as an empty string, where a

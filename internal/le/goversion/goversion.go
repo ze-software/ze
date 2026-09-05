@@ -13,6 +13,13 @@
 // A carrier a minor behind either fails at its `go mod download` layer or
 // downloads a toolchain nobody chose.
 //
+// A Go caller that needs the version READS it here rather than copying it, and
+// Declared and DeclaredRelease are that read. A copy the gate cannot judge is
+// worse than a copy it can: the QEMU harness carried the release as a constant,
+// went a minor behind, and made every guest `go` command fetch a toolchain until
+// the run hit its SSH deadline (plan/journal/gate-excludes-part-of-its-population.md,
+// the 2026-09-05 row). The repair was to delete the copy, not to widen the walk.
+//
 // WHICH CARRIERS ARE JUDGED is DERIVED from what each one does, never from a
 // list of names here, because a list is the second declaration this gate exists
 // to remove:
@@ -102,7 +109,7 @@ var (
 	// zero is what separates the directive from a `require` line, which git
 	// holds indented, and from the `toolchain` line, which starts with another
 	// word.
-	goDirectiveRe = regexp.MustCompile(`(?m)^go[ \t]+(\d+)\.(\d+)(?:\.\d+)?[ \t]*$`)
+	goDirectiveRe = regexp.MustCompile(`(?m)^go[ \t]+(\d+)\.(\d+)(?:\.(\d+))?[ \t]*$`)
 	// moduleDirectiveRe reads the `module` directive of a go.mod, which is what
 	// turns this package's import path into its path in the checkout.
 	moduleDirectiveRe = regexp.MustCompile(`(?m)^module[ \t]+(\S+)[ \t]*$`)
@@ -125,13 +132,55 @@ func Declared(root string) (string, error) {
 	return declaredMinor(body)
 }
 
-// declaredMinor reads the minor version out of a go.mod text.
-func declaredMinor(body string) (string, error) {
+// DeclaredRelease answers the exact Go release go.mod declares, patch included:
+// the `1.27.0` of `go 1.27.0`.
+//
+// A caller that DOWNLOADS a toolchain names a release rather than a minor, so a
+// directive with no patch is refused here. Go publishes go1.27.0 and never
+// go1.27, and an answer of `1.27` would build a URL that returns 404 far from
+// this read. The `go` directive of this module carries its patch on purpose, and
+// go.mod says why on the line under it.
+func DeclaredRelease(root string) (string, error) {
+	body, err := readFileString(filepath.Join(root, goModFile))
+	if err != nil {
+		return "", fmt.Errorf("read %s: %w", goModFile, err)
+	}
+	return declaredRelease(body)
+}
+
+// goDirective answers the submatches of the sole `go` directive of a go.mod text.
+//
+// Two go directives, and none at all, are both errors rather than a guess. This
+// value is the whole standard every carrier is judged against, so a read that
+// did not reach it must not answer an empty string a comparison would then
+// treat as a version nothing matches.
+func goDirective(body string) ([]string, error) {
 	matches := goDirectiveRe.FindAllStringSubmatch(body, -1)
 	if len(matches) != 1 {
-		return "", fmt.Errorf("%s declares %d `go <major>.<minor>` directives, want 1", goModFile, len(matches))
+		return nil, fmt.Errorf("%s declares %d `go <major>.<minor>` directives, want 1", goModFile, len(matches))
 	}
-	return matches[0][1] + "." + matches[0][2], nil
+	return matches[0], nil
+}
+
+// declaredMinor reads the minor version out of a go.mod text.
+func declaredMinor(body string) (string, error) {
+	parts, err := goDirective(body)
+	if err != nil {
+		return "", err
+	}
+	return parts[1] + "." + parts[2], nil
+}
+
+// declaredRelease reads the patch-qualified release out of a go.mod text.
+func declaredRelease(body string) (string, error) {
+	parts, err := goDirective(body)
+	if err != nil {
+		return "", err
+	}
+	if parts[3] == "" {
+		return "", fmt.Errorf("%s declares `go %s.%s` with no patch version, and a toolchain download names a release", goModFile, parts[1], parts[2])
+	}
+	return parts[1] + "." + parts[2] + "." + parts[3], nil
 }
 
 // declaredModule reads the module path out of a go.mod text.
