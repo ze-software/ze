@@ -480,7 +480,14 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 				})
 			}
 		}
-		if def.Kind == ArgUint || def.Kind == ArgString {
+		// An ENUM the command runs without is reached through its own keyword,
+		// so the keyword is offered beside its values. The renderer states the
+		// same fact from the same field: a mandatory leaf is a bare positional
+		// and an optional one is `[<name> <value>]` (Usage, appendLeafTokens).
+		// Without this the completer offered `open` for `send bgp <selector>
+		// raw`, where a bare `open` is refused and only `type open` is accepted.
+		enumNeedsItsKeyword := def.Kind == ArgEnum && !def.Mandatory
+		if def.Kind == ArgUint || def.Kind == ArgString || enumNeedsItsKeyword {
 			if seen != nil && seen[def.Name] {
 				continue
 			}

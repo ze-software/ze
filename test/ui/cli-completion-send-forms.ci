@@ -1,0 +1,62 @@
+# Test: the send family offers its protocol, its form and every declared argument
+# VALIDATES: AC-4 -- completion after `send` reaches the protocol, then the form,
+#            then the arguments each handler reads, and the generated usage line
+#            names the same arguments
+# PREVENTS: a brand-new command path shipping with a tail the model does not
+#           know exists, where completion offers nothing after the form word and
+#           the usage line states a command that takes no arguments
+#
+# The three commands here are the ones
+# plan/journal/command-takes-an-untyped-positional-value.md named on 2026-09-04:
+# raw and update declared a selector and nothing else, and cache forward is the
+# third member of the population the send spec moves.
+#
+# The usage lines are the MODEL's, rendered by command.Usage from the same
+# ArgDefs the completer reads, so a leaf that stops being declared changes both
+# halves of this file at once.
+#
+# `type` is offered beside its five values because the command runs without it,
+# and a value a command runs without is reached through its own keyword
+# (ai/rules/cli.md). A bare `open` is refused.
+
+cmd=foreground:seq=1:exec=ze completion words run send
+expect=exit:code=0
+expect=stdout:contains=bgp
+
+cmd=foreground:seq=2:exec=ze completion words run send bgp
+expect=exit:code=0
+expect=stdout:contains=raw
+
+cmd=foreground:seq=3:exec=ze completion words run send bgp raw
+expect=exit:code=0
+expect=stdout:contains=selector
+expect=stdout:contains=hex
+expect=stdout:contains=b64
+expect=stdout:contains=data
+expect=stdout:contains=type
+expect=stdout:contains=keepalive
+expect=stdout:contains=route-refresh
+
+cmd=foreground:seq=4:exec=ze send bgp raw help
+expect=exit:code=0
+expect=stderr:contains=ze send bgp <selector> raw <hex|b64> <data> [type <open|update|notification|keepalive|route-refresh>]
+
+cmd=foreground:seq=5:exec=ze completion words run peer update
+expect=exit:code=0
+expect=stdout:contains=text
+expect=stdout:contains=hex
+expect=stdout:contains=b64
+expect=stdout:contains=cursor
+
+cmd=foreground:seq=6:exec=ze peer update help
+expect=exit:code=0
+expect=stderr:contains=ze peer <selector> update <text|hex|b64|cursor>
+
+cmd=foreground:seq=7:exec=ze completion words run request cache forward
+expect=exit:code=0
+expect=stdout:contains=id
+expect=stdout:contains=selector
+
+cmd=foreground:seq=8:exec=ze request cache forward help
+expect=exit:code=0
+expect=stderr:contains=ze request cache forward <id> <selector>

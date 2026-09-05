@@ -214,7 +214,7 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 |---------|-------------|
 | Store wire bytes | `pool.Intern(raw UPDATE sections from StructuredEvent or raw event fields)` |
 | Forward by msg-id | `bgp cache forward Y <selector>` (zero-copy where contexts match) |
-| Announce raw | `bgp peer X raw update hex <update-payload-hex>` |
+| Announce raw | `bgp peer X raw hex <update-payload-hex> type update` |
 | Control msg-id | `bgp cache retain/release/expire N` |
 
 ---
@@ -261,7 +261,7 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
         ↓
 2. ✅ Engine: Add msg-id control commands (retain/release/expire/list)
         ↓
-3. ✅ Engine: Add `bgp peer X raw update hex <payload>` command
+3. ✅ Engine: Add `bgp peer X raw hex <payload> type update` command
         ↓
 4. ✅ API: Update `bgp-rs` to use cached message IDs
         ↓
@@ -428,7 +428,7 @@ def handle_update(event):
 When msg-id cache is unavailable (long outage, cache evicted), API can send a preserved raw UPDATE payload:
 
 ```
-bgp peer 192.0.2.1 raw update hex <update-payload-hex>
+bgp peer 192.0.2.1 raw hex <update-payload-hex> type update
 ```
 
 This bypasses normal UPDATE construction and validation. Use it only when the API has preserved the exact UPDATE payload and the engine cache is unavailable.

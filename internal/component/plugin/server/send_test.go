@@ -18,12 +18,14 @@
 package server_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/authz"
+	cliclient "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/grammar"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -129,4 +131,105 @@ func TestSendIsAVerbTheGrammarGateAccepts(t *testing.T) {
 	assert.True(t, command.IsVerb("send"), "send must be a canonical verb")
 	assert.Empty(t, grammar.CheckName(sendRawPath),
 		"a send path must be grammar-clean, R1 included")
+}
+
+// declaredArgumentPaths are the commands the send spec found taking
+// operator-typed tokens the model never stated, with the invocation form each
+// one now generates.
+//
+// The line is the MODEL's answer, rendered by command.Usage. A leaf that stops
+// being declared changes it, and so does a leaf declared in another order.
+//
+// Each expected line is written out rather than derived. A line derived from the
+// same ArgDefs the renderer reads would agree with itself, whatever the model
+// said.
+var declaredArgumentPaths = []struct {
+	path  string
+	usage string
+	reads string
+}{
+	{
+		path:  "send bgp raw",
+		usage: "send bgp <selector> raw <hex|b64> <data> [type <open|update|notification|keepalive|route-refresh>]",
+		reads: "rawArguments reads the encoding, the data and the optional message type",
+	},
+	{
+		path:  "peer raw",
+		usage: "peer <selector> raw <hex|b64> <data> [type <open|update|notification|keepalive|route-refresh>]",
+		reads: "one handler answers at both paths, so the path this move is leaving states the same grammar",
+	},
+	{
+		path:  "peer update",
+		usage: "peer <selector> update <text|hex|b64|cursor>",
+		reads: "handleUpdate reads the encoding word and hands the rest to that encoding's parser",
+	},
+	{
+		path:  "request cache forward",
+		usage: "request cache forward <id> <selector>",
+		reads: "handleCacheForwardRPC reads the cache id and the peer selector",
+	},
+}
+
+// TestSendArgumentsAreDeclared holds each command's generated usage line to the
+// arguments its handler reads.
+//
+// The commands in plan/journal/command-takes-an-untyped-positional-value.md
+// declared a selector and nothing else. Completion then offered nothing after
+// the form word, and the generated line stated a command that took no
+// arguments. A path no operator has typed before must not ship with that
+// grammar.
+//
+// The second half is what makes the declaration load-bearing rather than
+// decorative. A word outside a declared enumeration is refused by the
+// DISPATCHER, with the enumeration named, before any handler runs.
+//
+// The server carries no reactor here. A handler that ran would answer "BGP
+// reactor not available" instead, and the assertion reads that difference.
+//
+// VALIDATES: every argument each handler reads is named and typed in the model,
+// and a value outside an enumeration is refused before the handler runs.
+// PREVENTS: the tail grammar living only in a handler's doc comment, where
+// completion, the generated help and the command catalog cannot reach it.
+func TestSendArgumentsAreDeclared(t *testing.T) {
+	tree := cliclient.YANGCommandTree()
+	require.NotNil(t, tree)
+
+	for _, want := range declaredArgumentPaths {
+		t.Run(want.path, func(t *testing.T) {
+			path := strings.Fields(want.path)
+			node := command.FindNode(tree, path)
+			require.NotNil(t, node, "the model must carry a node at %q", want.path)
+			assert.Equal(t, want.usage, command.UsageLine(command.Usage(path, node)),
+				"the generated line must name every argument the handler reads: %s", want.reads)
+		})
+	}
+
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	refusals := []struct {
+		command string
+		says    string
+	}{
+		{command: "send bgp 192.0.2.1 raw gzip DEADBEEF", says: "expected one of: hex, b64"},
+		{command: "send bgp 192.0.2.1 raw hex DEADBEEF type heartbeat", says: "expected one of: open, update, notification, keepalive, route-refresh"},
+		{command: "peer 192.0.2.1 update json", says: "expected one of: text, hex, b64, cursor"},
+		// The same bad encoding with a route expression behind it. The
+		// dispatcher leaves more tokens over than it leaves definitions open.
+		// It cannot say which token was typed for which leaf, so it names the
+		// declaration instead (validateCommandArgs). The refusal is still the
+		// model's, and the handler still does not run.
+		{command: "peer 192.0.2.1 update json nlri ipv4/unicast add 10.0.0.0/24", says: "required argument missing: encoding"},
+	}
+	for _, refusal := range refusals {
+		t.Run(refusal.command, func(t *testing.T) {
+			ctx := &pluginserver.CommandContext{Server: server}
+			_, dispatchErr := server.Dispatcher().Dispatch(ctx, refusal.command)
+			require.Error(t, dispatchErr)
+			assert.Contains(t, dispatchErr.Error(), refusal.says,
+				"the refusal must come from the model, so it names the declared set or the declaration")
+			assert.NotContains(t, dispatchErr.Error(), "reactor",
+				"a refusal that reached the handler would answer about the missing reactor instead")
+		})
+	}
 }

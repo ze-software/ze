@@ -2207,7 +2207,7 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 peer <sel> update text <attrs> nlri <family> <op> <prefixes>
 peer <sel> update hex <hex-data>
 peer <sel> update b64 <b64-data>
-peer <sel> raw [<type>] <encoding> <data>
+peer <sel> raw <encoding> <data> [type <type>]
 ```
 
 Text format attributes:

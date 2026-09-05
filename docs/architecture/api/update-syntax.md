@@ -807,20 +807,29 @@ peer upstream1 update text nhop set 10.0.0.1 \
 Send raw bytes with no validation ("trust me bro" mode). The peer must attach the
 program with `send [ raw ]`; no other send type permits it.
 
+The encoding is `hex` or `b64`, the data is always supplied, and the message type
+takes the `type` keyword in front of it. The model declares all three
+(`internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang`), so a word
+outside either set is refused before the handler runs.
+
 | Command | What's sent | Header |
 |---------|-------------|--------|
-| `peer X raw <type> <enc> <data>` | Message payload | Ze adds |
+| `peer X raw <enc> <data> type <type>` | Message payload | Ze adds |
 | `peer X raw <enc> <data>` | Full packet | User provides FF*16 |
 
 ```bash
 # Payload only (Ze adds 19-byte header)
-peer upstream1 raw update hex 0000000e40010100400200400304c0a80101180a00
-peer upstream1 raw notification hex 0602
-peer upstream1 raw keepalive hex
+peer upstream1 raw hex 0000000e40010100400200400304c0a80101180a00 type update
+peer upstream1 raw hex 0602 type notification
 
 # Full packet (user provides marker + length + type)
 peer upstream1 raw hex ffffffffffffffffffffffffffffffff001303
 ```
+
+A message with no body is written in full packet mode, because the type keyword
+introduces a body and a header-only frame has none. A KEEPALIVE is
+`peer upstream1 raw hex ffffffffffffffffffffffffffffffff001304`: sixteen marker
+octets, the length 0x0013, and the type 0x04.
 <!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw passthrough -->
 
 ⚠️ **No validation.** Can crash peer, violate FSM, send malformed messages.

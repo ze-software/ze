@@ -19,7 +19,7 @@ func TestHandlerRawUpdateHex(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleRaw(ctx, []string{"update", "hex", "DEADBEEF"})
+	resp, err := handleRaw(ctx, []string{"type", "update", "hex", "DEADBEEF"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -37,7 +37,7 @@ func TestHandlerRawMissingPeer(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "*"
 
-	resp, err := handleRaw(ctx, []string{"update", "hex", "DEADBEEF"})
+	resp, err := handleRaw(ctx, []string{"type", "update", "hex", "DEADBEEF"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -122,7 +122,7 @@ func TestSendRawReachesOnePeerAtItsNewPath(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newDispatchContext(reactor, plugin.OperatorSender())
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "send bgp 192.0.2.1 raw update hex DEADBEEF")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "send bgp 192.0.2.1 raw type update hex DEADBEEF")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.Equal(t, "192.0.2.1", ctx.Peer,

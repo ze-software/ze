@@ -785,7 +785,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 
 | Command | Description |
 |---------|-------------|
-| `bgp raw <type> <enc> <data>` | Send raw BGP message |
+| `bgp raw <enc> <data> [type <type>]` | Send raw BGP message |
 <!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw passthrough handler -->
 
 ### System Namespace

@@ -103,7 +103,7 @@ API controls BGP cache lifetime in engine:
 If cache was cleared (shouldn't happen with retain), API can re-announce from pool:
 
 ```
-bgp peer 192.0.2.1 raw update hex <update-payload-hex>
+bgp peer 192.0.2.1 raw hex <update-payload-hex> type update
 ```
 
 ---
