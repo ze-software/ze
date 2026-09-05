@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	"github.com/ze-software/ze/internal/test/runner"
@@ -656,7 +657,7 @@ func runExaBGPClientForeground(test *exabgpTestEntry, port int, zeBinary string)
 		return err
 	}
 	cmd := exec.CommandContext(context.Background(), zeBinary, "start", config) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
-	cmd.Env = exaBGPClientEnv(test, port, zeBinary)
+	cmd.Env = exaBGPClientEnv(test, port, zeBinary, config)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -677,7 +678,7 @@ func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int, zeB
 	if err != nil {
 		return nil, err
 	}
-	return startExaProcess(ctx, "client", zeBinary, []string{"start", config}, exaBGPClientEnv(test, port, zeBinary), nil)
+	return startExaProcess(ctx, "client", zeBinary, []string{"start", config}, exaBGPClientEnv(test, port, zeBinary, config), nil)
 }
 
 func exaBGPServerArgs(test *exabgpTestEntry, port int, saveDir string) []string {
@@ -698,7 +699,7 @@ func exaBGPServerEnv(test *exabgpTestEntry, port int) []string {
 	return env
 }
 
-func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary string) []string {
+func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, configPath string) []string {
 	env := os.Environ()
 	portText := strconv.Itoa(port)
 	var tb textbuf.Buffer
@@ -711,6 +712,15 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary string) []string 
 		"exabgp_debug_configuration=true",
 		"exabgp_api_socketname=exabgp-test-"+portText,
 		"exabgp_api_version=4",
+		// Each daemon gets its own store. Without it they share the one derived
+		// from the binary's location and corrupt each other's zefs and CA.
+		tb.Reset().Str("ze.config.dir=").Str(filepath.Dir(configPath)).String(),
+		// The daemon FORKS the helper a config's process block names, and
+		// conf-watchdog names `ze-test fixture ...`, which sits beside the ze
+		// under test. It was reachable from nowhere until the migration started
+		// emitting the bridge, because the process was being dropped and nothing
+		// ever forked it.
+		tb.Reset().Str("PATH=").Str(filepath.Dir(zeBinary)).Byte(os.PathListSeparator).Str(os.Getenv("PATH")).String(),
 		// Appended AFTER os.Environ() so the verified binary wins over any
 		// inherited ZE_BIN value.
 		tb.Str("ZE_BIN=").Str(zeBinary).String(),
@@ -729,7 +739,31 @@ func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary str
 		config.WriteString(absoluteBridgeRun(string(output), filepath.Dir(source)))
 		config.Byte('\n')
 	}
-	file, err := os.CreateTemp("", "ze-exabgp-native-*.conf")
+	// A DIRECTORY per test, not just a file. ze derives its config directory
+	// from its own binary unless ze.config.dir says otherwise
+	// (internal/core/paths.DefaultConfigDir), so every concurrent daemon in this
+	// suite shared one database.zefs and one certificate authority. That is what
+	// made the suite answer between 9 and 13 passes for an unchanged tree:
+	// api-rib and api-rr-rib pass alone and deliver nothing under load.
+	//
+	// The migrated config lives in it and exaBGPClientEnv points ze at it, so
+	// each daemon reads and writes its own store.
+	directory, err := os.MkdirTemp("", "ze-exabgp-native-*")
+	if err != nil {
+		return "", err
+	}
+	// Seeded from the run's own config directory, not left empty. The store
+	// holds the local username and the plugin CA, and a daemon handed an empty
+	// one spends its startup minting them: conf-watchdog, which runs a plugin
+	// over that CA, timed out waiting for a daemon busy doing it.
+	if err := copyConfigDir(paths.ConfigDirFromBinary(zeBinary), directory); err != nil {
+		return "", err
+	}
+	// NOT ze.conf. That is the name the blob store adopts as its active config
+	// (internal/core/resolve.DefaultConfig), so a file called that in the config
+	// directory is migrated into the store at startup, and conf-watchdog timed
+	// out waiting for a daemon busy doing it.
+	file, err := os.Create(filepath.Join(directory, "migrated.conf")) //nolint:gosec // the directory is this process's own temporary one
 	if err != nil {
 		return "", err
 	}
@@ -768,7 +802,11 @@ func absoluteBridgeRun(migrated, configDir string) string {
 			continue
 		}
 		command = strings.Trim(command, `"`)
-		if command == "" || filepath.IsAbs(command) {
+		// Only an EXPLICITLY relative command is rooted at the config. A bare
+		// name is resolved through PATH, and conf-watchdog runs `ze-test fixture
+		// ...`: absolutising that turned it into a path under the fixture
+		// directory and the bridge forked a file that does not exist.
+		if !strings.HasPrefix(command, "./") && !strings.HasPrefix(command, "../") {
 			continue
 		}
 		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
@@ -776,6 +814,39 @@ func absoluteBridgeRun(migrated, configDir string) string {
 		lines[index] = tb.Str(indent).Str(runKeyword).Quoted(filepath.Join(configDir, command)).String()
 	}
 	return strings.Join(lines, "\n")
+}
+
+// copyConfigDir seeds a per-test config directory from the one the run shares,
+// so a daemon starts from the state every other test starts from and cannot
+// corrupt a peer's store while it runs.
+//
+// A missing or unnamed source is not an error: ze mints what it needs, and the
+// only cost is startup time.
+func copyConfigDir(source, destination string) error {
+	if source == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(source)
+	if err != nil {
+		return nil //nolint:nilerr // an absent shared store is a state ze can start from
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(source, entry.Name())) //nolint:gosec // the run's own config directory
+		if err != nil {
+			return err
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(destination, entry.Name()), data, info.Mode().Perm()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type exaProcess struct {

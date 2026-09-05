@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"slices"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -114,7 +115,7 @@ func TestExaBGPClientEnvExportsResolvedZeBin(t *testing.T) {
 	t.Setenv("ZE_BIN", "/inherited/ze")
 	test := &exabgpTestEntry{record: &runner.Record{Nick: "1"}, tcpConnections: 1}
 
-	got := exaBGPClientEnv(test, 17900, "/resolved/ze")
+	got := exaBGPClientEnv(test, 17900, "/resolved/ze", "/work/ze-exabgp-native-7/ze.conf")
 
 	last := ""
 	for _, entry := range got {
@@ -124,6 +125,14 @@ func TestExaBGPClientEnvExportsResolvedZeBin(t *testing.T) {
 	}
 	if last != "ZE_BIN=/resolved/ze" {
 		t.Fatalf("effective ZE_BIN = %q, want the resolved path", last)
+	}
+
+	// The store is per test. ze derives its config directory from its own binary
+	// unless this says otherwise, so without it every concurrent daemon in the
+	// suite shares one database.zefs and one certificate authority.
+	want := "ze.config.dir=/work/ze-exabgp-native-7"
+	if !slices.Contains(got, want) {
+		t.Fatalf("environment does not carry %q: %v", want, got)
 	}
 }
 

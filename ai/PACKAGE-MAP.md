@@ -326,6 +326,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/component/ike/transport` | implements the IKE UDP transport with NAT detection and keepalive handling |  |
 | `internal/component/ike/wire` | encodes and decodes IKEv2 messages, headers, and payloads |  |
 | `internal/component/ike/yang` | embeds and registers the IPsec operational command YANG schema module |  |
+| `internal/component/kernelcap` | TODO |  |
 | `internal/component/l2tp` | implements L2TPv2 (RFC 2661) wire format parsing and serialization for ze's L2TP subsystem |  |
 | `internal/component/l2tp/cli` | provides the `ze l2tp` subcommand | --user |
 | `internal/component/l2tp/cmd` | registers engine-side RPC handlers that expose the L2TP subsystem's observability and teardown surface to the CLI |  |
