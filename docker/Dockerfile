@@ -4,7 +4,7 @@
 # those tools exec sh, ip and cat inside a node, and this image has none of them.
 
 # Build stage
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 WORKDIR /src
 COPY go.mod go.sum ./

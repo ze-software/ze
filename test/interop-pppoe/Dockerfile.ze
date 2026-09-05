@@ -1,7 +1,7 @@
 # Ze PPPoE-client image for the accel-ppp interop lab.
 # Privileged container shares the host kernel for PPPoE (pppox) and /dev/ppp.
 
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 RUN apk add --no-cache git
 

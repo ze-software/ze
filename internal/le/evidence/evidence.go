@@ -49,7 +49,7 @@ const (
 // toolchain. The platform is named rather than left to the daemon, because an
 // arm64 host would otherwise judge amd64 code on an emulator or not at all.
 const (
-	DefaultImage    = "golang:1.26"
+	DefaultImage    = "golang:1.27"
 	DefaultPlatform = "linux/amd64"
 )
 

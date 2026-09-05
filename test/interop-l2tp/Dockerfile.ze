@@ -1,7 +1,7 @@
 # Ze LNS image for L2TP PPP/NCP interop lab.
 # Privileged container shares the host kernel for PPPoL2TP.
 
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 RUN apk add --no-cache git
 

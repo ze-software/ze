@@ -27,7 +27,7 @@ const checkout = "/checkout"
 func (rec *recorder) runner() *Runner {
 	return &Runner{
 		Tree:     checkout,
-		Image:    "golang:1.26",
+		Image:    "golang:1.27",
 		Platform: "linux/amd64",
 		Look: func(name string) error {
 			if name == rec.missing {
@@ -68,7 +68,7 @@ func TestACleanTreeStartsOneContainer(t *testing.T) {
 	line := strings.Join(argv, " ")
 	for _, want := range []string{
 		"run --rm", "--privileged", "--platform linux/amd64",
-		"-v " + checkout + ":/host:ro", "golang:1.26", "bash -lc",
+		"-v " + checkout + ":/host:ro", "golang:1.27", "bash -lc",
 	} {
 		if !strings.Contains(line, want) {
 			t.Errorf("the docker argv does not carry %q:\n%s", want, line)
