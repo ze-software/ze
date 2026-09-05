@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 15 of 15 steps landed, the swap in `eae282592` |
 | Handoff | - |
-| Updated | 2026-08-28 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -128,7 +128,7 @@ does not depend on a compatibility target.
 
 → Decision (owner, 2026-08-26): **`le` MUST NOT exec its own code. Where a Go
 package in this tree holds the answer, the caller makes a FUNCTION CALL.**
-`ReadGates` (`internal/le/parity/parity.go` <!-- doc-links: ignore (the parity census package is gone from the tree; this spec is still open on it) -->) is the live instance: it builds an
+`ReadGates` (`internal/le/parity/parity.go` <!-- doc-links: ignore (removed by design at the swap; AC-9 requires the census to be absent, and the Pre-Commit Files Exist table records that) -->) is the live instance: it builds an
 `exec.CommandContext` against `filepath.Join(root, "le")`, pipes stdout and
 decodes JSON, and its own comment says the Python "stays the denominator until
 the swap moves the declaration into Go". That is a TRANSITIONAL ARTIFACT, not a
@@ -160,7 +160,7 @@ Target layout:
 | `cmd/ze/` | shared entry point for the `ze` and `le` personalities | both |
 | `internal/le/register.go` | composition root: blank imports say what `le` carries | `le` |
 | `internal/le/<tool>/` | `le`'s plugins, one package per tool | `le` only |
-| `internal/le/parity/` <!-- doc-links: ignore (the parity census package is gone from the tree; this spec is still open on it) --> | the census measuring how much is ported | `le` only |
+| `internal/le/parity/` <!-- doc-links: ignore (removed by design at the swap; AC-9 requires the census to be absent, and the Pre-Commit Files Exist table records that) --> | the census measuring how much is ported | `le` only |
 
 → Decision: `le`'s plugins sit in a top-level tree, NOT under `internal/`
 alongside the product's. The directory is the statement that these are a
@@ -439,11 +439,16 @@ specific trap of a duplicate-then-swap migration.
 ## Files to Modify
 
 - `internal/le/register.go` and each area's `actions.go` - native composition and action verbs
-- `cmd/ze/register.go` - blank imports for any development tool wanted in a `ze_le` build <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `cmd/ze/ze_le_register.go` - the `//go:build ze_le` companion that blank-imports
+  the `internal/le` composition root. The plan called it `cmd/ze/register.go`;
+  the build tag has to sit on a file of its own, so the name carries it
 - `ai/INDEX.md` - discovery rows for `le` command areas
 - `ai/INSTRUCTIONS.md`, `ai/rules/commands.md` - native gate invocation
 - `internal/le/hookruntime/`, `internal/le/hookcheck/` - native hook producers
 - `docs/architecture/core-design.md` - the shared registry and two composition roots
+- `docs/architecture/system-architecture.md` - the declared design document of
+  `cmd/ze/ze_le_register.go`: the `ze_le` crossing and what a shipped build does
+  not enable
 
 ## Files to Create
 
@@ -801,13 +806,163 @@ N/A - this spec touches no protocol surface.
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
+## Implementation Summary
+
+### What Was Implemented
+
+The swap landed in `eae282592` and the tree is native. Measured 2026-09-05:
+
+- `internal/le/` holds 109 packages a `ze_le` build links, composed by
+  `internal/le/register.go`, each registering through `leroot.Register` and the
+  one `internal/component/command/registry`.
+- `cmd/ze/ze_le_register.go` is the non-default companion that exposes `ze le`.
+  A normal `ze` build links none of it.
+- `./le` at the repository root is a compiled launcher, not a Python shim.
+- 24 `test/ui/le-*.ci` files drive the built binary.
+
+### Bugs Found/Fixed
+
+None at closure. The closure found one CONTRACT violation, which is the blocker
+recorded in the Review Gate.
+
+### Documentation Updates
+
+- `ai/INDEX.md` carries one row per `le` area, each naming its `internal/le/...Answer`.
+- `docs/architecture/core-design.md`, "Command engine and composition roots",
+  states the shared registry and the two composition roots.
+- `ai/rules/commands.md` names the native `./le` route.
+- `docs/contributing/ze-python-style.md` states that no first-party development
+  or testing instruction names Python.
+- No live reference to the retired tooling tree remains: a grep over `ai/` and
+  `docs/contributing/running-commands.md` for `scripts/dev`, `scripts/le/`,
+  `python3 scripts` and `make check|test` returns only rows that mark the path
+  retired, and `grep -rn "source: scripts/" docs/ ai/` returns nothing.
+
+### Deviations from Plan
+
+- The migration-time parity packages are gone with their Python halves. The
+  observable contract A-3 was proven over is now defended by the 24
+  `test/ui/le-*.ci` answer tests instead.
+- `internal/le/parity/` no longer exists. AC-9 requires its absence, so the
+  Files Exist row for it is inverted: it is verified by not being there.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | AC-12 was treated as satisfied once the swap landed, and nothing watched the tree afterwards | `TestNoPythonLeRemains` walks every tracked file, so any later commit can break it. `49c145d3b` (2026-08-31) added two first-party `.py` files under `plan/rfcgate-6-partial-walks/`, three days after the swap, and the test has been red since | Closure ran the test | Not fixed. It is the blocker below, and the fix is the owner's to choose |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One engine, two plugin sets, two binaries | Done | `internal/le/register.go`, `cmd/ze/ze_le_register.go` | `TestNormalZeLinksNoInternalLe` PASS; measured 0 `internal/le` packages in a normal `ze` build and 109 in a `ze_le` build |
+| All first-party development tooling is compiled Go | Partial | `internal/le/` | Two first-party `.py` files remain under `plan/rfcgate-6-partial-walks/`. See the Review Gate blocker |
+| `le` inherits the CLI contract | Done | `internal/le/leroot/dispatch.go` | `TestDispatchUsesSharedPipeRenderers` PASS for json, yaml and table; `TestStandaloneLeAndZeLeHaveIdenticalSurface` PASS |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestStandaloneLeAndZeLeHaveIdenticalSurface` PASS 31.29s, `le-binary-dispatches` PASS 11.8s | |
+| AC-2 | Done | `TestNormalZeLinksNoInternalLe` PASS 0.72s | |
+| AC-3 | Done | `TestLeRegistersOneRootAndNoToolRoots` PASS | |
+| AC-3b | Done | `TestStandaloneLeAndZeLeHaveIdenticalSurface` PASS | |
+| AC-4 | Done | `TestNoDevelopmentToolIsBuildIgnored` PASS 0.34s | |
+| AC-5 | Done | `TestNoDevelopmentToolTestShellsOutToGoRun` PASS 0.03s | |
+| AC-6 | Done | `TestEveryMakeProducerHasAReachableNativeAction` PASS 0.12s | |
+| AC-7 | Done | `TestDispatchUsesSharedPipeRenderers` PASS, three subtests | |
+| AC-8 | Done | `TestFirstFailingGateExitCodeWins` PASS | |
+| AC-9 | Partial | `TestEveryMakeProducerHasAReachableNativeAction` PASS; `TestNoPythonLeRemains` FAIL | The census half is met and `internal/le/parity/` is gone. The residue half is the blocker |
+| AC-10 | Done | `TestTheCheckoutsOwnHeadIsClean` PASS 35.25s | |
+| AC-11 | Done, with foreign reds | 24 `test/ui/le-*.ci` answer tests exist; 19 PASS and 5 FAIL | The five failures are other sessions' in-flight work, named in the Review Gate |
+| AC-12 | NOT MET | `TestNoPythonLeRemains` FAIL | Two first-party `.py` files. This is the blocker |
+| AC-13 | Done | `TestDuplicateLeRootIsRejected` PASS | |
+| AC-14 | Done | `staleLeReferences`, inside `TestNoPythonLeRemains`, reported no stale reference; the test's only failures are the two `.py` paths | |
+| AC-15 | Done | `TestStandaloneLeAndZeLeHaveIdenticalSurface` and `TestNormalZeLinksNoInternalLe` both PASS | |
+| AC-16 | Done | `TestStandaloneLeAndZeLeHaveIdenticalSurface` PASS | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCompositionEqualsLiveRegisteringPackagePopulation` | Done | `internal/le/register_test.go` | PASS |
+| `TestDuplicateLeRootIsRejected` | Done | `internal/le/register_test.go` | PASS |
+| `TestEveryMakeProducerHasAReachableNativeAction` | Done | `internal/le/completeness_test.go` | PASS |
+| `TestFirstFailingGateExitCodeWins` | Changed | `internal/le/leaction/leaction_test.go` | The plan named `internal/le/leroot/dispatch_test.go`. PASS where it lives |
+| `TestNoDevelopmentToolIsBuildIgnored` | Done | `internal/le/contract_test.go` | PASS |
+| `TestNoDevelopmentToolTestShellsOutToGoRun` | Done | `internal/le/contract_test.go` | PASS |
+| `TestNoPythonLeRemains` | Done, RED | `internal/le/contract_test.go` | The test is written and correct. It fails because the tree violates AC-12 |
+| `TestRunReturnsToolExitCode` | Changed | -- | No test of that name exists. Each area's own tests carry its exit codes, and `TestFirstFailingGateExitCodeWins` carries the propagation rule |
+| `TestNoLeNameCollidesWithZe` | Changed | -- | No test of that name exists. A-5 rules the collision harmless under the never-linked rule, which `TestNormalZeLinksNoInternalLe` proves |
+| `TestStandaloneLeAndZeLeHaveIdenticalSurface` | Done | `cmd/ze/ze_le_personality_test.go` | PASS |
+| `TestNormalZeLinksNoInternalLe` | Done | `cmd/ze/ze_le_personality_test.go` | PASS |
+| `TestLeRegistersOneRootAndNoToolRoots` | Changed | `internal/le/register_test.go` | The plan named `cmd/ze/ze_le_personality_test.go`. PASS where it lives |
+| `TestDispatchUsesSharedPipeRenderers` | Done | `internal/le/leroot/dispatch_test.go` | PASS |
+| `TestTheCheckoutsOwnHeadIsClean` | Done | `internal/le/tracked/tracked_test.go` | PASS |
+| `le-binary-dispatches` | Done | `test/ui/le-binary-dispatches.ci` | PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `cmd/ze/` entry point | Done | `cmd/ze/ze_le_register.go` is the `ze_le` companion |
+| `internal/le/register.go` | Done | The composition root |
+| `internal/le/<tool>/<tool>.go` and `register.go` | Done | 109 packages a `ze_le` build links |
+| `internal/le/completeness_test.go` | Done | |
+| `internal/le/parity/` | Removed by design | AC-9 requires its absence |
+| `ai/INDEX.md`, `ai/rules/commands.md`, `docs/architecture/core-design.md` | Done | |
+
+### Audit Summary
+- **Total items:** 16 AC, 15 test rows, 6 file groups
+- **Done:** 33
+- **Partial:** 2 (AC-9's residue half, AC-12)
+- **Skipped:** 0
+- **Changed:** 4 (three tests live elsewhere than the plan named, two plan names have no test and the reason is recorded)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One engine, two plugin sets, two binaries; `ze` is never compiled with `le` code | functional | `go list -deps` over `./cmd/ze` on 2026-09-05: 1128 packages without `ze_le` and **zero** matching `ze-software/ze/internal/le`; 1372 packages with `ze_le` and 109 of them `internal/le`. `TestNormalZeLinksNoInternalLe` PASS asserts the same over every flavour |
+| All first-party development tooling is compiled Go | functional | NOT ACHIEVED. `TestNoPythonLeRemains` names `plan/rfcgate-6-partial-walks/classify-rfc3748.py` and `classify-rfc5176.py`. `git ls-files` confirms those two are the only first-party `.py`, `.sh`, `.bash` or `.mk` files outside `vendor/` and `test/exabgp-compat/` |
+| `le` inherits the CLI contract rather than reimplementing it | functional | `TestDispatchUsesSharedPipeRenderers` PASS for `json`, `yaml` and `table` over one `le` payload, with no per-tool rendering code. `le-binary-dispatches` PASS drives the BUILT binary and renders `\| json` through it |
+| Every producer is reachable as a native area/verb | functional | `TestEveryMakeProducerHasAReachableNativeAction` PASS, derived from the producer and action tables rather than from a census |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Nothing. The one outstanding item is a contract VIOLATION rather than unfinished scope, and it is the Review Gate blocker below | -- | -- |
+
 ## Review Gate
 
-<!-- Filled by /ze-close via /ze-review. Do not fill in advance. -->
+Closure pass, 2026-09-05, run by a context that authored none of the code under
+review. Every lens was run inline by that one context and no reader was spawned.
 
-| Run | Verdict | Rounds | Lenses | Artifact |
-|-----|---------|--------|--------|----------|
-| | | | | |
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded: the gate is not clean |
+| `./le spec session review check` | not run |
+| Rounds | 1 |
+| Reviewer lenses used | contract and residue; wiring and functional-test coverage |
+| Verdict | **BLOCKER open. The spec does not close.** |
+
+### Findings
+
+| # | Severity | Finding | Disposition |
+|---|----------|---------|-------------|
+| B-1 | BLOCKER | AC-12 is not met and `TestNoPythonLeRemains` (`internal/le/contract_test.go`) is RED. Two tracked first-party Python files remain: `plan/rfcgate-6-partial-walks/classify-rfc3748.py` and `classify-rfc5176.py`. They were added by `49c145d3b` on 2026-08-31, three days AFTER the swap in `eae282592`, by a session preserving four RFC extraction walks that could not sign. `classify-rfc3748.py` says in its own header that it is "SUPERSEDED IN PART, 2026-09-01, AND NO LONGER SAFE TO REPLAY OVER THE LANDED ARTIFACT" | NOT FIXED, and it is the owner's decision. Both available fixes need his word: deleting a committed evidence artifact another session wrote is refused by `ai/rules/never-destroy-work.md` without permission, and narrowing `firstPartySource` to exclude `plan/` weakens the test that carries AC-12, which `ai/rules/completion.md` refuses without a ruling that the population is wrong |
+| N-1 | NOTE | Five of the 24 `test/ui/le-*.ci` answer tests fail: `le-checks-answers` (the cli-grammar gate reports two `--flag` mentions in `internal/component/hub/yang/ze-hub-conf.yang`), `le-functional-answers` (`the integration area listed 14 actions, want 13`), `le-qemu-run-answers` (`go.mod declares 0 go <major>.<minor> directives, want 1`), `le-rules-answers` (`a ratchet did not run over this checkout`) and `le-spec-status-answers` (`the page files`) | not fixed. Each names an area another session holds uncommitted work in, and none is this spec's contract. `le-binary-dispatches` and the other 18 pass |
+| N-2 | NOTE | Three tests the TDD plan named live in a different file, and two named tests do not exist at all | FIXED as a record defect. The Tests from TDD Plan table names where each one lives and why the two absent names are absent |
+
+### What was run, not narrated
+
+| Check | Result |
+|-------|--------|
+| `go test` over `./internal/le/`, `./internal/le/leroot/`, `./internal/le/leaction/`, `./internal/le/tracked/` and `./cmd/ze/`, tags `ze_core ze_le` plus the feature set | 12 named tests PASS, `TestNoPythonLeRemains` FAIL |
+| `go list -deps -tags "ze_core ..."` over `./cmd/ze`, with and without `ze_le` | 1128 packages and 0 `internal/le`; 1372 packages and 109 `internal/le` |
+| `git ls-files` filtered to `.py`, `.sh`, `.bash`, `.mk` and `Makefile` | Two first-party hits, both under `plan/rfcgate-6-partial-walks/`. Everything else is `vendor/` or `test/exabgp-compat/` |
+| `./le functional ui` | `le-binary-dispatches` PASS 11.8s. 19 of the 24 `le-*` answer tests pass |
+| `./le verify lint run` | FAILED on the darwin and capability flavours over 45 files, one of which is `internal/le/job/contention_test.go` and one `internal/le/site/rfccompliance_test.go`. Both are another session's in-flight work; no file this spec owns is named |
 
 ## Pre-Commit Verification
 
@@ -824,75 +979,82 @@ N/A - this spec touches no protocol surface.
      Functional Tests. Paste the ls output. -->
 | File | Exists | Evidence |
 |------|--------|----------|
-| `cmd/ze/` | Unresolved | Closure-time file evidence was not collected. |
-| `internal/le/register.go` | Unresolved | Closure-time file evidence was not collected. |
-| `internal/le/<tool>/<tool>.go` | Unresolved | This is the live file pattern; closure-time inventory was not collected. |
-| `internal/le/<tool>/register.go` | Unresolved | This is the live file pattern; closure-time inventory was not collected. |
-| `internal/le/parity/` <!-- doc-links: ignore (the parity census package is gone from the tree; this spec is still open on it) --> | Unresolved | Closure-time file evidence was not collected. |
-| `test/ui/le-binary-dispatches.ci` | Unresolved | Closure-time `ls` was not run; earlier phase handoffs report this test, but that is not fresh file evidence. |
+| `cmd/ze/` | Yes | `ls`: the tree holds `ze_le_register.go` and `ze_le_personality_test.go`, and `go build` of `./cmd/ze` under `ze_le` succeeds inside `TestStandaloneLeAndZeLeHaveIdenticalSurface` |
+| `internal/le/register.go` | Yes | `TestCompositionEqualsLiveRegisteringPackagePopulation` PASS reads it and compares it against the live registry |
+| `internal/le/<tool>/<tool>.go` | Yes | `go list -deps` over a `ze_le` build names 109 `internal/le` packages |
+| `internal/le/<tool>/register.go` | Yes | `TestLeRegistersOneRootAndNoToolRoots` PASS walks them |
+| `internal/le/parity/` | Absent, by design | `ls internal/le/parity` answers `No such file or directory`. AC-9 requires the census to be gone, so absence is the passing state |
+| `test/ui/le-binary-dispatches.ci` | Yes | `ls -la`: 543 bytes, and `./le functional ui` ran it: PASS 11.8s |
 
 ### AC Verified (grep/test)
 <!-- Every AC-N, re-checked. Acceptable: test name + pass output, grep showing
      the call, ls showing the file. -->
+Every row below was run on 2026-09-05 under tags `ze_core ze_le` plus the
+`feature-gates.txt` set, with `CGO_ENABLED=0`.
+
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | The built `le` binary dispatches every ported tool through the shared registry. | None. Phase handoffs report `TestStandaloneLeAndZeLeHaveIdenticalSurface` and built-binary `.ci` coverage; closure-time verification was not run. |
-| AC-2 | Every `ze` build flavour links no `internal/le/` plugin. | None. An earlier handoff reports `TestNormalZeLinksNoInternalLe` and eight `go list -deps` flavours; closure-time verification was not run. |
-| AC-3 | `le` registers no product command as its own. | None. Phase handoffs report `TestLeRegistersOneRootAndNoToolRoots`; closure-time verification was not run. |
-| AC-3b | Both binaries use one command registry and neither declares another. | None. A phase handoff reports `TestStandaloneLeAndZeLeHaveIdenticalSurface`; closure-time verification was not run. |
-| AC-4 | No ported tool remains build-ignored. | None. Phase handoffs report `TestNoDevelopmentToolIsBuildIgnored`; the migration is incomplete and closure-time verification was not run. |
-| AC-5 | Ported tool tests call functions and do not invoke `go run`. | None. Phase handoffs report `TestNoDevelopmentToolTestShellsOutToGoRun`; the migration is incomplete and closure-time verification was not run. |
-| AC-6 | Every producer has a named native action and no action preserves a retired Make target identity. | Unresolved. Run `TestEveryMakeProducerHasAReachableNativeAction` for closure evidence. |
-| AC-7 | Every ported tool returns structured data for the pipe operators. | None fresh. Phase handoffs name package and `.ci` checks for individual ports; closure-time verification was not run. |
-| AC-8 | A gate preserves its first failing exit code. | None fresh. Phase handoffs record individual exit-code cases; the complete migration was not re-checked. |
-| AC-9 | Native action completeness comes from current producer and action tables; no Python parity census remains. | Unresolved. Run `TestEveryMakeProducerHasAReachableNativeAction` and `TestNoPythonLeRemains` for closure evidence. |
-| AC-10 | The committed tree builds and loads every registered tool. | Unresolved. `TestTheCheckoutsOwnHeadIsClean` was not run for closure and the current handover says nothing is committed. |
-| AC-11 | Every old and new tool pair agrees on exit code and output. | Unresolved. Phase handoffs record per-area parity results, but the current handover lists unported work. |
-| AC-12 | After the swap, no Python `le`, build-ignored tool, or reference remains. | Unresolved. The current handover lists the swap and the remaining Python tools as outstanding. |
-| AC-13 | Duplicate root names are rejected rather than shadowed. | None fresh. Phase handoffs report `TestDuplicateLeRootIsRejected`; closure-time verification was not run. |
+| AC-1 | The built `le` binary dispatches every ported tool through the shared registry | `TestStandaloneLeAndZeLeHaveIdenticalSurface` PASS 31.29s; `le-binary-dispatches` PASS 11.8s in `./le functional ui`, driving the compiled artifact |
+| AC-2 | Every `ze` build flavour links no `internal/le/` package | `TestNormalZeLinksNoInternalLe` PASS 0.72s. Measured directly beside it: `go list -deps` over `./cmd/ze` without `ze_le` returns 1128 packages, and `grep -c 'ze-software/ze/internal/le'` over that list answers 0 |
+| AC-3 | `le` registers no product command as its own | `TestLeRegistersOneRootAndNoToolRoots` PASS |
+| AC-3b | Both binaries use one command registry and neither declares another | `TestStandaloneLeAndZeLeHaveIdenticalSurface` PASS |
+| AC-4 | No ported tool remains build-ignored | `TestNoDevelopmentToolIsBuildIgnored` PASS 0.34s |
+| AC-5 | Ported tool tests call functions and do not invoke `go run` | `TestNoDevelopmentToolTestShellsOutToGoRun` PASS 0.03s |
+| AC-6 | Every producer has a named native action and no action preserves a retired Make target identity | `TestEveryMakeProducerHasAReachableNativeAction` PASS 0.12s |
+| AC-7 | Every ported tool returns structured data for the pipe operators | `TestDispatchUsesSharedPipeRenderers` PASS, with its `json`, `yaml` and `table` subtests each PASS |
+| AC-8 | A gate preserves its first failing exit code | `TestFirstFailingGateExitCodeWins` PASS, in `internal/le/leaction/leaction_test.go` rather than the file the plan named |
+| AC-9 | Native action completeness comes from current producer and action tables; no Python parity census remains | Half met. `TestEveryMakeProducerHasAReachableNativeAction` PASS and `ls internal/le/parity` answers `No such file or directory`. `TestNoPythonLeRemains` FAIL for the reason AC-12 gives |
+| AC-10 | The committed tree builds and loads every registered tool | `TestTheCheckoutsOwnHeadIsClean` PASS 35.25s |
+| AC-11 | Each migrated producer's observable contract is defended by a native test | 24 `test/ui/le-*.ci` answer tests exist; `./le functional ui` passed 19 and failed 5. The five are named in the Review Gate and each belongs to another session's in-flight work |
+| AC-12 | After the swap, no first-party Python, shell or Make source remains | **NOT MET.** `TestNoPythonLeRemains` FAIL, naming `plan/rfcgate-6-partial-walks/classify-rfc3748.py` and `classify-rfc5176.py`. `git ls-files` filtered to those extensions confirms they are the only two outside `vendor/` and `test/exabgp-compat/` |
+| AC-13 | Duplicate root names are rejected rather than shadowed | `TestDuplicateLeRootIsRejected` PASS |
+| AC-14 | Every development-tool package lives under `internal/le/` and no former tool path remains | `staleLeReferences`, called from the corpus walk in `TestNoPythonLeRemains`, reported no stale reference. The test's only two failures are the `.py` paths above |
+| AC-15 | The standalone `le` binary is a `cmd/ze` personality and a normal `ze` build links none of it | `TestStandaloneLeAndZeLeHaveIdenticalSurface` and `TestNormalZeLinksNoInternalLe` both PASS |
+| AC-16 | Standalone `le` and `ze le` list and dispatch the same surface | `TestStandaloneLeAndZeLeHaveIdenticalSurface` PASS 31.29s, which builds both and compares them |
 
 ### Wiring Verified (end-to-end)
 <!-- Every Wiring Test row: does the .ci exist AND exercise the claimed path?
      Read the file; do not infer it from its name. -->
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `./le <name>` typed by a developer | No `.ci` named for this row; plan names `TestStandaloneLeAndZeLeHaveIdenticalSurface` | Unresolved; closure-time test was not run. |
-| A `ze` build of any flavour | No `.ci` named for this row; plan names `TestNormalZeLinksNoInternalLe` | Unresolved; closure-time test was not run. |
-| A `cmd/ze` build | No `.ci` named for this row; plan names `TestLeRegistersOneRootAndNoToolRoots` | Unresolved; closure-time test was not run. |
-| Either binary's dispatch | No `.ci` named for this row; plan names `TestStandaloneLeAndZeLeHaveIdenticalSurface` | Unresolved; closure-time test was not run. |
-| `./le <name> \| json` | No `.ci` named for this row; plan names `TestDispatchUsesSharedPipeRenderers` | Unresolved; closure-time test was not run. |
-| Tab after `./le ` | No `.ci` named for this row; plan names `TestStandaloneLeAndZeLeHaveIdenticalSurface` | Unresolved; closure-time test was not run. |
-| `./le <area> <verb>` for every current producer | No `.ci` named for this row; plan names `TestEveryMakeProducerHasAReachableNativeAction` | Unresolved; closure-time test was not run. |
-| `go build ./...` over a `git archive HEAD` export | No `.ci` named for this row; plan names `TestTheCheckoutsOwnHeadIsClean` | Unresolved; the current handover says nothing is committed. |
-| Binary init importing both composition roots | No `.ci` named for this row; plan names `TestNoLeNameCollidesWithZe` | Unresolved; closure-time test was not run. |
-| `./le <name>` against the built binary | `test/ui/le-binary-dispatches.ci` | Unresolved. Earlier handoffs report the `.ci`, but it was not read or run for closure. |
+| `./le <name>` typed by a developer | `test/ui/le-binary-dispatches.ci` covers the artifact; `TestStandaloneLeAndZeLeHaveIdenticalSurface` covers every registered name | Yes. Both PASS on 2026-09-05 |
+| A `ze` build of any flavour | No `.ci`: the claim is about a dependency list, which no running binary can answer | Yes. `TestNormalZeLinksNoInternalLe` PASS, and `go list -deps` measured 0 `internal/le` packages in a normal build against 109 under `ze_le` |
+| A `cmd/ze` build | No `.ci` | Yes. `TestLeRegistersOneRootAndNoToolRoots` PASS |
+| Either binary's dispatch | No `.ci` | Yes. `TestStandaloneLeAndZeLeHaveIdenticalSurface` PASS |
+| `./le <name> \| json` | `test/ui/le-binary-dispatches.ci`, which renders `\| json` through the built binary | Yes. The `.ci` PASS 11.8s, and `TestDispatchUsesSharedPipeRenderers` PASS with a subtest for each of json, yaml and table |
+| Tab after `./le ` | No `.ci` | Yes. `TestStandaloneLeAndZeLeHaveIdenticalSurface` PASS compares the command tree both binaries build from the registry |
+| `./le <area> <verb>` for every current producer | No `.ci` | Yes. `TestEveryMakeProducerHasAReachableNativeAction` PASS 0.12s |
+| `go build ./...` over a `git archive HEAD` export | No `.ci` | Yes. `TestTheCheckoutsOwnHeadIsClean` PASS 35.25s over the committed tree |
+| Binary init importing both composition roots | No `.ci` | Yes, by a different test than the plan named. `TestNoLeNameCollidesWithZe` does not exist; A-5 rules the collision harmless under the never-linked rule, and `TestDuplicateLeRootIsRejected` PASS proves the registry panics rather than shadowing if one ever occurred |
+| `./le <name>` against the built binary | `test/ui/le-binary-dispatches.ci` | Yes. Read at closure: it runs `ze-test fixture ui/le-binary-dispatches` and asserts exit 0 and `OK`. `./le functional ui` ran it: PASS 11.8s |
 
 ### Assumptions Resolved
 <!-- Every A-N. `unvalidated` is not a valid final status. A broken assumption
      needs a Mistake Log row and a Deviations entry. -->
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-| A-1 | Broken for lint; compiler portion confirmed | The spec records that the first untagged tool passed `go vet` but produced six `golangci-lint` findings. This was not re-checked for closure. |
-| A-2 | Unresolved | The spec confirms the dependency claim only for the retired `scripts/lint` (current producer: `internal/le/`); the migration-wide claim has no final evidence. |
-| A-3 | Unresolved | Phase handoffs record parity for ported areas, but the current handover lists unported work. |
-| A-4 | Confirmed in the spec; not closure-rechecked | The spec records that 10 of 11 first-port Python cases transferred as intent and none transferred as code. |
-| A-5 | Confirmed in the spec; not closure-rechecked | The spec records the never-linked design and a measured current-name collision count. |
-| A-6 | Confirmed in the spec; not closure-rechecked | The spec records the first structured-report port and its shared payload mechanism. |
+| A-1 | broken | Confirmed broken as the row states, and the remediation landed. `./le verify lint run` on 2026-09-05 named 45 files across the darwin and capability flavours, and the only two under `internal/le/` are `internal/le/job/contention_test.go` and `internal/le/site/rfccompliance_test.go`, both another session's in-flight work. `internal/le/consistency`, the file A-1 was measured on, is not among them. The cost the assumption failed to predict was paid |
+| A-2 | confirmed | Measured at closure rather than for one package. `go list -deps` over `./cmd/ze` returns 1128 packages without `ze_le` and 1372 with it, and every module the difference names is already vendored: the templ generate command, `github.com/a-h/parse`, and the standard `archive/zip` and `debug/*` packages. No module was added for the tooling |
+| A-3 | confirmed, by a different proof | The parity comparison the row describes is unrepeatable: both halves no longer exist. What defends the observable contract now is the 24 `test/ui/le-*.ci` answer tests, each running the built binary over the real checkout. 19 PASS at closure and 5 FAIL on other sessions' in-flight work |
+| A-4 | confirmed | Historical and not re-runnable: the Python it measured is gone. The row's own evidence stands, and `TestNoDevelopmentToolTestShellsOutToGoRun` PASS shows the transferred tests call functions rather than subprocesses |
+| A-5 | confirmed | The never-linked premise is measured at closure: 0 `internal/le` packages in a normal `ze` build. `TestNormalZeLinksNoInternalLe` PASS, and `TestDuplicateLeRootIsRejected` PASS shows the panic is loud rather than a silent shadow if the premise ever broke |
+| A-6 | confirmed | `TestDispatchUsesSharedPipeRenderers` PASS with a subtest for each of `json`, `yaml` and `table` over one `le` payload, and no per-tool rendering code exists. `le-binary-dispatches` PASS renders `\| json` through the built binary |
 
 ### Documentation Verified
 <!-- Every Yes in the Documentation checklist: verify the edited claim against
      source. Every No: paste the grep that proves no update was needed. -->
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| `ai/INDEX.md` keyword and task rows | No closure-time source check was run; the checklist requires one row per command area. | No; unresolved. |
-| `CLAUDE.md` script paths | No closure-time source check was run; the checklist schedules this update at the swap, which remains outstanding. | No; unresolved. |
-| `ai/rules/commands.md` gate invocation | No closure-time source check was run; the checklist schedules this update at the swap, which remains outstanding. | No; unresolved. |
-| `docs/architecture/core-design.md` shared registry and composition roots | No closure-time source check was run. | No; unresolved. |
-| `docs/contributing/` instructions for adding a check | No closure-time source check was run. | No; unresolved. |
-| `docs/guide/command-reference.md` | The checklist marks this N/A because `le` is not an operator surface; no independent closure check was run. | No; N/A claim not re-verified. |
-| Source anchors naming moved files | No closure-time anchor check was run. | No; unresolved. |
-| `docs/features.md` | The checklist marks this N/A because the migration is not a product feature; no independent closure check was run. | No; N/A claim not re-verified. |
-| Plugin documentation | The checklist marks this N/A because no plugin surface changes; no independent closure check was run. | No; N/A claim not re-verified. |
-| API, RPC, and event documentation | The checklist marks this N/A because no API surface changes; no independent closure check was run. | No; N/A claim not re-verified. |
-| Telemetry documentation | The checklist marks this N/A because no metric changes; no independent closure check was run. | No; N/A claim not re-verified. |
-| Runtime inventory documentation | The checklist marks this N/A because no registry inventory changes; no independent closure check was run. | No; N/A claim not re-verified. |
+| `ai/INDEX.md` keyword and task rows | Read at closure. The command table carries one row per area, each naming its producer: `./le ai` names `internal/le/ai.Answer`, `./le changed` names `internal/le/changed.Answer`, `./le cli-grammar` names `internal/le/cligrammar.Answer`, and so on down the table | Yes |
+| `CLAUDE.md` script paths | `grep -n "scripts/dev\|scripts/le/\|python3 scripts"` over `CLAUDE.md` and `ai/INSTRUCTIONS.md` returns no live reference; the only hits are prose about weakening a test and about the STE guideline | Yes |
+| `ai/rules/commands.md` gate invocation | The file names `./le` eight times and its opening directive is "Every test, build, lint or verify command MUST run through the registered `./le` action that owns it" | Yes |
+| `docs/architecture/core-design.md` shared registry and composition roots | The section "Command engine and composition roots" states the shared registry, names `internal/le/register.go` as the composition root, states that a normal `ze` build imports no `internal/le` package, and names `cmd/ze/ze_le_register.go` as the `ze_le` companion | Yes |
+| `docs/contributing/` instructions for adding a check | The same `core-design.md` section carries the procedure: one package under `internal/le/`, register it, add it to `internal/le/register.go`, keep each action callable as Go. `docs/contributing/running-commands.md` carries the `<!-- source: internal/le/... -->` anchor for the run surfaces | Yes |
+| `docs/guide/command-reference.md` | N/A confirmed: `le` registers no operator command. `TestLeRegistersOneRootAndNoToolRoots` PASS shows every `le` root comes from an `internal/le` package | Yes, no update needed |
+| Source anchors naming moved files | `grep -rn "source: scripts/" docs/ ai/` returns nothing, so no anchor names the retired tree | Yes |
+| `docs/features.md` | N/A confirmed: `grep -n "internal/le\|\`le \`" docs/features.md` finds no feature row for the tooling, which is right because `le` ships in no product build | Yes, no update needed |
+| Plugin documentation | N/A confirmed: no `pkg/plugin` or `internal/component/plugin` surface changed in the swap | Yes, no update needed |
+| API, RPC, and event documentation | N/A confirmed: `le` adds no RPC and no event type | Yes, no update needed |
+| Telemetry documentation | N/A confirmed: `le` is a build-host tool and registers no counter | Yes, no update needed |
+| Runtime inventory documentation | N/A confirmed: the product registry is unchanged, which is what `TestNormalZeLinksNoInternalLe` PASS proves from the other side | Yes, no update needed |
+| `docs/contributing/ze-python-style.md` | Read at closure: "Do not add a Python launch instruction for first-party development or testing." The page is the standing statement of AC-12's rule | Yes |
