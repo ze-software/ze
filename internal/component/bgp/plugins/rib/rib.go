@@ -379,27 +379,6 @@ type RIBManager struct {
 	// Populated from bgp/multipath/relax-as-path in the Stage 2 configure callback.
 	relaxASPath atomic.Bool
 
-	// adminDistanceEBGP is the distance stamped on best-path mirrors into the
-	// shared Loc-RIB for routes learned from external BGP peers, and
-	// adminDistanceIBGP is the same for internal ones. They hold
-	// DefaultAdminDistanceEBGP and DefaultAdminDistanceIBGP and are no longer
-	// configurable here: `rib { distance { } }` is the one declaration an
-	// operator writes, and sysrib resolves it (effectivePriority,
-	// internal/component/sysrib/sysrib.go).
-	//
-	// They are written once, in newRIBManager, and never again: the config path
-	// that used to write them is gone. They stay atomics rather than becoming
-	// plain constants only because the stamp site reads them on the forwarding
-	// path.
-	//
-	// locrib.selectBest (internal/core/rib/locrib/entry.go) arbitrates
-	// cross-protocol on the value stamped at that site, and since 2026-09-04 the
-	// stamp reads the declaration through internal/core/rib/distance, so these
-	// are the value used only until sysrib publishes. IS-IS
-	// (spf.DefaultAdminDistance 115) and OSPF (110) hold the same shape.
-	adminDistanceEBGP atomic.Uint32
-	adminDistanceIBGP atomic.Uint32
-
 	// blackholeCfg holds the RFC 7999 honoring configuration, keyed by peer
 	// remote IP and resolved across the bgp, group and peer levels in the Stage
 	// 2 configure callback. A nil pointer or a missing key means the peer never
@@ -622,8 +601,6 @@ func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 		bestPathInterner: newBestPrevInterner(),
 	}
 	r.maximumPaths.Store(1)
-	r.adminDistanceEBGP.Store(uint32(DefaultAdminDistanceEBGP))
-	r.adminDistanceIBGP.Store(uint32(DefaultAdminDistanceIBGP))
 	return r
 }
 
@@ -717,8 +694,6 @@ func runRIBPlugin(conn net.Conn) int {
 		logger().Debug("rib configured",
 			"maximum-paths", r.maximumPaths.Load(),
 			"relax-as-path", r.relaxASPath.Load(),
-			"distance-ebgp", r.adminDistanceEBGP.Load(),
-			"distance-ibgp", r.adminDistanceIBGP.Load(),
 			"blackhole-honor-rules", r.blackholeHonorRuleCount(),
 		)
 		return nil

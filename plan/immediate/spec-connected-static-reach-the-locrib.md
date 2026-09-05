@@ -359,7 +359,7 @@ requires it to be measured RED.
 |----------|--------|
 | What breaks if this is wrong? | The kernel forwarding table. A wrong winner blackholes a prefix, and a wrong withdraw removes a route an operator configured. Connected's half additionally changes recursive next-hop resolution for BGP, OSPF, IS-IS and SRv6 |
 | How is it reverted? | Single commit revert per half, with no config migration: the YANG leaves already exist and keep their values. A reverted static half restores `RTPROT_STATIC` on the next config apply, and a reverted connected half stops inserting; neither leaves state behind |
-| Who else touches this path? | `plan/immediate/spec-fib-depth.md` (in-progress) owns `BestChangeEntry.TableID` and `ECMPPath.Weight`; `plan/immediate/spec-fixit-bgp-distance-declaration.md` owns the distance seam this spec consumes and must close first |
+| Who else touches this path? | `plan/immediate/spec-fib-depth.md` (in-progress) owns `BestChangeEntry.TableID` and `ECMPPath.Weight`; `spec-fixit-bgp-distance-declaration` closed on 2026-09-05 and left the distance seam this spec consumes at `internal/core/rib/distance` (`Of`, `OrDefault`), published by `publishDistances` (`internal/component/sysrib/register.go`); read the seam rather than the closed spec |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

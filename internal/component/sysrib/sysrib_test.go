@@ -2,6 +2,7 @@ package sysrib
 
 import (
 	"context"
+	"net"
 	"net/netip"
 	"slices"
 	"sync"
@@ -1472,4 +1473,54 @@ func TestPublishDistancesReachesTheSeam(t *testing.T) {
 	if _, ok := distance.Of("no-such-protocol"); ok {
 		t.Error("an unnamed protocol was answered rather than refused")
 	}
+}
+
+// TestRunSysRIBPluginSeedsTheDeclarationAtStart asserts the CALL SITE, which is
+// the one step of this path every other test for the feature stopped short of.
+//
+// runSysRIBPlugin seeds s.adminDist and the seam from the declaration before any
+// config can arrive, because a config with no `rib {` block delivers no section
+// at all and OnConfigure never fires for this root. Deleting that seeding block
+// left the whole suite green while every producer stamped its own constant
+// permanently: publishDistances was proven to reach the seam, and nothing proved
+// the daemon ever called it.
+//
+// METHOD: the engine end of the pipe is closed before the plugin starts, so
+// p.Run fails at stage 1 and the function returns. The seeding runs before
+// p.Run, and receiving the return code is the happens-before edge that makes the
+// seam safe to read here.
+//
+// PREVENTS: the declaration going back to reaching no producer on an ordinary
+// configuration, a state no other test in this package can observe.
+func TestRunSysRIBPluginSeedsTheDeclarationAtStart(t *testing.T) {
+	t.Cleanup(func() { SetLocRIB(nil) })
+	t.Cleanup(func() { distance.Set(nil) })
+
+	distance.Set(nil)
+	if _, ok := distance.Of("ebgp"); ok {
+		t.Fatal("the seam answered before the daemon started")
+	}
+
+	pluginEnd, engineEnd := net.Pipe()
+	if err := engineEnd.Close(); err != nil {
+		t.Fatalf("close the engine end of the pipe: %v", err)
+	}
+
+	done := make(chan int, 1)
+	go func() { done <- runSysRIBPlugin(pluginEnd) }()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("runSysRIBPlugin did not return on a closed connection")
+	}
+
+	got, ok := distance.Of("ebgp")
+	require.True(t, ok,
+		"the daemon start path published no declaration; every producer would keep its own constant")
+	require.Equal(t, uint8(20), got, "eBGP must start on the declared value, not on a producer constant")
+
+	ospf, ok := distance.Of("ospf")
+	require.True(t, ok, "the whole declaration is seeded, not the one leaf a producer asks for first")
+	require.Equal(t, uint8(110), ospf)
 }

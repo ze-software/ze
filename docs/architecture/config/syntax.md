@@ -1358,6 +1358,32 @@ kernel installs and a silent empty answer is indistinguishable from a
 deliberate one. Which behavior is right depends on what the missing defaults
 would cause, and the choice is made deliberately rather than by copying.
 
+## An Absent Config Root Delivers No Section At All
+
+A component that declares a config root is called with that root's section, and
+it is NOT called when the operator wrote no block for it.
+`BuildPluginConfigSections` (`internal/component/config/plugin_verify.go`) asks
+`ExtractConfigSubtree` for each declared root, and skips the root when the answer
+is nil, so the configure callback never runs.
+
+<!-- source: internal/component/config/plugin_verify.go -- BuildPluginConfigSections, ExtractConfigSubtree -->
+
+The consequence is the trap: state a component initializes only inside its
+configure callback stays at its Go zero value on every config that omits the
+block. Where one config in the tree carries the block and the rest do not, every
+test passes and the feature is inert almost everywhere. `runSysRIBPlugin`
+(`internal/component/sysrib/register.go`) shipped that way on 2026-09-04: the
+administrative distance table was resolved in `OnConfigure` alone, so a config
+with no `rib` block left every protocol on its producer's constant permanently.
+
+<!-- source: internal/component/sysrib/register.go -- runSysRIBPlugin, publishDistances -->
+
+**Seed the declared state at start, then let a section override it.** The seed
+is the same parse over an empty tree, so the schema stays the one declaration:
+`parseAdminDistanceConfig("{}")` fills every leaf from its YANG default. The
+rollback path needs the same seed, because a callback that never fired leaves no
+previous value to restore and an empty map would strip what the seed installed.
+
 ## Custom YANG Extensions
 
 Ze defines custom extensions in `ze-extensions.yang` that control config parsing, validation, and UI behavior:

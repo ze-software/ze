@@ -248,7 +248,7 @@ module ze-iface-conf {
                 description "Route metric for default routes learned on this unit through DHCP or router advertisement.";
                 ze:help "A lower value is preferred. On link-down, ze increases the metric by 1024,
                          which deprioritizes the interface. The default 254 ranks a learned default
-                         below a static default and below a protocol-learned one, the way rib admin-
+                         below a static default and below a protocol-learned one, the way rib
                          distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned
                          default on the kernel metric that an operator's static default also uses.
                          The two then share one kernel route, and the last writer owns it. A value

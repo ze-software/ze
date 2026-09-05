@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | config |
 | Depends | - |
-| Phase | 7/7 implementation green; closure owed |
+| Phase | 7/7 |
 | Handoff | - |
-| Updated | 2026-09-04 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -229,8 +229,8 @@ renaming it buys nothing and buries the real change in 35 files.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| An operator starts ze with a config carrying NO `rib { distance { } }` block, and a BGP eBGP route competes with a static route for one prefix | → | the distance map carries all six protocols, and `effectivePriority` returns 20 against 10 | `TestDistanceMapIsPopulatedWithoutAConfigBlock` |
-| An operator writes `rib { distance { ebgp 250; } }` and an eBGP route competes with an OSPF route | → | `effectivePriority` returns 250, and the OSPF route wins | `test/plugin/distance-ebgp-override.ci` |
+| An operator starts ze with a config carrying NO `rib { distance { } }` block, and a BGP eBGP route competes with a static route for one prefix | → | `runSysRIBPlugin` seeds the map and the seam from the declaration before any section arrives, so all six protocols resolve and `effectivePriority` returns 20 against 10 | `TestRunSysRIBPluginSeedsTheDeclarationAtStart` for the daemon start path, `TestDistanceMapIsPopulatedWithoutAConfigBlock` for the resolved map |
+| An operator writes `rib { distance { ebgp 250; } }` and an eBGP route competes with an OSPF route | → | the declaration reaches the BGP stamp through `internal/core/rib/distance`, and `locrib.selectBest` then ranks OSPF's 110 above it | `TestBgpStampsTheDeclaredDistanceNotItsOwn` at the stamp and `TestRaisedEbgpDistanceLetsOspfWin` at the selection. `test/plugin/distance-ebgp-override.ci` covers the config surface only and its header says so |
 | An operator writes the old `bgp { admin-distance { ebgp 30; } }` spelling | → | the config validator refuses the unknown container | `TestAdminDistanceIsRetiredNotSilent` |
 | A config reload changes `rib { distance { ebgp } }` | → | `reapplyAdminDistances` recomputes every stored route and the FIB is republished | `TestDistanceReloadRecomputesStoredRoutes` |
 
@@ -289,7 +289,7 @@ renaming it buys nothing and buries the real change in 35 files.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `distance-config-surface` | `test/plugin/distance-config-surface.ci` | The new container validates, the block is optional, BOTH retired spellings are refused by name, and `ebgp 0` is refused | |
-| STILL OWED, and this is a DEFERRAL WITHOUT A SHARD: an end-to-end case installing a route | `test/plugin/` | An operator raises the eBGP distance above OSPF's and the OSPF route is the one INSTALLED. The config surface above does not prove this; `TestBgpStampsTheDeclaredDistanceNotItsOwn` proves the declaration reaches the stamp, and `locrib.selectBest` ranks on it, but no test drives both through a running daemon | |
+| NOT DONE, and homed in Work Not Done rather than left as a bare deferral: an end-to-end case installing a route | `test/plugin/` | An operator raises the eBGP distance above OSPF's and the OSPF route is the one INSTALLED. Two protocols must hold one prefix on a running daemon, which is a QEMU scenario rather than a `.ci` case. Each half is proven: `TestBgpStampsTheDeclaredDistanceNotItsOwn` at the stamp, `TestRaisedEbgpDistanceLetsOspfWin` at `locrib.selectBest`, `TestRunSysRIBPluginSeedsTheDeclarationAtStart` at the daemon's start | |
 
 ### Interop Tests (Scope: config)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -301,7 +301,7 @@ renaming it buys nothing and buries the real change in 35 files.
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | One declaration of every protocol's distance | unit | `TestBgpStampsTheDeclaredDistanceNotItsOwn`, plus a grep recorded in the audit showing no second literal 20 or 200 in Go or YANG |
-| The declaration is always populated AND reaches the producers | unit | `TestDeclaredDistancesApplyWithNoRibBlock` proves the declaration resolves completely with no config, and `TestPublishDistancesReachesTheSeam` proves the resolved table reaches the seam a producer reads, observed RED under a broken publish: "publishDistances did not reach the seam; every producer would use its own constant". What remains unasserted is the CALL SITE in `runSysRIBPlugin`: deleting the seeding block still leaves the suite green, because no test starts the daemon |
+| The declaration is always populated AND reaches the producers | unit | Three tests, one per layer. `TestDeclaredDistancesApplyWithNoRibBlock`: the declaration resolves completely with no config. `TestPublishDistancesReachesTheSeam`: the resolved table reaches the seam a producer reads, RED under a broken publish. `TestRunSysRIBPluginSeedsTheDeclarationAtStart`: the daemon's own start path publishes it, RED with the seeding block removed ("the daemon start path published no declaration; every producer would keep its own constant"), which closes the call-site gap the previous closure rounds left open |
 | Nothing is discarded in silence | unit | `TestUnknownProtocolTypeIsLoggedNotZeroed` |
 | The rename does not cross into the RIB concept | audit | The recorded count on each side of the A-3 boundary, and a diff touching no file under `internal/core/rib/locrib/` |
 
@@ -563,3 +563,287 @@ owed by this work, and none is removed by it.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `rib { distance { } }` (`internal/component/sysrib/yang/ze-rib-conf.yang`) is the
+  ONE declaration of every protocol's administrative distance. The container is
+  renamed from `admin-distance`, `bgp { admin-distance { } }` is deleted, and
+  `rib_admin_distance_config.go` with it.
+- `parseAdminDistanceConfig` (`internal/component/sysrib/sysrib.go`) returns every
+  protocol the schema declares, defaults included, and returns an ERROR rather
+  than an empty map. `effectivePriority` lost its empty-map branch; the two states
+  that still reach the fallback log once per protocol through `distanceSpoken`.
+- `internal/core/rib/distance` is a new leaf package, the seam that carries the
+  resolved table to the PRODUCERS. `Of` reports whether the declaration answered;
+  it never answers 0, because 0 is the best distance and the one `connected`
+  holds. `publishDistances` (`internal/component/sysrib/register.go`) installs the
+  table at every site that assigns `s.adminDist`, the rollback included.
+- The three producers that stamp `locrib.Path.AdminDistance` read the seam at the
+  stamp rather than at construction, so a reload takes effect:
+  `rib_bestchange.go:962`, `internal/plugins/isis/spf/install.go:264`,
+  `internal/plugins/ospf/spf/install.go:232`.
+- `runSysRIBPlugin` seeds map and seam from `parseAdminDistanceConfig("{}")` at
+  plugin start and refuses to start when the schema will not resolve, because a
+  config with no `rib` block delivers no section at all.
+- `admin-distance` is a retired keyword (`internal/component/config/retired.go`)
+  naming `distance` as its replacement, in both containers. The YANG validator
+  cannot deliver that message: `walkTree` iterates the schema's children, never
+  the data.
+- `range "1..255"` restored on the five non-connected leaves. Deleting the BGP
+  container removed the only leaves that carried it, so `ebgp 0` was briefly
+  accepted and would have beaten a directly connected route.
+- BREAKING for an out-of-tree plugin: `json:"admin-distance"` became
+  `json:"distance"` (`pkg/plugin/rpc/types.go`) and `OperationSetAdminDistance`
+  became `OperationSetDistance`.
+
+### Bugs Found/Fixed
+- The feature shipped INERT in `de739c8b2`. `ExtractConfigSubtree` returns nil for
+  an absent path and `BuildPluginConfigSections`
+  (`internal/component/config/plugin_verify.go`) skips that root, so `OnConfigure`
+  never ran for a config with no `rib` block. One config in this repository
+  carries one. Fixed in `e0879e4f6`; covered by
+  `TestRunSysRIBPluginSeedsTheDeclarationAtStart`.
+- The rollback re-opened the empty map through a second door: `previousDist` was
+  nil until `OnConfigure` fired, so an operator ADDING a block whose transaction
+  rolled back got an empty map into both `s.adminDist` and `publishDistances`.
+  Fixed in `95f07a8f7` by seeding `previousDist` with the declaration.
+- `ebgp 0` was accepted between the container delete and the range restore, and
+  would have beaten `connected`. Pinned by `test/plugin/distance-config-surface.ci`.
+- Three web goldens went red on the deleted BGP container and were regenerated
+  under the canonical tag set in `95f07a8f7`; thirteen unrelated goldens that
+  `-update-golden` rewrote were restored, twice.
+- Closure round 1 (this phase): `internal/component/iface/yang/ze-iface-conf.yang`
+  told an operator that `rib admin-distance` ranks connected 0, static 10, ebgp
+  20. The leaf is retired. The hit hid behind a line break inside the word.
+- Closure round 1: `RIBManager.adminDistanceEBGP` and `adminDistanceIBGP` became
+  write-once when the configure block was deleted, so two `atomic.Uint32` fields,
+  two `//nolint:gosec` conversions and two log fields carried a constant. The
+  stamp reads `DefaultAdminDistanceEBGP` and `DefaultAdminDistanceIBGP` directly.
+
+### Documentation Updates
+- `docs/config-reference.md`, `docs/guide/configuration.md` -- the container name,
+  its leaves, and the retirement of both old spellings (`de739c8b2`).
+- `docs/architecture/core-design.md` -- the single declaration, the seam, and why
+  the value has to reach the producer.
+- `docs/architecture/config/syntax.md` -- "YANG Defaults Do Not Reach a Config On
+  Their Own", and NEW in this closure, "An Absent Config Root Delivers No Section
+  At All", with source anchors on `BuildPluginConfigSections` and
+  `runSysRIBPlugin`. That is the lesson routed to the surface that governs it
+  (`ai/rules/planning.md`).
+- `docs/architecture/isis/isis-9-spf-rib.md` -- `rib.distance.isis` (`57ecac2d4`).
+- `docs/architecture/config/transaction-protocol.md` -- `set-distance`.
+- `docs/architecture/rib/unified-locrib.md`, `docs/architecture/ospf/ospf-ext-6-ti-lfa.md`,
+  `ai/digests/fib-programming.md` -- the renamed leaf.
+- `docs/architecture/plugin/rib-storage-design.md`: NOT updated, and none was
+  owed. `git show de739c8b2~1:docs/architecture/plugin/rib-storage-design.md |
+  grep -i admin.distance` returns nothing, so the page never documented the
+  BGP-side extraction this spec deleted. The checklist row predicted wrongly.
+- `./le doc check verify` result: recorded in Pre-Commit Verification below.
+
+### Deviations from Plan
+- The six numbers stay declared in YANG alone, and Go derives them. The Known
+  Limitations left the mechanism open for phase 3 to choose; it chose the schema,
+  because YANG carries the numbers anyway for validation, completion and the
+  generated config reference.
+- `internal/core/rib/distance` was NOT in the original Files to Modify. It was
+  added when the audit showed `locrib.selectBest` ranks on the value the PRODUCER
+  stamped, so a distance resolved in sysrib alone changes no selection at all.
+- `internal/core/rib/locrib/distance_arbitration_test.go` was added, which the
+  A-3 boundary said the diff would not touch. The boundary was about the RENAME,
+  which did not cross; a test that inserts two protocols into one `locrib.RIB` is
+  the only place the winner can flip, so AC-10 could not be proven anywhere else.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed no in-tree config depends on the empty-map path | 131 configs write a `rib {` block and 2 name a distance, so 129 took the empty-map branch | the grep A-2 required, run before phase 3 | Recorded broken; the behavior change is stated in `de739c8b2` |
+| assumption | A-5 assumed the config validator refuses an unknown container | `walkTree` (`internal/component/config/yang/validator.go`) iterates the SCHEMA's children and never the data, so it emits nothing for a key it does not know | `TestAdminDistanceIsRetiredNotSilent`, written before the deletion | The retired-keyword table carries the message instead |
+| approach | The declaration was resolved in `OnConfigure` alone | A config with no `rib` block delivers no section, so the callback never fires and the feature is inert on all but one config in the tree | an independent closure gate, after the first commit | Seeded at plugin start; the rule is now in `docs/architecture/config/syntax.md` |
+| escalation | Three closure rounds in a row faulted the same shape: the proof stopping one layer above the behavior. Every test called `parseAdminDistanceConfig` or assigned `s.adminDist` by hand | Deleting `publishDistances`, and later the seeding block, left the whole suite green | this closure asked what a deletion would leave green | `TestPublishDistancesReachesTheSeam` and `TestRunSysRIBPluginSeedsTheDeclarationAtStart`, both observed RED |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One declaration of every protocol's distance | Done | `internal/component/sysrib/yang/ze-rib-conf.yang`, container `distance` | `grep admin-distance internal/component/bgp/yang/` returns nothing |
+| Always populated | Done | `parseAdminDistanceConfig`, `runSysRIBPlugin` seeding block | `TestRunSysRIBPluginSeedsTheDeclarationAtStart` |
+| Nothing discarded in silence | Done | `(*sysRIB).effectivePriority`, `distanceSpoken` | `TestUnknownProtocolTypeIsLoggedNotZeroed` |
+| One spelling, `distance`, on every operator and plugin surface | Done | `pkg/plugin/rpc/types.go`, `rib_commands.go`, `cmd/rib/rib.go`, `transaction/operation.go` | `git grep set-admin-distance` returns only spec prose |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRunSysRIBPluginSeedsTheDeclarationAtStart`, `TestDeclaredDistancesApplyWithNoRibBlock` | RED observed with the seeding block removed |
+| AC-2 | Done | `TestDistancePartialBlockKeepsTheOtherDefaults` | |
+| AC-3 | Done | `TestBgpStampsTheDeclaredDistanceNotItsOwn` | RED at 0x14 where 0xfa was required |
+| AC-4 | Done | `TestAdminDistanceIsRetiredNotSilent`, `test/plugin/distance-config-surface.ci` seq 3 | |
+| AC-4b | Done | `test/plugin/distance-config-surface.ci` seq 4 | |
+| AC-5 | Done | `TestSysRIBStaticWinsOverBGP` with the seeded map | |
+| AC-6 | Done | `TestDistanceReloadRecomputesStoredRoutes` | |
+| AC-7 | Done | `TestDistanceRollbackRestoresThePreviousMap` | `previousDist` seeded with the declaration |
+| AC-8 | Done | `TestUnknownProtocolTypeIsLoggedNotZeroed` | |
+| AC-9 | Done | `git grep -n "AdminDistance:" --include=*.go internal/` names three stamps, all reading the seam | The constants survive as the documented bootstrap |
+| AC-10 | Done | `TestRaisedEbgpDistanceLetsOspfWin` at `selectBest`, `TestBgpStampsTheDeclaredDistanceNotItsOwn` at the stamp | RED: "best is 1, want the OSPF path at 110" |
+| AC-11 | Done | `TestBgpFallsBackToItsBootstrapBeforeConfigure`, `TestUnsetSeamDoesNotAnswerZero` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestDistanceMapIsPopulatedWithoutAConfigBlock` | Done | `internal/component/sysrib/sysrib_test.go:498` | |
+| `TestDistancePartialBlockKeepsTheOtherDefaults` | Done | `sysrib_test.go:518` | |
+| `TestEffectivePriorityResolvesEveryProtocolType` | Done | `sysrib_test.go:1324` | |
+| `TestUnknownProtocolTypeIsLoggedNotZeroed` | Done | `sysrib_test.go:467` | |
+| `TestAdminDistanceIsRetiredNotSilent` | Changed | `internal/component/config/retired_test.go:124` | Landed in `retired_test.go`, not `yang/validator_test.go`: A-5 broke, and the validator is not what refuses |
+| `TestDistanceReloadRecomputesStoredRoutes` | Done | `sysrib_test.go:1351` | |
+| `TestDistanceRollbackRestoresThePreviousMap` | Done | `sysrib_test.go:1374` | |
+| `TestBgpStampsTheDeclaredDistanceNotItsOwn` | Done | `rib_bestchange_test.go:1828` | |
+| `TestBgpFallsBackToItsBootstrapBeforeConfigure` | Done | `rib_bestchange_test.go:1870` | |
+| `TestUnsetSeamDoesNotAnswerZero` | Done | `internal/core/rib/distance/distance_test.go:11` | |
+| `TestDeclaredValueReachesTheProducer` | Done | `distance_test.go:25` | |
+| `TestSetReplacesRatherThanMerges` | Done | `distance_test.go:54` | |
+| `TestDeclaredDistancesApplyWithNoRibBlock` | Changed | `sysrib_test.go:1412` | Added after the plan, by the gate that found the inert feature |
+| `TestPublishDistancesReachesTheSeam` | Changed | `sysrib_test.go:1447` | Added after the plan; proves the table reaches the seam |
+| `TestRaisedEbgpDistanceLetsOspfWin` | Changed | `internal/core/rib/locrib/distance_arbitration_test.go:26` | Added after the plan; the only layer where the winner can flip |
+| `TestRunSysRIBPluginSeedsTheDeclarationAtStart` | Changed | `sysrib_test.go:1494` | Added in this closure; the call site nothing asserted |
+| `test/plugin/distance-config-surface.ci` | Done | `test/plugin/` | |
+| `test/plugin/distance-ebgp-override.ci` | Done | `test/plugin/` | Config surface only; its header says so |
+| `test/plugin/distance-default-without-block.ci` | Done | `test/plugin/` | Discriminates nothing on its own; its header says so |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/sysrib/yang/ze-rib-conf.yang` | Done | Renamed, ranges restored |
+| `internal/core/rib/distance/` | Done | New leaf package |
+| `internal/component/sysrib/register.go` | Done | `publishDistances`, the seeding block, the rollback seed |
+| `internal/component/sysrib/sysrib.go` | Done | Complete map, no empty-map branch |
+| `internal/component/bgp/plugins/rib/rib_bestchange.go` | Done | Stamp reads the seam |
+| `internal/plugins/isis/spf/install.go`, `internal/plugins/ospf/spf/install.go` | Done | Same, read at the stamp |
+| `internal/component/bgp/yang/ze-bgp-conf.yang` | Done | Container deleted |
+| `internal/component/bgp/plugins/rib/rib_admin_distance_config.go` | Done | Deleted, with its test file |
+| `internal/component/config/retired.go` | Done | `admin-distance` registered |
+| `internal/component/bgp/plugins/rib/rib.go` | Done | Third copy gone; the write-once atomics removed in this closure |
+| `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk_types.go`, `internal/component/config/transaction/operation.go` | Done | `distance`, `set-distance` |
+| `internal/component/bgp/plugins/rib/rib_commands.go`, `internal/component/bgp/plugins/cmd/rib/rib.go` | Done | JSON key and column header |
+| `docs/architecture/plugin/rib-storage-design.md` | Changed | No edit owed: the page never mentioned admin distance |
+| every `.conf` and `.ci` naming `admin-distance` | Done | `git grep admin-distance` outside `plan/`, `rfc/` and the frozen `internal/le/site/testdata/` published-site snapshots returns only the retirement text and its tests |
+
+### Audit Summary
+- **Total items:** 47 (4 requirements, 12 AC, 19 tests, 14 files, minus overlap)
+- **Done:** 41
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 6 (recorded in Deviations and in the tables above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One declaration of every protocol's distance | functional + audit | `test/plugin/distance-config-surface.ci` drives the real binary: the new container validates, both retired spellings are refused by name, `ebgp 0` is refused. `git grep -n "AdminDistance:" --include=*.go internal/` names three stamp sites and all three read the seam |
+| The declaration is always populated AND reaches the producers | unit, RED observed at each layer | `TestDeclaredDistancesApplyWithNoRibBlock` (resolution), `TestPublishDistancesReachesTheSeam` (RED: "publishDistances did not reach the seam"), `TestRunSysRIBPluginSeedsTheDeclarationAtStart` (RED: "the daemon start path published no declaration") |
+| Nothing is discarded in silence | unit | `TestUnknownProtocolTypeIsLoggedNotZeroed`; `effectivePriority` has no branch that returns an incoming value for a protocol the declaration names |
+| The rename does not cross into the RIB concept | audit | No file under `internal/core/rib/locrib/` was RENAMED; the one file added there is a test that inserts two protocols into one RIB, which is the only place AC-10 can be observed |
+| An operator raising eBGP above OSPF gets the OSPF route | unit at two layers | `TestBgpStampsTheDeclaredDistanceNotItsOwn` (RED at 0x14 where 0xfa was required) and `TestRaisedEbgpDistanceLetsOspfWin` (RED: "best is 1, want the OSPF path at 110"). NOT proven on a running daemon: see Work Not Done |
+| Interop | N-A | Administrative distance is local selection policy and reaches no wire, so no peer can observe it and no scenario can discriminate the change |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| An end-to-end case on a running daemon where an operator raises the eBGP distance above OSPF's and the OSPF route is the one INSTALLED | Two protocols must hold one prefix on a live daemon, which is a QEMU scenario rather than a `.ci` config case. Every layer is proven separately: the daemon seeds, the declaration reaches the stamp, `selectBest` flips the winner | `plan/immediate/spec-connected-static-reach-the-locrib.md`, which brings the second protocol into the same Loc-RIB and is the first spec able to hold one prefix from two producers |
+| `rib { distance { connected } }` and `{ static }` are settable and inert | Neither the static plugin nor the interface layer inserts into the Loc-RIB, so neither reads the seam. Pre-existing, not introduced here, and recorded in `plan/journal/guard-added-to-one-half-of-a-pair.md` | `plan/immediate/spec-connected-static-reach-the-locrib.md` |
+| A distance declared in one process does not reach a producer in another | The seam is process-global and sysrib is its only publisher, so `plugin { external rib }` or any forked producer stamps its own bootstrap. Stated at the seam (`internal/core/rib/distance/distance.go`, `Set`) rather than left for the next reader | Unowned. No spec claims it yet; the limitation is documented where somebody would go to change it |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | ``tmp/review/fixit-bgp-distance-declaration-zeclose-distance.md` (24 files, verdict=clean)` |
+| `./le spec session review check` | `OK (clean, hashes match). NOTE: recorded on an unknown model, so the review-model boundary is UNCHECKED by the tool; the phase boundary holds, since this context did not write the implementation` |
+| Rounds | 2. Round 1 found the seven rows below. Round 2 re-read every fix, re-ran `go vet` and `gofmt` over the changed Go, and ran `go test -race -count=2 ./internal/component/sysrib/` (ok, 2.168s) because the new test starts a plugin goroutine and writes two process-global seams; it found 0 BLOCKER and 0 ISSUE |
+| Reviewer lenses used | deliverables against source; security (route selection as a guard that must not fail open); documentation against the producing function; Go style (`docs/contributing/ze-go-style.md`); dead machinery and stale comments; test discrimination (what would a deletion leave green) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The seeding CALL SITE was unasserted. Deleting `s.adminDist = declared; publishDistances(declared)` left the whole suite green, so the one path an ordinary operator takes had no test. `ai/rules/principles.md`: the feature is the path from what the user types to what the product answers | `runSysRIBPlugin` (`internal/component/sysrib/register.go:121-131`) | `TestRunSysRIBPluginSeedsTheDeclarationAtStart` (`internal/component/sysrib/sysrib_test.go`), RED observed with the publish removed |
+| 2 | ISSUE | An operator reading `interface { ... unit { route-priority } }` help was told the ranking follows `rib admin-distance`, a leaf this spec retired. The grep for the old spelling missed it because a line break splits the word | `internal/component/iface/yang/ze-iface-conf.yang:251` | The help text names `rib distance` |
+| 3 | ISSUE | `RIBManager.adminDistanceEBGP` and `adminDistanceIBGP` became write-once when the configure block was deleted: two `atomic.Uint32` fields, two `//nolint:gosec` conversions and two log fields all carrying a constant, under a comment whose stated reason ("the stamp site reads them on the forwarding path") is not a reason to hold a constant in an atomic | `internal/component/bgp/plugins/rib/rib.go`, `rib_bestchange.go:958` | Fields, stores, `nolint`s and log fields removed; the stamp reads `DefaultAdminDistanceEBGP` / `DefaultAdminDistanceIBGP` |
+| 4 | ISSUE | The lesson of the whole spec governed no surface: no page said an absent config root delivers no section, so the next component to initialize state in `OnConfigure` alone repeats it | `docs/architecture/config/syntax.md` | New section "An Absent Config Root Delivers No Section At All", anchored on `BuildPluginConfigSections` and `runSysRIBPlugin` |
+| 5 | NOTE | The Wiring Test and Functional Tests tables named `.ci` files as proof of behavior those files state in their own headers they do not prove | this spec | Both tables now name the test that proves each row |
+| 6 | NOTE | `publishDistances` refuses a value outside 0..255 by answering `(0, false)` while `effectivePriority` would return that same value from its map, so the comment "the seam and the map cannot disagree" has one branch where they can. Unreachable today: YANG declares `uint8` with `range "1..255"` | `internal/component/sysrib/register.go:75` | Left; recorded here |
+| 7 | NOTE | `distanceSpoken` grows one entry per distinct protocol name seen and declares no bound. Not peer-reachable: the name comes from an in-tree producer's `BestChangeBatch`, never from the wire | `internal/component/sysrib/sysrib.go:209` | Left; recorded here |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/rib/distance/distance.go` | Yes | `ls -l` 4117 bytes, 2026-09-05 |
+| `internal/core/rib/distance/distance_test.go` | Yes | `ls -l` 2470 bytes |
+| `internal/component/bgp/plugins/rib/rib_distance.go` | Yes | `ls -l` 1471 bytes |
+| `internal/core/rib/locrib/distance_arbitration_test.go` | Yes | `ls -l` 2842 bytes |
+| `test/plugin/distance-config-surface.ci` | Yes | `ls -l` 2523 bytes |
+| `test/plugin/distance-default-without-block.ci` | Yes | `ls -l` 1641 bytes |
+| `test/plugin/distance-ebgp-override.ci` | Yes | `ls -l` 1575 bytes |
+| `internal/component/bgp/plugins/rib/rib_admin_distance_config.go` | No, deleted | `ls` returns "No such file or directory" |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The map is complete with no `rib` section, and the daemon installs it | `go test ./internal/component/sysrib/ -run TestRunSysRIBPluginSeedsTheDeclarationAtStart`: FAIL with the publish removed ("the daemon start path published no declaration"), ok 0.199s with it restored |
+| AC-3, AC-10, AC-11 | The declaration reaches the stamp; an unset seam gives 20, never 0 | `go test ./internal/component/bgp/plugins/rib/` ok 3.356s |
+| AC-4, AC-4b | Both retired spellings are refused by name | `go test ./internal/component/config/` ok 21.692s, carrying `TestAdminDistanceIsRetiredNotSilent` |
+| AC-10 | `selectBest` flips the winner to OSPF at a configured eBGP 250 | `go test ./internal/core/rib/locrib/` ok 0.023s |
+| AC-11 | The seam does not answer zero | `go test ./internal/core/rib/distance/` ok 0.005s |
+| AC-9 | The six numbers are declared once | `grep admin-distance internal/component/bgp/yang/` returns nothing; `git grep -n "AdminDistance:" --include=*.go internal/` names three stamps, each `ribdistance.OrDefault(...)` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| An operator starts ze with no `rib` block | `test/plugin/distance-default-without-block.ci` | Read in full. It runs `ze config validate` only and its header says it discriminates nothing. The daemon start path is verified by `TestRunSysRIBPluginSeedsTheDeclarationAtStart` instead, with its RED recorded |
+| An operator raises the eBGP distance | `test/plugin/distance-ebgp-override.ci` | Read in full. Config surface only, and its header says so. The behavior is verified by `TestRaisedEbgpDistanceLetsOspfWin` |
+| An operator writes either retired spelling | `test/plugin/distance-config-surface.ci` | Read in full. seq 3 and seq 4 each run the real binary and require exit 1 with `admin-distance` on stdout; seq 5 refuses `ebgp 0` |
+| A reload changes a distance | none | `TestDistanceReloadRecomputesStoredRoutes` and `TestDistanceRollbackRestoresThePreviousMap` drive `reapplyAdminDistances` and the journal rollback |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `git grep -n effectivePriority internal/component/sysrib/*.go` outside tests: two call sites, `sysrib.go:411` and `:492`, and both hold `s.mu` for writing |
+| A-2 | broken | 131 configs write a `rib {` block, 2 name a distance; the behavior change is stated in `de739c8b2` |
+| A-3 | confirmed | The rename touched no identifier under `internal/core/rib/locrib/`; the only file added there is a test |
+| A-4 | confirmed | Pre-release: no release, no tag, no user of `main` |
+| A-5 | broken | `walkTree` (`internal/component/config/yang/validator.go`) iterates `entry.Dir`, the schema's children, never the data. `internal/component/config/retired.go` carries the message instead |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Config syntax (row 2) | `docs/config-reference.md:78`, `docs/guide/configuration.md:2060` name `distance` and the retirement of both old spellings; checked against `ze-rib-conf.yang` container `distance` and `retiredKeywords` | Yes |
+| Plugin design page (row 5) | `git show de739c8b2~1:docs/architecture/plugin/rib-storage-design.md \| grep -i admin.distance` returns nothing: the page never documented the deleted extraction | No edit owed |
+| Internal architecture (row 12) | `docs/architecture/core-design.md:1329-1348` states the single declaration and the seam, checked against `parseAdminDistanceConfig` and `distance.Of`; `docs/architecture/config/syntax.md` carries both the YANG-default rule and the new absent-section rule; `docs/architecture/isis/isis-9-spf-rib.md` names `rib.distance.isis` | Yes |
+| Existing examples (row 17) | `git grep admin-distance` outside `plan/` and `rfc/`: the only hits are the retirement text, its tests, the YANG revision log, and the frozen published-site snapshots under `internal/le/site/testdata/` which are inputs to `TestTheConfigurationMirrorReadsAsThePublishedMirror`, not renderings of the current schema | Yes |
+| Operator help text | `internal/component/iface/yang/ze-iface-conf.yang:251` said `rib admin-distance`; repaired in this closure to `rib distance` | Yes, fixed |
+| Doctor checks | No runtime dependency is added: no file, socket, port, module or binary | N-A |
+| RFC status | No RFC names administrative distance. `ze-rib-conf.yang` states it: "RFC 4271 mandates no values" | N-A |
+| `./le doc check verify` | exit 1 with 3482 issues, none of them this spec's. Every issue names `../gh-pages/` or `../wiki/`, the published-site checkouts left behind by another session's thirteenth CLI verb (`send`). `grep -iE 'iface-conf\|ze-rib-conf\|config/syntax\|sysrib\|rib/distance'` over the full log returns nothing. Digest anchors: 3026 checked across 23 digests, all resolve | |
+
+## Core Insight
+
+A knob is not configurable because a config leaf exists and a resolver reads it.
+It is configurable only where the value ARRIVES before the decision is taken.
+
+`locrib.selectBest` ranks paths on the distance the PRODUCER stamped, and
+`(*sysRIB).run` consumes one already-arbitrated best per prefix. So sysrib, which
+owned the config and the resolver, sat downstream of the only place the number
+could change an outcome. A perfectly resolved table there changed nothing, and
+every test that stopped at the resolver passed.
+
+Three closure rounds each found the same shape one layer lower: the resolver, the
+publish, then the call site. The question that finds it is not "does the test
+pass" but "what would this test do if I deleted the code it names".
+

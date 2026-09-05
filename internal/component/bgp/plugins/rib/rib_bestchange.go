@@ -948,16 +948,16 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		if !cidr {
 			return
 		}
-		// AdminDistance is the classical Cisco/Juniper default (eBGP=20, iBGP=200)
-		// unless the operator overrode it under rib/distance; Metric carries MED.
-		// The DECLARATION decides, not this plugin's constant. locrib.selectBest
-		// ranks paths on what is stamped here and runs before sysrib sees the
-		// route, so the operator's `rib { distance { } }` has to reach this line
-		// or it cannot change cross-protocol selection at all. The atomics are
-		// the bootstrap value, reachable only before the first configure.
-		proto, fallback := "ibgp", uint8(r.adminDistanceIBGP.Load()) //nolint:gosec // YANG 1..255
+		// AdminDistance comes from the DECLARATION, `rib { distance { } }`, and
+		// never from a constant this plugin owns; Metric carries MED.
+		// locrib.selectBest ranks paths on what is stamped here and runs before
+		// sysrib sees the route, so the operator's value has to reach this line
+		// or it cannot change cross-protocol selection at all.
+		// DefaultAdminDistanceEBGP and DefaultAdminDistanceIBGP (rib_distance.go)
+		// are the bootstrap, reachable only before sysrib's first publish.
+		proto, fallback := "ibgp", DefaultAdminDistanceIBGP
 		if isEBGP {
-			proto, fallback = "ebgp", uint8(r.adminDistanceEBGP.Load()) //nolint:gosec // YANG 1..255
+			proto, fallback = "ebgp", DefaultAdminDistanceEBGP
 		}
 		distance := ribdistance.OrDefault(proto, fallback)
 		r.locRIB.InsertForward(fam, pfx, locrib.Path{
