@@ -284,6 +284,15 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
+		Code:  "doctor-hub-managed-collision",
+		Title: "Managed client listener cannot bind",
+		Description: "A plugin/hub/server block declares managed clients on the address the plugin acceptor binds. " +
+			"The acceptor takes the FIRST server block and the managed listener takes every block that declares client entries, so a shared address is asked of the kernel twice. " +
+			"The acceptor binds it, the managed listener is skipped, and every managed client that dials that address is dropped by an acceptor which routes only to a plugin waiter. " +
+			"Move the client entries to a server block with its own port.",
+		Examples: []string{exampleDoctorJSON, "ze explain doctor-hub-managed-collision"},
+	},
+	{
 		Code:        "doctor-service-unit",
 		Title:       "Systemd service unit unreadable",
 		Description: "The installed ze systemd unit exists but cannot be read by doctor.",

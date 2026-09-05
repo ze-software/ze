@@ -94,7 +94,12 @@ plugin {
 - Hub-level `client` blocks declare outbound connections to remote hubs
 - A `server` block uses `ip`+`port` for listening; a `client` block uses `host`+`port` for connecting
 - Multiple `server` blocks allowed (different secrets for different plugin groups)
+- The plugin acceptor binds the FIRST `server` block and nothing else. The managed listener binds every block that declares `client` entries. One address cannot carry both, so the block that serves managed clients needs its own port. The acceptor takes the address first. The managed listener is then skipped with an Error log. Every managed client that dials it is refused by an acceptor which routes only to a plugin waiter. `ze doctor` reports the collision under `doctor-hub-managed-collision`
 - The client name in `client edge-01 { }` IS the client's identity
+
+<!-- source: internal/component/plugin/acceptor.go -- hubAcceptorServer -->
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
+<!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener -->
 
 ---
 
@@ -151,10 +156,20 @@ Client configs are entries in the hub's ZeFS blob, keyed by client name at
 `client-` prefix avoids collision with the hub's own config file).
 <!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey -->
 
-The admin manages these using existing blob tools (`ze data`, `ze config edit`, SSH editor). When
-a client's config blob is written, the hub pushes `config-changed` to that client if it is
-connected (a storage write-observer maps the written key back to the client name).
-<!-- source: internal/component/config/storage/blob.go -- SetWriteObserver -->
+The admin writes these with the blob tools (`ze data`, `ze config import`, `ze config edit`).
+The hub MUST be stopped while they run. Each of those commands opens its own handle on the blob
+file in its own process. A running hub serves every read from the tree it loaded when it opened
+the store. A write behind its back therefore reaches neither the client nor the hub itself.
+Two processes writing one blob also replace each other's state, because zefs takes no file lock.
+<!-- source: pkg/zefs/store.go -- BlobStore.readFile, which answers from the in-memory root -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage, which edits through the caller's own store -->
+
+The hub pushes `config-changed` to a connected client when that client's config blob is written
+THROUGH THE HUB'S OWN STORE. A write observer maps the written key back to the client name.
+Nothing an operator can run performs such a write today. The push is therefore reachable only
+from in-process code. Every managed client picks a changed config up at its next fetch, which is
+its next connect. Serving a changed config takes a hub restart.
+<!-- source: internal/component/config/storage/blob.go -- SetWriteObserver, and WriteFile which calls the observer -->
 <!-- source: cmd/ze/hub/managed_server.go -- write-observer wiring -->
 
 The managed listener exposes Prometheus metrics: `ze_managed_clients_connected` (gauge),
@@ -207,7 +222,7 @@ Truncated SHA-256 of the config bytes (hex-encoded, first 16 characters). Comput
 8. If hashes match: `{"status":"current"}`; if different: full config in response
 9. Client writes config to local blob, starts or reloads BGP
 10. Heartbeat: `ping` every 30 seconds, timeout after 3 missed (90 seconds)
-11. On config edit: hub sends `config-changed` to the connected client
+11. On a write through the hub's own store: hub sends `config-changed` to the connected client. See "Config Storage (Hub Side)" for which writes reach that store
 
 ### Config Change (Two-Phase)
 

@@ -29,6 +29,7 @@ remediation guidance.
 | `doctor-config-reference` | Dangling policy/filter references |
 | `doctor-tls-*` | TLS cert existence, expiry, validity |
 | `doctor-plugin-missing` | Plugin binary on PATH |
+| `doctor-hub-managed-collision` | A `plugin/hub/server` block declares managed clients on the address the plugin acceptor binds, so its managed listener cannot bind and its clients are refused <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener --> |
 | `doctor-service-executable` | Installed systemd unit `ExecStart` points to an executable ze binary |
 | `doctor-service-user` / `doctor-service-group` | User/group referenced by installed `ze.service` exists |
 | `doctor-ssh-hostkey-missing` | SSH host key |

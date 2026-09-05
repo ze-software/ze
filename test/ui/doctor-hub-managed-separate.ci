@@ -1,0 +1,32 @@
+# Test: ze doctor --json stays silent on a hub that serves managed clients on
+#       their own port
+#
+# VALIDATES: spec-managed-server-hardening AC-3 -- the collision check reads the
+#            ADDRESS, not the presence of client entries.
+# PREVENTS: the false positive that would make the check useless. This is the
+#           central-hub example from docs/architecture/fleet-config.md: its
+#           serving block carries a plugin secret AND client entries, it works,
+#           and a check that flagged every client-serving block would condemn it.
+#
+# The positive half is doctor-hub-managed-collision.ci.
+
+tmpfs=hub-separate.conf:terminator=EOF_SEPARATE
+plugin {
+    hub {
+        server local {
+            ip 127.0.0.1;
+            port 12790;
+            secret abcdefghijklmnopqrstuvwxyz012345;
+        }
+        server central {
+            ip 127.0.0.1;
+            port 12791;
+            secret abcdefghijklmnopqrstuvwxyz012345;
+            client edge-01 { secret 0123456789abcdef0123456789abcdef; }
+        }
+    }
+}
+EOF_SEPARATE
+
+cmd=foreground:seq=1:exec=ze doctor --json hub-separate.conf
+expect=stdout:!contains=doctor-hub-managed-collision

@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-08-29 |
+| Phase | 1/3 |
+| Updated | 2026-09-05 |
 
 ## Post-Compaction Recovery
 
@@ -133,8 +133,8 @@ an indefinite block.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| managed client connects with cert verification (no tls-insecure) | → | client TLS pin/CA verify against the hub cert | `test/managed/managed-hub-secure.ci` |
-| server block with plugins + client entries | → | doctor check flags the collision | doctor functional test |
+| managed client connects with cert verification (no tls-insecure) | → | `clientTLSConfig` validates the hub chain against the pki ca the client names | `test/managed/managed-hub-ca-trust.ci` |
+| a server block declares managed clients on the plugin acceptor's address | → | `diagnoseManagedListener` reports `doctor-hub-managed-collision` | `test/ui/doctor-hub-managed-collision.ci`, and `test/ui/doctor-hub-managed-separate.ci` for the control |
 
 ## Acceptance Criteria
 
@@ -159,7 +159,10 @@ an indefinite block.
 | `TestHubTrustLeavesReachTheStructs` | `internal/component/config/hub_certificate_test.go` | AC-1 (both leaves) | PASS |
 | `TestHubFingerprintRejectsNonHex` | `internal/component/config/hub_certificate_test.go` | AC-1 (leaf pattern) | PASS |
 | `TestHubRefusesDisagreeingCertificates` | `internal/component/config/hub_certificate_test.go` | AC-1 (one certificate per managed server) | PASS |
-| `TestManagedServerCollisionDoctor` | doctor check test | AC-3 | NOT STARTED |
+| `TestManagedListenerCollisionCases` | `internal/component/plugin/doctor/check_managed_listener_test.go` | AC-3 (each address case, and the documented central hub that must stay silent) | PASS |
+| `TestManagedListenerCollisionNamesBothBlocks` | `internal/component/plugin/doctor/check_managed_listener_test.go` | AC-3 (the message names the block that cannot serve and the one that took the address) | PASS |
+| `TestManagedListenerCheckReadsTheConfigTree` | `internal/component/plugin/doctor/check_managed_listener_test.go` | AC-3 (config text through ExtractHubConfig to the verdict) | PASS |
+| `TestManagedListenerCheckIgnoresAForeignTree` | `internal/component/plugin/doctor/check_managed_listener_test.go` | AC-3 (no tree, a foreign tree, a typed nil tree) | PASS |
 
 Each test was proved to discriminate by reverting the behavior it covers: the
 pin branch removed, the pin branch replaced by `InsecureSkipVerify`, the default
@@ -171,18 +174,50 @@ mutation turned exactly the covering test red.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `managed-hub-secure` | `test/managed/*.ci` | client verifies the hub cert and fetches (AC-1/AC-4) | |
+| `managed-hub-ca-trust` | `test/managed/managed-hub-ca-trust.ci` | two real daemons: the client verifies the hub chain against the exported root and fetches, and a foreign root does not (AC-1/AC-2/AC-4 fetch half) | PASS |
+| `doctor-hub-managed-collision` | `test/ui/doctor-hub-managed-collision.ci` | `ze doctor --json` reports the collision (AC-3) | PASS |
+| `doctor-hub-managed-separate` | `test/ui/doctor-hub-managed-separate.ci` | `ze doctor --json` stays silent on the central hub that works (AC-3 control) | PASS |
+| AC-4 `config-changed` half | none | BLOCKED: no operator-reachable producer, see "AC-4 config-changed: no producer" |
 
-## Remaining Work (2026-08-29)
+## Remaining Work (2026-09-05)
 
 | Item | State |
 |------|-------|
 | AC-1/AC-2 mechanism and tests | Done, in `internal/` |
-| Hub wiring: `cmd/ze/hub/managed_server.go` MUST pass `Certificate: blk.Certificate` and `TLSMaterialResolver: zepki.ServerTLSMaterial` into `ManagedServerConfig` | NOT DONE. Held by another session at the time of writing. Until it lands, `Certificate` is always empty and the hub still serves a self-signed certificate |
-| Client wiring: `cmd/ze/ze_core_start.go` `extractManagedClientConfig` MUST pass `CertificateFingerprint: cli.CertificateFingerprint` into `managed.ClientConfig` | NOT DONE, same reason. The `ze.managed.tls.certificate-fingerprint` environment variable reaches `runConnection` today without this line; the config leaf does not |
-| First boot: `fetchInitialConfig` (`cmd/ze/ze_core_start.go`) builds its own `tls.Config` and MUST use the same trust rules, or a first boot still sends its token to an unauthenticated server | NOT DONE, same reason |
-| AC-3 port-collision doctor check | NOT STARTED |
-| AC-4 two-instance daemon `.ci` | NOT STARTED |
+| Hub wiring: `cmd/ze/hub/managed_server.go` passes `Certificate: blk.Certificate`, `TLSMaterialResolver: zepki.ServerTLSMaterial` and `Authority: caRoot` into `ManagedServerConfig` | DONE. Verified in `startManagedServer` |
+| Client wiring: `cmd/ze/ze_core_start.go` `extractManagedClientConfig` passes `CA: cli.CA` into `managed.ClientConfig` | DONE. The design landed as a pki ca anchor rather than a fingerprint pin, so the leaf is `plugin/hub/client/ca` and `ClientConfig.CA` reads it |
+| First boot: `fetchInitialConfig` (`cmd/ze/ze_core_start.go`) calls `managed.ClientTLSConfig` rather than building a second `tls.Config` | DONE |
+| AC-3 port-collision doctor check | DONE. `internal/component/plugin/doctor/check_managed_listener.go`, code `doctor-hub-managed-collision`, `test/ui/doctor-hub-managed-collision.ci` and `test/ui/doctor-hub-managed-separate.ci` |
+| AC-4 two-instance daemon `.ci` | HALF DONE, and the other half is BLOCKED. `test/managed/managed-hub-ca-trust.ci` runs a real `ze` hub and a real `ze` client and proves `config-fetch` end to end, with a foreign-root control. `config-changed` cannot be reached from two daemons: the push fires only on a write through the RUNNING hub's own store, and no operator command performs one. See "AC-4 config-changed: no producer" below |
+
+## AC-4 config-changed: no producer (2026-09-05)
+
+The hub pushes `config-changed` from a storage write observer, and the observer
+fires only inside `blobStorage.WriteFile`
+(`internal/component/config/storage/blob.go`), which means only for a write
+through the running hub's OWN store. No non-test caller writes
+`ClientConfigKey(name)`: `ze data`, `ze config import` and `ze config edit` each
+open the blob file in a separate process, and a running hub answers every read
+from the tree `zefs.BlobStore` loaded when it opened the store
+(`BlobStore.readFile`, `pkg/zefs/store.go`). Every in-daemon editor takes one
+config path, the daemon's own (`cli.NewEditorWithStorage` callers:
+`cmd/ze/hub/session_editor.go`, `cmd/ze/hub/editor_adapter.go`,
+`cmd/ze/hub/api.go`, `cmd/ze/hub/service_gnmi.go`).
+
+So `ze_managed_config_changed_pushed_total` can only ever count pushes an
+in-process test produced, and an operator changing a client's config has to stop
+the hub, write the blob, and start it again.
+
+The question for the owner is which way to fix it, not whether:
+
+| Option | Shape |
+|--------|-------|
+| (a) A hub-side command that writes a managed client's config through the running daemon | New CLI surface plus its YANG. It makes the documented workflow real, and AC-4 then has a producer to drive |
+| (b) The in-daemon editor accepts a second config path, the client blob | Reuses the editor, the draft, the history and the validation the operator already has. It widens `NewEditorWithStorage`'s single-path assumption across four call sites |
+
+The documentation was repaired in this work rather than left claiming the
+workflow: `docs/architecture/fleet-config.md` "Config Storage (Hub Side)" and
+`docs/guide/fleet-config.md` "Config Management" now say the hub must be stopped.
 
 ## Files to Modify
 - `internal/component/plugin/server/managed_serve.go` - serves the named pki certificate, fails closed, reports its fingerprint (DONE)
@@ -191,8 +226,9 @@ mutation turned exactly the covering test red.
 - `internal/component/plugin/yang/ze-plugin-conf.yang` - `certificate` and `certificate-fingerprint` leaves (DONE)
 - `internal/component/plugin/types.go`, `internal/component/config/loader_extract.go` - extraction (DONE)
 - `docs/architecture/fleet-config.md` - hub certificate and client trust (DONE)
-- doctor check registration + `internal/core/diagnostic/codes.go` (AC-3, not started)
-- `test/managed/managed-hub-secure.ci` (AC-4, not started)
+- `internal/component/plugin/doctor/check_managed_listener.go` and `register.go` + `internal/core/diagnostic/codes.go` (AC-3, DONE)
+- `test/ui/doctor-hub-managed-collision.ci`, `test/ui/doctor-hub-managed-separate.ci` (AC-3, DONE)
+- `docs/guide/health-checks.md`, `docs/architecture/fleet-config.md`, `docs/guide/fleet-config.md` (DONE)
 
 ## Implementation Steps
 1. Decide the cert approach (PKI/CA cert vs pinned fingerprint) - present to user.

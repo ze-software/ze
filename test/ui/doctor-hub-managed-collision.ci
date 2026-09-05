@@ -1,0 +1,30 @@
+# Test: ze doctor --json reports a managed client listener that cannot bind
+#
+# VALIDATES: spec-managed-server-hardening AC-3 -- a hub server block that
+#            declares managed clients on the address the plugin acceptor binds
+#            is reported through the operator's own entry point.
+# PREVENTS: a hub that reads as configured and serves no managed client, because
+#           the acceptor took the address first and the managed listener was
+#           skipped with only a log line.
+#
+# doctor-hub-managed-separate.ci is the control: the same check MUST stay silent
+# on the central-hub configuration that works. One file for each, because every
+# expect= line in a .ci is evaluated against the LAST command's output.
+
+tmpfs=hub-collision.conf:terminator=EOF_COLLISION
+plugin {
+    hub {
+        server local {
+            ip 127.0.0.1;
+            port 12790;
+            secret abcdefghijklmnopqrstuvwxyz012345;
+            client edge-01 { secret 0123456789abcdef0123456789abcdef; }
+        }
+    }
+}
+EOF_COLLISION
+
+cmd=foreground:seq=1:exec=ze doctor --json hub-collision.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-hub-managed-collision
+expect=stdout:contains=127.0.0.1:12790

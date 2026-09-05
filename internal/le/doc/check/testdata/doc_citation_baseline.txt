@@ -824,7 +824,6 @@ plan/spec-lifecycle-invariants.md	test/pppoe/accounting-lifecycle.ci
 plan/spec-lifecycle-invariants.md	test/pppoe/coa-disconnect.ci
 plan/spec-lifecycle-invariants.md	test/pppoe/coa-rate-change.ci
 plan/spec-lifecycle-invariants.md	test/pppoe/pool-release-cycle.ci
-plan/spec-managed-server-hardening.md	test/managed/managed-hub-secure.ci
 plan/spec-mcp2026-5-state-resources.md	internal/component/mcp/statebridge.go
 plan/spec-mcp2026-5-state-resources.md	internal/component/mcp/subscriptions.go
 plan/spec-mcp2026-5-state-resources.md	internal/component/mcp/subscriptions_test.go
