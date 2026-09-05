@@ -70,7 +70,7 @@ in minutes, and that verdict survives another session's concurrent edit.
 | 1 | spec-verify-scope-1-shared-checkout-freshness (CLOSED 2026-09-05) | Fault 1: scoped freshness, per-path move detection, debt that clears | - |
 | 2 | spec-verify-scope-2-change-set-selector (CLOSED 2026-09-05) | Fault 2 foundation: one tag-aware change-set selector | - |
 | 3 | spec-verify-scope-3-selector-consumers (CLOSED 2026-09-05) | Fault 2 consumers: staticcheck rows, functional suites | 2 |
-| 4 | `plan/spec-verify-scope-4-suite-budget-and-ci.md` | The `plugin` suite wall-clock cap, and CI sharding | - |
+| 4 | spec-verify-scope-4-suite-budget-and-ci (CLOSED 2026-09-05) | The `plugin` suite wall-clock cap, and CI sharding | - |
 | 5 | `plan/spec-verify-scope-5-suite-coverage-map.md` | Functional suite selection, from a RECORDED package-to-suite map. **STOPPED at phase 1 by its own gate** | 2 |
 
 **Sub-spec 5 stopped, and its reason generalises beyond it.** Phase 1 was a gate:

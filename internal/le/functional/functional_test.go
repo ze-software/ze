@@ -589,3 +589,45 @@ func TestARunThatNeverStartedAnswersNoReport(t *testing.T) {
 		t.Errorf("a run that never started answered %v, want no report at all", answer)
 	}
 }
+
+// pluginMeasuredSeconds is what the plugin suite was measured at on 2026-08-19,
+// under contention from five other sessions on the 32-core development box
+// (spec verify-scope-4, A-1). It is an upper bound taken on a busy machine.
+const pluginMeasuredSeconds = 855
+
+// pluginContentionMarginPercent is the headroom the warning point keeps above
+// that measurement. Below it a contended box warns on every run, and a warning
+// that always fires names no creep.
+const pluginContentionMarginPercent = 140
+
+// VALIDATES: the plugin suite's own budget still puts its WARNING point above
+// the runtime it was derived from.
+// PREVENTS: the two halves of that derivation drifting apart in silence. The
+// budget is one number and the warn percentage is another, each with its own
+// test, and nothing said they had to hold together: halving the percentage
+// leaves both of those tests green and makes the suite warn on every run, at
+// which point the number stops meaning anything.
+func TestThePluginBudgetKeepsItsWarningAboveTheMeasurement(t *testing.T) {
+	env.ResetCache()
+	plugin, ok := SuiteNamed("plugin")
+	if !ok {
+		t.Fatal("the plugin suite is not declared")
+	}
+	budget := DurationSeconds(plugin.Budget())
+	if budget == 0 {
+		t.Fatalf("the plugin budget %q is not a duration this can measure", plugin.Budget())
+	}
+
+	warnAt := budget * WarnPercent() / 100
+	want := pluginMeasuredSeconds * pluginContentionMarginPercent / 100
+	if warnAt < want {
+		t.Errorf("the plugin suite warns at %ds, want at least %ds: %ds measured plus %d%% for a contended box."+
+			" Raise the budget, raise the warn percentage, or make the suite faster",
+			warnAt, want, pluginMeasuredSeconds, pluginContentionMarginPercent-100)
+	}
+	// The kill must stay above the measurement too, or the suite is killed on a
+	// busy box for running at the speed it was measured at.
+	if budget <= pluginMeasuredSeconds {
+		t.Errorf("the plugin budget is %ds, at or below the %ds it was measured at", budget, pluginMeasuredSeconds)
+	}
+}
