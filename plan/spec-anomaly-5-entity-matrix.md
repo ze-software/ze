@@ -431,44 +431,131 @@ Widening the entity axis is not "teach the detector new keys" -- it is "teach th
 
 ## Implementation Summary
 ### What Was Implemented
-- [Filled during /implement]
+- `internal/component/trafficfeature/feature.go` -- the bulk. `sourceState` became `addrState`,
+  one type serving both address axes; `aggregator` gained `dests` and `ports` maps; `ingest`
+  folds the destination role and the destination-PORT role beside the source role;
+  `finalizeAddrs` closes either address axis under a `direction`, and `finalizePorts` closes the
+  port axis. Caps are per dimension: `maxTrackedKey` for sources, `maxTrackedDest` 10000,
+  `maxTrackedPort` 4096.
+- `internal/component/trafficfeature/service.go` -- `PortKey` (port plus IP protocol, so TCP 53
+  and UDP 53 are two entities), `PortFeatureEntry` with its own field set, and
+  `Snapshot.Dests` / `Snapshot.Ports` beside the existing `Sources`.
+- `internal/plugins/anomaly/detect/detector.go` -- `onTick` splits into `scoreSources`,
+  `scoreDests` and `scorePorts`, each folding through one generic `stepEntity` that holds
+  freeze-learn and warmup for every axis. `stateFor` and `evictIdle` are generic over the key,
+  so the port axis needs no parallel machinery. `identity` carries the kind, the prefix and the
+  port, and `activate` / `emitOngoing` / `emitCleared` each stamp it.
+  `publishGauges` sets one `ze_anomaly_tracked_entities` series per axis.
+- `internal/core/anomalyevent/event.go` -- `EntityKind` with `Port` and `Proto` on all three
+  events. `EntityKindSource` is the empty string, so a source event's JSON is unchanged.
+- `internal/plugins/anomaly/shape/responder.go` -- `actsOn`, tested FOR the source kind rather
+  than against the others, guarding `onDetected`, `onOngoing` and `onCleared`.
+- `internal/plugins/anomaly/detect/show.go` -- `entityLabel` renders `proto/port` for a port
+  incident through `textbuf`, and every row carries `entity-kind`.
+- `internal/plugins/anomaly/detect/score.go` -- UNCHANGED, which is AC-10. A port is scored
+  cohort-free by passing a nil cohort, and `rarity` already returns 0 below `minSize`.
 
 ### Bugs Found/Fixed
-- [Filled during /implement]
+- `buildCohorts` had no non-test caller once `cohortsOf` took over, and `unused` could not see
+  it because a test called it. It was deleted and its test repointed at `cohortsOf` (AC-13).
+- The `ingest` doc comment claimed every reverse fold is lookup-only. The flow's destination on
+  the SOURCE axis creates its state, because that is where an address's in/out ratio is
+  measured. The comment now names the exception and its bound. Found by this closure's review.
 
 ### Documentation Updates
-- [Filled during /implement]
+- `docs/architecture/anomaly/anomaly-1-detect.md` -- three entity axes, and the
+  `ze_anomaly_tracked_entities` `dimension` label named as a BREAKING change for an existing
+  query (AC-11, AC-12).
+- `docs/features.md` -- the anomaly row describes source, dest and port entities, says a port is
+  identified by proto and port and scored by self-deviation alone, and carries the same
+  breaking-change note on the gauge.
+- `docs/architecture/api/commands.md` -- the `ze-show:anomaly` payload row still described the
+  pre-widening shape, with no `entity-kind`, `port` or `proto`. Repaired in this closure, along
+  with the rule that a port row renders `entity` as `proto/port`.
+- `docs/architecture/traffic/traffic-analysis-layers.md` -- the three-parts table still called
+  the feature layer "neutral per-source features", and its source anchor said the same.
+  Repaired in this closure: three entity axes, and the anchor names all three.
 
 ### Deviations from Plan
-- [Filled during /implement]
+- The plan named `portKey{DstPort, Proto}` as an internal type. It shipped EXPORTED, as
+  `trafficfeature.PortKey`, embedded in `PortFeatureEntry`: the detector keys its port map on it
+  (`stateFor(d.portStates, pe.PortKey, ...)`), so it crosses the package boundary and cannot be
+  unexported.
+- The plan kept `sourceState` and added a parallel dest accumulator. The implementation renamed
+  it `addrState` and made `finalizeAddrs` take a `direction`, so one type and one finalizer serve
+  both address axes rather than two near-copies.
+- `test/plugin/anomaly-entity-matrix.ci` is not written and will not be. The plan made it
+  conditional on child 4 landing a `fakeflow` traffic generator. Child 4 closed WITHOUT one:
+  the umbrella's AC-2 row records that the plugin approach was abandoned for an in-process Go
+  integration test. `TestChainDestOutlier` and `TestChainPortOutlier` are that test, for this
+  spec's two axes, so the substitute the umbrella sanctioned is what shipped.
 
 ## Implementation Audit
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| | | | |
+| the facts layer emits a per-dest feature list | done | `finalizeAddrs(a.dests, dt, dirReceived)` in `snapshot` (`internal/component/trafficfeature/feature.go`) | one type and one finalizer serve both address axes, under a `direction` |
+| the facts layer emits a per-port feature list | done | `finalizePorts` (`internal/component/trafficfeature/feature.go`), `PortKey` and `PortFeatureEntry` (`service.go`) | the port carries its own field set rather than a `FeatureEntry` with a zero `Addr` |
+| the detector scores dest with the prefix cohort | done | `scoreDests` (`internal/plugins/anomaly/detect/detector.go`) | reuses `cohortsOf` and `cohortPrefix` unchanged |
+| the detector scores port cohort-free | done | `scorePorts` passes a nil cohort to `stepEntity` | `rarity` already returns 0 below `minSize`, so `score.go` needs no edit |
+| freeze-learn and warmup preserved on every axis | done | `stepEntity` (`detector.go`) is the single fold every axis runs through | |
+| the event contract carries the kind and a port | done | `EntityKind`, `Port`, `Proto` (`internal/core/anomalyevent/event.go`) | `EntityKindSource` is the empty string, so source JSON is unchanged |
+| the responder stays victim-safe | done | `actsOn` (`internal/plugins/anomaly/shape/responder.go`), guarding all three handlers | tested FOR source, so a kind added later is refused rather than acted on |
+| no AS field and no flowexport dependency | done | nothing under `internal/plugins/anomaly` or `internal/component/trafficfeature` imports flowexport | the `SrcAS` field on `FeatureEntry` is child 6's, landed separately |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| | | | |
+| AC-1 | done | `TestFeatureDestEntry` (`trafficfeature/feature_test.go`) | |
+| AC-2 | done | `TestFeaturePortEntry` (`trafficfeature/feature_test.go`) | |
+| AC-3 | done | `TestFeatureDestPortCapsAndEviction` (`feature_test.go`) and `TestTrackedGaugeByDimension` (`detect/detector_test.go`) | `maxTrackedDest` 10000 and `maxTrackedPort` 4096 are per map; `publishGauges` sets one series per axis |
+| AC-4 | done | `TestDetectDestCohortRarity` and `TestChainDestOutlier` | |
+| AC-5 | done | `TestDetectPortCohortFree` and `TestChainPortOutlier` | `identity{kind: EntityKindPort, port:, proto:}` leaves `entity` zero |
+| AC-6 | done | `TestFreezeLearnDestPort` (`detector_test.go`) | one `stepEntity` holds the discipline for all three axes |
+| AC-7 | done | `TestEventKindOmitemptyForSource` (`anomalyevent/event_test.go`); the source tests in `feature_test.go` and `detector_test.go` pass | `EntityKindSource` is the empty string, so a source event marshals as before |
+| AC-8 | done | `TestResponderIgnoresNonSourceEntity` (`shape/responder_test.go`) | drives `onDetected`, `onOngoing` and `onCleared` from the handler entry points, with a positive source control in the same test |
+| AC-9 | done | `TestShowAnomalyEntityLabelByKind` (`detect/show_test.go`) | drives `handleShowAnomaly` over a detector holding three incidents; `anomaly-show.ci` is NOT the evidence, as the spec's own Functional Tests table says |
+| AC-10 | done | `git log -- internal/plugins/anomaly/detect/score.go` names no commit from this work | the pinned rule is untouched |
+| AC-11 | done | `docs/architecture/anomaly/anomaly-1-detect.md` and `docs/features.md` describe three axes | met 2026-08-18 |
+| AC-12 | done | both pages state that `ze_anomaly_tracked_entities` gained a `dimension` label and that an existing query stops matching | met 2026-08-18 |
+| AC-13 | done | `grep -rn buildCohorts internal/` returns nothing; `detector_test.go` calls `cohortsOf` | met 2026-08-18 |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| | | | |
+| `TestFeatureDestEntry` | done | `internal/component/trafficfeature/feature_test.go` | |
+| `TestFeaturePortEntry` | done | `internal/component/trafficfeature/feature_test.go` | |
+| `TestFeatureDestPortCapsAndEviction` | done | `internal/component/trafficfeature/feature_test.go` | |
+| `TestDetectDestCohortRarity` | done | `internal/plugins/anomaly/detect/detector_test.go` | |
+| `TestDetectPortCohortFree` | done | `internal/plugins/anomaly/detect/detector_test.go` | |
+| `TestDestPortConfirmClearLifecycle` | done | `internal/plugins/anomaly/detect/detector_test.go` | |
+| `TestFreezeLearnDestPort` | done | `internal/plugins/anomaly/detect/detector_test.go` | |
+| `TestTrackedGaugeByDimension` | done | `internal/plugins/anomaly/detect/detector_test.go` | |
+| `TestResponderIgnoresNonSourceEntity` | done | `internal/plugins/anomaly/shape/responder_test.go` | |
+| `TestEventKindOmitemptyForSource` | done | `internal/core/anomalyevent/event_test.go` | |
+| `TestShowAnomalyEntityLabelByKind` | done | `internal/plugins/anomaly/detect/show_test.go` | |
+| `TestShowAnomalyWithNoDetector` | done | `internal/plugins/anomaly/detect/show_test.go` | |
+| `TestChainDestOutlier` | done | `internal/plugins/anomaly/detect/chain_integration_test.go` | |
+| `TestChainPortOutlier` | done | `internal/plugins/anomaly/detect/chain_integration_test.go` | |
+| `TestIsServicePort` | added | `internal/component/trafficfeature/feature_test.go` | beyond the plan: the port axis only counts a flow whose destination port is its SERVICE side, and that decision needed its own test |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| | | |
+| `internal/component/trafficfeature/service.go` | done | `PortKey`, `PortFeatureEntry`, `Snapshot.Dests` and `Snapshot.Ports` |
+| `internal/component/trafficfeature/feature.go` | changed | `sourceState` became `addrState` and `finalizeAddrs` took a `direction`, so one type serves both address axes instead of two near-copies |
+| `internal/plugins/anomaly/detect/detector.go` | changed | the plan named `destStates`/`portStates` and a labeled gauge, all present. It did not name the `scoreSources`/`scoreDests`/`scorePorts` split, nor generic `stateFor`/`evictIdle`, which is how the port axis needs no parallel machinery |
+| `internal/core/anomalyevent/event.go` | done | `EntityKind`, `Port`, `Proto` on all three events |
+| `internal/plugins/anomaly/shape/responder.go` | done | `actsOn` on all three handlers |
+| `internal/plugins/anomaly/detect/show.go` | done | `entityLabel` through `textbuf`, `entity-kind` on every row |
+| `internal/plugins/anomaly/detect/score.go` | untouched | AC-10 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 36 (8 requirements, 13 ACs, 14 planned tests, and `score.go` as the one file that had to stay unchanged) plus 1 test beyond the plan
+- **Done:** 36
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 3 (the `addrState` rename, the `scoreSources`/`scoreDests`/`scorePorts` split, and `PortKey` shipping exported), all in Deviations
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task) | Evidence Type | Concrete Evidence |
@@ -481,43 +568,90 @@ Widening the entity axis is not "teach the detector new keys" -- it is "teach th
 | Source path + `score.go` unchanged | test + diff | source tests unmodified pass; `score.go` diff empty |
 | Armed responder stays victim-safe | unit test | `TestResponderIgnoresNonSourceEntity` |
 
+## Work Not Done
+| Item | Why it is not here | Where it is homed |
+|------|--------------------|-------------------|
+| `test/plugin/anomaly-entity-matrix.ci`, a daemon-level dest and port incident | It needs synthetic traffic inside the daemon. Child 4 was to build a `fakeflow` plugin for exactly that and closed WITHOUT one: the umbrella's AC-2 row records that the plugin approach was abandoned for an in-process Go integration test, so the `.ci` route has no producer to wait for | not homed and not owed. `TestChainDestOutlier` and `TestChainPortOutlier` are the substitute the umbrella sanctioned, and they run a real `trafficfeature.Service` into a real detector |
+| A dest or port firewall RESPONSE | `actsOn` refuses every non-source kind on purpose, because every term this package builds matches a source address. Acting on a dest would throttle the victim | no spec yet; it is a Known Limitation above, and it needs a design decision about what a victim-side action even is before a spec can be written |
+| A per-dimension toggle for dest and port scoring | Both axes enable with `anomaly { detect { enabled true } }`. Nobody asked for the third knob, and adding one now would be an option with no requirement behind it | Known Limitations above |
+
 ## Review Gate
+Round 1 scope: the whole entity-matrix diff. `internal/component/trafficfeature/{feature.go,
+service.go}`, `internal/plugins/anomaly/detect/{detector.go,show.go}`,
+`internal/core/anomalyevent/event.go`, `internal/plugins/anomaly/shape/responder.go`, their
+tests, and the four documentation pages the change touched.
+Round 2 scope: the fixes round 1 made, plus the sibling references they touch.
+
+Lenses run in round 1: wiring and data flow (every producer read from source, both address
+axes and the port axis traced from `ingest` to the emitted event), the GUARD audit that
+`ai/rules/evidence.md` requires because the diff adds one (`actsOn`), and the
+`docs/contributing/ze-go-style.md` style pass.
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | | file:line | |
-
+| 1 | ISSUE | Documentation drift the diff caused. The `ze-show:anomaly` payload row still described the pre-widening shape, with no `entity-kind`, no `port` and no `proto`, while `handleShowAnomaly` emits all three. An agent reading the page to build a client would miss the port axis entirely | `docs/architecture/api/commands.md`, the `ze-show:anomaly` row | fixed in this closure |
+| 2 | ISSUE | Documentation drift the diff caused. The three-parts table called the feature layer "neutral per-source features" and its source anchor said the same, after the layer grew a dest axis and a port axis | `docs/architecture/traffic/traffic-analysis-layers.md`, the three-parts table and its `feature.go` anchor | fixed in this closure |
+| 3 | ISSUE | A false claim in a comment the diff added. `ingest` says every reverse fold is lookup-only and "never CREATEs an entity", naming the dest map and the port map. The third reverse fold, the flow's DESTINATION on the source axis, calls `getOrCreate` and does create. A reader trusting the comment would size the source map wrong | `internal/component/trafficfeature/feature.go` (`ingest`) | fixed in this closure: the comment now names the exception, why that axis needs it, and its bound |
+| 4 | NOTE | `EntityKindSource` is the empty string, so the zero value of the kind is a VALID state and an event whose producer forgot to set the kind is acted on by the responder | `internal/core/anomalyevent/event.go` (`EntityKind`) | acknowledged, and it is the shape AC-7 requires: a source event's JSON has to stay identical, which a distinct `Unspecified` zero would break. The residual is bounded. The only three producers are `activate`, `emitOngoing` and `emitCleared` in `detector.go`, each takes an `identity` and stamps `id.kind` from it, so there is no path that builds one of these events without going through that struct. The type, the guard and this row all say so |
+| 5 | NOTE | `evictOldest`-style capacity sharing on the source axis: a pure receiver occupies a slot in `a.sources` because the reverse fold creates its state. It is bounded by `maxTrackedKey` and evicted by the same idle rule, and it predates this spec | `internal/component/trafficfeature/feature.go` (`ingest`) | acknowledged. Finding 3's comment fix is what makes it visible to the next reader |
+| 6 | NOTE | AC-9's render contract has no `.ci`. The daemon-level path for the command is covered by `test/plugin/anomaly-show.ci`, and the RENDER is covered by `TestShowAnomalyEntityLabelByKind` over the real `handleShowAnomaly` | `internal/plugins/anomaly/detect/show.go` | acknowledged. A `.ci` needs a dest or port incident inside the daemon, and the umbrella's AC-2 records that the traffic generator that would produce one was abandoned for the in-process Go integration test this spec ships. `Work Not Done` above says so rather than leaving it implied |
 ### Fixes applied
--
-
+- Finding 1: `docs/architecture/api/commands.md` now lists `entity-kind`, `port` and `proto`, and states that a port row renders `entity` as `proto/port`.
+- Finding 2: `docs/architecture/traffic/traffic-analysis-layers.md` names the three entity axes in the table and in the `feature.go` source anchor.
+- Finding 3: the `ingest` doc comment in `internal/component/trafficfeature/feature.go` names the one reverse fold that creates, the reason that axis needs it, and the cap and eviction that bound it.
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-
+| - | none | Round 2 read the three round-1 fixes and the symbols they name. `handleShowAnomaly` emits exactly the fields the repaired page lists, the repaired anchor names a function that behaves as the anchor says, and the repaired `ingest` comment matches all three reverse folds. No BLOCKER, no ISSUE, and no always-in-scope class anywhere in the diff | -- | -- |
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Artifact: `tmp/review/anomaly-5-entity-matrix-zeclose-anom5.md`, written by
+`./le spec session review record ... verdict CLEAN rounds 2`. `./le spec session review check
+spec anomaly-5-entity-matrix` reports OK, clean, hashes match. The command NOTEs that it could
+not read the running model from the transcript, so the review-model boundary is unchecked by
+the tool; the pass ran on Opus 5.
 
 ## Pre-Commit Verification
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
-
+| `internal/component/trafficfeature/feature.go` | yes | `addrState`, `portState`, `ingest`, `finalizeAddrs`, `finalizePorts` |
+| `internal/component/trafficfeature/service.go` | yes | `PortKey`, `PortFeatureEntry`, `Snapshot.Dests`, `Snapshot.Ports` |
+| `internal/plugins/anomaly/detect/detector.go` | yes | `scoreSources`, `scoreDests`, `scorePorts`, `identity`, `publishGauges` |
+| `internal/plugins/anomaly/detect/show.go` | yes | `entityLabel`, `entity-kind` on every row |
+| `internal/core/anomalyevent/event.go` | yes | `EntityKind`, `EntityKindSource`, `EntityKindDest`, `EntityKindPort` |
+| `internal/plugins/anomaly/shape/responder.go` | yes | `actsOn` |
+| `internal/plugins/anomaly/detect/score.go` | yes, unchanged | AC-10 |
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-
+| AC-1 to AC-9 | the two new axes, their caps, the cohort and cohort-free scoring, freeze-learn, the unchanged source path, the responder guard and the kind-aware render | `go test -race -count=1 -tags ze_core,ze_anomaly ./internal/plugins/anomaly/...` green on 2026-09-05 (detect 30.9s, observe 14.4s, shape 1.1s), and `go test -race -count=1 ./internal/component/trafficfeature/...` green the same day |
+| AC-10 | `score.go` is unchanged | `git log --oneline -3 -- internal/plugins/anomaly/detect/score.go` names no commit from this work |
+| AC-11, AC-12 | the pages describe three axes and name the gauge's breaking change | `docs/architecture/anomaly/anomaly-1-detect.md` and `docs/features.md`, read on 2026-09-05 |
+| AC-13 | `buildCohorts` is gone | `grep -rn buildCohorts internal/` returns nothing |
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci/test File | Verified |
 |-------------|---------------|----------|
-
+| a flow observation becomes a dest entity | `TestFeatureDestEntry`, then `TestChainDestOutlier` over a real `trafficfeature.Service` | yes |
+| a flow observation becomes a port entity | `TestFeaturePortEntry`, then `TestChainPortOutlier` | yes |
+| a dest or port incident reaches the responder and is refused | `TestResponderIgnoresNonSourceEntity`, driving all three handler entry points with a positive source control | yes |
+| an operator runs `show anomaly detect` | `test/plugin/anomaly-show.ci`, PASS as test 14 of 741 in the 2026-09-05 `./le functional plugin` run | yes for the command; the dest and port ROWS are proven by `TestShowAnomalyEntityLabelByKind` over the real handler |
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-
+| A-1 to A-8 | confirmed | the facts layer carried the bulk, the dest re-key reused the cohort machinery unchanged, the port axis needed its own key type and a cohort-free path, `score.go` took no edit, and the additive `Snapshot` fields left every existing builder compiling |
+| A-9 | broken, as the Mistake Log records | a port cannot be a `netip.Prefix`, so the event contract had to widen and the responder had to gain a source-only guard. Both are in this spec and both are tested |
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| three entity axes in the detector design | `docs/architecture/anomaly/anomaly-1-detect.md` describes source, dest and port, and says a port has no address | yes |
+| the gauge's breaking change | the same page and `docs/features.md` both name the `dimension` label and say an existing query stops matching | yes |
+| the `ze-show:anomaly` payload | `docs/architecture/api/commands.md`, repaired here, lists every field `handleShowAnomaly` emits | yes |
+| the feature layer's axes | `docs/architecture/traffic/traffic-analysis-layers.md`, repaired here, names all three in the table and in the anchor | yes |
+| no RFC, wire-format, config-syntax, CLI-grammar or plugin-SDK page applies | this spec adds no protocol behaviour, no config leaf and no new command | yes |
 
 ## Checklist
 

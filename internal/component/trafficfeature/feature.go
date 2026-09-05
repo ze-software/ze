@@ -223,9 +223,15 @@ func (a *aggregator) portFor(k PortKey) *portState {
 // it was addressed on) and the destination PORT (in bytes, its source spread).
 //
 // Each axis also counts the bytes flowing the OTHER way, because every axis scores
-// an asymmetry ratio. Those reverse folds never CREATE an entity: a pure sender
-// must not occupy a slot in the destination map, and an ephemeral source port must
-// not occupy one in the port map.
+// an asymmetry ratio. Two of those three reverse folds are lookup-only, so they
+// never CREATE an entity: a pure sender must not occupy a slot in the destination
+// map, and an ephemeral source port must not occupy one in the port map.
+//
+// The third one, the flow's destination on the SOURCE axis, does create. That axis
+// is where an address's in/out ratio is measured, and a receiver that starts
+// sending needs the inbound bytes of the window it began in. The state it creates
+// carries no outBytes, so finalizeAddrs never emits it, and it is bounded by
+// maxTrackedKey and dropped by the same idle eviction as every other entity.
 func (a *aggregator) ingest(obs observation.Observation) {
 	if obs.Kind != observation.KindFlow || obs.Feature != observation.FeatureFlowBytes {
 		return

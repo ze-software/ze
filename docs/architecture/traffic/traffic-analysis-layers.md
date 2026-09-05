@@ -14,11 +14,11 @@ RESPONSE.**
 |------|------|
 | `internal/core/stats` | the math primitives: `Window`, `Mean`, `StdDev`, `Quantile`, `Entropy`, `EWMA`, `IntervalRegularity` |
 | `internal/component/trafficstat` | per-key rolling aggregation built on `stats.Window` |
-| `internal/component/trafficfeature` | neutral per-source features: fan-out, out/in ratio, destination-port entropy, new-peer, rare port and protocol, coarse beaconing, plus the entity's origin AS when a publisher supplies it |
+| `internal/component/trafficfeature` | neutral features on three entity axes -- the sending address, the receiving address, and the destination service port: fan-out or fan-in, out/in ratio, destination-port or per-source entropy, new-peer, rare port and protocol, coarse beaconing, plus the entity's origin AS when a publisher supplies it |
 
 <!-- source: internal/core/stats/window.go -- Window, the canonical rolling-rate primitive -->
 <!-- source: internal/component/trafficstat/window.go -- per-key aggregation on stats.Window -->
-<!-- source: internal/component/trafficfeature/feature.go -- neutral per-source feature aggregation -->
+<!-- source: internal/component/trafficfeature/feature.go -- neutral feature aggregation on the source, dest and port axes -->
 
 ## The decisions
 
