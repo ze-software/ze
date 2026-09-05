@@ -1,7 +1,7 @@
 # Test: a tunnel whose ttl leaf is unset carries the outer TTL the schema declares
 # Exercises: interface config -> iface parseTunnelEntry (schema defaults applied)
 #            -> netlink CreateTunnel -> RTM_NEWLINK -> netlink.LinkByName read-back
-# VALIDATES: AC-1..AC-7 of plan/immediate/spec-tunnel-ttl-default.md. The four
+# VALIDATES: AC-1..AC-7 of spec-tunnel-ttl-default (closed and removed). The four
 #            IPv4-underlay kinds with no ttl leaf carry 64, an explicit ttl 0
 #            still inherits, an explicit ttl 200 is applied unchanged, and the
 #            ip6gre hoplimit default of 64 reaches the device too.

@@ -316,28 +316,156 @@ tunnel was silently unused before and still is.
 
 ## Review Gate
 
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/tunnel-ttl-default-zeclose-tunttl2.md` |
+| `./le spec session review check` | `review_gate: OK (7 code files, clean, hashes match tmp/review/tunnel-ttl-default-zeclose-tunttl2.md)`. It also NOTEs that the running model could not be determined, so the tool leaves the review-model boundary UNCHECKED; the phase boundary is what carries independence here |
+| Rounds | 1 |
+| Reviewer lenses used | wiring + logic, removed-behavior + guard audit, style + simplicity + performance |
 
-### Run 1 (initial)
+The reviewer is not the author: `/ze-implement` produced the diff at `90412c682`
+and ended, and this gate read that diff from source.
+
+### Run 1
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | NOTE | `loadTunnelSchema` calls `config.YANGSchema`, which builds a fresh loader and parses every embedded and registered module on each call. `parseIfaceConfig` runs it once per section with a non-empty `tunnel` map, and there are four such call sites per commit: verify (`register.go`), configure (`register.go`), and the two sides of the decompose (`operation.go`). MEASURED: the four sub-tests of `TestTunnelTTLDefault64` take 0.11s, so about 27ms per parse and about 110ms added to a tunnel-bearing commit | `internal/component/iface/tunnel.go` -- `loadTunnelSchema`; `internal/component/config/yang_schema.go` -- `YANGSchemaWithPlugins` | acknowledged, not changed. Config load is the cold path `/ze-review` step 15 exempts, and step 17 refuses a new cache without a measurement showing the problem. The measurement is here and it does not show one |
+| 2 | NOTE | The `docs/features.md` behaviour-change sentence (checklist row 1) is in the tree and correct, but it landed in `f196afd5e`, an unrelated OSPF commit, rather than in `90412c682`. Several sessions share this checkout, and the doc edit was swept into whichever commit named the file first | `docs/features.md` line 15, the Interfaces row | acknowledged. The text and its anchors are right, and history cannot be unmixed. Recorded so the audit trail is not read as a missing doc edit |
+| 3 | NOTE | `TestCreateTunnelTTLReachesTheDevice` and `TestCreateTunnelTTLZeroInherits` have still never executed. Run at closure under `unshare -Urmn`: they compile and SKIP, because `withTunnelNetNS` calls `netns.NewNamed`, which needs to write `/run/netns`, and a user namespace does not map the owner of that directory. Result: `requires CAP_NET_ADMIN: open /run/netns/TestCreateTunne: permission denied`, five skips, package `ok` | `internal/plugins/iface/netlink/tunnel_linux_test.go` -- `withTunnelNetNS` | recorded as verification debt. The same acceptance criteria ARE proven in the QEMU guest by `test/plugin/tunnel-ttl-default.ci`, which ran green with a recorded red |
+| 4 | NOTE | R-3 is unresolved and the default makes it sharper: an explicit `ttl` on a VPP-backed gre, gretap or ipip is accepted by the schema and reaches no device, and `default 64` now makes the leaf look authoritative on a backend that cannot honor it. `createGRETunnel` sends type, mode, src and dst; `createIPIPTunnel` sends src, dst and mode. Neither carries a TTL field | `internal/plugins/iface/vpp/tunnel.go` -- `createGRETunnel`, `createIPIPTunnel` | not fixed: warn-or-reject is the owner's decision, which this session cannot put to him. One row in `plan/journal/unwired-feature.md`, one row in Work Not Done |
+| 5 | NOTE | The same four-arm type switch over `*netlink.Gretun`, `*netlink.Gretap`, `*netlink.Iptun` and `*netlink.Sittun` is written twice, once in the fixture and once in the netlink test | `internal/test/fixture/plugin_fixture_08_tunnel_ttl_linux.go` -- `tunnelOuterTTL08`; `internal/plugins/iface/netlink/tunnel_linux_test.go` -- `tunnelDeviceTTL` | acknowledged. Test-only, in two packages, and sharing it would mean exporting a reader from a product package for a test's benefit |
+| 6 | NOTE | The docs say a tunnel that names no `ttl` carries 64. True of every tunnel Ze creates, and not of a netdev that outlives the process: the apply skips a tunnel whose spec is unchanged, and on EEXIST for a device of the same kind it deliberately keeps the existing netdev rather than rebuilding a link that carries traffic. So a device made before this change keeps its TTL until it is deleted and recreated | `internal/component/iface/config_apply.go` -- the tunnel phase of `applyTunnels`, "Spec unchanged: keep the existing netdev" and the EEXIST branch | acknowledged. Pre-existing apply policy, general to every tunnel leaf rather than to `ttl`, and the goal does not depend on it. Qualifying only the TTL section would state a general property in a specific place |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- None. Every finding of run 1 is a NOTE, and NOTEs do not block
+  (`/ze-review` step 22). No product line was changed by this closure.
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+### Run 2
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | none. Run 1 changed no code, so there is nothing new to review | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above (six)
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The unset `ttl` default for gre, gretap, ipip and sit becomes 64 | Done | `internal/component/iface/yang/ze-iface-conf.yang`, four `leaf ttl` declarations | the value is declared in the schema and in no Go constant |
+| The default reaches the device | Done | `internal/component/iface/tunnel.go` -- `tunnelSchema.applyDefaults`, called by `parseTunnelEntry` (`internal/component/iface/config.go`) | this is the edit A-1 did not predict: nothing on the iface path materialized a schema default before |
+| An explicit `ttl 0` still means inherit | Done | `internal/component/config/schema_defaults.go` -- `applyChildDefault` writes only an absent key | so a present `0` is never overwritten |
+| Netlink-only scope | Done | no VPP file is touched | the VPP consequence is finding 4 above |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1..AC-4 | Done | `TestTunnelTTLDefault64` (four kinds); rows `ttdgre`, `ttdgretap`, `ttdipip`, `ttdsit` of `test/plugin/tunnel-ttl-default.ci` read back through `tunnelOuterTTL08` | `ttdsit` holds by declaration rather than by discrimination, and the `.ci` header says so |
+| AC-5 | Done | `TestTunnelTTLExplicitZeroInherits`; row `ttdinherit` | |
+| AC-6 | Done | `TestTunnelTTLExplicitValueSurvivesDefault` at 1, 200 and 255; row `ttdexplicit` | covers the numeric boundary table |
+| AC-7 | Done | `TestTunnelHopLimitDefault64` (ip6gre, ip6gretap, ip6tnl, ipip6); row `ttdip6gre` | the leaf was unchanged; the `applyDefaults` call is what first carried it to a device |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The six `internal/component/iface` unit tests | Done | `internal/component/iface/config_test.go` | green at closure: `ok github.com/ze-software/ze/internal/component/iface 1.024s` |
+| `tunnel-ttl-default` | Done | `test/plugin/tunnel-ttl-default.ci` | `1/1 PASS 728` in the QEMU guest, 2026-09-05, with a recorded red |
+| `TestCreateTunnelTTLReachesTheDevice`, `TestCreateTunnelTTLZeroInherits` | NOT RUN | `internal/plugins/iface/netlink/tunnel_linux_test.go` | they compile and SKIP on this host. See Review Gate finding 3 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/iface/yang/ze-iface-conf.yang` | Done | four `default 0` -> `default 64`, plus the `description` and `ze:help` that state why |
+| `internal/plugins/iface/netlink/tunnel_linux.go` | Changed | audited, not edited. `buildGretun`, `buildGretap`, `buildIptun` and `buildSittun` all set `link.Ttl` from `spec.TTL`, which settles R-2 |
+| `internal/component/iface/config.go` | Changed | it did NOT confirm the default; it had to CARRY it. `parseTunnelEntry` gained the `applyDefaults` call and `parseIfaceConfig` the schema load |
+| `internal/component/iface/tunnel.go` | Added, not in the plan | `tunnelSchema`, `loadTunnelSchema`, `applyDefaults` |
+| `test/plugin/tunnel-ttl-default.ci` | Done | with `internal/test/fixture/plugin_fixture_08_tunnel_ttl_linux.go` |
+
+### Audit Summary
+- **Total items:** 16
+- **Done:** 13
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (`config.go` and `tunnel_linux.go` differ from what the plan predicted, and `tunnel.go` is a file the plan did not name; all three follow from the broken A-1 and are in the Mistake Log)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An IPv4-underlay tunnel with no `ttl` carries a fixed outer TTL instead of inherit, so it survives a multi-hop underlay | functional, with a recorded red | `test/plugin/tunnel-ttl-default.ci`: `1/1 PASS 728 tunnel-ttl-default` in the QEMU guest. With `default 64` reverted to `default 0` and `ze` rebuilt: `ttdgre outer TTL is 0, want 64; ttdgretap outer TTL is 0, want 64; ttdipip outer TTL is 0, want 64`. The assertion reads the kernel device through `netlink.LinkByName`, not `show interface`, because the outer TTL is a device attribute no command reports |
+| The behaviour matches the IPv6-underlay kinds, which already declared 64 | functional | row `ttdip6gre` of the same `.ci`, plus `TestTunnelHopLimitDefault64`. The schema had declared 64 for four v6 kinds since the tunnel work landed, and nothing carried it to a device until `applyDefaults` |
+| Inherit stays reachable | functional + unit, negative | row `ttdinherit` asserts the device reads 0 for a config that writes `ttl 0`, and `TestTunnelTTLExplicitZeroInherits` asserts the spec does. `applyChildDefault` writes only an absent key, so a present 0 cannot be overwritten |
+| No configured value is lowered (the spec's security row) | unit, at the boundary | `TestTunnelTTLExplicitValueSurvivesDefault` at 1, 200 and 255 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| R-3: warn or reject an explicit `ttl` on a VPP-backed gre, gretap or ipip tunnel | It is an owner decision the spec deliberately left open, and this session cannot put a question to him. Neither option was implemented, so the behaviour is unchanged: the leaf was silently unused on that backend before and still is | No spec, and it needs the owner's answer before one can be written. It is recorded as a row in `plan/journal/unwired-feature.md`, per the 2026-08-10 directive that a defect met while working gets one journal row |
+| Carrying the outer TTL through the VPP binapi so the default reaches a VPP-programmed device | Out of scope by the user decision of 2026-07-10: `createGRETunnel` and `createIPIPTunnel` (`internal/plugins/iface/vpp/tunnel.go`) carry no TTL field, and adding one is separate work | Not started. It is the larger half of the same owner question as R-3 |
+| The two netlink read-back tests | They need CAP_NET_ADMIN over `/run/netns`, which this host does not grant even under `unshare -Urmn` | `plan/verification-debt/eb87be3f.md` carries this commit's debt rows. The `.ci` proves the same criteria in the guest |
+| The whole-tree gate over this diff | Heavy testing is deferred by owner instruction, 2026-09-05 | `plan/verification-debt/eb87be3f.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/tunnel-ttl-default.ci` | yes | in `90412c682`, 157 lines; read at closure, it declares `option=needs-linux:caps=net-admin` and seven tunnel stanzas |
+| `internal/test/fixture/plugin_fixture_08_tunnel_ttl_linux.go` | yes | in `90412c682`, 121 lines, `//go:build linux`, registered by `registerPlugin08("plugin/tunnel-ttl-default", ...)` |
+| `internal/component/iface/tunnel.go` | yes | carries `tunnelSchema`, `loadTunnelSchema` and `applyDefaults` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-4 | four kinds take 64 | `go test ./internal/component/iface/ -run TestTunnelTTLDefault64 -v`: four sub-tests, all PASS, 0.11s |
+| AC-5, AC-6 | explicit values survive | the same run covers `TestTunnelTTLExplicitZeroInherits` and `TestTunnelTTLExplicitValueSurvivesDefault`; `applyChildDefault` (`internal/component/config/schema_defaults.go`) writes only when `_, exists := m[name]` is false |
+| AC-7 | ip6gre stays 64 | `TestTunnelHopLimitDefault64`, four sub-tests, PASS |
+| the guard is reachable and closed | a schema nobody loaded fails the parse | `TestTunnelDefaultsRefuseAnUnresolvedSchema` asserts the error names `tunnelEncapSchemaPath` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| gre tunnel with `ttl` unset | `test/plugin/tunnel-ttl-default.ci` | yes: the `.ci` writes `tunnel ttdgre { encapsulation { gre { local ...; remote ...; } } }` with no `ttl`, and `tunnelTTLExpectations08` requires 64 back from `netlink.LinkByName("ttdgre")` |
+| gre tunnel with explicit `ttl 0` | same | yes: the `ttdinherit` stanza writes `ttl 0`, and the expectation is 0 |
+| the new code has a caller | n/a | `loadTunnelSchema` is called by `parseIfaceConfig`, `applyDefaults` by `parseTunnelEntry`, and `parseIfaceConfig` is the ONLY producer of a `TunnelSpec` in the tree (`grep -rn "TunnelSpec{" internal/` finds no other constructor), so no tunnel can reach a backend without passing through it |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken, then made true | nothing on the iface path materialized a schema default. `config.ApplyDefaults` had three callers and none was iface. Mistake Log row, and the fix is `tunnelSchema.applyDefaults` |
+| A-2 | confirmed | `TestTunnelTTLExplicitZeroInherits` and the `ttdinherit` row; the producer is `applyChildDefault`, which writes only an absent key |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 1, `docs/features.md` behaviour-change note | line 15, the Interfaces row, now reads "each carrying an outer-header TTL of 64 when the config names none", with anchors to `ze-iface-conf.yang` and `internal/component/iface/tunnel.go -- tunnelSchema, applyDefaults` | yes, in the tree. It landed in `f196afd5e` rather than in this spec's commit; see Review Gate finding 2 |
+| Row 2, `docs/features/interfaces.md` | the new "Outer-header TTL" section, with four `<!-- source: -->` anchors including the VPP one that names why the default stops at netlink | yes, in `90412c682` |
+| Row 2, `docs/guide/configuration.md` | no update owed. Its "Interface Configuration" section holds Interface Types, the `os-name` selector, MAC binding and offload, and declares no tunnel container and no tunnel leaf. The tunnel config surface is documented in `docs/features/interfaces.md` | verified by reading the section headings under `## Interface Configuration` |
+| `./le doc check verify` | red at 3484 issues and not one of them names `docs/features/interfaces.md`, `internal/component/iface/` or `ze-iface-conf.yang`. The iface hits in the log are gh-pages command-catalog rows for `show capture interface` | recorded, not repaired: the findings belong to other sessions and to the sibling published checkouts |
+| `./le docvalid help-shape` | red with 3 summary findings, in `ze-bgp-conf` and `ze-vpp-conf`. The four rewritten `ttl` descriptions and `ze:help` texts pass | recorded |
+| `./le repository check` | 24 issues, none in `internal/component/iface`, `internal/plugins/iface` or `internal/test/fixture`. No stale source anchor on `docs/features/interfaces.md` | recorded |
+
+## Core Insight
+
+A YANG `default` is a declaration, not a mechanism. This spec was written as a
+one-value change and it was not one: `config.ApplyDefaults` had three callers,
+each applying defaults for its own container, and the interface path was not
+among them. So `default 64` on four leaves would have changed nothing on any
+device, and the tests that would have caught it did not exist because nobody
+doubted that a schema default is applied.
+
+The consequence reached further than this spec's own subject. The four
+IPv6-underlay kinds had declared `hoplimit 64` since the tunnel work landed, and
+that value had never reached a device either. One call fixed both.
+
+The class is `plan/journal/declared-default-applied-by-each-consumer.md`, whose
+2026-09-04 row predicted this exact session: "A fourth consumer that forgets gets
+0 for every unwritten leaf, with no error and no log line". This is the fourth
+consumer. It did not forget, and it still wrote its own lookup, which is the
+argument for the repair that row already names.
 
 ## Checklist
 
