@@ -66,6 +66,9 @@ func capabilityDecls(cfg bridgeConfig) []sdk.CapabilityDecl {
 // (start) callback, OnEvent (write) callback, and the shutdown path.
 type bridgeRunner struct {
 	log *slog.Logger
+	// ack answers the script after each dispatched command. An ExaBGP API
+	// client blocks on `done` before it sends the next line.
+	ack bridge.AckMode
 
 	mu       sync.Mutex
 	started  bool
@@ -74,13 +77,26 @@ type bridgeRunner struct {
 	readerWG sync.WaitGroup
 }
 
+// stdinWriter answers the script's stdin under the lock, or a discard writer
+// while no subprocess is running. It never answers nil: an ack written into a
+// nil writer panics, and an ack the script cannot receive is not an error the
+// bridge can act on.
+func (r *bridgeRunner) stdinWriter() io.Writer {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.stdin == nil {
+		return io.Discard
+	}
+	return r.stdin
+}
+
 // runInternalBridge runs the ExaBGP bridge in-process. It spawns the operator's
 // script as a subprocess and translates between ze JSON events and the external
 // text/JSON commands, exactly like the external SDK-mode runner but with the
 // script command sourced from config. Returns the plugin exit code.
 func runInternalBridge(conn net.Conn) int {
 	log := logger()
-	r := &bridgeRunner{log: log}
+	r := &bridgeRunner{log: log, ack: bridge.NewAckMode()}
 
 	p := sdk.NewWithConn("exabgp-bridge", conn)
 	defer func() { _ = p.Close() }()
@@ -248,8 +264,13 @@ func (r *bridgeRunner) readLoop(ctx context.Context, p *sdk.Plugin, sout io.Read
 		}
 		if _, _, derr := p.DispatchCommand(ctx, translation.Command); derr != nil {
 			r.log.Warn("dispatch command failed", "error", derr, "cmd", translation.Command)
+			r.ack.WriteError(r.stdinWriter(), derr.Error())
 			continue
 		}
+		// The script is waiting for this. An ExaBGP API client sends one command,
+		// blocks for `done`, and gives up after two seconds, so a runner that
+		// dispatches without acking delivers exactly one command per script.
+		r.ack.WriteAck(r.stdinWriter())
 		// Route commands: inject a per-peer flush so the forward pool drains. The
 		// selector is the one the translator used.
 		if translation.Route {

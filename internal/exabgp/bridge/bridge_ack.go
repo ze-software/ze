@@ -25,30 +25,36 @@ import (
 // operator sets `environment { exabgp { api { ack <bool>; } } }`.
 const ackEnvKey = "exabgp.api.ack"
 
-// ackMode is a snapshot of exabgp.api.ack captured at bridge construction.
+// AckMode is a snapshot of exabgp.api.ack captured at bridge construction.
 // `true` means emit done/error lines on plugin stdin after each dispatched
 // command. Default is true to match ExaBGP's historical behavior.
-type ackMode struct {
+type AckMode struct {
 	enabled bool
 }
 
-// newAckMode reads the env once at bridge construction. Later changes to
+// NewAckMode reads the env once at bridge construction. Later changes to
 // the env var are ignored -- operators reload the daemon to pick them up.
-func newAckMode() ackMode {
+//
+// It is exported because the bridge has THREE runners and the ack is owed by
+// all of them. Only the standalone MuxConn runner sent one until 2026-09-05, so
+// a script driven by the internal or the SDK runner sent its first command,
+// waited two seconds for `done`, and gave up: 29 of the 40 ported ExaBGP API
+// tests stopped after one frame for that reason alone.
+func NewAckMode() AckMode {
 	raw := strings.ToLower(strings.TrimSpace(os.Getenv(ackEnvKey)))
 	if raw == "" {
-		return ackMode{enabled: true}
+		return AckMode{enabled: true}
 	}
 	if raw == "false" || raw == "0" || raw == "no" || raw == "off" || raw == "disable" || raw == "disabled" {
-		return ackMode{enabled: false}
+		return AckMode{enabled: false}
 	}
-	return ackMode{enabled: true}
+	return AckMode{enabled: true}
 }
 
-// writeAck emits `done\n` on the plugin's stdin. No-op when ack mode is
+// WriteAck emits `done\n` on the plugin's stdin. No-op when ack mode is
 // disabled. Write errors are logged but not returned: a broken pipe means
 // the plugin exited, which the bridge's wait loop handles independently.
-func (m ackMode) writeAck(pluginW io.Writer) {
+func (m AckMode) WriteAck(pluginW io.Writer) {
 	if !m.enabled {
 		return
 	}
@@ -57,10 +63,10 @@ func (m ackMode) writeAck(pluginW io.Writer) {
 	}
 }
 
-// writeError emits `error <sanitized message>\n` on the plugin's stdin.
+// WriteError emits `error <sanitized message>\n` on the plugin's stdin.
 // The message is newline-stripped and length-bounded so a malformed Ze
 // error cannot inject additional framing.
-func (m ackMode) writeError(pluginW io.Writer, msg string) {
+func (m AckMode) WriteError(pluginW io.Writer, msg string) {
 	if !m.enabled {
 		return
 	}
@@ -93,13 +99,13 @@ func sanitizeErrorMessage(msg string) string {
 // branching over the (ok, err, timeout) tri-state.
 func (b *Bridge) emitAck(pluginW io.Writer, reqID uint64, result pendingResult, err error) {
 	if err != nil {
-		b.ack.writeError(pluginW, "ze dispatch timeout")
+		b.ack.WriteError(pluginW, "ze dispatch timeout")
 		slog.Warn("plugin->zebgp: dispatch ack wait error", "error", err, "id", reqID)
 		return
 	}
 	if result.ok {
-		b.ack.writeAck(pluginW)
+		b.ack.WriteAck(pluginW)
 		return
 	}
-	b.ack.writeError(pluginW, result.errText)
+	b.ack.WriteError(pluginW, result.errText)
 }

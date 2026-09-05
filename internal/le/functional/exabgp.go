@@ -14,8 +14,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"

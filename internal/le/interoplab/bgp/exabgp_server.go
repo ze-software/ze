@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +23,11 @@ func runExaBGPServer(args []string, output io.Writer) error {
 	flags.SetOutput(io.Discard)
 	port := flags.Int("port", 0, "listen port")
 	_ = flags.Bool("terse", false, "terse output")
-	_ = flags.String("save", "", "result directory")
+	// --save was accepted and ignored until 2026-09-05, which is a flag that
+	// answers nothing: a caller passing it got the same run as a caller who did
+	// not. It now captures every frame the speaker sent, which is what makes an
+	// expectation adaptable by evidence rather than by eye.
+	saveDir := flags.String("save", "", "directory to write the frames the speaker sent")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -55,7 +60,12 @@ func runExaBGPServer(args []string, output io.Writer) error {
 		if err != nil {
 			return err
 		}
-		err = serveExaBGPConnection(connection, asn, expected[connectionIndex])
+		recorder, recorderErr := newFrameRecorder(*saveDir, flags.Arg(0), connectionIndex)
+		if recorderErr != nil {
+			return recorderErr
+		}
+		err = serveExaBGPConnection(connection, asn, expected[connectionIndex], recorder)
+		recorder.close()
 		_ = connection.Close()
 		if err != nil {
 			return fmt.Errorf("connection %d: %w", connectionIndex, err)
@@ -138,7 +148,7 @@ func exabgpCaseConnection(prefix string) (int, error) {
 	return connection, nil
 }
 
-func serveExaBGPConnection(connection net.Conn, asn uint32, expected [][]byte) error {
+func serveExaBGPConnection(connection net.Conn, asn uint32, expected [][]byte, recorder *frameRecorder) error {
 	_ = connection.SetDeadline(time.Now().Add(60 * time.Second))
 	messageType, body, err := readBGPWireMessage(connection)
 	if err != nil {
@@ -186,6 +196,7 @@ func serveExaBGPConnection(connection net.Conn, asn uint32, expected [][]byte) e
 			continue
 		}
 		actual := speakerMessage(messageType, body)
+		recorder.record(actual)
 		found := -1
 		for index, wanted := range remaining {
 			if bytes.Equal(actual, wanted) {
@@ -194,11 +205,74 @@ func serveExaBGPConnection(connection net.Conn, asn uint32, expected [][]byte) e
 			}
 		}
 		if found < 0 {
+			// Capturing beats stopping when a recorder is open: an adaptation
+			// needs every frame the speaker sent, not the first one that
+			// disagreed. The run still fails, at the end, with the count.
+			if recorder.capturing() {
+				recorder.mismatch()
+				continue
+			}
 			return fmt.Errorf("unexpected message = %X; %d expected frames remain", actual, len(remaining))
 		}
 		remaining = append(remaining[:found], remaining[found+1:]...)
 	}
+	if count := recorder.mismatches(); count > 0 {
+		return fmt.Errorf("%d frame(s) the speaker sent match no expectation", count)
+	}
 	return nil
+}
+
+// frameRecorder writes every frame the speaker sent, so an expectation can be
+// adapted against evidence. A nil-valued recorder is the ordinary run: record
+// and close do nothing and capturing answers false, so the serve loop keeps its
+// stop-at-the-first-mismatch behavior.
+type frameRecorder struct {
+	file  *os.File
+	wrong int
+}
+
+func newFrameRecorder(directory, casePath string, connection int) (*frameRecorder, error) {
+	if directory == "" {
+		return &frameRecorder{}, nil
+	}
+	if err := os.MkdirAll(directory, 0o750); err != nil {
+		return nil, err
+	}
+	stem := strings.TrimSuffix(filepath.Base(casePath), filepath.Ext(casePath))
+	name := filepath.Join(directory, fmt.Sprintf("%s.%d.frames", stem, connection))
+	file, err := os.Create(name) //nolint:gosec // the directory is named on this helper's own command line
+	if err != nil {
+		return nil, err
+	}
+	return &frameRecorder{file: file}, nil
+}
+
+func (r *frameRecorder) capturing() bool { return r != nil && r.file != nil }
+
+func (r *frameRecorder) record(frame []byte) {
+	if !r.capturing() {
+		return
+	}
+	_, _ = fmt.Fprintf(r.file, "%X\n", frame)
+}
+
+func (r *frameRecorder) mismatch() {
+	if r != nil {
+		r.wrong++
+	}
+}
+
+func (r *frameRecorder) mismatches() int {
+	if r == nil {
+		return 0
+	}
+	return r.wrong
+}
+
+func (r *frameRecorder) close() {
+	if r.capturing() {
+		_ = r.file.Close()
+	}
 }
 
 func readBGPWireMessage(reader io.Reader) (byte, []byte, error) {

@@ -360,7 +360,7 @@ type Bridge struct {
 
 	// ack captures the exabgp.api.ack mode snapshot from os.Getenv at
 	// construction; drives post-dispatch done/error emission on plugin stdin.
-	ack ackMode
+	ack AckMode
 
 	// Families to declare during startup (ZeBGP format: "ipv4/unicast")
 	Families []string
@@ -377,7 +377,7 @@ func NewBridge(pluginCmd []string) *Bridge {
 	return &Bridge{
 		pluginCmd: pluginCmd,
 		Families:  []string{defaultFamily},
-		ack:       newAckMode(),
+		ack:       NewAckMode(),
 	}
 }
 

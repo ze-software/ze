@@ -111,6 +111,7 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	})
 
 	// Read subprocess stdout in a goroutine: ExaBGP commands -> ze dispatch.
+	ack := bridge.NewAckMode()
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		scanner := bufio.NewScanner(stdoutPipe)
@@ -137,8 +138,14 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 
 			if _, _, err := p.DispatchCommand(ctx, translation.Command); err != nil {
 				slog.Warn("sdk: dispatch command failed", "error", err, "cmd", translation.Command)
+				ack.WriteError(stdinPipe, err.Error())
 				continue
 			}
+			// The script is waiting for this. An ExaBGP API client sends one
+			// command, blocks for `done`, and gives up after two seconds, so a
+			// runner that dispatches without acking delivers exactly one command
+			// per script however well the translation works.
+			ack.WriteAck(stdinPipe)
 
 			// For route commands, inject a flush so the forward pool drains. The
 			// selector is the one the translator used.

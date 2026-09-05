@@ -11,7 +11,7 @@ import (
 // expecting done/error lines after each dispatched command.
 func TestAckModeDefaultEnabled(t *testing.T) {
 	t.Setenv(ackEnvKey, "")
-	m := newAckMode()
+	m := NewAckMode()
 	if !m.enabled {
 		t.Errorf("default ack should be enabled, got disabled")
 	}
@@ -24,7 +24,7 @@ func TestAckModeDisabled(t *testing.T) {
 	for _, raw := range []string{"false", "0", "no", "off", "disable", "disabled", "FALSE"} {
 		t.Run(raw, func(t *testing.T) {
 			t.Setenv(ackEnvKey, raw)
-			m := newAckMode()
+			m := NewAckMode()
 			if m.enabled {
 				t.Errorf("ack with %q should be disabled, got enabled", raw)
 			}
@@ -37,7 +37,7 @@ func TestAckModeExplicitEnabled(t *testing.T) {
 	for _, raw := range []string{"true", "1", "yes", "on", "enable"} {
 		t.Run(raw, func(t *testing.T) {
 			t.Setenv(ackEnvKey, raw)
-			m := newAckMode()
+			m := NewAckMode()
 			if !m.enabled {
 				t.Errorf("ack with %q should be enabled", raw)
 			}
@@ -50,8 +50,8 @@ func TestAckModeExplicitEnabled(t *testing.T) {
 // VALIDATES: AC-16 emitted frame is a single line, newline-terminated.
 func TestAckWriteAckEmitsDone(t *testing.T) {
 	var buf strings.Builder
-	m := ackMode{enabled: true}
-	m.writeAck(&buf)
+	m := AckMode{enabled: true}
+	m.WriteAck(&buf)
 	if got := buf.String(); got != "done\n" {
 		t.Errorf("writeAck = %q, want %q", got, "done\n")
 	}
@@ -62,8 +62,8 @@ func TestAckWriteAckEmitsDone(t *testing.T) {
 // VALIDATES: AC-17 disabled mode writes zero bytes.
 func TestAckWriteAckDisabledNoOutput(t *testing.T) {
 	var buf strings.Builder
-	m := ackMode{enabled: false}
-	m.writeAck(&buf)
+	m := AckMode{enabled: false}
+	m.WriteAck(&buf)
 	if got := buf.String(); got != "" {
 		t.Errorf("disabled writeAck wrote %q, want empty", got)
 	}
@@ -76,8 +76,8 @@ func TestAckWriteAckDisabledNoOutput(t *testing.T) {
 // additional lines.
 func TestAckWriteErrorSanitizes(t *testing.T) {
 	var buf strings.Builder
-	m := ackMode{enabled: true}
-	m.writeError(&buf, "bad\r\nerror: oops")
+	m := AckMode{enabled: true}
+	m.WriteError(&buf, "bad\r\nerror: oops")
 	got := buf.String()
 	if !strings.HasPrefix(got, "error ") {
 		t.Errorf("writeError output %q should start with 'error '", got)
@@ -92,9 +92,9 @@ func TestAckWriteErrorSanitizes(t *testing.T) {
 // VALIDATES: Security review item: DoS via very long error messages is bounded.
 func TestAckWriteErrorTruncates(t *testing.T) {
 	var buf strings.Builder
-	m := ackMode{enabled: true}
+	m := AckMode{enabled: true}
 	long := strings.Repeat("x", maxAckMessageLen*2)
-	m.writeError(&buf, long)
+	m.WriteError(&buf, long)
 	if len(buf.String()) > maxAckMessageLen+len("error \n") {
 		t.Errorf("writeError did not truncate: %d bytes", len(buf.String()))
 	}
