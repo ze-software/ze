@@ -276,6 +276,20 @@ func dispatchCommand(_, command string, args []string, _ string) (string, any, e
 		}
 		return rpc.StatusDone, data, nil
 	}
+	if command == "request fakeredist consume" {
+		data, err := runConsume(args)
+		if err != nil {
+			return rpc.StatusError, "", err
+		}
+		return rpc.StatusDone, data, nil
+	}
+	if command == "show fakeredist consumed" {
+		data, err := runConsumed(args)
+		if err != nil {
+			return rpc.StatusError, "", err
+		}
+		return rpc.StatusDone, data, nil
+	}
 	if command == "show fakeredist help" {
 		return rpc.StatusDone, map[string]any{"help": helpStub()}, nil
 	}
@@ -285,5 +299,7 @@ func dispatchCommand(_, command string, args []string, _ string) (string, any, e
 // helpStub used by `fakeredist help`.
 func helpStub() string {
 	return "fakeredist emit add|remove <family> <prefix> [<nexthop>]\n" +
-		"fakeredist emit-burst <N> add|remove <family> <base-prefix>"
+		"fakeredist emit-burst <N> add|remove <family> <base-prefix>\n" +
+		"fakeredist consume <destination-name>\n" +
+		"fakeredist consumed <destination-name>"
 }

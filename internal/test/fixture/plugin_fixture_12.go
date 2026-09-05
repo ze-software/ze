@@ -43,6 +43,11 @@ func init() {
 	Register("plugin/redistribute-l2tp-multi-peer-nexthop", p12ObserveDriver("l2tp-nexthop-test", p12L2TPMultiPeer))
 	Register("plugin/redistribute-l2tp-not-configured", p12ObserveDriver("l2tp-nocfg-test", p12RedistributeNotConfigured("fakel2tp")))
 	Register("plugin/redistribute-l2tp-withdraw", p12ObserveDriver("l2tp-withdraw-test", p12L2TPWithdraw))
+	Register("plugin/redistribute-bgp-to-ospf-no-plumbing", p12ObserveDriver("redist-no-plumbing-test", redistChainBGPSourceReachesConsumer))
+	// One driver, two scenarios: the configs differ only by the `redistribute`
+	// block, and both must put the peer's route in the Adj-RIB-In.
+	Register("plugin/redistribute-block-does-not-gate-peer-routes", p12ObserveDriver("redist-blast-radius-test", redistChainPeerRouteReachesAdjRIBIn))
+	Register("plugin/redistribute-late-consumer", p12ObserveDriver("redist-late-consumer-test", redistChainLateConsumer))
 	Register("plugin/redistribute-late-join-configadd", p12WaitForDaemonDriver("late-join-configadd-test", p12LateJoinConfigAdd))
 	Register("plugin/redistribute-late-join-configadd-trigger", p12LateJoinTrigger)
 	Register("plugin/relay-withdraw-nexthop-self", p12ObserveDriver("relay-nhself", p12RelayWithdraw(false)))

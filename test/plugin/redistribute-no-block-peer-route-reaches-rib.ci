@@ -1,0 +1,93 @@
+# Test: redistribute-no-block-peer-route-reaches-rib -- the control half of the
+#       pair. The same config with NO `redistribute` block delivers the same
+#       route.
+#
+# VALIDATES: spec-fixit-redistribution-chain-drops-silently. The peer announces
+# 10.0.0.0/24 and `show bgp rib received` names it.
+#
+# THIS FILE IS ONLY MEANINGFUL BESIDE ITS TWIN,
+# redistribute-block-does-not-gate-peer-routes.ci, which is byte-identical
+# except for the `redistribute` block it carries. Alone, this file proves that
+# a peer's route reaches the Adj-RIB-In, which a dozen other fixtures already
+# prove. Its job is to hold the other variable still: when the twin goes red
+# and this one stays green, the `redistribute` block is the cause, and no
+# reader has to argue about the peer, the attach block, or the observer.
+#
+# PREVENTS: a red in the twin being read as a broken harness. The retired
+# `bgp-redistribute` ingress filter dropped every received route whenever
+# configredist.Global() was non-nil, which is to say whenever ANY redistribute
+# block existed. A pair is the only shape that says so: one config, one
+# difference, two verdicts.
+#
+# It also fails on its own if the ingress pipeline ever drops a route with no
+# redistribution configured at all, which is the wider version of the same
+# defect.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+# Hold the session open: a closed peer is a session-down event, which releases
+# the peer RIB the observer is reading.
+option=linger:value=true
+option=asn:value=65001
+# The route under test, identical to the twin's.
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+# EOR from ze, so the peer has a deterministic message to wait on.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external redist-blast-radius-test {
+		run "ze-test fixture plugin/redistribute-block-does-not-gate-peer-routes"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+# No `redistribute` block. That absence is this file's whole content.
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0

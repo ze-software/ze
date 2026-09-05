@@ -76,6 +76,8 @@ func runPlugin(conn net.Conn) int {
 		Commands: []sdk.CommandDecl{
 			{Name: "request fakeredist emit"},
 			{Name: "request fakeredist emit-burst"},
+			{Name: "request fakeredist consume"},
+			{Name: "show fakeredist consumed"},
 			{Name: "show fakeredist help"},
 		},
 	}); err != nil {

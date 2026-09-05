@@ -1,0 +1,123 @@
+# Test: redistribute-block-does-not-gate-peer-routes -- a `redistribute` block
+#       does not touch the routes a peer announces.
+#
+# VALIDATES: spec-fixit-redistribution-chain-drops-silently. The peer announces
+# 10.0.0.0/24 and `show bgp rib received` names it, while a `redistribute` block
+# is configured that mentions neither BGP nor this peer.
+#
+# THE REDISTRIBUTE BLOCK IS THE VARIABLE. Its twin,
+# redistribute-no-block-peer-route-reaches-rib.ci, is byte-identical except that
+# it carries no `redistribute` block. Read the two together: the pair is what
+# discriminates, because a daemon that delivers in neither config is broken
+# somewhere else and a daemon that delivers in both has the property under test.
+#
+# The block imports `connected` into `fakedest`. It names no BGP source, so it
+# derives no Loc-RIB binding and has nothing whatever to do with the prefix this
+# test reads back. Its only job is to make configredist.Global() non-nil, which
+# is the single condition the defect turned on.
+#
+# PREVENTS: the class the `bgp-redistribute` ingress filter belonged to
+# (internal/component/bgp/plugins/redistribute_ingress, retired 2026-09-04). It
+# was registered as an ingress POLICY filter and ended
+# `return ev.Accept(route, ""), nil`. Every rule the config loader builds carries
+# the enclosing `destination` key, and ImportRule.Accept rejects a rule whose
+# Destination does not match the importing protocol, so an empty importing
+# protocol was rejected by every production rule. The route was then dropped at
+# notifyMessageReceiver, before caching and before delivery. One `redistribute`
+# block anywhere in the config discarded EVERY route EVERY peer announced.
+#
+# That blast radius is what nobody was testing. The filter's own unit tests were
+# green because they built ImportRule values with an empty Destination, which no
+# config produces, and every other redistribution test asked whether a
+# REDISTRIBUTED route arrived. This test asks the opposite question: what happens
+# to a route redistribution was never asked about.
+#
+# The plumbing here is WRITTEN BY HAND on purpose. The peer carries an explicit
+# `attach process bgp-rib` block and the config declares the plugin, so nothing
+# in this scenario rests on the binding the redistribute block derives. A red
+# here is about the ingress path and about nothing else.
+#
+# Three surviving guards cover the same class at three levels, and each one
+# would go red on its own:
+#   - TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig runs every
+#     registered ingress filter over a real UPDATE at the composition root
+#   - TestImportRuleAcceptRefusesAnUnnamedImportingProtocol makes the empty
+#     importing protocol a panic rather than a silent rejection
+#   - this pair proves the daemon end to end, through the entry point an
+#     operator uses
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+# Hold the session open: a closed peer is a session-down event, which releases
+# the peer RIB the observer is reading.
+option=linger:value=true
+option=asn:value=65001
+# The route under test. It enters ze from the peer, which is the only scope the
+# Adj-RIB-In fills from.
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+# EOR from ze, so the peer has a deterministic message to wait on.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external redist-blast-radius-test {
+		run "ze-test fixture plugin/redistribute-block-does-not-gate-peer-routes"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+# THE VARIABLE. Present here, absent in the twin, and identical in every other
+# respect. `connected` into `fakedest` names neither BGP nor this peer.
+redistribute {
+	destination fakedest {
+		import connected;
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0

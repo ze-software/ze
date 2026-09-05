@@ -1,0 +1,117 @@
+# Test: redistribute-bgp-to-ospf-no-plumbing -- a `redistribute` rule whose
+#       source is BGP moves a peer's route with no plumbing written by hand.
+#
+# VALIDATES: spec-fixit-redistribution-chain-drops-silently AC-1, at the process
+# boundary and over the whole chain: the peer's UPDATE reaches the Loc-RIB, the
+# Loc-RIB publishes a best-path change, the bridge emits it as a redistribution
+# batch, and the orchestrator dispatches it to a consumer the evaluator accepts.
+#
+# THE CONFIG IS THE ASSERTION. It carries NO `plugin { internal <name> { use
+# bgp-rib; } }` block and NO `attach process` block at all, which is what an
+# operator writes after reading docs/guide/ospf.md. Until 2026-09-04
+# that config moved nothing: DeliveryPeersFromSettings builds the delivery graph
+# from PeerSettings.ProcessBindings alone, a peer with no attach block granted
+# nothing, PeerScopedProcs answered empty, and onMessageBatchReceived returned
+# with no log line. Measured on the interop scenarios' own ze.conf: `show bgp`
+# reported `updates-received 2` while `show bgp rib status` reported
+# `peers 0 routes-in 0`.
+#
+# PREVENTS: the derived binding being dropped, narrowed, or attached to a
+# process name nothing runs. Any of the three leaves this test's consumer empty.
+#
+# The two plugin blocks below are the OBSERVER, not the plumbing under test. A
+# destination that is not BGP puts nothing on a BGP session, so the only way to
+# read what the consumer received is to ask a plugin that holds it.
+#
+# `fakedest` is the destination rather than `ospf` because the assertion is
+# about the chain reaching a consumer, not about LSA origination: the interop
+# scenario ospfv3-redist-frr asserts the LSA, against FRR.
+#
+# It took TWO defects to make this green, and the second was not the binding.
+# With the binding in place `show bgp rib status` answered `peers 1 routes-in 0`:
+# the peer-to-Loc-RIB edge existed and the UPDATE was still discarded. The
+# discard was the `bgp-redistribute` ingress filter, which asked the
+# redistribution evaluator to keep a peer's route and passed an empty importing
+# protocol, which no destination-scoped rule can match. One `redistribute` block
+# anywhere in the config therefore dropped every route every peer announced.
+# That filter is retired (internal/component/bgp/plugins/redistribute_ingress),
+# and the guard against its return is
+# TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig.
+#
+# The failure message carries the `show bgp rib status` answer, so a future red
+# names the stage rather than the symptom: `routes-in 0` is the delivery half,
+# `routes-in 1` with an empty consumer is the orchestrator half.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+# Hold the session open: a closed peer is a session-down event, which withdraws
+# the peer's routes and empties the Loc-RIB the observer is reading.
+option=linger:value=true
+option=asn:value=65001
+# The route under test. It enters ze from the peer, which is the only scope the
+# Loc-RIB fills from: a route ze originates never crosses this stage.
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+# EOR from ze, so the peer has a deterministic message to wait on.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external redist-no-plumbing-test {
+		run "ze-test fixture plugin/redistribute-bgp-to-ospf-no-plumbing"
+		encoder json
+	}
+	# The synthetic consumer's host. It registers nothing at startup: the
+	# observer registers it by command, which is what lets this scenario read
+	# back what the orchestrator delivered.
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+redistribute {
+	destination fakedest {
+		import bgp {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0

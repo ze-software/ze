@@ -13,6 +13,12 @@ module ze-fakeredist-api {
     description "Initial revision -- emit / emit-burst / help.";
   }
 
+  revision 2026-09-04 {
+    description "Add consume / consumed: a synthetic consumer a scenario registers
+                 on demand, so the late-consumer replay has a destination to
+                 land in.";
+  }
+
   rpc fakeredist-emit {
     description "Emit one synthetic route-change batch.";
     ze:help "Args: <add|remove> <family> <prefix> [<nexthop>].";
@@ -22,6 +28,19 @@ module ze-fakeredist-api {
     description "Emit N synthetic batches with the host portion of the base prefix auto-incremented.";
     ze:help "Args: <N> <add|remove> <family> <base-prefix>. N is bounded to one million per
 call.";
+  }
+
+  rpc fakeredist-consume {
+    description "Register a synthetic redistribution consumer under a name.";
+    ze:help "Args: <destination-name>. The consumer records every route the
+orchestrator dispatches to it, so a .ci scenario can register one AFTER a
+producer emitted and read back what the replay delivered.";
+  }
+
+  rpc fakeredist-consumed {
+    description "List the prefixes a synthetic consumer currently holds.";
+    ze:help "Args: <destination-name>. The answer carries 'prefixes', the sorted
+prefix list, and 'count'.";
   }
 
   rpc fakeredist-help {

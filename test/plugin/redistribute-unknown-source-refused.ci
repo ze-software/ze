@@ -1,0 +1,61 @@
+# Test: redistribute-unknown-source-refused -- a mistyped source name stops the
+# daemon and the refusal quotes what the operator typed.
+#
+# VALIDATES: spec-fixit-redistribution-chain-drops-silently AC-5, at the process
+# boundary. ExtractRedistributeRules (internal/component/config/loader_redistribute.go)
+# refuses a source that is in no component's registry, and initRedistribute
+# (internal/component/bgp/config/loader_create.go) returns that error to
+# CreateReactorFromTree instead of logging it.
+#
+# PREVENTS: the behavior this spec removed. initRedistribute used to warn once
+# and return, which left the global evaluator nil and therefore disabled EVERY
+# redistribution rule in the file. A config with three correct rules and one
+# typo redistributed nothing at all, and the only trace was a startup log line.
+# The `reject=` line below is that warning: a daemon that starts on this config
+# is the defect, whatever it logged on the way.
+#
+# `rip` is deliberately a plausible protocol name rather than nonsense: the
+# operator's mistake this test models is naming a protocol Ze does not carry,
+# not fat-fingering a key.
+#
+# No port is bound. The refusal happens while the config is being read, before
+# any peer or listener is created, so this test occupies nothing.
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+
+redistribute {
+	destination bgp {
+		import rip;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=1
+expect=stderr:contains=unknown source "rip" under destination "bgp"
+# The old behavior, named so it cannot come back quietly: a warning and a
+# started daemon.
+reject=stderr:pattern=redistribute config error

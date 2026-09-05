@@ -7,6 +7,7 @@ module ze-fakeredist-cmd {
                  production CLI completion when an operator runs
                  `ze cli` against a daemon that loaded fakeredist.";
     revision 2026-04-19 { description "Initial revision."; }
+    revision 2026-09-04 { description "Add consume / consumed."; }
 
     container fakeredist {
         ze:hidden true;
@@ -34,6 +35,24 @@ the number of consumers that received it.";
 prefix. The count MUST be a positive integer no larger than 1000000. Each step
 keeps the prefix length and increments the address, so a peer sees that many
 distinct prefixes.";
+        }
+
+        container consume {
+            config false;
+            ze:command "ze-fakeredist-api:fakeredist-consume";
+            description "Register a synthetic redistribution consumer.";
+            ze:help "The argument is the destination name to register under. It MUST differ from
+'fakeredist', because a protocol is never redistributed into itself. Registering
+one after a producer emitted is what the late-consumer replay is asked to
+repair.";
+        }
+
+        container consumed {
+            config false;
+            ze:command "ze-fakeredist-api:fakeredist-consumed";
+            description "List the prefixes a synthetic consumer holds.";
+            ze:help "The argument is the destination name. The answer carries 'prefixes', the
+sorted prefix list the consumer was given, and 'count'.";
         }
 
         container help {

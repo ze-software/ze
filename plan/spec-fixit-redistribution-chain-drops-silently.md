@@ -261,9 +261,21 @@ The static path replaces steps 1 to 6 with the static plugin emitting a batch un
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `redistribute-bgp-to-ospf-no-plumbing` | `test/draft/plugin/*.ci` | a config with a `redistribute` block and no plugin or attach block loads, and the Loc-RIB holds the peer's route | PASS, 2026-09-04, in 813ms. RED before the ingress-filter fix with `peers 1 routes-in 0`, and RED before the derived binding with `peers 0` |
-| `redistribute-unknown-source-refused` | `test/draft/plugin/*.ci` | a mistyped source name refuses the load with an error naming the token | WRITTEN, NOT RUN |
-| `redistribute-late-consumer` | `test/draft/plugin/*.ci` | a consumer registering after a producer emitted holds the producer's routes | WRITTEN, NOT RUN |
+| `redistribute-bgp-to-ospf-no-plumbing` | `test/plugin/*.ci` | a config with a `redistribute` block and no plugin or attach block loads, and the Loc-RIB holds the peer's route | PASS, in the `./le functional plugin` run of 2026-09-05, test 555/740 in 1.5s. RED before the ingress-filter fix with `peers 1 routes-in 0`, and RED before the derived binding with `peers 0` |
+| `redistribute-unknown-source-refused` | `test/plugin/*.ci` | a mistyped source name refuses the load with an error naming the token | PASS, 2026-09-05, test 571/740 in 15.0s |
+| `redistribute-late-consumer` | `test/plugin/*.ci` | a consumer registering after a producer emitted holds the producer's routes | PASS, 2026-09-05, test 568/740 in 1.5s |
+| `redistribute-block-does-not-gate-peer-routes` | `test/plugin/*.ci` | a `redistribute` block naming no BGP source leaves the routes a peer announces untouched | PASS, 2026-09-05, test 556/740 in 1.5s |
+| `redistribute-no-block-peer-route-reaches-rib` | `test/plugin/*.ci` | the control half of that pair: the same config with no `redistribute` block delivers the same route | PASS, 2026-09-05, test 570/740 in 2.1s |
+
+All five moved out of `test/draft/plugin/` on 2026-09-05. `.gitignore` excludes
+`test/draft/*`, so while they lived there no gating run could reach them and no
+commit could carry them. Two of the five need no driver registration:
+`redistribute-unknown-source-refused` declares no `plugin` block at all, and
+`redistribute-no-block-peer-route-reaches-rib` runs its twin's driver on
+purpose. `fixture.Run` (`internal/test/fixture/fixture.go`) keys the dispatch on
+the name in `ze-test fixture <name>`, never on the scenario file name, so
+`internal/test/fixture/plugin_fixture_12.go` owes exactly the three
+registrations it already carries.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -303,6 +315,8 @@ returns to red at the same assertion.
 - `test/plugin/redistribute-bgp-to-ospf-no-plumbing.ci` - the functional test for the config that needs no plumbing
 - `test/plugin/redistribute-unknown-source-refused.ci` - the refusal, with the error text
 - `test/plugin/redistribute-late-consumer.ci` - the late consumer receives the producer's set
+- `test/plugin/redistribute-block-does-not-gate-peer-routes.ci` - the blast radius of the retired ingress filter, added during implementation
+- `test/plugin/redistribute-no-block-peer-route-reaches-rib.ci` - the control half of that pair
 
 The three interop scenario directories already exist and their `ze.conf` files
 are NOT modified. They are the statement of the defect: a config an operator
@@ -484,11 +498,11 @@ with a named message rather than dropping silently.
 
 | Goal | Evidence | Status |
 |------|----------|--------|
-| A BGP prefix reaches a neighbor as an OSPFv3 AS-External in a normal area | `INTEROP_SCENARIO=ospfv3-redist-frr ./le integration interop` green, with the forced-RED output recorded | Interop NOT RUN: the host root stood at 99% and every image build died on `input/output error`. Proven instead at the level below it, over the whole daemon chain: `test/draft/plugin/redistribute-bgp-to-ospf-no-plumbing.ci` PASSES, with the orchestrator logging `dispatching to consumer consumer=fakedest entries=1` for the peer's prefix. The LSA-origination half is what the interop run still owes |
+| A BGP prefix reaches a neighbor as an OSPFv3 AS-External in a normal area | `INTEROP_SCENARIO=ospfv3-redist-frr ./le integration interop` green, with the forced-RED output recorded | Interop NOT RUN: the host root stood at 99% and every image build died on `input/output error`. Proven instead at the level below it, over the whole daemon chain: `test/plugin/redistribute-bgp-to-ospf-no-plumbing.ci` PASSES in the gating suite, with the orchestrator logging `dispatching to consumer consumer=fakedest entries=1` for the peer's prefix. The LSA-origination half is what the interop run still owes |
 | The same prefix reaches a neighbor as a Type-7 in an NSSA | `INTEROP_SCENARIO=ospfv3-nssa-redist-frr ./le integration interop` green, with the forced-RED output recorded. Its absence proofs were repaired on 2026-09-03 in commit `666a43dff` and its later assertions have never executed, so this run is their first | NOT RUN. Its image build failed with `input/output error` inside the container while the host disk stood at 99% |
 | A static prefix reaches a neighbor through IS-IS | `INTEROP_SCENARIO=isis-redist-frr ./le integration interop` green, with the forced-RED output recorded | NOT RUN, same image-build failure |
-| The operator is told when redistribution cannot work | `ze doctor` output on a config whose redistribution source has no producer, and the load failure on an unknown source name | The load failure is proven twice: `TestUnknownRedistributeSourceRefusesLoad` and the functional `test/draft/plugin/redistribute-unknown-source-refused.ci`, which PASSES against a running daemon. The `ze doctor` half has unit coverage (`checks_redistribute_test.go`) and no functional run |
-| A consumer that registers after a producer emitted holds that producer's set | `test/draft/plugin/redistribute-late-consumer.ci` against a running daemon | PASSES, 2026-09-04. The scenario proves the dispatcher is live with an early `fakeprobe` consumer, emits two prefixes while no `fakedest` consumer exists, then registers one and reads both back |
+| The operator is told when redistribution cannot work | `ze doctor` output on a config whose redistribution source has no producer, and the load failure on an unknown source name | The load failure is proven twice: `TestUnknownRedistributeSourceRefusesLoad` and the functional `test/plugin/redistribute-unknown-source-refused.ci`, which PASSES against a running daemon in the gating suite. The `ze doctor` half has unit coverage (`checks_redistribute_test.go`) and no functional run. It also had no CALLER until 3c71ff73eb: `checkRedistributeRules` landed with its five tests and no line in `runChecks`, so every one of them drove the helper and the check was dead. `TestRunChecksReachesTheRedistributeCheck` now drives the entry point |
+| A consumer that registers after a producer emitted holds that producer's set | `test/plugin/redistribute-late-consumer.ci` against a running daemon | PASSES, 2026-09-05, in the gating `./le functional plugin` run. The scenario proves the dispatcher is live with an early `fakeprobe` consumer, emits two prefixes while no `fakedest` consumer exists, then registers one and reads both back |
 | The per-UPDATE cost of a daemon with no redistribution is unchanged | `ze-perf` UPDATE throughput before and after, both numbers recorded | not run. `TestNoRedistributeNoBinding` and `TestNonBGPRedistributeSourceAddsNoBinding` show no binding is derived without a rule, so no per-UPDATE delivery is added |
 
 ### TDD

@@ -1,0 +1,67 @@
+# Test: redistribute-late-consumer -- a consumer that registers after a producer
+#       emitted holds that producer's current route set.
+#
+# VALIDATES: spec-fixit-redistribution-chain-drops-silently AC-3, at the process
+# boundary. The orchestrator dispatches over the consumer registry read LIVE at
+# event time (handleBatch, internal/component/bgp/plugins/redistribute_egress/
+# redistribute.go), so a batch emitted one moment before a consumer registered
+# reached every consumer except that one and was lost with no line in any log.
+# A consumer becoming registered now fires a replay request of its own, every
+# producer re-emits its current set, and the answer is injected through that
+# consumer.
+#
+# PREVENTS: the outcome depending on which plugin started first. The static
+# plugin and the IS-IS plugin start in the SAME startup tier and nothing orders
+# them, which is why isis-redist-frr was red while its adjacency was green.
+#
+# THE ORDER IS THE TEST. The observer emits 10.99.0.0/24 while no consumer named
+# `fakedest` exists, and registers the consumer afterwards. Nothing else can
+# deliver that route: the incremental dispatch already ran, over a registry that
+# did not hold this consumer.
+#
+# `fakeprobe` is registered first and exists to make that claim mean something.
+# The orchestrator subscribes to its producers on a goroutine, so an emit that
+# reached nobody would look exactly like a late consumer that was never
+# replayed. The scenario emits 10.98.0.0/24 and WAITS for the probe to hold it,
+# which proves the dispatcher is listening before the measured emit happens.
+#
+# The answer is read ONCE, with no settle window, because the replay is
+# synchronous on the in-process bus. A daemon that needs to be waited for here
+# is delivering by some other path, which is a different behavior wearing this
+# test's name.
+#
+# No peer and no port: `destination fakedest` puts nothing on a BGP session, so
+# this scenario needs no session at all.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external redist-late-consumer-test {
+		run "ze-test fixture plugin/redistribute-late-consumer"
+		encoder json
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+redistribute {
+	# The probe: registered first, and the proof that the dispatcher is live.
+	destination fakeprobe {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
+	}
+	# The late consumer: registered after both emits.
+	destination fakedest {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+
+bgp {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0
