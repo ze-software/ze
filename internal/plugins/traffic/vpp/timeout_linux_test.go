@@ -65,11 +65,13 @@ type recordingChannel struct {
 
 func (c *recordingChannel) SetReplyTimeout(d time.Duration) { c.timeout, c.set = d, true }
 func (c *recordingChannel) SendRequest(api.Message) api.RequestCtx {
-	panic("unused")
+	panic("BUG: the reply-deadline test sends no request")
 }
-func (c *recordingChannel) SendMultiRequest(api.Message) api.MultiRequestCtx { panic("unused") }
+func (c *recordingChannel) SendMultiRequest(api.Message) api.MultiRequestCtx {
+	panic("BUG: the reply-deadline test sends no multi-request")
+}
 func (c *recordingChannel) SubscribeNotification(chan api.Message, api.Message) (api.SubscriptionCtx, error) {
-	panic("unused")
+	panic("BUG: the reply-deadline test subscribes to no notification")
 }
 func (c *recordingChannel) CheckCompatiblity(...api.Message) error { return nil }
 func (c *recordingChannel) Close()                                 {}
