@@ -89,10 +89,11 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		{"show firewall ruleset", "show firewall ruleset <name>"},
 		{"show interface type", "show interface type <type>"},
 		{"show route lookup", "show route lookup <ip>"},
-		// `announce` itself carries no command since it became three of them on
-		// 2026-08-30, so it renders nothing and each form states its own line.
-		{"announce unicast", "announce unicast <prefix> [next-hop <address>] [community <value> ...] [tag <key> <value>] [for <duration>]"},
-		{"announce blackhole", "announce blackhole <prefix> [tag <key> <value>] [for <duration>]"},
+		// The three origination forms are three commands, one line each, since
+		// 2026-08-30. Each answers under `send bgp <selector>`, and the selector
+		// sits in the line because the model declares it on the bgp container.
+		{"send bgp unicast", "send bgp <selector> unicast <prefix> [next-hop <address>] [community <value> ...] [tag <key> <value>] [for <duration>]"},
+		{"send bgp blackhole", "send bgp <selector> blackhole <prefix> [tag <key> <value>] [for <duration>]"},
 		{"show announcements", "show announcements [tag <tag>] [selector <selector>] [family <family>]"},
 		// The value set reads in the order ze-log-cmd.yang declares it, which
 		// for a severity is the progression an operator expects. enumNames
@@ -310,16 +311,18 @@ func TestDeclaredValuesKeepAcceptedInvocations(t *testing.T) {
 			args:  []string{"192.0.2.1"},
 		},
 		{
-			path:             "announce unicast",
-			input:            "announce unicast 10.0.0.0/24 next-hop self tag color blue for 300s",
+			path:             "send bgp unicast",
+			input:            "send bgp edge1 unicast 10.0.0.0/24 next-hop self tag color blue for 300s",
 			requiresSelector: true,
 			peer:             "edge1",
 			args:             []string{"10.0.0.0/24", "next-hop", "self", "tag", "color", "blue", "for", "300s"},
+			selectors:        map[string]string{"selector": "edge1"},
 			// A modifier group is a child of the command node, so its leaves are
 			// not the command's own argument definitions and the whole tail
-			// still reaches parseTrailingOpts unchanged. No selector is adopted:
-			// the tail is nine tokens, and the fence in Dispatch takes one only
-			// from a LONE spare positional.
+			// still reaches parseTrailingOpts unchanged. The selector is not
+			// ADOPTED from a spare positional either: the model anchors it to
+			// `bgp`, so matchCommandTokens lifts it out of the path by name and
+			// the nine-token tail is never a candidate.
 		},
 		{
 			path:  "show announcements",
@@ -559,13 +562,19 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 			// The one command whose groups are declared by ANOTHER module. The
 			// nineteen match components reach this node through the augment in
 			// ze-flowspec-cmd.yang, and the property is the same one: they are
-			// groups, so the node's own argument definitions stay at zero and
-			// handleAnnounceFlowspecCmd
+			// groups, so none of them is one of the node's own argument
+			// definitions and handleAnnounceFlowspecCmd
 			// (internal/component/bgp/plugins/cmd/announce/announce.go) reads
 			// the whole tail. A component lifted out here would never reach
 			// splitFlowspecArgs, which is what cuts the tail at the action.
-			path:  "announce flowspec",
-			input: "announce flowspec destination 192.0.2.0/24 protocol =6 destination-port =80 rate-limit 9600",
+			//
+			// The one own definition is the selector the bgp container declares.
+			// It is lifted out by name, which is the point: it is the only token
+			// in the path that is a value, and the tail is untouched by it.
+			path:       "send bgp flowspec",
+			input:      "send bgp * flowspec destination 192.0.2.0/24 protocol =6 destination-port =80 rate-limit 9600",
+			ownArgDefs: 1,
+			selectors:  map[string]string{"selector": "*"},
 			args: []string{
 				"destination", "192.0.2.0/24", "protocol", "=6",
 				"destination-port", "=80", "rate-limit", "9600",
@@ -603,9 +612,9 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 	}
 }
 
-// TestAnnounceFlowspecUsageStatesTheComponents pins the line `announce flowspec
-// help` prints, which is the line that replaced the last authored `Usage:`
-// sentence in the tree.
+// TestAnnounceFlowspecUsageStatesTheComponents pins the line
+// `send bgp flowspec help` prints, which is the line that replaced the last
+// authored `Usage:` sentence in the tree.
 //
 // VALIDATES: the whole grammar comes from the model. The seventeen components
 // are declared by ze-flowspec-cmd.yang and arrive through an augment, the
@@ -615,15 +624,15 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 // that omits `config false` is dropped by mergeYANGEntry
 // (internal/component/config/yang/command.go) with no diagnostic, so the module
 // would still parse, the gate would still count zero authored sentences, and
-// the operator would read `announce flowspec` with no grammar at all.
+// the operator would read `send bgp flowspec` with no grammar at all.
 //
 // The second render comes from a SECOND tree, because commandNode loads and
 // builds one for each call. That is what A-3 asks: Children is a map, every
 // augmented container carries ModifierOrder 0, and the answer must not depend
 // on which order the map was walked in.
 func TestAnnounceFlowspecUsageStatesTheComponents(t *testing.T) {
-	const path = "announce flowspec"
-	const want = "announce flowspec " +
+	const path = "send bgp flowspec"
+	const want = "send bgp <selector> flowspec " +
 		"[destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] " +
 		"[destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] " +
 		"[fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] " +

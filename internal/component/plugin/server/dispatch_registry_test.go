@@ -214,12 +214,12 @@ func TestOpUpdateRouteInjectsInternalIdentity(t *testing.T) {
 
 	d := NewDispatcher()
 	var gotUsername string
-	// A single-token key "peer" matches "peer <sel> route" with args [<sel>,route];
+	// The key "send bgp" matches "send bgp <sel> route" with args [<sel>,route];
 	// the handler records the identity the internal dispatch injected.
-	d.Register("peer", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+	d.Register("send bgp", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
 		gotUsername = ctx.Username
 		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "peer")
+	}, "send bgp")
 
 	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
