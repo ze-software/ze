@@ -448,35 +448,35 @@ resolved into `PeerSettings.PropagateSRv6PrefixSID` and carried into
 | 2 | Two rails gated | Four gated | The spec named only the forward rails. Attribute 40 also reaches the wire from both origination rails |
 | 3 | `test/encode/ebgp-prefix-sid-{suppress,propagate}.ci` | One `test/plugin/prefixsid-ebgp-egress-boundary.ci` | The encode suite has one peer, so it cannot exercise a forward rail. One run with two destinations and opposite outcomes is what makes each assertion discriminate |
 | 4 | Suppression precomputed as a `suppressPrefixSID` fact | `propagatePrefixSID` fact, decision taken in `applyFactsPrefixSID` | The decision also needs the operations recorded so far, so that the RFC 9252 next-hop suppression and this one never record two operations for one code |
-| 5 | -- | The readvertise rail is NOT gated | BLOCKED, see below |
+| 5 | -- | The readvertise rail was left ungated by this spec | Handed to `spec-prefix-sid-announce-rail-boundary`, which fixed it on 2026-09-05. See below |
 
-### Blocked: the readvertise announce rail
+### Handed on and now fixed: the readvertise announce rail
 
-`buildBatchAnnounceUpdate` (`reactor_api_batch.go`) copies a stored or relayed attribute block
-verbatim and has no code-40 handling, so an iBGP-learned Prefix-SID still reaches an external
+`buildBatchAnnounceUpdate` (`reactor_api_batch.go`) copied a stored or relayed attribute block
+verbatim and had no code-40 handling, so an iBGP-learned Prefix-SID still reached an external
 peer on that rail. The fix is the same one-line `plan.drop` the LOCAL_PREF branch beside it
 already uses, plus one per-destination bool on the function and on `announceBuildKey`.
 
 Adding that parameter mechanically edits `TestAnnounceStripsLocalPrefTowardExternalPeer`
 (`reactor_api_origin_test.go`), which carries `RFC requirement: RFC4271-5.1.5-1/-2`. The write
-hook refuses the edit without an owner approval row in `test/rfc-changed.md`. The session was
-instructed not to owe a third such row, so the rail is left for the owner to answer.
+hook refuses the edit without an owner approval row in `test/rfc-changed.md`. This spec's session
+was instructed not to owe a third such row, so the rail was left for the owner to answer.
 
 **Closure measured it rather than inferring it (2026-09-05).**
 `TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`
 (`internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go`) drives
-`buildBatchAnnounceUpdate` with `isIBGP=false` and a base carrying attribute 40. The rail emits
-`c0280a01000700000000000064` toward that external destination. The test states the requirement
-rather than the behavior, so it is RED at HEAD and stays red until the rail is gated; the
-filename is the probe's because the rename and deletion hooks both need owner approval.
+`buildBatchAnnounceUpdate` with `isIBGP=false` and a base carrying attribute 40. At that HEAD the
+rail emitted `c0280a01000700000000000064` toward the external destination, and the test was RED.
 
 The key field is not optional either: with update groups enabled one built UPDATE is shared by
 every peer of one `announceBuildKey`, so a destination-scoped strip outside the key would apply
 to the wrong peers.
 
-The remainder is now `plan/immediate/spec-prefix-sid-announce-rail-boundary.md`, and the public
-ledger states the gap: `RFC8669-8-1` carries a `{gap}` annotation again in `rfc/short/rfc8669.md`
-(Meta count ten -> eleven), and `docs/features/srv6.md` names the rail.
+**The owner answered on 2026-09-05 and the rail is gated (`4054ed854`).** The remainder was owned
+by `spec-prefix-sid-announce-rail-boundary`, which is closed. The five rails now ask
+`prefixSIDAllowedTo`, the leaf is a field of `announceBuildKey`, `RFC8669-8-1` carries no `{gap}`
+in `rfc/short/rfc8669.md` (Meta count back to ten), and `docs/features/srv6.md` says every rail
+that writes an UPDATE asks.
 
 ## Implementation Audit
 
@@ -486,7 +486,7 @@ ledger states the gap: `RFC8669-8-1` carries a `{gap}` annotation again in `rfc/
 | Default is "do not propagate" on every eBGP egress rail | Done | `prefixSIDAllowedTo` (`internal/component/bgp/reactor/forward_prefix_sid.go`) | `false` unless the peer is internal or the leaf is set |
 | Explicit per-peer configuration permits propagation | Done | YANG `propagate-srv6-prefix-sid`, `PeerSettings.PropagateSRv6PrefixSID`, `reactor/config.go` | |
 | iBGP is untouched | Done | `prefixSIDAllowedTo` returns true for `isIBGP` | Proven by `TestPrefixSIDEgressBoundary/ibgp_keeps_it` |
-| Every rail that can emit attribute 40 is gated | Partial | four of five | The API/readvertise announce rail is NOT gated. Measured red at HEAD by `TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`. Blocked on an owner approval row in `test/rfc-changed.md`; homed at `plan/immediate/spec-prefix-sid-announce-rail-boundary.md`. **This spec cannot close until the owner answers.** |
+| Every rail that can emit attribute 40 is gated | Done | four rails here, the fifth in `4054ed854` | This spec gated four of five. The API/readvertise announce rail was measured red at HEAD by `TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`, homed at `spec-prefix-sid-announce-rail-boundary`, and gated there once the owner wrote the `test/rfc-changed.md` approval row. All five now ask `prefixSIDAllowedTo` |
 | RFC 8669 Section 8 cited above the enforcing code | Done | `forward_prefix_sid.go`, `peer_static_routes.go`, `peer_initial_sync.go` | |
 
 ### Acceptance Criteria
@@ -546,8 +546,8 @@ ledger states the gap: `RFC8669-8-1` carries a `{gap}` annotation again in `rfc/
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| The API/readvertise announce rail is not gated, so attribute 40 crosses an AS boundary there with no leaf set | The per-destination bool must join `announceBuildKey` and the parameter list of `buildBatchAnnounceUpdate`, which mechanically edits `TestAnnounceStripsLocalPrefTowardExternalPeer`, an `RFC requirement: RFC4271-5.1.5` carrier. `test/rfc-changed.md` reserves that approval to the owner | `plan/immediate/spec-prefix-sid-announce-rail-boundary.md` |
-| No discrimination record for the six `RFC8669-8-1` tags this spec added | `rfc/discrimination/rfc8669.json` does not exist and all 29 of the RFC's tags read `unproven`. The gate's change-scoped window (a tag new against `HEAD^`) closed when the implementation commit landed without one | The same spec: step 7 of its Implementation Steps |
+| The API/readvertise announce rail is not gated, so attribute 40 crosses an AS boundary there with no leaf set | The per-destination bool must join `announceBuildKey` and the parameter list of `buildBatchAnnounceUpdate`, which mechanically edits `TestAnnounceStripsLocalPrefTowardExternalPeer`, an `RFC requirement: RFC4271-5.1.5` carrier. `test/rfc-changed.md` reserves that approval to the owner | RESOLVED. `spec-prefix-sid-announce-rail-boundary` owned it and closed on 2026-09-05: the owner wrote the approval row, `4054ed854` gated the rail, and all five rails now ask `prefixSIDAllowedTo` |
+| No discrimination record for the six `RFC8669-8-1` tags this spec added | `rfc/discrimination/rfc8669.json` does not exist and all 29 of the RFC's tags read `unproven`. The gate's change-scoped window (a tag new against `HEAD^`) closed when the implementation commit landed without one | RESOLVED in this spec's own closure, below: `rfc/discrimination/rfc8669.json` now carries a recorded red for each of the six |
 
 ## Review Gate
 
@@ -561,7 +561,7 @@ ledger states the gap: `RFC8669-8-1` carries a `{gap}` annotation again in `rfc/
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| 1 | BLOCKER | The API/readvertise announce rail emits attribute 40 toward an external peer with no explicit configuration. RFC 8669 Section 8 MUST. Measured: the rail returns `c0280a01000700000000000064` | `buildBatchAnnounceUpdate` (`internal/component/bgp/reactor/reactor_api_batch.go`), reached by the API announce, the grouped announce and `sendStaleReadvertise` | NOT FIXED. The fix needs an owner approval row in `test/rfc-changed.md`. Homed at `plan/immediate/spec-prefix-sid-announce-rail-boundary.md` and stated on the public ledger |
+| 1 | BLOCKER | The API/readvertise announce rail emits attribute 40 toward an external peer with no explicit configuration. RFC 8669 Section 8 MUST. Measured: the rail returns `c0280a01000700000000000064` | `buildBatchAnnounceUpdate` (`internal/component/bgp/reactor/reactor_api_batch.go`), reached by the API announce, the grouped announce and `sendStaleReadvertise` | Homed at `spec-prefix-sid-announce-rail-boundary`, which needed an owner approval row in `test/rfc-changed.md`. FIXED there on 2026-09-05 in `4054ed854`; the rail now asks `prefixSIDAllowedTo` |
 | 2 | ISSUE | `docs/features/srv6.md` claimed the removal happened on "every UPDATE sent to an EBGP peer", and its RFC 8669 table read `Implemented`. Both are wider than the code. `ai/rules/rfc-compliance.md`: a claim wider than the assertion converts an unproven MUST into a proven one | `docs/features/srv6.md`, the EBGP-propagation row and the RFC 8669 Section 8 row | FIXED. Both rows name the four gated rails and the fifth; a "Gap" section names the producing function |
 | 3 | ISSUE | `RFC8669-8-1` carried no `{gap}`, so the generated ledger reported the MUST as met | `rfc/short/rfc8669.md`, the requirement line and the Meta `Support coverage` and `Support remaining` rows | FIXED. `{gap}` restored, count ten -> eleven, regenerated with `./le rfc index-update` |
 | 4 | ISSUE | Six `RFC8669-8-1` tags were added with no discrimination record | `rfc/discrimination/rfc8669.json` absent; `./le rfc discriminate stem rfc8669` lists all 29 tags `unproven` | NOT FIXED. Recorded in Work Not Done |
@@ -612,8 +612,8 @@ the owner can open, so another round would re-find the same BLOCKER.
 | `internal/component/bgp/reactor/forward_prefix_sid.go` | Yes | read in full at closure; carries `prefixSIDAllowedTo`, `prefixSIDAllowed`, `prefixSIDOnWire`, `applyFactsPrefixSID`, `rawAttrsWithoutPrefixSID`, `isRawPrefixSID` |
 | `internal/component/bgp/reactor/forward_prefix_sid_test.go` | Yes | 365 lines in `f3379e684`; carries `TestPrefixSIDAllowedTo`, `TestPrefixSIDEgressBoundary`, `TestPrefixSIDSuppressIsRecordedOnce`, `TestPrefixSIDOriginationBoundary`, `TestRawAttrsWithoutPrefixSID` |
 | `test/plugin/prefixsid-ebgp-egress-boundary.ci` | Yes | 227 lines in `f3379e684`; `option=tcp_connections:value=3`, conn=1 source, conn=2 strip, conn=3 keep |
-| `internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go` | Yes | added at closure; RED, and that is the point |
-| `plan/immediate/spec-prefix-sid-announce-rail-boundary.md` | Yes | added at closure; passes `validate-spec` |
+| `internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go` | Yes | added at closure; RED then, and that was the point. Green since `4054ed854` gated the rail |
+| the spec that owned the remainder | Yes | `spec-prefix-sid-announce-rail-boundary`, written at this spec's closure and itself closed on 2026-09-05 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |

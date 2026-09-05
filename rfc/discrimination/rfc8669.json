@@ -22,6 +22,28 @@
       "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo",
       "producer-sha": "99b68190ccd338f8",
       "break": "body of prefixSIDAllowedTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-8-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain",
+      "unit-sha": "2c2a3fbfa4f60a64",
+      "claim-sha": "447b34618fc9b3d9",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::sendStaleReadvertise",
+      "producer-sha": "4e7ce94a1a2164d4",
+      "break": "body of sendStaleReadvertise replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-8-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain",
+      "unit-sha": "2c2a3fbfa4f60a64",
+      "claim-sha": "77a3c065b42400ff",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::sendStaleReadvertise",
+      "producer-sha": "4e7ce94a1a2164d4",
+      "break": "body of sendStaleReadvertise replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

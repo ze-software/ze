@@ -6,7 +6,7 @@
 # UPDATE the API announce produces for it carries no attribute 40 at all.
 # RFC requirement: RFC8669-8-1 positive -- that removal is CONFINED to neighbors the operator has
 # not configured. Receiver B is identical except that it sets propagate-srv6-prefix-sid true, and
-# it is sent the attribute byte for byte. ONE `send bgp * update text` reaches both, so the two
+# it is sent the attribute byte for byte. ONE `send bgp * update hex` reaches both, so the two
 # frames differ in attribute 40 and in nothing else.
 #
 # WHY THIS FILE EXISTS BESIDE prefixsid-ebgp-egress-boundary.ci. That file drives the FORWARD
