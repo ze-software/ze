@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | bgp |
 | Depends | - |
-| Phase | - |
+| Phase | implementation |
 | Handoff | - |
 | Updated | 2026-09-05 |
 
@@ -174,7 +174,7 @@ this rail asks in.
 
 ## Implementation Steps
 
-1. **Blocked until the owner writes the `test/rfc-changed.md` row.** Do not start.
+1. The owner approved the tagged-test edit and the probe rename on 2026-09-05, and the approval row is written into `test/rfc-changed.md` by the commit that carries the change.
 2. Add the field to `announceBuildKey` and the parameter to
    `buildBatchAnnounceUpdate`; update the three production call sites.
 3. Add the `plan.drop` beside the LOCAL_PREF drop, with the RFC 8669 Section 8
@@ -184,6 +184,42 @@ this rail asks in.
 6. Write the `test/plugin/` functional test.
 7. Record the discrimination proof: `./le rfc discriminate-record`.
 8. Take the `{gap}` off `RFC8669-8-1`, regenerate, and repair `docs/features/srv6.md`.
+
+## Implementation Summary
+
+`buildBatchAnnounceUpdate` (`internal/component/bgp/reactor/reactor_api_batch.go`)
+takes `propagatePrefixSID`, the destination's leaf, as its last parameter and
+asks `prefixSIDAllowedTo` (`forward_prefix_sid.go`) beside the RFC 4271
+Section 5.1.5 LOCAL_PREF drop. When the answer is no and the base carries code
+40, the rail records `plan.drop(uint8(attribute.AttrPrefixSID))`, so the merge
+writer skips the copy and no memmove is added. `announceBuildKey` carries the
+same leaf, so two peers of one update group that answer differently no longer
+share a built UPDATE. The three production call sites pass it: the per-peer
+announce, the grouped announce, and `sendStaleReadvertise`.
+
+The parameter is the operator's LEAF and not the answer, which is the shape the
+four other rails carry (`applyFactsPrefixSID` takes `f.propagatePrefixSID`).
+An internal destination therefore keeps the attribute by construction rather
+than by every caller getting it right.
+
+Only the BASE can carry a Prefix-SID on this rail: nothing in the builder
+contributes code 40, and `attribute.Builder` has no setter for it, so a
+Builder's Prefix-SID arrives as pre-encoded wire in `RawWire`, which IS the
+base.
+
+`prefixSIDAllowedTo` was given a braced body. It is the same expression; a
+one-line function body cannot be replaced by `./le rfc discriminate-record`,
+which is what observes the red this change's tags owe.
+
+## Goal Validation
+
+| Goal | Evidence |
+|------|----------|
+| Attribute 40 does not cross an AS boundary on the announce rail | `TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain` (`internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go`), red before the fix with `c0280a01000700000000000064` on the wire, green after |
+| The removal is confined to the destination that refuses it | The same test's two positive subtests: a configured external peer's frame is the stripped frame plus the attribute, byte for byte, and an internal peer's frame does not depend on the leaf |
+| An operator reaches the behavior through the product | `test/plugin/prefixsid-announce-rail-boundary.ci`: one `send bgp * update text ... attribute [0x28 0xc0 ...]` reaches two eBGP peers whose configuration differs in one leaf, and the two frames differ in attribute 40 alone |
+| The build group splits on the leaf | The same `.ci` runs with `group-updates` at its default of true, so a key without the field would send both peers one frame and fail one of the two expectations |
+| The tags are proofs rather than sentences | `rfc/discrimination/rfc8669.json`: both polarities recorded by the revert route, observed red under a disabled `prefixSIDAllowedTo` |
 
 ## Checklist
 

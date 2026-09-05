@@ -181,7 +181,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 | `rfc8654` | 12 | 8 | 0 | 4 | 0 | 0 | 0 | **enrolled** |
 | `rfc8665` | 47 | 28 | 0 | 19 | 0 | 0 | 0 | **enrolled** |
 | `rfc8666` | 31 | 21 | 0 | 10 | 0 | 0 | 0 | **enrolled** |
-| `rfc8669` | 25 | 6 | 0 | 19 | 0 | 0 | 0 | **enrolled** |
+| `rfc8669` | 25 | 7 | 0 | 18 | 0 | 0 | 0 | **enrolled** |
 | `rfc8671` | 10 | 7 | 0 | 3 | 0 | 0 | 0 | **enrolled** |
 | `rfc8707` | 7 | 3 | 0 | 4 | 0 | 0 | 0 | **enrolled** |
 | `rfc8907` | 12 | 3 | 0 | 9 | 0 | 0 | 0 | **enrolled** |
@@ -402,7 +402,7 @@ One row per requirement whose verdict is anything other than a fresh `enforced`.
 
 A tag names a requirement and a polarity, and then states in prose what its test demonstrates. No gate can read that sentence, so a test that asserts less than its tag claims counts as evidence everywhere else on this page. A record under `rfc/discrimination/` replaces reading it: it names a break of the producing code, and it stores the observation that the tagged unit went RED under that break and green again after it. `./le rfc check` replays the fingerprints on every run and refuses a record whose unit, claim or producer has moved since.
 
-Proven: 222 (mutant 14, revert 208). Escaped: 2. Unproven backlog: 3853 of 4074 tagged unit(s) on a gated requirement of an enrolled RFC. 3 further record(s) sit outside that population, on a requirement no gate obliges: an un-enrolled RFC, or a level below MUST. They are counted in the totals above and not in the backlog, so the two figures are two populations rather than one arithmetic.
+Proven: 224 (mutant 14, revert 210). Escaped: 2. Unproven backlog: 3855 of 4078 tagged unit(s) on a gated requirement of an enrolled RFC. 3 further record(s) sit outside that population, on a requirement no gate obliges: an un-enrolled RFC, or a level below MUST. They are counted in the totals above and not in the backlog, so the two figures are two populations rather than one arithmetic.
 
 The backlog is grandfathered, as the extraction backlog is. The obligation is CHANGE-SCOPED: a tagged unit that is new against git HEAD owes its proof in the change that added it, and `./le rfc check` reports that figure as `owed`. It is absent from this page on purpose. `owed` is a fact about a commit boundary rather than about this tree, so a page carrying it would go stale when nothing in the tree had changed.
 

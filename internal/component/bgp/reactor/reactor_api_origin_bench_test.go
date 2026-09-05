@@ -55,7 +55,7 @@ func BenchmarkAPIOriginVsForward(b *testing.B) {
 			// Two contributions over the three-attribute base: NEXT_HOP (3) and
 			// LOCAL_PREF (5), the iBGP announce shape.
 			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop,
-				true /*iBGP*/, false, true /*asn4*/, false, 65000); u == nil {
+				true /*iBGP*/, false, true /*asn4*/, false, 65000, false /*propagatePrefixSID*/); u == nil {
 				b.Fatal("announce build failed")
 			}
 		}
@@ -123,7 +123,7 @@ func BenchmarkAnnounceRails(b *testing.B) {
 		b.ResetTimer()
 		for range b.N {
 			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop,
-				true, false, true, false, 65000); u == nil {
+				true, false, true, false, 65000, false /*propagatePrefixSID*/); u == nil {
 				b.Fatal("batch build failed")
 			}
 		}
@@ -146,7 +146,7 @@ func BenchmarkAnnounceRails(b *testing.B) {
 		b.ResetTimer()
 		for range b.N {
 			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, mpNextHop,
-				true, false, true, false, 65000); u == nil {
+				true, false, true, false, 65000, false /*propagatePrefixSID*/); u == nil {
 				b.Fatal("batch mp build failed")
 			}
 		}

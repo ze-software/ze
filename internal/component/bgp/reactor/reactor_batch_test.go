@@ -427,7 +427,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 	// Use nil context (default ASN4=true, no ADD-PATH)
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), false, false, true, false, 65000)
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), false, false, true, false, 65000, false /*propagatePrefixSID*/)
 
 	require.NotNil(t, update)
 
@@ -462,7 +462,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, false, true, false, 65000)
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, false, true, false, 65000, false /*propagatePrefixSID*/)
 
 	require.NotNil(t, update)
 
@@ -524,7 +524,7 @@ func announceWithExplicitASPath(t *testing.T, userPath []uint32, isIBGP, rsClien
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
 	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
-		netip.MustParseAddr("10.0.0.1"), isIBGP, rsClient, true /*asn4*/, false, localAS)
+		netip.MustParseAddr("10.0.0.1"), isIBGP, rsClient, true /*asn4*/, false, localAS, false /*propagatePrefixSID*/)
 	require.NotNil(t, update)
 
 	_, value, ok := findPathAttr(update.PathAttributes, byte(attribute.AttrASPath))

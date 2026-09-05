@@ -23,7 +23,7 @@ Operates as an ingress PE: consumes received SRv6 SIDs but does not originate th
 | Path ineligibility | Route with SRv6 TLVs but no valid SID excluded from best-path selection |
 | SID resolvability | SRv6 SID must have a covering route in Loc-RIB before FIB installation |
 | EBGP filtering | PrefixSID from EBGP peers discarded unless `accept-srv6-prefix-sid` is set |
-| EBGP propagation | PrefixSID removed on the two forward rails and the two origination rails unless `propagate-srv6-prefix-sid` is set. The API/readvertise announce rail does not yet ask: see the gap below |
+| EBGP propagation | PrefixSID removed on every rail that writes an UPDATE unless `propagate-srv6-prefix-sid` is set: the two forward rails, the two origination rails, and the API/readvertise announce rail |
 | Validation | Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4) |
 | Propagation | PrefixSID preserved on zero-copy forward; stripped when the next-hop changes, and stripped at the SR domain boundary |
 | Linux FIB | SEG6 lwtunnel encap via netlink |
@@ -110,19 +110,17 @@ Origination rails: the configured PrefixSID and any raw attribute 40 are dropped
 
 <!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
 
-### Gap: the API and readvertise announce rail
+### The API and readvertise announce rail
 
-A fifth rail writes UPDATEs and does not ask. `buildBatchAnnounceUpdate`
-(`internal/component/bgp/reactor/reactor_api_batch.go`) copies the caller's
-attribute block verbatim and removes only LOCAL_PREF, so a Prefix-SID in that
-block reaches an external peer with no leaf set. It carries an API announce, a
-grouped announce, and the RFC 9494 stale readvertise (`sendStaleReadvertise`).
-
-`TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`
-(`internal/component/bgp/reactor/zzprobe_prefixsid_announce_test.go`) states the
-requirement and is RED at HEAD. The fix needs a per-destination bool on
-`buildBatchAnnounceUpdate` and on `announceBuildKey`, which edits an RFC-tagged
-test and so waits on an owner approval row in `test/rfc-changed.md`.
+The fifth rail asks the same question at the same site.
+`buildBatchAnnounceUpdate` (`internal/component/bgp/reactor/reactor_api_batch.go`)
+copies the caller's attribute block verbatim, so "say nothing" would emit
+attribute 40; it drops the code when `prefixSIDAllowedTo` answers no, beside the
+RFC 4271 Section 5.1.5 LOCAL_PREF drop. The destination's leaf joins
+`announceBuildKey`, so two peers of one update group that answer differently no
+longer share a built UPDATE. The rail carries an API announce, a grouped
+announce, and the RFC 9494 stale readvertise (`sendStaleReadvertise`), which
+replays a stored received block.
 
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- buildBatchAnnounceUpdate -->
 
@@ -176,7 +174,7 @@ the VPP dispatch logic.
 | TLV format: 1B type + 2B length | 3 | Implemented |
 | Unknown TLVs preserved on propagation | 3 | Implemented (opaque forwarding) |
 | EBGP: discard unless configured to accept | 4 | Implemented (`accept-srv6-prefix-sid`) |
-| Propagation to other ASes explicitly configured | 8 | Partial (`propagate-srv6-prefix-sid`): the two forward rails and the two origination rails ask; the API/readvertise announce rail does not |
+| Propagation to other ASes explicitly configured | 8 | Implemented (`propagate-srv6-prefix-sid`): every rail that writes an UPDATE asks |
 | Malformed attribute: attribute-discard | 6 | Implemented (RFC 7606 validator) |
 
 ### RFC 9252 (SRv6 Overlay Services)

@@ -36,7 +36,9 @@ import (
 // Every egress rail asks HERE rather than re-deriving the answer, for the reason
 // localPrefAllowedTo (forward_local_pref.go) carries: the rails that re-derived
 // the LOCAL_PREF prohibition disagreed with each other for months.
-func prefixSIDAllowedTo(isIBGP, propagate bool) bool { return isIBGP || propagate }
+func prefixSIDAllowedTo(isIBGP, propagate bool) bool {
+	return isIBGP || propagate
+}
 
 // prefixSIDAllowed answers prefixSIDAllowedTo for this peer. It is the form the
 // ORIGINATION rails ask in (peer_initial_sync.go): they hold a *Peer rather

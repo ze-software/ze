@@ -99,10 +99,21 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 		// prepend for RS-clients, so an RS-client and an ordinary eBGP peer no
 		// longer produce identical wire and must not share a built UPDATE.
 		rsClient bool
-		localAS  uint32
-		addPath  bool
-		asn4     bool
-		extended bool // ExtendedMessage negotiated
+		// propagatePrefixSID partitions the groups: RFC 8669 Section 8 removes the
+		// Prefix-SID toward an external peer the operator has not placed inside the
+		// SR domain, so two external peers that answer it differently no longer
+		// produce identical wire and must not share a built UPDATE. It is the
+		// operator's leaf rather than the answer, which is what the four rails in
+		// forward_prefix_sid.go carry too. An internal peer keeps the attribute
+		// whatever the leaf says, so two internal peers that differ only here build
+		// the same bytes twice; the leaf has no meaning on an internal session, and
+		// paying one build for that is cheaper than a key field that says something
+		// other than what the builder is given.
+		propagatePrefixSID bool
+		localAS            uint32
+		addPath            bool
+		asn4               bool
+		extended           bool // ExtendedMessage negotiated
 	}
 	type announceBuildGroup struct {
 		key     announceBuildKey
@@ -162,13 +173,14 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			if groupsEnabled {
 				// Collect peer into build group for deferred batch build.
 				bk := announceBuildKey{
-					nextHop:  nextHop,
-					isIBGP:   isIBGP,
-					rsClient: peer.Settings().RSClient,
-					localAS:  peer.Settings().LocalAS,
-					addPath:  peer.addPathFor(batch.Family),
-					asn4:     peer.asn4(),
-					extended: nc.ExtendedMessage,
+					nextHop:            nextHop,
+					isIBGP:             isIBGP,
+					rsClient:           peer.Settings().RSClient,
+					propagatePrefixSID: peer.Settings().PropagateSRv6PrefixSID,
+					localAS:            peer.Settings().LocalAS,
+					addPath:            peer.addPathFor(batch.Family),
+					asn4:               peer.asn4(),
+					extended:           nc.ExtendedMessage,
 				}
 				bg, ok := buildGroups[bk]
 				if !ok {
@@ -184,7 +196,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 
 				attrHandle := getBuildBuf()
 				nlriHandle := getBuildBuf()
-				update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, peer.Settings().RSClient, asn4, addPath, peer.Settings().LocalAS)
+				update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, peer.Settings().RSClient, asn4, addPath, peer.Settings().LocalAS, peer.Settings().PropagateSRv6PrefixSID)
 
 				// Build rejected (already logged). Not sent, and not counted as
 				// accepted, so the caller gets the builder's own reason instead of a
@@ -221,7 +233,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 
 		attrHandle := getBuildBuf()
 		nlriHandle := getBuildBuf()
-		update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, bg.nextHop, bg.key.isIBGP, bg.key.rsClient, bg.key.asn4, bg.key.addPath, bg.key.localAS)
+		update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, bg.nextHop, bg.key.isIBGP, bg.key.rsClient, bg.key.asn4, bg.key.addPath, bg.key.localAS, bg.key.propagatePrefixSID)
 
 		// Build rejected (already logged): every peer in this group shares the
 		// build parameters, so none of them can be sent this batch.
@@ -596,7 +608,7 @@ func baseASPath(base []byte, srcASN4 bool) *attribute.ASPath {
 // caller because the two refusals need different operator action: errAnnounceTooLarge
 // asks for fewer prefixes per announce, errAnnounceNextHopUnencodable asks for a
 // next hop at all.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, rsClient, asn4, addPath bool, localAS uint32) (*message.Update, error) {
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, rsClient, asn4, addPath bool, localAS uint32, propagatePrefixSID bool) (*message.Update, error) {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, addPath)
 	if nlriOff < 0 {
@@ -765,6 +777,25 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 	default:
 		if _, _, _, found := attribute.AttrFind(base, attribute.AttrLocalPref); found {
 			plan.drop(uint8(attribute.AttrLocalPref))
+		}
+	}
+
+	// RFC 8669 Section 8: "The propagation to other ASes MUST be explicitly
+	// configured." prefixSIDAllowedTo (forward_prefix_sid.go) owns the answer, and
+	// asking it here is what stops this rail from disagreeing with the four that
+	// already asked -- the disagreement LOCAL_PREF above cost this same function in
+	// August. propagatePrefixSID is the operator's leaf, so an internal destination
+	// keeps the attribute whatever the leaf says, by construction rather than by
+	// the caller getting it right.
+	//
+	// Only the BASE can carry a Prefix-SID on this rail: nothing above contributes
+	// code 40, and a Builder has no setter for it, so a Builder's Prefix-SID can
+	// only arrive as pre-encoded wire in RawWire, which IS the base
+	// (attribute.Builder.AppendAttributes). The presence test keeps a destination
+	// that was never sent one off the plan, exactly as the LOCAL_PREF strip does.
+	if !prefixSIDAllowedTo(isIBGP, propagatePrefixSID) {
+		if _, _, _, found := attribute.AttrFind(base, attribute.AttrPrefixSID); found {
+			plan.drop(uint8(attribute.AttrPrefixSID))
 		}
 	}
 
@@ -1183,12 +1214,13 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 	asn4 := peer.asn4()
 	localAS := peer.Settings().LocalAS
 	rsClient := peer.Settings().RSClient
+	propagatePrefixSID := peer.Settings().PropagateSRv6PrefixSID
 
 	attrHandle := getBuildBuf()
 	nlriHandle := getBuildBuf()
 	defer putBuildBuf(attrHandle)
 	defer putBuildBuf(nlriHandle)
-	update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, rsClient, asn4, addPath, localAS)
+	update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, rsClient, asn4, addPath, localAS, propagatePrefixSID)
 	if update == nil {
 		// The announce itself could not be encoded (already logged). Report the
 		// builder's own cause rather than a family mismatch: the family IS

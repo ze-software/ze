@@ -118,7 +118,7 @@ func TestAnnounceOversizeDropsWithNamedLog(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 				Wire:    attribute.NewAttributesWire(packed, bgpctx.APIContextID),
 			},
-			netip.MustParseAddr("10.0.0.1"), true, false, true, false, 65000)
+			netip.MustParseAddr("10.0.0.1"), true, false, true, false, 65000, false /*propagatePrefixSID*/)
 
 		require.Nil(t, update, "an announce that does not fit must be dropped, never truncated")
 		logged := sink.String()
@@ -231,7 +231,7 @@ func TestAnnounceRejectsDuplicateBaseAttribute(t *testing.T) {
 			NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 			Wire:    attribute.NewAttributesWire(packed, bgpctx.APIContextID),
 		},
-		netip.MustParseAddr("10.0.0.1"), true, false, true, false, 65000)
+		netip.MustParseAddr("10.0.0.1"), true, false, true, false, 65000, false /*propagatePrefixSID*/)
 
 	require.Nil(t, update, "a duplicate type code in the base must be refused, not emitted")
 	assert.Contains(t, sink.String(), "does not index", "the refusal must say why")
@@ -261,7 +261,7 @@ func TestAnnounceBuilderModeIsEditSetOverEmptyBase(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 	build := func(batch bgptypes.NLRIBatch) []byte {
 		update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
-			batch, netip.MustParseAddr("10.0.0.1"), true /*iBGP*/, false, true /*asn4*/, false, 65000)
+			batch, netip.MustParseAddr("10.0.0.1"), true /*iBGP*/, false, true /*asn4*/, false, 65000, false /*propagatePrefixSID*/)
 		require.NotNil(t, update)
 		return update.PathAttributes
 	}
@@ -328,7 +328,7 @@ func TestAnnounceStripsLocalPrefTowardExternalPeer(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 				Wire:    attribute.NewAttributesWire(packed, bgpctx.APIContextID),
 			},
-			netip.MustParseAddr("10.0.0.1"), isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000)
+			netip.MustParseAddr("10.0.0.1"), isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000, false /*propagatePrefixSID*/)
 		require.NotNil(t, update)
 		return update.PathAttributes
 	}
@@ -385,7 +385,7 @@ func TestAnnounceStripsLocalPrefTowardExternalPeer(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 				Attrs:   b,
 			},
-			netip.MustParseAddr("10.0.0.1"), false /*eBGP*/, false, true, false, 65000)
+			netip.MustParseAddr("10.0.0.1"), false /*eBGP*/, false, true, false, 65000, false /*propagatePrefixSID*/)
 		require.NotNil(t, update)
 		_, _, ok := findPathAttr(update.PathAttributes, byte(attribute.AttrLocalPref))
 		assert.False(t, ok, "a Builder-supplied LOCAL_PREF must not reach an external peer either")

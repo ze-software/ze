@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc8669",
+  "records": [
+    {
+      "rid": "RFC8669-8-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain",
+      "unit-sha": "b49e7f6b88b7c455",
+      "claim-sha": "643538bc48b0a49b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo",
+      "producer-sha": "99b68190ccd338f8",
+      "break": "body of prefixSIDAllowedTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-8-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain",
+      "unit-sha": "b49e7f6b88b7c455",
+      "claim-sha": "887df5ef8ae86fb8",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo",
+      "producer-sha": "99b68190ccd338f8",
+      "break": "body of prefixSIDAllowedTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

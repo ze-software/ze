@@ -47,7 +47,7 @@ func TestBuildBatchAnnounceUpdate_RefusesANextHopWithNoWireForm(t *testing.T) {
 			NextHop: bgptypes.NewNextHopExplicit(nextHop),
 		}
 		return adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
-			batch, nextHop, false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000)
+			batch, nextHop, false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000, false /*propagatePrefixSID*/)
 	}
 
 	t.Run("ipv6 unicast is refused", func(t *testing.T) {

@@ -240,7 +240,7 @@ func TestBuildBatchAnnounce_InvalidNextHopWithOversizeAttrs(t *testing.T) {
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
-		netip.Addr{} /*invalid next-hop*/, false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000)
+		netip.Addr{} /*invalid next-hop*/, false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000, false /*propagatePrefixSID*/)
 
 	require.Nil(t, update, "a block that does not fit the slot must be rejected, not resliced past len")
 }
@@ -273,7 +273,7 @@ func TestAnnounceAttrRegion_RejectsBlockLargerThanBuffer(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 				Wire:    wire,
 			},
-			netip.MustParseAddr("10.0.0.1"), false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000)
+			netip.MustParseAddr("10.0.0.1"), false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000, false /*propagatePrefixSID*/)
 		return update
 	}
 
