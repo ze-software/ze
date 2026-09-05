@@ -4,8 +4,8 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc8671.txt",
   "source-sha": "aed5ce37b74c3a4d",
-  "signed-off": "2026-08-31",
-  "reviewer": "ze-work agent, spec-rfcgate-6 phase 4, rfc8671",
+  "signed-off": "2026-09-05",
+  "reviewer": "ze-fix agent, false public conformance claim on rfc8671, section 5.2 re-walked 2026-09-05",
   "sections": [
     {
       "id": "front",
@@ -57,7 +57,7 @@
       "id": "5.2",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Pre-policy. Two capitalised MUSTs, both excluded below as binding a role ze does not implement. The remaining prose is indicative: what the candidate route set holds for each peering session type, and that a null or loopback next hop is common before transmission. RFC8671-x-5 records that pre-policy Adj-RIB-Out is permitted and uncommon; that is read from this section's indicative prose, so it is listed as unsourced.",
+      "reason": "Pre-policy. Two capitalised MUSTs. Site 5.2:2 is mapped to RFC8671-5.2-1 and site 5.2:1 is excluded below. Each is conditional on the pre-policy Adj-RIB-Out view, an OPTIONAL feature ze declined, and the RFC8671-5.2-1 line of rfc/short/rfc8671.md carries the {feature-declined} annotation that records the decision. Until 2026-09-05 both sites read excluded as binding a role ze does not implement, which the presumed-wrong ruling on binds-another-role bans for a role ze fills: ze IS the BMP sender. The remaining prose is indicative: what the candidate route set holds for each peering session type, and that a null or loopback next hop is common before transmission. RFC8671-x-5 records that pre-policy Adj-RIB-Out is permitted and uncommon; that is read from this section's indicative prose, so it is listed as unsourced.",
       "unsourced-ids": [
         "RFC8671-x-5"
       ]
@@ -190,14 +190,14 @@
       "quote": "All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion.",
       "disposition": "excluded",
       "excluded-kind": "feature-out-of-scope",
-      "reason": "The feature is OPTIONAL and ze decided not to offer it. RFC 7854 Section 5: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' ze offers the post-policy Adj-RIB-Out view only: peerHeaderFromEvent (internal/component/bgp/plugins/bmp/bmp_events.go) sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so O=1 with L=0 is unreachable, and the route-monitoring-policy leaf offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice. This obligation is conditional on offering that feature: ze never reaches a pre-policy phase completion at which a mandatory attribute could be unknown, and holds no route for which it would have to zero the next hop. The permission it hangs on is RFC8671-x-5 [MAY], which ze does not exercise. This is a SCOPE DECISION and not outstanding work. The absent feature is recorded as an implementation gap in docs/features/rfc-status.md, which a later scope decision can revisit; it is not a conformance gap."
+      "reason": "The obligation is CONDITIONAL on the pre-policy Adj-RIB-Out view, an OPTIONAL feature ze decided not to offer, so it is excluded rather than declared. The sentence binds a speaker only at 'the pre-policy phase completion', which ze never reaches. RFC 8671 states no obligation to offer the pre-policy view, and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' peerHeaderFromEvent (internal/component/bgp/plugins/bmp/bmp_events.go) is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so O=1 with L=0 is unreachable; the route-monitoring-policy leaf (yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice. ze holds no route at a pre-policy phase for which it would have to zero or empty a mandatory attribute. This is a SCOPE DECISION and not outstanding work. The absent feature is disclosed on the summary's Support status and Support remaining rows, which name this site, and never as a conformance gap. It is NOT declared as a requirement id: rfc8671 derives 10 capitalised keyword sites and its summary already declares 10 gated requirements, two of them read from indicative prose and recorded in unsourced-ids, so an eleventh declaration would push DeriveRegister (internal/le/rfc/inventory.go) off the rfc2119 grade this source supports."
     },
     {
       "id": "5.2:2",
       "quote": "The L flag MUST be set to 0 to indicate pre-policy.",
-      "disposition": "excluded",
-      "excluded-kind": "feature-out-of-scope",
-      "reason": "The same optional feature as site 5.2:1. RFC 7854 Section 5: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' The pre-policy L flag rule binds a speaker that sends the pre-policy view, and ze does not send it: peerHeaderFromEvent (internal/component/bgp/plugins/bmp/bmp_events.go) sets PeerFlagO and PeerFlagL together for a sent-direction event and never sets O alone. The post-policy half of the same rule, which ze does exercise, is site 5.1:2 mapping RFC8671-x-2. This is a SCOPE DECISION and not outstanding work; the absent feature is recorded as an implementation gap in docs/features/rfc-status.md, not as a conformance gap."
+      "disposition": "mapped",
+      "mapped-to": "RFC8671-5.2-1",
+      "reason": "The pre-policy L flag rule, the second obligation conditional on the same OPTIONAL feature as site 5.2:1. RFC 8671 states no obligation to offer the pre-policy Adj-RIB-Out view, and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' ze does not send that view: peerHeaderFromEvent (internal/component/bgp/plugins/bmp/bmp_events.go) sets PeerFlagO and PeerFlagL together for a sent-direction event and never sets O alone, and it is the only producer that sets the O flag at all. The post-policy half of the same rule, which ze does exercise, is site 5.1:2 mapping RFC8671-x-2. Mapped to RFC8671-5.2-1, which rfc/short/rfc8671.md declares and which carried NO site and NO annotation until 2026-09-05: the summary published the obligation while the walk excluded its only source sentence, so the gate counted it neither excluded nor proven. The exclusion now lives where a reader can check it, as the {feature-declined} annotation on that line. This is a SCOPE DECISION and not outstanding work."
     },
     {
       "id": "6.1:1",
@@ -229,5 +229,5 @@
     }
   ],
   "register-reason": "Standards Track, with the RFC 8174 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4, 5.1, 5.2, 6.1, 6.2, 6.3.1 and 7.2. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade.",
-  "resign-reason": "Second resign. The first recorded a false reason: applySenderConfig was named as the whole reload path while nothing reached it, so the obligation was signed as met against an unreachable function. This one records a changed VERDICT. The owner ruled on 2026-08-31 that ze implement a real per-peer Peer Down/Peer Up instead of the whole-session reset the main thread had self-authorised as equivalent, overturning that judgement: the two are different rather than more-versus-less. The mechanism, the trigger and the tests all changed, so site 7.2:1's reason is rewritten to the behavior that now exists. No disposition changed and no site was re-classified; the exclusion count is identical."
+  "resign-reason": "Third re-sign, over section 5.2 only; every other section and site is unchanged from the 2026-08-31 walk and its reasons are untouched. The 2026-08-31 walk excluded both section 5.2 sites while rfc/short/rfc8671.md still DECLARED RFC8671-5.2-1, so the public row promised conformance over an obligation that had no site, no annotation and no test, and ./le rfc check refused the artifact on both counts. The exclusion reason was also written as binding a role ze does not implement, which the owner ruling of 2026-08-31 presumes wrong: ze IS the BMP sender. The verdict is unchanged in substance and is now recorded where it can be checked. Both obligations are conditional on the pre-policy Adj-RIB-Out view, RFC 7854 Section 5 leaves that view to the implementation, and ze declined it. Site 5.2:2 is now MAPPED to the RFC8671-5.2-1 the summary already declared, and that checklist line carries {feature-declined} with the RFC's own sentence and the producer. Site 5.2:1 stays EXCLUDED as feature-out-of-scope, and its reason is rewritten off the role claim: it holds the mandatory-attribute MUST, for which the summary declares no id, and declaring one would push the source off the rfc2119 grade. Exclusions fell from 3 to 2."
 }
