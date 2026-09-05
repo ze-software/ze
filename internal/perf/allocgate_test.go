@@ -36,6 +36,8 @@ BenchmarkFwdPoolTryDispatch-4         	    3000	       270.3 ns/op	     192 B/op
 BenchmarkCheckPrefixLimitsOffered-4   	    3000	       198.5 ns/op	       0 B/op	       0 allocs/op
 BenchmarkCheckPrefixLimitsInstalled-4 	    3000	       237.2 ns/op	       2 B/op	       0 allocs/op
 BenchmarkCheckPrefixLimitsInstalledChurn-4	    3000	       418.1 ns/op	      10 B/op	       2 allocs/op
+BenchmarkFilterModifyEgress-4         	     300	      4871 ns/op	    1963 B/op	       6 allocs/op
+BenchmarkFilterDispatch_ZeroAlloc-4   	     300	      1258 ns/op	       0 B/op	       0 allocs/op
 PASS
 ok  	github.com/ze-software/ze/internal/component/bgp/reactor	0.081s
 goos: linux
@@ -130,6 +132,8 @@ func TestParseAllocsPerOp(t *testing.T) {
 		"BenchmarkCheckPrefixLimitsOffered":        0,
 		"BenchmarkCheckPrefixLimitsInstalled":      0,
 		"BenchmarkCheckPrefixLimitsInstalledChurn": 2,
+		"BenchmarkFilterModifyEgress":              6,
+		"BenchmarkFilterDispatch_ZeroAlloc":        0,
 		"BenchmarkRecordAnswerRows":                0,
 	}
 	if len(got) != len(want) {

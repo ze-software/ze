@@ -102,3 +102,74 @@ func TestValueScratchCarvesWindowsThatDoNotOverlap(t *testing.T) {
 		assert.Equal(t, []uint32{65000, 65001}, segments[1].ASNs)
 	})
 }
+
+// TestValueScratchGrowKeepsTheASNsAlreadyReserved covers the AS path arena's
+// grow. The byte arena's grow is already driven end to end by
+// TestEncodeValuesIntoScratch/a_carve_past_the_initial_size_keeps_earlier_values;
+// the ASN arena has its own capacity and its own carve, and a remove-private
+// rewrite reserves from it while an earlier reservation is still being read.
+//
+// VALIDATES: the grow paragraph of the valueScratch doc comment, for carveASNs.
+// PREVENTS: a grow that returns a window into the wrong array, or that lets a
+// later reservation write over an earlier one.
+func TestValueScratchGrowKeepsTheASNsAlreadyReserved(t *testing.T) {
+	scratch := newTestScratch(t)
+
+	before := scratch.carveASNs(valueScratchASNs)
+	for i := range valueScratchASNs {
+		before = append(before, uint32(i)) //nolint:gosec // G115: i is bounded by valueScratchASNs
+	}
+
+	// This reservation is past the initial capacity, so it grows the arena and
+	// orphans the window above onto the old array.
+	after := append(scratch.carveASNs(4), 64496, 64497, 64498, 64499)
+
+	require.Len(t, before, valueScratchASNs)
+	assert.Equal(t, uint32(0), before[0])
+	assert.Equal(t, uint32(valueScratchASNs-1), before[valueScratchASNs-1])
+	assert.Equal(t, []uint32{64496, 64497, 64498, 64499}, after)
+}
+
+// TestValueScratchReleaseBoundsWhatItRetains covers the retention caps. One
+// adversarial delta can carve a window far larger than any UPDATE body, and the
+// scratch it carved from goes back into a pool that lives as long as the
+// process. Release therefore drops an oversized arena rather than pinning it,
+// and it zeroes the segment headers so a released segment stops keeping the
+// previous block's ASNs slice alive.
+//
+// Each case reads the scratch through its own pointer AFTER releasing it. That
+// is safe here and nowhere else: the pool is package-level, no other goroutine
+// in this test takes from it, and the read is what proves release did its work.
+//
+// VALIDATES: valueScratchBytesMax and the clear in releaseValueScratch.
+// PREVENTS: one large delta pinning that much memory for the life of the
+// process, and a released segment holding a reference into the block before it.
+func TestValueScratchReleaseBoundsWhatItRetains(t *testing.T) {
+	t.Run("an_oversized_byte_arena_is_dropped", func(t *testing.T) {
+		scratch := acquireValueScratch()
+		scratch.carveBytes(valueScratchBytesMax + 1)
+		require.Greater(t, cap(scratch.buf), valueScratchBytesMax,
+			"the carve must grow past the retention cap for this case to mean anything")
+
+		releaseValueScratch(scratch)
+		assert.Equal(t, valueScratchBytes, cap(scratch.buf),
+			"a released scratch must not keep an arena larger than an UPDATE body")
+	})
+
+	t.Run("a_released_segment_holds_no_asns", func(t *testing.T) {
+		scratch := acquireValueScratch()
+		segments := scratch.carveSegments(2)
+		segments = append(segments,
+			attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{64496}},
+			attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{64497}})
+		require.Len(t, segments, 2)
+
+		releaseValueScratch(scratch)
+
+		held := scratch.segs[:cap(scratch.segs)]
+		for i := range 2 {
+			assert.Nilf(t, held[i].ASNs,
+				"segment %d still points at the released block's ASNs", i)
+		}
+	})
+}

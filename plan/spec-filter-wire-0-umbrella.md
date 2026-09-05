@@ -265,7 +265,8 @@ Each phase ends with a Self-Critical Review.
 - MP_REACH NLRI rewrite for filter_prefix/irr is not supported today (the text path never handled it, `filter_delta.go`); the NLRI child spec decides whether to add it.
 
 ## Relationship to perf-next-2-filter-delta-alloc
-`spec-perf-next-2-filter-delta-alloc.md` (in-progress, Phase 1/5) reduces allocations in
+`spec-perf-next-2-filter-delta-alloc` (closed 2026-09-05 at 6 allocs/op, down from a
+re-measured 20) reduced allocations in
 `textDeltaToModOps` (~24 allocs/modified UPDATE). This redesign DELETES that path on the
 peer-forward filter stage, so its goal is met by deletion there; its scope narrows to any
 residual text-conversion the API-origin path keeps (if dual-representation wins A-1) or is

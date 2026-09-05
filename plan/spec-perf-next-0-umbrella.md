@@ -3,17 +3,28 @@
 | Field | Value |
 |-------|-------|
 | Status | blocked |
-| Depends | spec-perf-next-2-filter-delta-alloc.md |
+| Depends | spec-perf-next-2-filter-delta-alloc (closed 2026-09-05) |
 | Phase | 5/5 |
 | Updated | 2026-08-03 |
 
 ## Blocked
 
-Blocked on the same decision by Thomas that blocks child 2. This umbrella
-cannot close before its children do, and `spec-perf-next-2-filter-delta-alloc`
-is now `blocked` awaiting his answer on Phase B. Children 1 and 3 are complete
-(`ebgpWireSlot` in `internal/component/bgp/reactor/received_update.go`,
-`Community.AppendText` in `internal/core/bgp/attribute/text_append.go`).
+**The block is LIFTED as of 2026-09-05 and every child is closed.** Thomas
+answered the Phase B question on 2026-09-05: implement it and meet AC-3. It
+landed in `7d4fedbc6` at 6 allocs/op against a gate of 12, and
+`spec-perf-next-2-filter-delta-alloc` closed the same day.
+`spec-perf-next-1-ebgp-wire-lockfree` closed that day too, recording a removal:
+the cache it optimized was deleted by `df44d8d27` on 2026-08-17.
+`spec-perf-next-3-rib-show-alloc` closed on 2026-08-12.
+
+What this umbrella still owes is its own Phase 5: re-measure end to end and
+write the round up. Its Status field is left as it stands for whoever runs that
+phase to move, because closing a child is not a decision to close the parent.
+
+The superseded text said: blocked on the same decision by Thomas that blocks
+child 2, with children 1 and 3 complete (`ebgpWireSlot` in
+`internal/component/bgp/reactor/received_update.go`, `Community.AppendText` in
+`internal/core/bgp/attribute/text_append.go`). `ebgpWireSlot` no longer exists.
 
 Two of this umbrella's own criteria need the same answer. AC-1 asks for a fresh
 `ze-perf-bench PPROF=1` profile and AC-3 for a recorded re-run, but
@@ -40,7 +51,7 @@ child 2's completion signal.
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. Child specs: `spec-perf-next-1-ebgp-wire-lockfree` (closed 2026-09-05), `plan/spec-perf-next-2-filter-delta-alloc.md`, `spec-perf-next-3-rib-show-alloc` (closed)
+3. Child specs, all closed: `spec-perf-next-1-ebgp-wire-lockfree` and `spec-perf-next-2-filter-delta-alloc` (2026-09-05), `spec-perf-next-3-rib-show-alloc` (2026-08-12)
 
 ## Task
 
@@ -70,7 +81,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 | # | Spec | Target | Expected effect |
 |---|------|--------|-----------------|
 | 1 | `spec-perf-next-1-ebgp-wire-lockfree.md` | Mutex on every `EBGPWire` cache hit | ~15M lock ops/sec removed at 100K UPDATE/s route-server fan-out |
-| 2 | `spec-perf-next-2-filter-delta-alloc.md` | ~24 allocs per filter-modified UPDATE | Roughly halve allocations on the policy-modify path (per destination peer on export) |
+| 2 | `spec-perf-next-2-filter-delta-alloc` | ~24 allocs per filter-modified UPDATE, re-measured at 20 | ACHIEVED, and better: 6 allocs/op, a 70% cut, held by `AllocCeilings["BenchmarkFilterModifyEgress"]` |
 | 3 | `spec-perf-next-3-rib-show-alloc.md` | Per-route []string + String() in show/JSON enrichment | Full-table `show bgp rib` drops millions of string allocations per request |
 
 ### Methodology (BLOCKING for every child)
@@ -253,7 +264,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 
 ## Files to Create
 - `spec-perf-next-1-ebgp-wire-lockfree` - child 1 (created with this umbrella, closed 2026-09-05; the cache it optimized was deleted by `df44d8d27` on 2026-08-17, so the round's record lives in `docs/architecture/perf-round-3.md` Section 1)
-- `plan/spec-perf-next-2-filter-delta-alloc.md` - child 2 (created with this umbrella)
+- `spec-perf-next-2-filter-delta-alloc` - child 2 (created with this umbrella, closed 2026-09-05 at 6 allocs/op; the round's record is `docs/architecture/perf-round-3.md` Section 4)
 - `spec-perf-next-3-rib-show-alloc` - child 3 (created with this umbrella, closed 2026-08-12)
 
 ## Implementation Steps

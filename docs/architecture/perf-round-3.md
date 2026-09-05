@@ -169,8 +169,10 @@ modified UPDATE, so the fan-out multiplies GC pressure rather than latency.
 `BenchmarkFilterDispatch_ZeroAlloc` stays at 0 allocs/op, which is the
 unmodified path this round must not disturb.
 
-The parse reads whitespace through the 256-entry ASCII table `strings.Fields`
-uses rather than through `unicode.IsSpace` on a decoded rune. Measured on the
+The parse reads whitespace through a 128-entry ASCII table (`filterSpaceASCII`,
+one entry per byte below `utf8.RuneSelf`) rather than through `unicode.IsSpace`
+on a decoded rune. It holds the same six runes `strings.Fields` splits on, so a
+text splits exactly as it did before. Measured on the
 same benchmark, that one table is worth 340 ns of the 1390: without it the
 non-allocating parse costs as much CPU as it saves in allocator time.
 

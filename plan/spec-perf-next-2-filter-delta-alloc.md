@@ -40,6 +40,53 @@ whole remainder the gate expected.
 
 `BenchmarkFilterDispatch_ZeroAlloc` reads 0 allocs/op at every stage (AC-4).
 
+### Re-measured at closure, on a second host (2026-09-05)
+
+Closure did not take the table above on trust. It re-ran both benchmarks on
+linux/amd64, AMD EPYC 7351 16-Core, GOMAXPROCS=32, through `./le job run`:
+
+```
+BenchmarkFilterModifyEgress-32          180726   6414 ns/op   1933 B/op   6 allocs/op
+BenchmarkFilterModifyEgress-32          222198   6151 ns/op   1933 B/op   6 allocs/op
+BenchmarkFilterModifyEgress-32          182960   6230 ns/op   1933 B/op   6 allocs/op
+BenchmarkFilterModifyEgress-32          224218   6184 ns/op   1933 B/op   6 allocs/op
+BenchmarkFilterModifyEgress-32          202687   5708 ns/op   1933 B/op   6 allocs/op
+BenchmarkFilterModifyEgress-32          210810   5667 ns/op   1933 B/op   6 allocs/op
+BenchmarkFilterDispatch_ZeroAlloc-32   1000000   1196 ns/op      0 B/op   0 allocs/op
+BenchmarkFilterDispatch_ZeroAlloc-32    910108   1239 ns/op      0 B/op   0 allocs/op
+BenchmarkFilterDispatch_ZeroAlloc-32    965283   1310 ns/op      0 B/op   0 allocs/op
+BenchmarkFilterDispatch_ZeroAlloc-32   1000000   1182 ns/op      0 B/op   0 allocs/op
+BenchmarkFilterDispatch_ZeroAlloc-32    957864   1246 ns/op      0 B/op   0 allocs/op
+BenchmarkFilterDispatch_ZeroAlloc-32   1000000   1167 ns/op      0 B/op   0 allocs/op
+```
+
+The two figures the ACs are written against reproduce exactly: 6 allocs/op and
+0 allocs/op. B/op reproduces to within 0.1% (1933 against 1931). The ns/op does
+NOT, and it is not meant to: 5700-6400 here against 1360-1472 on an M4 Max is
+the CPU, not the code. A recorded ns/op is a claim about the host that produced
+it, which is the lesson `spec-perf-next-1-ebgp-wire-lockfree` closed on.
+
+### The gain is now a ratchet, not a measurement (added at closure)
+
+Both benchmarks are registered in `AllocCeilings` (`internal/perf/allocgate.go`)
+at 6 and 0. `./le verify deps alloc` runs them at the 300x benchtime it pins and
+enforces the ceilings on every verify:
+
+```
+BenchmarkFilterModifyEgress-8        300   5765 ns/op   1950 B/op   6 allocs/op
+BenchmarkFilterDispatch_ZeroAlloc-8  300   1227 ns/op      0 B/op   0 allocs/op
+Enforcing per-benchmark allocs/op ceilings (perf.AllocCeilings)...
+verify deps: 1 action(s) passed.
+```
+
+Without those two entries AC-3 and AC-4 were measurements taken once. A later
+change could have walked the count back to 20 with nothing red. The ceiling for
+`BenchmarkFilterModifyEgress` carries no headroom because the count is
+deterministic: nothing on the path sizes an allocation from the delta, so a
+seventh allocation is a new one. The seventh IS the pool's own first Get, which
+the pinned 300x benchtime amortizes away; a shorter benchtime reads 7 and reds,
+which is the direction that fails closed.
+
 AC-3 asked for 12 or fewer, targeted 10, and gated on a 40% cut from the
 re-measured baseline, which is 12. The result is 6: a 70% cut, 44% fewer bytes,
 and about 19% less wall time.
@@ -47,8 +94,9 @@ and about 19% less wall time.
 R-3 said to record the ns/op honestly whichever way it went, and the honest
 account has two steps. The parse rewrite alone spent CPU to save allocations
 and landed at 1730 against a 1720 baseline median, inside the noise. Reading
-whitespace through the 256-entry ASCII table `strings.Fields` uses, rather than
-through `unicode.IsSpace` on a decoded rune, took it to 1390.
+whitespace through a 128-entry ASCII table (`filterSpaceASCII`, one entry per
+byte below `utf8.RuneSelf`), rather than through `unicode.IsSpace` on a decoded
+rune, took it to 1390.
 
 WHERE THE FIRST TWENTY WENT, read per line from a `-memprofile` run at
 `-memprofilerate 1`. Eight were the parse (`textbuf.Join` 4, `strings.Fields`
@@ -414,8 +462,9 @@ made the work due. AC-3 could not be met without it: the arena alone reaches 14.
   A rewinding arena of any size would corrupt the payload silently.
 - THE CHEAPEST WAY TO READ A BYTE IS A TABLE. Replacing `strings.Fields` with a
   rune-decoding scan removed six allocations and gave the CPU back. The
-  256-entry ASCII table `strings.Fields` itself uses recovered 340 ns of 1730,
-  which is where the win actually came from.
+  128-entry ASCII table `filterSpaceASCII` recovered 340 ns of 1730, which is
+  where the win actually came from. It is one entry per byte below
+  `utf8.RuneSelf` and holds the same six runes `strings.Fields` splits on.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -501,7 +550,22 @@ still has one lifetime. Removing it needs an append-style parser in
   about the code and would have sent the next reader to the wrong place.
 
 ### Deviations from Plan
-- [filled at completion]
+- The parse rewrite was not in the plan's Phase B. The spec's Key Design
+  Decisions row deferred `textbuf.Join` "unless benchmark shows them dominant
+  after Phase B", the profile showed exactly that, and the row's own condition
+  made the work due. AC-3 is unreachable without it: the arena alone reaches 14
+  against a gate of 12.
+- The arena is a sibling type (`valueScratch`) rather than a field on
+  `ModAccumulator`. The Integration Points row already allowed either;
+  `filterapi` is a near-leaf package and cannot name `attribute.ASPathSegment`.
+- **Added at closure, beyond the plan:** the two benchmarks are registered in
+  `AllocCeilings` (`internal/perf/allocgate.go`) with their fixture lines in
+  `allocgate_test.go`. No AC asked for it. Without it AC-3 and AC-4 were numbers
+  measured once, and the registry exists so a hot-path allocation count becomes
+  a gate. `./le verify deps alloc` now enforces 6 and 0.
+- **Added at closure:** two cases in `filter_scratch_test.go`. See the Review
+  Gate, finding 2.
+- `./le verify current mode full` was not run. See AC-6.
 
 ## Implementation Audit
 
@@ -528,62 +592,179 @@ still has one lifetime. Removing it needs an append-style parser in
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestFilterDeltaParseOnceEquivalence (existing, corpus untouched) | pass | filter_delta_test.go:1170 | The corpus was NOT edited in the change it gates, which is what makes it evidence |
+| TestFilterDeltaParseCallCount (existing) | pass | filter_delta_test.go:1285 | The counter moved into `parseFilterAttrsInto`, which both entry points go through |
+| TestParseFilterAttrsStruct (new) | pass | filter_chain_test.go:504 | Beside the parse it covers |
+| TestEncodeValuesIntoScratch (new) | pass | filter_delta_test.go:1516 | 3 subtests: every dispatched name over one scratch, the multi-prepend case driven through `buildModifiedPayload`, and the R-1 grow |
+| TestValueScratchCarvesWindowsThatDoNotOverlap (new) | pass | filter_scratch_test.go:31 | 5 subtests over the arena itself |
+| TestValueScratchGrowKeepsTheASNsAlreadyReserved (new at closure) | pass | filter_scratch_test.go:115 | The ASN arena's grow, which no case reached |
+| TestValueScratchReleaseBoundsWhatItRetains (new at closure) | pass | filter_scratch_test.go:147 | The two retention bounds, which no case reached |
+| TestExtractRemovePrivateASOps / TestExtractASPathPrependOps / TestTextDeltaToModOps / TestExtractLegacyNLRIOverride (existing) | pass | filter_delta_test.go | Unchanged behavior, new first argument |
+| TestMEDRemovalMechanismIsConfigurable (existing, RFC-tagged) | pass | forward_med_test.go:522 | One call-site argument, no assertion changed. Owner-approved with a RED walk in `test/rfc-changed.md` |
+| BenchmarkFilterModifyEgress / BenchmarkFilterDispatch_ZeroAlloc (existing) | pass | filter_delta_test.go:1304, filter_dispatch_alloc_test.go:16 | Re-measured on a second host at closure; now registered in `AllocCeilings` |
+| TestAllocGateCeiling / TestParseAllocsPerOp / TestAllocGateMissingFailsClosed (existing) | pass | internal/perf/allocgate_test.go | Read the registry, so the two new ceilings had to gain fixture lines. `go test ./internal/perf/` exit 0 |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| filter_chain.go | modified | `filterTokens`, `filterSpaceAt`, `parseFilterAttrsInto`, `parseFilterAttrRun`, `oneSpaceApart`, `joinFilterTokens` |
+| filter_delta.go | modified | Every encoder and extractor takes the arena first |
+| filter_scratch.go | created (not in the plan's Files to Create, which said none) | `valueScratch`, `carveArena`, the pool |
+| filter_ordered.go | modified | Both production modify blocks acquire and release. NOT `reactor_notify.go` / `reactor_api_forward.go`: the call sites had moved before this phase |
+| policy_dryrun.go | modified | The dry-run acquires a scratch of its own |
+| filter_delta_handlers.go | unchanged | The plan expected no signature change and there was none |
+| filterapi/filterapi.go | unchanged | The arena is a sibling type, not a field on `ModAccumulator` |
+| filter_chain_test.go, filter_delta_test.go, filter_scratch_test.go | modified / created | Tests |
+| forward_med_test.go | modified | One call-site argument on an RFC-tagged test, owner-approved |
+| docs/architecture/perf-round-3.md | modified | Section 4; the false Phase A paragraph removed |
+| test/rfc-changed.md | modified | The owner approval row |
+| internal/perf/allocgate.go, allocgate_test.go | modified at closure | Two ceilings and their fixture lines |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 6 requirements + 6 ACs + 11 test rows = 23
+- **Done:** 22
+- **Partial:** 1 (AC-6: the race gate and the package ran; `./le verify current mode full` did not)
+- **Skipped:** 0
+- **Changed:** 0
 
 ## Goal Validation (BLOCKING)
+
+Every row's evidence was produced or re-produced at closure, on a host other
+than the one the Benchmarks table names.
+
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Modified-UPDATE path allocation cut ~50% | benchmark | BenchmarkFilterModifyEgress before/after [filled at completion] |
-| No wire-byte change | unit test | TestEncodeValuesIntoScratch + equivalence corpus [filled at completion] |
+| "cut the modified-UPDATE path to roughly 10 allocs/op or fewer" | benchmark, re-measured | 20 -> 6 allocs/op, 3432 -> 1933 B/op. `go test -bench '^(BenchmarkFilterModifyEgress\|BenchmarkFilterDispatch_ZeroAlloc)$' -benchmem -count=6` through `./le job run` on linux/amd64 EPYC 7351 GOMAXPROCS=32, 2026-09-05: 6 allocs/op on all six samples. Output pasted under Benchmarks |
+| The gain SURVIVES the next change | ratchet | `AllocCeilings` (`internal/perf/allocgate.go`) carries `BenchmarkFilterModifyEgress: 6` and `BenchmarkFilterDispatch_ZeroAlloc: 0`. `./le verify deps alloc` exits 0 having run both and enforced both. This was added at closure: without it the two ACs were numbers measured once |
+| "without changing any produced wire bytes" | unit test over hex, unedited corpus | `TestEncodeValuesIntoScratch/every_encoder_over_one_scratch` asserts the exact hex of all 13 names `encodeAttrValue` dispatches, read AFTER the last carve. `TestFilterDeltaParseOnceEquivalence` compares op multisets over a corpus the change did not touch |
+| "without changing op sequences" | unit test | `TestEncodeValuesIntoScratch/multi_prepend_holds_two_carved_buffers` drives two live carved windows through `buildModifiedPayload` and asserts `02020000fde80000fde802020000fde90000fde902010000fdea`: both prepends and the original path, in plan order |
+| "without changing filter text contracts" | unit test + producer read | `TestParseFilterAttrsStruct` covers every directive name, both valueless tokens, the nlri block, the unknown-name record, and the separator cases. A run whose separators are not single spaces still goes through `joinFilterTokens`, so the value is byte-identical either way |
+| The append-only invariant holds | mutation-killed tests | M3 (make `carveArena` rewind: `off := 0`) reddens `TestEncodeValuesIntoScratch/every_encoder_over_one_scratch`, `/multi_prepend_holds_two_carved_buffers`, `TestValueScratchCarvesWindowsThatDoNotOverlap/writes_through_one_window_stay_in_it`, `/segment_and_asn_reservations_do_not_overlap_either` and `TestValueScratchGrowKeepsTheASNsAlreadyReserved`. Producer restored and re-run green |
+| A released scratch pins nothing | mutation-killed tests | M2 (drop the `valueScratchBytesMax` reset) reddens `TestValueScratchReleaseBoundsWhatItRetains/an_oversized_byte_arena_is_dropped`. M1 (drop `clear(s.segs)`) reddens `/a_released_segment_holds_no_asns`. Both cases were added at closure because nothing reached either bound |
+| The unmodified path is undisturbed | benchmark | `BenchmarkFilterDispatch_ZeroAlloc` reads 0 allocs/op on all six samples and under the alloc gate at 300x |
+| No safety regression | race gate, re-run at closure | `go test -race -count=1 ./internal/component/bgp/reactor/...` through `./le job run`, 2026-09-05: **zero `DATA RACE` reports** over the whole package in 124.6s, verified with `grep -c 'DATA RACE'` returning 0. Five tests fail and none is this spec's (AC-6). The read behind the result: `valueScratch` states "NOT safe for concurrent use. One block, one scratch, one goroutine", each of the three sites takes one from a `sync.Pool` and returns it with `defer`, and `sync.Pool` is what guarantees two blocks never hold the same arena. The two cases added at closure are single-goroutine and introduce no concurrency of their own |
 
 ## Review Gate
 
-### Run 1 (initial)
+Run inline at closure by the agent that owns it, over the complete diff:
+`git diff 7d4fedbc6~1..7d4fedbc6` (the implementation, committed by the phase
+that ended) plus the closure's own edits. Lens count: three, because the diff
+touches a hot wire-adjacent path, adds a ratchet, and edits a test that pins an
+RFC requirement.
+
+### Run 1 (2026-09-05)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | Two pages and this spec say the parse reads whitespace through "the 256-entry ASCII table `strings.Fields` uses". `filterSpaceASCII` is declared `[utf8.RuneSelf]bool`, which is 128 entries. `strings.Fields` has a 256-entry table of its own, so the sentence names the wrong artifact and the wrong number, and the count is the one thing a reader would check | `docs/architecture/perf-round-3.md` "the parse reads whitespace"; this file, Benchmarks and Design Insights | Fixed. All three now say 128 entries, name `filterSpaceASCII`, and say it holds the same six runes `strings.Fields` splits on |
+| 2 | ISSUE | Nothing reached two paths `filter_scratch.go` states as properties. `carveASNs` has its own capacity and its own grow, and only the BYTE arena's grow was driven (`TestEncodeValuesIntoScratch/a_carve_past_the_initial_size_keeps_earlier_values`). `releaseValueScratch` states two retention bounds and a `clear(s.segs)` whose comment explains a pointer-retention hazard, and no case read any of them. A property with a comment and no test is a claim | `internal/component/bgp/reactor/filter_scratch.go` `carveASNs`, `releaseValueScratch` | Fixed. `TestValueScratchGrowKeepsTheASNsAlreadyReserved` and `TestValueScratchReleaseBoundsWhatItRetains` added, each proven RED by the deletion it exists to catch (see Goal Validation, M1 and M2) |
+| 3 | ISSUE | AC-3 and AC-4 are allocation gates that nothing enforced. `AllocCeilings` (`internal/perf/allocgate.go`) is the registry built for exactly this and neither benchmark was in it, so a later change could walk the count from 6 back to 20 with no red anywhere | `internal/perf/allocgate.go` `AllocCeilings` | Fixed. Both registered, at 6 and 0, with the fixture lines `allocgate_test.go` requires (its own comment says the fixture gains a line whenever the map does). `./le verify deps alloc` exits 0 having run and enforced both |
+| 4 | NOTE | `TestValueScratchCarvesWindowsThatDoNotOverlap/a_carve_is_zeroed_so_a_reused_arena_leaks_no_bytes` releases a scratch and re-acquires one, assuming `sync.Pool` returns the same object. A GC between Put and Get makes it assert zeroes against a fresh arena, where the case passes without proving the clear | `filter_scratch_test.go` | Recorded, not fixed. It can never be falsely RED, only vacuously green, and the fix (reading the released pointer directly, as the two cases added at closure do) is a rewrite of a passing test for a hazard that has not fired |
+| 5 | NOTE | `encodeClusterListValue` over an empty value now returns `nil` where `make([]byte, 0)` returned a non-nil empty slice, because `carveBytes` answers nil for a non-positive n | `filter_delta.go` `encodeClusterListValue` | Recorded, verified harmless at every consumer. `EditSet.appendFragment` branches on `len(buf) == 0` and every guard in `filter_delta_handlers.go` reads `len(ops[i].Buf)`. Nothing on the path compares a Buf to nil, and `textDeltaToModOps` already emits `Op(code, AttrModSet, nil)` for a removal |
 
-### Fixes applied
-- [filled during review]
+The reviewer also confirmed, against source rather than against the spec:
 
-### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+| Question | Answer, and where it was read |
+|----------|-------------------------------|
+| Is the scratch released on every path, including early returns? | Yes. All three production sites are `acquireValueScratch()` followed immediately by `defer releaseValueScratch(values)` (`filter_ordered.go:215`, `:362`, `policy_dryrun.go:235`), and none is inside a loop: each function returns one `ingressStepResult` / `egressStepResult` / `[]string` per destination |
+| Can a carved window outlive its release? | No. Every extractor call site is inside one of those three blocks (`grep` for the four extractors returns 11 non-test hits, all there). The other `buildModifiedPayload` callers (`forward_rs.go:565`, `reactor_api_forward.go:941`, `reactor_api_batch.go:1306`) build their ops elsewhere and carve nothing. `computeWireChanges` returns `[]string` built from `op.Code` and `op.Action`, never `op.Buf` |
+| Does `carveArena` ever hand out an overlapping window? | No. `off := len(arena)`, `arena = arena[:end]`, return `arena[off:end:end]`. The three-index slice caps the window at n, so a caller's append leaves the arena instead of reaching the next carve |
+| Does the new tokenizer split as `strings.Fields` did? | Yes. `filterSpaceASCII` holds `\t \n \v \f \r` and space, which is exactly the set `strings.Fields`'s `asciiSpace` marks. A byte at or above `utf8.RuneSelf` takes the `DecodeRuneInString` plus `unicode.IsSpace` branch, so U+0085 and U+00A0 split as before |
+| Can plugin-supplied text loop the tokenizer or index out of range? | No. `filterSpaceAt` returns a size of at least 1 on every input, invalid UTF-8 included (`DecodeRuneInString` answers `RuneError, 1`), so `next` strictly advances and is bounded by `len(text)`. `oneSpaceApart` checks `start != end+1` BEFORE it indexes `text[end]`, and that order is what keeps the read in range |
+| Does the diff add a `panic()` a peer can reach? | No `panic()` is added. Every encoder returns an error for malformed text and the caller logs and continues |
+| Are the RFC references intact? | Yes. RFC 6996 Section 4 on `ExtractRemovePrivateASOps`, RFC 4271 Section 5.1.4 at the med-remove site, RFC 7311 on `encodeAIGPValue`. The one RFC-tagged test edited is one call-site argument with no assertion changed, and `test/rfc-changed.md` carries the owner's approval and the RED walk |
+
+### Fixes applied (run 1)
+- `docs/architecture/perf-round-3.md` -- the whitespace-table sentence names `filterSpaceASCII` and its 128 entries
+- `plan/spec-perf-next-2-filter-delta-alloc.md` -- the same correction in Benchmarks and Design Insights
+- `internal/component/bgp/reactor/filter_scratch_test.go` -- `TestValueScratchGrowKeepsTheASNsAlreadyReserved`, `TestValueScratchReleaseBoundsWhatItRetains`
+- `internal/perf/allocgate.go` -- `BenchmarkFilterModifyEgress: 6`, `BenchmarkFilterDispatch_ZeroAlloc: 0`, each with the reasoning for its value
+- `internal/perf/allocgate_test.go` -- the two fixture lines the registry's own comment requires
+
+### Run 2 (2026-09-05, over the fixed diff)
+
+Re-read every file the fixes touched. The two added cases are proven RED by M1
+and M2 and green on the restored producer. `./le verify deps alloc` runs both
+newly registered benchmarks and exits 0. `go test ./internal/perf/` exits 0.
+`gofmt -l` reports nothing on either edited Go file. `./le verify lint run`
+names 27 files and none of them is in this spec's population. `go test -race`
+over the whole reactor package reports no data race.
+
+**0 BLOCKER, 0 ISSUE.** NOTEs 4 and 5 stand as recorded.
+
+### Machine artifact
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/perf-next-2-filter-delta-alloc-zeclose-perf2.md` |
+| `review check` | `review_gate: OK (8 code files, clean, hashes match tmp/review/perf-next-2-filter-delta-alloc-zeclose-perf2.md)`, exit 0. `./le commit create` re-checks it on the closure commit |
+| Rounds | 2 |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] Run 2 shows 0 BLOCKER, 0 ISSUE
+- [ ] NOTEs 4 and 5 recorded above
+
+## Work Not Done
+
+| Item | Why not done here | Who owns it now |
+|------|-------------------|-----------------|
+| The last four allocations on the path, inside `attribute.ParseASPath` (`internal/core/bgp/attribute`), reached from the remove-private rewrite | They are two thirds of what is left, and they live outside every file this spec names. The `-memprofile` read that found them is recorded under Benchmarks | Nobody yet. Raised to the owner in this closure's report: it is a separate spec in `internal/core/bgp/attribute`, and this closure is not authorized to open one |
+| The `attribute.NewBuilder()` allocation inside `encodeExtCommunityValue`, the one encoder the arena cannot take | The builder is the only public parser for extended communities and builds a whole attribute before the value can be taken out of it. Removing it needs an append-style parser in the same package as the row above | Same. `docs/architecture/perf-round-3.md` Section 4 states it as a known limit |
+| `./le verify current mode full` | See AC-6: five tests in this package are red on other sessions' surfaces, and a full run in this shared checkout judges their uncommitted work, not this change | Nobody: it is a state of the checkout, not an item. The evidence this change owes is named in Goal Validation and each piece was produced |
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/component/bgp/reactor/filter_scratch.go | yes | `git ls-files` tracks it; landed in `7d4fedbc6` (184 lines added). `gopls`-visible symbols `valueScratch`, `carveArena`, `acquireValueScratch`, `releaseValueScratch` all read at closure |
+| internal/component/bgp/reactor/filter_scratch_test.go | yes | `git ls-files` tracks it; +71 lines at closure. `gofmt -l` reports nothing |
+| internal/component/bgp/reactor/filter_delta.go | yes | modified in `7d4fedbc6` (+177/-... ). Every encoder's first parameter is `scratch *valueScratch`, read at closure |
+| internal/component/bgp/reactor/filter_chain.go | yes | modified in `7d4fedbc6`. `filterTokens`, `filterSpaceAt`, `parseFilterAttrsInto`, `parseFilterAttrRun`, `oneSpaceApart`, `joinFilterTokens` all declared |
+| internal/component/bgp/reactor/filter_ordered.go | yes | both modify blocks acquire and release, at `:215` and `:362` |
+| internal/component/bgp/reactor/policy_dryrun.go | yes | `computeWireChanges` acquires at `:235` |
+| internal/perf/allocgate.go | yes | two entries added at closure; `go test ./internal/perf/` exit 0 |
+| docs/architecture/perf-round-3.md | yes | Section 4 "The Modify Block's Value Arena", with `<!-- source: -->` anchors on `valueScratch, carveBytes` and `parseFilterAttrsInto, filterTokens` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Identical op multisets, corpus untouched | `TestFilterDeltaParseOnceEquivalence` PASS; `git show 7d4fedbc6 -- filter_delta_test.go` shows no corpus edit. `TestEncodeValuesIntoScratch/every_encoder_over_one_scratch` asserts the exact hex of all 13 dispatched names |
+| AC-2 | Phase A's map allocations gone | Superseded and recorded so: the re-measured baseline is 20, not the 22 the Phase A page claimed, and the arena took it to 14. Both figures under Benchmarks |
+| AC-3 | 12 or fewer, 40% floor | **6**, re-measured at closure on a second host: six samples of `BenchmarkFilterModifyEgress` all read 6 allocs/op, 1933 B/op. 70% below 20. Now a ratchet at `AllocCeilings["BenchmarkFilterModifyEgress"] = 6` |
+| AC-4 | Unmodified path stays 0 | **0**, six samples. Now a ratchet at `AllocCeilings["BenchmarkFilterDispatch_ZeroAlloc"] = 0`. `./le verify deps alloc` exit 0 |
+| AC-5 | Exactly 2 parses per modified UPDATE | `TestFilterDeltaParseCallCount` PASS. `parseFilterAttrsCalls.Add(1)` sits in `parseFilterAttrsInto`, and `parseFilterAttrs` reaches it too, so neither entry point can skip the counter |
+| AC-6 | Full suite | **Partial, and the gap is not this spec's.** `go test -race -count=1 ./internal/component/bgp/reactor/...` re-run at closure: zero `DATA RACE` reports over the whole package, 124.6s. `go test -count=1 ./internal/component/bgp/reactor/...` at closure: 5 red, in `peer_send_test.go`, `zzprobe_prefixsid_announce_test.go`, `config_direction_test.go`, `send_permission_rails_test.go` and `peer_initial_sync_test.go`. `grep -c` for every filter-delta symbol returns 0 in all five, and their subjects are link-local next hop, prefix SID, send permission and initial sync: surfaces other sessions hold uncommitted in this checkout. `./le verify current mode full` was not run |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Received UPDATE, import filter modifies attributes | existing policy-filter `.ci` (`test/plugin/community-strip`, `community-cumulative`, `aspath-filter-*`, `med-removal-*`), unchanged | `filter_ordered.go:215` is the one ingress modify block and it acquires the arena; the parse, all four extractors and `buildModifiedPayload` are inside it |
+| Forwarded UPDATE, export filter modifies attributes | same suite | `filter_ordered.go:362`, one arena per destination. `BenchmarkFilterModifyEgress` drives this chain and is what the alloc gate now runs |
+| `show policy dry-run` explaining wire changes | no `.ci`; unit-level | `computeWireChanges` (`policy_dryrun.go:235`) acquires its own arena and returns `[]string`, never a carved window |
+| Multi-prepend, two live carved windows through the rebuild | no `.ci`; unit-level | `TestEncodeValuesIntoScratch/multi_prepend_holds_two_carved_buffers` asserts the built payload's hex, mutation-killed by M3 |
+
+No new `.ci` is owed. The user-visible contract (filter text in, modified UPDATE
+out) is byte-identical, which `TestFilterDeltaParseOnceEquivalence` over an
+unedited corpus and the hex table in `TestEncodeValuesIntoScratch` are what
+prove. A `.ci` cannot discriminate a change that produces the same bytes; the
+mutation kills can and do.
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed, and re-derived because the shape had changed | Every extractor call site is inside one of the three acquire/release blocks, each of which releases with `defer` and none of which is a loop. `computeWireChanges` returns no carved bytes. The three other `buildModifiedPayload` callers carve nothing |
+| A-2 | confirmed, at 23 rather than 16 | `filterAttrNames` is the closed list, `filterAttrNameToID` derives from it at init, `isPolicyAttrName` names the same set. Phase B added no name |
+| A-3 | confirmed | `computeWireChanges` (`policy_dryrun.go`) takes the new signatures and the package's dry-run tests pass |
+| A-4 | BROKEN, and recorded rather than smoothed over | 20 allocs/op, not the 24 the spec assumed nor the 22 the Phase A page recorded. Re-measured before any code was written, which is what A-4 demanded, and the AC-3 gate was recomputed from 20 |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| `docs/architecture/perf-round-3.md` Section 4 | Its two `<!-- source: -->` anchors name `valueScratch`, `carveBytes`, `parseFilterAttrsInto` and `filterTokens`; all four are declared where the anchors say. `./le doc check verify`'s source-anchor stage reports 4 undeclared anchors tree-wide and none is in this file | yes |
+| The whitespace-table sentence | Was wrong: it said 256 entries and named `strings.Fields`'s table. `filterSpaceASCII` is `[utf8.RuneSelf]bool`. Corrected at closure in the page and in this spec (Review Gate, finding 1) | yes, after repair |
+| The Phase A paragraph claiming the remaining 22 allocations were the 14 encoder `make()` sites | Removed by `7d4fedbc6`. The profile says four of twenty, so the paragraph would have sent the next reader to the wrong place | yes |
+| Doc index row 16a ("owed at closure") | `ai/CODE-TO-DOCS.md:995` maps `filter_scratch.go` to `perf-round-3.md` and `ai/DOCS-TO-CODE.md:3624` carries the reverse row, so the walk picked the file up once git tracked it. `./le repository check` exit 0 | yes |
+| Categories 1-11 (user-facing / config / CLI / API / wire / plugin SDK) | No user-visible surface changed. The filter text contract is byte-identical and the wire bytes are the same | no update needed |
+| `./le doc check verify` | exit 1. Two `ze-bgp-conf:bgp/defaults/attribute` summary-cap findings and 4 undeclared source anchors, in `docs/architecture/api/commands.md`, `docs/features.md` and `internal/component/l2tp/reactor.go`. None is in this spec's population | foreign red, named |
 
 ## Checklist
 
