@@ -12,8 +12,13 @@
 // producers, and a second definition lets the two drift.
 package routetype
 
-// Type identifies the forwarding action for a FIB entry. Values match the
-// Linux RTN_ constants so the kernel backend maps them without a table.
+// Type identifies the forwarding action for a FIB entry. The values are the
+// Linux RTN_ numbers. That is where they came from and not a property any
+// backend relies on: the kernel backend maps them through routeTypeToLinux
+// (internal/plugins/fib/kernel) and the VPP backend through routeTypeToVPP
+// (internal/plugins/fib/vpp), which answers with a FIB_API_PATH_TYPE that
+// shares nothing with RTN_. A third backend adds a third mapping, so treat a
+// value here as Ze's own rather than as a kernel constant.
 type Type uint8
 
 // The forwarding actions. Zero is "unset". A producer that says nothing leaves
