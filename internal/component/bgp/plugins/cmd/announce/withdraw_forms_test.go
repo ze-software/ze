@@ -10,12 +10,13 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/cmd/announce/yang"
+	rawyang "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw/yang"
 	"github.com/ze-software/ze/internal/component/command"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-// withdrawTree builds a command tree over the announce module alone, so the
+// withdrawTree builds a command tree over the announce and raw modules, so the
 // assertions below read the module a reviewer can open rather than whatever the
 // rest of the binary happened to register.
 func withdrawTree(t *testing.T) *command.Node {
@@ -26,6 +27,12 @@ func withdrawTree(t *testing.T) *command.Node {
 	}
 	if err := loader.AddModuleFromText("ze-cli-announce-cmd", yang.ZeCliAnnounceCmdYANG); err != nil {
 		t.Fatalf("load the announce module: %v", err)
+	}
+	// ze-raw-cmd owns the send and bgp containers and declares the selector
+	// every command below bgp inherits. Without it this tree renders each form
+	// with no selector, which is a grammar the daemon does not run.
+	if err := loader.AddModuleFromText("ze-raw-cmd", rawyang.ZeRawCmdYANG); err != nil {
+		t.Fatalf("load the raw module: %v", err)
 	}
 	if err := loader.Resolve(); err != nil {
 		t.Fatalf("resolve the announce module: %v", err)
@@ -54,9 +61,15 @@ func TestWithdrawFormsAreSeparateCommands(t *testing.T) {
 	}
 
 	root := withdrawTree(t)
-	withdraw := root.Children["withdraw"]
+	// The forms answer at one path now, send bgp <selector> withdraw. The
+	// bare withdraw container and the peer one are both gone.
+	sendBGP := command.FindNode(root, []string{"send", "bgp"})
+	if sendBGP == nil {
+		t.Fatal("the module declares no send bgp container")
+	}
+	withdraw := sendBGP.Children["withdraw"]
 	if withdraw == nil {
-		t.Fatal("the module declares no withdraw container")
+		t.Fatal("the module declares no withdraw container under send bgp")
 	}
 	if withdraw.WireMethod != "" {
 		t.Errorf("withdraw still carries the wire method %q; it is a grouping node now", withdraw.WireMethod)
@@ -73,7 +86,7 @@ func TestWithdrawFormsAreSeparateCommands(t *testing.T) {
 }
 
 // TestWithdrawFormsRenderTheirOwnUsage proves each form states its grammar in
-// the model, at both paths it is reachable at.
+// the model, at the one path it is reachable at.
 //
 // The tag value is OPTIONAL, which the authored prose got wrong: handleWithdrawTag
 // defaults it to "*". `withdraw all` takes no tail at all. It carried a
@@ -85,12 +98,9 @@ func TestWithdrawFormsRenderTheirOwnUsage(t *testing.T) {
 		path []string
 		want string
 	}{
-		{path: []string{"withdraw", "tag"}, want: "withdraw tag <key> [value <value>]"},
-		{path: []string{"withdraw", "id"}, want: "withdraw id <id>"},
-		{path: []string{"withdraw", "all"}, want: "withdraw all"},
-		{path: []string{"peer", "withdraw", "tag"}, want: "peer <selector> withdraw tag <key> [value <value>]"},
-		{path: []string{"peer", "withdraw", "id"}, want: "peer <selector> withdraw id <id>"},
-		{path: []string{"peer", "withdraw", "all"}, want: "peer <selector> withdraw all"},
+		{path: []string{"send", "bgp", "withdraw", "tag"}, want: "send bgp <selector> withdraw tag <key> [value <value>]"},
+		{path: []string{"send", "bgp", "withdraw", "id"}, want: "send bgp <selector> withdraw id <id>"},
+		{path: []string{"send", "bgp", "withdraw", "all"}, want: "send bgp <selector> withdraw all"},
 	} {
 		node := command.FindNode(root, tc.path)
 		if node == nil {

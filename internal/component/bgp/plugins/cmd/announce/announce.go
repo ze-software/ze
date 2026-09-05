@@ -91,12 +91,12 @@ func getOrInitRegistry(ctx *pluginserver.CommandContext) *Registry {
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce-unicast", Handler: handleAnnounceUnicastCmd},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce-blackhole", Handler: handleAnnounceBlackholeCmd},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce-flowspec", Handler: handleAnnounceFlowspecCmd},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-tag", Handler: handleWithdrawTag},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-id", Handler: handleWithdrawID},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-all", Handler: handleWithdrawAll},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce-unicast", Handler: handleAnnounceUnicastCmd, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce-blackhole", Handler: handleAnnounceBlackholeCmd, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce-flowspec", Handler: handleAnnounceFlowspecCmd, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-tag", Handler: handleWithdrawTag, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-id", Handler: handleWithdrawID, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-all", Handler: handleWithdrawAll, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:show-announcements", Handler: handleShowAnnouncements},
 	)
 }

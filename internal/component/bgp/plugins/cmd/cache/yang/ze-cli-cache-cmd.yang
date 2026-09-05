@@ -3,6 +3,7 @@ module ze-cli-cache-cmd {
     prefix clicachecmd;
     import ze-extensions { prefix ze; }
     description "BGP message cache for deferred forwarding and replay";
+    revision 2026-09-05 { description "cache forward answers at send bgp <selector> cached <id>. It puts a whole UPDATE on each matched peer's wire, so it belongs under the verb that sends rather than under request. Its own selector leaf goes: the bgp container declares the one every command below it reads."; }
     revision 2026-03-16 { description "Initial revision"; }
     revision 2026-06-04 { description "Verb-first grammar: show cache (read), request cache (actions)."; }
 
@@ -69,15 +70,27 @@ reported per ID.";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
             }
 
-            container forward {
+        }
+    }
+
+    container send {
+        config false;
+
+        container bgp {
+            config false;
+
+            // No description on either container, and no selector leaf. The send
+            // and bgp nodes are shared with ze-raw-cmd, which owns the text they
+            // state and declares the selector every command below bgp inherits.
+
+            container cached {
                 config false;
                 ze:command "ze-bgp:cache-forward";
-                description "Forward a cached UPDATE to peers matching a selector.";
-                ze:help "The selector is a peer address, a peer name, or *, and the cached UPDATE goes to
-every peer it matches. The ID leaf accepts a comma-separated list, and the same
-selector is applied to each ID in that list.";
+                description "Send a cached UPDATE to the peers the selector matches.";
+                ze:help "The ID leaf accepts a comma-separated list, and the selector applies to each
+ID in that list. The command sends a message the cache already holds, so it names what
+goes on the wire and not the act of sending it.";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
-                leaf selector { type string; mandatory true; description "Peer selector (IP, name, or *)"; }
             }
         }
     }

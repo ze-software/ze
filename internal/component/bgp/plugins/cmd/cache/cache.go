@@ -32,7 +32,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:cache-retain", Handler: handleCacheRetainRPC},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:cache-release", Handler: handleCacheReleaseRPC},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:cache-expire", Handler: handleCacheExpireRPC},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:cache-forward", Handler: handleCacheForwardRPC},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:cache-forward", Handler: handleCacheForwardRPC, RequiresSelector: true},
 	)
 }
 

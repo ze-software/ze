@@ -45,10 +45,17 @@ func TestUnifiedTreeCommandNodes(t *testing.T) {
 	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
-	// "peer" from command tree should exist
-	peer, ok := root.Children["peer"]
-	require.True(t, ok, "peer should be in unified tree from commands")
-	assert.Contains(t, peer.Source, SourceCommand)
+	// "send" from the command tree should exist, with a form under it. The
+	// root "peer" this asserted before is gone: every command that used to
+	// answer under it now answers at send bgp <selector>, and the session
+	// actions the assertion below reads answer under request.
+	send, ok := root.Children["send"]
+	require.True(t, ok, "send should be in unified tree from commands")
+	assert.Contains(t, send.Source, SourceCommand)
+	sendBGP, ok := send.Children["bgp"]
+	require.True(t, ok, "send > bgp should exist")
+	_, ok = sendBGP.Children["unicast"]
+	require.True(t, ok, "send > bgp > unicast should exist")
 
 	request, ok := root.Children["request"]
 	require.True(t, ok, "request should be in unified tree from commands")

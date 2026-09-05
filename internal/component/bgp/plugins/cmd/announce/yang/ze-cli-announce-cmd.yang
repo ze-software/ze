@@ -3,6 +3,7 @@ module ze-cli-announce-cmd {
     prefix cliannouncecmd;
     import ze-extensions { prefix ze; }
     description "On-demand route origination and lifecycle management";
+    revision 2026-09-05 { description "Every announce and withdraw form answers at one path, send bgp <selector>, and the two paths each had before are gone. The bare form is gone with them, so a form with no selector is refused and send bgp * is how an operator reaches every peer. The announce keyword is gone too: send is the verb, and to send a route IS to announce it, so the token after the selector names what goes on the wire (owner decision, 2026-09-05). withdraw stays, because a withdraw is the opposite act rather than the same act named twice, and it is the word RFC 4271 and ExaBGP both use. The root peer container is deleted: both its children moved and nothing else declared it."; }
     revision 2026-09-05 { description "This module states the text of the top-level peer container. ze-raw-cmd stated it while raw and update answered under that keyword, and both forms have moved to send bgp. No announce or withdraw form changes."; }
     revision 2026-09-01 { description "The two-path declaration is restored, and the flowspec traffic action is a one-of. A replay of an older upstream snapshot dropped the announce-forms and withdraw-forms groupings and the peer container, while ze-flowspec-cmd kept augmenting /cliannouncecmd:peer/announce/flowspec. That augment then resolved against nothing, so every config load failed and the daemon started for nobody. The one-of the same replay introduced is kept: community, rate-limit and discard are three spellings of the one extended community RFC 8955 Section 7 defines, an operator supplies exactly one, and the generated line bracketed all three as if the command ran without any. They sit in an action container carrying ze:modifier one-of, which the renderer states as a required alternation. The container's name is never typed."; }
     revision 2026-08-31 { description "Every announce and withdraw form is reachable at two paths. A bare form reaches every peer. peer <selector> announce and peer <selector> withdraw reach the peers the selector matches. That is the ExaBGP order an operator already types. Each set of forms is one grouping instantiated twice, so the second path restates no grammar. The selector is declared on the peer container the operator types it after. withdraw all loses its own selector leaf: the peer prefix states that scope for every form rather than one form stating it in its tail."; }
@@ -12,7 +13,7 @@ module ze-cli-announce-cmd {
     revision 2026-06-27 { description "Initial revision"; }
 
     grouping announce-forms {
-        description "The three announce forms, declared once and instantiated twice. A bare announce reaches every peer. peer <selector> announce reaches the peers the selector matches. Restating the grammar under the second path would be a second declaration of one fact.";
+        description "The three announce forms. Each answers at one path, send bgp <selector>, with no announce keyword in front of it. The grouping stays because ze-flowspec-cmd augments the flowspec form and a grouping is what that augment resolves against.";
 
         container unicast {
             config false;
@@ -162,7 +163,7 @@ with the registry entry.";
     }
 
     grouping withdraw-forms {
-        description "The three withdraw forms, declared once and instantiated twice, the same way the announce forms are. A bare withdraw reaches every announcement. peer <selector> withdraw reaches the announcements made to the peers that selector names.";
+        description "The three withdraw forms. Each answers at one path, send bgp <selector> withdraw.";
 
         container tag {
             config false;
@@ -193,52 +194,32 @@ announcements made to those peers.";
         }
     }
 
-    container announce {
-        config false;
-        description "Announce a route on demand to selected peers.";
-        ze:help "Each form is a command of its own. The arguments after the form
-word differ between them, and one node cannot state three grammars.";
-        uses announce-forms;
-    }
-
-    container withdraw {
-        config false;
-        description "Withdraw on-demand announcements.";
-        ze:help "Only a tagged announcement can be withdrawn by these forms, because an
-announcement made without a tag leaves no registry entry. The three forms are tag, id and
-all.";
-        uses withdraw-forms;
-    }
-
-    container peer {
+    container send {
         config false;
 
-        // This module is the last one under the top-level peer container, so it
-        // carries the text that node states. ze-raw-cmd owned it while raw and
-        // update answered here too, and both have moved to send bgp.
-        description "Act on selected BGP peer sessions.";
-        ze:help "The selector picks the sessions. A selector that matches no session acts on
-                 nothing, and it does not act on every peer.";
-
-        // The peer every command below reads. It is declared here, on the
-        // keyword the operator types it after, and each command inherits it.
-        leaf selector { type string; mandatory true; description "Peer selector: an address, a peer name, an AS pattern such as as65001, a glob, or * for every peer"; }
-
-        container announce {
+        container bgp {
             config false;
-            description "Announce a route on demand to selected peers.";
-            ze:help "Each form is a command of its own. The arguments after the form
-word differ between them, and one node cannot state three grammars.";
+
+            // No description on either container, and no selector leaf. The send
+            // and bgp nodes are shared with ze-raw-cmd, which owns the text they
+            // state and declares the selector every command below bgp inherits.
+            // mergeYANGEntry warns when two modules describe one node differently.
+
+            // The three announce forms sit directly under bgp. There is no
+            // announce keyword, because send is already the verb and to send a
+            // route IS to announce it (owner decision, 2026-09-05). The token
+            // after the selector names WHAT goes on the wire.
             uses announce-forms;
-        }
 
-        container withdraw {
-            config false;
-            description "Withdraw on-demand announcements.";
-            ze:help "Only a tagged announcement can be withdrawn by these forms, because an
+            container withdraw {
+                config false;
+                description "Withdraw on-demand announcements.";
+                ze:help "Only a tagged announcement can be withdrawn by these forms, because an
 announcement made without a tag leaves no registry entry. The three forms are tag, id and
-all.";
-            uses withdraw-forms;
+all. The word stays where announce went, because a withdraw is the opposite act rather
+than the same act named twice, and it is the word RFC 4271 and ExaBGP both use.";
+                uses withdraw-forms;
+            }
         }
     }
 

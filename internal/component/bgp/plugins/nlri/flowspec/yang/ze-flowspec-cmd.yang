@@ -22,19 +22,19 @@ module ze-flowspec-cmd {
     // share a type code and carry different encodings, so destination-ipv4 and
     // destination-ipv6 are two names rather than one name and a qualifier. These
     // are the keywords ExaBGP emits. The bare words were its input aliases, and
+    revision 2026-09-05 { description "The augment names one path, send bgp <selector> flowspec. It named two while announce was reachable bare and under peer, and both are gone."; }
     // the ExaBGP bridge converts them now.
     revision 2026-08-31 { description "The bare destination and source keywords are removed."; }
-    // The two paths are bare, and under peer <selector>. Each augment
-    // instantiates the grouping. An augment names one target, and a second
-    // target repeating the vocabulary would be a second declaration of it.
+    // The form answered at two paths when this grouping was written. It now
+    // answers at one, send bgp <selector> flowspec, and the grouping stays
+    // because an augment resolves against a grouping rather than a container.
     revision 2026-08-31 { description "announce flowspec is reachable at two paths, so the components became a grouping."; }
     // The model rather than a description states the grammar.
     revision 2026-08-30 { description "Initial revision: state the match components announce flowspec takes."; }
 
     grouping flowspec-components {
-        // announce flowspec is reachable at two paths, bare and under
-        // peer <selector>. Each augment below instantiates this one grouping
-        // rather than restating the vocabulary.
+        // The augment below instantiates this grouping rather than restating
+        // the vocabulary at the command's own path.
         description "The match components, declared once.";
 
         container destination-ipv4 {
@@ -213,11 +213,11 @@ the value as ASN:value or as address:value.";
         }
     }
 
-    augment "/cliannouncecmd:announce/cliannouncecmd:flowspec" {
-        uses flowspec-components;
-    }
-
-    augment "/cliannouncecmd:peer/cliannouncecmd:announce/cliannouncecmd:flowspec" {
+    // One augment, because the form answers at one path. It carried two while
+    // announce was reachable bare and under peer, and both of those are gone.
+    // A path this augment cannot resolve makes every config load fail, so the
+    // path here and the container in ze-cli-announce-cmd move together.
+    augment "/cliannouncecmd:send/cliannouncecmd:bgp/cliannouncecmd:flowspec" {
         uses flowspec-components;
     }
 }
