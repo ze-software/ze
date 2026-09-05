@@ -198,7 +198,7 @@ working time. Recording it is named in Work Not Done.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `verify-shares-one-run` | `test/runner/verify-shares-one-run.ci` | Two verifies started together produce one run and two identical verdicts | |
+| `verify-shares-one-run` | `test/runner/verify-shares-one-run.ci` | Two verifies started together produce one run and two identical verdicts | ABSENT. Homed in `plan/spec-two-verifies-share-one-run-end-to-end.md` (Work Not Done); `TestTwoVerifiesShareOneRun` proves the same scenario in two real processes |
 | `verify-reds-in-flight` | `test/runner/verify-reds-in-flight.ci` | An agent asks whether a running verify has reddened its own file and gets an answer before the run ends | PASS |
 
 ## Files to Modify
@@ -344,3 +344,238 @@ this spec's own criteria.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] **Commit A:** code + tests + docs + spec + journal row
 - [ ] **Commit B:** `git rm plan/spec-verification-answers-one-agent.md` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Phase 1 (`a5bac9f20`).** `runCurrent` (`internal/le/verify/current.go`) and the
+  `verify worktree` lifecycle (`internal/le/verify/lifecycle.go`) claim the
+  `verify` label through `job.Admit` before any work. `slotFor` opens the
+  ticket's log and answers the `verifyengine.Slot` the engine writes progress to.
+  `nameJobParent` (`internal/le/verify/engine/run.go`) sets and restores
+  `job.ParentKey` around the stage loop, so the in-process `verify lint/run`
+  stage admits `KindInside`. `tell` copies each finished stage to the slot log
+  and `beat` writes one line a minute inside a stage, which is the growth the
+  registry's stall breaker reads as liveness.
+- **Phase 2 (`0af9c6602`).** `InputHash(root, label)` (`internal/le/job/treehash.go`)
+  fingerprints the inputs one label READS, and `(*Admission).shares`, `take` and
+  `Admit` compare it instead of `TreeHash`. `lintIgnores` declares the seven
+  trees a lint does not read, beside `job.LintLabel`. A label with no declaration
+  falls through to `TreeHash`, so nothing changed for any label but `lint`.
+  `SnapshotTree`, `DirtyManifest` and the freshness certificate are untouched.
+- **Phase 3 (`df930475b`).** `./le verify reds file <path>`
+  (`internal/le/verify/reds.go`) reads whatever stage logs a run has written and
+  answers `named`, `undetermined`, `not-named` or `no-run`, carrying `stages`,
+  `reported` and `pending` in every answer. `declaredGroups` and `artifactGroup`
+  became `DeclaredGroups` and `Group`; the attribution predicate moved to
+  `failuregroup` as `CarriesPaths`, `CleanPath` and `Covers`, and
+  `structuralGateReds` reads it there.
+
+### Bugs Found/Fixed
+- **The `internal/le/verify/engine` test build was broken at HEAD.** Phase 3
+  renamed `declaredGroups` to `DeclaredGroups` and left four call sites in
+  `internal/le/verify/engine/artifacts_test.go` on the old name, so the package
+  failed typecheck. `./le verify worktree`, run by this closure, reported
+  `undefined: declaredGroups (typecheck)` against that file at its lint stage.
+  The four call sites are renamed in this commit; `go vet` and the package's own
+  tests are green over the repair.
+- **A stale claim on `(*Admission).Admit`.** Its doc said a second `Admit` in the
+  same process never sees the first as its parent, because only a child receives
+  the environment. Phase 1's `nameJobParent` sets `job.ParentKey` in-process for
+  exactly that purpose, which is AC-2. The paragraph now names both writers
+  (`ai/rules/stale-comments.md`).
+
+### Documentation Updates
+- `docs/architecture/testing/verify-freshness-scope.md` - two statements the code
+  contradicted are repaired (heavy verification now admits ITSELF rather than
+  entering through `job run`; `scope-packages.txt` is written and read by nobody),
+  and a new "Asking before the run ends" section covers the query. Anchors added
+  for `Slot`, `nameJobParent`, `runCurrent`, `jobLabel`, `slotFor`, `readReds`,
+  `verdictOf`.
+- `docs/contributing/running-commands.md` - a section for `verify reds` with the
+  four verdicts, their exit codes, and the sentence that it is a query and never
+  a certificate.
+- `docs/contributing/testing.md` - what a lint's inputs are, that the declaration
+  EXCLUDES, and why that direction is the safety property. Anchor added for
+  `InputHash`, `lintIgnores`.
+- `docs/functional-tests.md` - the runner suite row names the in-flight
+  failure-query fixture.
+- `./le doc check verify` is RED for reasons outside this spec: the published
+  `gh-pages` command-equivalent surface and `ai/RFC-REQUIREMENTS.md`, both owned
+  by other sessions. No failing line names a file of this spec.
+
+### Deviations from Plan
+- **A-2 was broken in both directions and the design was inverted.** The spec
+  asked for an INCLUSION list of lint's inputs. Phase 2 declares an EXCLUSION
+  list, because a missed inclusion shares a stale verdict while a missed
+  exclusion only duplicates a run. `feature-gates.txt` is not read by lint
+  (verified: no reference to it anywhere under `internal/le/verify/lint/`), and
+  `go.mod`, `go.sum` and `vendor/modules.txt` are.
+- **`test/runner/verify-shares-one-run.ci` was not written.** It is homed in
+  `plan/spec-two-verifies-share-one-run-end-to-end.md`; see Work Not Done.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 stated lint's inputs as a list of four, `feature-gates.txt` among them | `feature-gates.txt` is not read by lint, and `go.mod`, `go.sum`, `vendor/modules.txt` and embedded assets are. An inclusion list fails toward a stale shared verdict | Phase 2 read `parseConfigTags` and `gotoolchain.New` before writing the list | The fingerprint EXCLUDES, and `TestTheTreesTheLintLabelIgnoresHoldNoGoFile` walks the real checkout to keep the declaration true |
+| approach | Phase 3 renamed an unexported symbol and did not follow it into its own package's test file | Four call sites in `artifacts_test.go` kept the old name, so the package failed typecheck at HEAD | This closure's `./le verify worktree`, at the lint stage | Renamed in commit A. The lesson is the journal row: the set a rename owes is what the rename can REACH, not the files the diff already touched |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `le verify` enters admission so duplicate whole-tree runs collapse | Done | `runCurrent`, `admitWorktree` (`internal/le/verify/current.go`, `lifecycle.go`) | Observed live during this closure: one `verify` entry held in `tmp/.ze-jobs/` while the run worked |
+| Sharing is decided on the inputs a label reads | Done | `InputHash`, `lintIgnores` (`internal/le/job/treehash.go`); `shares`, `take`, `Admit` | |
+| An agent gets a verdict about its own change without starting or waiting for a whole-tree run | Done | `Reds`, `readReds`, `verdictOf` (`internal/le/verify/reds.go`) | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestTwoVerifiesShareOneRun` (`internal/le/verify/current_test.go`) | Two real processes; the follower runs no stage and the marker file stays absent |
+| AC-2 | Done | `TestNestedLintStageDoesNotQueueBehindItsParent` | Asserts `job.KindInside` for the nested lint |
+| AC-3 | Done | `TestTwoVerifiesShareOneRun` | The follower's own `exec.ExitError` status, no pipe and no wrapper |
+| AC-4 | Done | `TestLintShareSurvivesAnUnrelatedFile` | Two helper PROCESSES, identical argv; a journal row leaves one run serving both |
+| AC-5 | Done | `TestLintShareVoidedByAGoChange`, `TestEveryInputTheLintLabelReadsVoidsItsShare` | Ten rows, one per input a lint verdict can depend on |
+| AC-6 | Done | `TestRedsAnswersFromAnUnfinishedRun`, `test/runner/verify-reds-in-flight.ci` | 3 whole logs and 1 caught mid-write |
+| AC-7 | Done | `TestRedsRefusesToAnswerWithNoRun` | Answers `no-run` at a non-zero status |
+| AC-8 | Done | `TestRunCurrentFullAndChangedModes` | Same populations, same certificates, same artifacts under admission |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestVerifyCurrentEntersAdmission` | Done | `internal/le/verify/current_test.go` | |
+| `TestTwoVerifiesShareOneRun` | Done | `internal/le/verify/current_test.go` | |
+| `TestAttachedVerifyExitsWithHolderCode` | Changed | folded into `TestTwoVerifiesShareOneRun` | The same case reads both assertions off one race; a second race to re-assert the status buys nothing |
+| `TestNestedLintStageDoesNotQueueBehindItsParent` | Changed | `internal/le/verify/current_test.go`, not `engine/stages_test.go` | The nested admission is asked from a stage of an admitted `runCurrent`, which lives in the `verify` package |
+| `TestLintShareSurvivesAnUnrelatedFile` | Done | `internal/le/job/contention_test.go` | |
+| `TestLintShareVoidedByAGoChange` | Done | `internal/le/job/contention_test.go` | |
+| `TestEveryInputTheLintLabelReadsVoidsItsShare` | Done | `internal/le/job/contention_test.go` | |
+| `TestTheTreesTheLintLabelIgnoresDoNotVoidItsShare` | Done | `internal/le/job/contention_test.go` | |
+| `TestTheTreesTheLintLabelIgnoresHoldNoGoFile` | Done | `internal/le/job/contention_test.go` | |
+| `TestALabelThatDeclaresNoInputsIsFingerprintedOverTheWholeCheckout` | Done | `internal/le/job/contention_test.go` | |
+| `TestRedsAnswersFromAnUnfinishedRun` | Done | `internal/le/verify/reds_test.go` | |
+| `TestRedsRefusesToAnswerWithNoRun` | Done | `internal/le/verify/reds_test.go` | |
+| `verify-reds-in-flight` | Done | `test/runner/verify-reds-in-flight.ci` | |
+| `verify-shares-one-run` | Skipped | absent | Homed in `plan/spec-two-verifies-share-one-run-end-to-end.md`. Needs the owner's word |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/verify/current.go` | Done | |
+| `internal/le/verify/lifecycle.go` | Done | |
+| `internal/le/verify/engine/run.go` | Done | |
+| `internal/le/job/registry.go` | Done | |
+| `internal/le/job/treehash.go` | Done | |
+| `internal/le/verify/engine/artifacts.go` | Done | |
+| `docs/architecture/testing/verify-freshness-scope.md` | Done | |
+| `internal/le/verify/engine/stages.go` | Changed | The `changedStages` comment was accurate and needed no edit; the statement the code contradicted was on the doc page, and that page is repaired |
+| `internal/le/verify/reds.go` | Done | |
+| `test/runner/verify-reds-in-flight.ci` | Done | |
+| `test/runner/verify-shares-one-run.ci` | Skipped | See Work Not Done |
+
+### Audit Summary
+- **Total items:** 33
+- **Done:** 29
+- **Partial:** 0
+- **Skipped:** 2 (`verify-shares-one-run` and its `.ci`, one item counted in two tables; needs the owner's word)
+- **Changed:** 3 (recorded in Deviations and in the tables above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An agent gets a verdict about its own change without starting or waiting for a whole-tree run | functional | `test/runner/verify-reds-in-flight.ci` drives the real `le` binary against a checkout holding 3 of a full run's stage logs and reads four answers: `undetermined` with the unreported remainder for an untouched path, `named` with the stage for a reddened one, the same payload under `\| json`, and `no-run` for a checkout with no run. Both guards were broken and observed RED before the phase landed |
+| Duplicate whole-tree runs collapse into one | functional | `TestTwoVerifiesShareOneRun`: a second operating-system process attaches, writes no marker (so it ran no stage), and exits with the holder's own status read from `exec.ExitError` with no pipe between. Confirmed on the real binary during this closure: the `verify` label held one entry while the run worked, and the nested `verify lint/run` created none |
+| A lint's share is not voided by work it does not read | functional | `TestLintShareSurvivesAnUnrelatedFile` and `TestLintShareVoidedByAGoChange` run two helper PROCESSES with identical argv, so only the input change explains the outcome: the journal row leaves the marker at one line, the Go change leaves it at two. `TestEveryInputTheLintLabelReadsVoidsItsShare` carries one row per input, and `TestTheTreesTheLintLabelIgnoresHoldNoGoFile` walks the real checkout to keep the exclusion true |
+| A verify run stays alive across a stage longer than the stall window | measurement | The registry breaks a holder whose log has not grown for 1800 s. During this closure's own `./le verify worktree`, the slot log carried `### Stage running: verify lint/run, 660s`, one line a minute, while the stage rendered nothing |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `test/runner/verify-shares-one-run.ci`: the two-verify share proven through the `le` BINARY | `currentHere` hands `runCurrent` the native in-process dispatcher (`actionRunner`, `internal/le/verify/actions.go`), so a real `le verify current mode changed` runs all 45 stages, beginning with `verify lint/run` and the six-part staticcheck matrix at 1220 to 2341 s each. A scenario driving two of those runs a whole verification inside the suite a verification runs. The package-level proof exists and drives two real processes; what is missing is a seam that reaches the binary over a bounded population without giving the product a second code path | `plan/spec-two-verifies-share-one-run-end-to-end.md` |
+| Waiting time is never recorded: `Release` persists only time since admission | Named in the spec's own Work Not Done at design time as out of scope | Its own spec; not written, and the owner decides whether it runs |
+| `runUnitRaceChanged` exits 0 on an empty selection | Out of scope, same as at design time | `plan/journal/green-that-could-not-have-been-red.md` holds the class |
+| `PhaseResult` and `AllTestsReport` record no test count | Out of scope, same class | Same route |
+| `publishChangeScope` writes `scope-packages.txt` and nothing reads it | Out of scope. This spec repaired the doc page that claimed otherwise rather than the artifact | Either wire it or delete it; not written |
+| `checkScoped` stales every scoped path on any HEAD move | Out of scope. It becomes the binding constraint now that a run can finish | Not written |
+| `signalContext` and the stage context are two halves of one pair: a TERM to a running `le verify` is not observed until the stage in flight ends | Cancellation is not this spec's subject and no AC reaches it | `plan/journal/guard-added-to-one-half-of-a-pair.md`, written by phase 1 |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/verification-answers-one-agent-zeclose-vspec.md` (15 files) |
+| `./le spec session review check` | `OK (clean, hashes match)`, exit 0 |
+| Rounds | 2 |
+| Reviewer lenses used | completeness against AC and Wiring rows; the ten feature-specific Critical Review rows; `ai/rules/principles.md` zero-as-answer; `ai/rules/stale-comments.md`; `ai/rules/no-layering.md`; `docs/contributing/ze-go-style.md`; security (path handling, signal targets, registry TOCTOU); `ai/rules/documentation.md` |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `declaredGroups` was renamed to `DeclaredGroups` and four call sites in the package's own test file kept the old name, so `internal/le/verify/engine` failed typecheck at HEAD. `./le verify worktree` reported it at the lint stage | `internal/le/verify/engine/artifacts_test.go`, in `TestDeclaredGroupsAreReadBackWhenTheCountAgrees`, `TestAMalformedGroupLineBecomesAGroupThatSaysSo`, `TestEveryDoubtAboutTheDeclaredSetRefusesIt` and `TestAStageLogThatCannotBeReadDeclaresNothing` | Renamed to `DeclaredGroups`. `go vet -tags ze_core,ze_le ./internal/le/verify/...` exits 0 and the package's tests pass |
+| 2 | ISSUE | `(*Admission).Admit`'s doc claims a second `Admit` in the same process never sees the first as its parent, "because a parent is found through the entry named in the environment, which only a child receives". `nameJobParent` sets that variable in-process, which is the whole of AC-2 | `internal/le/job/job.go`, above `Admit` | The paragraph names both writers of `ParentKey`, `childEnviron` and `nameJobParent`, and says what a holder that names nothing leaves behind |
+| 3 | ISSUE | `test/runner/verify-shares-one-run.ci` is in Files to Create and in the Functional Tests table, and does not exist | `test/runner/` | Homed in `plan/spec-two-verifies-share-one-run-end-to-end.md`, written in this commit, with the measurement that says why it is not one edit. Dropping it is the owner's decision and this closure does not take it |
+
+Notes recorded and not blocking: `stopBeat()` is called rather than deferred, so
+a stage that panics leaks one goroutine into a process that is ending anyway;
+`verdictOf` states three guards in one `||` where `docs/contributing/ze-go-style.md`
+prefers three guard clauses; `df930475b` carried doc hunks belonging to two
+sibling agents, which its own message states.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/verify/reds.go` | Yes | `ls -la` answers `-rw-rw-r-- 1 thomas thomas 13131 Sep  5 18:04 internal/le/verify/reds.go` |
+| `test/runner/verify-reds-in-flight.ci` | Yes | `ls -la` answers `-rw-rw-r-- 1 thomas thomas 1531 Sep  5 17:55 test/runner/verify-reds-in-flight.ci` |
+| `test/runner/verify-shares-one-run.ci` | No | `ls` answers `cannot access 'test/runner/verify-shares-one-run.ci': No such file or directory`. Homed in Work Not Done |
+| `plan/spec-two-verifies-share-one-run-end-to-end.md` | Yes | Written in this commit; passes the native spec validation hook |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-3, AC-8 | The entry point admits, the nested stage is inside, the follower takes the holder's status | `./le job run label unit-vclose command go test -tags ze_core,ze_le -count=1 ./internal/le/verify/...` answers `ok github.com/ze-software/ze/internal/le/verify 25.077s` |
+| AC-4, AC-5 | A lint shares across an unread file and not across a Go change | the same run answers `ok github.com/ze-software/ze/internal/le/job 33.088s` |
+| AC-6, AC-7 | The in-flight query answers and never renders an unfinished run as passed | the same run answers `ok github.com/ze-software/ze/internal/le/verify 25.077s` for `reds_test.go`, and `ok github.com/ze-software/ze/internal/le/commit 5.677s` for `TestStructuralRedsSeeNothingUntilARunPublishesItsIndex` |
+| AC-1 (live) | One verify holds one slot and the nested lint holds none | `tmp/.ze-jobs/` during this closure's own run held one `verify` entry and no `lint` entry from that process; the one `lint` entry present belongs to session `zeimpl-eaprevoke`, traced through its parent process |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le verify reds file <path>` against a run in flight | `test/runner/verify-reds-in-flight.ci` | Yes. Read it and its driver `internal/test/fixture/misc_fixture_runner_reds.go`: it builds a checkout with 3 stage logs, runs the real `le` binary four times, and asserts `undetermined`, `named`, the json keys, and `no-run` |
+| `./le verify current mode full` -> `Admit` | package test, no `.ci` | `TestVerifyCurrentEntersAdmission` reads the registry from inside a stage and asserts one entry, `ParentKey` naming it, no entry left, and a duration row |
+| a second concurrent `./le verify` -> `attach` | absent `.ci` | `TestTwoVerifiesShareOneRun` drives two operating-system processes. The `.ci` is homed in Work Not Done |
+| the nested lint stage -> `insideParent` | package test | `TestNestedLintStageDoesNotQueueBehindItsParent` asserts `job.KindInside` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `Admit` has three call sites outside the job package: `verifylint.runHere` and the two entry points phase 1 added. `TestNestedLintStageDoesNotQueueBehindItsParent` asserts `KindInside` |
+| A-2 | broken | `grep -rn "feature-gates" internal/le/verify/lint/` is empty, so lint does not read it; `parseConfigTags` takes the tags from `.golangci.yml`. The fingerprint EXCLUDES instead of listing (`lintIgnores`) |
+| A-3 | confirmed-with-a-guard | `runMode` writes each stage log in one `os.WriteFile` after the stage returns, and the body ends `### Stage result: <name> exit=N`. `stageResult` requires that line, so a log met mid-write counts as not reported. `TestRedsAnswersFromAnUnfinishedRun` carries a truncated fourth log |
+| A-4 | confirmed | Stronger than the spec's own method. `InputHash` falls through to `TreeHash` for a label with no declaration, and `labelIgnores` holds only `LintLabel` (`internal/le/job/treehash.go`). So a `verify` attach happens only when the WHOLE-tree fingerprint matched, and the holder judged exactly the tree the follower has. `TestALabelThatDeclaresNoInputsIsFingerprintedOverTheWholeCheckout` pins the fall-through |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 3, 17: `docs/contributing/running-commands.md` for `verify reds` | The four verdicts and their exit codes match `verdictOf` and `redsHere` (`internal/le/verify/reds.go`) read line by line | Yes |
+| 6: `docs/architecture/testing/verify-freshness-scope.md` | The two false statements are repaired against `runCurrent` and `publishChangeScope`; anchors name `Slot`, `nameJobParent`, `readReds`, `verdictOf`, each declared where named | Yes |
+| 10: `docs/functional-tests.md` | The runner row names the in-flight failure-query fixture, which exists at `test/runner/verify-reds-in-flight.ci` | Yes |
+| 12: `docs/architecture/core-design.md`, the admission seam | No. `ai/CODE-TO-DOCS.md` routes `internal/le/job/registry.go` and `treehash.go` to `docs/contributing/testing.md`, and `internal/le/verify/current.go`, `lifecycle.go` and `reds.go` to `docs/architecture/testing/verify-freshness-scope.md`. Both are updated. `grep -n "admission" docs/architecture/core-design.md` returns one row of a command-group table, which no change here touched | Yes, as No |
+| 15: the `le` command surface | `TestActionsDeclareWorktreeCurrentRedsAndList` asserts the four verbs in declaration order, and `TestRedsGrammarPutsTheKeywordBeforeTheValue` asserts `reds` is listed and does not write | Yes |
+| 16: source anchors over changed files | `./le doc check verify` names six undeclared anchors, none in a file this spec changed; its failures are the `gh-pages` command-equivalent surface and `ai/RFC-REQUIREMENTS.md`, owned by other sessions | Yes |
+| 1, 2, 4, 5, 7, 8, 9, 11, 13, 14 | No. This is development tooling: no daemon config, no RPC, no plugin, no wire format, no RFC behavior, no daemon comparison, no route metadata, no counter | Yes, as No |
+
+## Core Insight
+
+An exclusion list and an inclusion list describe the same set and fail in
+opposite directions. Naming what a job READS shares a stale verdict the day
+somebody adds an input nobody listed. Naming what it DOES NOT READ costs a
+duplicate run instead, and that cost lands on the session that pays it rather
+than on the next reader of a green that could not have been red.

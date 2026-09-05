@@ -57,7 +57,7 @@ func TestDeclaredGroupsAreReadBackWhenTheCountAgrees(t *testing.T) {
 		"VERIFY FAILURE GROUPS COMPLETE: 2",
 	}, "\n")+"\n")
 
-	groups, complete := declaredGroups(root, stage)
+	groups, complete := DeclaredGroups(root, stage)
 
 	if !complete {
 		t.Fatalf("a log whose count agrees was refused: %d group(s)", len(groups))
@@ -88,7 +88,7 @@ func TestAMalformedGroupLineBecomesAGroupThatSaysSo(t *testing.T) {
 		"VERIFY FAILURE GROUPS COMPLETE: 2",
 	}, "\n")+"\n")
 
-	groups, complete := declaredGroups(root, stage)
+	groups, complete := DeclaredGroups(root, stage)
 
 	if !complete || len(groups) != 2 {
 		t.Fatalf("a malformed line lost its group: complete=%v groups=%d", complete, len(groups))
@@ -138,7 +138,7 @@ func TestEveryDoubtAboutTheDeclaredSetRefusesIt(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			root, stage := declaredStage(t, testCase.body)
 
-			if _, complete := declaredGroups(root, stage); complete {
+			if _, complete := DeclaredGroups(root, stage); complete {
 				t.Error("the declared set was accepted, so a partial set would be trusted")
 			}
 		})
@@ -149,7 +149,7 @@ func TestAStageLogThatCannotBeReadDeclaresNothing(t *testing.T) {
 	root := t.TempDir()
 	stage := StageReport{Identity: Identity{Name: "doc wiring"}, Code: 1, Log: "tmp/verify/absent.log"}
 
-	groups, complete := declaredGroups(root, stage)
+	groups, complete := DeclaredGroups(root, stage)
 
 	if complete || len(groups) != 0 {
 		t.Fatalf("an unreadable stage log answered %d group(s), complete=%v", len(groups), complete)

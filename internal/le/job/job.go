@@ -500,9 +500,14 @@ func (t *Ticket) Release(code int) {
 // the code it answers. A KindAttached ticket carries the verdict of the job this
 // one followed, and that job's log has already been replayed to Out.
 //
-// One process holds one in-process ticket. A second Admit in the same process
-// does not see the first as its parent, because a parent is found through the
-// entry named in the environment, which only a child receives (childEnviron).
+// A parent is found through ParentKey, which names an entry file. Two callers
+// put it there. Run gives it to the child it starts (childEnviron). A caller
+// that holds a slot and does its nested work IN-PROCESS names its own entry for
+// the length of that work (nameJobParent, internal/le/verify/engine/run.go).
+//
+// So a second Admit in the same process sees the first as its parent only when
+// the first named itself. A holder that names nothing leaves the nested job to
+// claim a slot of its own, which deadlocks when the parent holds the last one.
 func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
 	if !validLabel(label) {
 		return nil, ErrLabel
