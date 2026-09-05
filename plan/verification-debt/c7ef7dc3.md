@@ -15,3 +15,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-05 | c7ef7dc3 | x | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-05 | c7ef7dc3 | record the second time one message file served two commit scripts | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-09-05T15:41:36Z) | open |
 | 2026-09-05 | c7ef7dc3 | record the owner ruling that RFC 9190 ticket issuance binds ze | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-09-05T15:41:36Z) | open |
+| 2026-09-05 | c7ef7dc3 | the verification tooling spec is approved and ready | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-09-05T15:41:36Z) | open |

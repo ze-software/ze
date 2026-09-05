@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Depends | spec-shared-machine-job-admission (closed 2026-09-05; the admission machinery this extends is `internal/le/job`, `Admit` and `Ticket.Release`), spec-verify-scope-1-shared-checkout-freshness (closed 2026-09-05; the freshness certificate this reads is `CheckCertificate`, `internal/le/verify/engine/status.go`, documented at `docs/architecture/testing/verify-freshness-scope.md`) |
 | Phase | - |
