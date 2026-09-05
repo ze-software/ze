@@ -2,6 +2,16 @@
 
 > WARNING: Critical review is required before implementation and commit. Do not start code until the review resolves the syslog framing, support-owned config shape, and save-path security checks.
 
+> BLOCKED 2026-09-05. An implementation session audited the tree against this
+> spec and stopped before writing code. `| save <path>` shipped on 2026-08-23,
+> six days after this spec was written, with a different grammar and a
+> different security model (`internal/component/command/pipe_save.go`), so A-3
+> and A-4 are broken and A-2 is half broken. Every remaining acceptance
+> criterion depends on one of the three questions the warning above already
+> names, and each of the three is now an owner decision rather than a design
+> exercise. They are stated in "Open Owner Decisions" below. Nothing here can
+> be implemented until they are answered.
+
 <!-- DESIGN-TIME template: everything that must exist BEFORE code is written.
      The closure half (Implementation Summary, Audit, Goal Validation, Review
      Gate, Pre-Commit Verification, Mistake Log) lives in
@@ -11,12 +21,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | blocked |
 | Scope | cli, config, tooling, docs |
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-08-17 |
+| Updated | 2026-09-05 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
 
@@ -163,9 +173,9 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `ze support` is the existing tech-support equivalent to extend. | User said show tech-support or equivalent; docs and support source show `ze support` generates the archive. | A separate `show tech-support` producer would duplicate support collection. | Source read of `support.Run` and docs. | validated |
-| A-2 | Config must store named SSH and syslog destinations, but not raw private key bytes. | User asked for pre-saved locations and saved SSH credential key; SSH credentials already use ZeFS. | Visible config could leak secrets or force key material through config diffs. | Source read of `zefs` SSH keys and config masking. | validated |
-| A-3 | Local file save uses a path relative to Ze config/data directory. The CLI grammar remains `save file path <relative-path>` because repo CLI rules require `path` before a user value. | User selected relative local paths; `paths.DefaultConfigDir()` maps Linux and appliance locations. | Saving to cwd or arbitrary absolute paths would behave differently on Linux and appliances. | User confirmation and source read of `paths.DefaultConfigDir()`. | validated |
-| A-4 | `save` is a terminal pipe operator. | A save sink has side effects and does not produce data for later pipe transforms. | Chaining after save could run transformations on a status message instead of the original data. | Source review of pipe processors and design review; parser tests enforce it during implementation. | validated |
+| A-2 | Config must store named SSH and syslog destinations, but not raw private key bytes. | User asked for pre-saved locations and saved SSH credential key; SSH credentials already use ZeFS. | Visible config could leak secrets or force key material through config diffs. | Source read of `zefs` SSH keys and config masking. | partly broken (2026-09-05) -- the half that says config holds no key bytes stands. The half that says stored material can be REFERENCED by name does not: `pkg/zefs/keys.go` holds one credential set for the Ze daemon's own remote (`meta/ssh/{host}/{port}/username` and `.../password`), not a set keyed by destination name, and `resolvePassword` in `internal/core/ssh/client/client.go` offers a stored password, `ze.ssh.password` or a TTY prompt, with no key-based auth at all. A named outbound destination needs a credential store that does not exist. |
+| A-3 | Local file save uses a path relative to Ze config/data directory. The CLI grammar remains `save file path <relative-path>` because repo CLI rules require `path` before a user value. | User selected relative local paths; `paths.DefaultConfigDir()` maps Linux and appliance locations. | Saving to cwd or arbitrary absolute paths would behave differently on Linux and appliances. | User confirmation and source read of `paths.DefaultConfigDir()`. | broken (2026-09-05) -- `save <path>` shipped on 2026-08-23 in commit 77ec7e1ec, after this spec was written. `saveAnswer` in `internal/component/command/pipe_save.go` writes the operator's path as given, and the file header states the security model it chose: any path the operator's own process may write, refused outright wherever the DAEMON expands the chain. It does not resolve under `paths.DefaultConfigDir()`, and it rejects neither an absolute path nor `..`. |
+| A-4 | `save` is a terminal pipe operator. | A save sink has side effects and does not produce data for later pipe transforms. | Chaining after save could run transformations on a status message instead of the original data. | Source review of pipe processors and design review; parser tests enforce it during implementation. | broken (2026-09-05) -- the shipped operator is not terminal. `pipeCatalog` in `internal/component/command/pipe_catalog.go` declares `save` as `ClassGlobal` with `RepeatCompose`, and `ApplyPipes` in `internal/component/command/pipe.go` runs `applySaves` over the FINISHED answer after the whole chain, wherever `save` sat in it. `TestSaveWritesTheFormattedAnswer` pins that ordering. |
 | A-5 | Syslog export streams the same payload data as file and SSH, regardless of format. | User selected streaming data to syslog whatever the format. | Syslog needs framing or chunking for large archives, and receiver-side reconstruction must be documented. | User confirmation plus syslog framing tests. | validated |
 | A-6 | Support export gets its own named destination list. Existing `system archive` destinations are only a naming precedent. | User selected support export list; `ze-system-conf.yang` names config archive locations and triggers. | Reusing config archive entries could make support export inherit commit/daily/hourly behavior that incident export does not need. | User confirmation and design review against config-archive source. | validated |
 
@@ -406,6 +416,20 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 | Functional test fails | Check the AC: wrong AC means DESIGN, correct AC means IMPLEMENT |
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Open Owner Decisions
+
+Each row blocks every acceptance criterion that names it. None can be settled
+by an implementation session, because each one either overturns a shipped
+owner-directed design or invents a store or a wire framing that does not exist.
+
+| # | Question | Why it is blocking | ACs waiting on it |
+|---|----------|--------------------|-------------------|
+| D-1 | Does `save` keep the shipped `save <path>` grammar, or move to `save file path <p>` plus `save ssh destination <n>` and `save syslog destination <n>`? | A second destination kind needs a discriminator, and `ai/rules/no-layering.md` forbids carrying both spellings. The shipped one is owner-named and covered by `TestSaveWritesTheFormattedAnswer` and `test/ui/pipe-interactive-save.ci`. | AC-1, AC-2, AC-3, AC-4, AC-5, AC-11 |
+| D-2 | Does a local save stay confined under `paths.DefaultConfigDir()`? | AC-13 asks for a confinement the shipped design deliberately rejected. `pipe_save.go` refuses `save` wherever the daemon expands the chain, and treats the operating system's permissions as the whole answer everywhere else. Confining the path would remove a working local use (saving to a home directory) to defend a surface that is already refused. | AC-13, AC-1 |
+| D-3 | Where does credential material for a named outbound SSH destination live, and what form does it take? | `pkg/zefs/keys.go` holds one credential set for the Ze daemon's own remote, keyed by host and port rather than by destination name, and `resolvePassword` supports no key-based auth. A named destination therefore needs a NEW secret store, which is a security decision. | AC-4, AC-5, AC-6 |
+| D-4 | What framing carries a tar.gz over syslog, and is syslog the right transport for it at all? | This spec's own Known Limitations require the framing, chunking and reassembly metadata to be defined before code. R-3 already records that syslog is a poor fit for a binary archive. | AC-3 |
+| D-5 | Does the shipped command stay `ze support`, or become `generate tech-support archive`? | `docs/guide/command-catalogue.md` publishes the row as `planned` with an empty Ze column, and its own grammar section reserves `generate <what>` for artifact production. Correcting the row asserts one answer or the other, so even the documentation half of AC-12 waits here. | AC-12 |
 
 ## Design Insights
 
