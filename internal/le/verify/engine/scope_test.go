@@ -73,7 +73,10 @@ func commitVerifyScopeFixture(t *testing.T, root string) {
 		command := exec.CommandContext(t.Context(), "git", args...) //nolint:gosec // the argument lists are literals above
 		command.Dir = root
 		if out, err := command.CombinedOutput(); err != nil {
-			t.Skipf("git %s in the fixture checkout: %v\n%s", strings.Join(args, " "), err, out)
+			// Not a skip. Every test in this repository runs inside a git
+			// checkout, so a git that cannot build a fixture repository is a
+			// broken machine rather than a case this test may decline to make.
+			t.Fatalf("git %s in the fixture checkout: %v\n%s", strings.Join(args, " "), err, out)
 		}
 	}
 	head := exec.CommandContext(t.Context(), "git", "rev-parse", "HEAD")
@@ -191,10 +194,21 @@ func TestVerifyRunWidensWhenTheChangeSetCannotBeSelected(t *testing.T) {
 	// rather than answering about, so the run has nothing to publish.
 	root := t.TempDir()
 
+	// The assertion is against what this process ALREADY held, never against the
+	// empty string. This test runs inside `./le verify current mode full` as a
+	// child of the unit stage, and that run publishes its own answer to every
+	// stage it starts: an assertion of "" would judge the run that started the
+	// test rather than the fixture the test drives, and it could only fail from
+	// inside a verify.
+	ambient := scopeSeenByStage{
+		packagesPath: env.Get(changed.ScopeFileKey),
+		tagsPath:     env.Get(changed.ScopeTagsKey),
+	}
+
 	_, seen := runWatchingScope(t, root)
 
-	if seen[0].packagesPath != "" || seen[0].tagsPath != "" {
-		t.Fatalf("a refused selection published %#v, want neither answer named", seen[0])
+	if seen[0] != ambient {
+		t.Fatalf("a refused selection published %#v, want the %#v this process already held", seen[0], ambient)
 	}
 }
 

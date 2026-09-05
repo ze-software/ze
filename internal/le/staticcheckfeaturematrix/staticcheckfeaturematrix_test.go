@@ -10,12 +10,15 @@ package staticcheckfeaturematrix
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/le/changed"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
@@ -34,7 +37,13 @@ func TestTheRealManifestDerivesEveryRow(t *testing.T) {
 		t.Fatalf("resolve the repository root: %v", err)
 	}
 
-	matrix, notice, err := Derive(tree)
+	// The scope is named EMPTY rather than read from the environment. This test
+	// runs inside `./le verify current mode full` as a child of the unit stage,
+	// and that run publishes its own feature-tag answer to every stage
+	// (publishChangeScope, internal/le/verify/engine/scope.go). A test reading
+	// the ambient answer would judge the run instead of the manifest, and it
+	// could only fail from inside a verify, never when its author runs it.
+	matrix, notice, err := DeriveScoped(tree, "")
 	if err != nil {
 		t.Fatalf("the matrix could not be derived: %v", err)
 	}
@@ -466,5 +475,154 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 	}
 	if verbs.Actions[0].Verb != "check" || verbs.Actions[1].Verb != "rows" {
 		t.Errorf("the verbs are %q and %q, want check and rows", verbs.Actions[0].Verb, verbs.Actions[1].Verb)
+	}
+}
+
+// VALIDATES: Derive reads the feature-tag answer the verify run published, so
+// the boundary between the run and this gate is exercised rather than assumed.
+// PREVENTS: a run that publishes an answer no gate acts on. Every other test
+// here names its scope explicitly, which is correct for them and leaves the one
+// env-reading line with no cover at all.
+func TestDeriveReadsTheAnswerTheRunPublished(t *testing.T) {
+	tree, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the repository root: %v", err)
+	}
+	whole, _, err := DeriveScoped(tree, "")
+	if err != nil {
+		t.Fatalf("derive the whole matrix: %v", err)
+	}
+	if len(whole) < minMatrixRows+2 {
+		t.Fatalf("this checkout's matrix holds %d rows, want the two shipped combinations and at least two features", len(whole))
+	}
+	reached := whole[2].Omits
+
+	// env.Set, not t.Setenv: env.Get caches the environment on its first call,
+	// so a variable planted after that call is invisible to it. The verify
+	// runner names the answer through the same door.
+	previous := env.Get(changed.ScopeTagsKey)
+	answer := filepath.Join(t.TempDir(), "scope-tags.txt")
+	if err := os.WriteFile(answer, []byte(reached+"\n"), 0o600); err != nil {
+		t.Fatalf("write the feature-tag answer: %v", err)
+	}
+	if err := env.Set(changed.ScopeTagsKey, answer); err != nil {
+		t.Fatalf("name the feature-tag answer: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := env.Set(changed.ScopeTagsKey, previous); err != nil {
+			t.Errorf("restore the feature-tag answer: %v", err)
+		}
+	})
+
+	scoped, notice, err := Derive(tree)
+	if err != nil {
+		t.Fatalf("derive under the published answer: %v", err)
+	}
+	if !notice.Scoped {
+		t.Errorf("the notice reports an unscoped run over a published answer naming %q", reached)
+	}
+	if len(scoped) != minMatrixRows+1 {
+		t.Fatalf("a one-tag answer judged %d rows, want the two shipped combinations plus without_%s", len(scoped), reached)
+	}
+	if scoped[minMatrixRows].Omits != reached {
+		t.Errorf("the third row omits %q, want %q", scoped[minMatrixRows].Omits, reached)
+	}
+
+	// The other half, and it is what keeps every OTHER test in this file honest:
+	// with that same answer planted in the environment, a caller that NAMES its
+	// scope is unaffected. Every test here runs inside `./le verify current mode
+	// full` as a child of the unit stage, and the assertion above proves the
+	// planted answer is really visible, so this one is not vacuous.
+	unscoped, _, err := DeriveScoped(tree, "")
+	if err != nil {
+		t.Fatalf("derive with an explicit empty scope: %v", err)
+	}
+	if len(unscoped) != len(whole) {
+		t.Errorf("an explicitly unscoped run judged %d rows under a planted answer, want %d", len(unscoped), len(whole))
+	}
+}
+
+// writeGatedBreakFixture builds a module whose ONLY type error compiles under
+// `ze_web && !ze_ssh` and under no other combination. The manifest gates two
+// packages, so the whole matrix is four rows and exactly one of them,
+// without_ze_ssh, carries the broken file.
+func writeGatedBreakFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	files := map[string]string{
+		"go.mod":            "module example.com/gatedbreak\n\ngo 1.26\n",
+		"feature-gates.txt": "# fixture manifest\nze_web  web\nze_ssh  ssh\n",
+		"web/web.go":        "package web\n\n// Serve is the always-compiled half of the gated package.\nfunc Serve() int { return 1 }\n",
+		"ssh/ssh.go":        "package ssh\n\n// Listen is the other gated package.\nfunc Listen() int { return 2 }\n",
+		// The break. Its constraint is the whole point: a build with ze_ssh on
+		// never compiles it, and a build without ze_web never compiles it
+		// either, so without_ze_ssh is the only row that can see it.
+		"web/plain.go": "//go:build ze_web && !ze_ssh\n\npackage web\n\n" +
+			"// ServePlain returns a string where its signature promises an int.\nfunc ServePlain() int { return \"not an int\" }\n",
+	}
+	for name, body := range files {
+		full := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+			t.Fatalf("create the fixture directory for %s: %v", name, err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+			t.Fatalf("write the fixture file %s: %v", name, err)
+		}
+	}
+	return root
+}
+
+// judgeFixture answers whether Staticcheck found the fixture's tree clean over
+// the rows the named answer leaves.
+func judgeFixture(t *testing.T, root string, tags []string) bool {
+	t.Helper()
+	answer := filepath.Join(t.TempDir(), "scope-tags.txt")
+	if err := os.WriteFile(answer, []byte(strings.Join(tags, "\n")+"\n"), 0o600); err != nil {
+		t.Fatalf("write the feature-tag answer: %v", err)
+	}
+	matrix, _, err := DeriveScoped(root, answer)
+	if err != nil {
+		t.Fatalf("derive the scoped matrix: %v", err)
+	}
+	verdict, judged, err := Judge(root, matrix, 90*time.Second)
+	if !judged {
+		// Not a skip. A run that reached no verdict is a run that proves
+		// nothing about the subtraction, and a green bar over it is the exact
+		// vacuity this test exists to rule out.
+		t.Fatalf("the fixture matrix could not be judged (%v): %s", err, verdict.Tool)
+	}
+	return verdict.Passed
+}
+
+// VALIDATES: the rows the subtraction leaves still catch a break that only one
+// omission row compiles, and the answer the selector really produces for that
+// file is what keeps that row.
+// PREVENTS: a subtraction that is arithmetically tidy and unsound. A file
+// constrained `!ze_X` compiles in without_ze_X alone, so an answer built from
+// the package's manifest gate ALONE drops the only row that can see its break,
+// and the gate goes green over a tree that does not type-check.
+func TestMatrixRowFilterCatchesAGatedBreak(t *testing.T) {
+	// Not a skip either. Staticcheck is a required development tool that
+	// `./le setup` installs, and the matrix stage of every verify run needs it,
+	// so its absence is a broken checkout rather than a case this test may
+	// decline to make.
+	if _, err := exec.LookPath("staticcheck"); err != nil {
+		t.Fatalf("staticcheck is not on PATH (%v); run ./le setup", err)
+	}
+	root := writeGatedBreakFixture(t)
+
+	// The answer the selector produces for that changed file: the tag gating its
+	// package, plus the tag the file NEGATES (reachedTags,
+	// internal/le/changed/selector.go).
+	if judgeFixture(t, root, []string{"ze_web", "ze_ssh"}) {
+		t.Error("the scoped matrix passed over a tree holding a type error in without_ze_ssh")
+	}
+
+	// The gate-only answer, which is what the union of negated tags exists to
+	// prevent. It is recorded here as the FAILURE MODE: if this run also caught
+	// the break, the negation union would not be load-bearing and this test
+	// would prove nothing about it.
+	if !judgeFixture(t, root, []string{"ze_web"}) {
+		t.Error("the gate-only answer caught the break, so the negation union proves nothing")
 	}
 }

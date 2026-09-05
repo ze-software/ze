@@ -68,7 +68,7 @@ so nothing here touches the derivation, and sub-spec 5 owns it as its AC-7.
 **Source files read:**
 - [ ] `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go` - `deriveFeatureMatrix`, `matrixRowsForTags`, `judgeStaticcheckFeatureMatrix`
 - [ ] `internal/le/changed/selector.go` - `reachedTags`, `tagForPackage`, `emit`
-- [ ] `internal/le/verify/engine/run.go` - `execStage`, `selectChangeSet`, and the scope environment it exports
+- [ ] `internal/le/verify/engine/run.go` and `scope.go` - `runMode`, `publishChangeScope`, `selectChangeSet`, and the scope environment they name
 - [ ] `internal/le/functional/suites.go` - `all_suites`, `run_suite`, `ZE_SKIP_SUITES`, `SUITE_RUN` (read while the functional half was in scope; it moved to sub-spec 5 unchanged)
 - [ ] `internal/le/rfc/rfc.go` - `functional_suites`, `_suite_carriers`, `check_evidence_ratchet` (same; no edit is made here)
 
@@ -86,25 +86,25 @@ so nothing here touches the derivation, and sub-spec 5 owns it as its AC-7.
 - A verify run starts, and the sub-spec 2 selector has already written its answer.
 
 ### Transformation Path
-1. The run writes the feature-tag answer once (`selectChangeSet`) and names it to every stage in `ZE_VERIFY_SCOPE_TAGS`.
+1. The run writes the feature-tag answer once (`selectChangeSet`, `internal/le/verify/engine/scope.go`) and names it to every stage in `ZE_VERIFY_SCOPE_TAGS`.
 2. The matrix check reads that answer and emits only the rows the answer can move.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Selector ↔ verify runner | `--print=both`, one run, two answers | Yes -- `TestSelectScopePackagesRunsTheRealSelector` |
-| Verify runner ↔ matrix check | the feature-tag answer file named by `ZE_VERIFY_SCOPE_TAGS` | Yes -- `TestVerifyRunNamesTheFeatureScopeToEveryStage`, `TestTheStaticcheckMatrixReadsTheFeatureScopeVariable`, `TestMatrixRowsScopeToChangedTags` |
+| Selector ↔ verify runner | `--print=both`, one run, two answers | Yes -- `selectChangeSet` (`internal/le/verify/engine/scope.go`) calls the production selector, proved by `TestVerifyRunPublishesTheScopedAnswerAGatedChangeProduces` |
+| Verify runner ↔ matrix check | the feature-tag answer file named by `ZE_VERIFY_SCOPE_TAGS` | Yes -- `TestVerifyRunNamesTheFeatureScopeToEveryStage`, `TestDeriveReadsTheAnswerTheRunPublished`, `TestTheSubtractionNeverDropsAShippedCombination` |
 
 ### Integration Points
 - `deriveFeatureMatrix` - gains a row filter, keeps its manifest source.
 - `reachedTags` - unions the tags a changed file NEGATES, so the only row that compiles such a file survives the filter.
-- `execStage` - exports the answer to every stage of the run.
+- `publishChangeScope` (`internal/le/verify/engine/scope.go`) - names the answer to every stage of the run.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Yes | The matrix reads the answer file named by `ZE_VERIFY_SCOPE_TAGS` and never runs the selector itself; `selectChangeSet` is the only producer |
-| No unintended coupling (components stay isolated) | Yes | Two `//go:build ignore` programs share one FILE FORMAT, one tag per line, and no symbol. `scopeTagsEnvName` in the test states that the string is the contract |
+| No bypassed layers (data flows through the intended path) | Yes | The matrix reads the answer file named by `ZE_VERIFY_SCOPE_TAGS` and never runs the selector itself; `selectChangeSet` (`internal/le/verify/engine/scope.go`) is the only producer |
+| No unintended coupling (components stay isolated) | Yes | Producer and consumer share one FILE FORMAT, one tag per line, and one key name declared once as `changed.ScopeTagsKey`. The matrix imports that name from the package that produces the answer and holds no copy of it |
 | No duplicated functionality (extends existing, does not recreate) | Yes | `matrixRowsForTags` still derives the rows; `scopeFeatureMatrix` subtracts from what it returns and builds no second row list |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | Build tooling, off any data path. The answer file is a few dozen bytes read once per stage |
 | Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | No row, tag or feature is named anywhere. `feature-gates.txt` stays the one inventory, and a tag added there gains its row and its scoping with no second edit |
@@ -114,7 +114,7 @@ so nothing here touches the derivation, and sub-spec 5 owns it as its AC-7.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A `without_ze_X` row's verdict is unchanged by a change to a package that neither is gated by X nor imports one that is, and that negates X in no file | The row differs from `all_features` only by X's packages, and a file constrained `!ze_X` is compiled by that row alone | A skipped row hides a type error | A self-test that introduces a break only one row compiles, and drives the matrix from the answer the selector really gives | confirmed, and the second clause was ADDED by review: `TestMatrixRowFilterCatchesAGatedBreak` (`internal/le/repository/`) builds a module whose only type error compiles under `ze_web && !ze_ssh`. Scoped to `ze_ssh` the matrix exits 1, and the answer the selector produces for that changed FILE names `ze_ssh` as well as `ze_web`, so the row survives. `reachedTags` unioning the negated tags is what makes the assumption hold |
+| A-1 | A `without_ze_X` row's verdict is unchanged by a change to a package that neither is gated by X nor imports one that is, and that negates X in no file | The row differs from `all_features` only by X's packages, and a file constrained `!ze_X` is compiled by that row alone | A skipped row hides a type error | A self-test that introduces a break only one row compiles, and drives the matrix from the answer the selector really gives | confirmed, and the second clause was ADDED by review: `TestMatrixRowFilterCatchesAGatedBreak` (`internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix_test.go`) builds a module whose only type error compiles under `ze_web && !ze_ssh`. Scoped to `ze_ssh` the matrix exits 1, and the answer the selector produces for that changed FILE names `ze_ssh` as well as `ze_web`, so the row survives. `reachedTags` unioning the negated tags is what makes the assumption hold |
 
 A-2 and A-3 were about the package-to-suite map and about the tier derivation
 reading it. Both moved with that work to
@@ -140,8 +140,8 @@ A-1 to A-3 and its AC-7. Nothing in this spec reads or writes a suite.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le staticcheck-feature-matrix check` with a scoped selector answer | → | `deriveFeatureMatrix` row filter | `TestMatrixRowsScopeToChangedTags` |
-| `./le verify current mode full` running the matrix stage | → | `execStage` exporting `ZE_VERIFY_SCOPE_TAGS` | `TestVerifyRunNamesTheFeatureScopeToEveryStage` |
+| `./le staticcheck-feature-matrix check` with a scoped selector answer | → | `scopeMatrix` row filter | `TestTheSubtractionNeverDropsAShippedCombination`, `TestEveryDoubtJudgesTheWholeMatrix` |
+| `./le verify current mode full` running the matrix stage | → | `publishChangeScope` naming `ZE_VERIFY_SCOPE_TAGS` to every stage | `TestVerifyRunNamesTheFeatureScopeToEveryStage`, `TestDeriveReadsTheAnswerTheRunPublished` |
 | A changed file constrained `!ze_X` | → | `reachedTags` unioning the negated tag | `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates` |
 
 The two rows this table held for the functional stage moved to
@@ -169,11 +169,11 @@ constraint and the inherited environment.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestMatrixRowsScopeToChangedTags` | `internal/le/repository/` | AC-1, AC-2: the row filter subtracts correctly | pass |
-| `TestMatrixRowFilterCatchesAGatedBreak` | `internal/le/repository/` | AC-3, AC-4: the retained rows still catch a real break, driven by the selector's own answer | pass |
-| `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates` | `internal/le/changed/selector_test.go` | AC-4: a negated tag joins the answer, and an unreadable changed file widens | pass |
-| `TestMatrixTestsJudgeTheFixtureNotTheRunThatStartedThem` | `internal/le/repository/` | AC-5: no `ZE_VERIFY_` variable reaches a child | pass |
-| `TestVerifyRunNamesTheFeatureScopeToEveryStage` | `internal/le/verify/engine/verifyengine_test.go` | the runner publishes the answer this spec's consumer reads | pass |
+| `TestTheSubtractionNeverDropsAShippedCombination`, `TestEveryDoubtJudgesTheWholeMatrix` | `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix_test.go` | AC-1, AC-2: the row filter subtracts correctly, and every doubt widens | PASS |
+| `TestMatrixRowFilterCatchesAGatedBreak` | `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix_test.go` | AC-3, AC-4: the retained rows still catch a real break, and the gate-only answer misses it | PASS |
+| `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates` | `internal/le/changed/selector_test.go` | AC-4: a negated tag joins the answer, and an unreadable changed file widens | PASS |
+| `TestDeriveReadsTheAnswerTheRunPublished` | `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix_test.go` | AC-5: an answer planted in the environment is visible to `Derive` and invisible to a caller that names its scope | PASS |
+| `TestVerifyRunNamesTheFeatureScopeToEveryStage`, `TestVerifyRunWidensWhenTheChangeSetCannotBeSelected` | `internal/le/verify/engine/scope_test.go` | the runner publishes the answer this spec's consumer reads, and a refused selection adds nothing to what the process already held | PASS |
 
 `TestFunctionalSuitesScopeToChangedPackages` and
 `test_functional_tier_reads_the_suite_map` moved to
@@ -204,7 +204,7 @@ constraint and the inherited environment.
 - `internal/le/verify/engine/run.go` - the largest edit: run the selector once, write both answers, and name the tag answer to every stage (`selectChangeSet`, `execStage`)
 - `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go` - the row filter and its floor
 - `internal/le/changed/selector.go` - `reachedTags` unions the tags a changed file negates
-- `internal/le/repository/`, `internal/le/changed/selector_test.go`, `internal/le/verify/engine/verifyengine_test.go` - the tests for all three
+- `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix_test.go`, `internal/le/changed/selector_test.go`, `internal/le/verify/engine/scope_test.go` - the tests for all three
 - `ai/INDEX.md`, `docs/functional-tests.md`, `docs/contributing/testing.md`, `docs/architecture/testing/tracked-build-gate.md`, `docs/architecture/testing/verify-freshness-scope.md` - the row count is no longer unconditional
 
 The suite half's files moved to `plan/spec-verify-scope-5-suite-coverage-map.md`:
@@ -257,15 +257,15 @@ sub-spec 5's deliverable, and no spec supersedes it before that map exists.
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- the run publishes the answer and the matrix reads it
-   - Tests: `TestMatrixRowsScopeToChangedTags`, `TestVerifyRunNamesTheFeatureScopeToEveryStage`
+   - Tests: `TestDeriveReadsTheAnswerTheRunPublished`, `TestVerifyRunNamesTheFeatureScopeToEveryStage`
    - Files: `internal/le/verify/engine/run.go`, `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go`
    - Verify: the answer reaches the stage, and the matrix judges every row while it is discarded
 2. **Phase: Matrix row filter** -- subtract the rows the change cannot move
-   - Tests: `TestMatrixRowsScopeToChangedTags`, `TestMatrixRowFilterCatchesAGatedBreak`
+   - Tests: `TestTheSubtractionNeverDropsAShippedCombination`, `TestMatrixRowFilterCatchesAGatedBreak`
    - Files: `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go`
    - Verify: AC-1, AC-2, AC-3 hold, and the floor of 2 rows is enforced
 3. **Phase: Review fixes** -- close the two holes the review found in phase 2
-   - Tests: `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates`, `TestMatrixTestsJudgeTheFixtureNotTheRunThatStartedThem`
+   - Tests: `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates`, `TestDeriveReadsTheAnswerTheRunPublished`
    - Files: `internal/le/changed/selector.go`, both test files
    - Verify: AC-4 and AC-5 hold, and each fix is red when it is reverted
 
@@ -352,3 +352,156 @@ measures the assumption they rested on before anything is built.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `readChangeScope`, `scopeMatrix`, `validateScoped`, `minMatrixRows` (`internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go`): the row filter that SUBTRACTS from the derived rows, its two-row floor, and the four doubts that widen it back to every row.
+- `reachedTags`, `negatedTags`, `tagsUnderNot`, `everyTagIn` (`internal/le/changed/selector.go`): the tag answer unions the features a changed file NEGATES, so the one row that compiles a `!ze_X` file survives the subtraction.
+- `DeriveScoped` (matrix): the derivation with the answer named explicitly, which is what lets a test judge its fixture rather than the run that started it.
+- The producer half landed at the closure of spec-verify-scope-2-change-set-selector, on the same day and for the same reason: `publishChangeScope` (`internal/le/verify/engine/scope.go`) names `ZE_VERIFY_SCOPE_TAGS` to every stage.
+
+### Bugs Found/Fixed
+- **The soundness proof was gone.** `TestMatrixRowFilterCatchesAGatedBreak` is what makes A-1 more than an argument: it builds a module whose only type error compiles under `ze_web && !ze_ssh` and drives the real Staticcheck matrix over the answer the selector gives for that file. It went with the shell it was written against. Restored in `staticcheckfeaturematrix_test.go`, and strengthened: it now also asserts that the GATE-ONLY answer misses the break, so the negation union is proved load-bearing rather than merely present.
+- **AC-5's failure mode was reintroduced by the producer fix, and this closure found it.** `TestTheRealManifestDerivesEveryRow` called `Derive(tree)`, which reads the ambient answer. With `publishChangeScope` restored, a verify run publishes an answer that its unit stage's child `go test` inherits, so that test would have judged the run instead of the manifest, and only from inside a verify. It now names an empty scope, with the reason on the line above it. `TestVerifyRunWidensWhenTheChangeSetCannotBeSelected` had the same shape and now asserts against what the process already held rather than against the empty string. Both were measured: `ZE_VERIFY_SCOPE_TAGS=<a one-tag answer> go test ./internal/le/staticcheckfeaturematrix/ ./internal/le/changed/... ./internal/le/verify/engine/` was RED before the fix and is green after.
+- **`Derive`'s environment read had no test at all.** Every other caller names its scope, which is correct for them and left the one env-reading line uncovered. `TestDeriveReadsTheAnswerTheRunPublished` plants an answer through `env.Set` and asserts both halves: `Derive` narrows, and a caller naming its own scope does not.
+
+### Documentation Updates
+- None needed. `docs/functional-tests.md`, `docs/contributing/testing.md`, `docs/architecture/testing/tracked-build-gate.md` and `docs/architecture/testing/verify-freshness-scope.md` each already state that a verify run judges only the rows the change set can move and that typing the target yourself judges every row. Those sentences were FALSE while the producer was missing and are true again; the producer's own anchor landed with spec-verify-scope-2-change-set-selector.
+
+### Deviations from Plan
+- The spec named five tests in `internal/le/repository/` and `verifyengine_test.go`. Three of the five did not exist under those names, and the surviving behaviour lives in `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix_test.go`. Every row now names a test this closure ran.
+- The Architectural Verification row citing "two `//go:build ignore` programs" and `scopeTagsEnvName` described the shell era. The contract is now one Go constant, `changed.ScopeTagsKey`, imported by its consumer.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The producer fix looked complete when its own tests passed | Restoring the producer re-armed AC-5's failure mode in a package the fix never touched: a test that reads the ambient answer judges the run that started it | Running the three packages with `ZE_VERIFY_SCOPE_TAGS` planted, which is what a verify run does to its unit stage's child | Both ambient reads removed, and the planted-answer run recorded as the evidence |
+| assumption | AC-3 looked covered because the subtraction has tests | The subtraction's tests are arithmetic over a synthetic matrix. The only test that proved it SOUND, by compiling a real break in one row, had been deleted | Grepping each test name in the spec before pasting it forward | `TestMatrixRowFilterCatchesAGatedBreak` restored and strengthened |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The matrix reads the selector's answer | Done | `Derive` -> `env.Get(changed.ScopeTagsKey)` -> `DeriveScoped` -> `readChangeScope` | proved end to end by `TestDeriveReadsTheAnswerTheRunPublished` |
+| It judges only the combinations the change can move | Done | `scopeMatrix` | subtracts from the derived rows; names none of them |
+| `all_features` and `core_only` survive every scope | Done | `validateScoped`, `minMatrixRows` | refuses a scope that drops either |
+| Every doubt widens | Done | `readChangeScope` | no answer, unreadable answer, undeclared tag, every declared tag |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestTheSubtractionNeverDropsAShippedCombination` | a one-tag answer leaves `all_features`, `core_only` and the one omission row |
+| AC-2 | Done | `TestEveryDoubtJudgesTheWholeMatrix` (case "answer names every declared tag"), and `reachedTags` returning `everyTag` for an always-on package | an always-on change reaches every tag, so no row is subtracted |
+| AC-3 | Done | `TestMatrixRowFilterCatchesAGatedBreak` | the scoped matrix exits 1 over a break only `without_ze_ssh` compiles |
+| AC-4 | Done | `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates`, and the second half of `TestMatrixRowFilterCatchesAGatedBreak` | the gate-only answer misses the break, so the union is load-bearing |
+| AC-5 | Done | `TestDeriveReadsTheAnswerTheRunPublished`, `TestVerifyRunWidensWhenTheChangeSetCannotBeSelected` | a planted answer is visible to `Derive` and invisible to every caller that names its scope |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestTheSubtractionNeverDropsAShippedCombination`, `TestEveryDoubtJudgesTheWholeMatrix` | PASS | `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix_test.go` | |
+| `TestMatrixRowFilterCatchesAGatedBreak` | PASS | same file | restored by this closure |
+| `TestDeriveReadsTheAnswerTheRunPublished` | PASS | same file | written by this closure |
+| `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates` | PASS | `internal/le/changed/selector_test.go` | |
+| `TestVerifyRunNamesTheFeatureScopeToEveryStage` | PASS | `internal/le/verify/engine/scope_test.go` | landed with spec-verify-scope-2-change-set-selector |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/verify/engine/run.go` | Done | the publication landed with sub-spec 2's closure, which is the spec whose Files to Modify named it |
+| `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go` | Done | the row filter and its floor |
+| `internal/le/changed/selector.go` | Done | `reachedTags` unions the negated tags |
+| the three test files | Done | paths corrected in the table above |
+| the five doc pages | Done | each already states the scoping; nothing was stale once the producer existed |
+
+### Audit Summary
+- **Total items:** 19
+- **Done:** 19
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The matrix judges only the build combinations the change can move | unit, discriminated | `TestMatrixRowFilterCatchesAGatedBreak` runs the real Staticcheck over a fixture module twice: the selector's own answer for the changed file catches a break only `without_ze_ssh` compiles, and the gate-only answer does not. Neither half passes if the subtraction is a no-op |
+| A skipped row never hides a type error (A-1) | unit, discriminated | the same test. Its second assertion is the failure mode, so a change making the union redundant turns the test red rather than leaving it green and meaningless |
+| The consumer really reads what the producer publishes | unit | `TestDeriveReadsTheAnswerTheRunPublished` plants the answer through the same door `publishChangeScope` uses and asserts `Derive` narrows to it |
+| A test judges its fixture, not the run that started it (AC-5) | measurement | `ZE_VERIFY_SCOPE_TAGS=<one-tag answer> ZE_VERIFY_SCOPE_PACKAGES=<answer> go test ./internal/le/staticcheckfeaturematrix/ ./internal/le/changed/... ./internal/le/verify/engine/` exits 0. The same command was RED on two tests before this closure fixed them |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Functional suite selection from the change set | No static signal attributes a `.ci` file to a Go package; measured at 423 of 646 packages in the intersection | `plan/spec-verify-scope-5-suite-coverage-map.md` |
+| The `functional/verify` tier derivation reading a suite map | It only matters once a suite can be skipped, which this spec does not do | `plan/spec-verify-scope-5-suite-coverage-map.md`, AC-7 |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/verify-scope-3-selector-consumers-zeclose-vs3.md` |
+| `review check` | clean |
+| Rounds | 3. Round 1 found the missing soundness proof and the missing boundary test; round 2 found the ambient read the producer fix had re-armed; round 3 found three `t.Skip` calls in the new and restored tests and was clean after they became failures |
+| Reviewer lenses used | assumption validation (A-1's soundness); test vacuity and discrimination; ambient-environment inheritance; guard-fails-closed; documentation against producer |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | AC-3 and A-1 have no soundness proof: every surviving test is arithmetic over a synthetic matrix | `scopeMatrix`, `internal/le/staticcheckfeaturematrix` | `TestMatrixRowFilterCatchesAGatedBreak` restored, with the gate-only answer asserted to MISS the break |
+| 2 | ISSUE | `TestTheRealManifestDerivesEveryRow` reads the ambient feature-tag answer, so it judges the run that started it | the same file | it names an empty scope, with the reason stated on the line above |
+| 3 | ISSUE | `TestVerifyRunWidensWhenTheChangeSetCannotBeSelected` asserts the empty string rather than what the process already held | `internal/le/verify/engine/scope_test.go` | the assertion is now against the ambient values captured before the run |
+| 4 | ISSUE | `Derive`'s environment read, the one line joining producer to consumer, has no test | `Derive`, `internal/le/staticcheckfeaturematrix` | `TestDeriveReadsTheAnswerTheRunPublished` |
+| 5 | ISSUE | Three `t.Skip` calls would let the soundness test pass without making its claim: staticcheck absent, the fixture matrix unjudged, and git unable to build the fixture checkout | `staticcheckfeaturematrix_test.go`, `scope_test.go` | all three are now `t.Fatalf`. Each names a broken machine rather than a case the test may decline |
+| 6 | NOTE | Three of five TDD rows and three Data Flow cells name tests, files and a mechanism the tree no longer holds | this spec | every row and cell rewritten against the tree as it stands |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go` | Yes | holds `readChangeScope`, `scopeMatrix`, `validateScoped` |
+| `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix_test.go` | Yes | holds the restored `TestMatrixRowFilterCatchesAGatedBreak` |
+| `internal/le/staticcheckfeaturematrix/judge.go` | Yes | holds `Judge`, which the restored test drives |
+| `internal/le/changed/selector.go` | Yes | holds `reachedTags` and `negatedTags` |
+| `internal/le/verify/engine/scope.go` | Yes | holds `publishChangeScope` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | one tag leaves three rows | `TestTheSubtractionNeverDropsAShippedCombination` PASS |
+| AC-2 | an always-on change judges every row | `TestEveryDoubtJudgesTheWholeMatrix` PASS |
+| AC-3, AC-4 | the scoped rows still catch a gated break, and the gate-only answer misses it | `TestMatrixRowFilterCatchesAGatedBreak` PASS (0.39s, two real Staticcheck runs over the fixture) |
+| AC-5 | no ambient answer reaches a fixture-driven assertion | the planted-answer run exits 0 over all three packages |
+| all | the packages are green | `go test ./internal/le/staticcheckfeaturematrix/` exit 0 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le staticcheck-feature-matrix check` under a scoped answer | none; no `.ci` can drive it | `TestDeriveReadsTheAnswerTheRunPublished` covers the action's own boundary read, and `TestMatrixRowFilterCatchesAGatedBreak` covers the judgement |
+| `./le verify current mode full` running the matrix stage | none | `TestVerifyRunNamesTheFeatureScopeToEveryStage` proves every stage reads the run's answer |
+| a changed file constrained `!ze_X` | none | `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed, with the second clause proved rather than argued | `TestMatrixRowFilterCatchesAGatedBreak` compiles a real break under `ze_web && !ze_ssh`, catches it with the selector's answer, and misses it with the gate-only answer |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #10 test infrastructure | `docs/functional-tests.md` states the scoped rows and the six-way cut | Yes, unchanged and true |
+| #12 internal architecture | `docs/architecture/testing/verify-freshness-scope.md` states the filter, the floor and the widening inputs | Yes, unchanged and true |
+| #16 anchored pages | `docs/contributing/testing.md` and `docs/architecture/testing/tracked-build-gate.md` both say a verify run judges fewer rows and typing the target judges every row | Yes, read both; neither is stale now that a run publishes the answer |
+| #17 examples | `ai/INDEX.md` and `docs/architecture/testing/verify-freshness-scope.md` name `ZE_VERIFY_SCOPE_TAGS` | Yes |
+| every other row | No | Build tooling: no YANG, CLI verb, RPC, plugin, wire format, or RFC tier |
+
+## Core Insight
+
+Restoring a producer re-arms every failure mode its absence had suppressed. `ZE_VERIFY_SCOPE_TAGS` was unset for weeks, so a test reading it ambiently could not fail, and the two such tests looked correct for exactly as long as the feature was broken. The check that finds them is one command, not a review pass: run the packages with the variable planted, which is what the run does to its own children.
