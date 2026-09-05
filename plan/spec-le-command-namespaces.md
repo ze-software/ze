@@ -71,6 +71,32 @@ wiki-catalog, working-tree.
 The six `test-*` commands are the deliberate exception. The reasoning is in Key
 Design Decisions.
 
+### Open question for the owner: AC-11's exit code (found at closure, 2026-09-05)
+
+**This is what stops the spec closing.** AC-11 says a bare namespace token
+"lists the three members with their descriptions and exits 0". The product
+lists the members and exits **1**, with `error: spec is a namespace; it needs
+one of: citation | session | status` (`Dispatch`,
+`internal/le/leroot/dispatch.go`), and `TestBareNamespaceTokenListsItsMembers`
+asserts that 1. So the implementation chose the other reading deliberately and
+pinned it, and the AC was never amended.
+
+Both readings are defensible and they disagree about a contract a script reads:
+
+| Answer | The reading behind it | What already agrees with it |
+|--------|----------------------|-----------------------------|
+| exit 1 | nothing ran, so the command failed | `Dispatch` with no argument at all, which prints usage and answers 1 |
+| exit 0 | a half-typed command is not a typo, and the listing IS the answer | `leaction.Area.Answer` with no verb, which answers the action list and 0, so `le job` and `le spec` disagree today |
+
+The descriptive listing AC-11 asks for is reachable at `le spec help`, which
+answers 0. Only the bare token is in question.
+
+Whoever answers this: the fix is one of two lines in `Dispatch`, plus the
+assertion in `TestBareNamespaceTokenListsItsMembers`, plus the exit-code
+assertion this closure left out of `internal/test/fixture/ui_fixture_le_namespace_dispatch.go`
+(the fixture asserts the members are named and deliberately says nothing about
+the code, with the reason in a comment).
+
 ### Open question for the owner
 
 `docvalid` and `docs-to-code` belong to the `doc` object, and neither name

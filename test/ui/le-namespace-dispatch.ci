@@ -1,0 +1,10 @@
+# Test: a developer reaches a namespaced le command by typing it.
+# accept-only: the registered native fixture drives the built le binary through
+# argv and reads the exit code a shell would read: a member resolves, a bare
+# namespace token lists what it holds and exits 0, an unknown token still fails,
+# and a pipe operator survives the longer lookup.
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=ze-test fixture ui/le-namespace-dispatch
+expect=exit:code=0
+expect=stdout:contains=OK

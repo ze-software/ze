@@ -262,6 +262,89 @@ func leProbeRoots() []string {
 	return roots
 }
 
+// VALIDATES: AC-13 of spec-le-command-namespaces. Feeder 6 flags a hyphenated
+// le root whose left segment names an object, by both of its detectors: a left
+// segment that is a registered root of its own, and a left segment two roots
+// share.
+// PREVENTS: the state this test was written to end. Every other case in this
+// file feeds the feeder leProbeRoots, sixty-four names with no hyphen in any of
+// them, so the finding path could not be reached and a feeder that stopped
+// firing would look exactly like a clean surface.
+func TestTheLeFeederFlagsAHyphenatedObjectRoot(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		extra   []string
+		flagged string
+		why     string
+	}{
+		{
+			name:    "the left segment is a registered root",
+			extra:   []string{"verify", "verify-lint"},
+			flagged: "verify-lint",
+			why:     "verify is a command of its own, so verify-lint hides a member of it",
+		},
+		{
+			name:    "two roots share the left segment",
+			extra:   []string{"spec-citation", "spec-session"},
+			flagged: "spec-citation",
+			why:     "no spec root exists, and two roots sharing the segment is what names the object",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Check(writeTree(t, cleanFixture(t)), Floor{}, append(leProbeRoots(), test.extra...))
+			if err != nil {
+				t.Fatalf("the gate failed over the fixture: %v", err)
+			}
+			if !namesLeFinding(result, test.flagged) {
+				t.Fatalf("%s was not flagged (%s); feeder 6 drew:\n%s", test.flagged, test.why, result.Text())
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-13's second half. A root the exemption list names is not a
+// finding, and the run counts it.
+// PREVENTS: an exemption that silently does nothing, which would read as a
+// clean surface for the wrong reason.
+func TestTheLeExemptionIsHonouredAndCounted(t *testing.T) {
+	roots := append(leProbeRoots(), "test-unit", "test-chaos")
+
+	result, err := Check(writeTree(t, cleanFixture(t)), Floor{}, roots)
+	if err != nil {
+		t.Fatalf("the gate failed over the fixture: %v", err)
+	}
+	if namesLeFinding(result, "test-unit") || namesLeFinding(result, "test-chaos") {
+		t.Errorf("an exempt root was flagged:\n%s", result.Text())
+	}
+	if result.LeExempt != 2 {
+		t.Errorf("the run counted %d le exemptions, want the 2 it excused: an uncounted exemption is a silent one", result.LeExempt)
+	}
+}
+
+// VALIDATES: a hyphenated root whose left segment names no object stays clean.
+// PREVENTS: the rule's own trap, "a shared prefix is not a namespace", read
+// backwards into a gate that flags every hyphen.
+func TestALoneCompoundRootIsNotAFinding(t *testing.T) {
+	result, err := Check(writeTree(t, cleanFixture(t)), Floor{}, append(leProbeRoots(), "dash-stdio"))
+	if err != nil {
+		t.Fatalf("the gate failed over the fixture: %v", err)
+	}
+	if namesLeFinding(result, "dash-stdio") {
+		t.Errorf("dash-stdio was flagged; no root is called dash and no second root shares the segment:\n%s", result.Text())
+	}
+}
+
+// namesLeFinding reports whether the run drew a root-namespace finding against
+// one command.
+func namesLeFinding(result Result, command string) bool {
+	for _, finding := range result.Findings {
+		if finding.Command == command {
+			return true
+		}
+	}
+	return false
+}
+
 // flagFixture is a tree carrying one violation of each flag-register shape:
 // a root spelled as a flag, a client command string with a flag in it, a flag
 // that repeats a pipe operator, and a flag no registry declares.
