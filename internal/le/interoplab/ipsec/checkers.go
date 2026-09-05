@@ -4,6 +4,7 @@ package ipsec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -19,31 +20,35 @@ import (
 type scenarioChecker func(context.Context, *scenarioLab) error
 
 var scenarioCheckers = map[string]scenarioChecker{
-	"child-rekey":                    checkChildRekey,
-	"child-rekey-narrowing":          checkChildRekeyNarrowing,
-	"clear-reestablish":              checkClearReestablish,
-	"cookie-challenge":               checkCookieChallenge,
-	"delete-while-window-held":       checkDeleteWhileWindowHeld,
-	"eap-mschapv2":                   checkEAPMSCHAPv2,
-	"eap-nak-method-negotiation":     checkEAPNakMethodNegotiation,
-	"eap-tls":                        checkEAPTLS,
-	"eap-tls13":                      checkEAPTLS13,
-	"esn-both-offered":               checkESNBothOffered,
-	"esn-extended-only-refused":      checkESNExtendedOnlyRefused,
-	"esp-form-change":                checkESPFormChange,
-	"initiator-rekey-answer-narrows": checkInitiatorRekeyAnswerNarrows,
-	"invalid-ke-retry":               checkInvalidKERetry,
-	"ipsec-bgp-redistribute-frr":     checkIPsecBGPRedistributeFRR,
-	"natt-transport-inner-checksum":  checkNATTTransportInnerChecksum,
-	"natt-tunnel-inner-checksum":     checkNATTTunnelInnerChecksum,
-	"peer-reload-narrowing":          checkPeerReloadNarrowing,
-	"psk-site-to-site":               checkPSKSiteToSite,
-	"responder-accepts-reinit":       checkResponderAcceptsReinit,
-	"responder-eap-mschapv2":         checkResponderEAPMSCHAPv2,
-	"responder-eap-tls13":            checkResponderEAPTLS13,
-	"responder-ike-rekey":            checkResponderIKERekey,
-	"responder-psk":                  checkResponderPSK,
-	"responder-raises-child-rekey":   checkResponderRaisesChildRekey,
+	"child-rekey":                        checkChildRekey,
+	"child-rekey-narrowing":              checkChildRekeyNarrowing,
+	"clear-reestablish":                  checkClearReestablish,
+	"cookie-challenge":                   checkCookieChallenge,
+	"delete-while-window-held":           checkDeleteWhileWindowHeld,
+	"eap-mschapv2":                       checkEAPMSCHAPv2,
+	"eap-nak-method-negotiation":         checkEAPNakMethodNegotiation,
+	"eap-tls":                            checkEAPTLS,
+	"eap-tls13":                          checkEAPTLS13,
+	"esn-both-offered":                   checkESNBothOffered,
+	"esn-extended-only-refused":          checkESNExtendedOnlyRefused,
+	"esp-form-change":                    checkESPFormChange,
+	"initiator-rekey-answer-narrows":     checkInitiatorRekeyAnswerNarrows,
+	"invalid-ke-retry":                   checkInvalidKERetry,
+	"ipsec-bgp-redistribute-frr":         checkIPsecBGPRedistributeFRR,
+	"natt-transport-inner-checksum":      checkNATTTransportInnerChecksum,
+	"natt-tunnel-inner-checksum":         checkNATTTunnelInnerChecksum,
+	"peer-reload-narrowing":              checkPeerReloadNarrowing,
+	"psk-site-to-site":                   checkPSKSiteToSite,
+	"real-nat-transport-ze-initiator":    checkRealNATTransportZeInitiator,
+	"real-nat-transport-ze-responder":    checkRealNATTransportZeResponder,
+	"real-nat-tunnel-control":            checkRealNATTunnelControl,
+	"responder-accepts-reinit":           checkResponderAcceptsReinit,
+	"responder-eap-mschapv2":             checkResponderEAPMSCHAPv2,
+	"responder-eap-tls13":                checkResponderEAPTLS13,
+	"responder-eap-tls13-revoked-client": checkResponderEAPTLS13RevokedClient,
+	"responder-ike-rekey":                checkResponderIKERekey,
+	"responder-psk":                      checkResponderPSK,
+	"responder-raises-child-rekey":       checkResponderRaisesChildRekey,
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.
@@ -287,6 +292,106 @@ func checkResponderEAPTLS13(ctx context.Context, lab *scenarioLab) error {
 	}
 	_, err = lab.waitXFRM(ctx, zePeer)
 	return err
+}
+
+// checkResponderEAPTLS13RevokedClient is the mirror of checkResponderEAPTLS13,
+// and the only difference between the two scenarios is one file: the CRL ze
+// holds for the CA lists the strongSwan client certificate's serial number.
+//
+// RFC requirement: RFC9190-5.4-1 positive -- "When EAP-TLS is used with TLS 1.3,
+// the revocation status of all the certificates in the certificate chains MUST
+// be checked (except the trust anchor)." Ze is the EAP-TLS server here. charon
+// negotiates TLS 1.3, sends its client certificate, and gets back ze's fatal
+// bad_certificate alert instead of the protected success indication its sibling
+// scenario receives. No SA is established and neither end installs an XFRM
+// state. The certificate is valid and issued by the trusted CA, and
+// responder-eap-tls13 establishes with the same material, so the revocation is
+// the only thing this refusal can be about.
+//
+// The assertions read STRONGSWAN's account rather than ze's. Ze's own log names
+// the revoked certificate only on the round that emits EAP-Failure, and charon
+// abandons the exchange after the alert rather than answering it, so that round
+// never comes (plan/journal/diagnosis-parked-until-a-round-the-peer-may-never-send.md).
+// What charon reports is ze's wire output read by another implementation, which
+// is the stronger evidence anyway.
+func checkResponderEAPTLS13RevokedClient(ctx context.Context, lab *scenarioLab) error {
+	const (
+		// The grouped form is what `interopScenarioOf` (`internal/le/rfc`) reads to
+		// learn which scenario a tagged checker drives. It cannot drive this suite
+		// yet (plan/journal/gate-excludes-part-of-its-population.md, 2026-09-05
+		// row), so the shape is here for the day it can.
+		name = "responder-eap-tls13-revoked-client"
+	)
+	// Every assertion here is an ABSENCE on ze's side: no SA, no XFRM state. The
+	// operator reading a red run therefore has nothing to look at unless the
+	// failure carries the two peers' own accounts, so it does.
+	fail := func(assertion int, cause error) error {
+		var tb textbuf.Buffer
+		tb.Str("scenario ").Str(name).Str(" assertion ").Str(strconv.Itoa(assertion)).Str(": ").Err(cause)
+		// context.Background(), because the failure that brought us here is often
+		// a wait that ran the scenario context out. Reading the logs under a dead
+		// context would answer nothing exactly when the operator needs them.
+		for _, peer := range []string{zePeer, swanPeer} {
+			tb.Str("\n--- ").Str(peer).Str(" logs ---\n")
+			logs, err := lab.logs(context.Background(), peer)
+			if err != nil {
+				// Say that the account is missing. Dropping the peer silently
+				// would leave the operator reading a failure with no evidence and
+				// no reason for its absence (ai/rules/principles.md).
+				tb.Str("unavailable: ").Err(err)
+				continue
+			}
+			tb.Str(strings.TrimSpace(logs))
+		}
+		return errors.New(tb.String())
+	}
+
+	// Assertion 1. The refusal ze REACHED is the positive fact. A run that merely
+	// failed to establish proves nothing about which check refused it.
+	if err := lab.waitLog(ctx, swanPeer, "received fatal TLS alert 'bad certificate'", lab.timeout); err != nil {
+		return fail(1, err)
+	}
+	logs, err := lab.logs(ctx, swanPeer)
+	if err != nil {
+		return fail(2, err)
+	}
+	// Assertion 3. Section 5.4's obligation opens "When EAP-TLS is used with TLS
+	// 1.3", so a run that fell back to TLS 1.2 would prove nothing about it.
+	if !strings.Contains(logs, "negotiated TLS 1.3") {
+		return fail(3, errors.New("charon never logged negotiated TLS 1.3, so this run does not exercise the TLS 1.3 obligation"))
+	}
+	// Assertion 4. The exchange reached the certificate. Without this, an earlier
+	// failure carrying the same alert would pass for a revocation refusal.
+	if !strings.Contains(logs, "sending TLS client certificate") {
+		return fail(4, errors.New("charon never sent its client certificate, so ze refused something earlier than the chain"))
+	}
+	// Assertion 5. The method failed rather than the SA failing later for an
+	// unrelated reason.
+	if !strings.Contains(logs, "EAP_TLS method failed") {
+		return fail(5, errors.New("charon did not report the EAP-TLS method failing"))
+	}
+	// Assertion 6. Its sibling's success marker is absent. responder-eap-tls13
+	// asserts charon logs it, so this is the one observable that flips between
+	// the two scenarios on the strength of the CRL alone.
+	if strings.Contains(logs, "received protected success indication via TLS") {
+		return fail(6, errors.New("charon received the protected success indication, so ze concluded an exchange it had to refuse"))
+	}
+	sas, err := lab.listSAs(ctx)
+	if err != nil {
+		return fail(7, err)
+	}
+	// Assertion 8. Nothing was keyed on either side, so no traffic can flow to a
+	// peer whose certificate the CA has withdrawn.
+	if strings.Contains(sas, "ESTABLISHED") {
+		return fail(8, fmt.Errorf("strongSwan reports an established SA after ze refused a revoked client certificate: %s", sas))
+	}
+	if err := lab.checkXFRMCount(ctx, swanPeer, 0); err != nil {
+		return fail(9, err)
+	}
+	if err := lab.checkXFRMCount(ctx, zePeer, 0); err != nil {
+		return fail(10, err)
+	}
+	return nil
 }
 
 func checkResponderEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {
@@ -1238,4 +1343,171 @@ func (l *scenarioLab) assertProbeVerdict(ctx context.Context, probe innerChecksu
 			observed, probe.protocol, checksum, forbidden, moved)
 	}
 	return nil
+}
+
+// The three real-NAT scenarios of RFC 7296 Section 2.23.1, and the addresses they turn on.
+//
+// The lab's NAT box owns one secondary address for each peer, so Ze runs on 172.28.0.2 and
+// dials 172.28.0.7 while strongSwan runs on 172.28.0.3 and dials 172.28.0.6. Both ends are
+// therefore translated, which is the section's own two-NAT figure and what makes all four
+// NAT_DETECTION comparisons mismatch.
+//
+// The two transport scenarios differ in ROLE and in nothing else, because the substitution
+// has two producers and a single scenario cannot fail on one of them. The tunnel control
+// differs from them in MODE and in nothing else, and it is what makes their verdicts
+// readable: a red transport scenario with no control is equally explained by a broken NAT
+// topology.
+const (
+	// natTransportZeLocal and natTransportZeRemote are the selectors Ze must hold after
+	// the Section 2.23.1 substitution, on either role: its own address, and the address it
+	// dials. Neither is what the peer put on the wire.
+	natTransportZeLocal  = zeIP + "/32"
+	natTransportZeRemote = swanPublicIP + "/32"
+
+	// natSwanLocal and natSwanRemote are the same pair in strongSwan's address space, and
+	// swanctl reports them as the Child SA's local and remote selectors.
+	natSwanLocal  = swanIP + "/32"
+	natSwanRemote = zePublicIP + "/32"
+
+	// The tunnel control's inner addresses. The NAT box never sees them, so they are the
+	// one selector pair in the lab a translation cannot move.
+	natTunnelZeInner   = "10.10.0.1"
+	natTunnelSwanInner = "10.20.0.1"
+)
+
+// checkRealNATTransportZeInitiator proves the CLIENT half of RFC 7296 Section 2.23.1
+// across a netfilter box that really rewrites both addresses.
+//
+// RFC 7296 Section 2.23.1, for the client: "If the client is behind a NAT, substitute the
+// IP address in the TSi entries with the local address of the IKE SA." and "If the server
+// is behind a NAT, substitute the IP address in the TSr entries with the remote address of
+// the IKE SA." and "Do address substitution before using those Traffic Selectors for
+// anything other than storing original content of them. This includes verification that
+// Traffic Selectors were narrowed correctly by the other end, creation of the SAD entry,
+// and so on."
+//
+// strongSwan answers in ITS address space, so the TSi it returns is 172.28.0.6 and the TSr
+// is 172.28.0.3. Neither address exists on Ze's node. Before this substitution Ze refused
+// that answer with TS_UNACCEPTABLE and deleted the SA, so the scenario cannot pass at all
+// without it and there is no weaker reading of a green run.
+//
+// Three things are asserted, and the third is what makes the first two evidence:
+//
+//  1. Ze recorded a NAT on the path AND recorded which side each translation is on. A
+//     scenario that asserted reachability alone would pass with both side fields false.
+//  2. `show vpn ipsec sa` reports the SUBSTITUTED selectors: Ze's own address and the
+//     address it dials, rather than the pair strongSwan answered with.
+//  3. ESP bytes advance on all four simplex SAs while a ping across the translated path
+//     completes without loss. Transport mode puts one IP header on the wire and the NAT
+//     rewrites it, so traffic flows only when the two ends programmed the addresses their
+//     own kernels see.
+func checkRealNATTransportZeInitiator(ctx context.Context, lab *scenarioLab) error {
+	return checkRealNATTransport(ctx, lab)
+}
+
+// checkRealNATTransportZeResponder proves the SERVER half of the same section, with
+// strongSwan dialling in from behind the translation and Ze answering.
+//
+// RFC 7296 Section 2.23.1, for the responder: "If the client is behind a NAT, substitute
+// the IP address in the TSi entries with the remote address of the IKE SA." and "If the
+// server is behind a NAT, substitute the IP address in the TSr entries with the local
+// address of the IKE SA." and "Do PAD and SPD lookup using the ID and substituted Traffic
+// Selectors."
+//
+// This is the arm narrowChildSelectors produces. strongSwan proposes its own 172.28.0.3
+// and the 172.28.0.6 it dials, and Ze's configured policy names neither: it names the
+// addresses Ze's own stack sees. Without the substitution the policy match finds no
+// intersection and Ze answers TS_UNACCEPTABLE.
+//
+// It asserts what the initiator scenario asserts, over the same topology, because the
+// two roles are two code paths and a single scenario cannot fail on one of them.
+func checkRealNATTransportZeResponder(ctx context.Context, lab *scenarioLab) error {
+	return checkRealNATTransport(ctx, lab)
+}
+
+// checkRealNATTransport is the body both transport scenarios run. The role is a property
+// of the two fixture files, and the assertions are identical on purpose: a substitution
+// present on one role and absent on the other is the half fix this scenario pair exists to
+// catch, and it shows as one of the two going red.
+func checkRealNATTransport(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if err := lab.waitChildSelectors(ctx, natSwanLocal, natSwanRemote); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if err := lab.assertNATVerdict(ctx); err != nil {
+		return err
+	}
+	if err := lab.assertZeSelectors(ctx, natTransportZeLocal, natTransportZeRemote); err != nil {
+		return err
+	}
+
+	// The installed state has to be transport mode, or the scenario measured tunnel mode
+	// across a NAT and says nothing about Section 2.23.1.
+	state, err := lab.inboundXFRMState(ctx, zePeer, swanPublicIP, zeIP)
+	if err != nil {
+		return err
+	}
+	if err := requireContains(state, "mode transport",
+		"ze's INBOUND state is not transport mode, so this scenario measured the wrong mode: "+state); err != nil {
+		return err
+	}
+
+	return lab.verifyESPDirectionsToward(ctx,
+		"traffic did not cross the transport-mode Child SA through the NAT",
+		pingProbe{peer: zePeer, target: swanPublicIP}, natESPDirections)
+}
+
+// checkRealNATTunnelControl is the control for the two transport scenarios, and it is also
+// the test that the substitution stays out of tunnel mode.
+//
+// RFC 7296 Section 2.23.1 governs transport mode alone: "Transport mode used with NAT
+// traversal requires special handling of the Traffic Selectors used in the IKEv2." A
+// tunnel-mode Child SA over the identical topology therefore negotiates the selectors its
+// operator configured, untouched.
+//
+// The inner addresses are what makes that observable. Tunnel mode carries an inner header
+// the NAT box never sees, so 10.10.0.1 and 10.20.0.1 are the one selector pair in this lab
+// a translation cannot move. A substitution that leaked past its mode gate would replace
+// them with the outer addresses, and nothing else in the suite would notice.
+//
+// Its second job is to make a red transport scenario readable. It runs the same three
+// containers, the same rules and the same round trip, and differs from the transport
+// scenarios in the Child SA's MODE alone. A broken topology turns this one red too.
+func checkRealNATTunnelControl(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if err := lab.assertNATVerdict(ctx); err != nil {
+		return err
+	}
+	if err := lab.assertZeSelectors(ctx, natTunnelZeInner+"/32", natTunnelSwanInner+"/32"); err != nil {
+		return err
+	}
+
+	state, err := lab.inboundXFRMState(ctx, zePeer, swanPublicIP, zeIP)
+	if err != nil {
+		return err
+	}
+	if err := requireContains(state, "mode tunnel",
+		"ze's INBOUND state is not tunnel mode, so the control measures the wrong mode: "+state); err != nil {
+		return err
+	}
+
+	if err := lab.natInnerAddress(ctx, zePeer, natTunnelZeInner, natTunnelSwanInner); err != nil {
+		return err
+	}
+	if err := lab.natInnerAddress(ctx, swanPeer, natTunnelSwanInner, natTunnelZeInner); err != nil {
+		return err
+	}
+	return lab.verifyESPDirectionsToward(ctx,
+		"traffic did not cross the tunnel-mode Child SA through the NAT",
+		pingProbe{peer: zePeer, target: natTunnelSwanInner, source: natTunnelZeInner}, natESPDirections)
 }

@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-08-30 |
+| Updated | 2026-09-05 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
 
@@ -174,7 +174,7 @@ OQ-1, and no acceptance criterion below depends on the answer.
 | A-1 | strongSwan performs the Section 2.23.1 substitution, so it is a conforming counterpart for the red phase | The task statement says a conforming server that performs the substitution draws TS_UNACCEPTABLE from Ze. strongSwan's source was NOT read while this spec was written | The red phase measures Ze against a peer that is also silent, and the scenario proves nothing | Run the scenario before the fix and read charon's log for the selectors it answered; the answered addresses must be the post-NAT pair | unvalidated |
 | A-2 | The observed local address of the IKE SA equals the bound listen address, which `ikeListenHost` derives from `interface` or the first peer's `local-address` | `internal/component/ike/engine/register.go` computes one listen host for both sockets | A wildcard bind on a multi-homed host has no per-packet local address, and TSr substitution picks the wrong one | Unit test over the substitution helper with a configured local address; the wildcard case is Known Limitations and belongs to `plan/immediate/spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md` | unvalidated |
 | A-3 | No dataplane change is owed: the kernel takes RFC 3948 Section 3.1.2's third alternative for transport mode, and the substituted selectors match the single translated IP header | `test/interop-ipsec/scenarios/natt-transport-inner-checksum` already measures the checksum behaviour; `xfrm_linux.go` leaves `OriginalAddress` unset | Traffic does not flow over an established transport SA behind the NAT, and `XfrmStateEncap.OriginalAddress` enters scope | The interop scenario asserts the peer's inbound xfrm byte counter advances, which is zero if the selectors or the checksum handling are wrong | unvalidated |
-| A-4 | A single netfilter container doing DNAT plus MASQUERADE reproduces the RFC's two-NAT figure well enough to fire all four NAT_DETECTION comparisons | RFC 7296 Section 2.23.1 describes NAT A and NAT B as two boxes for exposition; the hashes compare addresses, not box counts | Only one substitution arm is exercised and the other ships unproven | The checker asserts `nat-detected` on Ze's `show vpn ipsec sa` and asserts the negotiated selectors carry the post-NAT addresses on both roles | unvalidated |
+| A-4 | A single netfilter container doing DNAT plus SNAT reproduces the RFC's two-NAT figure well enough to fire all four NAT_DETECTION comparisons. The implemented lab uses SNAT to a named secondary address rather than MASQUERADE, because MASQUERADE picks the interface's primary address and the design needs one distinct public address per peer | RFC 7296 Section 2.23.1 describes NAT A and NAT B as two boxes for exposition; the hashes compare addresses, not box counts | Only one substitution arm is exercised and the other ships unproven | The checker asserts `nat-detected` on Ze's `show vpn ipsec sa` and asserts the negotiated selectors carry the post-NAT addresses on both roles | unvalidated |
 | A-5 | Docker's user-defined bridge forwards through a container that owns a secondary address and masquerades, with no anti-spoof filter in the way | MASQUERADE rewrites the source to an address the NAT container owns, so no spoofed source is ever emitted | The lab cannot introduce a NAT without a second Docker network, which is an `interoplab` change the BGP suite shares | Bring the three containers up and ping across the NAT before any IKE runs | unvalidated |
 | A-6 | The Alpine QEMU VM can run strongSwan from `apk`, and Ze's runtime kernel carries iptables NAT | `test/interop-ipsec/Dockerfile.strongswan` installs `strongswan` from Alpine; `gokrazy/kernel/runtime.config` carries `CONFIG_IP_NF_NAT=y` and `CONFIG_IP_NF_TARGET_MASQUERADE=y` | The QEMU runner needs kernel config work before it can run at all | Boot the runtime kernel and install the masquerade rule in the middle namespace | unvalidated |
 
@@ -436,6 +436,30 @@ OQ-1, and no acceptance criterion below depends on the answer.
 | D-6: three scenarios, not one | One scenario with both roles; two scenarios with no tunnel control | The two roles are two code paths and a single scenario cannot fail on one of them. The tunnel control is what makes the transport verdicts readable: without it a red transport scenario is equally explained by a broken NAT topology |
 
 ## Known Limitations
+
+**Not implemented in the commit that set Status to `verification`.** The
+implementation session landed AC-1 through AC-8 and the three interop scenarios, and
+left the rest open. It reduced no acceptance criterion: each item below is still
+owed and each one names what remains.
+
+- AC-9 and AC-10 are UNRUN, not unwritten. `real-nat-transport-ze-initiator`,
+  `real-nat-transport-ze-responder` and `real-nat-tunnel-control` are checked in with
+  their typed checkers, their `nat.conf` fixtures and the NAT container that serves
+  them, and no run of the container lab has been made against them: the owner deferred
+  heavy testing for that session. The commands are
+  `./le integration interop-ipsec scenario real-nat-transport-ze-initiator` and the
+  same for the other two, and AC-9's recorded RED still has to be forced with the Ze
+  image rebuilt.
+- AC-11 and AC-12 are NOT STARTED. `internal/le/qemu/ipsec_nat_linux.go`, its
+  registration in `internal/le/qemu/actions.go`, the `runtime.require` entries and the
+  workflow job that calls it do not exist.
+- The `.ci` functional test `test/ipsec/ipsec-transport-nat-selectors.ci` does not
+  exist.
+- The IKE SA rekey carries `PeerBehindNAT` across both producers in `rekey.go`, and no
+  test drives either producer: the two build a replacement SA from keys, nonces and a
+  Diffie-Hellman exchange, and no fixture in the package reaches them today. The
+  CHILD SA rekey is covered, by `TestChildRekeyFloorComparedInSubstitutedSpace`.
+
 - A wildcard IKE bind on a multi-homed host has no per-packet local address, so the TSr substitution uses the bound listen address. `plan/immediate/spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md` owns that question and is `blocked` on owner question OR-WP8-1. This spec does not widen its scope, and A-2 records the boundary.
 - IPv6 transport mode behind a NAT is out of scope: the IKE transport is `udp4` today, so there is no IPv6 path to substitute on.
 - The VPP dataplane backend refuses transport mode, so this work is XFRM-only in effect.

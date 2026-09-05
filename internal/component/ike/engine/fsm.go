@@ -581,12 +581,22 @@ func handleSAInitResponse(
 					expected := transport.NATDetectionHash(sa.InitiatorSPI, sa.ResponderSPI, remoteIP, transport.IKEPort)
 					if !natHashEqual(p.NotificationData, expected) {
 						sa.NATDetected = true
+						// The hash the RESPONDER computed over its own address does not
+						// match the address this node dials, so the responder's address was
+						// translated on the way here: the PEER is behind the NAT. RFC 7296
+						// Section 2.23.1 needs that side separately from NATDetected: "If
+						// the server is behind a NAT, substitute the IP address in the TSr
+						// entries with the remote address of the IKE SA."
+						sa.PeerBehindNAT = true
 						sa.floatToNATTPort()
 					}
 				}
 			}
 			// DESTINATION_IP from responder: hash of us as the responder sees us.
-			// Mismatch means our address was translated (we are behind NAT).
+			// Mismatch means our address was translated (we are behind NAT). RFC 7296
+			// Section 2.23.1 reads this side on its own too: "If the client is behind a
+			// NAT, substitute the IP address in the TSi entries with the local address of
+			// the IKE SA."
 			if p.NotifyMsgType == wire.NotifyNATDetectionDestIP {
 				localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
 				if localIP != nil {
@@ -1165,6 +1175,13 @@ func buildPeerTLSConfig(sa *SA, log *slog.Logger) *eap.PeerTLSConfig {
 		return nil
 	}
 	cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: ca.Raw})
+
+	// RFC 9190 Section 5.4 binds the EAP-TLS peer as well as the server, so the
+	// lists this CA published are what the peer checks the authenticator's chain
+	// against. A CA holding none leaves the answer nil, and the peer then
+	// refuses a TLS 1.3 authenticator rather than trusting a chain whose
+	// revocation status nobody read (eap.checkChainRevocation).
+	cfg.CRLPEM = ca.CRLPEM()
 
 	return cfg
 }

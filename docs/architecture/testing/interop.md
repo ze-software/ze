@@ -229,6 +229,49 @@ its own `src`/`dst` header and takes the set of directions its caller can claim,
 and it also refuses a ping whose `% packet loss` summary is missing or non-zero.
 <!-- source: internal/le/interoplab/ipsec/helpers.go -- directed ESP counters and the lossless-ping clause -->
 
+### The IPsec NAT box
+
+A scenario that carries `nat.conf` starts a third container, `nat`, at
+172.28.0.5. It is keyed on that file exactly as strongSwan is keyed on
+`swanctl.conf` and FRR on `frr.conf`, and it is started FIRST so its addresses
+answer ARP before either daemon sends a datagram.
+
+It exists because RFC 7296 Section 2.23.1 is only reachable across a REAL
+translation. `natt-transport-inner-checksum` and `natt-tunnel-inner-checksum`
+reach the UDP-encapsulated path through strongSwan's `encap = yes`, which fakes
+the NAT_DETECTION_SOURCE_IP hash with no middlebox on the path. The pre-NAT
+address and the observed address are therefore equal in those two, every
+Section 2.23.1 substitution is the identity, and its absence cannot show. That is
+the fourth vacuity trap above: the asserted bytes reach the peer by a path the
+mechanism under test does not touch.
+
+`nat.conf` is one translation per line, `<real> <public>`. The box gives itself
+each public address as a SECONDARY address on `eth0`, then installs one DNAT rule
+in PREROUTING and one SNAT rule in POSTROUTING per line. Three consequences are
+load-bearing:
+
+- **No peer needs a route.** Both public addresses sit inside the lab bridge's own
+  prefix, so a peer resolves them by ARP and the box answers. A NAT on its own
+  segment would need a second Docker network, and `interoplab.ScenarioPlan` carries
+  one `NetworkSpec` that the BGP suite shares.
+- **Both addresses of a crossing datagram are rewritten,** which is the two-NAT
+  figure of Section 2.23.1 drawn with one box, and it is what makes all four
+  NAT_DETECTION comparisons mismatch.
+- **The rules carry no port and no protocol.** IKE floats from UDP 500 to UDP 4500
+  mid exchange, so a port-scoped rule would translate the handshake and drop the
+  ESP that follows.
+
+Three scenarios use it, and they differ in one variable each. The two transport
+scenarios differ in ROLE, because the substitution has two producers and a single
+scenario cannot fail on one of them. `real-nat-tunnel-control` differs from them in
+MODE, and it does two jobs: it proves the substitution stays out of tunnel mode, and
+it makes a red transport scenario readable, because a broken topology reds it too.
+Its selectors are INNER addresses the box never sees, which is the one selector pair
+in this lab a translation cannot move.
+
+<!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkRealNATTransport, checkRealNATTunnelControl -->
+
 ### The strongSwan lab drop-in
 
 Every scenario that starts a strongSwan peer mounts

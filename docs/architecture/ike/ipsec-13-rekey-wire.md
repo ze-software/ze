@@ -120,6 +120,22 @@ charon programmed `10.1.0.0/24 === 10.2.0.0/25` while ze kept `10.2.0.0/24 <->
 <!-- source: internal/component/ike/engine/rekey.go -- applyChildRekeyResponse -->
 <!-- source: internal/component/ike/engine/ts_narrow.go -- recordInitiatorSelectors, checkAnswerWithin -->
 
+**A rekey across a NAT compares both sides in the SAME address space.** Both
+producers substitute the transport-mode selector addresses before they compare
+anything, on the roles RFC 7296 Section 2.23.1 gives each:
+`narrowChildSelectors` above the policy match, `recordInitiatorSelectors` above
+`checkAnswerWithin` and `coversFloor`. The floor is `old.Selectors`, which the
+first exchange already recorded in substituted form, so the scope in use and the
+new answer are stated in the same addresses.
+
+Getting that order wrong refuses every rekey rather than one: a floor in
+post-substitution addresses compared against a pre-substitution answer covers no
+pair, and `coversFloor` reports the narrowing Section 2.9.2 forbids. The failure
+appears one lifetime after the tunnel comes up, so no test of the initial exchange
+sees it.
+
+<!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, substituteInitiatorSelectors -->
+
 **A kernel with no XFRM.** `createFirstChildSA` tolerates an unsupported
 dataplane. The rekey install must tolerate it too, or it tears down tunnels that
 the first child was allowed to establish. `installChildTolerant` is that path.

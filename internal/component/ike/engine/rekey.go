@@ -994,6 +994,7 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 		ExpectedMsgID: 0,
 		NATDetected:   oldSA.NATDetected,
 		BehindNAT:     oldSA.BehindNAT,
+		PeerBehindNAT: oldSA.PeerBehindNAT,
 		CreatedAt:     time.Now(),
 		EstablishedAt: time.Now(),
 	}
@@ -1139,6 +1140,7 @@ func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *sl
 		ExpectedMsgID: 0,
 		NATDetected:   oldSA.NATDetected,
 		BehindNAT:     oldSA.BehindNAT,
+		PeerBehindNAT: oldSA.PeerBehindNAT,
 		CreatedAt:     now,
 		EstablishedAt: now,
 	}

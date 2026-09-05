@@ -1,6 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- fail-closed strongSwan and Ze queries with bounded observations.
 // Related: ipsec.go -- topology and rendered configuration.
 // Related: checkers.go -- protocol assertions built from these typed operations.
+// RFC: rfc/short/rfc7296.md -- transport mode NAT traversal (Section 2.23.1)
 package ipsec
 
 import (
@@ -22,10 +23,24 @@ const (
 	zePeer   = "ze"
 	swanPeer = "strongswan"
 	frrPeer  = "frr"
+	natPeer  = "nat"
 
 	zeIP   = "172.28.0.2"
 	swanIP = "172.28.0.3"
 	frrIP  = "172.28.0.4"
+
+	// natHost is the NAT box's host octet on the lab network. It sits after FRR so a
+	// scenario that wants both keeps its addresses.
+	natHost = 5
+
+	// zePublicIP and swanPublicIP are the two secondary addresses the NAT box owns,
+	// and they are the addresses each peer sees the OTHER at.
+	//
+	// RFC 7296 Section 2.23.1 calls them IPN1 and IPN2. A scenario's nat.conf declares
+	// the mapping and this pair is what every checker of a NAT scenario asserts
+	// against, so the two cannot drift.
+	zePublicIP   = "172.28.0.6"
+	swanPublicIP = "172.28.0.7"
 
 	logLinesMax = 10000
 
@@ -403,13 +418,24 @@ func pingLoss(output string) (int, error) {
 // requireLosslessPing drives count echo requests from peer to target and refuses
 // any loss, and any output whose summary it cannot read.
 func (l *scenarioLab) requireLosslessPing(ctx context.Context, peer, target string, count int) error {
-	output := l.ping(ctx, peer, target, count)
+	return l.requireLosslessPingFrom(ctx, pingProbe{peer: peer, target: target}, count)
+}
+
+// requireLosslessPingFrom is requireLosslessPing with an optional source address, so a
+// tunnel-mode flow can be stimulated from the inner address its policy selects on.
+func (l *scenarioLab) requireLosslessPingFrom(ctx context.Context, probe pingProbe, count int) error {
+	command := []string{"ping", "-c", strconv.Itoa(count), "-W", "2"}
+	if probe.source != "" {
+		command = append(command, "-I", probe.source)
+	}
+	command = append(command, probe.target)
+	output := l.execQuiet(ctx, probe.peer, command...)
 	loss, err := pingLoss(output)
 	if err != nil {
-		return fmt.Errorf("ping from %s to %s %w", peer, target, err)
+		return fmt.Errorf("ping from %s to %s %w", probe.peer, probe.target, err)
 	}
 	if loss != 0 {
-		return fmt.Errorf("ping from %s to %s lost %d%% of %d packets: %s", peer, target, loss, count, output)
+		return fmt.Errorf("ping from %s to %s lost %d%% of %d packets: %s", probe.peer, probe.target, loss, count, output)
 	}
 	return nil
 }
@@ -451,6 +477,23 @@ func (l *scenarioLab) verifyTunnelTraffic(ctx context.Context, message string) e
 // form, so Ze receives that ESP in userspace and the kernel state correctly stays
 // still.
 func (l *scenarioLab) verifyESPDirections(ctx context.Context, message string, wanted []espDirection) error {
+	return l.verifyESPDirectionsToward(ctx, message, pingProbe{peer: zePeer, target: swanIP}, wanted)
+}
+
+// pingProbe is the round trip that stimulates the ESP the caller then measures. The
+// source matters behind a NAT and inside a tunnel: a peer reaches the far end at the
+// address IT dials, which is the translated one, and a tunnel-mode flow has to leave
+// from the inner address the policy selects on.
+type pingProbe struct {
+	peer   string
+	target string
+	source string
+}
+
+// verifyESPDirectionsToward is verifyESPDirections with the stimulating round trip
+// named by the caller. The default probe pings the peer's own address, which is right
+// for every scenario with no middlebox and wrong for every scenario with one.
+func (l *scenarioLab) verifyESPDirectionsToward(ctx context.Context, message string, probe pingProbe, wanted []espDirection) error {
 	if len(wanted) == 0 {
 		return fmt.Errorf("%s: the checker claimed no ESP direction, so nothing was observed", message)
 	}
@@ -458,7 +501,7 @@ func (l *scenarioLab) verifyESPDirections(ctx context.Context, message string, w
 	if err != nil {
 		return err
 	}
-	if err := l.requireLosslessPing(ctx, zePeer, swanIP, 4); err != nil {
+	if err := l.requireLosslessPingFrom(ctx, probe, 4); err != nil {
 		return fmt.Errorf("%s: %w", message, err)
 	}
 	after, err := l.espCounters(ctx, wanted)
@@ -818,4 +861,73 @@ func (l *scenarioLab) deliverMarker(ctx context.Context, protocol string, port i
 		return strings.Contains(received, nattMarker)
 	})
 	return err
+}
+
+// The four simplex SAs of a scenario whose peers are BOTH translated by the NAT box.
+//
+// Each end's kernel names the OUTER addresses of its own Child SA, and behind a NAT the
+// two ends disagree about them: Ze's states run between its own address and the address
+// it dials, and strongSwan's run between its own address and the address it sees Ze at.
+// A direction written with the untranslated pair matches no state, which reads as "the SA
+// moved nothing" rather than as "the checker looked in the wrong place".
+var (
+	zeEncryptsNAT   = espDirection{peer: zePeer, source: zeIP, target: swanPublicIP, summary: "Ze encrypted nothing toward the address it dials"}
+	swanDecryptsNAT = espDirection{peer: swanPeer, source: zePublicIP, target: swanIP, summary: "strongSwan accepted no ESP from the address it sees Ze at"}
+	swanEncryptsNAT = espDirection{peer: swanPeer, source: swanIP, target: zePublicIP, summary: "strongSwan encrypted nothing toward the address it sees Ze at"}
+	zeDecryptsNAT   = espDirection{peer: zePeer, source: swanPublicIP, target: zeIP, summary: "Ze decrypted no ESP from the address it dials"}
+)
+
+// natESPDirections follows one round trip across the translated path.
+var natESPDirections = []espDirection{zeEncryptsNAT, swanDecryptsNAT, swanEncryptsNAT, zeDecryptsNAT}
+
+// assertZeSAField refuses unless `show vpn ipsec sa` reports one IKE SA field with one
+// value. It is the operator-visible half of a NAT verdict: an SA that established with
+// the wrong verdict recorded would still pass every reachability assertion.
+func (l *scenarioLab) assertZeSAField(ctx context.Context, field, value string) error {
+	output, err := l.zeCLI(ctx, "show vpn ipsec sa")
+	if err != nil {
+		return err
+	}
+	pattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(field) + `\s+` + regexp.QuoteMeta(value) + `\s*$`)
+	if !pattern.MatchString(output) {
+		return fmt.Errorf("show vpn ipsec sa does not report %s %s; output: %s", field, value, output)
+	}
+	return nil
+}
+
+// assertNATVerdict refuses unless Ze recorded a NAT on the path AND recorded which side
+// each translation is on.
+//
+// RFC 7296 Section 2.23.1 is written per side: the TSi address is substituted when the
+// client is behind a NAT and the TSr address when the server is. A scenario that asserted
+// only nat-detected would pass while the two side fields stayed false, and the
+// substitution would be a no-op with a green bar over it.
+func (l *scenarioLab) assertNATVerdict(ctx context.Context) error {
+	for field, value := range map[string]string{
+		"nat-detected":    "true",
+		"behind-nat":      "true",
+		"peer-behind-nat": "true",
+	} {
+		if err := l.assertZeSAField(ctx, field, value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// natInnerAddress installs one inner address on a peer's loopback and the host route that
+// steers traffic for the far inner address out of the lab interface.
+//
+// The tunnel control needs addresses the NAT does NOT translate, because tunnel mode
+// carries an inner header the middlebox never sees. Its selectors are therefore the only
+// ones in the lab a translation cannot move, which is exactly what makes it the control:
+// a substitution that leaked into tunnel mode would change them and nothing else would.
+func (l *scenarioLab) natInnerAddress(ctx context.Context, peer, local, remote string) error {
+	if _, err := l.exec(ctx, peer, "ip", "address", "replace", local+"/32", "dev", "lo"); err != nil {
+		return fmt.Errorf("install inner address %s on %s: %w", local, peer, err)
+	}
+	if _, err := l.exec(ctx, peer, "ip", "route", "replace", remote+"/32", "dev", "eth0", "src", local); err != nil {
+		return fmt.Errorf("install inner route to %s on %s: %w", remote, peer, err)
+	}
+	return nil
 }

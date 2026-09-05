@@ -448,6 +448,47 @@ one. EAP-TLS session resumption is therefore not available.
 
 <!-- source: internal/core/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
 
+## EAP-TLS 1.3 needs a certificate revocation list
+
+RFC 9190 Section 5.4 says that "when EAP-TLS is used with TLS 1.3, the revocation status of
+all the certificates in the certificate chains MUST be checked (except the trust anchor)".
+Ze checks it on both roles: the authenticator over the client's chain, and the peer over
+the authenticator's chain.
+
+The revocation lists come from the `pki ca` the peer validates against, in a `crl`
+leaf-list. Each value is an `X509 CRL` PEM document or base64-encoded DER, and one CA can
+hold several, which is what a segmented CRL or a rollover needs. A list this CA did not
+sign is refused at commit, because it cannot answer for the certificates this CA issued.
+
+```text
+pki {
+    ca my-ca {
+        certificate "-----BEGIN CERTIFICATE-----...";
+        crl "-----BEGIN X509 CRL-----...";
+    }
+}
+```
+
+A CA with NO list and a list that revokes NOTHING are different answers, and the difference
+decides whether a session establishes:
+
+| What the CA holds | TLS 1.3 | TLS 1.2 |
+|-------------------|---------|---------|
+| A current list, and the chain is not on it | The session establishes | The session establishes |
+| A current list naming a certificate on the chain | Ze refuses, naming the certificate, its serial number and the CA that withdrew it | The same |
+| No list at all | Ze refuses: nothing can answer the question Section 5.4 makes mandatory | The session establishes |
+| A list whose `nextUpdate` has passed | Ze refuses: an expired list says nothing about the present | The session establishes |
+
+TLS 1.2 is governed by RFC 5216 Section 5.4 instead, which asks only that an implementation
+"MUST support the use of Certificate Revocation Lists (CRLs)". So a TLS 1.2 peer with no
+list configured still authenticates, and the same peer on TLS 1.3 does not.
+
+Publish a fresh list before the `nextUpdate` of the one in the config passes. An expired
+list refuses the same peers a missing one does.
+
+<!-- source: internal/core/eap/revocation.go -- checkChainRevocation, crlSet.currentListFrom -->
+<!-- source: internal/component/pki/store.go -- CACertEntry.CRLPEM -->
+
 ## EAP-TLS with TLS 1.2 needs RFC 7627
 
 RFC 5216 Section 2.3 derives the EAP-TLS MSK from a TLS key material export, and Go
@@ -699,6 +740,33 @@ without transport mode keeps a working tunnel.
 
 <!-- source: internal/component/ike/engine/transport_mode.go -- recordInitiatorTransportMode -->
 
+### Transport mode behind a NAT
+
+Transport mode works across an address-translating NAT, on both roles, and it needs no
+extra configuration. Write the addresses each end's own stack holds in `local-address`,
+`local-id` and the local half of every `traffic-selector`, and write the address you DIAL
+in `remote-address`, `remote-id` and the remote half. A `respond` peer writes the address
+it SEES the far end at, which is the translated one, because Ze accepts an unsolicited
+IKE_SA_INIT only from the configured `remote-address`.
+
+Ze then substitutes the selector addresses for you. RFC 7296 Section 2.23.1 requires it:
+the peer answers in the addresses ITS stack sees, and those exist on neither node. Ze
+replaces them with the addresses it observed, so the policy it programs matches the packets
+its own kernel handles. This is the one place where the selectors on the wire and the
+selectors in `show vpn ipsec sa` differ, and the command reports what was programmed.
+
+`show vpn ipsec sa` names which side is translated. `nat-detected` says a NAT is on the
+path, `behind-nat` says this node's own address was translated, and `peer-behind-nat` says
+the far end's was. Both can be true at once. A transport tunnel that does not come up
+behind a NAT is diagnosed with those three fields first: all false means the peer sent no
+NAT_DETECTION notification, which no conforming IKEv2 implementation omits.
+
+Tunnel mode across the same NAT is unaffected. Section 2.23.1 governs transport mode alone,
+so a tunnel-mode Child SA negotiates the selectors you configured, untouched.
+
+<!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, substituteInitiatorSelectors -->
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
+
 The VPP dataplane backend does not implement transport mode. It refuses a transport-mode
 install with a clear error rather than programming a tunnel-mode entry and reporting
 success. The SA path and the policy path each refuse it on their own.
@@ -720,7 +788,7 @@ through it. Use the XFRM backend, which is the default and the production path.
 
 ## PKI certificate store
 
-The `pki { }` block stores X.509 certificates, private keys, and CA certificates. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.
+The `pki { }` block stores X.509 certificates, private keys, CA certificates, and the certificate revocation lists each CA published. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.
 
 Health monitoring reports certificate expiry as a warning at 30 days and an error after expiry. Prometheus exposes `ze_pki_certificate_expiry_seconds` and `ze_pki_certificate_valid`.
 
@@ -767,14 +835,27 @@ so it never turns the status green on a question nobody asked.
 
 <!-- source: internal/component/ike/engine/health_drift.go -- driftingPeers, driftDetail -->
 
-`ze doctor` reports `doctor-ipsec-xfrm-unavailable` as a warning when `vpn ipsec` is
-configured and the kernel XFRM dataplane does not answer. The two causes need different
-action: a kernel without CONFIG_XFRM_USER and CONFIG_INET_ESP, or a process without
-CAP_NET_ADMIN. `doctor-ipsec-udp-encap` is an error, and it covers a NAT-T socket that
-would not bind as well as one the kernel will not decapsulate through. Both leave a tunnel
-that establishes and carries no traffic.
+IPsec is an enrolled kernel capability. When the configuration installs a Security
+Association and the kernel holds no XFRM dataplane, `ze doctor` reports
+`doctor-ipsec-xfrm-unavailable` as an ERROR, `ze` refuses to start with the same message
+and exit 1, and `ze config validate` fails. There is no override: a daemon that negotiates
+a tunnel and encrypts nothing is the hazard this removes.
 
-<!-- source: internal/component/ike/engine/doctor_xfrm.go -- checkXFRMReachable -->
+The probe opens the XFRM netlink socket, which needs no CAP_NET_ADMIN, and it reports
+absence only for the errno that means the kernel carries no XFRM protocol. Every other
+failure, a permission denial included, is `doctor-ipsec-xfrm-unknown` at warning severity
+and ze still starts: no kernel rebuild fixes a privilege fault.
+
+An empty `vpn { ipsec { } }` block installs no Security Association, so it is not IPsec in
+use. It gates nothing, warns about no kernel module, and binds no IKE listener.
+
+`doctor-ipsec-udp-encap` is an error, and it covers a NAT-T socket that would not bind as
+well as one the kernel will not decapsulate through. Both leave a tunnel that establishes
+and carries no traffic.
+
+<!-- source: internal/component/ike/engine/kernelcap_linux.go -- the ipsec enrolment -->
+<!-- source: internal/component/kernelcap/kernelcap.go -- Evaluate, Refuse -->
+<!-- source: internal/component/kernelcap/predicate.go -- IPsecInUse -->
 <!-- source: internal/component/ike/engine/udpencap.go -- checkIPsecUDPEncap, udpEncapReady -->
 
 ## CLI

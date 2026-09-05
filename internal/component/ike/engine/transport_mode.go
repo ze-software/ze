@@ -8,7 +8,6 @@ package engine
 
 import (
 	"log/slog"
-	"net"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
@@ -37,17 +36,26 @@ func wantsTransportMode(sa *SA) bool {
 //	"The TSr entries MUST have exactly one IP address, and that MUST match the
 //	destination address of the IKE SA."
 //
-// The addresses therefore come from the IKE SA rather than from the config, so a
-// transport-mode proposal cannot name an address the IKE SA does not run on. The port and
-// protocol of each configured selector SURVIVE: the same section allows several selectors
-// in transport mode, "for example, multiple port ranges", provided every one carries the
-// single address. The constraint is one ADDRESS, never one SELECTOR.
+// The addresses come from the IKE SA's own OBSERVED pair, so a transport-mode proposal
+// cannot name an address the IKE SA does not run on (observedLocalAddress and
+// observedRemoteAddress, ts_nat_substitute.go). Reading the configured pair here made the
+// claim accidentally true, because the two are equal with no NAT on the path, and false
+// the moment the peer moves. The port and protocol of each configured selector SURVIVE:
+// the same section allows several selectors in transport mode, "for example, multiple
+// port ranges", provided every one carries the single address. The constraint is one
+// ADDRESS, never one SELECTOR.
+//
+// The addresses are this node's OWN view, which is what the two MUSTs ask for: the source
+// and the destination of the IKE SA as this stack sees them. Behind a NAT the far end sees
+// a different pair, and RFC 7296 Section 2.23.1's substitution is what reconciles the two
+// (ts_nat_substitute.go). Proposing the post-NAT address here instead would be a guess
+// about a translation this node cannot observe.
 //
 // It returns nil when either address is unusable, and the caller then proposes nothing
 // rather than proposing a wildcard that would violate the MUST.
 func transportSelectorPairs(sa *SA, configured []tsPair) []tsPair {
-	local := net.ParseIP(sa.PeerCfg.LocalAddress)
-	remote := net.ParseIP(sa.PeerCfg.RemoteAddress)
+	local := observedLocalAddress(sa)
+	remote := observedRemoteAddress(sa)
 	if local == nil || remote == nil {
 		return nil
 	}

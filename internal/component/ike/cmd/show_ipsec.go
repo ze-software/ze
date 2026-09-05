@@ -200,7 +200,14 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo,
 		"established-at": sa.EstablishedAt.UTC().Format(time.RFC3339),
 		"uptime-seconds": uptimeSeconds,
 		"nat-detected":   sa.NATDetected,
-		"rekey-count":    uint64(0),
+		// RFC 7296 Section 2.23.1 writes the transport-mode selector substitution in terms
+		// of WHICH side is translated, not merely whether a NAT is present, so an operator
+		// diagnosing a transport-mode tunnel needs the same two facts nat-detected hides.
+		// behind-nat is this node, peer-behind-nat is the far end, and both can be true at
+		// once in the two-NAT case that section draws.
+		"behind-nat":      sa.BehindNAT,
+		"peer-behind-nat": sa.PeerBehindNAT,
+		"rekey-count":     uint64(0),
 		// RFC 7296 Section 2.3: the number of outstanding requests the peer promised to
 		// keep in its SET_WINDOW_SIZE notify. Zero means the peer sent none, which the
 		// same section reads as a window of one.

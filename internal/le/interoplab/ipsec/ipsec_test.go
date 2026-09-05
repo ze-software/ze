@@ -473,6 +473,7 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 			"ze-ipsec-ze-plan-test",
 			"ze-ipsec-swan-plan-test",
 			"ze-ipsec-frr-plan-test",
+			"ze-ipsec-nat-plan-test",
 		}
 		if !reflect.DeepEqual(plan.Containers, wantContainers) {
 			t.Errorf("%s cleanup containers = %v", source.Name, plan.Containers)
@@ -508,6 +509,79 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 		} else if ipsecHasPeer(prepared.Peers, frrPeer) {
 			t.Errorf("%s unexpectedly starts FRR", source.Name)
 		}
+		// The NAT box is keyed on nat.conf exactly as FRR is keyed on frr.conf, and it
+		// is FIRST in the peer list so its secondary addresses answer ARP before either
+		// daemon sends its first IKE datagram.
+		hasNAT := fileExists(filepath.Join(source.Directory, natConfigName))
+		if hasNAT {
+			nat := ipsecPeerByName(t, prepared.Peers, natPeer)
+			if nat.Host != natHost || nat.Image != natPeer {
+				t.Errorf("%s NAT peer = %#v", source.Name, nat)
+			}
+			if prepared.Peers[0].Name != natPeer {
+				t.Errorf("%s starts %s before the NAT box, so the translation is not in place for the first datagram",
+					source.Name, prepared.Peers[0].Name)
+			}
+			for _, want := range []string{
+				"ip addr add " + zePublicIP + "/24 dev eth0",
+				"ip addr add " + swanPublicIP + "/24 dev eth0",
+				"iptables -t nat -A PREROUTING -d " + zePublicIP + " -j DNAT --to-destination " + zeIP,
+				"iptables -t nat -A POSTROUTING -s " + zeIP + " -j SNAT --to-source " + zePublicIP,
+				"iptables -t nat -A PREROUTING -d " + swanPublicIP + " -j DNAT --to-destination " + swanIP,
+				"iptables -t nat -A POSTROUTING -s " + swanIP + " -j SNAT --to-source " + swanPublicIP,
+			} {
+				if !strings.Contains(nat.Command[len(nat.Command)-1], want) {
+					t.Errorf("%s NAT setup omits %q", source.Name, want)
+				}
+			}
+		} else if ipsecHasPeer(prepared.Peers, natPeer) {
+			t.Errorf("%s unexpectedly starts the NAT box", source.Name)
+		}
+	}
+}
+
+// VALIDATES: nat.conf refuses every shape that would leave a scenario running with no
+// translation on the path, or with one the lab cannot install.
+// PREVENTS: the vacuity this whole spec exists to remove. A nat.conf that parsed to an
+// empty list, or to an identity mapping, would bring the box up with no rule in it, and
+// the scenario would measure the same NAT-free path natt-transport-inner-checksum already
+// measures while its name claimed otherwise.
+func TestNATConfigRefusesAnEmptyOrIdentityTranslation(t *testing.T) {
+	for name, content := range map[string]string{
+		"no translation at all":   "# only a comment\n",
+		"identity translation":    "172.28.0.2 172.28.0.2\n",
+		"address outside the lab": "172.28.0.2 10.0.0.9\n",
+		"malformed line":          "172.28.0.2\n",
+		"unparsable address":      "172.28.0.2 not-an-address\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			directory := t.TempDir()
+			if err := os.WriteFile(filepath.Join(directory, natConfigName), []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := readNATConfig(directory); err == nil {
+				t.Errorf("%s was accepted; the scenario would run with no translation on the path", name)
+			}
+		})
+	}
+
+	// The discriminator: the population every real-NAT scenario ships IS accepted, so the
+	// refusals above are decisions about those files rather than a blanket refusal.
+	directory := t.TempDir()
+	valid := "# comment\n172.28.0.2 172.28.0.6\n172.28.0.3 172.28.0.7\n"
+	if err := os.WriteFile(filepath.Join(directory, natConfigName), []byte(valid), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	translations, err := readNATConfig(directory)
+	if err != nil {
+		t.Fatalf("the shipped nat.conf shape was refused: %v", err)
+	}
+	if len(translations) != 2 {
+		t.Fatalf("read %d translations, want 2", len(translations))
+	}
+	if translations[0].real.String() != zeIP || translations[0].public.String() != zePublicIP {
+		t.Errorf("first translation = %v -> %v, want %s -> %s",
+			translations[0].real, translations[0].public, zeIP, zePublicIP)
 	}
 }
 

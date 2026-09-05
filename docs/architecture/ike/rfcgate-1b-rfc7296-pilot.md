@@ -85,6 +85,54 @@ A mismatch deletes the SA rather than installing the wrong mode.
 
 <!-- source: internal/component/ike/engine/transport_mode.go -- wantsTransportMode, decideResponderTransportMode, adoptAuthResponseNegotiation, recordInitiatorTransportMode -->
 
+**A transport-mode selector behind a NAT is SUBSTITUTED before it is used.** RFC
+7296 Section 2.23.1 gives four rules, two for each role, and each one replaces a
+selector address with an address the local node OBSERVED. On the responder the
+TSi address becomes the address the peer's datagrams arrive from when the peer is
+behind a NAT, and the TSr address becomes this node's own address when this node
+is. On the initiator the two are mirrored, so the answer comes back into this
+node's address space before anything reads it.
+
+The substitution runs inside `narrowChildSelectors` and `recordInitiatorSelectors`,
+which are the single entry points of their roles. Placing it at each of the five
+call sites would reintroduce the drift those two functions exist to prevent, and
+the EAP responder path is the one that gets forgotten.
+
+Two properties bound it:
+
+- **The gate is transport mode AND a NAT verdict.** A tunnel-mode exchange and a
+  NAT-free path both take the identity path, so neither changed when this landed.
+- **The address is one this node observed, never one the peer asserted.**
+  `observedLocalAddress` reads the configured local address, which is what the IKE
+  sockets bind. `observedRemoteAddress` reads `sa.peerEndpoint`, whose only writer
+  is `adoptAuthenticatedEndpoint`, called after a decrypt and a Message ID window
+  check. So the ceiling `checkAnswerWithin` enforces is unchanged, and a responder
+  that answers an address neither observed address covers is still refused with
+  `errTSWidened`.
+
+`NATDetected` answers "is there a NAT", and both detection branches set it. The
+rules above need "which side", so the SA carries `BehindNAT` and `PeerBehindNAT`
+separately, written at all four NAT_DETECTION branches and carried across an IKE
+SA rekey. `show vpn ipsec sa` reports both beside `nat-detected`.
+
+The originals are stored before the substitution, on both roles, in
+`OriginalTSiAddr` and `OriginalTSrAddr`. Section 2.23.1 requires them for the
+[UDPENCAPS] "real source and destination address" and for the TCP/UDP checksum
+fixup. Ze installs no `XfrmStateEncap.OriginalAddress` from them today: the kernel
+takes RFC 3948 Section 3.1.2's third alternative for transport mode, which
+`natt-transport-inner-checksum` measures.
+
+The proof is `real-nat-transport-ze-initiator` and `real-nat-transport-ze-responder`,
+which run against strongSwan across a netfilter box that really rewrites both
+addresses, with `real-nat-tunnel-control` as the control. The two older NAT-T
+scenarios cannot prove this: they reach the UDP-encapsulated path through
+strongSwan's `encap = yes`, which fakes the NAT_DETECTION hash with no middlebox
+present, so the pre-NAT address and the observed address are equal and every
+substitution is the identity.
+
+<!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, substituteInitiatorSelectors, observedLocalAddress, observedRemoteAddress -->
+<!-- source: internal/component/ike/engine/sa.go -- BehindNAT, PeerBehindNAT, OriginalTSiAddr, OriginalTSrAddr -->
+
 ## Traps this code exists to avoid
 
 **Ze ships fail-closed on EAP-TLS over TLS 1.2 without RFC 7627.** A build-wide

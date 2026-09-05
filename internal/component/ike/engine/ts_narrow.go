@@ -558,6 +558,21 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	proposedI := wireToSelectors(tsi.TrafficSelectors)
 	proposedR := wireToSelectors(tsr.TrafficSelectors)
 
+	// RFC 7296 Section 2.23.1: "the server should first check that the initiator requested
+	// transport mode, and then do address substitution on the Traffic Selectors", and
+	// "After this address substitution, both the Traffic Selectors and the IKE UDP
+	// source/destination addresses look the same, and the server does SPD lookup based on
+	// those new Traffic Selectors."
+	//
+	// It is placed HERE, before the policy match below, because the policy match IS that
+	// SPD lookup. A proposal carrying the peer's pre-NAT address intersects no policy that
+	// names the address this node observes, so without this the responder answers
+	// TS_UNACCEPTABLE to every conforming transport-mode client behind a NAT.
+	//
+	// It is a no-op for tunnel mode and for a NAT-free path, so every other exchange
+	// narrows exactly as it did before (ts_nat_substitute.go).
+	proposedI, proposedR = substituteResponderSelectors(sa, proposedI, proposedR)
+
 	// Narrowing is the RESPONDER's job (RFC 7296 Section 2.9), and every caller of this
 	// function is answering a proposal somebody else sent. This node is therefore the
 	// RESPONDER of the exchange in hand, so its configured local side is TSr.
@@ -673,6 +688,21 @@ var errTSUnusable = errors.New("ike: the responder's traffic selectors cannot be
 func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
 	iSels := wireToSelectors(tsi.TrafficSelectors)
 	rSels := wireToSelectors(tsr.TrafficSelectors)
+
+	// RFC 7296 Section 2.23.1: "Do address substitution before using those Traffic
+	// Selectors for anything other than storing original content of them. This includes
+	// verification that Traffic Selectors were narrowed correctly by the other end,
+	// creation of the SAD entry, and so on."
+	//
+	// It is placed HERE, above every check below, because that sentence names this
+	// function's whole job. checkAnswerWithin is the "verification that Traffic Selectors
+	// were narrowed correctly by the other end", and sa.NegotiatedPairs is what becomes
+	// the SAD entry. A conforming responder behind a NAT answers in ITS address space, so
+	// without this the ceiling test refuses an answer that is correct.
+	//
+	// It is a no-op for tunnel mode and for a NAT-free path (ts_nat_substitute.go).
+	iSels, rSels = substituteInitiatorSelectors(sa, iSels, rSels)
+
 	// A GUARD MUST DENY OR SAY SOMETHING (ai/rules/evidence.md). Both exits
 	// below used to `return nil`, which skipped checkAnswerWithin AND left
 	// NegotiatedPairs unset: the answer was neither checked nor adopted, and the caller

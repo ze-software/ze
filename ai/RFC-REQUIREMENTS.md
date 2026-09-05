@@ -20,7 +20,7 @@ Every test link in the per-RFC requirement files carries a `kind/tier` cell. **k
 | `interop/nightly` | `*.go` | `./le integration interop-radius` | .github/workflows/evidence-nightly.yml (advisory) |
 | `interop/nightly` | `*.go` | `./le deployment docker-pppoe-accel-test` | .github/workflows/evidence-nightly.yml (advisory) |
 | `unit/verify` | `*_test.go` | `./le verify deps unit-cached` | ./le verify current mode full (unit stage) |
-| `functional/verify` | `*.ci` | `./le functional gating` | ./le verify current mode full (functional stage) -- suites: `encode`, `plugin`, `parse`, `decode`, `reload`, `ui`, `editor`, `managed`, `l2tp`, `firewall`, `policy`, `ipsec`, `ldp`, `rsvpte`, `isis`, `ospf`, `ospfv3`, `web`, `install`, `appliance`, `l2tp-wire`, `isis-wire`, `ospf-wire`, `runner` |
+| `functional/verify` | `*.ci` | `./le functional gating` | ./le verify current mode full (functional stage) -- suites: `encode`, `plugin`, `parse`, `decode`, `reload`, `ui`, `editor`, `managed`, `l2tp`, `firewall`, `policy`, `ipsec`, `ldp`, `rsvpte`, `isis`, `ospf`, `ospfv3`, `web`, `install`, `appliance`, `l2tp-wire`, `isis-wire`, `ospf-wire`, `runner`, `bfd`, `dhcp`, `vrrp` |
 | `editor/verify` | `*.et` | `./le functional editor` | ./le verify current mode full (functional stage) -- suites: `editor` |
 | `functional/verify` | `*.ci` | `./le functional exabgp-test` | ./le verify current mode full (exabgp stage) |
 
@@ -403,7 +403,7 @@ One row per requirement whose verdict is anything other than a fresh `enforced`.
 
 A tag names a requirement and a polarity, and then states in prose what its test demonstrates. No gate can read that sentence, so a test that asserts less than its tag claims counts as evidence everywhere else on this page. A record under `rfc/discrimination/` replaces reading it: it names a break of the producing code, and it stores the observation that the tagged unit went RED under that break and green again after it. `./le rfc check` replays the fingerprints on every run and refuses a record whose unit, claim or producer has moved since.
 
-Proven: 355 (mutant 14, revert 341). Escaped: 2. Unproven backlog: 3848 of 4194 tagged unit(s) on a gated requirement of an enrolled RFC. 11 further record(s) sit outside that population, on a requirement no gate obliges: an un-enrolled RFC, or a level below MUST. They are counted in the totals above and not in the backlog, so the two figures are two populations rather than one arithmetic.
+Proven: 363 (mutant 14, revert 349). Escaped: 2. Unproven backlog: 3846 of 4200 tagged unit(s) on a gated requirement of an enrolled RFC. 11 further record(s) sit outside that population, on a requirement no gate obliges: an un-enrolled RFC, or a level below MUST. They are counted in the totals above and not in the backlog, so the two figures are two populations rather than one arithmetic.
 
 The backlog is grandfathered, as the extraction backlog is. The obligation is CHANGE-SCOPED: a tagged unit that is new against git HEAD owes its proof in the change that added it, and `./le rfc check` reports that figure as `owed`. It is absent from this page on purpose. `owed` is a fact about a commit boundary rather than about this tree, so a page carrying it would go stale when nothing in the tree had changed.
 

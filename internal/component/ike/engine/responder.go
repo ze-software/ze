@@ -399,6 +399,13 @@ func detectResponderNAT(sa *SA, msg *wire.Message) {
 				expected := transport.NATDetectionHash(msg.Header.InitiatorSPI, msg.Header.ResponderSPI, peerIP, transport.IKEPort)
 				if !natHashEqual(p.NotificationData, expected) {
 					sa.NATDetected = true
+					// The hash the INITIATOR computed over its own address does not match
+					// the address this node sees it arrive from, so the initiator's address
+					// was translated: the PEER is behind the NAT. RFC 7296 Section 2.23.1
+					// reads that side on its own: "If the client is behind a NAT, substitute
+					// the IP address in the TSi entries with the remote address of the IKE
+					// SA."
+					sa.PeerBehindNAT = true
 					// RFC 7296 Section 2.23 MUST: an endpoint
 					// "that discovers a NAT between it and its correspondent (as described below) MUST send all subsequent traffic from port 4500".
 					// This is the discovery, so the float is taken here.
@@ -410,6 +417,10 @@ func detectResponderNAT(sa *SA, msg *wire.Message) {
 				expected := transport.NATDetectionHash(msg.Header.InitiatorSPI, msg.Header.ResponderSPI, localIP, transport.IKEPort)
 				if !natHashEqual(p.NotificationData, expected) {
 					sa.NATDetected = true
+					// This node's own address was translated on the way to the initiator, so
+					// THIS node is behind the NAT. RFC 7296 Section 2.23.1: "If the server is
+					// behind a NAT, substitute the IP address in the TSr entries with the
+					// local address of the IKE SA."
 					sa.BehindNAT = true
 					sa.floatToNATTPort()
 				}

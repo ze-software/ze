@@ -30,6 +30,14 @@ copies.
 
 <!-- source: internal/component/ike/engine/reconcile.go -- PeerInfo, Info, Stop, StopGraceful -->
 
+**`show vpn ipsec sa` reports WHICH side of a NAT each end is on.** The payload
+carries `nat-detected` beside `behind-nat` and `peer-behind-nat`, because RFC
+7296 Section 2.23.1's transport-mode selector substitution is written per side
+and an operator diagnosing a transport tunnel needs the fact `nat-detected`
+hides. All three come straight off the SA and are booleans in the JSON.
+
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
+
 **Metrics and the health check live in the engine package.** They query engine
 internal state, and the host metric registration pattern already does the same.
 

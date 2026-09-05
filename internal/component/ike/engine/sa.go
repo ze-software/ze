@@ -208,8 +208,24 @@ type SA struct {
 	RemoteHashAlgos []uint16
 
 	// NAT Traversal state (RFC 7296 Section 2.23).
-	NATDetected bool
-	BehindNAT   bool // true if we are the side behind NAT
+	//
+	// NATDetected answers "is there a NAT on the path", and it is what selects UDP
+	// encapsulation for the Child SA and starts the keepalive. It says nothing about
+	// WHICH side the NAT translates, and the two fields below answer that.
+	//
+	// BehindNAT is true when THIS node's address was translated: the peer's
+	// NAT_DETECTION_DESTINATION_IP hash did not match the address this node runs on.
+	// PeerBehindNAT is true when the PEER's address was translated: the peer's
+	// NAT_DETECTION_SOURCE_IP hash did not match the address this node sees it at.
+	//
+	// Both can be true at once, which is the two-NAT scenario RFC 7296 Section 2.23.1
+	// draws. Neither is derivable from NATDetected, which is set by both branches, and
+	// the Section 2.23.1 substitution is written in terms of the two separately: the TSi
+	// address is replaced when the client is behind a NAT, and the TSr address when the
+	// server is (ts_nat_substitute.go).
+	NATDetected   bool
+	BehindNAT     bool
+	PeerBehindNAT bool
 
 	// peerEndpoint is the source address and port of the last message this SA
 	// AUTHENTICATED. It is the destination of every message the SA sends on its own
@@ -347,6 +363,26 @@ type SA struct {
 	// traffic-selector list does. Everything is then within the proposal, and the configured
 	// policy is the only constraint left. It is itself empty in that case.
 	ProposedChildPairs []tsPair
+
+	// OriginalTSiAddr and OriginalTSrAddr hold the traffic-selector addresses exactly as
+	// they arrived on the wire, before the RFC 7296 Section 2.23.1 substitution replaced
+	// them. Nil means no transport-mode selector set has been read yet.
+	//
+	// RFC 7296 Section 2.23.1, responder rules: "Store the original Traffic Selector IP
+	// addresses as received source and destination address, in case undo address
+	// substitution is needed, to use as the 'real source and destination address'
+	// specified by [UDPENCAPS], and for TCP/UDP checksum fixup." The client rules carry
+	// the same obligation as "Store the original Traffic Selectors as the received source
+	// and destination address."
+	//
+	// They are stored BEFORE the substitution runs, on both roles, which is the ordering
+	// the section states: "It needs to first store the old Traffic Selector IP addresses
+	// to be used later for the incremental checksum fixup."
+	//
+	// The pair is in TSi/TSr order, which is the orientation of the exchange that read
+	// them, exactly as NegotiatedPairs is.
+	OriginalTSiAddr net.IP
+	OriginalTSrAddr net.IP
 
 	// UseTransportMode records that this SA's Child SAs run in transport mode.
 	//

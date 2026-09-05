@@ -33,6 +33,11 @@ const (
 	defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
 	zeImage         = "ze-ipsec-interop"
 	swanImage       = "ze-ipsec-strongswan"
+	natImage        = "ze-ipsec-nat"
+
+	// dockerPrivileged is what every peer of this lab needs: XFRM state, XFRM policy
+	// and netfilter NAT rules are all privileged operations inside a container.
+	dockerPrivileged = "--privileged"
 
 	zeCLIStore     = "/tmp/ze-cli-store"
 	zeCLIUser      = "interop"
@@ -123,6 +128,7 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 
 	plans := make([]interoplab.ScenarioPlan, 0, len(sources))
 	needFRR := false
+	needNAT := false
 	for _, source := range sources {
 		state := &scenarioState{}
 		checker := scenarioCheckers[source.Name]
@@ -134,6 +140,9 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 		if fileExists(filepath.Join(source.Directory, "frr.conf")) {
 			needFRR = true
 		}
+		if fileExists(filepath.Join(source.Directory, natConfigName)) {
+			needNAT = true
+		}
 	}
 
 	images := []interoplab.ImageBuild{
@@ -142,6 +151,15 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 	}
 	if needFRR {
 		images = append(images, interoplab.ImageBuild{Name: frrPeer, Tag: environment.Image, Required: true, Pull: true})
+	}
+	if needNAT {
+		images = append(images, interoplab.ImageBuild{
+			Name:       natPeer,
+			Tag:        natImage,
+			Dockerfile: filepath.Join(root, "test", "interop-ipsec", "Dockerfile.nat"),
+			Context:    filepath.Join(root, "test", "interop-ipsec"),
+			Required:   true,
+		})
 	}
 
 	suite := interoplab.Suite{
@@ -171,6 +189,7 @@ func scenarioPlan(root string, environment interoplab.Environment, source intero
 	zeContainer := tb.Str("ze-ipsec-ze-").Str(environment.Suffix).String()
 	swanContainer := tb.Reset().Str("ze-ipsec-swan-").Str(environment.Suffix).String()
 	frrContainer := tb.Reset().Str("ze-ipsec-frr-").Str(environment.Suffix).String()
+	natContainer := tb.Reset().Str("ze-ipsec-nat-").Str(environment.Suffix).String()
 	networkName := tb.Reset().Str("ze-ipsec-").Str(environment.Suffix).String()
 	return interoplab.ScenarioPlan{
 		Source: source,
@@ -178,14 +197,14 @@ func scenarioPlan(root string, environment interoplab.Environment, source intero
 			Name:       networkName,
 			Candidates: []interoplab.Subnet{{IPv4: networkPrefix}},
 		},
-		Containers: []string{zeContainer, swanContainer, frrContainer},
+		Containers: []string{zeContainer, swanContainer, frrContainer, natContainer},
 		Prepare: func(_ context.Context, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
-			return prepareScenario(root, source, state, zeContainer, swanContainer, frrContainer)
+			return prepareScenario(root, source, state, zeContainer, swanContainer, frrContainer, natContainer)
 		},
 	}
 }
 
-func prepareScenario(root string, source interoplab.ScenarioSource, state *scenarioState, zeContainer, swanContainer, frrContainer string) (interoplab.PreparedScenario, error) {
+func prepareScenario(root string, source interoplab.ScenarioSource, state *scenarioState, zeContainer, swanContainer, frrContainer, natContainer string) (interoplab.PreparedScenario, error) {
 	scratchRoot := sessionpath.EnsureScratchRoot(root)
 	var tb textbuf.Buffer
 	pattern := tb.Str("ze-ipsec-").Str(source.Name).Byte('-').String()
@@ -206,7 +225,31 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 	state.root = root
 	state.renderedConfig = renderedConfig
 
-	peers := make([]interoplab.PeerConfig, 0, 3)
+	peers := make([]interoplab.PeerConfig, 0, 4)
+
+	// The NAT box is FIRST, so its secondary addresses answer ARP before either
+	// daemon sends its first IKE datagram. A peer that started ahead of it would
+	// retry, which turns a scenario's first seconds into a race.
+	if natConfig := filepath.Join(source.Directory, natConfigName); fileExists(natConfig) {
+		translations, natErr := readNATConfig(source.Directory)
+		if natErr != nil {
+			return fail(natErr)
+		}
+		peers = append(peers, interoplab.PeerConfig{
+			Name:      natPeer,
+			Container: natContainer,
+			Image:     natPeer,
+			Host:      natHost,
+			Arguments: []string{dockerPrivileged},
+			Command:   []string{"-c", natSetupScript(translations)},
+			Ready: &interoplab.ReadyProbe{
+				Command:  []string{"sh", "-c", "iptables -t nat -S | grep -q SNAT"},
+				Timeout:  30 * time.Second,
+				Interval: time.Second,
+			},
+		})
+	}
+
 	if swanConfig := filepath.Join(source.Directory, "swanctl.conf"); fileExists(swanConfig) {
 		mounts := []interoplab.Mount{
 			{Source: swanConfig, Target: "/etc/swanctl/conf.d/interop.conf", ReadOnly: true},
@@ -234,7 +277,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 			Image:     swanPeer,
 			Host:      3,
 			Mounts:    mounts,
-			Arguments: []string{"--privileged"},
+			Arguments: []string{dockerPrivileged},
 			Ready: &interoplab.ReadyProbe{
 				Command:  []string{"sh", "-c", "swanctl --stats | grep -q uptime && swanctl --load-all >/dev/null"},
 				Timeout:  30 * time.Second,
@@ -269,7 +312,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		Host:        2,
 		Mounts:      []interoplab.Mount{{Source: renderedConfig, Target: "/etc/ze/ze.conf", ReadOnly: true}},
 		Environment: environment,
-		Arguments:   []string{"--privileged"},
+		Arguments:   []string{dockerPrivileged},
 		Command:     []string{"start", "/etc/ze/ze.conf"},
 	})
 	return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, nil

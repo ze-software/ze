@@ -30,6 +30,25 @@ precision costs nothing and removes a goroutine per SA.
 
 <!-- source: internal/component/ike/engine/dpd.go -- dead peer detection state and probe -->
 
+**Behind a NAT the SELECTORS move and the outer addresses do not.**
+`createFirstChildSA` takes `LocalAddr` and `RemoteAddr` from the operator's
+`local-address` and `remote-address`, which are the addresses each end's own
+stack uses, and takes `Selectors`, `TSLocal` and `TSRemote` from the negotiated
+set. On a transport-mode SA across a NAT that negotiated set carries the RFC 7296
+Section 2.23.1 substituted addresses, so the policy Ze installs names the
+addresses its own kernel will see on the wire. Nothing here reads the NAT verdict:
+the substitution happened during negotiation and this constructor installs its
+result.
+
+Transport mode is why that is enough. There is exactly one IP header, the NAT
+translates it, and ESP authenticates the ESP header and payload rather than the
+IP header, so the translated header reaches the peer and matches the substituted
+selectors. `XfrmStateEncap.OriginalAddress` stays unset: the kernel takes RFC 3948
+Section 3.1.2's third alternative for transport mode, which
+`natt-transport-inner-checksum` measures.
+
+<!-- source: internal/component/ike/engine/child.go -- createFirstChildSA -->
+
 **The XFRM interface id comes from config, not from a runtime lookup.** The
 engine runs as a plugin subprocess and has no access to the interface backend.
 

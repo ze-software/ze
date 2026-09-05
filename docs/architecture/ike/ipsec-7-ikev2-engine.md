@@ -150,6 +150,25 @@ unpaired emit drifts once per reconnect rather than once per process.
   is a floor under that, not a replacement for it.
 - RFC 7296 Section 2.15 governs the AUTH payload, and the signed octets differ
   by role. See `docs/architecture/ike/ipsec-14-responder.md`.
+- RFC 7296 Section 2.23 detects a NAT by comparing the peer's NAT_DETECTION
+  hashes against the addresses this node runs on. The SA records the verdict in
+  three fields, not one. `NATDetected` answers "is there a NAT", and it selects
+  UDP encapsulation and starts the keepalive. `BehindNAT` says THIS node's
+  address was translated, and `PeerBehindNAT` says the peer's was. Both can be
+  true at once, which is the two-NAT case of Section 2.23.1.
+- The two side fields are what Section 2.23.1's transport-mode selector
+  substitution is written in terms of, so neither is derivable from
+  `NATDetected`: both detection branches set that one. Each is written at all
+  four NAT_DETECTION branches, two on `fsm.go` for the initiator and two on
+  `detectResponderNAT` for the responder, and both are carried across an IKE SA
+  rekey by the two producers in `rekey.go`.
+- `OriginalTSiAddr` and `OriginalTSrAddr` hold the traffic-selector addresses as
+  they arrived, before that substitution replaced them. Section 2.23.1 requires
+  the originals kept for the [UDPENCAPS] "real source and destination address"
+  and for the TCP/UDP checksum fixup.
+
+<!-- source: internal/component/ike/engine/sa.go -- NATDetected, BehindNAT, PeerBehindNAT, OriginalTSiAddr, OriginalTSrAddr -->
+<!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, substituteInitiatorSelectors -->
 
 <!-- source: internal/component/ike/engine/cookie.go -- cookie generation and validation -->
 <!-- source: internal/component/ike/engine/doctor_cookie.go -- cookie readiness check -->

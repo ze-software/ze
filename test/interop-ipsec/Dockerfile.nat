@@ -1,0 +1,22 @@
+# Address-translating middlebox for the IPsec interop lab.
+#
+# It is the third container of a scenario that carries a nat.conf, and it exists
+# because RFC 7296 Section 2.23.1 is only reachable across a REAL translation.
+# strongSwan's `encap = yes` fakes the NAT_DETECTION hash with no middlebox on the
+# path, so the pre-NAT address and the observed address are equal there and the
+# section's substitution is the identity.
+#
+# It owns one secondary address for each translated peer, so the other peer
+# resolves that address by ARP on the shared bridge and no peer needs a route.
+# The rules it installs are passed in as the container command by
+# internal/le/interoplab/ipsec/ipsec.go, which reads them out of nat.conf.
+#
+# iptables rather than nftables: the strongSwan image already carries iptables and
+# gokrazy/kernel/runtime.config carries CONFIG_IP_NF_NAT with no NFT NAT symbol, so
+# the Docker lab and the QEMU runner install the same rules.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache iproute2 iptables tini
+
+ENTRYPOINT ["tini", "--", "/bin/sh"]

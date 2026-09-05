@@ -31,9 +31,13 @@ var ipsecScenarios = []string{
 	"natt-tunnel-inner-checksum",
 	"peer-reload-narrowing",
 	"psk-site-to-site",
+	"real-nat-transport-ze-initiator",
+	"real-nat-transport-ze-responder",
+	"real-nat-tunnel-control",
 	"responder-accepts-reinit",
 	"responder-eap-mschapv2",
 	"responder-eap-tls13",
+	"responder-eap-tls13-revoked-client",
 	"responder-ike-rekey",
 	"responder-psk",
 	"responder-raises-child-rekey",
@@ -67,14 +71,17 @@ func TestNativeScenarioRegistryIsExact(t *testing.T) {
 // PREVENTS: Registering a checker whose independent peer or transition fixture was removed.
 func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 	extra := map[string][]string{
-		"eap-tls":                        {"ze-env"},
-		"eap-tls13":                      {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
-		"eap-nak-method-negotiation":     {"strongswan.conf"},
-		"initiator-rekey-answer-narrows": {"ze-env"},
-		"ipsec-bgp-redistribute-frr":     {"frr.conf"},
-		"peer-reload-narrowing":          {"ze-narrowed.conf"},
-		"responder-eap-mschapv2":         {"strongswan.conf"},
-		"responder-eap-tls13":            {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"eap-tls":                         {"ze-env"},
+		"eap-tls13":                       {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"eap-nak-method-negotiation":      {"strongswan.conf"},
+		"initiator-rekey-answer-narrows":  {"ze-env"},
+		"ipsec-bgp-redistribute-frr":      {"frr.conf"},
+		"peer-reload-narrowing":           {"ze-narrowed.conf"},
+		"real-nat-transport-ze-initiator": {"nat.conf"},
+		"real-nat-transport-ze-responder": {"nat.conf"},
+		"real-nat-tunnel-control":         {"nat.conf"},
+		"responder-eap-mschapv2":          {"strongswan.conf"},
+		"responder-eap-tls13":             {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
 	}
 	for _, name := range ipsec.ScenarioNames() {
 		required := append([]string{"ze.conf", "swanctl.conf"}, extra[name]...)

@@ -71,6 +71,31 @@ Child SA inside `handleAuthRequest`, because it must reply with SAr2 and TSr.
 `runEstablished` therefore adopts the existing child for a responder SA instead
 of calling `createFirstChildSA`.
 
+**The responder substitutes transport-mode selector addresses before its policy
+lookup.** RFC 7296 Section 2.23.1: "the server should first check that the
+initiator requested transport mode, and then do address substitution on the
+Traffic Selectors", after which "the server does SPD lookup based on those new
+Traffic Selectors". In Ze the policy match inside `narrowChildSelectors` IS that
+SPD lookup, so `substituteResponderSelectors` runs immediately above it.
+
+The verdict it reads is on the SA before any selector arrives: `detectResponderNAT`
+runs during IKE_SA_INIT and writes `PeerBehindNAT` on a NAT_DETECTION_SOURCE_IP
+mismatch and `BehindNAT` on a NAT_DETECTION_DESTINATION_IP mismatch. The observed
+remote address it substitutes into TSi is `sa.peerEndpoint`, and on the EAP path
+that is still nil when the first IKE_AUTH narrows, so it falls back to the
+configured remote address. The two are the same address on this role:
+`matchResponderPeer` accepts an unsolicited IKE_SA_INIT only from a source equal
+to `remote-address`, so a peer behind a NAT is configured with its post-NAT
+address.
+
+Without this a conforming client behind a NAT proposes its pre-NAT address, the
+policy naming the observed address intersects it nowhere, and the responder answers
+TS_UNACCEPTABLE to every such client. `real-nat-transport-ze-responder` is the
+scenario that measures it.
+
+<!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, observedRemoteAddress -->
+<!-- source: internal/component/ike/engine/responder.go -- detectResponderNAT -->
+
 **IKE rekey responder makes before breaking.** `respondIKERekey` derives the new
 IKE SA with the peer as the rekey initiator, replies under the OLD keys, holds
 the new SA pending, and swaps when the peer's INFORMATIONAL Delete of the old SA
