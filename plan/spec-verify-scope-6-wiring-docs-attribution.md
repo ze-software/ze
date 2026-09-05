@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | tooling |
-| Depends | `plan/spec-verify-scope-1-shared-checkout-freshness.md` |
+| Depends | spec-verify-scope-1-shared-checkout-freshness (closed 2026-09-05; the freshness contract is `docs/architecture/testing/verify-freshness-scope.md`, and the attribution it feeds is `structuralGateReds`, `internal/le/commit/verification.go`) |
 | Phase | 5/5 |
 | Handoff | - |
 | Updated | 2026-08-19 |

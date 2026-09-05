@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/le/testweakened"
 	"github.com/ze-software/ze/internal/le/verify"
 	verifydispatch "github.com/ze-software/ze/internal/le/verify/dispatch"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 const area = "commit"
@@ -272,7 +273,21 @@ func parseCreate(args []string) (Options, error) {
 	}, nil
 }
 
+// clearDebt re-judges every open debt row against HEAD, through the native
+// verification the rows name.
 func clearDebt(root string) (debtClearResult, int) {
+	return clearDebtWith(root, verifydispatch.RunAction)
+}
+
+// clearDebtWith is clearDebt with the verification's action dispatcher named.
+//
+// The dispatcher is a parameter because the DECISION this function makes is
+// "clear only what the gate passed", and proving that decision means running it
+// once against a green verdict and once against a red one. Through the real
+// dispatcher each of those runs is the hour-long verification, so the decision
+// would be the one part of debt clearing no test ever reaches, in a function
+// whose whole job is to refuse to trust an unverified claim.
+func clearDebtWith(root string, runner verifyengine.ActionRunner) (debtClearResult, int) {
 	rows, err := openDebt(root)
 	if err != nil {
 		leaction.ReportError(err)
@@ -302,7 +317,7 @@ func clearDebt(root string) (debtClearResult, int) {
 	sort.Strings(result.Unrunnable)
 	passed := make(map[string]bool)
 	if len(result.Runnable) != 0 {
-		report := verify.Run(context.Background(), root, verify.Options{Commit: "HEAD"}, verifydispatch.RunAction)
+		report := verify.Run(context.Background(), root, verify.Options{Commit: "HEAD"}, runner)
 		result.Commit = report.Commit
 		result.Diagnostics = report.Diagnostics
 		if report.Code != 0 {

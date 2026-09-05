@@ -14,7 +14,6 @@ import (
 
 func init() {
 	Register("runner/verify-scope-debt-clear", verifyScopeDebtClearDriver)
-	Register("runner/verify-scope-debt-clear-gate", verifyScopeDebtGateDriver)
 	Register("runner/verify-scope-wiring-attribution", verifyScopeWiringDriver)
 	Register("runner/exec-quoted-argument", execQuotedArgumentDriver)
 }
@@ -37,6 +36,30 @@ func execQuotedArgumentDriver(_ context.Context, args []string) error {
 	}
 	fmt.Println("quoted-argument-intact")
 	return nil
+}
+
+// envRootedAt answers this process's environment with ZE_REPO_ROOT REPLACED
+// rather than appended.
+//
+// The harness exports ZE_REPO_ROOT naming this checkout, and a fixture that
+// appends a second one leaves the variable twice in the child's environment.
+// Which copy the child reads is a property of the C library and of Go's own
+// dedup rule, and a fixture must not depend on either: the wrong answer points
+// a real `le` at the real repository, where `le commit debt-clear` starts a
+// native verification over the shared tree and re-judges the real ledger.
+func envRootedAt(root string) []string {
+	inherited := os.Environ()
+	kept := make([]string, 0, len(inherited)+1)
+	for _, entry := range inherited {
+		name, _, found := strings.Cut(entry, "=")
+		// env.Get matches case-insensitively and reads a dot as an underscore,
+		// so both spellings of the key are dropped.
+		if found && strings.EqualFold(strings.ReplaceAll(name, ".", "_"), "ZE_REPO_ROOT") {
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	return append(kept, "ZE_REPO_ROOT="+root)
 }
 
 func rawCommand(ctx context.Context, dir string, env []string, name string, args ...string) (string, int, error) {
@@ -88,81 +111,79 @@ func gitFixture(ctx context.Context, root string, files map[string]string) error
 	return nil
 }
 
-func verifyScopeDebtGateDriver(_ context.Context, args []string) error {
-	if len(args) != 1 {
-		return errors.New("debt gate requires green or red")
-	}
-	switch args[0] {
-	case "green":
-		fmt.Fprintln(os.Stdout, "fixture-gate-ran-green") //nolint:errcheck // progress output
-		return nil
-	case "red":
-		fmt.Fprintln(os.Stdout, "fixture-gate-said-why") //nolint:errcheck // progress output
-		return errors.New("fixture gate exited 3")
-	default:
-		return fmt.Errorf("unknown debt gate %q", args[0])
-	}
-}
-
+// verifyScopeDebtClearDriver drives the REAL `le commit debt-clear` against a
+// scratch checkout and judges the LEDGER it leaves behind.
+//
+// The ledger is the assertion because it is the product's own artifact. An
+// earlier version of this driver edited the ledger itself and then asserted its
+// own edit, which is a scenario that passes against a stub: it printed
+// "green-gate-cleared-its-row" without any product code having cleared
+// anything.
+//
+// What a functional scenario CAN reach is the half that runs no gate: a row no
+// gate can re-run is named, nothing is run for it, and it stays open. Both
+// halves of the gate-exit decision, green and red, are proved by
+// TestDebtClearingHonorsTheGateExit (internal/le/commit/commit_test.go), which
+// names its own action dispatcher. Through the real dispatcher each of them is
+// a native verification run, which claims this machine's job slots and takes
+// the better part of an hour, so no scenario may start one.
 func verifyScopeDebtClearDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("debt-clear fixture takes no arguments")
 	}
-	base, err := os.MkdirTemp("", "ze-verify-scope-debt-")
+	le, err := nativeLEBinary()
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(base) //nolint:errcheck // fixture cleanup
+	repo, err := os.MkdirTemp("", "ze-verify-scope-debt-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(repo) //nolint:errcheck // fixture cleanup
+
 	ledgerHeader := "| Date | Session | Subject | Gate owed | Reason | Status |\n|------|---------|---------|-----------|--------|--------|\n"
-	pass := filepath.Join(base, "pass")
-	red := filepath.Join(base, "red")
-	if err := gitFixture(ctx, pass, map[string]string{
-		fileGoMod: "module fixture/pass\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate,
-		"plan/verification-debt/fixture.md": ledgerHeader + "| 2026-08-19 | fixture | a commit | native fixture gate | the gate had not run | open |\n" + "| 2026-08-19 | fixture | a commit | independent critical review | no reviewer | open |\n",
+	if err := gitFixture(ctx, repo, map[string]string{
+		fileGoMod: "module fixture/debt\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate,
+		".gitignore":                        "tmp/\n",
+		"plan/verification-debt/fixture.md": ledgerHeader + "| 2026-08-19 | fixture | a commit | independent critical review | no reviewer | open |\n",
 	}); err != nil {
 		return err
 	}
-	if err := gitFixture(ctx, red, map[string]string{
-		fileGoMod: "module fixture/red\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate,
-		"plan/verification-debt/fixture.md": ledgerHeader + "| 2026-08-19 | fixture | a commit | native fixture gate | the gate had not run | open |\n",
-	}); err != nil {
-		return err
+	fmt.Fprintln(os.Stdout, "debt-fixtures-ready") //nolint:errcheck // progress output
+
+	// envRootedAt, never os.Environ(): the harness exports ZE_REPO_ROOT naming
+	// THIS checkout, and a le that reads it re-judges the real ledger and starts
+	// a native verification over the shared tree.
+	out, code, err := rawCommand(ctx, repo, envRootedAt(repo), le, "commit", "debt-clear")
+	if err != nil || code != 0 {
+		return fmt.Errorf("debt-clear over an unrunnable row exit=%d: %w %s", code, err, out)
 	}
-	fmt.Fprintln(os.Stdout, "debt-fixtures-ready")                     //nolint:errcheck // progress output
+	if !strings.Contains(out, "independent critical review") {
+		return fmt.Errorf("debt-clear did not name the row it cannot run: %s", out)
+	}
 	fmt.Fprintln(os.Stdout, "native-debt-clear-runs-registered-gates") //nolint:errcheck // progress output
-	greenOutput, greenCode, err := rawCommand(ctx, pass, os.Environ(), "ze-test", "fixture", "runner/verify-scope-debt-clear-gate", "green")
-	if err != nil || greenCode != 0 || !strings.Contains(greenOutput, "fixture-gate-ran-green") {
-		return fmt.Errorf("green owed gate did not run: exit=%d %w %s", greenCode, err, greenOutput)
-	}
-	passLedger := filepath.Join(pass, "plan", "verification-debt", "fixture.md")
-	body, err := os.ReadFile(passLedger) //nolint:gosec // the path is the fixture's own scratch file
+
+	body, err := os.ReadFile(filepath.Join(repo, "plan", "verification-debt", "fixture.md")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
-	updated := strings.Replace(string(body), "| native fixture gate | the gate had not run | open |", "| native fixture gate | the gate had not run | cleared |", 1)
-	if err := os.WriteFile(passLedger, []byte(updated), 0o600); err != nil {
-		return err
+	if strings.Contains(string(body), "| cleared |") {
+		return fmt.Errorf("a row was cleared by a gate that never ran:\n%s", body)
 	}
-	if !strings.Contains(updated, "native fixture gate | the gate had not run | cleared |") || !strings.Contains(updated, "independent critical review | no reviewer | open |") {
-		return errors.New("green gate did not clear exactly its runnable row")
+	if !strings.Contains(string(body), "| open |") {
+		return fmt.Errorf("the unrunnable row left the ledger:\n%s", body)
 	}
-	fmt.Fprintln(os.Stdout, "UNRUNNABLE  independent critical review") //nolint:errcheck // progress output
-	fmt.Fprintln(os.Stdout, "cleared 1 row(s), 1 still open")          //nolint:errcheck // progress output
-	fmt.Fprintln(os.Stdout, "green-gate-cleared-its-row")              //nolint:errcheck // progress output
-	redOutput, redCode, err := rawCommand(ctx, red, os.Environ(), "ze-test", "fixture", "runner/verify-scope-debt-clear-gate", "red")
-	if err != nil || redCode == 0 || !strings.Contains(redOutput, "fixture-gate-said-why") {
-		return fmt.Errorf("red owed gate result missing: exit=%d %w %s", redCode, err, redOutput)
+	fmt.Fprintln(os.Stdout, "unrunnable-row-named-and-left-open") //nolint:errcheck // progress output
+
+	// The other half of the claim: nothing was RUN for that row. A native
+	// verification leaves both of these behind in the checkout it judged, so
+	// their absence is what says the command answered from the ledger alone.
+	for _, artifact := range []string{filepath.Join("tmp", "verify"), filepath.Join("tmp", "ze-verify.status")} {
+		if _, statErr := os.Stat(filepath.Join(repo, artifact)); statErr == nil {
+			return fmt.Errorf("debt-clear started a gate for a row no gate can run: %s exists", artifact)
+		}
 	}
-	redBody, err := os.ReadFile(filepath.Join(red, "plan", "verification-debt", "fixture.md")) //nolint:gosec // the path is the fixture's own scratch file
-	if err != nil {
-		return err
-	}
-	if strings.Contains(string(redBody), "| cleared |") {
-		return errors.New("a row was cleared by a red gate")
-	}
-	fmt.Fprintf(os.Stdout, "RED (exit %d)\n%s", redCode, redOutput) //nolint:errcheck // progress output
-	fmt.Fprintln(os.Stdout, "cleared 0 row(s), 1 still open")       //nolint:errcheck // progress output
-	fmt.Fprintln(os.Stdout, "red-gate-left-its-row-open")           //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "debt-clear-started-no-gate") //nolint:errcheck // progress output
 	return nil
 }
 
@@ -199,7 +220,7 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 	if info, statErr := os.Stat(leBinary); statErr != nil || info.Mode()&0o111 == 0 {
 		return fmt.Errorf("native le binary is not executable: %s", leBinary)
 	}
-	env := append(os.Environ(), "ZE_REPO_ROOT="+repo)
+	env := envRootedAt(repo)
 	if output, code, err := rawCommand(ctx, repo, env, leBinary, "verify status", "write", "exit-code", "1", "mode", "full"); err != nil || code != 0 {
 		return fmt.Errorf("write verify status exit=%d: %w %s", code, err, output)
 	}

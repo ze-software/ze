@@ -1,9 +1,15 @@
 # Clearing a verification-debt row by RUNNING the native gate the row names.
 #
-# The fixture drives a green owed gate, a red owed gate, and an unrunnable
-# independent-review row in isolated scratch repositories. The compiled driver
-# records a clear only after the green process exits zero, preserves the red row,
-# and prints the gate's own evidence in both cases.
+# The fixture drives the REAL `le commit debt-clear` against a scratch checkout
+# and judges the LEDGER it leaves behind. The row it holds is one no gate can
+# re-run, so nothing is run for it and it must stay open: a row is cleared by a
+# gate that passed, never by asking.
+#
+# Both halves of the gate-exit decision, green and red, are proved by
+# TestDebtClearingHonorsTheGateExit (internal/le/commit/commit_test.go), which
+# names its own action dispatcher. Through the real dispatcher each of them is a
+# native verification run, which claims this machine's job slots, so no
+# functional scenario may start one.
 
 option=timeout:value=60s
 
@@ -11,5 +17,5 @@ cmd=foreground:seq=1:exec=ze-test fixture runner/verify-scope-debt-clear
 expect=exit:code=0
 expect=stdout:contains=debt-fixtures-ready
 expect=stdout:contains=native-debt-clear-runs-registered-gates
-expect=stdout:contains=green-gate-cleared-its-row
-expect=stdout:contains=red-gate-left-its-row-open
+expect=stdout:contains=unrunnable-row-named-and-left-open
+expect=stdout:contains=debt-clear-started-no-gate

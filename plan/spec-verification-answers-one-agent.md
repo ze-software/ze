@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | design |
 | Scope | tooling |
-| Depends | `plan/spec-shared-machine-job-admission.md` (the admission machinery this extends), `plan/spec-verify-scope-1-shared-checkout-freshness.md` (the freshness certificate this reads) |
+| Depends | `plan/spec-shared-machine-job-admission.md` (the admission machinery this extends), spec-verify-scope-1-shared-checkout-freshness (closed 2026-09-05; the freshness certificate this reads is `CheckCertificate`, `internal/le/verify/engine/status.go`, documented at `docs/architecture/testing/verify-freshness-scope.md`) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-05 |

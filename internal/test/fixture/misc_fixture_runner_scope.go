@@ -46,7 +46,7 @@ func verifyScopeFreshnessDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	env := append(os.Environ(), "ZE_REPO_ROOT="+repo)
+	env := envRootedAt(repo)
 	run := func(arguments ...string) (string, int, error) { return rawCommand(ctx, repo, env, le, arguments...) }
 	if out, code, err := run("verify status", "write", "exit-code", "0", "mode", "full"); err != nil || code != 0 {
 		return fmt.Errorf("write status exit=%d: %w %s", code, err, out)

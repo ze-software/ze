@@ -361,3 +361,159 @@ can assert without paying for the gates.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `CheckCertificate` and `checkScoped` (`internal/le/verify/engine/status.go`): the freshness question takes the commit's own file list, so another session's edit to a path the commit does not carry no longer makes the record STALE.
+- The moved-path record: a concurrent edit names the paths that moved instead of writing a value no tree can ever hash to.
+- `structuralGateReds`, `groupRelatedPaths`, `relatedInCommit` (`internal/le/commit/verification.go`): a structural red charges debt unless every one of its groups named files and every one of those files is foreign.
+- `clearDebtRows` (`internal/le/commit/debt.go`) and the `debt-clear` verb (`internal/le/commit/actions.go`): a row is cleared by re-running the gate it names, never by editing the table.
+- `clearDebtWith` (`internal/le/commit/actions.go`): the dispatcher seam this closure added, so the "clear only what passed" decision can be run against a green verdict and a red one.
+- `docs/architecture/testing/verify-freshness-scope.md`, `test/runner/verify-scope-freshness-scoped.ci`, `test/runner/verify-scope-debt-clear.ci`.
+
+### Bugs Found/Fixed
+- **The debt-clearing scenario proved nothing.** `verifyScopeDebtClearDriver` (`internal/test/fixture/misc_fixture_runner.go`) ran a fixture "gate" that only printed a string, then edited the ledger itself with `strings.Replace("| open |", "| cleared |")`, then asserted its own edit, then printed `green-gate-cleared-its-row`. No product code ran. The driver now runs the real `bin/le commit debt-clear` against a scratch checkout and judges the ledger it leaves behind.
+- **The gate-exit decision had no test at all.** `clearDebt` sets `passed` only when the verification exits 0, and through the real dispatcher that verification is the hour-long run, so nothing reached the branch. `clearDebtWith` names the dispatcher, and `TestDebtClearingHonorsTheGateExit` runs the decision once green and once red.
+- **A fixture's repo-root override was appended rather than replacing.** `append(os.Environ(), "ZE_REPO_ROOT="+repo)` leaves the variable twice, and which copy the child reads is a property of the C library. The wrong answer points a real `le` at the real checkout: measured, the debt-clear driver started a native verification over this shared tree and began re-judging the real ledger. `envRootedAt` replaces the variable, and both drivers that build a scratch checkout use it. Six other fixtures already had their own replace helpers, which is what named the shape.
+
+### Documentation Updates
+- None needed this closure. `docs/architecture/testing/verify-freshness-scope.md` already carries the two artifacts, the scoped question, the moved-path marker, red attribution and debt clearing, and `docs/functional-tests.md` links it. The `.ci` file the runner row names is unchanged in name and still exists.
+
+### Deviations from Plan
+- Eight of the spec's named tests were written against the shell the le-personality port retired. The behaviours survived under new names in `internal/le/verify/engine/status_test.go` and `internal/le/commit/commit_test.go`; every row below names a test that exists.
+- **AC-6's green half is proved by a unit test rather than by the `.ci`.** Clearing a runnable row means running the native verification, which claims this machine's job slots and takes the better part of an hour. The scenario proves the half that runs no gate; `TestDebtClearingHonorsTheGateExit` proves both halves of the decision at the point where it is made.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The `.ci` scenario was read as evidence for AC-6 and AC-7 because it exists, is green, and the spec describes what it drives | It drove no product code: it performed the outcome itself and read it back | Reading the driver before pasting the spec's Functional Tests row forward | Driver rewritten against the real command; the decision got a seam and a test |
+| assumption | Appending `ZE_REPO_ROOT` to `os.Environ()` overrides it | It leaves the variable twice, and the child read the harness's copy: the fixture started a native verification over the REAL checkout | The scenario hung for ten minutes writing into this repository's `tmp/verify-worktree/` | `envRootedAt` replaces rather than appends, in both drivers that build a scratch checkout |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A verify verdict survives another session's concurrent edit | Done | `checkScoped`, `CheckCertificate` (`internal/le/verify/engine/status.go`) | the question is asked about the commit's own paths |
+| Debt is clearable by running the gate | Done | `clearDebt`, `clearDebtWith`, `clearDebtRows` | `cleared` is written only for a gate that exited 0 |
+| A foreign red is not charged to this session | Done | `structuralGateReds`, `relatedInCommit` (`internal/le/commit/verification.go`) | a group naming no path charges, and says so |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCertificateFixtureSupportsWholeTreeAndScopedFreshness`, `test/runner/verify-scope-freshness-scoped.ci` (`scoped-fresh-for-my-path`) | another writer's file does not make my path stale |
+| AC-2 | Done | the same pair (`scoped-stale-for-my-own-edit`) | my own edit to a carried path still refuses |
+| AC-3 | Done | `TestCertificateKeepsAPathMovedDuringRunStaleAfterRestore`, the `.ci`'s `moved-path-stays-stale` | the record names the moved path; no unmatchable value is written |
+| AC-4, AC-5, AC-4b | Done | `TestStructuralRedsAttributeOnlyPathBearingGroups`, `TestCreateRefusesChargedStructuralRedWithoutRecordedOverride` | a group naming no path is charged and named |
+| AC-6 | Done | `TestDebtClearingHonorsTheGateExit` (green half), `TestDebtRowsDeduplicateOnlyWhileOpen` | `cleared` only on exit 0 |
+| AC-7 | Done | `TestDebtClearingHonorsTheGateExit` (red half), `test/runner/verify-scope-debt-clear.ci` | a red or unrun gate leaves every row open |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCertificateFixtureSupportsWholeTreeAndScopedFreshness` | PASS | `internal/le/verify/engine/status_test.go` | the spec called it `test_verify_status_passes_commit_paths` and `test_check_scoped_ignores_unnamed_paths` |
+| `TestCertificateKeepsAPathMovedDuringRunStaleAfterRestore` | PASS | same file | the spec called it `TestWriteVerifyStatusRecordsMovedPathsNotSentinel` |
+| `TestStructuralRedsAttributeOnlyPathBearingGroups` | PASS | `internal/le/commit/commit_test.go` | the spec called it `test_debt_not_charged_for_foreign_red` |
+| `TestDebtClearingHonorsTheGateExit` | PASS | same file | written by this closure; the spec called it `test_debt_clear_reruns_the_owed_gate` |
+| `verify-scope-freshness-scoped` | PASS | `test/runner/verify-scope-freshness-scoped.ci` | seven markers, run for real from the driver |
+| `verify-scope-debt-clear` | PASS | `test/runner/verify-scope-debt-clear.ci` | rewritten by this closure; three markers, all produced by the real command's behaviour |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/verify/status/answer.go` | Changed | the scoped check is now `checkScoped` in `internal/le/verify/engine/status.go` |
+| `internal/le/verify/engine/run.go` | Done | the moved-path record |
+| `internal/le/commit/prepare.go` | Changed | attribution moved to `internal/le/commit/verification.go`, debt to `debt.go` |
+| the retired make target | Changed | `./le commit debt-clear` is the native verb |
+| `ai/rules/precommit-verify.md`, `ai/rules/git-safety.md` | Done | both describe the scoped judgement |
+| the two `.ci` files and the architecture page | Done | one of the two rewritten by this closure |
+
+### Audit Summary
+- **Total items:** 22
+- **Done:** 19
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (three files renamed by the le-personality port, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A verify verdict survives another session's concurrent edit | functional | `test/runner/verify-scope-freshness-scoped.ci` builds a throwaway git repo, writes a green certificate, has a second writer edit `theirs.txt`, and asserts FRESH for `mine.txt` and STALE for `theirs.txt` in the same record. Run for real this closure: seven markers, exit 0 |
+| Verification debt is clearable by running the gate rather than by editing a table | unit, discriminated | `TestDebtClearingHonorsTheGateExit` runs the decision twice over identical fixtures and differs only in the verdict the dispatcher returns: green clears the runnable row and leaves the unrunnable one, red clears nothing. Neither half passes if the exit is ignored |
+| A row is never cleared by the act of asking | functional | `test/runner/verify-scope-debt-clear.ci` drives the real `le commit debt-clear` and asserts the ledger holds no `\| cleared \|`. Before this closure the same scenario asserted its own `strings.Replace` |
+| A red another session produced is not charged here | unit | `TestStructuralRedsAttributeOnlyPathBearingGroups` and `TestCreateRefusesChargedStructuralRedWithoutRecordedOverride`: a group whose files are all foreign does not charge, and a group naming no path charges and is named |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Per-failure groups for `./le doc wiring`, the ledger's largest class | It needs the producer to declare its groups, which is a different change | `plan/spec-verify-scope-6-wiring-docs-attribution.md` |
+| Scoping the STAGES rather than the freshness question | No stage is per-package today; sub-spec 2 decides which can be | closed as spec-verify-scope-2-change-set-selector |
+| A third observation of the tree, to see an edit that begins and ends inside one run | The whole-tree hash has the identical hole, and closing it is a design of its own | none yet; named in Known Limitations and in `docs/architecture/testing/verify-freshness-scope.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/verify-scope-1-shared-checkout-freshness-zeclose-vs1.md` |
+| `review check` | clean |
+| Rounds | 3. Round 1 found the vacuous scenario; round 2 found the untested decision behind it; round 3 found the appended repo-root override the rewrite exposed |
+| Reviewer lenses used | test vacuity (does the assertion touch product code); guard-fails-closed; cross-session blast radius of a fixture; ze-go-style; spec record against the tree |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The debt-clearing scenario performs the outcome itself and asserts its own edit, so AC-6 and AC-7 have no evidence | `verifyScopeDebtClearDriver`, `internal/test/fixture/misc_fixture_runner.go` | the driver runs the real `le commit debt-clear` and judges the ledger |
+| 2 | BLOCKER | The decision "clear only what the gate passed" is unreachable by any test, because the real dispatcher makes it an hour-long run | `clearDebt`, `internal/le/commit/actions.go` | `clearDebtWith` names the dispatcher; `TestDebtClearingHonorsTheGateExit` runs it green and red |
+| 3 | ISSUE | A fixture appends `ZE_REPO_ROOT` instead of replacing it, so a real `le` can be pointed at the real checkout | `misc_fixture_runner.go`, `misc_fixture_runner_scope.go` | `envRootedAt` |
+| 4 | NOTE | The fixture `runner/verify-scope-debt-clear-gate` exists only to print a string for the vacuous assertion | the same file | removed with the assertion it served |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/runner/verify-scope-freshness-scoped.ci` | Yes | run this closure, seven markers, exit 0 |
+| `test/runner/verify-scope-debt-clear.ci` | Yes | run this closure, three markers, exit 0 |
+| `docs/architecture/testing/verify-freshness-scope.md` | Yes | 121 lines, carries both artifacts |
+| `internal/le/commit/verification.go` | Yes | holds `structuralGateReds`, `groupRelatedPaths`, `relatedInCommit` |
+| `internal/le/commit/debt.go` | Yes | holds `clearDebtRows` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-3 | scoped freshness and the moved-path record | the freshness scenario printed `scoped-fresh-for-my-path`, `scoped-stale-for-their-path`, `scoped-stale-for-my-own-edit`, `moved-path-stays-stale` |
+| AC-4, AC-5, AC-4b | attribution decides the charge | `go test ./internal/le/commit/` exit 0, holding both attribution tests |
+| AC-6, AC-7 | the gate's exit decides | `TestDebtClearingHonorsTheGateExit` PASS; the debt scenario printed `unrunnable-row-named-and-left-open` with the ledger holding no cleared row |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le commit create file X` | none | `checkVerificationGates` (`internal/le/commit/prepare.go`) passes the commit's own path population to `verificationState`; this closure's own three commits exercised it |
+| `./le verify status check <paths>` | `test/runner/verify-scope-freshness-scoped.ci` | Yes, read the driver: it runs the real `le verify status` in a throwaway repo and asserts both directions |
+| a concurrent edit during a run | the same | Yes, `moved-path-stays-stale` |
+| `./le commit debt-clear` | `test/runner/verify-scope-debt-clear.ci` | Yes, and this is what round 1 found was NOT true before |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken in part, recorded in the spec | no stage is per-package; what narrowed is the freshness QUESTION, and the structural half of the mitigation holds by `structuralGateReds` |
+| A-2 | broken in part, recorded in the spec | `Related` carries a file path only for lint; every other kind names a check, a suite or the stage, so AC-4b charges them and says which |
+| A-3 | confirmed | one pass runs each DISTINCT gate once, not once per row |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #10 test infrastructure | `docs/functional-tests.md` names both `.ci` files in its Runner row | Yes; the debt scenario's behaviour changed but its name and suite did not |
+| #12 internal architecture | `docs/architecture/testing/verify-freshness-scope.md` carries the certificate, the manifest, the moved-path marker, attribution and clearing | Yes |
+| #16, #17 | `ai/rules/precommit-verify.md` and `ai/rules/git-safety.md` describe the scoped judgement and the commit route | Yes, both read |
+| every other row | No | Commit and verify tooling: no YANG, CLI verb, RPC, plugin, wire format, or RFC tier |
+
+## Core Insight
+
+A test that cannot afford the real gate has two honest shapes and one dishonest one. It can drive the half of the entry point that runs no gate, or it can put a seam at the DECISION and supply the verdict. What it must not do is perform the outcome itself and then read it back: that scenario is green from the first day, cites itself as proof, and the marker strings it prints read like a specification of behaviour nothing performs.

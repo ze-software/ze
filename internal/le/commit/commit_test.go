@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	specsession "github.com/ze-software/ze/internal/le/spec/session"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 func TestNormalizePathRefusesNonFilePopulations(t *testing.T) {
@@ -711,4 +713,96 @@ func newSiteRepository(t *testing.T) string {
 	runCommitGit(t, root, "add", "--", "tracked.txt")
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "baseline")
 	return root
+}
+
+// debtClearFixture writes a checkout holding one runnable debt row and one row
+// no gate can re-run, and answers its root.
+func debtClearFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# fixture\n"), 0o600); err != nil {
+		t.Fatalf("write the fixture file: %v", err)
+	}
+	// The verification names HEAD, so the fixture needs one.
+	for _, args := range [][]string{
+		{"init", "-q", "."},
+		{"config", "user.email", "tester@example.com"},
+		{"config", "user.name", "Tester"},
+		{"config", "commit.gpgsign", "false"},
+		{"add", "-A"},
+		{"commit", "-q", "-m", "base"},
+	} {
+		command := exec.CommandContext(t.Context(), "git", args...) //nolint:gosec // the argument lists are literals above
+		command.Dir = root
+		if out, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %s in the fixture checkout: %v\n%s", strings.Join(args, " "), err, out)
+		}
+	}
+	owed := []Debt{
+		{Gate: debtGates[0].Name, Reason: "the gate had not run"},
+		{Gate: "independent critical review", Reason: "no reviewer"},
+	}
+	if _, err := recordDebt(root, "12345678", "a commit", owed); err != nil {
+		t.Fatalf("record the fixture debt rows: %v", err)
+	}
+	return root
+}
+
+// debtClearStatuses answers each row's gate and status, in ledger order.
+func debtClearStatuses(t *testing.T, root string) map[string]string {
+	t.Helper()
+	rows, err := ListDebt(root)
+	if err != nil {
+		t.Fatalf("read the fixture ledger: %v", err)
+	}
+	status := make(map[string]string, len(rows))
+	for _, row := range rows {
+		status[row.Gate] = row.Status
+	}
+	return status
+}
+
+// VALIDATES: debt clearing writes `cleared` only for a gate the verification
+// PASSED, and a red verification leaves every row open.
+// PREVENTS: the failure the ledger exists to stop -- a row marked cleared by the
+// act of asking rather than by the gate answering. The decision sits behind an
+// hour-long verification through the real dispatcher, so a test that does not
+// name its own dispatcher cannot reach it at all.
+func TestDebtClearingHonorsTheGateExit(t *testing.T) {
+	green := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
+	}
+	red := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true, Code: 1}
+	}
+
+	passing := debtClearFixture(t)
+	result, code := clearDebtWith(passing, green)
+	if code != 0 {
+		t.Fatalf("a passing verification answered %d: %#v", code, result)
+	}
+	if result.Cleared != 1 || result.Remaining != 1 {
+		t.Errorf("a passing verification cleared %d of %d rows, want 1 with 1 remaining", result.Cleared, result.Open)
+	}
+	if !slices.Contains(result.Unrunnable, "independent critical review") {
+		t.Errorf("the answer names %v as unrunnable, want the review row among them", result.Unrunnable)
+	}
+	status := debtClearStatuses(t, passing)
+	if status[debtGates[0].Name] != "cleared" {
+		t.Errorf("the runnable row is %q after a passing gate, want cleared", status[debtGates[0].Name])
+	}
+	if status["independent critical review"] != "open" {
+		t.Errorf("the unrunnable row is %q, want open: no gate re-ran it", status["independent critical review"])
+	}
+
+	failing := debtClearFixture(t)
+	result, _ = clearDebtWith(failing, red)
+	if result.Cleared != 0 || result.Remaining != result.Open {
+		t.Errorf("a red verification cleared %d of %d rows, want none", result.Cleared, result.Open)
+	}
+	for gate, state := range debtClearStatuses(t, failing) {
+		if state != "open" {
+			t.Errorf("%q is %q after a red gate, want open", gate, state)
+		}
+	}
 }
