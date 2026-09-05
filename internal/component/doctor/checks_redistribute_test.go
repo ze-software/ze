@@ -25,11 +25,15 @@ func redistTree(dest, source string) *config.Tree {
 }
 
 // codes flattens a diagnostic list to the codes it carries, which is what the
-// assertions are about.
+// assertions are about. It lives in this untagged file so every platform's
+// tests reach it: a second copy in a linux-tagged file collides on linux and
+// costs the whole package its test build.
 func codes(diags []diagnostic.Diagnostic) []string {
 	out := make([]string, 0, len(diags))
-	for _, d := range diags {
-		out = append(out, d.Code)
+	// Indexed, not ranged by value: Diagnostic is 184 bytes (gocritic
+	// rangeValCopy), and only Code is read here.
+	for i := range diags {
+		out = append(out, diags[i].Code)
 	}
 	return out
 }

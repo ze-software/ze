@@ -185,15 +185,8 @@ func TestCheckMPLSSupportProbesCapabilityNotModuleList(t *testing.T) {
 	})
 }
 
-func codes(diags []diagnostic.Diagnostic) []string {
-	out := make([]string, 0, len(diags))
-	// Indexed, not ranged by value: Diagnostic is 184 bytes (gocritic
-	// rangeValCopy), and only Code is read here.
-	for i := range diags {
-		out = append(out, diags[i].Code)
-	}
-	return out
-}
+// codes lives in checks_redistribute_test.go, which carries no build tag, so
+// this linux-only file shares it rather than declaring a second copy.
 
 // VALIDATES: with a kernel FIB, a labeled BGP family and no AF_MPLS table,
 // checkMPLSSupport emits doctor-mpls-unavailable even though both MPLS modules
