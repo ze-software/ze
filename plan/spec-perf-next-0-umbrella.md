@@ -40,7 +40,7 @@ child 2's completion signal.
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. Child specs: `plan/spec-perf-next-1-ebgp-wire-lockfree.md`, `plan/spec-perf-next-2-filter-delta-alloc.md`, `spec-perf-next-3-rib-show-alloc` (closed)
+3. Child specs: `spec-perf-next-1-ebgp-wire-lockfree` (closed 2026-09-05), `plan/spec-perf-next-2-filter-delta-alloc.md`, `spec-perf-next-3-rib-show-alloc` (closed)
 
 ## Task
 
@@ -252,7 +252,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 | 12 | Internal architecture changed? | [ ] possibly (child 1 cache concurrency note) | `docs/architecture/buffer-architecture.md` per child 1 |
 
 ## Files to Create
-- `plan/spec-perf-next-1-ebgp-wire-lockfree.md` - child 1 (created with this umbrella)
+- `spec-perf-next-1-ebgp-wire-lockfree` - child 1 (created with this umbrella, closed 2026-09-05; the cache it optimized was deleted by `df44d8d27` on 2026-08-17, so the round's record lives in `docs/architecture/perf-round-3.md` Section 1)
 - `plan/spec-perf-next-2-filter-delta-alloc.md` - child 2 (created with this umbrella)
 - `spec-perf-next-3-rib-show-alloc` - child 3 (created with this umbrella, closed 2026-08-12)
 

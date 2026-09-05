@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Depends | spec-perf-next-0-umbrella.md |
 | Phase | 5/5 |
-| Updated | 2026-08-05 |
+| Updated | 2026-09-05 |
 
 The feature code landed in commit `b5ad2cabe` on 2026-06-15. It carries
 `ebgpWireSlot` plus the two `atomic.Pointer` slots in `received_update.go`, the
@@ -28,13 +28,36 @@ removed. That deletion landed on 2026-08-17 in `df44d8d27`, its doc half in
 that deletion. It corrects every comment and doc line that still called the
 path live.
 
+## What the current tree holds (verified 2026-09-05)
+
+**Every symbol this spec built is gone.** The closure below is a record of a
+removal, and everything under `## Task` describes a tree that no longer exists.
+Read it as history, never as a map of the code.
+
+| Claim in the sections below | State of the tree on 2026-09-05 |
+|-----------------------------|----------------------------------|
+| `ebgpWireSlot`, `ebgpSlotASN4`, `ebgpSlotASN2`, `ebgpMu`, `EBGPWire` in `received_update.go` | absent. `gopls symbols internal/component/bgp/reactor/received_update.go` lists `ReceivedUpdate` with `WireUpdate`, `poolBuf`, `fwdHandles` and no eBGP field |
+| The two variant returns in `recent_cache.go` `evictLocked` and `Delete` | absent |
+| `BenchmarkEBGPWireCacheHitParallel` and `BenchmarkEBGPWireCacheHitParallelMutexBaseline` | absent, but their FILES survive. `df44d8d27` emptied both and left `received_update_bench_test.go` and `received_update_bench_baseline_test.go` tracked and holding one `package reactor` line each (`wc -l` returns 1 for both on 2026-09-05). Removing them needs owner approval, which the `pretool-bash` test-deletion gate demands and this closure could not obtain. Left in place and raised |
+| The `AllocCeilings` entry in `internal/perf/allocgate.go` | absent |
+| The "EBGP Variant Cache" section in `docs/architecture/buffer-architecture.md` | absent. `467d99165` removed it |
+| `docs/architecture/perf-round-3.md` Section 1 | present, and already titled "Lock-Free EBGP Variant Cache Hits (deleted 2026-08-17)". It keeps the numbers as a record and says the cache no longer exists |
+
+The one live residue is two comments in
+`internal/component/bgp/reactor/forward_readbuf_leak_test.go` (lines 9 and 11)
+that still name `getEBGPWire` as borrow sites 2 and 5. That header belongs to
+`spec-fixit-forward-readbuf-leak`, and correcting it needs that spec's six-site
+inventory re-derived against `reactor_api_forward.go` and `forward_rs.go`. It is
+recorded in `plan/journal/deleted-symbol-outlives-its-comment.md` rather than
+fixed here.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `internal/component/bgp/reactor/received_update.go` (struct + EBGPWire)
-4. `internal/component/bgp/reactor/recent_cache.go` (evictLocked)
+3. `internal/component/bgp/reactor/received_update.go` (the struct; `EBGPWire` was deleted on 2026-08-17)
+4. `internal/component/bgp/reactor/recent_cache.go` (`evictLocked`, which no longer returns variant buffers)
 5. `docs/architecture/encoding-context.md`, `docs/architecture/forward-congestion-pool.md`
 
 ## Task
@@ -289,11 +312,15 @@ run needed beyond the existing suite. Justification: synchronization-only change
 | Rule: stale-comments | EBGPWire doc comment updated (currently says "Thread-safe via ebgpMu") |
 
 ### Deliverables Checklist (/implement stage 10)
-| Deliverable | Verification method | Result (2026-08-05) |
-|-------------|---------------------|---------------------|
-| Lock-free hit path | read EBGPWire; confirm no Lock() before the hit return | Done. `slot.Load()` and its return precede `u.ebgpMu.Lock()` in `EBGPWire` |
-| Before/after benchmark numbers in spec | grep this file for BenchmarkEBGPWireCacheHitParallel results | Done, re-measured; run pasted under Goal Validation with the host named |
-| Race gate | `go test -race ./internal/component/bgp/reactor/...` output pasted | Done: `ok github.com/ze-software/ze/internal/component/bgp/reactor 221.454s`, exit 0 |
+Every row was verified on 2026-08-05 against a tree that held the feature. The
+last column re-states each row against the tree of 2026-09-05, where the feature
+is deleted. Neither column is re-runnable today.
+
+| Deliverable | Verification method | Result (2026-08-05) | State (2026-09-05) |
+|-------------|---------------------|---------------------|--------------------|
+| Lock-free hit path | read EBGPWire; confirm no Lock() before the hit return | Done. `slot.Load()` and its return precede `u.ebgpMu.Lock()` in `EBGPWire` | Deleted. `EBGPWire` has no producer; `received_update.go` holds no eBGP field |
+| Before/after benchmark numbers in spec | grep this file for BenchmarkEBGPWireCacheHitParallel results | Done, re-measured; run pasted under Goal Validation with the host named | Not re-runnable. Both benchmarks were removed by `df44d8d27`; the numbers survive in this file and in `docs/architecture/perf-round-3.md` Section 1 |
+| Race gate | `go test -race ./internal/component/bgp/reactor/...` output pasted | Done: `ok github.com/ze-software/ze/internal/component/bgp/reactor 221.454s`, exit 0 | The gate still runs on the package. It no longer covers this feature, because the tests that drove it were removed with it |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for | Result (2026-08-05) |
@@ -403,17 +430,17 @@ protocol-enforcing code is added. Keep existing references intact.
 | BenchmarkEBGPWireCacheHitParallelMutexBaseline (new, closure) | pass | received_update_bench_baseline_test.go | before path, kept so the baseline stays re-runnable |
 
 ### Files from Plan
-| File | Status | Notes |
-|------|--------|-------|
-| received_update.go | modified | ebgpWireSlot + atomic slots + EBGPWire rewrite |
-| recent_cache.go | modified | evictLocked + Delete use atomic loads |
-| received_update_test.go | modified | 2 new tests, updated assertions |
-| received_update_bench_test.go | created | parallel cache-hit benchmark |
-| received_update_bench_baseline_test.go | created (closure) | mutex-shaped comparator; keeps the before number re-runnable |
-| docs/architecture/buffer-architecture.md | modified | EBGP variant cache section, plus the reachability note |
-| docs/architecture/perf-round-3.md | modified (closure) | re-measured numbers, RunParallel caveat, reachability note |
-| internal/perf/allocgate.go | modified (closure) | ceiling comment |
-| internal/component/bgp/wireu/aspath_rewrite.go | modified (closure) | stale cache comment removed |
+| File | Status | Notes | State (2026-09-05) |
+|------|--------|-------|--------------------|
+| received_update.go | modified | ebgpWireSlot + atomic slots + EBGPWire rewrite | all of it reverted by `df44d8d27` |
+| recent_cache.go | modified | evictLocked + Delete use atomic loads | variant returns removed by `df44d8d27` |
+| received_update_test.go | modified | 2 new tests, updated assertions | the eBGP tests removed by `df44d8d27` |
+| received_update_bench_test.go | created | parallel cache-hit benchmark | emptied to one `package reactor` line by `df44d8d27`; the stub is still tracked and awaits owner approval to delete |
+| received_update_bench_baseline_test.go | created (closure) | mutex-shaped comparator; keeps the before number re-runnable | emptied the same way; the stub is still tracked and awaits owner approval to delete |
+| docs/architecture/buffer-architecture.md | modified | EBGP variant cache section, plus the reachability note | section removed by `467d99165` |
+| docs/architecture/perf-round-3.md | modified (closure) | re-measured numbers, RunParallel caveat, reachability note | still present, retitled "(deleted 2026-08-17)" and stating the cache is gone |
+| internal/perf/allocgate.go | modified (closure) | ceiling comment | ceiling removed by `df44d8d27` |
+| internal/component/bgp/wireu/aspath_rewrite.go | modified (closure) | stale cache comment removed | unchanged since |
 
 ### Audit Summary
 - **Total items:** 17
@@ -495,28 +522,81 @@ survives.
 - `docs/architecture/buffer-architecture.md` -- EBGP Variant Cache section states the reachability and names the deletion spec
 - `docs/architecture/perf-round-3.md` -- the round's own record: re-measured numbers beside the original, the `b.RunParallel` caveat, and the reachability note. Found by grepping `docs/` for anchors onto the changed files, which is what the Documentation Update Checklist row 16 asks for
 
-### Run 2+ (re-runs until clean)
+### Run 2 (2026-09-05, the closure of record)
+
+Run 1 ended with its fixes applied and was never committed. The tree moved under
+it: `df44d8d27` deleted the whole feature on 2026-08-17. Run 2 therefore judges a
+diff that carries NO Go at all, only this file and
+`plan/spec-perf-next-0-umbrella.md`. Lens count: one, per `/ze-review`'s
+Delegation section, because the diff touches no guard, no ratchet, no wire path,
+no generated artifact and no security surface.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | Run 2 over the fixed diff | - | - |
+| 8 | BLOCKER | Every verification table in this file asserted, in the present tense, a tree that no longer exists. `Files Exist` claimed `received_update_bench_test.go` at 1446 bytes; `Documentation Verified` claimed a `buffer-architecture.md` EBGP section whose anchor names four symbols; `Deliverables Checklist` claimed `slot.Load()` precedes `u.ebgpMu.Lock()` in `EBGPWire`. `gopls symbols internal/component/bgp/reactor/received_update.go` lists no eBGP field, and `grep -n -i 'ebgp' docs/architecture/buffer-architecture.md` returns nothing | this file, four tables | Fixed. A `## What the current tree holds (verified 2026-09-05)` table now leads the file, and each of the four tables carries a dated column separating the 2026-08-05 measurement from the 2026-09-05 state |
+| 9 | NOTE | `df44d8d27` emptied `received_update_bench_test.go` and `received_update_bench_baseline_test.go` instead of removing them. Both are tracked and hold one `package reactor` line (`wc -l` returns 1 for each). An empty Go file compiles, so no gate can see them. Graded NOTE under `/ze-review` step 22: the files are test-only, cannot reach the product, hold no assertion that stopped running (their benchmarks were deleted with the feature they measured), and stop no gate from refusing what it exists to refuse | `internal/component/bgp/reactor/` | RAISED, not fixed. `rm` on a `_test.go` path is refused by the `pretool-bash` test-deletion gate, which demands owner approval this closure cannot obtain. Recorded in the tree table above and in the report to the owner |
+| 10 | NOTE | `plan/spec-fixit-private-asn-leak-deferred-ebgp-auto-filters.md` states at lines 24, 243, 302, 364, 385 and 484 that this spec is `in-progress (1/5)` and that it "owns the `ReceivedUpdate.EBGPWire` cache". Both were false from 2026-08-17 | another spec's text | Recorded, not fixed. Those citations are already bare stems, so `./le spec citation` does not see them, and editing another open spec's Risks table is outside this closure |
+| 11 | NOTE | Two comments in `forward_readbuf_leak_test.go` (lines 9, 11) name `getEBGPWire` as borrow sites 2 and 5. No Go file declares that symbol | `internal/component/bgp/reactor/forward_readbuf_leak_test.go` | Recorded, not fixed, and NOT re-rowed: `plan/journal/comment-describes-superseded-behaviour.md` already carries it under 2026-08-17, spec-wire-edit-3-deferred-ac9-dead-code, together with the four sibling surfaces |
+
+Findings 8-11 are the whole of run 2. Steps 2, 3 and 5-21 of `/ze-review` find
+nothing to judge, and each says so for a reason a reader can check:
+
+| Step | Verdict on this diff |
+|------|----------------------|
+| 1 size | 2 files, prose only. Proportional: the problem is a record describing a deleted tree, and the change is that record corrected |
+| 2 wiring | no new symbol; the diff declares no Go |
+| 3 functional test | no user-facing behavior changes; the behavior this spec built was deleted 19 days ago under its own spec |
+| 4 doc drift | `grep -rn 'received_update.go\|recent_cache.go' docs/` finds no `source:` anchor onto either file. `docs/architecture/perf-round-3.md` Section 1 is already titled "(deleted 2026-08-17)" and states "The cache no longer exists" |
+| 5-18 | no changed Go file, so the logic, allocation, guard, altitude and style passes have no subject. The style pass reports no finding because the diff declares no `panic()`, no loop, no name and no return type |
+| 19 filter | findings 10 and 11 survive as NOTEs rather than being discarded: each names a producing file and the symbol that is absent |
+| 20-21 interop and RFC | no protocol code. `RewriteASPath` keeps its RFC 4271 Section 9.1.2 reference and this diff does not touch it |
+
+### Fixes applied (run 2)
+- `plan/spec-perf-next-1-ebgp-wire-lockfree.md` -- `## What the current tree holds` table; dated columns on Deliverables Checklist, Files from Plan, Files Exist and Documentation Verified; Post-Compaction Recovery items 3 and 4 corrected
+- `plan/spec-perf-next-0-umbrella.md` -- the two full-path citations of this spec restated as bare stems, so `./le spec citation` stays green after commit B removes the file
+
+### Run 3 (2026-09-05, confirming pass over the fixed diff)
+
+Re-read `plan/spec-perf-next-1-ebgp-wire-lockfree.md` and
+`plan/spec-perf-next-0-umbrella.md` after the run-2 fixes, against the same
+lens. Every table that finding 8 named now carries a dated column, and the
+`## What the current tree holds` table states each absent symbol with the
+command that observed the absence. `./le spec citation` exits 0. No new finding.
+
+**0 BLOCKER, 0 ISSUE.** NOTEs 9, 10 and 11 stand as recorded.
+
+### Machine artifact
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/perf-next-1-ebgp-wire-lockfree-zeclose-perf1.md` |
+| Recorded by | `./le spec session review record spec plan/spec-perf-next-1-ebgp-wire-lockfree.md verdict CLEAN rounds 3 file ... ` -> `wrote ... (3 files, verdict=clean)` |
+| `review check` | `review_gate: OK (0 code files, clean, hashes match tmp/review/perf-next-1-ebgp-wire-lockfree-zeclose-perf1.md)`, exit 0 |
+| Rounds | 3. Round 1 on 2026-08-05, rounds 2 and 3 on 2026-09-05 |
+| Model boundary | `WARNING could not determine the running model; the review-model boundary is UNCHECKED`. The closure ran on Opus 5 in a subagent whose harness does not publish the model to `./le` |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] Run 3 shows 0 BLOCKER, 0 ISSUE
+- [ ] NOTEs 9, 10 and 11 recorded above; 9 is raised to the owner because deleting a `_test.go` path needs an approval this closure cannot give itself
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
-| internal/component/bgp/reactor/received_update.go | yes | `ls -la` 2026-08-05, 8819 bytes |
-| internal/component/bgp/reactor/recent_cache.go | yes | `ls -la` 2026-08-05, 30628 bytes |
-| internal/component/bgp/reactor/received_update_test.go | yes | `ls -la` 2026-08-05, 18521 bytes |
-| internal/component/bgp/reactor/received_update_bench_test.go | yes | `ls -la` 2026-08-05, 1446 bytes |
-| internal/component/bgp/reactor/received_update_bench_baseline_test.go | yes | `ls -la` 2026-08-05, 2115 bytes (added at closure) |
-| docs/architecture/buffer-architecture.md | yes | section "EBGP Variant Cache (ReceivedUpdate)" with a source anchor on `ebgpWireSlot` |
+| internal/component/bgp/reactor/received_update.go | yes, without the feature | `gopls symbols` on 2026-09-05: `ReceivedUpdate` carries `WireUpdate`, `poolBuf`, `fwdHandles`; no eBGP field and no `EBGPWire` method |
+| internal/component/bgp/reactor/recent_cache.go | yes, without the variant returns | `grep -rn 'ebgp' internal/component/bgp/reactor/recent_cache.go` returns nothing |
+| internal/component/bgp/reactor/received_update_test.go | yes, without the eBGP tests | `grep -rn 'EBGPWire' --include=*.go .` returns only two comment lines in `forward_readbuf_leak_test.go` |
+| internal/component/bgp/reactor/received_update_bench_test.go | yes, as an empty stub | `wc -l` reported 1 (`package reactor`) on 2026-09-05. Deletion needs owner approval and is raised, not done |
+| internal/component/bgp/reactor/received_update_bench_baseline_test.go | yes, as an empty stub | same: `wc -l` reported 1 on 2026-09-05 |
+| docs/architecture/buffer-architecture.md | yes, without the EBGP section | `grep -n -i 'ebgp' docs/architecture/buffer-architecture.md` returns nothing; `467d99165` removed the section |
 
 ### AC Verified (grep/test)
+
+Every row below was verified on 2026-08-05 against the tree that held the
+feature. None is re-runnable on 2026-09-05: `df44d8d27` removed the method, both
+benchmarks, the allocation ceiling and every test named here. The rows are kept
+as the record of what the feature demonstrated while it existed.
+
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-1 | Same pointer, no mutex on the hit | `EBGPWire` returns `s.wire` from `slot.Load()` before any `ebgpMu.Lock()` (received_update.go); TestReceivedUpdate_EBGPWireCachedASN4 PASS |
@@ -548,10 +628,20 @@ discriminating evidence is the mutation kills above plus the race gate.
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| buffer-architecture.md EBGP section | source anchor names `ebgpWireSlot`, `ebgpSlotASN4`, `ebgpSlotASN2`, `EBGPWire`; all four exist in received_update.go. Section now also states the path has no production caller | yes |
-| No source anchor stale | the only `docs/` anchor onto received_update.go / recent_cache.go is the one above; re-read and corrected | yes |
-| Categories 1-11 (user-facing / config / CLI / API / wire) | no user-visible surface changed; wire bytes are `RewriteASPath` output, unchanged | no update needed |
-| `./le doc check verify` | PASSED after the fixes (log `tmp/doc-test-ebgp3.log`) | yes |
+| buffer-architecture.md EBGP section (2026-08-05) | source anchor named `ebgpWireSlot`, `ebgpSlotASN4`, `ebgpSlotASN2`, `EBGPWire`; all four existed in received_update.go at the time | superseded: `467d99165` removed both the section and the symbols |
+| buffer-architecture.md, current | `grep -n -i 'ebgp' docs/architecture/buffer-architecture.md` returns nothing on 2026-09-05, so no anchor points at a deleted symbol | yes |
+| `docs/architecture/perf-round-3.md` Section 1 | titled "Lock-Free EBGP Variant Cache Hits (deleted 2026-08-17)" and states "The cache no longer exists", naming `e2037e598`, `df44d8d27` and `467d99165`. Read on 2026-09-05 | yes, already correct |
+| No source anchor stale | `grep -rn 'received_update.go\|recent_cache.go' docs/` on 2026-09-05 finds no `source:` anchor onto either file | yes |
+| Categories 1-11 (user-facing / config / CLI / API / wire) | no user-visible surface changed by this spec or by its removal; wire bytes are `RewriteASPath` output, unchanged | no update needed |
+| `./le doc check verify` (2026-08-05) | PASSED after the fixes (log `tmp/doc-test-ebgp3.log`) | superseded by the run recorded in the Review Gate |
+
+## Work Not Done
+
+| Item | Why not done here | Who owns it now |
+|------|-------------------|-----------------|
+| Delete the two empty stub files `internal/component/bgp/reactor/received_update_bench_test.go` and `received_update_bench_baseline_test.go`, each holding one `package reactor` line since `df44d8d27` | `rm` on a `_test.go` path is refused by the `pretool-bash` test-deletion gate, which requires owner approval. A closure subagent has no user to ask, and granting itself the approval is what the gate exists to stop | THOMAS, raised in this closure's report. Not homed in a spec: the action is one `rm` of two files that declare nothing, and it needs an approval rather than a design |
+| Correct the `getEBGPWire` site-coverage comments in `forward_readbuf_leak_test.go` lines 9 and 11 | Correcting them needs the six-site borrow inventory of `spec-fixit-forward-readbuf-leak` re-derived against the current `reactor_api_forward.go` and `forward_rs.go`, both of which other sessions held on 2026-09-05 | already recorded under 2026-08-17 in `plan/journal/comment-describes-superseded-behaviour.md`, with its four sibling surfaces. No new row was added |
+| Correct the six lines of `plan/spec-fixit-private-asn-leak-deferred-ebgp-auto-filters.md` that call this spec `in-progress (1/5)` and the `EBGPWire` cache live | That spec is open and another session's subject. Its citations are bare stems, so `./le spec citation` is green either way | `plan/spec-fixit-private-asn-leak-deferred-ebgp-auto-filters.md`, at its own closure |
 
 ## Deferrals Resolved
 
