@@ -1,10 +1,11 @@
-// Design: plan/spec-mpls-10-rsvp-te-reload-completeness.md -- RSVP-TE config reload
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RSVP-TE config reload
+// (spec-mpls-10-rsvp-te-reload-completeness, closed 2026-09-05)
 // Related: routing_fixture.go -- routingObserver, routingRows, the other rsvp-te scenarios
 // Related: misc_fixture_shellports.go -- reloadSignalDriver, the shared rewrite-and-SIGHUP trigger
 //
-// The two fixtures behind test/reload/rsvpte-reload.ci. Registration lives in this
-// file rather than beside the other rsvp-te scenarios so the change touches no file
-// another session is editing.
+// The two fixtures behind test/reload/rsvpte-reload.ci: the observer that reads
+// `show rsvp-te interface` before and after the commit, and the trigger that rewrites
+// the config and sends the SIGHUP.
 package fixture
 
 import (

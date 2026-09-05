@@ -18,7 +18,7 @@ import (
 // expiring the LSP after the upstream stops refreshing, leaking the reservation
 // and FIB state.
 func TestRefreshDoesNotStampEgressPSB(t *testing.T) {
-	// RFC requirement: RFC3209-2.5-1 negative -- soft-state depends on refresh: an LSP whose PATH refresh stops (its PSB is not re-stamped) becomes past its deadline and eligible for cleanup expiry (register.go:928-953), so state is not kept alive without refresh.
+	// RFC requirement: RFC3209-2.5-1 negative -- soft-state depends on refresh: an LSP whose PATH refresh stops (its PSB is not re-stamped) becomes past its deadline and eligible for cleanup expiry (`cleanupTick` in register.go, over `lspTable.expiredPSBs`), so state is not kept alive without refresh.
 	e, _, _ := testEngine(t, "10.0.0.9", nil)
 	path := buildPath(egressTestPSB(), netip.MustParseAddr("10.0.0.1"), 64)
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: path})
@@ -53,7 +53,7 @@ func TestRefreshDoesNotStampEgressPSB(t *testing.T) {
 // ingress LSP re-sends its PATH downstream and an egress/transit LSP re-sends its
 // RESV upstream (RFC 2205 Section 3.7) -- so the reservation is maintained.
 func TestRefreshResendsPathAndResv(t *testing.T) {
-	// RFC requirement: RFC3209-2.5-1 positive -- refreshPaths re-sends a PATH for an ingress LSP and a RESV for an egress/transit LSP on a refresh tick (register.go:906-920), so both PATH and RESV state are periodically refreshed.
+	// RFC requirement: RFC3209-2.5-1 positive -- refreshPaths re-sends a PATH for an ingress LSP and a RESV for an egress/transit LSP on a refresh tick (`refreshPaths` in register.go), so both PATH and RESV state are periodically refreshed.
 	e, ft, _ := testEngine(t, "10.0.0.5", nil)
 
 	// Ingress LSP: a refresh must re-send its PATH downstream.

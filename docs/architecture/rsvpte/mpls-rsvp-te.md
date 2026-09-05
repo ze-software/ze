@@ -91,6 +91,70 @@ explicit route never reroutes, and a removed tunnel leaks its LSP and its FIB
 state. The head-end teardown and reroute paths are unreachable in that state, so
 they are also untested by construction.
 
+The same hook reconciles the interface set. `reconcileInterfaces` calls
+`setInterface` for every configured interface, then `removeInterface` for every
+interface the previous set held and the new one does not. An interface the
+operator removes therefore loses its bandwidth limits and its per-session
+reservation records, and `show rsvp-te interface` stops listing it. The LSPs that
+reserved against it are NOT torn down: RFC 2205 Section 2.4 initiates a teardown
+"by an application in an end system (sender or receiver), or by a router as the
+result of state timeout or service preemption", and a withdrawn bandwidth
+declaration is none of those.
+
+<!-- source: internal/plugins/rsvpte/register.go -- reconcileInterfaces -->
+<!-- source: internal/plugins/rsvpte/admission.go -- removeInterface -->
+
+## Decision: the refresh loops read the live config, they do not restart
+
+`runRefreshLoop` and `runCleanupLoop` start once and never restart. Each tick body
+reads the engine's current configuration through `liveConfig`, so a committed
+`refresh-period` re-periods the running ticker and a committed
+`refresh-multiplier` sets the deadline the next cleanup tick judges by.
+
+A period is adopted only when it changed. `time.Ticker.Reset` restarts the
+interval, so a reset on every tick would push each refresh one full period further
+out, and a neighbor whose cleanup timeout is K times the period would delete the
+reservation. The tick refreshes BEFORE it re-periods, so a commit that lengthens
+the period still puts one message on the wire at the old cadence. That message
+carries the new period, and the neighbor recomputes its lifetime from it.
+
+<!-- source: internal/plugins/rsvpte/register.go -- refreshTick, cleanupTick, adoptedRefreshPeriod, liveConfig -->
+
+## Decision: the lifetime of received state follows the sender's period
+
+RFC 2205 Section 3.7: "Each Path or Resv message carries a TIME_VALUES object
+containing the refresh time R used to generate refreshes. The recipient node uses
+this R to determine the lifetime L of the stored state created or refreshed by the
+message."
+
+So an egress or transit PSB takes its `RefreshPeriod` from the PATH that created
+it, never from this node's `refresh-period`. The sender refreshes on its own
+schedule, and a local commit that shortened the lifetime of state a neighbor keeps
+alive would delete a live reservation on the next cleanup tick. A transit node
+relays the received period downstream for the same reason: it relays a PATH only
+when one arrives, so the downstream cadence is the sender's.
+
+A PATH without TIME_VALUES falls back to the 30-second default RFC 2205 Section
+3.7 suggests, and an advertised period above 65535 seconds is clamped to that
+ceiling, which is the `refresh-period` YANG range.
+
+<!-- source: internal/plugins/rsvpte/engine.go -- receivedRefreshPeriod -->
+<!-- source: internal/plugins/rsvpte/register.go -- maxRefreshPeriod -->
+
+This node's own period governs what it generates: the PATH an ingress LSP refreshes
+(`refreshPaths` stamps the live period on the PSB) and the RESV an egress or transit
+node sends upstream (`buildResv` reads the engine's configuration).
+
+<!-- source: internal/plugins/rsvpte/register.go -- refreshPaths -->
+<!-- source: internal/plugins/rsvpte/engine.go -- sendResv -->
+
+Two RFC 2205 Section 3.7 timing rules are still open. The cleanup timeout is K*R
+where item 2 sets the floor at `L >= (K + 0.5)*1.5*R`
+(`plan/journal/bound-too-small-for-its-own-burst.md`), and a committed period is
+adopted in one step where item 5 limits each increase to a ratio of 1.30
+(`plan/journal/setting-changed-faster-than-its-consumer-allows.md`). Each repair
+changes live timing behavior, so each is an owner decision.
+
 ## Decision: the head-end holds the recorded path
 
 Each node prepends its address to the Record Route Object as the RESV travels

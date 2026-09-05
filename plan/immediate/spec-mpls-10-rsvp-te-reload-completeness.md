@@ -14,7 +14,11 @@ spec now uses the new path, and the drifted line cites are corrected in-body:
 `register.go` `runRefreshLoop` `:872` (was `:876`), `runCleanupLoop` `:928`
 (was `:932`), loop launches `:605`/`:607` (were `:609`/`:611`),
 `expiredPSBs(...)` `:937` (was `:941`), `OnConfigApply` `~:525` (was `~:537`).
-Both reload gaps still un-fixed.
+
+STATUS (2026-09-05 closure): both reload gaps are FIXED, in commit 838416efc.
+The line numbers above are the pre-implementation ones and are kept as the record
+of what the plan review corrected; the current producers are named by symbol in
+the closure sections at the end of this file.
 
 ## Post-Compaction Recovery
 
@@ -325,3 +329,220 @@ sender's TIME_VALUES.
 ### Completion (BLOCKING)
 - [ ] Write learned summary to `plan/learned/NNN-mpls-rsvp-te-reload-completeness.md`
 - [ ] Commit A (code + spec + learned); Commit B (`git rm` spec)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+The implementation landed in commit `838416efc` (`fix(rsvpte): keep the advertised
+refresh period and the cadence together`). Closure adds the record, the doc pages
+and three stale citations that commit left behind.
+
+- `admissionController.removeInterface` (`internal/plugins/rsvpte/admission.go`)
+  drops `interfaces[name]` and `sessions[name]` together and returns the session
+  count dropped. It does NOT tear down the LSPs that reserved on the link.
+- `reconcileInterfaces` (`internal/plugins/rsvpte/register.go`) is called from
+  `OnConfigure` and `OnConfigApply` under `tunnelsMu`, mirroring
+  `reconcileTunnels`. It sets every configured interface and removes every
+  interface the previous set held and the new one does not.
+- `liveConfig`, `adoptedRefreshPeriod`, `refreshTick` and `cleanupTick`
+  (`register.go`) make the loop bodies read the engine's current config each tick.
+  `runRefreshLoop` and `runCleanupLoop` re-period their ticker only when the
+  period changed. `cleanupTick` judges the deadline by the live multiplier.
+- `refreshPaths` (`register.go`) stamps the live period on an ingress PSB, so the
+  period a PATH advertises follows a commit.
+- `receivedRefreshPeriod` (`internal/plugins/rsvpte/engine.go`) derives the
+  lifetime of state a neighbor creates from that neighbor's TIME_VALUES, and
+  `handlePathTransit` relays the received period downstream.
+
+### Bugs Found/Fixed
+
+- The advertised period and the refresh cadence diverged at three sites, not one.
+  The spec framed a stale ticker; the wire also lied at `buildPath` (the period
+  stamped at signal time) and at `handlePathTransit` (this node's period, though a
+  transit relays at the sender's rate). Covered by
+  `TestRefreshTickAdoptsReloadedPeriod`.
+- The RECEIVE direction had the same defect from the other end: an egress or
+  transit PSB took its lifetime from the LOCAL period, so a commit shortening
+  `refresh-period` expired state a neighbor was still refreshing. Covered by
+  `TestEgressStateLifetimeFollowsSenderPeriod` and `TestReceivedRefreshPeriodBounds`.
+- Closure found three stale locators the register.go edit created: two inside RFC
+  tag prose in `internal/plugins/rsvpte/softstate_test.go`, and one in
+  `ai/digests/mpls-signaling.md`. Each pinned a line range that was accurate before
+  the commit and points at unrelated code after it. All three now name the symbol.
+
+### Documentation Updates
+
+- `docs/architecture/rsvpte/mpls-rsvp-te.md`: the reload decision now covers the
+  interface reconcile; two new decisions cover the live-config tick bodies and the
+  lifetime of received state. Anchors added for `reconcileInterfaces`,
+  `removeInterface`, `refreshTick`/`cleanupTick`/`adoptedRefreshPeriod`/`liveConfig`,
+  `receivedRefreshPeriod`, `maxRefreshPeriod`, `refreshPaths` and `sendResv`.
+- `docs/guide/rsvp-te.md`: `refresh-period` and `refresh-multiplier` were absent
+  from the configuration reference and are now documented, with a "What a commit
+  changes" section stating what reloads and that `router-id` is restart-class.
+- `ai/digests/mpls-signaling.md`: item 15 now states that each tick body reads the
+  live config, and that received state takes its lifetime from the sender.
+- `./le doc check verify`: 3 pre-existing findings, none in these pages (the
+  `ze-bgp-conf` YANG summary and two command anchors, owned by other sessions).
+
+### Deviations from Plan
+
+- The spec planned the tests in `register_test.go`; they live in a new
+  `reload_test.go`. Same package, same seam.
+- The spec's "Files to Modify" did not list `engine.go` or a fixture file. Both
+  were needed: the receive-direction defect is in `engine.go`, and the `.ci` needs
+  a registered observer (`internal/test/fixture/register_rsvpte_reload.go`).
+- No `plan/learned/` summary is written. The closure artifact is a journal row
+  (`ai/rules/planning.md`, `/ze-close` step 6a); two rows are added, named below.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed `eng` is non-nil in the loops because `OnStarted` guards on a valid router-id | A valid router-id is necessary and not sufficient: `OnStarted` builds the engine only when `newTransport` also succeeds, and starts both loops after that branch either way. Without CAP_NET_RAW `eng` is nil for the life of the process | read `OnStarted` (`register.go`) during implementation | `liveConfig` returns the launch config when `eng` is nil; `TestLiveConfigWithoutEngine` covers it |
+| assumption | A-3 assumed the LSP reconcile tears down LSPs that traverse a removed interface | Nothing tears those down. The tunnel reconcile tears head-end LSPs of REMOVED TUNNELS only. The conclusion still stands: RFC 2205 Section 2.4 makes a withdrawn bandwidth declaration no kind of teardown request | read `reconcileTunnels` and RFC 2205 Section 2.4 | `removeInterface`'s doc comment states the policy and its cost (a link re-added accounts from zero until pre-removal LSPs drain) |
+| approach | The implementation was planned as a ticker fix | The advertised period and the cadence are one fact stamped at four sites; a ticker-only fix would have left the wire lying | read the producers before editing | all four sites changed together; recorded in `plan/journal/published-value-drifts-from-the-behavior-it-describes.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Stale refresh/cleanup timers adopt a reloaded period and multiplier | Done | `refreshTick`, `cleanupTick`, `liveConfig`, `adoptedRefreshPeriod` (`register.go`) | ticker re-periods only on a change |
+| Leaked admission state for removed interfaces | Done | `reconcileInterfaces` (`register.go`), `removeInterface` (`admission.go`) | called from `OnConfigure` and `OnConfigApply` |
+| Preserve the mpls-4 RMW invariant on a kept interface | Done | `setInterface` unchanged; `TestReconcileInterfacesRemovesDropped` | asserts the kept link keeps `ReservedBandwidth` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRefreshTickAdoptsReloadedPeriod` | asserts the ADVERTISED period equals the cadence, not only the cadence |
+| AC-2 | Done | `TestCleanupTickUsesReloadedMultiplier` | multiplier 10 keeps the LSP, committed 1 expires it |
+| AC-3 | Done | `TestRefreshTickIdempotentOnUnchangedPeriod` | an unrelated commit reports no change |
+| AC-4 | Done | `TestReconcileInterfacesRemovesDropped`, `test/reload/rsvpte-reload.ci` | the `.ci` reads `show rsvp-te interface` across a SIGHUP reload |
+| AC-5 | Done | `TestReconcileInterfacesRemovesDropped` | `eth0` keeps its 2e8 reservation |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestAdmissionRemoveInterface` | Done | `admission_test.go` | unknown name is a no-op |
+| `TestReconcileInterfacesRemovesDropped` | Done | `reload_test.go` | AC-4 and AC-5 |
+| `TestRefreshTickAdoptsReloadedPeriod` | Done | `reload_test.go` | AC-1 |
+| `TestRefreshTickIdempotentOnUnchangedPeriod` | Done | `reload_test.go` | AC-3 |
+| `TestCleanupTickUsesReloadedMultiplier` | Done | `reload_test.go` | AC-2 |
+| `TestAdoptedRefreshPeriodBounds` | Done | `reload_test.go` | 0, negative, ceiling, above ceiling |
+| `TestLiveConfigWithoutEngine` | Done | `reload_test.go` | A-1 |
+| `TestEgressStateLifetimeFollowsSenderPeriod` | Done | `reload_test.go` | receive direction |
+| `TestReceivedRefreshPeriodBounds` | Done | `reload_test.go` | absent, zero, advertised, clamped |
+| `rsvpte-reload` | Done | `test/reload/rsvpte-reload.ci` | passes in `./le functional reload` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/rsvpte/admission.go` | Done | `removeInterface` |
+| `internal/plugins/rsvpte/register.go` | Done | reconcile, tick bodies, live stamp |
+| `internal/plugins/rsvpte/admission_test.go` | Done | additive |
+| `internal/plugins/rsvpte/register_test.go` | Changed | tests went to `reload_test.go` |
+| `test/reload/rsvpte-reload.ci` | Done | plus `internal/test/fixture/register_rsvpte_reload.go` |
+| `internal/plugins/rsvpte/engine.go` | Changed | not in the plan; the receive direction needed it |
+
+### Audit Summary
+- **Total items:** 24
+- **Done:** 21
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A commit that changes `refresh-period` takes effect without a restart, and the period ze advertises stays equal to the cadence it keeps | functional (unit over the reload seam) | `TestRefreshTickAdoptsReloadedPeriod` reads the TIME_VALUES of the PATH the tick sent and asserts it equals the cadence the tick returns. `ok github.com/ze-software/ze/internal/plugins/rsvpte 1.238s` (`./le test-unit plugins`, 2026-09-05, race on) |
+| A commit that changes `refresh-multiplier` takes effect without a restart | functional (unit over the reload seam) | `TestCleanupTickUsesReloadedMultiplier`: the same PSB survives at multiplier 10 and is torn down after `engine.setConfig` lowers it to 1 |
+| An interface removed on reload stops being serviced end to end | functional (`.ci` through the daemon) | `7.1s 36/59 PASS 36 rsvpte-reload` (`./le functional reload`, 2026-09-05). The fixture reads `show rsvp-te interface` before the SIGHUP, polls after it, and requires `dummy0` gone and `lo` kept; the daemon log line `interface removed from config, admission state dropped` is asserted by the `.ci` |
+| A refresh-period commit cannot delete a live reservation in either direction | data correctness (unit with explicit values) | `TestEgressStateLifetimeFollowsSenderPeriod`: a local period of 1s with a sender advertising 300s leaves the state unexpired at 3 local periods. `TestReceivedRefreshPeriodBounds` pins the absent, zero and over-ceiling cases |
+| Vacuity | recorded red | The implementing commit records six mutations, each reddening exactly one test (commit body of `838416efc`), and states that `rsvpte-reload.ci` reddens under the no-removal mutation |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| RFC 2205 Section 3.7 item 5, the Slew.Max limit on how fast R may increase | Found at this closure. Conformance needs the ADVERTISED period and the CADENCE to move together, and they are read at four sites (`sendResv`, `setupTunnel`, `reroute`, the PSB stamp), so the engine has to hold a running period beside its configured target. It also changes what a commit means to the operator: a raised period would converge over about 13 refresh cycles | none yet. Recorded in `plan/journal/setting-changed-faster-than-its-consumer-allows.md`; the shape is an owner decision under `ai/rules/rfc-compliance.md` and is raised in the closure report |
+| RFC 2205 Section 3.7 item 2, the `L >= (K + 0.5)*1.5*R` lifetime floor | Out of this spec's scope and recorded by the implementing session. The repair redefines what `refresh-multiplier` means or raises its default | none yet. `plan/journal/bound-too-small-for-its-own-burst.md` |
+| Refusing a PATH that carries no TIME_VALUES (RFC 2205 Section 3.1.3 makes it mandatory) | Wire-visible: a PATH ze accepts today would answer with a PathErr, so the error code is an owner decision | none yet. `plan/journal/zero-value-as-valid-answer.md` |
+| A daemon-level assertion of AC-1 to AC-3 | The engine exists only when the raw IP transport opens (CAP_NET_RAW), and no rsvp-te `.ci` has it. This is the pre-existing project position for RSVP-TE signaling, stated in `test/rsvpte/rsvpte-lsp-setup.ci` | none. The `.ci` header names the unit tests that carry those ACs |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/mpls-10-rsvp-te-reload-completeness-zeclose-rsvpreload.md` |
+| `review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | wiring + functional coverage; documentation drift; removed-behavior and comment staleness; logic, guard and edge cases; security and allocation; simplicity and Go style; RFC 2205 conformance read from `rfc/full/rfc2205.txt` |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The spec's own header banner said "Both reload gaps still un-fixed", which the code contradicts | this spec file | the STATUS paragraph at the top of this file |
+| 2 | ISSUE | The register.go edit moved the code two RFC tag prose lines cite by line range; both were accurate before the commit and point at unrelated functions after it | `internal/plugins/rsvpte/softstate_test.go` | both cite the symbol (`cleanupTick` over `lspTable.expiredPSBs`, `refreshPaths`) |
+| 3 | ISSUE | The same edit staled the locator in the living digest, and item 15 never stated that the tick bodies read the live config | `ai/digests/mpls-signaling.md` | rewritten with no line number and with the live-config and TIME_VALUES facts |
+| 4 | ISSUE | Behavior changed and no page moved: the reload decision covered tunnels only, and the received-state lifetime rule was written nowhere | `docs/architecture/rsvpte/mpls-rsvp-te.md` | one extended and two new decision sections, with source anchors |
+| 5 | ISSUE | `refresh-period` and `refresh-multiplier` were absent from the user guide, so the reload semantics this spec created had no user-facing page | `docs/guide/rsvp-te.md` | two configuration bullets and a "What a commit changes" section |
+| 6 | ISSUE | The fixture's `Design:` line cited the spec by path, which commit B removes | `internal/test/fixture/register_rsvpte_reload.go` | repointed at `docs/architecture/rsvpte/mpls-rsvp-te.md`, spec named by bare stem |
+| 7 | ISSUE | RFC 2205 Section 3.7 item 5 limits R2/R1 to 1 + Slew.Max (0.30) when R changes dynamically. `adoptedRefreshPeriod` adopts any in-range period in one step, so a 10 to 300 second commit multiplies R by 30 | `adoptedRefreshPeriod` (`internal/plugins/rsvpte/register.go`) | NOT FIXED in this closure: the repair needs a running period on the engine that all four advertisement sites read, and it changes what a commit means to an operator. Journal row written and the question raised with the owner (see Work Not Done) |
+
+NOTEs: `receivedRefreshPeriod` clamps a neighbor's advertised period to the local
+YANG ceiling, which is a policy choice the RFC does not state; it is stated in the
+function's doc comment. `cleanupTick` trusts `RefreshMultiplier >= 1`, which
+`parseConfig` guarantees (`ok && v > 0`) and the YANG range `1..255` reinforces.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/reload/rsvpte-reload.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 3459 Aug 30 22:52 test/reload/rsvpte-reload.ci` |
+| `internal/plugins/rsvpte/reload_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 10903 Aug 30 22:52 internal/plugins/rsvpte/reload_test.go` |
+| `internal/test/fixture/register_rsvpte_reload.go` | Yes | `-rw-rw-r-- 1 thomas thomas 2942 Sep 5 14:00 internal/test/fixture/register_rsvpte_reload.go` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the tick adopts a committed period and advertises it | `TestRefreshTickAdoptsReloadedPeriod` in the green package run: `ok github.com/ze-software/ze/internal/plugins/rsvpte 1.238s` |
+| AC-2 | the cleanup tick uses the committed multiplier | `TestCleanupTickUsesReloadedMultiplier`, same run |
+| AC-3 | an unchanged period re-periods nothing | `TestRefreshTickIdempotentOnUnchangedPeriod`, same run |
+| AC-4 | a removed interface loses its admission state | `grep -n "func (ac *admissionController) removeInterface" admission.go` finds the definition, and `register.go` carries the caller `dropped := admission.removeInterface(name)`; the `.ci` reports `7.1s 36/59 PASS 36 rsvpte-reload` |
+| AC-5 | a kept interface keeps its reservation | `TestReconcileInterfacesRemovesDropped` asserts `kept.ReservedBandwidth == 2e8` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| reload changing `rsvp-te { refresh-period }` | none by design | the engine needs CAP_NET_RAW; the loop bodies are driven through `engine.setConfig`, the seam `OnConfigApply` uses. Stated in the `.ci` header and in `test/rsvpte/rsvpte-lsp-setup.ci` |
+| reload removing a `rsvp-te { interface }` | `test/reload/rsvpte-reload.ci` | read the file: it boots with `lo` and `dummy0`, the trigger rewrites the config without `dummy0` and sends SIGHUP, the observer polls `show rsvp-te interface` until `dummy0` is gone and requires `lo` present. PASS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | `OnStarted` (`register.go`) starts both loops after the `newTransport` branch, so `eng` is nil without CAP_NET_RAW. `liveConfig` returns the launch config; `TestLiveConfigWithoutEngine` |
+| A-2 | confirmed | `time.Ticker.Reset` re-periods in place; `runRefreshLoop` resets only on a change, and `adoptedRefreshPeriod` never returns a non-positive duration |
+| A-3 | broken in its basis, upheld in its conclusion | nothing tears down an LSP that traverses a removed interface, and RFC 2205 Section 2.4 says a withdrawn bandwidth declaration is not a teardown request. Cost stated in `removeInterface`'s doc comment |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Config syntax (row 2, "No") | The spec changed no leaf. `refresh-period` and `refresh-multiplier` already existed in `yang/ze-rsvp-te-conf.yang` (`range "1..65535"`, `range "1..255"`), and the guide bullets were written from that file | Yes |
+| User guide (row 6) | `docs/guide/rsvp-te.md`: the two leaves and "What a commit changes". The `router-id` claim is read from `OnConfigApply`, which logs "router-id change requires a restart" and keeps the running value in `setConfig` | Yes |
+| Internal architecture (row 12) | `docs/architecture/rsvpte/mpls-rsvp-te.md`: the interface reconcile, the live-config tick bodies, and the received-state lifetime, each with a source anchor | Yes |
+| Doc anchors on changed files (row 16) | `grep -rln` over `docs/` for `rsvpte/register.go`, `admission.go`, `engine.go` names `docs/features.md`, `docs/DESIGN.md`, both rsvpte architecture pages and `docs/guide/rsvp-te.md`. `features.md` and `DESIGN.md` list the plugin and its RFCs and make no reload claim | Yes |
+| Living digest | `ai/digests/mpls-signaling.md` item 15 | Yes |
+
+## Core Insight
+
+A config value that reaches the wire has two halves: the schedule ze keeps and the
+number ze announces. They are usually written in different files, so a fix to one
+is not a fix to the other, and the peer sizes its timers from the half ze did not
+fix. Trace such a leaf to every site before calling it done, and ask at each site
+whose schedule the number describes.

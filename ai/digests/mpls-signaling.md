@@ -137,10 +137,15 @@ forwarding`, independent of either engine's in-memory state.
     LSP it replaces (`e.teardownLSP`, `rsvpte/reroute.go`, called from
     `rsvpte/engine.go`).
 15. **Soft-state refresh, expiry, teardown, link-down repair.**
-    `runRefreshLoop`/`runCleanupLoop` (`rsvpte/register.go`,`:928`) re-send PATH
+    `runRefreshLoop`/`runCleanupLoop` (`rsvpte/register.go`) re-send PATH
     (ingress) or RESV (egress/transit) each refresh tick (`refreshPaths`,
     `rsvpte/register.go`) and expire/`tearLSPLocal` (`rsvpte/engine.go`) LSPs
-    whose PSB has not refreshed within `RefreshMultiplier` periods. An explicit PathTear
+    whose PSB has not refreshed within `RefreshMultiplier` periods. Each tick body
+    (`refreshTick`/`cleanupTick`) reads the live config through `liveConfig`, so a
+    committed `refresh-period` re-periods the ticker and a committed
+    `refresh-multiplier` sets the next expiry deadline, with no restart. The
+    lifetime of state a NEIGHBOR refreshes comes from that neighbor's TIME_VALUES
+    (`receivedRefreshPeriod`, `rsvpte/engine.go`), never from the local period. An explicit PathTear
     removes state hop-by-hop (`handlePathTear`, `rsvpte/engine.go`, withdraws the
     matching push/swap/pop via `fib.removePush`/`removeSwap`). An interface-down event
     (`rsvpte/register.go`) drives `handleLinkDown` (`rsvpte/engine.go`): a
