@@ -7,7 +7,7 @@
 # The routes are really injected (option=update:value=send-route below), and that
 # is what makes the pipe assertions non-vacuous. Five `expect=bgp` UPDATE hexes
 # stood here instead until aaefef8ce, and they were unsatisfiable by
-# construction, for two reasons. (1) Nothing announced them: their paired `cmd=api:...text=peer * update
+# construction, for two reasons. (1) Nothing announced them: their paired `cmd=api:...text=send bgp * update
 # text ...` lines are inert in the plugin runner -- cmd=api text is parsed into
 # messageExpect.Cmd (internal/test/runner/record.go:85, set at
 # record_parse.go:700) which ONLY the reporter reads (report.go:149), and ze-peer

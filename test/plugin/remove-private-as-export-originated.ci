@@ -15,7 +15,7 @@ option=timeout:value=20s
 # Inject ORIGIN=IGP, AS_PATH=[64496 64512 64497], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24.
 # 64512 is the only RFC 6996 Private Use ASN here; 64496/64497 are RFC 5398
 # documentation ASNs and MUST be retained.
-cmd=api:conn=1:seq=1:text=peer * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=send bgp * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
 # Private 64512 stripped: AS_PATH=AS_SEQUENCE[64496 64497].
 # attrs(0x18=24) = ORIGIN(4) + AS_PATH(13) + NEXT_HOP(7)
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FBF00000FBF140030401010101180A0000

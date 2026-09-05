@@ -20,10 +20,10 @@
 
 stdin=peer:terminator=EOF_PEER
 # Route announced by the plugin script
-cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add destination-ipv4 10.1.0.0/24
+cmd=api:conn=1:seq=1:text=send bgp * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add destination-ipv4 10.1.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002B4001010040020040050400000064800E0F0001850401020304000501180A0100C010080800000000000001
 # Same route withdrawn by the plugin script
-cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/flow del destination-ipv4 10.1.0.0/24
+cmd=api:conn=1:seq=2:text=send bgp * update text nlri ipv4/flow del destination-ipv4 10.1.0.0/24
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0023020000000C800F090001850501180A0100
 EOF_PEER
 

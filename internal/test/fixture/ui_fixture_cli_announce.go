@@ -1,14 +1,14 @@
-// Design: docs/architecture/bgp/on-demand-origination.md -- the announce and withdraw verbs this drives
+// Design: docs/architecture/bgp/on-demand-origination.md -- the send bgp forms this drives
 // Related: ui_fixture_cli_verb_daemon_dispatch.go -- the daemon-over-ephemeral-SSH half this reuses
 // Related: misc_fixture_vpp.go -- startFixtureProcess and Poll, the ze-test peer half this reuses
 //
-// The announce verbs are the only command family in the tree whose whole
+// The send bgp forms are the only command family in the tree whose whole
 // grammar lives in a handler and whose seven registered handlers no functional
 // test reaches. A .ci cannot drive them on its own: the daemon publishes its
 // ephemeral SSH address into the file ZE_SSH_EPHEMERAL names, and only a
 // compiled fixture can read that file and put ZE_SSH_HOST and ZE_SSH_PORT on
 // the client. So this fixture starts BOTH halves, a daemon over ephemeral SSH
-// and a ze-test peer, and drives `ze announce` as argv against them.
+// and a ze-test peer, and drives `ze send bgp` as argv against them.
 //
 // The peer is the assertion. Its script states the wire bytes it must receive,
 // and ze-test peer exits zero only when every one of them arrived, so the
@@ -56,15 +56,20 @@ const cliAnnounceNextHop = "10.0.0.1"
 // announce has to wait for.
 const cliWireEndOfRIBHex = "0017:02:00000000"
 
-// argAnnounce is the verb every command in this file types first, and
-// argUnicast, argBlackhole and argFlowspec are its three forms.
+// argSend, argBGP and argEveryPeer are the three words every command in this
+// file types before its form, and argUnicast, argBlackhole and argFlowspec are
+// the three forms. The selector is mandatory, so the scope the bare spelling
+// carried implicitly is now typed: * is every session.
 const (
-	argAnnounce  = "announce"
+	argSend      = "send"
+	argBGP       = "bgp"
+	argEveryPeer = "*"
 	argUnicast   = "unicast"
 	argBlackhole = "blackhole"
 	argFlowspec  = "flowspec"
 	argNextHop   = "next-hop"
 	argTag       = "tag"
+	argWithdraw  = "withdraw"
 )
 
 // cliAnnounceTagKey and cliAnnounceTagValue name the announcement the
@@ -101,7 +106,7 @@ type cliWireResult struct {
 	out  string
 }
 
-// cliAnnounceReachesTheWire proves that `ze announce unicast <prefix>` typed as
+// cliAnnounceReachesTheWire proves that `ze send bgp * unicast <prefix>` typed as
 // argv reaches the handler and puts the prefix on a peer's wire, and that a
 // trailing token no keyword claims is refused by name rather than discarded.
 func cliAnnounceReachesTheWire(ctx context.Context, args []string) error {
@@ -111,14 +116,14 @@ func cliAnnounceReachesTheWire(ctx context.Context, args []string) error {
 	}
 	defer session.stop()
 
-	announced := session.run(ctx, argAnnounce, argUnicast, cliAnnouncePrefix, argNextHop, cliAnnounceNextHop)
+	announced := session.run(ctx, argSend, argBGP, argEveryPeer, argUnicast, cliAnnouncePrefix, argNextHop, cliAnnounceNextHop)
 	if announced.code != 0 {
-		return fmt.Errorf("ze announce unicast %s exit=%d, want 0: %s", cliAnnouncePrefix, announced.code, announced.out)
+		return fmt.Errorf("ze send bgp * unicast %s exit=%d, want 0: %s", cliAnnouncePrefix, announced.code, announced.out)
 	}
 
 	// The refusals share this daemon because each one is a single command
 	// launch and a second daemon would buy nothing. Each drives a different
-	// announce form, so the fix reaches all three rather than flowspec alone.
+	// send bgp form, so the fix reaches all three rather than flowspec alone.
 	refusals := []struct {
 		argv  []string
 		token string
@@ -130,17 +135,17 @@ func cliAnnounceReachesTheWire(ctx context.Context, args []string) error {
 		// parseComponentText, which knows destination-ipv4 and destination-ipv6
 		// and refuses the bare form, so the run would die on the keyword before
 		// it reached the trailing token this case exists to prove.
-		{[]string{argAnnounce, argFlowspec, "destination-ipv4", "1.1.1.1/32", "discard", "rate-limit", "500"}, "rate-limit"},
+		{[]string{argSend, argBGP, argEveryPeer, argFlowspec, "destination-ipv4", "1.1.1.1/32", "discard", "rate-limit", "500"}, "rate-limit"},
 		// A token after a complete option, on both of the other two forms. This
 		// is the same silent discard reached through the two handlers that share
 		// the option parser.
-		{[]string{argAnnounce, argUnicast, cliAnnouncePrefix, argNextHop, cliAnnounceNextHop, argTag, "k", "v", cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
-		{[]string{argAnnounce, argBlackhole, cliAnnouncePrefix, argTag, "k", "v", cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
+		{[]string{argSend, argBGP, argEveryPeer, argUnicast, cliAnnouncePrefix, argNextHop, cliAnnounceNextHop, argTag, "k", "v", cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
+		{[]string{argSend, argBGP, argEveryPeer, argBlackhole, cliAnnouncePrefix, argTag, "k", "v", cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
 		// A bare token where an option keyword belongs. Each handler's own
 		// keyword loop refuses this one, and it is named here so both refusals
 		// stay proven from the operator's side.
-		{[]string{argAnnounce, argUnicast, cliAnnouncePrefix, cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
-		{[]string{argAnnounce, argBlackhole, cliAnnouncePrefix, cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
+		{[]string{argSend, argBGP, argEveryPeer, argUnicast, cliAnnouncePrefix, cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
+		{[]string{argSend, argBGP, argEveryPeer, argBlackhole, cliAnnouncePrefix, cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
 	}
 	for _, refusal := range refusals {
 		line := strings.Join(refusal.argv, " ")
@@ -173,9 +178,9 @@ func cliAnnounceTagRoundTrip(ctx context.Context, args []string) error {
 	}
 	defer session.stop()
 
-	announced := session.run(ctx, argAnnounce, argUnicast, cliAnnouncePrefix, argNextHop, cliAnnounceNextHop, argTag, cliAnnounceTagKey, cliAnnounceTagValue)
+	announced := session.run(ctx, argSend, argBGP, argEveryPeer, argUnicast, cliAnnouncePrefix, argNextHop, cliAnnounceNextHop, argTag, cliAnnounceTagKey, cliAnnounceTagValue)
 	if announced.code != 0 {
-		return fmt.Errorf("ze announce unicast %s tag %s %s exit=%d, want 0: %s",
+		return fmt.Errorf("ze send bgp * unicast %s tag %s %s exit=%d, want 0: %s",
 			cliAnnouncePrefix, cliAnnounceTagKey, cliAnnounceTagValue, announced.code, announced.out)
 	}
 
@@ -187,12 +192,12 @@ func cliAnnounceTagRoundTrip(ctx context.Context, args []string) error {
 		return fmt.Errorf("ze show announcements does not list the live announcement: %s", listed.out)
 	}
 
-	withdrawn := session.run(ctx, "withdraw", argTag, cliAnnounceTagKey)
+	withdrawn := session.run(ctx, argSend, argBGP, argEveryPeer, argWithdraw, argTag, cliAnnounceTagKey)
 	if withdrawn.code != 0 {
-		return fmt.Errorf("ze withdraw tag %s exit=%d, want 0: %s", cliAnnounceTagKey, withdrawn.code, withdrawn.out)
+		return fmt.Errorf("ze send bgp * withdraw tag %s exit=%d, want 0: %s", cliAnnounceTagKey, withdrawn.code, withdrawn.out)
 	}
 	if !strings.Contains(withdrawn.out, "1") {
-		return fmt.Errorf("ze withdraw tag %s did not report one removal: %s", cliAnnounceTagKey, withdrawn.out)
+		return fmt.Errorf("ze send bgp * withdraw tag %s did not report one removal: %s", cliAnnounceTagKey, withdrawn.out)
 	}
 
 	if err := waitFixtureProcess(ctx, session.peer, 20*time.Second); err != nil {

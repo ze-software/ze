@@ -4,14 +4,14 @@
 #            reactorAPIAdapter.getMatchingPeersSel (internal/component/bgp/reactor/
 #            reactor_api.go) -> Peer.maySend (send_permission.go), the one resolver
 #            every send command shares.
-# VALIDATES: AC-9 (a `peer *` announce reaches the peer that attached the program
+# VALIDATES: AC-9 (a `send bgp *` announce reaches the peer that attached the program
 #            with send [ update ] and NOT the peer that never attached it, and the
 #            refusal is REPORTED), AC-10 (an announce aimed at the unattached peer
 #            is refused, and the refusal names the peer and the process), AC-11
 #            (the attached peer's block carries a send list and NO receive line:
 #            the program MAY announce to it and is fed nothing by it).
 # PREVENTS: route injection through an unenforced permission. Before this, a
-#           process issuing `peer * update ...` reached every peer in the config,
+#           process issuing `send bgp * update ...` reached every peer in the config,
 #           including peers whose operator never linked it to them.
 #
 # How "peer 127.0.0.2 received nothing" is proven, since the peer harness has no

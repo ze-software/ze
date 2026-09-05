@@ -42,7 +42,7 @@ func plugin01APIBGPSummary(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin01APICacheForward(ctx context.Context, plugin *sdk.Plugin) error {
-	_, status, err := plugin01DispatchMap(ctx, plugin, "request cache forward 999 127.0.0.1")
+	_, status, err := plugin01DispatchMap(ctx, plugin, "send bgp 127.0.0.1 cached 999")
 	if err != nil {
 		if (status != "" && status != rpc.StatusError) || !strings.HasPrefix(err.Error(), "rpc error:") {
 			return fmt.Errorf("cache forward: status=%q: %w", status, err)
@@ -396,7 +396,7 @@ func plugin01APIRaw(ctx context.Context, plugin *sdk.Plugin) error {
 	if !plugin01WaitPeers(ctx, plugin, 1, 40) {
 		return errors.New("no peer reached established")
 	}
-	if _, err := plugin01RequireDone(ctx, plugin, "peer peer1 raw hex "+plugin01RawRefreshWire); err != nil {
+	if _, err := plugin01RequireDone(ctx, plugin, "send bgp peer1 raw hex "+plugin01RawRefreshWire); err != nil {
 		return err
 	}
 	if !plugin01WaitSessionDown(ctx, plugin, "peer1") {
@@ -447,7 +447,7 @@ func plugin01APIRIBInClear(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
-// plugin01APIAnnounceUnicast dispatches the operator's own `announce unicast`
+// plugin01APIAnnounceUnicast dispatches the operator's own `send bgp * unicast`
 // command and lets the peer block judge what reached the wire.
 //
 // The command answers before the UPDATE is encoded, so the dispatch status only
@@ -457,31 +457,31 @@ func plugin01APIAnnounceUnicast(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
 		return err
 	}
-	if _, err := plugin01RequireDone(ctx, plugin, "announce unicast 198.51.100.0/24 next-hop 10.0.1.254 community 65001:666"); err != nil {
+	if _, err := plugin01RequireDone(ctx, plugin, "send bgp * unicast 198.51.100.0/24 next-hop 10.0.1.254 community 65001:666"); err != nil {
 		return err
 	}
-	// The peer-scoped form is the same wire method at a second command path. It
-	// proves the dispatcher fills the selector slot the model declares on the
-	// peer container.
+	// The named selector is the same wire method reaching one session rather
+	// than every one. It proves the dispatcher fills the selector slot the model
+	// declares on the bgp container.
 	//
 	// The tag is what makes the announcement TRACKED, so the withdraw below has
 	// something to find. An untagged announce is fire-and-forget and never
 	// enters the registry.
-	if _, err := plugin01RequireDone(ctx, plugin, "peer 127.0.0.1 announce unicast 203.0.113.0/24 next-hop 10.0.1.254 tag scope peer"); err != nil {
+	if _, err := plugin01RequireDone(ctx, plugin, "send bgp 127.0.0.1 unicast 203.0.113.0/24 next-hop 10.0.1.254 tag scope peer"); err != nil {
 		return err
 	}
 	// The same prefix on the withdraw side. It withdraws the announcement made
 	// to this fan-out and leaves the untagged one alone, which the peer block
 	// asserts by expecting exactly one withdraw.
-	if _, err := plugin01RequireDone(ctx, plugin, "peer 127.0.0.1 withdraw all"); err != nil {
+	if _, err := plugin01RequireDone(ctx, plugin, "send bgp 127.0.0.1 withdraw all"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK: announce and withdraw dispatched, bare and peer-scoped")
+	fmt.Fprintln(os.Stderr, "OK: unicast and withdraw dispatched, wildcard and named selector")
 	return nil
 }
 
 // plugin01APIAnnounceFlowspecExtraToken drives the reported defect of 2026-08-31
-// over the daemon's own dispatcher: `announce flowspec destination-ipv4
+// over the daemon's own dispatcher: `send bgp * flowspec destination-ipv4
 // 1.1.1.1/32 discard rate-limit 500` announced a plain discard and threw
 // `rate-limit 500` away without a word.
 //
@@ -492,7 +492,7 @@ func plugin01APIAnnounceFlowspecExtraToken(ctx context.Context, plugin *sdk.Plug
 	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
 		return err
 	}
-	const command = "announce flowspec destination-ipv4 1.1.1.1/32 discard rate-limit 500"
+	const command = "send bgp * flowspec destination-ipv4 1.1.1.1/32 discard rate-limit 500"
 	data, status, err := plugin01DispatchMap(ctx, plugin, command)
 	if err != nil {
 		return err
@@ -504,7 +504,7 @@ func plugin01APIAnnounceFlowspecExtraToken(ctx context.Context, plugin *sdk.Plug
 	if !strings.Contains(message, "rate-limit") {
 		return fmt.Errorf("%s: error %q does not name the token the operator typed", command, message)
 	}
-	fmt.Fprintln(os.Stderr, "OK: announce flowspec refused the word after the action")
+	fmt.Fprintln(os.Stderr, "OK: send bgp flowspec refused the word after the action")
 	return nil
 }
 

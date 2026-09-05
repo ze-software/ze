@@ -36,13 +36,13 @@ stdin=peer:terminator=EOF_PEER
 # Nothing else is relaxed. All three announce rules keep their exact hex,
 # including the ORIGIN, AS_PATH, LOCAL_PREF, MP_REACH attribute order that
 # reactor_api_batch.go insertAttrOrdered now guarantees on both announce rails.
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128
+cmd=api:conn=1:seq=1:text=send bgp * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000001008026050000000000000000000000000002
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::1"}]}
-cmd=api:conn=1:seq=2:text=peer * update text origin igp local-preference 500 nhop 2001::2 nlri ipv6/unicast add 2605::2/128
+cmd=api:conn=1:seq=2:text=send bgp * update text origin igp local-preference 500 nhop 2001::2 nlri ipv6/unicast add 2605::2/128
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000002008026050000000000000000000000000002
 expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::2"}]}
-cmd=api:conn=1:seq=3:text=peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128
+cmd=api:conn=1:seq=3:text=send bgp * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000001008026050000000000000000000000000002
 expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::1"}]}
 EOF_PEER

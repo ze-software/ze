@@ -19,7 +19,7 @@ import (
 
 // rawUpdateWire is one complete BGP UPDATE announcing 10.0.1.0/24 with ORIGIN
 // IGP, an empty AS_PATH, NEXT_HOP 10.0.1.254 and LOCAL_PREF 200. Marker and
-// header included, because `peer <addr> raw hex <data>` with no type word
+// header included, because `send bgp <addr> raw hex <data>` with no type word
 // carries a whole packet the caller built
 // (docs/architecture/api/update-syntax.md).
 //
@@ -68,7 +68,7 @@ func initialSyncBarrierRaw(ctx context.Context, _ []string) error {
 			return errors.New("no peer reached established, so nothing was ever injected")
 		}
 
-		if _, err := plugin01RequireDone(ctx, plugin, "peer 127.0.0.1 raw hex "+rawUpdateWire); err != nil {
+		if _, err := plugin01RequireDone(ctx, plugin, "send bgp 127.0.0.1 raw hex "+rawUpdateWire); err != nil {
 			return err
 		}
 

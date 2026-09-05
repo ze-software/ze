@@ -532,7 +532,7 @@ func (s *Server) handleUpdateRouteSelDirect(proc *process.Process, sel *selector
 	}
 
 	var tb textbuf.Buffer
-	dispatchCmd := tb.Str("peer ").Str(peer).Byte(' ').Str(command).String()
+	dispatchCmd := tb.Str("send bgp ").Str(peer).Byte(' ').Str(command).String()
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err != nil {

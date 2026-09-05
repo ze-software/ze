@@ -288,7 +288,7 @@ func forwardDeadline08(ctx context.Context, p *sdk.Plugin) error {
 	if err := waitPeerEOR08(ctx, p); err != nil {
 		return fmt.Errorf("ze did not send the End-of-RIB to the peer: %w", err)
 	}
-	status, _, err := command08(ctx, p, "peer * update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
+	status, _, err := command08(ctx, p, "send bgp * update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
 	if err != nil && status != statusError {
 		return err
 	}

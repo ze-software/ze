@@ -1615,7 +1615,7 @@ func TestTakesInlineSelector(t *testing.T) {
 // refuses set-valued selectors (`*`, `!<sel>`) rather than resolving them.
 // PREVENTS: two regressions. (1) the one this replaced --
 // raw/pause/resume/clear-soft/remove calling netip.ParseAddr on the selector, so
-// `peer peer1 raw ...` was rejected with "invalid peer address" even though
+// `send bgp peer1 raw ...` was rejected with "invalid peer address" even though
 // peer1 is the configured peer's name. (2) the INVERSION that shipped with it:
 // selectorMatchesPeer dropped the exclude flag on the name and ASN arms, so
 // `delete bgp peer !edge1` resolved to edge1 -- deleting exactly the peer the

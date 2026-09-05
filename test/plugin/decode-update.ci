@@ -8,7 +8,7 @@ stdin=peer:terminator=EOF_PEER
 # The announced NEXT_HOP (C0A80101) and NLRI (18 0A0000) are read back out of
 # the ze-bgp JSON decode-update produced. ze has no other source for them, so
 # this message cannot appear unless the RPC decoded the UPDATE body correctly.
-cmd=api:conn=1:seq=1:text=peer * update text nhop 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=send bgp * update text nhop 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C0A8010140050400000064180A0000
 EOF_PEER
 

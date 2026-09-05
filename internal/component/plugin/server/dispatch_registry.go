@@ -320,9 +320,9 @@ func (s *Server) opUpdateRoute(proc *process.Process, params json.RawMessage) (a
 		Username: internalPluginIdentity(proc.Name()),
 		Sender:   plugin.ProcessSender(proc.Name()),
 	}
-	// Route injection commands are always peer-scoped subcommands
-	// (e.g., "update text ...", "announce route ..."). Prepend unconditionally.
-	dispatchCmd := tb.Str("peer ").Str(peer).Byte(' ').Str(input.Command).String()
+	// Route injection commands are always forms under `send bgp <selector>`
+	// (e.g., "update text ...", "unicast ..."). Prepend unconditionally.
+	dispatchCmd := tb.Str("send bgp ").Str(peer).Byte(' ').Str(input.Command).String()
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err != nil {
 		if errors.Is(err, ErrSilent) {

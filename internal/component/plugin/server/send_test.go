@@ -159,9 +159,9 @@ var declaredArgumentPaths = []struct {
 		reads: "handleUpdate reads the encoding word and hands the rest to that encoding's parser",
 	},
 	{
-		path:  "request cache forward",
-		usage: "request cache forward <id> <selector>",
-		reads: "handleCacheForwardRPC reads the cache id and the peer selector",
+		path:  "send bgp cached",
+		usage: "send bgp <selector> cached <id>",
+		reads: "handleCacheForwardRPC reads the cache id and the bound selector",
 	},
 }
 

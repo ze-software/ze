@@ -15,7 +15,7 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
-cmd=api:conn=1:seq=1:text=peer * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=send bgp * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
 # Private 64512 replaced by peer AS 65002 (0xFDEA), and the local AS 64500 (0xFBF4)
 # prepended ahead of the operator's path per RFC 4271 S5.1.2:
 # AS_PATH=AS_SEQUENCE[64500 64496 65002 64497].

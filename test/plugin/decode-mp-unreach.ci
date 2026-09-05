@@ -8,7 +8,7 @@ stdin=peer:terminator=EOF_PEER
 # The announced NLRI (18 C0A800) is the prefix decode-mp-unreach returned as
 # withdrawn. ze has no other source for it, so this message cannot appear unless
 # the RPC decoded the MP_UNREACH_NLRI correctly.
-cmd=api:conn=1:seq=1:text=peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.0.0/24
+cmd=api:conn=1:seq=1:text=send bgp * update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A800
 EOF_PEER
 

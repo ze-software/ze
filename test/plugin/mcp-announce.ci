@@ -11,7 +11,7 @@ EOF_PEER
 # MCP commands: wait for session, then announce a route via ze_execute dispatch
 stdin=mcp:terminator=EOF_MCP
 wait-established
-@ze_execute {"command":"peer * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 10.0.0.0/24"}
+@ze_execute {"command":"send bgp * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 10.0.0.0/24"}
 EOF_MCP
 
 # Ze config: single peer, no plugin (routes injected via MCP)

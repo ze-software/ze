@@ -10,39 +10,28 @@
 # 2026-08-31, when the peer prefix replaced it so one scope reaches all three
 # forms rather than one.
 #
-# Each form is reachable at two paths, bare and under `peer <selector>`, the same
-# as the announce forms.
+# Each form answers at ONE path, `send bgp <selector> withdraw <form>`. The
+# selector is declared on the bgp container, so it sits in front of the withdraw
+# word in every line below.
 
-cmd=foreground:seq=1:exec=ze withdraw help
+cmd=foreground:seq=1:exec=ze send bgp withdraw help
 expect=exit:code=0
-expect=stderr:contains=ze withdraw <command> [options]
+expect=stderr:contains=ze send bgp withdraw <command> [options]
 expect=stderr:contains=Commands
 expect=stderr:contains=tag
 expect=stderr:contains=id
 expect=stderr:contains=all
 reject=stderr:pattern=withdraw tag <key> <value\|\*>
 
-cmd=foreground:seq=2:exec=ze withdraw tag help
+cmd=foreground:seq=2:exec=ze send bgp withdraw tag help
 expect=exit:code=0
-expect=stderr:contains=ze withdraw tag <key> [value <value>]
+expect=stderr:contains=ze send bgp <selector> withdraw tag <key> [value <value>]
 
-cmd=foreground:seq=3:exec=ze withdraw id help
+cmd=foreground:seq=3:exec=ze send bgp withdraw id help
 expect=exit:code=0
-expect=stderr:contains=ze withdraw id <id>
+expect=stderr:contains=ze send bgp <selector> withdraw id <id>
 
-cmd=foreground:seq=4:exec=ze withdraw all help
+cmd=foreground:seq=4:exec=ze send bgp withdraw all help
 expect=exit:code=0
-expect=stderr:contains=ze withdraw all
+expect=stderr:contains=ze send bgp <selector> withdraw all
 reject=stderr:pattern=withdraw all \[selector
-
-cmd=foreground:seq=5:exec=ze peer withdraw tag help
-expect=exit:code=0
-expect=stderr:contains=ze peer <selector> withdraw tag <key> [value <value>]
-
-cmd=foreground:seq=6:exec=ze peer withdraw id help
-expect=exit:code=0
-expect=stderr:contains=ze peer <selector> withdraw id <id>
-
-cmd=foreground:seq=7:exec=ze peer withdraw all help
-expect=exit:code=0
-expect=stderr:contains=ze peer <selector> withdraw all

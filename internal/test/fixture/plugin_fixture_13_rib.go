@@ -40,7 +40,7 @@ func countFrom13(result commandResult13) (int, bool) {
 
 func ribAdvertisedUserPath13(ctx context.Context, args []string) error {
 	return observe13(ctx, "rib-advertised-user-path", func(ctx context.Context, plugin *sdk.Plugin) error {
-		update := command13(ctx, plugin, "peer * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24")
+		update := command13(ctx, plugin, "send bgp * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24")
 		if err := requireStatus13("user update", update, "done"); err != nil {
 			return err
 		}
@@ -331,7 +331,7 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
 			return err
 		}
-		injected := command13(ctx, plugin, "peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24")
+		injected := command13(ctx, plugin, "send bgp * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24")
 		if err := requireStatus13("inject sent RIB route", injected, "done"); err != nil {
 			return err
 		}

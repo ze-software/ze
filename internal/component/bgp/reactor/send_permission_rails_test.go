@@ -3,9 +3,10 @@
 // Related: send_permission_test.go -- the same guard over the six rails that
 //   resolve a peer selector through getMatchingPeersSel
 //
-// The four rails here name their peers WITHOUT that resolver: `cache forward`
-// matches a selector of its own inside ForwardUpdate, and forward-cached,
-// relay-stored-route and `peer <addr> raw` address peers directly. They were the
+// The four rails here name their peers WITHOUT that resolver: `send bgp <sel>
+// cached` matches a selector of its own inside ForwardUpdate, and
+// forward-cached, relay-stored-route and `send bgp <addr> raw` address peers
+// directly. They were the
 // four with no permission at all until round 1 of the Review Gate, so each one
 // gets a REFUSAL driven from the entry point a process reaches, beside an
 // acceptance that differs only in the process name.
@@ -23,7 +24,7 @@ import (
 
 	// The cache plugin's command grammar, which the daemon gets from the
 	// composition root (plugin/all/all_ze_bgp.go). Without it the dispatcher has
-	// the ze-bgp:cache-forward wire method and no `request cache forward` alias,
+	// the ze-bgp:cache-forward wire method and no `send bgp <sel> cached` path,
 	// so the entry point this file drives would not exist in the test binary.
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/cache/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -160,7 +161,7 @@ func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 	cacheReflectableUpdate(t, env.cache, grantedID)
 
 	refused := railServer(t, env.api, plugin.ProcessSender(railRefused))
-	resp, err := refused.Server.Dispatcher().Dispatch(refused, "request cache forward 41 "+railDest)
+	resp, err := refused.Server.Dispatcher().Dispatch(refused, "send bgp "+railDest+" cached 41")
 	require.ErrorIs(t, err, errSendNotPermitted, "the destination attaches no such process")
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -171,14 +172,14 @@ func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 	// process name differs, so what is measured is the attach block and nothing
 	// else.
 	granted := railServer(t, env.api, plugin.ProcessSender(railGranted))
-	resp, err = granted.Server.Dispatcher().Dispatch(granted, "request cache forward 42 "+railDest)
+	resp, err = granted.Server.Dispatcher().Dispatch(granted, "send bgp "+railDest+" cached 42")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	env.awaitDispatch(t)
 	require.Len(t, env.items(), 1, "the attached process must be served")
 }
 
-// TestPeerRawEntryPointNeedsTheRawSendWord drives `peer <addr> raw` through the
+// TestPeerRawEntryPointNeedsTheRawSendWord drives `send bgp <addr> raw` through the
 // registered command.
 //
 // Raw is gated on `send [ raw ]`, the word the owner added to the send
@@ -199,14 +200,14 @@ func TestPeerRawEntryPointNeedsTheRawSendWord(t *testing.T) {
 	api := newSendPermissionReactor(peer)
 
 	refused := railServer(t, api, plugin.ProcessSender(railRefused))
-	resp, err := refused.Server.Dispatcher().Dispatch(refused, "peer "+railDest+" raw update hex DEADBEEF")
+	resp, err := refused.Server.Dispatcher().Dispatch(refused, "send bgp "+railDest+" raw hex DEADBEEF type update")
 	require.ErrorIs(t, err, errSendNotPermitted)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Empty(t, conn.written(), "a refused raw injection must put nothing on the peer's socket")
 
 	updateOnly := railServer(t, api, plugin.ProcessSender(railOther))
-	resp, err = updateOnly.Server.Dispatcher().Dispatch(updateOnly, "peer "+railDest+" raw update hex DEADBEEF")
+	resp, err = updateOnly.Server.Dispatcher().Dispatch(updateOnly, "send bgp "+railDest+" raw hex DEADBEEF type update")
 	require.ErrorIs(t, err, errSendNotPermitted,
 		"`send [ update ]` permits routes ze builds, never a message the process builds itself")
 	require.NotNil(t, resp)
@@ -214,7 +215,7 @@ func TestPeerRawEntryPointNeedsTheRawSendWord(t *testing.T) {
 	assert.Empty(t, conn.written(), "an attached process without `send [ raw ]` must reach no socket")
 
 	granted := railServer(t, api, plugin.ProcessSender(railGranted))
-	resp, err = granted.Server.Dispatcher().Dispatch(granted, "peer "+railDest+" raw update hex DEADBEEF")
+	resp, err = granted.Server.Dispatcher().Dispatch(granted, "send bgp "+railDest+" raw hex DEADBEEF type update")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.NotEmpty(t, conn.written(), "the process the peer grants `send [ raw ]` must reach the socket")
