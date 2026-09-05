@@ -83,10 +83,9 @@ func TestForwardPathIDsDifferForCollidingSources(t *testing.T) {
 // (prefix, Path Identifier), so a fresh identifier on each refresh accumulates one
 // table entry per UPDATE instead of replacing the path.
 // RFC requirement: RFC7911-2-2 negative -- the re-advertised identifier is NOT the
-// received one. That half fails today: ze copies the ingress value, which is why
-// the stability half passes today for the wrong reason. Both halves are needed,
-// and neither is sufficient. Copying the source's value is trivially stable, and a
-// per-message counter is trivially not the received one.
+// received one. The body asserts that half beside the stability half, because
+// neither is sufficient alone: copying the source's value is trivially stable,
+// and a per-message counter is trivially not the received one.
 //
 // The received identifier is 0xDEADBEEF rather than a small number so that
 // "the emitted value is not the received value" cannot pass by a generator

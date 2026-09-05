@@ -52,6 +52,20 @@ through `forwardUpdateCore`. Freeing after the first rail would mint a fresh
 identifier for the second rail's destinations, and each of those would then hold
 a route ze can never withdraw.
 
+The free makes one exception. An UPDATE that withdraws a pair and announces the
+same pair leaves the destination holding it, so ze keeps the identifier that
+names it. RFC 7606 Section 5.1 forbids a conforming sender to write both fields,
+so the announced section is empty for every ordinary withdraw and the exception
+costs nothing. When it is not empty, the section is keyed once
+(`fwdAnnouncedPaths`) rather than walked once per withdrawn NLRI: both counts
+come from one peer's message, and the product of the two is what the peer would
+otherwise choose.
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdReleaseSection, fwdAnnouncedPaths -->
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- evictLocked, Delete -->
+
+The walk runs BEFORE the entry's buffer goes back to the pool, because it reads
+slices into that buffer (`docs/architecture/memory/lifetime-contracts.md`).
+
 ## What bucketing excludes, and why
 
 Bucket merge handles an item with exactly one `rawBodies` entry, no parsed

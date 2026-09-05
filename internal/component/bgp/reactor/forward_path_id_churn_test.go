@@ -308,3 +308,53 @@ func TestForwardPathIDKeepsTheSourceOfARebuiltFrame(t *testing.T) {
 	require.Equal(t, 0, fwdPathEntries(),
 		"the withdraw freed a key this path never held")
 }
+
+// TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt guards the one
+// exception the release makes.
+//
+// VALIDATES: AC-3, AC-4 -- a pair the same UPDATE withdraws and announces stays
+// advertised, so it keeps the identifier that names it at the destination.
+// PREVENTS: a release that frees a pair the destination still holds. RFC 7606
+// Section 5.1 forbids a conforming sender to put both fields in one UPDATE, and
+// ze must still accept one that does: the destination ends holding the pair,
+// because the announcement of a pair supersedes its withdraw. Freeing ze's
+// identifier there mints a fresh one at the next re-advertisement, and the
+// destination keeps the superseded (prefix, identifier) with nothing left that
+// can remove it.
+// RFC requirement: RFC7911-2-2 positive -- "the Path Identifier MUST be assigned
+// in such a way that the BGP speaker is able to use the (Prefix, Path
+// Identifier) to uniquely identify a path advertised to a neighbor". A pair that
+// is still advertised is still ze's to name, whatever else the UPDATE carrying
+// it withdrew.
+func TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt(t *testing.T) {
+	r, src, dst, conn, ctxID := fwdChurnRail(t)
+
+	// Two paths for one prefix, which is what ADD-PATH exists to carry.
+	const kept = 0x11111111
+	const gone = 0x22222222
+
+	fwdChurnRelay(t, r, src, ctxID, 9500, pathIDTestBody(t, fwdChurnSourceAS, kept))
+	fwdChurnRelay(t, r, src, ctxID, 9501, pathIDTestBody(t, fwdChurnSourceAS, gone))
+	require.Equal(t, 2, fwdPathEntries(), "guard: the source advertises two paths for the prefix")
+
+	// One UPDATE withdrawing both pairs and announcing one of them back.
+	both := append(fwdPathIDNLRI(kept), fwdPathIDNLRI(gone)...)
+	fwdChurnRelay(t, r, src, ctxID, 9502,
+		fwdShapeBody(both, forwardBodyBaseAttrs(t, fwdChurnSourceAS), fwdPathIDNLRI(kept)))
+	require.Equal(t, 1, fwdPathEntries(),
+		"the pair the same UPDATE announced was freed, so ze no longer names a path the destination holds")
+
+	// The re-advertisement is what makes the loss visible: it must leave under
+	// the identifier the destination already has for this pair.
+	fwdChurnRelay(t, r, src, ctxID, 9503, pathIDTestBody(t, fwdChurnSourceAS, kept))
+
+	announced, withdrawn := fwdChurnSent(t, dst, conn)
+	require.Len(t, announced, 4, "the destination must have received four announcements")
+	require.Len(t, withdrawn, 2, "the destination must have received two withdraws")
+	assert.Equal(t, announced[0], announced[2],
+		"the pair survived its own UPDATE's withdraw, so it must not be renumbered inside it")
+	assert.Equal(t, announced[0], announced[3],
+		"the re-advertised pair left under a second identifier, so the destination keeps the first one forever")
+	assert.NotEqual(t, announced[0], announced[1],
+		"guard: the two paths of one prefix must reach the destination under different identifiers")
+}

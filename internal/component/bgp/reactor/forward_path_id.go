@@ -4,7 +4,6 @@
 package reactor
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"sync"
@@ -530,10 +529,14 @@ func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingCo
 // The exception is what keeps an UPDATE that both withdraws and announces one
 // (prefix, identifier) pair from stranding it: the destination ends holding that
 // pair, so ze must keep the identifier that named it. RFC 7606 Section 5.1
-// forbids a conforming sender to put both fields in one UPDATE, so the scan of
-// announced costs nothing for every peer that obeys it, and for a peer that does
-// not it is bounded by the two sections of one message.
+// forbids a conforming sender to put both fields in one UPDATE, so an ordinary
+// withdraw reaches an empty announced section and builds no set at all.
 func fwdReleaseSection(src source.SourceID, fam family.Family, withdrawn, announced []byte) error {
+	alsoAnnounced, err := fwdAnnouncedPaths(fam, announced)
+	if err != nil {
+		return fmt.Errorf("announced section: %w", err)
+	}
+
 	for off := 0; off < len(withdrawn); {
 		if off+5 > len(withdrawn) {
 			return fmt.Errorf("truncated path identifier at offset %d", off)
@@ -544,15 +547,14 @@ func fwdReleaseSection(src source.SourceID, fam family.Family, withdrawn, announ
 		if end > len(withdrawn) {
 			return fmt.Errorf("truncated prefix at offset %d", start)
 		}
-		raw := withdrawn[start:end]
-		if !fwdSectionCarries(announced, received, raw) {
-			var key fwdPathKey
-			// An NLRI too long to key is an NLRI fwdPatchPathIDs and
-			// fwdReencodeNLRIs could not key either, so no entry exists to free
-			// and the forward that met it was already dropped.
-			if err := fwdPathKeyFor(&key, fam, received, raw); err != nil {
-				return err
-			}
+		var key fwdPathKey
+		// An NLRI too long to key is an NLRI fwdPatchPathIDs and
+		// fwdReencodeNLRIs could not key either, so no entry exists to free
+		// and the forward that met it was already dropped.
+		if err := fwdPathKeyFor(&key, fam, received, withdrawn[start:end]); err != nil {
+			return err
+		}
+		if _, both := alsoAnnounced[key]; !both {
 			fwdPathIDs.releasePath(src, &key)
 		}
 		off = end
@@ -560,21 +562,43 @@ func fwdReleaseSection(src source.SourceID, fam family.Family, withdrawn, announ
 	return nil
 }
 
-// fwdSectionCarries reports whether an ADD-PATH framed section names the exact
-// (identifier, NLRI) pair given. A malformed tail reads as absent: the section
-// is the one the forward already walked, so it is well formed on every path that
-// reaches here.
-func fwdSectionCarries(section []byte, received uint32, raw []byte) bool {
+// fwdAnnouncedPaths keys every path an ADD-PATH framed announced section names,
+// so the release above answers "does this same UPDATE announce the pair" with
+// one lookup. It returns a nil map for an empty section, which every conforming
+// withdraw carries (RFC 7606 Section 5.1), and a nil map answers every lookup
+// with "no".
+//
+// The set replaces a walk of the announced section per withdrawn NLRI. That walk
+// was quadratic in one message's NLRI count, it ran with the recent-update
+// cache mutex held (recent_cache.go evictLocked), and a peer chose both counts:
+// two 32000-octet sections of an RFC 8654 extended UPDATE (message.ExtMsgLen)
+// cost 41 million comparisons, measured at 137ms per UPDATE on the developer
+// machine, repeatable at line rate. The set costs one pass over each section.
+//
+// The map is bounded by one message: 65535 octets of ADD-PATH framed NLRI hold
+// at most 13107 pairs, and it is freed when the release returns.
+//
+// A malformed tail ends the walk rather than failing it. The section is the one
+// the forward already walked, so it is well formed on every path that reaches
+// here, and a pair the walk cannot read is a pair the release cannot match
+// either.
+func fwdAnnouncedPaths(fam family.Family, section []byte) (map[fwdPathKey]struct{}, error) {
+	var paths map[fwdPathKey]struct{}
 	for off := 0; off+5 <= len(section); {
 		start := off + 4
 		end := start + 1 + nlri.PrefixBytes(int(section[start]))
 		if end > len(section) {
-			return false
+			return paths, nil
 		}
-		if binary.BigEndian.Uint32(section[off:]) == received && bytes.Equal(section[start:end], raw) {
-			return true
+		var key fwdPathKey
+		if err := fwdPathKeyFor(&key, fam, binary.BigEndian.Uint32(section[off:]), section[start:end]); err != nil {
+			return nil, err
 		}
+		if paths == nil {
+			paths = make(map[fwdPathKey]struct{})
+		}
+		paths[key] = struct{}{}
 		off = end
 	}
-	return false
+	return paths, nil
 }
