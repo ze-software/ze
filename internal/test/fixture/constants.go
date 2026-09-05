@@ -262,6 +262,7 @@ const (
 	checkDashStdio                = "dash-stdio"
 	checkDocWiring                = "doc wiring"
 	checkFSPersistence            = "fs-persistence"
+	checkGoVersion                = "go-version"
 	checkIfaceResolution          = "iface-resolution"
 	checkPluginBoundary           = "plugin boundary"
 	checkPortDefaults             = "port-defaults"

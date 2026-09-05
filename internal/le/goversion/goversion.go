@@ -38,9 +38,19 @@
 // cannot read, which is the same drift wearing another face. A run that judged
 // no carrier is an error rather than a pass.
 //
-// Two trees are outside the walk, each for what the directory IS. vendor/ holds
-// third-party source this module does not build, and testdata/ holds the
-// fixtures this gate's own tests are written against.
+// Three trees are outside the walk, each for what the directory IS rather than
+// for what it holds today. vendor/ is third-party source this module does not
+// build. testdata/ is a fixture tree. And THIS PACKAGE is outside it, because a
+// `golang:` string in the gate's own source is DATA ABOUT a carrier rather than
+// a carrier: selftest.go names `golang:latest` to prove the gate refuses an
+// unreadable tag, and judging that sentence turns the proof into a finding.
+//
+// That last exclusion is DERIVED, not written down. selfImportPath reads this
+// package's own import path out of the running binary and selfDirectory strips
+// go.mod's `module` path off it, so the exclusion follows the package when it
+// moves and covers a fixture file added here tomorrow. A path spelled in a
+// constant would go stale silently, and a list of file names is what a second
+// fixture file escapes.
 package goversion
 
 import (
@@ -54,6 +64,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -92,6 +103,9 @@ var (
 	// holds indented, and from the `toolchain` line, which starts with another
 	// word.
 	goDirectiveRe = regexp.MustCompile(`(?m)^go[ \t]+(\d+)\.(\d+)(?:\.\d+)?[ \t]*$`)
+	// moduleDirectiveRe reads the `module` directive of a go.mod, which is what
+	// turns this package's import path into its path in the checkout.
+	moduleDirectiveRe = regexp.MustCompile(`(?m)^module[ \t]+(\S+)[ \t]*$`)
 	// imageVersionRe reads the version part of an image tag, which is the tag up
 	// to its first hyphen: 1.27, 1.27.1, and the 1.27 of 1.27-alpine.
 	imageVersionRe = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.\d+)?$`)
@@ -118,6 +132,60 @@ func declaredMinor(body string) (string, error) {
 		return "", fmt.Errorf("%s declares %d `go <major>.<minor>` directives, want 1", goModFile, len(matches))
 	}
 	return matches[0][1] + "." + matches[0][2], nil
+}
+
+// declaredModule reads the module path out of a go.mod text.
+//
+// Two module directives, and none at all, are both errors rather than a guess,
+// for the reason declaredMinor gives: an empty answer here would strip nothing
+// off the import path, and this gate would go back to judging its own fixtures.
+func declaredModule(body string) (string, error) {
+	matches := moduleDirectiveRe.FindAllStringSubmatch(body, -1)
+	if len(matches) != 1 {
+		return "", fmt.Errorf("%s declares %d `module <path>` directives, want 1", goModFile, len(matches))
+	}
+	return matches[0][1], nil
+}
+
+// selfImportPath answers the import path of this package, read from the running
+// binary rather than written down. A function name carries its package's whole
+// import path under -trimpath as well as without it, which is why the name is
+// the source and the file path is not.
+func selfImportPath() string {
+	counter, _, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("BUG: goversion.selfImportPath: the runtime does not know this frame")
+	}
+	name := runtime.FuncForPC(counter).Name()
+
+	// The name is `<import path>.<function>`, and the last element of an import
+	// path holds no dot, so the first dot after the last slash ends the path.
+	slash := strings.LastIndexByte(name, '/')
+	dot := strings.IndexByte(name[slash+1:], '.')
+	if dot < 0 {
+		panic("BUG: goversion.selfImportPath: a function name with no package separator")
+	}
+	return name[:slash+1+dot]
+}
+
+// selfDirectory answers this package's directory relative to the module root,
+// which is the form a tracked path takes.
+func selfDirectory(root string) (string, error) {
+	body, err := readFileString(filepath.Join(root, goModFile))
+	if err != nil {
+		return "", fmt.Errorf("read %s: %w", goModFile, err)
+	}
+	module, err := declaredModule(body)
+	if err != nil {
+		return "", err
+	}
+
+	self := selfImportPath()
+	inside, found := strings.CutPrefix(self, module+"/")
+	if !found {
+		return "", fmt.Errorf("import path %q is not inside module %q, so this gate cannot find its own source", self, module)
+	}
+	return inside, nil
 }
 
 // minorOf answers the Go minor version an image reference names.
@@ -368,6 +436,41 @@ func trackedFiles(root string) ([]string, error) {
 	return files, nil
 }
 
+// population answers the paths Check judges over one checkout: git's index,
+// less this package's own directory.
+//
+// The subtraction lives here rather than in walked because it is the one
+// exclusion that needs the CHECKOUT to derive: walked answers what a path IS,
+// from the path alone, and this answers which paths the live tree offers. Both
+// fail closed, and this one fails closed twice: an index that lists nothing is
+// a broken query, and a go.mod whose module path does not prefix this package's
+// import path is refused rather than treated as an empty prefix that would
+// subtract nothing.
+func population(root string) ([]string, error) {
+	files, err := trackedFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	self, err := selfDirectory(root)
+	if err != nil {
+		return nil, err
+	}
+	return outside(self, files), nil
+}
+
+// outside answers every path that does not sit inside directory, at any depth.
+func outside(directory string, files []string) []string {
+	prefix := directory + "/"
+	out := make([]string, 0, len(files))
+	for _, rel := range files {
+		if strings.HasPrefix(filepath.ToSlash(rel), prefix) {
+			continue
+		}
+		out = append(out, rel)
+	}
+	return out
+}
+
 // runCheck is the `check` action: read the checkout and answer what drifted.
 func runCheck() (any, int) {
 	tree, err := lepath.Root()
@@ -381,7 +484,7 @@ func runCheck() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	files, err := trackedFiles(tree)
+	files, err := population(tree)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

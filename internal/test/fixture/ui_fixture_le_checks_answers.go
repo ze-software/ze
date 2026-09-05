@@ -83,6 +83,8 @@ func runLEChecksAnswers(ctx context.Context) error {
 		{checkCLIGrammar, []string{checkCLIGrammar}},
 		{checkFSPersistence, []string{checkFSPersistence, actionCheck}},
 		{"fs-persistence selftest", []string{checkFSPersistence, actionSelftest}},
+		{checkGoVersion, []string{checkGoVersion, actionCheck}},
+		{"go-version selftest", []string{checkGoVersion, actionSelftest}},
 		{checkPluginBoundary, []string{checkPluginBoundary, actionCheck}},
 		{"plugin-boundary selftest", []string{checkPluginBoundary, actionSelftest}},
 		{"plugin-boundary roots", []string{checkPluginBoundary, "roots"}},

@@ -284,6 +284,119 @@ func TestADeletedFileIsPassedOverRatherThanRead(t *testing.T) {
 	}
 }
 
+// VALIDATES: the module directive is read as the module path, and a go.mod
+// carrying none or two is refused.
+// PREVENTS: an empty module path reaching selfDirectory, where CutPrefix would
+// strip nothing, the self exclusion would subtract nothing, and the gate would
+// go back to judging its own fixtures with no line deleted.
+func TestTheModuleDirectiveIsTheOnlyDeclaration(t *testing.T) {
+	for _, row := range []struct{ body, want string }{
+		{"module example.com/x\n\ngo 1.27.0\n", "example.com/x"},
+		{"module example.com/x\nrequire (\n\tmodule other\n)\n", "example.com/x"},
+	} {
+		module, err := declaredModule(row.body)
+		if err != nil {
+			t.Errorf("declaredModule(%q): %v", row.body, err)
+			continue
+		}
+		if module != row.want {
+			t.Errorf("declaredModule(%q) = %q, want %q", row.body, module, row.want)
+		}
+	}
+	for _, body := range []string{"go 1.27.0\n", "module a\nmodule b\n"} {
+		if module, err := declaredModule(body); err == nil {
+			t.Errorf("declaredModule(%q) answered %q, want a refusal", body, module)
+		}
+	}
+}
+
+// VALIDATES: this package's own directory is derived from its import path, and
+// every path inside it is subtracted from the population.
+// PREVENTS: the gate judging its own fixtures. `golang:latest` in selftest.go is
+// DATA ABOUT a carrier, and a run that reads it as one reports the proof of a
+// refusal as a finding about the checkout.
+//
+// The list here is synthetic on purpose. The sibling test below walks git's
+// index, which holds this package only once its files are committed, so it
+// would pass vacuously in the tree where the files are new -- which is the tree
+// this defect was written in.
+func TestThisPackageIsSubtractedFromThePopulation(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("find checkout: %v", err)
+	}
+	self, err := selfDirectory(root)
+	if err != nil {
+		t.Fatalf("derive this package's directory: %v", err)
+	}
+	if !strings.HasSuffix(self, "/goversion") {
+		t.Fatalf("this package's directory reads %q, which does not end at the package", self)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, self, "selftest.go")); statErr != nil {
+		t.Fatalf("the derived directory %q holds no selftest.go: %v", self, statErr)
+	}
+
+	kept := outside(self, []string{
+		"docker/Dockerfile",
+		"internal/le/evidence/evidence.go",
+		self + "/selftest.go",
+		self + "/goversion_test.go",
+		self + "/testdata/drift/Dockerfile",
+		self + "/a-fixture-added-tomorrow.go",
+	})
+	want := []string{"docker/Dockerfile", "internal/le/evidence/evidence.go"}
+	if len(kept) != len(want) {
+		t.Fatalf("the population kept %v, want %v", kept, want)
+	}
+	for index, path := range kept {
+		if path != want[index] {
+			t.Errorf("kept[%d] = %q, want %q", index, path, want[index])
+		}
+	}
+}
+
+// VALIDATES: the walk over the real checkout judges carriers, and names none of
+// this package's own source.
+// PREVENTS: the only place this defect appears. Every other test in this file
+// hands Check a list it wrote itself, so none of them asks what the gate does
+// when it reads git's index, which is where it met its own fixtures.
+func TestTheWalkOverTheCheckoutNamesNoneOfItsOwnSource(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("find checkout: %v", err)
+	}
+	self, err := selfDirectory(root)
+	if err != nil {
+		t.Fatalf("derive this package's directory: %v", err)
+	}
+	declaredHere, err := Declared(root)
+	if err != nil {
+		t.Fatalf("read the checkout's go.mod: %v", err)
+	}
+	files, err := population(root)
+	if err != nil {
+		t.Fatalf("read the checkout's population: %v", err)
+	}
+
+	result, err := Check(root, files, declaredHere)
+	if err != nil {
+		t.Fatalf("walk the checkout: %v", err)
+	}
+	if result.Carriers == 0 {
+		t.Fatal("the walk over the checkout judged no carrier")
+	}
+	for _, finding := range result.Findings {
+		if strings.HasPrefix(finding.Carrier, self+"/") {
+			t.Errorf("the walk reported this gate's own source as a carrier: %+v", finding)
+		}
+	}
+	for _, excluded := range result.Excluded {
+		if strings.HasPrefix(excluded.Carrier, self+"/") {
+			t.Errorf("the walk read this gate's own source as a stage: %+v", excluded)
+		}
+	}
+}
+
 // VALIDATES: each selftest case behaves as it declares, named one by one.
 // PREVENTS: the comparison breaking silently. A failure now names which of the
 // fifteen properties stopped holding.
