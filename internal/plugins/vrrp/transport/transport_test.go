@@ -201,6 +201,7 @@ func TestUpdateAdvertReencodes(t *testing.T) {
 func TestSendAdvertUsesParentPrimaryV4Source(t *testing.T) {
 	// RFC requirement: RFC3768-7.2-3 positive -- the transmitted advert's source IP is the parent unit's primary IPv4 address, re-resolved on update and on an address-change event (resolveParentPrimaryV4 transport.go:573).
 	// RFC requirement: RFC9568-7.2-3 positive -- the transmitted advert's source IP is the sending interface's primary IPv4 address, re-resolved on update and on an address-change event (resolveParentPrimaryV4 transport.go:573); the IPv6 counterpart is the macvlan's link-local, pinned per send (macvlanLinkLocal backend_linux.go:466).
+	// RFC requirement: RFC5798-7.2-3 positive -- the transmitted advert's source IP is the sending interface's primary IPv4 address, re-resolved on update and on an address-change event (resolveParentPrimaryV4 transport.go:573); the IPv6 counterpart is the macvlan's link-local, pinned per send (macvlanLinkLocal backend_linux.go:466)
 	// VALIDATES: AC-3 / A-7 -- the IPv4 source is the parent unit's first IPv4
 	// address, re-resolved on UpdateAdvert and on an address-change event.
 	old := resolveIfaceAddresses
@@ -297,7 +298,9 @@ func TestSendAdvertIPv4HeaderTTLProtoDst(t *testing.T) {
 // destination group.
 //
 // RFC requirement: RFC9568-5.1.1.3-1 positive -- the transmitted IPv4 datagram carries TTL 255 (buildIPv4Header transport.go:562)
+// RFC requirement: RFC5798-5.1.1.3-1 positive -- the transmitted IPv4 datagram carries TTL 255, which is RFC 5798 Section 5.1.1.3's "The TTL MUST be set to 255" (buildIPv4Header transport.go:562)
 // RFC requirement: RFC9568-7.2-4 positive -- the transmitted datagram carries IP protocol 112 and is sent to the VRRP IPv4 multicast group 224.0.0.18 (buildIPv4Header transport.go:563; SendAdvert backend_linux.go:256).
+// RFC requirement: RFC5798-7.2-4 positive -- the transmitted datagram carries IP protocol 112 and is sent to the VRRP IPv4 multicast group 224.0.0.18 (buildIPv4Header transport.go:563; SendAdvert backend_linux.go:256).
 func TestSendAdvertV3IPv4HeaderTTLProtoDst(t *testing.T) {
 	withParentAddrs(t, []iface.AddrInfo{{Address: "192.0.2.10", Family: "ipv4"}})
 	fb := &fakeBackend{}

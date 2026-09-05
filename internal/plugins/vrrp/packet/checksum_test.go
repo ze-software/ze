@@ -65,6 +65,7 @@ func TestChecksumRFC1071(t *testing.T) {
 // 8200 pseudo-header sum for v3/IPv6, matching the golden vectors.
 // PREVENTS: v3/IPv4 regressing to message-only (which keepalived rejects), the
 // v6 pseudo-header being dropped, or a pseudo-header leaking into v2.
+// RFC requirement: RFC5798-5.2.8-1 positive -- FillChecksum computes the RFC 5798 Section 5.2.8 form for BOTH address families -- the v3v4 case pins the IPv4 pseudo-header sum 0xDEFB and the v3v6 case the RFC 2460 / RFC 8200 pseudo-header sum, each with next header 112 and the checksum field zeroed (FillChecksum checksum.go:86, pseudoSumV4Legacy checksum.go:71, pseudoSumV6 checksum.go:55).
 func TestFillChecksumFamilies(t *testing.T) {
 	cases := []struct {
 		name   string

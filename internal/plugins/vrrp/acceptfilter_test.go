@@ -107,7 +107,9 @@ func TestAcceptFilterTableDropsEveryAddressItIsGiven(t *testing.T) {
 // rule it matches, so the two ICMPv6 accepts must precede every drop.
 //
 // RFC requirement: RFC9568-6.1-1 positive -- with Accept_Mode False in force for a virtual address, ICMPv6 Neighbor Solicitation (135) and Neighbor Advertisement (136) are accepted by the filter ahead of every address drop, so neither is dropped (acceptFilterTables acceptfilter.go)
+// RFC requirement: RFC5798-6.1-1 positive -- with Accept_Mode False in force for a virtual address, ICMPv6 Neighbor Solicitation (135) and Neighbor Advertisement (136) are accepted ahead of every address drop, so neither is dropped (acceptFilterTables acceptfilter.go)
 // RFC requirement: RFC9568-6.1-1 negative -- contrast: the same table DOES drop a non-ND packet addressed to that virtual address, so the carve-out is specific to Neighbor Discovery and is not the chain being uniformly permissive (acceptFilterTables acceptfilter.go).
+// RFC requirement: RFC5798-6.1-1 negative -- contrast: the same table DOES drop a non-ND packet addressed to that virtual address, so the carve-out is specific to Neighbor Discovery and the chain is not uniformly permissive (acceptFilterTables acceptfilter.go).
 func TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop(t *testing.T) {
 	v6 := netip.MustParseAddr("2001:db8::1")
 	chain := firstChain(t, acceptFilterTables([]netip.Addr{v6}))
@@ -199,7 +201,9 @@ func TestAcceptFilterDeduplicatesAndSortsAddresses(t *testing.T) {
 // group into Active and reads what the executor handed the dataplane.
 //
 // RFC requirement: RFC9568-6.4.3-7 positive -- an Active router that is neither the address owner nor configured with Accept_Mode True hands the dataplane a suppression for its virtual addresses, so it does not accept packets addressed to them (doInstallVIPs instance.go, EffectiveAcceptMode groups.go)
+// RFC requirement: RFC5798-6.4.3-7 positive -- a Master that is neither the address owner nor configured with Accept_Mode True hands the dataplane a suppression for its virtual addresses, so it does not accept packets addressed to them (doInstallVIPs instance.go, EffectiveAcceptMode groups.go)
 // RFC requirement: RFC9568-6.4.3-6 negative -- contrast: this router does NOT accept packets addressed to the virtual address, because it satisfies neither of the two conditions Section 6.4.3 makes acceptance conditional on (EffectiveAcceptMode groups.go).
+// RFC requirement: RFC5798-6.4.3-6 negative -- contrast: a Master that is neither the address owner nor configured Accept_Mode True does NOT accept packets addressed to the virtual address, because it satisfies neither condition Section 6.4.3 makes acceptance conditional on (EffectiveAcceptMode groups.go).
 func TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery(t *testing.T) {
 	spec := testSpec()
 	spec.IsOwner = false
@@ -235,7 +239,9 @@ func TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery(t *testing.T) 
 // above: the same router, the same promotion, one leaf changed.
 //
 // RFC requirement: RFC9568-6.4.3-6 positive -- an Active router configured with Accept_Mode True hands the dataplane no suppression, so it accepts packets addressed to the virtual address (doInstallVIPs instance.go, EffectiveAcceptMode groups.go)
+// RFC requirement: RFC5798-6.4.3-6 positive -- a Master configured with Accept_Mode True hands the dataplane no suppression, so it accepts packets addressed to the virtual address (doInstallVIPs instance.go, EffectiveAcceptMode groups.go)
 // RFC requirement: RFC9568-6.4.3-7 negative -- contrast: the prohibition does NOT reach an Active router whose Accept_Mode is True, so the suppression is bound to the condition rather than applied to every non-owner (EffectiveAcceptMode groups.go).
+// RFC requirement: RFC5798-6.4.3-7 negative -- contrast: the prohibition does NOT reach a Master whose Accept_Mode is True, so the suppression is bound to the condition rather than applied to every non-owner (EffectiveAcceptMode groups.go).
 func TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery(t *testing.T) {
 	spec := testSpec()
 	spec.IsOwner = false

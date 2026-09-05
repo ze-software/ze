@@ -319,9 +319,13 @@ func TestInstanceStartupNonOwnerGoesBackup(t *testing.T) {
 	// RFC requirement: RFC3768-6.4.3-2 negative -- contrast: a Backup does NOT install the VIP, so it does not process traffic for the virtual MAC (a Master does).
 	// RFC requirement: RFC3768-6.4.3-4 negative -- contrast: a Backup does NOT accept packets for the virtual IP (a Master installs the VIP and accepts).
 	// RFC requirement: RFC9568-6.4.2-1 positive -- a Backup installs no virtual address, so the kernel answers no ARP request for it (doInstallVIPs runs only on an Active transition, instance.go:369)
+	// RFC requirement: RFC5798-6.4.2-1 positive -- a Backup installs no virtual address, so the kernel answers no ARP request for it (doInstallVIPs runs only on a Master transition, instance.go:369)
 	// RFC requirement: RFC9568-6.4.2-4 positive -- with no virtual address installed, frames delivered to the Virtual Router MAC device are not processed locally by a Backup
+	// RFC requirement: RFC5798-6.4.2-4 positive -- with no virtual address installed, frames delivered to the virtual router MAC device are not processed locally by a Backup (instance.go:369)
 	// RFC requirement: RFC9568-6.4.2-5 positive -- a Backup accepts no packet addressed to the virtual IPvX address, because the address is never installed on it
+	// RFC requirement: RFC5798-6.4.2-5 positive -- a Backup accepts no packet addressed to the virtual IPvX address, because the address is never installed on it (instance.go:369)
 	// RFC requirement: RFC9568-6.4.3-5 negative -- contrast: a Backup does NOT install the virtual address, so it does not process traffic for the Virtual Router MAC (an Active router does)
+	// RFC requirement: RFC5798-6.4.3-5 negative -- contrast: a Backup does NOT install the virtual address, so it does not forward traffic for the virtual router MAC (instance.go:369)
 	// RFC requirement: RFC9568-6.4.3-6 negative -- contrast: a Backup does NOT accept packets addressed to the virtual IPvX address (the Active owner installs the address and accepts).
 	in, f, _ := newTestInstance(t, testSpec())
 	in.dispatch(fsm.Startup{Config: in.fsmConfig()})
@@ -357,10 +361,14 @@ func TestInstanceOwnerStartupGoesMaster(t *testing.T) {
 	// RFC requirement: RFC3768-6.4.2-2 negative -- contrast: a Master DOES accept frames delivered to the virtual MAC (VIP installed).
 	// RFC requirement: RFC3768-6.4.2-3 negative -- contrast: a Master DOES accept packets addressed to the virtual IP (VIP installed).
 	// RFC requirement: RFC9568-6.4.3-5 positive -- the Active router installs the virtual address on its Virtual Router MAC macvlan, so the kernel processes frames addressed to that MAC (instance.go:369; createMacvlan register.go:329)
+	// RFC requirement: RFC5798-6.4.3-5 positive -- the Master installs the virtual address on its virtual router MAC macvlan, so the kernel forwards frames whose destination link-layer address is that MAC (instance.go:369; createMacvlan register.go:329)
 	// RFC requirement: RFC9568-6.4.3-6 positive -- the Active router that owns the address installs it, so packets addressed to the virtual IPvX address are accepted (instance.go:369)
 	// RFC requirement: RFC9568-6.4.2-1 negative -- contrast: an Active router DOES own the virtual address on the vMAC device, so the Backup ARP silence is state-specific, not a blanket refusal
+	// RFC requirement: RFC5798-6.4.2-1 negative -- contrast: a Master DOES own the virtual address on the vMAC device, so the Backup ARP silence is state-specific rather than a blanket refusal (instance.go:369)
 	// RFC requirement: RFC9568-6.4.2-4 negative -- contrast: an Active router DOES process frames delivered to the Virtual Router MAC (address installed)
+	// RFC requirement: RFC5798-6.4.2-4 negative -- contrast: a Master DOES process frames delivered to the virtual router MAC, because it installs the address (instance.go:369)
 	// RFC requirement: RFC9568-6.4.2-5 negative -- contrast: an Active router DOES accept packets addressed to the virtual IPvX address (address installed).
+	// RFC requirement: RFC5798-6.4.2-5 negative -- contrast: a Master DOES accept packets addressed to the virtual IPvX address, because it installs the address (instance.go:369).
 	spec := testSpec()
 	spec.IsOwner = true
 	in, f, _ := newTestInstance(t, spec)
@@ -452,6 +460,7 @@ func TestInstanceShutdownAsMasterSendsPriorityZero(t *testing.T) {
 func TestInstanceRxDecodeErrorMapsReason(t *testing.T) {
 	// RFC requirement: RFC3768-7.1-6 negative -- a packet failing any receive check is discarded: the reason is recorded and the packet never reaches the FSM (onPacket instance.go:458).
 	// RFC requirement: RFC9568-7.1-6 negative -- a v3 packet failing a mandatory receive check is discarded: the reason is recorded and the packet never reaches the state machine (onPacket instance.go:458).
+	// RFC requirement: RFC5798-7.1-4 negative -- a v3 packet failing a mandatory receive check is discarded: the reason is recorded and the packet never reaches the state machine (onPacket instance.go:458).
 	in, f, _ := newTestInstance(t, testSpec())
 	in.dispatch(fsm.Startup{Config: in.fsmConfig()})
 
@@ -471,6 +480,7 @@ func TestInstanceRxDecodeErrorMapsReason(t *testing.T) {
 func TestInstanceRxValidAdvertReachesFSM(t *testing.T) {
 	// RFC requirement: RFC3768-7.1-6 positive -- a packet passing every receive check is NOT discarded; it decodes and reaches the FSM (onPacket instance.go:457).
 	// RFC requirement: RFC9568-7.1-6 positive -- a v3 packet passing every mandatory receive check is NOT discarded; it decodes and reaches the state machine (onPacket instance.go:457).
+	// RFC requirement: RFC5798-7.1-4 positive -- a v3 packet passing every mandatory receive check is NOT discarded; it decodes and reaches the state machine (onPacket instance.go:457).
 	in, _, _ := newTestInstance(t, testSpec())
 	in.dispatch(fsm.Startup{Config: in.fsmConfig()})
 
@@ -633,9 +643,13 @@ func testSpecV6() GroupSpec {
 // Router MAC macvlan, never on the parent (whose MAC is the physical one).
 //
 // RFC requirement: RFC9568-6.4.2-2 positive -- a Backup installs no IPv6 virtual address, so the kernel answers no Neighbor Solicitation for it (doInstallVIPs runs only on an Active transition, instance.go:369)
+// RFC requirement: RFC5798-6.4.2-2 positive -- a Backup installs no IPv6 virtual address, so the kernel answers no ND Neighbor Solicitation for it (doInstallVIPs runs only on a Master transition, instance.go:369)
 // RFC requirement: RFC9568-6.4.2-2 negative -- contrast: an Active router DOES install the address, so the Backup ND silence is state-specific, not a blanket refusal
+// RFC requirement: RFC5798-6.4.2-2 negative -- contrast: a Master DOES install the address, so the Backup ND silence is state-specific rather than a blanket refusal (instance.go:369)
 // RFC requirement: RFC9568-6.4.3-2 positive -- the Active router installs the IPv6 virtual address on the vMAC macvlan, which is what makes the kernel join that address's Solicited-Node multicast group on that device (instance.go:369; createMacvlan register.go:329)
+// RFC requirement: RFC5798-6.4.3-2 positive -- the Master installs the IPv6 virtual address on the vMAC macvlan, which is what makes the kernel join that address's Solicited-Node multicast group on that device (instance.go:369; createMacvlan register.go:329)
 // RFC requirement: RFC9568-8.2.2-1 positive -- the virtual address is installed on the Virtual Router MAC device (dev == in.dev) and never on the parent, so a Neighbor Advertisement for it can only carry the virtual MAC (instance.go:369).
+// RFC requirement: RFC5798-8.2.2-1 positive -- the virtual address is installed on the virtual router MAC device (dev == in.dev) and never on the parent, so a Neighbor Advertisement for it can only carry the virtual MAC (instance.go:369).
 func TestInstanceIPv6VIPLivesOnVirtualMACDevice(t *testing.T) {
 	// Backup: nothing installed.
 	in, f, _ := newTestInstance(t, testSpecV6())
@@ -678,7 +692,9 @@ func TestInstanceIPv6VIPLivesOnVirtualMACDevice(t *testing.T) {
 // RFC requirement: RFC9568-8.1.2-2 positive -- for an IPv4 group the gratuitous ARP (AnnounceFailover) is emitted only after the virtual address is installed on the vMAC device, which the engine created and waited for before the instance existed (execute instance.go:312-317; waitDevicePresent register.go:395)
 // RFC requirement: RFC9568-8.1.2-2 negative -- while the parent holds no usable IPv4 address the instance never starts, so no gratuitous ARP is emitted at boot (evaluateReadiness instance.go:218-238; parentReady register.go:436)
 // RFC requirement: RFC9568-8.2.2-4 positive -- for an IPv6 group the unsolicited Neighbor Advertisement is emitted only after the virtual address is installed on the vMAC device (execute instance.go:312-317)
+// RFC requirement: RFC5798-8.2.2-4 positive -- for an IPv6 group the unsolicited Neighbor Advertisement is emitted only after the virtual address is installed on the vMAC device, so no ND message leaves the router before both the address and the virtual router MAC are configured (execute instance.go:312-317)
 // RFC requirement: RFC9568-8.2.2-4 negative -- while the parent holds no usable IPv6 address the instance never starts, so no ND message is emitted at boot (evaluateReadiness instance.go:218-238; parentReady register.go:436).
+// RFC requirement: RFC5798-8.2.2-4 negative -- while the parent holds no usable IPv6 address the instance never starts, so no ND message is emitted at boot (evaluateReadiness instance.go:218-238; parentReady register.go:436).
 func TestInstanceDelaysAnnounceUntilParentUsable(t *testing.T) {
 	cases := []struct {
 		name   string
