@@ -487,3 +487,116 @@ func TestFilterSubjectRoundTripsThroughParseAndFormat(t *testing.T) {
 	assert.Equal(t, subject, formatFilterAttrs(parsed),
 		"render, parse and re-render must produce the same bytes")
 }
+
+// TestParseFilterAttrsStruct covers the filter-text parse: every directive
+// name, the single-token and multi-token shapes, the nlri block, and the two
+// valueless tokens whose presence is the whole signal.
+//
+// THE WHITESPACE CASES ARE THE POINT. The parse no longer calls strings.Fields
+// and no longer rebuilds a multi-token value with textbuf.Join: it takes the
+// window the tokens already sit in. That is only equal to the join when one
+// space separates them, so a run separated by anything else goes through
+// joinFilterTokens instead, and these cases are what says the two agree.
+//
+// VALIDATES: AC-1 -- the parse output is unchanged by the allocation work.
+// PREVENTS: a value silently keeping a plugin's tabs or double spaces, which
+// reads as a changed attribute and emits a wire operation nothing asked for.
+func TestParseFilterAttrsStruct(t *testing.T) {
+	t.Run("every_directive_name", func(t *testing.T) {
+		text := "origin igp as-path 65000 65001 next-hop 192.0.2.1 med 50 " +
+			"local-preference 200 atomic-aggregate aggregator 65000:192.0.2.1 " +
+			"community 65000:1 65000:2 originator-id 10.0.0.1 " +
+			"cluster-list 10.0.0.1 10.0.0.2 extended-community target:65000:100 " +
+			"aigp 100 large-community 65000:1:2 community-add 65000:3 " +
+			"community-remove 65000:4 large-community-add 65000:5:6 " +
+			"large-community-remove 65000:7:8 extended-community-add target:65000:9 " +
+			"extended-community-remove target:65000:10 med-remove " +
+			"as-path-prepend 2 remove-private strip " +
+			"nlri ipv4/unicast add 10.0.0.0/24 10.1.0.0/24"
+
+		attrs := parseFilterAttrs(text)
+
+		want := map[filterAttrID]string{
+			faOrigin: "igp", faASPath: "65000 65001", faNextHop: "192.0.2.1",
+			faMED: "50", faLocalPreference: "200", faAtomicAggregate: "",
+			faAggregator: "65000:192.0.2.1", faCommunity: "65000:1 65000:2",
+			faOriginatorID: "10.0.0.1", faClusterList: "10.0.0.1 10.0.0.2",
+			faExtendedCommunity: "target:65000:100", faAIGP: "100",
+			faLargeCommunity: "65000:1:2", faCommunityAdd: "65000:3",
+			faCommunityRemove: "65000:4", faLargeCommunityAdd: "65000:5:6",
+			faLargeCommunityRemove: "65000:7:8", faExtendedCommunityAdd: "target:65000:9",
+			faExtendedCommunityRemove: "target:65000:10", faMEDRemove: "",
+			faASPathPrepend: "2", faRemovePrivate: "strip",
+			faNLRI: "nlri ipv4/unicast add 10.0.0.0/24 10.1.0.0/24",
+		}
+		for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // matches the enum walk in textDeltaToModOps
+			value, present := attrs.get(id)
+			require.True(t, present, "%s is in the text and must be present", filterAttrNames[id])
+			assert.Equal(t, want[id], value, filterAttrNames[id])
+		}
+		assert.Empty(t, attrs.unknownName, "every token at a key position is a known name")
+	})
+
+	t.Run("presence_is_not_a_non_empty_value", func(t *testing.T) {
+		attrs := parseFilterAttrs("origin igp atomic-aggregate med-remove")
+
+		value, present := attrs.get(faAtomicAggregate)
+		assert.True(t, present, "ATOMIC_AGGREGATE is present with a zero-length wire value")
+		assert.Empty(t, value)
+		assert.True(t, attrs.has(faMEDRemove), "med-remove names an action and takes no operand")
+		assert.False(t, attrs.has(faCommunity), "an attribute the text does not name is absent")
+	})
+
+	t.Run("a_valueless_token_does_not_eat_the_next_name", func(t *testing.T) {
+		attrs := parseFilterAttrs("atomic-aggregate med 50")
+
+		value, present := attrs.get(faMED)
+		require.True(t, present, "the token after atomic-aggregate is still a name")
+		assert.Equal(t, "50", value)
+	})
+
+	t.Run("separators_that_are_not_one_space", func(t *testing.T) {
+		cases := []struct {
+			name string
+			text string
+			want string
+		}{
+			{"two_spaces", "community 65000:1  65000:2", "65000:1 65000:2"},
+			{"a_tab", "community 65000:1\t65000:2", "65000:1 65000:2"},
+			{"mixed_runs", "community  65000:1 \t 65000:2   65000:3", "65000:1 65000:2 65000:3"},
+			{"leading_and_trailing", "  community 65000:1 65000:2  ", "65000:1 65000:2"},
+			{"one_space_is_the_window", "community 65000:1 65000:2", "65000:1 65000:2"},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				value, present := parseFilterAttrs(c.text).get(faCommunity)
+				require.True(t, present)
+				assert.Equal(t, c.want, value,
+					"the value is normalized to single spaces, whatever the text used")
+			})
+		}
+	})
+
+	t.Run("an_unknown_name_is_recorded_once", func(t *testing.T) {
+		attrs := parseFilterAttrs("origin igp bogus 1 alsobogus 2")
+
+		assert.Equal(t, "bogus", attrs.unknownName, "the FIRST unknown token is what validateModifyDelta reports")
+		assert.True(t, attrs.has(faOrigin), "a known name after an unknown one is still parsed")
+	})
+
+	t.Run("empty_and_whitespace_only_text", func(t *testing.T) {
+		assert.Zero(t, parseFilterAttrs("").present, "no text, no attribute")
+		assert.Zero(t, parseFilterAttrs("   \t ").present, "whitespace names nothing either")
+	})
+
+	t.Run("into_caller_storage_answers_the_same", func(t *testing.T) {
+		text := "origin igp community 65000:1 65000:2 nlri ipv4/unicast add 10.0.0.0/24"
+
+		var reused filterAttrs
+		parseFilterAttrsInto(&reused, "med 50 large-community 1:2:3")
+		parseFilterAttrsInto(&reused, text)
+
+		assert.Equal(t, *parseFilterAttrs(text), reused,
+			"a reused struct carries nothing from the parse before it")
+	})
+}

@@ -124,12 +124,66 @@ BenchmarkFilterModifyEgress:
   After:   22 allocs/op   1335 ns/op
 ```
 
-The remaining 22 allocations come from the 14 encoder `make()` sites in
-`filter_delta.go`. A pooled scratch buffer per modify block (Phase B) would
-reduce this further to roughly 12 allocs/op. The struct foundation is in
-place for that work.
-
 Files: `filter_chain.go`, `filter_delta.go`, `policy_dryrun.go`.
+
+## 4. The Modify Block's Value Arena
+
+This section replaced a paragraph that said the remaining allocations were the
+14 encoder `make()` sites in `filter_delta.go`. A `-memprofile` run of
+`BenchmarkFilterModifyEgress` on 2026-09-05 read the path per line and said
+otherwise: of 20 allocations per modified UPDATE, four were those encoder
+sites, eight were the parse, and four were `attribute.ParseASPath` inside the
+remove-private rewrite.
+
+Two changes followed, and the numbers below are what each one produced.
+
+**A value arena per modify block** (`filter_scratch.go`). `valueScratch` is a
+pooled bump arena that every filter-delta encoder carves its wire value out of.
+The block acquires it before the extractors run and releases it after
+`buildModifiedPayload` returns, which is exactly as long as the operations that
+point into it live. It is APPEND-ONLY: a carve advances the offset and nothing
+rewinds, because the rebuild holds every operation's `Buf` at once. An
+attribute handler records one fragment per operation while it plans, and
+`EditSet.write` reads `ops[i].Buf` for each of them when it materializes the
+payload, so a carve that rewound would hand two attributes the same bytes.
+
+**A parse that allocates nothing** (`filterTokens`, `filter_chain.go`). The
+parse walked the text with `strings.Fields` and rebuilt each multi-token value
+with `textbuf.Join`. It now scans the text once, keeps each token's offsets, and
+takes a multi-token value as the window the tokens already sit in. A run whose
+separators are not single spaces still goes through `joinFilterTokens`, which
+is the only allocation left in the parse and never fires on machine-written
+text. The hot call sites parse into storage of their own through
+`parseFilterAttrsInto`, so the two attribute structs stay on the block's stack.
+
+```
+BenchmarkFilterModifyEgress (re-measured baseline, Apple M4 Max):
+  Before Phase B:  20 allocs/op   3432 B/op   ~1720 ns/op
+  Value arena:     14 allocs/op   3325 B/op   ~1620 ns/op
+  Plus the parse:   6 allocs/op   1931 B/op   ~1390 ns/op
+```
+
+70% fewer allocations, 44% fewer bytes, 19% less wall time. The allocation
+count is the figure that matters: this path runs once per destination peer per
+modified UPDATE, so the fan-out multiplies GC pressure rather than latency.
+`BenchmarkFilterDispatch_ZeroAlloc` stays at 0 allocs/op, which is the
+unmodified path this round must not disturb.
+
+The parse reads whitespace through the 256-entry ASCII table `strings.Fields`
+uses rather than through `unicode.IsSpace` on a decoded rune. Measured on the
+same benchmark, that one table is worth 340 ns of the 1390: without it the
+non-allocating parse costs as much CPU as it saves in allocator time.
+
+One allocation the arena cannot take is `attribute.NewBuilder()` inside
+`encodeExtCommunityValue`: the builder is the only public parser for extended
+communities and builds a whole attribute before the value can be taken out of
+it. Removing it needs an append-style parser in `internal/core/bgp/attribute`.
+
+Files: `filter_scratch.go`, `filter_delta.go`, `filter_chain.go`,
+`filter_ordered.go`, `policy_dryrun.go`.
+
+<!-- source: internal/component/bgp/reactor/filter_scratch.go -- valueScratch, carveBytes -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- parseFilterAttrsInto, filterTokens -->
 
 ## What Was Not Done
 

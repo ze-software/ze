@@ -44,9 +44,10 @@ const (
 //     fall through to the original copy path and the caller treats the
 //     modify result as a no-op).
 //
-// The returned slice is a fresh allocation; buildModifiedPayload may write
-// it into a pool buffer.
-func extractLegacyNLRIOverride(original, modified string) []byte {
+// The returned bytes are carved from the block's scratch, so they are valid
+// until the block releases it (filter_scratch.go); buildModifiedPayload copies
+// them into the destination's own buffer before that happens.
+func extractLegacyNLRIOverride(scratch *valueScratch, original, modified string) []byte {
 	if original == modified {
 		return nil
 	}
@@ -75,7 +76,9 @@ func extractLegacyNLRIOverride(original, modified string) []byte {
 	}
 
 	// Upper-bound: every prefix needs 1 length byte + up to 4 address bytes.
-	buf := make([]byte, 0, len(tokens[2:])*5)
+	// A carve is a reservation, so the bytes past the ones written stay
+	// reserved and unread rather than being handed to the next carve.
+	buf := scratch.carveBytes(len(tokens[2:]) * 5)[:0]
 	for _, tok := range tokens[2:] {
 		p, err := netip.ParsePrefix(tok)
 		if err != nil {
@@ -179,13 +182,13 @@ func splitNLRIBlocks(nlriField string) []string {
 }
 
 // textDeltaToModOps compares the parsed original and modified filter
-// attribute maps, encoding changed attributes to wire VALUE bytes as
-// AttrModSet operations on the ModAccumulator.
+// attributes, encoding changed attributes to wire VALUE bytes as
+// AttrModSet operations on the ModAccumulator. The bytes are carved from the
+// caller's scratch (filter_scratch.go).
 //
-// Both maps come from parseFilterAttrs; the call site parses each filter
-// text exactly once and shares the maps read-only across the three
-// extractors (textDeltaToModOps, ExtractRemovePrivateASOps,
-// ExtractASPathPrependOps).
+// Both structs come from parseFilterAttrs; the call site parses each filter
+// text exactly once and shares them read-only across the three extractors
+// (textDeltaToModOps, ExtractRemovePrivateASOps, ExtractASPathPrependOps).
 //
 // Skipped attributes (not converted to wire ops):
 //   - NLRI: not modifiable via the attribute modification pipeline
@@ -197,7 +200,7 @@ func splitNLRIBlocks(nlriField string) []string {
 // (well-known) or omits it entirely (optional/community), effectively removing it.
 //
 // Parse errors for individual attributes are logged and skipped (fail-open).
-func textDeltaToModOps(origAttrs, modAttrs *filterAttrs, mods *filterapi.ModAccumulator) {
+func textDeltaToModOps(scratch *valueScratch, origAttrs, modAttrs *filterAttrs, mods *filterapi.ModAccumulator) {
 	for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // prealloc linter crashes on range-over-int
 		name := filterAttrNames[id]
 
@@ -214,7 +217,7 @@ func textDeltaToModOps(origAttrs, modAttrs *filterAttrs, mods *filterapi.ModAccu
 
 		// Community add/remove directives.
 		if directive, ok := communityDirectives[name]; ok && modPresent {
-			wireVal, err := encodeAttrValue(directive.encoderName, modVal)
+			wireVal, err := encodeAttrValue(scratch, directive.encoderName, modVal)
 			if err != nil {
 				fwdLogger().Warn("policy filter delta: community directive encode failed",
 					"directive", name, "value", modVal, "error", err)
@@ -239,7 +242,7 @@ func textDeltaToModOps(origAttrs, modAttrs *filterAttrs, mods *filterapi.ModAccu
 			if !ok {
 				continue
 			}
-			wireVal, err := encodeAttrValue(name, modVal)
+			wireVal, err := encodeAttrValue(scratch, name, modVal)
 			if err != nil {
 				fwdLogger().Warn("policy filter delta: encode failed",
 					"attr", name, "value", modVal, "error", err)
@@ -358,62 +361,70 @@ var communityDirectives = map[string]communityDirective{
 }
 
 // encodeAttrValue converts a text attribute value to wire VALUE bytes.
-// The returned bytes contain only the attribute value (no header).
-func encodeAttrValue(name, value string) ([]byte, error) {
+// The returned bytes contain only the attribute value (no header) and are
+// carved from the caller's scratch, which owns them until the modify block
+// releases it (filter_scratch.go).
+func encodeAttrValue(scratch *valueScratch, name, value string) ([]byte, error) {
 	switch name {
 	case policyAttrOrigin:
-		return encodeOriginValue(value)
+		return encodeOriginValue(scratch, value)
 	case policyAttrASPath:
-		return encodeASPathValue(value)
+		return encodeASPathValue(scratch, value)
 	case policyAttrNextHop:
-		return encodeNextHopValue(value)
+		return encodeNextHopValue(scratch, value)
 	case policyAttrMED:
-		return encodeUint32Value(value)
+		return encodeUint32Value(scratch, value)
 	case policyAttrLocalPreference:
-		return encodeUint32Value(value)
+		return encodeUint32Value(scratch, value)
 	case policyAttrAtomicAggregate:
 		return []byte{}, nil // Zero-length value.
 	case policyAttrAggregator:
-		return encodeAggregatorValue(value)
+		return encodeAggregatorValue(scratch, value)
 	case policyAttrCommunity:
-		return encodeCommunityValue(value)
+		return encodeCommunityValue(scratch, value)
 	case policyAttrOriginatorID:
-		return encodeIPv4Value(value)
+		return encodeIPv4Value(scratch, value)
 	case policyAttrClusterList:
-		return encodeClusterListValue(value)
+		return encodeClusterListValue(scratch, value)
 	case policyAttrExtendedCommunity:
-		return encodeExtCommunityValue(value)
+		return encodeExtCommunityValue(scratch, value)
 	case policyAttrLargeCommunity:
-		return encodeLargeCommunityValue(value)
+		return encodeLargeCommunityValue(scratch, value)
 	case policyAttrAIGP:
-		return encodeAIGPValue(value)
+		return encodeAIGPValue(scratch, value)
 	}
 	return nil, fmt.Errorf("unsupported attribute: %s", name)
 }
 
 // encodeOriginValue encodes "igp"/"egp"/"incomplete" to a 1-byte wire value.
-func encodeOriginValue(s string) ([]byte, error) {
+func encodeOriginValue(scratch *valueScratch, s string) ([]byte, error) {
+	var origin byte
 	switch strings.ToLower(s) {
 	case "igp":
-		return []byte{0}, nil
+		origin = 0
 	case "egp":
-		return []byte{1}, nil
+		origin = 1
 	case "incomplete", "?":
-		return []byte{2}, nil
+		origin = 2
+	default:
+		return nil, fmt.Errorf("invalid origin: %s", s)
 	}
-	return nil, fmt.Errorf("invalid origin: %s", s)
+
+	buf := scratch.carveBytes(1)
+	buf[0] = origin
+	return buf, nil
 }
 
 // encodeASPathValue encodes space-separated ASNs to wire AS_PATH value bytes.
 // Wire format: one or more segments of type(1) + count(1) + ASNs(4 each).
-func encodeASPathValue(s string) ([]byte, error) {
+func encodeASPathValue(scratch *valueScratch, s string) ([]byte, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return []byte{}, nil
 	}
 
 	tokens := strings.Fields(s)
-	asns := make([]uint32, 0, len(tokens))
+	asns := scratch.carveASNs(len(tokens))
 	for _, tok := range tokens {
 		asn, err := strconv.ParseUint(tok, 10, 32)
 		if err != nil {
@@ -431,7 +442,7 @@ func encodeASPathValue(s string) ([]byte, error) {
 		remaining -= chunk
 	}
 
-	buf := make([]byte, totalSize)
+	buf := scratch.carveBytes(totalSize)
 	off := 0
 	remaining = len(asns)
 	idx := 0
@@ -452,7 +463,7 @@ func encodeASPathValue(s string) ([]byte, error) {
 }
 
 // encodeNextHopValue encodes an IPv4 address string to 4 wire bytes.
-func encodeNextHopValue(s string) ([]byte, error) {
+func encodeNextHopValue(scratch *valueScratch, s string) ([]byte, error) {
 	addr, err := netip.ParseAddr(s)
 	if err != nil {
 		return nil, fmt.Errorf("invalid next-hop: %s", s)
@@ -460,23 +471,26 @@ func encodeNextHopValue(s string) ([]byte, error) {
 	if !addr.Is4() {
 		return nil, fmt.Errorf("next-hop must be IPv4: %s", s)
 	}
+
 	ip4 := addr.As4()
-	return ip4[:], nil
+	buf := scratch.carveBytes(len(ip4))
+	copy(buf, ip4[:])
+	return buf, nil
 }
 
 // encodeUint32Value encodes a decimal integer to 4 wire bytes (big-endian).
-func encodeUint32Value(s string) ([]byte, error) {
+func encodeUint32Value(scratch *valueScratch, s string) ([]byte, error) {
 	v, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid uint32: %s", s)
 	}
-	buf := make([]byte, 4)
+	buf := scratch.carveBytes(4)
 	binary.BigEndian.PutUint32(buf, uint32(v)) //nolint:gosec // G115: bounded by ParseUint 32-bit
 	return buf, nil
 }
 
 // encodeAggregatorValue encodes "ASN:IP" to wire bytes (ASN(4) + IP(4) = 8 bytes).
-func encodeAggregatorValue(s string) ([]byte, error) {
+func encodeAggregatorValue(scratch *valueScratch, s string) ([]byte, error) {
 	parts := strings.SplitN(s, ":", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid aggregator format: %s (expected ASN:IP)", s)
@@ -489,7 +503,7 @@ func encodeAggregatorValue(s string) ([]byte, error) {
 	if err != nil || !addr.Is4() {
 		return nil, fmt.Errorf("invalid aggregator IP: %s", parts[1])
 	}
-	buf := make([]byte, 8)
+	buf := scratch.carveBytes(8)
 	binary.BigEndian.PutUint32(buf[0:4], uint32(asn)) //nolint:gosec // G115: bounded by ParseUint 32-bit
 	ip4 := addr.As4()
 	copy(buf[4:8], ip4[:])
@@ -498,12 +512,12 @@ func encodeAggregatorValue(s string) ([]byte, error) {
 
 // encodeCommunityValue encodes space-separated community strings to wire value bytes.
 // Each community is 4 bytes (big-endian uint32).
-func encodeCommunityValue(s string) ([]byte, error) {
+func encodeCommunityValue(scratch *valueScratch, s string) ([]byte, error) {
 	tokens := strings.Fields(s)
 	if len(tokens) == 0 {
 		return []byte{}, nil
 	}
-	buf := make([]byte, len(tokens)*4)
+	buf := scratch.carveBytes(len(tokens) * 4)
 	for i, tok := range tokens {
 		comm, err := attribute.ParseCommunity(tok)
 		if err != nil {
@@ -516,12 +530,12 @@ func encodeCommunityValue(s string) ([]byte, error) {
 
 // encodeLargeCommunityValue encodes space-separated large community strings.
 // Each large community is 12 bytes (3x uint32).
-func encodeLargeCommunityValue(s string) ([]byte, error) {
+func encodeLargeCommunityValue(scratch *valueScratch, s string) ([]byte, error) {
 	tokens := strings.Fields(s)
 	if len(tokens) == 0 {
 		return []byte{}, nil
 	}
-	buf := make([]byte, len(tokens)*12)
+	buf := scratch.carveBytes(len(tokens) * 12)
 	for i, tok := range tokens {
 		lc, err := attribute.ParseLargeCommunity(tok)
 		if err != nil {
@@ -536,9 +550,14 @@ func encodeLargeCommunityValue(s string) ([]byte, error) {
 }
 
 // encodeExtCommunityValue encodes space-separated extended community strings.
-// Each extended community is 8 bytes. Uses Builder because there is no public
-// single-value parser for extended communities.
-func encodeExtCommunityValue(s string) ([]byte, error) {
+// Each extended community is 8 bytes.
+//
+// THE ONE ENCODER THAT ALLOCATES OUTSIDE THE SCRATCH, and it is the attribute
+// package that does it: Builder is the only public parser for extended
+// communities, and it builds a whole attribute before this can take the value
+// out of it. The value is copied into the scratch anyway, so every operation
+// buffer on this path has one lifetime rather than two.
+func encodeExtCommunityValue(scratch *valueScratch, s string) ([]byte, error) {
 	b := attribute.NewBuilder()
 	if err := b.ParseExtCommunity(s); err != nil {
 		return nil, err
@@ -547,12 +566,16 @@ func encodeExtCommunityValue(s string) ([]byte, error) {
 	if len(wire) == 0 {
 		return []byte{}, nil
 	}
-	return stripAttrHeader(wire), nil
+
+	value := stripAttrHeader(wire)
+	buf := scratch.carveBytes(len(value))
+	copy(buf, value)
+	return buf, nil
 }
 
 // encodeIPv4Value encodes a dotted-decimal IPv4 string to 4 wire bytes.
 // Used for ORIGINATOR_ID.
-func encodeIPv4Value(s string) ([]byte, error) {
+func encodeIPv4Value(scratch *valueScratch, s string) ([]byte, error) {
 	addr, err := netip.ParseAddr(s)
 	if err != nil {
 		return nil, fmt.Errorf("invalid IPv4: %s", s)
@@ -560,27 +583,30 @@ func encodeIPv4Value(s string) ([]byte, error) {
 	if !addr.Is4() {
 		return nil, fmt.Errorf("expected IPv4: %s", s)
 	}
+
 	ip4 := addr.As4()
-	return ip4[:], nil
+	buf := scratch.carveBytes(len(ip4))
+	copy(buf, ip4[:])
+	return buf, nil
 }
 
 // encodeAIGPValue encodes a decimal metric string to an 11-byte AIGP TLV value.
 // RFC 7311: type(1) + length(2) + metric(8).
-func encodeAIGPValue(s string) ([]byte, error) {
+func encodeAIGPValue(scratch *valueScratch, s string) ([]byte, error) {
 	metric, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid aigp metric: %s", s)
 	}
-	buf := make([]byte, attribute.AIGPWireLen)
+	buf := scratch.carveBytes(attribute.AIGPWireLen)
 	attribute.WriteAIGPMetric(buf, 0, metric)
 	return buf, nil
 }
 
 // encodeClusterListValue encodes space-separated dotted-decimal IDs to wire bytes.
 // Each cluster ID is 4 bytes.
-func encodeClusterListValue(s string) ([]byte, error) {
+func encodeClusterListValue(scratch *valueScratch, s string) ([]byte, error) {
 	tokens := strings.Fields(s)
-	buf := make([]byte, len(tokens)*4)
+	buf := scratch.carveBytes(len(tokens) * 4)
 	for i, tok := range tokens {
 		addr, err := netip.ParseAddr(tok)
 		if err != nil || !addr.Is4() {
@@ -611,12 +637,12 @@ func stripAttrHeader(wire []byte) []byte {
 // ExtractASPathPrependOps checks the parsed modified filter attributes for
 // an "as-path-prepend N" directive and emits an AttrModPrepend op with N
 // copies of localAS as wire bytes. Called separately from textDeltaToModOps
-// because the local AS is only known at the call site (reactor_notify.go
-// for import, reactor_api_forward.go for export). The map comes from the
-// call site's single parseFilterAttrs(modified) and is read, never mutated.
+// because the local AS is only known at the call site (filter_ordered.go, on
+// both the import and the export chain). The attributes come from the call
+// site's single parse of the modified text and are read, never mutated.
 //
 // Does nothing if the modified attributes do not contain as-path-prepend.
-func ExtractASPathPrependOps(modAttrs *filterAttrs, localAS uint32, mods *filterapi.ModAccumulator) {
+func ExtractASPathPrependOps(scratch *valueScratch, modAttrs *filterAttrs, localAS uint32, mods *filterapi.ModAccumulator) {
 	countStr, ok := modAttrs.get(faASPathPrepend)
 	if !ok || countStr == "" {
 		return
@@ -630,8 +656,7 @@ func ExtractASPathPrependOps(modAttrs *filterAttrs, localAS uint32, mods *filter
 	// Build wire value: AS_SEQUENCE segment with N copies of localAS.
 	// Format: type(1) + count(1) + ASNs(4 each).
 	n := int(count)
-	wireLen := 2 + n*4
-	buf := make([]byte, wireLen)
+	buf := scratch.carveBytes(2 + n*4)
 	buf[0] = byte(attribute.ASSequence)
 	buf[1] = byte(n)
 	for i := range n {
@@ -643,14 +668,14 @@ func ExtractASPathPrependOps(modAttrs *filterAttrs, localAS uint32, mods *filter
 // ExtractRemovePrivateASOps checks the parsed modified filter attributes
 // for a "remove-private" directive and emits AS_PATH / AS4_PATH Set or
 // Suppress ops after rewriting raw path segments. The plugin supplies the
-// policy intent; the reactor owns wire-safe segment preservation. The map
-// comes from the call site's single parseFilterAttrs(modified) and is
-// read, never mutated.
+// policy intent; the reactor owns wire-safe segment preservation. The
+// attributes come from the call site's single parse of the modified text and
+// are read, never mutated.
 //
 // RFC 6996 Section 4 requires private-use ASNs to be removed from AS path
 // attributes (including AS4_PATH if utilizing a four-octet AS number space)
 // before being advertised to the global Internet.
-func ExtractRemovePrivateASOps(modAttrs *filterAttrs, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *filterapi.ModAccumulator) {
+func ExtractRemovePrivateASOps(scratch *valueScratch, modAttrs *filterAttrs, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *filterapi.ModAccumulator) {
 	mode, ok := extractRemovePrivateASMode(modAttrs)
 	if !ok || attrs == nil {
 		return
@@ -658,7 +683,7 @@ func ExtractRemovePrivateASOps(modAttrs *filterAttrs, attrs *attribute.Attribute
 
 	rawASPath, err := attrs.GetRaw(attribute.AttrASPath)
 	if err == nil && len(rawASPath) > 0 {
-		if rewritten, changed := rewriteASPathRemovePrivate(rawASPath, asn4, mode, peerAS); changed {
+		if rewritten, changed := rewriteASPathRemovePrivate(scratch, rawASPath, asn4, mode, peerAS); changed {
 			mods.Op(byte(attribute.AttrASPath), filterapi.AttrModSet, rewritten)
 		}
 	} else if err != nil {
@@ -667,7 +692,7 @@ func ExtractRemovePrivateASOps(modAttrs *filterAttrs, attrs *attribute.Attribute
 
 	rawAS4Path, err := attrs.GetRaw(attribute.AttrAS4Path)
 	if err == nil && len(rawAS4Path) > 0 {
-		if rewritten, changed := rewriteAS4PathRemovePrivate(rawAS4Path, mode, peerAS); changed {
+		if rewritten, changed := rewriteAS4PathRemovePrivate(scratch, rawAS4Path, mode, peerAS); changed {
 			if len(rewritten) == 0 {
 				mods.Op(byte(attribute.AttrAS4Path), filterapi.AttrModSuppress, nil)
 			} else {
@@ -693,43 +718,43 @@ func extractRemovePrivateASMode(modAttrs *filterAttrs) (string, bool) {
 	}
 }
 
-func rewriteASPathRemovePrivate(value []byte, asn4 bool, mode string, peerAS uint32) ([]byte, bool) {
+func rewriteASPathRemovePrivate(scratch *valueScratch, value []byte, asn4 bool, mode string, peerAS uint32) ([]byte, bool) {
 	path, err := attribute.ParseASPath(value, asn4)
 	if err != nil {
 		fwdLogger().Warn("remove-private-as: parse AS_PATH failed", "error", err)
 		return nil, false
 	}
-	segments, changed := rewritePrivateASSegments(path.Segments, mode, peerAS)
+	segments, changed := rewritePrivateASSegments(scratch, path.Segments, mode, peerAS)
 	if !changed {
 		return nil, false
 	}
 	rewritten := &attribute.ASPath{Segments: segments}
-	buf := make([]byte, rewritten.LenWithASN4(asn4))
+	buf := scratch.carveBytes(rewritten.LenWithASN4(asn4))
 	rewritten.WriteToWithASN4(buf, 0, asn4)
 	return buf, true
 }
 
-func rewriteAS4PathRemovePrivate(value []byte, mode string, peerAS uint32) ([]byte, bool) {
+func rewriteAS4PathRemovePrivate(scratch *valueScratch, value []byte, mode string, peerAS uint32) ([]byte, bool) {
 	path, err := attribute.ParseAS4Path(value)
 	if err != nil {
 		fwdLogger().Warn("remove-private-as: parse AS4_PATH failed", "error", err)
 		return nil, false
 	}
-	segments, changed := rewritePrivateASSegments(path.Segments, mode, peerAS)
+	segments, changed := rewritePrivateASSegments(scratch, path.Segments, mode, peerAS)
 	if !changed {
 		return nil, false
 	}
 	rewritten := &attribute.AS4Path{Segments: segments}
-	buf := make([]byte, rewritten.Len())
+	buf := scratch.carveBytes(rewritten.Len())
 	rewritten.WriteTo(buf, 0)
 	return buf, true
 }
 
-func rewritePrivateASSegments(segments []attribute.ASPathSegment, mode string, peerAS uint32) ([]attribute.ASPathSegment, bool) {
-	out := make([]attribute.ASPathSegment, 0, len(segments))
+func rewritePrivateASSegments(scratch *valueScratch, segments []attribute.ASPathSegment, mode string, peerAS uint32) ([]attribute.ASPathSegment, bool) {
+	out := scratch.carveSegments(len(segments))
 	changed := false
 	for _, seg := range segments {
-		asns := make([]uint32, 0, len(seg.ASNs))
+		asns := scratch.carveASNs(len(seg.ASNs))
 		for _, asn := range seg.ASNs {
 			if !isRFC6996PrivateASN(asn) {
 				asns = append(asns, asn)

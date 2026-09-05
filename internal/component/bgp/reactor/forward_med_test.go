@@ -522,7 +522,7 @@ func TestMEDRemovalMechanismIsConfigurable(t *testing.T) {
 				modAttrs := parseFilterAttrs(modified)
 
 				var mods filterapi.ModAccumulator
-				textDeltaToModOps(origAttrs, modAttrs, &mods)
+				textDeltaToModOps(newTestScratch(t), origAttrs, modAttrs, &mods)
 				require.Zero(t, mods.Len(),
 					"the generic converter must not act on the directive: the export chain runs it too")
 

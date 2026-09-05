@@ -206,23 +206,33 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 	if res.Text != updateText {
 		// Wire-level dirty tracking: convert text delta to wire attribute
 		// modifications. Parse each filter text exactly once; the extractors
-		// share the maps read-only (spec filter-delta-parse-once).
+		// share the parsed attributes read-only (spec filter-delta-parse-once).
 		var importMods filterapi.ModAccumulator
-		origAttrs := parseFilterAttrs(updateText)
-		modAttrs := parseFilterAttrs(res.Text)
-		textDeltaToModOps(origAttrs, modAttrs, &importMods)
+
+		// One arena backs every value the extractors below encode, and it is
+		// released once buildModifiedPayload has copied them into the payload
+		// it returns (filter_scratch.go).
+		values := acquireValueScratch()
+		defer releaseValueScratch(values)
+
+		// The two parses write into storage this block owns, so the structs
+		// live on its stack rather than on the heap.
+		var origAttrs, modAttrs filterAttrs
+		parseFilterAttrsInto(&origAttrs, updateText)
+		parseFilterAttrsInto(&modAttrs, res.Text)
+		textDeltaToModOps(values, &origAttrs, &modAttrs, &importMods)
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 		srcASN4 := srcCtx != nil && srcCtx.ASN4()
-		ExtractRemovePrivateASOps(modAttrs, attrsWire, srcASN4, peerAS, &importMods)
-		ExtractASPathPrependOps(modAttrs, peer.settings.LocalAS, &importMods)
+		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, srcASN4, peerAS, &importMods)
+		ExtractASPathPrependOps(values, &modAttrs, peer.settings.LocalAS, &importMods)
 		// RFC 4271 Section 5.1.4's configured removal, and the ONLY site that
 		// converts the directive. The rewritten payload below replaces the
 		// WireUpdate before the RIB plugin runs Decision Process phases 1 and 2,
 		// which is the ordering that section requires of a removal.
-		if medRemoveHasWork(modAttrs) {
-			ExtractMEDRemoveOps(modAttrs, &importMods)
+		if medRemoveHasWork(&modAttrs) {
+			ExtractMEDRemoveOps(&modAttrs, &importMods)
 		}
-		nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
+		nlriOverride := extractLegacyNLRIOverride(values, updateText, res.Text)
 		if importMods.Len() > 0 || nlriOverride != nil {
 			modPayload, _, modFail := buildModifiedPayload(payload, &importMods, r.attrModHandlers, nil, nlriOverride)
 			// recordModifyFailure counts AND says it: one rate-limited line
@@ -346,14 +356,21 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 	}
 	if res.Text != updateText {
 		var exportMods filterapi.ModAccumulator
-		// Parse each filter text exactly once; the three extractors share the maps
-		// read-only (spec filter-delta-parse-once).
-		origAttrs := parseFilterAttrs(updateText)
-		modAttrs := parseFilterAttrs(res.Text)
-		textDeltaToModOps(origAttrs, modAttrs, &exportMods)
-		ExtractRemovePrivateASOps(modAttrs, attrsWire, asn4, destPeerAS, &exportMods)
-		ExtractASPathPrependOps(modAttrs, destLocalAS, &exportMods)
-		nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
+
+		// One arena per destination, released once buildModifiedPayload has
+		// copied the values into this peer's payload (filter_scratch.go).
+		values := acquireValueScratch()
+		defer releaseValueScratch(values)
+
+		// Parse each filter text exactly once; the three extractors share the
+		// parsed attributes read-only (spec filter-delta-parse-once).
+		var origAttrs, modAttrs filterAttrs
+		parseFilterAttrsInto(&origAttrs, updateText)
+		parseFilterAttrsInto(&modAttrs, res.Text)
+		textDeltaToModOps(values, &origAttrs, &modAttrs, &exportMods)
+		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, asn4, destPeerAS, &exportMods)
+		ExtractASPathPrependOps(values, &modAttrs, destLocalAS, &exportMods)
+		nlriOverride := extractLegacyNLRIOverride(values, updateText, res.Text)
 		if exportMods.Len() > 0 || nlriOverride != nil {
 			modPayload, _, modFail := buildModifiedPayload(wireUpdate.Payload(), &exportMods, r.attrModHandlers, nil, nlriOverride)
 			// One rate-limited line, through the subsystem logger; see the

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -310,65 +312,211 @@ var policySingleToken = map[string]bool{
 // each filter text exactly once (spec filter-delta-parse-once AC-2/AC-3).
 var parseFilterAttrsCalls atomic.Uint64
 
-// parseFilterAttrs parses text-format attributes into a fixed struct.
-// Each attribute is "name value" where value may contain spaces.
-// Special key "nlri" captures the NLRI section.
+// parseFilterAttrs parses text-format attributes into a fresh struct. The hot
+// modify block calls parseFilterAttrsInto with storage of its own; this is for
+// the cold callers, which are the filter chain's own text overlay and the tests.
 func parseFilterAttrs(text string) *filterAttrs {
-	parseFilterAttrsCalls.Add(1)
 	attrs := &filterAttrs{}
-	if text == "" {
-		return attrs
+	parseFilterAttrsInto(attrs, text)
+	return attrs
+}
+
+// parseFilterAttrsInto parses text-format attributes into caller-provided
+// storage. Each attribute is "name value" where value may contain spaces.
+// Special key "nlri" captures the NLRI section.
+//
+// EVERY VALUE IS A WINDOW INTO text, so the caller MUST keep text alive for as
+// long as it reads attrs. That was already true of every single-token value,
+// which strings.Fields returned as a substring; a multi-token value now joins
+// nothing in the common case, because the tokens already sit next to each other
+// separated by one space. A run whose separators are anything else is rewritten
+// by joinFilterTokens, which is the only path here that allocates.
+func parseFilterAttrsInto(attrs *filterAttrs, text string) {
+	parseFilterAttrsCalls.Add(1)
+	*attrs = filterAttrs{}
+
+	scan := filterTokens{text: text}
+	if !scan.next() {
+		return
 	}
 
-	fields := strings.Fields(text)
-	i := 0
-	for i < len(fields) {
-		name := fields[i]
-		i++
+	for {
+		nameStart, nameEnd := scan.start, scan.end
+		name := text[nameStart:nameEnd]
+		more := scan.next()
 
 		id, known := filterAttrNameToID[name]
 		if !known {
 			if attrs.unknownName == "" {
 				attrs.unknownName = name
 			}
-			continue
-		}
-
-		if name == policyAttrNLRI {
-			start := i - 1
-			for i < len(fields) && !isPolicyAttrName(fields[i]) {
-				i++
+			if !more {
+				return
 			}
-			attrs.set(id, textbuf.Join(fields[start:i], " "))
 			continue
 		}
 
-		// Valueless tokens. ATOMIC_AGGREGATE is an attribute whose wire value is
-		// zero-length; med-remove is a directive that names an action and needs
-		// no operand. Both are recorded as present with an empty value, so the
-		// loop below does not consume the token that follows them.
-		if name == policyAttrAtomicAggregate || name == policyAttrMEDRemove {
+		switch name {
+		case policyAttrNLRI:
+			// The NLRI value carries the "nlri" keyword itself, so its run
+			// starts at the name rather than after it.
+			var value string
+			value, more = parseFilterAttrRun(&scan, nameStart, nameEnd, more)
+			attrs.set(id, value)
+
+		case policyAttrAtomicAggregate, policyAttrMEDRemove:
+			// Valueless tokens. ATOMIC_AGGREGATE is an attribute whose wire
+			// value is zero-length; med-remove is a directive that names an
+			// action and needs no operand. Both are recorded as present with an
+			// empty value, so the loop does not consume the token that follows.
 			attrs.set(id, "")
-			continue
-		}
 
-		if policySingleToken[name] {
-			if i < len(fields) {
-				attrs.set(id, fields[i])
-				i++
+		default:
+			if policySingleToken[name] {
+				if more {
+					attrs.set(id, text[scan.start:scan.end])
+					more = scan.next()
+				}
+				break
 			}
-			continue
+			if !more {
+				attrs.set(id, "")
+				break
+			}
+			if isPolicyAttrName(text[scan.start:scan.end]) {
+				attrs.set(id, "")
+				break
+			}
+			start, end := scan.start, scan.end
+			more = scan.next()
+			var value string
+			value, more = parseFilterAttrRun(&scan, start, end, more)
+			attrs.set(id, value)
 		}
 
-		var values []string
-		for i < len(fields) && !isPolicyAttrName(fields[i]) {
-			values = append(values, fields[i])
-			i++
+		if !more {
+			return
 		}
-		attrs.set(id, textbuf.Join(values, " "))
+	}
+}
+
+// parseFilterAttrRun consumes the tokens of one multi-token value, starting
+// from a run that already covers text[start:end], and returns the value plus
+// whether a token is still loaded in scan.
+//
+// The run ends at the next known attribute name, which is the rule the text
+// format has always used: a value cannot contain a keyword.
+func parseFilterAttrRun(scan *filterTokens, start, end int, more bool) (string, bool) {
+	text := scan.text
+
+	// A run is CLEAN when one space separates every pair of tokens, which is
+	// what every machine-written filter text produces. A clean run needs no
+	// rewrite, so the value is the window the tokens already sit in.
+	clean := true
+	for more && !isPolicyAttrName(text[scan.start:scan.end]) {
+		if !oneSpaceApart(text, end, scan.start) {
+			clean = false
+		}
+		end = scan.end
+		more = scan.next()
 	}
 
-	return attrs
+	value := text[start:end]
+	if !clean {
+		value = joinFilterTokens(value)
+	}
+	return value, more
+}
+
+// oneSpaceApart reports whether exactly one space separates a token ending at
+// end from the next token starting at start. It is what decides whether a
+// multi-token value can be the window its tokens already sit in.
+//
+// Reading text[end] is in range because the caller only asks about a token it
+// has loaded, so start is inside the text and end is below it.
+func oneSpaceApart(text string, end, start int) bool {
+	if start != end+1 {
+		return false
+	}
+	return text[end] == ' '
+}
+
+// joinFilterTokens rewrites a run of tokens with exactly one space between
+// them. It is the fallback for a plugin delta whose separators are tabs, or
+// runs of spaces, and it is the only allocation left in the parse.
+func joinFilterTokens(run string) string {
+	var b textbuf.Buffer
+	scan := filterTokens{text: run}
+	for scan.next() {
+		if b.Len() > 0 {
+			b.Byte(' ')
+		}
+		b.Str(run[scan.start:scan.end])
+	}
+	return b.String()
+}
+
+// filterTokens walks the whitespace-delimited tokens of a filter text and
+// allocates nothing. It answers the split strings.Fields answers, and it also
+// answers WHERE each token sits, which is what lets a multi-token value be a
+// window into the text rather than a fresh join.
+//
+// One token is loaded at a time: next reports whether it found one, and start
+// and end delimit it.
+type filterTokens struct {
+	text  string
+	off   int // where the next scan starts
+	start int // the loaded token's first byte
+	end   int // one past the loaded token's last byte
+}
+
+// next loads the token after the current one. It reports false when nothing but
+// whitespace is left, and leaves start and end on the last token it loaded.
+func (f *filterTokens) next() bool {
+	i := f.off
+	for i < len(f.text) {
+		size, space := filterSpaceAt(f.text, i)
+		if !space {
+			break
+		}
+		i += size
+	}
+	if i >= len(f.text) {
+		f.off = i
+		return false
+	}
+
+	f.start = i
+	for i < len(f.text) {
+		size, space := filterSpaceAt(f.text, i)
+		if space {
+			break
+		}
+		i += size
+	}
+	f.end = i
+	f.off = i
+	return true
+}
+
+// filterSpaceASCII is the whitespace table for the bytes a filter text is made
+// of. It holds the six ASCII runes unicode.IsSpace holds, which is the set
+// strings.Fields split on, and a table lookup is what keeps the scan as cheap
+// as the strings.Fields it replaced.
+var filterSpaceASCII = [utf8.RuneSelf]bool{
+	'\t': true, '\n': true, '\v': true, '\f': true, '\r': true, ' ': true,
+}
+
+// filterSpaceAt reports whether the rune at off is whitespace, and how many
+// bytes it occupies. It answers what strings.Fields answers, which splits on
+// unicode.IsSpace, so a filter text carrying an exotic space splits the same
+// way it split before the parse stopped calling strings.Fields.
+func filterSpaceAt(s string, off int) (int, bool) {
+	if c := s[off]; c < utf8.RuneSelf {
+		return 1, filterSpaceASCII[c]
+	}
+	r, size := utf8.DecodeRuneInString(s[off:])
+	return size, unicode.IsSpace(r)
 }
 
 // isPolicyAttrName returns true if the token is a known BGP attribute name.

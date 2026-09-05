@@ -3,8 +3,11 @@ package reactor
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,7 +98,7 @@ func TestExtractLegacyNLRIOverride(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractLegacyNLRIOverride(tt.original, tt.modified)
+			got := extractLegacyNLRIOverride(newTestScratch(t), tt.original, tt.modified)
 			if tt.want == nil {
 				assert.Nil(t, got, "expected nil override")
 				return
@@ -194,7 +197,7 @@ func TestTextDeltaToModOps(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var mods filterapi.ModAccumulator
-			textDeltaToModOps(parseFilterAttrs(tt.original), parseFilterAttrs(tt.modified), &mods)
+			textDeltaToModOps(newTestScratch(t), parseFilterAttrs(tt.original), parseFilterAttrs(tt.modified), &mods)
 			assert.Equal(t, tt.wantOps, mods.Len())
 			if tt.wantOps == 1 {
 				ops := mods.Ops()
@@ -215,7 +218,7 @@ func TestTextDeltaToModOps(t *testing.T) {
 // VALIDATES: Text "200" encodes to wire bytes [0,0,0,200].
 // PREVENTS: Encoding producing wrong byte order or length.
 func TestEncodeAttrValueLocalPref(t *testing.T) {
-	buf, err := encodeAttrValue("local-preference", "200")
+	buf, err := encodeAttrValue(newTestScratch(t), "local-preference", "200")
 	require.NoError(t, err)
 	require.Len(t, buf, 4)
 	val := binary.BigEndian.Uint32(buf)
@@ -236,7 +239,7 @@ func TestEncodeAttrValueOrigin(t *testing.T) {
 		{"incomplete", 2},
 	}
 	for _, tt := range tests {
-		buf, err := encodeAttrValue("origin", tt.text)
+		buf, err := encodeAttrValue(newTestScratch(t), "origin", tt.text)
 		require.NoError(t, err)
 		require.Len(t, buf, 1)
 		assert.Equal(t, tt.want, buf[0], "origin=%s", tt.text)
@@ -248,7 +251,7 @@ func TestEncodeAttrValueOrigin(t *testing.T) {
 // VALIDATES: Text "500" encodes correctly.
 // PREVENTS: MED encoding error.
 func TestEncodeAttrValueMED(t *testing.T) {
-	buf, err := encodeAttrValue("med", "500")
+	buf, err := encodeAttrValue(newTestScratch(t), "med", "500")
 	require.NoError(t, err)
 	require.Len(t, buf, 4)
 	assert.Equal(t, uint32(500), binary.BigEndian.Uint32(buf))
@@ -259,7 +262,7 @@ func TestEncodeAttrValueMED(t *testing.T) {
 // VALIDATES: "10.0.0.1" encodes to [10,0,0,1].
 // PREVENTS: Next-hop encoding error.
 func TestEncodeAttrValueNextHop(t *testing.T) {
-	buf, err := encodeAttrValue("next-hop", "10.0.0.1")
+	buf, err := encodeAttrValue(newTestScratch(t), "next-hop", "10.0.0.1")
 	require.NoError(t, err)
 	require.Len(t, buf, 4)
 	assert.Equal(t, []byte{10, 0, 0, 1}, buf)
@@ -270,7 +273,7 @@ func TestEncodeAttrValueNextHop(t *testing.T) {
 // VALIDATES: "65001 65002" encodes to AS_SEQUENCE segment with two 4-byte ASNs.
 // PREVENTS: AS_PATH encoding error.
 func TestEncodeAttrValueASPath(t *testing.T) {
-	buf, err := encodeAttrValue("as-path", "65001 65002")
+	buf, err := encodeAttrValue(newTestScratch(t), "as-path", "65001 65002")
 	require.NoError(t, err)
 	// type(1) + count(1) + 2*ASN(4) = 10 bytes
 	require.Len(t, buf, 10)
@@ -285,7 +288,7 @@ func TestEncodeAttrValueASPath(t *testing.T) {
 // VALIDATES: "65000:100 65000:200" encodes to two 4-byte values.
 // PREVENTS: Community encoding error.
 func TestEncodeAttrValueCommunity(t *testing.T) {
-	buf, err := encodeAttrValue("community", "65000:100 65000:200")
+	buf, err := encodeAttrValue(newTestScratch(t), "community", "65000:100 65000:200")
 	require.NoError(t, err)
 	require.Len(t, buf, 8) // Two communities, 4 bytes each.
 	comm1 := binary.BigEndian.Uint32(buf[0:4])
@@ -316,7 +319,7 @@ func TestDirtyTracking(t *testing.T) {
 	modifiedText := "origin igp local-preference 200"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(parseFilterAttrs(originalText), parseFilterAttrs(modifiedText), &mods)
+	textDeltaToModOps(newTestScratch(t), parseFilterAttrs(originalText), parseFilterAttrs(modifiedText), &mods)
 	require.Equal(t, 1, mods.Len(), "should have one op for local-pref")
 
 	// Register a generic handler for LOCAL_PREF (code 5).
@@ -383,7 +386,7 @@ func TestFilterModifyOnlyDeclared(t *testing.T) {
 		assert.Empty(t, violation, "declared attribute should pass validation")
 
 		var mods filterapi.ModAccumulator
-		textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
+		textDeltaToModOps(newTestScratch(t), parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 		assert.Equal(t, 1, mods.Len(), "declared attribute change should produce op")
 	})
 
@@ -645,7 +648,7 @@ func TestApplySendCommunityFilter(t *testing.T) {
 func TestExtractASPathPrependOps(t *testing.T) {
 	t.Run("prepend_3", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(parseFilterAttrs("origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24"), 65000, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24"), 65000, &mods)
 		require.Equal(t, 1, mods.Len())
 		op := mods.Ops()[0]
 		assert.Equal(t, byte(attribute.AttrASPath), op.Code)
@@ -662,13 +665,13 @@ func TestExtractASPathPrependOps(t *testing.T) {
 
 	t.Run("no_prepend", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(parseFilterAttrs("origin igp local-preference 200"), 65000, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("origin igp local-preference 200"), 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 
 	t.Run("prepend_1", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(parseFilterAttrs("as-path-prepend 1"), 65001, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 1"), 65001, &mods)
 		require.Equal(t, 1, mods.Len())
 		op := mods.Ops()[0]
 		require.Len(t, op.Buf, 6) // type(1) + count(1) + 1*ASN(4)
@@ -677,13 +680,13 @@ func TestExtractASPathPrependOps(t *testing.T) {
 
 	t.Run("invalid_count_zero", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(parseFilterAttrs("as-path-prepend 0"), 65000, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 0"), 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 
 	t.Run("invalid_count_over_32", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(parseFilterAttrs("as-path-prepend 33"), 65000, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 33"), 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 }
@@ -785,7 +788,7 @@ func TestExtractRemovePrivateASOps(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(newTestScratch(t), parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	require.Equal(t, byte(attribute.AttrASPath), op.Code)
@@ -811,7 +814,7 @@ func TestExtractRemovePrivateASOpsReplacePeerAS(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private peer-as"), attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(newTestScratch(t), parseFilterAttrs("remove-private peer-as"), attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	want := []byte{
@@ -833,7 +836,7 @@ func TestExtractRemovePrivateASOpsAS4Path(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(newTestScratch(t), parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	assert.Equal(t, byte(attribute.AttrAS4Path), op.Code)
@@ -852,7 +855,7 @@ func TestExtractRemovePrivateASOpsEmptyASPath(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(newTestScratch(t), parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	assert.Equal(t, byte(attribute.AttrASPath), op.Code)
@@ -872,7 +875,7 @@ func TestExtractRemovePrivateASOpsNoPrivateASN(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(newTestScratch(t), parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	assert.Equal(t, 0, mods.Len())
 }
 
@@ -884,7 +887,7 @@ func TestExtractRemovePrivateASOpsMalformedASPath(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(newTestScratch(t), parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	assert.Equal(t, 0, mods.Len())
 }
 
@@ -905,7 +908,7 @@ func TestExportRemovePrivateASBeforeEBGPPrepend(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 
 	var mods filterapi.ModAccumulator
-	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65002, &mods)
+	ExtractRemovePrivateASOps(newTestScratch(t), parseFilterAttrs("remove-private strip"), attrsWire, true, 65002, &mods)
 	modified, _, _ := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
 	require.NotNil(t, modified)
 
@@ -995,7 +998,7 @@ func TestCommunityAddDeltaToModOps(t *testing.T) {
 	modified := "origin igp community 65000:100 community-add 65000:200 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
+	textDeltaToModOps(newTestScratch(t), parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	ops := mods.Ops()
 	found := false
@@ -1018,7 +1021,7 @@ func TestCommunityRemoveDeltaToModOps(t *testing.T) {
 	modified := "origin igp community 65000:100 65000:200 community-remove 65000:100 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
+	textDeltaToModOps(newTestScratch(t), parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	ops := mods.Ops()
 	found := false
@@ -1041,7 +1044,7 @@ func TestLargeCommunityAddDeltaToModOps(t *testing.T) {
 	modified := "origin igp large-community-add 65000:100:200 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
+	textDeltaToModOps(newTestScratch(t), parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	ops := mods.Ops()
 	found := false
@@ -1065,7 +1068,7 @@ func TestCommunityRemoveMultiValue(t *testing.T) {
 	modified := "origin igp community 65000:100 65000:200 65000:300 community-remove 65000:100 65000:200 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
+	textDeltaToModOps(newTestScratch(t), parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	removeCount := 0
 	for _, op := range mods.Ops() {
@@ -1087,7 +1090,7 @@ func TestCommunityDirectiveNoSetInterference(t *testing.T) {
 	modified := "origin igp community 65000:100 community-add 65000:200 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
+	textDeltaToModOps(newTestScratch(t), parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	for _, op := range mods.Ops() {
 		if op.Code == byte(attribute.AttrCommunity) && op.Action == filterapi.AttrModSet {
@@ -1101,13 +1104,13 @@ func TestCommunityDirectiveNoSetInterference(t *testing.T) {
 // (policy_dryrun.go) call sites. TestFilterDeltaParseOnceEquivalence pins the
 // ops this sequence produces so the parse-once refactor can prove its output
 // unchanged (spec filter-delta-parse-once AC-1).
-func runFilterDeltaExtractors(original, modified string, attrsWire *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []filterapi.AttrOp {
+func runFilterDeltaExtractors(scratch *valueScratch, original, modified string, attrsWire *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []filterapi.AttrOp {
 	var mods filterapi.ModAccumulator
 	origAttrs := parseFilterAttrs(original)
 	modAttrs := parseFilterAttrs(modified)
-	textDeltaToModOps(origAttrs, modAttrs, &mods)
-	ExtractRemovePrivateASOps(modAttrs, attrsWire, asn4, peerAS, &mods)
-	ExtractASPathPrependOps(modAttrs, localAS, &mods)
+	textDeltaToModOps(scratch, origAttrs, modAttrs, &mods)
+	ExtractRemovePrivateASOps(scratch, modAttrs, attrsWire, asn4, peerAS, &mods)
+	ExtractASPathPrependOps(scratch, modAttrs, localAS, &mods)
 	return mods.Ops()
 }
 
@@ -1268,7 +1271,7 @@ func TestFilterDeltaParseOnceEquivalence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := goldenOps(runFilterDeltaExtractors(tt.original, tt.modified, tt.attrs, tt.asn4, tt.peerAS, tt.localAS))
+			got := goldenOps(runFilterDeltaExtractors(newTestScratch(t), tt.original, tt.modified, tt.attrs, tt.asn4, tt.peerAS, tt.localAS))
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -1287,7 +1290,7 @@ func TestFilterDeltaParseCallCount(t *testing.T) {
 	var got uint64
 	for range 3 {
 		before := parseFilterAttrsCalls.Load()
-		runFilterDeltaExtractors("origin igp", "origin egp as-path-prepend 2 remove-private strip", attrsPrivate, true, 65001, 65000)
+		runFilterDeltaExtractors(newTestScratch(t), "origin igp", "origin egp as-path-prepend 2 remove-private strip", attrsPrivate, true, 65001, 65000)
 		got = parseFilterAttrsCalls.Load() - before
 		if got == 2 {
 			return
@@ -1304,12 +1307,18 @@ func BenchmarkFilterModifyEgress(b *testing.B) {
 	modified := "origin igp local-preference 200 community 65001:100 65001:200 as-path-prepend 2 remove-private strip nlri ipv4/unicast add 10.0.0.0/24"
 	b.ReportAllocs()
 	for b.Loop() {
+		// One modify block, in the shape filter_ordered.go runs it: the arena
+		// and the two attribute structs are the block's own storage, and the
+		// arena goes back to the pool once the operations are consumed.
 		var mods filterapi.ModAccumulator
-		origAttrs := parseFilterAttrs(original)
-		modAttrs := parseFilterAttrs(modified)
-		textDeltaToModOps(origAttrs, modAttrs, &mods)
-		ExtractRemovePrivateASOps(modAttrs, attrsWire, true, 65001, &mods)
-		ExtractASPathPrependOps(modAttrs, 65000, &mods)
+		var origAttrs, modAttrs filterAttrs
+		values := acquireValueScratch()
+		parseFilterAttrsInto(&origAttrs, original)
+		parseFilterAttrsInto(&modAttrs, modified)
+		textDeltaToModOps(values, &origAttrs, &modAttrs, &mods)
+		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, true, 65001, &mods)
+		ExtractASPathPrependOps(values, &modAttrs, 65000, &mods)
+		releaseValueScratch(values)
 	}
 }
 
@@ -1380,7 +1389,7 @@ func TestMEDRemoveObeysTheChainOrder(t *testing.T) {
 		t.Helper()
 		modAttrs := parseFilterAttrs(applyFilterDelta(applyFilterDelta(updateText, first), second))
 		var mods filterapi.ModAccumulator
-		textDeltaToModOps(parseFilterAttrs(updateText), modAttrs, &mods)
+		textDeltaToModOps(newTestScratch(t), parseFilterAttrs(updateText), modAttrs, &mods)
 		ExtractMEDRemoveOps(modAttrs, &mods)
 		result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
 		require.Equal(t, modifyFailureNone, fail)
@@ -1410,7 +1419,7 @@ func TestMEDRemoveObeysTheChainOrder(t *testing.T) {
 
 		modAttrs := parseFilterAttrs(applyFilterDelta(applyFilterDelta(bareText, "med 200"), "med-remove"))
 		var mods filterapi.ModAccumulator
-		textDeltaToModOps(parseFilterAttrs(bareText), modAttrs, &mods)
+		textDeltaToModOps(newTestScratch(t), parseFilterAttrs(bareText), modAttrs, &mods)
 		require.True(t, medRemoveHasWork(modAttrs),
 			"the metric the chain added is the work the removal has to do")
 		ExtractMEDRemoveOps(modAttrs, &mods)
@@ -1450,10 +1459,10 @@ func TestTextDeltaRecordsNothingForAnUnchangedSubject(t *testing.T) {
 		assert.Equal(t, subject, text, "a chain that changes nothing must return the text it was handed")
 
 		var mods filterapi.ModAccumulator
-		textDeltaToModOps(parseFilterAttrs(subject), parseFilterAttrs(text), &mods)
+		textDeltaToModOps(newTestScratch(t), parseFilterAttrs(subject), parseFilterAttrs(text), &mods)
 		assert.Equal(t, 0, mods.Len(), "no attribute value changed, so no wire operation is owed: %v",
 			goldenOps(mods.Ops()))
-		assert.Nil(t, extractLegacyNLRIOverride(subject, text), "the NLRI block is unchanged too")
+		assert.Nil(t, extractLegacyNLRIOverride(newTestScratch(t), subject, text), "the NLRI block is unchanged too")
 	}
 
 	t.Run("every filter accepts", func(t *testing.T) {
@@ -1485,4 +1494,121 @@ func TestTextDeltaRecordsNothingForAnUnchangedSubject(t *testing.T) {
 			assertNoWork(t, res.Text)
 		})
 	}
+}
+
+// TestEncodeValuesIntoScratch proves two things about the per-modify-block
+// scratch the filter-delta encoders carve their wire values from
+// (filter_scratch.go).
+//
+// THE VALUES ARE BYTE-IDENTICAL. Every encoder writes the bytes it wrote when it
+// owned a make() of its own, so a filter delta reaches the wire unchanged.
+//
+// THE SCRATCH IS APPEND-ONLY, WHICH IS THE LOAD-BEARING HALF. Each subtest
+// encodes into ONE scratch, keeps every result live, and reads them all after
+// the last carve. The rebuild does exactly that: an attribute handler records
+// one fragment per operation while it plans, and EditSet.write reads
+// ops[i].Buf for every fragment when it materializes the payload
+// (filterapi/editset.go). A carve that rewound over an earlier region would
+// hand two attributes the same bytes, and nothing downstream could tell.
+//
+// VALIDATES: AC-1 -- identical op bytes across the scratch refactor.
+// PREVENTS: a rewinding or reusing scratch corrupting a Buf the plan still holds.
+func TestEncodeValuesIntoScratch(t *testing.T) {
+	t.Run("every_encoder_over_one_scratch", func(t *testing.T) {
+		cases := []struct {
+			name  string
+			attr  string
+			value string
+			want  string
+		}{
+			{"origin_igp", policyAttrOrigin, "igp", "00"},
+			{"origin_egp", policyAttrOrigin, "egp", "01"},
+			{"origin_incomplete", policyAttrOrigin, "incomplete", "02"},
+			{"as_path", policyAttrASPath, "65000 65001", "02020000fde80000fde9"},
+			{"next_hop", policyAttrNextHop, "192.0.2.1", "c0000201"},
+			{"med", policyAttrMED, "50", "00000032"},
+			{"local_preference", policyAttrLocalPreference, "200", "000000c8"},
+			{"atomic_aggregate", policyAttrAtomicAggregate, "", ""},
+			{"aggregator", policyAttrAggregator, "65000:192.0.2.1", "0000fde8c0000201"},
+			{"community", policyAttrCommunity, "65000:1 65000:2", "fde80001fde80002"},
+			{"originator_id", policyAttrOriginatorID, "10.0.0.1", "0a000001"},
+			{"cluster_list", policyAttrClusterList, "10.0.0.1 10.0.0.2", "0a0000010a000002"},
+			{"extended_community", policyAttrExtendedCommunity, "target:65000:100", "0002fde800000064"},
+			{"large_community", policyAttrLargeCommunity, "65000:1:2", "0000fde80000000100000002"},
+			{"aigp", policyAttrAIGP, "100", "01000b0000000000000064"},
+		}
+
+		scratch := acquireValueScratch()
+		defer releaseValueScratch(scratch)
+
+		got := make([][]byte, len(cases))
+		for i, c := range cases {
+			value, err := encodeAttrValue(scratch, c.attr, c.value)
+			require.NoError(t, err, c.name)
+			got[i] = value
+		}
+
+		// Read every value only after the last carve: an append-only arena
+		// hands back windows that do not overlap, a rewinding one does not.
+		for i, c := range cases {
+			assert.Equal(t, c.want, hex.EncodeToString(got[i]), c.name)
+		}
+	})
+
+	t.Run("multi_prepend_holds_two_carved_buffers", func(t *testing.T) {
+		scratch := acquireValueScratch()
+		defer releaseValueScratch(scratch)
+
+		var mods filterapi.ModAccumulator
+		modAttrs := parseFilterAttrs("origin igp as-path-prepend 2")
+		ExtractASPathPrependOps(scratch, modAttrs, 65000, &mods)
+		ExtractASPathPrependOps(scratch, modAttrs, 65001, &mods)
+
+		ops := mods.Ops()
+		require.Len(t, ops, 2)
+		// The first operation is read after the second was carved, which is the
+		// order the rebuild reads them in.
+		assert.Equal(t, "02020000fde80000fde8", hex.EncodeToString(ops[0].Buf))
+		assert.Equal(t, "02020000fde90000fde9", hex.EncodeToString(ops[1].Buf))
+
+		// End to end: the AS_PATH handler plans a fragment per prepend and the
+		// write materializes both, so both carved windows must still hold their
+		// own bytes when the payload is built.
+		source := buildModTestPayload(makeAttr(0x40, byte(attribute.AttrASPath),
+			[]byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xEA}), []byte{24, 10, 0, 0})
+		result, _, fail := buildModifiedPayload(source, &mods, attrModHandlersWithDefaults(), nil, nil)
+		require.Equal(t, modifyFailureNone, fail)
+		require.NotNil(t, result)
+		assert.Contains(t, hex.EncodeToString(result),
+			"02020000fde80000fde802020000fde90000fde902010000fdea",
+			"both prepends and the original path, in plan order")
+	})
+
+	t.Run("a_carve_past_the_initial_size_keeps_earlier_values", func(t *testing.T) {
+		scratch := acquireValueScratch()
+		defer releaseValueScratch(scratch)
+
+		first, err := encodeAttrValue(scratch, policyAttrMED, "50")
+		require.NoError(t, err)
+
+		// R-1: an adversarial delta whose value exceeds the initial scratch
+		// size. The grow is the correctness fallback, so the oversized value is
+		// right AND the value carved before it still reads its own bytes.
+		var text strings.Builder
+		const communities = 1200
+		for i := range communities {
+			if i > 0 {
+				text.WriteByte(' ')
+			}
+			text.WriteString("65000:")
+			text.WriteString(strconv.Itoa(i))
+		}
+		big, err := encodeAttrValue(scratch, policyAttrCommunity, text.String())
+		require.NoError(t, err)
+		require.Len(t, big, communities*4)
+		assert.Equal(t, uint32(0xFDE80000), binary.BigEndian.Uint32(big[:4]))
+		assert.Equal(t, uint32(0xFDE80000+communities-1), binary.BigEndian.Uint32(big[len(big)-4:]))
+		assert.Equal(t, "00000032", hex.EncodeToString(first),
+			"the grow orphans the earlier window onto the old array, it does not corrupt it")
+	})
 }

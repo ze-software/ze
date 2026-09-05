@@ -231,9 +231,13 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 // on an import one tells the operator the metric survives.
 func computeWireChanges(beforeAttrs, afterAttrs *filterAttrs, attrs *attribute.AttributesWire, direction string, asn4 bool, peerAS, localAS uint32) []string {
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(beforeAttrs, afterAttrs, &mods)
-	ExtractRemovePrivateASOps(afterAttrs, attrs, asn4, peerAS, &mods)
-	ExtractASPathPrependOps(afterAttrs, localAS, &mods)
+
+	values := acquireValueScratch()
+	defer releaseValueScratch(values)
+
+	textDeltaToModOps(values, beforeAttrs, afterAttrs, &mods)
+	ExtractRemovePrivateASOps(values, afterAttrs, attrs, asn4, peerAS, &mods)
+	ExtractASPathPrependOps(values, afterAttrs, localAS, &mods)
 	if direction == directionImport && medRemoveHasWork(afterAttrs) {
 		ExtractMEDRemoveOps(afterAttrs, &mods)
 	}
