@@ -45,10 +45,14 @@ This path is Linux-only.
 - Two IPsec interfaces on one node require DISTINCT per-interface SPIs, because
   the shared wildcard state's identity is the destination, the SPI and the
   protocol.
-- The doctor check has a per-platform split, and the drop counters do too.
-  <!-- source: internal/plugins/ospf/doctor_ipsec.go -- checkOSPFv3IPsec -->
-  <!-- source: internal/plugins/ospf/doctor_ipsec_linux.go -- xfrmAvailable -->
-  <!-- source: internal/plugins/ospf/doctor_ipsec_other.go -- xfrmAvailable -->
+- The doctor check reads the ONE kernel XFRM probe in the tree, so its row and
+  the daemon's startup refusal cannot disagree about the same kernel. Only an
+  ABSENT verdict warns: the shared probe opens the XFRM netlink socket rather
+  than dumping the Security Policy Database, so it separates a kernel without
+  XFRM from a process without CAP_NET_ADMIN, and the second is not evidence of an
+  unprotected adjacency. The drop counters keep their own per-platform split.
+  <!-- source: internal/plugins/ospf/doctor_ipsec.go -- checkOSPFv3IPsec, xfrmProbe -->
+  <!-- source: internal/component/kernelcap/probe_linux.go -- XFRM, classifyXFRM -->
   <!-- source: internal/plugins/ospf/ipsec_drops_linux.go -- readXfrmDropsPlatform -->
   <!-- source: internal/plugins/ospf/ipsec_drops_other.go -- readXfrmDropsPlatform -->
 

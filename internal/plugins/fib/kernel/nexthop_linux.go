@@ -30,6 +30,12 @@ func (n *netlinkBackend) addRichRoute(r RichRoute) error {
 	if err != nil {
 		return err
 	}
+	// The kernel refuses a label the table has no room for, and its table is
+	// empty by default. Repair that before the push route goes in, not after
+	// (labelspace_linux.go).
+	if len(r.Labels) > 0 || len(r.Backup) > 0 {
+		ensureLabelSpace()
+	}
 	return n.handle.RouteAdd(route)
 }
 
@@ -52,6 +58,11 @@ func (n *netlinkBackend) replaceRichRoute(r RichRoute) error {
 	route, err := buildRichRoute(r)
 	if err != nil {
 		return err
+	}
+	// The same repair as addRichRoute: a replace is the first programming of a
+	// label just as often as an add is (labelspace_linux.go).
+	if len(r.Labels) > 0 || len(r.Backup) > 0 {
+		ensureLabelSpace()
 	}
 	return n.handle.RouteReplace(route)
 }

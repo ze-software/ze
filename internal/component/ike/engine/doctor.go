@@ -33,6 +33,7 @@ const (
 	diagnosticIPsecCertURLDenied   = "doctor-ipsec-cert-url-denied"
 	diagnosticIPsecCookieThreshold = "doctor-ipsec-cookie-threshold"
 	diagnosticIPsecXFRMUnavailable = "doctor-ipsec-xfrm-unavailable"
+	diagnosticIPsecXFRMUnknown     = "doctor-ipsec-xfrm-unknown"
 )
 
 // Severity values rpc.DoctorCheckDiagnostic.Severity takes. rpc states the

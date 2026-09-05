@@ -19,6 +19,11 @@ import (
 )
 
 func (n *netlinkBackend) addMPLSSwap(inLabel uint32, outLabels []uint32, nextHop netip.Addr) error {
+	// An AF_MPLS route is keyed by the incoming label, and the kernel indexes it
+	// into a table whose size defaults to 0. Repair that before the entry goes
+	// in, not after (labelspace_linux.go).
+	ensureLabelSpace()
+
 	il := int(inLabel)
 	route := &netlink.Route{
 		Family:   unix.AF_MPLS,

@@ -1,0 +1,52 @@
+# Test: ze config validate fails on a capability this host cannot provide
+# Spec: plan/immediate/spec-kernel-capability-gate.md AC-4
+# VALIDATES: the third caller of the one enrolment reaches the same verdict as
+# ze doctor and the daemon start, so a config that validates here starts there.
+# PREVENTS: the two surfaces disagreeing. A config the operator was told is valid
+# and that the daemon then refuses is the worst of both answers.
+#
+# The verdict is about THIS host. Validating a config written for another machine
+# answers about this one, which is why the gate is not inside LoadConfig: that
+# loader also runs under offline validation, where a host verdict would be wrong.
+option=env:var=ze.test.kernelcap.xfrm:value=absent
+
+tmpfs=ipsec-capability.conf:terminator=EOF_CONF
+vpn {
+    ipsec {
+        interface lo
+        ike-group IKE-1 {
+            proposal 1 {
+                encryption aes256gcm
+                hash sha256
+                dh-group 14
+            }
+        }
+        esp-group ESP-1 {
+            proposal 1 {
+                encryption aes256gcm
+            }
+        }
+        site-to-site {
+            peer branch {
+                connection-type respond
+                remote-address 203.0.113.7
+                ike-group IKE-1
+                esp-group ESP-1
+                authentication {
+                    mode pre-shared-secret
+                    pre-shared-secret correct-horse-battery-staple
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate ipsec-capability.conf
+expect=exit:code=1
+expect=stdout:contains=config-kernel-capability
+expect=stdout:contains=CONFIG_XFRM_USER
+
+cmd=foreground:seq=2:exec=ze explain config-kernel-capability
+expect=exit:code=0
+expect=stdout:contains=refuses to start

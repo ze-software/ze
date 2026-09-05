@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -20,9 +21,18 @@ import (
 // doctor-ospfv3-raw-socket (spec-ospf-ext-16 Current Behavior).
 const codeOSPFv3IPsec = "doctor-ospfv3-ipsec"
 
-// xfrmProbe reports whether the kernel XFRM dataplane is usable (CAP_NET_ADMIN + kernel
-// IPsec). Tests override it; the platform default lives in doctor_ipsec_{linux,other}.go.
-var xfrmProbe = xfrmAvailable
+// xfrmProbe reports whether an OSPFv3 interface configuring RFC 4552 IPsec can expect
+// the kernel to carry it. Tests override it; the real answer comes from the ONE kernel
+// XFRM probe in the tree (internal/component/kernelcap), which every other reader uses
+// too, so a doctor row here and the daemon's startup refusal cannot disagree about the
+// same kernel.
+//
+// Only ABSENT reports trouble. The shared probe opens the XFRM netlink socket rather than
+// dumping the Security Policy Database, so it separates "the kernel carries no XFRM" from
+// "this process was not allowed to ask", and the second is not evidence of an unprotected
+// adjacency. Off Linux the answer is cannot-determine, which is right for a transport that
+// does not run there either (ospf raw sockets are Linux-only, doctor_other.go).
+var xfrmProbe = func() bool { return kernelcap.XFRM().State != kernelcap.StateAbsent }
 
 // ospfV6IPsecConfigured reports whether any IPv6-family interface configures RFC 4552 IPsec.
 func ospfV6IPsecConfigured(cfg ospfConfig) bool {

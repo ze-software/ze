@@ -1,0 +1,43 @@
+# Test: a subsystem the configuration does not use gates nothing
+# Spec: plan/immediate/spec-kernel-capability-gate.md AC-5, AC-11
+# VALIDATES: on a host whose kernel holds no XFRM dataplane, a configuration that
+# installs no Security Association is not gated: ze starts, ze doctor reports
+# nothing about IPsec and exits 0, and ze config validate passes.
+# PREVENTS: an absent feature nobody asked for reading as a fault. Under a
+# refusal an over-reporting predicate stops a router that was working (R-3), and
+# this is the shape that would do it: the `vpn { ipsec { } }` block below is
+# EMPTY, so it describes no tunnel and installs nothing (AC-11).
+#
+# The gNMI listener is the readiness fence. It is the daemon saying it got past
+# the capability gate, on loopback so no management guard is involved.
+option=env:var=ze.test.kernelcap.xfrm:value=absent
+option=env:var=ze.gnmi.enabled:value=1
+option=env:var=ze.gnmi.listen:value=127.0.0.1:19351
+
+tmpfs=ipsec-unused.conf:terminator=EOF_CONF
+vpn {
+    ipsec {
+        interface lo
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json ipsec-unused.conf
+expect=exit:code=0
+reject=stdout:pattern=doctor-ipsec-xfrm
+
+cmd=foreground:seq=2:exec=ze config validate ipsec-unused.conf
+expect=exit:code=0
+reject=stdout:pattern=config-kernel-capability
+
+stdin=ze-bgp:terminator=EOF_START
+vpn {
+    ipsec {
+        interface lo
+    }
+}
+EOF_START
+
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=gNMI server listening on
+reject=stderr:pattern=kernel capability

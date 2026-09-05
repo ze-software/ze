@@ -47,83 +47,71 @@ func TestCheckKernelModules_PPPoE(t *testing.T) {
 	requireDiag(t, diags, "doctor-pppoe-module", diagnostic.SeverityError)
 }
 
-// withXFRMNetlink swaps the XFRM netlink probe for the duration of a test.
-func withXFRMNetlink(t *testing.T, err error) {
-	t.Helper()
-	original := xfrmNetlinkProbe
-	xfrmNetlinkProbe = func() error { return err }
-	t.Cleanup(func() { xfrmNetlinkProbe = original })
-}
-
-// ipsecConfigTree builds a config tree carrying vpn { ipsec { } }.
+// ipsecConfigTree builds a config tree carrying an EMPTY vpn { ipsec { } }.
+// It installs no Security Association, so nothing about it is in use.
 func ipsecConfigTree() *config.Tree {
 	tree := config.NewTree()
 	tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec")
 	return tree
 }
 
-// VALIDATES: AC-10. An appliance kernel builds XFRM in (CONFIG_XFRM_USER=y), so
-// /proc/modules lists nothing for it. With the XFRM netlink socket open, the check
-// reports no missing module.
-// PREVENTS: the false error every appliance run produced. readLoadedModules parses
-// /proc/modules, which holds LOADED MODULES ONLY, so a working built-in dataplane
-// read as two missing modules and ze doctor exited 1 on a healthy host.
-func TestKernelModulesBuiltInNotMissing(t *testing.T) {
-	oldModules := loadedKernelModules
-	loadedKernelModules = func() map[string]bool { return map[string]bool{"nf_tables": true} }
-	t.Cleanup(func() { loadedKernelModules = oldModules })
-	withXFRMNetlink(t, nil)
-
-	for i, d := range checkKernelModules(ipsecConfigTree()) {
-		if strings.Contains(d.Message, "xfrm_user") || strings.Contains(d.Message, "xfrm_algo") {
-			t.Errorf("diagnostic %d reports XFRM missing on a built-in kernel: %s", i, d.Message)
-		}
-	}
+// ipsecPeerConfigTree builds a config tree carrying one site-to-site peer, which
+// is what makes IPsec in use (AC-11, AC-12).
+func ipsecPeerConfigTree() *config.Tree {
+	tree := config.NewTree()
+	ipsec := tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec")
+	peer := config.NewTree()
+	peer.Set("remote-address", "203.0.113.7")
+	ipsec.GetOrCreateContainer("site-to-site").AddListEntry("peer", "branch", peer)
+	return tree
 }
 
-// VALIDATES: AC-10 does not weaken the check. A host whose XFRM netlink socket
-// cannot be opened holds no IPsec dataplane at all, and that is still an error
-// naming both modules and the netlink failure.
-// PREVENTS: trading a false error for a false pass. A kernel with no XFRM installs
-// no SA, which is exactly the readiness failure this check exists for.
-func TestKernelModulesXFRMAbsentIsReported(t *testing.T) {
-	oldModules := loadedKernelModules
-	loadedKernelModules = func() map[string]bool { return map[string]bool{"nf_tables": true} }
-	t.Cleanup(func() { loadedKernelModules = oldModules })
-	withXFRMNetlink(t, errors.New("protocol not supported"))
-
-	diags := checkKernelModules(ipsecConfigTree())
-	requireDiag(t, diags, "doctor-module-missing", diagnostic.SeverityError)
-	found := false
-	for _, d := range diags {
-		if !strings.Contains(d.Message, "xfrm_user") {
-			continue
-		}
-		found = true
-		for _, want := range []string{"xfrm_algo", "protocol not supported"} {
-			if !strings.Contains(d.Message, want) {
-				t.Errorf("the message does not name %q: %s", want, d.Message)
-			}
-		}
-	}
-	if !found {
-		t.Errorf("no diagnostic names xfrm_user: %+v", diags)
-	}
-}
-
-// VALIDATES: AC-10 keeps the check scoped to a config that asks for IPsec. A host
-// with no vpn ipsec container says nothing about XFRM, however broken its kernel.
-// PREVENTS: a probe that runs on every doctor invocation and warns operators who
-// never configured IPsec.
-func TestKernelModulesXFRMSilentWithoutIPsecConfig(t *testing.T) {
+// VALIDATES: AC-11. An empty vpn ipsec block describes no tunnel, so the module
+// check says nothing about it, whatever the host's module list holds.
+// PREVENTS: over-reporting. Under a refusal an over-reporting predicate stops a
+// working router (R-3), and the same predicate decides the module rows, the
+// listener binds and the startup gate (owner decision 6).
+func TestKernelModulesSilentForAnEmptyIPsecBlock(t *testing.T) {
 	oldModules := loadedKernelModules
 	loadedKernelModules = func() map[string]bool { return map[string]bool{} }
 	t.Cleanup(func() { loadedKernelModules = oldModules })
-	withXFRMNetlink(t, errors.New("protocol not supported"))
 
-	for i, d := range checkKernelModules(config.NewTree()) {
-		if strings.Contains(d.Message, "xfrm") {
-			t.Errorf("diagnostic %d mentions XFRM without an ipsec config: %s", i, d.Message)
+	for i, d := range checkKernelModules(ipsecConfigTree()) {
+		if strings.Contains(d.Message, "IPsec") {
+			t.Errorf("diagnostic %d reports on an empty ipsec block: %s", i, d.Message)
+		}
+	}
+}
+
+// VALIDATES: a configured IPsec peer on a host with neither firewall table still
+// gets its marking warning, so the shared predicate did not silence the rows that
+// remain here.
+// PREVENTS: under-reporting (R-2). The predicate that ends over-reporting must not
+// also end the reporting that was correct.
+func TestKernelModulesWarnsForAConfiguredIPsecPeer(t *testing.T) {
+	oldModules := loadedKernelModules
+	loadedKernelModules = func() map[string]bool { return map[string]bool{} }
+	t.Cleanup(func() { loadedKernelModules = oldModules })
+
+	requireDiag(t, checkKernelModules(ipsecPeerConfigTree()), "doctor-module-missing", diagnostic.SeverityWarning)
+}
+
+// VALIDATES: the module check speaks about no XFRM row at all. The kernel XFRM
+// dataplane is an enrolled capability (internal/component/kernelcap), which
+// answers once for ze doctor, for the startup refusal and for config validate.
+// PREVENTS: two reporters for one fact. The module list cannot answer this
+// question anyway: an appliance kernel builds XFRM in, so xfrm_user appears in no
+// module row and a working dataplane read as two missing modules.
+func TestKernelModulesLeavesXFRMToTheCapability(t *testing.T) {
+	oldModules := loadedKernelModules
+	loadedKernelModules = func() map[string]bool { return map[string]bool{} }
+	t.Cleanup(func() { loadedKernelModules = oldModules })
+
+	for _, tree := range []*config.Tree{config.NewTree(), ipsecConfigTree(), ipsecPeerConfigTree()} {
+		for i, d := range checkKernelModules(tree) {
+			if strings.Contains(d.Message, "xfrm") || strings.Contains(d.Message, "XFRM") {
+				t.Errorf("diagnostic %d still reports XFRM from the module check: %s", i, d.Message)
+			}
 		}
 	}
 }

@@ -117,6 +117,55 @@ ze cli -c "show bgp peer list"  # brief peer list with state
 ze cli -c "show bgp"            # summary table with uptime and prefix counts
 ```
 
+## Kernel Capability Refusal
+
+Ze refuses to start when the configuration uses a subsystem this kernel cannot
+carry. The refusal prints one line on stderr and exits 1.
+
+```
+error: kernel capability: ipsec: the kernel holds no CONFIG_XFRM_USER, which vpn ipsec requires: protocol not supported
+```
+
+Every failing subsystem is named, not the first one, so one repair cycle covers
+them all. `ze doctor` reports the same verdict before you start, and
+`ze config validate` fails on it.
+
+| Subsystem | Kernel feature | What to do |
+|-----------|----------------|------------|
+| `ipsec` | `CONFIG_XFRM_USER`, and `CONFIG_INET_ESP` to carry the packets | Run a kernel with both. Ze's appliance kernel builds them in |
+| `mpls` | `CONFIG_MPLS_ROUTING` and `CONFIG_MPLS_IPTUNNEL`, or the `mpls_router` module | Load the module or run a kernel with both built in |
+
+There is no override. A NOS that half-works on a kernel missing a required
+feature is the hazard this removes, and an override is what an operator reaches
+for under pressure.
+
+Three answers are possible and only one refuses:
+
+| `ze doctor` reports | Severity | `ze` |
+|---------------------|----------|------|
+| nothing | - | starts |
+| `doctor-<subsystem>-unavailable` | error | refuses, exit 1 |
+| `doctor-<subsystem>-unknown` | warning | starts |
+
+The third answer means ze could not reach the probe's evidence, most often
+because the process lacked a privilege. No kernel rebuild fixes that, so ze warns
+and starts. Read the reason in the message: `ze explain doctor-ipsec-xfrm-unknown`
+carries the rest.
+
+A configuration that does not use the subsystem is never probed and never
+reported. An empty `vpn { ipsec { } }` block installs no Security Association, so
+it is not IPsec in use.
+
+A reload is refused the same way, and a refused reload leaves the running
+configuration serving. The operator sees the refusal through `ze config commit`.
+
+`ze config validate` answers about the host running the command. A config written
+for another machine and validated on a workstation is judged against the
+workstation.
+
+<!-- source: internal/component/kernelcap/kernelcap.go -- Refuse, Evaluate -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the kernel capability refusal -->
+
 ## Environment Variables
 
 Ze environment variables use dot notation (`ze.log.bgp`) and are case-insensitive. All forms are equivalent: `ze.log.bgp`, `ZE_LOG_BGP`, `ze_log_bgp`.

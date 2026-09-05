@@ -1,0 +1,53 @@
+# Test: ze refuses to start when the kernel cannot carry a configured subsystem
+# Spec: plan/immediate/spec-kernel-capability-gate.md AC-3
+# VALIDATES: the daemon reads the SAME enrolment ze doctor renders, refuses
+# before it writes the active config version, names the subsystem and the kernel
+# feature on stderr, and exits 1.
+# PREVENTS: a daemon that comes up and does not encrypt. An operator who
+# configures IPsec on a kernel with no XFRM gets a running process, a tunnel that
+# negotiates, and no protected traffic; the failure surfaces far from its cause,
+# as a raw error from a layer that cannot explain it.
+#
+# There is NO operator override, by owner decision (2026-08-14): a NOS that
+# half-works on a kernel missing a required feature is the hazard this removes,
+# and an override is what an operator reaches for under pressure.
+option=env:var=ze.test.kernelcap.xfrm:value=absent
+
+stdin=ze-bgp:terminator=EOF_CONF
+vpn {
+    ipsec {
+        interface lo
+        ike-group IKE-1 {
+            proposal 1 {
+                encryption aes256gcm
+                hash sha256
+                dh-group 14
+            }
+        }
+        esp-group ESP-1 {
+            proposal 1 {
+                encryption aes256gcm
+            }
+        }
+        site-to-site {
+            peer branch {
+                connection-type respond
+                remote-address 203.0.113.7
+                ike-group IKE-1
+                esp-group ESP-1
+                authentication {
+                    mode pre-shared-secret
+                    pre-shared-secret correct-horse-battery-staple
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=1
+expect=stderr:contains=error: kernel capability:
+expect=stderr:contains=ipsec
+expect=stderr:contains=CONFIG_XFRM_USER
+expect=stderr:contains=vpn ipsec

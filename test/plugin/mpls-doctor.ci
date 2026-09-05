@@ -3,10 +3,14 @@
 # VALIDATES: with a BGP + fib/kernel config and no /proc/sys/net/mpls/platform_labels,
 #            `ze doctor` emits doctor-mpls-unavailable so the operator learns
 #            labeled routes cannot be programmed.
-# Linux-only: the MPLS check lives in checks_linux.go (checks_other.go is a no-op
-# elsewhere). checkMPLSSupport probes the CAPABILITY, not the module list: a
+# Linux-only: the MPLS capability is enrolled by the fib kernel plugin
+# (internal/plugins/fib/kernel/kernelcap_linux.go), whose registration file is
+# Linux-only, so nothing is enrolled elsewhere. The probe reads the CAPABILITY,
+# not the module list: a
 # kernel built with CONFIG_MPLS_ROUTING=y lists no mpls_router.ko and forwards
-# labels anyway, which is what ze's own appliance kernel does. The probe root is
+# labels anyway, which is what ze's own appliance kernel does. The verdict is an
+# ERROR now: `ze` refuses to start on it and `ze doctor` exits 1
+# (plan/immediate/spec-kernel-capability-gate.md AC-2). The probe root is
 # redirected to a path that does not exist via ze.test.doctor.procfs-root, so the
 # test is hermetic and does not read the host kernel it happens to run on.
 #
@@ -15,11 +19,11 @@
 # labeled family also needs `prefix { maximum }`, which PeersFromConfigTree
 # requires ("prefix maximum is mandatory and must be > 0").
 #
-# The peer family must be a REGISTERED labeled family: checkMPLSSupport only
-# warns when mplsInUse(tree) is true, and containerPeersLabeled matches
+# The peer family must be a REGISTERED labeled family: the capability is probed
+# only when kernelcap.MPLSInUse(tree) is true, and the peer walk matches
 # ipv4/ipv6 mpls-label and mpls-vpn. This test asserted against
 # `ipv4/mpls-unicast`, which exists nowhere in the tree, so mplsInUse was false
-# and the warning never fired. The test is skip-os everywhere but Linux, so its
+# and the report never fired. The test is skip-os everywhere but Linux, so its
 # first real execution was on CI, where it failed. The invalid family also went
 # unreported by `ze doctor` itself -- fixed by checkBGPPeerConfig
 # (internal/component/doctor/checks_config.go), which now runs the engine's peer
@@ -48,5 +52,6 @@ fib {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze doctor --json mpls.conf
-expect=exit:code=0
+expect=exit:code=1
 expect=stdout:contains=doctor-mpls-unavailable
+expect=stdout:contains=CONFIG_MPLS_ROUTING

@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/engine"
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	zepki "github.com/ze-software/ze/internal/component/pki"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
@@ -299,6 +300,18 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 		}
 		return fmt.Errorf("reload: parse config: %w", loadErr)
 	}
+	// The same kernel capability gate the daemon start applies (main.go,
+	// runYANGConfig). It runs BEFORE ReloadConfig, before the provider refresh
+	// and before engine.Reload, so a reload into a configuration this kernel
+	// cannot carry is refused with the running configuration still serving. The
+	// operator sees the refusal through `ze config commit`.
+	if capErr := kernelcap.Refuse(parsedTree); capErr != nil {
+		if clearErr := clearCandidate(); clearErr != nil {
+			return fmt.Errorf("reload: kernel capability: %w (candidate cleanup failed: %w)", capErr, clearErr)
+		}
+		return fmt.Errorf("reload: kernel capability: %w", capErr)
+	}
+
 	// Number this configuration the moment it is read. The acceptance tail uses
 	// the number to refuse a chain built from a configuration a later reload has
 	// already replaced (aaa_lifecycle.go, nextAAAConfigReadOrder).

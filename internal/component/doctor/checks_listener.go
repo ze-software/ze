@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -311,7 +312,10 @@ func extractBFDListeners(tree *config.Tree) []serviceListener {
 }
 
 func extractIPsecListeners(tree *config.Tree) []serviceListener {
-	if getContainerPath(tree, "vpn", "ipsec") == nil {
+	// One predicate, three readers (owner decision 6, 2026-08-14). An empty
+	// `vpn { ipsec { } }` describes no tunnel, so ze binds neither UDP port for
+	// it and doctor probes neither.
+	if !kernelcap.IPsecInUse(tree) {
 		return nil
 	}
 	return []serviceListener{

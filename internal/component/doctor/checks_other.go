@@ -31,10 +31,6 @@ func checkKernelNexthop() []diagnostic.Diagnostic {
 	return nil
 }
 
-func checkMPLSSupport(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
 func checkFirewallBackend(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }

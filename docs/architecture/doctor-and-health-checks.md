@@ -22,6 +22,101 @@ reaches `run`, so no `ze` invocation is refused by it: the command that tells
 the operator what is wrong keeps working on a host where the daemon will not
 boot.
 
+## Kernel capabilities: one enrolment, three callers
+
+A subsystem needs a kernel feature the host can lack. MPLS forwarding needs an
+AF_MPLS table. IPsec needs the XFRM dataplane. Ze does not discover the absence
+when the first labeled route or the first Child SA fails: it asks before it
+starts, and it refuses.
+
+The enrolment is `internal/component/kernelcap`. A subsystem registers from its
+OWN package, and the registration carries five things: the subsystem name, the
+kernel feature, the configuration that requires it, the two diagnostic codes,
+and two functions. `InUse` reads the parsed config tree. `Probe` reads the host.
+
+<!-- source: internal/component/kernelcap/kernelcap.go -- Capability, MustRegister, Evaluate, Refuse -->
+<!-- source: internal/component/ike/engine/kernelcap_linux.go -- the ipsec enrolment -->
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- the mpls enrolment -->
+
+This is the `ze doctor` tier of the table above, not a fourth one. The verdict is
+produced at read time, in the reader's own process, and it keeps no memory of a
+start. It cannot move into the setup registry, whose records are written before
+`main()` and therefore cannot see the configuration this verdict depends on.
+
+`MustRegister` registers the doctor check too, so one call from the owner puts
+the capability on all four surfaces. A second registration would be a second
+declaration of the same fact.
+
+### Three states, and the third one is why this is safe
+
+| Probe answer | Diagnostic | What the daemon does |
+|--------------|-----------|----------------------|
+| Present | none | starts |
+| Absent | `SeverityError`, the subsystem's absent code | refuses, exit 1 |
+| Cannot determine | `SeverityWarning`, the subsystem's unknown code | starts |
+
+A capability that could not be DETERMINED never refuses. The gate runs on every
+`ze` start on Linux, so refusing on a probe ze could not read would turn a
+working deployment into a dead one. A probe that returns no verdict at all is
+reported the same way: the zero `State` is `Unspecified`, and it is never read as
+a pass.
+
+The probes read netlink or procfs. Neither executes an external binary: a second
+dependency that can be absent for its own reasons is the fault this enrolment
+removes, not a way to detect it. `TestCapabilityProbeExecsNoBinary` holds the
+rule over the package's source.
+
+### Four callers, one verdict
+
+| Caller | Where | What it does |
+|--------|-------|--------------|
+| `ze doctor` | the registered check, run by `runChecks` | renders the diagnostic; `Run` already exits 1 on any `SeverityError` |
+| daemon start | `runYANGConfig`, after `applyEvolutions` and before `EnsureActiveVersion` | one stderr line, one `logStartupFailure`, `return 1` |
+| config reload | `runReloadContext`, before `ReloadConfig` | refuses with the running configuration still serving |
+| `ze config validate` | `runValidation` | `config-kernel-capability` at error severity |
+
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the kernel capability refusal -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext, the same gate before ReloadConfig -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
+
+The start refusal keeps the idiom the plugin setup refusal uses, and for the same
+reason it names EVERY failing subsystem rather than the first: an operator who
+repairs one fault and restarts to meet the next pays a whole boot for each fault
+after the first.
+
+`ze config validate` answers about the host running the command. A config written
+for another machine and validated on a workstation is judged against the
+workstation. That is why the gate is not inside `LoadConfig`, which also runs
+under `ze doctor` and under offline validation.
+
+There is no operator override, by owner decision (2026-08-14). A NOS that
+half-works on a kernel missing a required feature is the hazard this removes, and
+an override is what an operator reaches for under pressure.
+
+### The predicate decides more than the refusal
+
+`IPsecInUse` has three readers: the gate, the kernel module check and the
+listener check. An empty `vpn { ipsec { } }` block installs no Security
+Association, so it refuses no start, warns about no module and binds no IKE port.
+Over-reporting is the same defect in all three.
+
+`MPLSInUse` checks `fib { kernel { } }` BEFORE it looks at any labeled family. A
+VPP or P4 backend does its own MPLS, and the plugin that programs kernel labels
+is the one that carries the requirement.
+
+### A dead label space is repaired, not reported
+
+`net.mpls.platform_labels` is the size of the kernel's label table and it
+defaults to 0, which disables MPLS. A kernel that builds MPLS in therefore boots
+with the table present and the label space empty, which is the state every ze
+appliance starts in.
+
+So the MPLS probe reads EXISTENCE only, and the fib kernel plugin writes the
+label space once, immediately before it programs its first label. An operator's
+own value is never overwritten: only a table reading exactly 0 is repaired.
+
+<!-- source: internal/plugins/fib/kernel/labelspace_linux.go -- ensureLabelSpace, repairLabelSpace -->
+
 ## Two tiers on one topic: locking the executable
 
 `memlock` shows why tier one and tier three are not the same fact, and why
@@ -128,7 +223,8 @@ made rather than forgotten.
 |----------------|--------------|
 | Config leaf that references a file path (cert, key, binary) | File existence check |
 | Config leaf that names an external service or socket | Reachability probe |
-| Kernel module requirement | `/proc/modules` check (Linux) |
+| Kernel feature a configured subsystem cannot work without | A `kernelcap.Capability` registered from the owning package. `/proc/modules` cannot answer it: a built-in feature lists no module |
+| Kernel module requirement with no configured subsystem behind it | `/proc/modules` check (Linux) |
 | New listen address or port | Port bind probe |
 | New UDP listener | UDP `ListenPacket` bind probe |
 | New service with TLS | Certificate validity and expiry check |

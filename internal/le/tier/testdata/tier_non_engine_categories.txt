@@ -16,6 +16,7 @@ internal/component/config	framework	configuration framework and schema integrati
 internal/component/doctor	framework	doctor check framework registered through the plugin registry
 internal/component/engine	framework	runtime engine orchestration helpers, not a config-driven engine package
 internal/component/hub	framework	daemon service hub registration and orchestration framework
+internal/component/kernelcap	framework	kernel capability enrolment read by ze doctor, the daemon start, a reload and ze config validate
 internal/component/managed	framework	managed lifecycle helpers for daemon startup
 internal/component/plugin	framework	plugin registry and composition framework
 internal/component/support	framework	support bundle integration used by support plugin registration

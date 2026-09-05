@@ -1,17 +1,20 @@
-# Test: ze doctor --json reports an IPsec config whose XFRM dataplane does not answer
-# VALIDATES: AC-9. The ike plugin's XFRM reachability check is reachable from the
+# Test: ze doctor --json reports an IPsec config the host's kernel cannot carry
+# VALIDATES: the ike engine's kernel capability enrolment is reachable from the
 # USER entry point -- registration, phase filtering, platform filtering and the
-# diagnostic code all have to line up for this to emit anything.
+# diagnostic code all have to line up for this to emit anything. The verdict is
+# an ERROR now, so `ze doctor` exits 1 and the daemon refuses to start on the
+# same enrolment (plan/immediate/spec-kernel-capability-gate.md AC-2, AC-3).
 # PREVENTS: the silent failure the check exists for. Every other IPsec surface
 # reports what the engine believed at install time, so a host that cannot carry a
 # single SA still shows a tunnel as up and carries nothing.
 # Required by ai/rules/repo-maintenance.md ("Test Requirement": unit AND
 # functional), mirroring test/ui/doctor-ipsec-cookie-threshold.ci.
 
-# The probe is forced to fail so the diagnostic is reached on a host whose kernel
-# is healthy. Without the override this test would pass only where XFRM happens to
-# be absent, which is the vacuity trap of ai/rules/interop-and-goal-validation.md.
-option=env:var=ze.test.ike.xfrm-fail:value=true
+# The probe is forced to the absent answer so the diagnostic is reached on a host
+# whose kernel is healthy. Without the override this test would pass only where
+# XFRM happens to be absent, which is the vacuity trap of
+# ai/rules/interop-and-goal-validation.md.
+option=env:var=ze.test.kernelcap.xfrm:value=absent
 
 tmpfs=ipsec-xfrm.conf:terminator=EOF_CONF
 vpn {
@@ -46,10 +49,12 @@ vpn {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze doctor --json ipsec-xfrm.conf
+# Exit 1: an absent capability makes the host not ready, and the daemon refuses.
+expect=exit:code=1
 expect=stdout:contains=doctor-ipsec-xfrm-unavailable
 # The netlink failure must reach the operator. A message that says the dataplane is
 # unavailable and nothing about the cause names no action.
-expect=stdout:contains=ze.test.ike.xfrm-fail
+expect=stdout:contains=ze.test.kernelcap.xfrm
 
 cmd=foreground:seq=2:exec=ze explain doctor-ipsec-xfrm-unavailable
 expect=exit:code=0

@@ -1,122 +1,171 @@
+//go:build linux
+
 package engine
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/kernelcap"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	coreenv "github.com/ze-software/ze/internal/core/env"
 )
 
-// withXFRMProbe swaps the kernel XFRM probe for the duration of a test, so both
-// answers are reachable on a host whose own kernel never changes.
-func withXFRMProbe(t *testing.T, err error) {
+const envKeyXFRMState = "ze.test.kernelcap.xfrm"
+
+// withXFRMState forces the shared kernel XFRM probe's answer for the duration of
+// a test, so every verdict is reachable on a host whose own kernel never changes.
+func withXFRMState(t *testing.T, state string) {
 	t.Helper()
-	original := xfrmProbe
-	xfrmProbe = func() error { return err }
-	t.Cleanup(func() { xfrmProbe = original })
+	original := coreenv.Get(envKeyXFRMState)
+	t.Cleanup(func() { _ = coreenv.Set(envKeyXFRMState, original) })
+	if err := coreenv.Set(envKeyXFRMState, state); err != nil {
+		t.Fatalf("set %s: %v", envKeyXFRMState, err)
+	}
 }
 
-// VALIDATES: AC-9. An ipsec config on a host whose XFRM dataplane does not answer
-// produces doctor-ipsec-xfrm-unavailable at warning severity, and the message
-// carries the netlink failure.
+// ipsecPeerTree builds a config that installs one site-to-site Child SA, which
+// is what makes IPsec in use. An empty vpn ipsec block is not (AC-11).
+func ipsecPeerTree() *config.Tree {
+	peer := config.NewTree()
+	peer.Set("remote-address", "203.0.113.7")
+	peers := config.NewTree()
+	peers.AddListEntry("peer", "branch", peer)
+	ipsecRoot := config.NewTree()
+	ipsecRoot.SetContainer("site-to-site", peers)
+	vpnRoot := config.NewTree()
+	vpnRoot.SetContainer("ipsec", ipsecRoot)
+	root := config.NewTree()
+	root.SetContainer("vpn", vpnRoot)
+	return root
+}
+
+// ipsecCapabilityCheck returns the doctor check the ike enrolment registered.
+func ipsecCapabilityCheck(t *testing.T) diagnostic.DoctorCheck {
+	t.Helper()
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhasePostConfig) {
+		if check.Name == "kernel-capability-ipsec" {
+			return check
+		}
+	}
+	t.Fatal("the ike engine registered no kernel-capability-ipsec doctor check")
+	return diagnostic.DoctorCheck{}
+}
+
+// VALIDATES: AC-2 and AC-12. An IPsec config on a host whose kernel holds no XFRM
+// dataplane produces doctor-ipsec-xfrm-unavailable at ERROR severity, and the
+// message names the subsystem, the kernel feature and the config that asked.
 // PREVENTS: the operator reading "the tunnel is up" from a daemon that cannot
 // install a single SA. Every other IPsec surface reports engine belief, so a
 // dataplane that answers nothing is invisible until traffic stops.
-func TestXFRMUnavailableDiagnostic(t *testing.T) {
-	withXFRMProbe(t, errors.New("operation not permitted"))
+func TestXFRMAbsentIsAStartupError(t *testing.T) {
+	withXFRMState(t, "absent")
 
-	diags := checkXFRMReachable(registry.DoctorCheckContext{Tree: ipsecTree("eth0")})
+	check := ipsecCapabilityCheck(t)
+	diags := check.Check(diagnostic.DoctorCheckContext{Tree: ipsecPeerTree()})
 	if len(diags) != 1 {
-		t.Fatalf("an unreachable XFRM dataplane produced %d diagnostics, want 1", len(diags))
+		t.Fatalf("an absent XFRM dataplane produced %d diagnostics, want 1", len(diags))
 	}
-	if diags[0].Code != "doctor-ipsec-xfrm-unavailable" {
-		t.Errorf("code is %q, want doctor-ipsec-xfrm-unavailable", diags[0].Code)
+	if diags[0].Code != diagnosticIPsecXFRMUnavailable {
+		t.Errorf("code is %q, want %q", diags[0].Code, diagnosticIPsecXFRMUnavailable)
 	}
-	// Warning, not error: the same probe fails for a host that lacks CAP_NET_ADMIN,
-	// where the kernel is fine and the privilege is not.
-	if diags[0].Severity != "warning" {
-		t.Errorf("severity is %q, want warning", diags[0].Severity)
+	// Error, not warning: this severity is what refuses the start, and the probe
+	// used here reports absence only for the errno that means the kernel carries
+	// no XFRM. A denied probe is a separate verdict with its own code.
+	if diags[0].Severity != diagnostic.SeverityError {
+		t.Errorf("severity is %q, want error", diags[0].Severity)
 	}
-	// The netlink failure must reach the operator. Without it the message says the
-	// dataplane is unavailable and nothing about which action fixes it.
-	if !strings.Contains(diags[0].Message, "operation not permitted") {
-		t.Errorf("the message does not name the netlink failure: %s", diags[0].Message)
+	for _, want := range []string{"ipsec", "CONFIG_XFRM_USER", "vpn ipsec"} {
+		if !strings.Contains(diags[0].Message, want) {
+			t.Errorf("the message does not name %q: %s", want, diags[0].Message)
+		}
 	}
 }
 
-// VALIDATES: AC-9. The check is silent when the dataplane answers, and silent for
-// every config that holds no vpn ipsec container.
-// PREVENTS: a check that warns on every run, which trains an operator to ignore it.
-func TestXFRMReachableSilentWhenNothingIsWrong(t *testing.T) {
+// VALIDATES: AC-6. A probe that cannot answer warns and does not refuse.
+// PREVENTS: a working deployment turned into a dead one by an unreadable probe
+// (R-1). An unprivileged reader must never be told the kernel lacks XFRM.
+func TestXFRMUnknownWarnsRatherThanRefusing(t *testing.T) {
+	withXFRMState(t, "unknown")
+
+	check := ipsecCapabilityCheck(t)
+	diags := check.Check(diagnostic.DoctorCheckContext{Tree: ipsecPeerTree()})
+	if len(diags) != 1 {
+		t.Fatalf("an undetermined XFRM dataplane produced %d diagnostics, want 1", len(diags))
+	}
+	if diags[0].Code != diagnosticIPsecXFRMUnknown {
+		t.Errorf("code is %q, want %q", diags[0].Code, diagnosticIPsecXFRMUnknown)
+	}
+	if diags[0].Severity != diagnostic.SeverityWarning {
+		t.Errorf("severity is %q, want warning", diags[0].Severity)
+	}
+	if err := kernelcap.Refuse(ipsecPeerTree()); err != nil {
+		t.Errorf("cannot-determine refused a start: %v", err)
+	}
+}
+
+// VALIDATES: AC-1, AC-5 and AC-11. The check is silent when the dataplane answers,
+// silent for a config that holds no vpn ipsec container, and silent for an empty
+// vpn ipsec block that installs no Security Association.
+// PREVENTS: a check that fires on every run, which trains an operator to ignore
+// it, and a refusal for a configuration that would have carried no packet.
+func TestXFRMCapabilitySilentWhenNothingIsWrong(t *testing.T) {
+	check := ipsecCapabilityCheck(t)
+
 	t.Run("the dataplane answers", func(t *testing.T) {
-		withXFRMProbe(t, nil)
-		if diags := checkXFRMReachable(registry.DoctorCheckContext{Tree: ipsecTree("eth0")}); len(diags) != 0 {
-			t.Errorf("a reachable dataplane produced %d diagnostics: %+v", len(diags), diags)
+		withXFRMState(t, "present")
+		if diags := check.Check(diagnostic.DoctorCheckContext{Tree: ipsecPeerTree()}); len(diags) != 0 {
+			t.Errorf("a present dataplane produced %d diagnostics: %+v", len(diags), diags)
 		}
 	})
 
-	// The expectation comes from the CONFIG TREE. ze doctor runs offline in a
-	// process where the engine never ran, so ActiveTable() is nil there and a
-	// host with no IPsec configured must say nothing about XFRM.
-	withXFRMProbe(t, errors.New("no such device"))
+	withXFRMState(t, "absent")
 	for _, tc := range []struct {
 		name string
 		tree any
 	}{
 		{"no vpn section", config.NewTree()},
+		{"an empty vpn ipsec block", ipsecTree("eth0")},
 		{"nil tree", (*config.Tree)(nil)},
 		{"a tree of the wrong type", "not a tree"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if diags := checkXFRMReachable(registry.DoctorCheckContext{Tree: tc.tree}); len(diags) != 0 {
-				t.Errorf("a config without ipsec produced %d diagnostics: %+v", len(diags), diags)
+			if diags := check.Check(diagnostic.DoctorCheckContext{Tree: tc.tree}); len(diags) != 0 {
+				t.Errorf("a config that installs no SA produced %d diagnostics: %+v", len(diags), diags)
 			}
 		})
 	}
 }
 
-// VALIDATES: AC-9. The check is declared on the ike plugin registration, so
-// ze doctor runs it and ze explain resolves its code.
-// PREVENTS: the check existing as dead code, which is what an unregistered
+// VALIDATES: the enrolment is declared by the ike engine, so ze doctor runs it,
+// the startup gate reads it and ze explain resolves both its codes.
+// PREVENTS: the capability existing as dead code, which is what an unregistered
 // readiness check is (ai/rules/completion.md).
-func TestXFRMReachableDoctorCheckRegistered(t *testing.T) {
-	for _, check := range registry.PluginDoctorChecks() {
-		if check.PluginName != "ike" || check.Name != "ipsec-xfrm" {
-			continue
+func TestIPsecCapabilityEnrolled(t *testing.T) {
+	enrolled := false
+	for _, subsystem := range kernelcap.Enrolled() {
+		if subsystem == "ipsec" {
+			enrolled = true
 		}
-		if check.Check == nil {
-			t.Fatal("ike ipsec-xfrm doctor check has a nil Check function")
-		}
-		found := false
-		for _, code := range check.Codes {
-			if code == "doctor-ipsec-xfrm-unavailable" {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("declared codes %v do not include doctor-ipsec-xfrm-unavailable", check.Codes)
-		}
-		return
 	}
-	t.Fatal("ike plugin declares no ipsec-xfrm doctor check")
-}
+	if !enrolled {
+		t.Fatalf("ipsec is not enrolled; enrolled subsystems are %v", kernelcap.Enrolled())
+	}
 
-// VALIDATES: the ze.test.ike.xfrm-fail override drives the probe to failure, which
-// is what test/ui/doctor-ipsec-xfrm.ci needs to reach the diagnostic through the
-// user entry point on a host whose kernel is healthy.
-// PREVENTS: a functional test that passes only where XFRM happens to be absent.
-func TestXFRMProbeHonorsTestOverride(t *testing.T) {
-	original := coreenv.Get(envKeyIKEXFRMFail)
-	t.Cleanup(func() { _ = coreenv.Set(envKeyIKEXFRMFail, original) })
-	if err := coreenv.Set(envKeyIKEXFRMFail, "true"); err != nil {
-		t.Fatalf("set %s: %v", envKeyIKEXFRMFail, err)
+	check := ipsecCapabilityCheck(t)
+	if check.Check == nil {
+		t.Fatal("kernel-capability-ipsec has a nil Check function")
 	}
-	// errors.Is, not err != nil. A host without CAP_NET_ADMIN fails the real probe
-	// with EPERM, so a nil check would pass with the override deleted.
-	if err := probeXFRMDataplane(); !errors.Is(err, errXFRMForced) {
-		t.Fatalf("the override did not force a probe failure: %v", err)
+	wanted := map[string]bool{diagnosticIPsecXFRMUnavailable: false, diagnosticIPsecXFRMUnknown: false}
+	for _, code := range check.Codes {
+		if _, ok := wanted[code]; ok {
+			wanted[code] = true
+		}
+	}
+	for code, found := range wanted {
+		if !found {
+			t.Errorf("declared codes %v do not include %s", check.Codes, code)
+		}
 	}
 }

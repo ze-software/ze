@@ -520,8 +520,13 @@ func TestCheckListeners_ServicePorts(t *testing.T) {
 
 	tree := config.NewTree()
 	tree.GetOrCreateContainer("bfd")
-	vpn := tree.GetOrCreateContainer("vpn")
-	vpn.GetOrCreateContainer("ipsec")
+	// One site-to-site peer, not an empty block. An empty `vpn { ipsec { } }`
+	// installs no Security Association, so ze binds neither IKE port for it and
+	// doctor probes neither (AC-11, owner decision 6).
+	ipsecPeer := config.NewTree()
+	ipsecPeer.Set("remote-address", "203.0.113.7")
+	tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec").
+		GetOrCreateContainer("site-to-site").AddListEntry("peer", "branch", ipsecPeer)
 	service := tree.GetOrCreateContainer("service")
 	tftp := service.GetOrCreateContainer("tftp-server")
 	tftp.Set("enabled", "true")
@@ -1821,6 +1826,7 @@ var doctorDependencyCovered = map[string]string{
 	"module/pppoe":            "doctor-pppoe-module",
 	"module/ipsec":            "doctor-module-missing",
 	"procfs/mpls":             "doctor-mpls-unavailable",
+	"netlink/xfrm":            "doctor-ipsec-xfrm-unavailable",
 	"module/nftables":         "doctor-firewall-nftables",
 	"module/vfio":             "doctor-vpp-dpdk",
 	"socket/vpp":              "doctor-vpp-unreachable",
@@ -2072,7 +2078,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		}
 	}
 
-	const expectedTotal = 61
+	const expectedTotal = 62
 	total := len(doctorDependencyCovered) + len(doctorDependencyExcluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)

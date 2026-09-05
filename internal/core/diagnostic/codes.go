@@ -25,7 +25,6 @@ const (
 	codeConfigYANGType                = "config-yang-type"
 	codeDoctorConfigClaimsUnavailable = "doctor-config-claims-unavailable"
 	codeDoctorConfigRootUnclaimed     = "doctor-config-root-unclaimed"
-	codeDoctorMPLSDisabled            = "doctor-mpls-disabled"
 	codeDoctorMPLSUnavailable         = "doctor-mpls-unavailable"
 	codeDoctorMPLSUnknown             = "doctor-mpls-unknown"
 	codeDoctorPKICARootExpiry         = "doctor-pki-ca-root-expiry"
@@ -88,6 +87,12 @@ var builtinCodes = []CodeMeta{
 		Code:        "config-mcp-invalid",
 		Title:       "MCP config consistency failure",
 		Description: "MCP auth-mode, bind-remote, OAuth, or TLS cross-leaf consistency check failed.",
+	},
+	{
+		Code:        "config-kernel-capability",
+		Title:       "Kernel capability missing for a configured subsystem",
+		Description: "The configuration uses a subsystem this kernel cannot carry. Every failing subsystem is named, with the kernel feature it needs and the configuration that asked for it. `ze` refuses to start on the same verdict, so a config that fails here would produce a daemon that comes up and does not work. The verdict is about the host running the command: validating a config written for another machine answers about this one. Remedy: run the kernel feature the message names, or remove the configuration that needs it.",
+		Examples:    []string{"ze config validate ze.conf", "ze explain config-kernel-capability"},
 	},
 	{
 		Code:        "config-gnmi-invalid",
@@ -422,7 +427,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:         codeDoctorMPLSUnknown,
 		Title:        "MPLS kernel support unknown",
-		Description:  "The MPLS capability probe (/proc/sys/net/mpls/platform_labels, under the root named by ze.test.doctor.procfs-root) could not be read, so ze cannot tell whether the kernel holds an AF_MPLS forwarding table. This is reported rather than passed over in silence: a check that cannot be evaluated is not a check that succeeded. Remedy: check the permissions on /proc/sys/net/mpls and the path above it. An ABSENT probe is not this code -- it means the kernel holds no AF_MPLS table and reports doctor-mpls-unavailable. Only a stat that fails for another reason, such as a permission denial or a path component that is not a directory, reaches here.",
+		Description:  "The MPLS capability probe (/proc/sys/net/mpls/platform_labels, under the root named by ze.test.doctor.procfs-root) could not be read, so ze cannot tell whether the kernel holds an AF_MPLS forwarding table. This is reported rather than passed over in silence: a check that cannot be evaluated is not a check that succeeded. It is a WARNING and it does not refuse a start, because refusing on a probe ze could not read would stop a router whose kernel is fine. Remedy: check the permissions on /proc/sys/net/mpls and the path above it. An ABSENT probe is not this code -- it means the kernel holds no AF_MPLS table, it reports doctor-mpls-unavailable, and that one does refuse the start.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-unknown"},
 		RelatedCodes: []string{codeDoctorMPLSUnavailable},
 	},
@@ -436,16 +441,9 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:         codeDoctorMPLSUnavailable,
 		Title:        "MPLS kernel support unavailable",
-		Description:  "The kernel holds no AF_MPLS forwarding table: /proc/sys/net/mpls/platform_labels does not exist. BGP labeled routes cannot be installed in the kernel FIB, and neither LDP nor RSVP-TE can program a label. Remedy: load mpls_router and mpls_iptunnel, or run a kernel built with CONFIG_MPLS_ROUTING and CONFIG_MPLS_IPTUNNEL. ze's own appliance kernel builds both in, so it needs no module. A probe that EXISTS and reads 0 is a different state and reports doctor-mpls-disabled.",
-		Examples:     []string{exampleDoctorJSON},
-		RelatedCodes: []string{codeDoctorMPLSDisabled, codeDoctorMPLSUnknown},
-	},
-	{
-		Code:         codeDoctorMPLSDisabled,
-		Title:        "MPLS label table sized zero",
-		Description:  "The kernel holds an AF_MPLS forwarding table but its label space is zero: /proc/sys/net/mpls/platform_labels reads 0, which is the kernel default and disables MPLS entirely. A labeled BGP family, LDP or RSVP-TE is configured, so ze will try to program labels the kernel refuses. This is a separate code from doctor-mpls-unavailable because the remedy is different: the kernel needs no module and no rebuild, only a size. Remedy: set net.mpls.platform_labels to the highest label ze may use, through the sysctl {} block. This is the state an appliance boots in, because ze's own runtime kernel builds MPLS in and the sysctl still defaults to 0.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-disabled"},
-		RelatedCodes: []string{codeDoctorMPLSUnavailable, codeDoctorMPLSUnknown},
+		Description:  "The kernel holds no AF_MPLS forwarding table: /proc/sys/net/mpls/platform_labels does not exist, and the configuration asks the kernel FIB to forward MPLS. BGP labeled routes cannot be installed, and neither LDP nor RSVP-TE can program a label. This is an ERROR: `ze` refuses to start on it and `ze config validate` fails on it, because a daemon that advertises label forwarding it cannot perform blackholes the traffic it attracted. Remedy: load mpls_router, or run a kernel built with CONFIG_MPLS_ROUTING and CONFIG_MPLS_IPTUNNEL. ze's own appliance kernel builds both in, so it needs no module. A table that EXISTS with a label space of 0 is not reported at all: ze writes a label space before it programs its first label.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-unavailable"},
+		RelatedCodes: []string{codeDoctorMPLSUnknown},
 	},
 	{
 		Code:        "doctor-ldp-port-unavailable",
@@ -530,6 +528,24 @@ var builtinCodes = []CodeMeta{
 		Title:       "VRRP raw IP socket unavailable",
 		Description: "VRRP is configured but a raw IP socket for protocol 112 (RFC 9568 / RFC 3768) cannot be opened. VRRP advertisements are sent and received directly over IP protocol 112, so this requires CAP_NET_RAW or root; without it VRRP cannot send or receive advertisements and every group stays in Initialize (no failover). The transport also needs it for the gratuitous-ARP (AF_PACKET) and unsolicited-NA (raw ICMPv6) failover announcers.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vrrp-raw-socket"},
+	},
+	{
+		Code:        "doctor-crash-capture-unarmed",
+		Title:       "Kernel crash capture configured but not armed",
+		Description: "system crash-dump enabled is set, but the running kernel booted without the reserved memory region the capture writes into. A reservation is a kernel boot argument, so a commit records the intent and the next boot arms it: build the appliance image with image.crash-dump and reboot. Until then a kernel panic leaves no record, and the appliance has no shell to diagnose one with.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-crash-capture-unarmed"},
+	},
+	{
+		Code:        "doctor-crash-capture-pstore",
+		Title:       "Kernel crash record store unreadable",
+		Description: "The reserved region is present on the kernel command line, but the pstore filesystem the kernel exposes the record through cannot be read. Either the running kernel was built without CONFIG_PSTORE and CONFIG_PSTORE_RAM, or mounting pstore on /sys/fs/pstore was refused. The kernel takes the reserved memory on every boot either way, so this reports RAM spent for a record nothing can read back.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-crash-capture-pstore"},
+	},
+	{
+		Code:        "doctor-crash-directory-unwritable",
+		Title:       "Crash directory not writable",
+		Description: "No candidate crash directory could be created and written, so Ze has nowhere to store a crash report. The probe order is the ze.crash.dir override, then the config directory's crash subdirectory, then the three built-in candidates. Without one, a Go panic report is lost and a harvested kernel record is kept in the reserved region for the next boot instead of being stored.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-crash-directory-unwritable"},
 	},
 	{
 		Code:        "doctor-ospfv3-ipsec",
@@ -636,14 +652,33 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:  "doctor-ipsec-xfrm-unavailable",
 		Title: "IPsec XFRM dataplane unavailable",
-		Description: "vpn ipsec is configured and the kernel XFRM dataplane did not answer. Ze " +
-			"installs every Child SA and every IPsec policy through XFRM, so a tunnel will " +
-			"negotiate to the point of success and then carry no traffic. The probe fails for two " +
-			"causes that need different action. The kernel can hold no XFRM at all, which needs " +
-			"CONFIG_XFRM_USER and CONFIG_INET_ESP. The process can lack CAP_NET_ADMIN, which the " +
-			"dump and every install call need. On a platform other than Linux there is no XFRM " +
-			"dataplane, and ze installs no SA there.",
+		Description: "The configuration installs an IPsec Security Association and the kernel holds " +
+			"no XFRM dataplane. Ze installs every Child SA and every IPsec policy through XFRM, so " +
+			"a tunnel would negotiate to the point of success and then carry no traffic. This is an " +
+			"ERROR: `ze` refuses to start on it and `ze config validate` fails on it. The probe " +
+			"opens the XFRM netlink socket, which needs no CAP_NET_ADMIN, and it reports absence " +
+			"only for the errno that means the kernel carries no XFRM protocol; a probe that could " +
+			"not ask reports doctor-ipsec-xfrm-unknown instead and does not refuse the start. " +
+			"Remedy: run a kernel built with CONFIG_XFRM_USER and CONFIG_INET_ESP. " +
+			"CONFIG_XFRM_USER alone gives the netlink interface and accepts every SA install while " +
+			"CONFIG_INET_ESP carries the packets, so a kernel with the first and not the second " +
+			"passes this probe and still encrypts nothing; only the appliance build requirement " +
+			"catches that (internal/appliance/kernelreq.go). An empty `vpn { ipsec { } }` block " +
+			"installs no SA and is never reported here.",
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-xfrm-unavailable"},
+	},
+	{
+		Code:  "doctor-ipsec-xfrm-unknown",
+		Title: "IPsec XFRM dataplane undetermined",
+		Description: "The configuration installs an IPsec Security Association and ze could not " +
+			"establish whether the kernel holds an XFRM dataplane: the probe's socket open failed " +
+			"for a reason other than the kernel carrying no XFRM protocol. This is a WARNING and it " +
+			"does not refuse a start, because refusing on a question ze could not ask would stop a " +
+			"router whose kernel is fine. Off Linux it is the standing answer: ze installs no SA " +
+			"there, so there is no dataplane to find. Remedy: read the reason the message carries. " +
+			"A permission denial is a privilege fault rather than a kernel one, and rebuilding a " +
+			"kernel for it changes nothing.",
+		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-xfrm-unknown"},
 	},
 	{
 		Code:        "doctor-bgp-listen",
@@ -846,6 +881,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "VPP hugepage reservation problem",
 		Description: "VPP is enabled but the host's boot-time hugepage reservation is missing, smaller than VPP needs, clamped by the kernel, or (for 1G pages) unsupported by the CPU. Reserve hugepages via image.hugepages or the boot cmdline.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-hugepages"},
+	},
+	{
+		Code:        "doctor-vpp-cpu-isolation",
+		Title:       "VPP worker CPUs are not isolated",
+		Description: "VPP pins worker threads to CPUs the Linux scheduler still owns, or the host does not report which CPUs are isolated, or every online CPU is isolated and the Linux control plane has none. A VPP worker busy-polls, so a CPU it shares with Linux costs both. Isolate the worker cores with isolcpus on the boot cmdline, or with image.isolated-cpus on an appliance.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-cpu-isolation"},
 	},
 	{
 		Code:        "doctor-update-check-unreachable",

@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -304,6 +305,20 @@ func runValidation(input, path string) *validationResult {
 			d.Severity = diagnostic.SeverityWarning
 		}
 		result.Diagnostics = append(result.Diagnostics, d)
+	}
+
+	// The kernel capability gate, the same enrolment ze doctor renders and the
+	// daemon start refuses on (internal/component/kernelcap). One registry
+	// answers all three, so a config that validates here starts there.
+	//
+	// This verdict is about THIS host. A config written for another machine and
+	// validated on a workstation is answered against the workstation, which is
+	// why the gate is not inside LoadConfig: that loader also runs under
+	// `ze doctor` and under offline validation, where a host verdict would be
+	// wrong. `ze config validate` carries it deliberately, and
+	// docs/guide/operations.md says so.
+	if capErr := kernelcap.Refuse(tree); capErr != nil {
+		result.addError("config-kernel-capability", capErr.Error())
 	}
 
 	// MCP semantic validation. The same check runs in config.ValidateSemantics

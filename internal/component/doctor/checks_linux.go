@@ -7,12 +7,10 @@ package doctor
 import (
 	"context"
 	"errors"
-	"io/fs"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/smart"
@@ -35,7 +34,6 @@ const (
 	defaultVPPSocket     = "/run/vpp/api.sock"
 	backendVPP           = "vpp"
 	doctorModulesEnv     = "ze.test.doctor.modules-file"
-	doctorProcRootEnv    = "ze.test.doctor.procfs-root"
 	doctorNetlinkFailEnv = "ze.test.doctor.netlink-fail"
 	doctorMachineIDEnv   = "ze.test.doctor.machine-id-path"
 	doctorRandomSeedEnv  = "ze.test.doctor.random-seed-path"
@@ -60,13 +58,6 @@ var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorModulesEnv,
 	Type:        envTypeString,
 	Description: "Override /proc/modules path for doctor functional tests",
-	Private:     true,
-})
-
-var _ = env.MustRegister(env.EnvEntry{
-	Key:         doctorProcRootEnv,
-	Type:        envTypeString,
-	Description: "Override /proc root path for doctor functional tests",
 	Private:     true,
 })
 
@@ -102,26 +93,6 @@ var accessPath = unix.Access
 var currentUID = os.Getuid
 var newRouteNetlinkHandle = func() (routeNetlinkHandle, error) {
 	return netlink.NewHandle(unix.NETLINK_ROUTE)
-}
-
-// xfrmNetlinkProbe reports why the kernel holds no XFRM dataplane, or nil when it
-// holds one. A var so a unit test drives both answers without a kernel.
-var xfrmNetlinkProbe = openXFRMNetlink
-
-// openXFRMNetlink opens the XFRM netlink socket and closes it again.
-//
-// Opening the socket is the honest test of whether the kernel carries XFRM, and it
-// is the one /proc/modules cannot make: a built-in CONFIG_XFRM_USER=y appears in no
-// module list, which is the appliance case. The socket needs no CAP_NET_ADMIN, so
-// an unprivileged ze doctor still gets the right answer, and on a modular kernel
-// the open loads the module the same way any XFRM user would.
-func openXFRMNetlink() error {
-	h, err := netlink.NewHandle(unix.NETLINK_XFRM)
-	if err != nil {
-		return err
-	}
-	h.Close()
-	return nil
 }
 
 func checkVPPSocket(sockPath string) []diagnostic.Diagnostic {
@@ -175,9 +146,11 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 			pppoeRequired = true
 		}
 
-		if getContainerPath(tree, "vpn", "ipsec") != nil {
-			hasIPsec = true
-		}
+		// One predicate, three readers: this check, the capability gate and
+		// extractIPsecListeners (owner decision 6, 2026-08-14). An empty
+		// `vpn { ipsec { } }` installs no Security Association, so it warns
+		// about no module and opens no listener.
+		hasIPsec = kernelcap.IPsecInUse(tree)
 	}
 
 	if len(required) == 0 && !l2tpRequired && !pppoeRequired && !hasIPsec {
@@ -213,28 +186,11 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 		})
 	}
 
-	// XFRM is asked about through netlink, not through /proc/modules.
-	//
-	// readLoadedModules parses /proc/modules, which lists LOADED MODULES ONLY. An
-	// appliance kernel builds XFRM in (CONFIG_XFRM_USER=y in
-	// gokrazy/kernel/kernel.config), so xfrm_user and xfrm_algo appear nowhere in
-	// that file and the module rows reported two missing modules for a dataplane
-	// that was present and working. ze doctor exited 1 on a healthy appliance.
-	//
-	// The check is not weakened: a host whose XFRM netlink socket cannot be opened
-	// holds no IPsec dataplane at all, and that is still an error. Only the
-	// evidence changed, from how the kernel was PACKAGED to whether the capability
-	// EXISTS.
-	if hasIPsec {
-		if err := xfrmNetlinkProbe(); err != nil {
-			diags = append(diags, diagnostic.Diagnostic{
-				Code:     diagnosticModuleMissing,
-				Severity: diagnostic.SeverityError,
-				Message: tb.Reset().Str("IPsec: the kernel holds no XFRM dataplane (xfrm_user, xfrm_algo): ").
-					Err(err).String(),
-			})
-		}
-	}
+	// The XFRM dataplane is NOT asked about here. It is an enrolled kernel
+	// capability (internal/component/kernelcap), so one probe answers for
+	// ze doctor, for the daemon's startup refusal and for `ze config validate`,
+	// and the three cannot disagree. A module list could not answer it at all:
+	// an appliance kernel builds XFRM in, so xfrm_user appears in no module row.
 
 	if hasIPsec && !loaded["ip_tables"] && !loaded["nf_tables"] {
 		diags = append(diags, diagnostic.Diagnostic{
@@ -532,13 +488,14 @@ func checkVPPVersion(tree *config.Tree) []diagnostic.Diagnostic {
 // loadedModulesPath is the file the module list is read from: the test stub when
 // ze.test.doctor.modules-file names one, else procfs. Its only reader is
 // readLoadedModules, which feeds checkKernelModules. No diagnostic message names
-// this path: checkMPLSSupport used to, and it now probes the AF_MPLS sysctl
-// instead, because a module list cannot see a built-in capability.
+// this path: a kernel feature a configured subsystem needs is an enrolled
+// capability now (internal/component/kernelcap), probed through netlink or the
+// AF_MPLS sysctl, because a module list cannot see a built-in capability.
 func loadedModulesPath() string {
 	if path := env.Get(doctorModulesEnv); path != "" {
 		return path
 	}
-	return procPath("modules")
+	return kernelcap.ProcPath("modules")
 }
 
 func readLoadedModules() map[string]bool {
@@ -557,7 +514,7 @@ func readLoadedModules() map[string]bool {
 }
 
 func checkKernelNexthop() []diagnostic.Diagnostic {
-	path := procPath("net", "nexthop")
+	path := kernelcap.ProcPath("net", "nexthop")
 	_, err := statPath(path)
 	if err != nil {
 		var tb textbuf.Buffer
@@ -568,167 +525,6 @@ func checkKernelNexthop() []diagnostic.Diagnostic {
 		}}
 	}
 	return nil
-}
-
-func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
-	if tree == nil {
-		return nil
-	}
-	// MPLS modules only matter for the kernel FIB backend.
-	fibBlock := tree.GetContainer("fib")
-	if fibBlock == nil || fibBlock.GetContainer("kernel") == nil {
-		return nil
-	}
-	// Only warn when MPLS forwarding is actually configured (F15): a labeled BGP
-	// family, LDP, RSVP-TE, or a per-interface MPLS enable. A plain BGP config
-	// over the kernel FIB imposes no labels and needs no MPLS modules.
-	if !mplsInUse(tree) {
-		return nil
-	}
-
-	// Ask whether the CAPABILITY exists, never how the kernel was PACKAGED.
-	//
-	// readLoadedModules parses /proc/modules, which lists LOADED MODULES ONLY. A
-	// kernel with CONFIG_MPLS_ROUTING=y has no mpls_router.ko to list, so the
-	// module rows reported MPLS absent on the very kernel that forwards it.
-	// ze's own runtime kernel became such a kernel when CONFIG_MPLS_ROUTING and
-	// CONFIG_MPLS_IPTUNNEL were built in (gokrazy/kernel/runtime.config), so
-	// every appliance with MPLS configured would have warned about a kernel that
-	// supports it. Same defect, and the same fix, as the XFRM rows above.
-	//
-	// af_mpls creates net.mpls.platform_labels when MPLS routing is available,
-	// built in or loaded as a module, so one probe answers for both packagings.
-	//
-	// The VALUE is read, never only the path. The sysctl is the size of the label
-	// space and it defaults to 0, which disables MPLS entirely
-	// (docs/guide/mpls.md). Building MPLS into ze's runtime kernel therefore
-	// creates this file on every appliance, at 0, so a check that stopped at the
-	// stat would go silent on exactly the machines the built-in kernel was meant
-	// to serve: the table exists, the label space does not, and ze programs
-	// labels the kernel refuses. Present-but-zero is its own answer with its own
-	// remedy, so it gets its own code rather than being folded into either
-	// neighbor.
-	path := mplsPlatformLabelsPath()
-	raw, err := readFilePath(path)
-	if err == nil {
-		if strings.TrimSpace(string(raw)) != "0" {
-			return nil
-		}
-		var tb textbuf.Buffer
-		return []diagnostic.Diagnostic{{
-			Code:     "doctor-mpls-disabled",
-			Severity: diagnostic.SeverityWarning,
-			Message: tb.Str("MPLS forwarding disabled: ").Str(path).
-				Str(" is 0, so the kernel holds no label space and labeled routes cannot be installed; set net.mpls.platform_labels in the sysctl {} block").String(),
-		}}
-	}
-	// The probe could not be READ, which is not the same as "MPLS is absent". A
-	// guard that cannot reach its evidence says so rather than reporting the
-	// answer it did not get (ai/rules/evidence.md).
-	if !errors.Is(err, fs.ErrNotExist) {
-		var tb textbuf.Buffer
-		return []diagnostic.Diagnostic{{
-			Code:     "doctor-mpls-unknown",
-			Severity: diagnostic.SeverityWarning,
-			Message: tb.Str("cannot determine MPLS kernel support, the capability probe is unreadable: ").
-				Err(err).String(),
-		}}
-	}
-
-	var tb textbuf.Buffer
-	return []diagnostic.Diagnostic{{
-		Code:     "doctor-mpls-unavailable",
-		Severity: diagnostic.SeverityWarning,
-		Message: tb.Str("MPLS forwarding unavailable: ").Str(path).
-			Str(" does not exist, so the kernel holds no AF_MPLS table and labeled routes cannot be installed").String(),
-	}}
-}
-
-// mplsPlatformLabelsPath names the sysctl af_mpls creates when the kernel holds
-// an AF_MPLS forwarding table. Shared with the doctor-mpls-unavailable message
-// so it names the path the check actually tried; the doctor-mpls-unknown message
-// gets that path from os.Stat's own *PathError.
-func mplsPlatformLabelsPath() string {
-	return procPath("sys", "net", "mpls", "platform_labels")
-}
-
-// mplsInUse reports whether the config actually uses MPLS forwarding: a BGP
-// labeled-unicast/VPN family on a peer (directly or via a group), LDP, RSVP-TE,
-// or a per-interface MPLS enable. checkMPLSSupport gates the MPLS-module warning
-// on this so a plain BGP-over-kernel config does not warn about modules it does
-// not need (F15).
-func mplsInUse(tree *config.Tree) bool {
-	if tree.GetContainer("ldp") != nil || tree.GetContainer("rsvp-te") != nil {
-		return true
-	}
-	for _, i := range tree.GetListOrdered("interface") {
-		if i.Value.GetContainer("mpls") != nil {
-			return true
-		}
-	}
-	bgp := tree.GetContainer("bgp")
-	if bgp == nil {
-		return false
-	}
-	if containerPeersLabeled(bgp) {
-		return true
-	}
-	for _, g := range bgp.GetListOrdered("group") {
-		// A group carries the full peer-fields grouping
-		// (internal/component/bgp/yang/ze-bgp-conf.yang `list group { uses
-		// peer-fields; }`), so the family may be declared ONCE on the group and
-		// on none of its peers; ResolveBGPTree deep-merges it into every member
-		// (internal/component/bgp/config/resolve.go). Checking only the group's
-		// peers missed that shape entirely -- and it is the idiomatic one, used
-		// by 26 configs in this repo (test/encode/group-inheritance.ci is the
-		// canonical example).
-		if sessionLabeled(g.Value) || containerPeersLabeled(g.Value) {
-			return true
-		}
-	}
-	return false
-}
-
-// sessionLabeled reports whether c's OWN session negotiates a labeled family.
-// Used for a group, whose session is inherited by each member peer.
-func sessionLabeled(c *config.Tree) bool {
-	session := c.GetContainer("session")
-	if session == nil {
-		return false
-	}
-	for _, fam := range session.GetListOrdered("family") {
-		if slices.Contains(labeledFamilies, fam.Key) {
-			return true
-		}
-	}
-	return false
-}
-
-// labeledFamilies are the family names that mean MPLS forwarding, and therefore
-// that the kernel needs mpls_router / mpls_iptunnel. Package-level so the test
-// that pins them against a parsed config reads the same list the check does.
-var labeledFamilies = []string{"ipv4/mpls-label", "ipv6/mpls-label", "ipv4/mpls-vpn", "ipv6/mpls-vpn"}
-
-// containerPeersLabeled reports whether any peer directly under c negotiates a
-// labeled-unicast or MPLS-VPN family.
-//
-// `family` is a LIST keyed by the family name, not a container -- `family
-// ipv4/mpls-label { ... }` parses to a list ENTRY whose key is the family. This
-// read used session.GetContainer("family"), which is nil for a list, so the loop
-// below was unreachable and checkMPLSSupport could never fire on a real config;
-// it was the only reader in the tree doing so (web/page_bgp_peers.go,
-// page_bgp_families.go, page_bgp_groups.go and exabgp/migration all use
-// GetListOrdered). test/plugin/mpls-doctor.ci existed to catch this and could
-// not: it is skip-os everywhere but Linux, so it had never run until CI, and it
-// ALSO named a family (`ipv4/mpls-unicast`) that does not exist -- two
-// independent faults, either of which alone produced the same silent pass.
-func containerPeersLabeled(c *config.Tree) bool {
-	for _, p := range c.GetListOrdered("peer") {
-		if sessionLabeled(p.Value) {
-			return true
-		}
-	}
-	return false
 }
 
 func checkFirewallBackend(tree *config.Tree) []diagnostic.Diagnostic {
@@ -758,7 +554,7 @@ func checkTelemetryProcfs(tree *config.Tree) []diagnostic.Diagnostic {
 	if !configEnabled(prom, false) {
 		return nil
 	}
-	path := procPath("stat")
+	path := kernelcap.ProcPath("stat")
 	if _, err := readFilePath(path); err != nil {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
@@ -775,7 +571,7 @@ func checkSysctlProcfs(tree *config.Tree) []diagnostic.Diagnostic {
 	if tree == nil || tree.GetContainer("sysctl") == nil {
 		return nil
 	}
-	path := procPath("sys")
+	path := kernelcap.ProcPath("sys")
 	if err := accessPath(path, unix.W_OK); err != nil {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
@@ -793,7 +589,7 @@ func checkConntrackProcfs(tree *config.Tree) []diagnostic.Diagnostic {
 		return nil
 	}
 	var tb textbuf.Buffer
-	dir := procPath("sys", "net", "netfilter")
+	dir := kernelcap.ProcPath("sys", "net", "netfilter")
 	if _, err := statPath(dir); err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-conntrack-procfs",
@@ -802,7 +598,7 @@ func checkConntrackProcfs(tree *config.Tree) []diagnostic.Diagnostic {
 			Path:     dir,
 		}}
 	}
-	key := procPath("sys", "net", "netfilter", "nf_conntrack_max")
+	key := kernelcap.ProcPath("sys", "net", "netfilter", "nf_conntrack_max")
 	if err := accessPath(key, unix.W_OK); err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-conntrack-procfs",
@@ -841,17 +637,6 @@ func checkPolicyRouteNetlink(tree *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
 
-func procPath(parts ...string) string {
-	root := env.Get(doctorProcRootEnv)
-	if root == "" {
-		root = "/proc"
-	}
-	all := make([]string, 0, len(parts)+1)
-	all = append(all, root)
-	all = append(all, parts...)
-	return filepath.Join(all...)
-}
-
 func checkNTPClockPrivilege(tree *config.Tree) []diagnostic.Diagnostic {
 	ntp := getContainerPath(tree, "environment", "ntp")
 	if !configEnabled(ntp, false) {
@@ -862,7 +647,7 @@ func checkNTPClockPrivilege(tree *config.Tree) []diagnostic.Diagnostic {
 		return nil
 	}
 
-	data, err := readFilePath(procPath("self", "status"))
+	data, err := readFilePath(kernelcap.ProcPath("self", "status"))
 	if err != nil {
 		return nil
 	}

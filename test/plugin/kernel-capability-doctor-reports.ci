@@ -1,0 +1,60 @@
+# Test: ze doctor reports a kernel capability a configured subsystem needs
+# Spec: plan/immediate/spec-kernel-capability-gate.md AC-2
+# VALIDATES: a config that installs an IPsec Security Association, on a host
+# whose kernel holds no XFRM dataplane, produces doctor-ipsec-xfrm-unavailable at
+# ERROR severity, and the message names the subsystem, the kernel feature and the
+# configuration that required it. `ze doctor` exits 1 on it, so readiness is
+# false rather than merely noisy.
+# PREVENTS: the failure the whole enrolment exists for. Every other IPsec surface
+# reports what the engine believed at install time, so a host that cannot carry a
+# single SA shows a tunnel as up and carries nothing.
+#
+# The probe is FORCED so the diagnostic is reached on a host whose kernel is
+# healthy. Without the override this test would pass only where XFRM happens to
+# be absent, which is the vacuity trap of ai/rules/interop-and-goal-validation.md.
+option=env:var=ze.test.kernelcap.xfrm:value=absent
+
+tmpfs=ipsec-capability.conf:terminator=EOF_CONF
+vpn {
+    ipsec {
+        interface lo
+        ike-group IKE-1 {
+            proposal 1 {
+                encryption aes256gcm
+                hash sha256
+                dh-group 14
+            }
+        }
+        esp-group ESP-1 {
+            proposal 1 {
+                encryption aes256gcm
+            }
+        }
+        site-to-site {
+            peer branch {
+                connection-type respond
+                remote-address 203.0.113.7
+                ike-group IKE-1
+                esp-group ESP-1
+                authentication {
+                    mode pre-shared-secret
+                    pre-shared-secret correct-horse-battery-staple
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json ipsec-capability.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-ipsec-xfrm-unavailable
+expect=stdout:contains=CONFIG_XFRM_USER
+expect=stdout:contains=vpn ipsec
+# The forced answer must reach the operator. A message that says the dataplane is
+# missing and nothing about why names no action.
+expect=stdout:contains=ze.test.kernelcap.xfrm
+
+cmd=foreground:seq=2:exec=ze explain doctor-ipsec-xfrm-unavailable
+expect=exit:code=0
+expect=stdout:contains=CONFIG_INET_ESP

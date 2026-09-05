@@ -1,0 +1,63 @@
+# Test: a capability that cannot be determined warns and ze still starts
+# Spec: plan/immediate/spec-kernel-capability-gate.md AC-6
+# VALIDATES: a probe that could not reach its evidence produces
+# doctor-ipsec-xfrm-unknown at WARNING severity, ze doctor still exits 0, and the
+# daemon starts. The message carries the reason the probe gave.
+# PREVENTS: a working deployment turned into a dead one by an unreadable probe
+# (R-1). The gate runs on every ze start on Linux, so refusing on a question ze
+# could not ask is the failure with the widest blast radius in this spec. A
+# permission denial is the common cause and no kernel rebuild fixes it.
+#
+# The probe is forced to the cannot-determine answer, which is the one state a
+# healthy host never produces by itself. Without the override this branch would
+# be unreachable from the user entry point.
+option=env:var=ze.test.kernelcap.xfrm:value=unknown
+option=env:var=ze.gnmi.enabled:value=1
+option=env:var=ze.gnmi.listen:value=127.0.0.1:19352
+
+tmpfs=ipsec-unknown.conf:terminator=EOF_CONF
+vpn {
+    ipsec {
+        interface lo
+        ike-group IKE-1 {
+            proposal 1 {
+                encryption aes256gcm
+                hash sha256
+                dh-group 14
+            }
+        }
+        esp-group ESP-1 {
+            proposal 1 {
+                encryption aes256gcm
+            }
+        }
+        site-to-site {
+            peer branch {
+                connection-type respond
+                remote-address 203.0.113.7
+                ike-group IKE-1
+                esp-group ESP-1
+                authentication {
+                    mode pre-shared-secret
+                    pre-shared-secret correct-horse-battery-staple
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json ipsec-unknown.conf
+# Exit 0: a warning does not make the host unready, and it must not.
+expect=exit:code=0
+expect=stdout:contains=doctor-ipsec-xfrm-unknown
+expect=stdout:contains=ze.test.kernelcap.xfrm
+reject=stdout:pattern=doctor-ipsec-xfrm-unavailable
+
+cmd=foreground:seq=2:exec=ze config validate ipsec-unknown.conf
+expect=exit:code=0
+reject=stdout:pattern=config-kernel-capability
+
+cmd=foreground:seq=3:exec=ze explain doctor-ipsec-xfrm-unknown
+expect=exit:code=0
+expect=stdout:contains=does not refuse a start

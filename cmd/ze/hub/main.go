@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/engine"
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/component/managed"
 	zepki "github.com/ze-software/ze/internal/component/pki"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
@@ -391,6 +392,27 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	loadResult.Tree = outcome.tree
 	data = outcome.data
+
+	// A configuration that uses a subsystem this kernel cannot carry starts a
+	// daemon that comes up and does not work: IPsec that negotiates and encrypts
+	// nothing, MPLS that programs labels the kernel refuses. Refuse instead, and
+	// say which subsystem and which kernel feature.
+	//
+	// The tree read here is the POST-EVOLUTION one. applyEvolutions replaces it,
+	// so reading loadResult.Tree as LoadConfig first returned it would judge a
+	// configuration this daemon is not about to run.
+	//
+	// This sits beside hardSetupFailure and keeps its idiom: one stderr line, one
+	// logStartupFailure with its own stage name, return 1. A capability that
+	// could not be DETERMINED is a warning on the doctor surface and never a
+	// refusal, so an unreadable probe cannot turn a working deployment into a
+	// dead one.
+	if err := kernelcap.Refuse(loadResult.Tree); err != nil {
+		fmt.Fprintln(os.Stderr, "error: kernel capability: "+err.Error())
+		logStartupFailure("kernel capability", err)
+		return 1
+	}
+
 	if configPath != "" && configPath != "-" {
 		if _, _, activeErr := storage.EnsureActiveVersion(store, configPath, data, time.Now()); activeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: initialize active config: %v\n", activeErr)
@@ -886,6 +908,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	resolvers := newResolvers(&sc)
 	defer resolvers.Close()
 	resolvecmd.SetResolvers(resolvers)
+	registerPluginDNSResolver(resolvers)
 	if resolvers.DNS != nil {
 		command.SetPTRResolver(resolvers.DNS)
 	}
@@ -900,6 +923,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	applyHostTuning(&sc)
+	harvestKernelCrashes(configPath)
 	startSmartManager(loadResult.Tree)
 	defer stopSmartManager()
 	applyConsole(&sc)

@@ -4,6 +4,7 @@ package doctor
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/env"
 
 	// The BGP YANG module is what makes `bgp {` a known top-level keyword. The
@@ -68,16 +69,20 @@ func withModules(t *testing.T, fn func() map[string]bool) {
 	t.Cleanup(func() { loadedKernelModules = old })
 }
 
-// withProcRoot points every procPath() lookup at a directory this test owns, so
-// checkMPLSSupport reads a filesystem the test built instead of the host's
-// /proc. Every MPLS test below sets one: without it the check reads the real
-// kernel, and on an MPLS-capable host every "must be silent" assertion passes
-// for the host's reason rather than for the test's.
+// procRootEnv names the /proc root every doctor-tier probe reads. It is
+// registered by internal/component/kernelcap, which owns ProcPath.
+const procRootEnv = "ze.test.doctor.procfs-root"
+
+// withProcRoot points every kernelcap.ProcPath lookup at a directory this test
+// owns, so the MPLS probe reads a filesystem the test built instead of the
+// host's /proc. Every MPLS test below sets one: without it the probe reads the
+// real kernel, and on an MPLS-capable host every "must be silent" assertion
+// passes for the host's reason rather than for the test's.
 func withProcRoot(t *testing.T, root string) {
 	t.Helper()
-	old := env.Get(doctorProcRootEnv)
-	require.NoError(t, env.Set(doctorProcRootEnv, root))
-	t.Cleanup(func() { _ = env.Set(doctorProcRootEnv, old) })
+	old := env.Get(procRootEnv)
+	require.NoError(t, env.Set(procRootEnv, root))
+	t.Cleanup(func() { _ = env.Set(procRootEnv, old) })
 }
 
 // procRootWithMPLS builds a fake /proc carrying net.mpls.platform_labels, the
@@ -117,146 +122,97 @@ func procRootWithUnreadableMPLS(t *testing.T) string {
 	return root
 }
 
-// VALIDATES: checkMPLSSupport decides on the CAPABILITY probe and not on the
-// loaded-module list. With the module list empty and net.mpls.platform_labels
-// present the check is silent; with neither present it warns; with the probe
-// unreadable it reports doctor-mpls-unknown.
-// PREVENTS: a false doctor-mpls-unavailable on every appliance. ze's runtime
-// kernel builds MPLS in (CONFIG_MPLS_ROUTING=y, gokrazy/kernel/runtime.config),
-// so no mpls_router.ko exists and readLoadedModules can never list one. The
-// module-list check would have warned that MPLS is missing on the one kernel ze
-// ships that forwards it.
-func TestCheckMPLSSupportProbesCapabilityNotModuleList(t *testing.T) {
-	t.Run("builtin-mpls-with-empty-module-list-is-silent", func(t *testing.T) {
-		withModules(t, func() map[string]bool { return map[string]bool{} })
-		withProcRoot(t, procRootWithMPLS(t))
+// VALIDATES: AC-8. The MPLS probe decides on the CAPABILITY and not on the
+// loaded-module list. A kernel that carries net.mpls.platform_labels and lists
+// no module reads as PRESENT; a /proc with neither reads as ABSENT; a probe that
+// cannot be read reads as UNKNOWN.
+// PREVENTS: a false refusal on every appliance. ze's runtime kernel builds MPLS
+// in (CONFIG_MPLS_ROUTING=y, gokrazy/kernel/runtime.config), so no mpls_router.ko
+// exists and readLoadedModules can never list one. Under a refusal a module-list
+// probe would stop the one kernel ze ships that forwards labels.
+func TestMPLSCapabilityReadsBuiltInKernel(t *testing.T) {
+	withModules(t, func() map[string]bool { return map[string]bool{} })
+	withProcRoot(t, procRootWithMPLS(t))
 
-		assert.Empty(t, checkMPLSSupport(mplsTree(t, "ipv4/mpls-label")),
-			"a builtin AF_MPLS table lists no module and MUST NOT be reported as missing")
-	})
-
-	t.Run("no-mpls-anywhere-warns", func(t *testing.T) {
-		withModules(t, func() map[string]bool { return map[string]bool{} })
-		withProcRoot(t, t.TempDir())
-
-		diags := checkMPLSSupport(mplsTree(t, "ipv4/mpls-label"))
-
-		require.Len(t, diags, 1)
-		assert.Equal(t, "doctor-mpls-unavailable", diags[0].Code)
-		assert.Contains(t, diags[0].Message, "platform_labels")
-	})
-
-	t.Run("present-but-zero-is-disabled", func(t *testing.T) {
-		// The state every appliance boots in. ze's runtime kernel builds MPLS in,
-		// so af_mpls creates the sysctl, and the sysctl's own default is 0, which
-		// disables MPLS entirely (docs/guide/mpls.md). A check that stopped at the
-		// stat went SILENT here, on exactly the machines building MPLS in was
-		// meant to serve.
-		withModules(t, func() map[string]bool { return map[string]bool{} })
-		withProcRoot(t, procRootWithMPLSLabels(t, "0\n"))
-
-		diags := checkMPLSSupport(mplsTree(t, "ipv4/mpls-label"))
-
-		require.Len(t, diags, 1)
-		assert.Equal(t, "doctor-mpls-disabled", diags[0].Code)
-		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
-		assert.Contains(t, diags[0].Message, "sysctl {}")
-	})
-
-	t.Run("one-label-is-enough-to-be-silent", func(t *testing.T) {
-		// The boundary. 0 is the only disabling value; 1 is a working, if tiny,
-		// label space and must not warn.
-		withModules(t, func() map[string]bool { return map[string]bool{} })
-		withProcRoot(t, procRootWithMPLSLabels(t, "1\n"))
-
-		assert.Empty(t, checkMPLSSupport(mplsTree(t, "ipv4/mpls-label")),
-			"a label space of 1 forwards, so it MUST NOT be reported as disabled")
-	})
-
-	t.Run("unreadable-probe-is-unknown", func(t *testing.T) {
-		withModules(t, func() map[string]bool { return map[string]bool{} })
-		withProcRoot(t, procRootWithUnreadableMPLS(t))
-
-		diags := checkMPLSSupport(mplsTree(t, "ipv4/mpls-label"))
-
-		require.Len(t, diags, 1)
-		assert.Equal(t, "doctor-mpls-unknown", diags[0].Code)
-		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
-	})
+	assert.Equal(t, kernelcap.StatePresent, kernelcap.MPLS().State,
+		"a builtin AF_MPLS table lists no module and MUST read as present")
 }
 
-// codes lives in checks_redistribute_test.go, which carries no build tag, so
-// this linux-only file shares it rather than declaring a second copy.
+// VALIDATES: absence is ENOENT and nothing else. That is the one state that
+// refuses a start.
+// PREVENTS: a read failure of any other kind being reported as a missing kernel
+// feature, which would send an operator to rebuild a kernel that is already right.
+func TestMPLSCapabilityAbsentIsENOENT(t *testing.T) {
+	withModules(t, func() map[string]bool { return map[string]bool{} })
+	withProcRoot(t, t.TempDir())
 
-// VALIDATES: with a kernel FIB, a labeled BGP family and no AF_MPLS table,
-// checkMPLSSupport emits doctor-mpls-unavailable even though both MPLS modules
-// are listed as loaded. The module list cannot silence the check.
+	result := kernelcap.MPLS()
+	assert.Equal(t, kernelcap.StateAbsent, result.State)
+	require.Error(t, result.Reason, "an absent capability must carry its evidence")
+	assert.True(t, errors.Is(result.Reason, fs.ErrNotExist), "absence is ENOENT: %v", result.Reason)
+}
+
+// VALIDATES: AC-6. A probe that cannot reach its evidence reports cannot-determine
+// and carries the reason, so the gate warns and ze still starts.
+// PREVENTS: a working deployment turned dead by an unreadable probe (R-1), and a
+// guard reporting an answer it did not get (ai/rules/evidence.md).
+func TestMPLSCapabilityUnreadableIsUnknown(t *testing.T) {
+	withModules(t, func() map[string]bool { return map[string]bool{} })
+	withProcRoot(t, procRootWithUnreadableMPLS(t))
+
+	result := kernelcap.MPLS()
+	assert.Equal(t, kernelcap.StateUnknown, result.State)
+	require.Error(t, result.Reason)
+	assert.False(t, errors.Is(result.Reason, fs.ErrNotExist),
+		"an unreadable probe is not an absent one: %v", result.Reason)
+}
+
+// VALIDATES: AC-10. A label space of 0 is PRESENT, not a fault. The table exists,
+// and ze writes a non-zero size before it programs its first label
+// (internal/plugins/fib/kernel/labelspace_linux.go).
+// PREVENTS: a doctor row an operator cannot act on. Every appliance boots in this
+// state, because ze's runtime kernel builds MPLS in and the sysctl still defaults
+// to 0; reporting it would fire on every appliance for a fault ze repairs itself.
+func TestMPLSCapabilityPresentWhenLabelSpaceIsZero(t *testing.T) {
+	withModules(t, func() map[string]bool { return map[string]bool{} })
+	withProcRoot(t, procRootWithMPLSLabels(t, "0\n"))
+
+	assert.Equal(t, kernelcap.StatePresent, kernelcap.MPLS().State,
+		"an existing table with an empty label space is present and repairable")
+}
+
+// VALIDATES: the module list cannot silence the capability. Both MPLS modules
+// listed as loaded on a host with no AF_MPLS table still reads as absent.
 // PREVENTS: the module list creeping back in as the deciding evidence. It is
 // wrong in both directions: it reports MPLS absent on a kernel that builds it in,
 // and it would report MPLS present on a host where the modules are loaded but
 // af_mpls registered no forwarding table.
-// It also still covers the silent regression test/plugin/mpls-doctor.ci was
-// supposed to catch and could not. That .ci is skip-os everywhere but Linux, so
-// it had never run until CI existed, and this check had NO behavioral unit test
-// at all -- TestDoctorDependencyInventory only asserts the code is registered,
-// which stays true however broken the check is.
-func TestCheckMPLSSupportWarnsEvenWhenModulesAreLoaded(t *testing.T) {
-	withModules(t, func() map[string]bool {
-		return map[string]bool{"mpls_router": true, "mpls_iptunnel": true}
-	})
-	withProcRoot(t, t.TempDir())
+func TestMPLSCapabilityIgnoresTheModuleList(t *testing.T) {
+	for name, modules := range map[string]map[string]bool{
+		"both modules loaded":    {"mpls_router": true, "mpls_iptunnel": true},
+		"module list unreadable": nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			withModules(t, func() map[string]bool { return modules })
+			withProcRoot(t, t.TempDir())
+			assert.Equal(t, kernelcap.StateAbsent, kernelcap.MPLS().State)
 
-	diags := checkMPLSSupport(mplsTree(t, "ipv4/mpls-label"))
-
-	require.Len(t, diags, 1)
-	assert.Equal(t, "doctor-mpls-unavailable", diags[0].Code)
-	assert.Contains(t, diags[0].Message, "platform_labels")
-	assert.Contains(t, diags[0].Message, "AF_MPLS")
+			withProcRoot(t, procRootWithMPLS(t))
+			assert.Equal(t, kernelcap.StatePresent, kernelcap.MPLS().State)
+		})
+	}
 }
 
-// VALIDATES: the check is silent once the kernel holds an AF_MPLS table, and
-// when the config gives it no reason to care.
-// PREVENTS: a warning on every kernel-FIB config that imposes no labels, and a
-// warning on a host that is in fact ready.
-// Every subtest sets a proc root, including the two the config gate decides. A
-// silence that the probe could also explain proves nothing about the gate, and
-// on an MPLS-capable developer host that is exactly what it would be.
-func TestCheckMPLSSupportSilentWhenNotApplicable(t *testing.T) {
-	t.Run("kernel-holds-an-af-mpls-table", func(t *testing.T) {
-		withModules(t, func() map[string]bool { return map[string]bool{} })
-		withProcRoot(t, procRootWithMPLS(t))
-		assert.Empty(t, checkMPLSSupport(mplsTree(t, "ipv4/mpls-label")))
-	})
-
-	t.Run("no-labeled-family", func(t *testing.T) {
-		withModules(t, func() map[string]bool { return map[string]bool{} })
-		withProcRoot(t, t.TempDir())
-		assert.Empty(t, checkMPLSSupport(mplsTree(t, "ipv4/unicast")),
-			"a plain unicast peer over the kernel FIB imposes no labels")
-	})
-
-	t.Run("no-kernel-fib", func(t *testing.T) {
-		withModules(t, func() map[string]bool { return map[string]bool{} })
-		withProcRoot(t, t.TempDir())
-		tree := mplsTree(t, "ipv4/mpls-label")
-		tree.RemoveContainer("fib")
-		assert.Empty(t, checkMPLSSupport(tree), "MPLS support only matters for the kernel FIB")
-	})
-}
-
-// VALIDATES: every family name the check treats as labeled is one a peer can
-// actually negotiate, driven from the registered family list.
+// VALIDATES: every family name the predicate treats as labeled is one a peer can
+// actually negotiate, driven from a PARSED config.
 // PREVENTS: exactly the defect mpls-doctor.ci carried -- it declared
-// `ipv4/mpls-unicast`, a family that exists nowhere in ze, so mplsInUse was
+// `ipv4/mpls-unicast`, a family that exists nowhere in ze, so the predicate was
 // false and the assertion could never fire. A name-level mismatch between the
-// check and the config surface is invisible until someone reads both.
+// predicate and the config surface is invisible until someone reads both.
 func TestMPLSInUseNamesRealFamilies(t *testing.T) {
-	withModules(t, func() map[string]bool { return map[string]bool{} })
-	withProcRoot(t, t.TempDir())
-
 	for _, family := range []string{"ipv4/mpls-label", "ipv6/mpls-label", "ipv4/mpls-vpn", "ipv6/mpls-vpn"} {
 		t.Run(family, func(t *testing.T) {
-			assert.NotEmpty(t, checkMPLSSupport(mplsTree(t, family)),
+			assert.True(t, kernelcap.MPLSInUse(mplsTree(t, family)),
 				"%s must count as MPLS forwarding", family)
 		})
 	}
@@ -269,38 +225,18 @@ func TestMPLSInUseNamesRealFamilies(t *testing.T) {
 	// is what the .ci depended on: an unregistered name must not count as MPLS
 	// forwarding.
 	t.Run("unregistered-family-does-not-count", func(t *testing.T) {
-		assert.Empty(t, checkMPLSSupport(mplsTree(t, "ipv4/mpls-unicast")),
-			"a family that does not exist must not satisfy the MPLS check")
-	})
-}
-
-// VALIDATES: an unreadable module list no longer reaches checkMPLSSupport at
-// all. The capability probe answers, and a nil module map changes neither
-// answer.
-// PREVENTS: the old nil-map branch returning. It read an unreadable
-// /proc/modules as doctor-mpls-unknown, which is the right shape for the wrong
-// evidence: after the probe replaced the module list, a nil map says nothing
-// about whether the kernel forwards labels, so reporting "unknown" for it would
-// hide a working kernel behind a warning. The unknown answer now belongs to an
-// unreadable PROBE, which TestCheckMPLSSupportProbesCapabilityNotModuleList
-// covers.
-func TestCheckMPLSSupportIgnoresUnreadableModuleList(t *testing.T) {
-	t.Run("capability-present", func(t *testing.T) {
-		withModules(t, func() map[string]bool { return nil })
-		withProcRoot(t, procRootWithMPLS(t))
-
-		assert.Empty(t, checkMPLSSupport(mplsTree(t, "ipv4/mpls-label")))
+		assert.False(t, kernelcap.MPLSInUse(mplsTree(t, "ipv4/mpls-unicast")),
+			"a family that does not exist must not satisfy the MPLS predicate")
 	})
 
-	t.Run("capability-absent", func(t *testing.T) {
-		withModules(t, func() map[string]bool { return nil })
-		withProcRoot(t, t.TempDir())
-
-		diags := checkMPLSSupport(mplsTree(t, "ipv4/mpls-label"))
-
-		require.Len(t, diags, 1)
-		assert.Equal(t, "doctor-mpls-unavailable", codes(diags)[0])
-		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+	// AC-7. `fib { kernel { } }` gates the predicate BEFORE any labeled family,
+	// so an MPLS config on a VPP or P4 backend is never judged on the kernel's
+	// AF_MPLS table. Losing this gate turns every VPP deployment with MPLS into a
+	// refusal.
+	t.Run("another-fib-backend-is-never-gated", func(t *testing.T) {
+		tree := mplsTree(t, "ipv4/mpls-label")
+		tree.RemoveContainer("fib")
+		assert.False(t, kernelcap.MPLSInUse(tree), "MPLS support only matters for the kernel FIB")
 	})
 }
 

@@ -21,23 +21,32 @@ interface {
 }
 ```
 
-This sets `net.mpls.conf.eth0.input=1`. The global label-table size is governed
-by the `net.mpls.platform_labels` sysctl (configure it via the `sysctl {}`
-block; it defaults to off, which disables MPLS entirely).
+This sets `net.mpls.conf.eth0.input=1`. The global label-table size is the
+`net.mpls.platform_labels` sysctl. It defaults to 0, which disables MPLS
+entirely, so ze writes the full 20-bit space (1048575) once, immediately before
+it programs its first label. An operator value set in the `sysctl {}` block is
+never overwritten: only a table reading exactly 0 is repaired.
 
 The Linux kernel must supply MPLS forwarding, either through the `mpls_router`
 and `mpls_iptunnel` modules or built in with `CONFIG_MPLS_ROUTING` and
 `CONFIG_MPLS_IPTUNNEL`. ze's own appliance kernel builds both in, so it loads no
-module. `ze doctor` probes the capability rather than the module list, and it
-reads the probe's VALUE. It warns `doctor-mpls-unavailable` when
-`/proc/sys/net/mpls/platform_labels` does not exist, which is the one answer that
-covers both packagings. It warns `doctor-mpls-disabled` when the file exists and
-reads 0, because that is the kernel default and it disables MPLS entirely.
+module. MPLS is an enrolled kernel capability: ze probes for the AF_MPLS table
+rather than for the module list, because a built-in kernel lists no module.
 
-The two codes are separate because the remedies are. An absent probe needs a
-module or a kernel rebuild. A zero probe needs neither, only a size, set through
-the `sysctl {}` block. A built-in kernel makes the second case the one an
-appliance boots in.
+When the configuration asks the kernel FIB to forward MPLS and
+`/proc/sys/net/mpls/platform_labels` does not exist, `ze doctor` reports
+`doctor-mpls-unavailable` at error severity, `ze` refuses to start, and
+`ze config validate` fails. There is no operator override. A daemon that
+advertises label forwarding it cannot perform blackholes the traffic it
+attracted.
+
+A probe ze could not read is a different answer. It reports
+`doctor-mpls-unknown` at warning severity and ze starts, because refusing on a
+question ze could not ask would stop a router whose kernel is fine.
+
+A VPP or P4 FIB backend is never judged on the kernel's AF_MPLS table. The
+`fib { kernel { } }` block is what activates the plugin that programs kernel
+labels, and it is that plugin that carries the requirement.
 
 ## Inspecting the forwarding table
 

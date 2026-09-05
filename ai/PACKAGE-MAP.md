@@ -305,6 +305,8 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/component/firewall` | defines the abstract data model for ze-managed nftables firewall tables | firewall |
 | `internal/component/firewall/cli` | provides the ze firewall subcommand for viewing nftables firewall state (tables, chains, rules, counters) |  |
 | `internal/component/firewall/cmd` | provides formatting functions for firewall CLI output |  |
+| `internal/component/firewall/plugins/domain` | populates nftables sets from what DNS names resolve to | firewall-domain |
+| `internal/component/firewall/plugins/domain/yang` | embeds and registers the firewall domain-group command and schema YANG modules |  |
 | `internal/component/firewall/plugins/irr` | implements IRR-based prefix-list filtering for firewall rules | firewall-irr |
 | `internal/component/firewall/plugins/irr/yang` | embeds and registers the firewall IRR command and schema YANG modules |  |
 | `internal/component/firewall/yang` | embeds and registers the firewall component's YANG schema modules |  |
@@ -326,7 +328,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/component/ike/transport` | implements the IKE UDP transport with NAT detection and keepalive handling |  |
 | `internal/component/ike/wire` | encodes and decodes IKEv2 messages, headers, and payloads |  |
 | `internal/component/ike/yang` | embeds and registers the IPsec operational command YANG schema module |  |
-| `internal/component/kernelcap` | TODO |  |
+| `internal/component/kernelcap` | enrols the kernel features a configured subsystem cannot work without, so ze doctor reports a missing one, the daemon refuses to start, a reload is refused and ze config validate fails, all from one... |  |
 | `internal/component/l2tp` | implements L2TPv2 (RFC 2661) wire format parsing and serialization for ze's L2TP subsystem |  |
 | `internal/component/l2tp/cli` | provides the `ze l2tp` subcommand | --user |
 | `internal/component/l2tp/cmd` | registers engine-side RPC handlers that expose the L2TP subsystem's observability and teardown surface to the CLI |  |
@@ -442,6 +444,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/core/configorder` | reads a YANG list declared `ordered-by user`, in the order the operator wrote its entries |  |
 | `internal/core/configvalue` | reads a YANG leaf-list or a YANG list out of the config map that Tree.ToMap produces (internal/component/config/tree.go) |  |
 | `internal/core/cos` | holds the shared registry of named class-of-service QoS profiles and their resolver |  |
+| `internal/core/cpulist` | TODO |  |
 | `internal/core/crashlog` | captures stderr output (including Go panic traces) and forwards it to syslog and a crash file on disk |  |
 | `internal/core/ddosevent` | defines the destination-oriented DDoS attack detection event contract |  |
 | `internal/core/diagnostic` | provides stable diagnostic records, codes, and explanations for Ze's agent-facing tooling surface |  |
@@ -472,6 +475,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/core/observation` | provides an in-process, multi-subscriber feed for traffic observations |  |
 | `internal/core/parse` | provides shared value parsers for BGP attributes |  |
 | `internal/core/paths` | resolves the ze configuration directory from the running binary's location |  |
+| `internal/core/pcap` | writes and reads the classic libpcap file format with the standard library alone, so an appliance needs no tcpdump and no libpcap |  |
 | `internal/core/portname` | resolves transport port numbers to service names and amplification-vector labels |  |
 | `internal/core/privilege` | provides daemon privilege dropping after port binding |  |
 | `internal/core/probe` | holds the low-level ICMP echo and target-resolution helpers shared by the active-probe commands (ping, traceroute, probe-round, and the tcp-check resolver) |  |
@@ -697,7 +701,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/plugins/copp/yang` | embeds and registers the control-plane policing (CoPP) configuration YANG schema module |  |
 | `internal/plugins/cos` | 802.1p class-of-service profile definitions | show class-of-service |
 | `internal/plugins/cos/yang` | embeds and registers the class-of-service (CoS) configuration YANG schema module |  |
-| `internal/plugins/crashes` | provides the in-process offline fallback for `show crashes [latest \| name <file>]` |  |
+| `internal/plugins/crashes` | provides the in-process offline fallback for `show crashes [latest \| name <file>]` | crash-capture-armed |
 | `internal/plugins/crashes/cmd` | registers the show-crashes RPC handler that lists and displays recorded crash reports |  |
 | `internal/plugins/crashes/yang` | embeds and registers the crashes command YANG schema module |  |
 | `internal/plugins/ddos/detect` | Automatic DDoS attack detector with two-stage detection | ddos-detect-flow-source |
