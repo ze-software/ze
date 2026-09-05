@@ -1,4 +1,4 @@
-// Design: plan/spec-improve-3-event-replay.md -- capture decoder for the replay harness
+// Design: docs/architecture/bgp/protocol-event-capture.md -- the decoder the replay harness reads with
 // Overview: capture.go -- the format this decoder reads
 
 package capture

@@ -700,9 +700,6 @@ plan/spec-improve-2-gnmi-state.md	internal/component/gnmi/state.go
 plan/spec-improve-2-gnmi-state.md	test/plugin/gnmi-state.ci
 plan/spec-improve-3-event-replay-deferred-deterministic-scheduler.md	internal/component/bgp/reactor/replay_test.go
 plan/spec-improve-3-event-replay-deferred-deterministic-scheduler.md	test/replay/bgp-interleaving-replay.ci
-plan/spec-improve-3-event-replay.md	internal/bgp/fsm/timer.go
-plan/spec-improve-3-event-replay.md	test/replay/
-plan/spec-improve-3-event-replay.md	test/replay/bgp-capture-replay.ci
 plan/spec-improve-4-conformance-fixtures.md	test/protocol/
 plan/spec-improve-4-conformance-fixtures.md	test/protocol/README.md
 plan/spec-improve-4-conformance-fixtures.md	test/protocol/bgp/basic-session/

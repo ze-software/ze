@@ -1,4 +1,4 @@
-// Design: plan/spec-improve-3-event-replay.md -- replay a captured BGP session
+// Design: docs/architecture/bgp/protocol-event-capture.md -- replay a captured BGP session
 // Related: register.go -- ze-test root handler registration
 
 package cli

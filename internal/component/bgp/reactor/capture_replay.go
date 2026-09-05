@@ -1,4 +1,4 @@
-// Design: plan/spec-improve-3-event-replay.md -- per-session JSONL protocol event capture
+// Design: docs/architecture/bgp/protocol-event-capture.md -- per-session JSONL protocol event capture
 // Related: session_read.go -- the standard read path's tee point
 // Related: session_coalesce.go -- the coalesced read path's tee point
 // Overview: capture.go -- the unrelated in-memory diagnostic ring of the same name

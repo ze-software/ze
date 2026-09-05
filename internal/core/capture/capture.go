@@ -1,4 +1,4 @@
-// Design: plan/spec-improve-3-event-replay.md -- protocol event capture format (v1)
+// Design: docs/architecture/bgp/protocol-event-capture.md -- the format (v1)
 // Related: writer.go -- the bounded encoder that writes this format
 // Related: reader.go -- the decoder the replay harness reads it back with
 

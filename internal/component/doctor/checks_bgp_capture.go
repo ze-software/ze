@@ -1,4 +1,4 @@
-// Design: plan/spec-improve-3-event-replay.md -- BGP protocol event capture readiness
+// Design: docs/architecture/bgp/protocol-event-capture.md -- BGP protocol event capture readiness
 // Related: checks_storage.go -- writability probes for config-declared destinations
 
 // BGP protocol event capture introduces a runtime dependency: a directory the

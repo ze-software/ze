@@ -1,4 +1,4 @@
-// Design: plan/spec-improve-3-event-replay.md -- bounded JSONL capture writer
+// Design: docs/architecture/bgp/protocol-event-capture.md -- bounded JSONL capture writer
 // Overview: capture.go -- the format this encoder writes
 
 package capture
