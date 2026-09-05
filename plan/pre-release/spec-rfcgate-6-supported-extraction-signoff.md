@@ -7,11 +7,66 @@
 | Depends | `plan/pre-release/spec-followup-rfc-enrollment.md` (owns `rfc/enrolled.txt`, the coverage rollup, and the drain the retired rfcgate-0-umbrella shard called "the drain itself") |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-08-31 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Session progress, 2026-08-30 (resume here)
+## Session progress, 2026-09-05 (resume here)
+
+The sign-off half of this spec is done and the test half is not. Closure was
+attempted and refused. Every figure below is read from the tree on 2026-09-05,
+not carried from the tables further down.
+
+**Where the counts stand.** `./le rfc extraction-status` reads `signed: 57`,
+`backlog: 125`, `enrolled: 182`. AC-1 wanted 52 and is MET. Every Class B stem
+carries an artifact, so the AC-4 artifact clause is met. `checkSupportedSignoff`
+exists in `internal/le/rfc/check_status.go` and `Answer`
+(`internal/le/rfc/check.go`) calls it, so AC-6, AC-7 and the Wiring Test rows
+are met.
+
+**AC-2 is NOT met, and it is the reason this spec stays open.**
+`./le rfc check` exits 2 with 127 violations, of which 96 name an in-scope stem:
+
+| Stem | Public row | Violations | What they say |
+|---|---|---|---|
+| `rfc5798` | `Partial` | 55 | every gated MUST has no test and no annotation |
+| `rfc5282` | `Supported` | 18 | 18 of 19 gated MUSTs have no test and no annotation |
+| `rfc3748` | `Supported in IPsec` | 15 | 15 gated MUSTs have no test and no annotation |
+| `rfc5082` | `Supported on Linux` | 4 | `RFC5082-3-2` untested, plus 3 stale discrimination records |
+| `rfc4302` | `Partial` | 3 | 3 gated MUSTs have no test and no annotation |
+| `rfc2385` | `Supported on Linux` | 1 | a stale discrimination record for `RFC2385-2.0-4` |
+
+This is R-3 arriving. Class B enrolled in batches on 2026-09-01 (`e91dbbd95`,
+`247d7f008`, `5d444b822`) without the tests R-3 said must land in the same
+commit, and `873553424` then lowered seven rows to `Partial` rather than writing
+the tests. `rfc5282` and `rfc3748` still PROMISE support over untested MUSTs,
+which is the false public claim in the Task section, inside this spec's own
+population.
+
+**A second hole, in the check this spec relies on.** The `873553424` arm refuses
+a support promise over ZERO both-polarity proofs. `rfc5282` publishes
+`Supported` on ONE proof and 18 untested MUSTs, so one tagged test buys the row.
+The refusal is a floor of one, not a bound on the checklist.
+
+**AC-3 is NOT met, and the two stems it names are a scope question, not work.**
+`rfc4301` and `rfc9582` carry no `rfc/extraction/*.json`. Both left the
+support-claiming set after this spec's tables were written: the `rfc4301` row of
+`docs/features/rfc-status.md` reads `Partial` and the `rfc9582` row reads
+`Unsupported`, so neither makes a false public claim and `checkSupportedSignoff`
+bills neither. AC-3 names all 39 Class A stems whatever their row says. The
+Critical Review row "the scope set is re-derived at closure" points the other
+way. Which of the two governs is the owner's call, and no session may settle it
+by re-derivation. `rfc8671` is settled: `6f1f034bd` re-walked Section 5.2, the
+artifact carries 10 sites with no `null` disposition, and no check violation
+names the stem.
+
+**What is left, and it is an implementation package.** Tagged tests in both
+polarities plus discrimination records for 36 untested MUSTs across IKEv2 AEAD
+(`rfc5282` 18), EAP (`rfc3748` 15) and `rfc5798`, `rfc4302` and `rfc5082`, plus
+four stale discrimination records to re-record. That is not a closure phase and
+it is not one work package.
+
+## Session progress, 2026-08-30
 
 `./le rfc extraction-status` reads `signed: 15`, `backlog: 156`, against `signed: 6`
 and `backlog: 165` when the session opened.
