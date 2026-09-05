@@ -1,0 +1,71 @@
+# The BARE ExaBGP form: a line that names no neighbor. ExaBGP sends such a line
+# to every neighbor, so the bridge translates it with the wildcard peer
+# selector. Until the translator read the bare form, the line passed through to
+# ze's CLI, where it matched no command and the route never reached the wire.
+#
+# The helper writes the same route as exabgp-bridge-internal.ci, in the other
+# ExaBGP form, so the wire UPDATE is the same and the hex below is that
+# fixture's hex.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=peer * update text nhop 101.1.101.1 origin igp local-preference 100 nlri ipv4/unicast add 1.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
+EOF_PEER
+
+# Compiled ExaBGP-style helper writes one bare text command to stdout.
+
+# ze bgp configuration: bridge runs as an internal (in-process) plugin. The
+# helper command lives in the exabgp.bridge config root; `use exabgp-bridge`
+# resolves the internal runner name.
+stdin=ze-bgp:terminator=EOF_CONF
+exabgp {
+	bridge {
+		run "ze-test fixture plugin/exabgp-bridge-bare-helper"
+		family ipv4/unicast
+	}
+}
+plugin {
+	internal exabgp-bridge {
+		use exabgp-bridge
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process exabgp-bridge {
+			receive [ * ]
+			send [ * ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

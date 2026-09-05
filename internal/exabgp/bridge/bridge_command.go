@@ -17,60 +17,104 @@ const (
 	bridgeAttrOrigin  = "origin"
 	bridgeFlowSAFI    = "flow"
 	bridgeFlowVPNSAFI = "flow-vpn"
+
+	// bridgeEveryPeer is the ze peer selector for every configured session. An
+	// ExaBGP line that names no neighbor goes to every neighbor, so the bridge
+	// translates it with this selector.
+	bridgeEveryPeer = "*"
+)
+
+var (
+	// bridgeNeighborRE matches an ExaBGP line that names one neighbor. It
+	// captures the address and the command that follows it.
+	bridgeNeighborRE = regexp.MustCompile(`(?i)^neighbor\s+(\S+)\s+(.+)$`)
+
+	// bridgeSRPolicyRE matches an SR-Policy route, which states the AFI and
+	// then the policy fields in place of a prefix.
+	bridgeSRPolicyRE = regexp.MustCompile(`(?i)^(ipv[46])\s+sr-policy\s+(.+)$`)
+
+	// bridgeFamilyRE matches a route that states its family as an AFI and a
+	// SAFI. It captures both and the route that follows them.
+	bridgeFamilyRE = regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flow|flowspec|flow-vpn|flowspec-vpn)\s+(.+)$`)
 )
 
 // ExabgpToZebgpCommand converts an ExaBGP text command to ZeBGP format.
 //
 // ExaBGP: neighbor <ip> announce route <prefix> next-hop <nh> [origin <o>] ...
 // ZeBGP:  peer <ip> update text nhop <nh> origin <o> nlri ipv4/unicast add <prefix>.
+//
+// A line that names no neighbor names no destination, and ExaBGP sends such a
+// line to every neighbor. The bridge translates it the same way, with the
+// wildcard selector: `announce route <prefix>` becomes
+// `peer * update text nlri ipv4/unicast add <prefix>`.
+//
+// A line the bridge has no form for keeps its words. It passes through to ze's
+// CLI, where ze declares its own announce and withdraw spellings.
 func ExabgpToZebgpCommand(line string) string {
 	line = strings.TrimSpace(line)
 	if line == "" || strings.HasPrefix(line, "#") {
 		return ""
 	}
 
-	// Parse neighbor command
-	neighborRE := regexp.MustCompile(`(?i)^neighbor\s+(\S+)\s+(.+)$`)
-	match := neighborRE.FindStringSubmatch(line)
+	match := bridgeNeighborRE.FindStringSubmatch(line)
 	if match == nil {
-		// Not a neighbor command - pass through
-		return line
+		command, translated := convertRoute(bridgeEveryPeer, line)
+		if !translated {
+			return line
+		}
+		return command
 	}
 
-	peerIP := match[1]
+	selector := match[1]
 	rest := strings.TrimSpace(match[2])
-	restLower := strings.ToLower(rest)
 
-	// Handle announce route
-	if strings.HasPrefix(restLower, "announce route") {
-		return convertAnnounce(peerIP, rest[14:])
+	command, translated := convertRoute(selector, rest)
+	if !translated {
+		// The line names one neighbor, so it keeps that destination under ze's
+		// peer keyword in place of ExaBGP's neighbor one.
+		var tb textbuf.Buffer
+		return tb.Str("peer ").Str(selector).Byte(' ').Str(rest).String()
 	}
-
-	// Handle withdraw route
-	if strings.HasPrefix(restLower, "withdraw route") {
-		return convertWithdraw(peerIP, rest[14:])
-	}
-
-	// Handle announce/withdraw for other families
-	if strings.HasPrefix(restLower, "announce") {
-		return convertAnnounceFamily(peerIP, rest[8:])
-	}
-
-	if strings.HasPrefix(restLower, "withdraw") {
-		return convertWithdrawFamily(peerIP, rest[8:])
-	}
-
-	// Unknown command - pass through with peer prefix change
-	var tb textbuf.Buffer
-	return tb.Str("peer ").Str(peerIP).Byte(' ').Str(rest).String()
+	return command
 }
 
-func convertAnnounce(peerIP, routeStr string) string {
+// convertRoute translates one ExaBGP announce or withdraw into the ze command
+// that sends it to the peers the selector names. It reports false when the line
+// names no form the bridge translates, and it writes nothing then.
+//
+// The caller decides what an untranslated line becomes, because the answer
+// differs between a line that names a neighbor and a line that does not.
+func convertRoute(selector, rest string) (string, bool) {
+	const (
+		announceRoute = "announce route"
+		withdrawRoute = "withdraw route"
+		announceVerb  = "announce"
+		withdrawVerb  = "withdraw"
+	)
+
+	restLower := strings.ToLower(rest)
+
+	if strings.HasPrefix(restLower, announceRoute) {
+		return convertAnnounce(selector, rest[len(announceRoute):]), true
+	}
+	if strings.HasPrefix(restLower, withdrawRoute) {
+		return convertWithdraw(selector, rest[len(withdrawRoute):]), true
+	}
+	if strings.HasPrefix(restLower, announceVerb) {
+		return convertAnnounceFamily(selector, rest[len(announceVerb):])
+	}
+	if strings.HasPrefix(restLower, withdrawVerb) {
+		return convertWithdrawFamily(selector, rest[len(withdrawVerb):])
+	}
+	return "", false
+}
+
+func convertAnnounce(selector, routeStr string) string {
 	routeStr = strings.TrimSpace(routeStr)
 	parts := strings.Fields(routeStr)
 	if len(parts) == 0 {
 		var tb textbuf.Buffer
-		return tb.Str("peer ").Str(peerIP).Str(" update text nlri ipv4/unicast add").String()
+		return tb.Str("peer ").Str(selector).Str(" update text nlri ipv4/unicast add").String()
 	}
 
 	prefix := parts[0]
@@ -78,7 +122,7 @@ func convertAnnounce(peerIP, routeStr string) string {
 
 	// Parse attributes
 	cmdParts := make([]string, 1, len(attrs)+2)
-	cmdParts[0] = "peer " + peerIP + " update text"
+	cmdParts[0] = "peer " + selector + " update text"
 
 	i := 0
 	for i < len(attrs) {
@@ -162,12 +206,12 @@ func convertAnnounce(peerIP, routeStr string) string {
 	return textbuf.Join(cmdParts, " ")
 }
 
-func convertWithdraw(peerIP, routeStr string) string {
+func convertWithdraw(selector, routeStr string) string {
 	routeStr = strings.TrimSpace(routeStr)
 	parts := strings.Fields(routeStr)
 	var tb textbuf.Buffer
 	if len(parts) == 0 {
-		return tb.Str("peer ").Str(peerIP).Str(" update text nlri ipv4/unicast del").String()
+		return tb.Str("peer ").Str(selector).Str(" update text nlri ipv4/unicast del").String()
 	}
 
 	prefix := parts[0]
@@ -175,63 +219,67 @@ func convertWithdraw(peerIP, routeStr string) string {
 	if strings.Contains(prefix, ":") {
 		fam = "ipv6/unicast"
 	}
-	return tb.Str("peer ").Str(peerIP).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String()
+	return tb.Str("peer ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String()
 }
 
-func convertAnnounceFamily(peerIP, rest string) string {
+// convertAnnounceFamily translates an ExaBGP announce that states its family,
+// which is every announce apart from a plain `announce route`. It reports false
+// when the text after the verb states no family the bridge reads.
+func convertAnnounceFamily(selector, rest string) (string, bool) {
 	rest = strings.TrimSpace(rest)
 
-	// SR-Policy has a different syntax: ipv4/ipv6 sr-policy distinguisher ...
-	srPolicyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+sr-policy\s+(.+)$`)
-	if match := srPolicyRE.FindStringSubmatch(rest); match != nil {
+	if match := bridgeSRPolicyRE.FindStringSubmatch(rest); match != nil {
 		afi := strings.ToLower(match[1])
-		return convertAnnounceSRPolicy(peerIP, afi, match[2])
+		return convertAnnounceSRPolicy(selector, afi, match[2]), true
 	}
 
-	familyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flow|flowspec|flow-vpn|flowspec-vpn)\s+(.+)$`)
-	match := familyRE.FindStringSubmatch(rest)
-	if match != nil {
-		afi := strings.ToLower(match[1])
-		safi := canonicalExabgpSAFI(strings.ToLower(match[2]))
-		routeStr := match[3]
-		var tb textbuf.Buffer
-		fam := tb.Str(afi).Byte('/').Str(safi).String()
-		if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
-			return convertAnnounceFlowSpec(peerIP, fam, routeStr)
-		}
-		return convertAnnounceWithFamily(peerIP, fam, routeStr)
+	match := bridgeFamilyRE.FindStringSubmatch(rest)
+	if match == nil {
+		return "", false
 	}
+
+	afi := strings.ToLower(match[1])
+	safi := canonicalExabgpSAFI(strings.ToLower(match[2]))
+	routeStr := match[3]
 
 	var tb textbuf.Buffer
-	return tb.Str("peer ").Str(peerIP).Str(" announce ").Str(rest).String()
+	fam := tb.Str(afi).Byte('/').Str(safi).String()
+	if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
+		return convertAnnounceFlowSpec(selector, fam, routeStr), true
+	}
+	return convertAnnounceWithFamily(selector, fam, routeStr), true
 }
 
-func convertWithdrawFamily(peerIP, rest string) string {
+// convertWithdrawFamily translates an ExaBGP withdraw that states its family,
+// which is every withdraw apart from a plain `withdraw route`. It reports false
+// when the text after the verb states no family the bridge reads.
+func convertWithdrawFamily(selector, rest string) (string, bool) {
 	rest = strings.TrimSpace(rest)
 
-	// SR-Policy withdraw: ipv4/ipv6 sr-policy distinguisher ...
-	srPolicyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+sr-policy\s+(.+)$`)
-	if match := srPolicyRE.FindStringSubmatch(rest); match != nil {
+	if match := bridgeSRPolicyRE.FindStringSubmatch(rest); match != nil {
 		afi := strings.ToLower(match[1])
-		return convertWithdrawSRPolicy(peerIP, afi, match[2])
+		return convertWithdrawSRPolicy(selector, afi, match[2]), true
 	}
 
-	familyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flow|flowspec|flow-vpn|flowspec-vpn)\s+(.+)$`)
-	match := familyRE.FindStringSubmatch(rest)
+	match := bridgeFamilyRE.FindStringSubmatch(rest)
+	if match == nil {
+		return "", false
+	}
+
+	afi := strings.ToLower(match[1])
+	safi := canonicalExabgpSAFI(strings.ToLower(match[2]))
+	routeStr := match[3]
+
 	var tb textbuf.Buffer
-	if match != nil {
-		afi := strings.ToLower(match[1])
-		safi := canonicalExabgpSAFI(strings.ToLower(match[2]))
-		routeStr := match[3]
-		fam := tb.Str(afi).Byte('/').Str(safi).String()
-		if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
-			return convertWithdrawFlowSpec(peerIP, fam, routeStr)
-		}
-		prefix := strings.Fields(routeStr)[0]
-		return tb.Reset().Str("peer ").Str(peerIP).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String()
+	fam := tb.Str(afi).Byte('/').Str(safi).String()
+	if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
+		return convertWithdrawFlowSpec(selector, fam, routeStr), true
 	}
 
-	return tb.Str("peer ").Str(peerIP).Str(" withdraw ").Str(rest).String()
+	// The regexp reads the route out of a line with no trailing space, so the
+	// capture ends on a non-space byte and always holds one field or more.
+	prefix := strings.Fields(routeStr)[0]
+	return tb.Reset().Str("peer ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String(), true
 }
 
 // convertAnnounceSRPolicy translates ExaBGP SR-Policy announce to Ze's update text format.
@@ -241,7 +289,7 @@ func convertWithdrawFamily(peerIP, rest string) string {
 //
 // Extracts next-hop and the three NLRI fields (distinguisher, color, endpoint),
 // then appends all remaining tunnel-encap tokens verbatim.
-func convertAnnounceSRPolicy(peerIP, afi, rest string) string {
+func convertAnnounceSRPolicy(selector, afi, rest string) string {
 	rest = strings.TrimSpace(rest)
 	parts := strings.Fields(rest)
 
@@ -271,7 +319,7 @@ func convertAnnounceSRPolicy(peerIP, afi, rest string) string {
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("peer ").Str(peerIP).Str(" update text")
+	tb.Str("peer ").Str(selector).Str(" update text")
 	if nhop != "" {
 		tb.Str(" nhop ").Str(nhop)
 	}
@@ -286,11 +334,11 @@ func convertAnnounceSRPolicy(peerIP, afi, rest string) string {
 }
 
 // convertWithdrawSRPolicy translates ExaBGP SR-Policy withdraw to Ze's update text format.
-func convertWithdrawSRPolicy(peerIP, afi, rest string) string {
+func convertWithdrawSRPolicy(selector, afi, rest string) string {
 	rest = strings.TrimSpace(rest)
 
 	var tb textbuf.Buffer
-	tb.Str("peer ").Str(peerIP).Str(" update text nlri ").Str(afi).Str("/sr-policy del ").Str(rest)
+	tb.Str("peer ").Str(selector).Str(" update text nlri ").Str(afi).Str("/sr-policy del ").Str(rest)
 	return tb.String()
 }
 
@@ -305,10 +353,10 @@ func canonicalExabgpSAFI(safi string) string {
 	}
 }
 
-func convertAnnounceFlowSpec(peerIP, family, routeStr string) string {
+func convertAnnounceFlowSpec(selector, family, routeStr string) string {
 	fam, attrs, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
 	cmdParts := make([]string, 1, len(attrs)+2)
-	cmdParts[0] = "peer " + peerIP + " update text"
+	cmdParts[0] = "peer " + selector + " update text"
 	cmdParts = append(cmdParts, attrs...)
 
 	var nlriPart textbuf.Buffer
@@ -323,10 +371,10 @@ func convertAnnounceFlowSpec(peerIP, family, routeStr string) string {
 	return textbuf.Join(cmdParts, " ")
 }
 
-func convertWithdrawFlowSpec(peerIP, family, routeStr string) string {
+func convertWithdrawFlowSpec(selector, family, routeStr string) string {
 	fam, _, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
 	var tb textbuf.Buffer
-	tb.Str("peer ").Str(peerIP).Str(" update text nlri ").Str(fam).Str(" del")
+	tb.Str("peer ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del")
 	if rd != "" {
 		tb.Str(" rd ").Str(rd)
 	}
@@ -511,19 +559,19 @@ func normalizeFlowSpecComponentToken(family, token string) string {
 	return token
 }
 
-func convertAnnounceWithFamily(peerIP, family, routeStr string) string {
+func convertAnnounceWithFamily(selector, family, routeStr string) string {
 	routeStr = strings.TrimSpace(routeStr)
 	parts := strings.Fields(routeStr)
 	if len(parts) == 0 {
 		var tb textbuf.Buffer
-		return tb.Str("peer ").Str(peerIP).Str(" update text nlri ").Str(family).Str(" add").String()
+		return tb.Str("peer ").Str(selector).Str(" update text nlri ").Str(family).Str(" add").String()
 	}
 
 	prefix := parts[0]
 	attrs := parts[1:]
 
 	var cmdParts []string
-	cmdParts = append(cmdParts, "peer "+peerIP+" update text")
+	cmdParts = append(cmdParts, "peer "+selector+" update text")
 
 	i := 0
 	for i < len(attrs) {

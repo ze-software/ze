@@ -16,7 +16,7 @@ Down, `ExabgpToZebgpCommand` reads one ExaBGP line and writes one ze CLI
 command. `neighbor <address> announce route <prefix> next-hop <nh>` becomes
 `peer <address> update text nhop <nh> nlri ipv4/unicast add <prefix>`. Fourteen
 sites in `bridge_command.go` build a command of the shape
-`peer <address> <verb> ...`.
+`peer <selector> <verb> ...`, where the selector is one address or `*`.
 
 Up, `bridge_event.go` renders ze's BGP messages as ExaBGP JSON. The envelope
 version is 6.0.0, which is the syntax target for the bridge.
@@ -25,26 +25,37 @@ The ExaBGP side is an external contract. An operator writes a script against
 ExaBGP, so a change to ze's own CLI does not reach that script through the
 translated forms.
 
-<!-- source: internal/exabgp/bridge/bridge_command.go -- ExabgpToZebgpCommand -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- ExabgpToZebgpCommand, convertRoute -->
 <!-- source: internal/exabgp/bridge/bridge_event.go -- Version -->
 
-## A line the translator does not recognize passes through unchanged
+## A line that names no neighbor goes to every peer
 
 `ExabgpToZebgpCommand` matches `neighbor <address> <rest>` with a regular
-expression. A line that does not match is returned unchanged, so it reaches
-ze's CLI verbatim.
+expression. A line that does not match names no destination, and ExaBGP sends
+such a line to every neighbor. The bridge reads it the same way. It translates
+the line with the wildcard peer selector, so `announce route <prefix>` becomes
+`peer * update text nlri ipv4/unicast add <prefix>`.
 
-Passthrough is what makes ze's CLI reachable from a script. It does not make
-the two command sets agree, and they do not agree.
+`convertRoute` is the one place that decides what the bridge translates, and it
+answers the same set of forms for a line that names a neighbor and for a line
+that does not. The set is the ExaBGP vocabulary: `announce route`,
+`withdraw route`, `announce ipv[46] <safi>` and `withdraw ipv[46] <safi>`, with
+the SR-Policy shape of each.
 
-ze declares a bare form for each `announce` and `withdraw` command, and the
-bare form reaches every peer. The spellings are ze's own. ExaBGP writes
-`announce route <prefix>` and `withdraw route <prefix>`, where ze declares
-`announce unicast`, `announce blackhole`, `announce flowspec`, `withdraw tag`,
-`withdraw id` and `withdraw all`.
+## A line the translator does not read passes through unchanged
 
-So a bare ExaBGP line reaches ze's dispatcher and matches no command. `help`
-is the only one of the nine exempt wire methods an ExaBGP script can reach
+A line the bridge has no form for keeps its words. It reaches ze's CLI verbatim,
+which is what makes ze's CLI reachable from a script.
+
+Passthrough does not make the two command sets agree, and they do not agree. ze
+declares a bare form for each `announce` and `withdraw` command, and that bare
+form reaches every peer. The spellings are ze's own: `announce unicast`,
+`announce blackhole`, `announce flowspec`, `withdraw tag`, `withdraw id` and
+`withdraw all`. ExaBGP spells its own forms `route` or a family, so no ExaBGP
+spelling collides with one of ze's. That is what lets the translator read the
+ExaBGP forms and leave ze's own to passthrough.
+
+`help` is the only one of the nine exempt wire methods an ExaBGP script reaches
 through passthrough. It is the only one spelled the same on both sides.
 
 | Wire method | How a script reaches it | What a rename costs |

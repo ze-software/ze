@@ -502,6 +502,73 @@ func TestExabgpToZebgpCommand_NonNeighbor(t *testing.T) {
 	assert.Equal(t, "shutdown", result)
 }
 
+// TestBridgeTranslatesTheBareForms drives the ExaBGP announce and withdraw
+// forms that name no neighbor.
+//
+// VALIDATES: a line with no `neighbor <address>` prefix translates to a ze
+// command with the wildcard selector, which is the destination ExaBGP gives a
+// bare line, and ze's own announce and withdraw spellings still pass through.
+// PREVENTS: the bare form reaching ze's dispatcher untranslated. ze spells its
+// announce `announce unicast` where ExaBGP spells it `announce route`, so the
+// line matches no command and the route never reaches the wire.
+func TestBridgeTranslatesTheBareForms(t *testing.T) {
+	translated := []struct {
+		name string
+		line string
+		want string
+	}{
+		{
+			name: "announce_route",
+			line: "announce route 1.1.0.0/24 next-hop 101.1.101.1 origin igp local-preference 100",
+			want: "peer * update text nhop 101.1.101.1 origin igp local-preference 100 nlri ipv4/unicast add 1.1.0.0/24",
+		},
+		{
+			name: "announce_route_ipv6",
+			line: "announce route 2001:db8::/32 next-hop 2001:db8::1",
+			want: "peer * update text nhop 2001:db8::1 nlri ipv6/unicast add 2001:db8::/32",
+		},
+		{
+			name: "withdraw_route",
+			line: "withdraw route 1.1.0.0/24",
+			want: "peer * update text nlri ipv4/unicast del 1.1.0.0/24",
+		},
+		{
+			name: "announce_family",
+			line: "announce ipv4 flow source 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600]",
+			want: "peer * update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp",
+		},
+		{
+			name: "withdraw_family",
+			line: "withdraw ipv4 unicast 10.0.0.0/24",
+			want: "peer * update text nlri ipv4/unicast del 10.0.0.0/24",
+		},
+	}
+	for _, tc := range translated {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, ExabgpToZebgpCommand(tc.line))
+		})
+	}
+
+	// ze declares its own bare announce and withdraw spellings, and a script
+	// reaches them through the passthrough. The translator reads the ExaBGP
+	// vocabulary alone, so each of these stays the line the script wrote.
+	passthrough := []struct {
+		name string
+		line string
+	}{
+		{name: "ze_announce_unicast", line: "announce unicast 10.0.0.0/24 next-hop 10.0.0.1"},
+		{name: "ze_announce_blackhole", line: "announce blackhole 10.0.0.0/24"},
+		{name: "ze_withdraw_all", line: "withdraw all"},
+		{name: "ze_withdraw_id", line: "withdraw id 7"},
+		{name: "help", line: "help"},
+	}
+	for _, tc := range passthrough {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.line, ExabgpToZebgpCommand(tc.line))
+		})
+	}
+}
+
 // TestRoundTrip verifies essential information is preserved.
 //
 // VALIDATES: Key fields preserved in both conversion directions.
