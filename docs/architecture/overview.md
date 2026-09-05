@@ -103,7 +103,7 @@ OSPF and IS-IS are self-contained plugins under `internal/plugins/ospf` and
 | Public packages | `pkg/` | Plugin SDK/RPC, Ze interfaces, and ZeFS storage |
 | Functional tests | `test/` | `.ci` and `.et` tests plus interop and integration assets |
 | Documentation | `docs/` | User, architecture, feature, plugin, migration, contributing, and research docs |
-| Plans and history | `plan/` | Specs, learned summaries, deferrals, and design history |
+| Plans and history | `plan/` | Specs in three release buckets, journal rows, learned summaries, and design history |
 | RFC references | `rfc/` | Full RFCs and short summaries |
 <!-- source: internal/plugins/host-cmd/cmd/register.go -- init -->
 <!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->

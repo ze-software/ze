@@ -33,7 +33,11 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// removed one alignment space on the noPointLine var and five stray blank
 	// lines above rationaleProblems. Whitespace only, so the coverage report
 	// decides exactly what it decided before, which is what the digest pins.
-	const want = "3ad3e68f8ca63efd367c5209120f74af3e3e6b6bc7f98c3dba48e7fd48c19602"
+	//
+	// Updated 2026-09-05: the task corpus and the spec selector read every
+	// release bucket through internal/le/spec/specpath rather than plan/ alone,
+	// so the router now measures the whole population.
+	const want = "e4f369a93e9ea1bf8aa8393bc892f6cd224e1dca7979d64d52156f37a9ebd8c5"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

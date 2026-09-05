@@ -184,7 +184,7 @@ type Coverage struct {
 // coverageSpec is the open work that makes this coverage green. Its phase 1
 // arms the check and its phase 10 empties the unclaimed list, so the red stands
 // for the duration and states the defect rather than a new breakage.
-const coverageSpec = "plan/spec-site-renderers-in-go.md"
+const coverageSpec = "plan/pre-release/spec-site-renderers-in-go.md"
 
 // Red reports whether this coverage refuses the artifact.
 func (coverage Coverage) Red() bool {

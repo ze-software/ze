@@ -245,6 +245,6 @@ Route wins in a protocol, then gets programmed in the kernel:
 ## See also
 - `ai/digests/rib.md`: the upstream layer, BGP's own Adj-RIB-In/Loc-RIB and best-path
   selection, whose winner is what step 1 mirrors into the shared Loc-RIB here
-- `plan/spec-fib-depth.md`: ECMP/backup/recursive-next-hop-resolution spec
+- `plan/immediate/spec-fib-depth.md`: ECMP/backup/recursive-next-hop-resolution spec
 - `docs/architecture/core-design.md`: overall component map referenced by every plugin's
   design header in this subsystem

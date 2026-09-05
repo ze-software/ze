@@ -9,6 +9,12 @@ Maintenance: when a spec closes, strike its row (append-only style, `~~row~~ clo
 NNN`) and re-check the Blocked ledger. Re-derive from `./le spec status` if this
 file and reality diverge -- reality wins.
 
+**Superseded on 2026-09-05.** `plan/` now carries the release bucket in the
+directory: `plan/immediate/`, `plan/pre-release/`, and `plan/` for the rest
+(`plan/README.md`). The bucket answers "what does the release owe" and this file
+answers "in what order", so where the two disagree the bucket wins. The rows below
+date from 2026-07-10 and many name specs that have since closed.
+
 Followup specs (`spec-followup-*`) are excluded: they are in flight in their own
 sessions (l2tp-call phase 1/6, test-infra 6/7 awaiting AC-5, bgp-feature awaiting
 two-commit closure).
@@ -69,7 +75,7 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 |-------|------|--------|
 | B1 | spec-bgp-bfd-strict | design |
 | B2 | spec-bgp-update-delay | design |
-| B3 | spec-gr-advanced | moved to `plan/future/` 2026-08-29 (hard-reset RFC 8538 + selection-deferral; ze advertises no N-bit today, so this is a feature) |
+| B3 | spec-gr-advanced | re-bucketed 2026-08-29 (hard-reset RFC 8538 + selection-deferral; ze advertises no N-bit today, so this is a feature) |
 | B4 | spec-pol-0-umbrella | ready (big: structured policy language) |
 | B5 | spec-rib-arch-0..8 set | skeleton set -> design pipeline (architectural; gate for reactor-split, rename-2/3) |
 
@@ -80,7 +86,7 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 | C2 | spec-ipsec-12-esn | ready (use vendored binapi/ipsec per 2026-07-10 note) |
 | C3 | spec-ike-ppk | design |
 | C4 | spec-ipsec-11-mobike | design |
-| C5 | spec-ike-post-quantum | moved to `plan/future/` 2026-08-29 |
+| C5 | spec-ike-post-quantum | re-bucketed 2026-08-29 |
 
 ### Track D -- Routing protocols (non-BGP)
 | Order | Spec | Status |
@@ -101,8 +107,8 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 | E5 | spec-router-advertisement | ready (2026-07-10): send-side RA |
 | E6 | spec-install-9-cloud-init | design (RESEARCH phase noted) |
 | E7 | spec-kernel-lockdown-hardening | design (explicitly not scheduled; park until asked) |
-| E8 | spec-ntp-server, spec-dhcpv6-server | both moved to `plan/future/` 2026-08-29 |
-| E9 | spec-managed-server-hardening + fleet set (1 -> 2,3,4 -> 5; 6 -> 7) | fleet-1..7 moved to `plan/future/` 2026-08-29; spec-managed-server-hardening stays in `plan/` |
+| E8 | spec-ntp-server, spec-dhcpv6-server | both re-bucketed 2026-08-29 |
+| E9 | spec-managed-server-hardening + fleet set (1 -> 2,3,4 -> 5; 6 -> 7) | fleet-1..7 re-bucketed 2026-08-29; spec-managed-server-hardening stays in `plan/` |
 
 ### Track F -- CLI/web surface
 | Order | Spec | Status |
@@ -117,7 +123,7 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 | G1 | spec-anomaly-3-observe | ready |
 | G2 | spec-anomaly-5-entity-matrix + spec-anomaly-6-as-enrichment | ready (parallel to each other) |
 | G3 | spec-anomaly-7-as-entities-cohorts | ready once 5+6 land |
-| G4 | spec-flow-export-3-sampled-scale | moved to `plan/future/` 2026-08-29 |
+| G4 | spec-flow-export-3-sampled-scale | re-bucketed 2026-08-29 |
 | G5 | spec-anomaly-0-umbrella / spec-cp-survival-0-umbrella | umbrella coordination + closure hygiene |
 
 ### Track H -- In-flight completions (resume before anything new in their areas)
@@ -141,7 +147,7 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 | spec-fib-depth-4-srv6 | spec-fib-depth completion + bgp-nlri-srv6 | fib-depth closes |
 | spec-rename-2-bgp-packet | rib-arch set | rib-arch-0 designed |
 | spec-rename-3-wireu-fold | rename-2 | rename-2 closes |
-| spec-reactor-split | rib-arch set | moved to `plan/future/` 2026-08-29; still gated on rib-arch-0 when it returns |
+| spec-reactor-split | rib-arch set | re-bucketed 2026-08-29; still gated on rib-arch-0 when it returns |
 | spec-review-bus-async-fanout | spec-unify-buffer-lifetime ordering note | before scheduling |
 | spec-anomaly-7 | anomaly-5 + anomaly-6 | both close |
 

@@ -641,8 +641,8 @@ When a document must quote non-conforming text at length, exempt it with
 `<!-- ste: ignore-file <reason> -->` on its own line. The reason is required.
 
 A document that is DELETED when its work closes is out of scope, and rewriting
-its prose is wasted work. `plan/spec-*.md`, `plan/deferrals/` and
-`plan/known-failures/` are excluded in `internal/le/ste/ste.go`.
+its prose is wasted work. `plan/spec-*.md` and `plan/known-failures/` are
+excluded in `internal/le/ste/ste.go`.
 `plan/journal/`, `plan/learned/` and `plan/TEMPLATE.md` stay in scope: they
 outlive every spec and are read by sessions that were not there.
 <!-- source: internal/le/ste/ste.go -- excluded plan trees -->

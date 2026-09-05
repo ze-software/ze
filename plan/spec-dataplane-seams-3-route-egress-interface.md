@@ -4,9 +4,8 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol |
-| Depends | `plan/spec-dataplane-seams-0-umbrella.md` (finding F-3) |
+| Depends | `plan/immediate/spec-dataplane-seams-0-umbrella.md` (finding F-3) |
 | Phase | - |
-| Deferral shard | `plan/deferrals/dataplane-seams.md` (create on the first deferral) |
 | Updated | 2026-08-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -45,7 +44,7 @@ before writing any acceptance criteria.
 |---|----------|---------------------------|
 | Q-1 | Does `fibkernel` also program static routes from the merged best path, or does it skip routes whose protocol is static? | If both program, routes are installed twice and the real defect is duplication, not a missing field |
 | Q-2 | Which protocols actually need an interface-scoped route on the `BestChangeEntry` path? | If none do today, adding the field is speculative and the spec should be cancelled or narrowed |
-| Q-3 | Is the two-path arrangement deliberate? | Check `plan/learned/` and `plan/spec-fib-depth.md` before treating it as a defect |
+| Q-3 | Is the two-path arrangement deliberate? | Check `plan/learned/` and `plan/immediate/spec-fib-depth.md` before treating it as a defect |
 | Q-4 | Would a future subscriber or access feature need per-session routes on the merged path? | This is the strongest argument for the field, and it is a forward-looking one, not a present defect |
 
 **Cancelling this spec is a legitimate outcome.** If the answer to Q-2 is "none",
@@ -60,8 +59,8 @@ external plugin processes decode.
 - [ ] `ai/rules/architecture.md` - data flow tracing, and not duplicating an existing path
 
 ### Related Specs
-- [ ] `plan/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-3
-- [ ] `plan/spec-fib-depth.md` - **in-progress, owns FIB programming depth.** Read its current state before starting. Its own header warns that its Current Behavior table is stale
+- [ ] `plan/immediate/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-3
+- [ ] `plan/immediate/spec-fib-depth.md` - **in-progress, owns FIB programming depth.** Read its current state before starting. Its own header warns that its Current Behavior table is stale
 - [ ] `plan/spec-dataplane-seams-2-backend-typed-index.md` - if the field carries an interface index rather than a name, it inherits that spec's problem
 
 **Key insights:** (minimal context to resume after compaction)
@@ -298,7 +297,7 @@ external plugin processes decode.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

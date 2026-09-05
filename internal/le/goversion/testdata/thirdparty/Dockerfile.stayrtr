@@ -1,0 +1,13 @@
+# A whole tree of stages that build other projects. Nothing here is a carrier of
+# this module's Go version.
+FROM golang:1.26-alpine AS builder
+
+RUN go install example.com/cache/cmd/cache@v0.6.4
+
+FROM golang:1.26-alpine AS fixture-builder
+COPY tools/entrypoint/main.go .
+RUN go build -o /entrypoint main.go
+
+FROM alpine:3.21
+COPY --from=builder /go/bin/cache /usr/local/bin/cache
+COPY --from=fixture-builder /entrypoint /usr/local/bin/entrypoint

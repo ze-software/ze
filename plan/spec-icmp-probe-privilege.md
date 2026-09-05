@@ -6,13 +6,13 @@
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
-| Deferral shard | - |
 | Updated | 2026-08-01 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
-     Deferral shard: every deferred item lands there (ai/rules/planning.md)
-     and closure must resolve its rows, so name the file from the start. -->
+     The file's DIRECTORY carries the release bucket: plan/immediate/ for a defect
+     an operator meets, plan/pre-release/ for work the release cannot go out
+     without, plan/ for everything else (plan/README.md). -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -331,7 +331,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

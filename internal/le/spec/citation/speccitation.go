@@ -16,18 +16,42 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 const (
 	baselinePath = "plan/.citation-baseline"
-	planPath     = "plan"
+	planPath     = specpath.Root
+	// specTemplateFile is the spec template every new spec starts from. It is
+	// not a spec, so it neither cites nor is cited.
+	specTemplateFile = "spec-template.md"
 )
 
+// specReferencePattern matches a citation of a spec in ANY release bucket. It
+// is BUILT from specpath.Dirs rather than spelled here: a pattern that named
+// plan/ alone matched no citation of a spec in plan/immediate/ or
+// plan/pre-release/, and an unmatched citation is one this gate never checks
+// (ai/rules/evidence.md).
+//
+// The alternatives are sorted longest first so the directory a reader sees is
+// the directory the match names.
+var specReferencePattern = regexp.MustCompile(specReferenceExpression())
+
+func specReferenceExpression() string {
+	dirs := specpath.Dirs()
+	sort.Slice(dirs, func(left, right int) bool { return len(dirs[left]) > len(dirs[right]) })
+	quoted := make([]string, 0, len(dirs))
+	for _, dir := range dirs {
+		quoted = append(quoted, regexp.QuoteMeta(dir))
+	}
+	return `(?:` + strings.Join(quoted, "|") + `)/spec-[a-z0-9][a-z0-9-]*\.md`
+}
+
 var (
-	specReferencePattern = regexp.MustCompile(`plan/spec-[a-z0-9][a-z0-9-]*\.md`)
-	backtickPattern      = regexp.MustCompile("`([^`]+)`")
-	citationPattern      = regexp.MustCompile(`^([^\x60\s]+):(\d+)$`)
-	lineSuffixPattern    = regexp.MustCompile(`:\d+$`)
+	backtickPattern   = regexp.MustCompile("`([^`]+)`")
+	citationPattern   = regexp.MustCompile(`^([^\x60\s]+):(\d+)$`)
+	lineSuffixPattern = regexp.MustCompile(`:\d+$`)
 )
 
 type backtickToken struct {
@@ -66,7 +90,7 @@ func scanRepository(root string, repository *os.Root) (Report, error) {
 		Warnings: []DriftFinding{},
 	}
 
-	specs, err := documentPaths(root, filepath.Join(planPath, "spec-*.md"), true)
+	specs, err := specPaths(root)
 	if err != nil {
 		return report, err
 	}
@@ -106,6 +130,23 @@ func scanRepository(root string, repository *os.Root) (Report, error) {
 	return report, nil
 }
 
+// specPaths answers the citing population: every spec in every release bucket,
+// minus the template.
+func specPaths(root string) ([]string, error) {
+	all, err := specpath.All(root)
+	if err != nil {
+		return nil, err
+	}
+	specs := make([]string, 0, len(all))
+	for _, relative := range all {
+		if filepath.Base(relative) == specTemplateFile {
+			continue
+		}
+		specs = append(specs, relative)
+	}
+	return specs, nil
+}
+
 func documentPaths(root, pattern string, excludeTemplate bool) ([]string, error) {
 	plan := filepath.Join(root, planPath)
 	info, err := os.Stat(plan)
@@ -123,7 +164,7 @@ func documentPaths(root, pattern string, excludeTemplate bool) ([]string, error)
 	paths := make([]string, 0, len(matches))
 	for _, match := range matches {
 		if excludeTemplate {
-			if filepath.Base(match) == "spec-template.md" {
+			if filepath.Base(match) == specTemplateFile {
 				continue
 			}
 		}

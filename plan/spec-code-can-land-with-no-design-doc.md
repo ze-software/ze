@@ -6,7 +6,6 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/doc-claims-are-checked-not-just-resolved.md` |
 | Updated | 2026-08-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -283,7 +282,7 @@ target over the real tree.
 - [ ] Architectural Verification table filled
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written
@@ -298,3 +297,15 @@ target over the real tree.
 - [ ] Journal row written for anything this teaches
 - [ ] **Commit A:** code + tests + docs + spec + journal row
 - [ ] **Commit B:** `git rm plan/spec-code-can-land-with-no-design-doc.md` only
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `doc-claims-are-checked-not-just-resolved.md`, 2026-08-09
+
+Deferred by spec-doc-claims-are-checked-not-just-resolved.
+
+Code can land with no design doc: 85 package directories under `internal/` carry no anchor, and the one check that looks reads one registry against one table

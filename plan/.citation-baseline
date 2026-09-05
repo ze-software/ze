@@ -59,3 +59,18 @@ plan/spec-ze-website-3-browser-zefs.md
 plan/spec-ze-website-4-browser-cli-bridge.md
 plan/spec-ze-website-5-bgp-bfd-lab.md
 plan/spec-ze-website-6-integration-release.md
+
+# Added 2026-09-05, when plan/future/ was folded into the three release
+# buckets. The gate's population was `plan/spec-*.md` and did not recurse, so
+# a spec sitting in plan/future/ was read by nothing and its citations were
+# never checked. These nine targets closed while cited from there. The
+# citations are history inside a spec body, and the targets are gone for good.
+plan/spec-fixit-private-asn-leak.md
+plan/spec-fixit-reject-fence-observability.md
+plan/spec-fixit-relax-audit-blind-to-untracked-and-python-tests.md
+plan/spec-hooks-deferred-check-registered-with-an-empty-body.md
+plan/spec-interop-lab-deferred-docker-rm-contract.md
+plan/spec-lg-pki-certificate.md
+plan/spec-ppp-ra-refinements.md
+plan/spec-problem-journal.md
+plan/spec-wire-edit-2-edit-apply.md

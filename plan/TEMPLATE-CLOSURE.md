@@ -80,20 +80,18 @@
 |------------------|---------------|-------------------|
 | [what the feature is meant to achieve] | [interop / functional / benchmark / chaos test] | [test name, output, or file reference] |
 
-## Deferrals Resolved
+## Work Not Done
 
-<!-- Closure must leave no dangling row: deferral_unassigned_problems in
-     internal/le/commit/prepare.go WARNS (it does not block) on a live row with no
-     destination -- act on the warning here, because nothing else will.
-     The spec's own shard is git rm'd at closure ONLY when every row in it is
-     terminal; a shard still holding a live row outlives its source spec and
-     deferral_shard_removal_problems blocks its removal
-     (ai/rules/planning.md). Account for every row here.
-     If resolving a row empties a FOREIGN shard (its last live row becomes
-     terminal), that shard is now residue and this closure removes it too. -->
-| Row (from the deferral shard) | Final Status | Destination or evidence |
-|-------------------------------|--------------|-------------------------|
-| [what was deferred] | done / cancelled / deferred | [spec that now owns it, or why it is closed] |
+<!-- Every in-scope item this spec did not do. Each one is a spec of its own by
+     now, in the bucket that item belongs to (plan/README.md), and this table
+     names it. There is no shard and no deferral row: a row nobody can count is a
+     row nobody schedules, which is why plan/deferrals/ was deleted on 2026-09-05
+     holding 103 live rows, 29 of which named no destination at all.
+     Scope reduction is the owner's decision, never the author's
+     (ai/rules/completion.md). -->
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| [the item] | [why this spec did not do it] | `plan/<bucket>/spec-<stem>.md` |
 
 ## Review Gate
 

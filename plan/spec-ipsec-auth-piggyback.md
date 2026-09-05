@@ -6,7 +6,6 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the spec already says outstanding work needs a row here. Create `plan/deferrals/ipsec-auth-piggyback.md` on the first deferral) |
 | Updated | 2026-08-01 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -252,7 +251,7 @@ the design phase closes.
 | A-3 | The initiator installs a Child SA with an invented outbound SPI when the response accepted none | `established.go`, `fsm.go` and `child.go`, read 2026-08-01 | The initiator defect does not exist and phase 4 is unnecessary | Drive a response with a piggybacked notification and read the installed SPI | unvalidated |
 | A-4 | strongSwan keeps its IKE SA when its Child SA request is refused | Not yet read | The interop scenario cannot prove the capability against a peer | Read the strongSwan source for its IKE_AUTH error path | unvalidated |
 | A-5 | strongSwan retries the Child SA with a CREATE_CHILD_SA exchange after such a refusal | Not yet read | G-3 has no interop counterpart and only a Ze-to-Ze test proves it | Read the strongSwan retry policy and build the scenario | unvalidated |
-| A-6 | `test/interop-ipsec/` stays outside the automated tiers | `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md` | An interop tag becomes legal evidence | Rerun `./le rfc check` at landing time | unvalidated |
+| A-6 | `test/interop-ipsec/` stays outside the automated tiers | `plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md` | An interop tag becomes legal evidence | Rerun `./le rfc check` at landing time | unvalidated |
 | A-7 | No committed RFC row needs to change | `RFC7296-2.21.2-2` is bound in both polarities at `ai/RFC-REQUIREMENTS.md` | The spec touches a gated row and the proof ratchet applies | Rerun `./le rfc check` after the change | unvalidated |
 
 ### Risks
@@ -275,7 +274,7 @@ the design phase closes.
 |----------|--------|
 | What breaks if this is wrong? | An IKE SA survives when Ze must delete it, or an authenticated peer accumulates SAs that carry no traffic. A wrong initiator guard removes the Child SA install from every tunnel, which is total data-path loss |
 | How is it reverted? | A single commit revert, while the behavior stays off by default. Once a peer depends on the surviving SA, a revert deletes that SA on the next Child SA refusal |
-| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (the error notification sender, near closure), `plan/spec-ipsec-remote-access.md` (the same IKE_AUTH response chain and the CP payload), `plan/spec-ipsec-ipcomp.md` (the same Child SA negotiation), `spec-fixit-vpp-ipsec-inoperable` (the dataplane the attachment path installs into) |
+| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (the error notification sender, near closure), `plan/immediate/spec-ipsec-remote-access.md` (the same IKE_AUTH response chain and the CP payload), `plan/spec-ipsec-ipcomp.md` (the same Child SA negotiation), `spec-fixit-vpp-ipsec-inoperable` (the dataplane the attachment path installs into) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -355,7 +354,7 @@ owner's approval, because the RFC-tagged-test hook blocks it.
 
 The `ipsec` suite runs inside `./le verify current mode full`, so a `.ci` there earns a verify tier. A `.ci`
 that makes IKE_AUTH refuse the Child SA while AUTH still verifies needs a configuration
-that disagrees on ESP only. `plan/deferrals/rfcgate-1b-rfc7296-pilot.md` records that a
+that disagrees on ESP only. the retired deferral shard "rfcgate-1b-rfc7296-pilot" records that a
 disjoint `esp-group` fails `selectResponderESP` at IKE_AUTH, so the SA never establishes.
 **Read that row before you design the fixture.** It blocked a sibling test, and it blocks
 this one the same way.
@@ -366,7 +365,7 @@ this one the same way.
 | `auth-piggyback` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer whose Child SA Ze refuses keeps its IKE SA | |
 | `auth-piggyback-attach` | `test/interop-ipsec/scenarios/` | strongSwan | The same peer attaches a Child SA with a later CREATE_CHILD_SA exchange | |
 
-**These scenarios cannot carry an RFC tag.** `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md`
+**These scenarios cannot carry an RFC tag.** `plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md`
 owns that constraint, because no automated caller runs the tree. Write the reason into
 each scenario header, so a later reader does not add a tag. Scenario directories are
 named, never numbered, so no number has to be reserved.
@@ -580,7 +579,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
   Ze peer and an operator who repairs the configuration.
 - The design does not add a Ze-initiated attachment. Ze answers a CREATE_CHILD_SA
   request, and it does not send one for a first Child SA. Anything outstanding here needs
-  a row in `plan/deferrals/ipsec-auth-piggyback.md`.
+  a row in the retired deferral shard "ipsec-auth-piggyback".
 
 ## RFC Documentation (Scope: protocol)
 
@@ -604,7 +603,7 @@ MAY, so a later reader does not read the code as a mandatory behavior.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

@@ -6,7 +6,6 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the VPP refusal is a design decision in scope, not postponed work. Create `plan/deferrals/ipsec-ipcomp.md` on the first deferral) |
 | Updated | 2026-07-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -249,7 +248,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 |----------|--------|
 | What breaks if this is wrong? | An IPsec tunnel carries traffic the peer cannot decompress, or a peer that offers IPComp loses its Child SA. Both are total data-path loss for that tunnel |
 | How is it reverted? | The negotiation is off by default, so a single commit revert is safe while the default holds. Once an operator enables it and peers negotiate, a revert drops those tunnels until both ends are downgraded |
-| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (the four rows, and the generic error-notification sender its WP-3 and WP-4 build), `spec-fixit-vpp-ipsec-inoperable` (the VPP backend installs SAs and refuses every policy IKE produces), `plan/spec-ipsec-remote-access.md` (the same engine and the same Child SA path) |
+| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (the four rows, and the generic error-notification sender its WP-3 and WP-4 build), `spec-fixit-vpp-ipsec-inoperable` (the VPP backend installs SAs and refuses every policy IKE produces), `plan/immediate/spec-ipsec-remote-access.md` (the same engine and the same Child SA path) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -579,7 +578,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
   section high-water mark and the rest must take higher ordinals, out of document order.
 - The VPP backend installs SAs and cannot be driven by IKE: it refuses every policy the
   engine produces (`spec-fixit-vpp-ipsec-inoperable`, closed 2026-08-10, and
-  `plan/future/spec-ipsec-vpp-policy-interface.md`). This spec refuses compression on that
+  `plan/spec-ipsec-vpp-policy-interface.md`). This spec refuses compression on that
   backend rather than implementing it, and the refusal is correct only while that limit
   holds. Any work that makes VPP IPsec drivable by IKE must revisit the refusal.
 
@@ -605,7 +604,7 @@ informational builders, and the dataplane compression call.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

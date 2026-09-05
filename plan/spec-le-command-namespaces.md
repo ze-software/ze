@@ -6,7 +6,6 @@
 | Scope | cli |
 | Depends | - |
 | Phase | - |
-| Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-28 |
 
@@ -479,7 +478,7 @@ Not applicable. No protocol code changes.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

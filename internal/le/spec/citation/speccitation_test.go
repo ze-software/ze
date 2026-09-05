@@ -72,7 +72,7 @@ func TestDanglingCitationIsStructuredAndFatal(t *testing.T) {
 	if code := verdict(report); code != 1 {
 		t.Fatalf("verdict = %d, want 1", code)
 	}
-	want := "./le spec citation FAILED: dangling plan/spec-*.md references\n" +
+	want := "./le spec citation FAILED: dangling spec references\n" +
 		"  plan/spec-a.md:2: references plan/spec-gone.md which is absent on disk (not in baseline)\n" +
 		"\n1 dangling reference(s). Either fix the citing reference, or -- if the target is legitimately gone -- add it to plan/.citation-baseline.\n"
 	if got := report.Text(); got != want {
@@ -270,5 +270,31 @@ func TestAnswerRefusesArguments(t *testing.T) {
 	}
 	if code != 2 {
 		t.Errorf("Answer code = %d, want 2", code)
+	}
+}
+
+// Goal: prove the gate reads a spec in every release bucket and checks a
+// citation of one. Method: scan a tree whose three buckets each hold one spec,
+// where the pre-release spec cites a bucket path that is absent.
+//
+// PREVENTS: two silent halves of the same failure. A population globbed from
+// plan/ alone never reads the specs of the other two buckets, and a reference
+// pattern spelling plan/ alone never matches a citation of one, so a dead
+// pointer between buckets is reported by nobody.
+func TestEveryReleaseBucketIsCitedAndScanned(t *testing.T) {
+	report := scanCitationTree(t, map[string]string{
+		"plan/spec-after.md":                "See `plan/immediate/spec-now.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/immediate/spec-now.md":        "No references.\n",
+		"plan/pre-release/spec-blocking.md": "See `plan/immediate/spec-gone.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+	})
+	if report.Specs != 3 {
+		t.Fatalf("the population held %d specs, want 3: a bucket was not read", report.Specs)
+	}
+	want := []DanglingFinding{{
+		Citer:  DocumentLocation{Path: "plan/pre-release/spec-blocking.md", Line: 1},
+		Target: "plan/immediate/spec-gone.md",
+	}}
+	if !reflect.DeepEqual(report.Dangling, want) {
+		t.Fatalf("Dangling = %#v, want %#v", report.Dangling, want)
 	}
 }

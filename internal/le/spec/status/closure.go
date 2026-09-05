@@ -11,10 +11,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/journal"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 const learnedDir = "plan/learned"
@@ -49,23 +49,23 @@ func closureInventory(root string) (ClosureReport, []string, error) {
 		return nil, nil, err
 	}
 
-	paths, err := filepath.Glob(filepath.Join(root, "plan", "spec-*.md"))
+	relatives, err := specpath.All(root)
 	if err != nil {
 		return nil, nil, fmt.Errorf("match active specs: %w", err)
 	}
-	sort.Strings(paths)
+	paths := make([]string, 0, len(relatives))
+	for _, relative := range relatives {
+		if filepath.Base(relative) != specTemplateFile {
+			paths = append(paths, filepath.Join(root, filepath.FromSlash(relative)))
+		}
+	}
 	stems := make(map[string]bool, len(paths))
 	for _, path := range paths {
-		if filepath.Base(path) != specTemplateFile {
-			stems[specStem(filepath.Base(path))] = true
-		}
+		stems[specpath.Stem(filepath.Base(path))] = true
 	}
 
 	report := make(ClosureReport, 0, len(stems))
 	for _, path := range paths {
-		if filepath.Base(path) == specTemplateFile {
-			continue
-		}
 		one, err := inspectClosureSpec(root, path, learned, tracked, journalEvidence, stems)
 		if err != nil {
 			return nil, malformed, err
@@ -77,7 +77,13 @@ func closureInventory(root string) (ClosureReport, []string, error) {
 
 // CheckClosure checks one spec spelling. An absent spec is a clean answer.
 func CheckClosure(root, spec string) (ClosureReport, []string, error) {
-	path := resolveSpecPath(root, spec)
+	path, err := resolveSpecPath(root, spec)
+	if errors.Is(err, specpath.ErrNoSpec) {
+		return ClosureReport{}, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return ClosureReport{}, nil, nil
@@ -88,7 +94,7 @@ func CheckClosure(root, spec string) (ClosureReport, []string, error) {
 	if err != nil {
 		return nil, malformed, err
 	}
-	stem := specStem(filepath.Base(path))
+	stem := specpath.Stem(filepath.Base(path))
 	for _, one := range all {
 		if one.Stem != stem {
 			continue
@@ -115,7 +121,7 @@ func inspectClosureSpec(root, path string, learned []learnedFile, tracked map[st
 		return closureSpec{}, err
 	}
 	rel = filepath.ToSlash(rel)
-	stem := specStem(filepath.Base(path))
+	stem := specpath.Stem(filepath.Base(path))
 	text := string(body)
 	rows, _ := metaRows(text)
 	one := closureSpec{
@@ -261,25 +267,21 @@ func closureNeedsVerification(one closureSpec) bool {
 	return one.LearnedRef != ""
 }
 
-func specStem(name string) string {
-	return strings.TrimSuffix(strings.TrimPrefix(name, "spec-"), ".md")
-}
-
-func resolveSpecPath(root, spec string) string {
+// resolveSpecPath answers the absolute path of one spec spelling. An absolute
+// path and a path with a separator name the file themselves; a bare name or a
+// bare stem names no bucket, so specpath resolves which one holds it.
+func resolveSpecPath(root, spec string) (string, error) {
 	if filepath.IsAbs(spec) {
-		return spec
+		return spec, nil
 	}
-	if strings.ContainsRune(spec, filepath.Separator) {
-		return filepath.Join(root, filepath.Clean(spec))
+	if strings.ContainsRune(spec, filepath.Separator) || strings.ContainsRune(spec, '/') {
+		return filepath.Join(root, filepath.FromSlash(filepath.Clean(spec))), nil
 	}
-	name := spec
-	if !strings.HasSuffix(name, ".md") {
-		name += ".md"
+	relative, err := specpath.Find(root, spec)
+	if err != nil {
+		return "", err
 	}
-	if !strings.HasPrefix(name, "spec-") {
-		name = "spec-" + name
-	}
-	return filepath.Join(root, "plan", name)
+	return filepath.Join(root, filepath.FromSlash(relative)), nil
 }
 
 func firstNonempty(values ...string) string {

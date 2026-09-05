@@ -22,8 +22,8 @@ See also: `/ze-status` (wider cross-project view), `/ze-handoff` (prepare for ne
    - Uncommitted changes (count, key files, and scale from diff stat)
    - Recent commits relevant to the current work
 4. **Tasks:** Check for in-progress tasks in this conversation using TaskList (skip if none exist).
-5. **Formal deferrals:** Read the shards under `plan/deferrals/` (one file per source). List open deferrals, especially any from the selected spec.
-6. **Session skips:** Review the conversation history for anything skipped, postponed, or left incomplete during this session that is NOT yet logged in a `plan/deferrals/` shard. Look for:
+5. **Work not done:** Read the selected spec's **Work Not Done** table. For each row, check that the spec it names is on disk. A row that names none is work no count can see (`plan/README.md`).
+6. **Session skips:** Review the conversation history for anything skipped, postponed, or left incomplete during this session that the **Work Not Done** table does not already carry. Look for:
    - Edge cases noticed but not handled
    - TODOs or FIXMEs added in code
    - Test coverage gaps acknowledged but not filled
@@ -47,8 +47,8 @@ See also: `/ze-status` (wider cross-project view), `/ze-handoff` (prepare for ne
 ### Remaining
 - [unfinished spec items, unchecked ACs, remaining phases]
 
-### Deferred (formal)
-- [open deferrals from plan/deferrals/ shards, or "none"]
+### Work Not Done
+- [each row of the spec's Work Not Done table with the spec that owns it, or "none"]
 
 ### Skipped This Session
 - [things noticed/postponed/simplified during this session, or "none"]

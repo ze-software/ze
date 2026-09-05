@@ -6,7 +6,6 @@
 | Scope | plugin |
 | Depends | none. `spec-fixit-vpp-slaac-no-dataplane-path` landed the gate and closed on 2026-08-29 |
 | Phase | - |
-| Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-24 |
 
@@ -172,7 +171,7 @@ design phase to answer.
 |----------|--------|
 | What breaks if this is wrong? | A false negative leaves a gate refusing a configuration that works, so an operator loses IPv6 autoconfiguration on the vpp backend for no reason. A false positive removes a gate and restores the silent accept the parent spec deleted |
 | How is it reverted? | Single commit revert. The gate is one YANG annotation and five `.ci` fixtures |
-| Who else touches this path? | the closed spec `spec-fixit-vpp-slaac-no-dataplane-path` landed the gate; `plan/future/spec-fixit-vpp-vlan-promiscuous.md` works the same VLAN surface; `plan/spec-dataplane-seams-4-control-packet-rx.md` owns the shared receive-path question |
+| Who else touches this path? | the closed spec `spec-fixit-vpp-slaac-no-dataplane-path` landed the gate; `plan/immediate/spec-fixit-vpp-vlan-promiscuous.md` works the same VLAN surface; `plan/spec-dataplane-seams-4-control-packet-rx.md` owns the shared receive-path question |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -362,7 +361,7 @@ the RFC 4862 requirement the host cannot meet without the packets.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

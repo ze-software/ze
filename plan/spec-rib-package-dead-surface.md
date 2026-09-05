@@ -6,7 +6,6 @@
 | Scope | plugin |
 | Depends | - |
 | Phase | DESIGN |
-| Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-18 |
 

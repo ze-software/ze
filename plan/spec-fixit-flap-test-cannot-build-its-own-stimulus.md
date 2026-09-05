@@ -6,7 +6,6 @@
 | Scope | iface |
 | Depends | - |
 | Phase | - |
-| Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-09-03 |
 

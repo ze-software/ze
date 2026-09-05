@@ -4,9 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | plugin |
-| Depends | `plan/spec-cli-show-bgp-answer-shapes.md` |
+| Depends | `plan/immediate/spec-cli-show-bgp-answer-shapes.md` |
 | Phase | 5/5 |
-| Deferral shard | `plan/deferrals/plugin-declares-answer-shape.md` |
 | Handoff | - |
 | Updated | 2026-08-24 |
 
@@ -25,7 +24,7 @@ them. The operators a plugin command supports are never published, an operator
 it cannot support is never refused before dispatch, and `| display <partial>`
 does not complete because `completeDisplayFields` reads the column registry.
 
-`plan/deferrals/plugin-registers-pipe-operations.md` deferred exactly this on
+the retired deferral shard "plugin-registers-pipe-operations" deferred exactly this on
 2026-08-21, when the alias channel shipped without it: "Ordering is a second
 declaration channel with its own collision and inheritance rules, and folding it
 into a spec whose subject is aliases would give both halves one set of tests."
@@ -89,7 +88,7 @@ fixes for its own two instances. `show bgp rpki aspa` is the other.
   `ze help command --json` read the compiled tree in their own process and start
   no plugin, so a declaration that reaches only a running daemon does not reach
   the page. That is recorded in
-  `plan/deferrals/plugin-registers-pipe-operations.md`, row 2, and this spec
+  the retired deferral shard "plugin-registers-pipe-operations", row 2, and this spec
   does not close it.
 
 ## Current Behavior (MANDATORY)
@@ -188,7 +187,7 @@ the producing function.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The dependency spec's floor rule has landed, so a plugin declaring onto a path the BGP command plugin blanked wins | `plan/spec-cli-show-bgp-answer-shapes.md` Phase 1 | The declaration is silently dropped, or drops the empty declaration and lets the child inherit `show bgp`'s peer columns | `TestPluginShapeOverridesEmptyDeclaration` | unvalidated |
+| A-1 | The dependency spec's floor rule has landed, so a plugin declaring onto a path the BGP command plugin blanked wins | `plan/immediate/spec-cli-show-bgp-answer-shapes.md` Phase 1 | The declaration is silently dropped, or drops the empty declaration and lets the child inherit `show bgp`'s peer columns | `TestPluginShapeOverridesEmptyDeclaration` | unvalidated |
 | A-2 | No caller depends on `show bgp healthcheck` answering one object for a named probe, nor on `show bgp rpki aspa` answering one object for a customer ASN | The commands are reached only through the dispatcher | A caller breaks | `gopls references` on `handleShow` and `aspaCommand`, and a grep of `test/` for both command paths | confirmed 2026-08-24. `handleShow` is called only by `handleCommand` (`healthcheck.go`) and `aspaCommand` only by `handleCommand` (`rpki.go`); every other reference is a test in the same package. One `.ci` reads the named-probe answer, `test/plugin/as112-probe-anycast-not-loopback.ci`, and it matches the SUBSTRINGS `state: UP` and `state: DOWN` in the `\| yaml` render, which survive the two-space sequence indent `writeMapItem` (`internal/component/command/format.go`) adds. No `.ci` reads the aspa lookup answer |
 | A-3 | A plugin that stops and restarts re-declares, so removal on stop loses nothing | `UnregisterPluginAliases` already works this way | A restarted plugin's commands lose their declarations | `TestUnregisterPluginShapes` and a plugin restart in a `.ci` |ered unvalidated |
 | A-4 | `show bgp rpki status` and `show bgp adj-rib-in status` genuinely hold no single row set | Read of `rowsInKeyed` against both producers: one has two candidate keys, the other maps an address to a scalar | Declaring `doc` refuses a row operator that used to answer | A `.ci` asserting the refusal names the operator | confirmed 2026-08-24. `statusCommand` (`rpki.go`) writes two candidate keys, pinned by `TestDocCommandsHoldNoSingleRowSet`; `AdjRIBInManager.status` (`rib_commands.go`) maps an address to an `int`, pinned by `TestStatusHoldsNoRowSet`. `test/ui/show-bgp-plugin-shapes.ci` asserts both refusals by operator name and on `cannot apply here` |
@@ -322,7 +321,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
 ## Files to Create
 - `test/ui/show-bgp-plugin-shapes.ci`
 - `test/plugin/plugin-shape-declaration-refused.ci`
-- `plan/deferrals/plugin-declares-answer-shape.md`
+- the retired deferral shard "plugin-declares-answer-shape"
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -463,7 +462,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
 - The published catalog still cannot show a plugin's declaration.
   `./le command list` and `ze help command --json` read the compiled tree and
   start no plugin, so the wiki page lists a plugin's commands without their
-  operators. Recorded in `plan/deferrals/plugin-registers-pipe-operations.md`,
+  operators. Recorded in the retired deferral shard "plugin-registers-pipe-operations",
   row 2, and carried forward here.
 - The engine cannot check a declared column name against a payload it has not
   seen. For the eleven commands the `.ci` checks it; for a third-party plugin it
@@ -476,7 +475,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
   the producer does not support it. The peer address is also the map KEY rather
   than a field, so no address field is declared and `| resolve` is refused for
   that separate reason -- the identity-keyed row set limitation carried by
-  `plan/deferrals/cli-show-bgp-answer-shapes.md`.
+  the retired deferral shard "cli-show-bgp-answer-shapes".
 
 ## Checklist
 
@@ -490,7 +489,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
 - [ ] Architectural Verification table filled
 - [ ] Critical Review passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

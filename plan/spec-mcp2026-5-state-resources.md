@@ -6,7 +6,6 @@
 | Scope | protocol |
 | Depends | spec-mcp2026-1-stateless-core |
 | Phase | - |
-| Deferral shard | `plan/deferrals/mcp2026-0-umbrella.md` |
 | Updated | 2026-07-28 |
 
 Deferral holder. Source: `plan/spec-mcp2026-0-umbrella.md` (owner question,
@@ -263,7 +262,7 @@ graceful-closure path.
 - [ ] Architectural Verification table filled
 - [ ] Critical Review passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written
@@ -279,3 +278,15 @@ graceful-closure path.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `mcp2026-0-umbrella.md`, 2026-07-28
+
+Deferred by spec-mcp2026-0-umbrella.
+
+Surface live Ze state (event bus transitions: protocol session up/down, OSPF neighbour and interface state, VRRP state change) to MCP clients, by modelling it as `ze://` resources and pushing `notifications/resources/updated` over `subscriptions/listen`

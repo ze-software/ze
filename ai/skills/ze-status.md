@@ -12,18 +12,18 @@ See also: `/ze-debrief` (deep dive on current session/spec)
 ## Steps
 
 1. **Selected spec:** Run `./le spec session current`. If set, read spec metadata (Status, Phase, Updated).
-2. **Open specs:** Scan `plan/spec-*.md` for all specs. For each, extract Status from metadata table. Present:
+2. **Open specs:** Scan `plan/spec-*.md`, `plan/immediate/spec-*.md` and `plan/pre-release/spec-*.md`. For each, extract Status from the metadata table. The directory is the release bucket (`plan/README.md`), and a `skeleton` in `immediate/` outranks an `in-progress` at the top level. Present:
 
-| Spec | Status | Updated |
-|------|--------|---------|
-| spec-name | design/skeleton/in-progress/blocked | date |
+| Spec | Bucket | Status | Updated |
+|------|--------|--------|---------|
+| spec-name | immediate / pre-release / backlog | design/skeleton/in-progress/blocked | date |
 
 2b. **Work in flight:** Run `./le spec session wip`. Report the count against the cap and the three stalest. Every rule in `ai/rules/` governs how well ONE spec is executed; the cap is the only thing that limits how many are open at once, so an over-cap count is an attention item in its own right, not background noise.
 3. **Git state:** Run `git status` and `git log --oneline -5`. Summarize:
    - Current branch
    - Uncommitted changes (count and key files)
    - Recent commits (last 5)
-4. **Deferrals:** Read the shards under `plan/deferrals/` (one file per source; the live backlog is a fold over the directory, never a stored file). Count open items across all shards. List any that reference the selected spec.
+4. **Release buckets:** Count the specs in each bucket with `find plan/immediate -maxdepth 1 -name 'spec-*.md' | wc -l`, then the same for `plan/pre-release` and `plan` (`-maxdepth 1` keeps the buckets out of the top-level count). `plan/immediate/` is what the first release ships as defects, so report it first. Then read the selected spec's **Work Not Done** table and list any row whose destination spec is missing from disk.
 5. **Test state:** Check `tmp/ze-verify.log`. If it exists, check its age and whether it shows failures.
    - Fresh (<1h) and passing: "Tests: PASS (Nh ago)"
    - Fresh and failing: "Tests: FAIL -- [count] failures (Nh ago)"
@@ -35,7 +35,7 @@ See also: `/ze-debrief` (deep dive on current session/spec)
 
 **Spec:** [selected spec name and status, or "none selected"]
 **Branch:** [branch] | **Uncommitted:** [count] files
-**Tests:** [PASS/FAIL/not run] | **Deferrals:** [count] open | **In flight:** [n]/[cap] specs
+**Tests:** [PASS/FAIL/not run] | **Buckets:** [n] immediate / [n] pre-release / [n] backlog | **In flight:** [n]/[cap] specs
 
 ### Open Specs
 [table from step 2, or "none"]
@@ -57,7 +57,7 @@ Generate the attention list by checking these conditions in order:
 | Spec in-progress with uncommitted changes | "Uncommitted work on [spec]" | `/ze-verify` then `/ze-commit` |
 | Spec in skeleton/design status | "[spec] needs implementation" | `/ze-implement` |
 | Spec blocked | "[spec] blocked on [dependency]" | Check dependency |
-| Deferrals referencing selected spec | "N deferred items for [spec]" | Review `plan/deferrals/` |
+| A **Work Not Done** row naming a spec that is not on disk | "[spec] routes N items at a spec nobody wrote" | Write the spec in the bucket that item belongs to |
 | No spec selected but specs exist | "No spec selected" | `/ze-spec` to resume or create |
 | Stale test results | "Tests not run recently" | `/ze-verify` |
 

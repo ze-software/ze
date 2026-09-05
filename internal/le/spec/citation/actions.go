@@ -59,6 +59,6 @@ func firstCitationArgument(args []string) string {
 }
 
 func refuseCitation(got string) int {
-	fmt.Fprintf(os.Stderr, "usage: le spec citation anchors spec plan/spec-<name>.md (got %q)\n", got) //nolint:errcheck // CLI output
+	fmt.Fprintf(os.Stderr, "usage: le spec citation anchors spec <bucket>/spec-<name>.md (got %q)\n", got) //nolint:errcheck // CLI output
 	return 2
 }

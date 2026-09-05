@@ -300,6 +300,7 @@ all render it.
 | `./le functional` | `internal/le/functional.Answer` | functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility |
 | `./le fuzz` | `internal/le/fuzz.Answer` | Go fuzzing: every `func Fuzz` under internal/, discovered at run time |
 | `./le go-extract` | `internal/le/goextract.Answer` | move named declarations from one Go file to another, comments and formatting intact |
+| `./le go-version` | `internal/le/goversion.Answer` | every build carrier that copies this module in names the Go minor version go.mod declares, so no image builds Ze on a toolchain nobody chose |
 | `./le gokrazy-gosum` | `internal/le/gokrazygosum.Answer` | the packed gokrazy/ze/builddir/**/go.sum files agree with the root module about what a version contains |
 | `./le hook-check` | `internal/le/hookcheck.Answer` | native hook dispatcher golden and behavioral fixture selftests |
 | `./le htmx-upgrade` | `internal/le/htmxupgrade.Answer` | htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue |
@@ -575,7 +576,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | declared failure group, VERIFY FAILURE GROUP, whose red is this, attributing a structural red, failure index | `internal/le/verify/engine.RunMode`, `internal/le/doc/wiring.Group`, `internal/le/commit.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/precommit-verify.md` |
 | commit, commit script, commit message, verified commit, verify freshness, owner override, commit no test, verification debt, gate owed, push refused | `internal/le/commit.Answer`, `internal/le/verify/status.Answer`, `ai/rules/git-safety.md`, `ai/rules/precommit-verify.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
 | weekly update, Zeledon, ze-news, Discord announcement, website changes, homepage latest updates | `ai/skills/ze-weekly-update.md`, `website/AI.md`, `website/changes/discord/STYLE.md`, `internal/le/weekly`, `internal/le/site` |
-| spec status, spec metadata, spec closure, deferral row, deferral shard, executive summary, session handoff, handover | `ai/rules/planning.md`, `docs/contributing/spec-workflow.md`, `plan/TEMPLATE.md`, `./le spec status` |
+| spec status, spec metadata, spec closure, release bucket, immediate, pre-release, work not done, executive summary, session handoff, handover | `ai/rules/planning.md`, `docs/contributing/spec-workflow.md`, `plan/README.md`, `plan/TEMPLATE.md`, `plan/TEMPLATE-CLOSURE.md`, `./le spec status` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md` |
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`, `docs/contributing/documentation-testing.md`, `./le inventory`, `./le docvalid`, `./le docs-to-code` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |
@@ -678,7 +679,7 @@ rule it points at.
 - **Docs from assumption** (RECURRING). Read the source before any factual claim.
 - **Reinventing repo contents** (lg-overhaul). Grep existing code before writing new infra; `third_party/` and the components often already have it.
 - **Spec claimed complete with gaps** (lg-0..4). A learned summary saying "future X" means the spec is NOT done.
-- **Stale deferrals** (redist-phase2). Grep the code before creating a phase-N spec out of open deferrals.
+- **Stale unfinished work** (redist-phase2). Grep the code first. Another session can already have landed the work.
 - **Same-day blocker fix** (cmd-4, RECURRING). An adversarial review races on reactor code, greps renamed-name consumers and sibling call sites, and breaks production to confirm the `.ci` test fails.
 - **Substring collision in bulk edits** (iface-tunnel). Match the longest prefix first, or add non-name context, then grep for mangled names afterwards.
 - **Vendor is not upstream** (iface-tunnel). Verify behavior against `vendor/<lib>/`, not upstream docs, and cite the vendor path.

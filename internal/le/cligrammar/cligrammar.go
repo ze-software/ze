@@ -95,7 +95,19 @@ var rootNamespaceExempt = map[string]bool{}
 // there is no `le test` object holding them. Splitting them would also promise
 // a namespace that does not hold the real suites, which are `functional`,
 // `integration`, `deployment`, `qemu`, `fuzz`, `mutation` and `stress-repro`.
+//
+// `go-extract` and `go-version` are the second entry, and they are the same
+// trap one word along. One moves named declarations between Go files and the
+// other judges the Go minor version every build carrier names, so they are two
+// kinds of thing sharing a word rather than members of an object. There is no
+// `le go` command holding them, and a `go version` member would read as "print
+// the Go version" instead of "gate the carriers against go.mod". Neither was a
+// finding while one of them existed alone: two roots sharing a first hyphen
+// segment is what makes leNamespaces call the segment an object, so the pair
+// is flagged together and excused together.
 var leNamespaceExempt = map[string]bool{
+	"go-extract":       true,
+	"go-version":       true,
 	"test-chaos":       true,
 	"test-health":      true,
 	"test-helper":      true,

@@ -13,7 +13,6 @@
 | Scope | config |
 | Depends | `plan/spec-firewall-remote-group.md` |
 | Phase | - |
-| Deferral shard | `plan/deferrals/firewall-domain-group.md` |
 | Handoff | - |
 | Updated | 2026-09-02 |
 
@@ -21,8 +20,9 @@
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
-     Deferral shard: every deferred item lands there (ai/rules/planning.md)
-     and closure must resolve its rows, so name the file from the start. -->
+     The file's DIRECTORY carries the release bucket: plan/immediate/ for a defect
+     an operator meets, plan/pre-release/ for work the release cannot go out
+     without, plan/ for everything else (plan/README.md). -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -129,14 +129,14 @@ Related, and deliberately out of scope:
   when a source fails, programming the set, and the show/update/clear command
   shape. This spec adds DNS as a source and TTL as a schedule, and MUST NOT
   build a second copy of that substrate.
-- `plan/spec-firewall-dynamic-address-group.md` covers packet-triggered set
+- `plan/immediate/spec-firewall-dynamic-address-group.md` covers packet-triggered set
   population through nftables `dynset`. It owns finishing the inert
   `flags-dynamic` and `flags-timeout` lowering in `applySet`, which this spec
   needs if group members are to carry a kernel-side timeout.
 
 Provenance: this is the third mechanism `plan/spec-firewall-remote-group.md`
 names and excludes, and the destination for the unhomed deferral row in
-`plan/deferrals/firewall-remote-group.md`.
+the retired deferral shard "firewall-remote-group".
 
 ## Required Reading
 
@@ -160,7 +160,7 @@ names and excludes, and the destination for the unhomed deferral row in
 - [ ] `ai/rules/planning.md` - deferral homing.
   → Constraint: the deferral row that names this spec stays live until the work
     LANDS, not until the destination exists, so closure must resolve the row in
-    `plan/deferrals/firewall-remote-group.md`, not only this spec's own shard.
+    the retired deferral shard "firewall-remote-group", not only this spec's own shard.
 - [ ] `ai/rules/writing.md` - spec prose.
   → Constraint: cite `file.go` `Symbol`, not a line number, because a line
     number rots at the next edit.
@@ -711,7 +711,7 @@ Functional tests and fixtures:
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Its own spec, with the sourced-group substrate named as a dependency on `spec-firewall-remote-group` | One spec covering both URL and DNS sources; a fully standalone spec accepting three copies of the machinery | Owner, 2026-09-02. Keeps this spec small and homes the unhomed deferral row in `plan/deferrals/firewall-remote-group.md`, without rewriting scope that spec already agreed |
+| Its own spec, with the sourced-group substrate named as a dependency on `spec-firewall-remote-group` | One spec covering both URL and DNS sources; a fully standalone spec accepting three copies of the machinery | Owner, 2026-09-02. Keeps this spec small and homes the unhomed deferral row in the retired deferral shard "firewall-remote-group", without rewriting scope that spec already agreed |
 | A plugin under `internal/component/firewall/plugins/`, reaching the hub's resolver over a new SDK RPC | An in-hub firewall component owning the loop; extending the `firewall-irr` plugin | Owner, 2026-09-02, REVERSING an earlier in-hub decision once research showed it had no precedent. Every firewall feature owning a timer is a separate process, that directory is already a codegen discovery path, and `core-design.md` section 19 has no component-boundary row permitting a firewall-to-resolve import. The shared DNS cache was the reason for the hub, and it survives: `sdk_engine.go` already carries plugin-to-hub calls, so one resolve RPC keeps a single resolver and a single cache. Extending `firewall-irr` was rejected for conflating IRR prefix data with DNS name data in one config tree |
 | The DNS name beside the address comes from the show enricher, never from a field on `SetElement` | A provenance field on the shared `SetElement`; a parallel map joined hub-side | `ai/rules/principles.md` bans the field-list edit outright, and every other table owner would carry it unused. `OnEnrichShow` (`sdk_callbacks.go`) plus `show.Enrich` (`internal/core/show/show.go`) is a working production path, used today by `handler_l2tp.go` and `l2tp/subscriber/cmd/subscriber.go`. The firewall show handlers do not call it yet, so this spec adds that call site |
 | The resolver is changed to surface the response rcode | Never emptying a set from DNS; splitting the rcode work into its own spec that this one blocks on | Owner, 2026-09-02. Without it a SERVFAIL and a deleted name are the same signal, so either a failed server empties a live firewall set or a deleted name enforces stale addresses forever. Neither is acceptable in a firewall, and deferring it would leave this spec unable to state correct behavior |
@@ -775,7 +775,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written
@@ -791,3 +791,15 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `firewall-remote-group.md`, 2026-08-02
+
+Deferred by spec-firewall-remote-group.
+
+FQDN and domain groups

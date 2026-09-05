@@ -37,6 +37,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/fuzz"
 	_ "github.com/ze-software/ze/internal/le/goextract"
 	_ "github.com/ze-software/ze/internal/le/gokrazygosum"
+	_ "github.com/ze-software/ze/internal/le/goversion"
 	_ "github.com/ze-software/ze/internal/le/hookcheck"
 	_ "github.com/ze-software/ze/internal/le/htmxupgrade"
 	_ "github.com/ze-software/ze/internal/le/ianaasn"

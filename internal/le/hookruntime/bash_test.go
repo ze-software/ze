@@ -233,3 +233,36 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 		})
 	}
 }
+
+// TestSpecValidationReachesEveryReleaseBucket is the fail-open the release
+// buckets created.
+//
+// VALIDATES: a spec written under plan/immediate/ or plan/pre-release/ is
+// validated exactly as one under plan/.
+// PREVENTS: the silent version of no validation at all. The predicate was a
+// regex spelling plan/ alone, and a path it did not match returned 0 with no
+// output, so this hook reported success over every spec in two of the three
+// buckets. The refusal below is what proves the hook READ the file.
+func TestSpecValidationReachesEveryReleaseBucket(t *testing.T) {
+	for _, bucket := range []string{"plan", "plan/immediate", "plan/pre-release"} {
+		t.Run(bucket, func(t *testing.T) {
+			root := t.TempDir()
+			body := strings.Replace(specFixture("internal/component/bgp/reactor/peer.go"),
+				"- [ ] `internal/component/bgp/reactor/peer.go`", "It was all read carefully.", 1)
+			path := filepath.Join(root, filepath.FromSlash(bucket), "spec-kind.md")
+			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, _, message := runHook(t, root, "validate-spec", map[string]any{
+				"tool_name":  "Edit",
+				"tool_input": map[string]any{"file_path": path, "new_string": "x"},
+			})
+			if !strings.Contains(message, "Current Behavior section must list") {
+				t.Fatalf("a spec under %s was written with no validation: %q", bucket, message)
+			}
+		})
+	}
+}

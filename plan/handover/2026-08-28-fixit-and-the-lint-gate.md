@@ -79,7 +79,7 @@ Ze already ships the means the operator's policy is written with, verified at th
 
 Two routes, and Thomas has not chosen:
 - **Annotate `{not-applicable}`.** Honest to the sentence. Still a classification that lowers what Ze owes, so it is his call.
-- **Exceed it.** `plan/spec-bgp-ls-receiver-fault-management.md` Phase 5 proposes a declared `consumer-facing` peer role whose config-apply installs the import filter, so BGP-LS drops with no operator-written policy. Doing MORE needs no permission.
+- **Exceed it.** `plan/immediate/spec-bgp-ls-receiver-fault-management.md` Phase 5 proposes a declared `consumer-facing` peer role whose config-apply installs the import filter, so BGP-LS drops with no operator-written policy. Doing MORE needs no permission.
 
 ## Every fixit spec, reviewed and classified
 

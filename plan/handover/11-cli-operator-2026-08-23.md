@@ -56,7 +56,7 @@ and it blocks the 51 conversions. Section 2 of `plan/handoff-cli-remaining.md`.
 
 ## 2. The one spec that did not close, and why
 
-`plan/spec-cli-pipe-operator-coverage.md`, Status `verification`.
+`plan/immediate/spec-cli-pipe-operator-coverage.md`, Status `verification`.
 
 Implementation complete. All 16 ACs verified against the **built product**, not
 the diff. Both Review Gate defects fixed and committed. References already
@@ -86,7 +86,7 @@ When the review returns clean, closure is two commits:
 | Commit | Command |
 |--------|---------|
 | A | `create --replace` with the spec + the journal row |
-| B | `create --append --remove plan/spec-cli-pipe-operator-coverage.md` and `--remove plan/deferrals/cli-pipe-operator-coverage.md` |
+| B | `create --append --remove plan/immediate/spec-cli-pipe-operator-coverage.md` and `--remove plan/deferrals/cli-pipe-operator-coverage.md` |
 
 That shard holds zero rows; do not leave it behind as an empty file.
 

@@ -31,11 +31,11 @@ any external behavior that shapes a design decision against primary sources dire
 
 | Phase | Spec | Adopts | Depends |
 |-------|------|--------|---------|
-| 1 | `plan/future/spec-improve-1-nb-transactions.md` (moved 2026-08-29) | Operator-facing config transaction contract: IDs, comments, confirmed commit, list/get/rollback-by-id | - |
+| 1 | `plan/spec-improve-1-nb-transactions.md` (moved 2026-08-29) | Operator-facing config transaction contract: IDs, comments, confirmed commit, list/get/rollback-by-id | - |
 | 2 | `spec-improve-2-gnmi-state.md` | Operational-state provider fanout; gNMI Get honors CONFIG/STATE/OPERATIONAL/ALL | - |
 | 3 | `spec-improve-3-event-replay.md` | Opt-in JSONL protocol event capture + replay command | - |
 | 4 | `spec-improve-4-conformance-fixtures.md` | File-driven protocol conformance fixture format, one BGP fixture first | spec-improve-3-event-replay |
-| 5 | `plan/future/spec-improve-5-panic-boundaries.md` (moved 2026-08-29) | Explicit recover boundaries at network-input task boundaries | - |
+| 5 | `plan/immediate/spec-improve-5-panic-boundaries.md` (moved 2026-08-29) | Explicit recover boundaries at network-input task boundaries | - |
 | 6 | `spec-improve-6-yang-coverage.md` | YANG coverage report: per-module implemented/owned/constrained node status | - |
 | 7 | `spec-improve-7-yang-handler-gate` (CLOSED 2026-08-29) | Handler-completeness gate: every config-schema root claimed by a delivery surface, blocking test + doctor check (added 2026-07-10 after primary-source re-review). Shipped: `claims.Audit` (`internal/component/config/claims/claims.go`), `./le config claims` in both verify-stage populations, `checkConfigClaims` (`internal/component/doctor/checks_config_claims.go`), `test/ui/doctor-config-claims.ci` | - |
 | 8 | `spec-improve-8-fuzz-decode-context.md` | Fuzz the negotiated-capability decode space: context args on existing targets + targets for uncovered surfaces (added 2026-07-10) | - |
@@ -233,3 +233,15 @@ Umbrella only: user stories live in child specs.
 - [ ] Tests written (per child)
 - [ ] Tests FAIL (per child)
 - [ ] Tests PASS (per child)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `improve-7-yang-handler-gate.md`, 2026-07-10
+
+Deferred by spec-improve-7-yang-handler-gate (Known Limitations).
+
+Strict unknown-key rejection at config verify (reject config keys absent from the schema); `validator.go` is permissive today

@@ -53,7 +53,7 @@ func (r Report) Text() string {
 	}
 
 	if len(r.Dangling) > 0 {
-		tb.Str("./le spec citation FAILED: dangling plan/spec-*.md references\n")
+		tb.Str("./le spec citation FAILED: dangling spec references\n")
 		for _, finding := range r.Dangling {
 			tb.Str("  ").Str(finding.Citer.Path).Byte(':').Int(int64(finding.Citer.Line)).
 				Str(": references ").Str(finding.Target).

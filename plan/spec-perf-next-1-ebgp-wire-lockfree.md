@@ -555,7 +555,7 @@ discriminating evidence is the mutation kills above plus the race gate.
 
 ## Deferrals Resolved
 
-This spec has no deferral shard: no `plan/deferrals/spec-perf-next-1-*` or
+This spec has no deferral shard: no `the retired deferral directory spec-perf-next-1-*` or
 `*ebgp-wire*` file exists, and nothing was deferred out of it. The one live
 follow-on, deleting the now-unreachable cache, was homed before this closure at
 `spec-wire-edit-3-deferred-ac9-dead-code` by the

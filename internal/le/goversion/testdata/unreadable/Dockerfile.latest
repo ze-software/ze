@@ -1,0 +1,4 @@
+# A build carrier whose tag names no version at all.
+FROM golang:latest AS builder
+
+COPY go.mod go.sum ./

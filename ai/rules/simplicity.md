@@ -10,7 +10,7 @@
 **"Simplest" is measured in what the next developer holds in their head, never in line count: they meet the code cold and say what it does and where to change it, in about 30 seconds, with no second file open.** A dense expression they have to simulate fails that measure exactly as a five-file framework does, so write the version that is boring to read.
 
 **Simplicity governs the SHAPE of the answer. It MUST NOT govern the EXTENT of its correctness.** Two readings, and the second governs: the first reads "simplest" as permission to do less, with fewer acceptance criteria, fewer RFC MUSTs and a narrower test; the second reads it as the instruction to solve the whole problem with the least machinery.
-**The only budget this rule cuts is machinery. It MUST NOT cut correctness, conformance, tests, guards, or error handling, so it is never the reason for a `may I skip it` question, a deferral row, or a partial implementation.**
+**The only budget this rule cuts is machinery. It MUST NOT cut correctness, conformance, tests, guards, or error handling, so it is never the reason for a `may I skip it` question, a `Work Not Done` row, or a partial implementation.**
 **The simplest fully correct design is usually the HARDEST one to find, so you MUST budget thinking time for it, and not seeing it MUST NOT be read as a license to ship the complicated shape and call it pragmatic.** When you ship anything other than the most obvious implementation, write one line naming the simpler design and the requirement it failed: an unexplained abstraction reads as habit, and the next reader keeps it because they cannot prove it is unnecessary.
 
 **When your diff carries one of these shapes, you MUST write the simpler answer instead:**

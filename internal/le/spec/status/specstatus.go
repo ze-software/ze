@@ -1,8 +1,9 @@
 // Design: docs/architecture/core-design.md -- le's spec inventory
 //
-// Package specstatus reads the metadata table at the top of every plan/spec-*.md
-// and answers the inventory `./le spec status` prints: one record per spec,
-// carrying its status, its bucket, and whether a skeleton is past its TTL.
+// Package specstatus reads the metadata table at the top of every spec
+// specpath names and answers the inventory `./le spec status` prints: one
+// record per spec, carrying its release bucket, its status, its status
+// category, and whether a skeleton is past its TTL.
 //
 // It is the port of internal/le/spec/status/answer.go together with the two leaf
 // packages that file kept beside it. Those two existed for one reason, stated in
@@ -25,12 +26,17 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
-// Bucket names. The split separates committed backlog (work someone chose to
+// Category names. The split separates committed backlog (work someone chose to
 // start) from idea capture (skeleton stubs that are a title plus a template and
 // may never be developed). Counting the two together inflates the apparent open
 // backlog.
+//
+// A category is derived from a spec's STATUS. It is not the release bucket,
+// which is derived from the directory the spec sits in and is declared once in
+// internal/le/spec/specpath.
 const (
 	Backlog = "backlog" // committed work: design / ready / in-progress / verification
 	Idea    = "idea"    // idea capture: skeleton stubs
@@ -46,15 +52,15 @@ const SkeletonTTLWeeks = 6
 const SkeletonTTLDays = SkeletonTTLWeeks * 7
 
 // The statuses this package acts on. Naming them makes the three enumerations
-// below -- the bucket, the sort key and the reporting position -- obviously
+// below -- the category, the sort key and the reporting position -- obviously
 // about one vocabulary, and turns a typo in any of them into a compile error
-// rather than a spec that is silently bucketed somewhere else.
+// rather than a spec that is silently filed somewhere else.
 //
 // This is NOT the status vocabulary. That lives in ai/rules/planning.md and in
 // the oneOf call that validates a spec's Status row
 // (internal/le/hookruntime.validateSpecText), and a third copy here would drift
-// from both. A status named nowhere here is still counted, still bucketed and
-// still printed: every reader below has a default.
+// from both. A status named nowhere here is still counted, still categorized
+// and still printed: every reader below has a default.
 //
 // That default is the whole safety property, and it is what the session-start
 // summary lacked until 2026-08-29: it kept a seven-name list of its own and
@@ -74,16 +80,7 @@ const (
 	statusDeferred     = "deferred"
 )
 
-// specGlob is the population: every spec file directly under plan/. It does not
-// recurse, and plan/future/ and plan/to-review/ are therefore counted nowhere
-// (plan/journal/gate-excludes-part-of-its-population.md, 2026-08-22).
-const specGlob = "plan/spec-*.md"
-
-// planDir is the directory the population lives in. Collect refuses a tree that
-// does not hold it: see the comment on Collect.
-const planDir = "plan"
-
-// Category maps a spec status to its inventory bucket. A status named nowhere
+// Category maps a spec status to its inventory category. A status named nowhere
 // here lands in Other, which is correct for a terminal state such as `done` and
 // for an unreadable spec.
 func Category(status string) string {
@@ -244,11 +241,20 @@ func loadSpec(ctx context.Context, root, rel string, warn func(string)) (Spec, e
 	}
 	content := string(data)
 	base := path.Base(rel)
-	name := strings.TrimSuffix(strings.TrimPrefix(base, "spec-"), ".md")
+	name := specpath.Stem(base)
+
+	// A path that reached here came from specpath.All or specpath.Find, so it
+	// IS a spec in a bucket. An unplaceable one is a caller defect rather than
+	// a spec filed as "after": say so instead of naming a bucket.
+	bucket, placed := specpath.Bucket(rel)
+	if !placed {
+		return Spec{}, fmt.Errorf("%s is not a spec in any release bucket", rel)
+	}
 
 	rows, found := metaRows(content)
 	s := Spec{
 		Name:        name,
+		Bucket:      bucket,
 		Status:      metaField(rows, "Status"),
 		Depends:     metaField(rows, "Depends"),
 		Phase:       metaField(rows, "Phase"),
@@ -294,19 +300,19 @@ func loadSpec(ctx context.Context, root, rel string, warn func(string)) (Spec, e
 // same under-report summaryOrder's comment records for 2026-08-22, in a second
 // copy that the first fix did not reach.
 func StatusPhrases(root string) ([]string, error) {
-	matches, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(specGlob)))
+	specs, err := specpath.All(root)
 	if err != nil {
-		return nil, fmt.Errorf("glob %s: %w", specGlob, err)
+		return nil, err
 	}
 
 	counts := map[string]int{}
-	for _, match := range matches {
-		if filepath.Base(match) == specTemplateFile {
+	for _, rel := range specs {
+		if path.Base(rel) == specTemplateFile {
 			continue
 		}
-		data, err := os.ReadFile(match) //nolint:gosec // a path this package globbed under the repository root
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // a spec path specpath matched under the repository root
 		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", filepath.Base(match), err)
+			return nil, fmt.Errorf("read %s: %w", rel, err)
 		}
 		rows, found := metaRows(string(data))
 		status := metaField(rows, "Status")
@@ -324,15 +330,12 @@ func StatusPhrases(root string) ([]string, error) {
 	return statusPhrases(counts), nil
 }
 
-// Collect reads every spec under root's plan/ directory and answers the
-// inventory, sorted by status order and then by updated date descending.
+// Collect reads every spec in every release bucket and answers the inventory,
+// sorted by status order and then by updated date descending.
 //
-// It REFUSES a tree that holds no plan/ directory, and that is the one
-// behavioral difference from the script it ports. filepath.Glob answers an
-// empty list and no error for a pattern whose directory does not exist, so the
-// script printed "Specs: 0 total" and exited 0 over any tree it was not standing
-// in -- an inventory of a population it never read. An EMPTY plan/ is a
-// different fact and stays an answer: every spec can legitimately be closed.
+// specpath declares which directories the population is, and the walk does not
+// recurse below one, so plan/to-review/ is counted nowhere. Collect REFUSES a
+// tree that holds no plan/ directory: see the comment on specpath.All.
 //
 // now is a parameter because the skeleton TTL is the one judgement here that
 // reads a clock, and a caller that cannot fix the clock cannot test the flag.
@@ -340,26 +343,16 @@ func Collect(ctx context.Context, root string, now time.Time, warn func(string))
 	if warn == nil {
 		warn = func(string) {}
 	}
-	info, err := os.Stat(filepath.Join(root, planDir))
+	paths, err := specpath.All(root)
 	if err != nil {
-		return nil, fmt.Errorf("read the spec population under %s: %w", specGlob, err)
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("read the spec population under %s: %s is not a directory", specGlob, planDir)
+		return nil, err
 	}
 
-	matches, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(specGlob)))
-	if err != nil {
-		return nil, fmt.Errorf("glob %s: %w", specGlob, err)
-	}
-
-	specs := make(Inventory, 0, len(matches))
-	for _, match := range matches {
-		base := filepath.Base(match)
-		if base == specTemplateFile {
+	specs := make(Inventory, 0, len(paths))
+	for _, rel := range paths {
+		if path.Base(rel) == specTemplateFile {
 			continue
 		}
-		rel := path.Join(planDir, base)
 		s, err := loadSpec(ctx, root, rel, warn)
 		if err != nil {
 			return nil, fmt.Errorf("load %s: %w", rel, err)
@@ -368,8 +361,8 @@ func Collect(ctx context.Context, root string, now time.Time, warn func(string))
 	}
 
 	for i := range specs {
-		specs[i].Bucket = Category(specs[i].Status)
-		specs[i].Stale = specs[i].Bucket == Idea && skeletonStale(specs[i].Updated, now)
+		specs[i].Category = Category(specs[i].Status)
+		specs[i].Stale = specs[i].Category == Idea && skeletonStale(specs[i].Updated, now)
 	}
 	sort.SliceStable(specs, func(i, j int) bool {
 		oi, oj := statusOrder(specs[i].Status), statusOrder(specs[j].Status)

@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/le/session"
 	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
 	specsession "github.com/ze-software/ze/internal/le/spec/session"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
@@ -56,8 +57,6 @@ func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) (int, boo
 		return hookRuleCoverage(ctx, errOut), true
 	case "session-end-summary":
 		hookEndSummary(ctx, errOut)
-	case "session-end-deferrals":
-		return hookDeferrals(ctx, errOut), true
 	case "subagent-context":
 		return hookSubagentContext(ctx, out), true
 	case "mark-lsp-invoked":
@@ -152,10 +151,13 @@ func hookSessionStart(ctx context, out io.Writer) int {
 		}
 		fmt.Fprintf(out, "Warning: %d uncommitted: %dM %dA\n", len(lines), modified, added) //nolint:errcheck // hook protocol
 	}
-	specs, _ := filepath.Glob(filepath.Join(ctx.root, "plan", "spec-*.md"))
+	specs, _ := specpath.All(ctx.root)
 	if claim != "" {
-		if _, err := os.Stat(filepath.Join(ctx.root, "plan", claim)); err == nil {
-			fmt.Fprintf(out, "SPEC: %s (+%d others)\n   -> READ plan/%s BEFORE any work\n", claim, max(0, len(specs)-1), claim) //nolint:errcheck // hook protocol
+		// The claim marker holds the file NAME, so the line has to say which
+		// bucket to open. It named plan/<claim> until the release buckets
+		// arrived, and that path opened nothing for a spec in two of the three.
+		if relative, err := specpath.Find(ctx.root, claim); err == nil {
+			fmt.Fprintf(out, "SPEC: %s (+%d others)\n   -> READ %s BEFORE any work\n", claim, max(0, len(specs)-1), relative) //nolint:errcheck // hook protocol
 		}
 	} else if len(specs) != 0 {
 		fmt.Fprintf(out, "%d specs, none claimed by this session\n", len(specs)) //nolint:errcheck // hook protocol
@@ -337,12 +339,12 @@ func hookStop(ctx context, errOut io.Writer) int {
 	claimPath := filepath.Join(ctx.root, "tmp", "session", ".session-"+id)
 	claim := readFirstLine(claimPath)
 	if claim != "" && claim != specUnassigned {
-		if report, _, closureErr := specstatus.CheckClosure(ctx.root, filepath.Join("plan", claim)); closureErr == nil && report.Blocked() {
+		if report, _, closureErr := specstatus.CheckClosure(ctx.root, claim); closureErr == nil && report.Blocked() {
 			fmt.Fprintln(errOut, "BLOCKED: spec implemented but not closed.") //nolint:errcheck // hook protocol
 			fmt.Fprint(errOut, report.Text())                                 //nolint:errcheck // hook protocol
 			return 2
 		}
-		specBody, err := os.ReadFile(filepath.Join(ctx.root, "plan", claim)) //nolint:gosec // the claimed spec lives under the checkout plan directory
+		specBody, err := readClaimedSpec(ctx.root, claim)
 		if err == nil && regexp.MustCompile(`(?m)^\|[ \t]*Status[ \t]*\|.*in-progress`).Match(specBody) {
 			openWork = true
 			reasons = append(reasons, "Spec '"+claim+"' in-progress")
@@ -420,27 +422,6 @@ func hookEndSummary(ctx context, errOut io.Writer) {
 	}
 }
 
-func hookDeferrals(ctx context, errOut io.Writer) int {
-	entries, _ := filepath.Glob(filepath.Join(ctx.root, "plan", "deferrals", "*.md"))
-	open := make([]string, 0)
-	for _, entry := range entries {
-		body, _ := os.ReadFile(entry) //nolint:gosec // a plan/deferrals/*.md path this hook globbed in the checkout
-		for line := range strings.SplitSeq(string(body), "\n") {
-			cells := strings.Split(line, "|")
-			if len(cells) >= 7 && strings.EqualFold(strings.TrimSpace(cells[5]), "open") {
-				open = append(open, strings.TrimSpace(cells[3]))
-			}
-		}
-	}
-	if len(open) != 0 {
-		fmt.Fprintf(errOut, "Open deferrals: %d\n", len(open)) //nolint:errcheck // hook protocol
-		for _, item := range open[:min(5, len(open))] {
-			fmt.Fprintln(errOut, "  - "+item) //nolint:errcheck // hook protocol
-		}
-	}
-	return 0
-}
-
 func hookSubagentContext(ctx context, out io.Writer) int {
 	id, present := payloadSessionID(ctx.payload)
 	if present && id == "" {
@@ -497,6 +478,16 @@ func hookSourceRead(ctx context) int {
 	return writeSessionMarker(ctx, ".source-read-"+kind+"-", "")
 }
 
+// readClaimedSpec reads the spec a session marker claims. The marker holds the
+// file NAME, so specpath answers which bucket holds it.
+func readClaimedSpec(root, claim string) ([]byte, error) {
+	relative, err := specpath.Find(root, claim)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(filepath.Join(root, filepath.FromSlash(relative))) //nolint:gosec // a spec path specpath resolved under the checkout root
+}
+
 func hookValidateSpec(ctx context, errOut io.Writer) int {
 	if ctx.tool == "" {
 		fmt.Fprintln(errOut, "❌ validate-spec: no tool name in the hook payload -- NOTHING WAS CHECKED.\n  This is a PostToolUse hook: it reads a JSON payload on stdin and takes no arguments.") //nolint:errcheck // hook protocol
@@ -505,8 +496,12 @@ func hookValidateSpec(ctx context, errOut io.Writer) int {
 	if !oneOf(ctx.tool, toolWrite, "Edit") {
 		return 0
 	}
-	path := filepath.ToSlash(ctx.path)
-	if !regexp.MustCompile(`(^|/)plan/spec-[^/]*\.md$`).MatchString(path) {
+	// Every release bucket, from the one declaration. The predicate was a
+	// regex naming plan/ alone, and it answered "not a spec" for
+	// plan/immediate/ and plan/pre-release/: every spec in two of the three
+	// buckets was written with NO validation, and the hook reported success
+	// (ai/rules/evidence.md).
+	if !specpath.IsSpec(relativePath(ctx)) {
 		return 0
 	}
 	body, err := os.ReadFile(absolutePath(ctx))

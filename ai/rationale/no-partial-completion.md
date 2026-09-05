@@ -9,12 +9,14 @@ it now. A missing wiring test means the feature exists in code but no user
 can reach it. A missing functional test means the feature works in isolation
 but nobody proved the daemon exposes it. Both look "done" in git log.
 
-"Deferred" is particularly dangerous because it looks like a plan but there
-is no mechanism to ensure the deferral is ever picked up. The learned
-summaries have multiple entries (lg-overhaul, cmd-4) where "done with
-deferrals" meant "never finished." Scope reduction requires explicit user
-approval because only the user knows which acceptance criteria are
-load-bearing vs nice-to-have.
+"Deferred" is particularly dangerous. It looks like a plan while nothing
+schedules the work. The learned summaries have multiple entries
+(lg-overhaul, cmd-4) where "done with deferrals" meant "never finished."
+That is why an item a spec does not do becomes its own spec, in the bucket
+that item belongs to. A spec is counted, and a row is not
+(`ai/rationale/unfinished-scope-becomes-a-spec.md`). Scope reduction
+requires explicit user approval because only the user knows which
+acceptance criteria are load-bearing vs nice-to-have.
 
 The rule exists because every AI session's instinct is to wrap up and
 present when tests pass. Tests passing is step 10 of 12. The remaining

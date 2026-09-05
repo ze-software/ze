@@ -6,14 +6,13 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/cli-root-namespace-grammar.md` |
 | Updated | 2026-08-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**Provenance.** Two rows of `plan/deferrals/cli-root-namespace-grammar.md`, dated
+**Provenance.** Two rows of the retired deferral shard "cli-root-namespace-grammar", dated
 2026-07-17, both homed on prose ("future root-surface-grammar spec", "future spec
 extending the gate to local metas"). Their source spec closed and its file is
 gone, so nothing on disk was ever going to become that spec. A prose destination
@@ -414,7 +413,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written
@@ -430,3 +429,15 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `cli-root-namespace-grammar.md`, 2026-07-17
+
+Deferred by spec-cli-root-namespace-grammar (Known Limitations).
+
+Extend the grammar gate to the local-handler surface (`MustRegisterLocalMeta` paths, now including `update serve`), which the Phase 6 root feeder does not cover

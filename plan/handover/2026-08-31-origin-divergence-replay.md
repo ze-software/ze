@@ -38,7 +38,7 @@ local as the newer authoring. That set was not re-audited line by line.
 | # | Decision |
 |---|---|
 | D-1 | `RFC8671-5.2-1`, the rule for marking a pre-policy Adj-RIB-Out view, is declared in `rfc/short/rfc8671.md` with no source site and no tags. Ze exports the post-policy view only, which RFC 7854 Section 5 permits. The gate prescribes retiring the id, which deletes a MUST row from the published ledger. |
-| D-2 | Two specs claim one job: `plan/spec-ike-virtual-ip-assignment.md` (new, assignment only) and `plan/spec-ipsec-remote-access.md` (design, phases A-G, AC-7..AC-10 and AC-16..AC-28). One supersedes or folds into the other. Either way the survivor must say that the work reverses the recorded no-IRAC-role decision on the RFC 7296 status row. |
+| D-2 | Two specs claim one job: `plan/immediate/spec-ike-virtual-ip-assignment.md` (new, assignment only) and `plan/immediate/spec-ipsec-remote-access.md` (design, phases A-G, AC-7..AC-10 and AC-16..AC-28). One supersedes or folds into the other. Either way the survivor must say that the work reverses the recorded no-IRAC-role decision on the RFC 7296 status row. |
 | D-3 | 188 `binds-another-role` sites across 18 RFCs need reclassifying under the 2026-08-31 ruling that the kind is presumed wrong. Concentrated in `rfc4364` (39), `rfc2869` (33), `rfc2865` (32), `rfc4303` (29), `rfc4761` (16), `rfc1035` (11), `rfc3032` (10). This belongs to the `rfcgate-6` spec, not to a replay session. |
 | D-4 | Eleven RFC 2865 ids are now tagged twice, once on the admin path in `internal/component/radius` and once on the subscriber path in `internal/component/l2tp/plugins/authradius`. Two producers, two claims. Keep both, or cut one side. |
 
@@ -92,7 +92,7 @@ Thomas on 2026-08-31 and neither is cleared by an annotation.
   carries into `senderBehavior.statistics`.
 - `RFC3948-5.1-1`. `Pool.Allocate` leases uniquely and refuses on exhaustion;
   `registerIKE` discards the pool at `_ = ipPool`, and no engine code builds a
-  Configuration payload. `plan/spec-ike-virtual-ip-assignment.md` carries it.
+  Configuration payload. `plan/immediate/spec-ike-virtual-ip-assignment.md` carries it.
 
 ## Owner rulings, 2026-08-31
 

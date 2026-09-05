@@ -4,9 +4,8 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | plugin |
-| Depends | `plan/spec-dataplane-seams-0-umbrella.md` (finding F-5) |
+| Depends | `plan/immediate/spec-dataplane-seams-0-umbrella.md` (finding F-5) |
 | Phase | - |
-| Deferral shard | `plan/deferrals/dataplane-seams.md` (create on the first deferral) |
 | Updated | 2026-08-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -72,7 +71,7 @@ and saying so in the docs.
   → Constraint: `firewall.ParseRateSpec` is the shared rate-spec parser. Reuse it.
 
 ### Related Specs
-- [ ] `plan/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-5
+- [ ] `plan/immediate/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-5
 - [ ] `spec-cp-survival-0-umbrella` - **closed 2026-08-12; it owned copp.** Read its closure record from git history before starting
 - [ ] `plan/spec-dataplane-seams-4-control-packet-rx.md` - the receive side of the same question
 
@@ -326,7 +325,7 @@ and saying so in the docs.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

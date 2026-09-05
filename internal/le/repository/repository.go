@@ -32,6 +32,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 // These patterns match the script character for character. Thus, the migration
@@ -281,8 +282,7 @@ func isExternalAnchor(anchorPath string) bool {
 // checkSpecACCompleteness reports every acceptance criterion of an in-progress
 // spec whose Demonstrated By column is empty.
 func checkSpecACCompleteness(tree string) ([]Finding, error) {
-	dir := filepath.Join(tree, "plan")
-	entries, err := os.ReadDir(dir)
+	specs, err := specpath.All(tree)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
@@ -290,19 +290,9 @@ func checkSpecACCompleteness(tree string) ([]Finding, error) {
 		return nil, err
 	}
 
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "spec-") || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-		names = append(names, entry.Name())
-	}
-	sort.Strings(names)
-
 	var findings []Finding
-	for _, name := range names {
-		rel := path.Join("plan", name)
-		raw, readErr := os.ReadFile(filepath.Join(tree, "plan", name)) //nolint:gosec // a spec of the tree the caller named
+	for _, rel := range specs {
+		raw, readErr := os.ReadFile(filepath.Join(tree, filepath.FromSlash(rel))) //nolint:gosec // a spec of the tree the caller named
 		if readErr != nil {
 			return nil, readErr
 		}

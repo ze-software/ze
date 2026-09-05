@@ -6,7 +6,6 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Deferral shard | - |
 | Updated | 2026-08-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -180,3 +179,15 @@ or AS4_PATH (17) before NEXT_HOP (3).
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Interop tests for protocol features (or N-A with a reason)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `wire-edit-4-api-origin-deferred-bird-interop.md`, 2026-08-05
+
+Deferred by spec-wire-edit-4-api-origin-deferred-bird-interop.
+
+Live-peer proof of ascending attribute type-code order (RFC 4271 Section 5) for an API-originated route. The property is produced by `(*announceAttrs).emit` (`internal/component/bgp/reactor/announce_build.go`) and pinned at the byte level by `test/plugin/wire-edit-api-origin-order.ci`, but no interop scenario can observe it

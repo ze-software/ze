@@ -18,7 +18,7 @@ Checked in order. The report stops at the first stage that is NOT satisfied.
 | # | Stage | Satisfied when |
 |---|-------|----------------|
 | 1 | Implementation | Every AC names the producing function, every TDD test exists, every "Files to Modify/Create" entry was touched, and the Wiring Test table rows all have a real `.ci` test |
-| 2 | Deferrals | Every LIVE row (Status not `done`/`cancelled`/`resolved`) that this spec still owes is homed at a spec that exists. A live row homed ELSEWHERE is not owed and does not hold the gate: see step 5 for the exact two-class test |
+| 2 | Work Not Done | Every row in this spec's **Work Not Done** table names a spec that exists on disk, and no other spec's table routes unfinished work here. See step 5 for the two-class test |
 | 3 | Review | A review (`/ze-review`, `/ze-review-spec`, or `/ze-review-deep`) has run AFTER the most recent spec-related code edit, and every finding was fixed |
 | 4 | Commit A | `./le verify worktree` passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed |
 | 5 | Commit B (closure) | A journal row in `plan/journal/<class>.md` naming this spec is committed AND `plan/spec-<name>.md` has been removed via `git rm` in the same commit |
@@ -36,11 +36,11 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - For every "Files to Modify" entry: run `git log --oneline -- <file>` to confirm the file was touched during this spec's work window. Missing entry = `Missing`.
    - For every Wiring Test row: check that the named `.ci` or Go test exists and exercises the path.
    - If anything is `Partial` or `Missing`: STAGE = 1. Go to step 9.
-5. **Stage 2 -- Deferrals:** Read every shard under `plan/deferrals/` (one file per source). A row is LIVE when its `Status` is not `done`, `cancelled`, or `resolved`. Two classes of live row hold this stage, and BOTH must be checked -- scan every shard, not only `plan/deferrals/<spec-stem>.md`:
-   - **Owed TO this spec:** any live row whose `Destination` names this spec. Someone routed that work here. It is this spec's to finish, wherever it came from.
-   - **Owed BY this spec:** a live row whose `Source` names this spec, whose `Destination` does NOT name some OTHER `plan/spec-*.md` that exists on disk. Unhomed, or pointing at prose, or pointing back at this spec.
-   - **Why the destination test, and why "some OTHER".** Status alone never terminates: homing a row is the correct resolution and leaves the row LIVE, so a spec with a homed row would re-enter stage 2 forever and could never be reported closeable. Without "OTHER", a row homed at this very spec reads as satisfied, and closure then deletes its destination. Status alone also under-fires: measured 2026-08-03, 127 live rows carry `deferred` and only 12 carry `open`, so a filter on `open` misses most of the corpus.
-   - If any such row exists: STAGE = 2. Before reporting, apply the **Verify Before Deferring** rule (`ai/rules/planning.md`): grep the repo for the deferred thing. If it already exists, flag the deferral as resolvable-now. Go to step 9.
+5. **Stage 2 -- Work Not Done:** Read this spec's **Work Not Done** table. Then run `grep -rln "spec-<this-stem>" plan/ --include="*.md"` to find the tables that route work here. Two classes hold this stage, and BOTH are checked:
+   - **Owed BY this spec:** a row whose destination cell is empty, holds prose, names a path that is not on disk, or names this spec itself. That item is in no count, so nobody schedules it. Write the spec now, in the bucket the item belongs to (`plan/README.md`). Name it by path.
+   - **Owed TO this spec:** another spec's **Work Not Done** row names this spec. Someone routed that work here, so it is this spec's to finish whatever its origin.
+   - **Why the destination test.** A destination that is prose is a deletion with a polite name. A row pointing at this spec is satisfied by a closure that deletes its own destination. The count is the point. The row mechanism this replaced held 103 live rows, and 29 named no destination, so that work was invisible to every backlog count (`ai/rationale/unfinished-scope-becomes-a-spec.md`).
+   - If either class holds: STAGE = 2. Before reporting, grep the repo for the item itself. Code that already exists makes the row a bookkeeping error rather than scope. Go to step 9.
 6. **Stage 3 -- Review:** Determine whether a review has been run since the most recent code change:
    - Most recent code change: `git diff --name-only HEAD~1 HEAD` plus any uncommitted changes from `git status`.
    - Most recent review: look for a review artifact in this session (conversation history) or in recent commits/messages mentioning `/ze-review`, `/ze-review-spec`, `/ze-review-deep`.
@@ -62,7 +62,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
 ```
 ## Progress: <spec-name>
 
-**Stage:** [1-5 / done] -- [Implementation / Deferrals / Review / Commit A / Commit B / Complete]
+**Stage:** [1-5 / done] -- [Implementation / Work Not Done / Review / Commit A / Commit B / Complete]
 **Spec status field:** [skeleton / design / in-progress / blocked / deferred]
 **Last spec-related commit:** [sha subject] ([age])
 
@@ -77,12 +77,12 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
 
 Counts: N done / M partial / K missing
 
-### Deferrals
-| # | What | Reason | Destination | Verify-before-deferring |
-|---|------|--------|-------------|-------------------------|
-| 1 | ... | ... | spec-bar.md | already implemented -- close as done |
+### Work Not Done
+| # | What | Why | The spec that owns it | Already in code? |
+|---|------|-----|-----------------------|------------------|
+| 1 | ... | ... | `plan/<bucket>/spec-<stem>.md` | yes -- delete the row |
 
-Or: "No deferral is owed by this spec: every live row is homed elsewhere."
+Or: "Every item this spec did not do names a spec that exists."
 
 ### Review
 - Most recent code edit: [commit sha OR "uncommitted"]
@@ -110,8 +110,8 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 | Stage | Next Action | Rationale |
 |-------|-------------|-----------|
 | 1 | `/ze-implement` | Finish the missing ACs, tests, or wiring. A unit test in isolation is not wiring -- name the user entry point. |
-| 2 (resolvable) | Close the deferral: implement it or mark `done` in its `plan/deferrals/<source>.md` shard | A deferral that already exists in code is a bookkeeping bug, not scope |
-| 2 (genuine) | Ask user: implement now, move to another spec, or drop with `user-approved-drop` | A deferral cannot silently VANISH at closure. It may survive it: a row homed at another spec stays live, and its shard outlives this spec (`ai/rules/planning.md`). Homing it clears stage 2 -- do not treat a live homed row as unfinished closure work |
+| 2 (resolvable) | Delete the row: the code is already there | An item that already exists in code is a bookkeeping error, not scope |
+| 2 (genuine) | Write the destination spec in the right bucket and name it by path, or ask the owner to drop the item | The item survives this spec's closure as a spec of its own, which is the only form a count can see. Dropping it is the owner's decision, never the author's (`ai/rules/completion.md`). A row that names a spec on disk clears stage 2 |
 | 3 | `/ze-review` (or `/ze-review-spec` for conformance, `/ze-review-deep` for exhaustive) | Uncommitted code without a post-edit review is a known failure mode |
 | 4 | `/ze-verify` then `/ze-commit` | Commit A must include the completed spec file with its audit tables filled -- this preserves it in git history |
 | 5 | Append a journal row to `plan/journal/<class>.md` naming this spec, stage `git rm plan/spec-<name>.md` + the journal file, then `/ze-commit` | Two-commit rule (`ai/rules/planning.md`): never delete a spec without committing it first |
@@ -122,7 +122,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 - **Read-only.** Do NOT run `/ze-implement`, `/ze-review`, or `/ze-commit`. Report the stage and recommend the command.
 - **One stage at a time.** Stop at the first unsatisfied stage. Do not preview later stages or recommend batched actions.
 - **No optimism.** A missing test is Missing, even if "the code obviously works." A missing .ci wiring test means stage 1 is incomplete, even if unit tests pass.
-- **Verify before deferring.** Before reporting a live deferral as stage 2, grep for the thing being deferred. If it already exists in code, flag it as `resolvable-now` and recommend closing it.
+- **Verify before homing.** Before reporting a **Work Not Done** row as stage 2, grep for the item. Code that already exists makes the row `resolvable-now`: recommend deleting the row rather than writing a spec for work that is done.
 - **Honest evidence.** Every `Done` row MUST name the producing function or a test name. "Probably done" is `Partial`.
 - **Never tick `[ ]` to `[x]`** in the spec file. Checkbox state is not a truth source; grep the code.
 - **Do not edit the spec.** If the Status field is wrong, note it in the report but do not change it -- the user decides when to update spec metadata.

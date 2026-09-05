@@ -228,7 +228,7 @@ number. `routes/filtered/{name}` MUST return an empty array for the same reason,
 and MUST do so with a success status rather than an error, because an empty
 result is the honest answer.
 
-Adding a filtered-route store is `plan/spec-bgp-filtered-route-storage.md`. Until
+Adding a filtered-route store is `plan/immediate/spec-bgp-filtered-route-storage.md`. Until
 it lands, this section is the contract.
 
 ## 8. Divergence summary

@@ -6,7 +6,6 @@
 | Scope | cli |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/bgp-decode-render.md` (create on the first deferral) |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Handoff | - |
 | Updated | 2026-08-15 |
 
@@ -65,7 +64,7 @@ depends on, and belongs to its own spec. The Python harness stays as it is: it
 cannot call Go, so its tree and this one can drift. That is accepted, recorded
 under Known Limitations.
 
-The pcap half of the original request is `plan/spec-bgp-pcap-decode.md`.
+The pcap half of the original request is `plan/immediate/spec-bgp-pcap-decode.md`.
 
 ## Required Reading
 
@@ -467,7 +466,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

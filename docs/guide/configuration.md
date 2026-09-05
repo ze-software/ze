@@ -828,13 +828,16 @@ same UPDATE whole, and both send the same NOTIFICATION under `teardown true`.
 proportion to what the peer sends, bounded by `maximum` when one is configured.
 `offered` keeps a number.
 
-> **`offered` can be driven below the routes Ze holds.** A withdrawal for a
-> prefix the peer never announced still lowers the count, so a peer sending N of
-> them frees N slots that Ze is still using and the Adj-RIB-In can then pass the
-> maximum. `installed` is immune: a withdrawal of a prefix that is not in the set
-> removes nothing. This is recorded in
-> `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md` and is not yet
-> fixed.
+> **`offered` counts announcements minus withdrawals, not what the peer holds.**
+> A withdrawal for a prefix the peer never announced still lowers the count, so a
+> peer sending N of them frees N slots Ze is still using, and the Adj-RIB-In can
+> then pass the maximum. Ze accepts this: RFC 4271 Section 9 scopes the receiver's
+> obligation to previously advertised routes, so a withdrawal naming anything else
+> removes nothing and the RFC prescribes no counting rule for it (owner ruling,
+> 2026-09-03, recorded above `applyPrefixDelta`). State `count installed` for the
+> family when the maximum must bound the RIB against a peer that breaks that rule:
+> it counts a set, so a withdrawal of something the set does not hold moves
+> nothing.
 
 #### After a prefix teardown, the peer stays down
 

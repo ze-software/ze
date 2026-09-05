@@ -405,7 +405,7 @@ func TestRunFailsClosedWhenHookPopulationIsMissing(t *testing.T) {
 
 func TestActionOwnsUnitAndEveryRuntimeHook(t *testing.T) {
 	listing := Actions()
-	if listing.Area != area || len(listing.Actions) != 21 {
+	if listing.Area != area || len(listing.Actions) != 20 {
 		t.Fatalf("listing = %+v", listing)
 	}
 	verbs := make(map[string]bool, len(listing.Actions))
@@ -452,8 +452,8 @@ func TestEveryConfiguredHookUsesRegisteredNativeAction(t *testing.T) {
 		}
 		configured++
 	}
-	if configured != 19 {
-		t.Fatalf("configured native hooks = %d, want 19", configured)
+	if configured != 18 {
+		t.Fatalf("configured native hooks = %d, want 18", configured)
 	}
 }
 

@@ -4,9 +4,8 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol |
-| Depends | `plan/spec-dataplane-seams-0-umbrella.md` (finding F-1) |
+| Depends | `plan/immediate/spec-dataplane-seams-0-umbrella.md` (finding F-1) |
 | Phase | - |
-| Deferral shard | `plan/deferrals/dataplane-seams.md` (create on the first deferral) |
 | Updated | 2026-08-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -37,8 +36,8 @@ out-of-tree plugin authors who cannot be migrated.
 - [ ] `docs/architecture/meta/README.md` - route metadata keys and their documented values
 
 ### Related Specs
-- [ ] `plan/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-1
-- [ ] `plan/spec-fib-depth.md` - in-progress, owns FIB programming depth
+- [ ] `plan/immediate/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-1
+- [ ] `plan/immediate/spec-fib-depth.md` - in-progress, owns FIB programming depth
 
 **Key insights:** (minimal context to resume after compaction)
 - The change is small in code and is a published-contract change in effect. Decide the compatibility story before touching the values.
@@ -250,7 +249,7 @@ out-of-tree plugin authors who cannot be migrated.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

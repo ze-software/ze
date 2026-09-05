@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Spec | `plan/spec-rfcgate-6-supported-extraction-signoff.md` (Status `in-progress`) |
+| Spec | `plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md` (Status `in-progress`) |
 | Date | 2026-08-30 |
 | Session | ended at context exhaustion, not at a phase boundary |
 | Commits | `17926c82f`, `0e5491e81`, `0e07e7296` |
@@ -33,7 +33,7 @@ sessions, each with a replayable classification script beside it. Landing one is
 
 | Stem | Held because | Decision lives in |
 |---|---|---|
-| `rfc4301` | 30 sites unclassified: 12 met-and-undeclared, 18 unmet | `plan/spec-rfc4301-architecture-gaps.md` (committed). Thomas held the 12 |
+| `rfc4301` | 30 sites unclassified: 12 met-and-undeclared, 18 unmet | `plan/immediate/spec-rfc4301-architecture-gaps.md` (committed). Thomas held the 12 |
 | `rfc3748` | 6 sites reclassified off a circular exclusion; EAP Types 2 and 3 unimplemented | the EAP Notification/NAK spec (agent may not have finished) |
 | `rfc7947` | site `2.1:1` awaited the Adj-RIB-In ruling, now given | the route-server spec (agent may not have finished) |
 | `rfc9069` | 24 sites unclassified; two summary rows state the OPPOSITE of the RFC | the BMP conformance fixit spec (agent may not have finished) |
@@ -145,7 +145,7 @@ Do not re-litigate these.
 ## Specs commissioned, landing state unknown
 
 `plan/spec-fixit-tunnel-traffic-proof-is-one-directional.md` and
-`plan/spec-rfc4301-architecture-gaps.md` are committed. Five more agents were still
+`plan/immediate/spec-rfc4301-architecture-gaps.md` are committed. Five more agents were still
 writing when the session ended. Check `plan/` for:
 
 - RPKI accept-by-default plus a filter matching on validation result
@@ -369,7 +369,7 @@ them, then write the interop scenario.
 
 ## Route-server Adj-RIB-In
 
-`plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md` is written and COMPLETE.
+`plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md` is written and COMPLETE.
 `./le hook-check validate-spec` exits 0 on it. Status is `design`: the `/ze-spec` SCOPE,
 RESEARCH, DESIGN and WRITE gates were never held with the owner, because a subagent holds
 no dialogue. The main thread must hold them and flip Status to `ready`. Nothing else in

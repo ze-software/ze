@@ -73,7 +73,7 @@ is judged against. Read it before assuming a red is yours.
   scope on 2026-08-18. Moving it to `plan/future/` was ATTEMPTED and reverted: the
   citation baseline is shrink-only and keyed on the citer's path, so relocating a spec
   carrying 17 grandfathered rows reports 17 new pairs. Filed as
-  `plan/future/spec-shrink-only-baseline-cannot-see-a-relocation.md`. Do not retry the
+  `plan/spec-shrink-only-baseline-cannot-see-a-relocation.md`. Do not retry the
   move without fixing that first.
 - Two owner decisions, neither blocking anything else:
   - **RFC 4724 ordering.** Does a route a plugin injects AFTER the initial dump belong

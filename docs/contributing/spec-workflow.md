@@ -69,10 +69,12 @@ closure candidate.
 | Stop-hook block | `hookStop` (the `block-premature-stop` action) | The session's claimed spec. It calls `specstatus.CheckClosure`, and refuses the stop when the report is blocked |
 | Review artifact | `CheckReview` at `./le commit create` | The one spec this commit closes, which `closureStem` answers |
 
-`closureStem` reads a REMOVED `plan/spec-*.md` as the closure, and that removal
-is the ONLY signal. A spec removed from `plan/` and added under `plan/future/`
-in the same commit is a RELOCATION, not a closure, and `relocatedSpecs` excludes
-it. One commit closes one spec, and `oneStem` refuses a second.
+`closureStem` reads a REMOVED spec file as the closure, and that removal is the
+ONLY signal. The same spec name removed from one release bucket and carried in
+another in the same commit is a RELOCATION, not a closure, and `relocatedSpecs`
+excludes it. It reads over every pair of buckets in both directions, because a
+triage sweep re-files work upward as often as downward. One commit closes one
+spec, and `oneStem` refuses a second.
 
 A journal row NEVER makes a commit a closure. A row names the spec a defect was
 found under and says nothing about whether that spec is closing, and CLAUDE.md
@@ -104,77 +106,62 @@ grep limited to `// Design:` finds only one of the three forms.
 | `./le spec citation` (`internal/le/spec/citation`) | Every `plan/spec-*.md` citation inside a spec |
 | `internal/le/doc/check.CheckLinks` tracked-citation pass | Every tracked path citation, a `plan/spec-*.md` target included |
 
-## Deferral records
+## Work not done
 
-`plan/deferrals/` holds one file per source. There is no single
-`plan/deferrals.md` and no committed aggregate: <!-- doc-links: ignore (the single aggregate file is deliberately retired and must not exist) -->
-the live backlog is a fold over
-the directory, computed on read. A stored aggregate would be a shared file every
-session appends to, which is the cross-commit hazard the layout removes
-(`ai/rules/git-safety.md`).
-
-| Source of the row | Shard file |
-|-------------------|------------|
-| A spec (the row's Source names `spec-<stem>`) | `plan/deferrals/<stem>.md` |
-| Ad-hoc, with no source spec | `plan/deferrals/ad-hoc-<YYYY-MM-DD>-<sid>.md` |
-
-A shard is the six-column table header plus the rows it owns:
-
-```
-| Date | Source | What | Reason | Destination | Status |
-```
+An in-scope item a spec does not do becomes its OWN spec, and the source spec's
+`Work Not Done` table names that spec by path (`plan/TEMPLATE-CLOSURE.md`).
+Nothing is parked in a row. `plan/deferrals/` held that role until 2026-09-05, <!-- doc-links: ignore (the directory was deleted on 2026-09-05 and this sentence is the record of it) -->
+and `ai/rationale/unfinished-scope-becomes-a-spec.md` records why it was
+deleted: 103 live rows on the last day, 29 of them naming no destination spec
+at all, so that work sat in no count and nothing scheduled it.
 
 | Column | Content |
 |--------|---------|
-| Date | `YYYY-MM-DD` |
-| Source | The spec filename, a task description, or `ad-hoc`. It also selects the shard |
-| What | The specific work deferred, never a vague category |
-| Reason | Why it is deferred |
-| Destination | The receiving `plan/spec-*.md`, or `cancelled`, or `user-approved-drop` |
-| Status | See below |
+| What was not done | The specific item, never a vague category. "Edge cases" is not an item |
+| Why | Why this spec did not do it |
+| The spec that now owns it | The path of a spec that exists on disk: `plan/spec-<stem>.md`, `plan/immediate/spec-<stem>.md`, or `plan/pre-release/spec-<stem>.md` |
 
-| Status | Meaning |
-|--------|---------|
-| `open` | Live: the work is outstanding, and it names its home spec |
-| `deferred` | Live: a synonym of `open` |
-| `done` | Terminal. The work landed, or the row was superseded |
-| `cancelled` | Terminal. The owner decided not to do it |
-| `resolved` | Terminal. Closed with evidence: a journal row, or the commit that landed the work |
+The destination is a PATH. "later", "future work", "a follow-up" and "TBD" are
+not destinations, and a destination that is prose is a deletion with a polite
+name. Reducing scope stays the owner's decision, never the author's
+(`ai/rules/completion.md`).
 
-| To close as | Set Status to | Set Destination to |
-|-------------|---------------|--------------------|
-| Implemented | `done` | The spec or commit where it landed |
-| The owner decided not to do it | `cancelled` | `user-approved-drop` |
-| Superseded | `done` | The row or spec that took it over |
+### Choosing the destination
 
-<!-- source: internal/le/hookruntime/lifecycle.go -- hookDeferrals -->
-**One observer reads these rows, and it reads only the literal word `open`.**
-`hookDeferrals` runs on Stop, globs `plan/deferrals/*.md`, and counts rows whose
-Status cell equals `open`, case-insensitively. It prints the count and up to five
-What cells to stderr. It never blocks, and it never checks a Destination. A row
-written `deferred` is invisible to it. No commit-time gate reads these files at
-all, so homing a deferral is an obligation on the author, not something a gate
-enforces.
+Searched in this order, and a new spec is written only after step 1 comes up
+empty.
 
-### Naming a deferral holder spec
+| Order | Action |
+|-------|--------|
+| 1 | Search the three buckets and `./le spec status` for a spec that already covers the topic. Prefer a `spec-finish-<subsystem>` or `spec-followup-<subsystem>` umbrella that owns the area |
+| 2 | If one exists, add the item to its `## Task` section and name that spec in the table |
+| 3 | If none does, write a new spec from `plan/TEMPLATE.md` and name it in the table |
 
-A spec created only to hold work deferred out of another spec:
+A new spec goes in the bucket the ITEM belongs to, which is not always the
+bucket the source spec sits in (`plan/README.md`). An item a first-release
+operator meets as a bug goes to `plan/immediate/`, however small it looked from
+inside the source spec.
 
-```
-plan/spec-<source>-deferred-<subtask>.md
-```
+Name it `plan/<bucket>/spec-<source>-<subtask>.md`: the source stem without its
+`spec-` prefix, then a short kebab-case name for the item. Create it from
+`plan/TEMPLATE.md` with `Status | skeleton`, fill only the `## Task` section
+with the item and any constraint already known, and name the source spec there
+so the provenance survives. A skeleton is captured intent, not a designed spec.
+It moves to `design` when somebody picks it up.
 
-| Part | Content | Example |
-|------|---------|---------|
-| `<source>` | The stem of the spec the work came from, without the `spec-` prefix | `bgp-rib-flush` |
-| `<subtask>` | Short kebab-case name of the deferred work | `ipv6-coverage` |
+### What this table does not carry
 
-Create it from `plan/TEMPLATE.md` with `Status | skeleton`, fill only the
-`## Task` section with the points to complete and any constraint already known,
-name the source spec there so the provenance survives, then record the row in
-`plan/deferrals/<source>.md` with the new spec as Destination. Keep it small: a
-skeleton is captured intent, not a designed spec. It moves to `design` when
-somebody picks it up.
+| Situation | Where it goes |
+|-----------|---------------|
+| A defect the work in hand does not depend on | One row in `plan/journal/<class>.md`, then close the work in hand (`ai/rules/completion.md`) |
+| A defect that BLOCKS the goal this work exists to achieve | Fix it now. It is neither a row nor a spec |
+| A failure nobody could reproduce | One shard in `plan/known-failures/`, carrying the reproduction attempt and the next step |
+| Work that was never in scope | Nothing. This spec does not record it |
+| A choice between two valid approaches | Nothing |
+
+Before writing "not done, requires X", grep for X. If it exists, implement it.
+If it is genuinely absent, name the specific missing thing and where it would be
+added.
 
 ## The executive summary report
 
@@ -407,17 +394,17 @@ destroys.
 | Commit | Carries |
 |--------|---------|
 | A | All code, tests, docs, the journal row, and the spec file itself with every implementation edit |
-| B | `remove plan/<spec>.md` only, plus `remove plan/deferrals/<spec-stem>.md` when every row in that shard is terminal |
+| B | `remove <the spec's path in its bucket>` only |
 
 Forcing the deletion of a spec that was never committed discards the uncommitted
 edits silently. Commit the spec first, always.
 
-Before commit B, grep the WHOLE PATH `plan/spec-<stem>.md` across the tree, not
-the `// Design:` prefix, and repoint every hit inside commit A: an `ai/rules/`
-file, a `docs/architecture/` page, or one of `plan/learned/DESIGN-HISTORY.md`,
-`plan/learned/HOOK-FRICTION.md`, `plan/learned/RECURRING-PATTERNS.md`. Then
-re-read what the substitution produced. A bulk repoint turns a sentence ABOUT the
-spec into a sentence about its destination, and some of those become false: a
+Before commit B, grep the WHOLE PATH the spec sits at, its bucket directory
+included, across the tree, not the `// Design:` prefix, and repoint every hit
+inside commit A: an `ai/rules/` file, a `docs/architecture/` page, or one of
+`plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`,
+`plan/learned/RECURRING-PATTERNS.md`. Then re-read what the substitution
+produced. A bulk repoint turns a sentence ABOUT the spec into a sentence about its destination, and some of those become false: a
 rule page does not "own rows", is not "active", has no "phase 2b", and is not
 somewhere work can be "implemented inside". Grep the new path next to `that spec`,
 `this spec`, `owns`, `active` and `Depends`, and rewrite what reads wrong. Naming
@@ -431,63 +418,18 @@ historical record of the closed spec. All three ride on commit A. A citation wit
 a live source is repointed or restated; the baseline never absorbs it.
 `./le spec citation` passes after the repair.
 
-### The deferral rows closure has to settle
+### What closure owes the Work Not Done table
 
-Closure deletes the spec, so a row that names it can never be satisfied, and no
-gate reads deferral destinations.
+Closure deletes the spec, so a citation of it survives in files the spec cannot
+update, and no gate reads those citations.
 
 | Direction | What closure does |
 |-----------|-------------------|
-| A row naming this spec as **Destination**, in any source's shard | Resolve it inside commit A: Status `done`, Destination the journal class file where the knowledge now lives. Resolve to a record only after checking that the record mentions the item |
-| A row this spec **sourced**, homed at another spec | It stays live. Its shard survives this closure and keeps its source-keyed name |
-| This spec's own shard, every row terminal | `remove` it in commit B: it is residue |
-| Another spec's shard whose last live row this closure set to `done` | `remove` it in commit B too. Nobody else will: every other closure scopes its removal to its own stem |
+| This spec's own **Work Not Done** table | Every row names a spec that exists on disk. Write any missing one inside commit A, in the bucket the item belongs to, and add `file <that path>` to the same commit |
+| A row in a LIVE spec naming THIS spec as the owner of an item | The item landed with this spec, or it did not. If it landed, delete the row. If it did not, repoint the row at the spec that owns the item now, inside commit A |
+| An item this spec sourced, homed at another spec | Nothing. That spec is open, counted, and outlives this closure |
 
-A shard whose source spec is gone while live rows remain is the correct end
-state, not mess to sweep. Read the rows before removing one; every signal over
-these rows folds across the `plan/deferrals/` directory, so removing a
-live-bearing shard lowers the counts instead of raising them.
-
-### Homing a deferral
-
-A destination is chosen at the moment the deferral is made, in this order, and a
-new deferral spec is never created before step 1 has been searched.
-
-| Order | Action |
-|-------|--------|
-| 1 | Search `plan/spec-*.md` and `./le spec status` for a spec that already covers the topic. Prefer a `spec-finish-<subsystem>` or `spec-followup-<subsystem>` umbrella that owns the area |
-| 2 | If one exists, add the work to its `## Task` section, and record the row with that spec as Destination, Status `deferred` |
-| 3 | Only if no spec covers the topic, create a deferral spec (see "Naming a deferral holder spec"), and record the row the same way |
-
-Both routes record a LIVE row. Filing work in a spec is not finishing it, so the
-row stays `deferred` and keeps naming its home until the work lands. A `done` row
-is never destination-checked again, so closing one on filing is exactly how the
-work stops being watched. A live row is the normal, correct state of a homed
-deferral, and closing one early to quiet the Stop-hook count hides the work from
-the only thing watching it.
-
-When homing writes a NEW spec for the item, that spec carries the date, the
-source, the item and the reason, so the row is duplicate bookkeeping and goes in
-the same commit. When homing points at an EXISTING spec, either add the item to
-that spec and drop the row, or keep the row, because it is then the only link
-between the work and its home.
-
-| Trigger | Row |
-|---------|-----|
-| Deciding work is "out of scope" | Record with the reason |
-| Moving work to another spec | Record with the destination spec |
-| Skipping a task item from a spec | Record with the reason |
-| Postponing for any reason | Record with the reason |
-| The user asks to skip something | Record it: user-requested, still tracked |
-| Finding a defect the work in hand does not depend on | NOT a deferral. One row in `plan/journal/<class>.md`, then close the work in hand |
-
-Every row names a `plan/spec-*.md` that exists on disk, whatever its Status; only
-`cancelled` and `user-approved-drop` may name none. "later", "future work", "a
-follow-up" and "TBD" are not destinations. "Edge cases" is not a What. Record when
-the decision is made, never in a batch at commit time. Completing work that was
-never in scope, choosing between two valid approaches, and the Go `defer` keyword
-are not deferrals.
-
-Before writing "deferred, requires X", grep for X. If it exists, implement it. If
-it is genuinely absent, name the specific missing thing and where it would be
-added.
+Writing the destination spec is not finishing the item, and the spec keeps the
+work visible until it lands. The count is the whole point: a spec is counted by
+`./le spec status`, by the WIP cap and by the release buckets, and a sentence in
+a closed spec is counted by nothing.

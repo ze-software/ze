@@ -206,15 +206,22 @@ var sectionDispositions = map[string]bool{dispositionWalked: true, dispositionSk
 // SectionDispositions answers them sorted.
 func SectionDispositions() []string { return sortedKeys(sectionDispositions) }
 
-// specPathRE refuses everything that is not a spec. plan/deferrals/,
-// plan/known-failures/ and plan/learned/ are the three homes the compliance
-// rule names as NOT a decision procedure, and this shape refuses all three,
-// along with any path that leaves the repository.
+// specPathRE refuses everything that is not a spec. plan/known-failures/ and
+// plan/learned/ are homes the compliance rule names as NOT a decision
+// procedure, and this shape refuses both, along with any path that leaves the
+// repository. A spec in ANY release bucket is accepted.
 var specPathRE = regexp.MustCompile(reSpecPath())
 
 func reSpecPath() string {
 	var tb textbuf.Buffer
-	return tb.Byte('^').Str(specDirName).Str(`/spec-[a-z0-9][a-z0-9._-]*\.md$`).String()
+	tb.Str(`^(?:`)
+	for index, dir := range specDirNames() {
+		if index != 0 {
+			tb.Byte('|')
+		}
+		tb.Str(regexp.QuoteMeta(dir))
+	}
+	return tb.Str(`)/spec-[a-z0-9][a-z0-9._-]*\.md$`).String()
 }
 
 var artifactKeys = map[string]bool{
@@ -506,10 +513,10 @@ func relocationFields(entry map[string]any, where, stem string) (string, string,
 	if !isText || !specPathRE.MatchString(strings.TrimSpace(rel)) {
 		return "", "", parseErr(tb.Str(where).Str(": ").Str(relocatedToSpec).
 			Str(" needs a 'relocated-to' naming the spec that owes this obligation, as ").
-			Str(specDirName).Str("/spec-<name>.md; got ").Str(pyRepr(entry["relocated-to"])).
-			Str(". A deferral shard, a known-failure file, a learned summary and any ").
-			Str("document outside ").Str(specDirName).Str("/ are none of them a spec, ").
-			Str("and the deferral machinery is not a compliance decision procedure ").
+			Str("<bucket>/spec-<name>.md with <bucket> one of ").
+			Str(strings.Join(specDirNames(), ", ")).Str("; got ").Str(pyRepr(entry["relocated-to"])).
+			Str(". A known-failure file, a learned summary and any document outside a ").
+			Str("release bucket are none of them a spec ").
 			Str("(ai/rules/rfc-compliance.md)"))
 	}
 	var want textbuf.Buffer

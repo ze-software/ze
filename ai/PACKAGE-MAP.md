@@ -571,6 +571,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/goextract` | moves named top-level declarations from one Go file to another |  |
 | `internal/le/gokrazygosum` | compares the tracked `gokrazy/ze/builddir/**/go.sum` files with the root module's go.sum |  |
 | `internal/le/gotoolchain` | provides the environment and argv for every le action that starts a Go command |  |
+| `internal/le/goversion` | pins every build carrier in this repository to the Go minor version the `go` directive of go.mod declares |  |
 | `internal/le/hookcheck` | runs the hook dispatcher and behavioral selftests in-process |  |
 | `internal/le/hookruntime` | implements the Claude hook JSON protocol without an interpreter or a shell wrapper |  |
 | `internal/le/htmxupgrade` | htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue |  |
@@ -615,7 +616,8 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/sourcerewrite` | keeps the repository's four source-maintenance workflows together while exposing each workflow as its own native action |  |
 | `internal/le/spec/citation` | checks references from active specs to sibling specs |  |
 | `internal/le/spec/session` | owns spec claims, state paths, review artifacts, and the transcript facts those contracts use |  |
-| `internal/le/spec/status` | reads the metadata table at the top of every plan/spec-*.md and answers the inventory `./le spec status` prints: one record per spec, |  |
+| `internal/le/spec/specpath` | declares where specs live and answers every question about that layout: which directories hold them, which bucket a path belongs to, what the whole population is, and where one named spec sits |  |
+| `internal/le/spec/status` | reads the metadata table at the top of every spec specpath names and answers the inventory `./le spec status` prints: one |  |
 | `internal/le/staticcheckfeaturematrix` | type-checks the working tree once per feature-tag combination Ze can be built in |  |
 | `internal/le/ste` | reviews repository prose against ASD-STE100 Simplified Technical English, Issue 9 |  |
 | `internal/le/stressrepro` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |  |

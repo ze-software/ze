@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	docwiring "github.com/ze-software/ze/internal/le/doc/wiring"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 const baselineRel = "internal/le/doc/check/testdata/doc_citation_baseline.txt"
@@ -65,16 +66,28 @@ var markdownGlobs = [...]string{
 //
 // The rule for everything else is fix-on-touch: repair a stale path in a file
 // you are already editing for another reason, and leave the rest alone.
-var citationExcludePrefixes = [...]string{
-	"vendor/",
-	"third_party/",
-	"plan/handover/",
-	"plan/spec-",
-	"plan/journal/",
-	"plan/verification-debt/",
-	"plan/deferrals/",
-	"plan/future/",
-	"plan/known-failures/",
+var citationExcludePrefixes = citationExcludes()
+
+// citationExcludes joins the fixed trees to one spec prefix for each release
+// bucket. The buckets come from specpath, so a spec is excluded wherever it
+// sits: the list spelled plan/spec- alone, and it policed the specs of two
+// buckets as live prose the moment the buckets appeared.
+func citationExcludes() []string {
+	trees := [...]string{
+		"vendor/",
+		"third_party/",
+		"plan/handover/",
+		"plan/journal/",
+		"plan/verification-debt/",
+		"plan/known-failures/",
+	}
+	buckets := specpath.Dirs()
+	prefixes := make([]string, 0, len(trees)+len(buckets))
+	prefixes = append(prefixes, trees[:]...)
+	for _, dir := range buckets {
+		prefixes = append(prefixes, dir+"/spec-")
+	}
+	return prefixes
 }
 
 type citationPair struct {
@@ -315,7 +328,7 @@ func sweepTracked(root string, _ bool) (result trackedSweep, err error) {
 		}
 		readMarkers := strings.Contains(string(raw), "doc-links: ignore")
 		readCitations := !corpus[rel]
-		if hasPrefix(rel, citationExcludePrefixes[:]) {
+		if hasPrefix(rel, citationExcludePrefixes) {
 			readCitations = false
 		}
 		if !readMarkers {

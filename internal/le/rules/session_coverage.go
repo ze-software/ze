@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 const ruleCoverageReportRel = "tmp/rule-coverage/report.ndjson"
@@ -333,7 +334,7 @@ var coverageFileKinds = []fileKind{
 		"documentation", "docs", "doc", "prose", "user-visible behavior", "comment", "comments",
 	}},
 	{name: "spec", matches: func(path string) bool {
-		return strings.HasPrefix(path, "plan/spec-") || strings.HasPrefix(path, "plan/design-")
+		return specpath.IsSpec(path) || strings.HasPrefix(path, "plan/design-")
 	}, keywords: []string{
 		"spec", "specs", "acceptance criterion", "acceptance criteria",
 	}},

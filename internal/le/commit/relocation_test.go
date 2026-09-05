@@ -1,13 +1,12 @@
 // Related: review.go — closureStem, relocatedSpecs
 //
-// VALIDATES: a spec removed from plan/ and added under plan/future/ in the same
-// commit is a relocation, and does not count as a closure.
+// VALIDATES: a spec removed from one release bucket and added under another in
+// the same commit is a relocation, and does not count as a closure.
 // PREVENTS: the one-closure-per-commit rule refusing a batch of relocations. A
 // closure retires a spec because its work is done; a relocation retires nothing
-// and only re-files an open spec as work that does not hold the release
-// (plan/future/README.md). Counting the second as the first made a triage sweep
-// unlandable, and the only way past it was to split one bookkeeping change into
-// as many commits as it moved specs.
+// and only re-files an open spec under the release that owes it. Counting the
+// second as the first made a triage sweep unlandable, and the only way past it
+// was to split one bookkeeping change into as many commits as it moved specs.
 package commit
 
 import "testing"
@@ -18,9 +17,9 @@ func TestRelocatingManySpecsIsNotAClosure(t *testing.T) {
 	root := t.TempDir()
 
 	added := []string{
-		"plan/future/spec-ntp-server.md",
-		"plan/future/spec-vrf-later.md",
-		"plan/future/spec-fleet-1-device-registry.md",
+		"plan/immediate/spec-ntp-server.md",
+		"plan/pre-release/spec-vrf-later.md",
+		"plan/immediate/spec-fleet-1-device-registry.md",
 	}
 	removed := []string{
 		"plan/spec-ntp-server.md",
@@ -37,20 +36,59 @@ func TestRelocatingManySpecsIsNotAClosure(t *testing.T) {
 	}
 }
 
+// TestRelocationRunsInEveryDirection keeps the rule symmetric. A triage sweep
+// re-files work upward as often as downward, so pre-release to plan/ and
+// immediate to pre-release are relocations exactly as plan/ to immediate is.
+func TestRelocationRunsInEveryDirection(t *testing.T) {
+	root := t.TempDir()
+
+	added := []string{
+		"plan/spec-shipped-later.md",
+		"plan/pre-release/spec-promoted.md",
+	}
+	removed := []string{
+		"plan/pre-release/spec-shipped-later.md",
+		"plan/immediate/spec-promoted.md",
+	}
+
+	stem, err := closureStem(root, added, removed)
+	if err != nil {
+		t.Fatalf("relocations out of a bucket were read as closures: %v", err)
+	}
+	if stem != "" {
+		t.Fatalf("closureStem = %q, want empty: a relocation closes nothing", stem)
+	}
+}
+
 // TestARealClosureStillCounts is the discrimination case, and the one that fails
 // if relocatedSpecs is widened until nothing is a closure. A spec removed and
 // NOT re-filed is closed, and the review gate must still see it.
 func TestARealClosureStillCounts(t *testing.T) {
 	root := t.TempDir()
 
-	stem, err := closureStem(root, []string{"plan/future/spec-elsewhere.md"},
+	stem, err := closureStem(root, []string{"plan/immediate/spec-elsewhere.md"},
 		[]string{"plan/spec-finished.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
 	}
 	if stem != "finished" {
 		t.Fatalf("closureStem = %q, want \"finished\": a spec removed and not re-filed "+
-			"under plan/future is closed, and its review gate still applies", stem)
+			"in another bucket is closed, and its review gate still applies", stem)
+	}
+}
+
+// TestAClosureFromAnyBucketCounts is what the buckets added. Closing a spec
+// removes it from wherever it sits, so a gate that watched plan/ alone let every
+// pre-release and immediate closure past with no review artifact.
+func TestAClosureFromAnyBucketCounts(t *testing.T) {
+	for _, removed := range []string{"plan/immediate/spec-finished.md", "plan/pre-release/spec-finished.md"} {
+		stem, err := closureStem(t.TempDir(), []string{removed}, []string{removed})
+		if err != nil {
+			t.Fatalf("closureStem over %s: %v", removed, err)
+		}
+		if stem != "finished" {
+			t.Errorf("closureStem over %s = %q, want \"finished\"", removed, stem)
+		}
 	}
 }
 
@@ -60,7 +98,7 @@ func TestARealClosureStillCounts(t *testing.T) {
 func TestAClosureBesideRelocationsIsStillRefused(t *testing.T) {
 	root := t.TempDir()
 
-	added := []string{"plan/future/spec-moved-a.md", "plan/future/spec-moved-b.md"}
+	added := []string{"plan/immediate/spec-moved-a.md", "plan/pre-release/spec-moved-b.md"}
 	removed := []string{
 		"plan/spec-moved-a.md",
 		"plan/spec-moved-b.md",
@@ -132,7 +170,7 @@ func TestOneClosureBesideRelocationsIsAllowed(t *testing.T) {
 	root := t.TempDir()
 
 	stem, err := closureStem(root,
-		[]string{"plan/future/spec-moved-a.md"},
+		[]string{"plan/immediate/spec-moved-a.md"},
 		[]string{"plan/spec-moved-a.md", "plan/spec-closed-one.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
@@ -142,20 +180,36 @@ func TestOneClosureBesideRelocationsIsAllowed(t *testing.T) {
 	}
 }
 
-// TestANameThatOnlyMatchesInPlanFutureDoesNotExcuseAClosure keeps the match
-// keyed on the basename rather than on the stem appearing anywhere. A spec added
-// under plan/future with a DIFFERENT name excuses nothing.
-func TestANameThatOnlyMatchesInPlanFutureDoesNotExcuseAClosure(t *testing.T) {
+// TestANameThatOnlyMatchesInAnotherBucketDoesNotExcuseAClosure keeps the match
+// keyed on the file name rather than on the stem appearing anywhere. A spec
+// added under another bucket with a DIFFERENT name excuses nothing.
+func TestANameThatOnlyMatchesInAnotherBucketDoesNotExcuseAClosure(t *testing.T) {
 	root := t.TempDir()
 
 	stem, err := closureStem(root,
-		[]string{"plan/future/spec-ntp-server-phase-2.md"},
+		[]string{"plan/immediate/spec-ntp-server-phase-2.md"},
 		[]string{"plan/spec-ntp-server.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
 	}
 	if stem != "ntp-server" {
-		t.Fatalf("closureStem = %q, want \"ntp-server\": plan/future gained a different "+
+		t.Fatalf("closureStem = %q, want \"ntp-server\": another bucket gained a different "+
 			"spec, so the removed one was closed rather than moved", stem)
+	}
+}
+
+// TestARemovalListedInBothPathsAndRemovedIsStillAClosure pins the same-bucket
+// case. Every removed path is also a path of the commit, so a rule that asked
+// only "is this name in another bucket entry" would read every closure as a
+// relocation of itself.
+func TestARemovalListedInBothPathsAndRemovedIsStillAClosure(t *testing.T) {
+	root := t.TempDir()
+
+	stem, err := closureStem(root, []string{"plan/spec-finished.md"}, []string{"plan/spec-finished.md"})
+	if err != nil {
+		t.Fatalf("closureStem: %v", err)
+	}
+	if stem != "finished" {
+		t.Fatalf("closureStem = %q, want \"finished\": the same bucket is no relocation", stem)
 	}
 }

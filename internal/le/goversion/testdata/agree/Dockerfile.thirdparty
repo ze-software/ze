@@ -1,0 +1,8 @@
+# A stage that builds another project's source. It copies no module in, so it
+# carries its own Go minimum and this gate does not judge it.
+FROM golang:1.23-alpine AS builder
+
+RUN go install example.com/other/cmd/other@v1.0.0
+
+FROM alpine:3.21
+COPY --from=builder /go/bin/other /usr/local/bin/other

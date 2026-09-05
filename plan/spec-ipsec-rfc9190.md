@@ -6,7 +6,6 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | 1/8 |
-| Deferral shard | `-` |
 | Updated | 2026-08-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

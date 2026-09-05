@@ -6,7 +6,6 @@
 | Scope | tooling |
 | Depends | `plan/spec-verify-scope-1-shared-checkout-freshness.md` |
 | Phase | 5/5 |
-| Deferral shard | `plan/deferrals/verify-scope.md` |
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -470,7 +469,7 @@ amendments the main thread rules on before phase 3 starts:
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

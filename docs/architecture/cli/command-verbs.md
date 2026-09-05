@@ -67,7 +67,7 @@ fixed keyword. That ambiguity is what every rule below exists to prevent.
 
 Thirteen verbs are canonical. `send` is the newest: decided by Thomas on
 2026-09-05 and declared by
-`plan/spec-fixit-send-names-its-destination.md`. `command.Verbs` is
+`plan/immediate/spec-fixit-send-names-its-destination.md`. `command.Verbs` is
 the one statement of the set, and both the grammar gate and the plugin
 registration check derive their verb set from it.
 <!-- source: internal/component/command/verbs.go -- Verbs, verbRole -->
@@ -255,7 +255,20 @@ grammar gate and the authorization profiles each meet a known word rather than a
 guess. Each protocol's own package declares its own destination leaf, with its
 own type and its own completion.
 
-Three rules follow, and each one decides a command a reader is about to write.
+Four rules follow, and each one decides a command a reader is about to write.
+
+**The token after the destination names WHAT is sent.** It never repeats the act
+of sending. Thomas settled it on 2026-09-05, on the example
+`send bgp * announce unicast 10.0.0.0/24 next-hop 10.0.0.1`: the word `announce`
+"is redundant". `send` is the verb. `announce` was a second verb in the same
+command, and to send a route IS to announce it. The BGP set is `unicast`,
+`blackhole`, `flowspec`, `raw`, `update`, `cached` and `withdraw`.
+
+`withdraw` stays, and the asymmetry is correct. A withdraw is the opposite act,
+not the same act named twice. A withdrawal is also a thing an operator sends,
+because RFC 4271 carries it in the UPDATE's withdrawn-routes field, and it is
+the word BGP and ExaBGP both use. So an operator meets one spelling on each side
+of the bridge.
 
 **`raw` is not a BGP verb.** It is the escape hatch every protocol has, and it
 sits beside that protocol's structured messages. `send bgp <destination> raw hex
@@ -483,7 +496,7 @@ The read-verb rows are in the section above.
 
 | # | Command or symbol | The rule it breaks | Evidence |
 |---|-------------------|--------------------|----------|
-| T-3 | `show bgp peer list` | No slot accepts both a fixed keyword and an operator-supplied value. `container peer` declares a mandatory selector and `list` is a sibling container carrying `ze:inherit "none"`, so a peer named `list` is unreachable | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang`. Fix: `plan/spec-fixit-selector-narrows-through-a-pipe.md` |
+| T-3 | `show bgp peer list` | No slot accepts both a fixed keyword and an operator-supplied value. `container peer` declares a mandatory selector and `list` is a sibling container carrying `ze:inherit "none"`, so a peer named `list` is unreachable | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang`. Fix: `plan/immediate/spec-fixit-selector-narrows-through-a-pipe.md` |
 | T-4 | `peer raw`, `peer update`, `peer announce`, `peer withdraw` | One object has one action root. These four sit at the top-level `peer` root while every other peer action sits under `request peer` | `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang`. Fix: the same spec moves all four to `request peer <sel> <verb>` |
 | T-5 | `peer raw` arguments | Every argument a handler reads MUST be declared. The schema declares `selector` alone, and the handler reads a message type, an encoding and the data | `internal/component/bgp/plugins/cmd/raw/raw.go` `handleRaw` |
 | T-6 | `request peer <sel> clear soft` | One concept carries one name. It sends ROUTE-REFRESH for every negotiated family. `request peer <sel> refresh <family>` sends it for one. The word `clear` is also a root verb, used here as a leaf word | `internal/component/bgp/plugins/route_refresh/handler/clear_soft.go` `handleBgpPeerClearSoft`, beside `refresh.go` `handleRefresh` |
@@ -515,9 +528,9 @@ changed, and it is not a bug list.
 | L-3 | `delete` carries two roles | It removes a config tree node AND a live kernel resource, so one word means two things | Earned, and stated in `verbs.go`. `create` has no config sense, so pairing it with a second deletion verb would add a word to carry no new meaning |
 | L-4 | `clear` never resets a session | All five reference CLIs reset a BGP session with `clear` or `reset` | Earned AS A RULE and NOT TRUE TODAY, and the two must not be read together. The rule keeps one meaning for `clear`. The cost is that an operator's first guess fails, and the error message has to carry them to `request peer <sel> teardown`. The tree breaks it in nine places, listed at T-21. So the first guess currently SUCCEEDS everywhere except BGP. That is worse than either answer alone, because the word means one thing in one protocol and another everywhere else. Until T-21 is closed this row states a target, not behavior |
 | L-5 | Rendering has no flag | Operators arriving from any of the five reach for a flag or a per-command keyword | Earned. Rendering belongs to the pipe layer on every command, so one operator set serves 363 commands and only the operator composes (`command-namespacing.md`) |
-| L-6 | The name of the narrowing operator is OPEN | `plan/spec-fixit-selector-narrows-through-a-pipe.md` proposes one operator named `limit` for every display command, which would replace the field-named `\| peer <sel>` on `show bgp rib`. That reading of `limit` disagrees with the rule above, and it disagrees with the word's other uses | Undecided, and Thomas decides. `limit` already means a numeric row cap in three Ze surfaces, in FRR (`bgp listen limit`, `prefix-limit`) and in BIRD (`babel limit`, merge-paths `limit`). Ze also ships `\| first <n>` and `\| last <n>` beside it |
+| L-6 | The name of the narrowing operator is OPEN | `plan/immediate/spec-fixit-selector-narrows-through-a-pipe.md` proposes one operator named `limit` for every display command, which would replace the field-named `\| peer <sel>` on `show bgp rib`. That reading of `limit` disagrees with the rule above, and it disagrees with the word's other uses | Undecided, and Thomas decides. `limit` already means a numeric row cap in three Ze surfaces, in FRR (`bgp listen limit`, `prefix-limit`) and in BIRD (`babel limit`, merge-paths `limit`). Ze also ships `\| first <n>` and `\| last <n>` beside it |
 | L-7 | `request interface <name> up` and `down` | The admin flag is a field an operator reads back on the interface, which is the `update` test. It is also what drives the link transition, which is the residual | Undecided, and Thomas decides. T-17 moves `mtu` and `mac` because each carries a value the operator types. `up` and `down` carry none, so the word IS the value. Reading them as `update` produces `update interface name eth0 up`, and reading them as `request` keeps the pair beside `teardown` |
-| L-8 | `send` is a root verb | It is a thirteenth canonical verb, where every other change class sits under one of twelve | Settled by Thomas on 2026-09-05, in two words: "send bgp". The axis decides it. `request` changes the system, and `send` puts a message outside it, so a send is not a request. The price is one entry in `command.Verbs` and one row in its golden test. Authorization costs nothing. `IsReadOnlyPath` allowlists the read verbs and answers false for every verb it does not name, so a new root verb counts as writing by default. The built-in read-only profile then denies it through its `Edit` section default. `ping` and `traceroute` are root verbs in every reference CLI, and `send` sits beside them |
+| L-8 | `send` is a root verb | It is a thirteenth canonical verb, where every other change class sits under one of twelve | Settled by Thomas on 2026-09-05, in two words: "send bgp". The axis decides it. `request` changes the system, and `send` puts a message outside it, so a send is not a request. The price is one entry in `command.Verbs` and one row in its golden test. Authorization costs nothing. `IsReadOnlyPath` allowlists the read verbs and answers false for every verb it does not name, so a new root verb counts as writing by default. A profile then denies it through its `Edit` section default. That default is the ZERO value, because `Deny` is `Action = iota`. So a profile that declares a `run` block and no `edit` block refuses `send`, with no entry naming it. `builtinReadOnlyProfile` is not the mechanism, because it has no non-test caller: the one shipped path that builds a profile reads operator config YANG. `ping` and `traceroute` are root verbs in every reference CLI, and `send` sits beside them |
 
 ## See also
 

@@ -6,7 +6,7 @@
 // IS the rows declares itself as the rows).
 //
 // Everything the page prints above the rows -- the total, the per-status
-// breakdown, the three bucket counts -- is DERIVED from the same slice at
+// breakdown, the three category counts -- is DERIVED from the same slice at
 // render time. A breakdown printed beside a total is a claim that the two
 // agree, so nothing here is carried separately from what was counted
 // (plan/journal/gate-excludes-part-of-its-population.md, 2026-08-22).
@@ -28,8 +28,13 @@ type Spec struct {
 	Set         string `json:"set"`
 	Updated     string `json:"updated"`
 	GitModified string `json:"git-modified"`
-	// Bucket is the committed-backlog / idea-capture / other split.
+	// Bucket is the RELEASE bucket, from the directory the spec sits in:
+	// specpath.After, specpath.Immediate or specpath.PreRelease.
 	Bucket string `json:"bucket"`
+	// Category is the committed-backlog / idea-capture / other split, from the
+	// spec's status. It answers a different question from Bucket: what state
+	// the work is in, rather than which release owes it.
+	Category string `json:"category"`
 	// Stale is true for a skeleton idea past the TTL (flagged for triage).
 	Stale bool `json:"stale"`
 }
@@ -91,11 +96,11 @@ func statusPhrases(counts map[string]int) []string {
 	return phrases
 }
 
-// buckets splits the inventory three ways and counts the flagged skeletons.
-// Specs arrive sorted by status order, so each bucket stays ordered.
-func (in Inventory) buckets() (backlog, ideas, other Inventory, stale int) {
+// categories splits the inventory three ways and counts the flagged skeletons.
+// Specs arrive sorted by status order, so each category stays ordered.
+func (in Inventory) categories() (backlog, ideas, other Inventory, stale int) {
 	for _, s := range in {
-		switch s.Bucket {
+		switch s.Category {
 		case Backlog:
 			backlog = append(backlog, s)
 		case Idea:
@@ -114,6 +119,7 @@ func (in Inventory) buckets() (backlog, ideas, other Inventory, stale int) {
 // the line, so padding it would write trailing spaces.
 const (
 	colFlag    = 5
+	colBucket  = 11
 	colStatus  = 12
 	colUpdated = 10
 	colSpec    = 34
@@ -123,7 +129,7 @@ const (
 )
 
 // Text renders the inventory as the page `./le spec status` prints: the summary
-// line, the bucket line, then one section per bucket.
+// line, the category line, then one section per category.
 //
 // It is the DEFAULT rendering (leroot.Prose). Every pipe operator still goes to
 // the engine and reads the rows above.
@@ -143,37 +149,37 @@ func (in Inventory) Text() string {
 	}
 	tb.Str(")\n")
 
-	backlog, ideas, other, stale := in.buckets()
-	tb.Str("Buckets: committed backlog ").Int(int64(len(backlog))).
+	backlog, ideas, other, stale := in.categories()
+	tb.Str("Categories: committed backlog ").Int(int64(len(backlog))).
 		Str(" (design/ready/in-progress/verification) | idea capture ").Int(int64(len(ideas))).
 		Str(" skeletons (").Int(int64(stale)).Str(" past the ").Int(int64(SkeletonTTLWeeks)).
 		Str("-week TTL) | other ").Int(int64(len(other))).Str("\n\n")
 
-	bucketSection(&tb, "Committed backlog: design / ready / in-progress / verification", backlog)
-	bucketSection(&tb, "Idea capture: skeleton stubs (STALE = past TTL, triage or drop)", ideas)
-	bucketSection(&tb, "Other: blocked / deferred / done / unknown / unparsed", other)
+	categorySection(&tb, "Committed backlog: design / ready / in-progress / verification", backlog)
+	categorySection(&tb, "Idea capture: skeleton stubs (STALE = past TTL, triage or drop)", ideas)
+	categorySection(&tb, "Other: blocked / deferred / done / unknown / unparsed", other)
 
 	return tb.String()
 }
 
-// bucketSection writes one bucket's heading and rows.
-func bucketSection(tb *textbuf.Buffer, title string, rows Inventory) {
+// categorySection writes one category's heading and rows.
+func categorySection(tb *textbuf.Buffer, title string, rows Inventory) {
 	tb.Str("── ").Str(title).Str(" (").Int(int64(len(rows))).Str(") ──\n")
 	if len(rows) == 0 {
 		tb.Str("  (none)\n\n")
 		return
 	}
-	specRow(tb, "Flag", "Status", "Updated", "Spec", "Phase", "Set", "Depends")
+	specRow(tb, "Flag", "Bucket", "Status", "Updated", "Spec", "Phase", "Set", "Depends")
 	specRow(tb,
-		dashes(colFlag), dashes(colStatus), dashes(colUpdated), dashes(colSpec),
-		dashes(colPhase), dashes(colSet), dashes(colDepends),
+		dashes(colFlag), dashes(colBucket), dashes(colStatus), dashes(colUpdated),
+		dashes(colSpec), dashes(colPhase), dashes(colSet), dashes(colDepends),
 	)
 	for _, s := range rows {
 		flag := ""
 		if s.Stale {
 			flag = "STALE"
 		}
-		specRow(tb, flag, s.Status, s.Updated, s.Name, s.Phase, s.Set, s.Depends)
+		specRow(tb, flag, s.Bucket, s.Status, s.Updated, s.Name, s.Phase, s.Set, s.Depends)
 	}
 	tb.Byte('\n')
 }
@@ -181,8 +187,9 @@ func bucketSection(tb *textbuf.Buffer, title string, rows Inventory) {
 // specRow writes one padded row. The widths are in RUNES, which is what the
 // fixed-width verb the script used pads by, so a box-drawing separator lands in
 // the same column as an ASCII value.
-func specRow(tb *textbuf.Buffer, flag, status, updated, spec, phase, set, depends string) {
+func specRow(tb *textbuf.Buffer, flag, bucket, status, updated, spec, phase, set, depends string) {
 	tb.PadRight(flag, colFlag).Str("  ").
+		PadRight(bucket, colBucket).Str("  ").
 		PadRight(status, colStatus).Str("  ").
 		PadRight(updated, colUpdated).Str("  ").
 		PadRight(spec, colSpec).Str("  ").

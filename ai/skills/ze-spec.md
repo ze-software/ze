@@ -54,7 +54,7 @@ before putting it in front of the user (`ai/rules/evidence.md`).
 **Goal:** Agree on what we're building.
 
 1. ASK the user what feature/task they want to spec (if not provided as argument)
-2. Search `plan/spec-*.md` for related active specs
+2. Search `plan/spec-*.md`, `plan/immediate/spec-*.md` and `plan/pre-release/spec-*.md` for related active specs
 3. Search `plan/journal/*.md` for problems already recorded in this area
 4. Check `ai/INDEX.md` for relevant architecture docs
 5. Present:
@@ -261,8 +261,12 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 
 **Goal:** Produce the spec file using `plan/TEMPLATE.md`.
 
-1. Write (or update) spec at `plan/spec-<name>.md` using template format
-2. Fill all sections from research and design phases:
+1. Choose the release bucket FIRST (`plan/README.md`). Ask what it costs the first release to leave this work undone:
+   - An operator meets it as a bug: `plan/immediate/`.
+   - No operator meets it, and the release cannot go out without it: `plan/pre-release/`.
+   - The release ships without it: `plan/`.
+2. Write (or update) the spec at `plan/<bucket>/spec-<name>.md` using template format
+3. Fill all sections from research and design phases:
    - Required Reading with `→ Decision:` / `→ Constraint:` annotations
    - Current Behavior (from research)
    - Data Flow (from research)
@@ -274,7 +278,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - Integration Checklist + Documentation Update Checklist (from the Feature Surface Gate -- every applicable row named with a file; N/A rows justified)
    - Implementation Steps
    - Review Gate section: keep the template's empty Run tables. `/ze-close`'s Review Gate step fills them by running `/ze-review` (the BLOCKING Review Gate) before closure. Never delete this section from the produced spec.
-3. Run Pre-Spec Verification:
+4. Run Pre-Spec Verification:
    - All checkboxes `[ ]` (never `[x]`)
    - No code snippets
    - Tables not prose for structured data
@@ -287,7 +291,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 
 #### Spec Independence Test (MANDATORY)
 
-4. Before presenting the gate, answer honestly:
+5. Before presenting the gate, answer honestly:
    - **Could a different Claude session implement this spec without additional context?**
    - For each AC: can a test be written from the AC text alone, without guessing?
    - For each implementation step: are the inputs, outputs, and constraints stated?
@@ -297,12 +301,12 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 
 #### Gate
 
-5. **Mandatory challenge:** Name the weakest part of this spec -- the section most likely to cause confusion or rework during implementation.
-6. Present spec to user for final review.
-7. **GATE:** ASK user: "Ready to save? The weakest part is [X] -- should we strengthen it?"
+6. **Mandatory challenge:** Name the weakest part of this spec -- the section most likely to cause confusion or rework during implementation.
+7. Present spec to user for final review.
+8. **GATE:** ASK user: "Ready to save? The weakest part is [X] -- should we strengthen it?"
    Iterate on feedback until approved.
-8. **Status transition:** Edit the spec: set `Status` to `ready`, `Updated` to today. Design is done, spec is ready for implementation.
-9. Save and `git add plan/spec-<name>.md`
+9. **Status transition:** Edit the spec: set `Status` to `ready`, `Updated` to today. Design is done, spec is ready for implementation.
+10. Save the spec at its bucket path. Do not stage it: `git add` is banned as a direct call (`ai/rules/git-safety.md`), and `./le commit create` names the file instead.
 
 ---
 

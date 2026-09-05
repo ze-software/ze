@@ -12,10 +12,10 @@ did not verify something, the row says so.
 
 ## What closing needs
 
-| Spec | Status | Deferral shard |
+| Spec | Status | Where its unfinished items went |
 |------|--------|----------------|
-| `plan/spec-cli-show-bgp-answer-shapes.md` | in-progress, 5 of 5 phases done | `plan/deferrals/cli-show-bgp-answer-shapes.md` |
-| `plan/spec-plugin-declares-answer-shape.md` | in-progress, 5 of 5 phases done | `plan/deferrals/plugin-declares-answer-shape.md` |
+| `plan/immediate/spec-cli-show-bgp-answer-shapes.md` | in-progress, 5 of 5 phases done | four specs in `plan/immediate/`, listed below |
+| `plan/spec-plugin-declares-answer-shape.md` | in-progress, 5 of 5 phases done | `plan/spec-plugin-declaration-names-a-path-it-serves.md`, `plan/spec-daemon-backed-command-catalog.md` |
 
 Run `/ze-close` on each. It appends `plan/TEMPLATE-CLOSURE.md`, runs the Review
 Gate over the committed diff, records the artifact with `review_gate.py`, and
@@ -123,9 +123,9 @@ destination.
 |---------|-------|
 | `resolve` and `origin` decorate every address-shaped value, so the declared address-field list gates admission and not action | `plan/journal/declared-format-contradicts-payload.md` |
 | Five `show bgp` commands take a free-form value in an untyped positional slot | `plan/journal/command-takes-an-untyped-positional-value.md` |
-| A plugin can declare a shape on a path a builtin serves, where that builtin declares nothing | `plan/deferrals/plugin-declares-answer-shape.md` |
-| `resolve` and `origin` over an identity-keyed row set | `plan/deferrals/cli-show-bgp-answer-shapes.md` |
-| One name for the peer address across the `show bgp` tree | `plan/deferrals/cli-show-bgp-answer-shapes.md` |
-| `show bgp decode` and `encode` answer text, so no operator chain reaches them | `plan/deferrals/cli-show-bgp-answer-shapes.md` |
+| A plugin can declare a shape on a path a builtin serves, where that builtin declares nothing | `plan/spec-plugin-declaration-names-a-path-it-serves.md` |
+| `resolve` and `origin` over an identity-keyed row set | `plan/immediate/spec-show-bgp-operators-over-identity-keyed-rows.md` |
+| One name for the peer address across the `show bgp` tree | `plan/immediate/spec-show-bgp-one-name-for-the-peer-address.md` |
+| `show bgp decode` and `encode` answer text, so no operator chain reaches them | `plan/immediate/spec-show-bgp-decode-encode-answer-structured-data.md` |
 | A documented `register command "<name>" ...` text verb with no parser | `plan/journal/documentation-shows-config-the-parser-refuses.md` |
-| The published catalog cannot see a plugin's declaration | `plan/deferrals/plugin-declares-answer-shape.md` |
+| The published catalog cannot see a plugin's declaration | `plan/spec-daemon-backed-command-catalog.md` |

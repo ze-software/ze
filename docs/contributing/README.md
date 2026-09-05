@@ -12,7 +12,7 @@ Ze development is expected on macOS or Linux. Windows is not a supported develop
 | `go-conventions.md` | The Ze-specific Go reference: the package-naming glossary, file headers and cross-references, the `internal/core/env` accessors, typed-numeric-over-string, and API contract comments |
 | `ze-python-style.md` | Rules for references to external Python programs. First-party commands, hooks, test drivers, and generators are Go |
 | `rule-authoring.md` | How to change an agent rule: the point files behind `ai/rules/`, the manifest, the generators, and how a hook check binds to one instruction |
-| `spec-workflow.md` | The formats around a spec: its status vocabulary, the deferral shard, the closure gates and what each one reads, the executive summary, and the session handoff |
+| `spec-workflow.md` | The formats around a spec: its status vocabulary, the release buckets, the `Work Not Done` table, the closure gates and what each one reads, the executive summary, and the session handoff |
 | `testing.md` | How the test suites are organised and run (unit, functional, fuzz, race) |
 | `committing.md` | How `./le commit create` works: its keywords, what it refuses, what the generated script contains, and what to do when a commit or a push fails |
 | `running-commands.md` | How the `./le` action surface behaves: feature build tags, the changed-set selector, session scratch and binaries, verify logs, the job registry, the Bash guard |

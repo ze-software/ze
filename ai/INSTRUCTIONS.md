@@ -72,7 +72,7 @@
 
 ## Claiming "done" with incomplete work is FORBIDDEN
 - NEVER say "done", "ready to commit", "implementation complete" while in-scope work remains.
-- "Deferred" is not "done." Tracked in a deferral table is not "done."
+- "Deferred" is not "done." Named in a `Work Not Done` row is not "done."
 - Every acceptance criterion must have working PRODUCT code before you claim completion.
   A test is owed where it tells you the product works. A red or missing test is
   REPORTED, never traded for the claim (`ai/rules/pre-release.md`).
@@ -82,7 +82,8 @@
 
 ## Parking a blocker or reducing coverage to reach green is FORBIDDEN
 - When a defect blocks a goal your work exists to achieve, FIX IT. Do not park it,
-  move it to `tmp/`, file it as a deferral, or offer to drop the deliverable.
+  move it to `tmp/`, write it up as a spec of its own, or offer to drop the
+  deliverable.
 - A bug being "pre-existing" is NOT an escape hatch. The moment your work depends on
   that path working, the bug is in scope: you are the entry point that reached it.
 - Interoperability and correctness are never optional and never a scope-reduction
@@ -104,7 +105,7 @@
   walked into is now BANNED, and so is asking Thomas whether to implement one.
 - A defect you walk into while working on something else gets ONE row in
   `plan/journal/<class>.md`: `| Date | Spec | Surface | Symptom | Fix |`.
-  Then close the work in hand and stop. No spec, no deferral row, no ask.
+  Then close the work in hand and stop. No spec, no row anywhere else, no ask.
 - Two finds are FIXED on the spot, and only these two: a test that is wrong about
   what it ASSERTS, and code RELATED to the problem in hand, edited or not.
 - A red test or a red gate is NOT on that list. Read it once. When the red says the
@@ -372,9 +373,9 @@ means "no rule applies".
 | Meet a WAVE of red: unrelated packages failing to build, `no space left on device`, `cache entry not found`, a whole suite red at once | `docs/contributing/running-commands.md`, "When the disk is full" -- the cache disk is full before this is a code defect, once for each row in `plan/journal/full-disk-false-red.md`. Read `stat -f cache/go-cache`, never `df` on the checkout: `cache/` is a symlink onto another filesystem, so `df` answers about the wrong device. `./le scratch cache-clean` empties BOTH Go build caches and prints what each returned |
 | Meet a red test, a red gate, or a broken demo | `ai/rules/pre-release.md` -- ask ONE question: does the red say the PRODUCT is wrong? Yes: the product defect is the work, fix it at the source and never by weakening the test. No: the red is scaffolding, leave it red, say so in one line, and go back to the product |
 | Hit a defect in the PRODUCT (yours or not) | `ai/rules/completion.md` -- ROOT-CAUSE IT. Blocks your goal: FIX IT NOW. Does not block it: one journal row, close the work in hand, stop. Never park it, never offer to drop the deliverable, never weaken a test to make it disappear. "Pre-existing" says when it started, not whose it is |
-| Touch any protocol behavior an RFC governs, or judge whether it is conformant | `ai/rules/rfc-compliance.md` -- conformance is not negotiable. When full compliance AND full testing of it is reachable, that IS the answer: IMPLEMENT it and prove it with a tagged test, and do NOT ask Thomas to choose between it and something narrower. Ask only when you are about to do LESS (`{gap}`, `{not-applicable}`, "partial", untested MUST, deferral), and then ask which way to fix it, never whether to skip it. Every earlier answer pointing away from full compliance is VOID (2026-07-27) and must be re-raised, not cited |
+| Touch any protocol behavior an RFC governs, or judge whether it is conformant | `ai/rules/rfc-compliance.md` -- conformance is not negotiable. When full compliance AND full testing of it is reachable, that IS the answer: IMPLEMENT it and prove it with a tagged test, and do NOT ask Thomas to choose between it and something narrower. Ask only when you are about to do LESS (`{gap}`, `{not-applicable}`, "partial", untested MUST, a follow-up spec), and then ask which way to fix it, never whether to skip it. Every earlier answer pointing away from full compliance is VOID (2026-07-27) and must be re-raised, not cited |
 | Write linux-only code | `ai/rules/platform-linux.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
-| Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
+| Write a spec | `ai/rules/planning.md`, `plan/README.md` (which of the three release buckets it goes in), `plan/TEMPLATE.md` |
 | Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/writing.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
 | Claim work is done | `ai/rules/completion.md` -- every AC implemented and wired; every exported symbol has a non-test caller. A red or missing test is stated in the report, not repaired to earn the claim (`ai/rules/pre-release.md`) |
 | Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Independence is a property of the CONTEXT, so ONE closure agent running every lens itself satisfies it and MUST NOT spawn readers of its own. Loop to zero, record the `./le spec session review record` artifact (`./le commit create` enforces it) |

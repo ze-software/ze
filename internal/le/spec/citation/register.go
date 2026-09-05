@@ -13,7 +13,7 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		Description: "a plan/spec-*.md citing a sibling spec absent on disk fails, unless the" +
+		Description: "a spec citing a sibling spec absent on disk fails, unless the" +
 			" target is grandfathered in plan/.citation-baseline; a path:line citation" +
 			" whose backtick-quoted token drifted off that line warns",
 		Mode:    "offline",

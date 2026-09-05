@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/journal"
 	specsession "github.com/ze-software/ze/internal/le/spec/session"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 var (
@@ -38,23 +39,39 @@ type ReviewResult struct {
 	Clean      bool     `json:"clean"`
 }
 
-// relocatedSpecs answers the spec basenames this commit MOVES rather than
-// closes: removed from plan/ and added under plan/future/ in the same commit.
+// relocatedSpecs answers the spec file names this commit MOVES between release
+// buckets rather than closes: the same name removed from one bucket directory
+// and carried in another in the same commit. A DIFFERENT name is a closure.
 //
 // The distinction is the whole of it. A closure retires a spec because its work
 // is done, and one commit may close one, so the review gate below refuses a
 // second. A relocation retires nothing: the spec is still open, still
-// unimplemented, and has only been re-filed as work that does not hold the
-// release (plan/future/README.md). Counting a relocation as a closure made the
-// gate refuse every batch of them, which is the shape the 2026-08-24 row in
+// unimplemented, and has only been re-filed under the release that owes it.
+// Counting a relocation as a closure made the gate refuse every batch of them,
+// which is the shape the 2026-08-24 row in
 // plan/journal/gate-fires-outside-its-population.md asks for: the question is
 // not "does this commit remove a spec" but "does this commit CLOSE it".
-func relocatedSpecs(paths []string) map[string]bool {
+//
+// The rule read "removed from plan/ and added under plan/future/" until the
+// release buckets replaced plan/future/. It now reads over every pair of
+// buckets, in both directions, because a triage sweep re-files work upward as
+// often as downward.
+func relocatedSpecs(paths, removed []string) map[string]bool {
+	removedFrom := make(map[string]string, len(removed))
+	for _, path := range removed {
+		if bucket, ok := specpath.Bucket(path); ok {
+			removedFrom[filepath.Base(path)] = bucket
+		}
+	}
+
 	moved := make(map[string]bool)
 	for _, path := range paths {
+		bucket, ok := specpath.Bucket(path)
+		if !ok {
+			continue
+		}
 		base := filepath.Base(path)
-		if filepath.ToSlash(filepath.Dir(path)) == "plan/future" &&
-			strings.HasPrefix(base, "spec-") && strings.HasSuffix(base, ".md") {
+		if from, wasRemoved := removedFrom[base]; wasRemoved && from != bucket {
 			moved[base] = true
 		}
 	}
@@ -112,14 +129,12 @@ func closureStem(root string, paths, removed []string) (string, error) {
 		}
 	}
 
-	moved := relocatedSpecs(paths)
+	moved := relocatedSpecs(paths, removed)
 	stems := make(map[string]bool)
 	for _, path := range removed {
 		base := filepath.Base(path)
-		if filepath.ToSlash(filepath.Dir(path)) == "plan" &&
-			strings.HasPrefix(base, "spec-") && strings.HasSuffix(base, ".md") &&
-			!moved[base] {
-			stems[strings.TrimSuffix(strings.TrimPrefix(base, "spec-"), ".md")] = true
+		if specpath.IsSpec(path) && !moved[base] {
+			stems[specpath.Stem(base)] = true
 		}
 	}
 	if len(stems) != 0 {

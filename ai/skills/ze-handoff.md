@@ -18,7 +18,7 @@ See also: `/ze-debrief` (current session state), `/ze-status` (cross-project att
    - What is done (committed or implemented)
    - What is in progress (uncommitted changes)
    - What is remaining (unfinished spec items, ACs without evidence)
-   - What is deferred (from the `plan/deferrals/` shards and session skips)
+   - What this spec will not do (its **Work Not Done** table, naming the spec that owns each item) and what this session skipped
 3. **Identify files already handled:** List files that were read, understood, and don't need re-reading.
 4. **Build the edit list:** For remaining work, produce concrete edits. Each edit must be:
    - File path with line range
@@ -39,7 +39,7 @@ See also: `/ze-debrief` (current session state), `/ze-status` (cross-project att
 - Done: [bullet list]
 - In progress: [bullet list]
 - Remaining: [bullet list]
-- Deferred: [bullet list]
+- Not done, and the spec that owns each item: [bullet list]
 
 ### Files Already Handled (don't re-read)
 - [file list with one-line description each]
@@ -64,4 +64,4 @@ EDIT 2: [file:lines]
 - Each edit must be self-contained -- no "update similarly", spell it out.
 - Line numbers from current file state, not original.
 - Maximum 5 edits. Split into phases if more remain.
-- Include deferred items so the next session knows what was intentionally skipped.
+- Include what this spec will not do, so the next session knows what was intentionally left and which spec now owns it.

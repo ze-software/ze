@@ -6,7 +6,6 @@
 | Scope | tooling |
 | Depends | `plan/spec-verify-scope-0-umbrella.md` |
 | Phase | 1-2 (scoped freshness), 3 (moved-path record), 4 (red attribution), 5 (debt clearing) and 6 (rules) done; functional tests, docs, A-1 and the Architectural Verification table done |
-| Deferral shard | `plan/deferrals/verify-scope.md` |
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -346,7 +345,7 @@ can assert without paying for the gates.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

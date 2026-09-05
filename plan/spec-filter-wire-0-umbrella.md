@@ -318,3 +318,15 @@ umbrella stays open until every child closes.
 - [ ] Write learned summary to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
 - [ ] **Commit B:** `git rm plan/<spec>` only
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `filter-wire-0-umbrella.md`, 2026-07-15
+
+Deferred by rib-arch-2 (Option A DONE, learned 1127).
+
+Remove the text `Update` filter-IPC carrier entirely: rewrite the 7 text-parsing `filter_*` plugins to wire-decode attributes + rework the modify-delta apply (`applyFilterDelta`/`textDeltaToModOps`). The `.Raw` carrier is now binary `[]byte` (Option A, shipped); this is the remaining full text-path removal.

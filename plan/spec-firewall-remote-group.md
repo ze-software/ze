@@ -6,13 +6,13 @@
 | Scope | config |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/firewall-remote-group.md` |
 | Updated | 2026-09-02 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
-     Deferral shard: every deferred item lands there (ai/rules/planning.md)
-     and closure must resolve its rows, so name the file from the start. -->
+     The file's DIRECTORY carries the release bucket: plan/immediate/ for a defect
+     an operator meets, plan/pre-release/ for work the release cannot go out
+     without, plan/ for everything else (plan/README.md). -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -42,7 +42,7 @@ waiting it out.
 
 Related, and deliberately out of scope here:
 
-- `plan/spec-firewall-dynamic-address-group.md` covers packet-triggered set
+- `plan/immediate/spec-firewall-dynamic-address-group.md` covers packet-triggered set
   population through nftables `dynset`. That is a different mechanism for a
   different purpose, and it also owns finishing the inert `flags-dynamic`
   lowering.
@@ -88,7 +88,7 @@ the existing `list element` without breaking operator config already committed
 is the load-bearing research question for this spec.
 
 Still deliberately out of scope, unchanged:
-`plan/spec-firewall-dynamic-address-group.md` owns packet-triggered population
+`plan/immediate/spec-firewall-dynamic-address-group.md` owns packet-triggered population
 through nftables `dynset`, and owns finishing the inert `flags-dynamic` and
 `flags-timeout` lowering in `applySet`.
 
@@ -316,7 +316,7 @@ Three, differing in kind:
 |----------|--------|
 | What breaks if this is wrong? | Two things, in increasing severity. A bad fetch path leaves a set stale, which under-filters or over-filters. A bad `choice` change breaks parsing of firewall config operators have already written, which takes the whole firewall section down on upgrade. A-1 exists for the second |
 | How is it reverted? | Single commit revert for the plugin. The `choice` schema change is also a single revert, because it adds no new required node and rewrites no existing config |
-| Who else touches this path? | `plan/spec-firewall-domain-group.md` adds the domain source to this same plugin. `plan/spec-firewall-dynamic-address-group.md` owns `flags-dynamic` and `flags-timeout` lowering in `applySet`. `internal/component/firewall/plugins/irr/sets.go` is touched by the cap move |
+| Who else touches this path? | `plan/spec-firewall-domain-group.md` adds the domain source to this same plugin. `plan/immediate/spec-firewall-dynamic-address-group.md` owns `flags-dynamic` and `flags-timeout` lowering in `applySet`. `internal/component/firewall/plugins/irr/sets.go` is touched by the cap move |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -545,7 +545,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written
@@ -561,3 +561,21 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `firewall-domain-group.md`, 2026-09-02
+
+Deferred by spec-firewall-domain-group.
+
+The shared sourced-group substrate: disk cache, keeping the last good answer when a source fails, set programming, and the show/update/clear command shape
+
+### From `firewall-domain-group.md`, 2026-09-02
+
+Deferred by spec-firewall-domain-group.
+
+A registration path for dynamic CLI value completion, so a plugin's configured names complete without hand-wiring

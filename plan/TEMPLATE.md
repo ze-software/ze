@@ -13,7 +13,6 @@
 | Scope | protocol \| cli \| plugin \| config \| tooling \| docs |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/<stem>.md` (or `-` if nothing deferred) |
 | Handoff | - |
 | Updated | YYYY-MM-DD |
 
@@ -21,8 +20,9 @@
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
-     Deferral shard: every deferred item lands there (ai/rules/planning.md)
-     and closure must resolve its rows, so name the file from the start. -->
+     The file's DIRECTORY carries the release bucket: plan/immediate/ for a defect
+     an operator meets, plan/pre-release/ for work the release cannot go out
+     without, plan/ for everything else (plan/README.md). -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -292,7 +292,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
-     needs a row in the deferral shard named in the metadata table. -->
+     is not a limitation: write it as its own spec, in the bucket that item
+     belongs to, and name that spec here (ai/rules/planning.md). -->
 - [What was deliberately not done and why]
 
 ## RFC Documentation (Scope: protocol)
@@ -326,7 +327,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

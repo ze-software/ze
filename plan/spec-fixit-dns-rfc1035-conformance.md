@@ -6,7 +6,6 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | WP-1, WP-2, WP-3, WP-5, WP-6, WP-7 landed; WP-4 and one escalation open |
-| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the spec already says the shard is created only if something is deferred. Create `plan/deferrals/fixit-dns-rfc1035-conformance.md` on the first deferral) |
 | Updated | 2026-08-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -726,7 +725,7 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 - `test/plugin/dns-axfr-refused.ci`
 - `test/parse/dns-name-too-long.ci`
 - `test/ui/doctor-dns-transfer.ci`
-- `plan/deferrals/fixit-dns-rfc1035-conformance.md` - only if anything is deferred
+- the retired deferral shard "fixit-dns-rfc1035-conformance" - only if anything is deferred
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -918,7 +917,7 @@ disclosure surface. Both are in scope here.
 - This spec raises compression for UDP replies as a security and conformance observation. It does not decide it. Compression changes wire output on every query, so it needs an owner decision.
 - Any positive-only row that survives route A is escalated to Thomas rather than annotated. Nothing in this spec authorises a `{single-polarity}` row.
 - The 6 SHOULD-level and RECOMMENDED rows in `rfc/short/rfc1035.md` are not gated and are out of scope. Enrolment does not require them.
-- Anything genuinely deferred lands in `plan/deferrals/fixit-dns-rfc1035-conformance.md` with a destination spec. No RFC obligation is deferred until Thomas answers first.
+- Anything genuinely deferred lands in the retired deferral shard "fixit-dns-rfc1035-conformance" with a destination spec. No RFC obligation is deferred until Thomas answers first.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -956,7 +955,7 @@ the enforcing test, not on the production code.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### Quality Gates
 - [ ] Security Review Checklist answered, including the amplification and zone-disclosure rows
@@ -981,3 +980,33 @@ the enforcing test, not on the production code.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `firewall-domain-group.md`, 2026-09-02
+
+Deferred by spec-firewall-domain-group.
+
+Signature validation for DNSSEC, rather than trusting an upstream validating resolver's SERVFAIL
+
+### From `fixit-dns-rfc1035-conformance.md`, 2026-08-19
+
+Deferred by spec-fixit-dns-rfc1035-conformance WP-4.
+
+`RFC1035-4.2-1`, zone transfer. `answerQuestions` (`internal/plugins/geodns/server.go`) switches on `q.Qtype` with no AXFR or IXFR case, so QTYPE 252 falls to the default branch and draws NOERROR plus the zone SOA; no `AXFR` or `IXFR` token exists anywhere under `internal/`. The smallest honest increment is not a zone-transfer server but a refusal: route QTYPE AXFR and IXFR to REFUSED on TCP and refuse AXFR on UDP
+
+### From `fixit-dns-rfc1035-conformance.md`, 2026-08-19
+
+Deferred by spec-fixit-dns-rfc1035-conformance AC-24.
+
+Enrolment of `rfc1035` in `rfc/enrolled.txt`, which would gate its MUSTs
+
+### From `rfcgate-4-ledger.md`, 2026-07-30
+
+Deferred by spec-rfcgate-4-ledger (OR-1, OR-1a, OR-1b).
+
+**Enrol `rfc1035`.** Its extraction landed. The summary now declares 27 MUST-level obligations, read from the document's pre-RFC-2119 indicative prose. The full 73-section walk is signed off in `rfc/extraction/rfc1035.json`. What remains is proving those obligations, and the walk showed that cannot finish without owner rulings. Five have no code path in Ze at all. The 512-octet UDP bound is never enforced and the TC bit is never set: `internal/core/dnsserver/handler.go` writes whatever the answer function produced. A response TTL is never raised to the zone SOA MINIMUM (`internal/plugins/geodns/server.go`). An unsupported inverse query draws no Not Implemented reply. Ze performs no zone transfer of any kind. About six more admit only a POSITIVE polarity, because `github.com/miekg/dns` owns the wire codec and no change to Ze can break them.

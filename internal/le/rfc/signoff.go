@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 // The Markdown constructs that make text stop being a live claim.
@@ -177,8 +178,18 @@ func relocationErrors(tree string, art Extraction, site ExtractionSite,
 	}
 
 	if _, seen := cache[rel]; !seen {
-		path := treePath(tree, specDirName, filepath.Base(rel))
-		raw, err := os.ReadFile(path) // #nosec G304 -- the spec basename the artifact names
+		// The artifact names a bucket path, and a spec relocated between
+		// buckets since it was signed off still exists: resolve the NAME so
+		// the pointer is judged on whether the spec is there, not on whether
+		// the bucket in the artifact is still the one holding it.
+		relative, findErr := specpath.Find(tree, filepath.Base(rel))
+		var raw []byte
+		var err error
+		if findErr != nil {
+			err = findErr
+		} else {
+			raw, err = os.ReadFile(treePath(tree, relative)) // #nosec G304 -- the spec path specpath resolved
+		}
 		if err != nil {
 			cache[rel] = nil
 		} else {

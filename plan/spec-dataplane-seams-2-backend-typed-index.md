@@ -4,9 +4,8 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | plugin |
-| Depends | `plan/spec-dataplane-seams-0-umbrella.md` (finding F-2) |
+| Depends | `plan/immediate/spec-dataplane-seams-0-umbrella.md` (finding F-2) |
 | Phase | - |
-| Deferral shard | `plan/deferrals/dataplane-seams.md` (create on the first deferral) |
 | Updated | 2026-08-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -87,7 +86,7 @@ evidence rather than assuming it.
 - [ ] `docs/architecture/iface/logical-name-resolution.md` - `Binding` is a pure value type over the backend; no second resolver
 
 ### Related Specs
-- [ ] `plan/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-2
+- [ ] `plan/immediate/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-2
 - [ ] `plan/spec-finish-vpp-stub.md` - VPP test coverage this spec's tests may depend on
 
 **Key insights:** (minimal context to resume after compaction)
@@ -328,7 +327,7 @@ evidence rather than assuming it.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

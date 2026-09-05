@@ -17,7 +17,7 @@
 // written and none is read: HEAD is the baseline, so there is nothing a session
 // can append a path to in order to silence the gate, and a declaration that
 // MOVES between modules is not read as new debt
-// (plan/future/spec-shrink-only-baseline-cannot-see-a-relocation.md).
+// (plan/spec-shrink-only-baseline-cannot-see-a-relocation.md).
 //
 // A baseline that cannot be read accuses nobody. A checkout with no git, a root
 // commit, and a `git grep` that answers nothing each leave the rule unjudged

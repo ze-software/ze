@@ -411,7 +411,7 @@ L2 tunnel kinds (`gretap`, `ip6gretap`) support an optional `mac` container (wit
 kernel does not assign one).
 
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
-out of scope for v1; see `plan/deferrals/`.
+out of scope for v1.
 
 All nine kinds are creatable on the gokrazy appliance image. Nine kinds need six
 kernel symbols plus the GRE demux gate, and the appliance kernel builds all seven

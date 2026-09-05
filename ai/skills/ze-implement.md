@@ -111,10 +111,10 @@ edge of your context is not reaching the edge of your package.
 | Your package is finished | Write the handoff, report, stop |
 | Your package is bigger than you can finish | Write the handoff for what IS finished, then REPORT to the main thread that the package needs a continuation. The main thread spawns it |
 | An acceptance criterion inside your package looks too expensive | It stays in the package. You do not trim it, and you do not narrow it |
-| You are running long | Finish the package. "I was near a budget" is not a reason to leave a stub, a TODO, or a deferral row |
+| You are running long | Finish the package. "I was near a budget" is not a reason to leave a stub, a TODO, or an item parked in a row |
 
 `ai/rules/completion.md` is untouched by this decomposition. No partial work, no
-parking, no stub, no deferral, no weakened test. Every one of those bans applies
+parking, no stub, no weakened test. Every one of those bans applies
 to a phase agent as it applies to one agent implementing a whole spec. The only
 thing that changed is how many agents share the work.
 

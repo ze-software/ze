@@ -87,7 +87,7 @@ command removes the spec). The handoff commit is neither of them. Get the handof
 | 2. Security review | **Security Review Checklist** (feature-specific concerns) |
 | 4. Documentation review | **Documentation Update Checklist** (verify the per-category doc updates the implementation already made) |
 | 5. Review Gate | **Review Gate**: record via `./le spec session review record`, loop to 0 BLOCKER/0 ISSUE |
-| 6. Close + commit | **Implementation Audit**, **Pre-Commit Verification**, **Deferrals Resolved** |
+| 6. Close + commit | **Implementation Audit**, **Pre-Commit Verification**, **Work Not Done** |
 
 ## Steps
 
@@ -95,7 +95,7 @@ command removes the spec). The handoff commit is neither of them. Get the handof
    - **Append the closure sections FIRST (BLOCKING):** copy everything below the
      horizontal rule in `plan/TEMPLATE-CLOSURE.md` to the end of the spec. Those
      sections (Implementation Summary, Mistake Log, Implementation Audit, Goal
-     Validation, Deferrals Resolved, Review Gate, Pre-Commit Verification) are
+     Validation, Work Not Done, Review Gate, Pre-Commit Verification) are
      what the steps below fill. They are deliberately absent until now.
    - Run the verification method specified in the table
    - Paste evidence (grep output, test output, ls output)
@@ -153,19 +153,16 @@ command removes the spec). The handoff commit is neither of them. Get the handof
    - **Pre-Commit Verification:** EVERY sub-table needs at least one evidence row.
      Native commit validation names each empty table independently, so a row in
      `Files Exist` is not evidence for `AC Verified`.
-   - **Deferrals Resolved:** account for every row in the shard named in the spec
-     metadata. `deferral_unassigned_problems` WARNS (it does not block) on a live
-     row with no destination, so a missing home costs nothing and is the reason
-     rows persist for weeks -- act on it here.
-     **Add `remove plan/deferrals/<spec-stem>.md` ONLY when every row in that
-     shard is terminal.** A shard still holding a live row outlives its source
-     spec: the row is homed at another spec and the shard is only where it is
-     written down (`ai/rules/planning.md`).
-     Native commit validation BLOCKS the removal if you get this wrong.
-     **Then check the shards your resolutions just emptied.** Setting the last
-     live row of a FOREIGN shard to `done` makes that shard residue, and you are
-     the actor who removes it: add `remove plan/deferrals/<that-stem>.md` in the
-     same commit. Left for whoever comes next, it is never collected.
+   - **Work Not Done:** one row for every in-scope item this spec did not do,
+     and each row names by path the spec that OWNS that item now. Write that
+     spec in this same commit, in the bucket the item belongs to
+     (`plan/README.md`), and add `file <that path>` to commit A.
+     A destination cell holding prose is a deletion with a polite name: a row
+     nobody can count is a row nobody schedules, which is why the row mechanism
+     was deleted (`ai/rationale/unfinished-scope-becomes-a-spec.md`). Nothing
+     is parked in a row, so closure removes no shard.
+     **Dropping the item instead of homing it is the owner's decision, never
+     yours** (`ai/rules/completion.md`).
    Running the commit script finishes the work. There is no step 7. The script is the
    final action. Everything below MUST be in that single script.
 
@@ -212,7 +209,7 @@ command removes the spec). The handoff commit is neither of them. Get the handof
 
         These edits ride on commit A, because commit B removes a spec and adds
         nothing. The gate reads `plan/spec-*.md`, so `plan/learned/` and
-        `plan/deferrals/` are outside this step. Do not edit
+        `plan/journal/` are outside this step. Do not edit
         `plan/.citation-baseline` as part of closure: a bulk baseline refresh
         hides a citation that a repoint must fix.
 

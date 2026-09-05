@@ -117,7 +117,7 @@ under test looked "still reproducing" because the run never contained it.
 
 **So export the binaries before trusting any verdict from this tool**, and
 treat a reproduction whose symptom is a CONFIG PARSE ERROR as a stale binary
-until proven otherwise. `plan/future/spec-stress-repro-refuses-a-stale-binary.md`
+until proven otherwise. `plan/spec-stress-repro-refuses-a-stale-binary.md`
 proposes making the tool refuse rather than rely on the caller remembering.
 
 ## Next step

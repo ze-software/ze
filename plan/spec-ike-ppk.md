@@ -30,7 +30,7 @@ Ze's native IKEv2 has no Post-quantum Preshared Key (PPK) support (RFC 8784,
 out-of-band shared secret, selected by a PPK_ID, into the SK_d / SK_pi / SK_pr
 key material so a future quantum adversary who breaks the (classical) DH exchange
 still cannot derive session keys. It is complementary to, and independent of,
-post-quantum key exchange (that separate track is `plan/future/spec-ike-post-quantum.md`).
+post-quantum key exchange (that separate track is `plan/spec-ike-post-quantum.md`).
 
 Add RFC 8784 PPK:
 - Negotiate PPK use via the USE_PPK notification in IKE_SA_INIT.

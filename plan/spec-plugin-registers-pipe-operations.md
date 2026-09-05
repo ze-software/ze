@@ -6,7 +6,6 @@
 | Scope | plugin |
 | Depends | - |
 | Phase | 6/6 |
-| Deferral shard | `plan/deferrals/plugin-registers-pipe-operations.md` |
 | Handoff | - |
 | Updated | 2026-08-22 |
 
@@ -881,7 +880,7 @@ untouched, and only the shape of the command that reports them changes.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 

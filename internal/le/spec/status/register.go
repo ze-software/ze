@@ -13,7 +13,7 @@ import (
 
 func init() {
 	leroot.Register("spec status", leroot.GroupReport, Answer, registry.Meta{
-		Description: "the spec inventory: status, bucket and stale-skeleton flag for every plan/spec-*.md",
+		Description: "the spec inventory: release bucket, status and stale-skeleton flag for every spec",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.

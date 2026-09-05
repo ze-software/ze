@@ -81,6 +81,7 @@ func fullStages() []Stage {
 		stage("fs-persistence", "check"),
 		stage("dash-stdio", "check"),
 		stage("port-defaults", "check"),
+		stage("go-version", "check"),
 		stage("config claims"),
 		stage("test-sensitivity", "check"),
 		stage("test-weakened", "check"),

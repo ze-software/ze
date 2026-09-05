@@ -33,6 +33,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 // taskSections names the `##` sections that contain work descriptions from
@@ -40,12 +41,29 @@ import (
 // `## Task (MANDATORY)`.
 var taskSections = [...]string{"context", "task"}
 
-// loadCorpus answers the task descriptions in one directory of specs.
+// loadCorpus answers the task descriptions of the whole plan corpus: every
+// document directly inside a release bucket directory, minus the templates and
+// the upper-case index files.
 //
-// A missing directory gives no tasks, as in the script. The derivation that
-// needs the corpus reports an empty result (digest.go, unreachableBlocking).
-// That layer knows which answer the empty read prevented.
-func loadCorpus(dir string) ([]Task, error) {
+// The buckets come from specpath, so a corpus that read plan/ alone cannot
+// again silently drop the work re-filed under plan/immediate/ and
+// plan/pre-release/. A missing directory gives no tasks, as in the script. The
+// derivation that needs the corpus reports an empty result (digest.go,
+// unreachableBlocking). That layer knows which answer the empty read prevented.
+func loadCorpus(tree string) ([]Task, error) {
+	var corpus []Task
+	for _, bucket := range specpath.Dirs() {
+		tasks, err := loadCorpusDir(filepath.Join(tree, filepath.FromSlash(bucket)))
+		if err != nil {
+			return nil, err
+		}
+		corpus = append(corpus, tasks...)
+	}
+	return corpus, nil
+}
+
+// loadCorpusDir answers the task descriptions in one bucket directory.
+func loadCorpusDir(dir string) ([]Task, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -206,7 +224,7 @@ func Router(tree string) (RouterReport, error) {
 	if err != nil {
 		return report, err
 	}
-	corpus, err := loadCorpus(filepath.Join(tree, "plan"))
+	corpus, err := loadCorpus(tree)
 	if err != nil {
 		return report, err
 	}

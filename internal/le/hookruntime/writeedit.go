@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 	"github.com/ze-software/ze/internal/le/ste"
 	"github.com/ze-software/ze/internal/le/testweakened"
 )
@@ -214,7 +215,8 @@ func writePointLanguage(ctx context) *verdict {
 // writeDesignEvidence refuses a spec or design written before its source was read.
 func writeDesignEvidence(ctx context) *verdict {
 	relative := relativePath(ctx)
-	if !anyPrefix(relative, "plan/spec-", "plan/design-", ".claude/plan/") {
+	designDocument := specpath.IsSpec(relative) || anyPrefix(relative, "plan/design-", ".claude/plan/")
+	if !designDocument {
 		return nil
 	}
 	id := resolvedSessionID(ctx)
@@ -250,7 +252,7 @@ func writeSpecStatus(ctx context) *verdict {
 	if spec == "" || spec == specUnassigned {
 		return nil
 	}
-	specBody, err := os.ReadFile(filepath.Join(ctx.root, "plan", spec)) //nolint:gosec // the claimed spec lives under the checkout plan directory
+	specBody, err := readClaimedSpec(ctx.root, spec)
 	if err != nil {
 		return nil
 	}

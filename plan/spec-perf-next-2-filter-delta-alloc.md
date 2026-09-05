@@ -2,36 +2,61 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Depends | spec-perf-next-0-umbrella.md |
 | Phase | 5/5 |
-| Updated | 2026-08-03 |
+| Updated | 2026-09-05 |
 
-## Blocked
+## Decision, 2026-09-05
 
-Blocked on a decision by Thomas. AC-3 asks for 12 allocs/op or fewer, or a 40%
-reduction. Phase A alone gives 24 to 22 allocs/op (about 8%, recorded in commit
-`b5ad2cabe`), so AC-3 needs Phase B. Phase B is not written: the 14 encoder
-`make(` sites in `internal/component/bgp/reactor/filter_delta.go` are all still
-there and the package has no scratch type. Dropping Phase B is a scope
-reduction, which only Thomas can approve (`ai/rules/no-partial-completion.md`).
-The spec's own Phase B gate cannot decide it either: that gate demands a fresh
-`ze-perf-bench PPROF=1` profile showing the `encode*Value` frames, and
-`ze-perf-bench` never exercises the filter path
-(`docs/architecture/perf-round-3.md`), and `Dockerfile.ze` was recorded stale
-when round 3 closed.
+Thomas answered the question this spec was blocked on since 2026-07-22:
+implement Phase B and meet AC-3. Dropping Phase B is off the table, so there is
+no deferral shard and no corrected AC-3.
 
-Thomas chooses one: implement Phase B and meet AC-3, or approve the deferral,
-which then needs a `plan/deferrals/` shard with a destination spec plus a
-corrected AC-3 before closure.
+Phase A landed in `b5ad2cabe`: `filterAttrID`/`filterAttrs` (fixed struct plus
+bitset, replacing `map[string]string`) in
+`internal/component/bgp/reactor/filter_chain.go`.
 
-Awaiting closure (recorded 2026-07-22 during plan review): Phase A landed --
-`filterAttrID`/`filterAttrs` (fixed struct + bitset replacing
-`map[string]string`) at `internal/component/bgp/reactor/filter_chain.go,79`,
-per `docs/architecture/perf-round-3.md`. Phase B (pooled scratch for the 14
-encoder sites) was deliberately deferred in that round; at closure, home that
-deferral in a `plan/deferrals/` shard with a destination spec so it is not
-lost. Only the two-commit closure (plus that deferral row) remains.
+The Phase B GATE the Implementation Phases section states was answered by
+MEASUREMENT rather than by `ze-perf-bench`, which never exercises the filter
+path. A `-memprofile` run of `BenchmarkFilterModifyEgress` itself named every
+allocation site on that path with its per-op count, which is what the gate
+wanted a profile for. The numbers are in the Benchmarks section below, and they
+moved the work: the encoder sites were four allocations of the twenty, not the
+whole remainder the gate expected.
+
+## Benchmarks
+
+`go test -run '^$' -bench '^(BenchmarkFilterModifyEgress|BenchmarkFilterDispatch_ZeroAlloc)$'
+-benchmem -count=6 ./internal/component/bgp/reactor/`, run through
+`./le job run`, on an Apple M4 Max (darwin/arm64).
+
+| Stage | allocs/op | B/op | ns/op |
+|-------|-----------|------|-------|
+| Baseline, re-measured 2026-09-05 (A-4) | 20 | 3432 | 1671-2007 |
+| Value arena alone (the spec's Phase B) | 14 | 3325 | 1556-1686 |
+| Plus the non-allocating parse | 6 | 1931 | 1721-1744 |
+| Final, with the ASCII whitespace table | 6 | 1931 | 1360-1472 |
+
+`BenchmarkFilterDispatch_ZeroAlloc` reads 0 allocs/op at every stage (AC-4).
+
+AC-3 asked for 12 or fewer, targeted 10, and gated on a 40% cut from the
+re-measured baseline, which is 12. The result is 6: a 70% cut, 44% fewer bytes,
+and about 19% less wall time.
+
+R-3 said to record the ns/op honestly whichever way it went, and the honest
+account has two steps. The parse rewrite alone spent CPU to save allocations
+and landed at 1730 against a 1720 baseline median, inside the noise. Reading
+whitespace through the 256-entry ASCII table `strings.Fields` uses, rather than
+through `unicode.IsSpace` on a decoded rune, took it to 1390.
+
+WHERE THE FIRST TWENTY WENT, read per line from a `-memprofile` run at
+`-memprofilerate 1`. Eight were the parse (`textbuf.Join` 4, `strings.Fields`
+2, `&filterAttrs{}` 2), four were the encoder sites this spec's Phase B names,
+four were `attribute.ParseASPath` inside the remove-private rewrite, and the
+rest were the AS path rewrite's own slices. The four in `ParseASPath` are the
+bulk of what remains: they live in `internal/core/bgp/attribute`, which this
+spec does not touch.
 
 ## Post-Compaction Recovery
 
@@ -191,10 +216,10 @@ fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | AttrOp.Buf slices never outlive buildModifiedPayload (no handler stores them in a struct/global/channel) | VERIFIED 2026-06-12: all 11 `.Buf` readers in filter_delta_handlers.go are `len()`, `copy(buf[...], Buf)` into the output, or accumulation into function-local `prependBufs`/`setBuf` (lines 44,58,69,115,126,142-145,246-247,384-385,405); none escape the synchronous call | Scratch reuse corrupts a retained slice | Done (grep). Remaining nuance: `prependBufs` (143/385) holds MULTIPLE carved slices live at once — guarded by the append-only scratch invariant + the new multi-prepend test case; audit confirms the `prependBufs`/`setBuf` locals do not escape their handler | likely |
-| A-2 | The filter attribute name set is closed at 16 (no dynamic names) | isPolicyAttrName switch + policySingleToken map are the only producers | Struct misses a key; directive silently dropped | grep producers of the filter text (AppendUpdateForFilter + plugin contract docs) for attribute names; cross-check list | unvalidated |
-| A-3 | Dry-run path tolerates the new signatures (cold, no perf constraint) | policy_dryrun.go uses same extractors | Compile break or behavior drift in dry-run | Compile + existing dry-run tests | unvalidated |
-| A-4 | ~24 allocs/op current baseline still holds | learned/875 benchmark result | Improvement targets misstated | Re-run BenchmarkFilterModifyEgress before coding; paste numbers here | unvalidated |
+| A-1 | AttrOp.Buf slices never outlive buildModifiedPayload (no handler stores them in a struct/global/channel) | VERIFIED 2026-06-12 against the handler shape of that date | Scratch reuse corrupts a retained slice | Re-derived 2026-09-05 and the SHAPE HAS CHANGED: `prependBufs`/`setBuf` are gone. `aspathHandler` (filter_delta_handlers.go) now records `p.Op(i)` for every prepend plus the Set, and `EditSet.write` (filterapi/editset.go) reads `ops[oi].Buf` for each planned fragment when it materializes the payload. So EVERY operation's Buf is live at once, until buildModifiedPayload returns, which makes the append-only invariant more load-bearing rather than less. Still no escape past that return | confirmed |
+| A-2 | The filter attribute name set is closed at 16 (no dynamic names) | isPolicyAttrName switch + policySingleToken map are the only producers | Struct misses a key; directive silently dropped | grep producers of the filter text (AppendUpdateForFilter + plugin contract docs) for attribute names; cross-check list | confirmed 2026-09-05, at 23 rather than 16: `filterAttrNames` (filter_chain.go) is the closed list Phase A built from the `filterAttrID` enum, `filterAttrNameToID` is derived from it at init, and `isPolicyAttrName` names the same set. Phase B added no name |
+| A-3 | Dry-run path tolerates the new signatures (cold, no perf constraint) | policy_dryrun.go uses same extractors | Compile break or behavior drift in dry-run | Compile + existing dry-run tests | confirmed: `computeWireChanges` (policy_dryrun.go) acquires and releases a scratch of its own; the reactor package's dry-run tests pass |
+| A-4 | ~24 allocs/op current baseline still holds | learned/875 benchmark result | Improvement targets misstated | Re-run BenchmarkFilterModifyEgress before coding; paste numbers here | BROKEN. Re-measured 2026-09-05: 20 allocs/op, not 24 and not the 22 the Phase A page records. Targets are computed from 20 (see Benchmarks and the Mistake Log) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -227,12 +252,13 @@ fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| TestFilterDeltaParseOnceEquivalence (existing, corpus extended) | `internal/component/bgp/reactor/filter_delta_test.go` | Op multiset equivalence across refactor | |
-| TestFilterDeltaParseCallCount (existing) | same | 2 parses per modify | |
-| TestParseFilterAttrsStruct (new) | same | Struct parse: every directive name, single + multi token, nlri block, atomic-aggregate presence | |
-| TestEncodeValuesIntoScratch (new) | same | Each encoder writes byte-identical values via scratch vs old make path (table over all 14 encoders); INCLUDES a multi-prepend case that holds two scratch-carved Buf slices live simultaneously and asserts both still read correctly (guards the append-only invariant) | |
-| TestExtractRemovePrivateASOps / TestExtractASPathPrependOps / TestTextDeltaToModOps / TestExtractLegacyNLRIOverride (existing) | same | Unchanged behavior | |
-| BenchmarkFilterModifyEgress (existing) | `internal/component/bgp/reactor/filter_format_bench_test.go` area | allocs/op + ns/op before/after each phase | |
+| TestFilterDeltaParseOnceEquivalence (existing, corpus NOT extended) | `internal/component/bgp/reactor/filter_delta_test.go` | Op multiset equivalence across refactor | green. The corpus was left exactly as it was, which is what makes it evidence: a corpus edited in the same change proves nothing about the change |
+| TestFilterDeltaParseCallCount (existing) | same | 2 parses per modify | green |
+| TestParseFilterAttrsStruct (new) | `internal/component/bgp/reactor/filter_chain_test.go` | Every directive name, single + multi token, nlri block, both valueless tokens, the unknown-name record, and the separator cases that decide whether a value is the window or a rewrite | green. It lives beside the parse it covers rather than in filter_delta_test.go |
+| TestEncodeValuesIntoScratch (new) | `internal/component/bgp/reactor/filter_delta_test.go` | Every name `encodeAttrValue` dispatches, encoded into ONE scratch and read after the last carve; the multi-prepend case that holds two carved Buf slices live and drives them through buildModifiedPayload; the R-1 grow case | green |
+| TestValueScratchCarvesWindowsThatDoNotOverlap (new) | `internal/component/bgp/reactor/filter_scratch_test.go` | The arena itself: windows that do not overlap, a capped window an append cannot escape into, a carve zeroed against the previous block's bytes, and the segment/ASN reservations | green |
+| TestExtractRemovePrivateASOps / TestExtractASPathPrependOps / TestTextDeltaToModOps / TestExtractLegacyNLRIOverride (existing) | same | Unchanged behavior | green |
+| BenchmarkFilterModifyEgress (existing) | `internal/component/bgp/reactor/filter_delta_test.go` | allocs/op + ns/op before/after each phase | green; see Benchmarks |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -278,8 +304,9 @@ re-run beyond existing suite. Justification: allocation-shape-only change.
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
 | 1-11 | user-facing / config / CLI / API / wire / plugin SDK | [ ] no (filter text contract unchanged) | - |
-| 12 | Internal architecture changed? | [ ] check | grep docs/ for anchors on filter_delta.go / filter_chain.go; update if any describe the map-based parse |
-| 16 | Changed files referenced by doc source anchors? | [ ] check | same grep |
+| 12 | Internal architecture changed? | [ ] yes | `docs/architecture/perf-round-3.md`, DONE. Section 4 added; the Phase A paragraph that named the 14 encoder sites as the whole remainder is gone, because it was wrong about the code |
+| 16 | Changed files referenced by doc source anchors? | [ ] yes | `ai/CODE-TO-DOCS.md` maps `filter_chain.go` to `perf-round-3.md`, `process-protocol.md`, `egress-attribute-rules.md`, `irr-filtering.md` and `redistribution.md`, and `filter_delta.go` to `egress-attribute-rules.md` and `plugins.md`. Only `perf-round-3.md` states anything this change makes wrong: the others describe the filter text contract and the med-remove ordering, both untouched. Two new anchors added for `filter_scratch.go` and `parseFilterAttrsInto` |
+| 16a | Is the generated index in step with the new anchor? | [ ] owed at closure | `./le docs-to-code index-update` ran and wrote no change, because `filter_scratch.go` is still untracked and the walk reads what git holds. Run it again in the closure commit's tree so the new file gets its row |
 
 ## Files to Create
 - None expected (tests live in existing _test.go files).
@@ -295,7 +322,19 @@ re-run beyond existing suite. Justification: allocation-shape-only change.
 | 4. Implement (TDD) | Phases below |
 | 5-14 | Per template |
 
-### Implementation Phases
+### Phase B as built (2026-09-05)
+
+The design the spec chose is what landed, with one addition the measurement
+forced. The arena is a sibling type rather than a field on `ModAccumulator`,
+which is the alternative the Integration Points row already allowed:
+`filterapi` is a near-leaf package and cannot name `attribute.ASPathSegment`,
+and the AS path rewrite reserves segments and ASNs from the same block.
+
+The addition is the parse. The spec's Key Design Decisions row kept
+`textbuf.Join` "deferred unless benchmark shows them dominant after Phase B",
+and after Phase B they were the largest family left, so the row's own condition
+made the work due. AC-3 could not be met without it: the arena alone reaches 14.
+
 1. **Phase: Wiring (MANDATORY FIRST)** - extend the golden corpus to cover all 16 directives; write TestParseFilterAttrsStruct + TestEncodeValuesIntoScratch against intended new signatures (failing); re-run BenchmarkFilterModifyEgress and paste the baseline
    - Tests: TestParseFilterAttrsStruct, TestEncodeValuesIntoScratch
    - Files: filter_delta_test.go
@@ -346,6 +385,9 @@ re-run beyond existing suite. Justification: allocation-shape-only change.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| A-4: the modify path costs ~24 allocs/op, 22 after Phase A | 20 allocs/op, 3432 B/op | Re-ran `BenchmarkFilterModifyEgress` before writing any code, as A-4 required | The AC-3 gate moved: 40% of 20 is 12, not 13. Both figures are recorded rather than the remembered one |
+| The remaining allocations are the 14 encoder `make(` sites (`docs/architecture/perf-round-3.md`, written at Phase A) | The encoder sites are FOUR of the twenty. Eight are the parse (`textbuf.Join` 4, `strings.Fields` 2, `&filterAttrs{}` 2) and four are `attribute.ParseASPath` inside the remove-private rewrite | `-memprofile` with `-memprofilerate 1`, read per line with `go tool pprof -lines` | Phase B alone reaches 14 allocs/op, which misses AC-3. The parse work the spec's own Key Design Decisions row deferred "unless benchmark shows them dominant after Phase B" became required, and the page's claim was corrected |
+| The handlers hold carved buffers in function-local `prependBufs`/`setBuf` slices (A-1, 2026-06-12) | Those locals are gone. `aspathHandler` records `p.Op(i)` per operation and `EditSet.write` reads `ops[i].Buf` for every fragment at write time | Re-derived the `.Buf` readers before relying on A-1 | The append-only invariant covers MORE than the spec expected: every operation's buffer is live until the rebuild finishes, not just the prepend run |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -356,7 +398,24 @@ re-run beyond existing suite. Justification: allocation-shape-only change.
 |---------|-----------|---------------|--------|
 
 ## Design Insights
-- [filled during implementation]
+- THE PROFILE MOVED THE WORK, and the design that was written 14 months of
+  commits earlier could not have known where. The spec named 14 `make(` sites
+  and expected them to be most of the cost; they were four allocations of
+  twenty. Re-measuring before coding, which A-4 demanded, is what turned a
+  plausible plan into the right one.
+- ESCAPE ANALYSIS HIDES SMALL ENCODERS. `make([]byte, 4)` in
+  `encodeUint32Value` allocated 51 times in 20,000 iterations, because the
+  accumulator it flows into is a stack local and the compiler could see the
+  whole chain. Counting `make(` calls therefore over-counts the cost, and
+  reading the profile per line is the only way to know which ones are real.
+- AN ARENA IS A LIFETIME STATEMENT, not a buffer. What makes `valueScratch`
+  correct is not its size but the sentence "nothing rewinds until the block
+  releases it", because the rebuild reads every operation's `Buf` at write time.
+  A rewinding arena of any size would corrupt the payload silently.
+- THE CHEAPEST WAY TO READ A BYTE IS A TABLE. Replacing `strings.Fields` with a
+  rune-decoding scan removed six allocations and gave the CPU back. The
+  256-entry ASCII table `strings.Fields` itself uses recovered 340 ns of 1730,
+  which is where the win actually came from.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -364,6 +423,7 @@ re-run beyond existing suite. Justification: allocation-shape-only change.
 | Struct with presence bits over map[string]string | Key-code map (uint8 keys); span-based zero-alloc parse | Closed 16-name set; struct is stack-allocated and compile-time checked. Span parse rejected: nlri block spans complicate lifetimes for ~2 allocs more saved (dossier Option D) |
 | One pooled scratch per modify block | Per-encoder pools; caller (reactor) threading its own buffer | Single Get/Release pair; lifetime exactly matches ops; mirrors modBufPool idiom |
 | Keep textbuf.Join for multi-token values in Phase A | Spans into Fields slice | Join allocs are per-multi-token-attribute (small count); deferred unless benchmark shows them dominant after Phase B |
+| DISCHARGED 2026-09-05: the Join went, and so did `strings.Fields`. The benchmark showed them dominant after Phase B (6 of the 14 remaining), which is the condition the row above set | Keep them and miss AC-3; or the span-in-struct parse this spec rejected | A multi-token value is now the WINDOW its tokens already sit in, which is a plain `string` aliasing the text exactly as every single-token value already did. No new lifetime constraint, so this is not the rejected span parse. A run whose separators are not single spaces still goes through `joinFilterTokens`, so the value is byte-identical either way |
 
 ## Known Limitations
 - PolicyFilterChain RPC cost (text serialization + plugin round trip) is untouched; it is the sanctioned external-plugin boundary.
@@ -374,16 +434,71 @@ re-run beyond existing suite. Justification: allocation-shape-only change.
 Encoders carry existing RFC 4271 wire-format references; preserve them. No new
 protocol-enforcing code.
 
+## make() Inventory Disposition (Phase B)
+
+The spec listed 14 `make(` sites in `filter_delta.go` by line number, and those
+numbers had moved. The table names them by SYMBOL, which is what a later reader
+can still find. Every one of them now carves from the block's `valueScratch`
+(`filter_scratch.go`).
+
+| # | Site | Allocated | Disposition |
+|---|------|-----------|-------------|
+| 1 | `extractLegacyNLRIOverride` | NLRI prefix bytes | `carveBytes` (upper bound reserved, written prefix returned) |
+| 2 | `encodeASPathValue` | `[]uint32` of parsed ASNs | `carveASNs` |
+| 3 | `encodeASPathValue` | segment bytes | `carveBytes` |
+| 4 | `encodeUint32Value` | 4 bytes (MED, LOCAL_PREF) | `carveBytes` |
+| 5 | `encodeAggregatorValue` | 8 bytes | `carveBytes` |
+| 6 | `encodeCommunityValue` | 4 bytes per community | `carveBytes` |
+| 7 | `encodeLargeCommunityValue` | 12 bytes per community | `carveBytes` |
+| 8 | `encodeAIGPValue` | 11-byte TLV | `carveBytes` |
+| 9 | `encodeClusterListValue` | 4 bytes per cluster ID | `carveBytes` |
+| 10 | `ExtractASPathPrependOps` | prepend segment | `carveBytes` |
+| 11 | `rewriteASPathRemovePrivate` | rewritten AS_PATH | `carveBytes` |
+| 12 | `rewriteAS4PathRemovePrivate` | rewritten AS4_PATH | `carveBytes` |
+| 13 | `rewritePrivateASSegments` | `[]ASPathSegment` | `carveSegments` |
+| 14 | `rewritePrivateASSegments` | `[]uint32` per segment | `carveASNs` |
+
+Three sites that were not `make(` but still allocated are carved too:
+`encodeOriginValue` returned a `[]byte{n}` literal, and `encodeNextHopValue`
+and `encodeIPv4Value` returned `ip4[:]` over an escaping array.
+
+ONE ALLOCATION IS LEFT AND IT IS NOT IN THIS PACKAGE. `encodeExtCommunityValue`
+calls `attribute.NewBuilder()` and `Build()`, which is the only public parser
+for extended communities and builds a whole attribute before the value can be
+taken out of it. The value is copied into the scratch so every operation buffer
+still has one lifetime. Removing it needs an append-style parser in
+`internal/core/bgp/attribute`, which this spec does not touch.
+
 ## Implementation Summary
 
 ### What Was Implemented
-- [filled at completion]
+- `valueScratch` (`internal/component/bgp/reactor/filter_scratch.go`, new): the
+  pooled, append-only value arena, with `carveBytes`, `carveSegments` and
+  `carveASNs`, an `acquireValueScratch`/`releaseValueScratch` pair, and bounded
+  retention so one adversarial delta cannot pin an oversized buffer in the pool.
+- Every filter-delta encoder and extractor takes the arena as its first
+  argument (`filter_delta.go`). The disposition table above accounts for all 14
+  `make(` sites the spec listed, plus three more that allocated without one.
+- A non-allocating parse (`filter_chain.go`): `filterTokens` scans the text
+  once and keeps offsets, `parseFilterAttrRun` takes a multi-token value as the
+  window its tokens sit in, `joinFilterTokens` is the fallback for a text whose
+  separators are not single spaces, and `parseFilterAttrsInto` writes into
+  caller-provided storage.
+- Both production modify blocks (`filter_ordered.go`, import and export) and
+  the dry-run (`policy_dryrun.go`) acquire the arena, parse into their own
+  structs, and release the arena after `buildModifiedPayload` returns.
 
 ### Bugs Found/Fixed
-- [filled at completion]
+- Three doc comments in `filter_delta.go` still called the parse output a
+  "map", which Phase A replaced with a struct, and two of them named
+  `reactor_notify.go` and `reactor_api_forward.go` as the call sites when both
+  had moved to `filter_ordered.go`. Fixed in the functions this phase edited.
 
 ### Documentation Updates
-- [filled at completion]
+- `docs/architecture/perf-round-3.md`: section 4 added, and the Phase A
+  paragraph claiming the remaining 22 allocations were the 14 encoder `make()`
+  sites was removed. The profile says four of twenty, so the claim was wrong
+  about the code and would have sent the next reader to the wrong place.
 
 ### Deviations from Plan
 - [filled at completion]
@@ -393,10 +508,22 @@ protocol-enforcing code.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Cut the modified-UPDATE path to roughly 10 allocs/op or fewer | met | Benchmarks | 6 |
+| Without changing any produced wire bytes | met | `TestFilterDeltaParseOnceEquivalence` over an unedited corpus, `TestEncodeValuesIntoScratch` | |
+| Without changing op sequences | met | same | The equivalence test compares sorted multisets, which is the property R-2 asked to keep |
+| Without changing filter text contracts | met | `TestParseFilterAttrsStruct`, and the plugin `.ci` scenarios that drive a modifying filter (`community-strip`, `community-cumulative`, `aspath-filter-*`, `med-removal-*`) | The parse takes a value as a window into the text; a run whose separators are not single spaces is still normalized, so the contract is byte-identical |
+| Family 1, parse maps | met | `parseFilterAttrsInto`, `filterTokens` (filter_chain.go) | Phase A removed the map; this removed what was left |
+| Family 2, encoder buffers | met | `valueScratch` (filter_scratch.go) and the disposition table above | |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | met | `TestFilterDeltaParseOnceEquivalence`, `TestEncodeValuesIntoScratch` | The corpus is unchanged and still green, so the op multiset survived both refactors. The new table encodes every one of the 13 attribute names `encodeAttrValue` dispatches, with its wire bytes as hex |
+| AC-2 | met | Benchmarks table | Phase A's own claim is superseded: the re-measured baseline was 20, and the value arena took it to 14 |
+| AC-3 | met | Benchmarks table | 6 allocs/op against a gate of 12 and a target of 10. 70% below the re-measured baseline |
+| AC-4 | met | `BenchmarkFilterDispatch_ZeroAlloc` | 0 allocs/op at every stage |
+| AC-5 | met | `TestFilterDeltaParseCallCount` | The counter moved into `parseFilterAttrsInto`, which both entry points go through, so it still counts one per parse |
+| AC-6 | partial, and the gap is not this spec's | `go test -race -count=1 ./internal/component/bgp/reactor/...`: no data race. `./le verify current mode full` was NOT run | Two tests in the package fail, both in files this spec did not touch and both explained by another session's uncommitted work in this shared checkout: `TestPeerRawEntryPointNeedsTheRawSendWord` (the `send` root-verb spec, `internal/component/plugin/server/send_test.go` is modified) and `TestNoConfigFeedsSentUpdatesToAReceivedOnlyPlugin` (108 config documents refused by the YANG parser, and `internal/component/config/yang/cli/tree.go` is modified) |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |

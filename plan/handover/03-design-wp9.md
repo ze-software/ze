@@ -92,10 +92,10 @@ call sites that must feed it.**
 ### Corroborating comment, not relied upon
 
 `internal/component/ike/engine/config.go` says the remote-access gateway surface
-"is inert today and is owned by `plan/spec-ipsec-remote-access.md`". Per
+"is inert today and is owned by `plan/immediate/spec-ipsec-remote-access.md`". Per
 `ai/rules/evidence.md` a comment is its author's belief, not a decision record. It
 is cited here only because it agrees with what the code does. **Read
-`plan/spec-ipsec-remote-access.md` and `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` before
+`plan/immediate/spec-ipsec-remote-access.md` and `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` before
 implementing** -- neither was read in this pass, and either may already hold design
 decisions this document would otherwise re-litigate. That is risk R-WP9-9.
 
@@ -1010,7 +1010,7 @@ never resolved by dropping the rows."
 
 **Raising it: this is a spec-sized feature.** It should probably be its own spec, with the
 17 rows as its acceptance criteria, rather than a phase item inside the compliance-gate
-pilot. `plan/spec-ipsec-remote-access.md` is named by `engine/config.go` as the owner
+pilot. `plan/immediate/spec-ipsec-remote-access.md` is named by `engine/config.go` as the owner
 of this surface and may already be that spec. That is owner item OI-5.
 
 The mitigating fact from section 1 is real: the YANG, the config parse, the validation and
@@ -1065,7 +1065,7 @@ exhaustion-by-churn failure (P3). Neither depends on the CP consumer.
 | R-WP9-6 | **The R-bit defect (D1) is not fixed, and `3.15.1-4` is proven by a test that never sets the bit.** The row goes green while a conforming peer is misparsed | none; a peer that never sets the bit interoperates fine | `3.15.1-4`'s negative IS the R-bit case, and its mutation is "revert the D1 mask" |
 | R-WP9-7 | **`2.19-6` tears down the IKE SA.** "Fail the request" reads as "kill the session" | the client retries in a loop; `rfc/full/rfc7296.txt:3185` is violated | `2.19-6`'s positive asserts `StateEstablished` after the refusal |
 | R-WP9-8 | **An authenticated client drains the pool through parallel IKE SAs.** `Allocate()` has no identity and no quota | pool utilisation spikes from one identity | `maximum-leases-per-identity`, default 1, plus address reuse per `rfc/full/rfc7296.txt:6374-6375` |
-| R-WP9-9 | **`plan/spec-ipsec-remote-access.md` already holds decisions this design re-litigates.** It is named by `engine/config.go` as the owner of this surface and was NOT read in this pass | the implementer finds a conflicting design mid-phase | **Read it and `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` before phase A.** If it is the real owner, OI-5 answers itself |
+| R-WP9-9 | **`plan/immediate/spec-ipsec-remote-access.md` already holds decisions this design re-litigates.** It is named by `engine/config.go` as the owner of this surface and was NOT read in this pass | the implementer finds a conflicting design mid-phase | **Read it and `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` before phase A.** If it is the real owner, OI-5 answers itself |
 | R-WP9-10 | **The interop scenario is tagged and `./le rfc check` refuses it.** `test/interop-ipsec/` is not a carrier | the gate fails naming the file | Section 9.1. Every tag lives in a `_test.go` or in `test/ipsec/*.ci` |
 | R-WP9-11 | **P6 hands out addresses outside the configured prefix.** `allocateV6` writes the host ID into `ip6[8:]` only, while the validator permits `/48../126` | a `/96` pool leases addresses in a different subnet | Phase B, `TestAllocateV6RespectsPrefixLongerThan64`. This bug is live today |
 | R-WP9-12 | **Engine line numbers move under a concurrent agent.** `internal/component/ike/engine/` is being edited now | a tag cites a line holding different code | Every citation here names its function. Re-locate by function name before quoting a line |
@@ -1114,7 +1114,7 @@ this package, or is that the extraction sign-off's business?"
 **OI-5 -- is this a spec of its own?**
 Section 11 and R-8 (the rfcgate-1b RFC 7296 pilot spec). Six days, a new operator
 config surface, an authorization model and a resource allocator inside what is otherwise a
-compliance-gate pilot. `plan/spec-ipsec-remote-access.md` may already own it. Ask: "does
+compliance-gate pilot. `plan/immediate/spec-ipsec-remote-access.md` may already own it. Ask: "does
 WP-9 stay a phase of the pilot, or become its own spec with these 17 rows as acceptance
 criteria?"
 

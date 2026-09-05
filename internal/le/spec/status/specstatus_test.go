@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 // R-1 (spec-le-is-a-ze-binary): the tests these replace drove a COMPILED
@@ -63,7 +65,11 @@ func planTree(t *testing.T, specs map[string]string) string {
 		t.Fatalf("create the fixture plan directory: %v", err)
 	}
 	for name, body := range specs {
-		if err := os.WriteFile(filepath.Join(root, "plan", name), []byte(body), 0o600); err != nil {
+		path := filepath.Join(root, "plan", filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatalf("create the fixture bucket directory for %s: %v", name, err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 			t.Fatalf("write the fixture spec %s: %v", name, err)
 		}
 	}
@@ -333,7 +339,7 @@ func TestCollectRefusesATreeWithNoPlanDirectory(t *testing.T) {
 	if err == nil {
 		t.Fatal("Collect reported an inventory for a tree that holds no plan/ directory")
 	}
-	if !strings.Contains(err.Error(), specGlob) {
+	if !strings.Contains(err.Error(), specpath.Root) {
 		t.Errorf("the error does not name the population it could not read: %v", err)
 	}
 }
@@ -427,8 +433,8 @@ func TestCollectFlagsAStaleSkeletonAndNothingElse(t *testing.T) {
 	if got["fixture-old-design"].Stale {
 		t.Error("a design spec is TTL-flagged; only idea capture is")
 	}
-	if got["fixture-old-design"].Bucket != Backlog {
-		t.Errorf("a design spec is bucketed %q, want %q", got["fixture-old-design"].Bucket, Backlog)
+	if got["fixture-old-design"].Category != Backlog {
+		t.Errorf("a design spec is categorized %q, want %q", got["fixture-old-design"].Category, Backlog)
 	}
 }
 
@@ -486,5 +492,36 @@ func TestCollectSortsNewestFirstWithinAStatus(t *testing.T) {
 	want := []string{"fixture-newest", "fixture-middle", "fixture-oldest"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("order = %v, want %v", got, want)
+	}
+}
+
+// TestCollectNamesTheReleaseBucketOfEverySpec is the release-bucket column.
+//
+// VALIDATES: a spec carries the bucket of the directory it sits in, and the
+// three buckets are all read.
+// PREVENTS: an inventory over plan/ alone. A glob that names one directory
+// answers an empty list and no error for the other two, so the page would have
+// reported a third of the backlog as the whole of it.
+func TestCollectNamesTheReleaseBucketOfEverySpec(t *testing.T) {
+	root := planTree(t, map[string]string{
+		"spec-fixture-after.md":                  templateShapedSpec("ready", "2026-08-20"),
+		"immediate/spec-fixture-immediate.md":    templateShapedSpec("ready", "2026-08-20"),
+		"pre-release/spec-fixture-preRelease.md": templateShapedSpec("ready", "2026-08-20"),
+	})
+	inventory, _ := collect(t, root, fixedNow)
+	got := byName(inventory)
+
+	want := map[string]string{
+		"fixture-after":      specpath.After,
+		"fixture-immediate":  specpath.Immediate,
+		"fixture-preRelease": specpath.PreRelease,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("the inventory holds %d specs, want %d: %v", len(got), len(want), got)
+	}
+	for name, bucket := range want {
+		if got[name].Bucket != bucket {
+			t.Errorf("%s is in bucket %q, want %q", name, got[name].Bucket, bucket)
+		}
 	}
 }

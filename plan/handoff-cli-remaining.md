@@ -109,9 +109,9 @@ full self-review of the diff, and a 194-case suite all returned clean while
 AC-11 was false. Running the product falsified it on the first command.
 
 When the review returns clean, closure is two commits: `create --replace` for A
-(spec + journal), then `create --append --remove plan/spec-cli-pipe-operator-coverage.md`
-and `--remove plan/deferrals/cli-pipe-operator-coverage.md` for B. That shard
-holds zero rows and should not be left behind as an empty file.
+(spec + journal), then `create --append --remove plan/immediate/spec-cli-pipe-operator-coverage.md`
+for B. The deferral shard this handoff also named went with the whole
+`plan/deferrals/` tree on 2026-09-05, so closure removes the spec alone. <!-- doc-links: ignore (the tree was deleted on purpose; this line records that it was) -->
 
 ## 5. Not left over, recorded so nobody re-derives it
 

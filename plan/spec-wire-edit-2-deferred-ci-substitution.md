@@ -6,7 +6,6 @@
 | Scope | docs |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` |
 | Updated | 2026-08-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -60,7 +59,7 @@ Two of child 2's five wiring rows named EXISTING tests
 (`bgp-rs-community-strip-multi.ci`, `bgp-rs-fastpath-ebgp-shared.ci`) and are not
 in question. Only the three new-file rows are.
 
-Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 2. Raised in
+Source: the retired deferral shard "ad-hoc-2026-08-02-wire-edit-tail", row 2. Raised in
 the closure report and filed here because it is Thomas's call, not the closing
 agent's.
 
@@ -105,8 +104,8 @@ A reader looking for what proved child 2's acceptance criteria.
 | Wiring claim ↔ test on disk | a named `.ci` path | Yes, all three named files confirmed absent |
 
 ### Integration Points
-- `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` - where the answer must be recorded either way.
-- `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` - the row this spec homes.
+- the retired deferral shard "ad-hoc-2026-08-02-wire-edit-tail" - where the answer must be recorded either way.
+- the retired deferral shard "ad-hoc-2026-08-02-wire-edit-tail" - the row this spec homes.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -155,7 +154,7 @@ A reader looking for what proved child 2's acceptance criteria.
 | AC-1 | Thomas is asked the question above with the evidence attached | A recorded answer exists, in his words, not paraphrased |
 | AC-2 | The answer is "accepted" | The deferral row states which planned test each substitute replaced and why, so the next reader does not re-derive it |
 | AC-3 | The answer is "rejected" | The three planned `.ci` files exist and pass, and the closure record says child 2 closed before its wiring table was met |
-| AC-4 | Either answer | The deferral row in `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` is resolved with the evidence |
+| AC-4 | Either answer | The deferral row in the retired deferral shard "ad-hoc-2026-08-02-wire-edit-tail" is resolved with the evidence |
 
 ## 🧪 TDD Test Plan
 
@@ -174,7 +173,7 @@ A reader looking for what proved child 2's acceptance criteria.
 | `wire-edit-oversize-suppress.ci` (owed if rejected) | `test/plugin/` | the suppression counter increments on an oversize modification | |
 
 ## Files to Modify
-- `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` - resolve the row
+- the retired deferral shard "ad-hoc-2026-08-02-wire-edit-tail" - resolve the row
 
 ## Files to Create
 - `test/plugin/wire-edit-single-materialise.ci` - only if the substitution is rejected
@@ -210,3 +209,15 @@ A reader looking for what proved child 2's acceptance criteria.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `ad-hoc-2026-08-02-wire-edit-tail.md`, 2026-08-02
+
+Deferred by wire-edit closure.
+
+`plan/spec-wire-edit-2-edit-apply.md` planned three `.ci` files that were never created. Closure recorded substitutes (`modify-oversize-suppress.ci`, `wire-edit-api-origin-order.ci`, `TestModifyPathZeroAlloc`) plus the reason the RR case cannot discriminate merge-insert.

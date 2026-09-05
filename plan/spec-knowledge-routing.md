@@ -6,7 +6,6 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the shard is listed under Files to Create. Create `plan/deferrals/knowledge-routing.md` on the first deferral) |
 | Updated | 2026-08-03 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -230,7 +229,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 
 - `internal/le/journal/report.go` - the queue-depth reporter and gate
 - `internal/le/` - its tests
-- `plan/deferrals/knowledge-routing.md` - deferral shard
+- the retired deferral shard "knowledge-routing" - deferral shard
 - a documentation-gap list, location decided at the pilot (AC-2)
 
 ### Integration Checklist
@@ -360,7 +359,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

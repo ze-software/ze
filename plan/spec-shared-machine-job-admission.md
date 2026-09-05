@@ -6,7 +6,6 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/shared-machine-job-admission.md` (or `-` if nothing deferred) |  <!-- doc-links: ignore (file this spec will create; the spec is `in-progress` and the work is not implemented) -->
 | Handoff | - |
 | Updated | 2026-08-18 |
 
@@ -461,7 +460,7 @@ N/A - Scope is tooling; no wire-visible behavior changes.
 - [ ] Architectural Verification table filled
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

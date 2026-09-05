@@ -683,3 +683,15 @@ Line-ref refresh only, no design change. Re-verified against current code after 
 - `netlink.AddrSubscribe(addrCh, m.stopCh)` moved from monitor_linux.go to `internal/plugins/iface/netlink/monitor_linux.go` (the subscribe block in `start()` is now :72-88).
 - NEW in the file: `safeHandleAddrUpdate` at monitor_linux.go, a panic-recovery wrapper invoked from the monitor loop (:112) around `handleAddrUpdate` (:220). `handleAddrUpdate` now also classifies the address origin (static/slaac/temporary/dynamic) via `addrOrigin` (`internal/plugins/iface/netlink/slaac_linux.go`), applied at monitor_linux.go and emitted as the `Origin` field of the address event payload (:265).
 - Impact on this spec: none to the design. The `netlink.AddrUpdate` fields cited (NewAddr, LinkAddress, LinkIndex) are unchanged, and the planned `addrwatch_linux.go` subscribes independently. The origin classification is a useful reference if the addrwatch wants to ignore SLAAC/temporary churn, but nothing here requires it.
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `ipsec-esp-dual-form-receive.md`, 2026-08-03
+
+Deferred by spec-ipsec-esp-dual-form-receive.
+
+Drive a peer through an ESP form change part way through a live Child SA. `test/interop-ipsec/scenarios/esp-form-change/` is WRITTEN and PASSING, and it proves the property the change would exercise: a live Child SA whose peer sends the form Ze's kernel state refuses carries traffic both ways and is neither rekeyed nor deleted. The SWITCH itself is not driven

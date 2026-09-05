@@ -34,6 +34,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 // area is the word a developer types, and the prefix leaction removes from
@@ -50,11 +51,14 @@ const (
 	discriminationRel = "rfc/discrimination"
 	fullRel           = "rfc/full"
 	draftsRel         = "rfc/drafts"
-	// specDirName has ONE spelling: specPathPattern builds its prefix from it,
-	// so the validator and the resolver can never disagree about where a spec
-	// is (ai/rules/evidence.md).
-	specDirName = "plan"
 )
+
+// specDirNames are the release buckets a spec can live in. They come from
+// specpath, the one declaration of that layout, so the validator and the
+// resolver can never disagree about where a spec is (ai/rules/evidence.md).
+// This gate spelled "plan" alone until the buckets arrived, and it then refused
+// every relocation to a spec in plan/immediate/ or plan/pre-release/.
+func specDirNames() []string { return specpath.Dirs() }
 
 // testRoots are the three trees a tag may live under.
 var testRoots = [...]string{"internal", "pkg", "test"}

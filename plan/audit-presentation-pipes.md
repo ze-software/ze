@@ -756,7 +756,7 @@ Three, and two of them are already parked.
 | Operator | What it would do | Status |
 |----------|------------------|--------|
 | a field-aware row predicate, `\| where <field> <op> <value>` or the narrow `\| errors` | keep the rows whose named field holds a given value. `applyMatch` is a case-insensitive SUBSTRING filter over rendered TEXT and matches a value in any column | NOT parked anywhere. This audit is the first to name it |
-| row ordering | sort rows by a field's value. `knownPipeOps` holds no operator that touches row order | parked, `plan/future/spec-cli-pipe-column-modifiers.md` |
+| row ordering | sort rows by a field's value. `knownPipeOps` holds no operator that touches row order | parked, `plan/spec-cli-pipe-column-modifiers.md` |
 | exclusion, `\| hide <field>...` | name the columns to DROP instead of the seventeen to keep | parked, same file |
 
 Only the FIRST one blocks a presentation this audit proposes, and only one
@@ -770,7 +770,7 @@ another field's value." So every family that has a health question already has a
 field to test.
 
 A fourth item is adjacent and worth naming: an operator cannot define an alias
-of their own (parked, `plan/future/spec-cli-operator-defined-aliases.md`). Every
+of their own (parked, `plan/spec-cli-operator-defined-aliases.md`). Every
 alias in this document has to be written in Go by Ze.
 
 ### 4.4 Needs a registration surface a plugin does not have

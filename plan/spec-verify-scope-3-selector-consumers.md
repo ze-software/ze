@@ -6,7 +6,6 @@
 | Scope | tooling |
 | Depends | `plan/spec-verify-scope-2-change-set-selector.md` |
 | Phase | 3/3 -- the staticcheck half is built, green, documented and review-fixed. The approved phases 3 and 4 (the suite map and the tier derivation) moved to `plan/spec-verify-scope-5-suite-coverage-map.md`, because no static signal attributes a `.ci` file to a Go package |
-| Deferral shard | `plan/deferrals/verify-scope.md` | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -337,7 +336,7 @@ measures the assumption they rested on before anything is built.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

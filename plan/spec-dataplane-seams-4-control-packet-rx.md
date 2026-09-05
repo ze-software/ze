@@ -4,9 +4,8 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol |
-| Depends | `plan/spec-dataplane-seams-0-umbrella.md` (finding F-4) |
+| Depends | `plan/immediate/spec-dataplane-seams-0-umbrella.md` (finding F-4) |
 | Phase | - |
-| Deferral shard | `plan/deferrals/dataplane-seams.md` (create on the first deferral) |
 | Updated | 2026-08-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -77,7 +76,7 @@ Four unrelated per-packet metadata types were reported: `transport.Inbound`
 - [ ] `ai/rules/platform-linux.md` - a packet-socket path is Linux-only and needs QEMU integration tests
 
 ### Related Specs
-- [ ] `plan/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-4
+- [ ] `plan/immediate/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-4
 - [ ] `plan/spec-dataplane-seams-5-copp-non-tcp.md` - the policing side of the same question
 - [ ] `spec-cp-survival-0-umbrella` - closed 2026-08-12; it owned control-plane survivability (read it from git history)
 
@@ -305,7 +304,7 @@ Four unrelated per-packet metadata types were reported: `transport.Inbound`
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

@@ -252,3 +252,15 @@ improve-3 specified capture costs one nil check when disabled.
 ### Quality Gates (SHOULD pass)
 - [ ] Implementation Audit complete
 - [ ] Learned summary written at closure
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `improve-3-event-replay.md`, 2026-07-10
+
+Deferred by spec-improve-3-event-replay (R-3).
+
+Exact goroutine-interleaving reproduction in event replay (deterministic scheduler / event-queue layer)

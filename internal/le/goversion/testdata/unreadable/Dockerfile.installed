@@ -1,0 +1,6 @@
+# A build carrier that copies this module in and does not build on a golang
+# image, so its Go version is somewhere the gate cannot read.
+FROM alpine:3.21 AS builder
+
+RUN apk add --no-cache go
+COPY go.mod go.sum ./

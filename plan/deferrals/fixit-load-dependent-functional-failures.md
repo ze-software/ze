@@ -1,8 +1,0 @@
-# Deferrals: fixit-load-dependent-functional-failures
-
-Deferral rows for this source. The aggregate live backlog is folded on
-read from `plan/deferrals/` by `/ze-status`; nothing stores it (`ai/rules/planning.md`).
-
-| Date | Source | What | Reason | Destination | Status |
-|------|--------|------|--------|-------------|--------|
-| 2026-07-24 | spec-fixit-load-dependent-functional-failures | Forward-path egress-rail divergence fix (372 remove-private-as-replace-peer, 378 rfc7606-relay-one-field, 394/395 role-otc-egress-filter/stamp, 351 redistribute-l2tp-multi-peer-nexthop): route the adj-rib-in peer-up replay through the forward rail via a new `RelayStoredRoute` reactor primitive (+ RPC/SDK), per-family MP_REACH reconstruction, add-path path-id gap, replay-owner dedupe | Owner decision 2026-07-24: the forward-rail fix is a spec-sized new plugin-protocol primitive (not a redirect), touches the routing hot path, and needs its own interop test + independent review. Carved out so the harness (Phase 1) and 345 (router-id opt-in) — both done and stress-validated — land cleanly | `spec-fixit-bgp-egress-rail-divergence`, closed 2026-08-14. The `RelayStoredRoute` primitive, the per-family MP_REACH reconstruction and the replay-owner dedupe all landed there. The add-path half did NOT. The relay refuses an add-path source (`errRelayAddPath`), and normalizing the stored framing carries on in `plan/deferrals/fixit-bgp-egress-rail-divergence.md`, landed in `spec-fixit-stored-route-relay-hardening` as AC-1 and AC-2, which closed 2026-08-24. 351 was mis-triaged into this cluster. It was fixed by `e4076920c`, the RFC 6286 duplicate BGP Identifier race | done |

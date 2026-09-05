@@ -54,7 +54,7 @@ Hourly sibling check-in cron (job 0b2dcaaf) is CANCELLED. Restart with:
    - Sixth unbounded govpp consumer: newVPPBackend
      (internal/component/ike/dataplane/vpp.go) sets no SetReplyTimeout and holds its
      channel for the BACKEND'S LIFETIME, unlike the five per-apply ones in
-     plan/spec-vpp-reply-deadline-iface-fib-static.md. govpp default is 0=disabled.
+     plan/immediate/spec-vpp-reply-deadline-iface-fib-static.md. govpp default is 0=disabled.
    - max-prefix "offered" mode: an agent PROVED no identity-free repair exists.
      Recommendation is to make "installed" the default. Second time routed to you.
    - MCP release note owed: applying the YANG default starts MCP on 127.0.0.1:8080

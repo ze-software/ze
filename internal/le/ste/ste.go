@@ -36,6 +36,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 // The four writing surfaces INSIDE this repository. The website and the wiki
@@ -111,8 +112,8 @@ var defaultGlobs = []string{
 // points appeared, 951 repeated rendered-rule findings. The rendered rules stay
 // in scope, so the review still reads every sentence.
 //
-// Deferral and known-failure shards leave the tree when their rows resolve, like
-// the specs in excludeGlobs.
+// Known-failure shards leave the tree when their rows resolve, like the specs in
+// excludeGlobs.
 var excludeDirs = []string{
 	"rfc/",
 	"tmp/",
@@ -122,7 +123,6 @@ var excludeDirs = []string{
 	".git/",
 	"backups/",
 	"ai/rules/points/",
-	"plan/deferrals/",
 	"plan/known-failures/",
 }
 
@@ -131,7 +131,11 @@ var excludeDirs = []string{
 // and `git rm` removes it in commit B. Durable `plan/journal/`,
 // `plan/learned/`, and `plan/TEMPLATE.md` files stay in scope because later
 // sessions read them.
-var excludeGlobs = []string{"plan/spec-*.md"}
+//
+// The globs come from specpath, so a spec is out of scope in every release
+// bucket. Spelling plan/ alone put the specs of two buckets back in scope, with
+// nothing saying they had entered it.
+var excludeGlobs = specpath.Globs()
 
 // generatedMarkers identify a file whose prose belongs to its producer.
 // Detected by marker, so a new generated document needs no wiring.

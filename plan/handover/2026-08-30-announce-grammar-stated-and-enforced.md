@@ -5,7 +5,7 @@ Nothing below is committed. Every file named here is live in the working tree.
 
 ## What this work is
 
-`plan/spec-announce-grammar-stated-and-enforced.md`, status `in-progress`,
+`plan/immediate/spec-announce-grammar-stated-and-enforced.md`, status `in-progress`,
 Phase 5/6. Read it first: its RESUME HERE block and its `→ Decision:` and
 `→ Constraint:` annotations are the state, and this file only adds what happened
 after they were written.

@@ -299,3 +299,15 @@ R012 and R013.
 - [ ] Tests PASS (paste output)
 - [ ] Functional tests for end-to-end behavior
 - [ ] Interop tests for protocol features (or N/A with justification)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `followup-bgp-feature.md`, 2026-07-10
+
+Deferred by spec-followup-bgp-feature item 3.
+
+AS-Confederation OTC (RFC 9234 §5 confederation rules: OTC value = confed identifier, member-AS semantics)

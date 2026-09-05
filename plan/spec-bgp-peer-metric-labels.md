@@ -6,13 +6,13 @@
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
-| Deferral shard | - |
 | Updated | 2026-08-01 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
-     Deferral shard: every deferred item lands there (ai/rules/planning.md)
-     and closure must resolve its rows, so name the file from the start. -->
+     The file's DIRECTORY carries the release bucket: plan/immediate/ for a defect
+     an operator meets, plan/pre-release/ for work the release cannot go out
+     without, plan/ for everything else (plan/README.md). -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -43,7 +43,7 @@ Already covered, and not in scope:
 
 - Per-peer advertised prefixes exist as `ze_rib_routes_out`.
 - Per-peer filtered and denied counts depend on retaining import-filtered
-  routes, which is `plan/spec-bgp-filtered-route-storage.md`.
+  routes, which is `plan/immediate/spec-bgp-filtered-route-storage.md`.
 
 Provenance: VyOS T9073 exposed exactly these frr-exporter collector options
 (`peer-description`, `peer-hostname`, `peer-type`, `peer-group`,
@@ -333,7 +333,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written
@@ -349,3 +349,21 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `fixit-bgp-per-family-prefix-enforcement.md`, 2026-07-30
+
+Deferred by spec-fixit-bgp-per-family-prefix-enforcement.
+
+Expose per-family prefix staleness dates on an operator surface. The spec stores `updated` per family (`ze-bgp-conf.yang`). It then aggregates to the oldest date for the existing `prefix-updated` JSON key (`internal/component/bgp/plugins/cmd/peer/peer.go`) and for the staleness report bus (`internal/component/bgp/reactor/reactor_peers.go`). An operator cannot see WHICH family is stale
+
+### From `fixit-prefix-count-metric-does-not-say-its-mode.md`, 2026-08-08
+
+Deferred by spec-bgp-per-peer-received-counter, after the `installed` mode was rewritten to count a set.
+
+`ze_bgp_prefix_count` carries `{peer, family}` only (`reactor_metrics.go`), and `ze_bgp_prefix_ratio`, `ze_bgp_prefix_warning_exceeded` and the two `_total` counters derive from the same number with the same labels. Since the per-family `count` leaf landed, two peers scraped into one dashboard can report numbers of different KINDS: `offered` is a tally of announcements and `installed` is the size of a set. An operator cannot tell a peer that overshot from a peer sitting at its limit, and a sum across peers adds two units. The enforcement LOG line now names the mode (`reportPrefixExceeded`, `session_prefix.go`), so the gap is on the metric surface alone

@@ -6,7 +6,6 @@
 | Scope | config |
 | Depends | `spec-ssh-optional-composition` (closed) |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-web-auth-deleted-user-survives-reload.md` |
 | Handoff | verify |
 | Updated | 2026-08-11 |
 
@@ -37,7 +36,7 @@ against the live registry.
 SSH, web, REST and gRPC each carry a username into `(*Store).Authorize` today.
 The looking glass and gNMI authenticate with a shared token and learn no
 username at all, so they cannot answer the question yet; giving them identity is
-`plan/spec-login-identity-for-looking-glass-and-gnmi.md`.
+`plan/immediate/spec-login-identity-for-looking-glass-and-gnmi.md`.
 
 ## Assumptions the owner has not ruled on
 
@@ -174,7 +173,7 @@ username at all, so they cannot answer the question yet; giving them identity is
 |----------|--------|
 | What breaks if this is wrong? | Two directions, both bad and not symmetric. Too permissive: a surface that should refuse an account admits it, which is the status quo and is at least no worse. Too strict: an operator is locked out of every management surface of a running router, with no way in except physical access. The second is the one to design against |
 | How is it reverted? | Single commit revert. The new config section becomes unknown, so a config carrying it must be edited before the older daemon accepts it. That is a one-way door for the config file and MUST be stated in the release note |
-| Who else touches this path? | The closed `spec-hub-deferred-api-auth-independent-of-ssh-block` work corrected where the API reads its user list from, in the same area. It is separable and landed first. `plan/spec-login-identity-for-looking-glass-and-gnmi.md` extends the same design to two more surfaces |
+| Who else touches this path? | The closed `spec-hub-deferred-api-auth-independent-of-ssh-block` work corrected where the API reads its user list from, in the same area. It is separable and landed first. `plan/immediate/spec-login-identity-for-looking-glass-and-gnmi.md` extends the same design to two more surfaces |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -400,7 +399,7 @@ daemon, and no RFC obligation is touched.
 - The looking glass and gNMI are not covered. Both authenticate with a shared
   token and learn no username, so they cannot answer the question until they
   have identity. That is
-  `plan/spec-login-identity-for-looking-glass-and-gnmi.md`.
+  `plan/immediate/spec-login-identity-for-looking-glass-and-gnmi.md`.
 - MCP keeps its own `Identity` scope model. Unifying the two is not attempted
   here.
 - Three lists of service names already exist and disagree: the audit constants

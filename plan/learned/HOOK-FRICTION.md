@@ -141,7 +141,7 @@ the bypass to the person least able to argue with it.
 **The price of the sanctioned path, measured rather than guessed at
 (2026-08-08).** Over the 240 open `plan/spec-*.md`, run through
 `_spec_subject_kinds` itself: 110 name one kind, 59 name two, 11 name three, 3
-name four, and `plan/spec-release-distribution.md` names five (`go`, `make`,
+name four, and `plan/pre-release/spec-release-distribution.md` names five (`go`, `make`,
 `py`, `sh`, `yang`). 56 name none the gate can read and fall to the weaker
 any-source bar. Each kind carries its OWN 1800-second window, so a Status tick on
 that one spec costs five qualifying Reads, and the four-kind specs cost four.
@@ -158,7 +158,7 @@ nothing: it used to renew a 30-minute clearance on a file last seen 13.5 hours
 earlier (measured, `.gitignore`, transcript `db096d05`). The escape is immediate
 and needs no waiting: a Read carrying an `offset` returns content even when the
 file has not changed, 11 seconds after a `file_unchanged` on the same path
-(measured, `plan/spec-bgp-per-peer-received-counter.md`, transcript `39d85892`).
+(measured, `plan/immediate/spec-bgp-per-peer-received-counter.md`, transcript `39d85892`).
 So renew with `Read(path, offset=N, limit>=20)`. A failed Read and a zero-byte
 file record nothing for the same reason.
 

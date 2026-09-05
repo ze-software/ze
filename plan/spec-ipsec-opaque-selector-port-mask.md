@@ -6,7 +6,6 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the "own spec" in the quoted ruling IS this spec. Create `plan/deferrals/ipsec-opaque-selector-port-mask.md` on the first deferral) |
 | Updated | 2026-08-01 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -747,7 +746,7 @@ the refusal existed.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

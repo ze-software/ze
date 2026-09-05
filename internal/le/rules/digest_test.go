@@ -874,7 +874,7 @@ func TestTheRouterReadsOnlyTheSectionsThatStateTheWork(t *testing.T) {
 	files["plan/RECURRING.md"] = "# R\n\n## Task\n\nall caps stem\n"
 	root := digestTree(t, files)
 
-	corpus, err := loadCorpus(filepath.Join(root, "plan"))
+	corpus, err := loadCorpus(root)
 	if err != nil {
 		t.Fatalf("LoadCorpus: %v", err)
 	}

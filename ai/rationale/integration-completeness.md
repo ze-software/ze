@@ -19,7 +19,8 @@ Why: `ai/rules/completion.md`
 | API/RPC | Handler returns response | Caller reaches handler through transport |
 | Event/hook | Event serializes | Event fires, subscriber receives |
 
-## Deferral Boundary
+## What a later spec CAN carry
 
-Deferrable: full virtual clock, comprehensive mock network, property-based testing, benchmarks.
-NOT deferrable: one test proving the wiring works.
+A later spec CAN carry these: full virtual clock, comprehensive mock network,
+property-based testing, benchmarks.
+No spec carries this away: one test proving the wiring works.

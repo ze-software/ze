@@ -183,7 +183,7 @@ For a road-warrior EAP server, set `authentication { mode eap-mschapv2 }`, `eap-
 
 The `remote-access` container is not wired yet. It parses, and no session reads
 it, so a `pool` assigns no address and an `eap-user` list authenticates nobody.
-`plan/spec-ipsec-remote-access.md` owns the work.
+`plan/immediate/spec-ipsec-remote-access.md` owns the work.
 
 <!-- source: internal/component/ike/engine/register.go -- runEngine discards the pool it builds from RemoteAccess -->
 

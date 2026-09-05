@@ -409,7 +409,7 @@ func Digest(tree string, check bool) (DigestReport, error) {
 	if err != nil {
 		return report, err
 	}
-	tasks, err := loadCorpus(filepath.Join(tree, "plan"))
+	tasks, err := loadCorpus(tree)
 	if err != nil {
 		return report, err
 	}

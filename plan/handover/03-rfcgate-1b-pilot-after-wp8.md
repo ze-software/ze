@@ -42,7 +42,7 @@ cause of all four was a stale generated index, not a code defect.
    bound: verify the SHA-1 BEFORE `x509.ParseCertificate`. A fetcher that parses first
    passes every other test row and is still exploitable.
 3. **WP-9 is split.** The two live defects and the conformant rows stay in the pilot. The
-   nine feature rows moved to `plan/spec-ipsec-remote-access.md`.
+   nine feature rows moved to `plan/immediate/spec-ipsec-remote-access.md`.
 4. **`cookie-threshold` defaults to 0, challenge every initiation.** See WP-4 below. This
    overrides `03-design-wp4.md` section 3.3, which is self-contradictory on this point.
 5. **Standing approval** to use `// rfc-test-change-approved:` for the rest of this spec,

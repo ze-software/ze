@@ -26,6 +26,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/discoveryindex"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 // wiringTarget is the one selected check implemented directly by this package.
@@ -138,7 +139,7 @@ func isPlanSource(path string) bool {
 	if !strings.HasSuffix(path, ".md") {
 		return false
 	}
-	return strings.HasPrefix(path, "plan/spec-") || strings.HasPrefix(path, "plan/learned/")
+	return specpath.IsSpec(path) || strings.HasPrefix(path, "plan/learned/")
 }
 
 // isCommandOwnershipSource reports a change that must run the command ownership

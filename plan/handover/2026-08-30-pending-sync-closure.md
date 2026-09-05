@@ -72,7 +72,7 @@ ended, on the SAME package: 15 uncommitted files across
 compile as a result.
 
 That work is the OVERCOUNT half, and it is NOT this spec's. Its home is
-`plan/spec-bgp-session-ready-contract.md`. An external plugin the barrier counts
+`plan/immediate/spec-bgp-session-ready-contract.md`. An external plugin the barrier counts
 that never dispatches `request peer <addr> plugin session ready` still costs the
 peer the whole `apiSyncTimeout` of 2s. The four ze plugins all signal; the test
 fixtures do not.

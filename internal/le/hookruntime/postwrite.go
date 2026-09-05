@@ -118,7 +118,7 @@ func postFileSize(ctx context) *verdict {
 // postDeferral reports deferral language in a document that is not a deferral.
 func postDeferral(ctx context) *verdict {
 	path := filepath.ToSlash(ctx.path)
-	if !strings.HasSuffix(path, ".md") || strings.Contains(path, "plan/deferrals") || strings.Contains(path, ".claude/memory/") || strings.Contains(path, ".claude/plan/") || strings.Contains(path, "tmp/session/") || strings.Contains(path, "plan/learned/") {
+	if !strings.HasSuffix(path, ".md") || strings.Contains(path, ".claude/memory/") || strings.Contains(path, ".claude/plan/") || strings.Contains(path, "tmp/session/") || strings.Contains(path, "plan/learned/") {
 		return nil
 	}
 	content := stringInput(ctx.input, "new_string")
@@ -127,7 +127,7 @@ func postDeferral(ctx context) *verdict {
 	}
 	for _, phrase := range []string{"deferred to", "deferred for", "defer to", "out of scope", "future work", "future spec", "handle later", "address later", "skip for now", "skipping for now", "postpone", "not yet implemented", "not yet wired"} {
 		if strings.Contains(strings.ToLower(content), phrase) {
-			return &verdict{1, yellow + bold + "  Deferral language detected in " + filepath.Base(path) + reset + "\n  " + yellow + "Pattern: '" + phrase + "'" + reset + "\n  " + yellow + "Record in the source's plan/deferrals/<source>.md shard if this is deferred work." + reset}
+			return &verdict{1, yellow + bold + "  Deferral language detected in " + filepath.Base(path) + reset + "\n  " + yellow + "Pattern: '" + phrase + "'" + reset + "\n  " + yellow + "Write the remainder as its own spec, in the bucket that work belongs to, and name that spec here." + reset}
 		}
 	}
 	return nil

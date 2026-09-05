@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
 const (
@@ -81,14 +82,14 @@ func (o specOwner) Claim(spec string) (ClaimReport, error) {
 	if !validSpecMarker(spec) {
 		return ClaimReport{}, fmt.Errorf("invalid spec name %q", spec)
 	}
-	path := filepath.Join(o.Root, "plan", spec)
-	info, err := os.Stat(path)
+	// The marker carries the file NAME, so the bucket is what specpath
+	// resolves. Find refuses an absent name and a name two buckets hold, which
+	// is what keeps a claim from naming a spec nobody can open.
+	relative, err := specpath.Find(o.Root, spec)
 	if err != nil {
-		return ClaimReport{}, fmt.Errorf("plan/%s does not exist: %w", spec, err)
+		return ClaimReport{}, fmt.Errorf("claim %s: %w", spec, err)
 	}
-	if !info.Mode().IsRegular() {
-		return ClaimReport{}, fmt.Errorf("plan/%s does not exist: not a regular file", spec)
-	}
+	path := filepath.Join(o.Root, filepath.FromSlash(relative))
 
 	var report ClaimReport
 	err = o.withLock(func() error {
@@ -213,15 +214,17 @@ func LatestStateForSpec(root, stem string) (string, error) {
 	return "", nil
 }
 
-// wip returns every in-progress spec sorted by Updated date and path.
+// wip returns every in-progress spec sorted by Updated date and path. The
+// population is every release bucket, so the cap counts the work in flight
+// rather than the work in flight that happens to sit in plan/.
 func wip(root string, cap int) (wipReport, error) {
-	paths, err := filepath.Glob(filepath.Join(root, "plan", "spec-*.md"))
+	paths, err := specpath.All(root)
 	if err != nil {
 		return wipReport{}, err
 	}
 	report := wipReport{Cap: cap}
-	for _, path := range paths {
-		body, err := os.ReadFile(path) //nolint:gosec // the path is a spec or session artifact under the checkout root
+	for _, relative := range paths {
+		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative))) //nolint:gosec // a spec path specpath matched under the checkout root
 		if err != nil {
 			return wipReport{}, err
 		}
@@ -229,7 +232,7 @@ func wip(root string, cap int) (wipReport, error) {
 		if strings.ToLower(specMetadataField(rows, "Status")) != "in-progress" {
 			continue
 		}
-		report.Specs = append(report.Specs, WIPSpec{Spec: "plan/" + filepath.Base(path), Updated: specMetadataField(rows, "Updated")})
+		report.Specs = append(report.Specs, WIPSpec{Spec: relative, Updated: specMetadataField(rows, "Updated")})
 	}
 	sort.Slice(report.Specs, func(left, right int) bool {
 		if report.Specs[left].Updated != report.Specs[right].Updated {

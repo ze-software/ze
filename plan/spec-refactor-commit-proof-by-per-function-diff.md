@@ -6,7 +6,6 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-18 |
 

@@ -6,7 +6,6 @@
 | Scope | tooling |
 | Depends | `plan/spec-verify-scope-0-umbrella.md` |
 | Phase | 1-5 done (the selector, its classification table, the narrowed fail-open, and the consumers), plus `test/runner/verify-scope-selector.ci` and the rules text. Closure is next |
-| Deferral shard | `plan/deferrals/verify-scope.md` |
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -516,7 +515,7 @@ measurement which would let a later spec take depth 1 safely, and
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written

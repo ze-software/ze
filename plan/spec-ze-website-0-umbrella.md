@@ -6,7 +6,6 @@
 | Scope | cli, plugin, config, tooling, web |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/ze-website.md` (create on the first deferral) |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
 | Handoff | - |
 | Updated | 2026-08-17 |
 
@@ -98,7 +97,7 @@ after all six children close and the final browser goal test passes.
 
 - [x] `spec-ssh-optional-composition` - closed SSH compile-out and shared authentication work
   → Constraint: website work must not restore an SSH-named shared CLI or identity dependency.
-- [ ] `plan/spec-dataplane-seams-0-umbrella.md` - backend-neutral dataplane boundaries
+- [ ] `plan/immediate/spec-dataplane-seams-0-umbrella.md` - backend-neutral dataplane boundaries
   → Constraint: website backend gates remove host mechanisms. They must not redefine dataplane contracts or add no-op implementations.
 
 ### Browser Platform References
@@ -684,7 +683,7 @@ integration with two real Ze protocol engines.
 - [ ] Browser storage failure and security paths fail closed
 - [ ] Default native and appliance behavior preserved
 - [ ] Documentation, discovery, and generated inventories updated
-- [ ] Deferral shard resolved with no live row
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 

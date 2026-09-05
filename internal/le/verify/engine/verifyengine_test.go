@@ -18,7 +18,7 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 	want := []string{
 		"verify lint/run", "tier/check", "rfc/check", "iface-resolution",
 		"plugin boundary/check", "config coercion/check", "fs-persistence/check",
-		"dash-stdio/check", "port-defaults/check", "config claims",
+		"dash-stdio/check", "port-defaults/check", "go-version/check", "config claims",
 		"test-sensitivity/check", "test-weakened/check",
 		"staticcheck-feature-matrix/check/part/1/of/6",
 		"staticcheck-feature-matrix/check/part/2/of/6",
