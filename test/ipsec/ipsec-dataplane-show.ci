@@ -1,5 +1,5 @@
 # Functional test: show vpn ipsec dataplane sa / policy / drift (reachability)
-# Spec: plan/spec-ipsec-dataplane-inspection.md (AC-6, AC-7)
+# Spec: plan/immediate/spec-ipsec-dataplane-inspection.md (AC-6, AC-7)
 #
 # Verifies: all three dataplane commands are reachable end to end through CLI
 # dispatch, and that under a backend which cannot enumerate the kernel each one

@@ -376,7 +376,7 @@ func (b *vppBackend) InstallSA(p SAParams) error {
 // produces, so no rekey reaches this backend. Recorded in the Known Limitations of
 // plan/spec-fixit-vpp-ipsec-inoperable.md, in
 // plan/journal/false-synchronization-claim.md, and as AC-5 of
-// plan/future/spec-ipsec-vpp-policy-interface.md.
+// plan/spec-ipsec-vpp-policy-interface.md.
 func (b *vppBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
 	identity, err := saIdentityOf(spi, dst, proto)
 	if err != nil {

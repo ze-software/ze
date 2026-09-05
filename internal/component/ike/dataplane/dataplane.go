@@ -395,7 +395,7 @@ type SPParams struct {
 	// (vpp_policy.go) refuses the other two for their transport mode. vppUnsupportedSA
 	// (vpp.go) refuses the SA all three protect with for its unset Dir. Widening any one
 	// of them makes the mismatch reachable, and supplying a VPP interface is what
-	// plan/future/spec-ipsec-vpp-policy-interface.md is for.
+	// plan/spec-ipsec-vpp-policy-interface.md is for.
 	//
 	// RFC 4552 §6 interface-based selectors: a non-zero value scopes the policy to a
 	// single interface so a plain non-IPsec OSPFv3 interface on the same node keeps
