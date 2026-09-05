@@ -235,22 +235,28 @@ func (r *bridgeRunner) readLoop(ctx context.Context, p *sdk.Plugin, sout io.Read
 		if line == "" {
 			continue
 		}
-		zebgpCmd := bridge.ExabgpToZebgpCommand(line)
-		if zebgpCmd == "" {
+		translation, terr := bridge.TranslateLine(line)
+		if terr != nil {
+			// The bridge names the line it refused rather than handing an
+			// untranslated line to ze's dispatcher, where it would die as an
+			// unknown command with no mention of the bridge.
+			r.log.Warn("line refused", "error", terr)
 			continue
 		}
-		if _, _, derr := p.DispatchCommand(ctx, zebgpCmd); derr != nil {
-			r.log.Warn("dispatch command failed", "error", derr, "cmd", zebgpCmd)
+		if translation.Nothing() {
 			continue
 		}
-		// Route commands: inject a per-peer flush so the forward pool drains.
-		if bridge.IsRouteCommand(zebgpCmd) {
-			if peerAddr := bridge.ExtractPeerAddress(zebgpCmd); peerAddr != "" {
-				var tb textbuf.Buffer
-				flushCmd := tb.Str("request peer ").Str(peerAddr).Str(" flush").String()
-				if _, _, ferr := p.DispatchCommand(ctx, flushCmd); ferr != nil {
-					r.log.Warn("flush failed", "error", ferr, "peer", peerAddr)
-				}
+		if _, _, derr := p.DispatchCommand(ctx, translation.Command); derr != nil {
+			r.log.Warn("dispatch command failed", "error", derr, "cmd", translation.Command)
+			continue
+		}
+		// Route commands: inject a per-peer flush so the forward pool drains. The
+		// selector is the one the translator used.
+		if translation.Route {
+			var tb textbuf.Buffer
+			flushCmd := tb.Str("request peer ").Str(translation.Selector).Str(" flush").String()
+			if _, _, ferr := p.DispatchCommand(ctx, flushCmd); ferr != nil {
+				r.log.Warn("flush failed", "error", ferr, "peer", translation.Selector)
 			}
 		}
 	}

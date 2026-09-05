@@ -286,13 +286,24 @@ func TestZebgpToExabgpJSON_DirectionMapping(t *testing.T) {
 	}
 }
 
+// translatedCommand answers the ze command TranslateLine makes of line, and
+// fails the test when the bridge refuses it. Every case below asserts what the
+// translator WRITES, so the refusal path is a fixture failure here and is
+// asserted on its own in TestBridgeRefusesAnUnrecognizedLineByName.
+func translatedCommand(t *testing.T, line string) string {
+	t.Helper()
+	translation, err := TranslateLine(line)
+	require.NoError(t, err, "the bridge refused a line these cases expect it to translate")
+	return translation.Command
+}
+
 // TestExabgpToZebgpCommand_AnnounceBasic verifies basic announce conversion.
 //
 // VALIDATES: ExaBGP announce → ZeBGP update text command.
 // PREVENTS: Wrong keyword mapping, missing prefix.
 func TestExabgpToZebgpCommand_AnnounceBasic(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce route 192.168.1.0/24 next-hop 1.1.1.1"
-	result := ExabgpToZebgpCommand(cmd)
+	result := translatedCommand(t, cmd)
 
 	assert.Equal(t, "send bgp 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 192.168.1.0/24", result)
 }
@@ -336,7 +347,7 @@ func TestExabgpToZebgpCommand_AnnounceWithAttributes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ExabgpToZebgpCommand(tt.input)
+			result := translatedCommand(t, tt.input)
 			for _, s := range tt.contain {
 				assert.Contains(t, result, s)
 			}
@@ -350,7 +361,7 @@ func TestExabgpToZebgpCommand_AnnounceWithAttributes(t *testing.T) {
 // PREVENTS: Wrong action in output.
 func TestExabgpToZebgpCommand_Withdraw(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 withdraw route 172.16.0.0/16"
-	result := ExabgpToZebgpCommand(cmd)
+	result := translatedCommand(t, cmd)
 
 	assert.Equal(t, "send bgp 10.0.0.1 update text nlri ipv4/unicast del 172.16.0.0/16", result)
 }
@@ -379,7 +390,7 @@ func TestExabgpToZebgpCommand_IPv6(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ExabgpToZebgpCommand(tt.input)
+			result := translatedCommand(t, tt.input)
 			assert.Contains(t, result, tt.contain)
 		})
 	}
@@ -387,12 +398,22 @@ func TestExabgpToZebgpCommand_IPv6(t *testing.T) {
 
 // TestExabgpToZebgpCommand_EmptyAndComment verifies empty/comment handling.
 //
-// VALIDATES: Empty lines and comments return empty string.
+// A line that carries no command is an ANSWER, not a refusal: the caller reads
+// it as "there was nothing here" and reads the next line. Nothing() is what
+// says so, and this asserts it beside the empty Command rather than instead of
+// it, so a future refusal for these lines is caught.
+//
+// VALIDATES: an empty line, a whitespace line and a comment each answer Nothing
+// with no error.
 // PREVENTS: Passing through invalid commands.
 func TestExabgpToZebgpCommand_EmptyAndComment(t *testing.T) {
-	assert.Equal(t, "", ExabgpToZebgpCommand(""))
-	assert.Equal(t, "", ExabgpToZebgpCommand("   "))
-	assert.Equal(t, "", ExabgpToZebgpCommand("# this is a comment"))
+	for _, line := range []string{"", "   ", "# this is a comment"} {
+		translation, err := TranslateLine(line)
+		require.NoError(t, err, "a line with no command is not a refusal: %q", line)
+		assert.True(t, translation.Nothing(), "%q carries no command", line)
+		assert.Equal(t, "", translation.Command)
+		assert.False(t, translation.Route, "%q owes no flush", line)
+	}
 }
 
 // TestExabgpToZebgpCommand_CaseInsensitive verifies case insensitivity.
@@ -401,7 +422,7 @@ func TestExabgpToZebgpCommand_EmptyAndComment(t *testing.T) {
 // PREVENTS: Failing on uppercase input.
 func TestExabgpToZebgpCommand_CaseInsensitive(t *testing.T) {
 	cmd := "NEIGHBOR 10.0.0.1 ANNOUNCE ROUTE 192.168.1.0/24 NEXT-HOP 1.1.1.1"
-	result := ExabgpToZebgpCommand(cmd)
+	result := translatedCommand(t, cmd)
 
 	assert.Contains(t, result, "send bgp 10.0.0.1")
 	assert.Contains(t, result, "nlri ipv4/unicast add 192.168.1.0/24")
@@ -436,7 +457,7 @@ func TestExabgpToZebgpCommand_ExplicitFamily(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ExabgpToZebgpCommand(tt.input)
+			result := translatedCommand(t, tt.input)
 			assert.Contains(t, result, tt.contain)
 		})
 	}
@@ -448,28 +469,28 @@ func TestExabgpToZebgpCommand_ExplicitFamily(t *testing.T) {
 // PREVENTS: RFC 8955 packet-rate actions being dropped by the ExaBGP bridge.
 func TestExabgpToZebgpCommand_FlowSpecRateLimitPackets(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128 extended-community [rate-limit:1000:packets]"
-	result := ExabgpToZebgpCommand(cmd)
+	result := translatedCommand(t, cmd)
 
 	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp destination-port =3128", result)
 }
 
 func TestExabgpToZebgpCommand_FlowSpecRateLimitPacketsLegacyAlias(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128 extended-community [rate-limit-packets:1000]"
-	result := ExabgpToZebgpCommand(cmd)
+	result := translatedCommand(t, cmd)
 
 	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp destination-port =3128", result)
 }
 
 func TestExabgpToZebgpCommand_FlowSpecRateLimitBytesExplicit(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600:bytes]"
-	result := ExabgpToZebgpCommand(cmd)
+	result := translatedCommand(t, cmd)
 
 	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp", result)
 }
 
 func TestExabgpToZebgpCommand_FlowSpecVPNFamily(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.0.1/32 rd 65535:65536 extended-community [rate-limit:0]"
-	result := ExabgpToZebgpCommand(cmd)
+	result := translatedCommand(t, cmd)
 
 	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:0] nlri ipv4/flow-vpn add rd 65535:65536 source-ipv4 10.0.0.1/32", result)
 }
@@ -485,21 +506,11 @@ func TestExabgpToZebgpCommand_FlowSpecVPNFamily(t *testing.T) {
 // The token is then read as an argument of the component before it, and the
 // prefix leaves the announcement with no diagnostic.
 func TestExabgpToZebgpCommand_FlowSpecBarePrefixKeyword(t *testing.T) {
-	v4 := ExabgpToZebgpCommand("neighbor 10.0.0.1 announce ipv4 flow source 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600]")
+	v4 := translatedCommand(t, "neighbor 10.0.0.1 announce ipv4 flow source 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600]")
 	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp", v4)
 
-	v6 := ExabgpToZebgpCommand("neighbor 10.0.0.1 announce ipv6 flow destination 2001:db8::/32 next-header =tcp extended-community [rate-limit:9600]")
+	v6 := translatedCommand(t, "neighbor 10.0.0.1 announce ipv6 flow destination 2001:db8::/32 next-header =tcp extended-community [rate-limit:9600]")
 	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv6/flow add destination-ipv6 2001:db8::/32 next-header tcp", v6)
-}
-
-// TestExabgpToZebgpCommand_NonNeighbor verifies pass-through for non-neighbor commands.
-//
-// VALIDATES: Non-neighbor commands pass through unchanged.
-// PREVENTS: Breaking unknown commands.
-func TestExabgpToZebgpCommand_NonNeighbor(t *testing.T) {
-	cmd := "shutdown"
-	result := ExabgpToZebgpCommand(cmd)
-	assert.Equal(t, "shutdown", result)
 }
 
 // TestBridgeTranslatesTheBareForms drives the ExaBGP announce and withdraw
@@ -507,10 +518,10 @@ func TestExabgpToZebgpCommand_NonNeighbor(t *testing.T) {
 //
 // VALIDATES: a line with no `neighbor <address>` prefix translates to a ze
 // command with the wildcard selector, which is the destination ExaBGP gives a
-// bare line, and ze's own announce and withdraw spellings still pass through.
+// bare line.
 // PREVENTS: the bare form reaching ze's dispatcher untranslated. ze spells its
-// announce `announce unicast` where ExaBGP spells it `announce route`, so the
-// line matches no command and the route never reaches the wire.
+// origination `send bgp * unicast` where ExaBGP spells it `announce route`, so
+// the line matches no command and the route never reaches the wire.
 func TestBridgeTranslatesTheBareForms(t *testing.T) {
 	translated := []struct {
 		name string
@@ -545,28 +556,13 @@ func TestBridgeTranslatesTheBareForms(t *testing.T) {
 	}
 	for _, tc := range translated {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, ExabgpToZebgpCommand(tc.line))
+			assert.Equal(t, tc.want, translatedCommand(t, tc.line))
 		})
 	}
 
-	// ze declares its own bare announce and withdraw spellings, and a script
-	// reaches them through the passthrough. The translator reads the ExaBGP
-	// vocabulary alone, so each of these stays the line the script wrote.
-	passthrough := []struct {
-		name string
-		line string
-	}{
-		{name: "ze_announce_unicast", line: "announce unicast 10.0.0.0/24 next-hop 10.0.0.1"},
-		{name: "ze_announce_blackhole", line: "announce blackhole 10.0.0.0/24"},
-		{name: "ze_withdraw_all", line: "withdraw all"},
-		{name: "ze_withdraw_id", line: "withdraw id 7"},
-		{name: "help", line: "help"},
-	}
-	for _, tc := range passthrough {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.line, ExabgpToZebgpCommand(tc.line))
-		})
-	}
+	// ze's own spellings moved under `send bgp <selector>` with the rest of the
+	// grammar, so the passthrough that used to carry them carries nothing. Each
+	// is refused now, and TestBridgeRefusesAnUnrecognizedLineByName holds that.
 }
 
 // TestRoundTrip verifies essential information is preserved.
@@ -604,7 +600,7 @@ func TestRoundTrip(t *testing.T) {
 
 	// Test ExaBGP → ZeBGP preserves info
 	cmd := "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 192.168.0.1 origin igp"
-	zebgpCmd := ExabgpToZebgpCommand(cmd)
+	zebgpCmd := translatedCommand(t, cmd)
 	assert.Contains(t, zebgpCmd, "send bgp 10.0.0.1")
 	assert.Contains(t, zebgpCmd, "nhop 192.168.0.1")
 	assert.Contains(t, zebgpCmd, "origin igp")
@@ -1700,49 +1696,102 @@ func TestMuxConnMultipleBatchEvents(t *testing.T) {
 	assert.Contains(t, zeBuf.String(), "#10 ok")
 }
 
-// TestExtractPeerAddress verifies selector extraction from translated commands.
+// TestBridgeSelectorCannotBeSilentlyEmpty holds the translator to the property
+// that replaced ExtractPeerAddress.
 //
-// The prefix the extractor reads is the prefix the translator writes. A
-// disagreement between the two is silent, because the caller reads the empty
-// answer as "nothing to flush", so the pair is asserted together here.
+// That helper read the selector back out of the command string the translator
+// had just built, and answered "" for a string whose leading token it did not
+// recognize. Its three callers read "" as "nothing to flush" and continued, so
+// a change of leading token skipped every flush with no error and no log line.
+// The selector now travels WITH the command, so there is no second statement of
+// it to disagree.
 //
-// VALIDATES: the selector is read from the slot after the protocol keyword, and
-// a command carrying none answers empty.
-// PREVENTS: Flush sent with wrong selector or empty selector.
-func TestExtractPeerAddress(t *testing.T) {
+// VALIDATES: every translated route carries a non-empty selector, and it is the
+// selector the line named; a line that names no neighbor carries the wildcard.
+// PREVENTS: a helper answering an empty selector into a caller that reads empty
+// as absence (ai/rules/principles.md).
+func TestBridgeSelectorCannotBeSilentlyEmpty(t *testing.T) {
 	tests := []struct {
-		name    string
-		command string
-		want    string
+		name string
+		line string
+		want string
 	}{
-		{"ipv4", "send bgp 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24", "10.0.0.1"},
-		{"ipv6", "send bgp 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32", "2001:db8::1"},
-		{"not_a_send", "show bgp", ""},
-		{"selector_missing", "send bgp ", ""},
+		{"ipv4_neighbor", "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1", "10.0.0.1"},
+		{"ipv6_neighbor", "neighbor 2001:db8::1 announce route 2001:db8::/32 next-hop 2001:db8::2", "2001:db8::1"},
+		{"named_neighbor", "neighbor edge1 announce route 10.0.0.0/24 next-hop 1.1.1.1", "edge1"},
+		{"bare_line_is_every_peer", "announce route 10.0.0.0/24 next-hop 1.1.1.1", bridgeEveryPeer},
+		{"withdraw_family", "neighbor 10.0.0.1 withdraw ipv4 unicast 10.0.0.0/24", "10.0.0.1"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, ExtractPeerAddress(tt.command))
+			translation, err := TranslateLine(tt.line)
+			require.NoError(t, err)
+			require.True(t, translation.Route, "a route line owes a flush")
+			assert.NotEmpty(t, translation.Selector, "a route with no selector flushes nothing")
+			assert.Equal(t, tt.want, translation.Selector)
 		})
 	}
 }
 
-// TestIsRouteCommand verifies route command detection.
+// TestBridgeRefusesAnUnrecognizedLineByName holds the narrowed passthrough.
 //
-// VALIDATES: Only route update commands trigger flush injection.
-// PREVENTS: Flush injected for non-route commands.
-func TestIsRouteCommand(t *testing.T) {
-	assert.True(t, IsRouteCommand("send bgp 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"))
-	assert.False(t, IsRouteCommand("send bgp 10.0.0.1 raw hex FF"))
-	assert.False(t, IsRouteCommand(""))
+// The passthrough used to carry ze's own announce and withdraw spellings, which
+// are translator output now, so what it carried is gone. What remained was an
+// untyped path from a script's stdout to ze's dispatcher, where an unrecognized
+// line died as an unknown command with no mention of the bridge. It is refused
+// here instead, and the refusal quotes the line the script wrote.
+//
+// `help` is the one line that still passes through: it is the bridge's own word,
+// spelled the same on both sides, and it is the single member bridgeSurface
+// keeps.
+//
+// VALIDATES: a line no form reads is refused with ErrLineNotTranslated and the
+// line quoted; `help` passes through; ze's own moved spellings are refused
+// rather than forwarded.
+// PREVENTS: an untyped escape hatch by which a script reaches any ze command.
+func TestBridgeRefusesAnUnrecognizedLineByName(t *testing.T) {
+	refused := []struct {
+		name string
+		line string
+	}{
+		{"unknown_verb", "shutdown"},
+		{"ze_moved_announce", "announce unicast 10.0.0.0/24 next-hop 10.0.0.1"},
+		{"ze_moved_blackhole", "announce blackhole 10.0.0.0/24"},
+		{"ze_moved_withdraw_all", "withdraw all"},
+		{"ze_moved_withdraw_id", "withdraw id 7"},
+		{"neighbor_with_no_form", "neighbor 10.0.0.1 pause"},
+		{"arbitrary_ze_command", "show bgp peer list"},
+	}
+	for _, tc := range refused {
+		t.Run(tc.name, func(t *testing.T) {
+			translation, err := TranslateLine(tc.line)
+			require.ErrorIs(t, err, ErrLineNotTranslated)
+			assert.Contains(t, err.Error(), tc.line, "the refusal must name the line the script wrote")
+			assert.Empty(t, translation.Command, "a refused line reaches ze's dispatcher never")
+		})
+	}
+
+	translation, err := TranslateLine(bridgePassthrough)
+	require.NoError(t, err, "help is the one line that still passes through")
+	assert.Equal(t, bridgePassthrough, translation.Command)
+	assert.False(t, translation.Route, "help puts nothing on a wire, so it owes no flush")
 }
 
 // TestFlushBlocksUntilResponse verifies that pluginToZebgp blocks on flush until
-// the event goroutine signals the response.
+// the event goroutine signals the response, and that the flush names the peer
+// the ExaBGP line named.
 //
-// VALIDATES: AC-3 -- flush injection blocks until response arrives.
-// PREVENTS: Bridge continuing before engine finishes processing routes.
+// It is driven from the bridge's INPUT side, with ExaBGP text, so it fails if
+// the flush is skipped and it fails if the flush is addressed to the wrong
+// peer. Both were reachable while the selector was read back out of the command
+// string: the route test answered on a substring, the selector test answered on
+// the leading token, and the two disagreed the moment that token moved.
+//
+// VALIDATES: AC-3 -- flush injection blocks until response arrives; AC-11 -- the
+// flush carries the selector the translator used.
+// PREVENTS: Bridge continuing before engine finishes processing routes, and a
+// flush that drains nobody because it named nobody.
 func TestFlushBlocksUntilResponse(t *testing.T) {
 	pluginOutput := "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1\n"
 
@@ -1789,6 +1838,14 @@ func TestFlushBlocksUntilResponse(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("pluginToZebgp did not complete after flush signal")
 	}
+
+	// The ze side is where the flush is observable, and the selector in it is
+	// the fact this test exists for: a flush naming nobody drains nobody, and
+	// nothing else in the run would say so.
+	written := zeBuf.String()
+	assert.Contains(t, written, "ze-bgp:peer-flush", "a route command owes a flush")
+	assert.Contains(t, written, `{"selector":"10.0.0.1"}`,
+		"the flush must name the peer the ExaBGP line named")
 }
 
 // TestPendingResponseSignalAndWait verifies the pending response mechanism.
@@ -1876,7 +1933,7 @@ func TestBridgeSRPolicyCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ExabgpToZebgpCommand(tt.input)
+			result := translatedCommand(t, tt.input)
 			assert.Equal(t, tt.want, result)
 		})
 	}

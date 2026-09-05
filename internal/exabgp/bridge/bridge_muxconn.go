@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"strings"
-
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -74,35 +72,6 @@ func formatFlushRequest(id uint64, selector string) string {
 		payload = json.RawMessage(b.Str(`{"selector":`).Quoted(selector).Byte('}').String())
 	}
 	return string(rpc.AppendRequest(nil, id, "ze-bgp:peer-flush", payload))
-}
-
-// ExtractPeerAddress extracts the peer selector from a translated ZeBGP command.
-// A translated route command has the format "send bgp <selector> update text ...",
-// so the selector is the token after the protocol keyword. Returns "" for a
-// command that does not carry one.
-//
-// The prefix this reads and the prefix the translator writes are one fact stated
-// twice, and a disagreement between them is silent: IsRouteCommand still answers
-// true, the caller reads "" as "nothing to flush", and the forward pool stops
-// draining with no error and no log line. bridge_command.go holds the selector at
-// each site where it writes a command, and passing it on is what removes the
-// second statement.
-func ExtractPeerAddress(command string) string {
-	const sendBGPPrefix = "send bgp "
-
-	if !strings.HasPrefix(command, sendBGPPrefix) {
-		return ""
-	}
-	selector, _, ok := strings.Cut(command[len(sendBGPPrefix):], " ")
-	if !ok {
-		return ""
-	}
-	return selector
-}
-
-// IsRouteCommand returns true if the translated command is a route update.
-func IsRouteCommand(command string) bool {
-	return strings.Contains(command, "update text")
 }
 
 // pendingResult captures the outcome of a dispatched request: success or

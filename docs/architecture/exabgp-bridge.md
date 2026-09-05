@@ -12,14 +12,16 @@ in-process runner.
 An ExaBGP script writes text commands down to ze, and ze sends JSON events up
 to the script. Each direction has its own translator.
 
-Down, `ExabgpToZebgpCommand` reads one ExaBGP line and writes one ze CLI
-command. `neighbor <address> announce route <prefix> next-hop <nh>` becomes
+Down, `TranslateLine` reads one ExaBGP line and writes one ze CLI command.
+`neighbor <address> announce route <prefix> next-hop <nh>` becomes
 `send bgp <address> update text nhop <nh> nlri ipv4/unicast add <prefix>`.
 Twelve sites in `bridge_command.go` build a command of the shape
-`send bgp <selector> update text ...`, where the selector is one address or
-`*`. A thirteenth site sits in `ExabgpToZebgpCommand` itself. A line that names
-a neighbor and a verb the bridge has no form for keeps that verb. The verb then
-sits under ze's `peer` keyword.
+`send bgp <selector> update text ...`, where the selector is one address or `*`.
+
+`TranslateLine` answers a `Translation`, not a string. It carries the command,
+the selector that command addresses, and whether the command puts an UPDATE on a
+wire. The caller flushes with that selector. It does not read the selector back
+out of the command, and the next section says what that cost.
 
 Up, `bridge_event.go` renders ze's BGP messages as ExaBGP JSON. The envelope
 version is 6.0.0, which is the syntax target for the bridge.
@@ -28,12 +30,12 @@ The ExaBGP side is an external contract. An operator writes a script against
 ExaBGP, so a change to ze's own CLI does not reach that script through the
 translated forms.
 
-<!-- source: internal/exabgp/bridge/bridge_command.go -- ExabgpToZebgpCommand, convertRoute -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- TranslateLine, Translation, convertRoute -->
 <!-- source: internal/exabgp/bridge/bridge_event.go -- Version -->
 
 ## A line that names no neighbor goes to every peer
 
-`ExabgpToZebgpCommand` matches `neighbor <address> <rest>` with a regular
+`TranslateLine` matches `neighbor <address> <rest>` with a regular
 expression. A line that does not match names no destination, and ExaBGP sends
 such a line to every neighbor. The bridge reads it the same way. It translates
 the line with the wildcard peer selector, so `announce route <prefix>` becomes
@@ -45,52 +47,57 @@ that does not. The set is the ExaBGP vocabulary: `announce route`,
 `withdraw route`, `announce ipv[46] <safi>` and `withdraw ipv[46] <safi>`, with
 the SR-Policy shape of each.
 
-## A line the translator does not read passes through unchanged
+## `help` is the only line that passes through
 
-A line the bridge has no form for keeps its words. It reaches ze's CLI verbatim,
-which is what makes ze's CLI reachable from a script.
+A line the translator reads becomes a ze command. Every other line is REFUSED,
+and the refusal quotes the line the script wrote. `help` is the one exception: it
+is the bridge's own word rather than a route, ze declares it as `ze-bgp:help`,
+and it is spelled the same on both sides.
 
-Passthrough does not make the two command sets agree, and they do not agree. ze
-declares a bare form for each `announce` and `withdraw` command, and that bare
-form reaches every peer. The spellings are ze's own: `announce unicast`,
-`announce blackhole`, `announce flowspec`, `withdraw tag`, `withdraw id` and
-`withdraw all`. ExaBGP spells its own forms `route` or a family, so no ExaBGP
-spelling collides with one of ze's. That is what lets the translator read the
-ExaBGP forms and leave ze's own to passthrough.
+The passthrough used to be wider, and what it carried is gone. ze declared a bare
+form for each `announce` and `withdraw` command, a script reached those forms
+through the passthrough, and no ExaBGP spelling collided with one of them because
+ExaBGP spells its own forms `route` or a family. Those six forms are translator
+output now: `announce route <prefix>` becomes `send bgp * unicast ...` and the
+family forms follow, so a genuine ExaBGP script reaches them by writing ExaBGP.
+That is a gain rather than a break, because the bare ExaBGP form did not work at
+all before the translator learned it.
 
-`help` is the only one of the nine exempt wire methods an ExaBGP script reaches
-through passthrough. It is the only one spelled the same on both sides.
+What remained of the passthrough after that was an untyped path from a script's
+stdout to ze's dispatcher, by which a script could type any ze command. A line
+sent down it died as an unknown command with no mention of the bridge. Removing
+it is a behavior change, and it is recorded in Known Limitations of
+`plan/immediate/spec-fixit-send-names-its-destination.md`.
 
 | Wire method | How a script reaches it | What a rename costs |
 |---|---|---|
-| `announce-unicast`, `announce-blackhole`, `announce-flowspec`, `withdraw-tag`, `withdraw-id`, `withdraw-all` | no ExaBGP script reaches these, because ExaBGP spells them `route` | nothing for a script, and an operator types them at ze's own CLI |
+| `announce-unicast`, `announce-blackhole`, `announce-flowspec`, `withdraw-tag`, `withdraw-id`, `withdraw-all` | translator output, from `announce route`, `withdraw route` and the family forms. An operator types the ze spelling at ze's own CLI | nothing for a script |
 | `help` | passthrough, with one spelling on both sides | a break for a script that asks for help |
 | `peer-update` | translator output, from `neighbor <address> announce` | one edit in the translator, done: the translator writes `send bgp <selector> update text ...` |
-| `peer-raw` | neither, because the translator never writes the word `raw` | one edit, done. A script can still reach ze's own spelling for any verb by writing `neighbor <address> <verb> ...`, which the fall-through rewrites under the `peer` keyword |
+| `peer-raw` | neither, because the translator never writes the word `raw` | one edit, done |
 
-Each is exempt from the verb-first grammar for one of two reasons. It starts
-with a noun, or it is a line-protocol verb ze does not list as one of its own.
+`ze-bgp:help` is the one member `bridgeSurface` keeps, so the eight BGP methods
+above it are checked by the verb-first grammar gate rather than exempted from it.
 
 <!-- source: internal/component/command/grammar/checker.go -- bridgeSurface, ExemptCategory -->
 
-## The peer address is recovered by re-parsing the translated command
+## The selector travels with the command
 
 After a route command, the bridge injects a flush and blocks until the forward
-pool drains. It finds the peer to flush with `ExtractPeerAddress`, which reads
-the address out of the command string the translator just built.
+pool drains. The peer it flushes is `Translation.Selector`, the selector the
+translator used when it built the command.
 
-`ExtractPeerAddress` requires the literal prefix `send bgp ` and answers the
-empty string for any other command. Its three callers read that empty string as
-"nothing to flush" and continue. `IsRouteCommand` looks for `update text`
-anywhere in the string, so it does not agree with that prefix test.
+It was read back out of the finished command until 2026-09-05, by
+`ExtractPeerAddress`, which required a literal leading token and answered the
+empty string for anything else. Its three callers read that empty string as
+"nothing to flush" and continued, while `IsRouteCommand` answered on the
+substring `update text`, which survives any change of leading token. So the two
+disagreed the moment the token moved: every route was still recognized as one,
+and every flush after it was skipped, with no error and no log line. Both helpers
+are gone. The fact is stated once, by the builder that already knew it.
 
-A change to the leading token therefore stops every flush. There is no error
-and no log line. The prefix the extractor reads and the prefix the translator
-writes are one fact stated twice, and this is what the second statement costs.
-The translator holds the selector at each site where it writes the command. It
-can pass that selector on, and it does not have to read the selector back.
-
-<!-- source: internal/exabgp/bridge/bridge_muxconn.go -- ExtractPeerAddress, IsRouteCommand -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- Translation, TranslateLine -->
+<!-- source: internal/exabgp/bridge/bridge.go -- pluginToZebgp -->
 
 ## The internal runner cannot read the `run` line
 

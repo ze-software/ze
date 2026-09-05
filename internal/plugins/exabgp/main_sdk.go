@@ -123,25 +123,30 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 				continue
 			}
 
-			zebgpCmd := bridge.ExabgpToZebgpCommand(line)
-			if zebgpCmd == "" {
+			translation, err := bridge.TranslateLine(line)
+			if err != nil {
+				// The bridge names the line it refused rather than handing an
+				// untranslated line to ze's dispatcher, where it would die as an
+				// unknown command with no mention of the bridge.
+				slog.Warn("sdk: line refused", "error", err)
+				continue
+			}
+			if translation.Nothing() {
 				continue
 			}
 
-			if _, _, err := p.DispatchCommand(ctx, zebgpCmd); err != nil {
-				slog.Warn("sdk: dispatch command failed", "error", err, "cmd", zebgpCmd)
+			if _, _, err := p.DispatchCommand(ctx, translation.Command); err != nil {
+				slog.Warn("sdk: dispatch command failed", "error", err, "cmd", translation.Command)
 				continue
 			}
 
-			// For route commands, inject a flush so the forward pool drains.
-			if bridge.IsRouteCommand(zebgpCmd) {
-				peerAddr := bridge.ExtractPeerAddress(zebgpCmd)
-				if peerAddr != "" {
-					var tb textbuf.Buffer
-					flushCmd := tb.Str("request peer ").Str(peerAddr).Str(" flush").String()
-					if _, _, err := p.DispatchCommand(ctx, flushCmd); err != nil {
-						slog.Warn("sdk: flush failed", "error", err, "peer", peerAddr)
-					}
+			// For route commands, inject a flush so the forward pool drains. The
+			// selector is the one the translator used.
+			if translation.Route {
+				var tb textbuf.Buffer
+				flushCmd := tb.Str("request peer ").Str(translation.Selector).Str(" flush").String()
+				if _, _, err := p.DispatchCommand(ctx, flushCmd); err != nil {
+					slog.Warn("sdk: flush failed", "error", err, "peer", translation.Selector)
 				}
 			}
 		}

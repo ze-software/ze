@@ -6,6 +6,8 @@
 package bridge
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -38,46 +40,80 @@ var (
 	bridgeFamilyRE = regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flow|flowspec|flow-vpn|flowspec-vpn)\s+(.+)$`)
 )
 
-// ExabgpToZebgpCommand converts an ExaBGP text command to ZeBGP format.
+// Translation is what the bridge makes of one ExaBGP line: the ze command to
+// dispatch, and the selector whose forward pool the caller flushes once that
+// command is acknowledged.
+//
+// The selector travels WITH the command because the builder that wrote the
+// command already knew it. Reading it back out of the finished string stated one
+// fact twice, and the two statements disagreed in silence: the route test
+// answered on a substring that survives any change of leading token, while the
+// selector test answered on that token, so a moved grammar left every flush
+// skipped with no error and no log line (ai/rules/principles.md).
+type Translation struct {
+	// Command is the line to hand to ze's dispatcher.
+	Command string
+	// Selector names the peers Command addresses. It is set whenever Route is,
+	// and no caller reads it otherwise.
+	Selector string
+	// Route says Command puts an UPDATE on a wire, so a per-peer flush is owed
+	// after the dispatch is acknowledged.
+	Route bool
+}
+
+// Nothing reports a line that carries no command: a blank line, or a comment.
+// It is an ANSWER rather than a failure, and it is named so that no caller has
+// to read an empty Command as one.
+func (t Translation) Nothing() bool { return t.Command == "" }
+
+// ErrLineNotTranslated is what TranslateLine answers for a line the bridge does
+// not read. The bridge refuses such a line rather than forwarding it, because a
+// forwarded line dies at ze's dispatcher as an unknown command with no mention
+// of the bridge that sent it.
+var ErrLineNotTranslated = errors.New("the ExaBGP bridge does not translate this line")
+
+// bridgePassthrough is the ONE ExaBGP line that still reaches ze's dispatcher
+// unchanged. `help` is the bridge's own word rather than a route, ze declares it
+// as ze-bgp:help, and it is the single member bridgeSurface keeps
+// (internal/component/command/grammar/checker.go).
+const bridgePassthrough = "help"
+
+// TranslateLine converts one ExaBGP text command into the ze command that sends
+// it, and names the peers that command addresses.
 //
 // ExaBGP: neighbor <ip> announce route <prefix> next-hop <nh> [origin <o>] ...
 // ZeBGP:  send bgp <ip> update text nhop <nh> origin <o> nlri ipv4/unicast add <prefix>.
 //
 // A line that names no neighbor names no destination, and ExaBGP sends such a
-// line to every neighbor. The bridge translates it the same way, with the
-// wildcard selector: `announce route <prefix>` becomes
+// line to every neighbor. The bridge reads it the same way, with the wildcard
+// selector: `announce route <prefix>` becomes
 // `send bgp * update text nlri ipv4/unicast add <prefix>`.
 //
-// A line the bridge has no form for keeps its words. It passes through to ze's
-// CLI, where ze declares its own announce and withdraw spellings.
-func ExabgpToZebgpCommand(line string) string {
+// Every other line is REFUSED by name. The passthrough that forwarded it used to
+// carry ze's own announce and withdraw spellings, which have moved under
+// `send bgp <selector>` and are translator output now, so what it carried is
+// gone and what remains of it is an untyped path from a script's stdout to ze's
+// dispatcher.
+func TranslateLine(line string) (Translation, error) {
 	line = strings.TrimSpace(line)
 	if line == "" || strings.HasPrefix(line, "#") {
-		return ""
+		return Translation{}, nil
 	}
 
-	match := bridgeNeighborRE.FindStringSubmatch(line)
-	if match == nil {
-		command, translated := convertRoute(bridgeEveryPeer, line)
-		if !translated {
-			return line
-		}
-		return command
+	selector := bridgeEveryPeer
+	rest := line
+	if match := bridgeNeighborRE.FindStringSubmatch(line); match != nil {
+		selector = match[1]
+		rest = strings.TrimSpace(match[2])
 	}
 
-	selector := match[1]
-	rest := strings.TrimSpace(match[2])
-
-	command, translated := convertRoute(selector, rest)
-	if !translated {
-		// The line names one neighbor, so it keeps that destination under ze's
-		// peer keyword in place of ExaBGP's neighbor one. The verb decides
-		// whether the result names a ze command: `announce` and `withdraw` sit
-		// under that keyword, and `raw` and `update` have moved to `send bgp`.
-		var tb textbuf.Buffer
-		return tb.Str("peer ").Str(selector).Byte(' ').Str(rest).String()
+	if command, translated := convertRoute(selector, rest); translated {
+		return Translation{Command: command, Selector: selector, Route: true}, nil
 	}
-	return command
+	if strings.EqualFold(rest, bridgePassthrough) {
+		return Translation{Command: bridgePassthrough}, nil
+	}
+	return Translation{}, fmt.Errorf("%w: %q", ErrLineNotTranslated, line)
 }
 
 // convertRoute translates one ExaBGP announce or withdraw into the ze command

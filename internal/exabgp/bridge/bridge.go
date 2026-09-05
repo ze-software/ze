@@ -671,10 +671,18 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writ
 			continue
 		}
 
-		zebgpCmd := ExabgpToZebgpCommand(line)
-		if zebgpCmd == "" {
+		translation, err := TranslateLine(line)
+		if err != nil {
+			// The bridge names the line it refused. Forwarding it instead put an
+			// untranslated line in front of ze's dispatcher, where it died as an
+			// unknown command with no mention of the bridge that sent it.
+			slog.Warn("plugin->zebgp: line refused", "error", err)
 			continue
 		}
+		if translation.Nothing() {
+			continue
+		}
+		zebgpCmd := translation.Command
 
 		// Wrap in MuxConn dispatch-command format with unique request ID.
 		reqID := b.nextRequestID.Add(1)
@@ -689,21 +697,20 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writ
 		ackCancel()
 		b.emitAck(pluginW, reqID, result, ackErr)
 
-		// For route commands, inject a flush and block until the forward pool drains.
-		if IsRouteCommand(zebgpCmd) {
-			peerAddr := ExtractPeerAddress(zebgpCmd)
-			if peerAddr != "" {
-				flushID := b.nextRequestID.Add(1)
-				flushCh := pending.register(flushID)
-				zeOut.Fprintln(formatFlushRequest(flushID, peerAddr))
+		// For route commands, inject a flush and block until the forward pool
+		// drains. The selector is the one the translator used, not one read back
+		// out of the command it wrote.
+		if translation.Route {
+			flushID := b.nextRequestID.Add(1)
+			flushCh := pending.register(flushID)
+			zeOut.Fprintln(formatFlushRequest(flushID, translation.Selector))
 
-				flushCtx, cancel := context.WithTimeout(ctx, flushTimeout)
-				if _, err := pending.wait(flushCtx, flushID, flushCh); err != nil {
-					slog.Warn("plugin->zebgp: flush wait error",
-						"error", err, "peer", peerAddr)
-				}
-				cancel()
+			flushCtx, cancel := context.WithTimeout(ctx, flushTimeout)
+			if _, err := pending.wait(flushCtx, flushID, flushCh); err != nil {
+				slog.Warn("plugin->zebgp: flush wait error",
+					"error", err, "peer", translation.Selector)
 			}
+			cancel()
 		}
 	}
 
