@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/verify-freshness-scope.md -- failure attribution
-// Related: ../engine/artifacts.go -- declaredGroups, which reads what Declare writes
+// Related: ../engine/artifacts.go -- DeclaredGroups, which reads what Declare writes
 // Related: ../../commit/verification.go -- structuralGateReds, which charges the red
 //
 // Package failuregroup lets a verify stage say WHICH files its red is about.
@@ -20,9 +20,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
+	"strings"
 )
 
 // diagnosticRE matches the position prefix a Go toolchain and golangci-lint both
@@ -99,4 +102,66 @@ func Declare(w io.Writer, id, kind, summary, rerun string, paths []string) error
 	_, err = fmt.Fprintf(w, "VERIFY FAILURE GROUPS COMPLETE: 1\n")
 
 	return err
+}
+
+// pathKinds names the group kinds whose Related list holds checkout paths. A
+// kind outside this set relates its failure to something else -- a rule id, a
+// subcheck name -- so reading a path out of it would attribute the red to a
+// file the stage never mentioned.
+var pathKinds = map[string]bool{"files": true, "lint": true, "package": true}
+
+// CarriesPaths reports whether a group of this kind names checkout paths in its
+// Related list.
+func CarriesPaths(kind string) bool { return pathKinds[kind] }
+
+// CleanPath answers the checkout-relative path one Related value names, and
+// whether it names one at all. A value that escapes the checkout, or that names
+// nothing present under root, is refused rather than normalized into a
+// neighboring path.
+//
+// The two affixes it removes are what a producer writes: `./` prefixes a Go
+// package path and `/...` closes a package pattern.
+func CleanPath(root, related string) (string, bool) {
+	related = strings.TrimSpace(related)
+	related = strings.TrimSuffix(related, "/...")
+	related = strings.TrimPrefix(related, "./")
+	if related == "" || related == "." {
+		return "", false
+	}
+	if strings.HasPrefix(related, "/") {
+		return "", false
+	}
+	for component := range strings.SplitSeq(related, "/") {
+		if component == "" || component == "." || component == ".." {
+			return "", false
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(related))); err != nil {
+		return "", false
+	}
+
+	return related, true
+}
+
+// Covers reports whether related, a path one failure group named, falls inside
+// the paths an asker is responsible for.
+//
+// The containment runs both ways on purpose. A red about a file inside a
+// directory the asker named is the asker's, and so is a red about a directory
+// that holds a file the asker named: in each case the asker's change is inside
+// the subject the stage judged.
+func Covers(related string, asked []string) bool {
+	for _, path := range asked {
+		if related == path {
+			return true
+		}
+		if strings.HasPrefix(related, path+"/") {
+			return true
+		}
+		if strings.HasPrefix(path, related+"/") {
+			return true
+		}
+	}
+
+	return false
 }

@@ -38,4 +38,4 @@ the file, and carry no row for it.
 
 | Test | Reason |
 |------|--------|
-| zzprobe_prefixsid_announce_test | Nothing left the suite: the file is empty and this commit deletes the empty path. Its test moved to `forward_prefix_sid_announce_rail_test.go` in `4054ed854`, where it is GREEN against the RFC 8669 fix and carries two assertions it never had — the configured external frame equals the stripped frame plus attribute 40 byte for byte, and an internal peer's frame does not depend on the leaf. `RFC8669-8-1` is proven in both polarities by `rfc/discrimination/rfc8669.json`, observed red under a disabled `prefixSIDAllowedTo`. |
+| TestActionsDeclareWorktreeCurrentAndList | Nothing left the suite: the function is RENAMED to `TestActionsDeclareWorktreeCurrentRedsAndList` in the same file and the same commit, because this commit adds a fourth action to the `verify` area and the old name would have lied about what it checks. The successor asserts MORE than the original: four verbs in declaration order rather than three, and it still pins that `worktree` does not write. It is green (`go test ./internal/le/verify/`). |

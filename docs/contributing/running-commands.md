@@ -355,6 +355,39 @@ published at four stable paths (`internal/le/verify/engine/artifacts.go`):
 Piping such a run through `head` or `grep` loses the failure line and costs a
 re-run. Run it clean, then read the log with paging.
 
+## Asking a run in flight whether it reddened your file
+
+A full pass takes tens of minutes, and most of it is two whole-tree Go
+analyses. Waiting for the published index above to answer "did this run redden a
+file of mine" costs that whole hour, and the answer is already on disk: each
+stage writes its own log, carrying its `VERIFY FAILURE GROUP:` declaration, the
+moment that stage ends.
+
+```
+./le verify reds file internal/component/bgp/reactor/peer.go
+```
+
+It reads the newest run directory under `tmp/verify/`, whether or not the run
+has finished, and answers one of four verdicts
+(`internal/le/verify/reds.go`, `verdictOf`):
+
+| Verdict | Means | Exit |
+|---------|-------|------|
+| `named` | a stage that has reported declared a red naming this path | 1 |
+| `undetermined` | nothing that reported names it, and something is unknown: stages still to report, or a red that named no file | 1 |
+| `not-named` | every stage reported, every red among them named its files, and none is this path | 0 |
+| `no-run` | no run directory exists, so nothing has judged anything | 1 |
+
+**It is a query, never a certificate.** Only `not-named` exits 0, and it demands
+a whole run. Every answer carries `stages`, `reported` and `pending`, so a
+reader can see how much of the run has judged nothing yet. The gate a commit
+passes is still `./le verify worktree` and the freshness certificate
+(`ai/rules/precommit-verify.md`); this action tells you whether to keep working
+or to go and fix something, and it starts no run.
+
+The answer is structured data, so `| json`, `| yaml` and `| table` each render
+it.
+
 The pretool-bash guard refuses that pipe for the areas that RUN something:
 `verify`, `verify lock`, `verify deps`, `verify lint`, `functional`,
 `integration`, `qemu` and `test-unit` (`heavyArea` in

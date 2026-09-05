@@ -17,6 +17,10 @@ import (
 
 const area = "verify"
 
+// modeKeyword is the parameter keyword that types a stage population, and it is
+// written once here so the two actions that take one cannot drift apart.
+const modeKeyword = "mode"
+
 var configured struct {
 	sync.RWMutex
 	runner verifyengine.ActionRunner
@@ -36,13 +40,20 @@ var actions = leaction.New(area,
 		Verb:       "current",
 		Why:        "verify the current shared checkout; mode defaults to full",
 		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: "mode", Value: "full|changed"}},
+		Parameters: []leaction.Parameter{{Keyword: modeKeyword, Value: "full|changed"}},
 		AnswerArgs: currentHere,
+	},
+	leaction.Action{
+		Verb:       "reds",
+		Why:        "read the stage logs a verification run has written so far and answer whether any red names one file; it never says a run passed",
+		Writes:     false,
+		Parameters: []leaction.Parameter{{Keyword: "file", Value: "path"}},
+		AnswerArgs: redsHere,
 	},
 	leaction.Action{
 		Verb:       "list",
 		Why:        "list the native current-checkout stages; mode defaults to full",
-		Parameters: []leaction.Parameter{{Keyword: "mode", Value: "full|changed"}},
+		Parameters: []leaction.Parameter{{Keyword: modeKeyword, Value: "full|changed"}},
 		AnswerArgs: listHere,
 	},
 )

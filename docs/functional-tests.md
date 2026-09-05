@@ -321,7 +321,7 @@ and name, plus periodic progress while tests are still running.
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt, and change-set-selection fixtures. The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
+| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt, in-flight failure-query, and change-set-selection fixtures. The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
@@ -532,10 +532,17 @@ integration tests supplied by the applicable `./le integration` action, plus
 the `test/chaos/iface-link-flap.ci` scenario.
 
 Suites that mutate shared, un-namespaced kernel state run serially in
-`./le qemu all-tests`. The guest gives each test the QEMU root namespace rather
-than the host namespace. The policy and firewall suites therefore cannot alter
-the operator's nftables state.
-<!-- source: internal/le/qemu/actions.go -- Answer -->
+`./le qemu all-tests`. The guest is a throwaway VM, so nothing any suite
+programs reaches the operator's own kernel.
+
+Four suites go further and take a fresh network namespace for each test:
+`firewall`, `policy`, `ospf` and `ospfv3`. The guest ROOT namespace is where
+the SSH session carrying the run lives, and a nat prerouting chain installed
+there cut that session on 2026-09-05. Each row of `vmSuites` now states the
+namespace its tests run in, and a row that states none is refused before the
+run starts.
+<!-- source: internal/le/qemu/netns.go -- networkNamespace, verifyNamespaces -->
+<!-- source: internal/le/qemu/alltests.go -- vmSuites -->
 
 Dropping a whole suite to `-p 1` is not always the right tool. When only a
 *cluster* of tests inside a large suite contends, they declare
@@ -859,6 +866,7 @@ every run.
 
 ```
 ./le rfc extraction-create stem rfcNNNN    # skeleton to session scratch; classify, then move it in
+./le rfc extraction-classify decisions <path>  # apply a whole walk's decisions from one file
 ./le rfc check                    # re-derives and judges
 ./le rfc extraction-status        # JSON counts, per register, plus the backlog
 ```

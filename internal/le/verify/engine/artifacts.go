@@ -25,7 +25,11 @@ const (
 	FullJSONPath = "tmp/ze-verify-full.json"
 )
 
-type artifactGroup struct {
+// Group is one failure a stage declared about itself: the paths it names, the
+// command that reruns it alone, and the log that holds the detail. It is the
+// unit both the published failure index and the in-flight query read, so the
+// two surfaces cannot disagree about what a red is about.
+type Group struct {
 	Stage     string   `json:"stage"`
 	GroupID   string   `json:"group-id"`
 	Kind      string   `json:"kind"`
@@ -38,10 +42,10 @@ type artifactGroup struct {
 }
 
 type artifactStage struct {
-	Stage     string          `json:"stage"`
-	ExitCode  int             `json:"exit-code"`
-	DetailLog string          `json:"detail-log"`
-	Groups    []artifactGroup `json:"groups,omitempty"`
+	Stage     string  `json:"stage"`
+	ExitCode  int     `json:"exit-code"`
+	DetailLog string  `json:"detail-log"`
+	Groups    []Group `json:"groups,omitempty"`
 }
 
 type artifactIndex struct {
@@ -65,14 +69,14 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 			Stage: stage.Identity.Name, ExitCode: stage.Code, DetailLog: stage.Log,
 		}
 		if stage.Code != 0 {
-			if declared, complete := declaredGroups(root, stage); complete {
+			if declared, complete := DeclaredGroups(root, stage); complete {
 				result.Groups = declared
 			} else {
 				summary := fmt.Sprintf("stage exited %d", stage.Code)
 				if stage.Failure != nil && stage.Failure.Message != "" {
 					summary = stage.Failure.Message
 				}
-				result.Groups = []artifactGroup{{
+				result.Groups = []Group{{
 					Stage: stage.Identity.Name, GroupID: "stage:" + stage.Identity.Name,
 					Kind: "generic", Related: []string{}, Summary: summary,
 					Rerun: "le " + invocation(stage.Identity), DetailLog: stage.Log,
@@ -109,18 +113,27 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 	return nil
 }
 
-func declaredGroups(root string, stage StageReport) ([]artifactGroup, bool) {
+// DeclaredGroups reads back the failure groups one stage log declares, and
+// reports whether the declaration is COMPLETE: the log carries exactly one
+// count marker and that count matches the groups read.
+//
+// An incomplete answer MUST NOT be read as "the stage named no file". A log the
+// reader met mid-write, or one whose producer died between the groups and the
+// count, returns the groups it could read and false. The caller decides what an
+// unattributed red means for it, and neither caller may treat it as absence
+// (ai/rules/principles.md).
+func DeclaredGroups(root string, stage StageReport) ([]Group, bool) {
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(stage.Log))) //nolint:gosec // the path is a verification artifact under the checkout root
 	if err != nil {
 		return nil, false
 	}
-	var groups []artifactGroup
+	var groups []Group
 	var counts []string
 	for line := range strings.SplitSeq(string(content), "\n") {
 		if _, payload, found := strings.Cut(line, "VERIFY FAILURE GROUP:"); found {
-			var group artifactGroup
+			var group Group
 			if err := json.Unmarshal([]byte(strings.TrimSpace(payload)), &group); err != nil {
-				groups = append(groups, artifactGroup{
+				groups = append(groups, Group{
 					GroupID: "unparsed-group:" + strconv.Itoa(len(groups)), Kind: "unparsed",
 					Related:   []string{"unparsed-group"},
 					Summary:   "a declared failure group line did not parse: " + err.Error(),

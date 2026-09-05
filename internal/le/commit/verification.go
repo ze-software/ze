@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
+	"github.com/ze-software/ze/internal/le/verify/failuregroup"
 )
 
 // VerificationState records what the latest native verify status proves for
@@ -97,7 +98,7 @@ func structuralGateReds(root string, paths []string) structuralReds {
 					continue
 				}
 				for _, related := range named {
-					if relatedInCommit(related, scope) {
+					if failuregroup.Covers(related, scope) {
 						owned = true
 						break
 					}
@@ -117,9 +118,14 @@ func structuralGateReds(root string, paths []string) structuralReds {
 	return result
 }
 
+// groupRelatedPaths answers the checkout paths one recorded group named. Which
+// kinds carry paths, and what makes a value a usable path, are decided by
+// failuregroup: the in-flight query (internal/le/verify/reds.go) asks the same
+// question of the same data, and a second copy of the answer here would let the
+// two surfaces disagree about whose red it is.
 func groupRelatedPaths(root string, group failureGroup) []string {
 	kind, _ := group.Kind.(string)
-	if kind != "files" && kind != "lint" && kind != "package" {
+	if !failuregroup.CarriesPaths(kind) {
 		return nil
 	}
 	values, ok := group.Related.([]any)
@@ -132,37 +138,13 @@ func groupRelatedPaths(root string, group failureGroup) []string {
 		if !ok {
 			continue
 		}
-		related = strings.TrimSpace(related)
-		related = strings.TrimSuffix(related, "/...")
-		related = strings.TrimPrefix(related, "./")
-		if related == "" || related == "." || strings.HasPrefix(related, "/") {
+		cleaned, usable := failuregroup.CleanPath(root, related)
+		if !usable {
 			continue
 		}
-		valid := true
-		for component := range strings.SplitSeq(related, "/") {
-			if component == "" || component == "." || component == ".." {
-				valid = false
-				break
-			}
-		}
-		if !valid {
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(related))); err == nil {
-			result = append(result, related)
-		}
+		result = append(result, cleaned)
 	}
 	return result
-}
-
-func relatedInCommit(related string, paths []string) bool {
-	for _, path := range paths {
-		if related == path || strings.HasPrefix(related, path+"/") ||
-			strings.HasPrefix(path, related+"/") {
-			return true
-		}
-	}
-	return false
 }
 
 func verificationState(root string, paths []string) VerificationState {

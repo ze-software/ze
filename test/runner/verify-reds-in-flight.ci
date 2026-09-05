@@ -1,0 +1,32 @@
+# An agent asks a verification run that has NOT finished whether it reddened
+# one of its own files, and gets an answer.
+#
+# A full verify takes 50 to 63 minutes on the development box, and 83 to 86% of
+# that is two whole-tree Go analyses. Waiting for the published failure index
+# (tmp/ze-verify-failures.json) therefore costs an hour to answer a question the
+# stage logs already hold: every stage writes tmp/verify/<mode>-<n>/NN-*.log the
+# moment it ends, carrying its VERIFY FAILURE GROUP declaration.
+#
+# The fixture builds a throwaway checkout holding one full-mode run that has
+# written 3 of its stage logs, then drives the real `le verify reds` action
+# against it. Nothing here touches the real tmp/verify: the native action
+# resolves the checkout through ZE_REPO_ROOT, and the fixture replaces it.
+#
+# The dangerous answer is a green one. `reds` must never render an unfinished
+# run as passed, so the untouched path answers "undetermined" with the count of
+# stages that have not reported, and a checkout with no run at all answers
+# "no-run". Both exit non-zero. Delete either guard
+# (internal/le/verify/reds.go, verdictOf) and seq=1 fails.
+
+option=timeout:value=60s
+
+
+
+
+cmd=foreground:seq=1:exec=ze-test fixture runner/verify-reds-in-flight
+expect=exit:code=0
+expect=stdout:contains=in-flight-run-ready
+expect=stdout:contains=reds-answers-before-the-run-ends
+expect=stdout:contains=reds-names-the-reddened-file
+expect=stdout:contains=reds-renders-as-json
+expect=stdout:contains=reds-refuses-to-answer-with-no-run

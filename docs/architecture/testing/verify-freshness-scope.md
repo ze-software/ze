@@ -24,7 +24,7 @@ Three properties of the narrower question matter to a caller:
 
 `./le changed packages` and `./le changed group-packages` derive the package scope from the current change set. Non-Go inputs seed the packages that consume them, and every unresolved case widens to `./...`. An empty answer is never used as a successful narrow selection.
 
-The verify runner resolves the selection once and publishes its package and feature-tag answers to the run's artifact directory. `publishChangeScope` writes `scope-packages.txt` and `scope-tags.txt` beside the run's logs and names each one in `ZE_VERIFY_SCOPE_PACKAGES` and `ZE_VERIFY_SCOPE_TAGS`. Every scoped stage reads those files. This keeps the unit pass and the staticcheck matrix on the same snapshot, and it avoids a second reverse-import walk after another session changes the checkout. A run that cannot select publishes neither name, and unset is the widest reading of both: the stage selects its own packages and the matrix judges every row.
+The verify runner resolves the selection once and publishes its package and feature-tag answers to the run's artifact directory. `publishChangeScope` writes `scope-packages.txt` and `scope-tags.txt` beside the run's logs and names each one in `ZE_VERIFY_SCOPE_PACKAGES` and `ZE_VERIFY_SCOPE_TAGS`. `le staticcheck-feature-matrix check` reads the tag answer; no stage reads the package answer today, so `scope-packages.txt` is written and never consulted. This keeps the unit pass and the staticcheck matrix on the same snapshot, and it avoids a second reverse-import walk after another session changes the checkout. A run that cannot select publishes neither name, and unset is the widest reading of both: the stage selects its own packages and the matrix judges every row.
 
 <!-- source: internal/le/verify/engine/scope.go -- publishChangeScope -->
 
@@ -59,13 +59,14 @@ One producer answers the change set: `Scope.resolveSelector` (`internal/le/chang
 
 `internal/le/verify/engine.RunMode` executes the ordered stage population and captures each stage result. A red stage does not hide later reds; cancellation stops before another stage starts. Each in-process action runner returns a populated `ActionResult`, so an omitted registration cannot look like exit zero.
 
-Native `./le` actions are the public interface, while Go-to-Go paths call their package functions. Heavy verification enters through `./le job run label <label> command <argv...>` or the `verify-lock` action rather than starting another copy behind the admission registry.
+Native `./le` actions are the public interface, while Go-to-Go paths call their package functions. Heavy verification admits ITSELF: `verify current` and `verify worktree` claim the `verify` label in the shared job registry before they do any work, so a second verification of the same tree takes the running one's verdict and a third queues. A run that holds a slot names its registry entry to every stage it starts, which is how the `verify lint/run` stage admits without waiting for the slot its own parent holds, and it copies each finished stage to the slot's log, which is the growth the stall breaker reads as liveness and the output a following session replays. `./le job run label <label> command <argv...>` and the `verify lock` action admit anything else heavy.
 
 A run has four outcomes, not three. 0 certifies the tree, 1 says a stage judged it and found it wrong, 2 says the run itself broke, and 3 (`Unjudged`) says the run reached no verdict at all. A stage answers 2 when it could not judge its own subject, which `le staticcheck-feature-matrix check` does for an empty package population, and `runCode` carries that outcome up as `Unjudged` instead of flattening it to 1. A stage that judged the tree and found it wrong outranks it, because that stage did reach a verdict. A full device is the second route to `Unjudged`, recognized by `Defeated` with `errors.Is(err, syscall.ENOSPC)` at each write site that holds the typed error: no stage output reaches a `Report`, so text matching cannot see it at all. `CheckCertificate` stales on any non-zero exit, so an unjudged run can never read as fresh.
 
 The lifecycle prints its verdict from the first deferred call, which makes it the last line of the run. Every branch that can still move `Report.Code`, the deferred cleanup included, has run by then. `verify worktree` also links the extracted worktree's `cache/` to the shared per-user target before any stage starts, so GOCACHE resolves out of tree and the run does not build a private Go build cache it will delete unread.
 
-<!-- source: internal/le/verify/engine/run.go -- ActionResult, RunMode, Unjudged, Defeated -->
+<!-- source: internal/le/verify/engine/run.go -- ActionResult, RunMode, Slot, nameJobParent, Unjudged, Defeated -->
+<!-- source: internal/le/verify/current.go -- runCurrent, jobLabel, slotFor -->
 <!-- source: internal/le/verify/lifecycle.go -- run, sharedCacheLink -->
 <!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verify/lock/register.go -- Answer -->
@@ -105,12 +106,19 @@ Verification debt records an authorised commit that lacked fresh evidence. It fo
 
 `clearDebt` (`internal/le/commit/actions.go`) re-runs each DISTINCT gate the open rows name, once per pass whatever the row count, and writes `cleared` only on exit 0. Every runnable gate runs inside ONE throwaway worktree at HEAD, so a cleared row says the gate was green over the COMMIT rather than over the several sessions' uncommitted files this checkout holds. When no worktree can be made, NOTHING clears and the pass exits 1: that is a refusal to fall back to the working tree, not a gate failure. A pass whose every row names an unrunnable gate materialises no worktree at all.
 
+### Asking before the run ends
+
+`DeclaredGroups` (`internal/le/verify/engine/artifacts.go`) reads one stage's declaration back out of that stage's own log, and `writeRunArtifacts` calls it once per red stage when the run ends. `./le verify reds file <path>` calls it too, over whatever logs the run has written so far, so an agent gets a per-path answer without starting or waiting for a whole-tree run (`docs/contributing/running-commands.md`).
+
+That query is not a certificate and MUST NOT be read as one. It answers about PATHS, it states how many stages have not reported, and only a whole run with every red attributed elsewhere exits 0. `structuralGateReds` still reads the PUBLISHED index and therefore sees nothing at all until the run ends: the freshness certificate is what keeps that empty answer from reading as a pass, and `TestStructuralRedsSeeNothingUntilARunPublishesItsIndex` (`internal/le/commit/commit_test.go`) pins both halves.
+
 The pass clears no row whose gate no command produces. A row naming `independent critical review` prints UNRUNNABLE and stays open, and so does a row naming a gate string the runner table does not hold. Those are answered by doing the work the row names, which for a review is `/ze-review` recorded through `internal/le/spec/session/review.go`.
 
 <!-- source: internal/le/doc/wiring/groups.go -- Group, declareFailureGroup -->
 <!-- source: internal/le/commit/actions.go -- Answer, clearDebt -->
 <!-- source: internal/le/commit/verification.go -- structuralGateReds -->
-<!-- source: internal/le/verify/engine/artifacts.go -- writeRunArtifacts, declaredGroups -->
+<!-- source: internal/le/verify/engine/artifacts.go -- writeRunArtifacts, DeclaredGroups -->
+<!-- source: internal/le/verify/reds.go -- readReds, verdictOf -->
 <!-- source: internal/le/verify/engine/stages.go -- Structural -->
 <!-- source: internal/le/commit/debt.go -- Debt, ListDebt -->
 

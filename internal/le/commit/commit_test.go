@@ -123,6 +123,45 @@ func TestStructuralRedsAttributeOnlyPathBearingGroups(t *testing.T) {
 	}
 }
 
+// TestStructuralRedsSeeNothingUntilARunPublishesItsIndex points the commit
+// gate's red reader at a run that has written 3 of its 49 stage logs and no
+// published index.
+//
+// It answers NOTHING: no charge, no foreign red, no unattributed red, while a
+// stage log on disk already says a red names the path. The gate is not wrong to
+// do that, because the index is the artifact it reads, but the empty answer is
+// an absence rather than a verdict, and the freshness certificate is the guard
+// that keeps it from reading as a pass. This test pins both halves, because a
+// change that made a missing certificate fresh would turn a partial run into a
+// silent green (ai/rules/principles.md).
+//
+// `le verify reds file <path>` (internal/le/verify/reds.go) is what reads those
+// three logs, and it answers undetermined rather than nothing.
+func TestStructuralRedsSeeNothingUntilARunPublishesItsIndex(t *testing.T) {
+	root := t.TempDir()
+	writeCommitFixture(t, root, "mine/a.go", "package mine\n")
+	writeCommitFixture(t, root, "tmp/verify/full-fixture/01-verify-lint-run.log",
+		"### Stage: verify lint/run\n"+
+			`VERIFY FAILURE GROUP: {"group-id":"lint:mine","kind":"lint","related":["mine/a.go"],`+
+			`"summary":"findings","rerun":"le verify lint run"}`+"\n"+
+			"VERIFY FAILURE GROUPS COMPLETE: 1\n"+
+			"### Stage result: verify lint/run exit=1\n")
+	writeCommitFixture(t, root, "tmp/verify/full-fixture/02-tier-check.log",
+		"### Stage result: tier/check exit=0\n")
+	writeCommitFixture(t, root, "tmp/verify/full-fixture/03-rfc-check.log",
+		"### Stage result: rfc/check exit=2\n")
+
+	reds := structuralGateReds(root, []string{"mine/a.go"})
+
+	if len(reds.Charged) != 0 || len(reds.Foreign) != 0 || len(reds.Unattributed) != 0 {
+		t.Fatalf("structuralGateReds read an unpublished run = %#v", reds)
+	}
+	state := verificationState(root, []string{"mine/a.go"})
+	if state.State == verifyFresh {
+		t.Fatalf("a checkout with no certificate is %q, so an empty red set reads as a pass", state.State)
+	}
+}
+
 func TestCreateRefusesChargedStructuralRedWithoutRecordedOverride(t *testing.T) {
 	root := newCommitRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "structural-create-fixture")
