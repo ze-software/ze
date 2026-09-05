@@ -128,7 +128,7 @@ registries.
 |----------|--------|
 | What breaks if this is wrong? | the published catalog page is wrong or empty; no operator-facing behavior changes |
 | How is it reverted? | single commit revert |
-| Who else touches this path? | `plan/spec-plugin-declares-answer-shape.md`, `plan/spec-plugin-registers-pipe-operations.md` |
+| Who else touches this path? | `plan/spec-plugin-declares-answer-shape.md`. `spec-plugin-registers-pipe-operations` closed on 2026-09-05 and its mechanism is documented in `docs/architecture/api/commands.md`, "Discovery: the running daemon is the only source" |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

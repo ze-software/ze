@@ -1,0 +1,31 @@
+# Test: the interactive completer offers a plugin's declared pipe alias beside
+# the built-in pipe operators.
+#
+# VALIDATES: AC-10 of spec-plugin-registers-pipe-operations, and User Story 2
+#            "types `show ... | ` and reads the names on offer". An operator
+#            discovers a pipe name by pressing Tab, so a name nothing offers is
+#            a name most operators never meet.
+# PREVENTS:  the alias resolving when it is typed in full and never being
+#            offered, which is the shape a completer reading only the built-in
+#            operator table produces.
+#
+# Method: a native plugin declares one command and one alias over it in its
+# Stage 1 message. A plain ssh client with a pseudo-terminal logs into the
+# session model the DAEMON hosts, types the command and a pipe character, and
+# presses Tab. Both halves of the offer are asserted: the declared name, and a
+# built-in operator beside it. An offer that replaced the operators would pass
+# the first assertion and break the surface.
+#
+# The surface is load-bearing. `ze cli` runs its Bubble Tea model in the CLIENT
+# process, where a declared alias does not exist, so the completer there cannot
+# answer this and no client-driven test can prove it. The model this drives is
+# built by buildSessionModelFactory (cmd/ze/hub/session_factory.go) inside the
+# daemon, and its completer reads the registry Stage 1 wrote.
+#
+# The timeout is DECLARED because this file starts a daemon, waits for an
+# external plugin to reach Stage 5, and drives an interactive terminal session.
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=ze-test fixture ui/pipe-alias-completion
+expect=exit:code=0
+expect=stdout:contains=OK
