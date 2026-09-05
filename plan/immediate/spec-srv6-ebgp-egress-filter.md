@@ -464,7 +464,7 @@ instructed not to owe a third such row, so the rail is left for the owner to ans
 
 **Closure measured it rather than inferring it (2026-09-05).**
 `TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`
-(`internal/component/bgp/reactor/zzprobe_prefixsid_announce_test.go`) drives
+(`internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go`) drives
 `buildBatchAnnounceUpdate` with `isIBGP=false` and a base carrying attribute 40. The rail emits
 `c0280a01000700000000000064` toward that external destination. The test states the requirement
 rather than the behavior, so it is RED at HEAD and stays red until the rail is gated; the
@@ -612,7 +612,7 @@ the owner can open, so another round would re-find the same BLOCKER.
 | `internal/component/bgp/reactor/forward_prefix_sid.go` | Yes | read in full at closure; carries `prefixSIDAllowedTo`, `prefixSIDAllowed`, `prefixSIDOnWire`, `applyFactsPrefixSID`, `rawAttrsWithoutPrefixSID`, `isRawPrefixSID` |
 | `internal/component/bgp/reactor/forward_prefix_sid_test.go` | Yes | 365 lines in `f3379e684`; carries `TestPrefixSIDAllowedTo`, `TestPrefixSIDEgressBoundary`, `TestPrefixSIDSuppressIsRecordedOnce`, `TestPrefixSIDOriginationBoundary`, `TestRawAttrsWithoutPrefixSID` |
 | `test/plugin/prefixsid-ebgp-egress-boundary.ci` | Yes | 227 lines in `f3379e684`; `option=tcp_connections:value=3`, conn=1 source, conn=2 strip, conn=3 keep |
-| `internal/component/bgp/reactor/zzprobe_prefixsid_announce_test.go` | Yes | added at closure; RED, and that is the point |
+| `internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go` | Yes | added at closure; RED, and that is the point |
 | `plan/immediate/spec-prefix-sid-announce-rail-boundary.md` | Yes | added at closure; passes `validate-spec` |
 
 ### AC Verified (grep/test)
