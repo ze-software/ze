@@ -5,6 +5,7 @@ severity: blocking
 ---
 directives ## Directives
   update-the-discovery-path-in-the-same-work
+  register-a-new-verify-gate-or-it-never-runs
   stdout-reaches-the-model-stderr-costs-no-context
 canonical-sources-and-sync-direction ## Canonical Sources and Sync Direction
   sync-generated-files-from-their-canonical-source

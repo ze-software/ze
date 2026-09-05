@@ -7,6 +7,8 @@
 
 **A change that adds or changes a surface future agents use, verify, document or avoid MUST update its discovery path in the SAME work: `ai/INDEX.md` for a keyword or a project fact, `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md` for a file or a page, the owning `docs/architecture/` page for a contract, and a registered `ze doctor` check for a new runtime dependency.** A private change owes none of that only when it changes no user or agent behavior, breaks no documented contract or invariant, makes no page stale, and sets no pattern later work follows.
 
+**A new verification gate MUST be registered in `StagesForMode` (`internal/le/verify/engine/stages.go`), and a gate that runs in some modes only MUST be added to each one it belongs in: `fullStages`, `staticcheckStages` and `changedStages` are separate lists.** A gate absent from every list is code that compiles, passes its own unit test, and judges nothing, which is the fail-open shape `ai/rules/evidence.md` bans. Read the three functions and say which lists the gate joins, rather than adding it to the first one you find.
+
 **A hook reminder that MUST land in the model's context writes to stdout; a banner that MUST cost no context tokens writes to stderr.** A `UserPromptSubmit` reminder fires on every turn, so each one MUST stay a single line.
 
 ## Canonical Sources and Sync Direction
