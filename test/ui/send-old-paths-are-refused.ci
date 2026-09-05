@@ -1,0 +1,111 @@
+# Test: every one of the fifteen old send paths is refused when an operator
+#       types it, and the nine forms answer at the one path that replaced them
+# VALIDATES: AC-6 -- `peer <sel> raw`, `peer <sel> update`, the three
+#            origination forms and the three withdraw forms bare and under
+#            `peer <sel>`, and `request cache forward` each match nothing. No
+#            alias and no fallback spelling.
+# PREVENTS: an old spelling surviving as an alias. Nothing would report it: the
+#           migrated senders all type the new path, so a surviving alias is
+#           reachable and unreached, and the model would say a send names its
+#           destination in two places, which is the thing the move removes.
+#
+# This runs without a daemon on purpose. The refusal happens in the offline
+# binary, at command resolution, before any dispatch, which is where an
+# operator's typo meets the tree. Nine wire methods sat at fifteen paths because
+# six were reachable twice, bare and peer-scoped, so both rows per form are here
+# and the bare row is what proves `*` replaced the implicit every-peer scope.
+#
+# The refusals alone would pass over a tree where `send bgp` never existed
+# either, so the second half asks each surviving form to render its own line.
+# `help` renders from the model and dispatches nothing, so it needs no daemon
+# and no peer.
+
+# --- the two forms that were peer-scoped only ---
+
+cmd=foreground:seq=1:exec=ze peer 192.0.2.1 raw hex DEADBEEF
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=2:exec=ze peer 192.0.2.1 update text nlri ipv4/unicast add 10.0.0.0/24
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+# --- the three origination forms, bare and peer-scoped ---
+
+cmd=foreground:seq=3:exec=ze announce unicast 10.0.0.0/24 next-hop 10.0.0.1
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=4:exec=ze peer 192.0.2.1 announce unicast 10.0.0.0/24 next-hop 10.0.0.1
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=5:exec=ze announce blackhole 10.0.0.0/24
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=6:exec=ze peer 192.0.2.1 announce blackhole 10.0.0.0/24
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=7:exec=ze announce flowspec destination-ipv4 10.0.0.0/24 discard
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=8:exec=ze peer 192.0.2.1 announce flowspec destination-ipv4 10.0.0.0/24 discard
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+# --- the three withdraw forms, bare and peer-scoped ---
+
+cmd=foreground:seq=9:exec=ze withdraw tag maint
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=10:exec=ze peer 192.0.2.1 withdraw tag maint
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=11:exec=ze withdraw id 7
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=12:exec=ze peer 192.0.2.1 withdraw id 7
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=13:exec=ze withdraw all
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+cmd=foreground:seq=14:exec=ze peer 192.0.2.1 withdraw all
+expect=exit:code=1
+expect=stderr:contains=unknown command
+
+# --- the cached form, which left `request` rather than `peer` ---
+#
+# `request` is still a verb, so this one is refused deeper in the tree and the
+# refusal names the whole line rather than the first token. That is the
+# difference the row proves.
+
+cmd=foreground:seq=15:exec=ze request cache forward 7 192.0.2.1
+expect=exit:code=1
+expect=stderr:contains=unknown command: request cache forward
+
+# --- the nine forms answer at the path that replaced the fifteen ---
+
+cmd=foreground:seq=16:exec=ze send bgp help
+expect=exit:code=0
+expect=stderr:pattern=(?m)^  unicast\s
+expect=stderr:pattern=(?m)^  blackhole\s
+expect=stderr:pattern=(?m)^  flowspec\s
+expect=stderr:pattern=(?m)^  raw\s
+expect=stderr:pattern=(?m)^  update\s
+expect=stderr:pattern=(?m)^  cached\s
+expect=stderr:pattern=(?m)^  withdraw\s
+
+cmd=foreground:seq=17:exec=ze send bgp withdraw help
+expect=exit:code=0
+expect=stderr:pattern=(?m)^  tag\s
+expect=stderr:pattern=(?m)^  id\s
+expect=stderr:pattern=(?m)^  all\s

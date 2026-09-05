@@ -229,12 +229,17 @@ func TestSendArgumentsAreDeclared(t *testing.T) {
 	}
 }
 
-// movedSendPaths are the old command paths this grammar has already left, with
-// the line an operator typed at each one.
+// movedSendPaths are the FIFTEEN old command paths this grammar left, with the
+// line an operator typed at each one.
 //
-// The list grows as each form moves. It is never a list of paths that were
-// removed and replaced by an alias, because an alias is what would make it
-// stale without a failure.
+// Nine wire methods sat at fifteen paths, because six of them were reachable
+// twice: bare, which reached every peer, and under `peer <selector>`, which
+// reached the peers the selector matched. Both spellings are gone and `*` is how
+// an operator now says every peer, so the two rows per form are what proves the
+// second path went with the first.
+//
+// It is never a list of paths that were removed and replaced by an alias,
+// because an alias is what would make it stale without a failure.
 var movedSendPaths = []struct {
 	path  string
 	typed string
@@ -250,6 +255,71 @@ var movedSendPaths = []struct {
 		typed: "peer 192.0.2.1 update text nlri ipv4/unicast add 10.0.0.0/24",
 		nowAt: "send bgp update",
 	},
+	{
+		path:  "announce unicast",
+		typed: "announce unicast 10.0.0.0/24 next-hop 10.0.0.1",
+		nowAt: "send bgp unicast",
+	},
+	{
+		path:  "peer announce unicast",
+		typed: "peer 192.0.2.1 announce unicast 10.0.0.0/24 next-hop 10.0.0.1",
+		nowAt: "send bgp unicast",
+	},
+	{
+		path:  "announce blackhole",
+		typed: "announce blackhole 10.0.0.0/24",
+		nowAt: "send bgp blackhole",
+	},
+	{
+		path:  "peer announce blackhole",
+		typed: "peer 192.0.2.1 announce blackhole 10.0.0.0/24",
+		nowAt: "send bgp blackhole",
+	},
+	{
+		path:  "announce flowspec",
+		typed: "announce flowspec destination-ipv4 10.0.0.0/24 discard",
+		nowAt: "send bgp flowspec",
+	},
+	{
+		path:  "peer announce flowspec",
+		typed: "peer 192.0.2.1 announce flowspec destination-ipv4 10.0.0.0/24 discard",
+		nowAt: "send bgp flowspec",
+	},
+	{
+		path:  "withdraw tag",
+		typed: "withdraw tag maint",
+		nowAt: "send bgp withdraw tag",
+	},
+	{
+		path:  "peer withdraw tag",
+		typed: "peer 192.0.2.1 withdraw tag maint",
+		nowAt: "send bgp withdraw tag",
+	},
+	{
+		path:  "withdraw id",
+		typed: "withdraw id 7",
+		nowAt: "send bgp withdraw id",
+	},
+	{
+		path:  "peer withdraw id",
+		typed: "peer 192.0.2.1 withdraw id 7",
+		nowAt: "send bgp withdraw id",
+	},
+	{
+		path:  "withdraw all",
+		typed: "withdraw all",
+		nowAt: "send bgp withdraw all",
+	},
+	{
+		path:  "peer withdraw all",
+		typed: "peer 192.0.2.1 withdraw all",
+		nowAt: "send bgp withdraw all",
+	},
+	{
+		path:  "request cache forward",
+		typed: "request cache forward 7 192.0.2.1",
+		nowAt: "send bgp cached",
+	},
 }
 
 // TestOldSendPathsMatchNothing holds each moved form to one path.
@@ -261,8 +331,8 @@ var movedSendPaths = []struct {
 // node deleted from the schema and a handler still reachable through some other
 // match are different failures.
 //
-// VALIDATES: AC-6 for the forms that have moved -- the old node is gone from the
-// merged tree and the old line is refused, while the new line reaches the model.
+// VALIDATES: AC-6 over all fifteen old paths -- each old node is gone from the
+// merged tree and each old line is refused, while the new line reaches the model.
 // PREVENTS: the old spelling surviving as an alias, which no gate would report
 // and which every migrated sender would then hide.
 func TestOldSendPathsMatchNothing(t *testing.T) {

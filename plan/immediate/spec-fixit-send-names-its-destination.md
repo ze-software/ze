@@ -659,13 +659,13 @@ exactly what this design changes.
 |-------------|---|--------------|------|
 | operator types `send bgp 192.0.2.1 raw hex FFFF...` | → | `anchoredDef` binds the selector to the leaf `bgp` declares, `handleRaw`, `ResolveSinglePeer`, `SendRawMessage` | `TestSendRawReachesOnePeerAtItsNewPath` |
 | operator types `send bgp * raw hex FFFF...` | → | `ResolveSinglePeer` refuses the wildcard | `TestSendRawRefusesAWildcardSelector` |
-| operator types `send bgp * unicast 10.0.0.0/24 next-hop 10.0.0.1` | → | `handleAnnounceUnicastCmd`, `announceAndTrack`, the reactor | `test/ui/send-announce-reaches-the-wire.ci` |
+| operator types `send bgp * unicast 10.0.0.0/24 next-hop 10.0.0.1` | → | `handleAnnounceUnicastCmd`, `announceAndTrack`, the reactor | `test/ui/cli-announce-reaches-the-wire.ci` |
 | operator types `send bgp unicast 10.0.0.0/24`, with no selector | → | `Dispatch` refuses on `RequiresSelector` | `TestSendRefusesAMissingSelector` |
 | operator types an old path, `peer raw 192.0.2.1 hex FF` | → | no node matches; the dispatcher refuses and names the command | `test/ui/send-old-paths-are-refused.ci` |
 | an ExaBGP process writes `neighbor 127.0.0.1 announce route 1.1.0.0/24 next-hop 101.1.101.1` | → | `ExabgpToZebgpCommand`, `DispatchCommand`, the reactor, the peer's wire | `test/plugin/exabgp-bridge-internal.ci` (existing, hex unchanged) |
 | an ExaBGP process writes the BARE form `announce route 1.1.0.0/24 next-hop 101.1.101.1` | → | the translator's new bare branch, `send bgp * ...`, the reactor, the peer's wire | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` |
 | an ExaBGP process writes a line the translator does not recognize | → | the narrowed passthrough refuses by name | `TestBridgeRefusesAnUnrecognizedLineByName` |
-| the same ExaBGP input, followed by the drain | → | `IsRouteCommand`, the selector the translator returned, the flush | `test/plugin/exabgp-bridge-flush-still-reaches-the-peer.ci` |
+| the same ExaBGP input, followed by the drain | → | `Translation.Route`, the selector the translator returned, the flush | `TestFlushBlocksUntilResponse` (`internal/exabgp/bridge/bridge_test.go`) |
 | the grammar gate walks the merged tree | → | `ExemptCategory`, `CheckName`, `CheckNode` over the send subtree | `TestSendSubtreeIsCheckedNotExempt` |
 | a read-only operator types `send bgp * unicast 10.0.0.0/24` | → | `IsReadOnlyPath` answers false, `Dispatch` calls `isAuthorized`, `Profile.Authorize` reads the `Edit` section, `builtinReadOnlyProfile` denies by default | `TestSendIsDeniedToAReadOnlyProfile` |
 
@@ -696,10 +696,10 @@ exactly what this design changes.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | injects a crafted BGP message into one session for a conformance test | CLI → `send bgp <sel> raw` → `ResolveSinglePeer` → `SendRawMessage` → wire | `test/ui/send-raw-reaches-one-peer.ci` |
-| 2 | originates a prefix to every peer | CLI → `send bgp * unicast` → `announceAndTrack` → reactor → wire | `test/ui/send-announce-reaches-the-wire.ci` |
-| 3 | withdraws a tagged announcement from one peer | CLI → `send bgp edge1 withdraw tag <k> <v>` → the registry → wire | `test/ui/send-withdraw-by-tag.ci` |
-| 4 | replays a cached UPDATE to the peers a selector names | CLI → `send bgp <sel> cached <id>` → `ForwardUpdate` → wire | `test/plugin/api-send-cached.ci` |
-| 5 | runs an unmodified ExaBGP script using `neighbor` lines | ExaBGP text → `ExabgpToZebgpCommand` → dispatch → reactor → wire, then the flush | `test/plugin/exabgp-bridge-internal.ci`, `test/plugin/exabgp-bridge-flush-still-reaches-the-peer.ci` |
+| 2 | originates a prefix to every peer | CLI → `send bgp * unicast` → `announceAndTrack` → reactor → wire | `test/ui/cli-announce-reaches-the-wire.ci` |
+| 3 | withdraws a tagged announcement from one peer | CLI → `send bgp edge1 withdraw tag <k> <v>` → the registry → wire | `test/ui/cli-announce-tag-round-trip.ci` |
+| 4 | replays a cached UPDATE to the peers a selector names | CLI → `send bgp <sel> cached <id>` → `ForwardUpdate` → wire | `test/plugin/api-cache-forward.ci` |
+| 5 | runs an unmodified ExaBGP script using `neighbor` lines | ExaBGP text → `TranslateLine` → dispatch → reactor → wire, then the flush | `test/plugin/exabgp-bridge-internal.ci`, `TestFlushBlocksUntilResponse` |
 | 6 | runs an ExaBGP script using the bare forms | ExaBGP text → the translator's bare branch → `send bgp * ...` → wire | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` |
 | 7 | discovers the grammar by typing `send ` and pressing tab | completion over the merged tree: the protocols, then the selector, then the forms | `test/ui/cli-completion-send-forms.ci` |
 
@@ -737,16 +737,16 @@ exactly what this design changes.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `send-raw-reaches-one-peer` | `test/ui/send-raw-reaches-one-peer.ci` | the operator injects raw bytes at the new path and a scripted peer reads them; a wildcard selector is refused | |
-| `send-announce-reaches-the-wire` | `test/ui/send-announce-reaches-the-wire.ci` | `send bgp * unicast` puts the prefix on a peer's wire, with the hex the current announce fixture asserts | |
-| `send-withdraw-by-tag` | `test/ui/send-withdraw-by-tag.ci` | a tagged announcement is withdrawn from one selector and stays for another | |
-| `send-old-paths-are-refused` | `test/ui/send-old-paths-are-refused.ci` | all fifteen old paths match nothing and the refusal names the command | |
+| `send-raw-reaches-one-peer` | `test/ui/send-raw-reaches-one-peer.ci` | the operator injects raw bytes at the new path and a scripted peer reads them; a wildcard selector is refused | PASS |
+| `cli-announce-reaches-the-wire` | `test/ui/cli-announce-reaches-the-wire.ci` | `send bgp * unicast` puts the prefix on a peer's wire, with the hex the announce fixture asserts. Its name still says announce; see Files to Create | PASS |
+| `cli-announce-tag-round-trip` | `test/ui/cli-announce-tag-round-trip.ci` | a tagged announcement is listed while live, `send bgp * withdraw tag <key>` reports one removal, and the peer reads the withdrawal | PASS |
+| `send-old-paths-are-refused` | `test/ui/send-old-paths-are-refused.ci` | all fifteen old paths match nothing and the refusal names the command; the nine surviving forms render their own line | PASS |
 | `cli-completion-send-forms` | `test/ui/cli-completion-send-forms.ci` | completion after `send ` offers the protocols, then the selector, then the forms, then each form's declared arguments | PASS for the forms that exist at phase 2, which is `raw`. `update` and `cached` join it when phases 3 and 5 move them |
-| `api-send-cached` | `test/plugin/api-send-cached.ci` | a cached UPDATE is replayed to the peers a selector names | |
+| `api-cache-forward` | `test/plugin/api-cache-forward.ci` | `send bgp 127.0.0.1 cached 999` reaches the handler, which answers about the cache rather than about an unknown command. Its name still says cache forward; see Files to Create | PASS |
 | `exabgp-bridge-internal` | `test/plugin/exabgp-bridge-internal.ci` (existing) | an ExaBGP-format helper's route reaches the wire; the hex expectation is UNCHANGED and the Ze-side expectation line moves | |
 | `exabgp-bridge-sdk` | `test/plugin/exabgp-bridge-sdk.ci` (existing) | the same, in SDK mode | |
 | `exabgp-bridge-bare-form-reaches-the-wire` | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` | AC-9: a helper writing the bare ExaBGP form puts the prefix on the wire. It is a new fixture because no shipped one drives the passthrough half | |
-| `exabgp-bridge-flush-still-reaches-the-peer` | `test/plugin/exabgp-bridge-flush-still-reaches-the-peer.ci` | AC-11: after a route command from the ExaBGP side, the flush arrives at the peer | |
+| `TestFlushBlocksUntilResponse` | `internal/exabgp/bridge/bridge_test.go` | AC-11: ExaBGP text through `pluginToZebgp` produces `ze-bgp:peer-flush` naming the peer the line named. NOT a `.ci`: with the flush suppressed at source all three bridge fixtures still PASS, so no functional test in that shape discriminates, while this one goes RED | PASS, RED under the suppression |
 
 ### Interop Tests (Scope: protocol)
 
@@ -787,14 +787,41 @@ exactly what this design changes.
 
 ## Files to Create
 
-- `test/ui/send-raw-reaches-one-peer.ci` plus its fixture in `internal/test/fixture/`
-- `test/ui/send-announce-reaches-the-wire.ci` plus its fixture
-- `test/ui/send-withdraw-by-tag.ci` plus its fixture
-- `test/ui/send-old-paths-are-refused.ci` plus its fixture
-- `test/ui/cli-completion-send-forms.ci` plus its fixture
-- `test/plugin/api-send-cached.ci`
-- `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci`
-- `test/plugin/exabgp-bridge-flush-still-reaches-the-peer.ci`
+- `test/ui/send-raw-reaches-one-peer.ci` plus its fixture in `internal/test/fixture/` -- created
+- `test/ui/cli-completion-send-forms.ci` -- created
+- `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` plus its helper -- created
+- `test/ui/send-old-paths-are-refused.ci` -- created. It drives all fifteen old
+  lines at the offline binary, where an operator's line meets the tree, and asks
+  the nine surviving forms to render their own usage line so the refusals cannot
+  pass over a tree where `send bgp` never existed either. It needs no daemon, so
+  it is immune to the startup contention the other `test/ui` fixtures meet
+- `test/ui/send-announce-reaches-the-wire.ci` -- NOT created under that name. The
+  test exists as `test/ui/cli-announce-reaches-the-wire.ci`, which drives
+  `send bgp * unicast <prefix> next-hop <nh>` as argv against a daemon over
+  ephemeral SSH and a scripted peer, and holds the three refusal cases beside it
+- `test/ui/send-withdraw-by-tag.ci` -- NOT created under that name. The test
+  exists as `test/ui/cli-announce-tag-round-trip.ci`, which drives
+  `send bgp * withdraw tag <key>` and asserts the peer reads the withdrawal
+- `test/plugin/api-send-cached.ci` -- NOT created under that name. The test exists
+  as `test/plugin/api-cache-forward.ci`, which dispatches
+  `send bgp 127.0.0.1 cached 999`
+- `test/plugin/exabgp-bridge-flush-still-reaches-the-peer.ci` -- NOT created, and
+  the reason is MEASURED rather than judged. The flush was suppressed at its
+  source (`Translation.Route` forced false) and the whole plugin suite was run:
+  `exabgp-bridge-internal`, `exabgp-bridge-sdk` and
+  `exabgp-bridge-bare-form-reaches-the-wire` all PASSED. The flush is a barrier,
+  so its absence is a timing difference the peer cannot see, and a fourth `.ci`
+  in that shape would be green under the defect it exists to catch. AC-11 is
+  proven instead by `TestFlushBlocksUntilResponse`, which drives ExaBGP text into
+  `pluginToZebgp` and asserts `ze-bgp:peer-flush` with `{"selector":"10.0.0.1"}`
+  on the ze side. Under the same suppression that test goes RED, as does
+  `TestBridgeSelectorCannotBeSilentlyEmpty` on all five rows
+
+**The three renames are not made.** `cli-announce-reaches-the-wire`,
+`cli-announce-tag-round-trip` and `api-cache-forward` each name a command the
+grammar no longer has. Renaming a tracked test file is a delete plus a create and
+it moves every test id in its suite, so it is the owner's call rather than this
+spec's.
 
 ### Integration Checklist
 
@@ -863,7 +890,7 @@ exactly what this design changes.
    - Files: 70 `.ci` files (207 occurrences), `cmd/ze/help_ai.go`
    - Verify: `./le ci-dispatch` green
 7. **Phase: the bridge's remaining work** -- the passthrough narrows and the flush stops re-parsing
-   - Tests: `TestBridgeTranslatesTheNeighborForms`, `TestBridgeRefusesAnUnrecognizedLineByName`, `TestBridgeSelectorCannotBeSilentlyEmpty`, `test/plugin/exabgp-bridge-flush-still-reaches-the-peer.ci`, and the two existing bridge fixtures with unchanged hex
+   - Tests: `TestBridgeRefusesAnUnrecognizedLineByName`, `TestBridgeSelectorCannotBeSilentlyEmpty`, `TestFlushBlocksUntilResponse` (AC-11: no `.ci` discriminates on the flush, measured), and the three existing bridge fixtures with unchanged hex
    - Files: `bridge_command.go`, `bridge_muxconn.go`, `bridge.go`, `main_sdk.go`, `bridgeplugin/internal.go`, the new helper in `internal/test/fixture/`
    - Verify: AC-8 through AC-12. A-6 is answered by enumeration BEFORE the passthrough is narrowed, and A-5 by the diff removing no accepted form
 8. **Phase: the gate** -- the exemption shrinks and the moved commands are checked

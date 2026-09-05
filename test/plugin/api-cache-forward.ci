@@ -1,6 +1,12 @@
-# Test: cache forward attempts to forward a cached message
-# VALIDATES: cache forward command dispatches through engine
-# PREVENTS: cache forward handler broken or not wired
+# Test: `send bgp <selector> cached <id>` puts a cached UPDATE on a peer's wire
+# VALIDATES: the ze-bgp:cache-forward wire method dispatches through the engine
+#            at the path it answers at since 2026-09-05. The fixture asks for an
+#            id the cache does not hold, so what is proven is that the command
+#            REACHES the handler and the handler answers about the cache, not
+#            about an unknown command.
+# PREVENTS: the cached form broken or not wired. It is the one send form whose
+#           old spelling sat under `request` rather than under `peer`, so it is
+#           the one a peer-shaped sweep of the old paths would miss.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -9,7 +15,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Native test plugin: exercises dispatch-command for cache forward
+# Native test plugin: exercises dispatch-command for send bgp cached
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
