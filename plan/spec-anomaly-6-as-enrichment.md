@@ -402,21 +402,41 @@ by construction, not by exception.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Origin-AS field on the neutral facts surface | done | `Observation.SrcAS` (`internal/core/observation/observation.go`), `FeatureEntry.SrcAS` (`internal/component/trafficfeature/service.go`) | both `uint32`, both carry the 0-means-unattributed contract in their doc comment |
+| Stamped at the flowexport producer | done | `exportFlows` (`internal/plugins/flowexport/exporter.go`), `SrcAS: f.SrcAS` in the publish loop | field copy of the value the enrichment loop above already resolved; no second `Enrich` call |
+| No plugin imports another plugin | done | `./le tier check` exit 0; `grep -rn "plugins/flowexport" internal/plugins/anomaly internal/component/trafficfeature internal/core/observation` exit 1 | the seam is the core feed, not a shared package |
+| Adds no detector logic and no operator knob | done | no change under `internal/plugins/anomaly/detect`; no YANG leaf, no CLI verb | the operator surface is child 7's |
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | `TestExportFlowsStampsSrcAS` (`internal/plugins/flowexport/exporter_srcas_test.go`) | subscribes to the real `observation.Global()` feed and asserts the published `SrcAS` for two sources, one of them 4294967295 |
+| AC-2 | done | `TestFeatureEntryCarriesSrcAS` (`internal/component/trafficfeature/feature_test.go`) | ingest plus `snapshot` returns `FeatureEntry.SrcAS` for each source |
+| AC-3 | done | `TestExportFlowsSrcASZeroWhenNoEnricher`, `TestFeatureEntrySrcASUnsetWhenUnknown` | the second test drives a second window and proves a RIB miss does not erase a known AS |
+| AC-4 | done | `./le tier check` exit 0 (2026-09-05); the forbidden-import grep returns nothing | flowexport stays an edge engine; no new importer |
+| AC-5 | done | the same grep: `internal/core/observation` and `internal/component/trafficfeature` name flowexport nowhere | the field is an inert `uint32` that defaults to 0 when the producer is absent |
+| AC-6 | done | the consumer is `spec-anomaly-7-as-entities-cohorts`, live in `plan/`, whose `Depends` row names this spec and whose Data Flow step 2 reads `fe.SrcAS` | `FeatureEntry.SrcAS` still has no non-test reader at closure. This is the sequencing AC-6 was written for, and the obligation is homed in a live spec rather than in prose |
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestExportFlowsStampsSrcAS` | done | `internal/plugins/flowexport/exporter_srcas_test.go` | in a sibling file, not `exporter_test.go` (see Deviations) |
+| `TestExportFlowsSrcASZeroWhenNoEnricher` | done | `internal/plugins/flowexport/exporter_srcas_test.go` | |
+| `TestFeatureEntryCarriesSrcAS` | done | `internal/component/trafficfeature/feature_test.go` | |
+| `TestFeatureEntrySrcASUnsetWhenUnknown` | done | `internal/component/trafficfeature/feature_test.go` | |
+| `TestFeatureEntrySrcASSourceRoleOnly` | done | `internal/component/trafficfeature/feature_test.go` | |
+| `TestObservationSrcASFieldZeroValue` | done | `internal/core/observation/observation_test.go` | plus the publish and subscribe copy assertion beside it |
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/core/observation/observation.go` | done | `SrcAS uint32` on `Observation` |
+| `internal/plugins/flowexport/exporter.go` | done | the stamp in the `exportFlows` publish loop |
+| `internal/component/trafficfeature/service.go` | done | `FeatureEntry.SrcAS` |
+| `internal/component/trafficfeature/feature.go` | done | `addrState.srcAS`, the source-role stamp in `ingest`, the copy in `finalizeAddrs`. The plan named the struct `sourceState`; the entity-matrix work renamed it `addrState` for the two address axes |
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 20 (4 requirements, 6 ACs, 6 tests, 4 files)
+- **Done:** 20
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 2 (the producer tests moved to a sibling file; `sourceState` is now `addrState`), both in Deviations
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
@@ -425,36 +445,88 @@ by construction, not by exception.
 | Tier-safe (no `detect -> flowexport` import) | gate run | `./le tier check` exit 0 + grep for absent import |
 | Optional: unset when AS unknown, degrades to prefix cohorts | unit test | `TestFeatureEntrySrcASUnsetWhenUnknown` |
 
+## Work Not Done
+| Item | Why it is not here | Spec that owns it |
+|------|--------------------|-------------------|
+| A non-test reader of `FeatureEntry.SrcAS` | This spec ships the seam and states, in its Task and in AC-6, that it adds no detector logic. The reader is the AS-origin cohort key and the per-ASN entity, which are the whole of child 7 | `plan/spec-anomaly-7-as-entities-cohorts.md` |
+| `Observation.DstAS` / a destination-axis AS | Only the source role carries an AS the entity owns; a destination entity's AS is a second field with its own stamp point | `plan/spec-anomaly-5-entity-matrix.md` (Known Limitations names it as the one-field follow-up) |
+
 ## Review Gate
+Round 1 scope: the whole `SrcAS` diff, over `internal/core/observation/observation.go`,
+`internal/plugins/flowexport/exporter.go`, `internal/component/trafficfeature/feature.go`,
+`internal/component/trafficfeature/service.go`, their tests, and the two architecture pages.
+Round 2 scope: the fixes round 1 made, plus the sibling references they touch.
+
+Lenses run in round 1: wiring and data flow (every producer read from source, every
+consumer resolved with `gopls`/grep), and the `docs/contributing/ze-go-style.md` style
+pass (`panic` reach, bounds, naming, paired obligations, duplicated facts, return width).
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | ISSUE | `FeatureEntry.SrcAS` has no non-test reader. `finalizeAddrs` writes it, `Snapshot.Sources` returns it, and every reference outside the definition is in `feature_test.go`. This is the always-in-scope unwired-symbol class | `internal/component/trafficfeature/service.go` (`FeatureEntry`), `internal/component/trafficfeature/feature.go` (`finalizeAddrs`) | discharged, not deferred: AC-6 is the acceptance criterion for exactly this sequencing, the consumer is `plan/spec-anomaly-7-as-entities-cohorts.md`, which is live and whose `Depends` row names this spec, and the `Work Not Done` table above homes the item there. A row went into `plan/journal/unwired-feature.md` so the class keeps collecting |
+| 2 | ISSUE | Documentation drift: the architecture page called the persistent state `sourceState`, the name `feature.go` carried before the entity-matrix work renamed it `addrState`. A reader greps the name and finds nothing | `docs/architecture/traffic/traffic-analysis-layers.md` (the "Origin AS rides the feed" block) | fixed in this closure |
+| 3 | NOTE | A destination-axis `FeatureEntry` always reports `SrcAS == 0`: `ingest` stamps only source-axis states, and `finalizeAddrs` copies the same field for both axes | `internal/component/trafficfeature/feature.go` (`ingest`, `finalizeAddrs`) | acknowledged. It is the documented 0-sentinel, the emit site says so in a comment, and a destination entity's own AS is a different field this spec does not carry |
+| 4 | NOTE | `./le commit audit` reports 7 `[WEAKENED]` findings, in `internal/component/bgp/reactor`, `internal/exabgp/bridge`, `test/encode/new-v6.ci` and `test/plugin/med-locally-set-reaches-peer.ci` | outside this spec's files | another session's uncommitted work in the shared checkout; none of the seven paths is in this closure's population |
 ### Fixes applied
-- [per BLOCKER/ISSUE]
+- Finding 2: `docs/architecture/traffic/traffic-analysis-layers.md` now names `addrState`. `grep -rn sourceState docs/ internal/` returns nothing, so no sibling copy of the stale name survives.
+- Finding 1: `Work Not Done` names `plan/spec-anomaly-7-as-entities-cohorts.md`, and a row went into `plan/journal/unwired-feature.md`.
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | none | Round 2 read the two round-1 fixes and the references they touch. No BLOCKER, no ISSUE, and no always-in-scope class anywhere in the diff | -- | -- |
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Artifact: `tmp/review/anomaly-6-as-enrichment-zeclose-anom6.md`, written by
+`./le spec session review record ... verdict CLEAN rounds 2` over seven files.
+`./le spec session review check spec anomaly-6-as-enrichment` reports
+`OK (4 code files, clean, hashes match)`. The same command NOTEs that it could not
+read the running model from the transcript, so the review-model boundary is
+unchecked by the tool; the pass ran on Opus 5.
 
 ## Pre-Commit Verification
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/core/observation/observation.go` | yes | `SrcAS uint32` on `Observation` |
+| `internal/plugins/flowexport/exporter.go` | yes | `SrcAS: f.SrcAS` in the `exportFlows` publish loop |
+| `internal/plugins/flowexport/exporter_srcas_test.go` | yes | the two producer tests |
+| `internal/component/trafficfeature/feature.go` | yes | `addrState.srcAS`, the `ingest` stamp, the `finalizeAddrs` copy |
+| `internal/component/trafficfeature/service.go` | yes | `FeatureEntry.SrcAS` |
+| `docs/architecture/observation-feed.md` | yes | `SrcAS` in the Observation shape block and the publisher-stamps rule |
+| `docs/architecture/traffic/traffic-analysis-layers.md` | yes | the "Origin AS rides the feed" block with both source anchors |
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | the producer stamps the AS it already holds | `TestExportFlowsStampsSrcAS` green |
+| AC-2 | the fact reaches `Snapshot()` | `TestFeatureEntryCarriesSrcAS` green |
+| AC-3 | 0 is the unknown sentinel and never clobbers a known AS | `TestExportFlowsSrcASZeroWhenNoEnricher` and `TestFeatureEntrySrcASUnsetWhenUnknown` green |
+| AC-4 | no forbidden import | `./le tier check` exit 0, and `grep -rn "plugins/flowexport" internal/plugins/anomaly internal/component/trafficfeature internal/core/observation` exit 1 |
+| AC-5 | the field survives flowexport's absence | the same grep: neither package names the plugin |
+| AC-6 | the closure names the consumer | `plan/spec-anomaly-7-as-entities-cohorts.md`, in `Work Not Done` above |
 ### Wiring Verified (end-to-end)
 | Entry Point | Test | Verified |
 |-------------|------|----------|
+| `exportFlows` publishes onto the real `observation.Global()` feed | `TestExportFlowsStampsSrcAS` subscribes to that feed rather than a stub | yes |
+| an enriched flow reaches `FeatureEntry` | `TestFeatureEntryCarriesSrcAS` drives `ingest` then `snapshot` | yes |
+| `FeatureEntry.SrcAS` reaches an operator | none: no non-test reader exists, by design | no -- owned by `plan/spec-anomaly-7-as-entities-cohorts.md` |
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | `./le tier check` exit 0 on 2026-09-05; no new importer of `internal/plugins/flowexport` |
+| A-2 | confirmed | the enrichment loop in `exportFlows` sets `flows[i].SrcAS` before the publish loop reads `f.SrcAS` |
+| A-3 | confirmed | the sentinel is documented on both `Observation.SrcAS` and `FeatureEntry.SrcAS`, and RFC 7607 reserves AS 0 |
+| A-4 | confirmed | `TestFeatureEntrySrcASSourceRoleOnly`: an address that is only a destination reports 0 |
+| A-5 | confirmed | `TestObservationSrcASFieldZeroValue` and the publish/subscribe copy assertion beside it |
+| A-6 | confirmed | `ingest` overwrites only on a non-zero value, and `finalizeAddrs` leaves `srcAS` out of the window reset |
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| `Observation` shape carries `SrcAS` | `docs/architecture/observation-feed.md` anchors `internal/core/observation/observation.go -- Observation struct`; the struct matches the block field for field | yes |
+| the feature layer copies rather than resolves the AS | `docs/architecture/traffic/traffic-analysis-layers.md` anchors `service.go -- FeatureEntry.SrcAS` and `feature.go -- source-role-only AS stamp in ingest`; both symbols exist and behave as the page says | yes |
+| no CLI, config, RPC, plugin-SDK, wire-format or RFC page applies | this spec adds no operator surface; the Documentation Update Checklist rows 1-11 and 13-15 are all No | yes |
 
 ## Checklist
 

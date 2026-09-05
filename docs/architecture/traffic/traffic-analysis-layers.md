@@ -52,7 +52,7 @@ snapshot cannot supply them.
 `trafficfeature` takes it from `Observation.SrcAS` in the source-role branch of
 `ingest` alone: in the destination-role branch that field describes the other
 endpoint. It is an entity property rather than a window measurement, so it lives
-in the persistent part of `sourceState`, survives the per-window reset, and is
+in the persistent part of `addrState`, survives the per-window reset, and is
 overwritten only by a non-zero value, which keeps a later unattributed flow from
 erasing a known AS. `SrcAS == 0` means "not attributed" (AS 0 is reserved,
 RFC 7607) and a consumer grouping by AS falls back to the address or its prefix.
