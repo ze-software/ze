@@ -4,66 +4,7 @@ module ze-raw-cmd {
     import ze-extensions { prefix ze; }
     description "Inject raw bytes into a BGP peer session (testing only)";
     revision 2026-03-16 { description "Initial revision"; }
-    revision 2026-09-05 { description "The raw form states the arguments its handler reads: an encoding enumeration, a data value it always needs, and an optional message type. The dispatcher refuses a word outside either enumeration before the handler runs. The message type takes the type keyword in front of it, because a keyword introduces every value a command runs without. The form is declared once in a grouping and used at both paths it answers at. The selector leaf this container declared is gone. The peer and bgp containers declare that value on the keyword the operator types it after."; }
-
-    grouping raw-form {
-        description "The raw form, declared once and instantiated twice. The peer path is the one it is leaving and the send path is the one it now lives at. Each path's own container declares the selector, so this form states the message and never the destination.";
-
-        container raw {
-            config false;
-            ze:command "ze-bgp:peer-raw";
-            description "Send raw bytes into a peer's TCP stream (dangerous).";
-            ze:help "Injects arbitrary bytes with no BGP framing and no validation. It is for
-conformance testing and fuzzing only, and it will break the session if it is used
-carelessly. With a type keyword ze writes the marker and the header, and the data carries
-the message body alone. Without a type keyword the data carries the whole packet, marker
-and header included.";
-            leaf encoding {
-                type enumeration {
-                    enum hex;
-                    enum b64;
-                }
-                mandatory true;
-                description "How the data below is encoded.";
-            }
-            // No length is stated here, and the absence is a decision. raw exists
-            // to put a malformed or oversized frame on one session, and the
-            // negotiated maximum message size is the reactor's to enforce
-            // (bgp/reactor/session_write.go). A bound stated here would refuse the
-            // oversize frame before it reached the check that exists to refuse it.
-            leaf data {
-                type string;
-                mandatory true;
-                description "The bytes to send, in the encoding above.";
-            }
-            leaf type {
-                type enumeration {
-                    enum open;
-                    enum update;
-                    enum notification;
-                    enum keepalive;
-                    enum route-refresh;
-                }
-                description "The BGP message type ze writes a header for.";
-            }
-        }
-    }
-
-    container peer {
-        config false;
-        // The top-level peer verb root. Its children come from three modules:
-        // raw here, update in ze-update-cmd, and announce and withdraw in
-        // ze-cli-announce-cmd. The summary names what all four share, because
-        // a summary naming raw byte injection alone is false for the other
-        // three. ze-cli-announce-cmd records that this module owns the text,
-        // and it declares the selector leaf every command below this keyword
-        // inherits.
-        description "Act on selected BGP peer sessions.";
-        ze:help "The selector picks the sessions. A selector that matches no session acts on
-                 nothing, and it does not act on every peer.";
-
-        uses raw-form;
-    }
+    revision 2026-09-05 { description "The raw form states the arguments its handler reads: an encoding enumeration, a data value it always needs, and an optional message type. The dispatcher refuses a word outside either enumeration before the handler runs. The message type takes the type keyword in front of it, because a keyword introduces every value a command runs without. The form answers at one path, send bgp, and the peer path it answered at before is gone. The bgp container declares the selector on the keyword the operator types it after."; }
 
     container send {
         config false;
@@ -82,13 +23,55 @@ and header included.";
             // inheritArgDefs anchors a container's leaves to that container's
             // keyword. The anchor is what binds the bare token after `bgp`
             // (anchoredDef, internal/component/plugin/server/command.go).
+            //
+            // This module declares the text every send form below `bgp` shares.
+            // ze-update-cmd re-declares the two containers with no description,
+            // because mergeYANGEntry warns when two modules describe one node
+            // differently.
             description "Send a message to the BGP peer sessions a selector picks.";
             ze:help "The selector accepts an address, a configured peer name, an AS pattern,
                      a glob, a comma-separated list, or *. A selector that matches no
                      session sends to nothing, and it does not send to every peer.";
             leaf selector { type string; mandatory true; description "Peer selector"; }
 
-            uses raw-form;
+            container raw {
+                config false;
+                ze:command "ze-bgp:peer-raw";
+                description "Send raw bytes into a peer's TCP stream (dangerous).";
+                ze:help "Injects arbitrary bytes with no BGP framing and no validation. It is for
+conformance testing and fuzzing only, and it will break the session if it is used
+carelessly. With a type keyword ze writes the marker and the header, and the data carries
+the message body alone. Without a type keyword the data carries the whole packet, marker
+and header included.";
+                leaf encoding {
+                    type enumeration {
+                        enum hex;
+                        enum b64;
+                    }
+                    mandatory true;
+                    description "How the data below is encoded.";
+                }
+                // No length is stated here, and the absence is a decision. raw exists
+                // to put a malformed or oversized frame on one session, and the
+                // negotiated maximum message size is the reactor's to enforce
+                // (bgp/reactor/session_write.go). A bound stated here would refuse the
+                // oversize frame before it reached the check that exists to refuse it.
+                leaf data {
+                    type string;
+                    mandatory true;
+                    description "The bytes to send, in the encoding above.";
+                }
+                leaf type {
+                    type enumeration {
+                        enum open;
+                        enum update;
+                        enum notification;
+                        enum keepalive;
+                        enum route-refresh;
+                    }
+                    description "The BGP message type ze writes a header for.";
+                }
+            }
         }
     }
 }

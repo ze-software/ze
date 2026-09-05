@@ -423,9 +423,9 @@ func TestMetricsCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-bgp:metrics-list", GetCommandExtension(metrics.Dir["list"]))
 }
 
-// TestRawCmdModule verifies ze-raw-cmd.yang (peer raw from cmd/raw plugin).
+// TestRawCmdModule verifies ze-raw-cmd.yang (send bgp raw from cmd/raw plugin).
 //
-// VALIDATES: Raw command YANG module loads with peer > raw node.
+// VALIDATES: Raw command YANG module loads with send > bgp > raw node.
 // PREVENTS: Raw command missing from the command tree.
 func TestRawCmdModule(t *testing.T) {
 	loader := NewLoader()
@@ -437,12 +437,13 @@ func TestRawCmdModule(t *testing.T) {
 
 	entry := loader.GetEntry("ze-raw-cmd")
 	require.NotNil(t, entry)
-	assert.Equal(t, "ze-bgp:peer-raw", GetCommandExtension(entry.Dir["peer"].Dir["raw"]))
+	assert.Equal(t, "ze-bgp:peer-raw", GetCommandExtension(entry.Dir["send"].Dir["bgp"].Dir["raw"]))
+	assert.Nil(t, entry.Dir["peer"], "the path the form moved from must carry no node")
 }
 
-// TestUpdateCmdModule verifies ze-update-cmd.yang (peer update from cmd/update plugin).
+// TestUpdateCmdModule verifies ze-update-cmd.yang (send bgp update from cmd/update plugin).
 //
-// VALIDATES: Update command YANG module loads with peer > update node.
+// VALIDATES: Update command YANG module loads with send > bgp > update node.
 // PREVENTS: Update command missing from the command tree.
 func TestUpdateCmdModule(t *testing.T) {
 	loader := NewLoader()
@@ -454,7 +455,8 @@ func TestUpdateCmdModule(t *testing.T) {
 
 	entry := loader.GetEntry("ze-update-cmd")
 	require.NotNil(t, entry)
-	assert.Equal(t, "ze-bgp:peer-update", GetCommandExtension(entry.Dir["peer"].Dir["update"]))
+	assert.Equal(t, "ze-bgp:peer-update", GetCommandExtension(entry.Dir["send"].Dir["bgp"].Dir["update"]))
+	assert.Nil(t, entry.Dir["peer"], "the path the form moved from must carry no node")
 }
 
 // TestCliUpdateCmdModule verifies ze-cli-update-cmd.yang (update verb from cmd/update).
@@ -547,7 +549,7 @@ func TestBuildCommandTree(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 
-	// Load 3 modules that all contribute to the "peer" container
+	// Load 3 modules that all contribute to the "request > peer" container
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/peer/yang/ze-peer-cmd.yang")
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/raw/yang/ze-raw-cmd.yang")
 	loadCmdModule(t, loader, cmdPluginBase+"route_refresh/yang/ze-refresh-cmd.yang")
@@ -566,11 +568,13 @@ func TestBuildCommandTree(t *testing.T) {
 	require.NotNil(t, showCache, "show > cache should exist")
 	assert.Equal(t, "ze-bgp:cache-list", showCache.WireMethod)
 
-	// "peer" at top level from ze-raw-cmd
-	peer := tree.Children["peer"]
-	require.NotNil(t, peer, "peer should exist (from ze-raw-cmd)")
-	require.NotNil(t, peer.Children["raw"], "peer.raw from ze-raw-cmd")
-	assert.Equal(t, "ze-bgp:peer-raw", peer.Children["raw"].WireMethod)
+	// "send" at top level from ze-raw-cmd, with the protocol keyword under it
+	send := tree.Children["send"]
+	require.NotNil(t, send, "send should exist (from ze-raw-cmd)")
+	sendBGP := send.Children["bgp"]
+	require.NotNil(t, sendBGP, "send > bgp from ze-raw-cmd")
+	require.NotNil(t, sendBGP.Children["raw"], "send.bgp.raw from ze-raw-cmd")
+	assert.Equal(t, "ze-bgp:peer-raw", sendBGP.Children["raw"].WireMethod)
 
 	// Lifecycle actions moved under request > peer
 	request := tree.Children["request"]

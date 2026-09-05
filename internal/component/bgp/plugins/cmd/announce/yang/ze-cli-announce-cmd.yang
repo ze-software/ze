@@ -3,6 +3,7 @@ module ze-cli-announce-cmd {
     prefix cliannouncecmd;
     import ze-extensions { prefix ze; }
     description "On-demand route origination and lifecycle management";
+    revision 2026-09-05 { description "This module states the text of the top-level peer container. ze-raw-cmd stated it while raw and update answered under that keyword, and both forms have moved to send bgp. No announce or withdraw form changes."; }
     revision 2026-09-01 { description "The two-path declaration is restored, and the flowspec traffic action is a one-of. A replay of an older upstream snapshot dropped the announce-forms and withdraw-forms groupings and the peer container, while ze-flowspec-cmd kept augmenting /cliannouncecmd:peer/announce/flowspec. That augment then resolved against nothing, so every config load failed and the daemon started for nobody. The one-of the same replay introduced is kept: community, rate-limit and discard are three spellings of the one extended community RFC 8955 Section 7 defines, an operator supplies exactly one, and the generated line bracketed all three as if the command ran without any. They sit in an action container carrying ze:modifier one-of, which the renderer states as a required alternation. The container's name is never typed."; }
     revision 2026-08-31 { description "Every announce and withdraw form is reachable at two paths. A bare form reaches every peer. peer <selector> announce and peer <selector> withdraw reach the peers the selector matches. That is the ExaBGP order an operator already types. Each set of forms is one grouping instantiated twice, so the second path restates no grammar. The selector is declared on the peer container the operator types it after. withdraw all loses its own selector leaf: the peer prefix states that scope for every form rather than one form stating it in its tail."; }
     revision 2026-08-30 { description "announce is three commands, one per form: unicast, blackhole and flowspec. The arguments after the form word differ between them, so one node could state at most one of the three and the description spelled the rest in prose. This is what withdraw was already split into. unicast and blackhole now state their whole grammar; flowspec states its trailing options only, because the match components are the flowspec NLRI plugin's vocabulary."; }
@@ -212,11 +213,13 @@ all.";
     container peer {
         config false;
 
-        // No description here. The top-level peer container is shared with
-        // ze-raw-cmd and ze-update-cmd, and mergeYANGEntry warns when two
-        // modules describe one node differently. The description that node
-        // carries is ze-raw-cmd's.
-        //
+        // This module is the last one under the top-level peer container, so it
+        // carries the text that node states. ze-raw-cmd owned it while raw and
+        // update answered here too, and both have moved to send bgp.
+        description "Act on selected BGP peer sessions.";
+        ze:help "The selector picks the sessions. A selector that matches no session acts on
+                 nothing, and it does not act on every peer.";
+
         // The peer every command below reads. It is declared here, on the
         // keyword the operator types it after, and each command inherits it.
         leaf selector { type string; mandatory true; description "Peer selector: an address, a peer name, an AS pattern such as as65001, a glob, or * for every peer"; }

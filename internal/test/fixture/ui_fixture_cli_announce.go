@@ -49,12 +49,12 @@ const cliAnnouncePrefix = "10.0.0.0/24"
 // never reaches the wire.
 const cliAnnounceNextHop = "10.0.0.1"
 
-// cliAnnounceEndOfRIBHex is the body of the End-of-RIB marker RFC 4724
+// cliWireEndOfRIBHex is the body of the End-of-RIB marker RFC 4724
 // Section 2 defines for IPv4 unicast: an UPDATE of 23 octets with no withdrawn
 // route and no path attribute. Ze writes it once the session is Established and
 // its initial RIB is sent, so its arrival at the peer is the barrier an
 // announce has to wait for.
-const cliAnnounceEndOfRIBHex = "0017:02:00000000"
+const cliWireEndOfRIBHex = "0017:02:00000000"
 
 // argAnnounce is the verb every command in this file types first, and
 // argUnicast, argBlackhole and argFlowspec are its three forms.
@@ -79,21 +79,24 @@ const (
 // argv and the expectation cannot drift apart.
 const cliAnnounceUnclaimedToken = "bogus"
 
-// cliAnnounceSession is one run's two processes and the environment a client
-// reaches the daemon with.
+// cliWireSession is one run's two processes and the environment a client
+// reaches the daemon with: a daemon over ephemeral SSH, and a ze-test peer
+// scripted by the .ci that launched the fixture. It carries no announce
+// vocabulary, so every fixture that drives a command at a peer's wire uses it
+// (ui_fixture_send_raw.go is the second).
 //
-// The caller MUST call stop for every session startCLIAnnounceSession
+// The caller MUST call stop for every session startCLIWireSession
 // returned, and stop MUST NOT be called before that function returns.
-type cliAnnounceSession struct {
+type cliWireSession struct {
 	workDir string
 	cliEnv  []string
 	daemon  *fixtureProcess
 	peer    *fixtureProcess
 }
 
-// cliAnnounceResult is one `ze` invocation's exit status and the whole text it
+// cliWireResult is one `ze` invocation's exit status and the whole text it
 // wrote, both streams joined in the order an operator reads them.
-type cliAnnounceResult struct {
+type cliWireResult struct {
 	code int
 	out  string
 }
@@ -102,7 +105,7 @@ type cliAnnounceResult struct {
 // argv reaches the handler and puts the prefix on a peer's wire, and that a
 // trailing token no keyword claims is refused by name rather than discarded.
 func cliAnnounceReachesTheWire(ctx context.Context, args []string) error {
-	session, err := startCLIAnnounceSession(ctx, args)
+	session, err := startCLIWireSession(ctx, args)
 	if err != nil {
 		return err
 	}
@@ -164,7 +167,7 @@ func cliAnnounceReachesTheWire(ctx context.Context, args []string) error {
 // while it is live, that withdrawing the tag reports one removal, and that the
 // peer receives the withdrawal.
 func cliAnnounceTagRoundTrip(ctx context.Context, args []string) error {
-	session, err := startCLIAnnounceSession(ctx, args)
+	session, err := startCLIWireSession(ctx, args)
 	if err != nil {
 		return err
 	}
@@ -200,14 +203,14 @@ func cliAnnounceTagRoundTrip(ctx context.Context, args []string) error {
 	return nil
 }
 
-// startCLIAnnounceSession starts the peer and the daemon and answers the
+// startCLIWireSession starts the peer and the daemon and answers the
 // session a caller drives commands through. The caller MUST call stop on a
 // session this returns.
 //
 // args carries one value, the BGP port the .ci reserved. The peer listens on
 // it and ze_test_bgp_port points the daemon's peer block at the same number,
 // which is the route every .ci-launched peer in this tree already takes.
-func startCLIAnnounceSession(ctx context.Context, args []string) (*cliAnnounceSession, error) {
+func startCLIWireSession(ctx context.Context, args []string) (*cliWireSession, error) {
 	if len(args) != 1 {
 		return nil, errors.New("the cli-announce fixture requires the BGP port")
 	}
@@ -225,7 +228,7 @@ func startCLIAnnounceSession(ctx context.Context, args []string) (*cliAnnounceSe
 		return nil, fmt.Errorf("create fixture directory: %w", err)
 	}
 
-	session := &cliAnnounceSession{workDir: workDir}
+	session := &cliWireSession{workDir: workDir}
 	started := false
 	defer func() {
 		if started {
@@ -234,12 +237,12 @@ func startCLIAnnounceSession(ctx context.Context, args []string) (*cliAnnounceSe
 		session.stop()
 	}()
 
-	passwordHash, err := cliAnnouncePasswordHash(ctx, workDir)
+	passwordHash, err := cliWirePasswordHash(ctx, workDir)
 	if err != nil {
 		return nil, err
 	}
 	configPath := filepath.Join(workDir, "announce.conf")
-	if err := os.WriteFile(configPath, []byte(cliAnnounceConfig(passwordHash)), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte(cliWireConfig(passwordHash)), 0o600); err != nil {
 		return nil, fmt.Errorf("write announce.conf: %w", err)
 	}
 
@@ -270,12 +273,12 @@ func startCLIAnnounceSession(ctx context.Context, args []string) (*cliAnnounceSe
 		return nil, fmt.Errorf("start the daemon: %w", err)
 	}
 	if !Poll(ctx, 200, 100*time.Millisecond, func() bool {
-		return cliAnnounceFileExists(sshAddrPath) && cliAnnounceFileExists(readyPath)
+		return cliWireFileExists(sshAddrPath) && cliWireFileExists(readyPath)
 	}) {
 		return nil, fmt.Errorf("the daemon did not become ready: %s", session.daemon.output.String())
 	}
 
-	host, sshPort, err := cliAnnounceSSHAddress(sshAddrPath)
+	host, sshPort, err := cliWireSSHAddress(sshAddrPath)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +294,7 @@ func startCLIAnnounceSession(ctx context.Context, args []string) (*cliAnnounceSe
 	// announce made before the peer reaches Established matches no peer and is
 	// lost, which is a green command and a silent wire.
 	if !Poll(ctx, 200, 100*time.Millisecond, func() bool {
-		return strings.Contains(session.peer.output.String(), cliAnnounceEndOfRIBHex)
+		return strings.Contains(session.peer.output.String(), cliWireEndOfRIBHex)
 	}) {
 		return nil, fmt.Errorf("the session did not establish: %s", session.peer.output.String())
 	}
@@ -301,16 +304,16 @@ func startCLIAnnounceSession(ctx context.Context, args []string) (*cliAnnounceSe
 }
 
 // stop ends both processes and removes the working directory. It MUST be
-// called once for every session startCLIAnnounceSession returned, and it is
+// called once for every session startCLIWireSession returned, and it is
 // safe to call when either process never started.
-func (s *cliAnnounceSession) stop() {
+func (s *cliWireSession) stop() {
 	stopFixtureProcess(s.daemon, 3*time.Second)
 	stopFixtureProcess(s.peer, 2*time.Second)
 	_ = os.RemoveAll(s.workDir) //nolint:errcheck // fixture cleanup, and the run is over
 }
 
 // run drives one `ze` invocation as argv against this session's daemon.
-func (s *cliAnnounceSession) run(ctx context.Context, args ...string) cliAnnounceResult {
+func (s *cliWireSession) run(ctx context.Context, args ...string) cliWireResult {
 	command := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = s.workDir
 	command.Env = s.cliEnv
@@ -319,7 +322,7 @@ func (s *cliAnnounceSession) run(ctx context.Context, args ...string) cliAnnounc
 	command.Stderr = &stderr
 
 	err := command.Run()
-	result := cliAnnounceResult{out: stdout.String() + stderr.String()}
+	result := cliWireResult{out: stdout.String() + stderr.String()}
 	if err == nil {
 		return result
 	}
@@ -335,9 +338,9 @@ func (s *cliAnnounceSession) run(ctx context.Context, args ...string) cliAnnounc
 	return result
 }
 
-// cliAnnouncePasswordHash answers the stored form of the fixture's password,
+// cliWirePasswordHash answers the stored form of the fixture's password,
 // which the config needs before the daemon starts.
-func cliAnnouncePasswordHash(ctx context.Context, workDir string) (string, error) {
+func cliWirePasswordHash(ctx context.Context, workDir string) (string, error) {
 	command := exec.CommandContext(ctx, "ze", "passwd")
 	command.Dir = workDir
 	command.Env = os.Environ()
@@ -351,13 +354,13 @@ func cliAnnouncePasswordHash(ctx context.Context, workDir string) (string, error
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-// cliAnnounceConfig is the daemon's whole configuration: one peer this daemon
+// cliWireConfig is the daemon's whole configuration: one peer this daemon
 // dials on the loopback, and one operator the CLI authenticates as.
 //
 // The peer's port is not written here. ze_test_bgp_port overrides the remote
 // port of every peer (applyPortOverride, internal/component/bgp/config/peers.go),
 // which is how every .ci-launched peer in this tree reaches a dynamic port.
-func cliAnnounceConfig(passwordHash string) string {
+func cliWireConfig(passwordHash string) string {
 	return `bgp {
     router-id 10.0.0.2
     peer peer1 {
@@ -387,9 +390,9 @@ system {
 `
 }
 
-// cliAnnounceSSHAddress splits the address the daemon published into the host
+// cliWireSSHAddress splits the address the daemon published into the host
 // and the port a client needs.
-func cliAnnounceSSHAddress(path string) (host, port string, err error) {
+func cliWireSSHAddress(path string) (host, port string, err error) {
 	data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return "", "", fmt.Errorf("read ssh.addr: %w", err)
@@ -402,8 +405,8 @@ func cliAnnounceSSHAddress(path string) (host, port string, err error) {
 	return addr[:colon], addr[colon+1:], nil
 }
 
-// cliAnnounceFileExists reports whether a startup barrier has appeared.
-func cliAnnounceFileExists(path string) bool {
+// cliWireFileExists reports whether a startup barrier has appeared.
+func cliWireFileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }

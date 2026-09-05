@@ -373,13 +373,13 @@ func splitWireNLRIs(data []byte, fam family.Family, addPath bool) ([]nlri.NLRI, 
 	return result, nil
 }
 
-// handleUpdateHex handles: peer <addr> update hex ...
+// handleUpdateHex handles: send bgp <selector> update hex ...
 // Parses wire hex format and dispatches to reactor batch methods.
 func handleUpdateHex(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	return handleUpdateWire(ctx, args, plugin.WireEncodingHex)
 }
 
-// handleUpdateB64 handles: peer <addr> update b64 ...
+// handleUpdateB64 handles: send bgp <selector> update b64 ...
 // Parses wire base64 format and dispatches to reactor batch methods.
 func handleUpdateB64(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	return handleUpdateWire(ctx, args, plugin.WireEncodingB64)

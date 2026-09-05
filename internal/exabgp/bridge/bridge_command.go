@@ -41,12 +41,12 @@ var (
 // ExabgpToZebgpCommand converts an ExaBGP text command to ZeBGP format.
 //
 // ExaBGP: neighbor <ip> announce route <prefix> next-hop <nh> [origin <o>] ...
-// ZeBGP:  peer <ip> update text nhop <nh> origin <o> nlri ipv4/unicast add <prefix>.
+// ZeBGP:  send bgp <ip> update text nhop <nh> origin <o> nlri ipv4/unicast add <prefix>.
 //
 // A line that names no neighbor names no destination, and ExaBGP sends such a
 // line to every neighbor. The bridge translates it the same way, with the
 // wildcard selector: `announce route <prefix>` becomes
-// `peer * update text nlri ipv4/unicast add <prefix>`.
+// `send bgp * update text nlri ipv4/unicast add <prefix>`.
 //
 // A line the bridge has no form for keeps its words. It passes through to ze's
 // CLI, where ze declares its own announce and withdraw spellings.
@@ -71,7 +71,9 @@ func ExabgpToZebgpCommand(line string) string {
 	command, translated := convertRoute(selector, rest)
 	if !translated {
 		// The line names one neighbor, so it keeps that destination under ze's
-		// peer keyword in place of ExaBGP's neighbor one.
+		// peer keyword in place of ExaBGP's neighbor one. The verb decides
+		// whether the result names a ze command: `announce` and `withdraw` sit
+		// under that keyword, and `raw` and `update` have moved to `send bgp`.
 		var tb textbuf.Buffer
 		return tb.Str("peer ").Str(selector).Byte(' ').Str(rest).String()
 	}
@@ -114,7 +116,7 @@ func convertAnnounce(selector, routeStr string) string {
 	parts := strings.Fields(routeStr)
 	if len(parts) == 0 {
 		var tb textbuf.Buffer
-		return tb.Str("peer ").Str(selector).Str(" update text nlri ipv4/unicast add").String()
+		return tb.Str("send bgp ").Str(selector).Str(" update text nlri ipv4/unicast add").String()
 	}
 
 	prefix := parts[0]
@@ -122,7 +124,7 @@ func convertAnnounce(selector, routeStr string) string {
 
 	// Parse attributes
 	cmdParts := make([]string, 1, len(attrs)+2)
-	cmdParts[0] = "peer " + selector + " update text"
+	cmdParts[0] = "send bgp " + selector + " update text"
 
 	i := 0
 	for i < len(attrs) {
@@ -211,7 +213,7 @@ func convertWithdraw(selector, routeStr string) string {
 	parts := strings.Fields(routeStr)
 	var tb textbuf.Buffer
 	if len(parts) == 0 {
-		return tb.Str("peer ").Str(selector).Str(" update text nlri ipv4/unicast del").String()
+		return tb.Str("send bgp ").Str(selector).Str(" update text nlri ipv4/unicast del").String()
 	}
 
 	prefix := parts[0]
@@ -219,7 +221,7 @@ func convertWithdraw(selector, routeStr string) string {
 	if strings.Contains(prefix, ":") {
 		fam = "ipv6/unicast"
 	}
-	return tb.Str("peer ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String()
+	return tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String()
 }
 
 // convertAnnounceFamily translates an ExaBGP announce that states its family,
@@ -279,13 +281,13 @@ func convertWithdrawFamily(selector, rest string) (string, bool) {
 	// The regexp reads the route out of a line with no trailing space, so the
 	// capture ends on a non-space byte and always holds one field or more.
 	prefix := strings.Fields(routeStr)[0]
-	return tb.Reset().Str("peer ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String(), true
+	return tb.Reset().Str("send bgp ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String(), true
 }
 
 // convertAnnounceSRPolicy translates ExaBGP SR-Policy announce to Ze's update text format.
 //
 // ExaBGP: announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 100 ...
-// Ze:     peer <ip> update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 ...
+// Ze:     send bgp <ip> update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 ...
 //
 // Extracts next-hop and the three NLRI fields (distinguisher, color, endpoint),
 // then appends all remaining tunnel-encap tokens verbatim.
@@ -319,7 +321,7 @@ func convertAnnounceSRPolicy(selector, afi, rest string) string {
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("peer ").Str(selector).Str(" update text")
+	tb.Str("send bgp ").Str(selector).Str(" update text")
 	if nhop != "" {
 		tb.Str(" nhop ").Str(nhop)
 	}
@@ -338,7 +340,7 @@ func convertWithdrawSRPolicy(selector, afi, rest string) string {
 	rest = strings.TrimSpace(rest)
 
 	var tb textbuf.Buffer
-	tb.Str("peer ").Str(selector).Str(" update text nlri ").Str(afi).Str("/sr-policy del ").Str(rest)
+	tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(afi).Str("/sr-policy del ").Str(rest)
 	return tb.String()
 }
 
@@ -356,7 +358,7 @@ func canonicalExabgpSAFI(safi string) string {
 func convertAnnounceFlowSpec(selector, family, routeStr string) string {
 	fam, attrs, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
 	cmdParts := make([]string, 1, len(attrs)+2)
-	cmdParts[0] = "peer " + selector + " update text"
+	cmdParts[0] = "send bgp " + selector + " update text"
 	cmdParts = append(cmdParts, attrs...)
 
 	var nlriPart textbuf.Buffer
@@ -374,7 +376,7 @@ func convertAnnounceFlowSpec(selector, family, routeStr string) string {
 func convertWithdrawFlowSpec(selector, family, routeStr string) string {
 	fam, _, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
 	var tb textbuf.Buffer
-	tb.Str("peer ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del")
+	tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del")
 	if rd != "" {
 		tb.Str(" rd ").Str(rd)
 	}
@@ -564,14 +566,14 @@ func convertAnnounceWithFamily(selector, family, routeStr string) string {
 	parts := strings.Fields(routeStr)
 	if len(parts) == 0 {
 		var tb textbuf.Buffer
-		return tb.Str("peer ").Str(selector).Str(" update text nlri ").Str(family).Str(" add").String()
+		return tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(family).Str(" add").String()
 	}
 
 	prefix := parts[0]
 	attrs := parts[1:]
 
 	var cmdParts []string
-	cmdParts = append(cmdParts, "peer "+selector+" update text")
+	cmdParts = append(cmdParts, "send bgp "+selector+" update text")
 
 	i := 0
 	for i < len(attrs) {

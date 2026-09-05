@@ -8,13 +8,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-
-	// The top-level `peer` container's selector leaf is declared by
-	// ze-cli-announce-cmd, not by this module, and inheritArgDefs anchors it to
-	// the `peer` keyword for every command below it. Without that module the
-	// tree these tests build gives `peer <selector> raw` no selector at all, so
-	// the package would test a grammar the daemon does not run.
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/announce/yang"
 )
 
 // newDispatchContext creates a CommandContext with all init()-registered RPCs,
@@ -24,7 +17,7 @@ func newDispatchContext(reactor plugin.ReactorLifecycle, sender plugin.Sender) *
 	return &pluginserver.CommandContext{Server: server, Sender: sender}
 }
 
-// TestDispatchBGPPeerRaw verifies "peer <addr> raw" dispatches correctly, and
+// TestDispatchBGPPeerRaw verifies "send bgp <selector> raw" dispatches correctly, and
 // that the dispatch chain carries the issuer's identity to the rail.
 //
 // The identity half is not decoration. Raw writes bytes of the caller's choosing
@@ -43,7 +36,7 @@ func TestDispatchBGPPeerRaw(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newDispatchContext(reactor, plugin.OperatorSender())
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer 192.0.2.1 raw type update hex DEADBEEF")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "send bgp 192.0.2.1 raw type update hex DEADBEEF")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -55,7 +48,7 @@ func TestDispatchBGPPeerRaw(t *testing.T) {
 	// The same command with nobody named. The refusal is the rail's, and the
 	// mock states it where the reactor states it (mock_reactor_test.go).
 	unnamed := newDispatchContext(reactor, plugin.Sender{})
-	resp, err = unnamed.Server.Dispatcher().Dispatch(unnamed, "peer 192.0.2.1 raw type update hex DEADBEEF")
+	resp, err = unnamed.Server.Dispatcher().Dispatch(unnamed, "send bgp 192.0.2.1 raw type update hex DEADBEEF")
 	require.Error(t, err, "a raw injection nobody claimed must be refused")
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -73,7 +66,7 @@ func TestDispatchBGPPeerRawCarriesAProcessIdentity(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newDispatchContext(reactor, plugin.ProcessSender("injector"))
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer 192.0.2.1 raw type update hex DEADBEEF")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "send bgp 192.0.2.1 raw type update hex DEADBEEF")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

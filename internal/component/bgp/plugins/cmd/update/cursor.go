@@ -43,7 +43,7 @@ func ClearProcessCursors(processName string) {
 	})
 }
 
-// handleUpdateCursor handles: peer <addr> update cursor ...
+// handleUpdateCursor handles: send bgp <selector> update cursor ...
 // Maintains a stateful attribute cursor per (plugin, peer) pair.
 // Delta encoding: only changed attributes need to be sent after the first command.
 func handleUpdateCursor(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

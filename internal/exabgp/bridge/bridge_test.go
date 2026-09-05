@@ -294,7 +294,7 @@ func TestExabgpToZebgpCommand_AnnounceBasic(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce route 192.168.1.0/24 next-hop 1.1.1.1"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 192.168.1.0/24", result)
+	assert.Equal(t, "send bgp 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 192.168.1.0/24", result)
 }
 
 // TestExabgpToZebgpCommand_AnnounceWithAttributes verifies attribute conversion.
@@ -352,7 +352,7 @@ func TestExabgpToZebgpCommand_Withdraw(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 withdraw route 172.16.0.0/16"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text nlri ipv4/unicast del 172.16.0.0/16", result)
+	assert.Equal(t, "send bgp 10.0.0.1 update text nlri ipv4/unicast del 172.16.0.0/16", result)
 }
 
 // TestExabgpToZebgpCommand_IPv6 verifies IPv6 family detection.
@@ -403,7 +403,7 @@ func TestExabgpToZebgpCommand_CaseInsensitive(t *testing.T) {
 	cmd := "NEIGHBOR 10.0.0.1 ANNOUNCE ROUTE 192.168.1.0/24 NEXT-HOP 1.1.1.1"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Contains(t, result, "peer 10.0.0.1")
+	assert.Contains(t, result, "send bgp 10.0.0.1")
 	assert.Contains(t, result, "nlri ipv4/unicast add 192.168.1.0/24")
 }
 
@@ -450,28 +450,28 @@ func TestExabgpToZebgpCommand_FlowSpecRateLimitPackets(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128 extended-community [rate-limit:1000:packets]"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp destination-port =3128", result)
+	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp destination-port =3128", result)
 }
 
 func TestExabgpToZebgpCommand_FlowSpecRateLimitPacketsLegacyAlias(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128 extended-community [rate-limit-packets:1000]"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp destination-port =3128", result)
+	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp destination-port =3128", result)
 }
 
 func TestExabgpToZebgpCommand_FlowSpecRateLimitBytesExplicit(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600:bytes]"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp", result)
+	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp", result)
 }
 
 func TestExabgpToZebgpCommand_FlowSpecVPNFamily(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.0.1/32 rd 65535:65536 extended-community [rate-limit:0]"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:0] nlri ipv4/flow-vpn add rd 65535:65536 source-ipv4 10.0.0.1/32", result)
+	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:0] nlri ipv4/flow-vpn add rd 65535:65536 source-ipv4 10.0.0.1/32", result)
 }
 
 // TestExabgpToZebgpCommand_FlowSpecBarePrefixKeyword drives the two bare prefix
@@ -486,10 +486,10 @@ func TestExabgpToZebgpCommand_FlowSpecVPNFamily(t *testing.T) {
 // prefix leaves the announcement with no diagnostic.
 func TestExabgpToZebgpCommand_FlowSpecBarePrefixKeyword(t *testing.T) {
 	v4 := ExabgpToZebgpCommand("neighbor 10.0.0.1 announce ipv4 flow source 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600]")
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp", v4)
+	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp", v4)
 
 	v6 := ExabgpToZebgpCommand("neighbor 10.0.0.1 announce ipv6 flow destination 2001:db8::/32 next-header =tcp extended-community [rate-limit:9600]")
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv6/flow add destination-ipv6 2001:db8::/32 next-header tcp", v6)
+	assert.Equal(t, "send bgp 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv6/flow add destination-ipv6 2001:db8::/32 next-header tcp", v6)
 }
 
 // TestExabgpToZebgpCommand_NonNeighbor verifies pass-through for non-neighbor commands.
@@ -520,27 +520,27 @@ func TestBridgeTranslatesTheBareForms(t *testing.T) {
 		{
 			name: "announce_route",
 			line: "announce route 1.1.0.0/24 next-hop 101.1.101.1 origin igp local-preference 100",
-			want: "peer * update text nhop 101.1.101.1 origin igp local-preference 100 nlri ipv4/unicast add 1.1.0.0/24",
+			want: "send bgp * update text nhop 101.1.101.1 origin igp local-preference 100 nlri ipv4/unicast add 1.1.0.0/24",
 		},
 		{
 			name: "announce_route_ipv6",
 			line: "announce route 2001:db8::/32 next-hop 2001:db8::1",
-			want: "peer * update text nhop 2001:db8::1 nlri ipv6/unicast add 2001:db8::/32",
+			want: "send bgp * update text nhop 2001:db8::1 nlri ipv6/unicast add 2001:db8::/32",
 		},
 		{
 			name: "withdraw_route",
 			line: "withdraw route 1.1.0.0/24",
-			want: "peer * update text nlri ipv4/unicast del 1.1.0.0/24",
+			want: "send bgp * update text nlri ipv4/unicast del 1.1.0.0/24",
 		},
 		{
 			name: "announce_family",
 			line: "announce ipv4 flow source 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600]",
-			want: "peer * update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp",
+			want: "send bgp * update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp",
 		},
 		{
 			name: "withdraw_family",
 			line: "withdraw ipv4 unicast 10.0.0.0/24",
-			want: "peer * update text nlri ipv4/unicast del 10.0.0.0/24",
+			want: "send bgp * update text nlri ipv4/unicast del 10.0.0.0/24",
 		},
 	}
 	for _, tc := range translated {
@@ -605,7 +605,7 @@ func TestRoundTrip(t *testing.T) {
 	// Test ExaBGP → ZeBGP preserves info
 	cmd := "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 192.168.0.1 origin igp"
 	zebgpCmd := ExabgpToZebgpCommand(cmd)
-	assert.Contains(t, zebgpCmd, "peer 10.0.0.1")
+	assert.Contains(t, zebgpCmd, "send bgp 10.0.0.1")
 	assert.Contains(t, zebgpCmd, "nhop 192.168.0.1")
 	assert.Contains(t, zebgpCmd, "origin igp")
 	assert.Contains(t, zebgpCmd, "nlri ipv4/unicast add 10.0.0.0/24")
@@ -1348,14 +1348,14 @@ func TestFormatMuxRequest(t *testing.T) {
 		{
 			name:    "simple_command",
 			id:      1,
-			command: "peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24",
-			want:    `#1 ze-plugin-engine:dispatch-command {"command":"peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"}`,
+			command: "send bgp 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24",
+			want:    `#1 ze-plugin-engine:dispatch-command {"command":"send bgp 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"}`,
 		},
 		{
 			name:    "command_with_special_chars",
 			id:      99,
-			command: `peer 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32`,
-			want:    `#99 ze-plugin-engine:dispatch-command {"command":"peer 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32"}`,
+			command: `send bgp 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32`,
+			want:    `#99 ze-plugin-engine:dispatch-command {"command":"send bgp 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32"}`,
 		},
 	}
 
@@ -1490,7 +1490,7 @@ func TestMuxConnCommandFormatting(t *testing.T) {
 	// The output to ze should have both dispatch-command and peer-flush.
 	zeOutput := zeBuf.String()
 	assert.Contains(t, zeOutput, "ze-plugin-engine:dispatch-command")
-	assert.Contains(t, zeOutput, "peer 10.0.0.1 update text")
+	assert.Contains(t, zeOutput, "send bgp 10.0.0.1 update text")
 	assert.Contains(t, zeOutput, "nlri ipv4/unicast add 192.168.1.0/24")
 	assert.Contains(t, zeOutput, "ze-bgp:peer-flush")
 	assert.Contains(t, zeOutput, `"selector":"10.0.0.1"`)
@@ -1700,9 +1700,14 @@ func TestMuxConnMultipleBatchEvents(t *testing.T) {
 	assert.Contains(t, zeBuf.String(), "#10 ok")
 }
 
-// TestExtractPeerAddress verifies peer address extraction from translated commands.
+// TestExtractPeerAddress verifies selector extraction from translated commands.
 //
-// VALIDATES: Peer address extracted correctly for flush injection.
+// The prefix the extractor reads is the prefix the translator writes. A
+// disagreement between the two is silent, because the caller reads the empty
+// answer as "nothing to flush", so the pair is asserted together here.
+//
+// VALIDATES: the selector is read from the slot after the protocol keyword, and
+// a command carrying none answers empty.
 // PREVENTS: Flush sent with wrong selector or empty selector.
 func TestExtractPeerAddress(t *testing.T) {
 	tests := []struct {
@@ -1710,10 +1715,10 @@ func TestExtractPeerAddress(t *testing.T) {
 		command string
 		want    string
 	}{
-		{"ipv4", "peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24", "10.0.0.1"},
-		{"ipv6", "peer 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32", "2001:db8::1"},
-		{"not_peer", "show bgp", ""},
-		{"peer_only", "peer ", ""},
+		{"ipv4", "send bgp 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24", "10.0.0.1"},
+		{"ipv6", "send bgp 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32", "2001:db8::1"},
+		{"not_a_send", "show bgp", ""},
+		{"selector_missing", "send bgp ", ""},
 	}
 
 	for _, tt := range tests {
@@ -1728,8 +1733,8 @@ func TestExtractPeerAddress(t *testing.T) {
 // VALIDATES: Only route update commands trigger flush injection.
 // PREVENTS: Flush injected for non-route commands.
 func TestIsRouteCommand(t *testing.T) {
-	assert.True(t, IsRouteCommand("peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"))
-	assert.False(t, IsRouteCommand("peer 10.0.0.1 show bgp"))
+	assert.True(t, IsRouteCommand("send bgp 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"))
+	assert.False(t, IsRouteCommand("send bgp 10.0.0.1 raw hex FF"))
 	assert.False(t, IsRouteCommand(""))
 }
 
@@ -1845,27 +1850,27 @@ func TestBridgeSRPolicyCommand(t *testing.T) {
 		{
 			"announce_ipv4",
 			"neighbor 10.0.0.1 announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4",
-			"peer 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1",
+			"send bgp 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1",
 		},
 		{
 			"announce_ipv4_with_preference",
 			"neighbor 10.0.0.1 announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 200",
-			"peer 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 200",
+			"send bgp 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 200",
 		},
 		{
 			"announce_ipv4_full_tunnel_encap",
 			"neighbor 10.0.0.1 announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 100 priority 10 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001",
-			"peer 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 priority 10 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001",
+			"send bgp 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 priority 10 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001",
 		},
 		{
 			"announce_ipv6",
 			"neighbor 10.0.0.1 announce ipv6 sr-policy distinguisher 1 color 200 endpoint 2001:db8::1 next-hop 2001:db8::2",
-			"peer 10.0.0.1 update text nhop 2001:db8::2 nlri ipv6/sr-policy add distinguisher 1 color 200 endpoint 2001:db8::1",
+			"send bgp 10.0.0.1 update text nhop 2001:db8::2 nlri ipv6/sr-policy add distinguisher 1 color 200 endpoint 2001:db8::1",
 		},
 		{
 			"withdraw_ipv4",
 			"neighbor 10.0.0.1 withdraw ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1",
-			"peer 10.0.0.1 update text nlri ipv4/sr-policy del distinguisher 0 color 100 endpoint 10.0.0.1",
+			"send bgp 10.0.0.1 update text nlri ipv4/sr-policy del distinguisher 0 color 100 endpoint 10.0.0.1",
 		},
 	}
 

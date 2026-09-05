@@ -59,7 +59,7 @@ var (
 	errSetDelKeywordsRemovedUseNext  = errors.New("set/del keywords removed; use: next-hop <address|self>")
 	errSetDelKeywordsRemovedUseRd    = errors.New("set/del keywords removed; use: rd <value>")
 	errSetDelKeywordsRemovedUseLabel = errors.New("set/del keywords removed; use: label <value>")
-	errUsagePeerAddrUpdateTexthexb64 = errors.New("usage: peer <addr> update <text|hex|b64|cursor>")
+	errUsageSendUpdateEncoding       = errors.New("usage: send bgp <selector> update <text|hex|b64|cursor>")
 )
 
 // YANG schema paths for attribute validation.
@@ -681,7 +681,7 @@ func init() {
 }
 
 // handleUpdate dispatches update subcommands by encoding.
-// Syntax: peer <addr> update <encoding> ...
+// Syntax: send bgp <selector> update <encoding> ...
 func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
@@ -689,7 +689,7 @@ func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 	}
 
 	if len(args) < 1 {
-		return nil, errUsagePeerAddrUpdateTexthexb64
+		return nil, errUsageSendUpdateEncoding
 	}
 
 	encoding := strings.ToLower(args[0])
@@ -707,7 +707,7 @@ func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 	}
 }
 
-// handleUpdateText handles: peer <addr> update text ...
+// handleUpdateText handles: send bgp <selector> update text ...
 // Parses the update text format and dispatches to reactor batch methods.
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4724 Section 2: End-of-RIB marker.

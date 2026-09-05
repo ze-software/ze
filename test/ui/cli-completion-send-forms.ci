@@ -41,16 +41,16 @@ cmd=foreground:seq=4:exec=ze send bgp raw help
 expect=exit:code=0
 expect=stderr:contains=ze send bgp <selector> raw <hex|b64> <data> [type <open|update|notification|keepalive|route-refresh>]
 
-cmd=foreground:seq=5:exec=ze completion words run peer update
+cmd=foreground:seq=5:exec=ze completion words run send bgp update
 expect=exit:code=0
 expect=stdout:contains=text
 expect=stdout:contains=hex
 expect=stdout:contains=b64
 expect=stdout:contains=cursor
 
-cmd=foreground:seq=6:exec=ze peer update help
+cmd=foreground:seq=6:exec=ze send bgp update help
 expect=exit:code=0
-expect=stderr:contains=ze peer <selector> update <text|hex|b64|cursor>
+expect=stderr:contains=ze send bgp <selector> update <text|hex|b64|cursor>
 
 cmd=foreground:seq=7:exec=ze completion words run request cache forward
 expect=exit:code=0

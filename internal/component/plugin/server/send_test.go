@@ -154,13 +154,8 @@ var declaredArgumentPaths = []struct {
 		reads: "rawArguments reads the encoding, the data and the optional message type",
 	},
 	{
-		path:  "peer raw",
-		usage: "peer <selector> raw <hex|b64> <data> [type <open|update|notification|keepalive|route-refresh>]",
-		reads: "one handler answers at both paths, so the path this move is leaving states the same grammar",
-	},
-	{
-		path:  "peer update",
-		usage: "peer <selector> update <text|hex|b64|cursor>",
+		path:  "send bgp update",
+		usage: "send bgp <selector> update <text|hex|b64|cursor>",
 		reads: "handleUpdate reads the encoding word and hands the rest to that encoding's parser",
 	},
 	{
@@ -213,13 +208,13 @@ func TestSendArgumentsAreDeclared(t *testing.T) {
 	}{
 		{command: "send bgp 192.0.2.1 raw gzip DEADBEEF", says: "expected one of: hex, b64"},
 		{command: "send bgp 192.0.2.1 raw hex DEADBEEF type heartbeat", says: "expected one of: open, update, notification, keepalive, route-refresh"},
-		{command: "peer 192.0.2.1 update json", says: "expected one of: text, hex, b64, cursor"},
+		{command: "send bgp 192.0.2.1 update json", says: "expected one of: text, hex, b64, cursor"},
 		// The same bad encoding with a route expression behind it. The
 		// dispatcher leaves more tokens over than it leaves definitions open.
 		// It cannot say which token was typed for which leaf, so it names the
 		// declaration instead (validateCommandArgs). The refusal is still the
 		// model's, and the handler still does not run.
-		{command: "peer 192.0.2.1 update json nlri ipv4/unicast add 10.0.0.0/24", says: "required argument missing: encoding"},
+		{command: "send bgp 192.0.2.1 update json nlri ipv4/unicast add 10.0.0.0/24", says: "required argument missing: encoding"},
 	}
 	for _, refusal := range refusals {
 		t.Run(refusal.command, func(t *testing.T) {
@@ -230,6 +225,64 @@ func TestSendArgumentsAreDeclared(t *testing.T) {
 				"the refusal must come from the model, so it names the declared set or the declaration")
 			assert.NotContains(t, dispatchErr.Error(), "reactor",
 				"a refusal that reached the handler would answer about the missing reactor instead")
+		})
+	}
+}
+
+// movedSendPaths are the old command paths this grammar has already left, with
+// the line an operator typed at each one.
+//
+// The list grows as each form moves. It is never a list of paths that were
+// removed and replaced by an alias, because an alias is what would make it
+// stale without a failure.
+var movedSendPaths = []struct {
+	path  string
+	typed string
+	nowAt string
+}{
+	{
+		path:  "peer raw",
+		typed: "peer 192.0.2.1 raw hex DEADBEEF",
+		nowAt: "send bgp raw",
+	},
+	{
+		path:  "peer update",
+		typed: "peer 192.0.2.1 update text nlri ipv4/unicast add 10.0.0.0/24",
+		nowAt: "send bgp update",
+	},
+}
+
+// TestOldSendPathsMatchNothing holds each moved form to one path.
+//
+// ze is unreleased, so a grammar it replaces is deleted rather than deprecated
+// (ai/rules/cli.md). Two paths for one wire method would leave the model saying
+// a send names its destination in two places, which is the thing the move
+// removes. The model half and the dispatcher half are both asserted, because a
+// node deleted from the schema and a handler still reachable through some other
+// match are different failures.
+//
+// VALIDATES: AC-6 for the forms that have moved -- the old node is gone from the
+// merged tree and the old line is refused, while the new line reaches the model.
+// PREVENTS: the old spelling surviving as an alias, which no gate would report
+// and which every migrated sender would then hide.
+func TestOldSendPathsMatchNothing(t *testing.T) {
+	tree := cliclient.YANGCommandTree()
+	require.NotNil(t, tree)
+
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	for _, moved := range movedSendPaths {
+		t.Run(moved.path, func(t *testing.T) {
+			assert.Nil(t, command.FindNode(tree, strings.Fields(moved.path)),
+				"the merged tree must carry no node at the path the form left")
+			assert.NotNil(t, command.FindNode(tree, strings.Fields(moved.nowAt)),
+				"the form must answer at the path it moved to, or this proves only a deletion")
+
+			ctx := &pluginserver.CommandContext{Server: server}
+			_, dispatchErr := server.Dispatcher().Dispatch(ctx, moved.typed)
+			require.ErrorIs(t, dispatchErr, pluginserver.ErrUnknownCommand,
+				"the old line must reach no handler")
 		})
 	}
 }

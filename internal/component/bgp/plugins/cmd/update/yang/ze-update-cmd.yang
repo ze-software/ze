@@ -4,29 +4,38 @@ module ze-update-cmd {
     import ze-extensions { prefix ze; }
     description "Send BGP UPDATE messages to peers";
     revision 2026-03-16 { description "Initial revision"; }
-    revision 2026-09-05 { description "The encoding word is a declared enumeration, and the dispatcher refuses a fifth word before the handler runs. Completion offers the four the handler reads. The route expression after that word stays a tail ParseUpdateText owns. It is a recursive attribute and NLRI grammar that no flat leaf list can state, and ze:help names the page that does. The selector leaf this container declared is gone. The peer container declares that value on the keyword the operator types it after."; }
+    revision 2026-09-05 { description "The encoding word is a declared enumeration, and the dispatcher refuses a fifth word before the handler runs. Completion offers the four the handler reads. The route expression after that word stays a tail ParseUpdateText owns. It is a recursive attribute and NLRI grammar that no flat leaf list can state, and ze:help names the page that does. The form answers at one path, send bgp, and the peer path it answered at before is gone. The bgp container declares the selector on the keyword the operator types it after."; }
 
-    container peer {
+    container send {
         config false;
 
-        container update {
+        container bgp {
             config false;
-            ze:command "ze-bgp:peer-update";
-            description "Send a pre-built BGP UPDATE to a peer.";
-            ze:help "The encoding word says how the rest of the line is read. text is the
+
+            // No description on either container. The send and bgp nodes are
+            // shared with ze-raw-cmd, and mergeYANGEntry warns when two modules
+            // describe one node differently. The text those nodes carry, and the
+            // selector leaf every command below bgp inherits, are ze-raw-cmd's.
+
+            container update {
+                config false;
+                ze:command "ze-bgp:peer-update";
+                description "Send a pre-built BGP UPDATE to a peer.";
+                ze:help "The encoding word says how the rest of the line is read. text is the
 route syntax docs/architecture/api/update-syntax.md states, hex and b64 are wire octets, and
 cursor replays a stored position. 'show bgp encode' builds a hex payload. The tokens after
 the encoding word are that encoding's own grammar, and this model states the encoding
 alone.";
-            leaf encoding {
-                type enumeration {
-                    enum text;
-                    enum hex;
-                    enum b64;
-                    enum cursor;
+                leaf encoding {
+                    type enumeration {
+                        enum text;
+                        enum hex;
+                        enum b64;
+                        enum cursor;
+                    }
+                    mandatory true;
+                    description "How the tokens after this word are read.";
                 }
-                mandatory true;
-                description "How the tokens after this word are read.";
             }
         }
     }

@@ -441,8 +441,8 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	}
 	t.Logf("  <- %s", line)
 
-	assert.True(t, strings.HasPrefix(line, "peer 10.0.0.1 update text"),
-		"expected 'peer 10.0.0.1 update text ...', got: %s", line)
+	assert.True(t, strings.HasPrefix(line, "send bgp 10.0.0.1 update text"),
+		"expected '''send bgp 10.0.0.1 update text ...''', got: %s", line)
 	assert.Contains(t, line, "nhop 10.0.0.1") // Uses actual next-hop from JSON
 	assert.Contains(t, line, "nlri ipv4/unicast add 192.168.1.0/24")
 
@@ -471,8 +471,8 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	}
 	t.Logf("  <- %s", line)
 
-	assert.True(t, strings.HasPrefix(line, "peer 10.0.0.1 update text"),
-		"expected 'peer 10.0.0.1 update text ...', got: %s", line)
+	assert.True(t, strings.HasPrefix(line, "send bgp 10.0.0.1 update text"),
+		"expected '''send bgp 10.0.0.1 update text ...''', got: %s", line)
 	assert.Contains(t, line, "nlri ipv4/unicast del 192.168.1.0/24")
 
 	t.Log("Integration test passed!")
@@ -683,7 +683,7 @@ func TestBridgeIntegration_IPv6(t *testing.T) {
 	})
 
 	line := h.ReadResponse(3 * time.Second)
-	assert.Contains(t, line, "peer 2001:db8::1")
+	assert.Contains(t, line, "send bgp 2001:db8::1")
 	assert.Contains(t, line, "nlri ipv6/unicast add 2001:db8:1::/48")
 }
 

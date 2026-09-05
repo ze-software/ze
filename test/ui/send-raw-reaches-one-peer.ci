@@ -1,0 +1,39 @@
+# Test: `ze send bgp <selector> raw hex <data>` puts the operator's octets on
+# one peer's wire, and every selector that does not name exactly one session is
+# refused by name.
+#
+# The .ci cannot drive this alone. The daemon publishes its ephemeral SSH
+# address into the file ZE_SSH_EPHEMERAL names, and only a compiled fixture can
+# read that file and put ZE_SSH_HOST and ZE_SSH_PORT on the client. So the
+# fixture starts both halves, a daemon over ephemeral SSH and the ze-test peer
+# this file scripts, and drives `ze send` as argv against them.
+#
+# The peer holds the assertion. It exits zero only when both expectations below
+# arrived in order, so the run proves the injected octets reached the wire
+# rather than only that the command exited zero.
+#
+# The second expectation is the whole injected message, marker and header
+# included, because the command types no type keyword. It withdraws
+# 10.9.9.0/24, which is what makes it distinguishable from the End-of-RIB
+# marker the session already sent.
+#
+# VALIDATES: `ze send bgp 127.0.0.1 raw hex FFFF...` reaches handleRaw,
+#   ResolveSinglePeer and SendRawMessage, and the peer reads the octets
+#   unchanged; a wildcard selector and an exclusion selector are each refused
+#   by name and send nothing; and the path this grammar left, `peer <selector>
+#   raw`, matches nothing.
+# PREVENTS: the single-session guard going unproven at the path an operator now
+#   types, where the selector sits two tokens further from the eye than it did,
+#   and unvalidated bytes would reach every configured session.
+
+tmpfs=peer-script:terminator=EOF_PEER
+option=tcp_connections:value=1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A09090000
+EOF_PEER
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=ze-test fixture ui/send-raw-reaches-one-peer $PORT:timeout=170s
+expect=exit:code=0
+expect=stdout:contains=OK

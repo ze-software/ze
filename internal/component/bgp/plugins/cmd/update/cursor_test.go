@@ -364,5 +364,5 @@ func TestHandleUpdateCursorViaSwitch(t *testing.T) {
 
 // TestHandleUpdateUsageIncludesCursor verifies the error message lists cursor.
 func TestHandleUpdateUsageIncludesCursor(t *testing.T) {
-	assert.Contains(t, errUsagePeerAddrUpdateTexthexb64.Error(), "cursor")
+	assert.Contains(t, errUsageSendUpdateEncoding.Error(), "cursor")
 }
