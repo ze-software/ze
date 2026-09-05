@@ -265,12 +265,16 @@ silent for that long. That is the linter in a queue, not a hang.
 ### The slot a lint holds
 
 <!-- source: internal/le/verify/lint/actions.go -- runHere, jobArgv -->
-<!-- source: internal/le/job/registry.go -- shares -->
+<!-- source: internal/le/job/registry.go -- shares, reportBusy -->
 
 `./le verify lint run` claims the `lint` label in the shared job registry
 (`internal/le/job`) before it plans anything. A lint uses cores allocated for
 the whole machine, so admission decides how many run at once, and it prints
-`[lint] waiting: <holder> running` while it queues.
+`[lint] waiting: <holder> running (pid N, Ns elapsed): <the holder's last log
+line>` while it queues. That last line is the holder's current stage, read from
+the log the holder is writing (`reportBusy`, `internal/le/job/registry.go`), so
+a waiter can tell a run that is progressing from one that is stuck. A holder
+with no readable log gets the banner without it.
 
 A second session asking for the SAME work over the SAME tree does not queue. It
 attaches: it replays the running lint's output, takes that run's verdict, and

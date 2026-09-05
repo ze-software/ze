@@ -238,6 +238,15 @@ func goToolchainPin(root string) (string, error) {
 	return "go" + version, nil
 }
 
+// CoresPerJob answers how many cores one heavy job is allowed, which is the
+// GOMAXPROCS a test run gets and the -j a lint run gets.
+//
+// Job admission divides the machine by this number to decide how many jobs run
+// at once (internal/le/job, defaultSlots). The two have to agree: a share
+// declared here and a slot count chosen there would let the machine be
+// oversubscribed by whichever number was larger.
+func CoresPerJob() int { return testProcs() }
+
 // testProcs answers a quarter of the cores, and never fewer than one.
 func testProcs() int {
 	procs := runtime.NumCPU() / procDivisor

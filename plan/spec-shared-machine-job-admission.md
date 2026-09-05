@@ -440,6 +440,8 @@ N/A - Scope is tooling; no wire-visible behavior changes.
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | The wrapper split every heavy target into a public name and `_<name>-impl`, and the recipe BODY moved to the impl. Nothing was thought to read those bodies | Other tooling derives facts from recipe bodies. `TestQemuKernelPreconditionIsMetInTheSameJob` (`internal/le/`) collects the targets whose recipe contains `$(ze-qemu-kernel-guard)` and requires a workflow job to run one. After the split the guard sits in `_ze-qemu-*-impl`, workflows call the public name, the intersection is empty, and the test's own anti-vacuity `Fatal` fired -- on a tree where every guard is still in place | `./le verify current mode full` 2026-08-18, stage `ze-unit-test-cached`. NOT caught by the wrapper's own tests, which check admission, nor by the rollout audit, which only compared public targets against their impl siblings | The test now credits the public name when its `_<name>-impl` carries the guard. The general lesson is in the Deliverables Checklist row above: a derivation over recipe bodies sees the impl after this spec, and every such reader has to be found rather than assumed absent |
+| assumption | A-2 read a shared checkout as a place where most concurrent requests judge an equivalent tree, so attach-and-share would remove most of the queue | Attach fires rarely here. Measured 2026-09-05: three `./le verify lint run` requests in flight for 28 minutes and not one attached, because eight sessions edit continuously and the tree hash moved between the holder's claim and every later admission. Serialization carried the load, which is what A-2's "if wrong" cell predicted | This closure, watching two of its own lint requests queue behind a third session's holder rather than share it | Attach stays: it is correct, cheap, and it fires whenever two requests land inside one quiet window. What changes is the expectation. The queue is what has to be tolerable, so the SLOT COUNT is the number that matters, and that is the one this closure found reverted to 1 |
+| escalation | A default reverted twice with no red test. `ZE_RUN_SLOTS` stopped being exported when the Makefile was retired, and the admitted population fell from 106 targets to 2 for the same reason | A number a CALLER supplies is not a policy the code holds. Both reverted silently, because a test supplies its own value and never reads the default | This closure, measuring a 28 minute queue on a box running at a quarter of its capacity | `defaultSlots` derives the number in the package that uses it. The general lesson is in Core Insight below, and the population is `plan/spec-native-action-job-admission.md` |
 | assumption | A-1 read the 2026-08-17 freeze as memory pressure before CPU contention, and concluded that admission must be weighted by memory rather than by job count | CPU contention is the dominant term. Capping the linter cut CPU by 60% (1978% to 798%) and peak RSS by 13% (4.55 GiB to 3.96 GiB). Three concurrent lint runs at the old setting are about 60 runnable threads on 32 cores, which exhausts the box, against 13.5 GiB of 31 GB, which does not | Phase 2's cold paired measurement of `./le verify lint run` with and without the ceiling, run to validate A-4. A-1 was not the thing being tested; the CPU column broke it | Admission is weighted by CPU cost. Phases 3 and 4 do NOT model memory, which removes a per-job memory estimate, its calibration, and the failure mode of a wrong estimate. The design is unchanged in shape: the registry never depended on memory weighting |
 
 ### Deviations from Plan
@@ -476,3 +478,173 @@ N/A - Scope is tooling; no wire-visible behavior changes.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/le/job` is the admission package: a registry under `tmp/.ze-jobs/` whose ENTRY is the claim (`scanAndClaim`), a liveness breaker that judges silence rather than age (`breakStalled`), attach-and-share on label plus tree plus work key (`shares`, `attach`), and nesting so a stage runs inside its parent's slot (`insideParent`, `childEnviron`).
+- Two entry points serve two kinds of caller: `Admission.Run` wraps a job that is another program, and `Admission.Admit` plus `Ticket.Release` serves a caller that does its work in process. `./le verify lint run` is the second kind (`runHere`, `internal/le/verify/lint/actions.go`).
+- The linter ceiling is derived from the machine rather than written down: `CoresPerJob` and `lintMemLimit` (`internal/le/gotoolchain/gotoolchain.go`) set the worker cap and the soft heap ceiling for every lint invocation.
+- The Bash hook refuses a heavy tool typed raw and names the admitted command (`bashRawHeavy`, `internal/le/hookruntime/bash.go`), with `ZE_ADMIT_RAW="<reason>"` as the named escape.
+- The verify engine gives each run its own artifact directory (`os.MkdirTemp`, `internal/le/verify/engine/run.go`) and publishes the reader-facing paths from it (`writeRunArtifacts`).
+- Closure added three things the ports had dropped or never built: the waiting banner now carries the holder's current stage (`reportBusy`, `lastLine`), the slot count is derived from this machine again (`defaultSlots`, `internal/le/job/job.go`), and the untrusted `LOG` field is confined to the registry before any reader opens it (`registryLog`).
+
+### Bugs Found/Fixed
+- **The slot count was silently 1.** Phase 7 derived it in the Makefile through `ZE_RUN_SLOTS`; the Makefile was retired and nothing exported it, so `SlotsDefault = 1` governed and a 32-core box ran one heavy job at a time. Measured 2026-09-05: two `./le verify lint run` invocations waited 28 minutes behind one holder. `defaultSlots` derives it from `gotoolchain.CoresPerJob` again. `helperCommand` now pins `ZE_RUN_SLOTS=1`, which is what makes the serialization cases machine-independent.
+- **A registry `LOG` field could name any file.** It is written by another session's process and three readers open or stat it. `registryLog` refuses an absolute path and anything outside `tmp/.ze-jobs/`, at the parse, so one guard covers every reader. Covered by `TestALogFieldThatLeavesTheRegistryIsNotRead`.
+- **The lint-attach exit code was reported as a defect and is not one.** `plan/journal/green-that-could-not-have-been-red.md` recorded on 2026-09-05 that `./le verify lint run` returns 0 while the shared run failed. Reproduced at the entry point with a real attach: exit 1. The chain is `attach` (`internal/le/job/attach.go`) to `queue` to `runHere` (`internal/le/verify/lint/actions.go`) to `leaction.Area.Answer` to `leroot.Run` to `leroot.Dispatch` to `main`, and every hop carries the code. That row is corrected in its own commit.
+
+### Documentation Updates
+- `docs/contributing/running-commands.md`, "One verify at a time": the admitted population is two actions plus `./le job run`, not "every heavy native action", and the slot count is derived rather than 1.
+- `docs/contributing/testing.md`, "The slot a lint holds": the waiting banner's shape, with the holder's current stage in it. Source anchor updated to `internal/le/job/registry.go -- shares, reportBusy`.
+- `./le doc check verify`: recorded in Pre-Commit Verification below.
+
+### Deviations from Plan
+- **Admission weighting is CPU-based, not memory-based.** A-1 is broken (see the Mistake Log). R-3's "weight admission rather than counting jobs" survives; only the quantity being weighted changes.
+- **The memory half of the AC-1 ceiling is derived from the host, not written in `.golangci.yml`.** The linter accepts no memory key, so the soft heap ceiling is one eighth of RAM with a floor (`lintMemLimit`), and the worker cap is a quarter of the cores (`CoresPerJob`) rather than the `concurrency: 8` this spec first landed. `.golangci.yml` carries the reason a hardcoded number was removed.
+- **AC-2 is met as "at most `ZE_RUN_SLOTS` run", not "exactly one".** Phase 7 of this spec derived a slot count above one and stated the reason; the AC was written before that phase. Neither job is killed, and the waiter names the holder, which is the property the AC exists for.
+- **AC-5 no longer covers `python3 <path>_test.py`.** All repository tooling is Go, so that form has no producer. The check covers the three tools that remain.
+- **The rollout over 106 make targets did not survive the port to native actions.** Two actions admit today. `plan/spec-native-action-job-admission.md` owns the rest; see Work Not Done.
+- **`test/tooling/*.ci` was not the right vehicle** and the two Go concurrency tests replace it, for the reason already recorded above the Functional Tests table.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A session asking for a heavy job gets one of three answers | Done | `Admission.queue`, `internal/le/job/job.go` | `stateClaimed`, `stateAttach`, `stateBusy`, and the loop that turns them into a ticket |
+| None of the three is a frozen machine | Done | `defaultSlots` and `gotoolchain.CoresPerJob` | the box holds as many jobs as it holds core shares |
+| The wait is visible | Done | `reportBusy`, `internal/le/job/registry.go` | holder, pid, elapsed, and the holder's current stage |
+| An equivalent run is shared | Done | `shares` and `attach` | label, tree and work key must all match |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `CoresPerJob`, `lintMemLimit` (`internal/le/gotoolchain/gotoolchain.go`); measurement in the AC-1 evidence section | the ceiling moved from a literal to a derivation; `.golangci.yml` records why |
+| AC-2 | Done | `TestOneJobRunsAndTheOtherWaits` | as "at most `ZE_RUN_SLOTS` run", see Deviations |
+| AC-3 | Done | `TestIdenticalWorkAttachesRatherThanQueueing`; live at the entry point 2026-09-05, exit 1 through `./le verify lint run` | the follower answers the holder's own code, and the command runs once |
+| AC-4 | Done | `TestDifferentWorkUnderOneLabelDoesNotShare`, `TestAJobThatDidNotWaitStillDeclinesAHolderOnAnotherTree` | |
+| AC-5 | Done | `bashRawHeavy` (`internal/le/hookruntime/bash.go`), fixture `run_raw_job_admission` | live refusal in this session's own transcript, naming the admitted command |
+| AC-6 | Done | `TestALongRunningHolderThatKeepsWritingIsLeftAlone`, `TestAStalledHolderIsBrokenOnItsSilence` | |
+| AC-7 | Done | `TestADeadHoldersEntryIsReaped` | |
+| AC-8 | Done | `TestAWaitingJobIsToldTheHoldersCurrentStage` | landed at closure; the banner named only the label until 2026-09-05 |
+| AC-9 | Done | `TestConcurrentRunsDoNotShareArtifactPaths` (`internal/le/verify/artifactisolation_test.go`) | test landed at closure; the per-run directory already existed |
+| AC-10 | Done | `FullJSONPath` and `writeRunArtifacts` (`internal/le/verify/engine/artifacts.go`); `TestRunCurrentFullAndChangedModes` | the reader is now `internal/le/commit`, not `commit_helper.py` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the eleven admission cases | Done | `internal/le/job/contention_test.go` | named in the TDD table as Python; they are Go, one case per row |
+| `test_a_raw_go_test_is_refused_and_names_the_make_target` | Changed | `run_raw_job_admission` fixture, `internal/le/hookcheck/fixtures.go` | the hook is Go; the fixture drives the real check and carries the discriminator |
+| `TestConcurrentRunsDoNotShareArtifactPaths` | Done | `internal/le/verify/artifactisolation_test.go` | red when the per-run directory is made fixed |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/job/job.go` and siblings | Done | the wrapper, its registry, its attach path and its tests |
+| `.golangci.yml` | Changed | the worker cap moved to the linter's own flag, from `gotoolchain`; the file records why a literal was removed |
+| `internal/le/verify/engine/run.go` | Done | per-run artifact directory |
+| the Bash hook | Done | `bashRawHeavy` |
+| `docs/functional-tests.md`, `docs/contributing/testing.md`, `docs/contributing/running-commands.md` | Done | see Documentation Updates |
+| `test/tooling/*.ci` | Changed | replaced by the two Go concurrency tests; reason recorded above the Functional Tests table |
+
+### Audit Summary
+- **Total items:** 10 acceptance criteria, 4 task requirements, 6 file groups
+- **Done:** 10 ACs, 4 requirements, 4 file groups
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 2 file groups, 4 deviations, all recorded above
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A session can ask for a heavy job at any moment and get an answer that is not a frozen machine | functional | `TestOneJobRunsAndTheOtherWaits` and `TestIdenticalWorkAttachesRatherThanQueueing` spawn real concurrent processes against real git repositories and assert on real exit codes. Live on 2026-09-05: three lint requests in flight, one running and two queued, machine responsive throughout |
+| It runs now | functional | `TestADeadHoldersEntryIsReaped`: a crashed holder costs one poll interval, not an operator |
+| It waits with a visible position and progress | functional | `TestAWaitingJobIsToldTheHoldersCurrentStage`, proven red when `reportBusy` drops the stage |
+| It attaches to an equivalent run and shares that result | functional + live | `TestIdenticalWorkAttachesRatherThanQueueing` (the command runs once, the follower answers 3). Live at the CLI entry point on 2026-09-05: a second `./le verify lint run` printed `attaching to the lint already running for this tree`, replayed the holder's output and exited 1 for the holder's 1, with no pipe and no wrapper between the process and the shell |
+| The linter no longer claims the whole box | benchmark | the AC-1 measurement table above: peak RSS 4.55 GiB to 3.96 GiB, CPU 1978% to 798%, findings byte-identical across all three runs |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The admitted population: every heavy action, rather than `./le verify lint run` and `./le verify lock run` | This spec rolled admission out over 106 Makefile targets. The Makefile was retired and each target became a native action; the wiring did not travel with them, and re-doing it touches every area of `internal/le/` | `plan/spec-native-action-job-admission.md` |
+| The audit that proves the population is complete | Same cause: the audit read make recipes, and there are none | `plan/spec-native-action-job-admission.md`, AC-3 |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/shared-machine-job-admission-zeclose-jobadm.md` (10 files) |
+| `./le spec session review check` | `review_gate: OK (5 code files, clean, hashes match)`. It also NOTEs that the running model could not be determined from this context |
+| Rounds | 2 |
+| Reviewer lenses used | acceptance-criteria against the producing function; security and untrusted input; wiring and dead code; test discrimination (each new test proven red against a broken producer) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-8 unmet: the waiting banner named the holder's label and elapsed time, never its current stage, so a waiter could not tell progress from a wedge | `reportBusy`, `internal/le/job/registry.go` | `lastLine` reads the holder's own log tail, bounded to 4 KiB and 100 bytes; `TestAWaitingJobIsToldTheHoldersCurrentStage` proven red without it |
+| 2 | ISSUE | AC-9 had no test. The per-run artifact directory existed and nothing would have caught its removal | `internal/le/verify/engine/run.go` | `TestConcurrentRunsDoNotShareArtifactPaths`, proven red with the directory made fixed |
+| 3 | ISSUE | The slot count silently became 1 when the Makefile stopped exporting `ZE_RUN_SLOTS`, so the machine ran one heavy job at a time | `SlotsDefault`, `internal/le/job/job.go` | `defaultSlots` derives it from `gotoolchain.CoresPerJob`; the test helper pins `ZE_RUN_SLOTS=1` so serialization cases stop depending on the machine |
+| 4 | ISSUE | The untrusted `LOG` field of another session's registry entry was opened by three readers with no confinement | `readEntry`, `internal/le/job/registry.go` | `registryLog` refuses an absolute path and anything outside `tmp/.ze-jobs/`, at the parse |
+| 5 | NOTE | The recorded lint-attach defect is not in the product | `plan/journal/green-that-could-not-have-been-red.md` | reproduced at the entry point: exit 1. The row is corrected in its own commit |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/job/job.go` | Yes | `ls internal/le/job/` lists answer.go attach.go contention_test.go job.go jobkey.go process.go quiet.go register.go registry.go report.go treehash.go |
+| `internal/le/job/contention_test.go` | Yes | same listing; 814 lines before this closure added three cases |
+| `internal/le/verify/artifactisolation_test.go` | Yes | created by this closure; `git status --porcelain` showed it untracked |
+| `plan/spec-native-action-job-admission.md` | Yes | created by this closure, validated by `hookValidateSpec` on write |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the ceiling binds and is derived | `grep -n "concurrency" .golangci.yml` returns only the comment saying the cap comes from `internal/le/gotoolchain`; `lintMemLimit` and `CoresPerJob` are that derivation |
+| AC-3 | the follower exits with the shared job's code | live: a holder recording exit 1, a second `./le verify lint run` printed `attaching to the lint already running for this tree (pid N)` and `EXIT=1` with no pipe between it and the shell |
+| AC-5 | the raw form is refused, exit 2 | live in this session: a Bash call carrying a raw heavy tool was refused with `Blocked: ... run raw, outside job admission` and the admitted command to use instead |
+| AC-8 | the banner carries the holder's stage | the AC-8 case passes, and fails with the holder's banner and no stage when `reportBusy` drops it |
+| AC-9 | two runs, two artifact sets | the AC-9 case passes under `-race`; with a fixed log directory it fails with `both runs wrote to tmp/verify/changed` |
+| AC-10 | `tmp/ze-verify-full.json` is published | `FullJSONPath` (`internal/le/verify/engine/artifacts.go`) written by `writeRunArtifacts` through `atomicWrite`, and asserted by `TestRunCurrentFullAndChangedModes` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le verify lint run` behind a holder | none: the vehicle is Go, see the Functional Tests note | Yes. Live 2026-09-05: two invocations queued behind a third session's lint, each printing the waiting banner |
+| `./le verify lint run` on an equivalent tree | `internal/le/job/contention_test.go`, `TestIdenticalWorkAttachesRatherThanQueueing` | Yes, and live at the CLI: attach, replay, exit 1 |
+| an agent Bash call carrying a raw heavy tool | `internal/le/hookcheck/fixtures.go`, `run_raw_job_admission` | Yes: the fixture drives `bashRawHeavy` itself, and carries the allowed form as its discriminator |
+| a dead holder's slot | `TestADeadHoldersEntryIsReaped` | Yes |
+| a slow live holder | `TestALongRunningHolderThatKeepsWritingIsLeftAlone` | Yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken 2026-08-18 | CPU contention dominates, not memory. The paired cold measurement is in the AC-1 evidence section; the consequence is in the Mistake Log |
+| A-2 | broken 2026-09-05 | Dedup does not remove most of the queue on this checkout. Measured: three `./le verify lint run` requests in flight for 28 minutes and NO attach happened, because the tree hash moved between the holder's claim and each later admission. Eight sessions edit continuously, so an equivalent tree is the minority case. Attach stays correct and cheap; serialization is what carried the load. The limit of this measurement: one window, one label |
+| A-3 | confirmed 2026-09-05 | This closure ran as a subagent, and its own Bash call carrying a raw heavy tool was refused with exit 2 by `bashRawHeavy`, naming the admitted command |
+| A-4 | confirmed 2026-08-18 | The linter accepts no memory key, so the soft heap ceiling is set per invocation. The producer is now `lintMemLimit` (`internal/le/gotoolchain/gotoolchain.go`) rather than a Makefile variable |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/contributing/running-commands.md`: the admitted population and the slot count | `grep -rln "le/job\"" internal/le` returns `verify/lint/actions.go` and `verify/lock/answer.go` as the only `Admit` callers; `defaultSlots` is the slot count | Yes |
+| `docs/contributing/testing.md`: the waiting banner's shape | `reportBusy` (`internal/le/job/registry.go`), quoted field for field | Yes |
+| category 10, test infrastructure | both pages above | Yes |
+| categories 1-9 and 11-15 | developer tooling, no operator surface: no YANG leaf, no CLI command on `ze`, no RPC, no plugin, no wire format, no RFC behavior | Yes |
+| category 16, source anchors on changed files | `grep -rn "internal/le/job" docs/` names `docs/contributing/testing.md` and `docs/contributing/running-commands.md`, both updated here | Yes |
+
+## Core Insight
+
+A queue nobody believes in is the thing sessions route around. The mechanism was
+correct and tested for three weeks while two of its numbers quietly reverted: the
+slot count fell back to 1 when the Makefile that exported it was retired, and the
+admitted population fell from 106 targets to 2 when those targets became native
+actions. Neither showed as a red test, because both are DEFAULTS rather than
+behavior, and a default is what a test supplies for itself. A derived number
+needs its derivation in the code that uses it, not in the caller that happens to
+know the machine.

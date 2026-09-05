@@ -78,6 +78,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
+	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -117,9 +118,35 @@ const (
 // ever, so it is refused rather than clamped.
 const SlotsMin = 1
 
-// SlotsDefault is what a caller supplies when it does not know this machine's
-// shared-job policy.
-const SlotsDefault = 1
+// defaultSlots answers how many admitted jobs this machine runs at once, and
+// never fewer than one.
+//
+// The number is DERIVED rather than chosen: every heavy job in this repository
+// is already capped at one share of the cores (gotoolchain.CoresPerJob, which
+// sets GOMAXPROCS for a test run and -j for a lint run), so the machine holds
+// exactly as many jobs as it holds shares. On the 32-core development box that
+// is four.
+//
+// It was a constant 1 until 2026-09-05, which is what the Makefile left behind
+// when ZE_RUN_SLOTS stopped being exported: eight sessions then queued for a
+// box running at a quarter of its capacity, and a queue nobody believes in is
+// the thing sessions route around. Measured that day: two `./le verify lint
+// run` invocations waited thirteen minutes behind one holder on an otherwise
+// idle machine.
+func defaultSlots() int {
+	slots := runtime.NumCPU() / gotoolchain.CoresPerJob()
+	if slots < SlotsMin {
+		return SlotsMin
+	}
+	return slots
+}
+
+// slotsDefaultText spells defaultSlots for the environment registry, which
+// documents every knob as text.
+func slotsDefaultText() string {
+	var tb textbuf.Buffer
+	return tb.Int(int64(defaultSlots())).String()
+}
 
 // The intervals a waiting job runs on.
 const (
@@ -163,9 +190,13 @@ const typeString = "string"
 const typeInt = "int"
 
 var slotsEntry = env.MustRegister(env.EnvEntry{
-	Key:         SlotsKey,
-	Type:        typeInt,
-	Default:     "1",
+	Key:  SlotsKey,
+	Type: typeInt,
+	// Derived from this machine rather than written here, because the registry
+	// default and the value NewIn falls back to are one fact: a literal would
+	// disagree with defaultSlots on every machine whose core count is not the
+	// development box's.
+	Default:     slotsDefaultText(),
 	Description: "how many admitted jobs run at once on this machine",
 	// Private keeps the key out of `ze env list`. It is a build-host knob and
 	// an operator has nothing to do with it.
@@ -266,7 +297,7 @@ func New() (*Admission, error) {
 func NewIn(root string) (*Admission, error) {
 	adm := &Admission{
 		Root:       root,
-		Slots:      env.GetInt(slotsEntry.Key, SlotsDefault),
+		Slots:      env.GetInt(slotsEntry.Key, defaultSlots()),
 		Stall:      stallWindow(),
 		Poll:       PollDefault,
 		Banner:     BannerDefault,
@@ -351,7 +382,7 @@ func (a *Admission) Validate() error {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("slot count ").Int(int64(a.Slots)).Str(" is out of range (").
 			Int(int64(SlotsMin)).Str("..").Int(int64(slotsMax)).
-			Str("); set ZE_RUN_SLOTS. Native actions default to one slot; use ZE_RUN_SLOTS=1 to serialize").
+			Str("); set ZE_RUN_SLOTS. It defaults to one slot per core share this machine holds; use ZE_RUN_SLOTS=1 to serialize").
 			String())
 	}
 	return nil

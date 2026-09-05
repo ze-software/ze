@@ -23,12 +23,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
 // helperMarker separates this test binary's own arguments from the ones that
@@ -599,7 +601,16 @@ func helperCommand(t *testing.T, ctx context.Context, root, label string, enviro
 	cmd.Dir = root
 	// Use a deterministic environment because the work key reads MAKEFLAGS. The
 	// session that runs this test can itself run inside make.
-	cmd.Env = append([]string{"MAKEFLAGS=", "PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}, environ...)
+	//
+	// The slot count is pinned for the same reason. It is DERIVED from the
+	// machine when nobody states it (defaultSlots), so a case that asserts
+	// serialization would pass on a four-core box and fail on a thirty-two
+	// core one. A case that wants more slots states its own value, which wins
+	// because it is appended after this one.
+	cmd.Env = append([]string{
+		"MAKEFLAGS=", "ZE_RUN_SLOTS=1",
+		"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME"),
+	}, environ...)
 	return cmd
 }
 
@@ -810,5 +821,137 @@ func TestAJobThatDidNotWaitStillDeclinesAHolderOnAnotherTree(t *testing.T) {
 
 	if admission.shares(fresh, held) {
 		t.Fatal("a job shared a run judging a different tree")
+	}
+}
+
+// TestAWaitingJobIsToldTheHoldersCurrentStage is AC-8 of
+// spec-shared-machine-job-admission: a session that waits sees what the holder
+// is DOING, refreshed as the holder moves on, and not only its name and a
+// growing number.
+//
+// The waiter runs different work under the same label, so it queues rather
+// than sharing the holder's verdict, which is the only state in which a banner
+// is printed at all.
+func TestAWaitingJobIsToldTheHoldersCurrentStage(t *testing.T) {
+	root := fixtureRepo(t)
+	ran := filepath.Join(root, "tmp", "ran")
+
+	holder := startHelper(t, root, "staged", nil,
+		"sh", "-c", "echo '### Stage 3/26: verify lint/run'; sleep 2")
+	waitForEntry(t, root, "staged")
+
+	out, code := runHelper(t, root, "staged", nil, "sh", "-c", record(ran, "second"))
+	if err := holder.Wait(); err != nil {
+		t.Fatalf("the holder: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("the waiting job answered %d", code)
+	}
+
+	if !strings.Contains(out, "waiting: staged running") {
+		t.Fatalf("the waiter printed %q, want the banner it waits under", out)
+	}
+	if !strings.Contains(out, "### Stage 3/26: verify lint/run") {
+		t.Errorf("the waiter printed %q, want the holder's current stage in it:"+
+			" a name and an elapsed time cannot tell progress from a wedge", out)
+	}
+}
+
+// TestTheReportedStageIsBoundedAndIsTheLastThingWritten covers the bounds of
+// the line a waiting banner carries. The log it reads is unbounded and is
+// written by another session, so every answer here is one this function must
+// give without trusting its input.
+func TestTheReportedStageIsBoundedAndIsTheLastThingWritten(t *testing.T) {
+	long := strings.Repeat("x", progressLineMax+50)
+
+	for _, test := range []struct {
+		name string
+		tail string
+		want string
+	}{
+		{"nothing written", "", ""},
+		{"whitespace only", "\n  \n\t\n", ""},
+		{"one line, no newline", "### Stage 1/2: build", "### Stage 1/2: build"},
+		{"the last of several", "first\nsecond\nthird\n", "third"},
+		{"trailing blank lines are skipped", "third\n\n\n", "third"},
+		{"a carriage return is not part of the line", "third\r\n", "third"},
+		{"an over-long line is cut and says so", long + "\n", long[:progressLineMax] + "..."},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := lastLineOf([]byte(test.tail)); got != test.want {
+				t.Errorf("lastLineOf(%q) = %q, want %q", test.tail, got, test.want)
+			}
+		})
+	}
+}
+
+// TestOnlyTheTailOfAHoldersLogIsRead is the cost bound. A holder that has
+// written for twenty minutes must not make one banner read twenty minutes of
+// output, so the reader takes the end of the file and answers from that.
+func TestOnlyTheTailOfAHoldersLogIsRead(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "holder.log")
+	body := strings.Repeat("a line that is not the answer\n", 4096) + "### Stage 26/26: the last one\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write the log: %v", err)
+	}
+
+	if got := lastLine(path); got != "### Stage 26/26: the last one" {
+		t.Errorf("lastLine = %q, want the end of a log far longer than the tail it reads", got)
+	}
+	if got := lastLine(filepath.Join(t.TempDir(), "absent.log")); got != "" {
+		t.Errorf("lastLine of a log that is not there = %q, want no claim about progress", got)
+	}
+}
+
+// TestALogFieldThatLeavesTheRegistryIsNotRead is the security boundary of the
+// LOG field. Another session's process writes it, and three readers open what
+// it names, so a path that escapes tmp/.ze-jobs would put a file this package
+// never wrote into a waiting session's transcript.
+func TestALogFieldThatLeavesTheRegistryIsNotRead(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		field string
+		want  string
+	}{
+		{"the shape a holder writes", "tmp/.ze-jobs/lint.42.log", "tmp/.ze-jobs/lint.42.log"},
+		{"absent", "", ""},
+		{"absolute", "/etc/shadow", ""},
+		{"climbing out", "tmp/.ze-jobs/../../../etc/shadow", ""},
+		{"a sibling of the registry", "tmp/ze-verify.log", ""},
+		{"the registry directory itself", "tmp/.ze-jobs", ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := registryLog(test.field); got != test.want {
+				t.Errorf("registryLog(%q) = %q, want %q", test.field, got, test.want)
+			}
+		})
+	}
+}
+
+// TestTheSlotCountIsDerivedFromTheMachineWhenNobodyStatesIt is what would have
+// caught the 2026-09-05 revert: the Makefile that exported ZE_RUN_SLOTS was
+// retired, the constant fallback of 1 took over, and a 32-core box ran one
+// heavy job at a time for three weeks with nothing red.
+//
+// The second assertion is the discriminating one. The first would still pass
+// against a hardcoded 1 on a single-core machine, so it is the machine's own
+// share count that has to be checked against the answer.
+func TestTheSlotCountIsDerivedFromTheMachineWhenNobodyStatesIt(t *testing.T) {
+	detach(t)
+	unset(t, "ZE_RUN_SLOTS")
+	env.ResetCache()
+
+	adm, err := NewIn(t.TempDir())
+	if err != nil {
+		t.Fatalf("the policy was refused: %v", err)
+	}
+
+	shares := max(runtime.NumCPU()/gotoolchain.CoresPerJob(), SlotsMin)
+	if adm.Slots != shares {
+		t.Errorf("admission offered %d slots on a machine holding %d core shares", adm.Slots, shares)
+	}
+	if runtime.NumCPU() >= 4 && adm.Slots < 2 {
+		t.Errorf("admission offered %d slot(s) on a %d-core machine: the derived count reverted to a constant",
+			adm.Slots, runtime.NumCPU())
 	}
 }

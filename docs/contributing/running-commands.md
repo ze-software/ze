@@ -391,12 +391,19 @@ refused before the job starts.
 
 ## One verify at a time
 
-Parallel verify runs share the build cache, the ports, and the test binaries. Every
-heavy native action is admitted through `./le job run`, which runs a job now, queues
-it behind the jobs already in flight, or attaches it to an equivalent run, so a
-second verify blocks rather than overlapping. `ZE_RUN_SLOTS` (`SlotsKey`) sets the
-slot count and defaults to 1 (`SlotsDefault`); `internal/le/gotoolchain` derives the
-per-process `GOMAXPROCS` ceiling.
+Parallel verify runs share the build cache, the ports, and the test binaries. An
+admitted job runs now, queues behind the jobs already in flight, or attaches to an
+equivalent run. Two actions admit themselves today, `./le verify lint run` and
+`./le verify lock run`; anything else is admitted by typing it after
+`./le job run label <label> command`. The rest of the heavy population joins in
+`plan/spec-native-action-job-admission.md`, so a second `./le verify current mode
+full` does NOT block on the first: only its lint stage does.
+
+`ZE_RUN_SLOTS` (`SlotsKey`) sets the slot count. It defaults to one slot per core
+share this machine holds (`defaultSlots`, `internal/le/job/job.go`), which is four
+on the 32-core development box, because `internal/le/gotoolchain` already caps each
+job at a quarter of the cores (`CoresPerJob`, which is the same number it uses for
+`GOMAXPROCS` and for the linter's `-j`).
 
 Admission state is one file per running job, `tmp/.ze-jobs/<label>.<pid>.job`. There
 is no `tmp/.ze-verify.lock`: nothing takes that flock. The only flock in the

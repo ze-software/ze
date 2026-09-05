@@ -198,6 +198,8 @@ func (a *Admission) scanAndClaim(job *pending) outcome {
 			result.holder = held.label
 			result.pid = held.pid
 			result.elapsed = elapsed
+			// The log the waiting banner reads the holder's current stage from.
+			result.log = held.log
 		}
 	}
 
@@ -450,14 +452,116 @@ func (a *Admission) reportPrevious(label string) {
 }
 
 // reportBusy writes the banner a waiting job repeats while it waits.
+//
+// The banner carries the holder's current STAGE as well as its name and its
+// elapsed time. A waiter that reads only a name and a growing number cannot
+// tell a run that is progressing from one that is stuck, and a twenty minute
+// wait behind a full verification is the ordinary case on this machine. The
+// stage is the holder's own last output line, which is the per-stage banner
+// its runner already writes (docs/functional-tests.md), so nothing new is
+// produced for this: it is read.
+//
+// A holder with no readable log gets the banner without a stage, because
+// silence about progress is not evidence of a stage.
 func (a *Admission) reportBusy(label string, result outcome) {
 	colors := textbuf.C
 	var tb textbuf.Buffer
 	tb.SetColor(a.Color)
 	tb.Colored(colors.BrightYellow).Byte('[').Str(label).Str("] waiting: ").Str(result.holder).
 		Str(" running (pid ").Int(int64(result.pid)).Str(", ").
-		Int(int64(result.elapsed / time.Second)).Str("s elapsed)...").Colored(colors.Reset)
+		Int(int64(result.elapsed / time.Second)).Str("s elapsed)")
+
+	if stage := lastLine(a.abs(result.log)); stage != "" {
+		tb.Str(": ").Str(stage)
+	}
+
+	tb.Str("...").Colored(colors.Reset)
 	a.note(tb.String())
+}
+
+// The bounds on the progress line a waiting job reports.
+const (
+	// progressTailMax is how much of a holder's log is read to find its last
+	// line. A stage banner is one short line, and a log is unbounded: reading
+	// the tail alone keeps the cost of a banner independent of how long the
+	// holder has been running.
+	progressTailMax = 4096
+	// progressLineMax is how much of that line is printed. One banner every
+	// thirty seconds goes into a reader's transcript, so a stage that prints a
+	// whole compiler command does not take a terminal width with it.
+	progressLineMax = 100
+)
+
+// lastLine answers the final non-empty line of a file, bounded, or "" when
+// there is no such line or the file cannot be read.
+//
+// A file this cannot read is not an error to report: the caller is a banner,
+// and a holder writing its log from another session can rotate or remove it
+// between the scan and this read.
+func lastLine(path string) string {
+	file, err := os.Open(path) //nolint:gosec // a log path this scan took from the registry entry it just read
+	if err != nil {
+		return ""
+	}
+	defer file.Close() //nolint:errcheck // the log is only read
+
+	info, err := file.Stat()
+	if err != nil {
+		return ""
+	}
+	size := info.Size()
+	from := int64(0)
+	if size > progressTailMax {
+		from = size - progressTailMax
+	}
+
+	tail := make([]byte, size-from)
+	read, err := file.ReadAt(tail, from)
+	if err != nil && read == 0 {
+		return ""
+	}
+
+	return lastLineOf(tail[:read])
+}
+
+// lastLineOf answers the final non-empty line of one block of log bytes.
+//
+// The block is a TAIL, so its first line can be a fragment of a longer one.
+// That fragment is still the answer when it is the only line present: a holder
+// whose stage banner is longer than the tail is better described by its end
+// than by nothing at all.
+func lastLineOf(tail []byte) string {
+	for end := len(tail); end > 0; {
+		start := bytes.LastIndexByte(tail[:end], '\n') + 1
+		line := strings.TrimRight(string(tail[start:end]), " \t\r")
+		if line != "" {
+			return truncate(line, progressLineMax)
+		}
+		end = start - 1
+	}
+	return ""
+}
+
+// truncate shortens a line to at most limit bytes and says that it did.
+//
+// The cut lands on a rune boundary. A banner reaches a terminal and a
+// transcript, and half a rune is a broken character in both, so the range loop
+// over the string is what decides where the cut can be.
+func truncate(line string, limit int) string {
+	if len(line) <= limit {
+		return line
+	}
+
+	cut := 0
+	for index := range line {
+		if index > limit {
+			break
+		}
+		cut = index
+	}
+
+	var tb textbuf.Buffer
+	return tb.Str(line[:cut]).Str("...").String()
 }
 
 // readEntry parses one registry file and reports whether the file was readable.
@@ -480,7 +584,7 @@ func (a *Admission) readEntry(path string) (entry, bool) {
 		pid:   pid,
 		tree:  field(body, "TREE"),
 		key:   field(body, "KEY"),
-		log:   field(body, "LOG"),
+		log:   registryLog(field(body, "LOG")),
 		state: field(body, "STATE"),
 	}
 	if pgid, err := strconv.Atoi(field(body, "PGID")); err == nil {
@@ -495,6 +599,31 @@ func (a *Admission) readEntry(path string) (entry, bool) {
 		held.started = time.Unix(started, 0)
 	}
 	return held, true
+}
+
+// registryLog answers a LOG field that names a file inside the registry, and
+// "" for one that names anything else.
+//
+// The field is written by ANOTHER session's process, and three consumers open
+// or stat what it names: the liveness test, a follower replaying a shared run,
+// and the waiting banner reading the holder's current stage. A relative path
+// with .. in it, or an absolute one, would make each of them read a file
+// outside the registry and put its last line into this session's transcript.
+// The guard is here rather than at those three call sites so that one check
+// covers every reader of the field, including the next one.
+//
+// A refused path reads as "this entry named no log", which is a state the
+// package already handles everywhere: the holder keeps its slot, nothing is
+// replayed, and the banner carries no stage.
+func registryLog(named string) string {
+	if named == "" || filepath.IsAbs(named) {
+		return ""
+	}
+	clean := filepath.Clean(filepath.FromSlash(named))
+	if !strings.HasPrefix(clean, filepath.FromSlash(JobsDir)+string(filepath.Separator)) {
+		return ""
+	}
+	return filepath.ToSlash(clean)
 }
 
 // field answers the value of one FIELD=VALUE line, and the empty string when
