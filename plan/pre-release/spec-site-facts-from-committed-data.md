@@ -372,6 +372,255 @@ derived from it.
 - The churn moves rather than vanishes. One JSON changes whenever a count changes. That is the trade the owner chose: a one-line diff instead of prose rewritten across pages.
 - `github_stars` can never be a pure function of committed state. It stays live, with the existing last-published fallback.
 - This fixes one of seventeen instances. Making every `ze-*-update` target warn on a dirty tree is the class-wide fix, and it is separate work.
+- The gate and the update do not read the same thing, and in a shared checkout
+  that is a gap no session can close. `check` derives from a materialized HEAD.
+  `update` derives the POPULATION from git and the CONTENT from the working
+  tree, because a person is meant to run it in the tree they are about to
+  commit. So when HEAD has drifted, the only honest regeneration is one run in a
+  CLEAN tree, and a checkout six sessions share does not have one. Measured
+  2026-09-05: `./le site facts check` reports `repo.detail_comments` committed
+  `4,100+` and derived `4,200+` at HEAD, and the working tree carries four other
+  sessions' Go edits. `warnUncommitted` is what makes the situation visible; it
+  is not what resolves it.
+
+## Implementation Summary
+
+### What Was Implemented
+- **One derivation, one committed file.** `derive` (`internal/le/site/facts/sitefacts.go`)
+  is the only counter of the six published facts, and it counts what GIT holds:
+  `git ls-files` names the population and `go list` decides what a package is.
+  `write` renders it into `website/data/repo-facts.json`, key-sorted, with a
+  category and a source sentence on every fact.
+- **One reader.** `factsFromRepositoryFile` (`internal/le/site/facts.go`) fills
+  the published snapshot from that file and REFUSES a fact the file does not
+  carry, naming the missing key and `./le site facts update`. No build path
+  walks the tree for one of the six.
+- **The two facts that cannot be committed** are recorded under a `live` key
+  with no value, by `liveFacts` (`sitefacts.go`): both run the built `ze`, so
+  each is a claim about a binary rather than about a commit.
+- **The dirty-tree warning.** `warnUncommitted` (`actions.go`) names every Go
+  file the tree and the last commit disagree about, before the file is written.
+- **The staleness gate.** `check` (`staleness.go`) materializes HEAD in a
+  throwaway worktree, derives there, and compares the PUBLISHED figure rather
+  than the exact count. It is `stage("site facts", "check")` in
+  `internal/le/verify/engine/stages.go` and a row of
+  `./le repository generated-check`.
+- **The command.** `internal/le/site/facts/register.go` registers `site facts`
+  through `leroot.Register`; `update` carries `Writes: true` and `check` does
+  not.
+
+### Bugs Found/Fixed
+- `countInterop` (`sitefacts.go`) guarded its target branch on
+  `underDir(dir, interopRoot) && dir == interopRoot`. The equality implies the
+  containment, so the first term decided nothing and `underDir` had no other
+  caller. Removed at closure; the branch now states the equality it always was.
+- Two doc comments outlived what they described: an empty `init()` block in
+  `register.go` explaining a gate claim that no longer exists, and a
+  `// Gates answers ...` comment in `actions.go` with no function under it
+  (`ai/rules/stale-comments.md`). Both removed.
+- `actions.go` named the precedent as `ze-test-health-update` and
+  `ze-test-health-check`, two retired Make targets. It now names
+  `le test-health update` and `le test-health check`.
+
+### Documentation Updates
+- `docs/architecture/site-facts.md`, NEW, written at closure: the
+  committed-source-of-truth pattern, the five categories, the two properties
+  that make the gate answerable, and a seven-step recipe for the other sixteen
+  targets. Source anchors on `sitefacts.go`, `staleness.go`,
+  `internal/le/site/facts.go` and `stages.go`.
+- `docs/functional-tests.md`: NOT edited. That page documents the `.ci` runner
+  and its suites, and this work added no `.ci` and no suite. The spec's own
+  Functional Tests section already recorded why the `.ci` it planned was the
+  wrong artifact.
+- `./le doc check links`: 31 broken references, none in a file of this spec.
+  `./le repository check`: one ISSUE, `CoresPerJob` in
+  `internal/le/gotoolchain`, another session's.
+
+### Deviations from Plan
+- The tooling this spec was written against is gone. `website/tools/` does not
+  exist: the `le` rewrite moved the site build into `internal/le/site`, so the
+  Python producers, `sitefacts.py`, `sitelib.py`, `check_site_stats.py` and the
+  planned `test_sitefacts.py` are all retired. Every test named in the TDD plan
+  with a `test_` prefix landed in Go, and the Implementation Audit maps each one.
+- The Make shim the Key Design Decisions section describes is gone with the
+  Makefile. The gate reaches `./le site facts check` directly, as a stage of
+  `./le verify`.
+- AC-7 is superseded by that move. See Assumptions Resolved.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: the two binary-derived counts could join the committed JSON on the same cadence | They cannot. `cli_commands` and `config_sections` run the built `ze`, so each is a claim about a binary rather than about a commit | Phase 4, reading `ze_json` and its callers | The file records them under `live` with no value and with the command that answers them, so a reader can tell an uncommitted fact from a forgotten one (`liveFacts`) |
+| assumption | A-5: every published fact about `main` can be a pure function of committed state | Not every one. Two run a binary. The purity that matters for the gate is also over a COMMIT rather than over a working tree, because `go list` reads a tree and a tree moves under a shared checkout | Phase 4 and Phase 5 | The gate materializes HEAD before it derives (`check`, `staleness.go`), and the two impure facts are gated by nothing and say so |
+| approach | The spec planned `test/website/*.ci` for the staleness test | A `.ci` launches the `ze` daemon under the functional runner, and the subject is a gate reading a git commit. Writing one would have been a test of nothing | Implementation | Replaced by the verify stage plus four Go tests over a fixture checkout with a real commit, a real worktree and a real `go list` |
+| escalation | The spec named `internal/le/` as the target's address on 2026-08-25 | The `le` rewrite had moved it; `internal/le/vendorweb` was the shape to copy | The peer session doing the rewrite, 2026-08-26 | A-6 was corrected in the spec before implementation, and the package landed at `internal/le/site/facts` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every number the website publishes about the repository comes from ONE committed JSON | Done | `factsFromRepositoryFile` (`internal/le/site/facts.go`) reads `repositoryFactKeys` out of `website/data/repo-facts.json` | Six facts. The two it cannot commit are recorded as `live` |
+| The site build does not walk `main`'s working tree | Done | The same function refuses a missing key rather than falling back to a walk | There is no tree-walking path left for these facts |
+| The rounding does not change | Done | `displayCount` (`internal/le/site/facts.go`) still renders every figure, and `render` (`staleness.go`) is the gate's copy of the same rule | `TestEveryDisplayFigureIsTheRoundingOfTheNumberBesideIt` |
+| A regeneration target and a staleness gate | Done | `./le site facts update` and `./le site facts check` (`actions.go`) | Registered through `leroot.Register` |
+| The pattern is stated, not only fixed | Done | `docs/architecture/site-facts.md` | Written at closure |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEveryNumberIsTheOneItsInputStates` and `TestAFactTheTreeCannotAnswerStopsTheBuild` (`internal/le/site/facts_test.go`); `TestUpdateCountsWhatGitHolds` and `TestUpdateCountsThePackagesGitHolds` (`internal/le/site/facts/sitefacts_test.go`) | The published number is what the committed file states, and the derivation counts what git holds |
+| AC-2 | Done | `TestUpdateWritesTheDerivedFacts`, `TestUpdateCountsTheInteropSuiteGitHolds`, `TestTheFileRecordsTheFactsItCannotDerive` | Every fact the tool owns, plus the two it names and does not derive |
+| AC-3 | Done | `TestUpdateNamesTheGoFilesNoCommitHolds` | `warnUncommitted` writes to stderr before the file is written |
+| AC-4 | Done | `TestADisplayCountRoundsDownToItsOwnMagnitude`, `TestRenderPublishesWhatTheSiteShows` | A crossing changes the published string |
+| AC-5 | Done | `TestEveryDisplayFigureIsTheRoundingOfTheNumberBesideIt`, `TestRenderPublishesWhatTheSiteShows` | A sub-boundary move leaves the string alone, which is the churn the spec exists to stop |
+| AC-6 | Done | `TestCheckNamesTheStaleFactAndTheFix`, `TestCheckReportsAFileTheCommitDoesNotHold` | The report carries `Fix` whether or not anything is stale |
+| AC-7 | Changed | `TestAFactTheTreeCannotAnswerStopsTheBuild` | Superseded: there is no sibling `../main` any more. See Assumptions Resolved |
+| AC-8 | Done | `TestTheRFCFiguresArePrintedExactly` | The RFC counts are not copied into `repo-facts.json` at all, so they cannot drift from the ledger |
+| AC-9 | Done | `TestUpdateWritesTheSameBytesTwice` | Nothing in `write` reads a clock, and the encoder sorts the keys |
+| AC-10 | Done | `TestFactsSnapshotKeepsTheStarCountOffline`, `TestAStarCountNoBuildCanAnswerSaysUnknown` | The carried value, and the one case where no previous artifact states a count |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `test_build_facts_reads_committed_data_not_the_tree` | Changed | `TestEveryNumberIsTheOneItsInputStates` (`internal/le/site/facts_test.go`) | Python retired with `website/tools/` |
+| `test_interop_counts_come_from_the_committed_facts` | Changed | The same test, over the interop keys | |
+| `TestUpdateWritesTheDerivedFacts`, `TestUpdateCountsTheInteropSuiteGitHolds`, `TestTheFileRecordsTheFactsItCannotDerive` | Done | `internal/le/site/facts/sitefacts_test.go` | |
+| `TestUpdateNamesTheGoFilesNoCommitHolds` | Done | the same file | |
+| `test_a_sub_boundary_move_changes_no_page`, `test_a_boundary_crossing_changes_the_page` | Changed | `TestADisplayCountRoundsDownToItsOwnMagnitude` and `TestEveryDisplayFigureIsTheRoundingOfTheNumberBesideIt` (`internal/le/site/facts_test.go`), plus `TestRenderPublishesWhatTheSiteShows` | The comparison is of the published figure rather than of two page renders |
+| `TestUpdateWritesTheSameBytesTwice` | Done | `internal/le/site/facts/sitefacts_test.go` | |
+| `test_missing_sibling_repo_preserves_published_values` | Changed | Not written: the sibling checkout is gone. `TestAFactTheTreeCannotAnswerStopsTheBuild` covers what replaced it | |
+| `test_rfc_counts_stay_exact` | Changed | `TestTheRFCFiguresArePrintedExactly` | |
+| `test_star_fetch_failure_keeps_the_last_value` | Changed | `TestFactsSnapshotKeepsTheStarCountOffline` | |
+| The four check tests | Done | `TestCheckAgreesWithTheCommitItJudges`, `TestCheckJudgesTheCommitAndNotTheWorkingTree`, `TestCheckNamesTheStaleFactAndTheFix`, `TestCheckReportsAFileTheCommitDoesNotHold` | Plus `TestCheckSweepsTheWorktreeAKilledRunLeft` |
+| `TestRenderPublishesWhatTheSiteShows` | Done | `internal/le/site/facts/sitefacts_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `website/tools/sitefacts.py` | Changed | The whole directory is retired. `internal/le/site/facts.go` is the reader now |
+| `website/tools/sitelib.py`, `check_site_stats.py` | Changed | Retired with it |
+| the committed facts JSON | Done | `website/data/repo-facts.json`, tracked |
+| `internal/le/site/facts/` | Done | `register.go`, `actions.go`, `sitefacts.go`, `staleness.go`, `sitefacts_test.go` |
+| `internal/le/register.go` blank import | Done | In the same commit as the package |
+| the Make shim rows | Changed | The Makefile is retired; the gate is a `./le verify` stage |
+| `docs/functional-tests.md` | Changed | No `.ci` and no suite was added, so the page is untouched |
+| `docs/architecture/site-facts.md` | Done | Written at closure |
+
+### Audit Summary
+- **Total items:** 33
+- **Done:** 23
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 10, each because `website/tools/` and the Makefile were retired under this spec by the `le` rewrite it declared a dependency on
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A published figure is a claim about a COMMIT, not about whatever was on disk | unit, at the reader | `TestEveryNumberIsTheOneItsInputStates` (`internal/le/site/facts_test.go`) drives the whole snapshot builder from fixture inputs and asserts each published number equals what its input states. `factsFromRepositoryFile` has no branch that counts anything, so there is no path by which a working-tree edit reaches one of the six |
+| A number that goes stale is caught rather than published | gate, in the standard place | `stage("site facts", "check")` (`internal/le/verify/engine/stages.go`) runs it on every `./le verify current mode full`, and `TestRegenCheckReadonlyCoversGenerators` (`internal/le/verify/engine/verifyengine_test.go`) refuses a generator with no read-only check, so the wiring cannot be removed silently |
+| The gate cannot be fooled by the tree it runs in | unit, forcing the case | `TestCheckJudgesTheCommitAndNotTheWorkingTree` (`internal/le/site/facts/sitefacts_test.go`) changes the working tree under the check and asserts the verdict does not move. This is the R-2 property, and it is the difference between the fix and instance eighteen |
+| Regeneration says when it is describing somebody else's work | unit | `TestUpdateNamesTheGoFilesNoCommitHolds` asserts the warning names the file. This is the half `plan/journal/concurrent-session-corruption.md` asks for, and it is what makes the fix a template rather than a one-off |
+| The output is a pure function of committed state | unit, twice over one commit | `TestUpdateWritesTheSameBytesTwice` |
+| The pattern is available to the other sixteen targets | documentation | `docs/architecture/site-facts.md`, with the sorting rule ("move a fact when its derivation WALKS") and a seven-step recipe |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The other sixteen `*-update` producers still derive from the working tree and none warns | This spec fixed one instance and stated the pattern, which is what the owner asked for. Making every producer warn is a change to sixteen packages | Not yet homed. `plan/journal/concurrent-session-corruption.md` carries the class, and `docs/architecture/site-facts.md` carries the recipe; the owner decides whether a spec runs |
+| `cli_commands` and `config_sections` are gated by nothing | They run the built `ze`, so no derivation from a tree can produce them (A-2). Gating them needs a binary pinned to a commit | Not yet homed. The file names them as `live`, so they are visible rather than forgotten |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/site-facts-from-committed-data-zeclose-sitefacts.md` |
+| `./le spec session review check` | `OK (0 code files, clean, hashes match ...)`. It also NOTEs that the running model could not be determined, so the review-model boundary is unchecked |
+| Rounds | 2. Round 1 read the whole package and found three record-level defects and one dead condition; round 2 read the fixes |
+| Reviewer lenses used | the derivation against what git holds; the gate against the commit it judges; bounds on every fork and every read; the `docs/contributing/ze-go-style.md` style pass; the spec's Critical Review Checklist |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| I1 | ISSUE | The target branch was guarded on `underDir(dir, interopRoot) && dir == interopRoot`. The equality implies the containment, so the first term decided nothing, and `underDir` existed for that one call with a comment justifying its implementation | `countInterop` and `underDir` (`internal/le/site/facts/sitefacts.go`) | fixed: the branch states the equality, and `underDir` is deleted |
+| I2 | ISSUE | The spec's own Files to Create named `docs/architecture/site-facts.md` and step 6 was to write it. It did not exist | `docs/` | fixed: written at closure |
+| N3 | NOTE | An empty `init()` block carried a comment about a gate claim the package no longer makes, and `actions.go` carried a `// Gates answers ...` comment with no function under it | `register.go`, `actions.go` | fixed: both removed |
+| N4 | NOTE | `actions.go` named the precedent by two retired Make targets | `actions.go` | fixed: it names `le test-health update` and `le test-health check` |
+| N5 | NOTE | `materialize` builds its worktree name with `+` beside a string literal, which is the construction `underDir`'s own comment said the repository refuses | `staleness.go` | acknowledged: a cold path that runs once per gate, and the hook that refuses the shape did not fire on it |
+
+### Run 2 (2026-09-05)
+
+Read the four fixes and the functions around them. Zero BLOCKER, zero ISSUE.
+`go test ./internal/le/site/facts/...` green after them.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `website/data/repo-facts.json` | Yes | `git ls-files` names it; six facts under `facts`, two under `live` |
+| `internal/le/site/facts/sitefacts.go` | Yes | declares `derive`, `write`, `factsFile`, `liveFacts` |
+| `internal/le/site/facts/staleness.go` | Yes | declares `check`, `compare`, `render`, `materialize` |
+| `internal/le/site/facts/actions.go` | Yes | declares `actions`, `update`, `judge`, `warnUncommitted` |
+| `internal/le/site/facts/register.go` | Yes | calls `leroot.Register` with the `site facts` area |
+| `internal/le/site/facts/sitefacts_test.go` | Yes | 14 tests |
+| `docs/architecture/site-facts.md` | Yes | written at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | an uncommitted edit does not move a published count | `go test -count=1 ./internal/le/site/facts/...` returned `ok ... 1.043s`; `internal/le/site` is red on foreign cases and its facts tests are not among them |
+| AC-2 | the file holds every fact the tool owns | the same run, `TestUpdateWritesTheDerivedFacts` |
+| AC-3 | a dirty tree warns and names the paths | the same run, `TestUpdateNamesTheGoFilesNoCommitHolds` |
+| AC-4, AC-5 | the rounding decides what changes | the same run, `TestRenderPublishesWhatTheSiteShows` |
+| AC-6 | the gate names what is stale and how to fix it | the same run, `TestCheckNamesTheStaleFactAndTheFix` |
+| AC-7 | changed | `TestAFactTheTreeCannotAnswerStopsTheBuild` (`internal/le/site/facts_test.go`) |
+| AC-8 | the RFC counts stay exact | `TestTheRFCFiguresArePrintedExactly` |
+| AC-9 | two runs, one commit, identical bytes | the same run, `TestUpdateWritesTheSameBytesTwice` |
+| AC-10 | a failed star fetch keeps the last value | `TestFactsSnapshotKeepsTheStarCountOffline` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le site facts update` reaches the facts writer | none; Go | `TestCommandIsRegistered` and `TestTheWriterIsMarked` (`sitefacts_test.go`) drive the registration and the writes marker from the action table the dispatch reads |
+| a site build reaches the committed reader | none; Go | `TestEveryNumberIsTheOneItsInputStates` drives the whole snapshot builder |
+| a dirty tree reaches the warning | none; Go | `TestUpdateNamesTheGoFilesNoCommitHolds` |
+| a published page carrying a marker | none; Go | `TestEveryProseTokenResolvesAgainstTheSnapshotThisBuildWrites` (`internal/le/site/facts_test.go`) |
+| the staleness gate in the standard verify population | none; Go | `stage("site facts", "check")` (`internal/le/verify/engine/stages.go`), held by `TestRegenCheckReadonlyCoversGenerators` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | A count that moves without crossing a rounding step changes one line of `website/data/repo-facts.json` and no published page; one that crosses changes both. `render` (`staleness.go`) and `displayCount` (`internal/le/site/facts.go`) are the two ends of that comparison |
+| A-2 | broken | `cli_commands` and `config_sections` run the built `ze`, so they cannot be committed. `liveFacts` records both with no value, and `TestTheFileRecordsTheFactsItCannotDerive` holds them to carrying none |
+| A-3 | confirmed | `TestRenderPublishesWhatTheSiteShows` measures `render` against the site's own display rule, step by step |
+| A-4 | confirmed | Every reader of the published snapshot goes through the one builder in `internal/le/site/facts.go`. None counts for itself |
+| A-5 | broken | Not every fact is pure: two run a binary. And the purity that matters is over a COMMIT, which is why `check` materializes HEAD (`TestCheckJudgesTheCommitAndNotTheWorkingTree`) |
+| A-6 | confirmed | `internal/le/site/facts/register.go` registers through `leroot.Register` and `internal/le/register.go` blank-imports it |
+| A-7 | confirmed | The action answers `(any, int)` and `leroot.RegisterShape(area, command.ShapeMap)` declares the shape, so `\| json`, `\| yaml` and `\| table` need no rendering code in this package |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 10, test infrastructure | No `.ci` and no suite was added. `grep -n "site facts" docs/functional-tests.md` returns nothing, and the page's subject is the `.ci` runner. The verify stage is documented in the new architecture page instead | Yes |
+| Row 12, internal architecture | `docs/architecture/site-facts.md`, with anchors on `sitefacts.go`, `staleness.go`, `internal/le/site/facts.go` and `stages.go` | Yes |
+| Row 16, existing source anchors | `internal/le/register.go` and every `internal/le/*/register.go` are declared by `docs/architecture/core-design.md` as "le's composition, one import per tool". This spec adds one tool to that composition and changes nothing about composition, so the page is unaffected. `./le repository check` reports no unresolved anchor | Yes |
+| Row 17, docs showing a site build command | No page showed a site build command that this changes. The regeneration is `./le site facts update`, listed by `./le` itself under "Generated artifacts" from the registration | Yes |
+| Rows 1 to 9, 11, 13 to 15 | Build tooling: no user-facing feature, no config surface, no `ze` command, no RPC, no plugin, no wire format, no SDK, no RFC behavior, no daemon comparison, no route metadata, no counter, no registration a plugin sees | Yes |
+| `./le doc check links` | 31 broken references, none in a file of this spec | Foreign |
+| `./le repository check` | one ISSUE, `CoresPerJob` (`internal/le/gotoolchain/gotoolchain.go`), another session's | Foreign |
+
+## Core Insight
+
+The fix is not "read a file instead of counting". It is that a derivation which
+WALKS and a derivation which READS ONE COMMITTED ARTIFACT are different kinds of
+claim, and only the first has to move. Three of the four remaining build-time
+reads turned out to be the second kind, and copying them into the committed file
+would have created the second record of one fact that the whole pattern exists
+to prevent.
 
 ## Checklist
 

@@ -2,9 +2,9 @@
 //
 // actions.go is the command surface: `le site facts update` writes the
 // committed file, and `le site facts check` reports what has gone stale in it.
-// The pair is the shape ze-test-health-update and ze-test-health-check already
-// have, which is the point -- a generated file nobody gates goes stale in
-// silence.
+// The pair is the shape `le test-health update` and `le test-health check`
+// already have, which is the point -- a generated file nobody gates goes stale
+// in silence.
 //
 // The dispatch, the listing, the help line and the two refusals live in
 // internal/le/leaction, which every tool package shares. What stays here is the
@@ -38,9 +38,6 @@ var actions = leaction.New(area,
 // Actions answers the command surface as data, so the listing, the Subs line
 // help renders, and the test that checks them all read one table.
 func Actions() leaction.List { return actions.Actions() }
-
-// Gates answers the retired Make target of each ported action, so the migration
-// census counts them from the same table the dispatch reads.
 
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }

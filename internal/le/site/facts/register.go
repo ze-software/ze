@@ -28,9 +28,4 @@ func init() {
 	// than being refused. Declaring the shape lets the engine refuse what the
 	// shape cannot support BEFORE the tool walks the tree.
 	leroot.RegisterShape(area, command.ShapeMap)
-
-	// Both gates are claimed from the same table the dispatch reads, in the
-	// init() that registers the command. A gate cannot be counted as ported by
-	// a command nothing can reach.
-
 }

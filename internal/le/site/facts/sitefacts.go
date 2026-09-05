@@ -285,7 +285,11 @@ func countInterop(paths []string) interopCounts {
 	var counts interopCounts
 	dirs := make(map[string]struct{}, len(paths))
 	for _, rel := range paths {
-		if dir, base := path.Split(rel); underDir(strings.TrimSuffix(dir, "/"), interopRoot) && strings.TrimSuffix(dir, "/") == interopRoot {
+		dir, base := path.Split(rel)
+		// A peer's Dockerfile sits DIRECTLY in test/interop/, so this is an
+		// equality and not a containment: a Dockerfile inside a scenario builds
+		// that scenario rather than a peer ze is tested against.
+		if strings.TrimSuffix(dir, "/") == interopRoot {
 			if strings.HasPrefix(base, dockerfilePrefix) && base != zeDockerfile {
 				counts.targets++
 			}
@@ -547,18 +551,4 @@ func write(root string, derived facts) (string, error) {
 		return "", fmt.Errorf("sitefacts: write %s: %w", path, err)
 	}
 	return path, nil
-}
-
-// underDir reports whether rel names dir itself or something inside it.
-//
-// Written out rather than `strings.HasPrefix(rel, dir+"/")` for two reasons.
-// c_string_concat (.claude/hooks/pretool-writeedit.py) refuses a `+` beside a
-// string literal in any compiled Go file, and `performance.md` is the rule
-// behind it: the concatenation allocates a new string on every call to answer a
-// question about the one already in hand. This allocates nothing.
-func underDir(rel, dir string) bool {
-	if rel == dir {
-		return true
-	}
-	return len(rel) > len(dir) && rel[:len(dir)] == dir && rel[len(dir)] == '/'
 }
