@@ -1064,12 +1064,6 @@ plan/spec-tombstone-forwarding-policy.md	test/plugin/tombstone-policy-strip.ci
 plan/spec-traceroute-source-af.md	test/plugin/traceroute-source-af.ci
 plan/spec-tunnel-ttl-default.md	test/ci/
 plan/spec-tunnel-ttl-default.md	test/plugin/tunnel-ttl-default.ci
-plan/spec-unify-dep-stores.md	gokrazy/gokrazy
-plan/spec-unify-dep-stores.md	gokrazy/gokrazy@20260703
-plan/spec-unify-dep-stores.md	gokrazy/internal
-plan/spec-unify-dep-stores.md	gokrazy/tools
-plan/spec-unify-dep-stores.md	gokrazy/tools@20260406
-plan/spec-unify-dep-stores.md	internal/appliance/updater
 plan/spec-vpp-interface-in-use.md	internal/component/vpp/verify_refs.go
 plan/spec-vpp-interface-in-use.md	internal/component/vpp/verify_refs_test.go
 plan/spec-vpp-interface-in-use.md	test/plugin/vpp-interface-in-use.ci
