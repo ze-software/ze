@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"syscall"
@@ -57,6 +58,20 @@ func Note(line string) {
 // If a command fails to start, Stream writes the reason to stderr and returns
 // CannotStart. It does not report that the command ran and failed.
 func Stream(argv []string, dir string, environ []string) int {
+	return StreamTee(argv, dir, environ, nil)
+}
+
+// StreamTee is Stream with a second reader of the child's stdout.
+//
+// The terminal still gets every byte as it arrives, so a person watching a
+// long suite sees the same output. tally gets a copy, which is how a caller
+// reads a count out of a child that answers only an exit code. A nil tally is
+// Stream, byte for byte.
+//
+// The copy is a MultiWriter rather than a captured buffer on purpose: a suite
+// prints megabytes over an hour, and holding that until the child exits would
+// hide the output and grow without a bound.
+func StreamTee(argv []string, dir string, environ []string, tally io.Writer) int {
 	if len(argv) == 0 {
 		Note("error: a gate declared no command to run")
 		return CannotStart
@@ -75,6 +90,9 @@ func Stream(argv []string, dir string, environ []string) int {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	if tally != nil {
+		cmd.Stdout = io.MultiWriter(os.Stdout, tally)
+	}
 
 	if err := cmd.Run(); err != nil {
 		var exit *exec.ExitError

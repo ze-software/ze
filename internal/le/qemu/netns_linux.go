@@ -22,12 +22,10 @@ import (
 	"github.com/ze-software/ze/internal/le/gaterun"
 )
 
-const (
-	netnsCapabilities = "cap_net_admin,cap_net_raw,cap_net_bind_service+ep"
-	netnsCapDir       = "/tmp/zebin"
-	netnsStateDir     = "/tmp/zestate"
-	netnsSuiteTimeout = 15 * time.Minute
-)
+// netnsSuiteTimeout is the wall-clock cap one selected subset runs under. The
+// paths, the capability set and the environment keys this launcher shares with
+// the whole-suite run are netns.go.
+const netnsSuiteTimeout = 15 * time.Minute
 
 var netnsSelections = map[string][]string{
 	netnsFirewall: {
@@ -202,15 +200,15 @@ func hostNFTTables(ctx context.Context) (string, error) {
 
 func runNetnsSuite(ctx context.Context, binaries netnsBinaries, suiteName string, ids []string) int {
 	environ := withGuestEnv(os.Environ(), map[string]string{
-		noBuildKey:        "1",
-		inVMKey:           "1",
-		zeBinKey:          filepath.Join(netnsCapDir, "ze"),
-		"ZE_STRIPPED_BIN": filepath.Join(netnsCapDir, "ze-stripped"),
-		guestTestBinKey:   binaries.Test,
-		"ZE_TEST_NETNS":   "1",
-		"ZE_TEST_UID":     "1000",
-		"ZE_TEST_GID":     "1000",
-		"ze.config.dir":   netnsStateDir,
+		noBuildKey:      "1",
+		inVMKey:         "1",
+		zeBinKey:        filepath.Join(netnsCapDir, "ze"),
+		strippedBinKey:  filepath.Join(netnsCapDir, "ze-stripped"),
+		guestTestBinKey: binaries.Test,
+		netnsModeKey:    netnsModeValue,
+		netnsUIDKey:     netnsUID,
+		netnsGIDKey:     netnsUID,
+		netnsConfigKey:  netnsStateDir,
 	})
 	argv := append([]string{binaries.Test, suiteName, "-p", "1"}, ids...)
 	var tb textbuf.Buffer

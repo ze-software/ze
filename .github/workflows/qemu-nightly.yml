@@ -68,7 +68,7 @@ jobs:
         run: >-
           ./le qemu run
           kernel tmp/kernel/build/vmlinuz
-          packages "coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs e2fsprogs-extra"
+          packages "coreutils nftables iproute2 iputils-ping kmod iptables libcap e2fsprogs e2fsprogs-extra"
           timeout 5400s
           command 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN=bin/ze-linux-amd64 ZE_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_TEST_BIN=bin/ze-test-linux-amd64 ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 bin/ze-le-linux-amd64 le qemu all-tests'
 

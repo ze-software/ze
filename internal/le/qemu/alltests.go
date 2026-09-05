@@ -1,5 +1,7 @@
 // Design: docs/architecture/testing/qemu-integration.md -- what the VM proves
 // Related: alltests_report.go -- what one whole run answers
+// Related: alltests_tally.go -- how many tests a suite actually executed
+// Related: netns.go -- which suites run outside the transport's namespace
 // Related: actions.go -- the verb that reaches this run
 //
 // alltests.go is the whole ze test suite, run INSIDE the QEMU Linux VM.
@@ -27,8 +29,11 @@
 package qemu
 
 import (
+	"debug/elf"
 	"errors"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -79,13 +84,23 @@ const (
 // through agent-browser, which the guest does not carry.
 const functionalWeb = "web"
 
+// The stable names the shim and the capability copies carry. A tool dispatches
+// on its basename, so these are what a test execs through PATH and what ZE_BIN
+// and ZE_STRIPPED_BIN name.
+const (
+	zeName         = "ze"
+	zeStrippedName = "ze-stripped"
+	zeTestName     = "ze-test"
+)
+
 // The environment every child is given.
 const (
-	repoRootKey = "ZE_REPO_ROOT"
-	noBuildKey  = "ZE_TEST_NO_BUILD"
-	inVMKey     = "ZE_QEMU"
-	zeBinKey    = "ZE_BIN"
-	pathKey     = "PATH"
+	repoRootKey    = "ZE_REPO_ROOT"
+	noBuildKey     = "ZE_TEST_NO_BUILD"
+	inVMKey        = "ZE_QEMU"
+	zeBinKey       = "ZE_BIN"
+	strippedBinKey = "ZE_STRIPPED_BIN"
+	pathKey        = "PATH"
 )
 
 // The needs-linux selection.
@@ -124,7 +139,7 @@ const (
 )
 
 // vmSuite is one functional suite as the VM runs it. It specifies what to pass
-// to ze-test and the concurrency to use.
+// to ze-test, the concurrency to use, and the network namespace its tests get.
 //
 // The ARGUMENTS are stated here rather than derived from functional.Suites.
 // The two intentionally disagree. This VM runs several suites serially that a
@@ -135,8 +150,12 @@ type vmSuite struct {
 	Name        string
 	Args        []string
 	Concurrency string
-	// Why records why a suite does not use the run's concurrency. It also records
-	// why a suite is in this list when it gates nowhere else.
+	// Namespace is the network namespace this suite's tests run in. Every row
+	// states it, and namespaceUnspecified is refused before the run starts.
+	Namespace networkNamespace
+	// Why records why a suite does not use the run's concurrency, or why it does
+	// not run in the guest root namespace. It also records why a suite is in
+	// this list when it gates nowhere else.
 	Why string
 }
 
@@ -147,80 +166,93 @@ type vmSuite struct {
 // policy tables are EMPTY after its daemons stop. RFC 4552 tests in test/ospfv3
 // program XFRM of their own.
 var vmSuites = []vmSuite{
-	{Name: "encode", Args: []string{bgpVerb, "encode", allTests}, Concurrency: scaledConcurrency},
-	{Name: "plugin", Args: []string{bgpVerb, "plugin", allTests}, Concurrency: scaledConcurrency},
-	{Name: "parse", Args: []string{bgpVerb, "parse", allTests}, Concurrency: scaledConcurrency},
-	{Name: "decode", Args: []string{bgpVerb, "decode", allTests}, Concurrency: scaledConcurrency},
+	{Name: "encode", Args: []string{bgpVerb, "encode", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "plugin", Args: []string{bgpVerb, "plugin", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "parse", Args: []string{bgpVerb, "parse", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "decode", Args: []string{bgpVerb, "decode", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
-		Name: "reload", Args: []string{bgpVerb, "reload", allTests}, Concurrency: serial,
+		Name: "reload", Args: []string{bgpVerb, "reload", allTests}, Concurrency: serial, Namespace: guestRoot,
 		Why: "it shares the VM's one routing table with managed, and each asserts on the whole of it",
 	},
 	{
-		Name: "static", Args: []string{"static", allTests}, Concurrency: serial,
+		Name: "static", Args: []string{"static", allTests}, Concurrency: serial, Namespace: guestRoot,
 		Why: "every test here programs kernel routes through netlink, so each needs CAP_NET_ADMIN" +
 			" and can only run as root; the tests share the VM's one routing table",
 	},
-	{Name: "ui", Args: []string{"ui", allTests}, Concurrency: scaledConcurrency},
+	{Name: "ui", Args: []string{"ui", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
-		Name: "editor", Args: []string{"editor"}, Concurrency: takeNoP,
+		Name: "editor", Args: []string{"editor"}, Concurrency: takeNoP, Namespace: guestRoot,
 		Why: "the .et editor suite takes the runner's own default",
 	},
 	{
-		Name: "managed", Args: []string{"managed", allTests}, Concurrency: serial,
+		Name: "managed", Args: []string{"managed", allTests}, Concurrency: serial, Namespace: guestRoot,
 		Why: "it shares the VM's one routing table with reload",
 	},
-	{Name: "l2tp", Args: []string{"l2tp", allTests}, Concurrency: scaledConcurrency},
+	{Name: "l2tp", Args: []string{"l2tp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
-		Name: "firewall", Args: []string{"firewall", allTests}, Concurrency: serial,
-		Why: "the VM has no per-test network namespace, so concurrent tests collide on the single" +
-			" `inet ze_pr` nft table, the global ip-rule table and the global nft input hook",
+		Name: "firewall", Args: []string{"firewall", allTests}, Concurrency: serial, Namespace: perTest,
+		Why: "firewall-nat-exclude installs a nat prerouting chain, and in the guest root namespace" +
+			" that chain sits under the SSH transport carrying the run: the 2026-09-05 run died there" +
+			" with ssh's own exit 255 and every later phase went unaccounted. Serial because the" +
+			" launcher has only ever been exercised one test at a time (./le qemu netns-test)",
 	},
 	{
-		Name: "policy", Args: []string{"policy", allTests}, Concurrency: serial,
-		Why: "the same one root namespace as firewall: marks.go makes the fwmark deterministic," +
-			" so two tests build the identical rule and the loser gets EEXIST",
+		Name: "policy", Args: []string{"policy", allTests}, Concurrency: serial, Namespace: perTest,
+		Why: "it programs ip rules and a deterministic fwmark (marks.go) that reach every packet in" +
+			" the namespace they are installed in, the transport's included. Serial for firewall's reason",
 	},
 	{
-		Name: "ipsec", Args: []string{"ipsec", allTests}, Concurrency: serial,
+		Name: "ipsec", Args: []string{"ipsec", allTests}, Concurrency: serial, Namespace: guestRoot,
 		Why: "the teardown test reads the whole XFRM state and policy table, which is one table" +
 			" for the VM; several tests here also share one local address and one IKE port",
 	},
-	{Name: "install", Args: []string{"install", allTests}, Concurrency: scaledConcurrency},
-	{Name: "appliance", Args: []string{"appliance", allTests}, Concurrency: scaledConcurrency},
-	{Name: "ldp", Args: []string{"ldp", allTests}, Concurrency: scaledConcurrency},
-	{Name: "rsvpte", Args: []string{"rsvpte", allTests}, Concurrency: scaledConcurrency},
-	{Name: "isis", Args: []string{"isis", allTests}, Concurrency: scaledConcurrency},
-	{Name: "ospf", Args: []string{"ospf", allTests}, Concurrency: scaledConcurrency},
-	{Name: "ospfv3", Args: []string{"ospfv3", allTests}, Concurrency: scaledConcurrency},
+	{Name: "install", Args: []string{"install", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "appliance", Args: []string{"appliance", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "ldp", Args: []string{"ldp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "rsvpte", Args: []string{"rsvpte", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "isis", Args: []string{"isis", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
-		Name: "vrrp", Args: []string{"vrrp", allTests}, Concurrency: scaledConcurrency,
+		Name: "ospf", Args: []string{"ospf", allTests}, Concurrency: scaledConcurrency, Namespace: perTest,
+		Why: "its tests declare option=netns-link and provision eth0, eth1, nbma0 and ptmp0. The" +
+			" runner SKIPS a netns-link test outside this mode (applyNetnsLinkGate), so eight of them" +
+			" executed in no VM phase, and creating those names in the guest root namespace is the" +
+			" one thing the mode exists to prevent",
+	},
+	{
+		Name: "ospfv3", Args: []string{"ospfv3", allTests}, Concurrency: scaledConcurrency, Namespace: perTest,
+		Why: "three netns-link tests, skipped outside this mode for ospf's reason",
+	},
+	{
+		Name: "vrrp", Args: []string{"vrrp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot,
 		Why: "every VRRP test that boots a daemon can only run here: the iface plugin fails its" +
 			" Config stage on darwin, so no VRRP runtime surface exists on the dev machine",
 	},
-	{Name: "l2tp-wire", Args: []string{"l2tp-wire", allTests}, Concurrency: scaledConcurrency},
-	{Name: "isis-wire", Args: []string{"isis-wire", allTests}, Concurrency: scaledConcurrency},
-	{Name: "ospf-wire", Args: []string{"ospf-wire", allTests}, Concurrency: scaledConcurrency},
+	{Name: "l2tp-wire", Args: []string{"l2tp-wire", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "isis-wire", Args: []string{"isis-wire", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "ospf-wire", Args: []string{"ospf-wire", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
-		Name: "traffic", Args: []string{"traffic", allTests}, Concurrency: serial,
-		Why: "the needs-linux qdisc tests mutate shared kernel qdisc state on eth0",
+		Name: "traffic", Args: []string{"traffic", allTests}, Concurrency: serial, Namespace: guestRoot,
+		Why: "the needs-linux qdisc tests mutate shared kernel qdisc state on eth0, which is the" +
+			" transport's own interface: they shape it and none of them drops a packet",
 	},
 	{
 		Name: functionalWeb, Args: []string{functionalWeb, allTests}, Concurrency: scaledConcurrency,
+		Namespace: guestRoot,
 		Why: "browser-driven, so the default skip list holds it. It is LISTED rather than omitted," +
 			" because a suite nobody lists is a suite nobody notices has stopped running",
 	},
 	{
-		Name: "runner", Args: []string{"runner", allTests}, Concurrency: scaledConcurrency,
+		Name: "runner", Args: []string{"runner", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot,
 		Why: "a GATING suite the hand-written list left out entirely, so it ran in no VM phase" +
 			" (2026-08-26)",
 	},
 	{
-		Name: "flow-export", Args: []string{"flow-export", allTests}, Concurrency: serial,
+		Name: "flow-export", Args: []string{"flow-export", allTests}, Concurrency: serial, Namespace: guestRoot,
 		Why: "sFlow, NetFlow v9 and IPFIX export need the Linux daemon and, for packet sampling," +
 			" CAP_NET_ADMIN. Serial, because the tests share one collector port range",
 	},
 	{
-		Name: "vpp", Args: []string{"vpp", allTests}, Concurrency: takeNoP,
+		Name: "vpp", Args: []string{"vpp", allTests}, Concurrency: takeNoP, Namespace: guestRoot,
 		Why: "the VPP stub. It carries no -p because its serial default lives in the command itself",
 	},
 }
@@ -319,6 +351,12 @@ var (
 	// ErrIncompleteRun says this run would leave a declared suite executing
 	// nowhere.
 	ErrIncompleteRun = errors.New("qemu: a declared functional suite is neither run nor excluded")
+	// ErrNamespaceUnspecified says a suite does not state which network
+	// namespace its tests run in.
+	ErrNamespaceUnspecified = errors.New("qemu: a suite does not name the network namespace it runs in")
+	// ErrNamespacePreparation says the per-test namespace launcher could not be
+	// given the capability copies it needs.
+	ErrNamespacePreparation = errors.New("qemu: the per-test network namespace could not be prepared")
 )
 
 // allTestsRun is one whole in-VM run.
@@ -350,8 +388,12 @@ type allTestsRun struct {
 	BuildCache  string
 	ModuleCache string
 	// Run runs one child and answers its exit code. The zero value streams it
-	// to the terminal.
-	Run func(argv, environ []string) int
+	// to the terminal. tally, when it is not nil, receives a second copy of the
+	// child's stdout so the run can read the count out of it.
+	Run func(argv, environ []string, tally io.Writer) int
+	// Look answers where a command the run needs lives. The zero value is
+	// exec.LookPath.
+	Look func(name string) (string, error)
 	// Note writes one progress line for a person watching. The zero value
 	// writes to stderr.
 	Note func(line string)
@@ -405,12 +447,53 @@ func (a *allTestsRun) note(line string) {
 }
 
 // child runs one command through the run's runner, defaulted to a streaming run
-// in the workspace.
-func (a *allTestsRun) child(argv, environ []string) int {
+// in the workspace. tally may be nil, and is nil for every phase that reports
+// no test count of its own.
+func (a *allTestsRun) child(argv, environ []string, tally io.Writer) int {
 	if a.Run == nil {
-		return gaterun.Stream(argv, a.Workspace, environ)
+		return gaterun.StreamTee(argv, a.Workspace, environ, tally)
 	}
-	return a.Run(argv, environ)
+	return a.Run(argv, environ, tally)
+}
+
+// look answers where a command lives, through the run's lookup, defaulted to
+// the guest's PATH.
+func (a *allTestsRun) look(name string) (string, error) {
+	if a.Look == nil {
+		return exec.LookPath(name)
+	}
+	return a.Look(name)
+}
+
+// The three phases that are not a functional suite. The names are constants
+// because the run states its whole population before the first child starts,
+// and a phase whose planned name and reported name disagree would read as one
+// that never ran.
+const (
+	unitPhaseName        = "unit tests (no -race, cacheable)"
+	installerPhaseName   = "installer initrd tests (-tags ze_core ze_installer)"
+	integrationPhaseName = "integration tests (-tags integration)"
+)
+
+// suitePhaseName is the phase name one functional suite reports under.
+func suitePhaseName(suite string) string {
+	var tb textbuf.Buffer
+	return tb.Str("functional/").Str(suite).String()
+}
+
+// plannedPhases names every phase this run intends to reach, in order.
+//
+// It is stated BEFORE the first child, so a run that dies halfway can be told
+// apart from one that answered for its whole population. The 2026-09-05 run
+// died inside functional/firewall and said nothing at all about the twelve
+// suites, the unit pass, the installer phase and the integration phase that
+// were still to come.
+func plannedPhases() []string {
+	planned := make([]string, 0, len(vmSuites)+3)
+	for _, suite := range vmSuites {
+		planned = append(planned, suitePhaseName(suite.Name))
+	}
+	return append(planned, unitPhaseName, installerPhaseName, integrationPhaseName)
 }
 
 // Execute runs every phase and returns the report and the process exit code.
@@ -429,9 +512,15 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 	}
 
 	environ := a.environment()
-	var report AllTestsReport
+	report := AllTestsReport{Planned: plannedPhases()}
 	if a.LinuxOnly {
 		report.Selection = linuxOnlySelection
+	}
+	a.note(plan(report.Planned))
+
+	if err := a.prepareNamespace(environ); err != nil {
+		leaction.ReportError(err)
+		return report, 1
 	}
 
 	for _, suite := range vmSuites {
@@ -452,7 +541,7 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 	}
 	report.add(integration)
 
-	if len(report.Failed) > 0 {
+	if len(report.Failed) > 0 || len(report.Unreached()) > 0 {
 		return report, 1
 	}
 	return report, 0
@@ -466,11 +555,16 @@ func (a *allTestsRun) verify() error {
 	}
 
 	for _, bin := range []string{a.ZeBin, a.StrippedBin, a.TestBin} {
-		info, err := os.Stat(a.workspacePath(bin))
+		path := a.workspacePath(bin)
+		info, err := os.Stat(path)
 		if err != nil || info.IsDir() || info.Mode().Perm()&0o111 == 0 {
 			var tb textbuf.Buffer
 			return errors.New(tb.Str("qemu: ").Str(bin).
 				Str(" is missing or not executable -- cross-compile it on the host first").String())
+		}
+		if err := runnableInGuest(path); err != nil {
+			var tb textbuf.Buffer
+			return errors.New(tb.Str("qemu: ").Str(bin).Str(": ").Err(err).String())
 		}
 	}
 
@@ -482,8 +576,56 @@ func (a *allTestsRun) verify() error {
 	if err := a.verifySuiteCoverage(); err != nil {
 		return err
 	}
+	if err := a.verifyNamespaces(); err != nil {
+		return err
+	}
 	_, err := a.integrationArgs()
 	return err
+}
+
+// loaderNameMax bounds the dynamic loader's name in a refusal. A path is
+// shorter than PATH_MAX, and the ELF header declares its own length, so the
+// read is bounded here rather than by what the file claims.
+const loaderNameMax = 4096
+
+// runnableInGuest refuses a binary the guest cannot exec.
+//
+// os.Stat answers that a file exists and carries an execute bit. It cannot see
+// the one thing that actually stopped a run: a `ze` built on a glibc host names
+// /lib64/ld-linux-x86-64.so.2 in its PT_INTERP header, musl Alpine has no such
+// loader, and the kernel answers ENOENT for the LOADER while naming the BINARY.
+// The 2026-09-04 run reported that as 326 identical per-test failures
+// (`start ze: fork/exec ...: no such file or directory`) rather than as one
+// broken precondition, and every one of them read like a product defect.
+//
+// A statically linked Go binary carries no PT_INTERP at all, which is what
+// CGO_ENABLED=0 produces and what the guest needs.
+func runnableInGuest(path string) error {
+	file, err := elf.Open(path)
+	if err != nil {
+		var tb textbuf.Buffer
+		return errors.New(tb.Str("is not a Linux ELF binary (").Err(err).
+			Str(") -- cross-compile it with GOOS=linux CGO_ENABLED=0").String())
+	}
+	defer file.Close() //nolint:errcheck // read-only open, and the caller is about to refuse the run
+
+	for _, prog := range file.Progs {
+		if prog.Type != elf.PT_INTERP {
+			continue
+		}
+		// The header declares its own length, so the read is bounded by a path
+		// length rather than by what the file claims. The refusal does not
+		// depend on the name being complete.
+		loader := make([]byte, min(prog.Filesz, loaderNameMax))
+		if _, err := prog.ReadAt(loader, 0); err != nil {
+			return errors.New("names a dynamic loader that could not be read -- rebuild it with CGO_ENABLED=0")
+		}
+		var tb textbuf.Buffer
+		return errors.New(tb.Str("is dynamically linked against ").
+			Str(strings.TrimRight(string(loader), "\x00")).
+			Str(", which the musl guest does not have -- rebuild it with CGO_ENABLED=0").String())
+	}
+	return nil
 }
 
 // suiteCoverage accounts for every declared functional suite against the ones
@@ -552,9 +694,9 @@ func (a *allTestsRun) shim() error {
 		return err
 	}
 	for name, target := range map[string]string{
-		"ze":          a.workspacePath(a.ZeBin),
-		"ze-stripped": a.workspacePath(a.StrippedBin),
-		"ze-test":     a.workspacePath(a.TestBin),
+		zeName:         a.workspacePath(a.ZeBin),
+		zeStrippedName: a.workspacePath(a.StrippedBin),
+		zeTestName:     a.workspacePath(a.TestBin),
 	} {
 		link := filepath.Join(a.BinDir, name)
 		if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -579,7 +721,7 @@ func (a *allTestsRun) environment() []string {
 	environ = setEnv(environ, noBuildKey, "1")
 	environ = setEnv(environ, inVMKey, "1")
 	environ = setEnv(environ, repoRootKey, a.Workspace)
-	environ = setEnv(environ, zeBinKey, filepath.Join(a.BinDir, "ze"))
+	environ = setEnv(environ, zeBinKey, filepath.Join(a.BinDir, zeName))
 	if a.LinuxOnly {
 		environ = setEnv(environ, linuxOnlyKey, linuxOnlyValue)
 	}
@@ -617,17 +759,38 @@ func setEnv(environ []string, key, value string) []string {
 }
 
 // suite runs one functional suite, or reports it skipped.
+//
+// A suite that answers 0 without printing a count executed no test, and this
+// is where that becomes a failure rather than a phase the summary counts as
+// passed.
 func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
-	var tb textbuf.Buffer
-	name := tb.Str("functional/").Str(suite.Name).String()
-
+	name := suitePhaseName(suite.Name)
 	if slices.Contains(a.Skip, suite.Name) {
 		return PhaseResult{Name: name, Skipped: true, Reason: "ZE_QEMU_SKIP_SUITES"}
 	}
 
 	argv := a.suiteCommand(suite)
 	a.note(banner(name))
-	return PhaseResult{Name: name, Command: argv, Code: a.child(argv, environ)}
+
+	var tally suiteTally
+	result := PhaseResult{
+		Name:      name,
+		Command:   argv,
+		Namespace: suite.Namespace.String(),
+		Counted:   true,
+		Code:      a.child(argv, a.suiteEnvironment(suite, environ), &tally),
+	}
+	result.Tests = tally.Tests
+	if tally.Seen {
+		return result
+	}
+
+	result.Counted = false
+	result.Reason = "the suite printed no `pass N/M` summary line, so it executed no test"
+	if result.Code == 0 {
+		result.Code = 1
+	}
+	return result
 }
 
 // suiteCommand is the command line one suite runs under.
@@ -636,7 +799,7 @@ func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
 // whole group. Thus a stuck ze or plugin child cannot wedge the run.
 func (a *allTestsRun) suiteCommand(suite vmSuite) []string {
 	argv := make([]string, 0, len(suite.Args)+7)
-	argv = append(argv, "timeout", killAfterFlag, killAfterSeconds, a.Timeout, filepath.Join(a.BinDir, "ze-test"))
+	argv = append(argv, "timeout", killAfterFlag, killAfterSeconds, a.Timeout, filepath.Join(a.BinDir, zeTestName))
 	argv = append(argv, suite.Args...)
 
 	switch suite.Concurrency {
@@ -664,9 +827,8 @@ func (a *allTestsRun) unitPhase(environ []string) (PhaseResult, error) {
 		tagsFlag, tags,
 		"./...",
 	}
-	const name = "unit tests (no -race, cacheable)"
-	a.note(banner(name))
-	return PhaseResult{Name: name, Command: argv, Code: a.child(argv, environ)}, nil
+	a.note(banner(unitPhaseName))
+	return PhaseResult{Name: unitPhaseName, Command: argv, Code: a.child(argv, environ, nil)}, nil
 }
 
 // installerPhase runs the installer initrd's own tests, which no other phase
@@ -686,9 +848,8 @@ func (a *allTestsRun) installerPhase(environ []string) PhaseResult {
 		tagsFlag, "ze_core ze_installer",
 		"./internal/install/...",
 	}
-	const name = "installer initrd tests (-tags ze_core ze_installer)"
-	a.note(banner(name))
-	return PhaseResult{Name: name, Command: argv, Code: a.child(argv, environ)}
+	a.note(banner(installerPhaseName))
+	return PhaseResult{Name: installerPhaseName, Command: argv, Code: a.child(argv, environ, nil)}
 }
 
 // integrationPhase runs the linux-only, integration-tagged tests.
@@ -697,9 +858,8 @@ func (a *allTestsRun) integrationPhase(environ []string) (PhaseResult, error) {
 	if err != nil {
 		return PhaseResult{}, err
 	}
-	const name = "integration tests (-tags integration)"
-	a.note(banner(name))
-	return PhaseResult{Name: name, Command: argv, Code: a.child(argv, environ)}, nil
+	a.note(banner(integrationPhaseName))
+	return PhaseResult{Name: integrationPhaseName, Command: argv, Code: a.child(argv, environ, nil)}, nil
 }
 
 // integrationArgs builds the integration command and refuses a package list
@@ -787,4 +947,15 @@ func (a *allTestsRun) integrationTags() (string, error) {
 func banner(name string) string {
 	var tb textbuf.Buffer
 	return tb.Str("========================= ").Str(name).Str(" =========================").String()
+}
+
+// plan is the population the run states before its first child.
+//
+// A person watching, and a reader of a log whose run was killed, can then tell
+// which phases the run never reached. A process that loses its transport
+// cannot report anything at all, so the population has to be on the terminal
+// before the phase that can cut it.
+func plan(phases []string) string {
+	var tb textbuf.Buffer
+	return tb.Str("planned phases (").Int(int64(len(phases))).Str("): ").Join(phases, ", ").String()
 }

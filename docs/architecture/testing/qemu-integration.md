@@ -12,7 +12,7 @@ with full kernel capabilities.
 ./le build-artifacts host
 
 # all-tests runs INSIDE the guest. le qemu run boots the guest and carries it in.
-./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2" \
+./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2 libcap" \
   command "./le qemu all-tests"
 ```
 
@@ -45,7 +45,7 @@ Both entry points run one VM for the whole population, never one VM per test.
 | Command | Population |
 |---------|------------|
 | `./le qemu netns-test suites <comma-separated-suites>` | The selected kernel-dependent functional suites. A tight iteration loop |
-| `./le qemu run ... command "./le qemu all-tests"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package |
+| `./le qemu run ... command "./le qemu all-tests"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Four of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
 | `./le qemu run ... command "./le qemu all-tests only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
 
 Neither entry point needs per-test wiring. The suites are the same ones the
@@ -70,12 +70,14 @@ precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish
 |--------------|-----------------------------|
 | `packages iproute2` | `ZE-OBSERVER-FAIL: ... ip: invalid argument 'replace' to 'ip'`. BusyBox `ip` has no `neigh replace`, so an observer that programs a neighbour dies in test setup, before any assertion |
 | The three binaries, under canonical names | `qemu: bin/ze-stripped is missing or not executable -- cross-compile it on the host first`. `le qemu run` shares the checkout, where the cross-built artifacts carry `-linux-arm64` suffixes, so name them with `ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_TEST_BIN`. `shim()` symlinks them to `ze`, `ze-stripped` and `ze-test` because the tools dispatch on basename |
-| The three binaries, STATICALLY linked | `start ze: fork/exec ` + the shim path + `: no such file or directory`, under every `.ci` test of every suite: 326 identical failures for one cause. A `ze` built on a glibc host names the glibc loader, which musl Alpine does not have, so the loader answers ENOENT and the message names the binary rather than the loader. `verify()` (`alltests.go`) stats the file and cannot see this. Build with `CGO_ENABLED=0`, which is what the native toolchain sets (`internal/le/gotoolchain`), and check the answer with `file` |
+| The three binaries, STATICALLY linked | `qemu: bin/ze: is dynamically linked against /lib64/ld-linux-x86-64.so.2, which the musl guest does not have`, and nothing runs. `runnableInGuest` (`alltests.go`) reads each binary's PT_INTERP header before the first child. Until 2026-09-05 `verify()` only stat'd the file, and the same cause surfaced as 326 identical per-test failures (`start ze: fork/exec ... : no such file or directory`), because the kernel answers ENOENT for the LOADER while naming the BINARY. Build with `CGO_ENABLED=0`, which is what the native toolchain sets (`internal/le/gotoolchain`) |
+| `packages libcap` | `qemu: setcap is not on the guest PATH, so the per-test network namespace suites cannot hold their capabilities`. The four routed suites run ze as an ordinary user inside a fresh namespace, and `setcap` is what gives that user CAP_NET_ADMIN |
 | The `bgp` verb before the suite | The `ze plugin` help text, and exit 1. `ze-test plugin <name>` is read as the `ze plugin` command; the suite form is `ze-test bgp <suite> <name>`, which is what `vmSuites` passes (`alltests.go`) |
 
 `le qemu run` installs only `git curl musl-dev` beyond the base image
 (`internal/le/qemu/run.go`), so anything else a test shells out to has to be
-named in `packages`.
+named in `packages`. `iproute2` and `libcap` are both preconditions of a whole
+run, and the refusal for each one names it.
 
 `coreutils` was a fifth precondition until 2026-09-05. The suite wrapper passed
 GNU `timeout --kill-after=15s`, which the guest's BusyBox `timeout` answers with
@@ -107,6 +109,64 @@ with the other sessions on the machine.
 <!-- source: internal/le/qemu/alltests.go -- suiteCommand, shim, the ZE_*_BIN knobs -->
 <!-- source: internal/le/qemu/run.go -- runBootstrapCommand and the package list -->
 
+### Four suites do not run in the guest root namespace
+
+`all-tests` runs inside an SSH session, and that session's transport lives in
+the guest ROOT network namespace. A suite that programs the firewall, the
+routing policy or an interface THERE reaches its own transport.
+
+It did. On 2026-09-05 `test/firewall/firewall-nat-exclude.ci` installed a nat
+prerouting chain in the guest root namespace, the run died inside
+`functional/firewall` with ssh's own exit 255, and the twelve suites, the unit
+pass, the installer phase and the integration phase still to come never ran
+(`plan/journal/gate-excludes-part-of-its-population.md`).
+
+Every row of `vmSuites` therefore states its namespace, and a row that states
+none is refused before the run starts.
+
+| Namespace | Suites | What the child gets |
+|-----------|--------|---------------------|
+| `guest-root` | every other suite | the guest's own namespace, and ze as root |
+| `per-test` | `firewall`, `policy`, `ospf`, `ospfv3` | a fresh namespace for each test, entered by the `.ci` runner before it spawns anything, and ze as uid 1000 holding file capabilities |
+
+The runner enters the namespace itself, once per test (`enterTestNetns`,
+`internal/test/runner/netns_linux.go`), and only when `ZE_TEST_NETNS` is set
+with a non-root `ZE_TEST_UID`. `all-tests` sets both for a routed suite, copies
+`ze` and `ze-stripped` to the guest's own tmpfs (a 9p mount carries no extended
+attribute, so a `setcap` on `/workspace` would buy nothing), and gives the
+dropped user a state directory to write in.
+
+Routing a suite also un-skips its `option=netns-link` tests. Outside this mode
+the runner SKIPS them (`applyNetnsLinkGate`, `internal/test/runner/caps.go`),
+so eight `test/ospf` and three `test/ospfv3` tests ran in no VM phase at all.
+The two `option=netns-link` tests in `test/plugin` still do: that suite holds
+742 tests, and routing all of them for two is a change nobody has evidence for.
+
+`./le qemu netns-test suites <names>` is the same launcher over a named subset,
+and it also asserts the guest root nft ruleset is unchanged by the run. It is
+the tight loop; `all-tests` runs the whole suite.
+
+<!-- source: internal/le/qemu/netns.go -- the namespace table's producer and the capability preparation -->
+<!-- source: internal/le/qemu/alltests.go -- vmSuites, the Namespace of each row -->
+
+### A run says what it planned, what it reached, and how many tests ran
+
+The report names its whole population before the first child (`plannedPhases`),
+so a run that stops can be told from a run that answered. `Unreached` is the
+planned phases with no result, the summary names them, and a report carrying
+one never prints `ALL PHASES PASSED`.
+
+Each functional suite also carries how many tests it EXECUTED, read from the
+runner's own summary line (`suiteTally`, `alltests_tally.go`). A suite that
+prints no such line executed nothing and is a failure whatever it exited with:
+the `.ci` runner answers 0 for an empty selection, so a suite whose directory
+moved would otherwise report success.
+
+A process whose transport is cut reports nothing at all, which is why the
+population is printed at the START of the run as well.
+
+<!-- source: internal/le/qemu/alltests_report.go -- Planned, Unreached, Text -->
+
 ### How `option=needs-linux` behaves on each host
 
 | Host | Behavior |
@@ -116,14 +176,19 @@ with the other sessions on the machine.
 
 <!-- source: internal/test/runner/record_parse.go -- the needs-linux option -->
 
-## Every QEMU target boots the kernel ze ships
+## A run boots ze's kernel when it is given one
 
-The VM runs Alpine userland on **ze's own runtime kernel**, never the kernel on
-the Alpine ISO. The host action `./le qemu run` owns the Alpine cache, the QEMU
-lifecycle, both 9p shares, bounded SSH waits, package installation, and cleanup.
-Its `kernel <path>` parameter supplies the staged runtime kernel, and the guest
-release check refuses a boot whose `uname -r` disagrees with
-`internal/appliance/kernel.version`.
+The VM runs Alpine userland, and it runs **ze's own runtime kernel when the
+`kernel <path>` parameter names one**. Without that parameter `Run.kernelPath`
+answers the empty string, QEMU boots the Alpine ISO's own kernel, and
+`Run.assertRuntimeKernel` never runs: it is reached only when `Plan.Kernel` is
+set. So a run with no `kernel` argument proves nothing about the kernel an
+operator gets, and every recipe on this page passes one.
+
+The host action `./le qemu run` owns the Alpine cache, the QEMU lifecycle, both
+9p shares, bounded SSH waits, package installation, and cleanup. When the
+parameter is there, the guest release check refuses a boot whose `uname -r`
+disagrees with `internal/appliance/kernel.version`.
 
 The native host action cross-compiles a Linux `cmd/ze` personality with the
 `ze_le` tag before boot. That guest binary runs the selected action. The full
@@ -147,21 +212,28 @@ outside the checkout, `Run.scratchShare` adds a second 9p share for that target.
 ```text
 host                                      QEMU Alpine VM
 ────                                      ──────────────
-./le qemu all-tests
+./le qemu run kernel <vmlinuz> ...
   ├─ cross-compile cmd/ze and the native guest runner
-  └─ boot the staged Ze kernel and execute the registered QEMU actions
-       ├─ boot staged Ze kernel             → verify uname -r
+  └─ boot the named kernel and run ONE command over SSH
+       ├─ boot the named kernel             → verify uname -r
        ├─ mount checkout and tmp target      → /workspace
        ├─ install declared packages
-       └─ SSH native guest command           → le qemu all-tests
+       └─ SSH native guest command           → le qemu all-tests   (in the guest)
+                                                ├─ per-test namespace preparation
                                                 ├─ functional suites
                                                 ├─ Linux unit pass
                                                 ├─ installer initrd tests
                                                 └─ integration-tagged tests
 ```
 
-Staging remains cache-backed. `ze-kernel-vmlinuz-stage` materializes from
-`~/.cache/ze` on a hit and builds only when the kernel key changes.
+`all-tests` is on the GUEST side of that diagram. It is an action of the same
+`le qemu` table, and typing it on the host answers `qemu: the repository is not
+mounted: /workspace`.
+
+The runtime kernel itself is built by `ze appliance kernel`, which writes
+`tmp/kernel/build/vmlinuz` (`runtimeKernelOutputDir`,
+`internal/appliance/cmd_kernel.go`). The build is cache-backed under
+`~/.cache/ze` and only runs when the kernel key changes.
 
 <!-- source: internal/le/qemu/run.go -- Run, Plan -->
 <!-- source: internal/le/qemu/actions.go -- Answer -->

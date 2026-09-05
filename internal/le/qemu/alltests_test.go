@@ -1,6 +1,8 @@
 package qemu
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,15 +25,22 @@ import (
 // recorder is a child runner that answers a fixed code and remembers every
 // command line it receives. This lets a case assert the ABSOLUTE number of
 // commands that a run emitted.
+//
+// It writes the runner's own summary line into the tally, because a suite that
+// prints none is a failure the run reports (suite, alltests.go). A case that
+// wants that branch drives it through failTally.
 type recorder struct {
 	code  map[string]int
 	calls [][]string
 	envs  [][]string
 }
 
-func (r *recorder) run(argv, environ []string) int {
+func (r *recorder) run(argv, environ []string, tally io.Writer) int {
 	r.calls = append(r.calls, argv)
 	r.envs = append(r.envs, environ)
+	if tally != nil {
+		fmt.Fprintf(tally, "pass  7/7  100.0%%  1.0s\n") //nolint:errcheck // in-memory writer
+	}
 	return r.code[strings.Join(argv, " ")]
 }
 
@@ -53,6 +62,7 @@ func vmFixture(t *testing.T) *allTestsRun {
 
 	return &allTestsRun{
 		Workspace:   workspace,
+		Look:        func(name string) (string, error) { return "/usr/sbin/" + name, nil },
 		BinDir:      filepath.Join(t.TempDir(), "bin"),
 		ZeBin:       "bin/ze",
 		StrippedBin: "bin/ze-stripped",
@@ -77,11 +87,21 @@ func writeFile(t *testing.T, root, rel, body string) {
 	}
 }
 
+// writeExecutable puts one of the run's three binaries in the workspace.
+//
+// It is a real static ELF, not a shell script: verify() reads the file's
+// PT_INTERP header and refuses a binary the musl guest cannot exec, so a
+// fixture that is not an ELF would fail every case in this package
+// (runnableInGuest, alltests_binary_test.go).
 func writeExecutable(t *testing.T, root, rel string) {
 	t.Helper()
-	writeFile(t, root, rel, "#!/bin/sh\nexit 0\n")
-	if err := os.Chmod(filepath.Join(root, rel), 0o700); err != nil {
-		t.Fatalf("chmod %s: %v", rel, err)
+	path := writeBinary(t, root, rel, staticELF())
+
+	// The fixture has to satisfy the run's own precondition, or every case in
+	// this package would be measuring the refusal rather than the run.
+	info, err := os.Stat(path)
+	if err != nil || info.Mode().Perm()&0o111 == 0 {
+		t.Fatalf("the fixture binary %s is not executable: %v", rel, err)
 	}
 }
 
@@ -125,6 +145,11 @@ func TestEveryDeclaredSuiteIsEitherRunOrExcluded(t *testing.T) {
 // phaseCount is the unit phase, the installer phase and the integration phase.
 const phaseCount = 3
 
+// preparationCommands is the one child that runs before the suites: the
+// per-test network namespace preparation (prepareNamespace, alltests.go). It
+// is not a phase, so it carries no verdict and appears in no report.
+const preparationCommands = 1
+
 // One command per suite that is not skipped, plus every phase. The count is
 // ABSOLUTE: a run that stopped after five suites and a comparison against
 // another run that stopped after five would agree.
@@ -138,7 +163,8 @@ func TestTheRunEmitsOneCommandPerSuitePlusEveryPhase(t *testing.T) {
 		t.Fatalf("a run whose every child answered 0 exited %d: %v", code, report.Failed)
 	}
 
-	wantCommands := len(vmSuites) - 1 + phaseCount // every suite but the skipped one, then the phases
+	// The preparation, every suite but the skipped one, then the phases.
+	wantCommands := preparationCommands + len(vmSuites) - 1 + phaseCount
 	if len(rec.calls) != wantCommands {
 		t.Fatalf("%d commands ran, want exactly %d", len(rec.calls), wantCommands)
 	}
@@ -222,8 +248,8 @@ func TestASuiteRunsUnderTheWallClockCap(t *testing.T) {
 	run.Run = rec.run
 	run.Execute()
 
-	first := strings.Join(rec.calls[0], " ")
-	want := "timeout -k " + killAfterSeconds + " 900s " + filepath.Join(run.BinDir, "ze-test") +
+	first := strings.Join(rec.calls[preparationCommands], " ")
+	want := "timeout -k " + killAfterSeconds + " 900s " + filepath.Join(run.BinDir, zeTestName) +
 		" bgp encode --all -p 4"
 	if first != want {
 		t.Errorf("the first suite command is\n  %s\nwant\n  %s", first, want)
@@ -237,8 +263,8 @@ func TestAFailingSuiteIsNamedAndTheRunExitsNonZero(t *testing.T) {
 
 	// Fail the parse suite alone, so a run that stopped at the first failure
 	// would emit fewer commands and this case would see it.
-	run.Run = func(argv, environ []string) int {
-		code := rec.run(argv, environ)
+	run.Run = func(argv, environ []string, tally io.Writer) int {
+		code := rec.run(argv, environ, tally)
 		if strings.Contains(strings.Join(argv, " "), "bgp parse") {
 			return 2
 		}
@@ -252,7 +278,7 @@ func TestAFailingSuiteIsNamedAndTheRunExitsNonZero(t *testing.T) {
 	if len(report.Failed) != 1 || report.Failed[0] != "functional/parse" {
 		t.Errorf("failures are %v, want exactly [functional/parse]", report.Failed)
 	}
-	wantCommands := len(vmSuites) - 1 + phaseCount
+	wantCommands := preparationCommands + len(vmSuites) - 1 + phaseCount
 	if len(rec.calls) != wantCommands {
 		t.Errorf("%d commands ran after a failure, want exactly %d: a failing suite"+
 			" must not stop the run", len(rec.calls), wantCommands)

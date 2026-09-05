@@ -25,7 +25,22 @@ type PhaseResult struct {
 	Command []string `json:"command,omitempty"`
 	Code    int      `json:"code"`
 	Skipped bool     `json:"skipped,omitempty"`
-	Reason  string   `json:"reason,omitempty"`
+	// Reason says why the phase did not run, or why its verdict is what it is.
+	Reason string `json:"reason,omitempty"`
+	// Namespace names the network namespace a functional suite ran in. It is
+	// what tells a reader whether a suite could have reached the guest state
+	// the run itself depends on.
+	Namespace string `json:"namespace,omitempty"`
+	// Tests is how many tests the phase executed, and Counted says the number
+	// was read rather than assumed. A phase that reports no count of its own
+	// leaves Counted false: the go test phases do, and a suite whose runner
+	// printed no summary line does, which is a failure the suite records.
+	//
+	// The pair exists because an exit code cannot tell a suite that ran two
+	// thousand tests from one that ran none and answered 0
+	// (plan/journal/gate-excludes-part-of-its-population.md).
+	Tests   int  `json:"tests"`
+	Counted bool `json:"counted,omitempty"`
 }
 
 // AllTestsReport is the whole answer of one run.
@@ -35,8 +50,13 @@ type AllTestsReport struct {
 	// like a whole one: the same suites start, and each answers 0. A reader
 	// who cannot see the filter reads "ALL PHASES PASSED" as a verdict over
 	// tests that never ran.
-	Selection string        `json:"selection,omitempty"`
-	Phases    []PhaseResult `json:"phases"`
+	Selection string `json:"selection,omitempty"`
+	// Planned names every phase the run intended to reach, in order, as it was
+	// known before the first child started. A run that ends early is then a run
+	// whose Phases are shorter than its Planned, rather than a run that looks
+	// complete because the phases it never reached are in neither list.
+	Planned []string      `json:"planned"`
+	Phases  []PhaseResult `json:"phases"`
 	// Failed names every phase that answered non-zero, in the order they ran.
 	// It is carried rather than derived at render time so `| json` and the
 	// summary line cannot disagree about what failed.
@@ -49,6 +69,26 @@ func (r *AllTestsReport) add(phase PhaseResult) {
 	if !phase.Skipped && phase.Code != 0 {
 		r.Failed = append(r.Failed, phase.Name)
 	}
+}
+
+// Unreached names every planned phase that produced no result, in the order it
+// was planned.
+//
+// A skipped phase is REACHED: the run decided about it and said so. An
+// unreached phase is one the run never got to, which is what a stopped run
+// leaves behind and what must never render as a pass.
+func (r AllTestsReport) Unreached() []string {
+	reached := make(map[string]bool, len(r.Phases))
+	for _, phase := range r.Phases {
+		reached[phase.Name] = true
+	}
+	var missing []string
+	for _, name := range r.Planned {
+		if !reached[name] {
+			missing = append(missing, name)
+		}
+	}
+	return missing
 }
 
 // Text renders the summary a person reads at the end of an hour-long run, and
@@ -80,10 +120,30 @@ func (r AllTestsReport) Text() string {
 		tb.Str("selection: only the .ci tests marked option=").Str(r.Selection).
 			Str(" ran; the unit, installer and integration phases are unfiltered\n")
 	}
-	tb.Str("phases: ").Int(int64(ran)).Str(" ran, ").Int(int64(skipped)).Str(" skipped\n")
-	if len(r.Failed) == 0 {
-		return tb.Str("ALL PHASES PASSED\n").String()
+	tb.Str("phases: ").Int(int64(ran)).Str(" ran, ").Int(int64(skipped)).Str(" skipped, ").
+		Int(int64(len(r.Planned))).Str(" planned\n")
+	tb.Str("tests: ").Int(int64(r.tests())).Str(" executed across the functional suites\n")
+
+	unreached := r.Unreached()
+	if len(unreached) > 0 {
+		tb.Str("NOT REACHED: ").Join(unreached, ", ").Byte('\n')
 	}
-	tb.Str("FAILED: ").Join(r.Failed, ", ").Byte('\n')
+	if len(r.Failed) > 0 {
+		tb.Str("FAILED: ").Join(r.Failed, ", ").Byte('\n')
+	}
+	if len(unreached) == 0 && len(r.Failed) == 0 {
+		tb.Str("ALL PHASES PASSED\n")
+	}
 	return tb.String()
+}
+
+// tests is how many tests the counting phases executed between them.
+func (r AllTestsReport) tests() int {
+	total := 0
+	for _, phase := range r.Phases {
+		if phase.Counted {
+			total += phase.Tests
+		}
+	}
+	return total
 }

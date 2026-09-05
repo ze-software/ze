@@ -148,11 +148,14 @@ func TestTheShimReplacesTheLinksAPreviousRunLeft(t *testing.T) {
 // The summary counts what ran and what was skipped. An hour-long run's phases
 // scrolled past long ago, so this line is what a reader acts on.
 func TestTheSummaryCountsWhatRanAndWhatWasSkipped(t *testing.T) {
-	report := AllTestsReport{Phases: []PhaseResult{
-		{Name: "functional/encode", Code: 0},
-		{Name: "functional/web", Skipped: true, Reason: "ZE_QEMU_SKIP_SUITES"},
-		{Name: "unit tests", Code: 0},
-	}}
+	report := AllTestsReport{
+		Planned: []string{"functional/encode", "functional/web", "unit tests"},
+		Phases: []PhaseResult{
+			{Name: "functional/encode", Code: 0},
+			{Name: "functional/web", Skipped: true, Reason: "ZE_QEMU_SKIP_SUITES"},
+			{Name: "unit tests", Code: 0},
+		},
+	}
 
 	text := report.Text()
 	if !strings.Contains(text, "2 ran, 1 skipped") {
@@ -176,5 +179,72 @@ func TestASkippedPhaseIsNeverCountedAsAFailure(t *testing.T) {
 
 	if len(report.Failed) != 0 {
 		t.Errorf("a skipped phase was counted as a failure: %v", report.Failed)
+	}
+}
+
+// VALIDATES: a run that stopped before its last phase never renders as passed,
+// and names what it did not reach.
+// PREVENTS: the 2026-09-05 run's answer. It died inside functional/firewall and
+// reported the drop, so a reader learned that the run failed and not that two
+// thirds of its population never started. A report that carries only the phases
+// it reached cannot tell a whole run from a third of one.
+func TestARunThatStoppedEarlyNamesWhatItDidNotReach(t *testing.T) {
+	report := AllTestsReport{
+		Planned: []string{"functional/firewall", "functional/policy", "unit tests"},
+		Phases:  []PhaseResult{{Name: "functional/firewall", Code: 0, Counted: true, Tests: 25}},
+	}
+
+	unreached := report.Unreached()
+	if len(unreached) != 2 || unreached[0] != "functional/policy" || unreached[1] != "unit tests" {
+		t.Fatalf("the unreached phases are %v, want [functional/policy unit tests]", unreached)
+	}
+
+	text := report.Text()
+	if strings.Contains(text, "ALL PHASES PASSED") {
+		t.Errorf("a run that reached one of three phases renders as a pass:\n%s", text)
+	}
+	for _, want := range []string{"NOT REACHED", "functional/policy", "unit tests"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the summary does not carry %q:\n%s", want, text)
+		}
+	}
+}
+
+// A phase that was SKIPPED was reached: the run decided about it and said so.
+// Counting one as unreached would make every default run render as stopped.
+func TestASkippedPhaseCountsAsReached(t *testing.T) {
+	report := AllTestsReport{
+		Planned: []string{"functional/web"},
+		Phases:  []PhaseResult{{Name: "functional/web", Skipped: true, Reason: "ZE_QEMU_SKIP_SUITES"}},
+	}
+	if unreached := report.Unreached(); len(unreached) != 0 {
+		t.Errorf("a skipped phase is reported as unreached: %v", unreached)
+	}
+	if !strings.Contains(report.Text(), "ALL PHASES PASSED") {
+		t.Errorf("a run whose only phase was skipped does not pass:\n%s", report.Text())
+	}
+}
+
+// The population is stated before the first child, so it is in the report even
+// when the run answers for none of it.
+func TestTheRunStatesItsWholePopulationBeforeItStarts(t *testing.T) {
+	planned := plannedPhases()
+	if len(planned) != len(vmSuites)+phaseCount {
+		t.Fatalf("%d phases planned, want one per suite plus %d", len(planned), phaseCount)
+	}
+	for i, suite := range vmSuites {
+		if planned[i] != "functional/"+suite.Name {
+			t.Errorf("planned phase %d is %q, want %q", i, planned[i], "functional/"+suite.Name)
+		}
+	}
+
+	// The planned name and the reported name are the same string. A phase whose
+	// two names disagree would read as one that never ran.
+	run := vmFixture(t)
+	rec := &recorder{}
+	run.Run = rec.run
+	report, _ := run.Execute()
+	if unreached := report.Unreached(); len(unreached) != 0 {
+		t.Errorf("a whole run reports unreached phases: %v", unreached)
 	}
 }

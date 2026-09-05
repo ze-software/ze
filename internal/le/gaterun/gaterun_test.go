@@ -10,6 +10,7 @@ package gaterun
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -61,4 +62,28 @@ func itoa(v int) string {
 		v /= 10
 	}
 	return string(digits)
+}
+
+// VALIDATES: a caller can read a child's stdout without taking it away from the
+// terminal.
+// PREVENTS: a run reading a suite's own count by capturing its output, which
+// would hold an hour of a suite's progress until the suite ended.
+func TestStreamTeeGivesTheCallerACopyOfTheChildsOutput(t *testing.T) {
+	var copied strings.Builder
+	code := StreamTee([]string{"sh", "-c", "echo one; echo two >&2; echo three"},
+		t.TempDir(), os.Environ(), &copied)
+	if code != 0 {
+		t.Fatalf("StreamTee answered %d, want 0", code)
+	}
+	if copied.String() != "one\nthree\n" {
+		t.Errorf("the tee holds %q, want the child's stdout alone", copied.String())
+	}
+}
+
+// A nil tee is Stream. The default path must not depend on a writer nobody
+// passed.
+func TestStreamTeeWithNoReaderIsStream(t *testing.T) {
+	if code := StreamTee([]string{"sh", "-c", "exit 5"}, t.TempDir(), os.Environ(), nil); code != 5 {
+		t.Errorf("StreamTee with a nil tee answered %d, want 5", code)
+	}
 }
