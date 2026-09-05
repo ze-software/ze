@@ -8,13 +8,13 @@
 # The peer holds the assertion. It exits zero only when the announce and the
 # withdraw both arrived, in that order.
 #
-# VALIDATES: `ze announce unicast 10.0.0.0/24 next-hop 10.0.0.1 tag maint
+# VALIDATES: `ze send bgp * unicast 10.0.0.0/24 next-hop 10.0.0.1 tag maint
 #   window` reaches the wire and the registry; `ze show announcements` lists the
-#   live announcement; `ze withdraw tag maint` reports one removal and puts the
-#   withdrawal of 10.0.0.0/24 on the peer's wire.
+#   live announcement; `ze send bgp * withdraw tag maint` reports one removal and
+#   puts the withdrawal of 10.0.0.0/24 on the peer's wire.
 # PREVENTS: the tag registry tracking an announcement the reactor never
-#   withdrew, which is a green `ze withdraw` and a peer that still holds the
-#   route.
+#   withdrew, which is a green `ze send bgp * withdraw` and a peer that still
+#   holds the route.
 
 tmpfs=peer-script:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -25,6 +25,6 @@ EOF_PEER
 
 option=timeout:value=180s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/cli-announce-tag-round-trip $PORT:timeout=170s
+cmd=foreground:seq=1:exec=ze-test fixture ui/send-withdraw-by-tag $PORT:timeout=170s
 expect=exit:code=0
 expect=stdout:contains=OK

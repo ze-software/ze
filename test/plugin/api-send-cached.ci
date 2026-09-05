@@ -20,8 +20,8 @@ EOF_PEER
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external cache-forward-test {
-		run "ze-test fixture plugin/api-cache-forward"
+	external send-cached-test {
+		run "ze-test fixture plugin/api-send-cached"
 		encoder json
 	}
 }
@@ -54,7 +54,7 @@ bgp {
 			group-updates disable
 		}
 
-		attach process cache-forward-test {
+		attach process send-cached-test {
 			send [ update ]
 		}
 	}

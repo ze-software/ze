@@ -41,18 +41,18 @@ func plugin01APIBGPSummary(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
-func plugin01APICacheForward(ctx context.Context, plugin *sdk.Plugin) error {
+func plugin01APISendCached(ctx context.Context, plugin *sdk.Plugin) error {
 	_, status, err := plugin01DispatchMap(ctx, plugin, "send bgp 127.0.0.1 cached 999")
 	if err != nil {
 		if (status != "" && status != rpc.StatusError) || !strings.HasPrefix(err.Error(), "rpc error:") {
-			return fmt.Errorf("cache forward: status=%q: %w", status, err)
+			return fmt.Errorf("send bgp cached: status=%q: %w", status, err)
 		}
 		status = rpc.StatusError
 	}
 	if status != rpc.StatusDone && status != rpc.StatusError {
-		return fmt.Errorf("cache forward: unexpected status=%q", status)
+		return fmt.Errorf("send bgp cached: unexpected status=%q", status)
 	}
-	fmt.Fprintf(os.Stderr, "cache forward status=%s\nOK: cache forward dispatched\n", status)
+	fmt.Fprintf(os.Stderr, "send bgp cached status=%s\nOK: send bgp cached dispatched\n", status)
 	if !plugin01WaitCounter(ctx, plugin, "*", "eor-sent", 1, 40) {
 		return errors.New("ze did not send the End-of-RIB to the peer before shutdown")
 	}

@@ -31,23 +31,23 @@ import (
 )
 
 func init() {
-	registerFixture("ui/cli-announce-reaches-the-wire", cliAnnounceReachesTheWire)
-	registerFixture("ui/cli-announce-tag-round-trip", cliAnnounceTagRoundTrip)
+	registerFixture("ui/send-unicast-reaches-the-wire", sendUnicastReachesTheWire)
+	registerFixture("ui/send-withdraw-by-tag", sendWithdrawByTag)
 }
 
-// cliAnnouncePrefix is the prefix every announce in this file originates. Its
+// cliWirePrefix is the prefix every announce in this file originates. Its
 // wire form, one length octet of 24 and the three significant octets RFC 4271
 // Section 4.3 asks for, is what each .ci peer script expects.
-const cliAnnouncePrefix = "10.0.0.0/24"
+const cliWirePrefix = "10.0.0.0/24"
 
-// cliAnnounceNextHop is the next hop every announce in this file carries.
+// cliWireNextHop is the next hop every announce in this file carries.
 //
 // It is stated rather than left to default, and the reason is RFC 4271 Section
 // 5.1.3: a speaker MUST NOT advertise a route whose NEXT_HOP is the receiving
 // peer's own address, and ze withholds one that is. Both ends of this session
 // sit on the loopback, so next-hop self IS the peer's address and the route
 // never reaches the wire.
-const cliAnnounceNextHop = "10.0.0.1"
+const cliWireNextHop = "10.0.0.1"
 
 // cliWireEndOfRIBHex is the body of the End-of-RIB marker RFC 4724
 // Section 2 defines for IPv4 unicast: an UPDATE of 23 octets with no withdrawn
@@ -72,17 +72,17 @@ const (
 	argWithdraw  = "withdraw"
 )
 
-// cliAnnounceTagKey and cliAnnounceTagValue name the announcement the
+// cliWireTagKey and cliWireTagValue name the announcement the
 // round-trip test lists and then withdraws.
 const (
-	cliAnnounceTagKey   = "maint"
-	cliAnnounceTagValue = "window"
+	cliWireTagKey   = "maint"
+	cliWireTagValue = "window"
 )
 
-// cliAnnounceUnclaimedToken is the word every refusal case types where no
+// cliWireUnclaimedToken is the word every refusal case types where no
 // keyword claims it. It is one word rather than a literal in each case so the
 // argv and the expectation cannot drift apart.
-const cliAnnounceUnclaimedToken = "bogus"
+const cliWireUnclaimedToken = "bogus"
 
 // cliWireSession is one run's two processes and the environment a client
 // reaches the daemon with: a daemon over ephemeral SSH, and a ze-test peer
@@ -106,19 +106,19 @@ type cliWireResult struct {
 	out  string
 }
 
-// cliAnnounceReachesTheWire proves that `ze send bgp * unicast <prefix>` typed as
+// sendUnicastReachesTheWire proves that `ze send bgp * unicast <prefix>` typed as
 // argv reaches the handler and puts the prefix on a peer's wire, and that a
 // trailing token no keyword claims is refused by name rather than discarded.
-func cliAnnounceReachesTheWire(ctx context.Context, args []string) error {
+func sendUnicastReachesTheWire(ctx context.Context, args []string) error {
 	session, err := startCLIWireSession(ctx, args)
 	if err != nil {
 		return err
 	}
 	defer session.stop()
 
-	announced := session.run(ctx, argSend, argBGP, argEveryPeer, argUnicast, cliAnnouncePrefix, argNextHop, cliAnnounceNextHop)
+	announced := session.run(ctx, argSend, argBGP, argEveryPeer, argUnicast, cliWirePrefix, argNextHop, cliWireNextHop)
 	if announced.code != 0 {
-		return fmt.Errorf("ze send bgp * unicast %s exit=%d, want 0: %s", cliAnnouncePrefix, announced.code, announced.out)
+		return fmt.Errorf("ze send bgp * unicast %s exit=%d, want 0: %s", cliWirePrefix, announced.code, announced.out)
 	}
 
 	// The refusals share this daemon because each one is a single command
@@ -139,13 +139,13 @@ func cliAnnounceReachesTheWire(ctx context.Context, args []string) error {
 		// A token after a complete option, on both of the other two forms. This
 		// is the same silent discard reached through the two handlers that share
 		// the option parser.
-		{[]string{argSend, argBGP, argEveryPeer, argUnicast, cliAnnouncePrefix, argNextHop, cliAnnounceNextHop, argTag, "k", "v", cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
-		{[]string{argSend, argBGP, argEveryPeer, argBlackhole, cliAnnouncePrefix, argTag, "k", "v", cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
+		{[]string{argSend, argBGP, argEveryPeer, argUnicast, cliWirePrefix, argNextHop, cliWireNextHop, argTag, "k", "v", cliWireUnclaimedToken}, cliWireUnclaimedToken},
+		{[]string{argSend, argBGP, argEveryPeer, argBlackhole, cliWirePrefix, argTag, "k", "v", cliWireUnclaimedToken}, cliWireUnclaimedToken},
 		// A bare token where an option keyword belongs. Each handler's own
 		// keyword loop refuses this one, and it is named here so both refusals
 		// stay proven from the operator's side.
-		{[]string{argSend, argBGP, argEveryPeer, argUnicast, cliAnnouncePrefix, cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
-		{[]string{argSend, argBGP, argEveryPeer, argBlackhole, cliAnnouncePrefix, cliAnnounceUnclaimedToken}, cliAnnounceUnclaimedToken},
+		{[]string{argSend, argBGP, argEveryPeer, argUnicast, cliWirePrefix, cliWireUnclaimedToken}, cliWireUnclaimedToken},
+		{[]string{argSend, argBGP, argEveryPeer, argBlackhole, cliWirePrefix, cliWireUnclaimedToken}, cliWireUnclaimedToken},
 	}
 	for _, refusal := range refusals {
 		line := strings.Join(refusal.argv, " ")
@@ -161,47 +161,47 @@ func cliAnnounceReachesTheWire(ctx context.Context, args []string) error {
 	// The peer holds the assertion: it exits zero only when every expectation
 	// in its script arrived, so this is what proves the prefix reached the wire.
 	if err := waitFixtureProcess(ctx, session.peer, 20*time.Second); err != nil {
-		return fmt.Errorf("the peer did not receive the announced %s: %w\n%s", cliAnnouncePrefix, err, session.peer.output.String())
+		return fmt.Errorf("the peer did not receive the announced %s: %w\n%s", cliWirePrefix, err, session.peer.output.String())
 	}
 
 	fmt.Println("OK")
 	return nil
 }
 
-// cliAnnounceTagRoundTrip proves that an announcement carrying a tag is listed
+// sendWithdrawByTag proves that an announcement carrying a tag is listed
 // while it is live, that withdrawing the tag reports one removal, and that the
 // peer receives the withdrawal.
-func cliAnnounceTagRoundTrip(ctx context.Context, args []string) error {
+func sendWithdrawByTag(ctx context.Context, args []string) error {
 	session, err := startCLIWireSession(ctx, args)
 	if err != nil {
 		return err
 	}
 	defer session.stop()
 
-	announced := session.run(ctx, argSend, argBGP, argEveryPeer, argUnicast, cliAnnouncePrefix, argNextHop, cliAnnounceNextHop, argTag, cliAnnounceTagKey, cliAnnounceTagValue)
+	announced := session.run(ctx, argSend, argBGP, argEveryPeer, argUnicast, cliWirePrefix, argNextHop, cliWireNextHop, argTag, cliWireTagKey, cliWireTagValue)
 	if announced.code != 0 {
 		return fmt.Errorf("ze send bgp * unicast %s tag %s %s exit=%d, want 0: %s",
-			cliAnnouncePrefix, cliAnnounceTagKey, cliAnnounceTagValue, announced.code, announced.out)
+			cliWirePrefix, cliWireTagKey, cliWireTagValue, announced.code, announced.out)
 	}
 
 	listed := session.run(ctx, "show", "announcements")
 	if listed.code != 0 {
 		return fmt.Errorf("ze show announcements exit=%d, want 0: %s", listed.code, listed.out)
 	}
-	if !strings.Contains(listed.out, cliAnnounceTagKey) {
+	if !strings.Contains(listed.out, cliWireTagKey) {
 		return fmt.Errorf("ze show announcements does not list the live announcement: %s", listed.out)
 	}
 
-	withdrawn := session.run(ctx, argSend, argBGP, argEveryPeer, argWithdraw, argTag, cliAnnounceTagKey)
+	withdrawn := session.run(ctx, argSend, argBGP, argEveryPeer, argWithdraw, argTag, cliWireTagKey)
 	if withdrawn.code != 0 {
-		return fmt.Errorf("ze send bgp * withdraw tag %s exit=%d, want 0: %s", cliAnnounceTagKey, withdrawn.code, withdrawn.out)
+		return fmt.Errorf("ze send bgp * withdraw tag %s exit=%d, want 0: %s", cliWireTagKey, withdrawn.code, withdrawn.out)
 	}
 	if !strings.Contains(withdrawn.out, "1") {
-		return fmt.Errorf("ze send bgp * withdraw tag %s did not report one removal: %s", cliAnnounceTagKey, withdrawn.out)
+		return fmt.Errorf("ze send bgp * withdraw tag %s did not report one removal: %s", cliWireTagKey, withdrawn.out)
 	}
 
 	if err := waitFixtureProcess(ctx, session.peer, 20*time.Second); err != nil {
-		return fmt.Errorf("the peer did not receive the withdrawal of %s: %w\n%s", cliAnnouncePrefix, err, session.peer.output.String())
+		return fmt.Errorf("the peer did not receive the withdrawal of %s: %w\n%s", cliWirePrefix, err, session.peer.output.String())
 	}
 
 	fmt.Println("OK")

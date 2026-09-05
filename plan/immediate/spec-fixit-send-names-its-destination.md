@@ -237,7 +237,7 @@ both touch, in different containers.
 - [ ] `internal/plugins/exabgp/bridgeplugin/internal.go` - the same shape again, third copy.
 - [ ] `internal/test/fixture/plugin_fixture_06_exec.go` - the shipped bridge helper writes ONE line, `neighbor 127.0.0.1 announce route 1.1.0.0/24 next-hop 101.1.101.1 origin igp local-preference 100`. It is the translated half. No shipped fixture drives the passthrough half.
 - [ ] `test/plugin/exabgp-bridge-internal.ci` and `test/plugin/exabgp-bridge-sdk.ci` - each drives the bridge end to end from that helper and asserts the resulting wire UPDATE in hex. Each also carries a Ze-side expectation line spelling `peer * update text ...`.
-- [ ] `test/ui/cli-announce-reaches-the-wire.ci` - the shape a `.ci` uses to prove a command reaches the wire: a compiled fixture starts the daemon and a scripted peer, and the peer holds the assertion.
+- [ ] `test/ui/send-unicast-reaches-the-wire.ci` - the shape a `.ci` uses to prove a command reaches the wire: a compiled fixture starts the daemon and a scripted peer, and the peer holds the assertion.
 - [ ] `cmd/ze/help_ai.go` - publishes `peer <selector> update text ...` as the grammar line and `peer * update text ...` in two worked examples, for an agent reading the AI help.
 - [ ] `plan/journal/command-takes-an-untyped-positional-value.md` - four rows. The 2026-09-04 row names `peer raw`, `peer update` and `request commit`, and records the reason it was not fixed: the superseded spec "changes where the command lives and not what its schema declares".
 
@@ -659,7 +659,7 @@ exactly what this design changes.
 |-------------|---|--------------|------|
 | operator types `send bgp 192.0.2.1 raw hex FFFF...` | → | `anchoredDef` binds the selector to the leaf `bgp` declares, `handleRaw`, `ResolveSinglePeer`, `SendRawMessage` | `TestSendRawReachesOnePeerAtItsNewPath` |
 | operator types `send bgp * raw hex FFFF...` | → | `ResolveSinglePeer` refuses the wildcard | `TestSendRawRefusesAWildcardSelector` |
-| operator types `send bgp * unicast 10.0.0.0/24 next-hop 10.0.0.1` | → | `handleAnnounceUnicastCmd`, `announceAndTrack`, the reactor | `test/ui/cli-announce-reaches-the-wire.ci` |
+| operator types `send bgp * unicast 10.0.0.0/24 next-hop 10.0.0.1` | → | `handleAnnounceUnicastCmd`, `announceAndTrack`, the reactor | `test/ui/send-unicast-reaches-the-wire.ci` |
 | operator types `send bgp unicast 10.0.0.0/24`, with no selector | → | `Dispatch` refuses on `RequiresSelector` | `TestSendRefusesAMissingSelector` |
 | operator types an old path, `peer raw 192.0.2.1 hex FF` | → | no node matches; the dispatcher refuses and names the command | `test/ui/send-old-paths-are-refused.ci` |
 | an ExaBGP process writes `neighbor 127.0.0.1 announce route 1.1.0.0/24 next-hop 101.1.101.1` | → | `ExabgpToZebgpCommand`, `DispatchCommand`, the reactor, the peer's wire | `test/plugin/exabgp-bridge-internal.ci` (existing, hex unchanged) |
@@ -696,9 +696,9 @@ exactly what this design changes.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | injects a crafted BGP message into one session for a conformance test | CLI → `send bgp <sel> raw` → `ResolveSinglePeer` → `SendRawMessage` → wire | `test/ui/send-raw-reaches-one-peer.ci` |
-| 2 | originates a prefix to every peer | CLI → `send bgp * unicast` → `announceAndTrack` → reactor → wire | `test/ui/cli-announce-reaches-the-wire.ci` |
-| 3 | withdraws a tagged announcement from one peer | CLI → `send bgp edge1 withdraw tag <k> <v>` → the registry → wire | `test/ui/cli-announce-tag-round-trip.ci` |
-| 4 | replays a cached UPDATE to the peers a selector names | CLI → `send bgp <sel> cached <id>` → `ForwardUpdate` → wire | `test/plugin/api-cache-forward.ci` |
+| 2 | originates a prefix to every peer | CLI → `send bgp * unicast` → `announceAndTrack` → reactor → wire | `test/ui/send-unicast-reaches-the-wire.ci` |
+| 3 | withdraws a tagged announcement from one peer | CLI → `send bgp edge1 withdraw tag <k> <v>` → the registry → wire | `test/ui/send-withdraw-by-tag.ci` |
+| 4 | replays a cached UPDATE to the peers a selector names | CLI → `send bgp <sel> cached <id>` → `ForwardUpdate` → wire | `test/plugin/api-send-cached.ci` |
 | 5 | runs an unmodified ExaBGP script using `neighbor` lines | ExaBGP text → `TranslateLine` → dispatch → reactor → wire, then the flush | `test/plugin/exabgp-bridge-internal.ci`, `TestFlushBlocksUntilResponse` |
 | 6 | runs an ExaBGP script using the bare forms | ExaBGP text → the translator's bare branch → `send bgp * ...` → wire | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` |
 | 7 | discovers the grammar by typing `send ` and pressing tab | completion over the merged tree: the protocols, then the selector, then the forms | `test/ui/cli-completion-send-forms.ci` |
@@ -738,11 +738,11 @@ exactly what this design changes.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `send-raw-reaches-one-peer` | `test/ui/send-raw-reaches-one-peer.ci` | the operator injects raw bytes at the new path and a scripted peer reads them; a wildcard selector is refused | PASS |
-| `cli-announce-reaches-the-wire` | `test/ui/cli-announce-reaches-the-wire.ci` | `send bgp * unicast` puts the prefix on a peer's wire, with the hex the announce fixture asserts. Its name still says announce; see Files to Create | PASS |
-| `cli-announce-tag-round-trip` | `test/ui/cli-announce-tag-round-trip.ci` | a tagged announcement is listed while live, `send bgp * withdraw tag <key>` reports one removal, and the peer reads the withdrawal | PASS |
+| `send-unicast-reaches-the-wire` | `test/ui/send-unicast-reaches-the-wire.ci` | `send bgp * unicast` puts the prefix on a peer's wire, and a trailing token no keyword claims is refused by name on all three origination forms | PASS |
+| `send-withdraw-by-tag` | `test/ui/send-withdraw-by-tag.ci` | a tagged announcement is listed while live, `send bgp * withdraw tag <key>` reports one removal, and the peer reads the withdrawal | PASS |
 | `send-old-paths-are-refused` | `test/ui/send-old-paths-are-refused.ci` | all fifteen old paths match nothing and the refusal names the command; the nine surviving forms render their own line | PASS |
 | `cli-completion-send-forms` | `test/ui/cli-completion-send-forms.ci` | completion after `send ` offers the protocols, then the selector, then the forms, then each form's declared arguments | PASS for the forms that exist at phase 2, which is `raw`. `update` and `cached` join it when phases 3 and 5 move them |
-| `api-cache-forward` | `test/plugin/api-cache-forward.ci` | `send bgp 127.0.0.1 cached 999` reaches the handler, which answers about the cache rather than about an unknown command. Its name still says cache forward; see Files to Create | PASS |
+| `api-send-cached` | `test/plugin/api-send-cached.ci` | `send bgp 127.0.0.1 cached 999` reaches the handler, which answers about the cache rather than about an unknown command | PASS |
 | `exabgp-bridge-internal` | `test/plugin/exabgp-bridge-internal.ci` (existing) | an ExaBGP-format helper's route reaches the wire; the hex expectation is UNCHANGED and the Ze-side expectation line moves | |
 | `exabgp-bridge-sdk` | `test/plugin/exabgp-bridge-sdk.ci` (existing) | the same, in SDK mode | |
 | `exabgp-bridge-bare-form-reaches-the-wire` | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` | AC-9: a helper writing the bare ExaBGP form puts the prefix on the wire. It is a new fixture because no shipped one drives the passthrough half | |
@@ -795,16 +795,18 @@ exactly what this design changes.
   the nine surviving forms to render their own usage line so the refusals cannot
   pass over a tree where `send bgp` never existed either. It needs no daemon, so
   it is immune to the startup contention the other `test/ui` fixtures meet
-- `test/ui/send-announce-reaches-the-wire.ci` -- NOT created under that name. The
-  test exists as `test/ui/cli-announce-reaches-the-wire.ci`, which drives
+- `test/ui/send-unicast-reaches-the-wire.ci` -- created, by renaming
+  `test/ui/cli-announce-reaches-the-wire.ci`. It drives
   `send bgp * unicast <prefix> next-hop <nh>` as argv against a daemon over
-  ephemeral SSH and a scripted peer, and holds the three refusal cases beside it
-- `test/ui/send-withdraw-by-tag.ci` -- NOT created under that name. The test
-  exists as `test/ui/cli-announce-tag-round-trip.ci`, which drives
+  ephemeral SSH and a scripted peer, and holds the three refusal cases beside it.
+  The spec called it `send-announce-reaches-the-wire.ci`; `announce` is the word
+  the owner removed on 2026-09-05, so putting it back in a filename that outlives
+  this spec would leave it as the one place the word survives
+- `test/ui/send-withdraw-by-tag.ci` -- created, by renaming
+  `test/ui/cli-announce-tag-round-trip.ci`. It drives
   `send bgp * withdraw tag <key>` and asserts the peer reads the withdrawal
-- `test/plugin/api-send-cached.ci` -- NOT created under that name. The test exists
-  as `test/plugin/api-cache-forward.ci`, which dispatches
-  `send bgp 127.0.0.1 cached 999`
+- `test/plugin/api-send-cached.ci` -- created, by renaming
+  `test/plugin/api-cache-forward.ci`. It dispatches `send bgp 127.0.0.1 cached 999`
 - `test/plugin/exabgp-bridge-flush-still-reaches-the-peer.ci` -- NOT created, and
   the reason is MEASURED rather than judged. The flush was suppressed at its
   source (`Translation.Route` forced false) and the whole plugin suite was run:
@@ -817,11 +819,17 @@ exactly what this design changes.
   on the ze side. Under the same suppression that test goes RED, as does
   `TestBridgeSelectorCannotBeSilentlyEmpty` on all five rows
 
-**The three renames are not made.** `cli-announce-reaches-the-wire`,
-`cli-announce-tag-round-trip` and `api-cache-forward` each name a command the
-grammar no longer has. Renaming a tracked test file is a delete plus a create and
-it moves every test id in its suite, so it is the owner's call rather than this
-spec's.
+**The three renames are made, on the owner's word of 2026-09-05.** Each old name
+spelled a command the grammar no longer has. The rename reaches four things per
+test and all four moved together: the `.ci` filename, the fixture key the `.ci`
+types, the Go driver the key resolves to, and the prose inside each file.
+`internal/test/fixture/ui_fixture_cli_announce.go` became `ui_fixture_send_bgp.go`
+with it, and its shared harness keeps the neutral `cliWire` prefix, which names
+the CLI-over-wire fixture rather than any command.
+
+`plan/immediate/spec-announce-grammar-stated-and-enforced.md` cites these three
+by name as its own deliverables. Its citations are repointed, because a name this
+change renamed is inside this change wherever it is read.
 
 ### Integration Checklist
 

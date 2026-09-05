@@ -37,7 +37,7 @@ func init() {
 		"plugin/api-announce-flowspec-extra-token":  {"announce-flowspec-test", plugin01APIAnnounceFlowspecExtraToken},
 		"plugin/api-announce-unicast":               {"announce-unicast-test", plugin01APIAnnounceUnicast},
 		"plugin/api-bgp-summary":                    {"summary-test", plugin01APIBGPSummary},
-		"plugin/api-cache-forward":                  {"cache-forward-test", plugin01APICacheForward},
+		"plugin/api-send-cached":                    {"send-cached-test", plugin01APISendCached},
 		"plugin/api-cache-ops":                      {"cache-ops-test", plugin01APICacheOps},
 		"plugin/api-commit-lifecycle":               {"commit-lifecycle-test", plugin01APICommitLifecycle},
 		"plugin/api-commit-workflow":                {"commit-workflow-test", plugin01APICommitWorkflow},

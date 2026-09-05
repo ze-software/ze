@@ -204,8 +204,8 @@ Steps 2 and 4 are the two halves that disagree. They share no code, which is why
 |-------------|---|--------------|------|
 | `ze announce flowspec help` as argv | → | `Usage`, `appendGroupTokens`, `writeUsageToken` | `test-announce-forms-state-their-action` (`test/ui/*.ci`) |
 | `ze announce flowspec destination 1.1.1.1/32 discard rate-limit 500` as argv against a live daemon | → | `parseTrailingOpts` | `TestAnnounceRefusesAnUnclaimedTrailingToken` and the fixture below |
-| `ze announce unicast 10.0.0.0/24` as argv against a live daemon with a peer | → | `handleAnnounceUnicast`, `announceAndTrack`, the reactor | `cli-announce-reaches-the-wire` (Go fixture plus `.ci`) |
-| `ze withdraw tag <key>` as argv after an announce | → | `handleWithdrawTag`, `Registry` | `cli-announce-tag-round-trip` |
+| `ze announce unicast 10.0.0.0/24` as argv against a live daemon with a peer | → | `handleAnnounceUnicast`, `announceAndTrack`, the reactor | `send-unicast-reaches-the-wire` (Go fixture plus `.ci`) |
+| `ze withdraw tag <key>` as argv after an announce | → | `handleWithdrawTag`, `Registry` | `send-withdraw-by-tag` |
 | The operator presses tab after `announce flowspec destination 1.1.1.1/32 ` | → | `matchChildren` | `TestCompletionOffersTheActionsNotTheWrapper` |
 
 ## Acceptance Criteria
@@ -227,9 +227,9 @@ Steps 2 and 4 are the two halves that disagree. They share no code, which is why
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Asks how to announce a flowspec rule and reads the usage line | model to `Usage` to `UsageLine` to stderr | `test-announce-forms-state-their-action` |
-| 2 | Announces a flowspec discard rule to a peer | argv to `matchCommandTokens` to `handleAnnounceFlowspec` to reactor to wire | `cli-announce-reaches-the-wire` |
+| 2 | Announces a flowspec discard rule to a peer | argv to `matchCommandTokens` to `handleAnnounceFlowspec` to reactor to wire | `send-unicast-reaches-the-wire` |
 | 3 | Mistypes a second action and is told so | argv to `splitFlowspecArgs` to `parseTrailingOpts` to error | AC-3's functional row |
-| 4 | Tracks an announcement by tag, lists it, and withdraws it | argv to the three handlers to `Registry` to wire | `cli-announce-tag-round-trip` |
+| 4 | Tracks an announcement by tag, lists it, and withdraws it | argv to the three handlers to `Registry` to wire | `send-withdraw-by-tag` |
 
 ## 🧪 TDD Test Plan
 
@@ -255,8 +255,8 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `test-announce-forms-state-their-action` | `test/ui/*.ci` | Reads the usage line for each announce form, no daemon. Cheapest proof of the modifier, written FIRST | |
-| `cli-announce-reaches-the-wire` | Go fixture plus `test/ui/*.ci` | AC-6: argv reaches the handler and the peer receives the UPDATE | |
-| `cli-announce-tag-round-trip` | Go fixture plus `test/ui/*.ci` | AC-7: announce with a tag, list it, withdraw it, peer sees the withdrawal | |
+| `send-unicast-reaches-the-wire` | Go fixture plus `test/ui/*.ci` | AC-6: argv reaches the handler and the peer receives the UPDATE | |
+| `send-withdraw-by-tag` | Go fixture plus `test/ui/*.ci` | AC-7: announce with a tag, list it, withdraw it, peer sees the withdrawal | |
 | `cli-announce-refuses-a-second-action` | same fixture | AC-3 through the real entry point, not the unit seam | |
 
 ### Interop Tests (Scope: protocol)
@@ -284,8 +284,8 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
 
 - `internal/test/fixture/ui_fixture_cli_announce.go` - the joint fixture: a daemon over ephemeral SSH plus a `ze-peer`, driving `ze announce` as argv
 - `test/ui/test-announce-forms-state-their-action.ci` - the offline usage-line proof
-- `test/ui/cli-announce-reaches-the-wire.ci` - the fixture shim
-- `test/ui/cli-announce-tag-round-trip.ci` - the fixture shim
+- `test/ui/send-unicast-reaches-the-wire.ci` - the fixture shim
+- `test/ui/send-withdraw-by-tag.ci` - the fixture shim
 - the retired deferral shard "announce-grammar-stated-and-enforced" - created only if something is deferred
 
 ### Integration Checklist
@@ -328,7 +328,7 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
 ## Implementation Steps
 
 1. **Phase: Wiring and probe (MANDATORY FIRST)** -- prove the joint fixture runs before any acceptance criterion depends on it
-   - Tests: `cli-announce-reaches-the-wire` as a DRAFT under `test/draft/ui/`, asserting only that the daemon starts, the peer establishes, and `ze announce unicast` as argv reaches the handler
+   - Tests: `send-unicast-reaches-the-wire` as a DRAFT under `test/draft/ui/`, asserting only that the daemon starts, the peer establishes, and `ze announce unicast` as argv reaches the handler
    - Files: `internal/test/fixture/ui_fixture_cli_announce.go`
    - Verify: A-6 is confirmed or broken. If the peer cannot be started from the same fixture, STOP and report: AC-6 and AC-7 then split into two weaker tests and the owner decides, per `ai/rules/completion.md`
 2. **Phase: the line states the obligation** -- the renderer, offline and cheapest to prove
@@ -344,7 +344,7 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
    - Files: `announce.go`
    - Verify: run A-5's grep for existing callers BEFORE the change, then confirm the refusal names the offending token
 5. **Phase: the seven handlers get their first functional coverage**
-   - Tests: `cli-announce-reaches-the-wire`, `cli-announce-tag-round-trip`, promoted from `test/draft/` once green
+   - Tests: `send-unicast-reaches-the-wire`, `send-withdraw-by-tag`, promoted from `test/draft/` once green
    - Files: the fixture and its three `.ci` shims
    - Verify: force a RED phase per `ai/rules/interop-and-goal-validation.md` by reverting the handler and rebuilding, then restore and confirm green
 6. **Phase: the pages move with the code**
