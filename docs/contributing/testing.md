@@ -266,6 +266,7 @@ silent for that long. That is the linter in a queue, not a hang.
 
 <!-- source: internal/le/verify/lint/actions.go -- runHere, jobArgv -->
 <!-- source: internal/le/job/registry.go -- shares, reportBusy -->
+<!-- source: internal/le/job/treehash.go -- InputHash, lintIgnores -->
 
 `./le verify lint run` claims the `lint` label in the shared job registry
 (`internal/le/job`) before it plans anything. A lint uses cores allocated for
@@ -276,11 +277,25 @@ the log the holder is writing (`reportBusy`, `internal/le/job/registry.go`), so
 a waiter can tell a run that is progressing from one that is stuck. A holder
 with no readable log gets the banner without it.
 
-A second session asking for the SAME work over the SAME tree does not queue. It
-attaches: it replays the running lint's output, takes that run's verdict, and
+A second session asking for the SAME work over the SAME inputs does not queue.
+It attaches: it replays the running lint's output, takes that run's verdict, and
 the tree is linted once for both. `[lint] attaching to the lint already running
-for this tree` is that answer. A full run and a scoped run are different work,
-so they never share a verdict.
+over these inputs` is that answer. A full run and a scoped run are different
+work, so they never share a verdict.
+
+The inputs are the ones a lint READS, and not the whole checkout. Nine sessions
+write this checkout. A journal row or a spec edit that one of them made while
+your lint runs used to void the match, and the tree was linted a second time. Go
+source, `.golangci.yml`, `go.mod`, `go.sum` and `vendor/modules.txt` each void a
+share. A file under `.claude/`, `ai/`, `backups/`, `docs/`, `plan/`, `rfc/` or
+`website/` does not.
+
+That list is declared once, as `lintIgnores` beside `job.LintLabel`
+(`internal/le/job/treehash.go`), and it EXCLUDES rather than includes. An input
+nobody listed still voids the share, so a missing entry costs a duplicate run
+and never a stale verdict. A tree is on the list because it holds no Go file at
+all, and a `//go:embed` pattern cannot leave the directory of the package that
+writes it, so nothing under such a tree can reach a Go package.
 
 The findings a shared verdict names are read back out of the replay, so an
 attached red still says which files it was about. A red that names no file is

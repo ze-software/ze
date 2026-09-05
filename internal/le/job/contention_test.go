@@ -20,6 +20,7 @@ package job
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,6 +32,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // helperMarker separates this test binary's own arguments from the ones that
@@ -89,7 +91,7 @@ func TestOneJobRunsAndTheOtherWaits(t *testing.T) {
 	root := fixtureRepo(t)
 	order := filepath.Join(root, "tmp", "order")
 
-	first := startHelper(t, root, "slow", nil, "sh", "-c", record(order, "first-in")+"; sleep 1; "+record(order, "first-out"))
+	first := startHelper(t, root, "slow", "sh", "-c", record(order, "first-in")+"; sleep 1; "+record(order, "first-out"))
 	waitForEntry(t, root, "slow")
 
 	second, code := runHelper(t, root, "slow", nil, "sh", "-c", record(order, "second-in"))
@@ -118,7 +120,7 @@ func TestIdenticalWorkAttachesRatherThanQueueing(t *testing.T) {
 	ran := filepath.Join(root, "tmp", "ran")
 	argv := []string{"sh", "-c", record(ran, "once") + "; echo THE-SHARED-OUTPUT; sleep 1; exit 3"}
 
-	first := startHelper(t, root, "shared", nil, argv...)
+	first := startHelper(t, root, "shared", argv...)
 	waitForEntry(t, root, "shared")
 
 	out, code := runHelper(t, root, "shared", nil, argv...)
@@ -144,7 +146,7 @@ func TestDifferentWorkUnderOneLabelDoesNotShare(t *testing.T) {
 	root := fixtureRepo(t)
 	ran := filepath.Join(root, "tmp", "ran")
 
-	first := startHelper(t, root, "pkg", nil, "sh", "-c", record(ran, "package-a")+"; sleep 1")
+	first := startHelper(t, root, "pkg", "sh", "-c", record(ran, "package-a")+"; sleep 1")
 	waitForEntry(t, root, "pkg")
 
 	if _, code := runHelper(t, root, "pkg", nil, "sh", "-c", record(ran, "package-b")); code != 0 {
@@ -542,9 +544,13 @@ func admission(t *testing.T, root string) *Admission {
 
 // startHelper starts one job in a process of its own and answers it, still
 // running. The caller waits for it.
-func startHelper(t *testing.T, root, label string, environ []string, argv ...string) *exec.Cmd {
+//
+// It takes no environment of its own. Every case that starts a holder wants the
+// deterministic one helperCommand builds, and a case that needs a variable set
+// is the WAITER rather than the holder, so it reaches for runHelper.
+func startHelper(t *testing.T, root, label string, argv ...string) *exec.Cmd {
 	t.Helper()
-	cmd := helperCommand(t, context.Background(), root, label, environ, argv)
+	cmd := helperCommand(t, context.Background(), root, label, nil, argv)
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start a helper: %v", err)
 	}
@@ -836,7 +842,7 @@ func TestAWaitingJobIsToldTheHoldersCurrentStage(t *testing.T) {
 	root := fixtureRepo(t)
 	ran := filepath.Join(root, "tmp", "ran")
 
-	holder := startHelper(t, root, "staged", nil,
+	holder := startHelper(t, root, "staged",
 		"sh", "-c", "echo '### Stage 3/26: verify lint/run'; sleep 2")
 	waitForEntry(t, root, "staged")
 
@@ -953,5 +959,225 @@ func TestTheSlotCountIsDerivedFromTheMachineWhenNobodyStatesIt(t *testing.T) {
 	if runtime.NumCPU() >= 4 && adm.Slots < 2 {
 		t.Errorf("admission offered %d slot(s) on a %d-core machine: the derived count reverted to a constant",
 			adm.Slots, runtime.NumCPU())
+	}
+}
+
+// The cases below are phase 2 of spec-verification-answers-one-agent: sharing
+// is decided on the inputs a LABEL reads, not on the whole checkout. Nine
+// sessions wrote this checkout on 2026-09-05, so the whole-tree hash almost
+// never held still, and sixteen verify processes ran at once because a second
+// identical lint could not share the first.
+//
+// PREVENTS the opposite failure, which is the expensive one: a lint verdict
+// shared across a change that could have reddened it. Every input a lint
+// verdict can depend on gets a case that asserts the fingerprint moves for it.
+
+// TestLintShareSurvivesAnUnrelatedFile is AC-4. A journal row another session
+// wrote while a lint runs is not an input lint reads, so the second lint still
+// takes the first's verdict.
+//
+// Both jobs run the SAME command, so the work key cannot explain the outcome.
+// The only thing that changed between the two admissions is the row.
+func TestLintShareSurvivesAnUnrelatedFile(t *testing.T) {
+	root := lintRepo(t)
+	ran := filepath.Join(root, "tmp", "ran")
+	argv := []string{"sh", "-c", record(ran, "once") + "; sleep 1; exit 3"}
+
+	first := startHelper(t, root, LintLabel, argv...)
+	waitForEntry(t, root, LintLabel)
+	write(t, root, filepath.Join("plan", "journal", "a-row.md"), "| a defect another session met |\n")
+
+	out, code := runHelper(t, root, LintLabel, nil, argv...)
+	if err := first.Wait(); err == nil {
+		t.Fatal("the holder answered 0, and this case needs its own 3 to be visible")
+	}
+
+	if code != 3 {
+		t.Errorf("the second lint answered %d, want the holder's own 3: it did not share:\n%s", code, out)
+	}
+	if got := read(t, ran); got != "once\n" {
+		t.Errorf("the lint command ran %q, want it to have run once: a journal row voided the share", got)
+	}
+}
+
+// TestLintShareVoidedByAGoChange is AC-5, and it is the half that keeps AC-4
+// honest. Go source IS an input a lint reads, so a tracked Go file that changed
+// between the two admissions sends the second lint to the queue to run its own.
+//
+// Both jobs run the SAME command here too. If the fingerprint stopped seeing Go
+// source, the second would attach and the marker file would hold one line.
+func TestLintShareVoidedByAGoChange(t *testing.T) {
+	root := lintRepo(t)
+	ran := filepath.Join(root, "tmp", "ran")
+	argv := []string{"sh", "-c", record(ran, "run") + "; sleep 1"}
+
+	first := startHelper(t, root, LintLabel, argv...)
+	waitForEntry(t, root, LintLabel)
+	write(t, root, filepath.Join("core", "thing.go"), "package core\n\nvar Changed = 1\n")
+
+	out, code := runHelper(t, root, LintLabel, nil, argv...)
+	if code != 0 {
+		t.Fatalf("the second lint answered %d: %s", code, out)
+	}
+	if err := first.Wait(); err != nil {
+		t.Fatalf("the holder: %v", err)
+	}
+
+	if got := read(t, ran); got != "run\nrun\n" {
+		t.Errorf("the lint command left %q, want it to have run twice: the second lint took a verdict reached before a Go file changed", got)
+	}
+}
+
+// TestEveryInputTheLintLabelReadsVoidsItsShare walks each input a lint verdict
+// can depend on and asserts the fingerprint moves for it.
+//
+// A lint loads Go packages, so an input reaches the verdict as Go source a pass
+// type-checks, as the configuration that selects the passes, as the module
+// definition the loader resolves against, or as a file a package embeds. A
+// missing row here is a green that could not have been red.
+func TestEveryInputTheLintLabelReadsVoidsItsShare(t *testing.T) {
+	root := lintRepo(t)
+
+	steps := []struct {
+		name string
+		do   func()
+	}{
+		{"a tracked Go file changes", func() {
+			write(t, root, filepath.Join("core", "thing.go"), "package core\n\nvar Live = 1\n")
+		}},
+		{"an untracked Go file appears", func() {
+			write(t, root, filepath.Join("core", "fresh.go"), "package core\n")
+		}},
+		{"an untracked Go file changes", func() {
+			write(t, root, filepath.Join("core", "fresh.go"), "package core\n\nvar Fresh = 2\n")
+		}},
+		{"the lint configuration changes", func() {
+			write(t, root, ".golangci.yml", "linters:\n  enable:\n    - errcheck\n")
+		}},
+		{"the module definition changes", func() {
+			write(t, root, "go.mod", "module fixture\n\ngo 1.25\n")
+		}},
+		{"the module checksums change", func() {
+			write(t, root, "go.sum", "example.com/a v1.0.0 h1:x=\n")
+		}},
+		{"the vendored module list changes", func() {
+			write(t, root, filepath.Join("vendor", "modules.txt"), "# example.com/a v1.0.0\n")
+		}},
+		{"a file a Go package embeds changes", func() {
+			write(t, root, filepath.Join("core", "data", "rows.json"), "[1]\n")
+		}},
+		{"a tracked Go file is deleted", func() {
+			removeFile(t, root, filepath.Join("core", "thing.go"))
+		}},
+		{"the commit moves", func() {
+			runGit(t, root, "add", ".")
+			runGit(t, root, "commit", "--quiet", "-m", "a later commit")
+		}},
+	}
+
+	seen := map[string]bool{InputHash(root, LintLabel): true}
+	for _, step := range steps {
+		step.do()
+		got := InputHash(root, LintLabel)
+		if seen[got] {
+			t.Errorf("%s: the lint fingerprint did not move, so a second lint would take a verdict reached before it", step.name)
+		}
+		seen[got] = true
+	}
+}
+
+// TestTheTreesTheLintLabelIgnoresDoNotVoidItsShare is the declaration itself,
+// entry by entry: a file written under any of these trees leaves the
+// fingerprint alone.
+//
+// The last write is what keeps the case from proving nothing. A fingerprint
+// that answered a constant would pass every line above it.
+func TestTheTreesTheLintLabelIgnoresDoNotVoidItsShare(t *testing.T) {
+	root := lintRepo(t)
+	before := InputHash(root, LintLabel)
+
+	for _, tree := range lintIgnores {
+		write(t, root, filepath.Join(tree, "a-session-wrote-this.md"), "a row\n")
+		if got := InputHash(root, LintLabel); got != before {
+			t.Errorf("a file under %s voided the lint share, and a lint reads nothing there", tree)
+		}
+	}
+
+	write(t, root, filepath.Join("core", "a-session-wrote-this.md"), "a row\n")
+	if InputHash(root, LintLabel) == before {
+		t.Error("a file beside a Go package left the fingerprint alone, so the trees above prove nothing")
+	}
+}
+
+// TestTheTreesTheLintLabelIgnoresHoldNoGoFile is the evidence behind the
+// declaration, checked against the checkout rather than asserted in a comment.
+//
+// A tree is safe to ignore because nothing in it reaches a Go package: it holds
+// no Go source, and a //go:embed pattern cannot leave the directory of the
+// package that writes it, so nothing in it can be embedded either. The day
+// somebody puts a Go file under one of these trees, that reasoning stops
+// holding and this case says so.
+func TestTheTreesTheLintLabelIgnoresHoldNoGoFile(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("find the checkout this test runs in: %v", err)
+	}
+
+	for _, tree := range lintIgnores {
+		dir := filepath.Join(root, filepath.FromSlash(tree))
+		if _, statErr := os.Stat(dir); errors.Is(statErr, fs.ErrNotExist) {
+			continue
+		}
+		walked := filepath.WalkDir(dir, func(path string, listed fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if !listed.IsDir() && strings.HasSuffix(path, ".go") {
+				t.Errorf("%s holds a Go file, so a lint reads it: %q must leave lintIgnores", path, tree)
+			}
+			return nil
+		})
+		if walked != nil {
+			t.Fatalf("walk %s: %v", dir, walked)
+		}
+	}
+}
+
+// TestALabelThatDeclaresNoInputsIsFingerprintedOverTheWholeCheckout pins the
+// default, which is the direction that fails closed. A label nobody described
+// is measured over everything: it shares the least, and it is never wrong about
+// what its work read.
+func TestALabelThatDeclaresNoInputsIsFingerprintedOverTheWholeCheckout(t *testing.T) {
+	root := lintRepo(t)
+	const undeclared = "some-other-job"
+
+	before := InputHash(root, undeclared)
+	if want := TreeHash(root); before != want {
+		t.Fatalf("InputHash for an undeclared label = %s, want the whole-checkout hash %s", before, want)
+	}
+
+	write(t, root, filepath.Join("plan", "journal", "a-row.md"), "a row\n")
+	if InputHash(root, undeclared) == before {
+		t.Error("an undeclared label held its fingerprint across a change, so it is not measuring the whole checkout")
+	}
+}
+
+// lintRepo answers a fixture checkout holding one tracked Go file, which is the
+// input the lint label's fingerprint is defined over.
+func lintRepo(t *testing.T) string {
+	t.Helper()
+	root := fixtureRepo(t)
+
+	write(t, root, filepath.Join("core", "thing.go"), "package core\n")
+	runGit(t, root, "add", filepath.Join("core", "thing.go"))
+	runGit(t, root, "commit", "--quiet", "-m", "a tracked Go file")
+	return root
+}
+
+// removeFile deletes one file from a fixture tree.
+func removeFile(t *testing.T, root, rel string) {
+	t.Helper()
+	if err := os.Remove(filepath.Join(root, rel)); err != nil {
+		t.Fatalf("remove %s: %v", rel, err)
 	}
 }

@@ -28,7 +28,7 @@ func (a *Admission) attach(label string, target outcome) (int, bool) {
 	var tb textbuf.Buffer
 	tb.SetColor(a.Color)
 	a.note(tb.Colored(colors.BrightCyan).Byte('[').Str(label).
-		Str("] attaching to the ").Str(label).Str(" already running for this tree (pid ").
+		Str("] attaching to the ").Str(label).Str(" already running over these inputs (pid ").
 		Int(int64(target.pid)).Str("): one run answers both").Colored(colors.Reset).String())
 
 	a.follow(target)

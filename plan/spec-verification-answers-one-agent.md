@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | spec-shared-machine-job-admission (closed 2026-09-05; the admission machinery this extends is `internal/le/job`, `Admit` and `Ticket.Release`), spec-verify-scope-1-shared-checkout-freshness (closed 2026-09-05; the freshness certificate this reads is `CheckCertificate`, `internal/le/verify/engine/status.go`, documented at `docs/architecture/testing/verify-freshness-scope.md`) |
 | Phase | - |
@@ -130,7 +130,7 @@ working time. Recording it is named in Work Not Done.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The in-process `verify lint/run` stage is the only nested admission a verify run performs | `stages.go` stage list; `runHere` is the one admitted action inside the engine | A second nested admission deadlocks against its own parent slot | A verify run under P1 that completes, plus a test asserting `KindInside` for the nested stage | unvalidated |
-| A-2 | A per-label input fingerprint for lint can be stated exhaustively: tracked `.go` diff, untracked `.go` files, `.golangci.yml`, `feature-gates.txt` | `internal/le/verify/lint` reads no other input | A lint verdict is shared when an unlisted input differs, so a red is missed | A test that changes each listed input and asserts the share is voided, plus one that changes an unlisted file and asserts it is not | unvalidated |
+| A-2 | A per-label input fingerprint for lint can be stated exhaustively: tracked `.go` diff, untracked `.go` files, `.golangci.yml`, `feature-gates.txt` | `internal/le/verify/lint` reads no other input | A lint verdict is shared when an unlisted input differs, so a red is missed | A test that changes each listed input and asserts the share is voided, plus one that changes an unlisted file and asserts it is not | broken (P2): the named list is wrong in both directions. `feature-gates.txt` is NOT read by lint, whose feature tags come from `.golangci.yml` `build-tags:` through `parseConfigTags` and `plan` (`internal/le/verify/lint/verifylint.go`). Lint DOES read `go.mod` (`gotoolchain.New`), the Go loader's `go.sum` and `vendor/modules.txt`, and any file a package embeds, which `//go:embed data/*.md` shows is not always a `.go` file. So the fingerprint EXCLUDES instead of listing (`lintIgnores`, `internal/le/job/treehash.go`): an input nobody named still voids the share, and a missing entry costs a duplicate run rather than a stale verdict |
 | A-3 | Every stage log is complete and parseable the moment the stage ends | `01-verify-lint-run.log` carried its failure-group JSON in both of today's runs | The query action answers from a truncated log and reports a false green | A test over a run directory holding 3 of 44 logs | unvalidated |
 | A-4 | Attaching to a verify is safe for the follower's own commit attribution | `attach` returns the holder's verdict, and the holder judged a tree the follower does not control | A follower reads a verdict about somebody else's tree as its own | The query action answers per-path, so a shared red that names no file of mine is not mine | unvalidated |
 
@@ -180,8 +180,12 @@ working time. Recording it is named in Work Not Done.
 | `TestTwoVerifiesShareOneRun` | `internal/le/job/contention_test.go` | AC-1: one claims, one attaches | |
 | `TestAttachedVerifyExitsWithHolderCode` | `internal/le/job/contention_test.go` | AC-3: the follower's status is the holder's | |
 | `TestNestedLintStageDoesNotQueueBehindItsParent` | `internal/le/verify/engine/stages_test.go` | AC-2 | |
-| `TestLintShareSurvivesAnUnrelatedFile` | `internal/le/job/contention_test.go` | AC-4 | |
-| `TestLintShareVoidedByAGoChange` | `internal/le/job/contention_test.go` | AC-5 | |
+| `TestLintShareSurvivesAnUnrelatedFile` | `internal/le/job/contention_test.go` | AC-4 | pass; red when `InputHash` answers the whole-tree hash |
+| `TestLintShareVoidedByAGoChange` | `internal/le/job/contention_test.go` | AC-5 | pass; red when `ignoredTree` answers true for every path |
+| `TestEveryInputTheLintLabelReadsVoidsItsShare` | `internal/le/job/contention_test.go` | AC-5: one row per input a lint verdict can depend on | pass; all nine rows red under the same break |
+| `TestTheTreesTheLintLabelIgnoresDoNotVoidItsShare` | `internal/le/job/contention_test.go` | AC-4: one row per declared tree | pass; red under both breaks |
+| `TestTheTreesTheLintLabelIgnoresHoldNoGoFile` | `internal/le/job/contention_test.go` | The evidence behind the declaration, walked over the real checkout | pass |
+| `TestALabelThatDeclaresNoInputsIsFingerprintedOverTheWholeCheckout` | `internal/le/job/contention_test.go` | The fail-closed default for every other label | pass |
 | `TestRedsAnswersFromAnUnfinishedRun` | `internal/le/verify/engine/artifacts_test.go` | AC-6 | |
 | `TestRedsRefusesToAnswerWithNoRun` | `internal/le/verify/engine/artifacts_test.go` | AC-7 | |
 

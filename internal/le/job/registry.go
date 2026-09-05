@@ -71,14 +71,19 @@ const (
 // pending is one job asking to run. It carries what the registry is asked
 // about and what would be written if the answer is yes.
 type pending struct {
-	label     string
-	argv      []string
+	label string
+	argv  []string
+	// tree fingerprints the inputs this job's LABEL reads (InputHash,
+	// treehash.go), which is what decides whether a running job's verdict can
+	// serve this one. It is the whole checkout for a label that declares no
+	// inputs of its own.
 	tree      string
 	key       string
 	mayAttach bool
-	// treeStale indicates that this job's tree hash predates its admission
-	// because the job waited. The tree can change while a job waits. Therefore,
-	// the hash is calculated again at admission, but only for a job that waited.
+	// treeStale indicates that this job's fingerprint predates its admission
+	// because the job waited. The inputs can change while a job waits.
+	// Therefore, the fingerprint is calculated again at admission, but only for
+	// a job that waited.
 	treeStale bool
 }
 
@@ -214,23 +219,29 @@ func (a *Admission) scanAndClaim(job *pending) outcome {
 	return a.take(job, now)
 }
 
-// shares reports whether a running job performs the asker's work on the
-// asker's tree. Both conditions must be true before the asker uses its verdict.
+// shares reports whether a running job performs the asker's work over the
+// asker's inputs. Both conditions must be true before the asker uses its
+// verdict.
+//
+// The inputs are the ones the LABEL reads (InputHash, treehash.go), never the
+// whole checkout. Nine sessions write this checkout, so a journal row somebody
+// else added voided every match while the comparison was whole-tree, and two
+// identical lints ran from scratch rather than one serving both.
 //
 // A value that cannot be measured matches no value. It also does not match an
-// unmeasured value from another job. An unmeasured tree is not a matching tree,
-// and an unmeasured key is not a matching key.
+// unmeasured value from another job. An unmeasured fingerprint is not a
+// matching fingerprint, and an unmeasured key is not a matching key.
 //
-// The asker's tree is measured again here when it waited, because the holder
-// wrote a hash taken at its own claim and the asker still carries one taken
-// before its wait. On a checkout several sessions work, something changes
-// during almost every wait, so comparing those two answers "different tree" for
-// a job that is doing identical work and sharing would never happen after a
-// wait. take measures again too, and only for the job it admits, which is too
-// late to decide this.
+// The asker's inputs are measured again here when it waited, because the
+// holder wrote a fingerprint taken at its own claim and the asker still
+// carries one taken before its wait. Something changes during almost every
+// wait, so comparing those two answers "different inputs" for a job that is
+// doing identical work, and sharing would never happen after a wait. take
+// measures again too, and only for the job it admits, which is too late to
+// decide this.
 //
 // The measurement costs three git calls, so the key is compared FIRST. A job
-// waiting behind unrelated work cannot share whatever its tree says, and it
+// waiting behind unrelated work cannot share whatever its inputs say, and it
 // pays nothing.
 func (a *Admission) shares(job *pending, held entry) bool {
 	if !job.mayAttach || held.state != "running" || held.label != job.label {
@@ -240,7 +251,7 @@ func (a *Admission) shares(job *pending, held entry) bool {
 		return false
 	}
 	if job.treeStale {
-		job.tree = TreeHash(a.Root)
+		job.tree = InputHash(a.Root, job.label)
 		job.treeStale = false
 	}
 	if job.tree == "" || job.tree == Unknown || held.tree != job.tree {
@@ -251,11 +262,11 @@ func (a *Admission) shares(job *pending, held entry) bool {
 
 // take writes this job's entry, which IS its claim on a slot.
 func (a *Admission) take(job *pending, now time.Time) outcome {
-	// A later asker uses TREE to attach, so TREE must identify the tree that this
-	// job will judge. A job can wait behind a twenty minute holder. During that
-	// wait, the tree that the job originally requested can change.
+	// A later asker uses TREE to attach, so TREE must identify the inputs that
+	// this job will judge. A job can wait behind a twenty minute holder. During
+	// that wait, the inputs the job originally requested can change.
 	if job.treeStale {
-		job.tree = TreeHash(a.Root)
+		job.tree = InputHash(a.Root, job.label)
 	}
 
 	pid := os.Getpid()

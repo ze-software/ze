@@ -18,7 +18,13 @@ import (
 // jobLabel is the name this stage claims in the shared job registry. Every lint
 // on this machine claims it, so two of them queue instead of oversubscribing
 // the box, and two asking for the SAME work share one run.
-const jobLabel = "lint"
+//
+// The name is spelled by the admission package, beside the declaration of what
+// this label reads (job.LintLabel and lintIgnores, internal/le/job/treehash.go).
+// A second spelling here would let the label and its inputs drift apart, and
+// nothing would report the drift: a label with no declaration is fingerprinted
+// over the whole checkout and simply stops sharing.
+const jobLabel = job.LintLabel
 
 var actions = leaction.New(area, leaction.Action{
 	Verb: actionRun,

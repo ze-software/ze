@@ -9,6 +9,12 @@
 // This package is the single definition shared by job admission and native
 // verification certificates. The hashed stream contains the commit, all
 // tracked changes, and each untracked file with the hash of its content.
+//
+// Two fingerprints live here and they answer different questions. TreeHash
+// describes the WHOLE checkout and is what a certificate asserts. InputHash
+// describes the inputs ONE label's work reads and is what admission compares,
+// because a job that shares another job's verdict needs the inputs to match
+// rather than the checkout.
 
 package job
 
@@ -65,6 +71,119 @@ func TreeHash(root string) string {
 	return hex.EncodeToString(sum.Sum(nil))
 }
 
+// LintLabel is the name every lint on this machine claims in the registry.
+// internal/le/verify/lint/actions.go spells its job label from this constant,
+// because the label and the trees declared below are one fact: a label whose
+// inputs were declared elsewhere would drift from the work it names.
+const LintLabel = "lint"
+
+// lintIgnores names the trees that `le verify lint run` does not read.
+//
+// The declaration EXCLUDES rather than lists, and that direction is the safety
+// property. An input nobody thought of is fingerprinted by default, so a
+// missing entry costs a duplicate run. An inclusion list fails the other way:
+// an input left off it is held identical across a change that could have
+// reddened the run, which is a green that could not have been red.
+//
+// Lint loads Go packages, so a file reaches its verdict by one of two routes.
+// It is Go source that a pass type-checks, or it is embedded into a package by
+// a //go:embed directive. A //go:embed pattern cannot leave the directory of
+// the package that writes it, so a tree holding no Go file at all reaches
+// neither route. Every tree below holds none, and
+// TestTheTreesTheLintLabelIgnoresHoldNoGoFile keeps it that way.
+//
+// These are the trees several sessions write while a lint runs: journal rows,
+// specs, rules and pages. They are why two identical lints almost never shared
+// before this list existed.
+var lintIgnores = []string{
+	".claude/",
+	"ai/",
+	"backups/",
+	"docs/",
+	"plan/",
+	"rfc/",
+	"website/",
+}
+
+// labelIgnores answers the trees one label's work does not read. A label with
+// no entry is fingerprinted over the whole checkout, which is where every
+// label started: it shares least, and it is never wrong about what it read.
+var labelIgnores = map[string][]string{
+	LintLabel: lintIgnores,
+}
+
+// InputHash returns the fingerprint of the inputs one label's work reads.
+//
+// Admission compares this value rather than TreeHash. A second asker uses a
+// running job's verdict only when both judge the same inputs, and on a
+// checkout that nine sessions write the whole-tree hash almost never holds
+// still: a journal row written by somebody else answered "different tree" for
+// two jobs doing identical work over identical Go source.
+//
+// A verification certificate keeps the whole-tree answer, because it asserts
+// something about the whole tree. SnapshotTree is unchanged
+// (docs/architecture/testing/verify-freshness-scope.md).
+func InputHash(root, label string) string {
+	ignored, declared := labelIgnores[label]
+	if !declared {
+		return TreeHash(root)
+	}
+
+	sum := sha256.New()
+
+	writeCommit(sum, root)
+	writeReadPaths(sum, root, ignored)
+
+	return hex.EncodeToString(sum.Sum(nil))
+}
+
+// writeReadPaths puts each changed path this label reads into the stream: the
+// path, and then the hash of its content.
+//
+// The paths are sorted, so the fingerprint does not depend on the order git
+// listed them in, and each one is written once: a path that git reports as
+// both changed and untracked is one input.
+//
+// A whole diff cannot be hashed here the way writeDiff hashes one, because a
+// diff is one blob and this fingerprint has to drop the paths inside it that
+// the label does not read.
+func writeReadPaths(sum hash.Hash, root string, ignored []string) {
+	paths := dirtyPaths(root)
+	slices.Sort(paths)
+	paths = slices.Compact(paths)
+
+	for _, rel := range paths {
+		if ignoredTree(rel, ignored) {
+			continue
+		}
+		addText(sum, rel)
+		addText(sum, "\n")
+		writeFileHash(sum, filepath.Join(root, filepath.FromSlash(rel)))
+	}
+}
+
+// ignoredTree reports whether one changed path lies under a tree this label
+// does not read. Git spells every path with forward slashes and every entry
+// ends in one, so the prefix test needs no conversion and cannot match a
+// sibling whose name merely starts the same way.
+func ignoredTree(rel string, ignored []string) bool {
+	for _, tree := range ignored {
+		if strings.HasPrefix(rel, tree) {
+			return true
+		}
+	}
+	return false
+}
+
+// dirtyPaths lists every path that differs from HEAD: the tracked changes
+// first, then the untracked files. A path can appear twice, and each caller
+// says what it does with the repeat.
+func dirtyPaths(root string) []string {
+	tracked, _ := git(root, "diff", "HEAD", "--name-only")
+	untracked, _ := git(root, "ls-files", "-o", "--exclude-standard")
+	return append(nonEmptyLines(tracked), nonEmptyLines(untracked)...)
+}
+
 // TreeSnapshot records the whole-tree hash and each dirty path fingerprint at
 // one instant.
 type TreeSnapshot struct {
@@ -88,9 +207,7 @@ func SnapshotTree(root string) TreeSnapshot {
 // spelling that Git prints because the status file format predates this port
 // and both its readers use that spelling.
 func DirtyManifest(root string) map[string]string {
-	tracked, _ := git(root, "diff", "HEAD", "--name-only")
-	untracked, _ := git(root, "ls-files", "-o", "--exclude-standard")
-	paths := append(nonEmptyLines(tracked), nonEmptyLines(untracked)...)
+	paths := dirtyPaths(root)
 
 	manifest := make(map[string]string, len(paths))
 	for _, rel := range paths {

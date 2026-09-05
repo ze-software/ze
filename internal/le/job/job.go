@@ -442,7 +442,9 @@ type Ticket struct {
 	// Code is the verdict of the job this one attached to. It is meaningful
 	// for KindAttached and zero everywhere else.
 	Code int
-	// Tree is the tree hash the job is judging, measured at admission.
+	// Tree fingerprints the inputs the job is judging, measured at admission.
+	// The inputs are the ones this LABEL reads (InputHash, treehash.go), which
+	// is the whole checkout for a label that declares none of its own.
 	Tree string
 	// Key fingerprints the work: the command plus the make command-line
 	// variables the caller typed.
@@ -525,7 +527,7 @@ func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
 	job := pending{
 		label:     label,
 		argv:      argv,
-		tree:      TreeHash(a.Root),
+		tree:      InputHash(a.Root, label),
 		key:       jobKey(argv),
 		mayAttach: a.MayAttach,
 	}

@@ -13,9 +13,10 @@ import "github.com/ze-software/ze/internal/core/textbuf"
 // Report contains the answer from one admitted job.
 //
 // The fields answer the questions that a session asks about an unobserved job.
-// They state whether it ran or shared, the admission duration, the tree that
-// was judged, and the result. Tree and Key are the two fingerprints that
-// support a shared verdict. Thus, a caller that reads `le job run ... | json`
+// They state whether it ran or shared, the admission duration, the inputs that
+// were judged, and the result. Tree and Key are the two fingerprints that
+// support a shared verdict: Tree covers the inputs this label reads, and Key
+// covers the work itself. Thus, a caller that reads `le job run ... | json`
 // can determine WHY two jobs shared or did not share.
 type Report struct {
 	Label     string   `json:"label"`
