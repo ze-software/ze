@@ -183,6 +183,45 @@ func TestTheFirstMatchingCarrierWinsAndTheIncubatorIsSkipped(t *testing.T) {
 	}
 }
 
+// VALIDATES: a `.ci` written under test/bfd/, test/dhcp/ or test/vrrp/ resolves
+// to that suite's own verify-tier carrier, so an RFC requirement bound there is
+// counted rather than refused.
+// PREVENTS: the state these three suites were added to end
+// (plan/pre-release/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md, Q2):
+// 206 gated MUSTs across RFC 5880/5881/5883, RFC 5798 and RFC 2131/2132 whose
+// only reachable carrier was `functional-unrun`, because the run list named no
+// suite that boots their subsystem. A suite dropped from
+// internal/le/functional.Gating takes the tier away again, and this test is
+// what says so.
+func TestTheBFDDHCPAndVRRPSuitesCarryAVerifyTier(t *testing.T) {
+	carriers, err := carriers(checkoutRoot(t))
+	if err != nil {
+		t.Fatalf("Carriers: %v", err)
+	}
+	for _, one := range []struct{ path, want string }{
+		{path: "test/bfd/x.ci", want: "functional-bfd"},
+		{path: "test/dhcp/x.ci", want: "functional-dhcp"},
+		{path: "test/vrrp/x.ci", want: "functional-vrrp"},
+	} {
+		t.Run(one.path, func(t *testing.T) {
+			carrier, held := CarrierFor(one.path, carriers)
+			if !held {
+				t.Fatalf("CarrierFor(%q) found no carrier at all", one.path)
+			}
+			if carrier.Name != one.want {
+				t.Fatalf("CarrierFor(%q) = %q, want %q", one.path, carrier.Name, one.want)
+			}
+			if carrier.Tier != tierVerify {
+				t.Errorf("CarrierFor(%q) tier = %q, want %q: a tag here would be refused",
+					one.path, carrier.Tier, tierVerify)
+			}
+			if carrier.Kind != kindFunctional {
+				t.Errorf("CarrierFor(%q) kind = %q, want %q", one.path, carrier.Kind, kindFunctional)
+			}
+		})
+	}
+}
+
 func TestOnlyAScheduledWorkflowGrantsANightlyTier(t *testing.T) {
 	sources := map[string]string{
 		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le integration interop\n",

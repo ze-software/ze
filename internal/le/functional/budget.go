@@ -13,7 +13,7 @@
 // a cap is not a fix on its own (ai/rules/completion.md), so the number has to
 // stay visible as it climbs.
 //
-// A slow suite gets its own budget instead of raising the shared budget for the other 23 suites.
+// A slow suite gets its own budget instead of raising the shared budget for every other suite.
 // The `plugin` suite has 663 .ci files and a 1500s budget.
 // Its measured runtime was 855s on 2026-08-19 (spec verify-scope-4, A-1).
 //
@@ -37,8 +37,8 @@
 // Efficiency falls to 74% at 32 and 36% at 64.
 // At concurrency 64, runtime falls inside the two-run spread measured at 32.
 //
-// These figures do not apply to the other 22 suites.
-// Those suites keep DefaultSuiteConcurrency's 2x CPUs because the measurement did not cover them.
+// These figures do not apply to the suites the measurement did not cover.
+// Those suites keep DefaultSuiteConcurrency's 2x CPUs.
 
 package functional
 
@@ -160,7 +160,7 @@ func envKey(name string) string {
 // budgetVarName is the OS spelling of one suite's own budget variable. It is
 // what the reports print, because telling a reader to raise ZE_SUITE_TIMEOUT
 // when the kill came from ZE_SUITE_TIMEOUT_PLUGIN sends them to raise the cap
-// for all 24 suites.
+// for every suite at once.
 func budgetVarName(suite string) string {
 	var tb textbuf.Buffer
 	return tb.Str(sharedBudgetVar).Byte('_').

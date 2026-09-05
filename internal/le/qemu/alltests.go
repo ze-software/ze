@@ -227,6 +227,18 @@ var vmSuites = []vmSuite{
 		Why: "every VRRP test that boots a daemon can only run here: the iface plugin fails its" +
 			" Config stage on darwin, so no VRRP runtime surface exists on the dev machine",
 	},
+	{
+		Name: "bfd", Args: []string{"bfd", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot,
+		Why: "RFC 5881 and 5883 fix the BFD ports, so every daemon in this suite binds the same" +
+			" wildcard 3784/3785 tuple and the tests partition themselves with" +
+			" option=exclusive:group=bfd-ports rather than with addresses. The guest root" +
+			" namespace is where those ports are free",
+	},
+	{
+		Name: "dhcp", Args: []string{"dhcp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot,
+		Why: "its tests validate config through `ze config validate` and open no socket, so they" +
+			" need neither a namespace of their own nor the guest's privileges",
+	},
 	{Name: "l2tp-wire", Args: []string{"l2tp-wire", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "isis-wire", Args: []string{"isis-wire", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "ospf-wire", Args: []string{"ospf-wire", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},

@@ -1,0 +1,112 @@
+# Test: the DHCP server binds every address it can hand out to the subnet it is
+# configured under, and `ze config validate` refuses a pool that leaves it.
+#
+# VALIDATES: the whole path an operator uses to load a DHCP pool -- config ->
+#            the dhcpserver plugin's InProcessConfigVerifier (verifyDHCPConfig,
+#            internal/plugins/dhcpserver/register.go) -> parseConfig ->
+#            parseSingleRange and parseStaticMapping
+#            (internal/plugins/dhcpserver/config.go). RFC 2131 Section 4.3.1
+#            has the server answer a DISCOVER with "an address from the pool of
+#            available addresses" for the client's subnet, so an address outside
+#            that subnet is not one the server may hold, and the refusal is
+#            where the daemon says so.
+# PREVENTS:  a regression where the subnet check is dropped, applied to the
+#            start alone, or applied to the range alone, letting the server
+#            offer an address no client on that link can use.
+#
+# Every case is the SAME subnet, 192.168.7.0/24, so each refusal is attributable
+# to the one leaf that moved out of it.
+
+# --- The pool inside its subnet, and a static mapping inside it: accepted. ---
+stdin=inside:terminator=EOF_INSIDE
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network LAN {
+            subnet 192.168.7.0/24 {
+                range {
+                    start 192.168.7.100
+                    stop 192.168.7.200
+                }
+                lease-time 3600
+                default-router 192.168.7.1
+                static-mapping printer {
+                    mac-address aa:bb:cc:dd:ee:ff
+                    ip-address 192.168.7.10
+                }
+            }
+        }
+    }
+}
+EOF_INSIDE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=inside:exit=0
+
+# --- The stop one subnet along: refused. ------------------------------------
+stdin=stop-outside:terminator=EOF_STOP
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network LAN {
+            subnet 192.168.7.0/24 {
+                range {
+                    start 192.168.7.100
+                    stop 192.168.8.200
+                }
+            }
+        }
+    }
+}
+EOF_STOP
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=stop-outside:exit=1
+expect=stdout:contains=range stop outside subnet
+
+# --- The start one subnet back: refused. ------------------------------------
+stdin=start-outside:terminator=EOF_START
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network LAN {
+            subnet 192.168.7.0/24 {
+                range {
+                    start 192.168.6.100
+                    stop 192.168.7.200
+                }
+            }
+        }
+    }
+}
+EOF_START
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=start-outside:exit=1
+expect=stdout:contains=range start outside subnet
+
+# --- A static mapping outside the subnet: refused. --------------------------
+stdin=static-outside:terminator=EOF_STATIC
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network LAN {
+            subnet 192.168.7.0/24 {
+                range {
+                    start 192.168.7.100
+                    stop 192.168.7.200
+                }
+                static-mapping printer {
+                    mac-address aa:bb:cc:dd:ee:ff
+                    ip-address 192.168.9.10
+                }
+            }
+        }
+    }
+}
+EOF_STATIC
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=static-outside:exit=1
+expect=exit:code=1
+expect=stdout:contains=static-mapping IP outside subnet

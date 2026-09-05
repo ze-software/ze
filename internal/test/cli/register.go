@@ -17,6 +17,8 @@ import (
 func init() {
 	// CI test runners
 	registerCIRoot("appliance", "appliance", "appliance", "Run appliance CLI functional tests (.ci files in test/appliance/).\nCovers ze appliance build/iso/list/help surfaces and serial login (offline; gok-dependent steps model tool absence).", 0)
+	registerCIRoot("bfd", "bfd", "BFD", "Run BFD functional tests (.ci files in test/bfd/).\nCovers the RFC 5880 / 5881 / 5883 surfaces an operator reaches on a running daemon: the negotiated detection time and transmit interval a configured session publishes through `show bfd session`, and the profile and session inventory behind it.", 0)
+	registerCIRoot("dhcp", "dhcp", "DHCP server", "Run DHCP server functional tests (.ci files in test/dhcp/).\nCovers the RFC 2131 / 2132 address-pool surface the daemon accepts and refuses: the subnet a range must fall inside, the static mapping bound to the same subnet, and the options a lease carries.", 0)
 	registerCIRoot("firewall", "firewall", "firewall", "Run firewall functional tests (.ci files in test/firewall/).\nCovers component reactor wiring: boot-time parse -> validate -> Apply.", 0)
 	registerCIRoot("flow-export", "flow-export", "flow-export", "Run flow-export functional tests (.ci files in test/flow-export/).\nCovers sFlow v5, NetFlow v9, and IPFIX counter export over UDP, the show flow export handler, packet-sampling wiring, and reload-time reconfiguration.", 0)
 	registerCIRoot("install", "install", "install", "Run install provisioning functional tests (.ci files in test/install/).\nTests ze install CLI, config validation, and provisioning server setup.", 0)

@@ -31,8 +31,12 @@ func TestEveryGatingNameIsASuite(t *testing.T) {
 	if _, err := GatingSuites(Gating, Suites); err != nil {
 		t.Fatalf("the gating list names a suite this area does not hold: %v", err)
 	}
-	if got := len(Gating); got != 24 {
-		t.Errorf("the native gating run declares %d suites, want 24", got)
+	// 27 since 2026-09-05, when bfd, dhcp and vrrp joined the run list: until
+	// then no suite booted those three subsystems, so a `.ci` written for one
+	// resolved to `functional-unrun` and internal/le/rfc refused the tag on it
+	// (plan/pre-release/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md, Q2).
+	if got := len(Gating); got != 27 {
+		t.Errorf("the native gating run declares %d suites, want 27", got)
 	}
 }
 

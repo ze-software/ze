@@ -2,7 +2,7 @@
 
 ## Overview
 
-Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, web UI, and install flows.
+Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, BFD, the DHCP server, VRRP, web UI, and install flows.
 
 > For how the runner schedules and executes tests (the three execution engines, concurrency, reporting) and the web `.wb` test format, see [`architecture/testing/runner-architecture.md`](architecture/testing/runner-architecture.md).
 
@@ -87,9 +87,9 @@ whatever the change set says. `go list -deps ./cmd/ze` links 562 of the module's
 `plan/spec-verify-scope-5-suite-coverage-map.md` derives that map by observing
 what a suite executes.
 
-The functional test target runs 24 suites: encode, plugin, parse, decode, reload,
+The functional test target runs 27 suites: encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, ipsec, ldp, rsvpte, isis, ospf, ospfv3,
-web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
+web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner, bfd, dhcp, vrrp.
 
 `./le repository check` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired
@@ -312,6 +312,8 @@ and name, plus periodic progress while tests are still running.
 | Static | `ze-test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
 | Traffic | `ze-test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |
 | Flow export | `ze-test flow-export` | `test/flow-export/*.ci` | Exercises sFlow, NetFlow, and IPFIX export behavior. |
+| BFD | `ze-test bfd` | `test/bfd/*.ci` | Exercises the BFD surface an operator reaches on a running daemon. `bfd-detection-interval` reads back the RFC 5880 Section 6.8.4 detection time and the Section 6.8.3 slow-start transmit interval of a configured session through `show bfd session address <peer>`. The suite exists so an RFC 5880 / 5881 / 5883 requirement has a `.ci` home whose verify tier the run list grants; the BFD tests that predate it stay in `test/plugin/`. |
+| DHCP server | `ze-test dhcp` | `test/dhcp/*.ci` | Exercises the DHCP server's address-pool surface through `ze config validate`, which is where the plugin's in-process config verifier runs. `dhcp-range-inside-subnet` accepts a pool and a static mapping inside their subnet and refuses each way out of it. A live DHCP exchange needs a privileged bind on UDP 67 and is not reachable from an unprivileged gating run. |
 | VRRP | `ze-test vrrp` | `test/vrrp/*.ci` | Exercises the vrrp YANG augment under interface units, the plugin's cross-leaf verifier (mandatory vrid and its 1..255 range, duplicate vrid or virtual-address per unit+family, the operator-assigned priority 255 rejection, the version-dependent interval encodings, accept-mode as VRRPv3-only, the IPv6 first-address link-local rule, and the VPP backend rejection), and the doctor/explain surface. Each command asserts its own exit code via `cmd=...:exit=N`, because `expect=exit:code=` only ever reaches a file's last quick-exit `ze` command. Tests that boot a daemon carry `option=needs-linux` and run only under QEMU. |
 | VPP | `ze-test vpp` | `test/vpp/*.ci` | Runs stub-backed VPP scenarios and checks the stub request log. |
 | L2TP wire | `ze-test l2tp-wire` | `test/l2tp-wire/*.ci` | Exercises L2TP wire-level encode/decode and malformed-packet handling. |
@@ -351,7 +353,7 @@ ZE_SUITE_TIMEOUT_PLUGIN=1800s ./le functional plugin
 
 #### One suite's budget is its own
 
-`ZE_SUITE_TIMEOUT` protects the other 23 suites, so a slow suite must not raise
+`ZE_SUITE_TIMEOUT` protects every other suite, so a slow suite must not raise
 it for all of them. A suite that needs more wall clock gets a
 `ZE_SUITE_TIMEOUT_<SUITE>` of its own instead, and `Suite.budget` answers with
 that budget everywhere: the `timeout` that kills the suite, the runtime line,

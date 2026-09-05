@@ -100,6 +100,8 @@ const (
 	suiteFlowExport = "flow-export"
 	suiteVpp        = "vpp"
 	suiteVrrp       = "vrrp"
+	suiteBfd        = "bfd"
+	suiteDhcp       = "dhcp"
 )
 
 // allTests is the ze-test flag that selects every .ci of a suite, and bgpVerb
@@ -146,11 +148,16 @@ var Gating = []string{
 	suiteIsisWire,
 	suiteOspfWire,
 	suiteRunner,
+	suiteBfd,
+	suiteDhcp,
+	suiteVrrp,
 }
 
-// Suites defines what each name runs. The first 24 suites gate.
-// The next five need platform tooling or a fixture that ze-precommit-verify does not provide.
-// Those five provide release evidence, not merge gates, so their .ci files have no verify tier.
+// Suites defines what each name runs. Gating decides which of them gate, and
+// this table is ordered to agree with it: the gating suites first, then the
+// four that need platform tooling or a fixture ze-precommit-verify does not
+// provide. Those four supply release evidence, not merge gates, so their .ci
+// files have no verify tier.
 var Suites = []Suite{
 	{
 		Name: suiteEncode, Args: []string{bgpVerb, "encode", allTests}, Scaled: true,
@@ -208,6 +215,23 @@ var Suites = []Suite{
 			" it stays in the gating run",
 	},
 	{
+		Name: suiteBfd, Args: []string{"bfd", allTests},
+		Why: "BFD (test/bfd/*.ci). Its own suite because RFC 5880, 5881 and 5883 own 98" +
+			" gated MUSTs whose only evidence was a Go unit test: a .ci needs a suite the" +
+			" run list names before it earns a verify tier at all (internal/le/rfc/carriers.go)",
+	},
+	{
+		Name: suiteDhcp, Args: []string{"dhcp", allTests},
+		Why: "the DHCP server (test/dhcp/*.ci). Its own suite for BFD's reason: RFC 2131" +
+			" and RFC 2132 own 28 gated MUSTs and test/parse only reaches the config surface",
+	},
+	{
+		Name: suiteVrrp, Args: []string{"vrrp", allTests},
+		Why: "VRRP config, show and doctor. The tests that boot a daemon carry" +
+			" option=needs-linux and skip off Linux; the config, show and doctor tests run" +
+			" on every host, so the suite gates rather than supplying release evidence only",
+	},
+	{
 		Name: suiteStatic, Args: []string{"static", allTests},
 		Why: "static routes; needs the Linux daemon (release evidence only)",
 	},
@@ -224,10 +248,6 @@ var Suites = []Suite{
 		Name: suiteVpp, Args: []string{"vpp", allTests},
 		Why: "the VPP stub; it carries no -p because its serial default lives in the" +
 			" command itself (release evidence only)",
-	},
-	{
-		Name: suiteVrrp, Args: []string{"vrrp", allTests},
-		Why: "VRRP config, show and doctor (release evidence only)",
 	},
 }
 

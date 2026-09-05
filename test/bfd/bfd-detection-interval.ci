@@ -1,0 +1,100 @@
+# Test: a configured BFD session publishes the RFC 5880 detection time and the
+# slow-start transmit interval through `show bfd session address <peer>`.
+#
+# VALIDATES: the whole path an operator uses to read a session's timers --
+#            config -> session.Machine.Init -> DetectionInterval /
+#            TransmitInterval (internal/component/bfd/session/timers.go) ->
+#            engine.Snapshot -> handleShowSession -> the CLI answer. The two
+#            numbers are derived from THIS FILE's configuration, so the
+#            expectation does not come from the code under test:
+#            detect-multiplier 5 times required-min-rx-us 120000 is 600ms
+#            (RFC 5880 Section 6.8.4), and DesiredMinTxInterval is held at one
+#            second until the session is Up (RFC 5880 Section 6.8.3).
+# PREVENTS:  a regression where the detection time is computed from the
+#            multiplier alone, from the configured TX interval, or from the
+#            YANG defaults, and where the slow-start floor stops applying to a
+#            session that has heard nothing.
+#
+# The profile deliberately configures neither default: detect-multiplier
+# defaults to 3 and required-min-rx-us to 300000 (ze-bfd-conf.yang), so a test
+# that used them could not tell a read value from a fallback.
+
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD listens on the RFC 5881 / RFC 5883 FIXED ports, so every concurrently
+# running BFD test's daemon binds the same wildcard (0.0.0.0, 3784/3785) tuple.
+# SO_REUSEPORT above lets them co-bind, and the kernel then HASHES each inbound
+# datagram to one socket in the group (internal/component/bfd/transport/
+# udp_linux.go applySocketOptions) -- so a control reply meant for this daemon
+# can be delivered to a sibling test's daemon instead. That is the kernel-global
+# surface option=exclusive exists for: unique addresses cannot partition a port
+# number the RFC fixes. Tests outside the group still run alongside these.
+option=exclusive:group=bfd-ports
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+
+stdin=ze-bfd:terminator=EOF_CONF
+plugin {
+	external bfd-detection-interval-test {
+		run "ze-test fixture bfd/bfd-detection-interval"
+		encoder json
+	}
+}
+
+environment {
+	log {
+		bfd debug
+	}
+}
+
+bfd {
+	enabled true;
+	profile slow-five {
+		detect-multiplier 5
+		desired-min-tx-us 90000
+		required-min-rx-us 120000
+	}
+	single-hop-session 203.0.113.9 {
+		profile slow-five
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bfd:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OK: bfd session publishes detection-interval 600ms and tx-interval 1s

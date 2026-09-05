@@ -402,8 +402,8 @@ lacked.
 
 Neither of these is written as a `{gap}`, and neither test was weakened to make
 ze look conformant. Q1 was withdrawn on 2026-09-05 once the RFC's own text
-settled it. **Q2 is the ONE thing this spec still owes, and it is the owner's.**
-This spec stays open until he decides it.
+settled it. **Q2 was ANSWERED by the owner on 2026-09-05 and the answer is
+implemented.** Both are recorded below and neither is open.
 
 **Q1 is RESOLVED BY IMPLEMENTATION and is withdrawn from the owner
 (2026-09-05).** It was never his to answer. The question offered a silent drop
@@ -435,6 +435,37 @@ their subsystem** (BFD 98, VRRP 80, dhcpserver 28, geodns 18, dnsserver 18).
 the tag. VRRP has a nightly interop path (`ze-qemu-vrrp-keepalived-test`), the
 others have none. Add suites, accept nightly-only tier for these, or leave them
 unit-only by decision?
+
+**Q2 is ANSWERED (owner, 2026-09-05):** *"bfd (98 MUSTs), vrrp (80) and dhcp
+(28) have no suite: not acceptable, all RFC MUSTs need tests, so we need to add
+them."*
+
+The three suites are declared. `bfd` and `dhcp` are new: a `registerCIRoot` in
+`internal/test/cli/register.go`, a `Suite` record and a `Gating` entry in
+`internal/le/functional/suites.go`, a `vmSuite` row in
+`internal/le/qemu/alltests.go`, and `test/bfd/` and `test/dhcp/`. `vrrp` already
+had a suite record, a `test/vrrp/` directory with ten `.ci` files and a VM row;
+what it lacked was membership of `Gating`, which is the only input
+`internal/le/rfc/carriers.go` reads to grant a verify tier. All three now hold
+one, so `CarrierFor` answers `functional-bfd`, `functional-dhcp` and
+`functional-vrrp` at `verify` where it answered `functional-unrun` before, and
+`TestTheBFDDHCPAndVRRPSuitesCarryAVerifyTier` (`internal/le/rfc/tags_test.go`)
+pins that. It was observed red against a `Gating` without the three rows.
+
+**What this makes possible.** The 206 gated MUSTs of RFC 5880/5881/5883, RFC
+5798 and RFC 2131/2132 can now be bound to a `.ci` that the full verifier runs
+on every push, which is the carrier they had no access to at all. Writing those
+206 tagged tests is the follow-on work; this change is the carrier, and each
+suite carries one `.ci` proving it discriminates rather than merely existing:
+`test/bfd/bfd-detection-interval.ci` (red when the RFC 5880 Section 6.8.4
+multiplier is dropped from `DetectionInterval`),
+`test/dhcp/dhcp-range-inside-subnet.ci` (red when `parseSingleRange` stops
+checking the subnet), and the existing `test/vrrp/vrrp-config-invalid.ci` (red
+when `validateGroups` stops recording a VRID as seen).
+
+`geodns` and `dnsserver` are NOT covered by this answer and their 36 MUSTs stay
+unit-only. The owner's sentence names three subsystems, and a fourth suite
+nobody asked for is scope this session did not take.
 
 ## Known Limitations
 - Three requirements moved. 1533 remain unit-only. The rule and the ranking are the durable output; the tranche is a worked example of applying them.
