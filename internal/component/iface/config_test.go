@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -4593,4 +4594,146 @@ func TestValidateVPPQoSMapsEgressOnlyAccepted(t *testing.T) {
 		}},
 	}
 	assert.NoError(t, validateVPPQoSMaps(cfg))
+}
+
+// tunnelSpecFromJSON parses one interface section and returns the spec of its
+// single tunnel. Every default test below configures exactly one tunnel, so
+// the helper carries the "exactly one" requirement rather than each test.
+func tunnelSpecFromJSON(t *testing.T, encapsulation string) TunnelSpec {
+	t.Helper()
+	cfg := mustParseIfaceJSON(t, `{"interface": {"tunnel": {"t0": {"encapsulation": `+encapsulation+`}}}}`)
+	require.Len(t, cfg.Tunnel, 1)
+	return cfg.Tunnel[0].Spec
+}
+
+// TestTunnelTTLDefault64 verifies that a tunnel over an IPv4 underlay whose
+// ttl leaf is absent reaches the backend with the outer TTL the YANG schema
+// declares. The parse materializes the schema default, so the value below is
+// read from ze-iface-conf.yang rather than from a constant in the parser.
+//
+// VALIDATES: AC-1, AC-2, AC-3, AC-4 -- gre, gretap, ipip and sit with no ttl
+//
+//	configured carry an outer TTL of 64.
+//
+// PREVENTS: the blackhole of 2026-07-10: an outer TTL of 0 makes the kernel
+//
+//	copy the inner packet's TTL, so a locally originated packet with a
+//	small inner TTL, or any underlay of more than one hop, expires the
+//	encapsulated packet. The tunnel then works between neighbors and
+//	drops everything else.
+func TestTunnelTTLDefault64(t *testing.T) {
+	for _, kind := range []string{"gre", "gretap", "ipip", "sit"} {
+		t.Run(kind, func(t *testing.T) {
+			spec := tunnelSpecFromJSON(t, `{"`+kind+`": {
+				"local":  {"ip": "192.0.2.1"},
+				"remote": {"ip": "198.51.100.1"}
+			}}`)
+			assert.True(t, spec.TTLSet, "an unset ttl must still reach the backend")
+			assert.Equal(t, uint8(64), spec.TTL)
+		})
+	}
+}
+
+// TestTunnelTTLExplicitZeroInherits verifies that ttl 0 stays a way to ask for
+// inherit-from-inner. The default moved from 0 to 64; the meaning of 0 did not
+// move with it.
+//
+// VALIDATES: AC-5 -- gre with an explicit ttl 0 inherits the inner TTL.
+// PREVENTS: an operator losing the inherit mode as a side effect of the
+//
+//	default change, with no leaf left to express it.
+func TestTunnelTTLExplicitZeroInherits(t *testing.T) {
+	spec := tunnelSpecFromJSON(t, `{"gre": {
+		"local":  {"ip": "192.0.2.1"},
+		"remote": {"ip": "198.51.100.1"},
+		"ttl": "0"
+	}}`)
+	assert.True(t, spec.TTLSet)
+	assert.Equal(t, uint8(0), spec.TTL, "an explicit 0 means inherit and must survive the default")
+}
+
+// TestTunnelTTLExplicitValueSurvivesDefault verifies that a configured ttl is
+// applied unchanged, at an ordinary value and at the top of the uint8 range.
+//
+// VALIDATES: AC-6 -- gre with ttl 200 carries an outer TTL of 200, and the
+//
+//	boundary row of the spec's numeric table (0..255, last valid 255).
+//
+// PREVENTS: a default that overwrites what the operator wrote.
+func TestTunnelTTLExplicitValueSurvivesDefault(t *testing.T) {
+	for _, want := range []uint8{1, 200, 255} {
+		t.Run(strconv.Itoa(int(want)), func(t *testing.T) {
+			spec := tunnelSpecFromJSON(t, `{"gre": {
+				"local":  {"ip": "192.0.2.1"},
+				"remote": {"ip": "198.51.100.1"},
+				"ttl": "`+strconv.Itoa(int(want))+`"
+			}}`)
+			assert.True(t, spec.TTLSet)
+			assert.Equal(t, want, spec.TTL)
+		})
+	}
+}
+
+// TestTunnelHopLimitDefault64 verifies that the IPv6-underlay kinds reach the
+// backend with the hop limit their YANG containers declare. ip6gre and
+// ip6gretap declare 64, ip6tnl and ipip6 declare 64 and an encapsulation limit
+// of 4.
+//
+// VALIDATES: AC-7 -- the ip6gre hoplimit default is 64 and stays 64.
+// PREVENTS: the IPv6 half of the same blackhole. The schema has declared 64
+//
+//	since the tunnel kinds landed, and nothing carried it to the device
+//	until the parse started materializing the defaults.
+func TestTunnelHopLimitDefault64(t *testing.T) {
+	for _, kind := range []string{"ip6gre", "ip6gretap", "ip6tnl", "ipip6"} {
+		t.Run(kind, func(t *testing.T) {
+			spec := tunnelSpecFromJSON(t, `{"`+kind+`": {
+				"local":  {"ip": "2001:db8::1"},
+				"remote": {"ip": "2001:db8::2"}
+			}}`)
+			assert.True(t, spec.HopLimitSet, "an unset hoplimit must still reach the backend")
+			assert.Equal(t, uint8(64), spec.HopLimit)
+		})
+	}
+}
+
+// TestTunnelDefaultsReachAnEmptyCase verifies that a case container with no
+// leaf at all still takes its defaults. A `gre;` written with no block arrives
+// as a nil map, and a nil map is the one shape ApplyDefaults cannot write into.
+//
+// VALIDATES: the parse creates the case map before it applies the defaults.
+// PREVENTS: a panic on assignment to a nil map, and the silent alternative of
+//
+//	skipping the defaults for the shortest way to write a tunnel.
+func TestTunnelDefaultsReachAnEmptyCase(t *testing.T) {
+	tunnels, err := loadTunnelSchema()
+	require.NoError(t, err)
+	entry, err := parseTunnelEntry("t0", map[string]any{
+		"encapsulation": map[string]any{"gre": nil},
+	}, tunnels)
+	// The kind carries no endpoint, so the parse rejects it AFTER the leaves
+	// are read. What this test asserts is that the read happened at all.
+	require.ErrorIs(t, err, errLocalIpOrLocalInterfaceRequired)
+	assert.True(t, entry.Spec.TTLSet)
+	assert.Equal(t, uint8(64), entry.Spec.TTL)
+}
+
+// TestTunnelDefaultsRefuseAnUnresolvedSchema verifies that a tunnelSchema
+// nobody loaded fails the parse rather than quietly applying no default.
+//
+// VALIDATES: the guard in tunnelSchema.applyDefaults is reachable and closed.
+// PREVENTS: the shape ai/rules/principles.md names first -- a zero value that
+//
+//	behaves correctly. A zero tunnelSchema would apply no default, and
+//	the tunnel would reach the kernel with an outer TTL of 0 through a
+//	path that logged nothing and returned no error.
+func TestTunnelDefaultsRefuseAnUnresolvedSchema(t *testing.T) {
+	_, err := parseTunnelEntry("t0", map[string]any{
+		"encapsulation": map[string]any{"gre": map[string]any{
+			"local":  map[string]any{"ip": "192.0.2.1"},
+			"remote": map[string]any{"ip": "198.51.100.1"},
+		}},
+	}, tunnelSchema{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), tunnelEncapSchemaPath)
 }

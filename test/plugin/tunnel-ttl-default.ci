@@ -1,0 +1,157 @@
+# Test: a tunnel whose ttl leaf is unset carries the outer TTL the schema declares
+# Exercises: interface config -> iface parseTunnelEntry (schema defaults applied)
+#            -> netlink CreateTunnel -> RTM_NEWLINK -> netlink.LinkByName read-back
+# VALIDATES: AC-1..AC-7 of plan/immediate/spec-tunnel-ttl-default.md. The four
+#            IPv4-underlay kinds with no ttl leaf carry 64, an explicit ttl 0
+#            still inherits, an explicit ttl 200 is applied unchanged, and the
+#            ip6gre hoplimit default of 64 reaches the device too.
+# PREVENTS:  the blackhole an outer TTL of 0 produces. 0 makes the kernel copy
+#            the inner packet's TTL onto the outer header, so a locally
+#            originated packet with a small inner TTL, or any underlay longer
+#            than one hop, expires the encapsulated packet. The tunnel then
+#            works between directly connected endpoints and drops everything
+#            else, which is the failure mode hardest to read from a config.
+#
+# Why the assertion discriminates, measured 2026-09-05: revert `default 64` to
+# `default 0` on the four ttl leaves in
+# internal/component/iface/yang/ze-iface-conf.yang, rebuild ze, and the run
+# fails with `ttdgre outer TTL is 0, want 64; ttdgretap outer TTL is 0, want 64;
+# ttdipip outer TTL is 0, want 64`. Removing the applyDefaults call in
+# parseTunnelEntry (internal/component/iface/config.go) takes ttdip6gre with
+# them: the schema declared 64 for it long before anything carried that value
+# to the device.
+#
+# ttdsit is the one row that does NOT move under either break, and it is kept
+# because the acceptance criterion is about the TTL an operator's sit tunnel
+# carries, not about which layer supplies it. addSittunAttrs
+# (vendor/github.com/vishvananda/netlink/link_linux.go) sends IFLA_IPTUN_TTL
+# only when the value is above 0, so a spec that asks for 0 sends no attribute
+# at all and the sit driver's own device default of 64 stands. The row now
+# holds by declaration rather than by that accident, and it still fails on any
+# change that puts a WRONG value in the schema.
+#
+# The endpoint pairs are unique across the whole .ci corpus, which
+# TestCITunnelEndpointsAreUniqueAcrossTests
+# (internal/test/runner/tunnel_endpoint_lint_test.go) enforces. The kernel
+# refuses a second tunnel of one driver on a pair another test already took,
+# whatever the device is named, and every suite shares one VM. This test owns
+# 192.0.2.221 - .226 with 198.51.100.221 - .226, and 2001:db8:dc::1 - ::2.
+
+# Creating links needs CAP_NET_ADMIN, not merely Linux (ai/rules/platform-linux.md).
+option=needs-linux:caps=net-admin
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external tunnel-ttl-default-test {
+		run "ze-test fixture plugin/tunnel-ttl-default"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	tunnel ttdgre {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.221; }
+				remote { ip 198.51.100.221; }
+			}
+		}
+	}
+	tunnel ttdgretap {
+		encapsulation {
+			gretap {
+				local { ip 192.0.2.222; }
+				remote { ip 198.51.100.222; }
+			}
+		}
+	}
+	tunnel ttdipip {
+		encapsulation {
+			ipip {
+				local { ip 192.0.2.223; }
+				remote { ip 198.51.100.223; }
+			}
+		}
+	}
+	tunnel ttdsit {
+		encapsulation {
+			sit {
+				local { ip 192.0.2.224; }
+				remote { ip 198.51.100.224; }
+			}
+		}
+	}
+	tunnel ttdinherit {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.225; }
+				remote { ip 198.51.100.225; }
+				ttl 0
+			}
+		}
+	}
+	tunnel ttdexplicit {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.226; }
+				remote { ip 198.51.100.226; }
+				ttl 200
+			}
+		}
+	}
+	tunnel ttdip6gre {
+		encapsulation {
+			ip6gre {
+				local { ip 2001:db8:dc::1; }
+				remote { ip 2001:db8:dc::2; }
+			}
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: all 7 tunnels carry the outer TTL their config asks for
+reject=stderr:pattern=panic

@@ -286,3 +286,102 @@ func TestCreateTunnelV4OnV6Kind(t *testing.T) {
 		}
 	})
 }
+
+// tunnelDeviceTTL creates one tunnel and returns the outer-header TTL the
+// kernel reports for the resulting netdev. Each kind stores the value in its
+// own Go type, so the read is a type switch rather than one field access.
+func tunnelDeviceTTL(t *testing.T, b iface.Backend, spec iface.TunnelSpec) uint8 {
+	t.Helper()
+	if err := b.CreateTunnel(spec); err != nil {
+		t.Fatalf("create %s: %v", spec.Kind, err)
+	}
+	link, err := netlink.LinkByName(spec.Name)
+	if err != nil {
+		t.Fatalf("lookup %s: %v", spec.Name, err)
+	}
+	switch device := link.(type) {
+	case *netlink.Gretun:
+		return device.Ttl
+	case *netlink.Gretap:
+		return device.Ttl
+	case *netlink.Iptun:
+		return device.Ttl
+	case *netlink.Sittun:
+		return device.Ttl
+	default:
+		t.Fatalf("%s is a %T, which carries no outer TTL", spec.Name, link)
+		return 0
+	}
+}
+
+// TestCreateTunnelTTLReachesTheDevice verifies that the outer TTL a spec
+// carries is the outer TTL the kernel stores on the netdev, for every tunnel
+// kind whose underlay is IPv4.
+//
+// The value is 33 rather than the schema default of 64, because 64 is what a
+// sit device carries anyway: addSittunAttrs (the vendored netlink library)
+// sends IFLA_IPTUN_TTL only above 0, and the sit driver's own device default
+// is 64. A test at 64 would therefore pass against a buildSittun that dropped
+// the field. 33 is outside every default in play, so each kind has to carry
+// the value for its row to pass.
+//
+// VALIDATES: AC-1, AC-2, AC-3, AC-4 at the kernel boundary -- link.Ttl
+//
+//	reflects spec.TTL for gre, gretap, ipip and sit.
+//
+// PREVENTS: a builder that reads the value into the wrong netlink field, or
+//
+//	drops it for one kind. buildIptun and buildSittun set the same
+//	link.Ttl as buildGretun, and nothing but a read-back proves it.
+func TestCreateTunnelTTLReachesTheDevice(t *testing.T) {
+	for _, row := range []struct {
+		name  string
+		kind  iface.TunnelKind
+		local string
+		peer  string
+	}{
+		{"gre", iface.TunnelKindGRE, "192.0.2.11", "198.51.100.11"},
+		{"gretap", iface.TunnelKindGRETap, "192.0.2.12", "198.51.100.12"},
+		{"ipip", iface.TunnelKindIPIP, "192.0.2.13", "198.51.100.13"},
+		{"sit", iface.TunnelKindSIT, "192.0.2.14", "198.51.100.14"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			withTunnelNetNS(t, func(b iface.Backend) {
+				ttl := tunnelDeviceTTL(t, b, iface.TunnelSpec{
+					Kind:          row.kind,
+					Name:          "tttl0",
+					LocalAddress:  row.local,
+					RemoteAddress: row.peer,
+					TTL:           33,
+					TTLSet:        true,
+				})
+				if ttl != 33 {
+					t.Errorf("%s outer TTL = %d, want 33", row.name, ttl)
+				}
+			})
+		})
+	}
+}
+
+// TestCreateTunnelTTLZeroInherits verifies that a spec asking for TTL 0 leaves
+// the device on inherit-from-inner, which the kernel stores as 0.
+//
+// VALIDATES: AC-5 at the kernel boundary -- an explicit 0 is applied as 0.
+// PREVENTS: a builder that treats 0 as "unset" and substitutes a value,
+//
+//	which would take the inherit mode away from the operator.
+func TestCreateTunnelTTLZeroInherits(t *testing.T) {
+	withTunnelNetNS(t, func(b iface.Backend) {
+		ttl := tunnelDeviceTTL(t, b, iface.TunnelSpec{
+			Kind:          iface.TunnelKindGRE,
+			Name:          "tttl1",
+			LocalAddress:  "192.0.2.15",
+			RemoteAddress: "198.51.100.15",
+			TTL:           0,
+			TTLSet:        true,
+		})
+		if ttl != 0 {
+			t.Errorf("outer TTL = %d, want 0 (inherit)", ttl)
+		}
+	})
+}

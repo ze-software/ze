@@ -995,11 +995,15 @@ module ze-iface-conf {
 
                             leaf ttl {
                                 type uint8;
-                                default 0;
-                                description "Outer-header TTL. 0 = inherit from inner";
+                                default 64;
+                                description "Outer-header TTL. 0 = inherit from the inner packet";
                                 ze:help "Ze writes the value into the outer IPv4 TTL field,
-                                         through the netlink field Ttl. 0 makes the kernel take
-                                         the value from the inner packet instead.";
+                                         through the netlink field Ttl. The default 64 gives the
+                                         encapsulated packet its own budget of underlay hops, and
+                                         it matches the hoplimit default of the IPv6-underlay
+                                         kinds. 0 makes the kernel take the value from the inner
+                                         packet instead, which drops the packet early when the
+                                         inner TTL is small or the underlay is more than one hop.";
                             }
 
                             leaf tos {
@@ -1051,11 +1055,15 @@ module ze-iface-conf {
 
                             leaf ttl {
                                 type uint8;
-                                default 0;
-                                description "Outer-header TTL. 0 = inherit";
+                                default 64;
+                                description "Outer-header TTL. 0 = inherit from the inner packet";
                                 ze:help "Ze writes the value into the outer IPv4 TTL field,
-                                         through the netlink field Ttl. 0 makes the kernel take
-                                         the value from the inner packet instead.";
+                                         through the netlink field Ttl. The default 64 gives the
+                                         encapsulated packet its own budget of underlay hops, and
+                                         it matches the hoplimit default of the IPv6-underlay
+                                         kinds. 0 makes the kernel take the value from the inner
+                                         packet instead, which drops the packet early when the
+                                         inner TTL is small or the underlay is more than one hop.";
                             }
 
                             leaf tos {
@@ -1224,11 +1232,15 @@ module ze-iface-conf {
 
                             leaf ttl {
                                 type uint8;
-                                default 0;
-                                description "Outer-header TTL. 0 = inherit";
+                                default 64;
+                                description "Outer-header TTL. 0 = inherit from the inner packet";
                                 ze:help "Ze writes the value into the outer IPv4 TTL field,
-                                         through the netlink field Ttl. 0 makes the kernel take
-                                         the value from the inner packet instead.";
+                                         through the netlink field Ttl. The default 64 gives the
+                                         encapsulated packet its own budget of underlay hops, and
+                                         it matches the hoplimit default of the IPv6-underlay
+                                         kinds. 0 makes the kernel take the value from the inner
+                                         packet instead, which drops the packet early when the
+                                         inner TTL is small or the underlay is more than one hop.";
                             }
 
                             leaf tos {
@@ -1269,11 +1281,15 @@ module ze-iface-conf {
 
                             leaf ttl {
                                 type uint8;
-                                default 0;
-                                description "Outer-header TTL. 0 = inherit";
+                                default 64;
+                                description "Outer-header TTL. 0 = inherit from the inner packet";
                                 ze:help "Ze writes the value into the outer IPv4 TTL field,
-                                         through the netlink field Ttl. 0 makes the kernel take
-                                         the value from the inner packet instead.";
+                                         through the netlink field Ttl. The default 64 gives the
+                                         encapsulated packet its own budget of underlay hops, and
+                                         it matches the hoplimit default of the IPv6-underlay
+                                         kinds. 0 makes the kernel take the value from the inner
+                                         packet instead, which drops the packet early when the
+                                         inner TTL is small or the underlay is more than one hop.";
                             }
 
                             leaf tos {

@@ -429,13 +429,21 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 		}
 	}
 
-	if tunMap, ok := ifaceMap["tunnel"].(map[string]any); ok {
+	if tunMap, ok := ifaceMap["tunnel"].(map[string]any); ok && len(tunMap) > 0 {
+		// The schema is resolved once for the whole section rather than once
+		// per tunnel, because loading it parses every YANG module ze carries.
+		// An empty `tunnel` block declares no interface, so the len check keeps
+		// that parse off a config with no tunnel in it.
+		tunnels, err := loadTunnelSchema()
+		if err != nil {
+			return nil, err
+		}
 		for name, v := range tunMap {
 			if err := ValidateIfaceName(name); err != nil {
 				return nil, fmt.Errorf("tunnel: %w", err)
 			}
 			m, _ := v.(map[string]any)
-			entry, err := parseTunnelEntry(name, m)
+			entry, err := parseTunnelEntry(name, m, tunnels)
 			if err != nil {
 				return nil, fmt.Errorf("tunnel %q: %w", name, err)
 			}
@@ -506,7 +514,11 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 // VLAN units are rejected on L3 tunnel kinds because the Linux kernel does
 // not allow VLAN tagging on netdevs that do not carry Ethernet frames; only
 // gretap/ip6gretap (the L2/bridgeable kinds) accept VLAN sub-interfaces.
-func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
+//
+// tunnels carries the YANG defaults of the encapsulation cases. They are
+// materialized into the case map before the leaves are read, so a leaf the
+// operator left out reaches the backend with the value the schema declares.
+func parseTunnelEntry(name string, m map[string]any, tunnels tunnelSchema) (tunnelEntry, error) {
 	iface, err := parseIfaceEntry(name, m)
 	if err != nil {
 		return tunnelEntry{}, err
@@ -541,6 +553,16 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 		return entry, errEncapsulationBlockHasNoKindSelected
 	}
 	entry.Spec.Kind = matchedKind
+	// A case written as `gre;` with no block arrives as a nil map, and
+	// ApplyDefaults writes into the map it is given, so the map is made here
+	// rather than left nil. A kind with no leaves configured still owes its
+	// defaults.
+	if matchedCase == nil {
+		matchedCase = map[string]any{}
+	}
+	if err := tunnels.applyDefaults(matchedKind, matchedCase); err != nil {
+		return entry, err
+	}
 	if err := parseTunnelLeaves(&entry.Spec, matchedCase); err != nil {
 		return entry, err
 	}

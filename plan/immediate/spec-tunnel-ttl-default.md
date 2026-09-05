@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-10 |
+| Phase | 4/4 |
+| Updated | 2026-09-05 |
 
 **Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
 
@@ -129,8 +129,8 @@ All refs re-verified against current code after the followup-spec wave:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A YANG `default 64` is applied so an unset leaf yields `TTLSet=true` | config.go parse path | default not applied → still 0 | unit test asserting `spec.TTL==64` when unset | unvalidated |
-| A-2 | `ttl 0` remains a valid explicit inherit value after the default change | leaf type uint8, 0 in range | operators lose inherit mode | test explicit `ttl 0` still inherits | unvalidated |
+| A-1 | A YANG `default 64` is applied so an unset leaf yields `TTLSet=true` | config.go parse path | default not applied → still 0 | unit test asserting `spec.TTL==64` when unset | **broken**, then made true. The iface config path never materialized a schema default: `ApplyDefaults` (`internal/component/config/schema_defaults.go`) had three callers and none was iface, so the YANG default reached nothing. `parseTunnelEntry` now applies the matched case's defaults. See the Mistake Log |
+| A-2 | `ttl 0` remains a valid explicit inherit value after the default change | leaf type uint8, 0 in range | operators lose inherit mode | test explicit `ttl 0` still inherits | confirmed: `TestTunnelTTLExplicitZeroInherits` and the `ttdinherit` row of `test/plugin/tunnel-ttl-default.ci` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -169,9 +169,14 @@ All refs re-verified against current code after the followup-spec wave:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestTunnelTTLDefault64` | `internal/component/iface/config_test.go` | unset `ttl` yields `spec.TTL==64, TTLSet==true` for gre/gretap/ipip/sit | |
-| `TestTunnelTTLExplicitZeroInherits` | `internal/component/iface/config_test.go` | explicit `ttl 0` yields `spec.TTL==0` | |
-| `TestBuildGretunTTLApplied` | `internal/plugins/iface/netlink/tunnel_linux_test.go` | `link.Ttl` reflects `spec.TTL` | |
+| `TestTunnelTTLDefault64` | `internal/component/iface/config_test.go` | unset `ttl` yields `spec.TTL==64, TTLSet==true` for gre/gretap/ipip/sit | PASS |
+| `TestTunnelTTLExplicitZeroInherits` | `internal/component/iface/config_test.go` | explicit `ttl 0` yields `spec.TTL==0` | PASS |
+| `TestTunnelTTLExplicitValueSurvivesDefault` | `internal/component/iface/config_test.go` | explicit 1, 200 and 255 are applied unchanged (the numeric boundary row) | PASS |
+| `TestTunnelHopLimitDefault64` | `internal/component/iface/config_test.go` | unset `hoplimit` yields 64 for ip6gre/ip6gretap/ip6tnl/ipip6 | PASS |
+| `TestTunnelDefaultsReachAnEmptyCase` | `internal/component/iface/config_test.go` | a case written with no block still takes its defaults | PASS |
+| `TestTunnelDefaultsRefuseAnUnresolvedSchema` | `internal/component/iface/config_test.go` | an unloaded `tunnelSchema` fails the parse rather than applying no default | PASS |
+| `TestCreateTunnelTTLReachesTheDevice` | `internal/plugins/iface/netlink/tunnel_linux_test.go` | `link.Ttl` reflects `spec.TTL` for gre/gretap/ipip/sit (this is the spec's `TestBuildGretunTTLApplied`, widened to all four kinds) | NOT RUN: `//go:build integration && linux` plus CAP_NET_ADMIN, which this host does not hold |
+| `TestCreateTunnelTTLZeroInherits` | `internal/plugins/iface/netlink/tunnel_linux_test.go` | an explicit 0 is applied as 0 at the kernel boundary | NOT RUN: same gate |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -181,7 +186,7 @@ All refs re-verified against current code after the followup-spec wave:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `tunnel-ttl-default` | `test/plugin/tunnel-ttl-default.ci` | unset TTL → 64 on device; explicit 0 → inherit | |
+| `tunnel-ttl-default` | `test/plugin/tunnel-ttl-default.ci` | unset TTL → 64 on device; explicit 0 → inherit; explicit 200 → 200; ip6gre hoplimit → 64 | PASS in the QEMU guest, 2026-09-05, `1/1 PASS 728 tunnel-ttl-default` |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -255,6 +260,8 @@ All refs re-verified against current code after the followup-spec wave:
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| Changing the YANG `default` is the whole fix, because the parse applies schema defaults (A-1) | Nothing applied schema defaults on the iface path. `config.ApplyDefaults` had three callers (`bgp/config/peers.go`, `bgp/plugins/filter_modify/config.go`, `sysrib/sysrib.go`) and the interface section was delivered to the plugin straight from `ExtractConfigSubtree` (`internal/component/plugin/server/reload.go`). A `default 64` alone would have changed nothing on the device | `TestBackendGateIPv6AcceptRADefaultIsNotMaterialized` (`internal/component/config/backend_gate_test.go`) states it in its own comment: "the iface commit path walks the tree the plugin delivers rather than one with schema defaults materialized into it" | The spec gained a second edit: `parseTunnelEntry` resolves the encapsulation container from the schema and applies the matched case's defaults. It also revealed that the ip6gre/ip6gretap/ip6tnl/ipip6 `hoplimit` default of 64, which this spec's Task cites as the consistent house default, had never reached a device either. Both are fixed by the one call |
+| A `default 0` reverted on the sit leaf would turn the sit row of the functional test red | It does not. `addSittunAttrs` (`vendor/github.com/vishvananda/netlink/link_linux.go`) sends `IFLA_IPTUN_TTL` only above 0, so a spec asking for 0 sends no attribute and the sit driver's device default of 64 stands | The recorded discrimination run named `ttdgre`, `ttdgretap` and `ttdipip` and not `ttdsit` | The `.ci` comment was corrected to say which rows move under which break, and the netlink read-back test uses 33 rather than 64 so a `buildSittun` that dropped the field cannot pass |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -271,7 +278,41 @@ All refs re-verified against current code after the followup-spec wave:
 
 ## Implementation Summary
 ### What Was Implemented
-- (fill during implementation)
+
+| AC | Producing code | Proof |
+|----|----------------|-------|
+| AC-1..AC-4 (gre, gretap, ipip, sit with `ttl` unset carry 64) | `internal/component/iface/yang/ze-iface-conf.yang`, the four `leaf ttl` declarations, now `default 64`; carried to the spec by `tunnelSchema.applyDefaults` (`internal/component/iface/tunnel.go`) called from `parseTunnelEntry` (`internal/component/iface/config.go`) | `TestTunnelTTLDefault64`; `ttdgre`, `ttdgretap`, `ttdipip`, `ttdsit` in `test/plugin/tunnel-ttl-default.ci` |
+| AC-5 (explicit `ttl 0` inherits) | unchanged: `parseTunnelLeaves` reads the explicit value, and `ApplyDefaults` writes only an absent key | `TestTunnelTTLExplicitZeroInherits`; `ttdinherit` |
+| AC-6 (explicit `ttl 200` applied unchanged) | same path | `TestTunnelTTLExplicitValueSurvivesDefault`; `ttdexplicit` |
+| AC-7 (ip6gre `hoplimit` default stays 64) | the YANG leaf is unchanged; the same `applyDefaults` call now carries it to the device for the first time | `TestTunnelHopLimitDefault64`; `ttdip6gre` |
+
+### Where the default is stated, and why once
+`ze-iface-conf.yang` declares it, and nothing else does. `parseTunnelEntry`
+resolves `interface/tunnel/encapsulation` from the schema once for the whole
+interface section and applies the matched case container's defaults into the
+config map before `parseTunnelLeaves` reads it. No Go constant repeats 64, so
+the schema, the CLI completion, the config diff and the device cannot disagree.
+This is the shape `internal/component/sysrib/distance_bootstrap_test.go` exists
+to prevent, and the same `config.ApplyDefaults` helper `sysrib.go` and
+`filter_modify/config.go` already use.
+
+### Functional evidence
+Run in a QEMU guest on 2026-09-05, before the owner deferred heavy testing:
+
+- GREEN: `./le job run label tunttl-qemu quiet command ./le qemu run packages "iproute2" command "sh /workspace/<scratch>/guest-one.sh"` -> `1/1 PASS 728 tunnel-ttl-default`.
+- RED, with `default 64` reverted to `default 0` on the four leaves and `ze` rebuilt: `ZE-OBSERVER-FAIL: ttdgre outer TTL is 0, want 64; ttdgretap outer TTL is 0, want 64; ttdipip outer TTL is 0, want 64`, `QEMU VM: FAIL (exit code 1)`.
+- The YANG was restored and `bin/ze` rebuilt from the restored tree.
+
+`ttdsit` does not move under that break, for the reason the `.ci` header now
+records: the vendored netlink library omits `IFLA_IPTUN_TTL` at 0 and the sit
+driver's device default is 64.
+
+### Scope not taken
+VPP-backed gre/gretap/ipip are untouched, per the user decision of 2026-07-10.
+R-3 (warn or reject an explicit `ttl` on a VPP-backed tunnel) is a user
+decision this session could not put to the owner, and neither option was
+implemented. It is unchanged by this work: an explicit `ttl` on a VPP-backed
+tunnel was silently unused before and still is.
 
 ## Review Gate
 

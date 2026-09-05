@@ -4,6 +4,12 @@
 
 package iface
 
+import (
+	"fmt"
+
+	"github.com/ze-software/ze/internal/component/config"
+)
+
 // TunnelKind discriminates between the supported tunnel encapsulation kinds.
 // One TunnelKind value maps to exactly one Linux netlink interface kind.
 // IPIP6 is special: it shares the ip6tnl Go type with IP6TNL, distinguished
@@ -172,7 +178,7 @@ type TunnelSpec struct {
 	RemoteAddress   string // mandatory; v4 for v4-underlay kinds, v6 for v6-underlay
 	Key             uint32 // GRE family only; valid only when KeySet
 	KeySet          bool
-	TTL             uint8 // gre/gretap/ipip/sit only; 0 = inherit (default)
+	TTL             uint8 // gre/gretap/ipip/sit only; 0 = inherit, schema default 64
 	TTLSet          bool
 	Tos             uint8 // gre/gretap/ipip/sit only
 	TosSet          bool
@@ -187,4 +193,56 @@ type TunnelSpec struct {
 	VNISet          bool
 	Port            uint16 // vxlan only; UDP destination port; 0 = default 4789
 	PortSet         bool
+}
+
+// tunnelEncapSchemaPath is the schema path of the tunnel encapsulation
+// container. Its children are the per-kind case containers, one for each name
+// in tunnelKindNames, and each of them carries the YANG defaults for its kind.
+const tunnelEncapSchemaPath = "interface/tunnel/encapsulation"
+
+// tunnelSchema holds the encapsulation container of the YANG schema, so the
+// tunnel parse can materialize each case's defaults into the config map before
+// it reads the leaves.
+//
+// The defaults live in the schema and nowhere else. A tunnel that names no ttl
+// takes 64 because ze-iface-conf.yang says `default 64`, not because a Go
+// constant repeats it, so the schema, the CLI completion, the config diff and
+// the device always agree.
+type tunnelSchema struct {
+	encapsulation *config.ContainerNode
+}
+
+// loadTunnelSchema resolves the encapsulation container once for one parse.
+// Every failure is reported: a parse that cannot read the schema cannot know
+// which defaults it owes, and an empty node would silently produce a tunnel
+// configured with the Go zero value of every leaf the operator left out.
+func loadTunnelSchema() (tunnelSchema, error) {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return tunnelSchema{}, fmt.Errorf("tunnel: load schema: %w", err)
+	}
+	node, err := schema.Lookup(tunnelEncapSchemaPath)
+	if err != nil {
+		return tunnelSchema{}, fmt.Errorf("tunnel: resolve %s: %w", tunnelEncapSchemaPath, err)
+	}
+	encapsulation, ok := node.(*config.ContainerNode)
+	if !ok {
+		return tunnelSchema{}, fmt.Errorf("tunnel: %s is %T, want a container", tunnelEncapSchemaPath, node)
+	}
+	return tunnelSchema{encapsulation: encapsulation}, nil
+}
+
+// applyDefaults fills the leaves the operator left out of one encapsulation
+// case with the defaults its YANG container declares. The map MUST be non-nil,
+// because ApplyDefaults writes into it.
+func (s tunnelSchema) applyDefaults(kind TunnelKind, caseMap map[string]any) error {
+	if s.encapsulation == nil {
+		return fmt.Errorf("tunnel: %s was never resolved", tunnelEncapSchemaPath)
+	}
+	node := s.encapsulation.Get(kind.String())
+	if node == nil {
+		return fmt.Errorf("tunnel: %s carries no case %q", tunnelEncapSchemaPath, kind)
+	}
+	config.ApplyDefaults(caseMap, node)
+	return nil
 }

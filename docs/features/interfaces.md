@@ -410,6 +410,33 @@ L2 tunnel kinds (`gretap`, `ip6gretap`) support an optional `mac` container (wit
 `address` leaf) inside the case container. L3 kinds do not carry a MAC address (the
 kernel does not assign one).
 
+### Outer-header TTL
+
+A tunnel that names no `ttl` carries an outer TTL of 64, and a tunnel that names no
+`hoplimit` carries an outer hop limit of 64. The value 0 keeps its meaning: it tells
+the kernel to copy the inner packet's TTL onto the outer header, and an operator who
+wants that mode writes `ttl 0`.
+
+64 is the default because inherit blackholes a multi-hop underlay. A locally
+originated packet can carry a small inner TTL, and every underlay router decrements
+the outer header, so an inherited value expires the encapsulated packet before it
+reaches the far endpoint. The tunnel then works between directly connected endpoints
+and drops everything else.
+
+Each default is declared once, in the YANG leaf, and the parse materializes it into
+the tunnel spec before the backend reads the leaves. No Go constant repeats it, so
+the schema, the CLI completion, the config diff and the device cannot disagree.
+
+The defaults reach netlink-backed tunnels. The VPP tunnel calls carry no outer-TTL
+field, so neither the default nor an explicit `ttl` reaches a VPP-programmed gre,
+gretap or ipip device.
+
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- the ttl and hoplimit leaves and their defaults -->
+<!-- source: internal/component/iface/tunnel.go -- tunnelSchema, loadTunnelSchema, applyDefaults -->
+<!-- source: internal/plugins/iface/vpp/tunnel.go -- createGRETunnel and createIPIPTunnel, which carry no TTL field -->
+<!-- source: test/plugin/tunnel-ttl-default.ci -- the outer TTL read back from each device -->
+
+
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
 out of scope for v1.
 
