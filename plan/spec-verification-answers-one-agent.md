@@ -253,6 +253,26 @@ working time. Recording it is named in Work Not Done.
 | 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | `./le spec citation anchors spec plan/spec-verification-answers-one-agent.md` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/contributing/running-commands.md` shows verify invocations |
 
+### Critical Review Checklist
+
+Feature-specific only; the six generic checks in `ai/rules/quality.md` always
+apply and are not repeated. Every row here exists because this spec can fail in
+that particular way, and two of them were written after a phase found the
+failure rather than before.
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-1..AC-8 has an implementation named at file plus symbol, and each of the four Wiring Test rows names a test that exists and runs |
+| A shared verdict is about the asker's tree | The input fingerprint EXCLUDES trees rather than listing inputs, because a missed input shares a stale verdict while a missed exclusion only duplicates a run. Every excluded tree is proven to hold no Go file by a test that walks the real checkout, and `//go:embed` cannot leave its package directory |
+| No green from ignorance | The query action returns a passing verdict only when the population is non-empty, nothing is pending, and no red went unattributed. A stage counts as reported only once its log carries its closing result line, so a log read mid-write is pending and never clean |
+| The nested stage is not its own deadlock | A claimed verify reaching the in-process lint stage answers `KindInside` through `insideParent`, and `job.ParentKey` is RESTORED after the stage loop rather than left set. The set-and-restore follows `nameChangeScope`; a second idiom for the same job is a finding |
+| Attach carries the verdict, not the attach | A follower's process exit status is the holder's, measured with no pipe and no wrapper. A pipeline reports its last command's status, which is what made an earlier journal row accuse a correct component (`1a81cfe92`) |
+| Data flow | Admission is asked at the ENTRY point, not inside the engine. `SnapshotTree`, `DirtyManifest` and the freshness certificate keep their whole-tree fingerprint: a certificate legitimately asserts something about the whole tree, and narrowing it here would be a different spec |
+| Naming | The action's payload keys are kebab-case, and the label is stated once beside its input declaration rather than repeated as a string literal at each use |
+| Rule: `ai/rules/cli.md` | `verify reds file <path>` is keyword before value, and its payload renders under `\| json`, `\| yaml` and `\| table` |
+| Rule: `ai/rules/principles.md` | No branch answers zero, empty or default in place of an answer. The three verdict values that are not a pass are distinguishable: no run, undetermined, and not-named |
+| Rule: `ai/rules/no-layering.md` | The failure-group predicate exists ONCE. Phase 3 was one edit away from a second copy of "is this declared path mine" |
+
 ## Implementation Steps
 
 **Phase 1 (wiring): admission at the verify entry point.** Mirror `runHere` in

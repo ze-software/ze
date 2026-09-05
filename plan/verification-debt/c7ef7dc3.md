@@ -18,3 +18,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-05 | c7ef7dc3 | the verification tooling spec is approved and ready | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-09-05T15:41:36Z) | open |
 | 2026-09-05 | c7ef7dc3 | delete the emptied prefix-sid announce probe file | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-09-05T15:41:36Z) | open |
 | 2026-09-05 | c7ef7dc3 | delete the emptied prefix-sid announce probe file | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-05 | c7ef7dc3 | the verification spec states what its own review must check | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=130, at 2026-09-05T17:13:05Z) | open |
