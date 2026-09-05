@@ -100,7 +100,7 @@ bin/ze config import router.conf  # or: ze config edit
 bin/ze start
 ```
 
-Requires **Go 1.26+** on a macOS or Linux development host. Windows is not a supported development platform. See the [Quick Start guide](docs/guide/quickstart.md).
+Requires **Go 1.27+** on a macOS or Linux development host. Windows is not a supported development platform. See the [Quick Start guide](docs/guide/quickstart.md).
 
 ## I Want To...
 
