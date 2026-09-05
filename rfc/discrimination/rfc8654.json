@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc8654",
+  "records": [
+    {
+      "rid": "RFC8654-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize",
+      "unit-sha": "2c171b19e485ba0a",
+      "claim-sha": "507d5e495918a2ca",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_split.go::SplitMPReachNLRIWithAddPath",
+      "producer-sha": "08bdacae42899067",
+      "break": "body of SplitMPReachNLRIWithAddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
