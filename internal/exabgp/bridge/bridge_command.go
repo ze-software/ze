@@ -59,7 +59,31 @@ type Translation struct {
 	// Route says Command puts an UPDATE on a wire, so a per-peer flush is owed
 	// after the dispatch is acknowledged.
 	Route bool
+	// Local is set when the bridge answers the line itself. Command is empty
+	// then, and a caller MUST read this before it reads Nothing: a local action
+	// carries no command and is not an empty line.
+	Local LocalAction
 }
+
+// LocalAction is a command the bridge performs ITSELF rather than dispatching.
+//
+// The ExaBGP API's ack control is the whole set. A script turns acks off, sends
+// commands it does not want answered, and turns them back on, and the three
+// words differ in WHEN the silence starts: `disable-ack` is acked and silences
+// what follows, `silence-ack` is not acked at all, and `enable-ack` is acked and
+// resumes.
+type LocalAction uint8
+
+const (
+	// LocalNone is the ordinary line: it carries a command to dispatch.
+	LocalNone LocalAction = iota
+	// LocalAckEnable resumes acks, and this command is acked.
+	LocalAckEnable
+	// LocalAckDisableAfter stops acks after this command, which is acked.
+	LocalAckDisableAfter
+	// LocalAckDisableNow stops acks immediately, so this command is not acked.
+	LocalAckDisableNow
+)
 
 // Nothing reports a line that carries no command: a blank line, or a comment.
 // It is an ANSWER rather than a failure, and it is named so that no caller has
@@ -107,6 +131,9 @@ func TranslateLine(line string) (Translation, error) {
 		rest = strings.TrimSpace(match[2])
 	}
 
+	if translation, ok := convertControl(selector, rest); ok {
+		return translation, nil
+	}
 	if command, translated := convertRoute(selector, rest); translated {
 		return Translation{Command: command, Selector: selector, Route: true}, nil
 	}
@@ -114,6 +141,69 @@ func TranslateLine(line string) (Translation, error) {
 		return Translation{Command: bridgePassthrough}, nil
 	}
 	return Translation{}, fmt.Errorf("%w: %q", ErrLineNotTranslated, line)
+}
+
+// convertControl translates the ExaBGP API commands that are not routes.
+//
+// An ExaBGP script drives more than announcements: it clears and flushes the
+// adj-RIB, turns the command acknowledgement on and off, drives a watchdog
+// group, and asks the daemon to stop. The bridge answered none of these until
+// 2026-09-05, so every script that used one stopped there, and 29 of the 40
+// ported qa/api tests ended after their first frame.
+//
+// Each mapping is to a command ze declares, checked against the live registry
+// rather than assumed:
+//
+//	clear adj-rib in|out        -> clear bgp rib in|out       (ze-rib-api:clear-in/out)
+//	flush adj-rib [in|out]      -> request peer <sel> flush   (ze-bgp:peer-flush)
+//	announce watchdog <name>    -> request bgp watchdog announce <name>
+//	withdraw watchdog <name>    -> request bgp watchdog withdraw <name>
+//	shutdown, request shutdown  -> request shutdown           (ze-system:daemon-shutdown)
+//	enable-ack, disable-ack, silence-ack -> answered by the bridge itself
+//
+// The watchdog forms are read BEFORE convertRoute although they start with the
+// announce and withdraw verbs. convertRoute would refuse them anyway, because
+// `watchdog <name>` states no family, but a reader should not have to know that
+// to see which branch takes them.
+func convertControl(selector, rest string) (Translation, bool) {
+	fields := strings.Fields(strings.ToLower(rest))
+	if len(fields) == 0 {
+		return Translation{}, false
+	}
+	var tb textbuf.Buffer
+	switch {
+	case len(fields) == 1 && fields[0] == "enable-ack":
+		return Translation{Local: LocalAckEnable}, true
+	case len(fields) == 1 && fields[0] == "disable-ack":
+		return Translation{Local: LocalAckDisableAfter}, true
+	case len(fields) == 1 && fields[0] == "silence-ack":
+		return Translation{Local: LocalAckDisableNow}, true
+	case len(fields) == 1 && fields[0] == "shutdown",
+		len(fields) == 2 && fields[0] == "request" && fields[1] == "shutdown":
+		return Translation{Command: "request shutdown", Selector: selector}, true
+	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" &&
+		(fields[2] == "in" || fields[2] == "out"):
+		return Translation{
+			Command:  tb.Str("clear bgp rib ").Str(fields[2]).String(),
+			Selector: selector,
+		}, true
+	case fields[0] == "flush" && len(fields) >= 2 && fields[1] == "adj-rib":
+		// ze drains a peer's forward pool rather than a named direction, so the
+		// in/out word an ExaBGP script may add has no counterpart and is not
+		// invented into one.
+		return Translation{
+			Command:  tb.Str("request peer ").Str(selector).Str(" flush").String(),
+			Selector: selector,
+		}, true
+	case len(fields) == 3 && fields[1] == "watchdog" &&
+		(fields[0] == "announce" || fields[0] == "withdraw"):
+		name := strings.Fields(rest)[2]
+		return Translation{
+			Command:  tb.Str("request bgp watchdog ").Str(fields[0]).Byte(' ').Str(name).String(),
+			Selector: selector,
+		}, true
+	}
+	return Translation{}, false
 }
 
 // convertRoute translates one ExaBGP announce or withdraw into the ze command

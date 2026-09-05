@@ -132,6 +132,12 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 				slog.Warn("sdk: line refused", "error", err)
 				continue
 			}
+			// A local action is answered by the bridge itself, so it is read
+			// BEFORE Nothing: it carries no command and is not an empty line.
+			if translation.Local != bridge.LocalNone {
+				ack.AnswerLocal(stdinPipe, translation.Local)
+				continue
+			}
 			if translation.Nothing() {
 				continue
 			}

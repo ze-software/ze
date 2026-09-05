@@ -25,11 +25,57 @@ import (
 // operator sets `environment { exabgp { api { ack <bool>; } } }`.
 const ackEnvKey = "exabgp.api.ack"
 
-// AckMode is a snapshot of exabgp.api.ack captured at bridge construction.
-// `true` means emit done/error lines on plugin stdin after each dispatched
-// command. Default is true to match ExaBGP's historical behavior.
+// AckMode is exabgp.api.ack as the bridge currently holds it. `true` means emit
+// done/error lines on plugin stdin after each dispatched command. Default is
+// true to match ExaBGP's historical behavior.
+//
+// It is not a constant snapshot: the ExaBGP API lets a script turn acks off and
+// on with `disable-ack`, `silence-ack` and `enable-ack`, so Apply moves it.
 type AckMode struct {
 	enabled bool
+}
+
+// AnswerLocal moves the ack state for one local action and writes the ack that
+// action still owes, in ONE place.
+//
+// The decision cannot be split between a caller and WriteAck. `disable-ack` is
+// itself acked and silences what follows, so applying it sets enabled false
+// while this command still owes a `done`; a caller that asked apply and then
+// called WriteAck got silence, because WriteAck re-read the flag apply had just
+// cleared. That is a decision made twice: both halves were right and the answer
+// was wrong.
+func (m *AckMode) AnswerLocal(pluginW io.Writer, action LocalAction) {
+	if !m.apply(action) {
+		return
+	}
+	if _, err := fmt.Fprintln(pluginW, "done"); err != nil { //nolint:errcheck // output
+		slog.Debug("bridge ack: write done failed", "error", err)
+	}
+}
+
+// apply moves the ack state for one local action and answers whether THIS
+// command is still acked.
+//
+// The three words differ only in when the silence starts, and that difference
+// is the whole of what api-ack-control and api-silence-ack assert:
+// `disable-ack` is acked and silences what follows, `silence-ack` is silent
+// immediately, and `enable-ack` resumes and is acked.
+func (m *AckMode) apply(action LocalAction) bool {
+	switch action {
+	case LocalAckEnable:
+		m.enabled = true
+		return true
+	case LocalAckDisableAfter:
+		acked := m.enabled
+		m.enabled = false
+		return acked
+	case LocalAckDisableNow:
+		m.enabled = false
+		return false
+	case LocalNone:
+		return m.enabled
+	}
+	return m.enabled
 }
 
 // NewAckMode reads the env once at bridge construction. Later changes to

@@ -259,6 +259,12 @@ func (r *bridgeRunner) readLoop(ctx context.Context, p *sdk.Plugin, sout io.Read
 			r.log.Warn("line refused", "error", terr)
 			continue
 		}
+		// A local action is answered by the bridge itself, so it is read BEFORE
+		// Nothing: it carries no command and is not an empty line.
+		if translation.Local != bridge.LocalNone {
+			r.ack.AnswerLocal(r.stdinWriter(), translation.Local)
+			continue
+		}
 		if translation.Nothing() {
 			continue
 		}

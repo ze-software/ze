@@ -679,6 +679,12 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writ
 			slog.Warn("plugin->zebgp: line refused", "error", err)
 			continue
 		}
+		// A local action is answered here rather than dispatched, so it is read
+		// BEFORE Nothing: it carries no command and is not an empty line.
+		if translation.Local != LocalNone {
+			b.ack.AnswerLocal(pluginW, translation.Local)
+			continue
+		}
 		if translation.Nothing() {
 			continue
 		}

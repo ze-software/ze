@@ -1755,7 +1755,11 @@ func TestBridgeRefusesAnUnrecognizedLineByName(t *testing.T) {
 		name string
 		line string
 	}{
-		{"unknown_verb", "shutdown"},
+		// `shutdown` was this row until 2026-09-05, when the bridge learned the
+		// ExaBGP control vocabulary and started translating it. `version` is an
+		// ExaBGP API command ze does not answer, so it is the honest example of
+		// a line the translator has no form for.
+		{"unknown_verb", "version"},
 		{"ze_moved_announce", "announce unicast 10.0.0.0/24 next-hop 10.0.0.1"},
 		{"ze_moved_blackhole", "announce blackhole 10.0.0.0/24"},
 		{"ze_moved_withdraw_all", "withdraw all"},
