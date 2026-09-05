@@ -120,7 +120,7 @@ func announceRegistry(ctx *pluginserver.CommandContext) (bgptypes.BGPReactor, *R
 	return bgpReactor, reg, nil, nil
 }
 
-// handleAnnounceUnicastCmd answers `announce unicast <prefix> ...`.
+// handleAnnounceUnicastCmd answers `send bgp <selector> unicast <prefix> ...`.
 func handleAnnounceUnicastCmd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	bgpReactor, reg, errResp, err := announceRegistry(ctx)
 	if err != nil {
@@ -129,7 +129,7 @@ func handleAnnounceUnicastCmd(ctx *pluginserver.CommandContext, args []string) (
 	return handleAnnounceUnicast(ctx, bgpReactor, reg, args)
 }
 
-// handleAnnounceBlackholeCmd answers `announce blackhole <prefix> ...`.
+// handleAnnounceBlackholeCmd answers `send bgp <selector> blackhole <prefix> ...`.
 func handleAnnounceBlackholeCmd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	bgpReactor, reg, errResp, err := announceRegistry(ctx)
 	if err != nil {
@@ -138,7 +138,7 @@ func handleAnnounceBlackholeCmd(ctx *pluginserver.CommandContext, args []string)
 	return handleAnnounceBlackhole(ctx, bgpReactor, reg, args)
 }
 
-// handleAnnounceFlowspecCmd answers `announce flowspec <components> ...`.
+// handleAnnounceFlowspecCmd answers `send bgp <selector> flowspec <components> ...`.
 func handleAnnounceFlowspecCmd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	bgpReactor, reg, errResp, err := announceRegistry(ctx)
 	if err != nil {
@@ -322,7 +322,7 @@ parseOpts:
 
 	sel := selector.ParseDefault(ctx.PeerSelector())
 	if blackholeAsked {
-		sel, err = agreedSelector(ctx, sel, "announce unicast")
+		sel, err = agreedSelector(ctx, sel, "send bgp unicast")
 		if err != nil {
 			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 		}
@@ -377,7 +377,7 @@ parseOpts:
 	// BLACKHOLE community MUST be agreed upon by the two networks before
 	// advertising it." This verb attaches that community itself, so the fan-out
 	// is narrowed to the sessions that recorded the agreement.
-	sel, err := agreedSelector(ctx, selector.ParseDefault(ctx.PeerSelector()), "announce blackhole")
+	sel, err := agreedSelector(ctx, selector.ParseDefault(ctx.PeerSelector()), "send bgp blackhole")
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
@@ -396,7 +396,7 @@ parseOpts:
 
 // handleAnnounceFlowspec originates a tracked FlowSpec rule on demand. Grammar:
 //
-//	announce flowspec <components...> (rate-limit <bytes-per-sec> | discard) [tag <k> <v>] [for <dur>]
+//	send bgp <selector> flowspec <components...> (rate-limit <bytes-per-sec> | discard) [tag <k> <v>] [for <dur>]
 //
 // The match components (destination/source/protocol/port/tcp-flags/...) are
 // encoded into a FlowSpec NLRI through the family registration seam (the same
@@ -550,7 +550,7 @@ func withdrawRegistry(ctx *pluginserver.CommandContext) (*Registry, *plugin.Resp
 	return reg, nil, nil
 }
 
-// handleWithdrawTag answers `withdraw tag <key> [value <value>]`.
+// handleWithdrawTag answers `send bgp <selector> withdraw tag <key> [value <value>]`.
 func handleWithdrawTag(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	reg, errResp, err := withdrawRegistry(ctx)
 	if err != nil {
@@ -559,7 +559,7 @@ func handleWithdrawTag(ctx *pluginserver.CommandContext, args []string) (*plugin
 	return withdrawByTag(reg, ctx.PeerSelector(), args)
 }
 
-// handleWithdrawID answers `withdraw id <id>`.
+// handleWithdrawID answers `send bgp <selector> withdraw id <id>`.
 //
 // The id arrives as a SELECTOR rather than in args: the container and its leaf
 // are both called `id`, so matchCommandTokens
@@ -575,13 +575,12 @@ func handleWithdrawID(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 	return withdrawByID(reg, ctx.PeerSelector(), ctx.Selector("id"))
 }
 
-// handleWithdrawAll answers `withdraw all`, and `peer <selector> withdraw all`
-// for one fan-out.
+// handleWithdrawAll answers `send bgp <selector> withdraw all`.
 //
-// It reads no argument. The peer arrives through ctx.PeerSelector(), from the
-// `peer` container the model anchors it to. That is why `withdraw all` takes no
-// tail: the scope is the prefix an operator typed, never a keyword after the
-// verb.
+// It reads no argument. The peers arrive through ctx.PeerSelector(), from the
+// `bgp` container the model anchors the selector to. That is why `withdraw all`
+// takes no tail: the scope is the destination an operator typed, never a keyword
+// after the form word.
 func handleWithdrawAll(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	reg, errResp, err := withdrawRegistry(ctx)
 	if err != nil {
@@ -608,7 +607,7 @@ func withdrawByTag(reg *Registry, peer string, args []string) (*plugin.Response,
 	}
 
 	// The value is optional, so the model declares it as an optional leaf and
-	// the generated line reads `withdraw tag <key> [value <value>]`. The
+	// the generated line reads `send bgp <selector> withdraw tag <key> [value <value>]`. The
 	// framework binds an optional leaf from its keyword or from a bare
 	// positional and passes both through unchanged (validateCommandArgs), so
 	// the keyword is dropped here rather than read as the value itself.

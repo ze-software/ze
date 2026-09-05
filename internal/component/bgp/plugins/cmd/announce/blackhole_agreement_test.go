@@ -1,6 +1,6 @@
 // VALIDATES: RFC 7999 Section 3.1 on the SEND side. Ze puts the BLACKHOLE
 // community on a peer's wire only when that session recorded the agreement.
-// PREVENTS: `announce blackhole` reaching a peer that agreed to nothing, which
+// PREVENTS: `send bgp <selector> blackhole` reaching a peer that agreed to nothing, which
 // asks a network to drop traffic on a signal it never consented to read.
 
 package announce
@@ -147,7 +147,7 @@ func TestAnnounceBlackholeRefusedForAnOwnCommunityAgreement(t *testing.T) {
 	assert.Empty(t, rctr.batches, "BLACKHOLE went to a session that agreed to 65001:666 instead")
 }
 
-// The sibling origination path. `announce unicast ... community blackhole` puts
+// The sibling origination path. `send bgp <selector> unicast ... community blackhole` puts
 // the same value on the same wire, so it meets the same gate.
 func TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate(t *testing.T) {
 	ctx, rctr := agreementCtx(t)
@@ -245,7 +245,7 @@ func TestAnnounceBlackholeReadsAGroupLevelAgreement(t *testing.T) {
 }
 
 // A session configured with prefixes alone has agreed to the well-known value,
-// so it is a legitimate destination for `announce blackhole`. The send side and
+// so it is a legitimate destination for `send bgp <selector> blackhole`. The send side and
 // the receive side read one answer, so the default cannot mean two things.
 func TestAnnounceBlackholeReachesAPeerConfiguredWithPrefixesAlone(t *testing.T) {
 	rctr := &agreementReactor{

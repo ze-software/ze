@@ -179,8 +179,8 @@ value withdraws every value of the key.";
             config false;
             ze:command "ze-bgp:withdraw-id";
             description "Withdraw one announcement by the id that show announcements reports.";
-            ze:help "Only a tagged announcement carries an id. After peer <selector>, the
-withdraw acts only when that selector is the one the announcement was made with, compared as
+            ze:help "Only a tagged announcement carries an id. The withdraw acts
+only when the selector typed after bgp is the one the announcement was made with, compared as
 text.";
             leaf id { type string { length "1..20"; } mandatory true; description "Announcement id, as show announcements reports it"; }
         }
@@ -189,8 +189,8 @@ text.";
             config false;
             ze:command "ze-bgp:withdraw-all";
             description "Withdraw every on-demand announcement.";
-            ze:help "Type it after peer <selector> to withdraw only the
-announcements made to those peers.";
+            ze:help "The selector typed after bgp decides the scope: name a
+peer to withdraw only the announcements made to it, or * for every one.";
         }
     }
 

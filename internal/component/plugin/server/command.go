@@ -756,10 +756,11 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 // as deriving a second one from the leaf shapes, which is what the caller falls
 // back to (ai/rules/evidence.md).
 //
-// It is what resolves `peer <selector> announce unicast <prefix>`. That command
+// It is what resolves `send bgp <selector> unicast <prefix>`. That command
 // carries two mandatory pattern-less strings, selector and prefix, so
 // implicitSelectorDef sees two candidates and answers nil, and the command reads
-// as unknown. Only the selector is anchored to `peer`.
+// as unknown. Only the selector is anchored, to `bgp`, the keyword the operator
+// types it after.
 //
 // Two leaves anchored to one keyword answer nil for the same reason
 // implicitSelectorDef does: the model has not said which.

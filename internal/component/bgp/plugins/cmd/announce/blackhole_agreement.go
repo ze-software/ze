@@ -82,7 +82,7 @@ func agreedSelector(ctx *pluginserver.CommandContext, sel *selector.Selector, ve
 		return nil, fmt.Errorf(
 			"%s: %w (65535:666): RFC 7999 Section 3.1 requires the two networks to agree before it is advertised; "+
 				"record the agreement with `blackhole { communities blackhole; }` on the peer or its group, "+
-				"or announce the prefix without the community using `announce unicast` -- not agreed: %s",
+				"or announce the prefix without the community using `send bgp <selector> unicast` -- not agreed: %s",
 			verb, errNoAgreedPeer, strings.Join(refusedOrAll(refused), ", "))
 	}
 	return selector.Addrs(agreed), nil

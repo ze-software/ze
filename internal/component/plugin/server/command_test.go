@@ -1854,11 +1854,11 @@ func TestDispatchTerminalNounSelector(t *testing.T) {
 //
 // VALIDATES: the selector is adopted ONLY from a lone trailing token, only for
 // a command that requires a selector, and never over one supplied out of band.
-// PREVENTS: the greedy reading of the same fix. `announce` is a single-token
-// command carrying `leaf selector mandatory`
-// (internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang:13)
-// whose real arguments are a multi-token route; binding its FIRST positional
-// would silently announce to a peer named "unicast".
+// PREVENTS: the greedy reading of the same fix. The registrations below are
+// synthetic: a single-token command carrying `leaf selector mandatory` whose
+// real arguments are a multi-token route, which is the shape
+// ze-cli-announce-cmd.yang declares under `send bgp`. Binding its FIRST
+// positional would silently announce to a peer named "unicast".
 func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 	selectorDefs := []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}}
 

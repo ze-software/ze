@@ -356,7 +356,7 @@ func TestFlowspecActionAcceptsACommunity(t *testing.T) {
 //
 // VALIDATES: a word the options region does not claim stops the command with an
 // error naming that word, and nothing is dispatched to the reactor.
-// PREVENTS: the reported failure and its two siblings. `announce flowspec
+// PREVENTS: the reported failure and its two siblings. `send bgp <selector> flowspec
 // destination-ipv4 1.1.1.1/32 discard rate-limit 500` put a plain discard on the
 // wire and threw `rate-limit 500` away in silence, so the operator asked for a
 // rate limit, got a blackhole, and was told the command was done.
@@ -666,7 +666,7 @@ func TestWithdrawEveryWithSelector(t *testing.T) {
 // address itself when the section's condition holds, so a link-local supplied as
 // THE next hop has no global address to follow.
 //
-// VALIDATES: `announce unicast <prefix> next-hop fe80::cafe` errors and dispatches
+// VALIDATES: `send bgp <selector> unicast <prefix> next-hop fe80::cafe` errors and dispatches
 // nothing.
 // PREVENTS: the CLI reaching the encoder with a link-local as the sole next hop,
 // which would put it in the field's first slot.

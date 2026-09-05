@@ -63,7 +63,7 @@ runtime request, see the gotcha below.
    calls `tokenize` (`internal/component/plugin/server/command.go`, quote-aware, rejects backslashes) then
    `matchBuiltinTokens` (`internal/component/plugin/server/command.go`), which walks `sortedKeys`, builtin
    command names sorted longest-first, via `matchCommandTokens` (`internal/component/plugin/server/command.go`) to extract
-   inline typed selectors (e.g. `peer <addr> update ...`) against YANG-derived `ArgDef`s.
+   inline typed selectors (e.g. `send bgp <selector> update ...`) against YANG-derived `ArgDef`s.
    Matched selectors are copied onto the context by `applyExtractedSelectors`
    (`internal/component/plugin/server/command.go`, called at `:554`).
 7. **Builtin path.** On a match: authorization (`isAuthorized`, `internal/component/plugin/server/command.go`, checked at
