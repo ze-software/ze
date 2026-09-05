@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/6 |
-| Updated | 2026-08-29 |
+| Phase | 6/6 |
+| Updated | 2026-09-05 |
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
 all citations below updated in-body to the verified current lines --
@@ -170,7 +170,7 @@ AS boundaries.
 |-------------|---|--------------|------|
 | YANG `propagate-srv6-prefix-sid` config leaf | -> | `PeerSettings.PropagateSRv6PrefixSID` | `TestPrecomputePrefixSIDSuppression` |
 | `refreshForwardFacts()` precomputation | -> | `peerForwardFacts.suppressPrefixSID` | `TestPrecomputePrefixSIDSuppression` |
-| ForwardUpdate per-peer loop | -> | `applyFactsPrefixSID()` | `test/encode/ebgp-prefix-sid-suppress.ci` |
+| ForwardUpdate per-peer loop | -> | `applyFactsPrefixSID()` | `test/plugin/prefixsid-ebgp-egress-boundary.ci` |
 
 ## Acceptance Criteria
 
@@ -185,8 +185,8 @@ AS boundaries.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Receives SRv6 route from iBGP, re-advertises to EBGP peer (default config) | RIB -> ForwardUpdate -> peerForwardFacts.suppressPrefixSID=true -> mods.Op(40,suppress) -> buildModifiedPayload strips attr 40 | `test/encode/ebgp-prefix-sid-suppress.ci` |
-| 2 | Receives SRv6 route from iBGP, re-advertises to EBGP peer with propagation enabled | RIB -> ForwardUpdate -> peerForwardFacts.suppressPrefixSID=false -> no suppress op -> attr 40 preserved | `test/encode/ebgp-prefix-sid-propagate.ci` |
+| 1 | Receives SRv6 route from iBGP, re-advertises to EBGP peer (default config) | RIB -> ForwardUpdate -> peerForwardFacts.suppressPrefixSID=true -> mods.Op(40,suppress) -> buildModifiedPayload strips attr 40 | `test/plugin/prefixsid-ebgp-egress-boundary.ci` |
+| 2 | Receives SRv6 route from iBGP, re-advertises to EBGP peer with propagation enabled | RIB -> ForwardUpdate -> peerForwardFacts.suppressPrefixSID=false -> no suppress op -> attr 40 preserved | `test/plugin/prefixsid-ebgp-egress-boundary.ci` |
 | 3 | Receives SRv6 route from iBGP, re-advertises to iBGP peer | RIB -> ForwardUpdate -> isEBGP=false -> no suppress -> attr 40 preserved | `TestPrecomputePrefixSIDSuppression/ibgp_no_suppress` |
 
 ## 🧪 TDD Test Plan
@@ -206,8 +206,8 @@ AS boundaries.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ebgp-prefix-sid-suppress` | `test/encode/ebgp-prefix-sid-suppress.ci` | EBGP peer receives UPDATE without Prefix-SID (default suppress) | |
-| `ebgp-prefix-sid-propagate` | `test/encode/ebgp-prefix-sid-propagate.ci` | EBGP peer receives UPDATE with Prefix-SID (explicit propagation) | |
+| `ebgp-prefix-sid-suppress` | `test/plugin/prefixsid-ebgp-egress-boundary.ci` | EBGP peer receives UPDATE without Prefix-SID (default suppress) | |
+| `ebgp-prefix-sid-propagate` | `test/plugin/prefixsid-ebgp-egress-boundary.ci` | EBGP peer receives UPDATE with Prefix-SID (explicit propagation) | |
 
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -232,7 +232,7 @@ AS boundaries.
 | CLI commands/flags | No | config-only, no new CLI commands |
 | CLI grammar | No | no CLI commands added |
 | Editor autocomplete | No | boolean leaf has automatic true/false completion |
-| Functional test | Yes | `test/encode/ebgp-prefix-sid-suppress.ci`, `test/encode/ebgp-prefix-sid-propagate.ci` |
+| Functional test | Yes | `test/plugin/prefixsid-ebgp-egress-boundary.ci` (one run, two destinations; see Deviations 3) |
 | Pipe completeness | No | no command output |
 | Env var registration | No | session-level config, not environment |
 | Doctor check | No | no runtime dependencies (file, socket, binary, kernel module) |
@@ -260,8 +260,7 @@ AS boundaries.
 | 17 | Existing docs show config examples for this area? | Yes | verify SRv6 config examples include new leaf |
 
 ## Files to Create
-- `test/encode/ebgp-prefix-sid-suppress.ci` - functional test: EBGP egress strips Prefix-SID by default
-- `test/encode/ebgp-prefix-sid-propagate.ci` - functional test: EBGP egress preserves Prefix-SID when configured
+- `test/plugin/prefixsid-ebgp-egress-boundary.ci` - functional test: one run, two eBGP destinations, opposite outcomes (strip by default, keep when configured). See Deviations 3 for why this replaced the two planned `test/encode/` files.
 
 ## Implementation Steps
 
@@ -304,7 +303,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: correct mods emitted; both egress paths call the new function
 
 4. **Functional tests** -- `.ci` tests for egress behavior
-   - Files: `test/encode/ebgp-prefix-sid-suppress.ci`, `test/encode/ebgp-prefix-sid-propagate.ci`
+   - Files: `test/plugin/prefixsid-ebgp-egress-boundary.ci` (see Deviations 3)
    - Verify: `./le functional` passes
 
 5. **RFC refs** -- Add `// RFC 8669 Section 8` comments above enforcing code
@@ -338,9 +337,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | `applyFactsPrefixSID` function | `grep 'applyFactsPrefixSID' internal/component/bgp/reactor/peer_forward_facts.go` |
 | Call in ForwardUpdate | `grep 'applyFactsPrefixSID' internal/component/bgp/reactor/reactor_api_forward.go` |
 | Call in RS path | `grep 'applyFactsPrefixSID' internal/component/bgp/reactor/forward_rs.go` |
-| Unit tests | `grep 'TestPrecomputePrefixSIDSuppression\|TestApplyFactsPrefixSID\|TestPrefixSIDSuppressWithNHChange' internal/component/bgp/reactor/peer_forward_facts_test.go` |
-| Functional test (suppress) | `ls test/encode/ebgp-prefix-sid-suppress.ci` |
-| Functional test (propagate) | `ls test/encode/ebgp-prefix-sid-propagate.ci` |
+| Unit tests | `grep 'TestPrefixSIDEgressBoundary\|TestPrefixSIDAllowedTo\|TestPrefixSIDSuppressIsRecordedOnce\|TestPrefixSIDOriginationBoundary' internal/component/bgp/reactor/forward_prefix_sid_test.go` |
+| Functional test (both polarities) | `ls test/plugin/prefixsid-ebgp-egress-boundary.ci` |
 
 ### Security Review Checklist (/implement stage 11)
 
@@ -367,14 +365,18 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| Gating four of five rails was enough to record `RFC8669-8-1` as met | A MUST is met or it is not. The fifth rail propagates to another AS with no explicit configuration, so the requirement is unmet and the ledger said otherwise | Closure read `buildBatchAnnounceUpdate` at the producer, then measured it: the rail returns attribute 40 toward an external destination | The public ledger claimed a proven MUST for one week. `{gap}` restored, `docs/features/srv6.md` corrected |
+| A page that names four rails is accurate enough | `docs/features/srv6.md` said "every UPDATE sent to an EBGP peer", which is the universal claim, then the RFC table said `Implemented`. A reader takes the row, not the prose around it | The same read | Two rows corrected in the closure commit |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
+| Gate the announce rail without widening `buildBatchAnnounceUpdate` | With update groups enabled one built UPDATE is shared by every peer of one `announceBuildKey`, so a destination-scoped strip outside the key applies to the wrong peers. A post-build strip also re-adds the memmove the announce writer exists to remove | The bool joins the key AND the parameter list, which is what makes the edit reach an RFC-tagged test |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
+| A spec closes its own rails and records the RFC requirement as met, when a rail it did not enumerate still emits the attribute | Second occurrence in this package: the same shape produced the LOCAL_PREF disagreement `localPrefAllowedTo` was written to end | Before recording a MUST as met, enumerate every producer that WRITES the artifact the requirement governs, not every producer the spec planned to change | Journal row written: `plan/journal/rail-enumeration-incomplete.md` |
 
 ## Design Insights
 
@@ -460,6 +462,22 @@ Adding that parameter mechanically edits `TestAnnounceStripsLocalPrefTowardExter
 hook refuses the edit without an owner approval row in `test/rfc-changed.md`. The session was
 instructed not to owe a third such row, so the rail is left for the owner to answer.
 
+**Closure measured it rather than inferring it (2026-09-05).**
+`TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`
+(`internal/component/bgp/reactor/zzprobe_prefixsid_announce_test.go`) drives
+`buildBatchAnnounceUpdate` with `isIBGP=false` and a base carrying attribute 40. The rail emits
+`c0280a01000700000000000064` toward that external destination. The test states the requirement
+rather than the behavior, so it is RED at HEAD and stays red until the rail is gated; the
+filename is the probe's because the rename and deletion hooks both need owner approval.
+
+The key field is not optional either: with update groups enabled one built UPDATE is shared by
+every peer of one `announceBuildKey`, so a destination-scoped strip outside the key would apply
+to the wrong peers.
+
+The remainder is now `plan/immediate/spec-prefix-sid-announce-rail-boundary.md`, and the public
+ledger states the gap: `RFC8669-8-1` carries a `{gap}` annotation again in `rfc/short/rfc8669.md`
+(Meta count ten -> eleven), and `docs/features/srv6.md` names the rail.
+
 ## Implementation Audit
 
 ### Requirements from Task
@@ -468,7 +486,7 @@ instructed not to owe a third such row, so the rail is left for the owner to ans
 | Default is "do not propagate" on every eBGP egress rail | Done | `prefixSIDAllowedTo` (`internal/component/bgp/reactor/forward_prefix_sid.go`) | `false` unless the peer is internal or the leaf is set |
 | Explicit per-peer configuration permits propagation | Done | YANG `propagate-srv6-prefix-sid`, `PeerSettings.PropagateSRv6PrefixSID`, `reactor/config.go` | |
 | iBGP is untouched | Done | `prefixSIDAllowedTo` returns true for `isIBGP` | Proven by `TestPrefixSIDEgressBoundary/ibgp_keeps_it` |
-| Every rail that can emit attribute 40 is gated | Partial | four of five | The readvertise rail is blocked on an owner approval; see Deviations |
+| Every rail that can emit attribute 40 is gated | Partial | four of five | The API/readvertise announce rail is NOT gated. Measured red at HEAD by `TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`. Blocked on an owner approval row in `test/rfc-changed.md`; homed at `plan/immediate/spec-prefix-sid-announce-rail-boundary.md`. **This spec cannot close until the owner answers.** |
 | RFC 8669 Section 8 cited above the enforcing code | Done | `forward_prefix_sid.go`, `peer_static_routes.go`, `peer_initial_sync.go` | |
 
 ### Acceptance Criteria
@@ -521,45 +539,112 @@ instructed not to owe a third such row, so the rail is left for the owner to ans
 | iBGP unaffected | Unit test | `TestPrefixSIDEgressBoundary/ibgp_keeps_it`, over the real `reactorForwardRS` rail |
 | The route-server rail, which the old code missed | Unit test | `TestPrefixSIDEgressBoundary/route-server_client_without_configuration_is_stripped` and its configured twin |
 | Each assertion discriminates | Mutation | `prefixSIDAllowedTo -> true` reddens both strip cases; `-> isIBGP` reddens both keep cases; removing the origination strip reddens all four of `TestPrefixSIDOriginationBoundary` |
-| RFC 8669 Section 8 compliance | RFC gate | `./le rfc check` binds RFC8669-8-1 to a positive and a negative tag with functional/verify evidence (`rfc/requirements/rfc8669.md`); the `{gap}` annotation is gone |
+| RFC 8669 Section 8 compliance | RFC gate | NOT achieved. `./le rfc check` binds RFC8669-8-1 to a positive and a negative tag (`rfc/requirements/rfc8669.md`), but those tags cover the four gated rails only. Closure restored the `{gap}` annotation on `RFC8669-8-1` (`rfc/short/rfc8669.md`) and the Meta count ten -> eleven, because the fifth rail propagates to another AS with no explicit configuration. RFC 8669 Section 8, `rfc/full/rfc8669.txt`: "The propagation to other ASes MUST be explicitly configured." |
+| Each tagged unit discriminates by RECORD | Not achieved | `./le rfc discriminate stem rfc8669` lists all 29 tags as `unproven` and `rfc/discrimination/rfc8669.json` does not exist. The six tags this spec added owe a `./le rfc discriminate-record` run. The hand-run mutations in the row above were observed by the implementation session and are not the machine artifact. |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The API/readvertise announce rail is not gated, so attribute 40 crosses an AS boundary there with no leaf set | The per-destination bool must join `announceBuildKey` and the parameter list of `buildBatchAnnounceUpdate`, which mechanically edits `TestAnnounceStripsLocalPrefTowardExternalPeer`, an `RFC requirement: RFC4271-5.1.5` carrier. `test/rfc-changed.md` reserves that approval to the owner | `plan/immediate/spec-prefix-sid-announce-rail-boundary.md` |
+| No discrimination record for the six `RFC8669-8-1` tags this spec added | `rfc/discrimination/rfc8669.json` does not exist and all 29 of the RFC's tags read `unproven`. The gate's change-scoped window (a tag new against `HEAD^`) closed when the implementation commit landed without one | The same spec: step 7 of its Implementation Steps |
 
 ## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded: the gate cannot be declared CLEAN while a BLOCKER stands |
+| `./le commit review-check` | not run, for the same reason |
+| Rounds | 1 |
+| Reviewer lenses used | wiring + functional-test coverage, logic + guard audit + RFC compliance, documentation drift + style pass |
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | The API/readvertise announce rail emits attribute 40 toward an external peer with no explicit configuration. RFC 8669 Section 8 MUST. Measured: the rail returns `c0280a01000700000000000064` | `buildBatchAnnounceUpdate` (`internal/component/bgp/reactor/reactor_api_batch.go`), reached by the API announce, the grouped announce and `sendStaleReadvertise` | NOT FIXED. The fix needs an owner approval row in `test/rfc-changed.md`. Homed at `plan/immediate/spec-prefix-sid-announce-rail-boundary.md` and stated on the public ledger |
+| 2 | ISSUE | `docs/features/srv6.md` claimed the removal happened on "every UPDATE sent to an EBGP peer", and its RFC 8669 table read `Implemented`. Both are wider than the code. `ai/rules/rfc-compliance.md`: a claim wider than the assertion converts an unproven MUST into a proven one | `docs/features/srv6.md`, the EBGP-propagation row and the RFC 8669 Section 8 row | FIXED. Both rows name the four gated rails and the fifth; a "Gap" section names the producing function |
+| 3 | ISSUE | `RFC8669-8-1` carried no `{gap}`, so the generated ledger reported the MUST as met | `rfc/short/rfc8669.md`, the requirement line and the Meta `Support coverage` and `Support remaining` rows | FIXED. `{gap}` restored, count ten -> eleven, regenerated with `./le rfc index-update` |
+| 4 | ISSUE | Six `RFC8669-8-1` tags were added with no discrimination record | `rfc/discrimination/rfc8669.json` absent; `./le rfc discriminate stem rfc8669` lists all 29 tags `unproven` | NOT FIXED. Recorded in Work Not Done |
+| 5 | NOTE | The spec header read `Phase 1/6` with every closure section filled, and five sections named `.ci` files under names the implementation replaced | this file | FIXED |
 
 ### Fixes applied
+
+Findings 2, 3 and 5 are fixed in the closure commit. Finding 1 is the blocker and
+finding 4 rides with it: both are homed at the new spec, and both stay on the
+public ledger until the behavior exists (`ai/rules/rfc-compliance.md`).
+
+Wiring: `prefixSIDAllowedTo`, `Peer.prefixSIDAllowed`, `applyFactsPrefixSID`,
+`prefixSIDOnWire` and `rawAttrsWithoutPrefixSID` each have a production caller
+outside `forward_prefix_sid.go`: `reactorForwardRS` (`forward_rs.go`),
+`forwardUpdateCore` (`reactor_api_forward.go`), `toPluginParams`,
+`toStaticRouteUnicastParams` and `toStaticRouteLabeledUnicastParams`
+(`peer_static_routes.go`), and `sendStaticRoutes` and `sendPluginRoutesVia`
+(`peer_initial_sync.go`). No unwired symbol.
+
+Ordering: on both forward rails the call sits after the egress filter pass and
+after `applyFactsNextHop`, so `filterapi.LastSetOrSuppress` makes the
+prohibition win over a filter's Set. Read at both call sites.
+
+Idempotency: `prefixSIDOnWire` folds the operations already recorded, so the
+RFC 9252 Section 3.3 next-hop suppression and this one never record two
+operations for code 40. That is AC-4.
+
+Style pass: no `panic()` in the diff, no unbounded loop, no new lifecycle pair,
+`payloadHasAttr` generalizes `payloadHasLocalPref` rather than copying it, and
+every new function returns the narrowest type it can. No style finding.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
 
+No run 2. A second pass cannot clear finding 1: the fix is refused by a gate only
+the owner can open, so another round would re-find the same BLOCKER.
+
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE -- NO. One BLOCKER stands.
+- [ ] All NOTEs recorded above (or explicitly "none") -- one NOTE, finding 5, fixed.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/bgp/reactor/forward_prefix_sid.go` | Yes | read in full at closure; carries `prefixSIDAllowedTo`, `prefixSIDAllowed`, `prefixSIDOnWire`, `applyFactsPrefixSID`, `rawAttrsWithoutPrefixSID`, `isRawPrefixSID` |
+| `internal/component/bgp/reactor/forward_prefix_sid_test.go` | Yes | 365 lines in `f3379e684`; carries `TestPrefixSIDAllowedTo`, `TestPrefixSIDEgressBoundary`, `TestPrefixSIDSuppressIsRecordedOnce`, `TestPrefixSIDOriginationBoundary`, `TestRawAttrsWithoutPrefixSID` |
+| `test/plugin/prefixsid-ebgp-egress-boundary.ci` | Yes | 227 lines in `f3379e684`; `option=tcp_connections:value=3`, conn=1 source, conn=2 strip, conn=3 keep |
+| `internal/component/bgp/reactor/zzprobe_prefixsid_announce_test.go` | Yes | added at closure; RED, and that is the point |
+| `plan/immediate/spec-prefix-sid-announce-rail-boundary.md` | Yes | added at closure; passes `validate-spec` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | eBGP, leaf unset -> stripped | `prefixSIDAllowedTo(false, false)` is `false` (`forward_prefix_sid.go`), so `applyFactsPrefixSID` records the Suppress. The `.ci` conn=2 expects a 47-octet frame. On the forward rails only |
+| AC-2 | eBGP, leaf true -> kept | `prefixSIDAllowedTo(false, true)` is `true`, so the function returns before recording. The `.ci` conn=3 expects the 60-octet source frame |
+| AC-3 | iBGP -> kept | `applyFactsPrefixSID` asks `prefixSIDAllowedTo(!f.isEBGP, ...)`, true for an internal peer whatever the leaf says |
+| AC-4 | next-hop change plus the boundary -> one operation | `prefixSIDOnWire` folds `mods.Ops()` and returns false once `applyFactsNextHop` recorded its RFC 9252 Suppress, so the second is not recorded |
+| (rail coverage) | every rail gated | FALSE for the announce rail. `TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain` is red |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| eBGP source relays a Prefix-SID to two eBGP destinations | `test/plugin/prefixsid-ebgp-egress-boundary.ci` | Yes. Read in full: `rs-fast-path` is deliberately ABSENT, so the run drives `forwardUpdateCore` rather than the rail the unit tests drive; `accept-srv6-prefix-sid` on the source keeps the RFC 8669 Section 4 ingress discard from making the negative vacuous; `conn_map:value=remote-ip` binds each receiver by identity rather than by accept order |
+| YANG leaf -> `PeerSettings` -> facts | -- | `leaf propagate-srv6-prefix-sid` (`ze-bgp-conf.yang`) -> `mapBool(sessionMap, "propagate-srv6-prefix-sid")` (`config.go`) -> `PeerSettings.PropagateSRv6PrefixSID` -> `buildForwardFacts` sets `peerForwardFacts.propagatePrefixSID` |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed, and superseded | The double-suppress question was answered by not recording a second operation at all: `prefixSIDOnWire` reads the fold before `applyFactsPrefixSID` records anything |
+| A-2 | confirmed | `peerForwardFacts.isEBGP` is set in `buildForwardFacts` from `PeerSettings.IsEBGP` (`LocalAS != PeerAS`), read under `p.mu` |
+| A-3 | confirmed | `reactorForwardRS` calls `applyFactsPrefixSID` in the same sequence as `applyFactsLocalPref` and `applyFactsMED` |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| New user-facing feature, config syntax, user guide | `docs/features/srv6.md` carries the leaf, the config example, the option table and the egress data flow | Yes, and CORRECTED at closure: two rows overclaimed universal coverage |
+| RFC behavior implemented | `rfc/short/rfc8669.md` `RFC8669-8-1` now carries a `{gap}`; Meta count ten -> eleven; `docs/features/rfc-status.md` and `rfc/requirements/rfc8669.md` regenerated by `./le rfc index-update` | Yes |
+| Changed source file referenced by doc anchors | `docs/architecture/core-design.md`, `docs/comparison.md` and `docs/architecture/api/architecture.md` anchor `reactor_api_forward.go` and `forward_rs.go`, naming the hoisted accumulator, the egress filter chain, `reactorForwardRS` and `ForwardUpdate`. The diff added a call inside those functions and changed nothing the anchors claim | Yes, no edit owed |
+| `./le doc check verify` | exit 1, 3482 drift findings; none names a file this spec touched (grepped for `srv6`, `prefix-sid`, `8669`) | Foreign |
+| CLI, API/RPC, plugin, wire format, metrics, doctor | No new command, RPC, event, send type, metric or runtime dependency; the change is one YANG boolean and reactor-internal code | No update owed |
 
 ## Checklist
 
