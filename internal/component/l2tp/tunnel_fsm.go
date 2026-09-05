@@ -328,11 +328,26 @@ type sccrqInfo struct {
 
 // parseSCCRQ walks the AVP stream of an SCCRQ body and collects the
 // fields the FSM needs. Message Type AVP MUST be first per RFC 2661
-// S4.4.1; Host Name and Assigned Tunnel ID AVPs MUST be present per S6.1.
-// Vendor-ID != 0 with M=1 aborts the parse (RFC: unrecognized mandatory
-// AVP => tear down).
+// S4.4.1, and every AVP S6.1 makes mandatory MUST be present. Vendor-ID
+// != 0 with M=1 aborts the parse (RFC: unrecognized mandatory AVP =>
+// tear down).
+//
+// A failure of one of the S6.1 AVPs is returned as an *sccrqRejection, which
+// the reactor answers with a StopCCN (errors.go). Every other failure keeps
+// its silent drop.
+//
+// Presence is tracked in its own flag for each AVP, never inferred from the
+// parsed value: 0 is a legal Framing Capabilities (a peer that supports
+// neither synchronous nor asynchronous framing) and a legal Protocol Version
+// field, so a zero would read as an AVP that arrived.
 func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 	var info sccrqInfo
+	var (
+		protocolVersionSeen  bool
+		hostNameSeen         bool
+		framingSeen          bool
+		assignedTunnelIDSeen bool
+	)
 	iter := NewAVPIterator(payload)
 	first := true
 	for {
@@ -361,12 +376,15 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			continue
 		}
 		if first {
+			// RFC 2661 Section 4.4.1: "The Message Type AVP MUST be the first
+			// AVP in a message, immediately following the control message
+			// header."
 			if attrType != AVPMessageType {
-				return sccrqInfo{}, errors.New("l2tp: first AVP must be Message Type (RFC 2661 S4.4.1)")
+				return sccrqInfo{}, errSCCRQMessageTypeNotFirst
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
-				return sccrqInfo{}, fmt.Errorf("l2tp: read message type: %w", rerr)
+				return sccrqInfo{}, errSCCRQMessageTypeLength
 			}
 			info.MessageType = MessageType(mt)
 			if info.MessageType != MsgSCCRQ {
@@ -378,15 +396,27 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 		// Vendor ID = 0, well-formed header. Capture the fields we care
 		// about; ignore everything else (RFC: unrecognized non-mandatory
 		// AVPs are silently skipped).
-		if attrType == AVPProtocolVersion && len(value) >= 2 {
-			info.ProtocolVersion = binary.BigEndian.Uint16(value[:2])
+		if attrType == AVPProtocolVersion {
+			// RFC 2661 Section 4.4.3 draws the Protocol Version AVP as one Ver
+			// octet followed by one Rev octet, so any other length is an AVP
+			// "formatted incorrectly" in the sense of Section 7.1.
+			if len(value) != 2 {
+				return sccrqInfo{}, errSCCRQProtocolVersionLength
+			}
+			info.ProtocolVersion = binary.BigEndian.Uint16(value)
+			protocolVersionSeen = true
 			continue
 		}
 		if attrType == AVPFramingCapabilities {
+			// The read error is not discarded: a 3-octet Framing Capabilities
+			// AVP would otherwise leave the field 0, and 0 is a legal mask,
+			// so the tunnel would establish on a value no peer sent.
 			v, rerr := readAVPUint32(value)
-			if rerr == nil {
-				info.FramingCapabilities = v
+			if rerr != nil {
+				return sccrqInfo{}, errSCCRQFramingLength
 			}
+			info.FramingCapabilities = v
+			framingSeen = true
 			continue
 		}
 		if attrType == AVPBearerCapabilities {
@@ -397,18 +427,27 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			continue
 		}
 		if attrType == AVPHostName {
+			// RFC 2661 Section 4.4.3: "The Host Name is of arbitrary length,
+			// but MUST be at least 1 octet."
+			if len(value) == 0 {
+				return sccrqInfo{}, errSCCRQHostNameEmpty
+			}
 			info.HostName = string(value)
+			hostNameSeen = true
 			continue
 		}
 		if attrType == AVPAssignedTunnelID {
 			v, rerr := readAVPUint16(value)
 			if rerr != nil {
-				return sccrqInfo{}, fmt.Errorf("l2tp: read assigned tunnel id: %w", rerr)
+				return sccrqInfo{}, errSCCRQAssignedTunnelIDLen
 			}
+			// RFC 2661 Section 4.4.3: "The Assigned Tunnel ID is a 2 octet
+			// non-zero unsigned integer."
 			if v == 0 {
 				return sccrqInfo{}, errZeroAssignedTunnelID
 			}
 			info.AssignedTunnelID = v
+			assignedTunnelIDSeen = true
 			continue
 		}
 		if attrType == AVPReceiveWindowSize {
@@ -447,14 +486,24 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 		// Anything else (Firmware Revision, Vendor Name, etc.) is
 		// optional and ignored for phase-3 purposes.
 	}
+	// RFC 2661 Section 6.1: "The following AVPs MUST be present in the SCCRQ:
+	// Message Type AVP, Protocol Version, Host Name, Framing Capabilities,
+	// Assigned Tunnel ID." The order below is the RFC's own. `first` is still
+	// set when no AVP carried a Message Type, an empty body included.
 	if first {
-		return sccrqInfo{}, errors.New("l2tp: empty SCCRQ body")
+		return sccrqInfo{}, errSCCRQNoMessageType
 	}
-	if info.HostName == "" {
-		return sccrqInfo{}, errors.New("l2tp: SCCRQ missing Host Name AVP (RFC 2661 S6.1)")
+	if !protocolVersionSeen {
+		return sccrqInfo{}, errSCCRQNoProtocolVersion
 	}
-	if info.AssignedTunnelID == 0 {
-		return sccrqInfo{}, errors.New("l2tp: SCCRQ missing Assigned Tunnel ID AVP")
+	if !hostNameSeen {
+		return sccrqInfo{}, errSCCRQNoHostName
+	}
+	if !framingSeen {
+		return sccrqInfo{}, errSCCRQNoFramingCapabilities
+	}
+	if !assignedTunnelIDSeen {
+		return sccrqInfo{}, errSCCRQNoAssignedTunnelID
 	}
 	return info, nil
 }

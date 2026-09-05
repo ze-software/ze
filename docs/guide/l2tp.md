@@ -94,18 +94,27 @@ xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
 
 ## Rejecting a malformed SCCRQ
 
-RFC 2661 Section 4.4.3 makes the Assigned Tunnel ID "a 2 octet non-zero
-unsigned integer". An SCCRQ that carries zero is a protocol error, and ze
-answers it with a StopCCN that carries Result Code 2 (general error, see the
-Error Code) and Error Code 3 (a field value out of range). The reply goes out
-with Tunnel ID 0, because the peer supplied no tunnel id ze can address it by,
-and no tunnel entry is created for it.
+RFC 2661 Section 6.1 makes five AVPs mandatory in an SCCRQ: Message Type,
+Protocol Version, Host Name, Framing Capabilities and Assigned Tunnel ID. An
+SCCRQ that omits one of them is a malformed control message under Section 7.1,
+and so is one whose value ze cannot read: a 3-octet Framing Capabilities AVP,
+an empty Host Name AVP, or an Assigned Tunnel ID of 0, which Section 4.4.3
+makes "a 2 octet non-zero unsigned integer".
+
+Ze answers each of these with a StopCCN that carries Result Code 2 (general
+error, see the Error Code), Error Code 3 (a field value out of range) and an
+Error Message that names the AVP, for example `SCCRQ missing Framing
+Capabilities AVP`. The reply goes out with Tunnel ID 0, because the peer
+supplied no tunnel id ze can address it by, and no tunnel entry is created for
+it.
 
 The reply is rate-bounded: one StopCCN per source-address slot per second, over
 a fixed 256-slot table. A spoofed SCCRQ flood therefore allocates nothing and
 draws at most 256 replies per second from the whole reactor. Every other
-malformed TunnelID=0 datagram keeps its silent drop.
-<!-- source: internal/component/l2tp/reactor.go -- answerZeroTunnelIDSCCRQ, sendUnassociatedStopCCN -->
+malformed TunnelID=0 datagram keeps its silent drop, an unrecognized mandatory
+vendor AVP and a message type that is not SCCRQ among them.
+<!-- source: internal/component/l2tp/reactor.go -- answerRefusedSCCRQ, sendUnassociatedStopCCN -->
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- parseSCCRQ -->
 
 ## CLI commands
 

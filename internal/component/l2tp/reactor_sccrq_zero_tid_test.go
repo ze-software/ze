@@ -273,7 +273,7 @@ func TestUnassociatedStopCCNIsCaptured(t *testing.T) {
 	defer client.Close()
 	to := netip.MustParseAddrPort(client.conn.LocalAddr().String())
 
-	r.answerZeroTunnelIDSCCRQ(to, 0)
+	r.answerRefusedSCCRQ(to, 0, errZeroAssignedTunnelID)
 
 	wire, got := recvControl(t, client, replyWait)
 	require.True(t, got, "the StopCCN is on the wire")

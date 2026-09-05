@@ -44,6 +44,7 @@ func init() {
 	Register("l2tp/radius-session-timeout/radius", tunnelRadiusDriver(11812, 2, append(tunnelRadiusUint32Attr(27, 60), tunnelRadiusUint32Attr(28, 120)...)))
 	Register("l2tp/radius-session-timeout", tunnelL2TPHandshakeDriver(0x0601, "py-timeout", "aabbccddeeff00112233445566778899", "OK: tunnel established with RADIUS session-timeout config"))
 	Register("l2tp/rfc2661-emitted-control-shape", tunnelL2TPEmittedShape)
+	Register("l2tp/rfc2661-sccrq-mandatory-avp", tunnelL2TPMandatoryAVP)
 	Register("l2tp/rfc2661-sccrq-tunnel-id-zero", tunnelL2TPZeroTunnelID)
 	Register("l2tp/session-auth-pool", tunnelL2TPSessionDriver(0x0403, 600, "0011223344556677aabbccddeeff8899", 1, "auth-pool"))
 	Register("l2tp/session-cdn-teardown", tunnelL2TPSessionDriver(0x0123, 500, "00112233445566778899aabbccddeeff", 1, "cdn"))

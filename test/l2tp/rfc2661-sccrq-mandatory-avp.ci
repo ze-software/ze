@@ -1,0 +1,61 @@
+# Test: an SCCRQ that omits an AVP RFC 2661 Section 6.1 makes mandatory is
+# answered with StopCCN.
+#
+# VALIDATES: the daemon refuses an SCCRQ that is missing a required AVP, on the
+#            path a peer drives, and keeps accepting a complete SCCRQ on the
+#            same socket. Every octet is read off a real UDP datagram by a
+#            native Go fixture decoder that shares no code with ze.
+# PREVENTS:  the establishment this test was written for. Until this change
+#            parseSCCRQ checked no Protocol Version and no Framing Capabilities
+#            presence, so an SCCRQ carrying neither brought the tunnel up with
+#            a framing mask of 0 -- a zero standing in for an answer, and a
+#            peer told nothing.
+#
+# Why unit evidence cannot reach this obligation: the unit tests in
+# internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go read the reply
+# with ze's own parseStopCCN, so an encoder and a decoder that share a
+# misreading agree with each other. Here the Result Code, the Error Code and
+# the Error Message are unpacked with encoding/binary against values written
+# out of the RFC.
+#
+# Both polarities run against one daemon, so neither can pass because the
+# listener was down.
+#
+# RFC requirement: RFC2661-6.1-1 negative -- an SCCRQ carrying no Framing
+# Capabilities AVP is answered with a StopCCN whose Result Code is 2, whose
+# Error Code is 3 and whose Error Message names that AVP, read off the wire by
+# a decoder that is not ze.
+# RFC requirement: RFC2661-6.1-1 positive -- an SCCRQ carrying all five AVPs of
+# Section 6.1 gets SCCRP on the same path, addressed with the peer's Assigned
+# Tunnel ID.
+
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=ze-test fixture l2tp/rfc2661-sccrq-mandatory-avp $PORT:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=OK: all RFC 2661 SCCRQ mandatory AVP checks passed
+# The daemon's own record that it chose to answer rather than drop, and that it
+# named the AVP. A positive signal, so the reply cannot have come from some
+# other path.
+expect=stderr:contains=malformed SCCRQ answered with StopCCN
+expect=stderr:contains=SCCRQ missing Framing Capabilities AVP
+# And the positive polarity reached the tunnel machinery rather than stopping
+# at the parser.
+expect=stderr:contains=new tunnel created from SCCRQ

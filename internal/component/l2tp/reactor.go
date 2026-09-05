@@ -103,7 +103,7 @@ type l2tpReactor struct {
 	nextLocalTID     uint16
 
 	// stopCCNLastSent bounds every StopCCN the reactor sends outside a
-	// tunnel (answerZeroTunnelIDSCCRQ). One slot per hash of the source
+	// tunnel (answerRefusedSCCRQ). One slot per hash of the source
 	// IP, so a spoofed flood allocates nothing and the table never grows.
 	// Read and written only on the reactor goroutine, which is the sole
 	// caller of handle, so it needs no lock.
@@ -364,13 +364,16 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 	if hdr.TunnelID == 0 {
 		info, perr := parseSCCRQ(payload)
 		if perr != nil {
-			// RFC 2661 Section 4.4.3: the Assigned Tunnel ID is "a 2 octet
-			// non-zero unsigned integer". A zero one is the single parse
-			// failure ze answers; every other one keeps its silent drop.
-			// The answer is emitted here, still before tunnelsMu, so it
+			// RFC 2661 Section 7.2.1, idle state: "Receive SCCRQ, not
+			// acceptable | Send StopCCN, Clean up | idle". parseSCCRQ marks
+			// the failures that reach that row -- an AVP Section 6.1 makes
+			// mandatory that is absent, unreadable, or out of range -- as an
+			// *sccrqRejection; every other parse failure keeps its silent
+			// drop. The answer is emitted here, still before tunnelsMu, so it
 			// allocates no tunnel entry and consumes no local TID.
-			if errors.Is(perr, errZeroAssignedTunnelID) {
-				r.answerZeroTunnelIDSCCRQ(pkt.from, hdr.Ns)
+			var rejection *sccrqRejection
+			if errors.As(perr, &rejection) {
+				r.answerRefusedSCCRQ(pkt.from, hdr.Ns, rejection)
 			}
 			r.logger.Debug("l2tp: TunnelID=0 packet with malformed body dropped",
 				"from", pkt.from.String(), "error", perr.Error())
@@ -533,9 +536,10 @@ func stopCCNSlot(a netip.Addr) int {
 	return int(h % stopCCNLimitSlots)
 }
 
-// answerZeroTunnelIDSCCRQ replies to an SCCRQ whose Assigned Tunnel ID
-// AVP carried 0, which RFC 2661 Section 4.4.3 makes a protocol error, and
-// bounds how often it does so.
+// answerRefusedSCCRQ replies to an SCCRQ that parseSCCRQ refused, and bounds
+// how often it does so. RFC 2661 Section 7.1: "Receipt of an invalid or
+// unrecoverable malformed control message should be logged appropriately and
+// the control connection cleared to ensure recovery to a known state."
 //
 // The datagram that reaches here is unauthenticated and its source address is
 // spoofable, so an unconditional reply would make ze a reflector. One rule
@@ -550,7 +554,7 @@ func stopCCNSlot(a netip.Addr) int {
 // peer spoofs it, and an exemption keyed on that address would answer him
 // at his own packet rate, aimed at that peer. What a real peer loses when
 // it shares a busy slot is one diagnostic StopCCN. It retransmits, and a
-// zero Assigned Tunnel ID could not have opened a tunnel anyway.
+// refused SCCRQ could not have opened a tunnel anyway.
 //
 // Runs on the reactor goroutine, before tunnelsMu is taken for dispatch,
 // and allocates no tunnel entry. A suppressed datagram takes no lock and
@@ -561,14 +565,14 @@ func stopCCNSlot(a netip.Addr) int {
 // TunnelID=0 body, this sentinel included, immediately after this call
 // returns, so a second line would only add one netip.AddrPort.String and
 // one slog call to each datagram of a flood.
-func (r *l2tpReactor) answerZeroTunnelIDSCCRQ(from netip.AddrPort, peerNs uint16) {
+func (r *l2tpReactor) answerRefusedSCCRQ(from netip.AddrPort, peerNs uint16, rejection *sccrqRejection) {
 	now := r.params.Clock()
 	slot := stopCCNSlot(from.Addr())
 	if last := r.stopCCNLastSent[slot]; !last.IsZero() && now.Sub(last) < stopCCNLimitInterval {
 		return
 	}
 	r.stopCCNLastSent[slot] = now
-	r.sendUnassociatedStopCCN(from, peerNs)
+	r.sendUnassociatedStopCCN(from, peerNs, rejection)
 }
 
 // sendUnassociatedStopCCN transmits one StopCCN to a peer for which no
@@ -584,17 +588,24 @@ func (r *l2tpReactor) answerZeroTunnelIDSCCRQ(from netip.AddrPort, peerNs uint16
 // Ns is 0 because this is the first control message ze sends on a control
 // connection that never opened. Nr is the peer's Ns plus one, which is the
 // sequence number ze would expect next (RFC 2661 Section 5.8).
-func (r *l2tpReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16) {
+func (r *l2tpReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16, rejection *sccrqRejection) {
 	buf := GetBuf()
 	defer PutBuf(buf)
 	b := *buf
 	// Result Code 2 says the Error Code names the problem; Error Code 3 is
 	// "One of the field values was out of range or reserved field was
-	// non-zero" (RFC 2661 Section 4.4.2).
+	// non-zero" (RFC 2661 Section 4.4.2). That list defines no code for an
+	// absent AVP, and 3 is the code its own sentence in Section 7.1 pairs
+	// with one, so the Error Message field carries the AVP's name: "an
+	// arbitrary string providing further (human readable) text associated
+	// with the condition". The details are fixed strings under 60 octets
+	// (errors.go), so the body fits the 1500-octet pooled buffer.
 	n := writeStopCCNBody(b[ControlHeaderLen:], tidNoTunnel, ResultCodeValue{
-		Result:       resultProtocolError,
-		ErrorPresent: true,
-		Error:        errorValueOutOfRange,
+		Result:         resultProtocolError,
+		ErrorPresent:   true,
+		Error:          errorValueOutOfRange,
+		Message:        rejection.Detail,
+		MessagePresent: true,
 	})
 	total := ControlHeaderLen + n
 	WriteControlHeader(b, 0, uint16(total), 0, 0, 0, peerNs+1)
@@ -609,12 +620,13 @@ func (r *l2tpReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16) 
 		rc.Append(1, b[:total])
 	}
 	if err := r.listener.Send(to, b[:total]); err != nil {
-		r.logger.Warn("l2tp: StopCCN for zero Assigned Tunnel ID SCCRQ not sent",
-			"to", to.String(), "error", err.Error())
+		r.logger.Warn("l2tp: StopCCN for refused SCCRQ not sent",
+			"to", to.String(), "reason", rejection.Detail, "error", err.Error())
 		return
 	}
-	r.logger.Info("l2tp: zero Assigned Tunnel ID SCCRQ answered with StopCCN",
-		"to", to.String(), "result-code", resultProtocolError, "error-code", errorValueOutOfRange)
+	r.logger.Info(rejection.Log,
+		"to", to.String(), "reason", rejection.Detail,
+		"result-code", resultProtocolError, "error-code", errorValueOutOfRange)
 }
 
 // handleTick processes a tick request from the timer goroutine. It runs

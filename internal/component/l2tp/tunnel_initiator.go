@@ -210,11 +210,26 @@ type sccrpInfo struct {
 
 // parseSCCRP walks the AVP stream of an SCCRP body and collects the fields
 // the initiator FSM needs. Message Type AVP MUST be first per RFC 2661
-// Section 4.4.1; Assigned Tunnel ID MUST be present and non-zero (RFC 2661
-// Section 6.2) because it becomes the TunnelID of every message we send.
-// Mirrors parseSCCRQ's structure and mandatory-AVP handling.
+// Section 4.4.1, and every AVP Section 6.2 makes mandatory MUST be present.
+// The Assigned Tunnel ID MUST also be non-zero, because it becomes the
+// TunnelID of every message we send. Mirrors parseSCCRQ's structure and
+// mandatory-AVP handling.
+//
+// Every error here reaches handleSCCRP, which tears the tunnel down with a
+// StopCCN, so a refused SCCRP already gets the answer RFC 2661 Section 7.1
+// requires: "the control connection cleared to ensure recovery to a known
+// state".
+//
+// Presence is tracked in its own flag for each AVP, never inferred from the
+// parsed value: 0 is a legal Framing Capabilities mask and a legal Protocol
+// Version field, so a zero would read as an AVP that arrived.
 func parseSCCRP(payload []byte) (sccrpInfo, error) {
 	var info sccrpInfo
+	var (
+		protocolVersionSeen bool
+		framingSeen         bool
+		hostNameSeen        bool
+	)
 	iter := NewAVPIterator(payload)
 	first := true
 	for {
@@ -259,19 +274,35 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 		}
 		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
 		case AVPProtocolVersion:
-			if len(value) >= 2 {
-				info.ProtocolVersion = binary.BigEndian.Uint16(value[:2])
+			// RFC 2661 Section 4.4.3 draws the Protocol Version AVP as one
+			// Ver octet followed by one Rev octet.
+			if len(value) != 2 {
+				return sccrpInfo{}, errors.New("l2tp: SCCRP Protocol Version AVP must be 2 octets (RFC 2661 S4.4.3)")
 			}
+			info.ProtocolVersion = binary.BigEndian.Uint16(value)
+			protocolVersionSeen = true
 		case AVPFramingCapabilities:
-			if v, rerr := readAVPUint32(value); rerr == nil {
-				info.FramingCapabilities = v
+			// The read error is not discarded: a 3-octet AVP would otherwise
+			// leave the field 0, and 0 is a legal mask, so the tunnel would
+			// establish on a value no peer sent.
+			v, rerr := readAVPUint32(value)
+			if rerr != nil {
+				return sccrpInfo{}, errors.New("l2tp: SCCRP Framing Capabilities AVP must be 4 octets (RFC 2661 S4.4.3)")
 			}
+			info.FramingCapabilities = v
+			framingSeen = true
 		case AVPBearerCapabilities:
 			if v, rerr := readAVPUint32(value); rerr == nil {
 				info.BearerCapabilities = v
 			}
 		case AVPHostName:
+			// RFC 2661 Section 4.4.3: "The Host Name is of arbitrary length,
+			// but MUST be at least 1 octet."
+			if len(value) == 0 {
+				return sccrpInfo{}, errors.New("l2tp: SCCRP Host Name AVP must carry at least one octet (RFC 2661 S4.4.3)")
+			}
 			info.HostName = string(value)
+			hostNameSeen = true
 		case AVPAssignedTunnelID:
 			v, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -299,8 +330,21 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 			info.ChallengeResponseValue = append([]byte(nil), value...)
 		}
 	}
+	// RFC 2661 Section 6.2: "The following AVPs MUST be present in the SCCRP:
+	// Message Type, Protocol Version, Framing Capabilities, Host Name,
+	// Assigned Tunnel ID." The order below is the RFC's own. `first` is still
+	// set when no AVP carried a Message Type, an empty body included.
 	if first {
-		return sccrpInfo{}, errors.New("l2tp: empty SCCRP body")
+		return sccrpInfo{}, errors.New("l2tp: SCCRP missing Message Type AVP (RFC 2661 S6.2)")
+	}
+	if !protocolVersionSeen {
+		return sccrpInfo{}, errors.New("l2tp: SCCRP missing Protocol Version AVP (RFC 2661 S6.2)")
+	}
+	if !framingSeen {
+		return sccrpInfo{}, errors.New("l2tp: SCCRP missing Framing Capabilities AVP (RFC 2661 S6.2)")
+	}
+	if !hostNameSeen {
+		return sccrpInfo{}, errors.New("l2tp: SCCRP missing Host Name AVP (RFC 2661 S6.2)")
 	}
 	if info.AssignedTunnelID == 0 {
 		return sccrpInfo{}, errors.New("l2tp: SCCRP missing Assigned Tunnel ID AVP (RFC 2661 S6.2)")
