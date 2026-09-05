@@ -5,7 +5,7 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | `msg-id` in events | ✅ Done | `internal/component/plugin/json.go` |
-| `bgp cache forward <id> <sel>` | ✅ Done | `internal/component/bgp/plugins/cmd/cache/` |
+| `send bgp <sel> cached <id>` | ✅ Done | `internal/component/bgp/plugins/cmd/cache/` |
 | `capability route-refresh` | ✅ Done | `internal/component/plugin/rr/` |
 | `plugin session ready` | ✅ Done | `internal/component/plugin/plugin.go` |
 | Refresh event handling | ✅ Done | `internal/component/plugin/rr/` |
@@ -83,7 +83,7 @@ API controls BGP cache lifetime in engine:
 | `bgp cache release <id>` | Allow eviction (default 60s timeout) |
 | `bgp cache expire <id>` | Remove immediately |
 | `bgp cache list` | List cached msg-ids |
-| `bgp cache forward <id> <sel>` | Forward cached UPDATE to peers |
+| `send bgp <sel> cached <id>` | Forward cached UPDATE to peers |
 
 ### Graceful Restart Flow
 
@@ -94,7 +94,7 @@ API controls BGP cache lifetime in engine:
 4. ... Peer A goes down ...
 5. ... Peer A reconnects ...
 6. Engine sends state event: peer A up
-7. API replays: bgp cache forward 123 A
+7. API replays: send bgp A cached 123
 8. API sends: peer A eor ipv4/unicast
 ```
 
@@ -103,7 +103,7 @@ API controls BGP cache lifetime in engine:
 If cache was cleared (shouldn't happen with retain), API can re-announce from pool:
 
 ```
-bgp peer 192.0.2.1 raw hex <update-payload-hex> type update
+send bgp 192.0.2.1 raw hex <update-payload-hex> type update
 ```
 
 ---

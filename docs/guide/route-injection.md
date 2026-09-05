@@ -59,7 +59,7 @@ hop, native or extended.
 Human-readable format with flat attribute declarations:
 
 ```bash
-ze cli -c "peer upstream1 update text \
+ze cli -c "send bgp upstream1 update text \
     origin igp \
     nhop 192.168.1.1 \
     local-preference 200 \
@@ -124,7 +124,7 @@ in `update text` and in config alike, from one keyword table both parsers read.
 | `redirect-to-nexthop-draft` | type 0x08, subtype 0x00, value 0 | Redirect to next hop, pre-IETF draft |
 
 ```bash
-ze cli -c "peer upstream update text \
+ze cli -c "send bgp upstream update text \
     origin igp nhop self \
     extended-community [ discard ] \
     nlri ipv4/flow add <flowspec-nlri>"
@@ -190,7 +190,7 @@ nlri ipv6/unicast add 2001:db8::/32
 Wire-encoded bytes for debugging or replay:
 
 ```bash
-ze cli -c "peer upstream1 update hex \
+ze cli -c "send bgp upstream1 update hex \
     attr set 40010100400200400304c0a80101 \
     nhop set c0a80101 \
     nlri ipv4/unicast add 180a0000"
@@ -201,7 +201,7 @@ ze cli -c "peer upstream1 update hex \
 Compact encoding for scripts:
 
 ```bash
-ze cli -c "peer upstream1 update b64 \
+ze cli -c "send bgp upstream1 update b64 \
     attr set QAEBAAQDAsCoBQE= \
     nlri ipv4/unicast add GAoAAA=="
 ```
@@ -226,8 +226,8 @@ For atomic multi-route updates:
 
 ```bash
 ze cli -c "request commit start my-batch"
-ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
-ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24"
+ze cli -c "send bgp * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
+ze cli -c "send bgp * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24"
 ze cli -c "request commit end my-batch"    # All routes sent together
 ```
 <!-- source: internal/component/bgp/plugins/cmd/commit/ -- commit command RPCs; internal/component/bgp/transaction/ -- commit manager -->

@@ -165,7 +165,7 @@ Routes in transit can be managed via cache commands:
 | `request cache retain <id>` | Prevent cache eviction |
 | `request cache release <id>` | Release a cached message |
 | `request cache expire <id>` | Remove a cached message immediately |
-| `request cache forward <id> <peer>` | Forward a cached message to a peer |
+| `send bgp <peer> cached <id>` | Forward a cached message to a peer |
 <!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
 
 ## Without Route Reflection

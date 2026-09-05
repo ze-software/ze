@@ -244,7 +244,7 @@ address each one connected from.
 ### The send permission
 
 `send` is a permission, and ze enforces it on the peers a command resolves to.
-A program that issues `peer * update ...` reaches the peers that attach it with
+A program that issues `send bgp * update ...` reaches the peers that attach it with
 `send [ update ]`, and no others. A peer the program is not attached to is
 dropped from the command, and ze writes one WARN naming the peer, the process
 and the message type. When the selector names ONLY peers that refuse it, the
@@ -258,7 +258,7 @@ bgp-route-refresh among them:
 |------|---------|----------|
 | `update` | originating routes toward the peer | `update text ... add`, `update text ... del`, an End-of-RIB marker, a named commit |
 | `refresh` | asking the peer to re-advertise | `peer <sel> refresh`, `borr`, `eorr`, `clear soft` |
-| `raw` | writing a whole BGP message the program built itself | `peer <sel> raw ...` |
+| `raw` | writing a whole BGP message the program built itself | `send bgp <sel> raw ...` |
 
 `raw` is the widest of the three, because the bytes can be any BGP message, an
 OPEN or a NOTIFICATION included. `send [ update ]` does not imply it.
@@ -1152,7 +1152,7 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 | Hard | `Dependencies` | Startup fails with `ErrMissingDependency`. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
 
-`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `bgp cache forward <id> <sel>` pipeline. See [architecture/api/commands](../architecture/api/commands.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
+`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `send bgp <sel> cached <id>` pipeline. See [architecture/api/commands](../architecture/api/commands.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
 

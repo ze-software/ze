@@ -158,7 +158,7 @@ The following renames are needed to align with this convention:
 When the text API is implemented, the keyword will match the JSON key:
 
 ```
-peer * update text bgp-ls igp-metric set 10 node-name set "router1" adj-sids add ... nlri bgp-ls/bgp-ls add ...
+send bgp * update text bgp-ls igp-metric set 10 node-name set "router1" adj-sids add ... nlri bgp-ls/bgp-ls add ...
 ```
 
 For list attributes: `add` appends, `set` replaces, `del` removes.

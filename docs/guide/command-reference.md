@@ -2204,10 +2204,10 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 ### Route Injection
 
 ```
-peer <sel> update text <attrs> nlri <family> <op> <prefixes>
-peer <sel> update hex <hex-data>
-peer <sel> update b64 <b64-data>
-peer <sel> raw <encoding> <data> [type <type>]
+send bgp <sel> update text <attrs> nlri <family> <op> <prefixes>
+send bgp <sel> update hex <hex-data>
+send bgp <sel> update b64 <b64-data>
+send bgp <sel> raw <hex|b64> <data> [type <type>]
 ```
 
 Text format attributes:
@@ -2322,9 +2322,9 @@ a keyword.
 | `request cache retain <id>` | write | Pin in cache (prevent eviction) |
 | `request cache release <id>` | write | Release from cache |
 | `request cache expire <id>` | write | Remove immediately |
-| `request cache forward <id> <peer-sel>` | write | Re-inject UPDATE to peer(s) |
+| `send bgp <peer-sel> cached <id>` | write | Re-inject UPDATE to peer(s) |
 
-Batch operations: `request cache forward <id1>,<id2> <selector>`.
+Batch operations: `send bgp <selector> cached <id1>,<id2>`.
 <!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
 
 ### Static Routes

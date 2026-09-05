@@ -824,10 +824,11 @@ process and is not gated.
 The reactor applies it in two places, and a peer-naming command reaches one of
 them. Six commands resolve a peer SELECTOR and are gated there. Four more name
 their peers directly, without a selector, and each applies the same check:
-`cache forward`, the `forward-cached` and `relay-stored-route` plugin RPCs, and
-`peer <addr> raw`.
+`send bgp <selector> cached <id>`, the `forward-cached` and
+`relay-stored-route` plugin RPCs, and
+`send bgp <selector> raw`.
 
-**Raw has a word of its own: `raw`.** `bgp peer <addr> raw ...` carries a whole
+**Raw has a word of its own: `raw`.** `send bgp <selector> raw ...` carries a whole
 BGP message the caller chose, an OPEN or a NOTIFICATION included, so no other
 send type describes it and `send [ update ]` does not imply it. Write
 `attach process <name> { send [ raw ] }` for any program that injects raw

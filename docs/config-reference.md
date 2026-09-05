@@ -278,8 +278,8 @@ well-known `65535:666`, because naming those prefixes is the explicit
 configuration directive Section 4 asks for. A stated `communities` list is taken
 exactly, and `65535:666` is not added to it.
 
-The same list gates the send side. `announce blackhole` and
-`announce unicast <prefix> community 65535:666` reach only the sessions that
+The same list gates the send side. `send bgp <sel> blackhole` and
+`send bgp <sel> unicast <prefix> community 65535:666` reach only the sessions that
 named the well-known value, and they name the refused peers when no selected
 peer agreed.
 

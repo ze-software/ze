@@ -22,26 +22,31 @@ same announce rail. Export policy still applies: `exportFilterForBody` runs the
 destination peer's export chain at the session write gate for every originated
 route.
 
-**A bare announce reaches every peer, so no form states
-`RequiresSelector`.** `selector.ParseDefault` reads an empty selector as
-`All()`. That is what an operator asks for when they name no peer. The flag
-belongs to a command whose model carries a selector leaf to satisfy it.
+**Every form names its destination, and every form states
+`RequiresSelector`.** `send bgp <selector> unicast <prefix>` reaches the peers
+the selector matches, and `send bgp * unicast <prefix>` is how an operator
+reaches every peer. A form typed with no selector is refused by the dispatcher.
 
-`announce` carried such a leaf until 2026-08-30. Each form then became its own
-command, and the leaf went with the split. The flag stayed. For that day every
-form refused every invocation with `announce <form> requires a selector`. The
-error named a token the model gave the operator no way to type.
+A bare announce reached every peer until this grammar landed, because
+`selector.ParseDefault` reads an empty selector as `All()`. A caller cannot
+tell "the operator asked for every peer" from "nothing bound", so the wildcard
+is now typed rather than defaulted.
 
-**A peer selector is typed before the verb, in the ExaBGP order.**
-`peer <selector> announce unicast <prefix>` reaches the peers the selector
-matches. The forms are one `grouping`, instantiated at `announce` and at
-`peer > announce`, so the second path restates no grammar.
+`announce` carried a selector leaf of its own until 2026-08-30. Each form then
+became its own command, and the leaf went with the split. The flag stayed. For
+that day every form refused every invocation with
+`announce <form> requires a selector`. The error named a token the model gave
+the operator no way to type.
 
-The selector is declared on the `peer` container. `appendAnchored` then anchors
-it to that keyword, which is the word the operator types it after. `anchoredDef`
-binds it at dispatch. The peer-scoped command carries two mandatory pattern-less
-strings, selector and prefix, so `implicitSelectorDef` sees two candidates and
-answers nil.
+**The protocol keyword comes before the destination, and the destination comes
+before the form.** The forms are one `grouping`, instantiated once under
+`send > bgp`. There is no second path to restate.
+
+The selector is declared on the `bgp` container under `send`. `appendAnchored`
+then anchors it to that keyword, which is the word the operator types it after.
+`anchoredDef` binds it at dispatch. The command carries two mandatory
+pattern-less strings, selector and prefix, so `implicitSelectorDef` sees two
+candidates and answers nil.
 
 <!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- the RPCRegistration block -->
 <!-- source: internal/core/selector/selector.go -- ParseDefault -->
@@ -65,8 +70,9 @@ new state, and it is the shared code path for the CLI, for the plugin API
 (`tag.` meta) and for the future flowspec-egress bridge.
 
 **Every withdraw starts with a keyword, and each keyword is its own command.**
-The three commands are `withdraw tag <key> [value <value>]`, `withdraw id <id>`
-and `withdraw all`. Bare positional arguments were rejected for clarity.
+The three forms are `withdraw tag <key> [value <value>]`, `withdraw id <id>`
+and `withdraw all`, each typed after `send bgp <selector>`. Bare positional
+arguments were rejected for clarity.
 
 They were one command until 2026-08-29, with the three forms behind a keyword
 switch on `args[0]`. That put the grammar in a handler and in a description,
@@ -78,11 +84,11 @@ not change: each already took the tail after its keyword.
 **The tag value is OPTIONAL.** It was true in the code and false in the prose
 that documented it. An absent value withdraws every value of the key.
 
-**One peer prefix scopes every withdraw form, and no form states a scope of its
-own (owner directive, 2026-08-31).** `withdraw all` carried a
+**One destination prefix scopes every withdraw form, and no form states a scope
+of its own (owner directive, 2026-08-31).** `withdraw all` carried a
 `selector <pattern>` leaf until then. One form of three took a scope and the
-other two took none. `peer <selector> withdraw all` replaces it, and the same
-prefix narrows `withdraw tag` and `withdraw id`.
+other two took none. `send bgp <selector> withdraw all` replaces it, and the
+same prefix narrows `withdraw tag` and `withdraw id`.
 
 The value is compared against the selector each announcement was MADE with,
 rather than resolved against the peer table. An entry records the fan-out it went
@@ -113,7 +119,7 @@ states one grammar and the three forms take three, so the generated usage line
 named a first token no operator types and spelled the rest as `<args>`.
 
 **The vocabulary a command borrows is declared by the plugin that owns it.**
-`announce flowspec` takes seventeen match components, and they belong to the
+`send bgp <selector> flowspec` takes seventeen match components, and they belong to the
 FlowSpec codec: `isComponentKeyword`
 (`internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go`) is their
 single producer, and `handleAnnounceFlowspec` never reads them. So the flowspec
@@ -151,9 +157,9 @@ that states "one of these", which no command declares today.
 caller hands it only that region: the slice starts at `tag`, starts at `for`, or
 is empty. So a word neither keyword claims is always a mistake, and the handler
 answers `errTrailingOptUnclaimed` naming that word. Until 2026-08-31 it ended
-the parse and announced what it had read, which is why `announce flowspec
-destination-ipv4 1.1.1.1/32 discard rate-limit 500` put a plain discard on the
-wire and said nothing about the rate limit the operator asked for.
+the parse and announced what it had read, which is why `send bgp *
+flowspec destination-ipv4 1.1.1.1/32 discard rate-limit 500` put a plain
+discard on the wire and said nothing about the rate limit the operator asked for.
 
 <!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- splitFlowspecArgs -->
 <!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- parseTrailingOpts -->

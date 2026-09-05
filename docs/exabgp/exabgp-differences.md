@@ -47,7 +47,7 @@ ExaBGP difference and the non-determinism.
 - Enables targeting specific sessions when multiple sessions exist to same peer
 
 **ZeBGP behavior:**
-- Uses `peer` keyword: `peer <IP> update text ...`
+- Uses the send verb and the protocol keyword: `send bgp <IP> update text ...`
 - Does NOT support multi-session qualifier syntax
 - Commands apply to all sessions matching the peer IP
 

@@ -57,7 +57,7 @@ which is what makes `delete bgp peer 127.0.0.1` work.
 A value that sits BETWEEN two keywords reaches the leaf the model anchored to
 the first of them. A leaf declared on a grouping container carries that
 container's name. That name is the word the operator types the value after, so
-`peer <selector> announce unicast <prefix>` binds the selector and leaves the
+`send bgp <selector> unicast <prefix>` binds the selector and leaves the
 prefix to the handler. The shape-based fallback stays for a command that
 anchors nothing, and both refuse ambiguity: two candidates name none.
 <!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens, anchoredDef, implicitSelectorDef -->

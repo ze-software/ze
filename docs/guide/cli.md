@@ -62,8 +62,8 @@ what `show | blame` reports for the changes the console commits.
 
 | Command | Description |
 |---------|-------------|
-| `peer <sel> update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
-| `peer <sel> update hex <hex>` | Hex-format UPDATE |
+| `send bgp <sel> update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
+| `send bgp <sel> update hex <hex>` | Hex-format UPDATE |
 | `show bgp rib received [peer <selector>] [family <family>]` | Show Adj-RIB-In |
 | `show bgp rib advertised [peer <selector>] [family <family>]` | Show Adj-RIB-Out |
 | `clear bgp rib in [peer]` | Clear Adj-RIB-In |
@@ -80,7 +80,7 @@ See [Route Injection guide](route-injection.md) for UPDATE syntax details.
 | `request cache retain <id>` | Prevent cache eviction |
 | `request cache release <id>` | Release a cached message |
 | `request cache expire <id>` | Remove a cached message immediately |
-| `request cache forward <id> <peer>` | Forward a cached message to a peer |
+| `send bgp <peer> cached <id>` | Forward a cached message to a peer |
 <!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
 
 ## Event Subscription

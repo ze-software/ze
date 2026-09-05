@@ -366,7 +366,7 @@ CLI commands are routed to plugins by prefix:
 # Routed to ze bgp
 ze bgp peer list
 ze bgp peer upstream1 show
-ze bgp peer upstream1 update ...
+ze send bgp upstream1 update ...
 
 # Routed to ze rib
 ze rib show

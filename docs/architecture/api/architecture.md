@@ -108,7 +108,7 @@ bgp cache retain 123    # Keep until released
 bgp cache release 123   # Allow eviction
 bgp cache expire 123    # Remove immediately
 bgp cache list          # List cached msg-ids
-bgp cache forward 123 !10.0.0.1  # Forward to all except source
+send bgp !10.0.0.1 cached 123  # Forward to all except source
 ```
 
 ---
@@ -249,9 +249,9 @@ Ten commands reach a peer's wire and every one applies that check, but they do
 not all get there the same way, and reading "the selector resolver" as the whole
 guard is what left four of them open until the review that found it. Six resolve
 their peers through `getMatchingPeersSel`: announce, withdraw, End-of-RIB,
-commit, route refresh and soft clear. Four do not. `cache forward` parses a
-selector of its own and matches it inside `ForwardUpdate`; the `forward-cached`
-and `relay-stored-route` plugin RPCs and `peer <addr> raw` name their
+commit, route refresh and soft clear. Four do not. `send bgp <sel> cached <id>`
+matches its selector inside `ForwardUpdate`; the `forward-cached`
+and `relay-stored-route` plugin RPCs and `send bgp <selector> raw` name their
 destinations directly, as an address list, one address, or one peer. All ten
 share one filter, `filterPermittedPeers`.
 
@@ -1247,7 +1247,7 @@ type RIB struct {
 type Route struct {
     AttrHandle  pool.Handle  // Interned attributes
     NLRIHandle  pool.Handle  // Interned NLRI
-    MsgID       uint64       // For bgp cache forward
+    MsgID       uint64       // For send bgp <sel> cached <id>
     SourceCtxID uint16       // Encoding context
 }
 ```
@@ -1276,7 +1276,7 @@ Peer A → Receive UPDATE → Store (wire + msg-id) → API output (partial pars
                                                             ↓
                                                    External process decides
                                                             ↓
-                          API command: "bgp cache forward 123 !<ip>"
+                          API command: "send bgp !<ip> cached 123"
                                                             ↓
 Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 ```
@@ -1290,7 +1290,7 @@ Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 | **Direction** | `"sent"` or `"received"` indicator at top level for all messages |
 | **Time-based cache** | Recent updates cached for fast lookup (TTL configurable) |
 | **Partial parsing** | Only parse attributes needed for API output |
-| **Forward by ID** | API references updates by ID via `bgp cache forward <id> <sel>` |
+| **Forward by ID** | API references updates by ID via `send bgp <sel> cached <id>` |
 | **`!<ip>`** | Negated selector for "all except this peer" |
 
 ### Flow Details
@@ -1298,7 +1298,7 @@ Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 1. **Receive:** Assign msg-id, cache UPDATE, store NLRIs in RIB
 2. **API output:** Parse only configured attributes, include msg-id
 3. **External decision:** Policy engine decides destinations
-4. **Forward command:** `bgp cache forward <id> !<source-ip>`
+4. **Forward command:** `send bgp !<source-ip> cached <id>`
 5. **Send:** Lookup cached update, use wire bytes (zero-copy if contexts match)
 
 ### API Output with Message ID and Direction
@@ -1326,10 +1326,10 @@ Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 
 ```
 # Forward update to all peers except source
-bgp cache forward 12345 !10.0.0.1
+send bgp !10.0.0.1 cached 12345
 
 # Forward to specific peer
-bgp cache forward 12345 10.0.0.2
+send bgp 10.0.0.2 cached 12345
 ```
 
 ### Attribute Filtering (Partial Parse)
@@ -1362,7 +1362,7 @@ Peer A (Role: Customer) → Receive → Tag with role → API output (role + upd
                                                             ↓
                                       External process decides based on ROLE
                                                             ↓
-                             API command: "bgp cache forward 123 !<ip>"
+                             API command: "send bgp !<ip> cached 123"
 ```
 
 Each route carries a `RouteTag`:
@@ -1503,7 +1503,7 @@ RIB stores: ribOut[peerAddr][prefix] = route1
 RIB receives "state up"
     │ Looks up ribOut[peerAddr]
     ▼
-RIB replays: "peer <addr> update text nhop set <nh> nlri <family> add <prefix>"
+RIB replays: "send bgp <selector> update text nhop set <nh> nlri <family> add <prefix>"
     │
     ▼
 RIB signals: "peer <addr> plugin session ready"

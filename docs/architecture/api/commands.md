@@ -27,7 +27,7 @@ identity is injected only by trusted transport wiring.
 | Encoder | json or text (v4), json only (v6) | json or text |
 | Peer selectors | `*`, IP, filters (`[local-as ...]`) | `*`, IP, negated (`!IP`) |
 | Multi-session filters | Supported (draft) | Not supported |
-| Forward command | Not available | `request cache forward <id> <selector>` for route reflection |
+| Forward command | Not available | `send bgp <selector> cached <id>` for route reflection |
 
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, IsReadOnlyPath -->
 
@@ -574,14 +574,14 @@ request peer <sel> flush           # Wait for forward pool to drain (barrier)
 > are independent refcount axes, and engine cache ack is cumulative.
 
 ```
-request cache forward <id> <sel>    # Forward cached UPDATE to peers
+send bgp <sel> cached <id>          # Forward cached UPDATE to peers
 request cache retain <id>           # Prevent eviction
 request cache release <id>          # Allow eviction (reset TTL)
 request cache expire <id>           # Remove immediately
 show cache                          # List cached message IDs
 
 # Batch variants (comma-separated IDs, max 1000):
-request cache forward <id1>,<id2>,...,<idN> <sel>  # Batch forward
+send bgp <sel> cached <id1>,<id2>,...,<idN>        # Batch forward
 request cache release <id1>,<id2>,...,<idN>        # Batch release
 ```
 
@@ -589,13 +589,13 @@ The cache commands enable route reflection via API:
 1. Received UPDATEs are assigned a unique msg-id (per-UPDATE, not per-NLRI)
 2. API outputs UPDATE info with msg-id
 3. External process decides routing
-4. The `request cache forward` command references msg-id (zero-copy when contexts match)
+4. The `send bgp <sel> cached <id>` command references msg-id (zero-copy when contexts match)
 5. Cache entries expire after configurable TTL (default 60s) unless retained
 <!-- source: internal/component/bgp/reactor/reactor.go -- cache forward -->
 
 #### Fast-path typed SDK (rs-fastpath-3)
 
-The text-RPC `request cache forward <id> <sel>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
+The text-RPC `send bgp <sel> cached <id>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
 
 ```go
 Plugin.ForwardCached(ctx, ids []uint64, destinations []netip.AddrPort) error
@@ -649,7 +649,7 @@ peer !upstream1           # All peers EXCEPT this one (for route reflection)
 The `!<ip>` negated selector is useful for route reflection:
 ```
 # Forward update to all peers except the source
-request cache forward 12345 !upstream1
+send bgp !upstream1 cached 12345
 ```
 
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session
@@ -663,21 +663,21 @@ All route operations use unified `update text` syntax with flat attribute declar
 
 ```bash
 # Announce routes (flat attributes, no 'set')
-peer <selector> update text next <ip> [attributes...] nlri <family> add prefix <prefix>...
+send bgp <selector> update text next <ip> [attributes...] nlri <family> add prefix <prefix>...
 
 # Withdraw routes
-peer <selector> update text nlri <family> del prefix <prefix>...
+send bgp <selector> update text nlri <family> del prefix <prefix>...
 
 # End-of-RIB marker (RFC 4724)
-peer <selector> update text nlri <family> eor
+send bgp <selector> update text nlri <family> eor
 
 # VPLS (L2VPN/VPLS)
-peer <selector> update text nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
+send bgp <selector> update text nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
 
 # EVPN (L2VPN/EVPN)
-peer <selector> update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
-peer <selector> update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
-peer <selector> update text nlri l2vpn/evpn add multicast rd <rd> ip <ip>
+send bgp <selector> update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
+send bgp <selector> update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
+send bgp <selector> update text nlri l2vpn/evpn add multicast rd <rd> ip <ip>
 ```
 
 ### Route Commands (update cursor)
@@ -689,21 +689,21 @@ changed attributes (delta encoding), reducing per-call overhead.
 
 ```bash
 # First command: establish full attribute state + announce NLRIs
-peer <selector> update cursor origin igp as-path [65001] med 100 \
+send bgp <selector> update cursor origin igp as-path [65001] med 100 \
   next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24
 
 # Delta: only changed attributes, rest inherited from cursor
-peer <selector> update cursor as-path [65001 65003] \
+send bgp <selector> update cursor as-path [65001 65003] \
   nlri ipv4/unicast add 10.1.0.0/24
 
 # NLRIs only (all attributes inherited)
-peer <selector> update cursor nlri ipv4/unicast add 10.2.0.0/24
+send bgp <selector> update cursor nlri ipv4/unicast add 10.2.0.0/24
 
 # Remove an attribute from cursor
-peer <selector> update cursor del med nlri ipv4/unicast add 10.3.0.0/24
+send bgp <selector> update cursor del med nlri ipv4/unicast add 10.3.0.0/24
 
 # Clear cursor state (call after replay completes)
-peer <selector> update cursor done
+send bgp <selector> update cursor done
 ```
 
 Cursor mode supports announce-only (`nlri <family> add`). Withdrawals are not
@@ -786,8 +786,8 @@ request bgp rib delete-with-community <peer> <family> <hex>  # Delete routes car
 
 ```
 group start [attributes ...]     # Start batch with shared attributes
-peer <selector> update text ...
-peer <selector> update text ...
+send bgp <selector> update text ...
+send bgp <selector> update text ...
 group end                         # End batch, send all
 ```
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager -->
@@ -1205,7 +1205,7 @@ message is rejected and the walk continues. That row reaches the operator under
 > **Note:** This tree shows the **internal noun-first dispatch structure**, not
 > the user-facing grammar. User-facing commands are verb-first
 > (`show`/`request`/`clear`/`update`/`monitor` roots, e.g. `show bgp peer <sel> detail`,
-> `request cache forward`, `clear bgp rib in`); the noun-first RPCs below remain
+> `send bgp <sel> cached <id>`, `clear bgp rib in`); the noun-first RPCs below remain
 > only for internal dispatch. Nodes such as `peer/<selector>/announce` and
 > `peer/<selector>/withdraw` reflect removed verbs (see "Removed Commands").
 
@@ -1463,7 +1463,7 @@ func ParseSelector(s string) (*Selector, error) {
 ```go
 var Commands = []CommandInfo{
     {"daemon shutdown", false, nil},
-    {"peer * update text", true, []string{"next", "origin", ...}},
+    {"send bgp * update text", true, []string{"next", "origin", ...}},
     // ...
 }
 ```

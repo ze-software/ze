@@ -213,8 +213,8 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 | Pattern | Description |
 |---------|-------------|
 | Store wire bytes | `pool.Intern(raw UPDATE sections from StructuredEvent or raw event fields)` |
-| Forward by msg-id | `bgp cache forward Y <selector>` (zero-copy where contexts match) |
-| Announce raw | `bgp peer X raw hex <update-payload-hex> type update` |
+| Forward by msg-id | `send bgp <selector> cached Y` (zero-copy where contexts match) |
+| Announce raw | `send bgp X raw hex <update-payload-hex> type update` |
 | Control msg-id | `bgp cache retain/release/expire N` |
 
 ---
@@ -261,7 +261,7 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
         ↓
 2. ✅ Engine: Add msg-id control commands (retain/release/expire/list)
         ↓
-3. ✅ Engine: Add `bgp peer X raw hex <payload> type update` command
+3. ✅ Engine: Add `send bgp X raw hex <payload> type update` command
         ↓
 4. ✅ API: Update `bgp-rs` to use cached message IDs
         ↓
@@ -339,7 +339,7 @@ The engine maintains a cache of UPDATE wire bytes indexed by msg-id. API program
 3. API stores route in RIB with msg-id reference
 4. API sends: bgp cache retain 123
 5. ... peer goes down, comes back up ...
-6. API replays: bgp cache forward 123 X
+6. API replays: send bgp X cached 123
 7. When route withdrawn: bgp cache release 123
 ```
 
@@ -358,7 +358,7 @@ The engine maintains a cache of UPDATE wire bytes indexed by msg-id. API program
 ### Default Behavior
 
 - msg-ids NOT retained are evicted after 60 seconds of no use
-- Each `bgp cache forward <id> <selector>` resets the 60s timer
+- Each `send bgp <selector> cached <id>` resets the 60s timer
 - Retained msg-ids never evicted until `release` or `expire`
 
 ---
@@ -391,7 +391,7 @@ func (s *Server) handleUpdate(event *Event) {
     s.send("bgp cache retain %d", event.MsgID)
 
     // Forward to other peers
-    s.send("bgp cache forward %d !%s", event.MsgID, event.Peer)
+    s.send("send bgp !%s cached %d", event.Peer, event.MsgID)
 }
 ```
 
@@ -418,7 +418,7 @@ def handle_update(event):
     send(f"bgp cache retain {msg_id}")
 
     # Forward
-    send(f"bgp cache forward {msg_id} !{peer}")
+    send(f"send bgp !{peer} cached {msg_id}")
 ```
 
 ---
@@ -428,7 +428,7 @@ def handle_update(event):
 When msg-id cache is unavailable (long outage, cache evicted), API can send a preserved raw UPDATE payload:
 
 ```
-bgp peer 192.0.2.1 raw hex <update-payload-hex> type update
+send bgp 192.0.2.1 raw hex <update-payload-hex> type update
 ```
 
 This bypasses normal UPDATE construction and validation. Use it only when the API has preserved the exact UPDATE payload and the engine cache is unavailable.

@@ -588,7 +588,7 @@ BLACKHOLE community to. RFC 7999 Section 3.1 requires the two networks to agree
 on use of the community before it is advertised, and naming it on the peer is
 Ze's half of that agreement.
 
-`announce blackhole <prefix>` reaches only the sessions whose resolved list holds
+`send bgp <sel> blackhole <prefix>` reaches only the sessions whose resolved list holds
 65535:666, under either spelling, which includes a session configured with
 `prefixes` alone. A peer with no `blackhole` block, or one that named only
 its own value such as `65001:666`, is left OUT of the announcement. It is not
@@ -596,14 +596,14 @@ sent the prefix untagged: an ordinary announcement of a host route under attack
 attracts the traffic the operator asked to have discarded. When no selected peer
 has agreed, the command fails and names the peers that have not.
 
-`announce unicast <prefix> community 65535:666` meets the same gate, because the
+`send bgp <sel> unicast <prefix> community 65535:666` meets the same gate, because the
 obligation is about the community rather than the verb. Any other community is
 untouched.
 
 To advertise your own RTBH value to a peer, name that value on the announcement:
 
 ```
-announce unicast 192.0.2.1/32 community 65001:666
+send bgp * unicast 192.0.2.1/32 community 65001:666
 ```
 
 ### A blackhole on a community Ze does not read

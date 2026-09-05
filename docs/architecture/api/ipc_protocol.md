@@ -753,7 +753,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `bgp peer <sel> list` | List matching peers (brief) |
 | `bgp peer <sel> show` | Show matching peers (detailed) |
 | `bgp peer <sel> teardown [subcode]` | Graceful close (NOTIFICATION) |
-| `bgp peer <sel> update text\|hex\|base64 ...` | Announce/withdraw routes |
+| `send bgp <sel> update text\|hex\|base64 ...` | Announce/withdraw routes |
 | `bgp peer <sel> borr <family>` | Begin-of-Route-Refresh (RFC 7313) |
 | `bgp peer <sel> eorr <family>` | End-of-Route-Refresh (RFC 7313) |
 | `bgp peer <sel> ready` | Signal peer replay complete |
@@ -823,8 +823,8 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 
 | Command | Description |
 |---------|-------------|
-| `bgp cache forward <id> <sel>` | Forward cached UPDATE to peers |
-| `bgp cache forward <id1>,<id2>,...,<idN> <sel>` | Batch forward (comma-separated IDs) |
+| `send bgp <sel> cached <id>` | Forward cached UPDATE to peers |
+| `send bgp <sel> cached <id1>,<id2>,...,<idN>` | Batch forward (comma-separated IDs) |
 | `bgp cache retain <id>` | Keep in cache until released |
 | `bgp cache release <id>` | Allow eviction (TTL-based) |
 | `bgp cache release <id1>,<id2>,...,<idN>` | Batch release |

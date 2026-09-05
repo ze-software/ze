@@ -180,7 +180,7 @@ only.
 
 Blackhole honoring (RFC 7999) is per session and off by default. One
 `blackhole { communities; prefixes; }` container states both Section 3.3
-conditions, and the same list gates the send side, so `announce blackhole`
+conditions, and the same list gates the send side, so `send bgp <sel> blackhole`
 reaches only the sessions that agreed. See
 [`docs/config-reference.md`](config-reference.md#blackhole-rfc-7999).
 <!-- source: internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang -- grouping community-filter-fields -->

@@ -494,7 +494,7 @@ Returns validation errors if any.
 | `bgp peer <sel> list` | List matching peers |
 | `bgp peer <sel> show` | Show peer details |
 | `bgp peer <sel> teardown [subcode]` | Graceful close |
-| `bgp peer <sel> update <enc> ...` | Announce/withdraw routes |
+| `send bgp <sel> update <enc> ...` | Announce/withdraw routes |
 | `bgp peer <sel> ready` | Signal peer replay complete |
 
 **Selector patterns:** `*` (all), `<ip>` (specific), `!<ip>` (all except)
@@ -507,7 +507,7 @@ Returns validation errors if any.
 | `bgp cache retain <id>` | Keep in cache |
 | `bgp cache release <id>` | Allow eviction |
 | `bgp cache expire <id>` | Remove immediately |
-| `bgp cache forward <id> <sel>` | Forward to peers |
+| `send bgp <sel> cached <id>` | Forward to peers |
 <!-- source: internal/component/bgp/reactor/recent_cache.go -- cache operations -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- command dispatch -->
 

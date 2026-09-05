@@ -36,7 +36,7 @@ was never meant to carry.
 | Route injection from scripts | Text command protocol or plugin API |
 | Any programming language | Anything that reads lines and writes lines |
 | Atomic route updates | `request commit start` / `request commit end` workflow |
-| Raw wire access | Hex-mode encoding and decoding, `bgp cache forward` |
+| Raw wire access | Hex-mode encoding and decoding, `send bgp <sel> cached <id>` |
 
 <!-- source: pkg/plugin/sdk/sdk.go -- plugin SDK entry point -->
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn for concurrent RPCs -->

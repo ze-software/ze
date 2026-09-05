@@ -156,7 +156,7 @@ close to fully shipped.
 | BGP route-refresh send | `reset ip bgp <addr>` | `clear bgp neighbor <addr> soft-inbound` | `clear router bgp neighbor <addr> soft-inbound` | `clear ip bgp <addr> soft in` | `clear ip bgp <addr> soft in` | `route-refresh <family>` | shipped | bgp | |
 | BGP hard reset | `reset ip bgp <addr>` | `clear bgp neighbor <addr>` | `clear router bgp neighbor <addr>` | `clear ip bgp <addr>` | `clear ip bgp <addr>` | `peer <sel> teardown` | shipped | bgp | |
 | BGP pause/resume peer | - | - | `tools perform router bgp neighbor ... enable/disable` | ~ | - | `peer <sel> pause/resume` | shipped | bgp | Ze-unique (flow control) |
-| BGP inject route | ~ (conf-set only) | - | - | - | static + redist | `request bgp rib inject`, `peer ... update text` | shipped | bgp | Ze-unique (test tool) |
+| BGP inject route | ~ (conf-set only) | - | - | - | static + redist | `request bgp rib inject`, `send bgp ... update text` | shipped | bgp | Ze-unique (test tool) |
 | BGP update dump (live) | - | `monitor traffic protocol bgp` | `debug router bgp peer ... events` | - | `debug bgp updates` | `bgp monitor` | shipped | bgp | SSE stream |
 | BGP monitoring protocol (BMP) | ~ | ~ | `show router bmp` | `show bgp bmp` | `show bmp` | `show bmp sessions/peers/collectors/rib` | shipped | bgp | |
 | BGP FlowSpec rules | - | `show firewall filter detail` | `show filter ip-filter` | - | `show bgp ipv4 flowspec detailed` | installed via fibkernel; no dedicated view | partial | bgp+nl | Add `show bgp flowspec` |

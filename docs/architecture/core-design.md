@@ -235,7 +235,7 @@ flowchart TB
 - **Plugin Server** handles 5-stage handshake, subscriptions, command dispatch. Uses PluginManager for process creation.
 - **Five-phase plugin startup** -- Phase 1: config-path plugins (BGP, iface, fib via ConfigRoots). Phase 2: explicit plugins (from config `plugin { }` block). Phase 3: unclaimed families. Phase 4: custom event types. Phase 5: custom send types. Each phase uses tier-ordered handshake based on Dependencies.
 - **Plugin IPC** uses newline-framed YANG RPC over one bidirectional connection. Internal plugins use `net.Pipe()` for startup and DirectBridge after ready; external plugins use TLS connect-back. External event payloads are formatted text or JSON according to the process binding.
-- **BGP cache** enables zero-copy forwarding (`bgp cache forward 123 <sel>`).
+- **BGP cache** enables zero-copy forwarding (`send bgp <sel> cached 123`).
 - **Dynamic event types** -- plugins declare event types they produce via `Registration.EventTypes`. Engine registers them into `ValidEvents` at startup.
 - **Dynamic send types** -- plugins declare send types they enable via `Registration.SendTypes`. Engine registers them into `ValidSendTypes` at startup.
 <!-- source: internal/component/plugin/registry/ -- plugin registry, Register -->
@@ -544,13 +544,13 @@ When a process binding requests JSON output, the engine sends formatted BGP even
 Plugin can:
 - Use formatted `attr` and `nlri` fields for decisions
 - Use raw fields when the binding format includes them
-- Forward by ID: `"bgp cache forward 12345 !10.0.0.1"` (or batch: `"bgp cache forward 1,2,3 !10.0.0.1"`)
+- Forward by ID: `"send bgp !10.0.0.1 cached 12345"` (or batch: `"send bgp !10.0.0.1 cached 1,2,3"`)
 
 ### What Engine Stores vs Plugin Stores
 
 | Component | Engine Stores | Plugin Stores |
 |-----------|---------------|---------------|
-| **BGP cache** | WireUpdate by ID (for `bgp cache forward <id>[,<id>...] <sel>`) | - |
+| **BGP cache** | WireUpdate by ID (for `send bgp <sel> cached <id>[,<id>...]`) | - |
 | **Peer state** | Negotiated caps, FSM state | - |
 | **RIB** | - | NLRI → attribute refs (with pools) |
 | **Policy** | - | Route filters, preferences |
@@ -693,7 +693,7 @@ Receive UPDATE → Assign msg-id → Ingress filter pipeline → Cache WireUpdat
                                                                                  ▼
                      ┌──────────────────── slow path (text RPC) ───────┬──── fast path (typed SDK) ────┐
                      ▼                                                  ▼                              ▼
-          "bgp cache forward 123 <sel>" → tokenise → command registry → ForwardUpdate     Plugin.ForwardCached(ids, destinations) → DirectBridge → ForwardUpdatesDirect
+          "send bgp <sel> cached 123" → tokenise → command registry → ForwardUpdate       Plugin.ForwardCached(ids, destinations) → DirectBridge → ForwardUpdatesDirect
                      │                                                                                  │
                      └──────────────────────────── ForwardUpdate (shared core) ─────────────────────────┘
                                                                 │
@@ -720,7 +720,7 @@ state trackers consume the cached `WireUpdate` and emit `locrib.Change` events
 for downstream best-change consumers. The two trigger shapes coexist by design:
 forwarder needs differ from state-tracker needs (per-event vs. per-best-change).
 
-**Slow path** (`bgp cache forward <id> <sel>`) still exists for ad-hoc and external
+**Slow path** (`send bgp <sel> cached <id>`) still exists for ad-hoc and external
 callers. Tokenises the text command, walks the plugin command registry, dispatches
 to `ForwardUpdate`.
 

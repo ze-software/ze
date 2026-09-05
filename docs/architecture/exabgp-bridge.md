@@ -14,9 +14,12 @@ to the script. Each direction has its own translator.
 
 Down, `ExabgpToZebgpCommand` reads one ExaBGP line and writes one ze CLI
 command. `neighbor <address> announce route <prefix> next-hop <nh>` becomes
-`peer <address> update text nhop <nh> nlri ipv4/unicast add <prefix>`. Fourteen
-sites in `bridge_command.go` build a command of the shape
-`peer <selector> <verb> ...`, where the selector is one address or `*`.
+`send bgp <address> update text nhop <nh> nlri ipv4/unicast add <prefix>`.
+Twelve sites in `bridge_command.go` build a command of the shape
+`send bgp <selector> update text ...`, where the selector is one address or
+`*`. A thirteenth site sits in `ExabgpToZebgpCommand` itself. A line that names
+a neighbor and a verb the bridge has no form for keeps that verb. The verb then
+sits under ze's `peer` keyword.
 
 Up, `bridge_event.go` renders ze's BGP messages as ExaBGP JSON. The envelope
 version is 6.0.0, which is the syntax target for the bridge.
@@ -34,7 +37,7 @@ translated forms.
 expression. A line that does not match names no destination, and ExaBGP sends
 such a line to every neighbor. The bridge reads it the same way. It translates
 the line with the wildcard peer selector, so `announce route <prefix>` becomes
-`peer * update text nlri ipv4/unicast add <prefix>`.
+`send bgp * update text nlri ipv4/unicast add <prefix>`.
 
 `convertRoute` is the one place that decides what the bridge translates, and it
 answers the same set of forms for a line that names a neighbor and for a line
@@ -62,8 +65,8 @@ through passthrough. It is the only one spelled the same on both sides.
 |---|---|---|
 | `announce-unicast`, `announce-blackhole`, `announce-flowspec`, `withdraw-tag`, `withdraw-id`, `withdraw-all` | no ExaBGP script reaches these, because ExaBGP spells them `route` | nothing for a script, and an operator types them at ze's own CLI |
 | `help` | passthrough, with one spelling on both sides | a break for a script that asks for help |
-| `peer-update` | translator output, from `neighbor <address> announce` | one edit in the translator |
-| `peer-raw` | neither, because the translator never writes it | one edit, and no script is affected |
+| `peer-update` | translator output, from `neighbor <address> announce` | one edit in the translator, done: the translator writes `send bgp <selector> update text ...` |
+| `peer-raw` | neither, because the translator never writes the word `raw` | one edit, done. A script can still reach ze's own spelling for any verb by writing `neighbor <address> <verb> ...`, which the fall-through rewrites under the `peer` keyword |
 
 Each is exempt from the verb-first grammar for one of two reasons. It starts
 with a noun, or it is a line-protocol verb ze does not list as one of its own.
@@ -76,15 +79,16 @@ After a route command, the bridge injects a flush and blocks until the forward
 pool drains. It finds the peer to flush with `ExtractPeerAddress`, which reads
 the address out of the command string the translator just built.
 
-`ExtractPeerAddress` requires the literal prefix `peer ` and answers the empty
-string for any other command. Its three callers read that empty string as
+`ExtractPeerAddress` requires the literal prefix `send bgp ` and answers the
+empty string for any other command. Its three callers read that empty string as
 "nothing to flush" and continue. `IsRouteCommand` looks for `update text`
 anywhere in the string, so it does not agree with that prefix test.
 
 A change to the leading token therefore stops every flush. There is no error
-and no log line. The translator holds the peer address at each of the fourteen
-sites where it writes the command. It can pass that address on, and it does not
-have to read the address back.
+and no log line. The prefix the extractor reads and the prefix the translator
+writes are one fact stated twice, and this is what the second statement costs.
+The translator holds the selector at each site where it writes the command. It
+can pass that selector on, and it does not have to read the selector back.
 
 <!-- source: internal/exabgp/bridge/bridge_muxconn.go -- ExtractPeerAddress, IsRouteCommand -->
 
