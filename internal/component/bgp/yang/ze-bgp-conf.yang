@@ -102,14 +102,15 @@ module ze-bgp-conf {
                 container beside it, so an operator's existing leaves never move.";
 
             container attribute {
-                description "The value an increment or a decrement starts from when the route carries no such
-                    attribute. There is deliberately no aigp leaf: RFC 7311 Section 4.1 removes a route with no AIGP
-                    TLV from consideration rather than scoring it, so no number stands in for the absence, and Section
-                    3.4.1 forbids ze to add the attribute to a route whose path leads outside the AIGP administrative
-                    domain.";
+                description "The value policy arithmetic starts from when the route carries no such attribute.";
                 ze:help "The leaves govern the arithmetic in bgp { policy { modify NAME { increment } } } and its
                     decrement sibling alone. They do NOT move the Decision Process: RFC 4271 Section 9.1.2.2 compares
-                    an absent MULTI_EXIT_DISC as 0 whatever med says here.";
+                    an absent MULTI_EXIT_DISC as 0 whatever med says here.
+
+                    There is deliberately no aigp leaf. RFC 7311 Section 4.1 removes a route with no AIGP TLV from
+                    consideration rather than scoring it, so no number stands in for the absence. Section 3.4.1
+                    forbids ze to add the attribute to a route whose path leads outside the AIGP administrative
+                    domain.";
 
                 leaf med {
                     type uint32 {
@@ -357,6 +358,10 @@ module ze-bgp-conf {
 
             list nlri {
                 key "name";
+                description "Routes this update block announces, one entry for each address family.";
+                ze:help "Every entry takes the attribute block of the update block. The key is the family name, and
+                    content carries the operation keyword and the prefixes. An update block that declares no nlri
+                    entry is refused at config load.";
                 leaf name { type zt:address-family; description "Address family (e.g., ipv4/unicast)";
  ze:help "The name is a registered address family. Ze refuses an unregistered name at config load."; }
                 leaf content { type string; description "Operation, qualifiers, and payload";
@@ -373,7 +378,10 @@ module ze-bgp-conf {
                 leaf name { type string; description "Watchdog group name";
  ze:help "request bgp watchdog announce <name> announces every route that carries the name, and request bgp
      watchdog withdraw <name> withdraws them. Ze skips a block whose name is empty."; }
-                leaf withdraw { type boolean; description "Start in withdrawn state (default true)"; }
+                leaf withdraw { type boolean; description "Start in withdrawn state (default true)";
+ ze:help "The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every
+     route of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as
+     the session reaches Established. request bgp watchdog announce <name> announces a withdrawn route."; }
             }
         }
     }
@@ -406,6 +414,11 @@ module ze-bgp-conf {
                 leaf port {
                     type zt:port;
                     description "Local bind port";
+                    ze:help "Ze writes the value to the BGP port of this peer, which is the port Ze dials and the
+                        port a dedicated listener answers on. The default is 179, and a peer at 179 shares the
+                        global listener. The range is 1 to 65535, and Ze refuses a config outside it. Ze binds no
+                        local source port to the value. connection > remote > port writes the same port, and it
+                        replaces this value when both leaves are set.";
                 }
                 leaf accept {
                     type boolean;
@@ -513,6 +526,11 @@ module ze-bgp-conf {
             leaf link-local {
                 type boolean;
                 description "Auto-discover IPv6 link-local address for TCP connection";
+                ze:help "The BGP reactor reads no value from the leaf, so the leaf changes no TCP connection and
+                    discovers no address. session > link-local is the leaf that carries a link-local address, and
+                    Ze writes that address after the global next hop (RFC 2545 Section 3). ze exabgp migrate sets
+                    this leaf true and writes the address into session > link-local for an ExaBGP peer that states
+                    local-link-local.";
             }
 
             container bfd {
@@ -1157,7 +1175,9 @@ module ze-bgp-conf {
                     leaf format { type string; description "Output format template for event rendering.";
  ze:help "Ze uses parsed when the leaf is absent. Ze lowercases the value before it passes the value to the program
      binding."; }
-                    leaf attribute { type string; description "Filter expression to select which BGP attributes are included in events."; }
+                    leaf attribute { type string; description "Filter expression to select which BGP attributes are included in events.";
+ ze:help "The BGP reactor reads no value from the leaf. It takes encoding and format off the content container and
+     nothing else, so an event carries every attribute of the route whatever the leaf holds."; }
                 }
 
                 leaf-list receive {

@@ -81,6 +81,9 @@ nothing.";
         description "ASPA action overrides for this peer or group.";
         ze:help "These overrides apply only when ASPA validation is enabled globally.";
         container action {
+          description "ASPA path-state action overrides of this peer or group.";
+          ze:help "invalid names the action of an ASPA Invalid path and unknown that of an ASPA Unknown path.
+Neither leaf carries a default, so an unset leaf falls through to the group value and then to the global value.";
           leaf invalid {
             type validation-action;
             description "Action Ze applies to a route in the ASPA Invalid path state.";
@@ -99,9 +102,18 @@ nothing.";
   grouping rpki-config {
     container rpki {
       presence "RPKI origin validation enabled";
+      description "RPKI origin validation of a received route (RFC 6811).";
+      ze:help "The container carries presence. Ze validates a route only when cache-server holds at least one
+entry, so an empty container validates nothing. The container also holds the validation timeout, the
+origin-validation actions, and the ASPA block. A peer and a group override an action leaf of their own. Neither
+can name a cache server, because the RTR transport is global.";
 
       list cache-server {
         key "address";
+        description "RTR cache servers Ze reads the validated ROA and ASPA records from.";
+        ze:help "The list key is the address, which is an IP address or a hostname. Ze opens one RTR session to
+every entry at the same time, and merges what the entries send into one cache. A second entry gives redundancy.
+Each entry carries the port, the preference and the source address. An empty list leaves validation off.";
         leaf address {
           type string;
           description "IP address or hostname of the RTR cache server.";
@@ -119,7 +131,8 @@ is 323.";
           type uint8;
           default "100";
           description "Preference of this cache server.";
-          ze:help "Ze prefers the cache server with the lowest value.";
+          ze:help "Ze runs a session to every cache server at the same time and selects none of them, so the value
+changes no behavior today. show bgp rpki status reports it for each server.";
         }
         leaf source-address {
           type zt:ip-address;
@@ -158,6 +171,11 @@ the decision process.";
       }
 
       container aspa {
+        description "AS_PATH verification against the ASPA records, and the action of each result.";
+        ze:help "validation turns the verification on and its default is false. Ze reads an ASPA record over
+version 2 of the RTR protocol alone. A session Ze downgrades to version 1 carries none. Ze refuses an ASPA PDU
+on a version 1 session as a protocol violation. action holds the action of each path state, and a peer or a
+group overrides those two leaves.";
         leaf validation {
           type boolean;
           default "false";
@@ -165,6 +183,9 @@ the decision process.";
           ze:help "Ze reads the ASPA records over version 2 of the RTR protocol.";
         }
         container action {
+          description "Global action Ze applies for each ASPA path state.";
+          ze:help "invalid holds the action of an ASPA Invalid path and unknown that of an ASPA Unknown path. Both
+apply only while aspa validation is true. A peer or a group overrides each leaf.";
           leaf invalid {
             type validation-action;
             default "log-only";

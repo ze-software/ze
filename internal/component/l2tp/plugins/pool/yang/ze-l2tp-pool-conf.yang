@@ -14,6 +14,10 @@ module ze-l2tp-pool-conf {
         // so the tree merge does not warn on a mismatch. This module only
         // attaches its own subtree to the shared node.
         description "L2TPv2 tunnel subsystem settings (RFC 2661).";
+        ze:help "L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with
+                 any content implies the subsystem is enabled. Use 'enabled false' to
+                 disable it explicitly, or 'enabled true' as a filler when no other settings
+                 are needed.";
 
         container pool {
             description "Address and prefix pools handed to L2TP PPP sessions.";
@@ -145,6 +149,13 @@ module ze-l2tp-pool-conf {
                     description
                         "Prefix length delegated to each subscriber
                          (e.g. 56 for /56 prefixes).";
+                    ze:help "Ze cuts the block into prefixes of this length, and delegates one to each
+                        subscriber over DHCPv6 IA_PD (RFC 3633). Ze installs a route to that prefix on the PPP
+                        interface. The length is 48 to 64, and it must be at least as long as the block. It must
+                        be at most 24 bits longer than the block, which caps one pool at 16 million prefixes. The
+                        default is 56, and Ze logs a warning when the leaf is absent. A session RADIUS answers
+                        with a Delegated-IPv6-Prefix takes that prefix and reaches no pool, so this length does
+                        not apply to it.";
                 }
             }
             list named-ipv6-pool {
@@ -180,6 +191,12 @@ module ze-l2tp-pool-conf {
                     mandatory true;
                     description
                         "Prefix length delegated to each subscriber.";
+                    ze:help "The leaf is required here, and the ipv6-pd pool falls back to 56 when it is
+                        absent. Each named pool cuts its own block into prefixes of its own length, so two pools
+                        can delegate different lengths. The length is 48 to 64, and it must be at least as long
+                        as the block of this pool. It must be at most 24 bits longer than that block, which caps
+                        the pool at 16 million prefixes. A session RADIUS answers with a Delegated-IPv6-Prefix
+                        takes that prefix and reaches no pool.";
                 }
             }
         }

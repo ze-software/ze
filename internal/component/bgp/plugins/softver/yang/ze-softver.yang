@@ -30,6 +30,10 @@ module ze-softver {
                 }
                 default "enable";
                 description "Capability negotiation mode.";
+                ze:help "enable is the default, and Ze sends the capability. disable sends none. Ze treats require
+                    as enable and refuse as disable: the plugin decides only whether to send code 75, and it holds
+                    the peer to nothing. So a peer that sends no Software Version stays up under require, and a peer
+                    that sends one stays up under refuse. Set the leaf on the peer to override the group value.";
             }
         }
     }

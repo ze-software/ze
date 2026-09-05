@@ -36,6 +36,12 @@ module ze-image-server-conf {
             leaf-list listen-interface {
                 type string;
                 description "Interfaces to serve on";
+                ze:help "Ze resolves the IPv4 address of the FIRST interface named here and binds
+                    listen-port on that address. A second entry and every later entry is ignored without a
+                    log line. With no interface named, Ze binds the port on every address of the host. A
+                    resolve that fails stops the image server from starting, and the log names the
+                    interface. Ze builds /install/boot/boot.ipxe only when this leaf names an interface
+                    whose address it resolves.";
             }
 
             leaf listen-port {

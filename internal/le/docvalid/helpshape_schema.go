@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md -- the config schema an operator reads
 // Overview: helpshape.go -- the gate this file adds a fourth surface to
-// Related: helpshape_baseline.go -- what HEAD already declared
+// Related: helpshape.go -- judgeCaps and judgePair, the judges this surface calls
 //
 // helpshape_schema.go reads the fourth surface a summary reaches an operator
 // from: the CONFIG tree. A config node declares its summary as the YANG
@@ -104,6 +104,16 @@ func walkSchema(entry *gyang.Entry, module string, path []string,
 		if child.RPC != nil {
 			continue
 		}
+		// A choice and a case are schema structure, not a node an operator
+		// types. `effectiveChildren` (internal/component/cli/completer.go)
+		// walks THROUGH both and never emits either as a completion row, so
+		// neither text ever renders and a cap or a missing rule over one would
+		// report a defect that does not exist. The walk mirrors that reader
+		// statement for statement: descend, and judge what it emits.
+		if child.IsChoice() || child.IsCase() {
+			walkSchema(child, module, path, report, seen)
+			continue
+		}
 		below := append(append([]string(nil), path...), name)
 		report.schema(schemaLabel(module, below), child)
 		report.schemaEnums(module, below, child)
@@ -135,6 +145,13 @@ func (r *HelpShapeReport) schema(label string, entry *gyang.Entry) {
 		r.SchemaWithHelp++
 	}
 	if strings.TrimSpace(entry.Description) == "" {
+		// A config node with no description renders an empty row under the
+		// completion menu, which tells an operator the name exists and nothing
+		// about what it does. Counting it as coverage owed and saying nothing
+		// is the silent answer this gate exists to remove
+		// (ai/rules/principles.md).
+		r.refuse(surfaceSchema, label, ruleMissingSummary,
+			"the config node declares no description", "")
 		return
 	}
 	r.SchemaWithSummary++

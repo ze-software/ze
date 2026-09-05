@@ -3,6 +3,7 @@ module ze-fib-p4-conf {
     prefix fibp4;
 
     import ze-fib-conf { prefix fib; }
+    import ze-extensions { prefix ze; }
 
     description
         "FIB P4 backend configuration for Ze.
@@ -16,18 +17,38 @@ module ze-fib-p4-conf {
     augment "/fib:fib" {
         container p4 {
             description "P4 switch route programming via gRPC/P4Runtime.";
+            ze:help
+                "fib-p4 subscribes to the best-change event of the system RIB
+                 and holds every route it would program into a P4 switch with
+                 P4Runtime. The gRPC client is not written yet. The plugin
+                 writes a log line for each route it adds, replaces and deletes,
+                 and it programs no switch. The command `show fib p4` prints the
+                 prefix and the next hop of each entry the plugin holds. No leaf
+                 in this container reaches a switch today.";
 
             leaf target {
                 type string;
                 description
                     "P4Runtime gRPC target address (host:port).
                      Example: 127.0.0.1:9559";
+                ze:help
+                    "The value names the P4Runtime gRPC server on the switch as
+                     host:port, and 9559 is the port P4Runtime listens on by
+                     convention. There is no default, so the leaf stays unset
+                     until you write it. The plugin opens no connection to this
+                     address yet, because the gRPC client is not written.";
             }
 
             leaf device-id {
                 type uint64;
                 default 1;
                 description "P4Runtime device ID.";
+                ze:help
+                    "P4Runtime addresses one forwarding pipeline on a target by
+                     its device id, and the switch assigns that number. The
+                     default 1 matches a target that carries one pipeline. The
+                     type is a 64-bit unsigned number. The plugin opens no
+                     P4Runtime session yet, so the value reaches no switch.";
             }
 
             leaf flush-on-stop {
@@ -35,6 +56,14 @@ module ze-fib-p4-conf {
                 default false;
                 description
                     "Remove all forwarding entries when the plugin stops.";
+                ze:help
+                    "When true, the plugin deletes every forwarding entry it
+                     installed as it stops. The default false leaves those
+                     entries in the switch after shutdown, which supports
+                     graceful restart. The plugin does not read this leaf yet:
+                     the stop path keeps the entries whatever you write, and the
+                     backend programs no switch. The kernel backend carries the
+                     same leaf at fib/kernel/flush-on-stop.";
             }
         }
     }

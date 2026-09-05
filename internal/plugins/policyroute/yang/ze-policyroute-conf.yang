@@ -51,6 +51,13 @@ module ze-policyroute-conf {
                 description
                     "Ingress interface(s) to match. A trailing '*' enables
                      prefix (wildcard) matching (e.g. 'l2tp*').";
+                ze:help "Name ONE interface. Ze puts every entry of this leaf-list into the same
+                    nftables rule, and a rule ANDs its matches. Two or more entries produce a rule that
+                    matches no packet, because a packet arrives on one interface and carries one name. A
+                    trailing * matches by prefix, so the single entry l2tp* matches l2tp0 and l2tp1. Write
+                    one policy per interface, or one prefix entry that covers them, until Ze lowers this
+                    leaf-list as an OR. With no interface named, the policy matches every ingress
+                    interface.";
             }
 
             list rule {

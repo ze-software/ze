@@ -72,9 +72,10 @@ const (
 // The rules the PAIR is held to: the summary and the long explanation beside
 // it. Each names one clause of D-4 (plan/spec-command-help-and-description.md).
 //
-// missing-long-help is the one rule of this gate that is not absolute. It
-// judges what the commit under test added or changed, because the corpus does
-// not yet carry an explanation everywhere (helpshape_baseline.go).
+// Every one of them is absolute. missing-long-help was scoped to what the
+// commit under test added or changed for as long as the corpus carried a
+// summary alone on 193 declarations; those are written now, so the rule holds
+// over the whole tree and the HEAD baseline that scoped it is gone.
 const (
 	ruleMissingLongHelp = "missing-long-help"
 	ruleLongCap         = "long-cap"
@@ -126,15 +127,8 @@ type HelpShapeReport struct {
 	Schema            int            `json:"schema"`
 	SchemaWithSummary int            `json:"schema-with-summary"`
 	SchemaWithHelp    int            `json:"schema-with-help"`
-	LongHelpScope     string         `json:"long-help-scope"`
 	Broken            []HelpShapeRow `json:"broken"`
 	Valid             bool           `json:"valid"`
-
-	// baseline is what HEAD already declared, and only the missing-long-help
-	// rule reads it. It rides on the report because the four surfaces reach
-	// their judges through it and through nothing else: collectUsage walks the
-	// command tree with the report as its only carrier.
-	baseline helpBaseline
 }
 
 // node judges one command node's two texts and counts it.
@@ -229,6 +223,18 @@ func (r *HelpShapeReport) judgeSummary(surface, label, description string) bool 
 	return true
 }
 
+// flattenSummary is the one form a summary is compared and measured in:
+// trimmed, with every run of whitespace collapsed to one space.
+//
+// It is also the form an operator reads. `entryDescription` and
+// `enumKeyVocabulary` (internal/component/cli/completer.go) each join
+// strings.Fields with a space before the text reaches the row, so a description
+// rewrapped over different lines is the same summary to a reader and must be
+// the same summary here.
+func flattenSummary(text string) string {
+	return strings.Join(strings.Fields(text), " ")
+}
+
 // judgeCaps holds one summary to the two length bounds D-4 sets: 25 words and
 // 96 characters.
 //
@@ -265,10 +271,9 @@ func (r *HelpShapeReport) judgeCaps(surface, label, description string) {
 // on an enum, so demanding one would demand a declaration no surface prints
 // (helpshape_schema.go, schemaEnums).
 //
-// missing-long-help is the only rule of this gate scoped to the commit under
-// test. The other two are absolute, because a long text that repeats its
-// summary and a long text past the byte bound are both defects wherever they
-// were written (helpshape_baseline.go).
+// All three rules are absolute. A declaration an operator can reach owes both
+// texts wherever it was written, and a long text that repeats its summary or
+// runs past the byte bound is a defect on the day it lands.
 func (r *HelpShapeReport) judgePair(surface, label, description, longHelp string) {
 	summary := strings.TrimSpace(description)
 	long := strings.TrimSpace(longHelp)
@@ -280,10 +285,8 @@ func (r *HelpShapeReport) judgePair(surface, label, description, longHelp string
 	shown := flattenSummary(summary)
 
 	if long == "" {
-		if !r.baseline.declaredAtHEAD(summary) {
-			r.refuse(surface, label, ruleMissingLongHelp,
-				"the declaration carries a summary and no long text beside it", shown)
-		}
+		r.refuse(surface, label, ruleMissingLongHelp,
+			"the declaration carries a summary and no long text beside it", shown)
 		return
 	}
 	if long == summary {
@@ -310,17 +313,15 @@ func (r *HelpShapeReport) refuse(surface, label, rule, detail, summary string) {
 	})
 }
 
-// helpShapeInput is what one run of the shape gate reads: the modules, the
-// offline registrations, and what HEAD already declared.
+// helpShapeInput is what one run of the shape gate reads: the modules and the
+// offline registrations.
 //
-// Every one is a parameter rather than the checkout, so a test names a fixture
-// module by building a loader over it, a fixture registration by passing one,
-// and a fixture history by passing a baseline (usage.go, usageContract, takes
-// the same shape for the same reason).
+// Both are a parameter rather than the checkout, so a test names a fixture
+// module by building a loader over it and a fixture registration by passing one
+// (usage.go, usageContract, takes the same shape for the same reason).
 type helpShapeInput struct {
-	Loader   *yang.Loader
-	Locals   []registry.LocalCommandEntry
-	Baseline helpBaseline
+	Loader *yang.Loader
+	Locals []registry.LocalCommandEntry
 }
 
 // helpShapeContract walks the command tree the loader holds, the RPCs beside
@@ -334,8 +335,6 @@ type helpShapeInput struct {
 func helpShapeContract(in helpShapeInput) (HelpShapeReport, error) {
 	tree := yang.BuildCommandTree(in.Loader)
 	walk := newUsageWalk()
-	walk.shape.baseline = in.Baseline
-	walk.shape.LongHelpScope = in.Baseline.scope()
 	collectUsage(tree, nil, &walk)
 	collectRPCs(in.Loader, walk.shape)
 	collectLocals(in.Locals, tree, walk.shape)
@@ -661,8 +660,7 @@ func (r HelpShapeReport) Text() string {
 	tb.Str("Offline local commands with a long help: ").Int(int64(r.LocalsWithHelp)).Byte('\n')
 	tb.Str("Config nodes: ").Int(int64(r.Schema)).Byte('\n')
 	tb.Str("Config nodes with a summary: ").Int(int64(r.SchemaWithSummary)).Byte('\n')
-	tb.Str("Config nodes with a long help: ").Int(int64(r.SchemaWithHelp)).Byte('\n')
-	tb.Str("Long help judged over: ").Str(r.LongHelpScope).Str("\n\n")
+	tb.Str("Config nodes with a long help: ").Int(int64(r.SchemaWithHelp)).Str("\n\n")
 
 	if len(r.Broken) == 0 {
 		tb.Str("Every command node, every RPC, every offline local command and every config node " +
@@ -770,9 +768,8 @@ func HelpShape() (HelpShapeReport, error) {
 		return HelpShapeReport{}, err
 	}
 	return helpShapeContract(helpShapeInput{
-		Loader:   loader,
-		Locals:   locals,
-		Baseline: headHelpBaseline(root),
+		Loader: loader,
+		Locals: locals,
 	})
 }
 

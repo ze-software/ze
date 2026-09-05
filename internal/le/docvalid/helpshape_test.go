@@ -30,6 +30,7 @@ module ze-fixture-cmd {
   container show {
     config false;
     description "Show operational state.";
+    ze:help "Every command under this node reads the daemon and writes nothing.";
     container sockets {
       config false;
       ze:command "ze-show:sockets";
@@ -56,6 +57,7 @@ module ze-fixture-api {
   }
   rpc socket-clear {
     description "Close every idle socket.";
+    ze:help "A socket with a peer still attached to it is left open.";
   }
 }
 `
@@ -157,11 +159,7 @@ func shapeLoaderOver(t *testing.T, cmdModule, apiModule, confModule string) *yan
 }
 
 // shapeInput answers the gate's input over one loader and one set of offline
-// registrations, with a baseline nothing could read.
-//
-// An unread baseline leaves missing-long-help unjudged, which is what every
-// case about the summary alone wants. A case about the PAIR passes its own
-// baseline through shapeBaseline.
+// registrations.
 func shapeInput(loader *yang.Loader, locals []registry.LocalCommandEntry) helpShapeInput {
 	return helpShapeInput{Loader: loader, Locals: locals}
 }
@@ -189,7 +187,21 @@ func shapeLocals() []registry.LocalCommandEntry {
 func brokenLocalSummary(summary string) []registry.LocalCommandEntry {
 	return []registry.LocalCommandEntry{{
 		Path: fixtureLocal,
-		Meta: registry.Meta{Description: summary, Mode: "offline"},
+		Meta: registry.Meta{
+			Description: summary,
+			LongHelp:    "The private key is written first and the public key second.",
+			Mode:        "offline",
+		},
+	}}
+}
+
+// localWithNoLongHelp answers one offline local command carrying a summary that
+// breaks no rule and no long text at all, which is the one thing
+// missing-long-help refuses.
+func localWithNoLongHelp() []registry.LocalCommandEntry {
+	return []registry.LocalCommandEntry{{
+		Path: fixtureLocal,
+		Meta: registry.Meta{Description: "Generate a fixture keypair.", Mode: "offline"},
 	}}
 }
 
@@ -346,12 +358,12 @@ func TestHelpShapeGateReportsCoverage(t *testing.T) {
 	if report.WithSummary != 2 {
 		t.Errorf("the gate counted %d summaries, want 2", report.WithSummary)
 	}
-	if report.WithHelp != 1 {
-		t.Errorf("the gate counted %d long help texts, want the 1 ze:help the fixture declares",
+	if report.WithHelp != 2 {
+		t.Errorf("the gate counted %d long help texts, want the 2 ze:help the fixture declares",
 			report.WithHelp)
 	}
-	if report.RPCs != 2 || report.RPCsWithSummary != 2 || report.RPCsWithHelp != 1 {
-		t.Errorf("the gate counted %d RPCs, %d with a summary and %d with a long help, want 2, 2 and 1",
+	if report.RPCs != 2 || report.RPCsWithSummary != 2 || report.RPCsWithHelp != 2 {
+		t.Errorf("the gate counted %d RPCs, %d with a summary and %d with a long help, want 2, 2 and 2",
 			report.RPCs, report.RPCsWithSummary, report.RPCsWithHelp)
 	}
 	if report.Locals != 1 || report.LocalsWithSummary != 1 || report.LocalsWithHelp != 1 {
@@ -360,8 +372,8 @@ func TestHelpShapeGateReportsCoverage(t *testing.T) {
 	}
 	text := report.Text()
 	for _, want := range []string{
-		"Command tree nodes: 2", "Nodes with a summary: 2", "Nodes with a long help: 1",
-		"RPCs: 2", "RPCs with a summary: 2", "RPCs with a long help: 1",
+		"Command tree nodes: 2", "Nodes with a summary: 2", "Nodes with a long help: 2",
+		"RPCs: 2", "RPCs with a summary: 2", "RPCs with a long help: 2",
 		"Offline local commands: 1", "Offline local commands with a summary: 1",
 		"Offline local commands with a long help: 1",
 	} {
@@ -500,6 +512,7 @@ func TestHelpShapeGateNamesANodeWithNothingBehindIt(t *testing.T) {
 		"show": {
 			Name:        "show",
 			Description: "Show operational state.",
+			LongHelp:    "Every command under this node reads the daemon and writes nothing.",
 			WireMethod:  "ze-show:state",
 			Children:    map[string]*command.Node{"sockets": nil},
 		},
@@ -637,13 +650,16 @@ func TestHelpShapeGateRefusesAModuleSetWithNoRPC(t *testing.T) {
 // shapeIPCModule declares one RPC in a module whose name carries no `-api`
 // suffix, which is the shape of the plugin IPC protocol in
 // `internal/core/ipc/yang/` (`ze-plugin-engine`, `ze-plugin-callback`). Its
-// summary ends in no full stop, so a walk that reaches it must refuse it.
+// summary ends in no full stop, so a walk that reaches it must refuse it. It
+// carries a ze:help so that full-stop is the ONLY rule the case can report.
 const shapeIPCModule = `
 module ze-fixture-ipc {
   namespace "urn:ze:fixture:ipc";
   prefix zefixipc;
+  import ze-extensions { prefix ze; }
   rpc session-ping {
     description "Answer with the process id";
+    ze:help "The engine answers with the pid of the process that serves the plugin.";
   }
 }
 `
@@ -967,37 +983,6 @@ func TestHelpShapeGateLeavesOutTheDevelopmentTooling(t *testing.T) {
 	}
 }
 
-// shapeBaselineFor answers what HEAD looks like to a commit that changed
-// exactly the summaries named: every other declaration the fixture modules and
-// registrations carry is already there.
-//
-// The baseline is DERIVED from the loader rather than listed, so a case never
-// has to restate the fixture, and adding a node to a fixture cannot silently
-// arm missing-long-help over a case that is about something else.
-func shapeBaselineFor(t *testing.T, loader *yang.Loader,
-	locals []registry.LocalCommandEntry, changed ...string,
-) helpBaseline {
-	t.Helper()
-
-	held := map[string]struct{}{}
-	for _, name := range loader.ModuleNames() {
-		module := loader.GetModule(name)
-		if module == nil || module.Statement() == nil {
-			continue
-		}
-		collectDescriptions(module.Statement(), held)
-	}
-	for _, entry := range locals {
-		if summary := flattenSummary(entry.Meta.Description); summary != "" {
-			held[summary] = struct{}{}
-		}
-	}
-	for _, summary := range changed {
-		delete(held, flattenSummary(summary))
-	}
-	return helpBaseline{summaries: held, read: true}
-}
-
 // The long help the fixture command module declares on `show sockets`, and the
 // one the fixture API module declares on `socket-list`. A case removes one of
 // them to leave a summary standing alone.
@@ -1054,7 +1039,6 @@ func TestHelpShapeRefusesACommandWithNoLongHelp(t *testing.T) {
 	loader := shapeLoaderOver(t, withoutText(t, shapeModule, shapeCommandLongHelp),
 		shapeAPIModule, shapeConfModule(t))
 	in := shapeInput(loader, shapeLocals())
-	in.Baseline = shapeBaselineFor(t, loader, shapeLocals(), fixtureSummary)
 
 	report, err := helpShapeContract(in)
 	if err != nil {
@@ -1077,7 +1061,6 @@ func TestHelpShapeRefusesAnRPCWithNoLongHelp(t *testing.T) {
 	loader := shapeLoaderOver(t, shapeModule,
 		withoutText(t, shapeAPIModule, shapeRPCLongHelp), shapeConfModule(t))
 	in := shapeInput(loader, shapeLocals())
-	in.Baseline = shapeBaselineFor(t, loader, shapeLocals(), fixtureSummary)
 
 	report, err := helpShapeContract(in)
 	if err != nil {
@@ -1096,8 +1079,7 @@ func TestHelpShapeRefusesAnRPCWithNoLongHelp(t *testing.T) {
 // through no other gate.
 func TestHelpShapeRefusesALocalWithNoLongHelp(t *testing.T) {
 	loader := shapeLoader(t, shapeModule, shapeAPIModule)
-	in := shapeInput(loader, brokenLocalSummary("Generate a fixture keypair."))
-	in.Baseline = shapeBaselineFor(t, loader, nil)
+	in := shapeInput(loader, localWithNoLongHelp())
 
 	report, err := helpShapeContract(in)
 	if err != nil {
@@ -1160,7 +1142,6 @@ func TestHelpShapeRefusesALongTextThatRestatesItsSummary(t *testing.T) {
 				`      ze:help "`+tt.long+`";`+"\n", 1)
 			loader := shapeLoaderOver(t, module, shapeAPIModule, shapeConfModule(t))
 			in := shapeInput(loader, shapeLocals())
-			in.Baseline = shapeBaselineFor(t, loader, shapeLocals())
 
 			report, err := helpShapeContract(in)
 			if err != nil {
@@ -1187,7 +1168,6 @@ func TestHelpShapeRefusesALongTextPastItsByteCap(t *testing.T) {
 
 	loader := shapeLoaderOver(t, module, shapeAPIModule, shapeConfModule(t))
 	in := shapeInput(loader, shapeLocals())
-	in.Baseline = shapeBaselineFor(t, loader, shapeLocals())
 
 	report, err := helpShapeContract(in)
 	if err != nil {
@@ -1206,33 +1186,14 @@ func TestHelpShapeRefusesALongTextPastItsByteCap(t *testing.T) {
 	}
 }
 
-// VALIDATES: a command node whose summary HEAD already declared, and which
-// carries no long text, is left alone.
-// PREVENTS: the gate going red on the day it lands. 275 command nodes, 184 rpcs
-// and some 1,700 config nodes declare a summary alone today, and a rule armed
-// over all of them is a red nobody can close, which every session then learns
-// to ignore (AC-1).
-func TestHelpShapeIgnoresACommandTheCommitDidNotTouch(t *testing.T) {
-	loader := shapeLoaderOver(t, withoutText(t, shapeModule, shapeCommandLongHelp),
-		shapeAPIModule, shapeConfModule(t))
-	in := shapeInput(loader, shapeLocals())
-	in.Baseline = shapeBaselineFor(t, loader, shapeLocals())
-
-	report, err := helpShapeContract(in)
-	if err != nil {
-		t.Fatalf("the gate could not read the fixture: %v", err)
-	}
-	if !report.Valid {
-		t.Fatalf("the gate refused a declaration HEAD already carried:\n%s", report.Text())
-	}
-}
-
-// VALIDATES: a baseline nothing could read leaves missing-long-help unjudged
-// rather than refusing every declaration in the tree.
-// PREVENTS: a checkout with no git, or a root commit, billing an author for
-// every summary in the corpus. A baseline that cannot be read accuses nobody
-// (ai/rules/principles.md).
-func TestHelpShapeLeavesTheLongHelpRuleUnjudgedWithNoBaseline(t *testing.T) {
+// VALIDATES: a command node that carries a summary and no long text is refused
+// wherever it was written, and not only where the commit under test wrote it.
+// PREVENTS: the rule sliding back to a HEAD-scoped one. It was scoped to the
+// working tree's own changes while 193 declarations in the corpus carried a
+// summary alone. Those are written, so a declaration HEAD already held is
+// judged exactly as a new one is, and a text nobody would be billed for cannot
+// reappear (ai/rules/principles.md).
+func TestHelpShapeRefusesALongTextMissingFromAnUnchangedCommand(t *testing.T) {
 	loader := shapeLoaderOver(t, withoutText(t, shapeModule, shapeCommandLongHelp),
 		shapeAPIModule, shapeConfModule(t))
 
@@ -1240,12 +1201,8 @@ func TestHelpShapeLeavesTheLongHelpRuleUnjudgedWithNoBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the gate could not read the fixture: %v", err)
 	}
-	if !report.Valid {
-		t.Fatalf("the gate refused a declaration with no baseline to judge it against:\n%s",
-			report.Text())
-	}
-	if !strings.Contains(report.LongHelpScope, "not judged") {
-		t.Errorf("the report states the scope as %q, want it to say the rule was not judged",
-			report.LongHelpScope)
+	if got := shapeRules(report); len(got) != 1 || got[0] != ruleMissingLongHelp {
+		t.Fatalf("the gate reports %v against %q, want exactly [%s]",
+			got, fixturePath, ruleMissingLongHelp)
 	}
 }

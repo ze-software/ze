@@ -34,6 +34,11 @@ module ze-ddos-local-conf {
         type uint32 { range "0..86400"; }
         default 3600;
         description "Maximum seconds a drop rule stays installed (0 = no cap).";
+        ze:help "Ze parses the value and refuses it outside 0 to 86400, and then no code reads it. A
+            drop rule of ddos local is removed on the AttackCleared event and on no other trigger. An
+            attack that never clears leaves the rule installed. The leaf of the same name under ddos
+            flowspec is enforced against the wall clock. This one is not, so a value other than the default
+            3600 changes no behavior.";
       }
       leaf confidence-min {
         type uint8 { range "0..100"; }

@@ -29,6 +29,14 @@ module ze-filter-community {
 
             list standard {
                 key "name";
+                description "Named sets of standard communities a tag or a strip list names.";
+                ze:help "Each entry holds one or more ASN:value pairs under one name.
+                         An ingress or egress tag or strip list names the entry
+                         in place of the values. Ze refuses a set that holds no
+                         value. It refuses a name a second entry of the
+                         standard, large or extended list already holds. It
+                         refuses a tag or a strip list that names a set no
+                         entry declares.";
                 leaf name {
                     type string;
                     description "Community set name.";
@@ -46,6 +54,14 @@ module ze-filter-community {
 
             list large {
                 key "name";
+                description "Named sets of large communities a tag or a strip list names.";
+                ze:help "Each entry holds one or more GA:LD1:LD2 triples under one name.
+                         An ingress or egress tag or strip list names the entry
+                         in place of the values. Ze refuses a set that holds no
+                         value. It refuses a name a second entry of the
+                         standard, large or extended list already holds. It
+                         refuses a tag or a strip list that names a set no
+                         entry declares.";
                 leaf name {
                     type string;
                     description "Community set name.";
@@ -63,6 +79,14 @@ module ze-filter-community {
 
             list extended {
                 key "name";
+                description "Named sets of extended communities a tag or a strip list names.";
+                ze:help "Each entry holds one or more extended community values under one name.
+                         An ingress or egress tag or strip list names the entry
+                         in place of the values. Ze refuses a set that holds no
+                         value. It refuses a name a second entry of the
+                         standard, large or extended list already holds. It
+                         refuses a tag or a strip list that names a set no
+                         entry declares.";
                 leaf name {
                     type string;
                     description "Community set name.";

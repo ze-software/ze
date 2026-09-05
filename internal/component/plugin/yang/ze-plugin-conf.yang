@@ -13,18 +13,39 @@ module ze-plugin-conf {
 
     container plugin {
         description "Plugin configuration";
+        ze:help "Declares the plugins this daemon runs, and the hub transport they connect back over. A built-in
+            plugin that claims a configured address family starts with no block here, because the engine loads it for
+            that family. Declare an internal block to run a built-in plugin under a name you choose. Declare an
+            external block to run a program of your own. Declare a hub block to set the TLS listener and its secrets.
+            The name of an internal or external block is the name a peer's 'attach process' binding refers to.";
 
         container hub {
             description "Plugin transport and auth configuration";
+            ze:help "Sets the TLS listener that plugin processes connect back to, and the outbound connection this
+                daemon makes to a remote hub for its config. With no server block the daemon opens one on 127.0.0.1,
+                with a kernel-chosen port and a random secret. Each plugin process reads that address and a per-plugin
+                token from its environment. Declare a server block when a process the daemon did not start must
+                connect, such as the plugin CLI or a remote managed client. Declare a client block when this daemon
+                takes its config from a remote hub.";
 
             list server {
                 key "name";
                 ze:listener;
                 description "Named hub server instances (TLS listeners)";
+                ze:help "Each block is one TLS listener. The plugin acceptor binds the first block in configuration
+                    order and no other, so a second block exists for the managed clients it names. Every block that
+                    carries client entries also starts the managed config server, which needs blob-backed config
+                    storage. Give such a block a port of its own. A block whose address the plugin acceptor already
+                    binds fails to listen, and 'ze doctor' reports that collision. Set ip and port to the listen
+                    address, and secret to the token a connection presents.";
 
                 leaf name {
                     type string { length "1..64"; }
                     description "Server block name (e.g., local, central)";
+                    ze:help "Names the block in log lines and in the 'ze doctor' collision message. It selects nothing
+                        at runtime, because the plugin acceptor takes the first block in configuration order whatever
+                        it is called. Common names are 'local' for the loopback listener that plugin processes use,
+                        and 'central' for the listener remote managed clients dial.";
                 }
 
                 uses zt:listener;
@@ -33,6 +54,12 @@ module ze-plugin-conf {
                     type string;
                     ze:sensitive;
                     description "Auth token for plugin connections (min 32 chars)";
+                    ze:help "The token this listener accepts from a connection whose name matches no plugin this
+                        daemon started and no client entry in this block. A plugin the daemon starts receives a random
+                        per-name token in its environment instead, so no operator copies this value into a plugin. It
+                        holds at least 32 characters and the config is refused below that length. With no server block
+                        the daemon generates a random secret at each start, which no process outside it can know. The
+                        CLI masks the value on display, and the committed config file holds it in the clear.";
                 }
 
                 leaf certificate {
@@ -47,16 +74,32 @@ module ze-plugin-conf {
                 list client {
                     key "name";
                     description "Accepted remote managed clients";
+                    ze:help "Each entry names a managed client this hub accepts, and the token that client presents.
+                        One entry turns the block into a managed config listener. That listener answers a config
+                        fetch. It pushes a change notice when the client's stored config is written. The config it
+                        serves is the stored file 'client-<name>.conf', so the entry name is what routes a config to a
+                        client. Every server block that carries client entries serves one certificate, and a config
+                        that names two different ones is refused.";
 
                     leaf name {
                         type string { length "1..64"; }
                         description "Client identity name";
+                        ze:help "The identity the remote client sends at authentication, and the name of the config
+                            this hub serves it. It matches the name of the client block on the remote daemon, and it
+                            selects the stored file 'client-<name>.conf'. The token in the secret leaf is checked
+                            against this name, so each client authenticates with its own token.";
                     }
 
                     leaf secret {
                         type string;
                         ze:sensitive;
                         description "Per-client auth token (min 32 chars)";
+                        ze:help "The token this named client presents at authentication. It holds at least 32
+                            characters, and the config is refused below that length with the client name in the error.
+                            An entry with no secret is refused as well. Write the same value in the secret leaf of the
+                            client block on the remote daemon. This per-client token is checked before the block
+                            secret. The CLI masks the value on display, and the committed config file holds it in the
+                            clear.";
                     }
                 }
             }
@@ -64,31 +107,58 @@ module ze-plugin-conf {
             list client {
                 key "name";
                 description "Outbound hub connections (managed client mode)";
+                ze:help "Each block is an outbound connection to the hub that holds this daemon's config. The daemon
+                    dials the first block only, and never dials a second block. The client validates the hub
+                    certificate, sends its name and secret, then fetches its config and commits it. A heartbeat every
+                    30 seconds holds the connection open. It reconnects with a delay that grows from 1 second to 60
+                    seconds, and it stops when this instance is no longer marked as managed. The daemon dials nothing
+                    here unless it runs as a managed instance with blob-backed config storage.";
 
                 leaf name {
                     type string { length "1..64"; }
                     description "Client identity name";
+                    ze:help "The identity this daemon sends to the hub. The hub matches it against a client entry
+                        under its own server block, and serves the config stored for that name. This name and the name
+                        of that client entry MUST be the same string. The secret leaf on both sides MUST hold the same
+                        token.";
                 }
 
                 leaf host {
                     type string;
                     description "Remote hub address";
+                    ze:help "The address of the remote hub, as an IP address or a hostname. It joins the port leaf
+                        into the dial address, and it also sets the TLS server name the client verifies. The value
+                        MUST therefore appear in the hub certificate. A certificate that names a different host is
+                        refused, and the client sends its secret to no such hub.";
                 }
 
                 leaf port {
                     type uint16;
                     description "Remote hub port";
+                    ze:help "The TCP port of the remote hub. It MUST equal the port of the hub server block that
+                        carries this client's entry. There is no default: a block with no port dials port 0, and no
+                        hub listens there.";
                 }
 
                 leaf secret {
                     type string;
                     ze:sensitive;
                     description "Auth token (min 32 chars)";
+                    ze:help "The token this daemon sends to the hub at authentication. It holds at least 32 characters
+                        and the config is refused below that length. It MUST equal the secret of the matching client
+                        entry in the hub's server block, so rotate both sides in one change. The CLI masks the value
+                        on display, and the committed config file holds it in the clear.";
                 }
 
                 leaf source-address {
                     type zt:ip-address;
                     description "Source IP address for outbound hub connections.";
+                    ze:help "Binds the outbound hub connection to this local IP address. Set it when the route to the
+                        hub leaves an interface whose address the hub does not expect. One example is a hub that
+                        accepts one management address only. The address MUST exist on this host, because the
+                        connection fails when the kernel cannot bind it. With no value the kernel picks the source
+                        address of the outgoing route. 'ze doctor' probes the hub through the same source address, so
+                        its verdict matches what the daemon does.";
                 }
 
                 leaf ca {
@@ -109,12 +179,21 @@ module ze-plugin-conf {
         list internal {
             key "name";
             description "Built-in plugin running in-process";
+            ze:help "Runs a plugin that ships inside the ze binary as a goroutine of this process. There is no fork,
+                no TLS connect-back and no shell command: the engine and the plugin exchange messages over an
+                in-memory pipe. Each block needs a use leaf naming the built-in plugin, and a block that also sets run
+                is refused. Declare a block here to bind a built-in plugin to a peer with 'attach process', or to run
+                one under a name of your own. A plugin that claims a configured address family loads without a block.";
 
             leaf name {
                 type string {
                     length "1..64";
                 }
                 description "Plugin name";
+                ze:help "The key of the block, and the name the rest of the config uses for this plugin. A peer's
+                    'attach process' binding names it. It is independent of the use leaf, so the same built-in plugin
+                    can run under two names. A name that starts with an underscore is reserved and the config is
+                    refused. The name MUST NOT repeat a name in the external list.";
             }
 
             leaf use {
@@ -123,28 +202,54 @@ module ze-plugin-conf {
                 }
                 ze:validate "internal-plugin-name";
                 description "Name of a built-in plugin to run in-process";
+                ze:help "Names the built-in plugin this block runs. The value MUST be a plugin registered in this
+                    binary. A value that is not registered is refused, and the error prints the registered names.
+                    Command completion offers that same list. The leaf is required, and a block with no use is refused
+                    with 'internal plugin requires use'.";
             }
         }
 
         list external {
             key "name";
             description "External plugin process";
+            ze:help "Runs a plugin as a separate process. The engine starts the run command with '/bin/sh -c'. The
+                child connects back to the hub listener over TLS. It reads the address, the certificate authority root
+                and its token from its environment. A block that sets use instead of run runs a built-in plugin in
+                this process, with no fork. The block name is the name a peer's 'attach process' binding refers to,
+                and the name the hub binds the connect-back token to.";
 
             leaf name {
                 type string {
                     length "1..64";
                 }
                 description "Plugin name";
+                ze:help "The key of the block, and the name the rest of the config uses for this plugin. A peer's
+                    'attach process' binding names it, and the child reads it as ZE_PLUGIN_NAME. The hub binds the
+                    connect-back token to this name, so one plugin's token authenticates no other. A name that starts
+                    with an underscore is reserved and the config is refused. The name MUST NOT repeat a name in the
+                    internal list.";
             }
 
             leaf run {
                 type string;
                 description "Command to execute plugin as external process (with args)";
+                ze:help "The command line that starts the plugin. The engine runs it with '/bin/sh -c', so arguments,
+                    quoting and a PATH lookup work as they do in a shell. The directory of the running ze binary is
+                    added to PATH as a fallback, so 'ze plugin <name>' finds the binary in a development tree. The
+                    child reads ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, ZE_PLUGIN_HUB_TOKEN, ZE_PLUGIN_CA_PEM and
+                    ZE_PLUGIN_NAME from its environment, and connects back over TLS. A value of the form 'ze.<plugin>'
+                    names a built-in plugin, which the engine then runs in this process rather than as a fork. run and
+                    use are mutually exclusive, and a block that sets both is refused.";
             }
 
             leaf use {
                 type string;
                 description "Name of a built-in plugin to run in-process (mutually exclusive with run)";
+                ze:help "Names a built-in plugin to run in this process instead of a command. The block then behaves
+                    like an internal block: no fork, no TLS connect-back, and an in-memory pipe between the engine and
+                    the plugin. run and use are mutually exclusive, and a block that sets both is refused. The use
+                    leaf of an internal block is checked against the registered plugin names, and this one is not. An
+                    unknown name here fails at startup with 'unknown internal plugin'.";
             }
 
             leaf encoder {
@@ -153,16 +258,32 @@ module ze-plugin-conf {
                     enum text { description "Human-readable text encoding"; }
                 }
                 description "Event encoding format";
+                ze:help "Chooses how the engine encodes the events it sends this plugin: 'json' for JSON objects,
+                    'text' for the line format ExaBGP plugins read. 'text' also makes the engine forward every
+                    received BGP UPDATE to the plugin. A peer's 'attach process' binding can set an encoding of its
+                    own, and that value wins over this one. With no value here and none on the binding, the engine
+                    uses 'text'.";
             }
 
             leaf respawn {
                 type boolean;
                 description "Respawn on exit";
+                ze:help "This daemon does not act on this leaf. A plugin process that exits is not started again,
+                    whatever the value holds. Nothing reads this leaf into the configuration the process manager
+                    consults. The engine does hold a restart path, and only a configuration reload that a plugin
+                    refuses reaches it. A plugin that must survive a crash today needs a run command that restarts the
+                    program, such as a wrapper script.";
             }
 
             leaf timeout {
                 type string;
                 description "Startup timeout (e.g., 10s, 1m)";
+                ze:help "Bounds a stall in the plugin startup handshake, and does not bound the handshake itself. The
+                    handshake runs in stages across every plugin that starts together. The timer expires only when no
+                    plugin of that group completes a stage for this long. Write a duration with a unit, such as 10s or
+                    1m: a value with no unit is refused, and so is a negative value. With no value the engine uses the
+                    ze.plugin.stage.timeout environment variable, which defaults to 5s. Raise it for a plugin that
+                    needs longer to reach its first stage.";
             }
         }
     }

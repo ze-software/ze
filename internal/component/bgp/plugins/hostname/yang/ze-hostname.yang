@@ -107,6 +107,10 @@ module ze-hostname {
                 length "0..255";
             }
             description "Legacy: Host name for FQDN capability.";
+            ze:help "Ze reads the leaf after capability > hostname > host and replaces that value with it, so a
+                peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
+                host name, which is the 255-byte limit. Write capability > hostname > host in a new config:
+                ze exabgp migrate produces that spelling and never this one.";
         }
 
         leaf domain-name {
@@ -114,6 +118,10 @@ module ze-hostname {
                 length "0..255";
             }
             description "Legacy: Domain name for FQDN capability.";
+            ze:help "Ze reads the leaf after capability > hostname > domain and replaces that value with it, so a
+                peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
+                domain name, which is the 255-byte limit. Write capability > hostname > domain in a new config:
+                ze exabgp migrate produces that spelling and never this one.";
         }
     }
 
@@ -124,6 +132,10 @@ module ze-hostname {
                 length "0..255";
             }
             description "Legacy: Host name for FQDN capability.";
+            ze:help "Ze reads the leaf after capability > hostname > host and replaces that value with it, so a
+                peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
+                host name, which is the 255-byte limit. Write capability > hostname > host in a new config:
+                ze exabgp migrate produces that spelling and never this one.";
         }
 
         leaf domain-name {
@@ -131,6 +143,10 @@ module ze-hostname {
                 length "0..255";
             }
             description "Legacy: Domain name for FQDN capability.";
+            ze:help "Ze reads the leaf after capability > hostname > domain and replaces that value with it, so a
+                peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
+                domain name, which is the 255-byte limit. Write capability > hostname > domain in a new config:
+                ze exabgp migrate produces that spelling and never this one.";
         }
     }
 
@@ -141,6 +157,10 @@ module ze-hostname {
                 length "0..255";
             }
             description "Legacy: Host name for FQDN capability (group default).";
+            ze:help "A member peer that states no host-name of its own takes this value. Ze reads the leaf after
+                capability > hostname > host and replaces that value with it. The capability writes a 1-byte length
+                in front of the host name, which is the 255-byte limit. Write capability > hostname > host in a new
+                config: ze exabgp migrate produces that spelling and never this one.";
         }
 
         leaf domain-name {
@@ -148,6 +168,10 @@ module ze-hostname {
                 length "0..255";
             }
             description "Legacy: Domain name for FQDN capability (group default).";
+            ze:help "A member peer that states no domain-name of its own takes this value. Ze reads the leaf after
+                capability > hostname > domain and replaces that value with it. The capability writes a 1-byte length
+                in front of the domain name, which is the 255-byte limit. Write capability > hostname > domain in a new
+                config: ze exabgp migrate produces that spelling and never this one.";
         }
     }
 }

@@ -13,9 +13,23 @@ module ze-tacacs-conf {
 
     container system {
         description "System-level settings";
+        // Several modules declare this container and the config tree merges
+        // them, so this text states what THIS module attaches under it.
+        ze:help
+            "The container holds the system-wide settings. This module attaches
+             the TACACS+ server block and the tacacs-profile mapping under
+             authentication.";
 
         container authentication {
             description "System authentication settings";
+            ze:help
+                "System authentication settings. This module attaches two nodes
+                 under it. The tacacs block authenticates an operator login
+                 against a TACACS+ server. The tacacs-profile list turns the
+                 privilege level of that login into ze authorization profiles,
+                 and a login whose level it does not map is denied. The TACACS+
+                 backend joins the AAA chain at priority 100, behind RADIUS at
+                 50 and in front of the local accounts at 200.";
 
             container tacacs {
                 description "TACACS+ server configuration (RFC 8907)";
@@ -177,6 +191,19 @@ module ze-tacacs-conf {
                         range "0..15";
                     }
                     description "TACACS+ privilege level (0-15)";
+                    ze:help
+                        "The level is the list key, so one level holds one entry.
+                         Ze reads it from the first byte of the data field of the
+                         authentication REPLY the server sends when it accepts
+                         the login. A REPLY that carries no data byte reads as
+                         level 1. RFC 8907 Section 9 states that 'Privilege
+                         levels are ordered values from 0 to 15 with each level
+                         being a superset of the next lower value'. Section 9
+                         also gives the common allocation: 0 for an
+                         unauthenticated session, 1 for a regular authenticated
+                         session, and 15 for the highest level. A level with no
+                         entry in this list denies the login, so every level the
+                         server can return needs an entry here.";
                 }
 
                 leaf-list profile {

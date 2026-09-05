@@ -27,6 +27,11 @@ module ze-ddos-observe-conf {
         type uint32 { range "1..86400"; }
         default 3600;
         description "Seconds before an open incident without a clear event is auto-finalized.";
+        ze:help "The value reaches the incident store as its stale timeout, and no worker of ddos
+            observe applies that timeout. The store closes an incident on the AttackCleared event that
+            matches it. An incident that gets no clear event stays open until incident-ring-size evicts
+            it. The default is 3600 seconds and the range is 1 to 86400. A value other than the default
+            changes no behavior.";
       }
     }
   }

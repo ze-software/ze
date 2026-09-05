@@ -52,6 +52,14 @@ module ze-l2tp-shaper-conf {
                 type zt:rate;
                 description
                     "Default upload rate. When omitted, defaults to default-rate.";
+                ze:help "The format is a number and a suffix, for example 5mbit, and the
+                         suffixes are bit, kbit, mbit, gbit, bps, kbps, mbps and gbps. Ze
+                         records the rate on each session that starts, and records
+                         default-rate instead when the leaf is absent. A RADIUS Filter-Id of
+                         the form rate:20mbit/5mbit replaces both this rate and the download
+                         rate on that session. The queueing discipline Ze installs on the
+                         pppN interface carries the download rate alone. The 'show l2tp
+                         shaper' command reports this rate, and no interface enforces it.";
             }
         }
     }

@@ -307,6 +307,12 @@ module ze-l2tp-conf {
 
     container environment {
         description "Environment settings for L2TP subsystem";
+        ze:help "The l2tp container under it holds the UDP listen endpoints alone, and every
+            protocol setting lives at the root l2tp block instead. Ze merges same-named
+            containers across modules, so this container is one tree that every service
+            module writes into. The subsystem starts only when a server entry names an
+            endpoint. With no entry, Ze logs that L2TP is enabled with no listener
+            configured and starts nothing.";
 
         container l2tp {
             description "L2TP listener endpoints";

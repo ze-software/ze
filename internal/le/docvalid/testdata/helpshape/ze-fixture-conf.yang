@@ -7,6 +7,9 @@
 // given a brief with no population rule shortened exactly these statements and
 // moved the prose into comments, which is a downgrade.
 //
+// The choice and the case carry a paragraph each for the same reason. Neither
+// is emitted as a completion row: effectiveChildren walks through both.
+//
 // Two enumerations sit in it on purpose. The one on `family` keys a list, so
 // the completer renders each value's description on a one-line row. The one on
 // `state` keys nothing, so no surface renders it and no bound reaches it.
@@ -72,6 +75,25 @@ module ze-fixture-conf {
       }
       description "Whether the socket is open.";
       ze:help "The state is read from the kernel each time the row is drawn.";
+    }
+
+    choice delivery {
+      description
+        "A choice statement is schema structure that effectiveChildren walks
+         through. Its own description reaches no completion row. This paragraph
+         runs past both bounds and is rendered nowhere.";
+
+      case immediate {
+        description
+          "A case statement is walked through in the same way. This paragraph
+           runs past both bounds. No bound of this gate reaches it.";
+
+        leaf deadline {
+          type uint16;
+          description "Seconds the daemon waits before it drops the socket.";
+          ze:help "The timer starts when the socket enters the closing state.";
+        }
+      }
     }
 
     list binding {

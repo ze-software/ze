@@ -516,6 +516,12 @@ highest loopback IPv4 address first, then the highest interface IPv4 address.";
             default 100000;
             units Mbps;
             description "Auto-cost reference bandwidth in Mbps.";
+            ze:help "The unit is Mbps, the range is 1 to 4294967, and the default is 100000.
+The auto-cost convention divides this bandwidth by the speed of a link to derive the cost of
+that link. RFC 2328 Appendix C.3 states that the interface output cost 'must always be
+greater than 0' and defines no automatic derivation from a link speed. Ze reads the speed of
+no link: an interface takes the cost of `interfaces/interface/cost`, and an absent cost leaf
+takes 1. This leaf changes no advertised metric.";
         }
 
         leaf maximum-paths {
@@ -707,6 +713,14 @@ accepted instance.";
             ze:help "RFC 6987 defines the stub router. Ze originates the Router-LSA with
 MaxLinkMetric, so transit traffic avoids this router.";
             container router-lsa {
+                description "Stub-router control of the Router-LSA link costs.";
+                ze:help "RFC 6987 section 2 has the stub router announce its Router-LSA with
+the cost of all non-stub links set to MaxLinkMetric. Section 3 defines MaxLinkMetric as the
+16-bit value 0xffff. A stub link keeps its cost, so a directly connected prefix of this
+router stays reachable. The `always` leaf originates that Router-LSA. The `on-startup` and
+`on-shutdown` leaves are stored and reported by `show ospf`, and they originate nothing. Any
+of the three set to a value other than the default raises the stub-router bit in the Router
+Information LSA of RFC 7770.";
                 leaf always {
                     type boolean;
                     default false;
@@ -715,8 +729,28 @@ MaxLinkMetric, so transit traffic avoids this router.";
 which RFC 6987 section 3 defines as 0xffff. A stub link keeps its cost, so a directly
 connected prefix of this router stays reachable.";
                 }
-                leaf on-startup { type uint32 { range "0..86400"; } units seconds; description "Advertise as a stub router for N seconds after startup (0 disables)."; }
-                leaf on-shutdown { type uint32 { range "0..86400"; } units seconds; description "Advertise as a stub router for N seconds during a graceful shutdown (0 disables)."; }
+                leaf on-startup {
+                    type uint32 { range "0..86400"; }
+                    units seconds;
+                    description "Advertise as a stub router for N seconds after startup (0 disables).";
+                    ze:help "The unit is seconds, the range is 0 to 86400, and 0 is the
+default. RFC 6987 defines the MaxLinkMetric advertisement and defines no startup timer for
+it. Ze stores this value and reports it as `on-startup-seconds` in `show ospf`. Ze raises the
+stub-router bit in the Router Information LSA of RFC 7770 when the value is more than 0. Ze
+starts no timed window: only `always` makes Ze originate the Router-LSA with
+MaxLinkMetric.";
+                }
+                leaf on-shutdown {
+                    type uint32 { range "0..86400"; }
+                    units seconds;
+                    description "Advertise as a stub router for N seconds during a graceful shutdown (0 disables).";
+                    ze:help "The unit is seconds, the range is 0 to 86400, and 0 is the
+default. RFC 6987 defines the MaxLinkMetric advertisement and defines no shutdown timer for
+it. Ze stores this value and reports it as `on-shutdown-seconds` in `show ospf`. Ze raises
+the stub-router bit in the Router Information LSA of RFC 7770 when the value is more than 0.
+Ze starts no timed window: only `always` makes Ze originate the Router-LSA with
+MaxLinkMetric.";
+                }
             }
         }
 
@@ -1437,8 +1471,30 @@ the window open with no end bound, so this key signs until a later key starts.";
                 }
                 container accept-lifetime {
                     description "When this key is accepted on receive.";
-                    leaf start { type string { length "1..64"; } description "RFC3339 start timestamp."; }
-                    leaf end { type string { length "1..64"; } description "RFC3339 end timestamp."; }
+                    ze:help "RFC 5709 section 3.2 names the two bounds Key Start Accept and
+Key Stop Accept. RFC 7474 section 4 requires that, for packet reception, 'the key validity
+interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current
+time'. Ze checks that both timestamps parse as RFC 3339 and refuses the configuration when
+one does not. Ze does not gate reception on the window yet. Verification tries every key of
+the chain and accepts the packet whose digest matches one of them. Use `send-lifetime` to
+control which key signs.";
+                    leaf start {
+                        type string { length "1..64"; }
+                        description "RFC3339 start timestamp.";
+                        ze:help "The value is an RFC 3339 timestamp, for example
+2026-01-01T00:00:00Z. RFC 5709 section 3.2 calls this bound Key Start Accept, the time from
+which this router accepts a packet made with this key. An absent leaf leaves the window open
+with no start bound.";
+                    }
+                    leaf end {
+                        type string { length "1..64"; }
+                        description "RFC3339 end timestamp.";
+                        ze:help "The value is an RFC 3339 timestamp. RFC 5709 section 3.2
+calls this bound Key Stop Accept, the time at which this router stops accepting a packet made
+with this key. Keep it later than the `send-lifetime` end, because RFC 5709 section 3.2
+states that 'KeyStopGenerate SHOULD be less than KeyStopAccept'. An absent leaf leaves the
+window open with no end bound.";
+                    }
                 }
             }
         }

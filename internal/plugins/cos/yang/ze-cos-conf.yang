@@ -194,20 +194,35 @@ every QoS leaf disappears from the interfaces.";
             // attaches the class-of-service leaves to it, and states the same fact
             // in wording the prose ratchet accepts.
             description "Physical or virtual Ethernet interface.";
+            ze:help "The cos plugin adds the class-of-service leaf to an ethernet interface. The leaf
+names an ieee-802.1p profile, and every unit of the interface inherits it. A unit that sets its
+own class-of-service keeps that one, and the value 'none' opts the unit out. Remove the cos
+plugin and the leaf disappears from the interface.";
 
             leaf name {
                 type string;
                 description "OS interface name, such as eth0 or ens3. It must match a kernel interface that exists.";
+                ze:help "The cos plugin repeats the list key here, because its class-of-service
+leaf merges onto the ethernet interface this name selects. The cos plugin adds no interface and
+renames none: ze-iface-conf owns the interface itself.";
             }
             uses cos-interface-leaves;
 
             list unit {
                 key "name";
                 description "Logical interface unit.";
+                ze:help "The cos plugin adds the class-of-service leaf and the inline
+ingress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit
+overrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that
+carries a profile and an inline map together. Both routes need vlan-id on the unit, because the
+map reaches the kernel 802.1Q subinterface.";
 
                 leaf name {
                     type zt:node-name;
                     description "Unit name, in lowercase alphanumeric characters and hyphens.";
+                    ze:help "The cos plugin repeats the list key here, because its
+class-of-service leaf and its QoS maps merge onto the unit this name selects. The unit itself,
+with its vlan-id and its addresses, is owned by ze-iface-conf.";
                 }
                 uses cos-unit-leaves;
             }
@@ -219,20 +234,35 @@ every QoS leaf disappears from the interfaces.";
             // attaches the class-of-service leaves to it, and states the same fact
             // in wording the prose ratchet accepts.
             description "Dummy interface, which behaves like a loopback.";
+            ze:help "The cos plugin adds the class-of-service leaf to a dummy interface. The leaf
+names an ieee-802.1p profile, and every unit of the interface inherits it. A unit that sets its
+own class-of-service keeps that one, and the value 'none' opts the unit out. Remove the cos
+plugin and the leaf disappears from the interface.";
 
             leaf name {
                 type string;
                 description "Dummy interface name, such as dummy0. Ze creates the interface at apply time.";
+                ze:help "The cos plugin repeats the list key here, because its class-of-service
+leaf merges onto the dummy interface this name selects. The cos plugin adds no interface and
+renames none: ze-iface-conf owns the interface itself.";
             }
             uses cos-interface-leaves;
 
             list unit {
                 key "name";
                 description "Logical interface unit.";
+                ze:help "The cos plugin adds the class-of-service leaf and the inline
+ingress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit
+overrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that
+carries a profile and an inline map together. Both routes need vlan-id on the unit, because the
+map reaches the kernel 802.1Q subinterface.";
 
                 leaf name {
                     type zt:node-name;
                     description "Unit name, in lowercase alphanumeric characters and hyphens.";
+                    ze:help "The cos plugin repeats the list key here, because its
+class-of-service leaf and its QoS maps merge onto the unit this name selects. The unit itself,
+with its vlan-id and its addresses, is owned by ze-iface-conf.";
                 }
                 uses cos-unit-leaves;
             }
@@ -244,20 +274,35 @@ every QoS leaf disappears from the interfaces.";
             // attaches the class-of-service leaves to it, and states the same fact
             // in wording the prose ratchet accepts.
             description "Virtual ethernet pair interface";
+            ze:help "The cos plugin adds the class-of-service leaf to a veth interface. The leaf
+names an ieee-802.1p profile, and every unit of the interface inherits it. A unit that sets its
+own class-of-service keeps that one, and the value 'none' opts the unit out. Remove the cos
+plugin and the leaf disappears from the interface.";
 
             leaf name {
                 type string;
                 description "Veth interface name, such as veth0. Ze creates the pair at apply time.";
+                ze:help "The cos plugin repeats the list key here, because its class-of-service
+leaf merges onto the veth interface this name selects. The cos plugin adds no interface and
+renames none: ze-iface-conf owns the interface itself.";
             }
             uses cos-interface-leaves;
 
             list unit {
                 key "name";
                 description "Logical interface unit.";
+                ze:help "The cos plugin adds the class-of-service leaf and the inline
+ingress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit
+overrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that
+carries a profile and an inline map together. Both routes need vlan-id on the unit, because the
+map reaches the kernel 802.1Q subinterface.";
 
                 leaf name {
                     type zt:node-name;
                     description "Unit name, in lowercase alphanumeric characters and hyphens.";
+                    ze:help "The cos plugin repeats the list key here, because its
+class-of-service leaf and its QoS maps merge onto the unit this name selects. The unit itself,
+with its vlan-id and its addresses, is owned by ze-iface-conf.";
                 }
                 uses cos-unit-leaves;
             }
@@ -269,20 +314,35 @@ every QoS leaf disappears from the interfaces.";
             // attaches the class-of-service leaves to it, and states the same fact
             // in wording the prose ratchet accepts.
             description "Linux bridge interface, which forwards Ethernet frames between member ports at L2.";
+            ze:help "The cos plugin adds the class-of-service leaf to a bridge interface. The leaf
+names an ieee-802.1p profile, and every unit of the interface inherits it. A unit that sets its
+own class-of-service keeps that one, and the value 'none' opts the unit out. Remove the cos
+plugin and the leaf disappears from the interface.";
 
             leaf name {
                 type string;
                 description "Bridge interface name, such as br0. Ze creates the bridge at apply time.";
+                ze:help "The cos plugin repeats the list key here, because its class-of-service
+leaf merges onto the bridge interface this name selects. The cos plugin adds no interface and
+renames none: ze-iface-conf owns the interface itself.";
             }
             uses cos-interface-leaves;
 
             list unit {
                 key "name";
                 description "Logical interface unit.";
+                ze:help "The cos plugin adds the class-of-service leaf and the inline
+ingress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit
+overrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that
+carries a profile and an inline map together. Both routes need vlan-id on the unit, because the
+map reaches the kernel 802.1Q subinterface.";
 
                 leaf name {
                     type zt:node-name;
                     description "Unit name, in lowercase alphanumeric characters and hyphens.";
+                    ze:help "The cos plugin repeats the list key here, because its
+class-of-service leaf and its QoS maps merge onto the unit this name selects. The unit itself,
+with its vlan-id and its addresses, is owned by ze-iface-conf.";
                 }
                 uses cos-unit-leaves;
             }

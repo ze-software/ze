@@ -84,9 +84,12 @@ module ze-static-conf {
 
                 leaf tag {
                     type uint32;
-                    description
-                        "Opaque tag for route policy matching.
-                         Carried in redistribute events.";
+                    description "Opaque tag Ze stores against this route.";
+                    ze:help "Ze prints the value in the tag field of show static route and in the config
+                        diff. It writes the value into no kernel route. RouteChangeEntry carries no tag
+                        field, so a consumer of the redistribute bus never sees this value, and no route
+                        policy matches on it. A change to tag alone re-applies the route, because the
+                        config diff compares the field.";
                 }
 
                 choice action {

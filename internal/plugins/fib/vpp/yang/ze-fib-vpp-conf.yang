@@ -31,6 +31,13 @@ module ze-fib-vpp-conf {
                 description
                     "Enable VPP FIB programming. Routes from system RIB
                      are programmed directly into VPP's FIB.";
+                ze:help
+                    "The plugin programs the VPP FIB for as long as it runs, and
+                     it does not read this leaf. The config parser accepts the
+                     name and stores no value. Programming starts when the
+                     plugin loads and stops when it unloads, so the default
+                     false disables nothing. Unload the fib-vpp plugin to stop
+                     programming the VPP FIB.";
             }
 
             leaf table-id {
@@ -52,6 +59,15 @@ module ze-fib-vpp-conf {
                 default 256;
                 description
                     "Maximum number of routes per batch dispatch.";
+                ze:help
+                    "The leaf declares how many routes one batch dispatch would
+                     carry, and the plugin implements no batching. A config that
+                     writes this leaf fails to parse, with an error naming
+                     batch-size as not yet implemented, so the default 256 never
+                     applies. The system RIB already delivers one batch per
+                     address family, and the VPP call IPRouteAddDel programs one
+                     route per call. The plugin programs each route as it
+                     arrives.";
             }
 
             leaf batch-interval-ms {
@@ -60,6 +76,13 @@ module ze-fib-vpp-conf {
                 description
                     "Maximum time in milliseconds before dispatching
                      a partial batch.";
+                ze:help
+                    "The leaf declares how long a partial batch would wait
+                     before dispatch, in milliseconds, and the plugin implements
+                     no batching. A config that writes this leaf fails to parse,
+                     with an error naming batch-interval-ms as not yet
+                     implemented, so the default 10 never applies. The leaf
+                     batch-size is deferred for the same reason.";
             }
         }
     }

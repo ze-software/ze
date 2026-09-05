@@ -26,14 +26,13 @@ func shapeSchemaPaths(report HelpShapeReport, rule string) []string {
 }
 
 // schemaReport runs the gate over one fixture config module, beside the command
-// and API modules whose summaries satisfy every rule, with a baseline holding
+// and API modules whose summaries satisfy every rule, holding
 // everything the fixtures declare.
 func schemaReport(t *testing.T, confModule string) HelpShapeReport {
 	t.Helper()
 
 	loader := shapeLoaderOver(t, shapeModule, shapeAPIModule, confModule)
 	in := shapeInput(loader, shapeLocals())
-	in.Baseline = shapeBaselineFor(t, loader, shapeLocals())
 
 	report, err := helpShapeContract(in)
 	if err != nil {
@@ -43,8 +42,8 @@ func schemaReport(t *testing.T, confModule string) HelpShapeReport {
 }
 
 // VALIDATES: a module description, a revision description, a grouping
-// description and an enumeration reached through a typedef are each left
-// unjudged, however long they run.
+// description, a choice description, a case description and an enumeration
+// reached through a typedef are each left unjudged, however long they run.
 // PREVENTS: the repair a false refusal invites. Given a brief with no
 // population rule, three agents shortened exactly these statements and moved
 // the prose into `//` comments. A YANG description is schema that standard
@@ -132,7 +131,6 @@ func TestHelpShapeIgnoresALeafInACommandModuleButCapsOneInAConfigModule(t *testi
 
 	loader := shapeLoaderOver(t, cmdModule, shapeAPIModule, shapeConfModule(t))
 	in := shapeInput(loader, shapeLocals())
-	in.Baseline = shapeBaselineFor(t, loader, shapeLocals())
 
 	report, err := helpShapeContract(in)
 	if err != nil {
@@ -164,7 +162,6 @@ func TestHelpShapeRefusesAConfigLeafWithNoLongHelp(t *testing.T) {
 
 	loader := shapeLoaderOver(t, shapeModule, shapeAPIModule, conf)
 	in := shapeInput(loader, shapeLocals())
-	in.Baseline = shapeBaselineFor(t, loader, shapeLocals(), "Port the listener binds.")
 
 	report, err := helpShapeContract(in)
 	if err != nil {
@@ -196,5 +193,46 @@ module ze-fixture-conf {
 		shapeLoaderOver(t, shapeModule, shapeAPIModule, emptyConfModule), shapeLocals()))
 	if err == nil {
 		t.Fatalf("the gate accepted a schema of %d config nodes: %+v", report.Schema, report)
+	}
+}
+
+// VALIDATES: a leaf declared inside a `case` is judged, at the path an operator
+// types, with the choice and the case absent from it.
+// PREVENTS: a whole subtree escaping the gate because the walk stopped at the
+// structure above it. `effectiveChildren` (internal/component/cli/completer.go)
+// walks THROUGH a choice and a case and emits what is under them, so a leaf in
+// a case renders exactly as a leaf in the container does, and it owes both
+// texts on the same terms.
+func TestHelpShapeJudgesALeafInsideACase(t *testing.T) {
+	const inCase = "ze-fixture-conf:sockets/deadline"
+
+	module := withoutText(t, shapeConfModule(t),
+		`          ze:help "The timer starts when the socket enters the closing state.";
+`)
+	report := schemaReport(t, module)
+
+	if got := shapeSchemaPaths(report, ruleMissingLongHelp); len(got) != 1 || got[0] != inCase {
+		t.Fatalf("the gate reports %v, want exactly [%s]", got, inCase)
+	}
+}
+
+// VALIDATES: a config node that declares no description at all is refused under
+// `missing-summary`.
+// PREVENTS: the silent half of this gate. Every shape rule passes over a node
+// with no text to measure, so an unwritten node read as a written one and the
+// coverage count was the only thing that knew (ai/rules/principles.md).
+func TestHelpShapeRefusesAConfigNodeWithNoDescription(t *testing.T) {
+	const bare = "ze-fixture-conf:sockets/binding/port"
+
+	module := withoutText(t, shapeConfModule(t),
+		`        description "Port the listener binds.";
+`)
+	report := schemaReport(t, module)
+
+	if got := shapeSchemaPaths(report, ruleMissingSummary); len(got) != 1 || got[0] != bare {
+		t.Fatalf("the gate reports %v, want exactly [%s]", got, bare)
+	}
+	if !strings.Contains(report.Text(), ruleMissingSummary) {
+		t.Errorf("the rendered report does not name the rule:\n%s", report.Text())
 	}
 }

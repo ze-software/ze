@@ -182,6 +182,9 @@ module ze-ipsec-conf {
                     }
                     default "ikev2";
                     description "IKE protocol version.";
+                    ze:help "The default is ikev2 and the engine writes major version 2 into every header
+                        it sends. The parser stores the value and no other code reads it, so a group that
+                        names ikev1 commits and still runs IKEv2.";
                 }
 
                 leaf lifetime {
@@ -206,6 +209,10 @@ module ze-ipsec-conf {
                     }
                     default "none";
                     description "Action when peer closes the IKE SA.";
+                    ze:help "The default is none. The parser stores the value and no other code reads it,
+                        so none, start and restart leave the daemon with the same behavior. A session
+                        whose IKE SA the peer deletes tears its Child SA down and reconnects on a growing
+                        backoff. The session loop does this after every failure.";
                 }
 
                 container dead-peer-detection {
@@ -223,6 +230,10 @@ module ze-ipsec-conf {
                         }
                         default "hold";
                         description "Action when DPD detects a dead peer.";
+                        ze:help "The default is hold. One log line reads the value when the peer is
+                            declared dead, and no other code reads it. The three values restart, hold
+                            and clear leave the same behavior. Ze deletes the Child SA, ends the
+                            session, and reconnects on a growing backoff.";
                     }
 
                     leaf interval {
@@ -312,21 +323,36 @@ module ze-ipsec-conf {
 
             container remote-access {
                 description "Remote access VPN for road warrior clients (EAP).";
+                ze:help "The subtree parses and no session reads it, so a pool assigns no address and an
+                    eap-user authenticates nobody. The engine builds the address pool at each apply and
+                    then discards it. Configure a road warrior as a site-to-site peer with an EAP mode
+                    until the service exists. plan/immediate/spec-ipsec-remote-access.md owns the work.";
 
                 leaf ike-group {
                     type string;
                     mandatory true;
                     description "Reference to an IKE group name.";
+                    ze:help "The group MUST be declared under vpn ipsec ike-group, and commit refuses a
+                        name no group carries. No other code reads the reference, because no remote
+                        access session runs.";
                 }
 
                 leaf esp-group {
                     type string;
                     mandatory true;
                     description "Reference to an ESP group name.";
+                    ze:help "The group MUST be declared under vpn ipsec esp-group, and commit refuses a
+                        name no group carries. No other code reads the reference, because no remote
+                        access session runs.";
                 }
 
                 container authentication {
                     description "EAP authentication settings for remote access.";
+                    ze:help "Ze reads this block with the same parser as the site-to-site peer
+                        authentication block, so mode is mandatory here too. A handshake takes its EAP
+                        server credentials from the peer block instead, so the mode named here selects no
+                        method. The one effect it carries is the warning the daemon writes when it names
+                        eap-md5.";
 
                     leaf mode {
                         type enumeration {
@@ -361,12 +387,18 @@ module ze-ipsec-conf {
                             type string;
                             description "Name of the CA certificate in the PKI store.
                                 It has no effect today.";
+                            ze:help "Ze compares the name against nothing, so a name no PKI store entry
+                                carries still commits. The trust anchor of a handshake comes from the
+                                ca-certificate leaf of the site-to-site peer.";
                         }
 
                         leaf certificate {
                             type string;
                             description "Name of the server certificate in the PKI store.
                                 It has no effect today.";
+                            ze:help "Ze compares the name against nothing, so a name no PKI store entry
+                                carries still commits. The certificate a handshake presents comes from
+                                the certificate leaf of the site-to-site peer.";
                         }
                     }
                 }
@@ -379,47 +411,84 @@ module ze-ipsec-conf {
                     leaf name {
                         type string;
                         description "Pool name.";
+                        ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                            underscore and period, and commit refuses anything else. Ze reads the first
+                            pool of the list and ignores every later one. The name labels the pool in the
+                            message that refuses a range.";
                     }
 
                     leaf range {
                         type string;
                         description "IPv4 CIDR for client addresses (e.g. 10.10.0.0/24). Prefix length /8-/30.";
+                        ze:help "Commit refuses a value that is not a CIDR prefix, and a prefix length
+                            outside /8 to /30. The pool leases the addresses of the prefix without the
+                            network address and the broadcast address, so a /30 carries two clients. An
+                            empty leaf leases no IPv4 address. No code reads the pool today, so no client
+                            receives an address.";
                     }
 
                     leaf range6 {
                         type string;
                         description "IPv6 CIDR for client addresses (e.g. fd00::/64). Prefix length /48-/126.";
+                        ze:help "Commit refuses a value that is not a CIDR prefix, and a prefix length
+                            outside /48 to /126. An empty leaf leases no IPv6 address. No code reads the
+                            pool today, so no client receives an address.";
                     }
 
                     leaf dns {
                         type string;
                         description "DNS server pushed to clients via IKEv2 Configuration Payload.";
+                        ze:help "The leaf carries one address, and the pool sorts it into its IPv4 list or
+                            its IPv6 list from the family of that address. RFC 7296 Section 3.15.1 names
+                            the attribute that carries it INTERNAL_IP4_DNS or INTERNAL_IP6_DNS. Ze sends
+                            no Configuration payload today, so no client receives the address.";
                     }
 
                     leaf domain {
                         type string;
                         description "Search domain pushed to clients.";
+                        ze:help "The pool carries the domain beside the addresses it leases. Ze sends no
+                            Configuration payload today, so no client receives the domain.";
                     }
                 }
 
                 list eap-user {
                     key "name";
                     description "EAP user entry for remote access authentication.";
+                    ze:help "One entry holds the credential of one client. Which leaf carries that
+                        credential follows the mode of the authentication block: password for
+                        eap-mschapv2 and eap-md5, certificate for eap-tls. Ze validates every entry and
+                        no handshake reads one, because EAP runs against the credentials of the
+                        site-to-site peer.";
 
                     leaf name {
                         type string;
                         description "Username.";
+                        ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                            underscore and period, and commit refuses anything else. It is the key of the
+                            list, so it is unique. No code compares it against the identity an EAP client
+                            sends.";
                     }
 
                     leaf password {
                         type string;
                         ze:sensitive;
                         description "User password ($9$-encoded). Required for eap-mschapv2.";
+                        ze:help "Ze reads the leaf when the mode of the authentication block is
+                            eap-mschapv2 or eap-md5, and ignores it under every other mode. The $9$
+                            wrapper is removed and what is left is the password. Commit refuses an empty
+                            value under those two modes, because an empty password authenticates every
+                            client that guesses the name. The CLI writes the value back $9$-encoded and
+                            masks it in the configuration output.";
                     }
 
                     leaf certificate {
                         type string;
                         description "Client certificate name in PKI store. Required for eap-tls.";
+                        ze:help "Ze reads the leaf when the mode of the authentication block is eap-tls,
+                            and ignores it under every other mode. Commit refuses an empty value under
+                            eap-tls. The name is compared against nothing, so a name the PKI store does
+                            not hold still commits.";
                     }
                 }
             }
@@ -934,10 +1003,18 @@ module ze-ipsec-conf {
 
                     container vti {
                         description "Virtual Tunnel Interface binding.";
+                        ze:help "The interface itself is declared under interfaces xfrm, where the if-id
+                            leaf carries the identifier a bound security association must match. Ze joins
+                            the two nowhere, so every Child SA is installed with if_id 0.";
 
                         leaf bind {
                             type string;
                             description "VTI interface name to bind this peer's traffic to.";
+                            ze:help "Route-based IPsec encrypts the traffic the routing table forwards
+                                into the named XFRM interface. Commit refuses a name beside mode
+                                transport, because an XFRM interface carries tunnel-mode encapsulation.
+                                No code maps the name to the if-id of that interface today. The Child
+                                SA is installed with if_id 0, and the binding carries no traffic.";
                         }
                     }
                 }

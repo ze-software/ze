@@ -28,6 +28,11 @@ module ze-bfd-conf {
             type boolean;
             default true;
             description "Master switch for the BFD plugin.";
+            ze:help "The default is true. false stops Ze from starting the sessions pinned in this bfd
+                container. A reload to false stops the pinned sessions already running. It does not stop
+                the BFD service. Ze publishes that service whatever this leaf holds, so a BGP peer that
+                carries a bfd container still gets a BFD session. To stop the session of a peer, remove
+                the bfd container from that peer or set its enabled leaf to false.";
         }
 
         leaf persist-dir {

@@ -173,7 +173,8 @@ over statement keywords answers correctly.
 
 | Statement | Judged | Why |
 |-----------|--------|-----|
-| A `container`, `list`, `leaf`, `leaf-list`, `choice` or `case` in the config tree | Yes | `entryDescription` puts its description on the one-line row |
+| A `container`, `list`, `leaf` or `leaf-list` in the config tree | Yes | `entryDescription` puts its description on the one-line row |
+| A `choice` or a `case` | No, but the walk descends through it | `effectiveChildren` (`internal/component/cli/completer.go`) walks THROUGH both and emits neither as a completion row, so neither text ever renders |
 | A `module`, `submodule`, `revision`, `import`, `include`, `grouping`, `typedef`, `identity`, `feature` or `extension` description | No | It never becomes an entry, so no row renders it |
 | A `leaf` in a `-cmd.yang` or an `-api.yang` module | No | `argDefFor` builds a `command.ArgDef` from `leaf.Type` alone, and `ArgDef` holds no text field |
 | An `rpc` | By `collectRPCs`, wherever it is declared | Judging it here would refuse one declaration twice |
@@ -191,23 +192,21 @@ comment is neither, so all three passes were reverted.
 
 | Rule | What it refuses |
 |------|-----------------|
+| `missing-summary` | A config node declaring no `description` at all. An empty row under the completion menu tells an operator the name exists and nothing else |
 | `missing-long-help` | A declaration carrying a summary and no long text beside it |
 | `long-restates-summary` | A long text byte-equal to the summary beside it, once each is trimmed |
 | `long-cap` | A long text past `command.MaxLongHelpBytes`, which is the bound `validateHelpDecls` holds a plugin's declaration to |
 
-`missing-long-help` is the ONE rule of this gate that is not absolute. It judges
-what the working tree ADDED or CHANGED against `HEAD`, because the corpus does
-not yet carry an explanation everywhere and a rule armed over all of it would be
-a red nobody can close.
+Every one of the three is absolute, and so is `missing-summary`. A declaration
+an operator can reach owes both texts wherever it was written.
 
-The baseline is the summary TEXT, not the path that declares it. No file is
-written and none is read, so there is nothing a session can append a path to in
-order to silence the gate, and a declaration that MOVES between modules is not
-read as new debt. A baseline that cannot be read accuses nobody: a checkout with
-no git and a root commit each leave the rule unjudged, and the report says so on
-its `Long help judged over` line.
+`missing-long-help` was scoped to what the working tree added or changed against
+`HEAD` while 193 declarations in the corpus carried a summary alone. Those are
+written, so the rule holds over the whole tree and the `HEAD` baseline that
+scoped it is gone. There is no file to append a path to, and no scope line in
+the report: a summary with no long text beside it is refused wherever it sits.
 
-<!-- source: internal/le/docvalid/helpshape_baseline.go -- headHelpBaseline -->
+<!-- source: internal/le/docvalid/helpshape.go -- judgePair -->
 
 The third corpus is read two ways, because Go forbids importing a main package.
 The registrations this binary links are read from the registry. The four

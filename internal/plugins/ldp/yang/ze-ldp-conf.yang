@@ -61,7 +61,17 @@ module ze-ldp-conf {
             }
             default 60;
             units seconds;
-            description "Session keepalive interval";
+            description "Session keepalive interval.";
+            ze:help "The default is 60 seconds and the range is 1 to 65535. RFC 5036
+                     section 3.5.3 carries the KeepAlive Time in the Common Session
+                     Parameters of the Initialization message. The receiving LSR MUST
+                     calculate the KeepAlive Timer from 'the smaller of its proposed
+                     KeepAlive Time and the KeepAlive Time received in the PDU'.
+                     The lower of the two proposals wins. Ze proposes 60 seconds in every
+                     Initialization message and reads this leaf nowhere, so a change here
+                     moves no timer. Ze sends a KeepAlive every third of the negotiated
+                     value and closes the session when no PDU arrives inside three times
+                     it.";
         }
 
         leaf-list interfaces {

@@ -23,6 +23,16 @@ module ze-rib-conf {
 
     container rib {
         description "System RIB configuration.";
+        ze:help
+            "The system RIB takes the best route each protocol offers and
+             selects one system best for each prefix. The FIB plugins program
+             that winner into the kernel with netlink, into VPP, or into a P4
+             switch. The kernel FIB carries no administrative distance field, so
+             the ranking happens here and only the winner reaches netlink. The
+             distance container below is the one declaration of every protocol's
+             administrative distance, and it is the only setting under rib.
+             Routes reach the system RIB from the protocols, never from this
+             block.";
 
         container distance {
             description "Administrative distance per protocol.";
@@ -36,6 +46,17 @@ module ze-rib-conf {
                 type uint8;
                 default 0;
                 description "Directly connected networks.";
+                ze:help
+                    "A connected route is the prefix an interface address
+                     covers. The default 0 is the best distance a route can
+                     hold, so a connected route wins the prefix against every
+                     protocol that carries a higher value. This is the only
+                     distance leaf whose range starts at 0. The other five
+                     start at 1. Raise it above another protocol's distance to let
+                     that protocol win the same prefix. The value applies
+                     whether or not you write the rib block, because sysrib
+                     resolves every protocol from these schema defaults when it
+                     starts.";
             }
 
             leaf static {
@@ -44,6 +65,14 @@ module ze-rib-conf {
                 }
                 default 10;
                 description "Static routes.";
+                ze:help
+                    "A static route is one the operator wrote under the static
+                     configuration. The default 10 ranks a static route above
+                     every dynamic protocol declared here and below a connected
+                     route. The range is 1 to 255. sysrib applies the value to
+                     each route that arrives under the protocol name static.
+                     Raise it to more than 20 to let an eBGP route win the
+                     same prefix.";
             }
 
             leaf ebgp {
@@ -52,6 +81,16 @@ module ze-rib-conf {
                 }
                 default 20;
                 description "External BGP routes.";
+                ze:help
+                    "An eBGP route comes from a peer in another autonomous
+                     system. The default 20 ranks eBGP above every IGP declared
+                     here and below a static route. The range is 1 to 255. The
+                     BGP RIB plugin stamps this value on each path it inserts.
+                     The Loc-RIB ranks the paths on what it stamped, so the
+                     value decides selection before sysrib sees the route. The
+                     seam that carries it is process-global: a BGP RIB running
+                     in a forked plugin process keeps its own bootstrap 20 and
+                     nothing reports that.";
             }
 
             leaf ospf {
@@ -60,6 +99,13 @@ module ze-rib-conf {
                 }
                 default 110;
                 description "OSPF routes.";
+                ze:help
+                    "The default 110 ranks OSPF below eBGP and above IS-IS. The
+                     range is 1 to 255. The OSPF SPF installer stamps this value
+                     on each path it puts in the Loc-RIB, and its bootstrap 110
+                     applies until sysrib publishes the declaration. One value
+                     covers every OSPF route: Ze declares no separate distance
+                     for an external LSA.";
             }
 
             leaf isis {
@@ -68,6 +114,13 @@ module ze-rib-conf {
                 }
                 default 115;
                 description "IS-IS routes.";
+                ze:help
+                    "The default 115 ranks IS-IS below OSPF and above iBGP. The
+                     range is 1 to 255. The IS-IS SPF installer stamps this
+                     value on each path it puts in the Loc-RIB, and its
+                     bootstrap 115 applies until sysrib publishes the
+                     declaration. One value covers level 1 and level 2: Ze
+                     declares no separate distance for each level.";
             }
 
             leaf ibgp {
@@ -76,6 +129,15 @@ module ze-rib-conf {
                 }
                 default 200;
                 description "Internal BGP routes.";
+                ze:help
+                    "An iBGP route comes from a peer in the same autonomous
+                     system. The default 200 is the highest of the six declared
+                     here, so an iBGP route loses the prefix to any other
+                     protocol that holds it. The range is 1 to 255. The BGP RIB
+                     plugin stamps this value on each path it inserts, and its
+                     bootstrap 200 applies until sysrib publishes the
+                     declaration. The eBGP distance is a separate leaf, so the
+                     two BGP classes rank apart.";
             }
         }
     }

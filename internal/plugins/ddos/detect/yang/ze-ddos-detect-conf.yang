@@ -36,6 +36,11 @@ module ze-ddos-detect-conf {
       type uint16 { range "1..3600"; }
       default 1;
       description "Seconds between detection evaluations.";
+      ze:help "Ze parses the value and refuses it outside 1 to 3600, and then no code reads it. The
+          detector evaluates once per tick of the rate feed it subscribes to. Both feeds tick once a
+          second: the traffic-statistics service, and the interface rate collector Ze falls back to when
+          that service is absent. The cadence stays at one second whatever this leaf holds. A value other
+          than the default 1 changes no behavior.";
     }
     leaf confirm-duration {
       type uint16 { range "0..3600"; }

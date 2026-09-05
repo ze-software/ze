@@ -37,6 +37,12 @@ annotation.";
                 container known {
                     config false;
                     description "Well-known ASN sets Ze can print for an operator to paste.";
+                    ze:help "This keyword runs nothing on its own. Each child prints one
+well-known ASN set as a config block, and transit-free is the only child
+today. Ze acts on no ASN it was not configured with, so a set here decides
+nothing until an operator pastes it under `reject-asn NAME { }`. Every set
+is curated in Ze's own source and prints the curated date with its sources,
+because no authority publishes these sets.";
 
                     container transit-free {
                         config false;

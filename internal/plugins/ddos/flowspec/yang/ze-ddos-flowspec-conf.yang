@@ -94,6 +94,9 @@ module ze-ddos-flowspec-conf {
         type uint16 { range "1..600"; }
         default 10;
         description "Maximum FlowSpec announcements per minute.";
+        ze:help "Ze parses the value and refuses it outside 1 to 600, and then no code reads it. Ze
+            installs no rate limiter on FlowSpec announcements, so the responder announces as often as the
+            detector asks it to. A value other than the default 10 changes no behavior.";
       }
       leaf max-mitigation-duration {
         type uint32 { range "0..604800"; }

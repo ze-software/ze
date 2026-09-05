@@ -575,7 +575,7 @@ Peer configuration is organized into nested containers by concern.
 | `connection { remote { ip; port; connect; } }` | container | Peer IP address, connection port, initiate outbound connections (default: true) |
 | `connection { md5 { password; ip; } }` | container | TCP MD5 authentication (RFC 2385) |
 | `connection { ttl { max; set; min; } }` | container | GTSM max (RFC 5082), outgoing TTL, minimum incoming TTL |
-| `connection { link-local; }` | bool | Auto-discover IPv6 link-local for TCP |
+| `connection { link-local; }` | bool | Accepted and read by no code. `session { link-local; }` is the leaf that carries the address |
 
 ### session (BGP protocol)
 

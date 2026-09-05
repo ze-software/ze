@@ -87,6 +87,11 @@ module ze-bmp-conf {
                 }
                 default monitor;
                 description "Action for received BMP Route Monitoring messages";
+                ze:help "monitor is the default and is the only action Ze performs. redistribute is
+                    accepted by the schema and is not implemented: Ze writes a warning in the log and acts
+                    as monitor. Under monitor the routes of a BMP Route Monitoring message go to the BMP
+                    RIB, which show bmp rib reads. They reach neither BGP best-path selection nor the
+                    FIB.";
             }
         }
     }
@@ -188,6 +193,12 @@ module ze-bmp-conf {
                     default 0;
                     units "seconds";
                     description "Interval for periodic statistics reports (0 = disabled)";
+                    ze:help "The unit is seconds and the range is 0 to 65535. The default is 0, and Ze sends no
+                        Statistics Report (RFC 7854 Section 4.8) at any value. The periodic timer this leaf
+                        configures is not implemented, so the leaf changes what the sender configuration carries and
+                        nothing on the wire. A change to the leaf still bounces every session of the sender with a
+                        Peer Down and Peer Up sequence. Ze does this because it compares the whole declared
+                        sender behavior.";
                 }
             }
         }
