@@ -127,6 +127,10 @@ var prfOutputBits = map[PRFID]int{
 
 // encryptionKeyBits is the set of encryption key lengths this implementation can
 // key. AES takes a 128, 192 or 256 bit key.
+//
+// RFC 5282 Section 7.3 states the same set for every AES GCM and AES CCM transform:
+// "The Key Length attribute MUST have a value of 128, 192, or 256." acceptEncryption
+// is the site that enforces it against an offer.
 var encryptionKeyBits = map[uint16]bool{128: true, 192: true, 256: true}
 
 // specifiedEncryption lists the encryption transforms this implementation
@@ -157,8 +161,18 @@ var specifiedDHGroup = map[DHGroupID]bool{
 // Length attribute. RFC 7296 Section 3.3.5: "Some transforms specify that the Key
 // Length attribute MUST be always included ... For example, this includes
 // ENCR_AES_CBC and ENCR_AES_CTR".
+//
+// RFC 5282 Section 7.3 adds the AES GCM and AES CCM identifiers to that set:
+// "Because the AES supports three key lengths, the Key Length attribute MUST be
+// specified when any of the identifiers for AES GCM or AES CCM, specified in
+// Section 7.2 of this document, is used." ENCR_AES_GCM_16 is the only one of the
+// six identifiers this build specifies, so it is the only one named here. The list
+// is written out rather than derived from EncryptionID.IsAEAD, because the rule is
+// a property of the AES key size rather than of the AEAD property: ChaCha20-Poly1305
+// (RFC 7634 Section 4) is an AEAD cipher whose transform carries no Key Length
+// attribute at all.
 func keyLengthRequired(id EncryptionID) bool {
-	return id == ENCR_AES_CBC || id == encrAESCTR
+	return id == ENCR_AES_CBC || id == encrAESCTR || id == ENCR_AES_GCM_16
 }
 
 // keyLengthRule names how an offered Key Length attribute is compared with the key
@@ -226,11 +240,20 @@ func acceptEncryption(remote, local EncryptionTransform, rule keyLengthRule) (En
 	if keyLengthRequired(remote.ID) && remote.KeyLength == 0 {
 		return EncryptionTransform{}, ErrKeyLengthMissing
 	}
+	// RFC 5282 Section 7.3: "The Key Length attribute MUST have a value of 128, 192,
+	// or 256." The check stands on its own rather than inside the mismatch branch
+	// below, because a rule that only runs when the offer differs from local policy
+	// is enforced by that difference rather than by itself: it would stop enforcing
+	// anything the day a local proposal carried a length outside the set
+	// (ai/rules/principles.md).
+	if keyLengthRequired(remote.ID) && !encryptionKeyBits[remote.KeyLength] {
+		return EncryptionTransform{}, ErrNoProposalChosen
+	}
 	if remote.KeyLength != local.KeyLength {
 		if rule != keyLengthAtLeast {
 			return EncryptionTransform{}, ErrNoProposalChosen
 		}
-		if remote.KeyLength < local.KeyLength || !encryptionKeyBits[remote.KeyLength] {
+		if remote.KeyLength < local.KeyLength {
 			return EncryptionTransform{}, ErrNoProposalChosen
 		}
 	}

@@ -135,6 +135,11 @@ func (m *Message) ReadFrom(data []byte) error {
 		}
 		if sk, ok := payload.(*PayloadSK); ok {
 			sk.InnerNextPayload = gh.NextPayload
+			// RFC 5282 Section 5.1 ends the associated data at "the last octet of
+			// the Payload Header of the Encrypted Payload", which is the octet
+			// before this one. The loop has already walked every payload in front
+			// of this one, so this offset is the only place the span is known.
+			sk.DataOffset = off + GenericHeaderLen
 		}
 		m.Payloads = append(m.Payloads, PayloadEntry{
 			Payload:  payload,

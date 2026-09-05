@@ -647,6 +647,11 @@ func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messa
 
 // buildSKMessageAEADWithMsgID builds a complete IKE_AUTH message with AES-GCM.
 // Wire: [Header 28][SK GH 4][IV 8][ciphertext][GCM tag 16].
+//
+// RFC 5282 Section 3.1: "The Initialization Vector (IV) MUST be eight octets."
+// Section 3.2 for AES GCM: "Implementations MUST support a full-length 16 octet
+// ICV", and the ICV is the AES-GCM authentication tag that gocipher.NewGCM
+// appends, so no separate ICV field exists.
 func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, messageID uint32, exchangeType, flags uint8) ([]byte, error) {
 	const ivLen = 8
 	const tagLen = 16
@@ -660,12 +665,28 @@ func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, mess
 
 	writeAuthHeaderWithMsgID(buf, sa, firstType, uint32(totalLen), messageID, exchangeType, flags)
 
+	// RFC 5282 Section 3.1: "The IV MUST be chosen by the encryptor in a manner that
+	// ensures that the same IV value is used only once for a given key." Eight fresh
+	// octets from the system CSPRNG give a collision probability of 2^-33 over the
+	// 2^15 messages one IKE SA can send before it rekeys, which is what "MAY generate
+	// the IV in any manner that ensures uniqueness" permits.
 	ivOff := wire.HeaderLen + wire.GenericHeaderLen
 	if _, err := crand.Read(buf[ivOff : ivOff+ivLen]); err != nil {
 		return nil, err
 	}
 
+	// RFC 5282 Section 5.1: the associated data runs "from the first octet of the
+	// Fixed IKE Header through the last octet of the Payload Header of the Encrypted
+	// Payload", and "The Initialization Vector and Ciphertext fields ... MUST NOT be
+	// included in the associated data". writeAuthHeaderWithMsgID puts the SK generic
+	// header directly after the fixed header, so this message carries no payload
+	// between the two and the span is the first 32 octets.
 	aad := buf[:wire.HeaderLen+wire.GenericHeaderLen]
+	// RFC 5282 Section 4: "both the encryptor and decryptor construct the nonce by
+	// concatenating the salt with the IV, in that order", and "For the use of AES GCM
+	// with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a
+	// 12 octet nonce MUST be used." The salt is the four octets SK_ei or SK_er carries
+	// beyond the AES key (Section 7.1).
 	sendKey := skSendEncKey(sa)
 	key := sendKey[:len(sendKey)-4]
 	salt := sendKey[len(sendKey)-4:]
@@ -709,12 +730,24 @@ func writeAuthHeaderWithMsgID(buf []byte, sa *SA, firstType uint8, totalLen, mes
 // rawMsg is the complete message bytes. skPayload is the parsed SK payload.
 func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte, error) {
 	if sa.Proposal.Encryption.IsAEAD {
-		aadLen := wire.HeaderLen + wire.GenericHeaderLen
-		var aad []byte
-		if len(rawMsg) >= aadLen {
-			aad = rawMsg[:aadLen]
+		// RFC 5282 Section 5.1: "The associated data (A) MUST consist of the partial
+		// contents of the IKEv2 message, starting from the first octet of the Fixed
+		// IKE Header through the last octet of the Payload Header of the Encrypted
+		// Payload (i.e., the fourth octet of the Encrypted Payload) ... This includes
+		// any payloads that are between the Fixed IKE Header and the Encrypted
+		// Payload." The same section: "The Initialization Vector and Ciphertext
+		// fields ... MUST NOT be included in the associated data."
+		//
+		// The span therefore ends where this payload's DATA begins, which
+		// Message.ReadFrom recorded while it walked the chain. A fixed 32 octets is
+		// that span only for a message whose Encrypted payload follows the header
+		// directly, and a peer that puts an unencrypted payload in front of it is
+		// conformant.
+		aadLen := skPayload.DataOffset
+		if aadLen < wire.HeaderLen+wire.GenericHeaderLen || aadLen > len(rawMsg) {
+			return nil, errInvalidMessage
 		}
-		return ikecrypto.DecryptIKEAEAD(skRecvEncKey(sa), skPayload.CipherText, aad)
+		return ikecrypto.DecryptIKEAEAD(skRecvEncKey(sa), skPayload.CipherText, rawMsg[:aadLen])
 	}
 
 	integTrunc := int(sa.Proposal.Integrity.TruncatedLength)
