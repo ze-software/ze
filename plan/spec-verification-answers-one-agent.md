@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | design |
 | Scope | tooling |
-| Depends | `plan/spec-shared-machine-job-admission.md` (the admission machinery this extends), spec-verify-scope-1-shared-checkout-freshness (closed 2026-09-05; the freshness certificate this reads is `CheckCertificate`, `internal/le/verify/engine/status.go`, documented at `docs/architecture/testing/verify-freshness-scope.md`) |
+| Depends | spec-shared-machine-job-admission (closed 2026-09-05; the admission machinery this extends is `internal/le/job`, `Admit` and `Ticket.Release`), spec-verify-scope-1-shared-checkout-freshness (closed 2026-09-05; the freshness certificate this reads is `CheckCertificate`, `internal/le/verify/engine/status.go`, documented at `docs/architecture/testing/verify-freshness-scope.md`) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-05 |
@@ -147,7 +147,7 @@ working time. Recording it is named in Work Not Done.
 |----------|--------|
 | What breaks if this is wrong? | Nothing an operator sees: this is development tooling. A wrong P2 shares a stale verdict, which can let a red land; a wrong P1 stalls development. |
 | How is it reverted? | Single commit revert per phase. No artifact format changes and no config migration. |
-| Who else touches this path? | `plan/spec-shared-machine-job-admission.md` and the `verify-scope` family, all closing or closed on 2026-09-05. |
+| Who else touches this path? | spec-shared-machine-job-admission and the `verify-scope` family, all closed on 2026-09-05. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
