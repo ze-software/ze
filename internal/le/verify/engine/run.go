@@ -4,6 +4,7 @@ package verifyengine
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,7 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/job"
 )
 
@@ -35,6 +38,18 @@ const (
 	// full population (internal/le/staticcheckfeaturematrix, runCheck).
 	stageUnjudged = 2
 )
+
+// heartbeatInterval is how often a working stage reports that it is still
+// working.
+//
+// The job registry breaks a holder whose log has not grown for its stall window
+// (job.StallDefault, 1800 seconds), and it kills the holder's process group to
+// do it. A stage renders its whole output when it ends, so a run that spoke only
+// at stage boundaries would be silent for the length of one stage: the
+// staticcheck matrix alone measured 1855 seconds on 2026-09-05, which is past
+// that window. One line a minute costs a holder 63 lines over the longest run
+// measured on this machine.
+const heartbeatInterval = 60 * time.Second
 
 // Defeated reports whether err is a full device.
 //
@@ -117,28 +132,128 @@ type Report struct {
 // Text renders the run protocol and every stage's captured output.
 func (r Report) Text() string { return r.Console }
 
+// Slot is the job registry slot a verification holds while it runs. The caller
+// admits the run and owns both fields; a run that holds no slot passes the zero
+// value, which names no parent and reports its progress nowhere.
+type Slot struct {
+	// Entry is the absolute path of the registry entry this run holds. A stage
+	// that admits a job of its own reads it and runs INSIDE this slot, so a
+	// wrapped stage never waits for the slot its own parent is holding.
+	Entry string
+	// Progress is where the run writes each stage as it ends. The registry
+	// breaker reads that growth as liveness, and a session that attached to this
+	// run replays it instead of verifying the tree a second time.
+	Progress io.Writer
+}
+
+// nameJobParent names this run's registry entry to every stage it starts, and
+// answers the restore that puts the previous value back.
+//
+// `verify lint/run` admits a job of its own (internal/le/verify/lint, runHere),
+// and the stages run inside THIS process: a lint that queued for a slot would
+// wait for the one its own parent holds, and neither would ever finish.
+// job.insideParent answers KindInside once it can read the entry named here.
+//
+// A run holding no slot names nothing, because an inherited parent is still the
+// parent of every stage below it.
+func nameJobParent(entry string) func() {
+	if entry == "" {
+		return func() {}
+	}
+	previous := env.Get(job.ParentKey)
+	if err := env.Set(job.ParentKey, entry); err != nil {
+		gaterun.Note("verify: " + job.ParentKey + " could not be named (" + err.Error() +
+			"), so a stage that admits its own job will queue behind this run")
+		return func() {}
+	}
+	return func() {
+		if err := env.Set(job.ParentKey, previous); err != nil {
+			gaterun.Note("verify: " + job.ParentKey + " could not be restored: " + err.Error())
+		}
+	}
+}
+
+// tell writes one block to the run's progress log.
+//
+// A write that fails is REPORTED and never moves the run's verdict: the log
+// records the run, it does not judge the tree. The note states the cost, because
+// a holder whose log stops growing has its process group killed once the stall
+// window passes.
+func tell(progress io.Writer, block []byte) {
+	if progress == nil {
+		return
+	}
+	if _, err := progress.Write(block); err != nil {
+		gaterun.Note("verify: the progress log refused a write (" + err.Error() +
+			"), so the job registry sees no growth and can break this slot")
+	}
+}
+
+// beat starts the one goroutine a stage owns: it writes a line to progress every
+// interval, naming the stage and how long it has worked.
+//
+// The returned stop MUST be called exactly once, and MUST be called before
+// anything else writes to progress: it ends the goroutine and waits for it, so
+// no heartbeat can interleave with the stage block the caller writes next.
+func beat(progress io.Writer, stage string, interval time.Duration) func() {
+	if progress == nil {
+		return func() {}
+	}
+
+	done := make(chan struct{})
+	over := make(chan struct{})
+	started := time.Now()
+
+	go func() {
+		defer close(over)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		var text textbuf.Buffer
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				line := text.Reset().Str("### Stage running: ").Str(stage).Str(", ").
+					Int(int64(time.Since(started) / time.Second)).Str("s\n").String()
+				if _, err := io.WriteString(progress, line); err != nil {
+					gaterun.Note("verify: the progress log refused a heartbeat (" + err.Error() +
+						"), so the job registry sees no growth and can break this slot")
+					return
+				}
+			}
+		}
+	}()
+
+	return func() {
+		close(done)
+		<-over
+	}
+}
+
 // Run executes every full verification stage in order at root and writes its
 // logs and status there. A red stage does not hide later reds; an interruption
 // stops before another stage starts.
-func Run(ctx context.Context, root, commit string, runner ActionRunner) Report {
-	return RunMode(ctx, root, commit, Mode, runner)
+func Run(ctx context.Context, root, commit string, runner ActionRunner, slot Slot) Report {
+	return RunMode(ctx, root, commit, Mode, runner, slot)
 }
 
 // RunMode executes the native stage population selected by mode.
-func RunMode(ctx context.Context, root, commit, mode string, runner ActionRunner) Report {
+func RunMode(ctx context.Context, root, commit, mode string, runner ActionRunner, slot Slot) Report {
 	leave, err := enterVerifyEnvironment()
 	if err != nil {
 		return Report{Mode: mode, Commit: commit, Code: 2, Failure: failure("environment", "", err.Error())}
 	}
 	defer leave()
-	return runMode(ctx, root, commit, mode, runner, time.Now)
+	return runMode(ctx, root, commit, mode, runner, slot, time.Now)
 }
 
 func run(ctx context.Context, root, commit string, runner ActionRunner, now func() time.Time) Report {
-	return runMode(ctx, root, commit, Mode, runner, now)
+	return runMode(ctx, root, commit, Mode, runner, Slot{}, now)
 }
 
-func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner, now func() time.Time) Report {
+func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner, slot Slot, now func() time.Time) Report {
 	stages := StagesForMode(mode)
 	report := Report{
 		Mode:       mode,
@@ -184,6 +299,11 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 	restoreScope := publishChangeScope(root, logDir)
 	defer restoreScope()
 
+	// Every stage below runs inside this run's slot rather than queueing behind
+	// it (nameJobParent).
+	restoreParent := nameJobParent(slot.Entry)
+	defer restoreParent()
+
 	var combined textbuf.Buffer
 	combined.Str("Ze verify protocol run: ").Str(started.UTC().Format(time.RFC3339)).
 		Str("\nMode: ").Str(mode).Str("\nCommit: ").Str(commit).Str("\n\n")
@@ -198,7 +318,9 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 		expected := cloneIdentity(current.Identity)
 		result := ActionResult{}
 		if runner != nil {
+			stopBeat := beat(slot.Progress, expected.Name, heartbeatInterval)
 			result = runner(ctx, root, cloneIdentity(expected))
+			stopBeat()
 		}
 		stageReport := validateResult(expected, result)
 		stageReport.Log = stageLogPath(report.LogDir, index+1, expected.Name)
@@ -216,6 +338,7 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 		combined.Str("### Stage result: ").Str(current.Identity.Name).Str(" exit=").
 			Int(int64(stageReport.Code)).Byte('\n')
 
+		tell(slot.Progress, combined.Bytes()[stageStart:])
 		if err := os.WriteFile(
 			filepath.Join(root, filepath.FromSlash(stageReport.Log)),
 			combined.Bytes()[stageStart:],

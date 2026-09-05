@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
+	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/scratch"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
@@ -158,6 +159,33 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	}
 	report.Commit = sha
 
+	// Admission comes before the sweep, the checkout and the stages, because all
+	// three use the whole machine. A second worktree verification of this commit
+	// takes this one's verdict rather than materializing a second checkout of
+	// 22,439 files and judging it again.
+	ticket, err := admitWorktree(root, sha)
+	if err != nil {
+		report.Failure = &verifyengine.Failure{Kind: failureAdmission, Message: err.Error()}
+		report.Diagnostics = append(report.Diagnostics,
+			text.Reset().Str("verify-worktree: ").Err(err).String())
+		return report
+	}
+	if ticket.Kind == job.KindAttached {
+		report.Code = ticket.Code
+		report.Diagnostics = append(report.Diagnostics, text.Reset().
+			Str("verify-worktree: shared the verification already running for ").
+			Str(shortSHA(sha)).Str(", which exited ").Int(int64(ticket.Code)).String())
+		return report
+	}
+
+	// Release runs after the cleanup defer below, so the code it records is the
+	// one every branch has finished moving. It is registered before that defer
+	// for exactly that reason.
+	defer func() { ticket.Release(report.Code) }()
+
+	slot, closeSlot := slotFor(root, ticket)
+	defer closeSlot()
+
 	base := filepath.Join(root, "tmp", "verify-worktree")
 	if err := os.MkdirAll(base, 0o750); err != nil {
 		report.Code = defeatedCode(report.Code, err)
@@ -261,7 +289,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		text.Reset().Str("verify-worktree: ").Str(shortSHA(sha)).Str(" -> ").Str(path).String(),
 		text.Reset().Str("verify-worktree: native ").Str(verifyengine.Mode).String(),
 	)
-	verification := verifyengine.Run(ctx, path, sha, actions)
+	verification := verifyengine.Run(ctx, path, sha, actions, slot)
 	report.Verify = &verification
 	report.Code = verification.Code
 	if verification.Failure != nil {
@@ -299,6 +327,22 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 			text.Reset().Str("verify-worktree: kept ").Str(path).String())
 	}
 	return report
+}
+
+// admitWorktree claims this lifecycle's slot in the shared job registry.
+func admitWorktree(root, sha string) (*job.Ticket, error) {
+	admission, err := job.NewIn(root)
+	if err != nil {
+		return nil, err
+	}
+	return admission.Admit(jobLabel, worktreeArgv(sha))
+}
+
+// worktreeArgv is what the registry fingerprints as this run's work. The commit
+// is part of it because two worktree verifications of two commits judge two
+// trees, so they MUST NOT share one verdict.
+func worktreeArgv(sha string) []string {
+	return []string{"le", "verify", actionName, "commit", sha}
 }
 
 func resolveCommit(ctx context.Context, root, revision string, git gitRunner) (string, error) {
