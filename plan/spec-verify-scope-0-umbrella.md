@@ -102,7 +102,7 @@ instrumented, and `ui` 184/184 against 181/184 and 177/184, every failure
 
 So `./le functional` stays unscoped, and AC-U1's under-15-minute target is
 not reachable by any route this umbrella found.
-| 6 | `plan/spec-verify-scope-6-wiring-docs-attribution.md` | Per-failure groups for `./le doc wiring`, so attribution reaches the ledger's largest class | 1 |
+| 6 | spec-verify-scope-6-wiring-docs-attribution (CLOSED 2026-09-05) | Per-failure groups for `./le doc wiring`, so attribution reaches the ledger's largest class | 1 |
 
 **Sub-spec 5 exists because every static route to a suite map was measured and
 failed** (owner approval, 2026-08-19). `go list -deps ./cmd/ze` links 562 of 646

@@ -158,11 +158,11 @@ matching `run_make_target`'s own `GateFailure`.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The producer writes one line per failure and the reader parses it; `structuralGateReds` (`internal/le/commit/verification.go`) reads only `tmp/ze-verify-failures.json` and never the stage log |
+| No unintended coupling (components stay isolated) | Yes | Producer and reader share a FILE FORMAT and no symbol. `failureGroupPrefix` (`internal/le/doc/wiring/groups.go`) and the `strings.Cut` in `declaredGroups` spell the same words, and `internal/le/verify/failuregroup` is the one producer the lint, matrix and wiring gates all call |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The protocol was extracted rather than written twice: `failuregroup.Declare` is the single emitter, and the reader is one function |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | Build tooling, off any data path. One line per failure, read once at the end of a run |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes, with one allowlist named as its cost | Any stage may declare groups and `declaredGroups` reads them with no per-stage branch. The one central list is the path-bearing kinds in `groupRelatedPaths`, which Known Limitations already names: a producer adding a kind gets no attribution until that set admits it, and its reds are CHARGED rather than dropped |
 
 ## Phase 1 Findings -- Enumerate before changing (2026-08-19)
 
@@ -290,10 +290,10 @@ amendments the main thread rules on before phase 3 starts:
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| a failing sub-check | → | its `VERIFY FAILURE GROUP:` line | `TestEveryWiringSubcheckDeclaresItsFiles` |
-| a stage log carrying declared groups | → | `classifyWiringDocs` preferring them | `TestClassifyWiringDocsPrefersDeclaredGroups` |
-| a stage log carrying none | → | the prose fallback | `TestClassifyWiringDocsFallsBackToProse` |
-| a malformed group line | → | the unparseable-group branch | `TestMalformedGroupLineIsReported` |
+| a failing sub-check | → | `(*checker).declareFailureGroup` (`internal/le/doc/wiring/groups.go`) | `TestAFailingCheckNamesTheFilesItIsAbout`, `TestACheckThatDeclaresNothingIsStillCharged` |
+| a stage log carrying declared groups | → | `declaredGroups` (`internal/le/verify/engine/artifacts.go`) | `TestDeclaredGroupsAreReadBackWhenTheCountAgrees` |
+| a stage log carrying none | → | the `generic` group `writeRunArtifacts` substitutes | `TestAFailingStageWithNoDeclaredGroupsGetsOneThatNamesNoFile` |
+| a malformed group line | → | the unparsed-group branch | `TestAMalformedGroupLineBecomesAGroupThatSaysSo` |
 
 ## Acceptance Criteria
 
@@ -313,18 +313,17 @@ amendments the main thread rules on before phase 3 starts:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEveryWiringSubcheckDeclaresItsFiles` | `internal/le/` | AC-1, AC-4, AC-5: every failure path declares a group | green |
-| `TestClassifyWiringDocsPrefersDeclaredGroups` | `internal/le/verify/engine/verifyengine_test.go` | AC-1 | green |
-| `TestClassifyWiringDocsFallsBackToProse` | `internal/le/verify/engine/verifyengine_test.go` | AC-6: partial capture cannot drop a failure | green |
-| `TestMalformedGroupLineIsReported` | `internal/le/verify/engine/verifyengine_test.go` | AC-7, R-2 | green |
-| `TestAStageWithNoClassifierCanDeclareItsOwnGroups` | `internal/le/verify/engine/verifyengine_test.go` | the protocol reaches every stage, not only this gate | green |
-| `TestTheWiringGateSpeaksTheProtocolThisRunnerReads` | `internal/le/verify/engine/verifyengine_test.go` | the Python producer and the Go reader agree on prefix and keys | green |
-| `TestAPathologicalPathCannotForgeAGroup` | `internal/le/verify/engine/verifyengine_test.go` | Security Review: a path cannot forge a second group | green |
-| `DeclaredGroupProtocolTest` | `internal/le/` | escaping, the 50-path bound, the count, and a failing run end to end | green |
-| `test_wiring_red_outside_the_commit_is_not_charged` | `internal/le/` | AC-2 | green |
-| `test_wiring_red_inside_the_commit_still_refuses` | `internal/le/` | AC-3 | green |
-| `test_unattributable_wiring_red_is_charged` | `internal/le/` | AC-4 | green |
-| `TestSplitLinesReportsATruncatedRead` | `internal/le/verify/engine/verifyengine_test.go` | R-1 from the reader's side: a truncated stage log makes the declared count disagree, so the stage falls back rather than trusting a partial set | green |
+| `TestAFailingCheckNamesTheFilesItIsAbout` | `internal/le/doc/wiring/docwiring_test.go` | AC-1: a failing sub-check declares the files it is about | PASS |
+| `TestACheckThatDeclaresNothingIsStillCharged` | `internal/le/doc/wiring/docwiring_test.go` | AC-4: a group naming no file is charged rather than dropped | PASS |
+| `TestADelegatedFailureNamesItsFiles`, `TestAReportThatCannotNameFilesStaysUnattributable`, `TestAPageWithNoFindingsNamesNothing`, `TestRunGoActionPutsTheReportsPathsIntoTheGroup` | `internal/le/doc/wiring/delegate_paths_test.go` | AC-5: a delegated target names its files or declares that it cannot | PASS |
+| `TestADeclarationCarriesItsPathsAndCloses`, `TestADeclarationWithNoPathsStaysUnattributable` | `internal/le/verify/failuregroup/failuregroup_test.go` | the shared producer emits the line and its closing count | PASS |
+| `TestAGroupSplitsWhenItNamesMorePathsThanOneLineCarries` | `internal/le/doc/wiring/docwiring_test.go` | the `RelatedPerGroup` bound: a group past it splits rather than truncating | PASS |
+| `TestDeclaredGroupsAreReadBackWhenTheCountAgrees` | `internal/le/verify/engine/artifacts_test.go` | the reader takes a complete declared set whole | PASS, written at closure |
+| `TestAMalformedGroupLineBecomesAGroupThatSaysSo` | `internal/le/verify/engine/artifacts_test.go` | AC-7, R-2: the failure does not vanish, and its kind keeps the stage charged | PASS, written at closure |
+| `TestEveryDoubtAboutTheDeclaredSetRefusesIt` | `internal/le/verify/engine/artifacts_test.go` | R-1 from the reader's side, over four doubts: a count larger than the set, no count, two counts, and a count that is not a number | PASS, written at closure |
+| `TestAFailingStageWithNoDeclaredGroupsGetsOneThatNamesNoFile` | `internal/le/verify/engine/artifacts_test.go` | AC-6: a stage declaring nothing gets a `generic` group naming no file, which `structuralGateReds` charges | PASS, written at closure |
+| `TestAStageLogThatCannotBeReadDeclaresNothing` | `internal/le/verify/engine/artifacts_test.go` | an unreadable stage log refuses the declared set rather than reading it as empty | PASS, written at closure |
+| `TestStructuralRedsAttributeOnlyPathBearingGroups`, `TestCreateRefusesChargedStructuralRedWithoutRecordedOverride` | `internal/le/commit/commit_test.go` | AC-2, AC-3, AC-4 on the consumer side | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -339,7 +338,7 @@ amendments the main thread rules on before phase 3 starts:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `verify-scope-wiring-attribution` | `test/runner/verify-scope-wiring-attribution.ci` | A developer commits while another session's file reddens the wiring gate, and is not charged a debt row for it | green |
+| `verify-scope-wiring-attribution` | `test/runner/verify-scope-wiring-attribution.ci` | A developer commits while another session's file reddens the wiring gate, and is not charged a debt row for it | PASS, run for real at closure: `scratch-repo-ready`, `wiring-red-of-another-session-not-charged`, `wiring-red-of-my-own-file-still-refuses`, `unattributable-wiring-red-is-charged` |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -347,9 +346,10 @@ amendments the main thread rules on before phase 3 starts:
 | N-A | - | - | Scope is tooling. No wire-visible behavior changes | |
 
 ## Files to Modify
-- `internal/le/doc/wiring/wiring.go` - each failure path declares its group
-- `internal/le/verify/engine/run.go` - extract the shared `VERIFY FAILURE GROUP:` parser; `classifyWiringDocs` prefers declared groups; a malformed line becomes a group
-- `internal/le/verify/engine/verifyengine_test.go`, `internal/le/`, `internal/le/`
+- `internal/le/doc/wiring/groups.go`, `checks.go`, `docwiring.go`, `delegate.go` - each failure path declares its group
+- `internal/le/verify/failuregroup/failuregroup.go` - the shared producer, reached by the lint, matrix and wiring gates alike
+- `internal/le/verify/engine/artifacts.go` - `declaredGroups` reads the declared set, refuses an incomplete one, and turns a malformed line into an `unparsed` group
+- `internal/le/verify/engine/artifacts_test.go`, `internal/le/doc/wiring/*_test.go`, `internal/le/commit/commit_test.go`
 - `ai/rules/points/precommit-verify/**` and the regenerated `ai/rules/precommit-verify.md`, `TRIGGERS.md`, `CORE.md`, `INDEX.md` - the reach of attribution changes, so its text does too
 - `docs/architecture/testing/verify-freshness-scope.md` - the declared-group protocol
 - `docs/functional-tests.md` - the new `test/runner/` member
@@ -385,14 +385,14 @@ amendments the main thread rules on before phase 3 starts:
 | 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | No RFC surface |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`: the new `test/runner/` member |
+| 10 | Test infrastructure changed? | Yes | Done: the Runner row of the Functional Suite Inventory in `docs/functional-tests.md` names the four fixture families by kind, "structural-red attribution" among them, rather than by file name |
 | 11 | Affects daemon comparison? | No | |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/testing/verify-freshness-scope.md`: the declared-group protocol |
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep for anchors naming `verify_wiring_docs.py` and `verify_run.go` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ai/rules/precommit-verify.md` describes what attribution reaches |
+| 17 | Existing docs show config/CLI/API examples for this area? | No, and the row is corrected at closure | `ai/rules/precommit-verify.md` was rewritten by the owner directive of 2026-08-21 and now carries two directives, the worktree run and the tracked-build gate. Neither describes attribution, which is a mechanism rather than an agent obligation, so the rule owes no edit. The mechanism is documented at `docs/architecture/testing/verify-freshness-scope.md` |
 
 ## Implementation Steps
 
@@ -485,3 +485,157 @@ amendments the main thread rules on before phase 3 starts:
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `(*checker).declareFailureGroup`, `pathBearingKind`, `unattributableKind`, `chunkPaths`, `findingPaths` (`internal/le/doc/wiring/groups.go`): every failure path of the wiring gate declares one group, naming its files or declaring that it names none.
+- Eight declaration sites, one per failure path: the ci-sleep ratchet and its justification, the known-failure load excuse, the log-subsystem key check, the design-reference fork, doc drift, the wiring check itself, and a delegated action (`checks.go`, `docwiring.go`, `delegate.go`).
+- `internal/le/verify/failuregroup`: the shared producer, extracted rather than written twice. The lint gate and the Staticcheck matrix speak it too, each with its own `failuregroup_test.go`.
+- `declaredGroups` (`internal/le/verify/engine/artifacts.go`): the reader. It takes a declared set only when the run's own closing count agrees with it, turns a line it cannot parse into an `unparsed` group, and leaves `writeRunArtifacts` to substitute a `generic` group for a red stage that declared nothing.
+- `test/runner/verify-scope-wiring-attribution.ci`, driving the real `le commit create` over a scratch checkout.
+
+### Bugs Found/Fixed
+- **The reader half had no test at all.** `declaredGroups` decides whether a red is attributable, and every one of its branches is a guard: the completeness count (R-1), the `unparsed` group (R-2, AC-7), the refusal of an unreadable log, and the `generic` substitution (AC-6). The spec named four tests for them and none existed: they went with the shell the port retired, while the behaviour survived. `internal/le/verify/engine/artifacts_test.go` covers all five branches, and `TestEveryDoubtAboutTheDeclaredSetRefusesIt` runs four separate doubts.
+
+### Documentation Updates
+- None needed. `docs/architecture/testing/verify-freshness-scope.md` already carries the per-gate attribution table, names `declareFailureGroup` as the producer and `declaredGroups` as the reader, and states that the protocol reaches every stage rather than this gate alone. The Runner row of `docs/functional-tests.md` names the structural-red attribution fixtures by kind.
+
+### Deviations from Plan
+- **AC-6's prose fallback does not exist, and the guarantee is stronger without it.** The spec planned for `classifyWiringDocs` to keep its two regexes as a fallback. The tree has no prose classifier for this stage at all: a red stage that declared nothing gets a `generic` group naming no file, which `structuralGateReds` counts as blind and CHARGES. The regexes could only ever have produced a check NAME, which is not path-bearing either, so the fallback would have reached the same verdict by a longer road.
+- Every one of the twelve TDD rows named a test the tree does not hold. The behaviour is present, under names this closure verified one at a time.
+- Row 17 of the Documentation checklist named `ai/rules/precommit-verify.md`. The owner rewrote that rule on 2026-08-21 around the worktree run and the tracked-build gate; attribution is a mechanism rather than an agent obligation, so the rule owes no edit.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A stale test name was read as the same failure the two earlier closures found, a behaviour lost in the port | Here the behaviour survived and WIDENED: the protocol reached the lint gate and the Staticcheck matrix, each with its own producer test. Only the reader's tests were lost | Grepping `VERIFY FAILURE GROUP` for producers and readers rather than grepping the test names | The reader's five branches got tests; the producer's were found already present under new names |
+| approach | The empty-group case looked like a fail-open: a red stage with zero groups reads as "every group's files are foreign" | `structuralGateReds` (`internal/le/commit/verification.go`) counts `len(groups) == 0` as BLIND before it looks at any group, so the stage is charged | Reading the consumer rather than reasoning from the producer | No change; the property is now asserted by `TestAFailingStageWithNoDeclaredGroupsGetsOneThatNamesNoFile` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Each failing sub-check declares the files it is about | Done | `declareFailureGroup`, eight call sites | |
+| A sub-check with no file to name says so, and is charged | Done | `unattributableKind`; `groupRelatedPaths` admits `files`, `lint`, `package` alone | |
+| The protocol is available to every stage, not this gate alone | Done | `declaredGroups` reads any stage's log; the lint gate and the matrix already emit | |
+| A partial or malformed set never drops a failure | Done | the closing count, the `unparsed` group, the `generic` substitution | all five branches tested at closure |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestAFailingCheckNamesTheFilesItIsAbout`, and the `.ci`'s `wiring-red-of-another-session-not-charged` | |
+| AC-2 | Done | the `.ci`, same marker: the real `le commit create` writes a debt row naming the verification but not the structural gates |
+| AC-3 | Done | the `.ci`'s `wiring-red-of-my-own-file-still-refuses` | |
+| AC-4 | Done | `TestACheckThatDeclaresNothingIsStillCharged`, `TestADeclarationWithNoPathsStaysUnattributable`, and the `.ci`'s `unattributable-wiring-red-is-charged` | |
+| AC-5 | Done | `TestADelegatedFailureNamesItsFiles`, `TestAReportThatCannotNameFilesStaysUnattributable` | |
+| AC-6 | Done, by a different mechanism | `TestAFailingStageWithNoDeclaredGroupsGetsOneThatNamesNoFile` | the `generic` group replaces the planned prose fallback; recorded in Deviations |
+| AC-7 | Done | `TestAMalformedGroupLineBecomesAGroupThatSaysSo` | the group carries the line it could not read |
+| AC-8 | Resolved by the phase-1 record, no code | the spec's own "the early return is not a defect" section | the exit code is identical and the five verdicts are already printed |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the producer's seven | PASS | `internal/le/doc/wiring/*_test.go`, `internal/le/verify/failuregroup/failuregroup_test.go` | present under names this closure verified |
+| the reader's five | PASS | `internal/le/verify/engine/artifacts_test.go` | written by this closure |
+| the consumer's two | PASS | `internal/le/commit/commit_test.go` | |
+| `verify-scope-wiring-attribution` | PASS | `test/runner/verify-scope-wiring-attribution.ci` | run for real at closure, four markers |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| the wiring gate's failure paths | Done | `groups.go`, `checks.go`, `docwiring.go`, `delegate.go` |
+| the shared parser | Done | `internal/le/verify/failuregroup` produces, `internal/le/verify/engine/artifacts.go` reads |
+| the tests | Done | the reader's added at closure |
+| the rules text | Changed | `ai/rules/precommit-verify.md` was rewritten by the owner and owes no edit; recorded in Deviations |
+| the two doc pages | Done | both already carry the protocol and the fixture family |
+| `test/runner/verify-scope-wiring-attribution.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 24
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (the prose fallback and the rules text, both in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| `./le doc wiring` reports WHICH FILES each failure is about | unit | Eight `declareFailureGroup` call sites, one per failure path, and `TestAFailingCheckNamesTheFilesItIsAbout` reads the emitted line back |
+| The commit helper can tell this session's red from another session's | functional | `test/runner/verify-scope-wiring-attribution.ci` drives the real `le commit create` three times over one scratch checkout: a foreign group leaves the structural gates uncharged, an own-file group refuses, and a group naming no file is charged. Its assertion is the debt ledger the command wrote |
+| A failure is never lost between producer and ledger | unit, four doubts | `TestEveryDoubtAboutTheDeclaredSetRefusesIt` refuses a count larger than the set, a missing count, two counts and a count that is not a number; `TestAMalformedGroupLineBecomesAGroupThatSaysSo` keeps the failure and marks it unattributable |
+| Attribution never drops a red it should charge | unit | `TestAFailingStageWithNoDeclaredGroupsGetsOneThatNamesNoFile`, read together with `structuralGateReds`, which treats an empty group list as blind before it inspects any group |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Adoption in the other nine unattributable stages | The MECHANISM is stage-level and free; the ADOPTION is nine producers, each owing its own evidence. Two have since taken it, the lint gate and the Staticcheck matrix | none yet; the remaining stages are named in the spec's A-2 count |
+| Narrowing `changed_files` from the whole shared tree | A different question, named out of scope in Behavior to preserve | none yet |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/verify-scope-6-wiring-docs-attribution-zeclose-vs6.md` |
+| `review check` | clean |
+| Rounds | 2. Round 1 found the untested reader; round 2, over the tests it produced, was clean |
+| Reviewer lenses used | guard-fails-closed on every reader branch; test vacuity; producer-versus-consumer reachability; ze-go-style; spec record against the tree |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `declaredGroups` decides whether a red is attributable and has no test on any branch: the completeness count, the `unparsed` group, the unreadable log, and the `generic` substitution | `declaredGroups`, `internal/le/verify/engine/artifacts.go` | `internal/le/verify/engine/artifacts_test.go`, five tests over all of them |
+| 2 | NOTE | Twelve TDD rows, one wiring row and two checklist rows name tests, a fallback and a rule the tree no longer holds | this spec | every row rewritten against the tree as it stands |
+| 3 | NOTE | The Architectural Verification table was never filled | this spec | filled, and the one central allowlist is named as its cost |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/runner/verify-scope-wiring-attribution.ci` | Yes | run at closure, four markers, exit 0 |
+| `internal/le/doc/wiring/groups.go` | Yes | holds `declareFailureGroup`, `pathBearingKind`, `unattributableKind`, `chunkPaths` |
+| `internal/le/verify/failuregroup/failuregroup.go` | Yes | the shared producer, with its own test file |
+| `internal/le/verify/engine/artifacts.go` | Yes | holds `declaredGroups` |
+| `internal/le/verify/engine/artifacts_test.go` | Yes | created by this closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-4, AC-5 | every failure path declares a group | `grep -n declareFailureGroup internal/le/doc/wiring/` returns eight call sites in `checks.go`, `docwiring.go` and `delegate.go` |
+| AC-2, AC-3, AC-4 | attribution decides the charge, end to end | the `.ci` printed all four markers against the real command |
+| AC-6, AC-7 | nothing is lost | `go test ./internal/le/verify/engine/` exit 0, holding the five new reader tests |
+| all | the producer package is green | `go test ./internal/le/doc/wiring/` exit 0 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a failing sub-check | none | `TestAFailingCheckNamesTheFilesItIsAbout` reads the emitted line |
+| a stage log carrying declared groups | none | `TestDeclaredGroupsAreReadBackWhenTheCountAgrees` |
+| a stage log carrying none | none | `TestAFailingStageWithNoDeclaredGroupsGetsOneThatNamesNoFile` drives `writeRunArtifacts` and reads the index it wrote |
+| a malformed group line | none | `TestAMalformedGroupLineBecomesAGroupThatSaysSo` |
+| a commit over a foreign wiring red | `test/runner/verify-scope-wiring-attribution.ci` | Yes, read the driver: it runs the real `le commit create` and judges the debt ledger, not its own output |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | the spec's own phase-1 enumeration of eight failure paths, and the eight declaration sites that now match it |
+| A-2 | confirmed, smaller than assumed | 33 of 103 open rows, not 71; recorded in the spec's phase-1 findings |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #10 test infrastructure | the Runner row of `docs/functional-tests.md` names the structural-red attribution fixtures | Yes, read it |
+| #12 internal architecture | `docs/architecture/testing/verify-freshness-scope.md` names `declareFailureGroup` and `declaredGroups` and states the protocol reaches every stage | Yes, read both lines |
+| #16, #17 | `ai/rules/precommit-verify.md` holds two directives, neither about attribution | Yes; the row is corrected rather than acted on |
+| every other row | No | Commit and verify tooling: no YANG, CLI verb, RPC, plugin, wire format, or RFC tier |
+
+## Core Insight
+
+A stale test name has two opposite causes and the closure must tell them apart, because the repair differs completely. Here the producer's tests were renamed and MULTIPLIED, the protocol having reached two more gates, while the reader's were deleted outright and its five guards left unproven. Grepping the name answers neither; grepping the BEHAVIOUR, `VERIFY FAILURE GROUP` in this case, separates them in one command.
