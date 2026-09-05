@@ -574,3 +574,216 @@ and already documented there. The refusal test carries the
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `(*CommitService).buildMPReachNLRI` (`internal/component/bgp/rib/commit.go`) gained an
+  error return and calls `(*MPReachNLRI).ValidateNextHops` before it returns the
+  attribute. `packAttributesWithASPath` propagates the error, and `Commit` wraps it with
+  `build update: %w` on the grouped branch and on the ungrouped branch.
+- The refusal writes one Warn record naming the family and the next hop, because the
+  caller above the reactor discards the error.
+- `buildVPNMPReachNLRI`, the private `vpnMPReachNLRI` type with its five methods, and
+  `isVPNSAFI` are deleted. The core encoder serves SAFI 128: `(*MPReachNLRI).nextHopOctets`
+  counts `RDSize` and `WriteTo` writes the eight zero octets (RFC 4364 Section 4.3.4).
+- The `ValidateNextHops` doc comment (`internal/core/bgp/attribute/mpnlri.go`) no longer
+  says one assembling caller skips the check.
+- `internal/component/bgp/rib/commit_nexthop_test.go` adds three tests, and
+  `rfc/requirements/rfc4760.md` was regenerated to list two of them under RFC4760-3-2.
+- Closure added `rfc/discrimination/rfc4760.json`, the machine record of the break each of
+  those two tagged units goes red under.
+
+### Bugs Found/Fixed
+- The defect this spec exists for, fixed at `buildMPReachNLRI`. No second defect surfaced
+  inside the two files this spec changed.
+- Found and NOT fixed here, one journal row instead: `(*reactorAPIAdapter).SendRoutes`
+  (`internal/component/bgp/reactor/reactor_api_batch.go`) sets
+  `totalResult.RoutesAnnounced = len(routes)` before the peer loop and then discards the
+  error from `cs.Commit` with a bare `continue`, so a peer whose whole commit was refused
+  is still reported as having received every route. Read at the producer, not inferred.
+  Row: `plan/journal/validated-value-discarded-by-its-caller.md`.
+
+### Documentation Updates
+- None owed, and the answer was read rather than assumed. `ai/CODE-TO-DOCS.md` maps
+  `internal/component/bgp/rib/commit.go` to `docs/guide/route-injection.md` alone. That
+  page's anchor `<!-- source: internal/component/bgp/rib/commit.go -- extended next-hop
+  encoding -->` sits under a claim about a VALID IPv6 next hop re-emitted as an
+  RFC 5549 / RFC 8950 extended next hop. AC-4 keeps that path byte-identical, so the claim
+  still holds.
+- `docs/architecture/update-building.md` names none of `commit.go`, `CommitService`,
+  `buildMPReach`, `isVPNSAFI` or `vpnMPReach`, so the deleted encoder was never described
+  there and its removal stales nothing.
+- `internal/core/bgp/attribute/mpnlri.go` changed a doc comment only, so no page claim
+  about the attribute moves.
+- `./le doc check verify` was not run: this closure edits no page.
+
+### Deviations from Plan
+- Implementation step 2 asked for the error to be "wrapped with enough context to name the
+  rail". `buildMPReachNLRI` returns the sentinel error unwrapped, and the rail is named by
+  the Warn record and by `Commit`'s `build update:` wrap instead. No AC depends on the
+  wrap, so this is recorded as a NOTE rather than fixed.
+- The spec did not plan a `rfc/discrimination/` record. `ai/rules/rfc-compliance.md` owes
+  one for every `RFC requirement:` tag a change adds, and the handoff commit added two, so
+  closure recorded both.
+- Three edits by other sessions landed on these functions after the handoff commit and are
+  inside the tree this closure reviewed: the log key moved from `nextHop` to `next-hop` and
+  `TestCommitRefusalOfAnUnencodableNextHopIsLogged` now asserts the VALUE rather than the
+  key's presence; the `ungrouped-vpnv4` row's prefix moved to `10.42.0.0/16`; and
+  `warnCapture.Handle` gained a `//nolint:gocritic` for the `slog.Handler` signature. None
+  of the three moves an AC.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The handoff commit added two `RFC requirement: RFC4760-3-2` tags and recorded the discrimination walk as pasted prose in this spec's Discrimination Proof section | `ai/rules/rfc-compliance.md` requires the walk to be RUN by `./le rfc discriminate-record`, which refuses a red it did not observe and stores the result in `rfc/discrimination/<stem>.json`. Prose no gate can read is not that record | `./le rfc discriminate id RFC4760-3-2` listed both units under `unproven`, with no record and no candidate | Both recorded by the `revert` route in this closure; `rfc/discrimination/rfc4760.json` now holds the observed red for each |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One guard that fails closed on both branches | Done | `(*CommitService).buildMPReachNLRI`, `internal/component/bgp/rib/commit.go` | One encoder means one call site, so both branches are guarded structurally rather than by two checks that can drift |
+| Built from the validation that already exists | Done | `(*MPReachNLRI).ValidateNextHops`, `internal/core/bgp/attribute/mpnlri.go` | Unchanged. No second validator was added |
+| The refusal named by the error the sibling announce rails return | Done | `attribute.ErrUnencodableNextHop` | `assert.ErrorIs` holds at the `Commit` boundary on all four rows |
+| No unvalidated escape from the rail | Done | `(*CommitService).useTraditionalNLRI`, `internal/component/bgp/rib/commit.go` | The legacy NEXT_HOP branch requires `nextHop.Is4()`, which the zero `netip.Addr` never satisfies, so an unencodable next hop always reaches the guarded branch |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm/grouped-ipv6` and `/ungrouped-ipv6` | `assert.ErrorIs` on `attribute.ErrUnencodableNextHop`, `sender.updates` empty |
+| AC-2 | Done | Same test, `/grouped-vpnv4` and `/ungrouped-vpnv4` | Same sentinel, same empty sender |
+| AC-3 | Done | `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` | Pins the whole MP_REACH value: `00 01 80 0c`, eight RD zeros, `0a 00 00 01`, `00`, then the NLRI |
+| AC-4 | Done | `go test -race ./internal/component/bgp/rib` green with no assertion in `commit_test.go`, `commit_wire_test.go` or `commit_edge_test.go` edited by the handoff commit | `git show --stat` on the handoff commit lists no existing test file |
+| AC-5 | Done | `TestCommitRefusalOfAnUnencodableNextHopIsLogged` | Exactly one record, `slog.LevelWarn`, `family` equal to `family.IPv6Unicast.String()` and `next-hop` equal to the unresolved address |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm` | Done | `internal/component/bgp/rib/commit_nexthop_test.go` | Four rows as planned |
+| `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` | Done | same file | Byte-exact control |
+| `TestCommitRefusalOfAnUnencodableNextHopIsLogged` | Changed | same file | Not in the TDD plan. It carries AC-5, which the plan had folded into the refusal test; splitting it keeps a log-wording edit off tagged RFC evidence |
+| `TestCommitService_VPNNextHopHasRD` | Done | `internal/component/bgp/rib/commit_edge_test.go` | Green, unedited |
+| `TestCommitService_IPv4WithIPv6NextHop`, `TestCommitService_IPv6_UsesMPReachNLRI`, `TestCommitService_EVPN_UsesMPReachNLRI`, `TestCommitService_IPv4_HasNextHop` | Done | `commit_edge_test.go`, `commit_wire_test.go` | Green, unedited |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/rib/commit.go` | Done | Guard added, duplicate encoder and `isVPNSAFI` deleted, error propagated |
+| `internal/core/bgp/attribute/mpnlri.go` | Done | Doc comment only, as planned |
+| `internal/component/bgp/rib/commit_nexthop_test.go` | Done | Created |
+| `rfc/requirements/rfc4760.md` | Changed | Generated, not in the plan's file list; regenerated because two new tags carry RFC4760-3-2 |
+| `rfc/discrimination/rfc4760.json` | Changed | Created at closure, not in the plan; see the Mistake Log |
+
+### Audit Summary
+- **Total items:** 18
+- **Done:** 15
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An announce whose next hop has no wire form never reaches a peer | Data correctness, driven from the rail's own entry point | `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`, four rows, each asserting `sender.updates` is empty after `(*CommitService).Commit`. Discrimination is machine-recorded: `rfc/discrimination/rfc4760.json` holds the run that reddened this unit when `ValidateNextHops`'s body was replaced by a panic |
+| Deleting the second SAFI 128 encoder moves no octet | Data correctness with explicit hex assertions | `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` pins `00 01 80 0c 00*8 0a 00 00 01 00 18 c0 a8 01`, and `TestCommitService_VPNNextHopHasRD` stayed green with no assertion edited. Discrimination recorded against `(*MPReachNLRI).nextHopOctets`, which is the producer of the Route Distinguisher octets |
+| The refusal is visible where the caller discards the error | Negative test over the observable | `TestCommitRefusalOfAnUnencodableNextHopIsLogged` asserts exactly one Warn record and asserts the VALUE of the `next-hop` key, not merely its presence |
+| One encoder for SAFI 128, not two | Absence proof with a control | `git grep -c "vpnMPReachNLRI\|buildVPNMPReachNLRI\|isVPNSAFI" HEAD -- internal/` returns nothing, and the same pattern at `5e5aafea^` returns fifteen hits in `internal/component/bgp/rib/commit.go`, so the pattern reaches the corpus and the zero is absence rather than a bad pattern |
+| Interop | Not owed, and the reason is recorded | No wire-visible change reaches a peer: AC-3 and AC-4 pin every encoding a peer can receive today, and the new behavior is the refusal of an UPDATE no production path produces. A scenario would exercise the unchanged path and pass with the guard reverted, which is the vacuity trap `ai/rules/interop-and-goal-validation.md` names |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The rail keeps no non-test caller, so no `.ci` and no interop scenario can drive the guard end to end. Wiring `(*Transaction).QueueAnnounce` to a command was not attempted | Out of the one package this spec names, and that surface's fate is a live question rather than a wiring task | `plan/spec-rib-package-dead-surface.md` (status `ready`), which decides which of the `rib` package's dead symbols are deleted and which are wired |
+| Whether the set of size-versus-write mismatch sites is CLOSED | This spec closes one rail. Auditing the class is separate work | `plan/immediate/spec-bgp-attribute-deferred-len-writeto-agreement.md`, which holds the known sibling members |
+| `(*reactorAPIAdapter).SendRoutes` discards `Commit`'s error and over-counts `RoutesAnnounced` | Reactor behavior, outside this spec's package, and the wire is correct without it. A defect met while working takes one journal row, not a spec (`ai/rules/completion.md`) | Recorded as a row in `plan/journal/validated-value-discarded-by-its-caller.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-rib-deferred-commit-nexthop-validation-644c18af-0c07-4cae-bd15-d866d73f0718.md` |
+| `review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | Logic and wiring (guard placement, escape paths, error propagation, stats); RFC and wire correctness plus security (RFC 4760 Section 3, RFC 4364 Section 4.3.4, RFC 7606 Section 7.11, untrusted next hop, allocation order, error leakage); Go style against `docs/contributing/ze-go-style.md` |
+
+Round 1 scope, written before it ran: the whole handoff diff
+(`git diff 5e5aafea~1..5e5aafea` over `internal/component/bgp/rib/commit.go`,
+`internal/core/bgp/attribute/mpnlri.go`,
+`internal/component/bgp/rib/commit_nexthop_test.go`, `rfc/requirements/rfc4760.md`),
+read at HEAD so the three post-handoff edits by other sessions are inside it, plus the
+eight always-in-scope classes over the whole change.
+
+Round 1 found 0 BLOCKER and 0 ISSUE, so there is no round 2.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | `buildMPReachNLRI` returns the sentinel error with no rail context, where implementation step 2 asked for a wrap | `internal/component/bgp/rib/commit.go`, `buildMPReachNLRI` | Not fixed. `Commit` wraps with `build update:` and the Warn record names the rail, so no AC or caller depends on it. A NOTE never re-opens a round (`ai/rules/planning.md`) |
+| 2 | NOTE | The two `RFC requirement: RFC4760-3-2` tags carried no machine discrimination record | `internal/component/bgp/rib/commit_nexthop_test.go` | Fixed in this closure: `./le rfc discriminate-record` wrote both, one per polarity, into `rfc/discrimination/rfc4760.json` |
+
+Always-in-scope screen, each answered against source rather than against the diff:
+unwired symbol (`buildMPReachNLRI` has exactly one caller and no exported symbol changed);
+vacuous test (both tagged units now carry a recorded red); an AC with no test (five of five
+have one); user-facing behavior with no functional test (the rail has no production entry
+point, evidenced by A-2); Linux-only code (none); a removed guard (`isVPNSAFI` selected a
+branch, it refused nothing, and the branch it selected is now served by the encoder that
+already implements RFC 4364 Section 4.3.4); a newly added guard that fails open (it returns
+an error and the caller propagates it on both branches); RFC or interop non-conformance
+(none introduced; RFC4760-3-2 gains a third tagged rail).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/rib/commit_nexthop_test.go` | Yes | `ls -la` returns one entry, 9583 bytes, dated 30 August |
+| `rfc/discrimination/rfc4760.json` | Yes | `./le rfc discriminate-record` printed `rfc/discrimination/rfc4760.json: recorded RFC4760-3-2 negative ...` and then `... positive ...` |
+| `.ci` files | None owed | The Wiring Test table carries no `.ci` row, and the Functional Tests table records why |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The guard refuses and the sender sees nothing | `./le job run label unit-pkg command go test -race ./internal/component/bgp/rib/ ./internal/core/bgp/attribute/` returned `ok github.com/ze-software/ze/internal/component/bgp/rib 4.380s` |
+| AC-2 | Same on the VPN branch | Same run. The VPN rows sit in the same table-driven test |
+| AC-3 | The VPN wire form is unchanged | Same run, `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` and `TestCommitService_VPNNextHopHasRD` both green |
+| AC-4 | Every existing assertion holds | Same run, whole package green; `git show --stat 5e5aafea` lists no existing test file |
+| AC-5 | One Warn record naming the family and the next hop | `grep -n "slog" internal/component/bgp/rib/commit.go` returns the `slog.Warn` at the guard branch, and the same test run covers the assertion |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `Commit`, grouping on, zero `netip.Addr` next hop | none owed | Yes. `grep -n "cs.Commit\|\.Commit("` on the new test file returns three call sites and no call to `buildMPReachNLRI`, so every case starts at the rail's entry point |
+| `Commit`, grouping off, same route | none owed | Yes, same grep; the `grouped` field of each table row selects the branch |
+| `Commit` with a VPNv4 route and the zero next hop | none owed | Yes, same grep |
+| `Commit` with a VPNv4 route and 10.0.0.1 | none owed | Yes, `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` calls `cs.Commit` and reads `sender.updates[0]` |
+| `Commit` with an IPv4-unicast route and a valid IPv4 next hop | none owed | Yes, `TestCommitService_IPv4_HasNextHop` is green and unedited |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` passed against the old encoder and passes against the core one, with no assertion edited, and `TestCommitService_VPNNextHopHasRD` never went red |
+| A-2 | confirmed | `(*Transaction).QueueAnnounce` has nine references and all nine are in `transaction/commit_manager_test.go`. Re-read at closure: `(*reactorAPIAdapter).SendRoutes` is still the only non-test caller of `rib.NewCommitService` |
+| A-3 | confirmed | `assert.ErrorIs(err, attribute.ErrUnencodableNextHop)` holds on all four rows, each driving `Commit`, which wraps with `build update: %w` on both branches |
+| A-4 | confirmed | `git grep -c "vpnMPReachNLRI\|buildVPNMPReachNLRI\|isVPNSAFI" HEAD -- internal/` returns nothing while the same pattern at `5e5aafea^` returns fifteen hits, so the pattern reaches the corpus |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Checklist rows 1 to 8, 10 to 15, 17: No | No config leaf, CLI verb, RPC signature, plugin, metric, registration or example changes. `git show --stat 5e5aafea` lists four files, none under `docs/`, `yang/` or a plugin | Yes |
+| Row 9, RFC behavior newly proven: Yes | `rfc/requirements/rfc4760.md` regenerated by the handoff commit; `rfc/short/rfc4760.md` and `docs/features/rfc-status.md` deliberately not edited, as the row instructed. `./le rfc check` names no RFC4760 finding among its 129 pre-existing tree-wide violations | Yes |
+| Row 16, changed file named by a doc source anchor: Yes | `docs/guide/route-injection.md` carries `<!-- source: internal/component/bgp/rib/commit.go -- extended next-hop encoding -->`. The paragraph above it was re-read at closure: it claims an injected IPv6 next hop is re-emitted as an RFC 5549 / RFC 8950 extended next hop, which is the `useTraditionalNLRI`-false path with a VALID next hop, byte-identical under AC-4. No edit owed | Yes |
+| `internal/core/bgp/attribute/mpnlri.go` anchors | `ai/CODE-TO-DOCS.md` maps it to `docs/DESIGN.md`, `docs/architecture/wire/mp-nlri-ordering.md` and `docs/contributing/rfc-implementation-guide.md`. The change there is a doc comment, so no encoding claim on any of the three moves | Yes |
+
+## Core Insight
+
+An invariant that catches a second class of defect by coincidence is not a guard for that
+class, and repairing the invariant is what exposes the missing guard. The size-versus-write
+check at the end of `packAttributesWithASPath` used to refuse this announce, not because it
+tested the next hop, but because `nextHopOctets` counted from the address FAMILY while
+`WriteTo` wrote from `AsSlice`, and the two disagreed by sixteen octets for the zero
+`netip.Addr`. Deriving both from one source was correct and it removed the accident. The
+guard that has to exist is the one that names what it refuses.

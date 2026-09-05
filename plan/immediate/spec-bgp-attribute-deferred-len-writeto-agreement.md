@@ -223,7 +223,7 @@ any of the four defects today.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | `(*NextHop).Len` returning 0 lets a zero-length NEXT_HOP attribute onto the wire, which RFC 4271 Section 5.1.3 does not admit. Today the announce plan refuses it only because the counts disagree | The reactor wiring test for the zero `Addr` shows a planned attribute instead of a refusal | `(*NextHop).ValidateNextHops` lands in Phase 1, BEFORE `Len` changes in Phase 3. The phase order is load-bearing, not cosmetic |
-| R-2 | A caller outside the announce plan writes a NEXT_HOP through `attribute.WriteAttrTo` and gets a zero-length attribute | `(*CommitService).buildMPReachNLRI` is the known rail that asks no validator; `mpnlri.go` documents it | Out of scope here and unchanged by this spec. the retired deferral shard "fixit-commit-rail-nexthop-unvalidated" and `plan/immediate/spec-bgp-rib-deferred-commit-nexthop-validation.md` already own that rail. Record it in Known Limitations |
+| R-2 | A caller outside the announce plan writes a NEXT_HOP through `attribute.WriteAttrTo` and gets a zero-length attribute | `(*CommitService).buildMPReachNLRI` was the known rail that asked no validator; `mpnlri.go` documents who asks | Out of scope here and unchanged by this spec. That rail was closed on 2026-09-05 by spec-bgp-rib-deferred-commit-nexthop-validation: `buildMPReachNLRI` (`internal/component/bgp/rib/commit.go`) now calls `(*MPReachNLRI).ValidateNextHops` and returns `attribute.ErrUnencodableNextHop`. Record it in Known Limitations |
 | R-3 | The `ErrUnencodableNextHop` message change breaks a caller that matched on text | Every use in the tree is `errors.Is`, and no test asserts the string | Keep the sentinel identity. Only the message text moves, and `(*MPReachNLRI).ValidateNextHops` regains the word MP_REACH in its own wrap |
 | R-4 | The zero fill hides a producer defect that used to be visible as a garbage address | A future UPDATE carries `0.0.0.0` as an aggregator identity | Accepted. A deterministic wire-legal value beats stale pooled octets, and the producers are guarded. The alternative, refusing inside `WriteTo`, has no error channel |
 
@@ -517,10 +517,10 @@ address FORM, because the form is what changes the count.
 
 ## Known Limitations
 - `(*CommitService).buildMPReachNLRI` (`internal/component/bgp/rib/commit.go`) writes
-  through `attribute.WriteAttrTo` rather than through the announce plan, so it asks no
-  validator. That rail is unchanged by this spec and is already owned by
-  the retired deferral shard "fixit-commit-rail-nexthop-unvalidated", whose destination is
-  `plan/immediate/spec-bgp-rib-deferred-commit-nexthop-validation.md`.
+  through `attribute.WriteAttrTo` rather than through the announce plan, so it reaches no
+  checked write. That rail is unchanged by this spec, and it asks its own validator: it
+  calls `(*MPReachNLRI).ValidateNextHops` and returns `attribute.ErrUnencodableNextHop`,
+  which spec-bgp-rib-deferred-commit-nexthop-validation landed and closed on 2026-09-05.
 - The zero fill makes an unset AGGREGATOR address encode as `0.0.0.0` rather than
   failing. This spec adds no producer-side guard against setting one, because the
   exported struct has no constructor to guard.

@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc4760",
+  "records": [
+    {
+      "rid": "RFC4760-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm",
+      "unit-sha": "4ab0cf06a1ba4e24",
+      "claim-sha": "e9849b5a6cb88e27",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/mpnlri.go::ValidateNextHops",
+      "producer-sha": "0e386620ae01bb4b",
+      "break": "body of ValidateNextHops replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop",
+      "unit-sha": "16e1b46b6a768594",
+      "claim-sha": "4d453c8e7684cd35",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/mpnlri.go::nextHopOctets",
+      "producer-sha": "cc659008bbcf0817",
+      "break": "body of nextHopOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
