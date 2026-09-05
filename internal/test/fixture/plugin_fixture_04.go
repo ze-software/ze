@@ -15,6 +15,7 @@ func init() {
 	Register("plugin/bgp-rs-reactor-fastpath-fallback", rsObserver04(1, "10.0.0.0/24", false))
 	Register("plugin/bgp-rs-reactor-fastpath", rsObserver04(2, "10.0.0.0/24", true))
 	Register("plugin/bgp-local-as-options", rsObserver04(5, "10.0.0.0/24", true))
+	Register("plugin/bgp-local-as-inbound-untouched", rsObserver04(3, "10.0.0.0/24", true))
 	Register("plugin/bgp-rs-relay-aspath-transparency", rsObserver04(3, "10.0.0.0/24", true))
 	Register("plugin/bgp-rs-replaying-gate", rsObserver04(1, "", true))
 	Register("plugin/prefixsid-ebgp-egress-boundary", rsObserver04(3, "10.0.0.0/24", true))

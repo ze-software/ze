@@ -52,6 +52,41 @@ const (
 	localASSource = 65002 // the AS of the customer the route is learned from
 )
 
+// The same migration with the router's own two AS numbers ABOVE the two-octet
+// space. The customer's AS stays inside it, so a two-octet destination reads a
+// path that is part mappable and part not, which is the only shape in which
+// AS_TRANS and AS4_PATH can both be wrong independently.
+const (
+	localASGlobal4 = 4200000000 // the router's globally configured ASN, non-mappable
+	localASLegacy4 = 4200000010 // the "Local AS" override, non-mappable
+	asTransASN     = 23456      // RFC 6793 Section 4.2.2, the AS number an OLD speaker sees instead
+)
+
+// localASTopology names the three AS numbers one forward run is built from. It
+// is a parameter rather than a constant set because RFC 6793 Section 4.2.2 only
+// bites when an AS number does not fit two octets, and the local-as prepend is
+// where the router's own AS numbers enter the path.
+type localASTopology struct {
+	globalAS uint32
+	legacyAS uint32
+	sourceAS uint32
+}
+
+// mappableTopology keeps every AS number inside the two-octet space, so AS_PATH
+// carries the real values whatever width the destination negotiated.
+var mappableTopology = localASTopology{
+	globalAS: localASGlobal,
+	legacyAS: localASLegacy,
+	sourceAS: localASSource,
+}
+
+// fourOctetTopology puts the router's own two AS numbers above 65535.
+var fourOctetTopology = localASTopology{
+	globalAS: localASGlobal4,
+	legacyAS: localASLegacy4,
+	sourceAS: localASSource,
+}
+
 // localASDest is one destination peer and the AS_PATH it must receive.
 type localASDest struct {
 	name      string
@@ -60,7 +95,26 @@ type localASDest struct {
 	peerAS    uint32
 	noPrepend bool
 	replaceAS bool
-	wantPath  []uint32
+	// dstASN2 makes this destination an OLD speaker: it negotiated no four-octet
+	// AS number capability, so RFC 6793 Section 4.2.2 governs what it receives.
+	dstASN2  bool
+	wantPath []uint32
+	// wantAS4Path is the AS4_PATH the destination must receive. Nil asserts the
+	// attribute is ABSENT, which RFC 6793 Section 4.2.2 requires whenever every
+	// AS number in the path is mappable.
+	wantAS4Path []uint32
+}
+
+// localASFrame is what one destination received from the forward rail: the AS
+// numbers of its AS_PATH, and those of its AS4_PATH when it got one.
+//
+// The two are held together rather than asserted separately because RFC 6793
+// Section 4.2.2 makes them one statement: the same path, written twice at two
+// widths, and a test that reads only AS_PATH cannot tell AS_TRANS standing in
+// for a real AS number from AS_TRANS standing for nothing.
+type localASFrame struct {
+	asPath  []uint32
+	as4Path []uint32 // nil when the destination received no AS4_PATH attribute
 }
 
 // localASSourcePayload builds the UPDATE the migrated customer sends: ORIGIN,
@@ -69,10 +123,10 @@ type localASDest struct {
 // The prefix is load-bearing. A body advertising nothing is relayed as a
 // withdrawal, and the egress AS_PATH edit these tests read would never run
 // (advertiseGate, forward_build.go).
-func localASSourcePayload() []byte {
+func localASSourcePayload(sourceAS uint32) []byte {
 	origin := []byte{0x40, 0x01, 0x01, 0x00}
 	asPath := []byte{0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00}
-	binary.BigEndian.PutUint32(asPath[5:], localASSource)
+	binary.BigEndian.PutUint32(asPath[5:], sourceAS)
 	nextHop := []byte{0x40, 0x03, 0x04, 1, 1, 1, 1}
 
 	attrs := make([]byte, 0, len(origin)+len(asPath)+len(nextHop))
@@ -82,66 +136,109 @@ func localASSourcePayload() []byte {
 	return buildUpdatePayload(attrs, fwdTestNLRI)
 }
 
-// aspathASNs reads an AS_PATH attribute value holding one four-octet
-// AS_SEQUENCE and answers its AS numbers, outermost first.
+// aspathASNs reads an AS_PATH or AS4_PATH attribute value holding one
+// AS_SEQUENCE and answers its AS numbers, outermost first. octets is the width
+// one AS number occupies: 2 for the AS_PATH a destination that negotiated no
+// four-octet AS number capability receives, and 4 for every other case,
+// AS4_PATH included (RFC 6793 Section 4.2.2).
 //
 // It refuses any other shape rather than returning a short answer: a segment
 // count or a segment type this fixture did not produce means the rail wrote
 // something these tests are not reading, and a silent partial decode would let
 // that pass as an AS_PATH assertion.
-func aspathASNs(t *testing.T, value []byte) []uint32 {
+func aspathASNs(t *testing.T, value []byte, octets int) []uint32 {
 	t.Helper()
 	require.GreaterOrEqual(t, len(value), 2, "AS_PATH must carry a segment header")
 	require.Equal(t, byte(2), value[0], "AS_PATH must be one AS_SEQUENCE segment")
 	count := int(value[1])
-	require.Len(t, value, 2+count*4, "AS_PATH must hold exactly one four-octet segment")
+	require.Len(t, value, 2+count*octets, "AS_PATH must hold exactly one segment at the negotiated width")
 
 	asns := make([]uint32, count)
 	for i := range asns {
-		asns[i] = binary.BigEndian.Uint32(value[2+i*4:])
+		off := 2 + i*octets
+		if octets == 2 {
+			asns[i] = uint32(binary.BigEndian.Uint16(value[off:]))
+			continue
+		}
+		asns[i] = binary.BigEndian.Uint32(value[off:])
 	}
 	return asns
 }
 
-// forwardLocalAS forwards one UPDATE learned from the migrated customer to every
-// destination given, and answers the AS_PATH each destination received.
+// aspathOctets answers the width one AS number occupies in the AS_PATH a
+// destination receives.
+func aspathOctets(dstASN2 bool) int {
+	if dstASN2 {
+		return 2
+	}
+	return 4
+}
+
+// forwardLocalAS forwards one UPDATE learned from the migrated customer to
+// every destination given, and answers the AS-path family each destination
+// received.
 //
 // The source peer carries the local-as override AND "No Prepend Inbound", which
 // is the configuration RFC7705-3.3-2 and -3.3-3 speak about: what the router
 // does with a route received from it. It is never a destination -- ForwardUpdate
 // excludes the source peer itself.
-func forwardLocalAS(t *testing.T, dests []localASDest) map[string][]uint32 {
+//
+// The source always speaks four-octet AS numbers, so the payload entering the
+// rail carries the real AS numbers whatever the destinations negotiated. A
+// destination marked dstASN2 is an OLD speaker and reads the two-octet form.
+func forwardLocalAS(t *testing.T, topo localASTopology, dests []localASDest) map[string]localASFrame {
 	t.Helper()
 
-	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID, _ := bgpctx.Registry.Register(ctx)
+	ctx4 := bgpctx.EncodingContextForASN4(true)
+	ctxID4, _ := bgpctx.Registry.Register(ctx4)
+	ctx2 := bgpctx.EncodingContextForASN4(false)
+	ctxID2, _ := bgpctx.Registry.Register(ctx2)
 
 	peers := make(map[netip.AddrPort]*Peer, len(dests)+1)
-	source := makeLocalASPeer(t, ctx, ctxID, localASDest{
+	source := makeLocalASPeer(t, topo, ctx4, ctxID4, localASDest{
 		addr:      forwardSourceAddr,
-		localAS:   localASLegacy,
-		peerAS:    localASSource,
+		localAS:   topo.legacyAS,
+		peerAS:    topo.sourceAS,
 		noPrepend: true,
 	})
 	source.remoteRouterID.Store(srcOriginatorID)
 	peers[source.Settings().PeerKey()] = source
+
+	// The width each destination reads its AS_PATH at, by address. The forward
+	// pool hands back the peer key and the bytes, not the settings, so the width
+	// is resolved here rather than guessed from the byte count: a two-octet
+	// three-AS path and a four-octet one differ, but a decoder free to pick would
+	// silently read either.
+	octetsByAddr := make(map[string]int, len(dests))
 	for _, dest := range dests {
-		peer := makeLocalASPeer(t, ctx, ctxID, dest)
+		peerCtx, peerCtxID := ctx4, ctxID4
+		if dest.dstASN2 {
+			peerCtx, peerCtxID = ctx2, ctxID2
+		}
+		peer := makeLocalASPeer(t, topo, peerCtx, peerCtxID, dest)
 		peers[peer.Settings().PeerKey()] = peer
+		octetsByAddr[dest.addr] = aspathOctets(dest.dstASN2)
 	}
 
 	var mu sync.Mutex
-	got := make(map[string][]uint32, len(dests))
+	got := make(map[string]localASFrame, len(dests))
 	seen := make(chan struct{}, len(dests))
 	pool := newFwdPool(func(key fwdKey, items []fwdItem) {
 		mu.Lock()
 		for i := range items {
 			for _, body := range items[i].rawBodies {
+				addr := key.peerAddr.Addr().String()
 				value, ok := bodyPathAttr(t, body, 2)
 				if !ok {
 					continue
 				}
-				got[key.peerAddr.Addr().String()] = aspathASNs(t, value)
+				frame := localASFrame{asPath: aspathASNs(t, value, octetsByAddr[addr])}
+				// AS4_PATH is four-octet by definition (RFC 6793 Section 4.2.2), so
+				// its width never depends on what this destination negotiated.
+				if as4, hasAS4 := bodyPathAttr(t, body, 17); hasAS4 {
+					frame.as4Path = aspathASNs(t, as4, 4)
+				}
+				got[addr] = frame
 			}
 		}
 		mu.Unlock()
@@ -158,7 +255,7 @@ func forwardLocalAS(t *testing.T, dests []localASDest) map[string][]uint32 {
 	t.Cleanup(cache.Stop)
 	cache.RegisterConsumer("test-plugin")
 
-	wu := wireu.NewWireUpdate(localASSourcePayload(), ctxID)
+	wu := wireu.NewWireUpdate(localASSourcePayload(topo.sourceAS), ctxID4)
 	const updateID = 7705
 	wu.SetMessageID(updateID)
 	cache.Add(&ReceivedUpdate{
@@ -169,7 +266,7 @@ func forwardLocalAS(t *testing.T, dests []localASDest) map[string][]uint32 {
 	cache.Activate(updateID, 1)
 
 	r := &Reactor{
-		config:          &Config{LocalAS: localASGlobal},
+		config:          &Config{LocalAS: topo.globalAS},
 		recentUpdates:   cache,
 		peers:           peers,
 		fwdPool:         pool,
@@ -191,7 +288,7 @@ func forwardLocalAS(t *testing.T, dests []localASDest) map[string][]uint32 {
 
 	mu.Lock()
 	defer mu.Unlock()
-	out := make(map[string][]uint32, len(got))
+	out := make(map[string]localASFrame, len(got))
 	maps.Copy(out, got)
 	return out
 }
@@ -200,14 +297,14 @@ func forwardLocalAS(t *testing.T, dests []localASDest) map[string][]uint32 {
 // GlobalLocalAS is always the router's real ASN, so a peer whose localAS differs
 // from it is a local-as override and a peer whose localAS equals it is an
 // ordinary neighbor.
-func makeLocalASPeer(t *testing.T, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID, dest localASDest) *Peer {
+func makeLocalASPeer(t *testing.T, topo localASTopology, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID, dest localASDest) *Peer {
 	t.Helper()
 	addr := netip.MustParseAddr(dest.addr)
 	peer := NewPeer(&PeerSettings{
 		Connection:       ConnectionBoth,
 		Address:          addr,
 		LocalAS:          dest.localAS,
-		GlobalLocalAS:    localASGlobal,
+		GlobalLocalAS:    topo.globalAS,
 		PeerAS:           dest.peerAS,
 		RouterID:         0x01020300 | uint32(addr.As4()[3]),
 		LocalASNoPrepend: dest.noPrepend,
@@ -251,9 +348,9 @@ func TestLocalASReplaceASSendsOnlyTheLocalAS(t *testing.T) {
 			wantPath: []uint32{localASLegacy, localASGlobal, localASSource},
 		},
 	}
-	paths := forwardLocalAS(t, dests)
+	paths := forwardLocalAS(t, mappableTopology, dests)
 	for _, dest := range dests {
-		assert.Equal(t, dest.wantPath, paths[dest.addr], dest.name)
+		assert.Equal(t, dest.wantPath, paths[dest.addr].asPath, dest.name)
 	}
 }
 
@@ -288,9 +385,9 @@ func TestLocalASNoPrependLeavesEveryOutboundPathAlone(t *testing.T) {
 			wantPath: []uint32{localASLegacy, localASGlobal, localASSource},
 		},
 	}
-	paths := forwardLocalAS(t, dests)
+	paths := forwardLocalAS(t, mappableTopology, dests)
 	for _, dest := range dests {
-		assert.Equal(t, dest.wantPath, paths[dest.addr], dest.name)
+		assert.Equal(t, dest.wantPath, paths[dest.addr].asPath, dest.name)
 	}
 }
 
@@ -308,7 +405,7 @@ func TestLocalASNoPrependLeavesEveryOutboundPathAlone(t *testing.T) {
 func TestLocalASOptionsProduceDifferentASPaths(t *testing.T) {
 	const noPrependAddr = "10.0.0.8"
 	const replaceASAddr = "10.0.0.9"
-	paths := forwardLocalAS(t, []localASDest{
+	paths := forwardLocalAS(t, mappableTopology, []localASDest{
 		{
 			name: "no-prepend", addr: noPrependAddr, localAS: localASLegacy, peerAS: 65008,
 			noPrepend: true,
@@ -321,12 +418,75 @@ func TestLocalASOptionsProduceDifferentASPaths(t *testing.T) {
 		},
 	})
 
-	require.NotEmpty(t, paths[noPrependAddr], "the no-prepend peer must have received the route")
-	require.NotEmpty(t, paths[replaceASAddr], "the replace-as peer must have received the route")
-	assert.NotEqual(t, paths[replaceASAddr], paths[noPrependAddr],
+	require.NotEmpty(t, paths[noPrependAddr].asPath, "the no-prepend peer must have received the route")
+	require.NotEmpty(t, paths[replaceASAddr].asPath, "the replace-as peer must have received the route")
+	assert.NotEqual(t, paths[replaceASAddr].asPath, paths[noPrependAddr].asPath,
 		"RFC 7705 Section 3.3 makes no-prepend inbound and replace-as outbound: one UPDATE cannot leave for both peers with the same AS_PATH")
-	assert.Contains(t, paths[noPrependAddr], uint32(localASGlobal),
+	assert.Contains(t, paths[noPrependAddr].asPath, uint32(localASGlobal),
 		"no-prepend does not govern the outbound rail, so the globally configured ASN stays")
-	assert.NotContains(t, paths[replaceASAddr], uint32(localASGlobal),
+	assert.NotContains(t, paths[replaceASAddr].asPath, uint32(localASGlobal),
 		"replace-as MUST NOT append the globally configured ASN")
+}
+
+// TestLocalASFourOctetTowardTwoOctetPeer pins the local-as prepend against
+// RFC 6793 Section 4.2.2, for each of the three configurations.
+//
+// The router's own two AS numbers are above 65535 and the customer's is not, so
+// a destination that negotiated no four-octet AS number capability receives an
+// AS_PATH in which the router's AS numbers are AS_TRANS and the customer's is
+// itself. That destination "MUST also" receive the AS4_PATH holding the real
+// values, because the path is not "composed of mappable four-octet AS numbers
+// only".
+//
+// The pair matters more than either half. AS_TRANS in AS_PATH with no AS4_PATH
+// beside it loses the router's identity for every speaker behind this one, and
+// it is the shape a prepend that forgot to feed the AS4_PATH derivation
+// produces. The four-octet destination beside them is the control: it reads the
+// real AS numbers in AS_PATH and MUST NOT be sent an AS4_PATH at all.
+//
+// VALIDATES: AC-6. RFC7705-3.3-4 and -3.3-5 under RFC 6793 Section 4.2.2:
+// replace-as removes the globally configured AS number from BOTH encodings, not
+// from the two-octet one alone.
+// PREVENTS: a two-octet peer being told the migration is one AS hop where it is
+// two, and an AS4_PATH that disagrees with the AS_PATH it explains.
+func TestLocalASFourOctetTowardTwoOctetPeer(t *testing.T) {
+	dests := []localASDest{
+		{
+			name: "old speaker, no option", addr: "10.0.0.12",
+			localAS: localASLegacy4, peerAS: 65012, dstASN2: true,
+			wantPath:    []uint32{asTransASN, asTransASN, localASSource},
+			wantAS4Path: []uint32{localASLegacy4, localASGlobal4, localASSource},
+		},
+		{
+			name: "old speaker, no-prepend", addr: "10.0.0.13",
+			localAS: localASLegacy4, peerAS: 65013, dstASN2: true, noPrepend: true,
+			wantPath:    []uint32{asTransASN, asTransASN, localASSource},
+			wantAS4Path: []uint32{localASLegacy4, localASGlobal4, localASSource},
+		},
+		{
+			name: "old speaker, replace-as", addr: "10.0.0.14",
+			localAS: localASLegacy4, peerAS: 65014, dstASN2: true, replaceAS: true,
+			wantPath:    []uint32{asTransASN, localASSource},
+			wantAS4Path: []uint32{localASLegacy4, localASSource},
+		},
+		{
+			name: "new speaker, no option", addr: "10.0.0.15",
+			localAS: localASLegacy4, peerAS: 65015,
+			wantPath: []uint32{localASLegacy4, localASGlobal4, localASSource},
+		},
+	}
+	frames := forwardLocalAS(t, fourOctetTopology, dests)
+	for _, dest := range dests {
+		frame := frames[dest.addr]
+		require.NotEmpty(t, frame.asPath, dest.name+": must have received the route")
+		assert.Equal(t, dest.wantPath, frame.asPath, dest.name+": AS_PATH")
+		if dest.wantAS4Path == nil {
+			assert.Nil(t, frame.as4Path, dest.name+
+				": every AS number reaches this destination at its real value, so RFC 6793 Section 4.2.2 forbids AS4_PATH")
+			continue
+		}
+		assert.Equal(t, dest.wantAS4Path, frame.as4Path, dest.name+": AS4_PATH")
+		assert.Len(t, frame.as4Path, len(frame.asPath),
+			dest.name+": AS_TRANS preserves the path length, so the two encodings hold the same number of AS numbers")
+	}
 }

@@ -651,3 +651,82 @@ func TestDynamicGroupTemplateBuildsSessionCapabilities(t *testing.T) {
 	assert.Contains(t, codes, capability.CodeRouteRefresh)
 	assert.Contains(t, codes, capability.CodeEnhancedRouteRefresh)
 }
+
+// TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup drives the two RFC 7705
+// Section 3.3 options through the group-to-peer inheritance that
+// PeersFromConfigTree performs, which is the entry point an operator's file
+// actually reaches.
+//
+// RFC 7705 Section 3.3: "The mechanisms introduced in this section MUST be
+// configurable on a per-neighbor or per-neighbor-group basis to allow for
+// maximum flexibility." Both halves of that sentence are asserted here, in one
+// tree, because a group setting that reaches every peer regardless of what the
+// peer says satisfies the group half and breaks the neighbor half.
+//
+// The group sets replace-as and the local-as beside it. One peer inherits both.
+// The second peer states local-options of its own and MUST end up with the
+// option it named and NOT with the group's, which is the assertion that tells
+// inheritance from accumulation. The third peer is outside the group and MUST
+// carry neither, so a group option cannot leak to a peer that never inherited
+// it.
+//
+// VALIDATES: AC-7, RFC7705-3.3-1. No `RFC requirement:` tag is carried: the
+// summary is parked at rfc/pending/rfc7705.md, so the id is unknown to
+// `./le rfc check` (internal/le/rfc/check_core.go) until enrolment.
+// PREVENTS: the options being peer-only, a group option overwriting a peer's own
+// choice, and a group option reaching a peer outside the group.
+func TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup(t *testing.T) {
+	tree := config.NewTree()
+	bgp := buildBGPBlock()
+
+	group := config.NewTree()
+	groupSession := config.NewTree()
+	groupASN := config.NewTree()
+	groupASN.Set("local", "65010")
+	groupASN.SetSlice("local-options", []string{"replace-as"})
+	groupSession.SetContainer("asn", groupASN)
+	group.SetContainer("session", groupSession)
+
+	group.AddListEntry("peer", "inherits", buildMinimalPeer("10.0.0.1", "65001", "auto"))
+
+	overrides := buildMinimalPeer("10.0.0.2", "65002", "auto")
+	overrideASN := config.NewTree()
+	overrideASN.Set("remote", "65002")
+	overrideASN.SetSlice("local-options", []string{"no-prepend"})
+	overrideSession := config.NewTree()
+	overrideSession.SetContainer("asn", overrideASN)
+	overrides.SetContainer("session", overrideSession)
+	group.AddListEntry("peer", "overrides", overrides)
+
+	bgp.AddListEntry("group", "migrating", group)
+	bgp.AddListEntry("peer", "outside", buildMinimalPeer("10.0.0.3", "65003", "auto"))
+	tree.SetContainer("bgp", bgp)
+
+	peers, err := PeersFromConfigTree(tree)
+	require.NoError(t, err)
+	require.Len(t, peers, 3)
+
+	byAddr := make(map[string]*reactor.PeerSettings, len(peers))
+	for _, ps := range peers {
+		byAddr[ps.Address.String()] = ps
+	}
+
+	inherits := byAddr["10.0.0.1"]
+	require.NotNil(t, inherits, "the inheriting peer must be present")
+	assert.Equal(t, uint32(65010), inherits.LocalAS, "the group's local-as reaches the peer")
+	assert.True(t, inherits.LocalASReplaceAS, "the group's replace-as reaches the peer")
+	assert.False(t, inherits.LocalASNoPrepend, "the group named one option, so only that one is set")
+
+	overridden := byAddr["10.0.0.2"]
+	require.NotNil(t, overridden, "the overriding peer must be present")
+	assert.Equal(t, uint32(65010), overridden.LocalAS, "the group's local-as still reaches this peer")
+	assert.True(t, overridden.LocalASNoPrepend, "the peer's own local-options is what it gets")
+	assert.False(t, overridden.LocalASReplaceAS,
+		"a peer that states local-options REPLACES the group's leaf-list; accumulating both would give this peer an option nobody configured for it")
+
+	outside := byAddr["10.0.0.3"]
+	require.NotNil(t, outside, "the peer outside the group must be present")
+	assert.Equal(t, uint32(65000), outside.LocalAS, "no group, so the globally configured AS number stands")
+	assert.False(t, outside.LocalASNoPrepend, "a group option must not reach a peer outside the group")
+	assert.False(t, outside.LocalASReplaceAS, "a group option must not reach a peer outside the group")
+}

@@ -44,8 +44,10 @@ func RewriteASPath(dst, payload []byte, localASN uint32, srcASN4, dstASN4 bool) 
 // Used for the local-as override "dual-AS" mode: primaryASN is the override
 // the peer expects to see, secondaryASN is the router's real AS. With no
 // local-as modifiers set, downstream peers see AS_PATH = [override, real, ...].
-// When no-prepend or replace-as is set, the caller uses RewriteASPath with
-// only the override and skips this dual variant.
+// Only "replace-as" turns that into the single-ASN form, because RFC 7705
+// Section 3.3 makes it the OUTBOUND option: "the BGP speaker MUST NOT append
+// the globally configured ASN". "No Prepend Inbound" governs the inbound rail
+// and never reaches this one (secondaryPrependAS, peer_forward_facts.go).
 //
 // RFC 7705 references the "local-as" feature and its dual-AS semantics.
 func RewriteASPathDual(dst, payload []byte, primaryASN, secondaryASN uint32, srcASN4, dstASN4 bool) (int, error) {

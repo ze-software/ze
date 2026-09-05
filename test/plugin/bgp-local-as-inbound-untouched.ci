@@ -1,0 +1,234 @@
+# bgp-local-as-inbound-untouched -- a route learned FROM a peer carrying
+# `local-as` and `no-prepend` reaches the rest of the router untouched, and the
+# globally configured AS number is still what other neighbors are told.
+#
+# This is the INBOUND half of RFC 7705 Section 3.3, which the outbound file
+# beside it (bgp-local-as-options.ci) cannot reach: that file reads what the
+# migrated peer RECEIVES, and this one reads what everybody else receives about
+# a route the migrated peer SENT.
+#
+#   conn=1  source, AS 65001, local-as 65010 + no-prepend   sends AS_SEQUENCE[65001]
+#   conn=2  iBGP neighbor, AS 65000                          AS_SEQUENCE[65001]
+#   conn=3  native eBGP neighbor, AS 65003                   AS_SEQUENCE[65000, 65001]
+#
+# RFC 7705 Section 3.3 on "No Prepend Inbound": the router "MUST NOT append the
+# 'Local AS' ASN value in the AS_PATH attribute when installing the route or
+# advertising that UPDATE to iBGP neighbors, but it MUST still append the
+# globally configured ASN as normal when advertising the UPDATE to other local
+# eBGP neighbors (i.e., those natively peering with the globally configured
+# ASN)".
+#
+# conn=2 is the MUST NOT and conn=3 is the MUST, and the two are what make the
+# pair discriminating. 65010 must appear in NEITHER frame: a rail that appended
+# the legacy AS on the way in would put it in both, and a test reading only
+# conn=3 would still see the 65000 it demands and pass.
+#
+# conn=2 is asserted as the source frame BYTE FOR BYTE. That is the strongest
+# form the requirement has: not merely "65010 is absent" but "nothing was
+# changed at all". The forward rail adds no LOCAL_PREF of its own toward an
+# internal peer -- applyFactsLocalPref (forward_local_pref.go) only SUPPRESSES
+# the attribute toward an external one -- so a byte-equal frame is what a
+# correct relay produces, and any attribute the rail invented shows up as a
+# length difference.
+#
+# The unit-level twin is internal/component/bgp/reactor/rfc7705_local_as_test.go,
+# TestLocalASNoPrependLeavesEveryOutboundPathAlone, which reads the same two
+# destinations off ForwardUpdate.
+#
+# NO LOCAL_PREF in the source frame, for the reason bgp-local-as-options.ci
+# gives: the source is an eBGP peer, RFC 4271 Section 5.1.5 forbids LOCAL_PREF
+# toward external peers, and ze would overwrite it with an ATTR_DISCARD marker
+# that the byte equality below would pin instead of the AS_PATH.
+#
+# NOT YET EXECUTED, 2026-09-05. The three frames below are computed from the
+# RFC and from the producers, not read off a run: ze-test could not be rebuilt
+# with this file's fixture, because internal/component/bgp/plugins/cmd/commit
+# did not compile in the working tree at the time. The AS numbers in each frame
+# are the ones TestLocalASNoPrependLeavesEveryOutboundPathAlone
+# (internal/component/bgp/reactor/rfc7705_local_as_test.go) reads off the same
+# rail and asserts green; the framing around them is what a run still has to
+# confirm. Run it with:
+#   ./le job run label functional-plugin command ze-test bgp plugin bgp-local-as-inbound-untouched
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=3
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+# Bind conn=N by remote IP rather than accept order: which receiver connects
+# first is a race, and the receivers must be told apart by identity
+# (peer_connmap.go).
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, AS 65001, reached over a session that answers to the
+# legacy AS 65010 and carries no-prepend): announce 10.0.0.0/24.
+#   ORIGIN:    40010100            IGP
+#   AS_PATH:   40020602010000FDE9  AS_SEQUENCE[65001], 4-byte ASNs
+#   NEXT_HOP:  40030401010101      1.1.1.1
+#   NLRI:      180A0000            10.0.0.0/24
+# attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+4 = 47 = 0x2F.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+
+# The source's own EOR. Only conn=1's is asserted, for the reason
+# bgp-local-as-options.ci gives: RFC 4724 Section 4.1 constrains no ordering
+# between a peer's EOR and the routes it learns afterwards.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# conn=2, the iBGP neighbor: the frame conn=1 sent, byte for byte. The legacy AS
+# 65010 (0000FDF2) is absent, which is RFC7705-3.3-2, and so is the globally
+# configured 65000 (0000FDE8), which RFC 4271 Section 5.1.2 keeps off an
+# internal advertisement.
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+
+# conn=3, a neighbor natively peering with the globally configured AS number:
+# 65000 is prepended as normal and the legacy AS is still absent, which is
+# RFC7705-3.3-3.
+#   AS_PATH: 40020A02020000FDE80000FDE9   AS_SEQUENCE[65000, 65001]
+# attr len = 4+13+7 = 24 = 0x18; total = 19+2+2+24+4 = 51 = 0x33.
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external shutdown-after-up {
+		run "ze-test fixture plugin/bgp-local-as-inbound-untouched"
+		encoder json
+	}
+}
+bgp {
+	# The router's globally configured ASN, which RFC 7705 Section 3.3 names
+	# throughout. conn=2 and conn=3 both peer with it natively.
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer migrated-customer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				# The legacy AS this customer still peers with, and the INBOUND
+				# option. Neither may reach the two frames below.
+				local 65010
+				remote 65001
+				local-options [ no-prepend ]
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer ibgp-neighbor {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				# Same AS as the router: an internal peer.
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer native-ebgp-neighbor {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				# No local-as: this neighbor peers with the globally configured AS.
+				remote 65003
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=forward-cached failed
+reject=stderr:pattern=release-cached failed
