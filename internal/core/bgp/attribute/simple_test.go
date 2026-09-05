@@ -236,8 +236,9 @@ var fixedWidthAddressForms = []struct {
 //
 // RFC 4271 Section 5.1.7 gives AGGREGATOR an AS number and an IP address, and
 // RFC 6793 Section 3 makes the AS number four octets, restated as a MUST in Section
-// 4.1, and RFC 4271 Section 5.1.7 makes the address four. RFC 6793 states nothing
-// about the address field. Four plus four is the 8 Len returns.
+// 4.1. RFC 4271 Section 4.3 g) makes the address four, "encoded as 4 octets", and
+// RFC 6793 states nothing about the address field. Four plus four is the 8 Len
+// returns.
 //
 // VALIDATES: WriteTo returns 8 and touches exactly those eight octets for every
 // address form, writing the four IPv4 octets when the address has an IPv4 form and

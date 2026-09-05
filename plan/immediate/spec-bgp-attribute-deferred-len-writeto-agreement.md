@@ -566,3 +566,195 @@ Add the citation above the enforcing code:
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `writeIPv4AddressField` (`internal/core/bgp/attribute/simple.go`) writes the
+  four-octet IP address field, and five write sites route through it:
+  `(*Aggregator).WriteTo`, both branches of `(*Aggregator).WriteToWithContext`,
+  `(*AS4Aggregator).WriteTo` (`as4.go`) and `OriginatorID.WriteTo`. An address with
+  an IPv4 form writes its four octets; any other form writes four zeros.
+- `(*NextHop).Len` derives the count from the value: 0 for an invalid address, 4
+  for `Is4`, 16 otherwise.
+- `(*NextHop).ValidateNextHops` refuses an address with no wire form, so the
+  attribute satisfies the `announceNextHopValidator` interface `announceAttrs.add`
+  (`internal/component/bgp/reactor/announce_build.go`) already asserts. No call
+  site changed.
+- `ErrUnencodableNextHop` (`mpnlri.go`) stopped naming MP_REACH, and
+  `(*MPReachNLRI).ValidateNextHops` adds the word to its own wrap.
+
+### Bugs Found/Fixed
+- Closure found five RFC citations attributing the four-octet AGGREGATOR address
+  field to RFC 4271 Section 5.1.7. That section states no width. The count is in
+  Section 4.3 g): the attribute "contains the last AS number that formed the
+  aggregate route (encoded as 2 octets), followed by the IP address of the BGP
+  speaker that formed the aggregate route (encoded as 4 octets)", read in
+  `rfc/full/rfc4271.txt`. One was a verbatim quotation of Section 4.3 text under a
+  Section 5.1.7 attribution, in the `writeIPv4AddressField` godoc. Corrected in
+  `simple.go` (the helper godoc, the `Aggregator` type godoc and `ParseAggregator`),
+  `simple_test.go`, `len_writeto_test.go`, `announce_build_attr_region_test.go`, and
+  the same claim on the AGGREGATOR length guard in
+  `internal/component/bgp/wireu/aspath_rewrite.go`. Journal row in
+  `plan/journal/reference-checked-claim-unchecked.md`.
+
+### Documentation Updates
+- None owed. `grep -rn "source: internal/core/bgp/attribute/simple.go" docs/`
+  answers `docs/DESIGN.md`, a type-code table with no encoder claim; the `as4.go`
+  anchors in `docs/architecture/edge-cases/as4.md` draw "Aggregator IP (4 bytes)",
+  which the fix makes true for every address form.
+  `docs/architecture/wire/attributes.md` Section 3 states NEXT_HOP "4 bytes (IPv4)",
+  Section 7 AGGREGATOR "6 bytes (2-byte AS) or 8 bytes (4-byte AS)", Section 9
+  ORIGINATOR_ID "4 bytes", Section 18 AS4_AGGREGATOR "8 bytes". No claim is
+  contradicted, so no page changed.
+- `./le doc check verify` is RED, and none of it is this change: one YANG summary
+  over the char and word caps at `ze-bgp-conf:bgp/defaults/attribute`, an
+  uncommitted edit by the `bgp-attribute-defaults` session, and three source
+  anchors naming `getHelpExtension` and `Node.Help` in
+  `internal/component/config/yang/`, another session's package.
+
+### Deviations from Plan
+- None. The four phases landed as planned in commit `710205bd4`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation, and a later correction pass in `5a5dd182b`, both cited RFC 4271 Section 5.1.7 for the four-octet AGGREGATOR address field, once as a verbatim quotation | Section 5.1.7 states no width. Section 4.3 g) carries the sentence and the octet counts | Closure read `rfc/full/rfc4271.txt` rather than the summary, per `ai/rules/rfc-compliance.md` | Six sites corrected; row in `plan/journal/reference-checked-claim-unchecked.md`. No gate reads a quotation against its RFC, which is what the row records |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `WriteTo` returns exactly `Len()` and touches no octet beyond it, for four address forms | Done | `simple.go` `writeIPv4AddressField` and `(*NextHop).Len`; `as4.go` `(*AS4Aggregator).WriteTo` | Canary tests assert the octets on both sides of the region |
+| Bound the write where the RFC fixes the width | Done | `writeIPv4AddressField`, five call sites | RFC 4271 Section 4.3 g), RFC 4456 Section 8, RFC 6793 Section 6 |
+| Derive the length where the value decides it | Done | `(*NextHop).Len` | Branches on `IsValid` then `Is4` |
+| Refuse a NEXT_HOP with no wire form | Done | `(*NextHop).ValidateNextHops` | Reached through `announceNextHopValidator` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestAggregatorWriteToStaysWithinLen` | Four forms, canary buffer, non-zero offset |
+| AC-2 | Done | `TestAggregatorWriteToWithContextStaysWithinLen` | Four forms by three contexts by two ASNs, AS_TRANS included |
+| AC-3 | Done | `TestAS4AggregatorWriteToStaysWithinLen` | Both `WriteTo` and `WriteToWithContext` |
+| AC-4 | Done | `TestOriginatorIDWriteToStaysWithinLen` | Returns 4 for every form |
+| AC-5 | Done | `TestNextHopLenMatchesWriteToForEveryAddressForm` | 4, 16, 16, 0, and equal to `len(Addr.AsSlice())` |
+| AC-6 | Done | `TestAnnouncePlanRefusesUnencodableNextHopAttribute`, `TestAnnouncePlanKeepsValidNextHopAttribute` | Refusal cause is `ErrUnencodableNextHop`; a valid IPv4 NEXT_HOP is still planned |
+| AC-7 | Done | `TestAttributeWriteToAllocatesNothing` | `testing.AllocsPerRun` zero on all eight calls |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The five new codec tests | Done | `internal/core/bgp/attribute/simple_test.go`, `as4_test.go` | Green under `-race` on 2026-09-05 |
+| Both extended tables | Done | `internal/core/bgp/attribute/len_writeto_test.go` | IPv6, IPv4-in-IPv6 and zero-`Addr` rows for four attributes |
+| The three wiring tests | Done | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | Green under `-race` on 2026-09-05 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/core/bgp/attribute/simple.go` | Done | Helper, `Len`, `ValidateNextHops`, three godoc citations corrected at closure |
+| `internal/core/bgp/attribute/as4.go` | Done | `(*AS4Aggregator).WriteTo` routed through the helper |
+| `internal/core/bgp/attribute/mpnlri.go` | Done | Sentinel message generalized, MP_REACH restored to its own wrap |
+| The three attribute test files | Done | - |
+| `internal/component/bgp/reactor/announce_build_attr_region_test.go` | Done | Created |
+| `docs/architecture/wire/attributes.md` | Changed | Read and left unedited: no claim is contradicted |
+
+### Audit Summary
+- **Total items:** 21
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the doc page, read and left unedited, recorded above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One rule per attribute: `WriteTo` returns exactly `Len()` and touches no octet beyond it, for four address forms | functional (unit, canary) | `TestAggregatorWriteToStaysWithinLen`, `TestAggregatorWriteToWithContextStaysWithinLen`, `TestAS4AggregatorWriteToStaysWithinLen`, `TestOriginatorIDWriteToStaysWithinLen` and `TestNextHopLenMatchesWriteToForEveryAddressForm`, all green under `-race`. Each writes at a non-zero offset into a `0x5A` buffer and asserts the pattern survives on both sides |
+| The class cannot recur silently: a count-only invariant cannot see it | discrimination | The red-evidence table above: under M1, `TestLenMatchesWriteTo` and `TestLenMatchesWriteToWithContext` stayed GREEN for every AGGREGATOR, AS4_AGGREGATOR and ORIGINATOR_ID row while the canary tests went red. That difference is what proves the new assertion discriminates |
+| The refusal half keeps a zero-length NEXT_HOP off the wire | functional (the announce plan, from the rail both announce paths use) | `TestAnnouncePlanRefusesUnencodableNextHopAttribute` asserts `errors.Is(plan.refusalCause(), attribute.ErrUnencodableNextHop)` and an empty plan. Under M3 the plan EMITTED the attribute, which is R-1 demonstrated |
+| No cost on the announce path | benchmark | `TestAttributeWriteToAllocatesNothing`: `testing.AllocsPerRun(100, ...)` is 0 for all eight changed calls, measured on the IPv6 form, the one that used to reach `AsSlice` |
+| No wire change for any input a producer can build | producer survey, re-run at closure | `ParseAggregator` and `ParseAS4Aggregator` build the address from a four-octet slice; `(*CommitService)` carries that parsed address into `attribute.AS4Aggregator` (`internal/component/bgp/rib/commit.go`); every ORIGINATOR_ID producer calls `netip.AddrFrom4` (`internal/component/bgp/message/update_build.go` and its grouped, labeled, evpn, vpn and flowspec siblings). This is what makes the interop row N-A rather than skipped: a peer daemon cannot distinguish the two trees |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Nothing | Every AC has product code and a passing test | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-attribute-deferred-len-writeto-agreement-zeclose-attrlen.md` |
+| `./le spec session review check` | OK (8 code files, clean, hashes match) |
+| Rounds | 2. Round 1 over the whole handoff diff, read at HEAD; round 2 over the citation fixes it produced, which found nothing |
+| Reviewer lenses used | wiring, removed-behavior, logic and guard audit, allocation, RFC compliance against `rfc/full/`, style pass (`docs/contributing/ze-go-style.md`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The `writeIPv4AddressField` godoc quotes RFC 4271 Section 4.3 g) text verbatim under a Section 5.1.7 attribution. Section 5.1.7 states no octet count | `internal/core/bgp/attribute/simple.go`, `writeIPv4AddressField` | The quotation now names Section 4.3 g), and the godoc says what Section 5.1.7 does state |
+| 2 | ISSUE | Five more sites make the same attribution for the four-octet address field | `simple.go` (`Aggregator`, `ParseAggregator`), `simple_test.go`, `len_writeto_test.go`, `announce_build_attr_region_test.go` | Each corrected to Section 4.3 g) |
+| 3 | ISSUE | The same claim in a sibling package, on the AGGREGATOR length guard | `internal/component/bgp/wireu/aspath_rewrite.go`, the `length != 6 && length != 8` branch | Corrected. The unit is the problem, not the files this spec edited |
+
+The `panic()` question of the style pass was traced and answered NO. `writeIPv4AddressField`
+slices a four-octet window, and every caller bounds it first: `(*Aggregator).CheckedWriteTo`
+and `(*AS4Aggregator).CheckedWriteTo` refuse a buffer shorter than the offset plus eight,
+`OriginatorID.CheckedWriteTo` refuses one shorter than the offset plus four,
+`announceAttrs.add` writes only after `reserve` succeeds, and `(*Builder).Build` sizes its
+buffer from `AttrWireLen`. No peer-controlled input reaches the index.
+
+`ParseNextHop` and `ParseOriginatorID` were raised as possibly unwired. They are wired:
+`knownAttrParsers` (`internal/core/bgp/attribute/wire.go`) registers both at `init` time and
+`parseKnownAttribute` dispatches through that table for every received UPDATE.
+`./le repository check` passes over this tree.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/announce_build_attr_region_test.go` | Yes | `ls -l` reports 6322 bytes, 2026-09-05 |
+| `internal/core/bgp/attribute/simple.go` | Yes | `ls -l` reports 18591 bytes |
+| `internal/core/bgp/attribute/as4.go` | Yes | `ls -l` reports 17533 bytes |
+| `internal/core/bgp/attribute/mpnlri.go` | Yes | `ls -l` reports 24952 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5, AC-7 | The codec invariants hold for every address form at zero allocation | `go test -race -count=1 ./internal/core/bgp/attribute/...` exit 0 on 2026-09-05, after the citation fixes |
+| AC-6 | The plan refuses an unencodable NEXT_HOP and keeps a valid one | `go test -race -count=1 -run 'TestAnnouncePlanAggregatorStaysInsideReservedRegion\|TestAnnouncePlanRefusesUnencodableNextHopAttribute\|TestAnnouncePlanKeepsValidNextHopAttribute' ./internal/component/bgp/reactor/` exit 0 |
+| Deliverable | No `AsSlice()` write remains in a fixed-width field | `grep -n "AsSlice()" internal/core/bgp/attribute/simple.go internal/core/bgp/attribute/as4.go` answers two lines, a comment and `(*NextHop).WriteTo`, the one attribute whose width IS the value |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| An announce carrying an AGGREGATOR with an IPv6 `Address`, through `announceAttrs.add` | No `.ci`: `announce_build_attr_region_test.go`, `TestAnnouncePlanAggregatorStaysInsideReservedRegion` | Yes. Read: it calls `plan.begin`, fills the scratch region with `0xAA`, calls `plan.add` then `plan.emit`, and asserts `plan.used` is 8 with the canary intact past octet 8 |
+| An announce carrying a NEXT_HOP with the zero `netip.Addr` | `TestAnnouncePlanRefusesUnencodableNextHopAttribute` | Yes. Read: `plan.add(plan.nextHopFor(netip.Addr{}), nil)`, then `require.ErrorIs` on `plan.refusalCause()` against `attribute.ErrUnencodableNextHop`, and `assert.Empty` on `plan.plans` |
+| An announce carrying a valid IPv4 NEXT_HOP | `TestAnnouncePlanKeepsValidNextHopAttribute` | Yes. Read: asserts `plan.used` is 4, the four octets of `192.0.2.1`, and the canary after them |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Re-run at closure: `ParseAggregator` and `ParseAS4Aggregator` build from a four-octet slice, `(*CommitService)` carries that address into `attribute.AS4Aggregator`, and every ORIGINATOR_ID producer builds with `netip.AddrFrom4` |
+| A-2 | confirmed | `writeIPv4AddressField` keeps the buffer-first signature and no error return; the zero fill is pinned by the `IPv6` and `zero Addr` rows of the three canary tests |
+| A-3 | confirmed | `TestNextHopLenMatchesWriteToForEveryAddressForm` asserts `nh.Len()` equals `len(addr.AsSlice())` for all four forms |
+| A-4 | confirmed | `TestAnnouncePlanKeepsValidNextHopAttribute` plans a four-octet value with no refusal cause |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Item 16, the three anchored documents | `docs/architecture/wire/attributes.md` Sections 3, 7, 9 and 18 state 4, 6-or-8, 4 and 8 octets; `docs/architecture/edge-cases/as4.md` draws "Aggregator IP (4 bytes)"; `docs/DESIGN.md` anchors a type-code table | Yes, and none is contradicted. The fix makes the AGGREGATOR and ORIGINATOR_ID statements true for an address form for which they were false |
+| Items 1-15 and 17, all No | `grep -rn "source: internal/core/bgp/attribute/" docs/` answers only the anchors above. No command, config leaf, RPC, plugin, metric or capability changed | Yes |
+
+## Core Insight
+A size query and a write disagree whenever they read different sources, and the
+direction of the repair is the RFC's to decide rather than the author's. Where the
+RFC fixes the field width, the WRITE is bounded to it. Where the value decides the
+width, the COUNT is derived from the write. Making the two agree is not the whole
+rule: `(*NextHop)` agrees at zero, and zero is a length no NEXT_HOP wire form has,
+so the refusal is a second, named obligation rather than a consequence of the first.

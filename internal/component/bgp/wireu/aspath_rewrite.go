@@ -523,7 +523,7 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 				n += copy(dst[n:], aggIP)
 			case length != 6 && length != 8:
 				// Genuinely malformed: an AGGREGATOR is a two- or four-octet AS
-				// number followed by a four-octet address (RFC 4271 Section 5.1.7,
+				// number followed by a four-octet address (RFC 4271 Section 4.3 g),
 				// RFC 6793 Section 4.2.2), so no other length is readable.
 				if tn := WriteTombstone(dst, n, payload[off], attribute.AttrAggregator, hl, length, TombstoneInvalidLength); tn > 0 {
 					n += tn

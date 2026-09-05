@@ -18,10 +18,11 @@ import (
 // Three attributes carry an IP address field the RFC fixes at four octets, and
 // none of the three can hold more:
 //
-// RFC 4271 Section 5.1.7: AGGREGATOR carries "the last AS number that formed the
-// aggregate route ... followed by the IP address of the BGP speaker that formed
-// the aggregate route", and that address SHOULD be the speaker's BGP Identifier,
-// a four-octet value.
+// RFC 4271 Section 4.3 g): AGGREGATOR "contains the last AS number that formed
+// the aggregate route (encoded as 2 octets), followed by the IP address of the
+// BGP speaker that formed the aggregate route (encoded as 4 octets)". Section
+// 4.3 is where the octet count is written. Section 5.1.7 names the same address
+// the speaker's own BGP Identifier and states no width.
 //
 // RFC 6793 Section 6: "The AS4_AGGREGATOR attribute in an UPDATE message SHALL be
 // considered malformed if the attribute length is not 8." Four of those eight
@@ -294,7 +295,8 @@ func parseAtomicAggregate(data []byte) (Attribute, error) {
 //   - Contains the AS number and IP address of the BGP speaker that
 //     performed the aggregation
 //   - The IP address SHOULD be the same as the BGP Identifier
-//   - Original format: 2-octet AS number + 4-octet IP address (6 octets)
+//   - Original format: 2-octet AS number + 4-octet IP address (6 octets),
+//     which RFC 4271 Section 4.3 g) states and Section 5.1.7 does not
 //
 // RFC 6793 (BGP Support for Four-Octet AS Number Space):
 //   - Extended format: 4-octet AS number + 4-octet IP address (8 octets)
@@ -363,7 +365,7 @@ func (a *Aggregator) LenWithContext(_, dstCtx *bgpctx.EncodingContext) int {
 
 // ParseAggregator parses an AGGREGATOR attribute.
 //
-// RFC 4271 Section 5.1.7: Original 2-byte AS format (6 octets total).
+// RFC 4271 Section 4.3 g): Original 2-byte AS format (6 octets total).
 // RFC 6793: Extended 4-byte AS format (8 octets total).
 //
 // The fourByteAS parameter indicates whether the peer supports 4-byte

@@ -47,7 +47,7 @@ func TestLenMatchesWriteTo(t *testing.T) {
 		// AtomicAggregate
 		{"AtomicAggregate", AtomicAggregate{}},
 
-		// Aggregator. RFC 4271 Section 5.1.7 fixes the address field at four octets,
+		// Aggregator. RFC 4271 Section 4.3 g) fixes the address field at four octets,
 		// so every form below must answer 8 -- the direction opposite to NextHop.
 		{"Aggregator", &Aggregator{ASN: 65001, Address: netip.MustParseAddr("192.168.1.1")}},
 		{"Aggregator IPv6", &Aggregator{ASN: 65001, Address: netip.MustParseAddr("2001:db8::1")}},
