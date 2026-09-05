@@ -117,7 +117,8 @@ last state transition, the last session error, and live route counts:
       "routes_received": 600,
       "routes_imported": 600,
       "routes_exported": 580,
-      "routes_filtered": 0
+      "routes_filtered": 0,
+      "routes_counts_available": true
     }
   }
 }
@@ -126,11 +127,22 @@ last state transition, the last session error, and live route counts:
 `routes_received` and `routes_imported` both report the retained Adj-RIB-In
 size because Ze does not keep routes rejected by import policy.
 `routes_exported` is the Adj-RIB-Out size. `routes_filtered` remains zero for
-the same reason, and the filtered-routes endpoint returns an empty list. Route
-counts are present only when the `bgp-rib` plugin is loaded.
+the same reason, and the filtered-routes endpoint returns an empty list.
 
-<!-- source: internal/component/lg/handler_api.go -- transformProtocols -->
+The four counts are always present. When Ze has no source for them, each one is
+`0`, because a birdwatcher client must never meet a missing key. Read
+`routes_counts_available` to tell the two apart. It is `true` only when the
+counts came from a real source, and `false` when they are placeholders. Ze has
+no source when the `bgp-rib` plugin is not loaded, and none for a BMP-monitored
+peer. Do not read `0` as "this peer sent no routes" until this field says
+`true`.
+
+<!-- source: internal/component/lg/handler_api.go -- transformProtocols, routeCountsAvailable -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- route counts and peer history -->
+
+The normative statement of this behavior is
+[Birdwatcher compatibility](../architecture/api/birdwatcher-compat.md),
+Sections 7.2 and 7.3.
 
 
 The UI under `/lg/` uses the same data and adds the peer table, route lookup, route search, and AS-path graph.

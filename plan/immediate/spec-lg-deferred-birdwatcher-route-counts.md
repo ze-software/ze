@@ -268,16 +268,204 @@ compatibility is covered by the functional test above.
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
 
+## Implementation Summary
+
+### What Was Implemented
+- `routeCountsAvailable` (`internal/component/lg/handler_api.go`) and the
+  `routes_counts_available` member it feeds into `transformProtocols`. The four
+  counts stay 0 for compatibility; the new member says whether they mean
+  anything.
+- `numValue` (`internal/component/lg/handler_api.go`) answers the number AND
+  whether one was readable. `getNum` keeps its signature and delegates, so no
+  caller that legitimately wants a zero changed.
+- `transformBMPProtocols` (`internal/component/lg/handler_api.go`) reports
+  `routes_counts_available` false: it consults no source for those four members.
+- `docs/architecture/api/birdwatcher-compat.md`, the normative contract for this
+  surface, Sections 7.2 and 7.3 and divergence rows 1 and 2.
+- `test/ui/lg-birdwatcher-counts-unavailable.ci` drives the real daemon over
+  HTTP on a build with no `bgp-rib` plugin.
+
+### Bugs Found/Fixed
+- The availability guard read key PRESENCE, not the count's value, so a count
+  the transform could not read as a number published a fabricated zero under
+  `routes_counts_available: true`. It was live in the committed capture
+  `internal/component/lg/testdata/handler/api-protocols-bgp.txt`. Fixed at
+  `routeCountsAvailable`, covered by
+  `TestAPIProtocolsCountAvailabilityOverHTTP/text-counts`.
+
+### Documentation Updates
+- `docs/architecture/api/birdwatcher-compat.md` -- created by the implementation.
+  Anchors `internal/component/lg/handler_api.go -- routeCountsAvailable`,
+  `-- transformBMPProtocols`, and
+  `internal/component/bgp/plugins/cmd/peer/summary.go -- fetchRibRouteCounts`,
+  `-- mergeRibRouteCounts`.
+- `docs/guide/looking-glass-howto.md` -- repaired at closure. It said "Route
+  counts are present only when the `bgp-rib` plugin is loaded", which
+  `transformProtocols` contradicts: all four counts are emitted on every peer.
+  Its JSON sample gained `routes_counts_available`. Its anchor now names
+  `routeCountsAvailable`.
+- `docs/guide/looking-glass.md` -- repaired at closure. Same false sentence, and
+  the page never named `routes_counts_available`. New anchor
+  `internal/component/lg/handler_api.go -- routeCountsAvailable`.
+- `./le doc check verify`: source-anchor pass clean over these edits. The run
+  exits 1 on three findings in files this spec does not touch, named in
+  Pre-Commit Verification.
+
+### Deviations from Plan
+- AC-1's literal wording ("the four count fields are not published as 0") and
+  AC-5's ("sourced or omitted, never hardcoded 0") are superseded by the owner
+  ruling of 2026-08-05: this is a compatibility surface, the counts stay, and
+  the truth travels beside them. Recorded in
+  `docs/architecture/api/birdwatcher-compat.md` Section 7.2.
+- AC-4 (G-2) is specified rather than plumbed. A distinct pre-policy count needs
+  the counter R-2 refuses. Section 7.3 and divergence row 2 publish the equality.
+- `internal/component/bgp/plugins/cmd/peer/summary.go` is unchanged, as the
+  Files to Modify table says: the consumer carries the producer's omit semantics.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The first guard tested key PRESENCE, on the reading that a present key holds a usable value | `ok` proves the key exists, never that its value reads as a number. `mockDispatch` sends its counts as strings, and the committed capture recorded `routes_counts_available: true` above four zeros | The captured response of the public endpoint disagreed with the flag above it | `routeCountsAvailable` derives from `numValue`; `TestAPIProtocolsCountAvailabilityOverHTTP/text-counts` pins it |
+| escalation | Two user guides kept a sentence the transform contradicts, and neither named the new member | `transformProtocols` emits all four counts on every peer, always | Closure step 4, grepping `docs/` for the count claims | Both pages repaired in commit A; the class is `doc-page-outlives-its-code` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1: an unavailable count must not read as a measurement | Done | `routeCountsAvailable`, `internal/component/lg/handler_api.go` | The zero stays for compatibility; the truth is a fifth member |
+| G-2: `routes_imported` must stop aliasing `routes_received`, or be documented as one | Done (documented) | `docs/architecture/api/birdwatcher-compat.md` Section 7.3, divergence row 2 | Producer `mergeRibRouteCounts` assigns the Adj-RIB-In size to both; R-2 refuses the racy pre-policy counter |
+| G-3: BMP rows must source their counts or declare them | Done | `transformBMPProtocols`, `internal/component/lg/handler_api.go` | Emits `routes_counts_available: false` |
+| `routes_filtered` out of scope | Done | unchanged | `mergeRibRouteCounts` still never emits `routes-filtered` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Changed | `TestAPIProtocolsCountAvailabilityOverHTTP/no-counts`, `test/ui/lg-birdwatcher-counts-unavailable.ci` | The response distinguishes unknown from zero through `routes_counts_available`, not through omission (2026-08-05 ruling) |
+| AC-2 | Done | `TestAPIProtocolsCountAvailabilityOverHTTP/with-counts` | Asserts `routes_received` 60 and `routes_exported` 50 |
+| AC-3 | Done | `TestAPIProtocolsCountAvailabilityOverHTTP/zero-counts` | A real 0 keeps the flag true |
+| AC-4 | Changed | `docs/architecture/api/birdwatcher-compat.md` Section 7.3 | Documented as an alias rather than made distinct |
+| AC-5 | Changed | `TestAPIBMPProtocolsCountsUnavailableOverHTTP` | The counts stay and declare themselves unavailable |
+| AC-6 | Done | `mergeRibRouteCounts` unchanged | `routes-filtered` has no producer; owned by `spec-bgp-filtered-route-storage` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRouteCountsAvailableFlagsFabricatedZeros` | Done | `internal/component/lg/handler_api_test.go` | PASS |
+| `TestAPIProtocolsCountAvailabilityOverHTTP` | Done | `internal/component/lg/handler_api_test.go` | PASS, four subtests |
+| `TestBMPProtocolsDeclareCountsUnavailable` | Done | `internal/component/lg/handler_api_test.go` | PASS |
+| `TestAPIBMPProtocolsCountsUnavailableOverHTTP` | Done | `internal/component/lg/handler_api_test.go` | PASS |
+| `lg-birdwatcher-counts-unavailable` | Done | `test/ui/lg-birdwatcher-counts-unavailable.ci` | Passed under `./le functional ui` at commit `47cfece1c` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/lg/handler_api.go` | Done | `routeCountsAvailable`, `numValue`, `getNum`, both transforms |
+| `internal/component/lg/handler_api_test.go` | Done | Four tests, 261 added lines across the two commits |
+| `internal/component/lg/port_check_test.go` | Done | `lgPortCountsReadable` divergence reason |
+| `internal/component/lg/testdata/handler/api-protocols-bgp.txt` | Done | `routes_counts_available` goes to false |
+| `test/ui/lg-birdwatcher-counts-unavailable.ci` | Done | 77 lines |
+| `docs/architecture/api/birdwatcher-compat.md` | Done | Sections 7.2, 7.3, divergence table |
+| `internal/component/bgp/plugins/cmd/peer/summary.go` | Unchanged | As planned |
+
+### Audit Summary
+- **Total items:** 20
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (AC-1, AC-4, AC-5, each under the 2026-08-05 owner ruling, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator or Alice-LG can tell "this peer sent no routes" from "Ze cannot tell you" | functional, over the real daemon | `test/ui/lg-birdwatcher-counts-unavailable.ci`: a build with no `bgp-rib` answers `"routes_counts_available": false` beside `"routes_received": 0` on the live HTTP endpoint |
+| The distinction survives a count the transform cannot read, not only an absent key | functional, over the handler chain | `TestAPIProtocolsCountAvailabilityOverHTTP/text-counts` PASS. Reverting `routeCountsAvailable` to the key-presence test reddens this subtest; returning true unconditionally reddens `text-counts` and `no-counts` (recorded in `47cfece1c`) |
+| A BMP-monitored peer stops answering a confident zero | functional, over the handler chain | `TestAPIBMPProtocolsCountsUnavailableOverHTTP` PASS |
+| The Alice-LG divergence is written down where a client author finds it | documentation | `docs/architecture/api/birdwatcher-compat.md` Sections 7.2, 7.3 and the five-row divergence table, each statement about upstream read at `alice-lg/birdwatcher`, `bird/parser.go`, `setChangeCount` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A distinct pre-policy `routes_imported` | Ze drops rejects at the reactor gate before storage, so no pre-policy count exists. Building one reintroduces the race R-2 names | None. Documented as a permanent divergence, `docs/architecture/api/birdwatcher-compat.md` Section 7.3 |
+| `routes_filtered` backed by a real store | Out of scope by AC-6 | `plan/immediate/spec-bgp-filtered-route-storage.md` |
+
 ## Review Gate
 
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE. Paste the final clean run. -->
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lg-deferred-birdwatcher-route-counts-zeclose-lgcounts.md` |
+| `./le spec session review check` | `OK (1 code files, clean, hashes match)`. One NOTE: the harness did not report the running model, so the review-model boundary is recorded as `unknown`. The review ran on Opus 5 |
+| Rounds | 2 |
+| Reviewer lenses used | Round 1: wiring + guard audit + logic + security + allocation + style pass, over the whole landed diff (`442d25073`, `47cfece1c`). Round 2: the two documentation repairs round 1 produced |
 
-### Run 1 (initial)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | "Route counts are present only when the `bgp-rib` plugin is loaded" is false: `transformProtocols` emits all four on every peer. The JSON sample omitted `routes_counts_available`. The page's own anchor names `transformProtocols`, the symbol the diff changed | `docs/guide/looking-glass-howto.md` | Sample and paragraph rewritten; anchor extended to `routeCountsAvailable`; link to the normative Sections 7.2 and 7.3 |
+| 2 | ISSUE | The same false sentence, and the page never named `routes_counts_available` | `docs/guide/looking-glass.md` | Paragraph rewritten; anchor `internal/component/lg/handler_api.go -- routeCountsAvailable` added |
 
-### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+### Notes recorded, not blocking
+- `handler_api.go`'s `// Design:` header names `docs/architecture/web-interface.md` and not the new normative contract, so `ai/DOCS-TO-CODE.md` carries no reverse row for it. Not raised to ISSUE: `ai/CODE-TO-DOCS.md` line 1863 already routes `handler_api.go` to `birdwatcher-compat.md`, which is the direction `ai/rules/documentation.md` names first.
+- `routes_filtered` stays a fabricated 0 while `routes_counts_available` can be true. Bounded by AC-6 and stated in Section 7.3 and divergence row 3.
+- `test/ui/lg-birdwatcher-counts-unavailable.ci` covers the unavailable path only. The available path runs through the real handler chain over HTTP in `TestAPIProtocolsCountAvailabilityOverHTTP/with-counts`; a `.ci` for it needs an established session with a loaded RIB.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/lg/handler_api.go` | Yes | `gopls symbols` lists `routeCountsAvailable` at 860:6 and `numValue` at 876:6 |
+| `internal/component/lg/handler_api_test.go` | Yes | 993 lines, `wc -l` |
+| `test/ui/lg-birdwatcher-counts-unavailable.ci` | Yes | 77 lines, `wc -l` |
+| `docs/architecture/api/birdwatcher-compat.md` | Yes | 259 lines, `wc -l` |
+| `internal/component/lg/testdata/handler/api-protocols-bgp.txt` | Yes | line 27 holds `"routes_counts_available": false` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Unknown is distinguishable from zero | `--- PASS: TestAPIProtocolsCountAvailabilityOverHTTP` (subtest `no-counts`), `go test ./internal/component/lg/` this session |
+| AC-2 | Real counts reach the endpoint | same run, subtest `with-counts`, asserts 60 in and 50 out |
+| AC-3 | A real 0 stays available | same run, subtest `zero-counts` |
+| AC-4 | The alias is stated at the API surface | `sed -n '216,224p' docs/architecture/api/birdwatcher-compat.md` holds the MUST and the `mergeRibRouteCounts` anchor |
+| AC-5 | BMP declares its counts unavailable | `--- PASS: TestAPIBMPProtocolsCountsUnavailableOverHTTP` |
+| AC-6 | `routes_filtered` unchanged | `mergeRibRouteCounts` (`internal/component/bgp/plugins/cmd/peer/summary.go`) sets only `routes-received`, `routes-accepted`, `routes-sent`; read this session |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| GET `/api/looking-glass/protocols/bgp`, RIB plugin absent | `test/ui/lg-birdwatcher-counts-unavailable.ci` | Yes. Read in full: it starts `ze` with the looking glass on `$PORT2` and no rib plugin, waits on the endpoint, then asserts `"routes_counts_available": false`, `"routes_received": 0` and `"routes_exported": 0` |
+| GET `/api/looking-glass/protocols/bgp`, counts present | `TestAPIProtocolsCountAvailabilityOverHTTP/with-counts` | Yes. `lgServeAPI` builds a real `LGServer` and calls `srv.server.Handler.ServeHTTP` |
+| GET `/api/looking-glass/protocols/bgp`, count present but unreadable | `TestAPIProtocolsCountAvailabilityOverHTTP/text-counts` | Yes, same handler chain |
+| GET `/api/looking-glass/protocols/bmp` | `TestAPIBMPProtocolsCountsUnavailableOverHTTP` | Yes, same handler chain |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | Moot, never relied on | The owner ruled on 2026-08-05 that the counts stay, so no omission reaches a client. Section 7.1 records upstream behavior, read at `alice-lg/birdwatcher`, `bird/parser.go`, `setChangeCount` |
+| A-2 | Confirmed | Documented instead of plumbed. `mergeRibRouteCounts` assigns `c.in` to both `routes-received` and `routes-accepted`; Section 7.3 and divergence row 2 state it |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| API/RPC docs: the birdwatcher contract | `docs/architecture/api/birdwatcher-compat.md` Section 7.2 requires all four counts plus `routes_counts_available` derived from the VALUE. Matches `routeCountsAvailable` and `transformProtocols` | Yes |
+| User guide: `docs/guide/looking-glass.md` | Repaired this session; the new paragraph matches `transformProtocols` and `transformBMPProtocols` | Yes |
+| User guide: `docs/guide/looking-glass-howto.md` | Repaired this session; sample and paragraph match `transformProtocols` | Yes |
+| CLI reference | No. `grep -rn 'routes_counts_available\|routes_received' docs/guide/command-reference.md` returns nothing: this member is HTTP-only and no CLI command prints it | Yes |
+| Feature list, comparison table | No. `grep -rn 'routes_received\|route counts' docs/features/looking-glass.md docs/comparison.md` names only the peer dashboard's counts, which did not change | Yes |
+| Wire format, RFC compliance, plugin SDK, config syntax | No. The diff adds one JSON member to an HTTP response and touches no wire path, no RFC-governed behavior, no SDK type and no YANG leaf | Yes |
+| Doctor checks | No new runtime dependency: no file path, socket, port, module, binary or cert is added. `routeCountsAvailable` reads a map already in memory | Yes |
+| `./le repository check` | `all checks passed`, run after the doc edits | Yes |
+| `./le doc check verify` | Source-anchor pass clean over the edited pages. The run exits 1 on three findings outside this spec: a `bgp/defaults/attribute` YANG summary over the char and word caps, and anchors naming `getHelpExtension` in `internal/component/config/yang/command.go` and `Node.Help` in `internal/component/command/node.go`. Another session owns all three | Yes |
+
+## Core Insight
+
+A guard that asks "is the key there" answers a different question from "can I
+use this value", and the two agree until a producer sends the right key with the
+wrong type. The API had already paid for this once, in `uptimeSeconds`, where
+the engine sends a duration as a string and `getNum` answered 0 for every real
+response. The second occurrence landed inside the fix for the first class of the
+same defect. When a transform reads an untyped map, availability is a property
+of the VALUE, and any guard that reads the key instead cannot fail.

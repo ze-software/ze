@@ -133,12 +133,20 @@ Adj-RIB-In and Adj-RIB-Out sizes, merged into `show bgp`:
 only accepted routes, so there is no distinct pre-policy received count here),
 and `routes_exported` is the Adj-RIB-Out size. `routes_filtered` is always `0`:
 Ze does not retain import-filtered routes (unlike BIRD's "import keep filtered"),
-so the `/routes/filtered/{name}` endpoint also returns an empty list. Route
-counts are only present when the `bgp-rib` plugin is loaded.
+so the `/routes/filtered/{name}` endpoint also returns an empty list.
+
+Ze emits the four counts on every peer, whatever it knows. When it has no
+source, each count is `0` and `routes_counts_available` is `false`. That happens
+when the `bgp-rib` plugin is not loaded, and on every BMP-monitored peer. A
+client that must tell "no routes" from "unknown" reads
+`routes_counts_available`, never a count of `0` on its own. The normative
+statement is [Birdwatcher compatibility](../architecture/api/birdwatcher-compat.md),
+Section 7.2.
 
 <!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- fetchRibRouteCounts, mergeRibRouteCounts -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- status per-peer route-counts -->
 <!-- source: internal/component/lg/handler_api.go -- API handlers and birdwatcher transform -->
+<!-- source: internal/component/lg/handler_api.go -- routeCountsAvailable -->
 
 ## Alice-LG Integration
 
