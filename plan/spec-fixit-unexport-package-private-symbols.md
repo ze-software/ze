@@ -6,9 +6,53 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | 7/8 (bucket 7 is the remainder) |
-| Updated | 2026-08-14 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Correction 2026-09-05: this spec is NOT closeable, and a green check does not say it is
+
+A closure pass opened this spec on the reading that `./le repository check`
+passes with no `has no cross-package non-test caller` finding, so the backlog
+had drained. **That reading is wrong, and the check cannot support it.**
+
+`checkCrossPackageWiring` (`internal/le/repository/wiring.go`) builds its
+population from `declaredSymbols(tree, changed)`, and `changed` is whatever
+`ChangedFiles` (`internal/le/repository/repository.go`) answers: `git diff
+--name-only HEAD` plus `git ls-files --others --exclude-standard`. A symbol
+declared in a file nobody is editing is therefore never examined, in either
+mode. `./le repository tree-check` passes an explicitly empty changed set, so it
+examines none of them. A green run says the CHANGED files are clean. It says
+nothing about the tree. `plan/journal/gate-excludes-part-of-its-population.md`
+carries this as a 2026-08-18 row and a 2026-09-05 row.
+
+Measured on 2026-09-05, with a sweep that mirrors `hasCrossPackageRef` (a bare
+word search over non-test `.go` files outside the declaring directory, across
+the same `searchDirs`: `cmd`, `demos`, `docker`, `internal`, `pkg`, `tools`):
+**1993 exported declarations over 8569 Go files have no cross-package non-test
+reference.** That count applies none of the check's suppressions (a type reached
+through its constants or as a struct field, a method reached by interface
+dispatch, a `*ForTest` name), so it is an UPPER BOUND on the finding count and
+not the finding count. It is not near zero, which is the only thing the closure
+question needed.
+
+One member, verified by hand rather than by the sweep: `ExtractValues`
+(`cmd/ze/internal/cmdutil/cmdutil.go`) is exported, and its only non-test caller
+is `cmdutil.go` itself at the `res.Relative, res.Values, res.InlineAt =
+ExtractValues(...)` line in the same package. It is a genuine finding that
+`./le repository check` will not report until somebody edits that file.
+
+**The spec stays OPEN.** Two things it needs before anybody can work it again:
+
+1. The bucket-7 worklist is GONE. `tmp/unexport-bucket-7-remaining.tsv`,
+   `tmp/unexport-rename-driver.py`, `tmp/unexport-skipped-named-outside-go.tsv`
+   and `tmp/unexport-handoffs-buckets-1-6-8.md` are all absent from the tree
+   (`ls tmp/unexport-*` reports no such file). `tmp/` is scratch, so the
+   worklist did not survive its session. The next pass re-derives the worklist;
+   it does not look for those files.
+2. The population has to be re-derived from the tree rather than from the gate,
+   because the gate cannot see the tree. That derivation is what step 0 below
+   describes, and it must run against a whole-tree symbol set.
 
 ## Provenance
 
@@ -19,9 +63,13 @@ effect. Every change is a rename, so no behaviour moves.
 
 ## Task
 
-`./le repository check` reports 467 findings of the form `exported symbol X has no
-cross-package non-test caller`. They are true: each names a symbol that is
-exported but reached only from inside its own package. `check_cross_package_wiring`
+`./le repository check` reported 467 findings of the form `exported symbol X has
+no cross-package non-test caller` on one large working tree in 2026-08. They are
+true: each names a symbol that is exported but reached only from inside its own
+package. **467 is not the tree's total and never was**: the check reads only the
+files the working tree changed, so the number it prints is a property of that
+tree's diff. See the 2026-09-05 correction above for what a whole-tree sweep
+measures. `check_cross_package_wiring`
 in `internal/le/doc/wiring/checks.go` already suppresses the known false-positive shapes
 (`*ForTest`, a type reached through its constants or as a struct field, a method
 on an unexported receiver reached by interface dispatch), so what remains is a
@@ -367,12 +415,21 @@ file with `--file`. Read `ai/rules/git-safety.md` first. Never run `git add`,
 ## Remaining Work
 
 Buckets 1 to 6 and 8 are processed. **Bucket 7 is untouched**: 170 symbols over
-23 packages, listed in `tmp/unexport-bucket-7-remaining.tsv` (the driver is
-`tmp/unexport-rename-driver.py`, the pre-check skip list is
-`tmp/unexport-skipped-named-outside-go.tsv`, and the seven handoffs are in
-`tmp/unexport-handoffs-buckets-1-6-8.md`). It was held back because
-its packages share a `./PKG/...` vet scope with almost every other bucket, so it
-had to run alone, and the session's budget ended first. The spec stays open for
+23 packages. It was held back because its packages share a `./PKG/...` vet scope
+with almost every other bucket, so it had to run alone, and the session's budget
+ended first.
+
+**The worklist that named those 170 symbols no longer exists (2026-09-05).**
+`tmp/unexport-bucket-7-remaining.tsv`, its driver `tmp/unexport-rename-driver.py`,
+the pre-check skip list `tmp/unexport-skipped-named-outside-go.tsv` and the
+handoffs `tmp/unexport-handoffs-buckets-1-6-8.md` are all absent: `ls
+tmp/unexport-*` reports no such file. `tmp/` is scratch, so they did not survive
+the session that wrote them, and the 170 is now a number with nothing behind it.
+Do not go looking for those files. Re-derive the worklist with step 0, over the
+WHOLE tree rather than over the changed set, for the reason the 2026-09-05
+correction gives.
+
+The spec stays open for bucket 7 and for the re-derivation that has to precede
 it.
 
 ## Checklist
@@ -408,14 +465,14 @@ This section covers buckets 1 to 6 and 8. Bucket 7 is open (Remaining Work).
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
-| none: the spec creates no file | N-A | `Files to Create` says none. The worklist artifacts are `tmp/unexport-bucket-7-remaining.tsv` and `tmp/unexport-rename-driver.py`, both present |
+| none: the spec creates no file | N-A | `Files to Create` says none. The worklist artifacts `tmp/unexport-bucket-7-remaining.tsv` and `tmp/unexport-rename-driver.py` were present when this row was written and are GONE as of 2026-09-05 (`ls tmp/unexport-*`: no such file). `tmp/` is scratch |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-1 | An accepted symbol is unexported and its package compiles in every build view | `go vet ./internal/... ./cmd/...` under GOOS darwin and linux, with `ze_core ze_distro $(ZE_FEATURES)` and `ze_test $(ZE_FEATURES)`: clean apart from the pre-existing `noescape` finding in `internal/core/textbuf/textbuf.go`, which the pre-rename baseline reports identically |
 | AC-2 | A refused symbol is untouched and its reason recorded | 139 refusals recorded in the per-bucket handoffs (`tmp/unexport-handoffs-buckets-1-6-8.md`), each carrying the `gopls` text |
-| AC-3 | No wiring finding remains outside the recorded skips | Per-package `validate.py --changed-file` re-run in every phase. NOT yet true tree-wide: bucket 7's 170 rows stay open |
+| AC-3 | No wiring finding remains outside the recorded skips | Per-package `validate.py --changed-file` re-run in every phase. NOT true tree-wide, and a green `./le repository check` cannot show that it is: the check reads the CHANGED file set only (`checkCrossPackageWiring`, `internal/le/repository/wiring.go`). A whole-tree sweep on 2026-09-05 put the upper bound at 1993 |
 | AC-4 | Every touched package passes its tests | `go test -race ./<pkg>` green for all 161 processed packages, per phase |
 
 ### Wiring Verified (end-to-end)
