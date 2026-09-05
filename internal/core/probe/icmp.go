@@ -88,8 +88,8 @@ func (f Family) network() string {
 	}
 }
 
-// Holds reports whether addr belongs to f. FamilyAny holds every valid address.
-func (f Family) Holds(addr netip.Addr) bool {
+// holds reports whether addr belongs to f. FamilyAny holds every valid address.
+func (f Family) holds(addr netip.Addr) bool {
 	if !addr.IsValid() {
 		return false
 	}
@@ -126,7 +126,7 @@ var ErrFamilyMismatch = errors.New("no address in the requested family")
 func ResolveTarget(s string, family Family) (netip.Addr, error) {
 	if addr, err := netip.ParseAddr(s); err == nil {
 		addr = addr.Unmap()
-		if !family.Holds(addr) {
+		if !family.holds(addr) {
 			return netip.Addr{}, familyMismatch(s)
 		}
 		return addr, nil
