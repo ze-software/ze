@@ -22,8 +22,9 @@ import (
 // (the behavioral entity the detector judged), not a destination tuple: that is
 // the difference from the volumetric ddos incident record.
 //
-// Active is true between open and finalize. EndTime is set by finalize alone, so
-// an incident that is not active always carries an end time.
+// Active is true between open and finalize. The two paths that clear Active,
+// finalize and sweepStale, each set EndTime in the same write, so an incident
+// that is not active always carries an end time.
 type incident struct {
 	ID            int                          `json:"id"`
 	Interface     string                       `json:"interface,omitempty"`

@@ -440,33 +440,115 @@ N/A - no RFC/protocol behavior.
 
 ## Implementation Summary
 ### What Was Implemented
-- [filled at implementation]
+- `internal/plugins/anomaly/observe/store.go` -- the bounded lifecycle ring keyed on the source
+  `netip.Prefix`: `open` (evict then append), `finalize` (newest active for the entity),
+  `sweepStale`, `evictOldest` (oldest finalized first, head when every incident is active),
+  `list` newest-first, `count`, `activeCount`. One mutex guards every field and every method takes it.
+- `internal/plugins/anomaly/observe/register.go` -- the plugin registration, `subscribeStore`
+  (Detected opens, Cleared finalizes, Ongoing is subscribed and ignored), `startStaleSweep`
+  (one worker on a one-second ticker whose `stop` returns only after the worker exits), and
+  `runEngine` with a `teardown` that unsubscribes before it stops the worker.
+- `internal/plugins/anomaly/observe/show.go` -- `ze-show:anomaly-observe` and
+  `handleShowAnomalyObserve`, reading the live ring off `activeStore`.
+- `internal/plugins/anomaly/observe/config.go` -- the two-leaf config, the two-level unwrap of
+  the `{"anomaly":{"observe":{...}}}` section, and `Validate` over both ranges.
+- The two YANG modules, their generated `embed.go` / `register.go`, and the composition-root
+  blank imports in `internal/component/plugin/all/all_ze_anomaly.go`.
+- Tests: `store_test.go`, `subscribe_test.go`, `config_test.go`, `show_test.go`,
+  `chain_test.go` (`TestChainObserveLifecycle`), `cmd/yang/self_containment_test.go`, and the
+  functional `test/plugin/anomaly-observe-show.ci` with its fixture
+  `plugin01AnomalyObserve` (`internal/test/fixture/plugin_fixture_01.go`).
 ### Bugs Found/Fixed
-- [filled at implementation]
+- The stale sweep the `ddos/observe` template leaves dead is WIRED here, so
+  `stale-incident-timeout` is a live control rather than a config leaf with no reader.
+  `TestObserveStaleSweepTickerFinalizes` drives it from `startStaleSweep` rather than calling
+  `sweepStale` directly, which is the assertion the template's own test does not make.
+- The template dates an incident from the store's receive time. `open` uses the detector's
+  `AnomalyDetected.At` instead, and falls back to now when `At` is zero, because a zero `At`
+  would date the incident to 1970, make it instantly stale, and report a duration of decades.
 ### Documentation Updates
-- [filled at implementation]
+- `docs/architecture/anomaly/anomaly-3-observe.md` -- the subsystem page, with source anchors on
+  `show.go`, `ze-anomaly-observe-conf.yang` and `ze-anomaly-observe-cmd.yang`.
+- `docs/guide/command-reference.md` -- the `show anomaly observe` section, anchored on
+  `handleShowAnomalyObserve`.
+- `docs/architecture/api/commands.md` -- the `ze-show:anomaly-observe` row with the full payload
+  shape and the rule that `end-time` is omitted while `active` is true.
+- `docs/guide/anomaly.md` -- the operator paragraph and the `anomaly observe` config section.
+- `docs/features.md` and `docs/DESIGN.md` -- the lifecycle store in the anomaly feature row and
+  the `anomaly-observe` plugin inventory row.
 ### Deviations from Plan
-- [filled at implementation]
+- The Documentation Update Checklist answered row 12 (internal architecture) No. A dedicated
+  page was written anyway: `docs/architecture/anomaly/anomaly-3-observe.md`. More documentation
+  than the checklist promised, so nothing is owed.
+- The checklist named `docs/plugin-overview.md` and `docs/features/plugins.md` for the plugin
+  inventory. Neither is one. `docs/plugin-overview.md` explains the registration pattern and names
+  no individual plugin, and `docs/features/plugins.md` is a curated highlights page that omits the
+  whole anomaly family and `ddos-observe` with it. The complete inventory is `docs/DESIGN.md`,
+  where the `anomaly-observe` row sits beside `anomaly-detect` and `anomaly-shape`.
+- `subscribeStore` subscribes `Ongoing` to a handler that does nothing. The plan did not name it.
+  It is deliberate and `TestObserveSubscribeIgnoresOngoing` pins the behaviour, so a later reader
+  cannot mistake the absence of a handler for an oversight.
 
 ## Implementation Audit
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| subscribe to the same anomalyevent events, keyed on the source prefix | done | `subscribeStore` (`internal/plugins/anomaly/observe/register.go`) | Detected opens, Cleared finalizes on `e.Entity`, Ongoing is subscribed and ignored |
+| bounded lifecycle ring with open, finalize and a stale sweep | done | `open`, `finalize`, `sweepStale`, `evictOldest` (`internal/plugins/anomaly/observe/store.go`) | one mutex, every method takes it; capacity is enforced before the append |
+| a new `show anomaly observe` query surface | done | `handleShowAnomalyObserve` (`internal/plugins/anomaly/observe/show.go`), wire method `ze-show:anomaly-observe` | `internal/component/plugin/all/testdata/wire-methods.snapshot` carries the method |
+| augment `/ad:anomaly` with `container observe` | done | `internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang` | augment, not a re-declaration of the parent detect owns |
+| wire the stale sweep the ddos template leaves dead | done | `startStaleSweep` (`register.go`), called from `apply` | `TestObserveStaleSweepTickerFinalizes` drives the worker, not `sweepStale` directly |
+| no plugin imports a sibling plugin | done | `register.go` imports `internal/core/anomalyevent` and its own `yang` package only | the cross-plugin path is the typed event bus |
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | `TestObserveIncidentLifecycle` (`store_test.go`) | `StartTime` comes from `AnomalyDetected.At` |
+| AC-2 | done | `TestObserveRingEviction` (`store_test.go`) | cap enforced, oldest finalized dropped first, newest-first order kept |
+| AC-3 | done | `TestObserveStaleSweep` (`store_test.go`) and `TestObserveStaleSweepTickerFinalizes` (`subscribe_test.go`) | the second proves the WORKER calls it, which is the half the ddos template lacks |
+| AC-4 | done | `TestObserveSubscribeOpensIncident` (`subscribe_test.go`) | emits on a real `ze.EventBus` implementation, not a direct `open` call |
+| AC-5 | done | `TestObserveSubscribeFinalizesIncident` (`subscribe_test.go`) | |
+| AC-6 | done | `test/plugin/anomaly-observe-show.ci`, PASS as plugin test 12 in the 2026-09-05 `./le functional plugin` run | its fixture `plugin01AnomalyObserve` (`internal/test/fixture/plugin_fixture_01.go`) asserts `enabled` true, `active-count` 0 and an empty `incidents` array |
+| AC-7 | done | `TestShowAnomalyObserveWithStore` (`show_test.go`) | |
+| AC-8 | done | `TestParseObserveConfig` (`config_test.go`), `Validate` (`config.go`) | ranges in both YANG and Go, so a section arriving by another path is still bounded |
+| AC-9 | done | `TestAnomalyObserveCmdSchemaOwnsShowObserve` (`cmd/yang/self_containment_test.go`); the plugin's blank imports are three lines in `internal/component/plugin/all/all_ze_anomaly.go` | the schema, the handler and the store are all inside the plugin directory, so deleting it and those three lines removes the whole surface. No test performs the deletion; the containment test is what proves nothing is declared centrally |
+| AC-10 | done | `TestChainObserveLifecycle` (`chain_test.go`) | real observations through a real `trafficfeature.Service` and a real detector; asserts start time, end time, end after start, duration under the stale timeout, and a non-empty severity |
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestObserveIncidentLifecycle` | done | `store_test.go` | |
+| `TestObserveRingEviction` | done | `store_test.go` | |
+| `TestObserveStaleSweep` | done | `store_test.go` | |
+| `TestObserveMultipleIncidents` | done | `store_test.go` | |
+| `TestObserveSubscribeOpensIncident` | done | `subscribe_test.go` | |
+| `TestObserveSubscribeFinalizesIncident` | done | `subscribe_test.go` | |
+| `TestParseObserveConfig` | done | `config_test.go` | |
+| `TestShowAnomalyObserveNoStore` | done | `show_test.go` | |
+| `TestShowAnomalyObserveWithStore` | done | `show_test.go` | |
+| `TestAnomalyObserveCmdSchemaOwnsShowObserve` | done | `cmd/yang/self_containment_test.go` | |
+| `TestChainObserveLifecycle` | done | `chain_test.go` | |
+| `TestObserveSubscribeIgnoresOngoing` | added | `subscribe_test.go` | beyond the plan: pins that Ongoing changes nothing, so the empty handler cannot be read as an oversight |
+| `TestObserveUnsubscribeDetachesStore` | added | `subscribe_test.go` | beyond the plan: proves the reconfigure path really detaches the old store |
+| `TestObserveStaleSweepTickerFinalizes` | added | `subscribe_test.go` | beyond the plan: the assertion that makes `stale-incident-timeout` a live control |
+| `TestObserveStaleSweepStops` | added | `subscribe_test.go` | beyond the plan: carries a `test-asserts-nothing` escape whose reason is that the failure mode is a hang |
+| `TestParseObserveConfigRejectsBadJSON` | added | `config_test.go` | beyond the plan |
+| `TestValidateObserveConfigBoundaries` | added | `config_test.go` | beyond the plan: the four boundary rows of the Boundary Tests table |
+| `TestShowAnomalyObserveEmptyStore` | added | `show_test.go` | beyond the plan: a running plugin with no incident reads enabled true, not enabled false |
+| `TestShowAnomalyObserveKeepsFinalizedIncident` | added | `show_test.go` | beyond the plan: the history a finalized incident carries is what the surface exists for |
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| the eight `internal/plugins/anomaly/observe/*.go` files | done | config, store, register, show and their four test files |
+| `internal/plugins/anomaly/observe/chain_test.go` | done | |
+| the two YANG modules and their generated `embed.go` / `register.go` | done | plus `doc.go` in each package |
+| `internal/plugins/anomaly/observe/cmd/yang/self_containment_test.go` | done | |
+| `test/plugin/anomaly-observe-show.ci` | done | with the fixture entry in `internal/test/fixture/plugin_fixture_01.go`, which the plan did not name |
+| `internal/component/plugin/all/all.go` plus the two snapshots | changed | the generator emits the anomaly imports into `all_ze_anomaly.go`, the build-tagged sibling, rather than `all.go`. Both snapshots carry the new name and wire method |
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 27 (6 requirements, 10 ACs, 11 planned tests) plus 8 tests beyond the plan
+- **Done:** 27
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 1 (the blank imports land in `all_ze_anomaly.go`), in Deviations
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
@@ -476,36 +558,88 @@ N/A - no RFC/protocol behavior.
 | augments `/ad:anomaly` with `container observe` | schema test | `TestAnomalyObserveCmdSchemaOwnsShowObserve` + config load |
 | self-contained (removal test) | build check | AC-9 removal verification |
 
+## Work Not Done
+| Item | Why it is not here | Where it is homed |
+|------|--------------------|-------------------|
+| Wiring `ddos/observe.sweepStale` to a ticker | The Task sentence about the dead template leaf reads as a promise to fix it everywhere. This spec fixes it in the plugin it ships: `startStaleSweep` (`internal/plugins/anomaly/observe/register.go`) has no counterpart in `internal/plugins/ddos/observe/register.go`, so `ddos/observe/stale-incident-timeout` is still a leaf with no reader | already recorded, on 2026-09-04, in `plan/journal/unwired-feature.md`, in the row that names `ddos/observe/stale-incident-timeout` beside five other unread leaves. Nothing new is written for it here |
+
 ## Review Gate
+Round 1 scope: the whole `internal/plugins/anomaly/observe/` package (store, register, show,
+config, both YANG modules), the fixture entry in `internal/test/fixture/plugin_fixture_01.go`,
+`test/plugin/anomaly-observe-show.ci`, and the five documentation pages the change touched.
+Round 2 scope: the fixes round 1 made, plus the sibling references they touch.
+
+Lenses run in round 1: wiring and lifecycle (every producer read from source, the goroutine's
+start and stop path, the reconfigure ordering), and the `docs/contributing/ze-go-style.md`
+style pass (`panic` reach, bounds, naming, paired obligations, duplicated facts, return width).
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | ISSUE | The `incident` doc comment said "EndTime is set by finalize alone". `sweepStale` is a second writer of both `Active` and `EndTime`, so the comment named the wrong producer, and the invariant a reader needs (not active implies an end time) was stated as a claim about one function | `internal/plugins/anomaly/observe/store.go` (`incident`) | fixed here: the comment now names both paths and states the invariant as the invariant |
+| 2 | NOTE | `evictOldest` re-slices with `s.ring = s.ring[1:]` when every incident is active, so the next `open` reallocates the backing array. The ceiling stays at `capacity` incidents | `internal/plugins/anomaly/observe/store.go` (`evictOldest`) | acknowledged. The incident rate is a confirmed anomaly per entity per window, not a wire path, and the in-place branch above it covers the ordinary case |
+| 3 | NOTE | `ParseConfig` returns defaults, with no error, when the payload is not wrapped as `{"anomaly":{"observe":{...}}}`, and `toInt` discards its `ok` so an unparsable leaf keeps its default | `internal/plugins/anomaly/observe/config.go` (`ParseConfig`, `toInt`) | acknowledged. YANG range-checks both leaves before the section is delivered, `Validate` re-checks in Go, and the shape is uniform across every plugin that parses a wrapped section. Narrowing it here alone would make this one plugin disagree with its siblings |
+| 4 | NOTE | `./le functional plugin` on 2026-09-05 reported 18 failures across bgp, ddos, dns-cache, rpki, metrics, signal, bfd and the api-doctor suites. Several are peer-connect timeouts on a loaded machine | outside this spec's files | another session's territory; `anomaly-observe-show`, `anomaly-show` and `anomaly-shape-shadow` all PASS in that same run |
 ### Fixes applied
-- [per finding]
+- Finding 1: the `incident` doc comment in `store.go` now names `finalize` and `sweepStale` as the two paths that clear `Active`, each setting `EndTime` in the same write.
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | none | Round 2 read the round-1 comment fix and the two functions it names. No BLOCKER, no ISSUE, and no always-in-scope class anywhere in the diff: every exported symbol has a non-test caller, the `.ci` is not vacuous, every AC has a test, and the one goroutine has a stop path that is waited on | -- | -- |
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Artifact: `tmp/review/anomaly-3-observe-zeclose-anom3.md`, written by
+`./le spec session review record ... verdict CLEAN rounds 2`. `./le spec session review check
+spec anomaly-3-observe` reports OK, clean, hashes match. The command NOTEs that it could not
+read the running model from the transcript, so the review-model boundary is unchecked by the
+tool; the pass ran on Opus 5.
 
 ## Pre-Commit Verification
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/plugins/anomaly/observe/store.go` | yes | the lifecycle ring |
+| `internal/plugins/anomaly/observe/register.go` | yes | registration, `subscribeStore`, `startStaleSweep`, `runEngine` |
+| `internal/plugins/anomaly/observe/show.go` | yes | `ze-show:anomaly-observe` |
+| `internal/plugins/anomaly/observe/config.go` | yes | the two leaves and their ranges |
+| `internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang` | yes | `augment "/ad:anomaly"` |
+| `internal/plugins/anomaly/observe/cmd/yang/ze-anomaly-observe-cmd.yang` | yes | the `show anomaly observe` node |
+| `test/plugin/anomaly-observe-show.ci` | yes | the functional wiring test |
+| `docs/architecture/anomaly/anomaly-3-observe.md` | yes | the subsystem page with three source anchors |
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 to AC-5, AC-7, AC-8, AC-10 | the lifecycle, the ring bound, the stale sweep, both subscriptions, the show payload, the config ranges and the end-to-end chain | `go test -race -count=1 -tags ze_core,ze_anomaly ./internal/plugins/anomaly/...` green on 2026-09-05: detect 30.9s, observe 14.4s, observe/cmd/yang 1.1s, shape 1.1s |
+| AC-6 | `show anomaly observe` reaches the store through the daemon | `./le functional plugin` on 2026-09-05: `anomaly-observe-show` PASS as test 12 of 741 |
+| AC-9 | the command surface is declared in the plugin's own schema | `TestAnomalyObserveCmdSchemaOwnsShowObserve` green in the run above |
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| operator runs `show anomaly observe` | `test/plugin/anomaly-observe-show.ci` | yes, PASS |
+| the plugin is in the composition root | none: `internal/component/plugin/all/testdata/plugins.snapshot` carries `anomaly-observe` | yes |
+| the wire method is registered | none: `internal/component/plugin/all/testdata/wire-methods.snapshot` carries `ze-show:anomaly-observe` | yes |
+| an anomaly event reaches the store | `subscribe_test.go` drives a real `ze.EventBus` implementation | yes |
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | the ring transferred; the only divergences are the source-prefix key, `StartTime` from `AnomalyDetected.At`, and the wired sweep |
+| A-2 | confirmed | `subscribeStore` calls `s.finalize(e.Entity)`; `TestObserveSubscribeFinalizesIncident` proves the match |
+| A-3 | confirmed | `ParseConfig` unwraps both levels; `TestParseObserveConfig` drives a wrapped payload |
+| A-4 | confirmed | `internal/component/plugin/all/all_ze_anomaly.go` carries the three blank imports, and both snapshots carry the new name and wire method |
+| A-5 | confirmed | the `.ci` asserts wiring only; `TestChainObserveLifecycle` proves the lifecycle |
+| A-6 | confirmed | the `Registration` in `register.go` declares no `Dependencies`, and the `.ci` reads `enabled` true from a live daemon |
+| A-7 | confirmed | no web surface exists for ddos or anomaly, and none was added |
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| the `ze-show:anomaly-observe` payload shape | `docs/architecture/api/commands.md` names every field `handleShowAnomalyObserve` and the `incident` struct produce, `end-time` omission included | yes |
+| the CLI surface | `docs/guide/command-reference.md` anchors `internal/plugins/anomaly/observe/show.go -- handleShowAnomalyObserve, ze-show:anomaly-observe` | yes |
+| the config surface | `docs/guide/anomaly.md` carries an `anomaly observe` section whose leaves match `ze-anomaly-observe-conf.yang` | yes |
+| the subsystem design | `docs/architecture/anomaly/anomaly-3-observe.md` anchors `show.go` and both YANG modules | yes |
+| the plugin inventory | `docs/DESIGN.md` carries the `anomaly-observe` row beside `anomaly-detect` and `anomaly-shape`; `docs/features/plugins.md` is a curated page that lists none of the three | yes |
+| no RFC, wire-format, plugin-SDK or comparison page applies | this spec adds no protocol behaviour and no SDK change | yes |
 
 ## Checklist
 
