@@ -525,8 +525,8 @@ that writes an UPDATE asks.
 
 ### Audit Summary
 - **Total items:** 27
-- **Done:** 21
-- **Partial:** 1 (rail coverage: four of five)
+- **Done:** 22
+- **Partial:** 0 (rail coverage was Partial at four of five; the fifth was gated in `4054ed854` by the spec this one handed it to)
 - **Skipped:** 0
 - **Changed:** 5
 
@@ -534,29 +534,28 @@ that writes an UPDATE asks.
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| EBGP egress suppresses Prefix-SID by default | Functional test | `test/plugin/prefixsid-ebgp-egress-boundary.ci` conn=2 expects a 47-octet frame with no attribute 40; the run passed at 517/705 in `./le functional plugin` |
+| EBGP egress suppresses Prefix-SID by default | Functional test | `test/plugin/prefixsid-ebgp-egress-boundary.ci` conn=2 expects a 47-octet frame with no attribute 40; the run passed at 517/705 in `./le functional plugin`, and again green in the clean half of the `./le rfc discriminate-record` run at this closure |
 | Explicit config enables EBGP propagation | Functional test | The same `.ci` conn=3 expects the 60-octet source frame byte for byte |
 | iBGP unaffected | Unit test | `TestPrefixSIDEgressBoundary/ibgp_keeps_it`, over the real `reactorForwardRS` rail |
 | The route-server rail, which the old code missed | Unit test | `TestPrefixSIDEgressBoundary/route-server_client_without_configuration_is_stripped` and its configured twin |
 | Each assertion discriminates | Mutation | `prefixSIDAllowedTo -> true` reddens both strip cases; `-> isIBGP` reddens both keep cases; removing the origination strip reddens all four of `TestPrefixSIDOriginationBoundary` |
-| RFC 8669 Section 8 compliance | RFC gate | NOT achieved. `./le rfc check` binds RFC8669-8-1 to a positive and a negative tag (`rfc/requirements/rfc8669.md`), but those tags cover the four gated rails only. Closure restored the `{gap}` annotation on `RFC8669-8-1` (`rfc/short/rfc8669.md`) and the Meta count ten -> eleven, because the fifth rail propagates to another AS with no explicit configuration. RFC 8669 Section 8, `rfc/full/rfc8669.txt`: "The propagation to other ASes MUST be explicitly configured." |
-| Each tagged unit discriminates by RECORD | Not achieved | `./le rfc discriminate stem rfc8669` lists all 29 tags as `unproven` and `rfc/discrimination/rfc8669.json` does not exist. The six tags this spec added owe a `./le rfc discriminate-record` run. The hand-run mutations in the row above were observed by the implementation session and are not the machine artifact. |
+| RFC 8669 Section 8 compliance | RFC gate | Achieved. `rfc/full/rfc8669.txt` Section 8: "The propagation to other ASes MUST be explicitly configured." This spec gated four rails and handed the fifth on; `4054ed854` gated it and that spec closed on 2026-09-05. All five now ask `prefixSIDAllowedTo` (`internal/component/bgp/reactor/forward_prefix_sid.go`), `RFC8669-8-1` carries no `{gap}` in `rfc/short/rfc8669.md`, and `./le rfc discriminate stem rfc8669` reports an empty `unproven` set and an empty `stale` set for it |
+| Each tagged unit discriminates by RECORD | Mutation, recorded | Achieved at this closure. `rfc/discrimination/rfc8669.json` holds twelve `RFC8669-8-1` records, both polarities for each of six carriers, every one written by `./le rfc discriminate-record` only after it observed the red itself. This spec's six: `TestPrefixSIDEgressBoundary` under a disabled `applyFactsPrefixSID`; `TestPrefixSIDOriginationBoundary` under a disabled `toStaticRouteLabeledUnicastParams`; and `test/plugin/prefixsid-ebgp-egress-boundary.ci` under a disabled `applyFactsPrefixSID`, its negative citing the `conn=2` stripped frame and its positive the `conn=3` kept frame. The `.ci` route builds an isolated `ze`/`ze-test` pair and runs that one file, so it also observed the `.ci` GREEN in the clean run, on 2026-09-05 |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| The API/readvertise announce rail is not gated, so attribute 40 crosses an AS boundary there with no leaf set | The per-destination bool must join `announceBuildKey` and the parameter list of `buildBatchAnnounceUpdate`, which mechanically edits `TestAnnounceStripsLocalPrefTowardExternalPeer`, an `RFC requirement: RFC4271-5.1.5` carrier. `test/rfc-changed.md` reserves that approval to the owner | RESOLVED. `spec-prefix-sid-announce-rail-boundary` owned it and closed on 2026-09-05: the owner wrote the approval row, `4054ed854` gated the rail, and all five rails now ask `prefixSIDAllowedTo` |
-| No discrimination record for the six `RFC8669-8-1` tags this spec added | `rfc/discrimination/rfc8669.json` does not exist and all 29 of the RFC's tags read `unproven`. The gate's change-scoped window (a tag new against `HEAD^`) closed when the implementation commit landed without one | RESOLVED in this spec's own closure, below: `rfc/discrimination/rfc8669.json` now carries a recorded red for each of the six |
+| none | Both items this table carried are done. History, because it is what the spec was blocked on: the API/readvertise announce rail went to `spec-prefix-sid-announce-rail-boundary`, which closed on 2026-09-05 after the owner wrote the `test/rfc-changed.md` approval row that unblocked the parameter widening. The six missing `RFC8669-8-1` discrimination records were taken at this closure, so the requirement's `unproven` set is empty | - |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded: the gate cannot be declared CLEAN while a BLOCKER stands |
-| `./le commit review-check` | not run, for the same reason |
-| Rounds | 1 |
-| Reviewer lenses used | wiring + functional-test coverage, logic + guard audit + RFC compliance, documentation drift + style pass |
+| Artifact | `tmp/review/srv6-ebgp-egress-filter-zeclose-srv6b.md` |
+| `./le spec session review check` | `review_gate: OK (clean, hashes match)`. It also NOTES that the running model could not be determined, so the review-model boundary is unchecked by the tool; round 2 ran in a closure agent that authored none of this code |
+| Rounds | 2 |
+| Reviewer lenses used | Round 1 (implementation session): wiring + functional-test coverage, logic + guard audit + RFC compliance, documentation drift + style pass. Round 2 (this closure, over `f3379e684` and the two commits that followed it): correctness + wiring at the producers, security + bounds over a hostile payload, RFC-ledger truth, documentation truth |
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
@@ -564,14 +563,14 @@ that writes an UPDATE asks.
 | 1 | BLOCKER | The API/readvertise announce rail emits attribute 40 toward an external peer with no explicit configuration. RFC 8669 Section 8 MUST. Measured: the rail returns `c0280a01000700000000000064` | `buildBatchAnnounceUpdate` (`internal/component/bgp/reactor/reactor_api_batch.go`), reached by the API announce, the grouped announce and `sendStaleReadvertise` | Homed at `spec-prefix-sid-announce-rail-boundary`, which needed an owner approval row in `test/rfc-changed.md`. FIXED there on 2026-09-05 in `4054ed854`; the rail now asks `prefixSIDAllowedTo` |
 | 2 | ISSUE | `docs/features/srv6.md` claimed the removal happened on "every UPDATE sent to an EBGP peer", and its RFC 8669 table read `Implemented`. Both are wider than the code. `ai/rules/rfc-compliance.md`: a claim wider than the assertion converts an unproven MUST into a proven one | `docs/features/srv6.md`, the EBGP-propagation row and the RFC 8669 Section 8 row | FIXED. Both rows name the four gated rails and the fifth; a "Gap" section names the producing function |
 | 3 | ISSUE | `RFC8669-8-1` carried no `{gap}`, so the generated ledger reported the MUST as met | `rfc/short/rfc8669.md`, the requirement line and the Meta `Support coverage` and `Support remaining` rows | FIXED. `{gap}` restored, count ten -> eleven, regenerated with `./le rfc index-update` |
-| 4 | ISSUE | Six `RFC8669-8-1` tags were added with no discrimination record | `rfc/discrimination/rfc8669.json` absent; `./le rfc discriminate stem rfc8669` lists all 29 tags `unproven` | NOT FIXED. Recorded in Work Not Done |
+| 4 | ISSUE | Six `RFC8669-8-1` tags were added with no discrimination record | `rfc/discrimination/rfc8669.json` absent; `./le rfc discriminate stem rfc8669` lists all 29 tags `unproven` | FIXED in round 2. All six are recorded; see the Run 2 block |
 | 5 | NOTE | The spec header read `Phase 1/6` with every closure section filled, and five sections named `.ci` files under names the implementation replaced | this file | FIXED |
 
 ### Fixes applied
 
-Findings 2, 3 and 5 are fixed in the closure commit. Finding 1 is the blocker and
-finding 4 rides with it: both are homed at the new spec, and both stay on the
-public ledger until the behavior exists (`ai/rules/rfc-compliance.md`).
+Findings 2, 3 and 5 were fixed in the first closure commit. Finding 1 was the
+blocker and finding 4 rode with it: finding 1 went to the new spec, which fixed
+it, and finding 4 is fixed here in round 2.
 
 Wiring: `prefixSIDAllowedTo`, `Peer.prefixSIDAllowed`, `applyFactsPrefixSID`,
 `prefixSIDOnWire` and `rawAttrsWithoutPrefixSID` each have a production caller
@@ -593,15 +592,44 @@ Style pass: no `panic()` in the diff, no unbounded loop, no new lifecycle pair,
 `payloadHasAttr` generalizes `payloadHasLocalPref` rather than copying it, and
 every new function returns the narrowest type it can. No style finding.
 
-### Run 2+ (re-runs until clean)
+### Run 2 (2026-09-05, after the fifth rail was gated)
+
+Scope, written before the round ran: findings 1 and 4, the two round-1 items that
+left this spec open, plus the whole product diff of `f3379e684` re-read from
+source by a context that authored none of it.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 6 | (round-1 finding 1, re-checked) | The announce rail is gated and the boundary now holds on all five rails | `buildBatchAnnounceUpdate` (`reactor_api_batch.go`) asks `prefixSIDAllowedTo` beside its RFC 4271 Section 5.1.5 LOCAL_PREF drop, and the leaf is a field of `announceBuildKey` | Verified at the producer, not inherited from the other spec's report |
+| 7 | (round-1 finding 4, fixed) | Six `RFC8669-8-1` tags carried no discrimination record | `rfc/discrimination/rfc8669.json` | Recorded. Twelve records now cover the requirement's six carriers in both polarities, and `./le rfc discriminate stem rfc8669` reports empty `unproven` and empty `stale` |
 
-No run 2. A second pass cannot clear finding 1: the fix is refused by a gate only
-the owner can open, so another round would re-find the same BLOCKER.
+Round 2 found no new BLOCKER and no ISSUE in the product. What it checked, and
+what would overturn each answer:
+
+- Rail set. Five sites ask, and they are all of them: `applyFactsPrefixSID`
+  (both forward rails), `Peer.prefixSIDAllowed` (both origination rails through
+  `peer_initial_sync.go`), and `buildBatchAnnounceUpdate`. `grep AttrPrefixSID`
+  over `internal/` outside the reactor finds only OSPF's unrelated SR TLVs.
+- Guard direction. `prefixSIDAllowedTo(isIBGP, propagate)` returns `isIBGP ||
+  propagate`, so an absent leaf REMOVES. The default is `false` in
+  `ze-bgp-conf.yang`, so a missing configuration fails closed.
+- Bounds over a hostile payload. `payloadHasAttr` (`forward_local_pref.go`)
+  parses through `wire.ParseUpdateSections` and `attribute.AttrFind`
+  (`internal/core/bgp/attribute/iterator.go`), which bounds-checks every header
+  and every value against `len(data)` and advances its offset strictly, so a
+  malformed block cannot read past the end or loop. `isRawPrefixSID` refuses an
+  entry of fewer than two octets rather than indexing it.
+- Allocation. `rawAttrsWithoutPrefixSID` returns its argument unchanged unless a
+  Prefix-SID is present, so the common origination route allocates nothing, and
+  the one that does allocate is on the initial-sync control path rather than a
+  forward hot path.
+- Public claims. `docs/features/srv6.md` and the YANG description both say the
+  attribute is removed on every rail unless the leaf is set. That was WIDER than
+  the code for a week and is exactly true today; checked against all five
+  producers rather than against the other spec's summary.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE -- NO. One BLOCKER stands.
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE -- YES, round 2 is clean.
 - [ ] All NOTEs recorded above (or explicitly "none") -- one NOTE, finding 5, fixed.
 
 ## Pre-Commit Verification
@@ -614,6 +642,7 @@ the owner can open, so another round would re-find the same BLOCKER.
 | `test/plugin/prefixsid-ebgp-egress-boundary.ci` | Yes | 227 lines in `f3379e684`; `option=tcp_connections:value=3`, conn=1 source, conn=2 strip, conn=3 keep |
 | `internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go` | Yes | added at closure; RED then, and that was the point. Green since `4054ed854` gated the rail |
 | the spec that owned the remainder | Yes | `spec-prefix-sid-announce-rail-boundary`, written at this spec's closure and itself closed on 2026-09-05 |
+| `rfc/discrimination/rfc8669.json` | Yes | twelve `RFC8669-8-1` records, printed by `./le rfc discriminate stem rfc8669`, whose `unproven` and `stale` sets are both empty for that requirement |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
@@ -622,7 +651,7 @@ the owner can open, so another round would re-find the same BLOCKER.
 | AC-2 | eBGP, leaf true -> kept | `prefixSIDAllowedTo(false, true)` is `true`, so the function returns before recording. The `.ci` conn=3 expects the 60-octet source frame |
 | AC-3 | iBGP -> kept | `applyFactsPrefixSID` asks `prefixSIDAllowedTo(!f.isEBGP, ...)`, true for an internal peer whatever the leaf says |
 | AC-4 | next-hop change plus the boundary -> one operation | `prefixSIDOnWire` folds `mods.Ops()` and returns false once `applyFactsNextHop` recorded its RFC 9252 Suppress, so the second is not recorded |
-| (rail coverage) | every rail gated | FALSE for the announce rail. `TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain` is red |
+| (rail coverage) | every rail gated | TRUE as of 2026-09-05. This spec gated four; `4054ed854` gated the fifth. `grep -n prefixSIDAllowedTo internal/ --include=*.go` outside tests names five ask sites: `applyFactsPrefixSID` and `Peer.prefixSIDAllowed` (`forward_prefix_sid.go`), `peer_initial_sync.go` at the two origination rails, and `buildBatchAnnounceUpdate` (`reactor_api_batch.go`). `TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain` is green |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -641,7 +670,7 @@ the owner can open, so another round would re-find the same BLOCKER.
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
 | New user-facing feature, config syntax, user guide | `docs/features/srv6.md` carries the leaf, the config example, the option table and the egress data flow | Yes, and CORRECTED at closure: two rows overclaimed universal coverage |
-| RFC behavior implemented | `rfc/short/rfc8669.md` `RFC8669-8-1` now carries a `{gap}`; Meta count ten -> eleven; `docs/features/rfc-status.md` and `rfc/requirements/rfc8669.md` regenerated by `./le rfc index-update` | Yes |
+| RFC behavior implemented | `rfc/short/rfc8669.md` `RFC8669-8-1` carries NO `{gap}`, the Support coverage cell names all five rails and both producing files, and Support remaining is back to ten MUST gaps. That state was restored by `4054ed854` when the fifth rail was gated, and re-read here against the five producers rather than against its commit message. `rfc/requirements/rfc8669.md` regenerated by `./le rfc index-update` | Yes |
 | Changed source file referenced by doc anchors | `docs/architecture/core-design.md`, `docs/comparison.md` and `docs/architecture/api/architecture.md` anchor `reactor_api_forward.go` and `forward_rs.go`, naming the hoisted accumulator, the egress filter chain, `reactorForwardRS` and `ForwardUpdate`. The diff added a call inside those functions and changed nothing the anchors claim | Yes, no edit owed |
 | `./le doc check verify` | exit 1, 3482 drift findings; none names a file this spec touched (grepped for `srv6`, `prefix-sid`, `8669`) | Foreign |
 | CLI, API/RPC, plugin, wire format, metrics, doctor | No new command, RPC, event, send type, metric or runtime dependency; the change is one YANG boolean and reactor-internal code | No update owed |
