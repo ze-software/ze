@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native port of move_cmd_yang_to_plugins.py
+// Design: docs/architecture/core-design.md -- native port of move_cmd_yang_to_plugins.py
 package yangmigration
 
 import (

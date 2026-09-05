@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- one native action package, composed by internal/le/register.go
+// Design: docs/architecture/core-design.md -- one native action package, composed by internal/le/register.go
 package yangmigration
 
 import (

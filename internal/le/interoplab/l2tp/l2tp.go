@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native L2TP interoperability gate.
+// Design: docs/architecture/testing/interop.md -- native L2TP interoperability gate.
 // Related: checkers.go -- protocol-specific observations and assertions.
 // Related: radiusmock/main.go -- independent RADIUS wire peer for scenario 04.
 package l2tp

@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native development-tool actions
+// Design: docs/architecture/core-design.md -- native development-tool actions
 package module
 
 import (

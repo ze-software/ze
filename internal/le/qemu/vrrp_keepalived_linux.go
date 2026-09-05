@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/spec-le-is-a-ze-binary.md -- step 10 guest-side evidence ports
+// Design: docs/architecture/testing/qemu-integration.md -- guest-side evidence ports
 // Replaces the former effective VRRP Python guest driver.
 package qemu
 

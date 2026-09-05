@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native module migration workflows
+// Design: docs/architecture/core-design.md -- native module migration workflows
 package module
 
 import (

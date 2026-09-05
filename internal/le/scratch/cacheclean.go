@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native scratch-link gates
+// Design: docs/architecture/core-design.md -- native scratch-link gates
 // Overview: scratch.go -- filesystem policy and implementation
 //
 // This file empties the two Go build caches a Ze checkout fills, and reports

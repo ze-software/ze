@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native scratch-link gates
+// Design: docs/architecture/core-design.md -- native scratch-link gates
 // Detail: move.go -- cross-device moves that preserve filesystem metadata
 //
 // Package scratch keeps tmp and cache outside a checkout without overwriting

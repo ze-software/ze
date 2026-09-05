@@ -33,6 +33,22 @@ root through `internal/le/register.go`. A normal `ze` build imports no
 `cmd/ze/ze_le_register.go` blank-imports that composition root and exposes the
 same command inventory as `ze le`; no shipped build enables the tag.
 
+**The rule is directional.** `ze` never links an `internal/le` package, and
+`TestNormalZeLinksNoInternalLe` (`cmd/ze/ze_le_personality_test.go`) measures
+that with `go list -deps` over every build flavor. `le` MAY link the product
+composition root `internal/component/plugin/all`, because a command inventory, a
+CLI-grammar check or a YANG-leaf check answers what `ze` REGISTERS and cannot be
+computed without loading that registry. Loading it runs the product's `init()`
+functions, which register product roots such as `env`, `interface` and `schema`
+in the same process. What `le` MUST NOT do is serve one of those as its own, and
+the path is what keeps them apart rather than a second ownership table: every
+`le` tool registers at the canonical `le <tool>` local-data path,
+`internal/le/leroot/dispatch.go` resolves only that path, and `leroot.Owns` asks
+the registry for it. So `le interface` is an unknown command, not `ze`'s
+interface editor.
+<!-- source: cmd/ze/ze_le_personality_test.go -- TestNormalZeLinksNoInternalLe -->
+<!-- source: internal/le/leroot/leroot.go -- Owns, CommandPath -->
+
 To add a repository tool, add one package under `internal/le/`, register its
 area through `leroot.Register`, and add one blank import to
 `internal/le/register.go`. Keep each action callable as Go. Go callers invoke

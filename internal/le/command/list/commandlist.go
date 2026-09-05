@@ -7,7 +7,7 @@
 // It blank-imports the product's composition root, which is what makes the
 // answer accurate: the RPCs and the streaming prefixes come from the same
 // registrations the daemon runs. That import is allowed in exactly this
-// direction (plan/spec-le-is-a-ze-binary.md, AC-3): le may link ze to
+// direction (docs/architecture/core-design.md): le may link ze to
 // introspect it, ze never links le, and le never RUNS a product command
 // (internal/le/leroot/dispatch.go).
 //

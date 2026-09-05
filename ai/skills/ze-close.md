@@ -189,10 +189,22 @@ command removes the spec). The handoff commit is neither of them. Get the handof
       - **Clear the citers first (BLOCKING).** Commit B removes the spec, and
         every sibling that cites it keeps a citation of a file that is gone.
 
-        Run `grep -rn "plan/<spec-name>" plan/*.md` and name every hit. Each hit
-        gets one of three moves. Repoint it at the durable document that
-        replaced the spec. Restate the fact inline. Add the stem to
-        `plan/.citation-baseline` when the citation is a historical record.
+        Run `git grep -n "plan/<spec-name>"` over the WHOLE tracked tree and name
+        every hit. `plan/*.md` is the population `./le spec citation` reads, and
+        it is not the population that goes red: `./le doc check links` reads
+        every tracked file, and `DesignReferences`
+        (`internal/le/doc/wiring/designrefs.go`) resolves the `// Design:` header
+        of every tracked Go file. A Go header is the citer kind this step has
+        missed most often, and `plan/journal/closure-deletes-a-cited-document.md`
+        counts the recurrences. Each hit gets one of three moves. Repoint it at
+        the durable document that replaced the spec. Restate the fact inline. Add
+        the stem to `plan/.citation-baseline` when the citation is a historical
+        record.
+
+        A `// Design:` header takes the repoint, never the bare stem: the header
+        is a contract that the named document explains the file, so it must name
+        a page that survives. When no page carries the fact, write the fact onto
+        the page in this same commit and cite it.
 
         A restatement writes the stem bare: `spec-<stem>`, with no `plan/`
         prefix and no `.md` suffix. `speccitation.Scan` matches the full path

@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- three native YANG migration actions
+// Design: docs/architecture/core-design.md -- three native YANG migration actions
 package yangmigration
 
 import (

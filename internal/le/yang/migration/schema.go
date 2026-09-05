@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native port of rename_schema_to_yang.py
+// Design: docs/architecture/core-design.md -- native port of rename_schema_to_yang.py
 package yangmigration
 
 import (

@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- typed L2TP scenario assertions.
+// Design: docs/architecture/testing/interop.md -- typed L2TP scenario assertions.
 // Related: l2tp.go -- peer lifecycle and exact container configuration.
 package l2tp
 

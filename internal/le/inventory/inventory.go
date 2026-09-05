@@ -10,7 +10,7 @@
 // answer accurate: the plugins and the YANG modules come from the same
 // registrations the daemon runs, never from a regular expression over source.
 // That import is allowed in exactly this direction
-// (plan/spec-le-is-a-ze-binary.md, AC-3): le may link ze to introspect it, ze
+// (docs/architecture/core-design.md): le may link ze to introspect it, ze
 // never links le, and le never RUNS a product command (internal/le/leroot/dispatch.go).
 //
 // EVERY NUMBER HERE IS A COUNT OF WHAT THE WALK SAW, so a walk that ends early

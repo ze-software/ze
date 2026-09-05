@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native le support paths
+// Design: docs/architecture/core-design.md -- native le support paths
 //
 // This file resolves the canonical session identity and its checkout-local
 // directories without invoking the shell or Python helpers that native le replaces.

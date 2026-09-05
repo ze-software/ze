@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native repository refactors after the Go tooling cutover
+// Design: docs/architecture/core-design.md -- native repository refactors after the Go tooling cutover
 package yangmigration
 
 import (

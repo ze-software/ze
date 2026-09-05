@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- cross-device scratch migration
+// Design: docs/architecture/core-design.md -- cross-device scratch migration
 // Overview: scratch.go -- migration policy and status reporting
 package scratch
 

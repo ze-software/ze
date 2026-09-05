@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- shared preflight and apply machinery
+// Design: docs/architecture/core-design.md -- shared preflight and apply machinery
 package yangmigration
 
 import (

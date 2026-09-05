@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/spec-le-is-a-ze-binary.md -- collision-safe scratch migration
+// Design: docs/architecture/core-design.md -- collision-safe scratch migration
 // Overview: move.go -- staged cross-device moves
 package scratch
 
