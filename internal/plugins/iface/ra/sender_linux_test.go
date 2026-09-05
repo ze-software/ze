@@ -5,6 +5,7 @@ package ifacera
 import (
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,21 +27,26 @@ func testAdvertisement() ndp.RAConfig {
 }
 
 // VALIDATES: spec AC-5 and RFC 4861 Section 6.2.5. A sender that stops sends
-// up to MAX_FINAL_RTR_ADVERTISEMENTS advertisements carrying Router Lifetime 0,
-// and keeps the rest of the advertisement so hosts read one consistent message.
+// ONE advertisement carrying Router Lifetime 0, and keeps the rest of the
+// advertisement so hosts read one consistent message.
 // PREVENTS: hosts keeping Ze in their default router list for the whole router
-// lifetime after it stopped advertising.
+// lifetime after it stopped advertising, and the return of the three-in-one-tick
+// burst that Section 6.2.6's rate limit reads as consecutive multicast
+// advertisements sent inside MIN_DELAY_BETWEEN_RAS.
 func TestRAFinalZeroLifetime(t *testing.T) {
-	t.Run("three final advertisements retire the router", func(t *testing.T) {
+	t.Run("one final advertisement retires the router", func(t *testing.T) {
 		var sent []ndp.RAConfig
 		var solicited []bool
 		s := &Sender{}
 		s.sendFinal(func(cfg ndp.RAConfig, sol bool) {
 			sent = append(sent, cfg)
 			solicited = append(solicited, sol)
-		}, testAdvertisement(), false)
+		}, testAdvertisement(), false, time.Time{})
 
-		require.Len(t, sent, maxFinalAdvertisements)
+		// One, not a burst. Section 6.2.5 permits one or more, and one leaves
+		// no pair of consecutive multicast advertisements for Section 6.2.6's
+		// rate limit to bind. radvd, FRR and BIRD each send one.
+		require.Len(t, sent, 1)
 		for i, cfg := range sent {
 			assert.Equal(t, uint16(0), cfg.RouterLifetime, "final advertisement %d must carry Router Lifetime 0", i)
 			assert.False(t, solicited[i], "a final advertisement answers no solicitation")
@@ -53,10 +59,28 @@ func TestRAFinalZeroLifetime(t *testing.T) {
 		}
 	})
 
+	t.Run("a teardown inside the window waits the rate limit out", func(t *testing.T) {
+		// RFC 4861 Section 6.2.6 rate limits consecutive multicast
+		// advertisements to one every MIN_DELAY_BETWEEN_RAS, and Ze reads that
+		// as reaching the final one. lastSent is placed so the remainder is
+		// short enough for a unit test and long enough to measure.
+		const remaining = 80 * time.Millisecond
+		lastSent := time.Now().Add(remaining - ndp.MinDelayBetweenRAs)
+
+		count := 0
+		start := time.Now()
+		s := &Sender{}
+		s.sendFinal(func(ndp.RAConfig, bool) { count++ }, testAdvertisement(), false, lastSent)
+
+		assert.Equal(t, 1, count, "the teardown still sends its one advertisement")
+		assert.GreaterOrEqual(t, time.Since(start), remaining/2,
+			"the final advertisement left before the rate-limit window closed")
+	})
+
 	t.Run("nothing is sent while the link is down", func(t *testing.T) {
 		count := 0
 		s := &Sender{}
-		s.sendFinal(func(ndp.RAConfig, bool) { count++ }, testAdvertisement(), true)
+		s.sendFinal(func(ndp.RAConfig, bool) { count++ }, testAdvertisement(), true, time.Time{})
 		assert.Zero(t, count, "a down link carries nothing, so no final advertisement is attempted")
 	})
 }

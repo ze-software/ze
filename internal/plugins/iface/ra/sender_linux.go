@@ -263,7 +263,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 	for {
 		select {
 		case <-ctx.Done():
-			s.sendFinal(send, advertisement, state.linkDown)
+			s.sendFinal(send, advertisement, state.linkDown, state.lastSent)
 			return
 
 		case ev := <-links:
@@ -329,29 +329,37 @@ func (s *Sender) onLinkEvent(ev iface.LinkEvent, state *senderState, rearm func(
 	}
 }
 
-// maxFinalAdvertisements is how many zero-lifetime advertisements a stopping
-// sender may send (MAX_FINAL_RTR_ADVERTISEMENTS, RFC 4861 Section 10). It lives
-// here rather than with its four siblings in ifacera.go because sendFinal is its
-// only reader and Sender is Linux-only: in an untagged file the constant has no
-// reader at all on a non-Linux host, which `unused` reports and a Linux runner
-// never sees.
-const maxFinalAdvertisements = 3
-
-// sendFinal sends the advertisements that retire this router.
+// sendFinal sends the advertisement that retires this router.
 //
-// RFC 4861 Section 6.2.5: an interface that stops advertising sends up to
-// MAX_FINAL_RTR_ADVERTISEMENTS final advertisements with a Router Lifetime of
-// zero, so hosts drop it from their default router list at once instead of
-// waiting for the lifetime to run out. Nothing is sent while the link is down,
-// because nothing would leave the interface.
-func (s *Sender) sendFinal(send func(ndp.RAConfig, bool), advertisement ndp.RAConfig, linkDown bool) {
+// RFC 4861 Section 6.2.5: an interface that stops advertising "SHOULD transmit
+// one or more (but not more than MAX_FINAL_RTR_ADVERTISEMENTS) final multicast
+// Router Advertisements ... with a Router Lifetime field of zero", so hosts
+// drop it from their default router list at once instead of waiting the
+// lifetime out. Ze sends ONE, immediately. Nothing is sent while the link is
+// down, because nothing would leave the interface.
+//
+// One rather than three, decided 2026-09-05. The three that were sent before
+// bought nothing: they left in one scheduler tick, so a receiver could not tell
+// them apart and a link that dropped one dropped all three. radvd
+// (stop_adverts), FRR zebra (rtadv_stop_ra) and BIRD (radv_iface_shutdown) each
+// send exactly one, so one is also what every implementation a Ze link meets
+// will send.
+//
+// The wait is ndp.CeaseWait, the same function the PPP subscriber sender calls
+// through raSchedule.ceaseWait. Section 6.2.6 rate limits consecutive multicast
+// advertisements to one every MIN_DELAY_BETWEEN_RAS, and whether that reaches a
+// final advertisement is arguable, so Ze takes the reading that cannot be wrong
+// in BOTH senders rather than one reading in each. It is zero in steady state
+// and at most MIN_DELAY_BETWEEN_RAS when the interface stops just after it
+// advertised. Sleeping here is bounded and holds only this sender's shutdown.
+func (s *Sender) sendFinal(send func(ndp.RAConfig, bool), advertisement ndp.RAConfig, linkDown bool, lastSent time.Time) {
 	if linkDown {
 		return
 	}
-	final := zeroLifetime(advertisement)
-	for range maxFinalAdvertisements {
-		send(final, false)
+	if wait := ndp.CeaseWait(lastSent, time.Now()); wait > 0 {
+		time.Sleep(wait)
 	}
+	send(zeroLifetime(advertisement), false)
 }
 
 // zeroLifetime returns the advertisement with a Router Lifetime of zero. RFC

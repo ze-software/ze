@@ -72,3 +72,30 @@ func SolicitedSendTime(lastSent, now time.Time, delay time.Duration) time.Time {
 	}
 	return send
 }
+
+// CeaseWait returns how long the final zero-lifetime advertisement of a
+// teardown waits before it may leave. lastSent is when the interface last sent
+// a multicast advertisement, and a zero lastSent means it never has.
+//
+// RFC 4861 Section 6.2.6 rate limits consecutive multicast advertisements to
+// one every MIN_DELAY_BETWEEN_RAS, and the Section 6.2.5 final advertisement is
+// one of them. Whether the sentence reaches a final advertisement is arguable,
+// because it sits in a section about processing solicitations while its own
+// subject is unrestricted. Ze takes the reading that cannot be wrong: it waits.
+// The wait is zero in steady state, where advertisements are further apart than
+// MIN_DELAY_BETWEEN_RAS anyway, and it is bounded by MIN_DELAY_BETWEEN_RAS when
+// the teardown follows an advertisement immediately.
+//
+// One reading, one function. Both senders call it, so the LAN interface and the
+// PPP subscriber cannot answer the same sentence differently, which they did
+// until 2026-09-05.
+func CeaseWait(lastSent, now time.Time) time.Duration {
+	if lastSent.IsZero() {
+		return 0
+	}
+	remaining := lastSent.Add(MinDelayBetweenRAs).Sub(now)
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}

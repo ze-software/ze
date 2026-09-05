@@ -144,3 +144,30 @@ func TestRARateLimit(t *testing.T) {
 		assert.Equal(t, start.Add(200*time.Millisecond), got)
 	})
 }
+
+// VALIDATES: RFC 4861 Section 6.2.6 as it reaches the Section 6.2.5 final
+// advertisement. A teardown inside the rate-limit window waits out the
+// remainder, and a teardown outside it waits not at all.
+// PREVENTS: the two Ze senders answering that sentence differently, which they
+// did until this arithmetic became one function. The LAN sender sent three
+// advertisements in one scheduler tick while the PPP sender waited.
+func TestRACeaseWait(t *testing.T) {
+	now := time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name     string
+		lastSent time.Time
+		want     time.Duration
+	}{
+		{"never advertised", time.Time{}, 0},
+		{"advertised now", now, MinDelayBetweenRAs},
+		{"one second into the window", now.Add(-1 * time.Second), MinDelayBetweenRAs - time.Second},
+		{"the window has just closed", now.Add(-MinDelayBetweenRAs), 0},
+		{"long past the window", now.Add(-time.Hour), 0},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, CeaseWait(test.lastSent, now))
+		})
+	}
+}

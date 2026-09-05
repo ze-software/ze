@@ -131,19 +131,10 @@ func (s *raSchedule) advertised() {
 }
 
 // ceaseWait returns how long the final zero-lifetime advertisement waits for
-// the rate limit. RFC 4861 Section 6.2.6 rate limits consecutive multicast
-// advertisements to one every MIN_DELAY_BETWEEN_RAS, and the Section 6.2.5
-// final advertisement is one of them, so a teardown that follows an
-// advertisement inside that window waits out the remainder. The wait is bounded
-// by MIN_DELAY_BETWEEN_RAS and is zero in steady state, where advertisements
-// are at least raMinRtrAdvInterval apart.
+// the rate limit. The arithmetic and the reading of RFC 4861 behind it are
+// ndp.CeaseWait, which the LAN sender calls as well, so the two senders cannot
+// answer Section 6.2.6 differently. In steady state the wait is zero, because
+// advertisements are at least raMinRtrAdvInterval apart.
 func (s *raSchedule) ceaseWait() time.Duration {
-	if s.lastSent.IsZero() {
-		return 0
-	}
-	remaining := s.lastSent.Add(ndp.MinDelayBetweenRAs).Sub(s.clk.Now())
-	if remaining < 0 {
-		return 0
-	}
-	return remaining
+	return ndp.CeaseWait(s.lastSent, s.clk.Now())
 }
