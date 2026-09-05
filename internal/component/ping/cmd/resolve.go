@@ -28,7 +28,7 @@ func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin
 		return errResolveResponse(err.Error()), nil
 	}
 
-	dest, err := probe.ResolveTarget(target)
+	dest, err := probe.ResolveTarget(target, probe.FamilyAny)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("ping: invalid destination ").Str(strconv.Quote(target)).Str(": ").Err(err)

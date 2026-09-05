@@ -106,7 +106,7 @@ func parseTracerouteArgs(args []string) (netip.Addr, int, time.Duration, int, er
 				if err := validateResolveTarget(args[i]); err != nil {
 					return target, 0, 0, 0, fmt.Errorf("traceroute: invalid target %q: %w", args[i], err)
 				}
-				addr, err := probe.ResolveTarget(args[i])
+				addr, err := probe.ResolveTarget(args[i], probe.FamilyAny)
 				if err != nil {
 					return target, 0, 0, 0, fmt.Errorf("traceroute: invalid target %q: %w", args[i], err)
 				}

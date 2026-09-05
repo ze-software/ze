@@ -42,7 +42,7 @@ func pidHex(pid uint16) []byte {
 // NewTracerouteSession starts a streaming probe round for the given target.
 // Returns a channel of hop results, a cancel function, and an error.
 func NewTracerouteSession(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
-	addr, err := probe.ResolveTarget(target)
+	addr, err := probe.ResolveTarget(target, probe.FamilyAny)
 	if err != nil {
 		return nil, nil, err
 	}

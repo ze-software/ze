@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-10 |
+| Phase | 6/6 |
+| Updated | 2026-09-05 |
 
 **Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready. Scope precision applied 2026-07-10: the fix lands on the `ze-resolve:traceroute` path, the only entry point that accepts a source today (see Post-wave corrections and Known Limitations).
 
@@ -125,7 +125,7 @@ answer :65) are all current. Two material precision corrections:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `LookupNetIP` supports `"ip4"`/`"ip6"` networks for family-constrained resolution | Go stdlib net semantics | need manual filtering of results | unit test with a dual-stack name | unvalidated |
+| A-1 | `LookupNetIP` supports `"ip4"`/`"ip6"` networks for family-constrained resolution | Go stdlib net semantics | need manual filtering of results | unit test with a dual-stack name | confirmed (2026-09-05: probe run before any feature code. `"ip4"`/`"ip6"` constrain the answer; a name with no address in the asked family fails rather than answering the other family. Two failure shapes, not one: a name whose records are all of the other family gives `*net.AddrError` "no suitable address found", a name with no record in the asked family gives `*net.DNSError` with `IsNotFound`. `familyAbsent` (`internal/core/probe/icmp.go`) classifies both, and reports every other failure as itself) |
 | A-2 | ~~Both `resolve traceroute` and `show traceroute` share the same parse path~~ | ~~traceroute.go~~ | must fix both call sites | grep both entry points during audit | broken (2026-07-10: they do NOT share a parse path; only the resolve path accepts a source -- see Post-wave corrections; fix scoped to `handleResolveTraceroute`) |
 
 ### Risks
@@ -163,9 +163,20 @@ answer :65) are all current. Two material precision corrections:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestResolveTargetFamilyHint` | `internal/core/probe/icmp_test.go` | family hint constrains resolution | |
-| `TestTracerouteSourceForcesV6` | `internal/component/traceroute/cmd/traceroute_test.go` | v6 source → v6 destination/socket | |
-| `TestTracerouteSourceFamilyMismatch` | `internal/component/traceroute/cmd/traceroute_test.go` | v6 source + A-only name → error | |
+| `TestResolveTargetFamilyHint` | `internal/core/probe/icmp_test.go` | a family-constrained lookup never answers with the other family | pass |
+| `TestFamilyOf`, `TestFamilyNetwork` | `internal/core/probe/icmp_test.go` | source address → family → resolver network name | pass |
+| `TestResolveTargetLiteralFamilyMismatch` | `internal/core/probe/icmp_test.go` | a literal target of the other family returns `ErrFamilyMismatch` | pass |
+| `TestResolveTargetUnmapsLiteral`, `TestResolveTargetUnmapsLookup` | `internal/core/probe/icmp_test.go` | the answer is unmapped, so the socket family read off it is right | pass |
+| `TestHandleResolveTraceroute_SourceFamilyDrivesResolution` | `internal/component/traceroute/cmd/resolve_test.go` | both polarities of a conflict are refused naming the source and the target, before a socket is opened | pass |
+| `TestParseResolveTracerouteArgs` | `internal/component/traceroute/cmd/resolve_test.go` | the option parser that now runs BEFORE resolution still reads every keyword | pass |
+| `TestParseSourceIP_Valid`, `TestParseSourceIP_Invalid` | `internal/component/traceroute/cmd/resolve_test.go` | one parse validates and produces the source, so a rejected one cannot reach the engine unset | pass |
+
+The unit test names in the design (`TestTracerouteSourceForcesV6`,
+`TestTracerouteSourceFamilyMismatch`) landed on `resolve_test.go` rather than
+`traceroute_test.go`, because `handleResolveTraceroute` is the producer and it
+lives in `resolve.go`. The v6-source success polarity needs a dual-stack name
+and a raw socket, so it is proven by the functional test rather than by a unit
+test that would depend on the developer machine's `/etc/hosts`.
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -175,7 +186,7 @@ answer :65) are all current. Two material precision corrections:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `traceroute-source-af` | `test/plugin/traceroute-source-af.ci` | source family drives destination resolution | |
+| `traceroute-source-af` | `test/plugin/traceroute-source-af.ci` | source family drives destination resolution, in both polarities, plus the named conflict | pass |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -200,8 +211,8 @@ answer :65) are all current. Two material precision corrections:
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 3 | CLI command added/changed? | [ ] maybe | `docs/guide/command-reference.md` (behaviour clarification) |
-| 12 | Internal architecture changed? | [ ] maybe | probe/traceroute doc if resolution semantics documented |
+| 3 | CLI command added/changed? | [ ] no new command; the `source` option changed meaning | `internal/plugins/traceroute-cmd/yang/ze-traceroute-cmd.yang` (the `ze:help` and the `source` leaf description are the operator-facing text for `resolve traceroute`; `docs/guide/command-reference.md` documents `show traceroute` and `monitor traceroute` only, and neither takes a source) |
+| 12 | Internal architecture changed? | [ ] yes | `docs/architecture/diagnostics/active-probes.md`, new section "The source address decides the family" |
 
 ## Files to Create
 - `test/plugin/traceroute-source-af.ci` - functional test
@@ -254,14 +265,86 @@ answer :65) are all current. Two material precision corrections:
 
 ## Known Limitations
 - Only the `ze-resolve:traceroute` path accepts a source today, so only that path gains family-driven resolution. `show traceroute` / `monitor traceroute` (parseTracerouteArgs-based, no source option) are unaffected; adding a source option to them is out of scope for this spec.
-- Ping's resolve path has the same source-after-resolve pattern (ping/cmd/resolve.go vs :44-52) and is NOT fixed here; flagged for a user decision as follow-up.
+- Ping's resolve path has the same source-after-resolve pattern (`handleResolvePing`, `internal/component/ping/cmd/resolve.go`) and is NOT fixed here. Flagged for a user decision as this spec instructed, and recorded as one row in `plan/journal/option-read-after-the-decision-it-governs.md`. The seam it needs already exists: `probe.ResolveTarget` takes a family and `probe.FamilyOf` derives one, so the fix is the same reorder plus one call.
 
 ## Design Insights
 <!-- LIVE -->
 
+- **`LookupNetIP` answers an IPv4 address in the IPv4-mapped IPv6 form.** So
+  `ResolveTarget("localhost")` returned `::ffff:127.0.0.1`, `dest.Is6()` read
+  true on it, and `doTracerouteCtx` opened an ICMPv6 socket for an IPv4
+  destination. That is the same family-selection defect this spec exists for,
+  reached without a source address at all, so `ResolveTarget` now unmaps the
+  address it answers with and every caller reads the right family off it.
+- **"No address in this family" arrives in two error shapes, not one.** A name
+  whose records are all of the other family gives `*net.AddrError` ("no suitable
+  address found"), and a name with no record in the asked family gives
+  `*net.DNSError` with `IsNotFound`. A SERVFAIL or a timeout is neither, and
+  reporting one of those as a family conflict would blame the source address for
+  a broken resolver. `familyAbsent` splits them.
+- **The conflict is named for a literal target too.** A literal needs no
+  resolution, so AC-5 leaves it alone, but `resolve traceroute 127.0.0.1 source
+  ::1` is the same conflict and used to reach the operator as a bind failure.
+  One wording answers both routes.
+
 ## Implementation Summary
 ### What Was Implemented
-- (fill during implementation)
+- `probe.Family` (`internal/core/probe/icmp.go`) is the typed family a
+  resolution is held to, `FamilyAny` is its zero value, and `probe.FamilyOf`
+  derives one from a source address. `ResolveTarget(s, family)` holds both its
+  routes (literal and lookup) to that family, unmaps what it answers, and
+  reports `probe.ErrFamilyMismatch` when the target carries no address in it.
+- `handleResolveTraceroute` (`internal/component/traceroute/cmd/resolve.go`)
+  parses its options first, through the new `parseResolveTracerouteArgs`, and
+  resolves the target after, in the family of the source. A conflict answers
+  `traceroute: source <addr> is <family> but target "<t>" has no <family>
+  address`, before any socket is opened.
+- `parseSourceIP` replaced `validateSourceIP`: one parse validates the source
+  and produces it. The old pair validated with `net.ParseIP` and then discarded
+  the error of a second `netip.ParseAddr`, so a source that parsed differently
+  in the two libraries would have been dropped in silence. It also accepts a
+  zone (`fe80::1%eth0`), which the YANG pattern always allowed and `net.ParseIP`
+  always refused.
+- The other six `ResolveTarget` call sites (traceroute `traceroute.go` and
+  `stream.go`, ping `ping.go` twice, `resolve.go` and `stream.go`) pass
+  `probe.FamilyAny` and keep their behavior, apart from the unmapping fix above,
+  which they all gain.
+
+### Discrimination (RED observed, then GREEN)
+
+The fix was reverted (`family := probe.FamilyAny` in `handleResolveTraceroute`,
+and `ResolveTarget` back to `"ip"` with no unmapping), the tests were run, the
+fix was restored, and the tests were run again.
+
+| Test | RED under the revert | GREEN restored |
+|------|----------------------|----------------|
+| `TestResolveTargetLiteralFamilyMismatch` | `ResolveTarget("192.0.2.1", IPv6) = 192.0.2.1, <nil>; want ErrFamilyMismatch` | pass |
+| `TestResolveTargetFamilyHint` | `ResolveTarget(localhost, IPv6) = ::ffff:127.0.0.1, which is IPv4` | pass |
+| `TestResolveTargetUnmapsLiteral`, `TestResolveTargetUnmapsLookup` | both answered the `::ffff:` form | pass |
+| `TestHandleResolveTraceroute_SourceFamilyDrivesResolution` | `traceroute: listen ip4:icmp: address 2001:db8::1: no suitable address found (requires CAP_NET_RAW)`, which names the socket and neither argument | pass |
+| `test/plugin/traceroute-source-af.ci` (QEMU guest, real CAP_NET_RAW) | `ZE-OBSERVER-FAIL: resolve traceroute localhost source 127.0.0.1 ...: status=error want done: traceroute: listen ip6:ipv6-icmp: address 127.0.0.1: no suitable address found` | `7.2s 1/1 PASS 723 traceroute-source-af` |
+
+The guest resolved `localhost` to `::1` first, so under the revert the IPv6
+polarity passed by accident and the IPv4 one failed. Asserting both polarities
+is what caught it: one alone would have gone green against the defect.
+
+Guest evidence for the premise: `cat /etc/hosts` in the booted guest answers
+`127.0.0.1 localhost localhost.localdomain` and `::1 localhost
+localhost.localdomain`, and `lo` carries `::1/128`.
+
+### Verification still owed (deferred by owner instruction, 2026-09-05)
+
+The targeted unit runs and the QEMU functional run below are done and green.
+The whole-tree gate is NOT run: the owner deferred heavy testing until this
+checkout has one user. The command that produces it is
+`./le verify current mode full`, and the functional evidence re-runs with
+`./le qemu run packages "go" timeout 40m command "cd /workspace && mkdir -p
+/root/gocache && export GOCACHE=/root/gocache && go run -tags ze_test ./cmd/ze
+bgp plugin traceroute-source-af"`.
+
+`./le verify lint run` was run before the deferral and reported one finding in
+this diff (`errorsastype` on `familyAbsent`), which is fixed. The other files
+in its failure group belong to other sessions in this shared checkout.
 
 ## Review Gate
 

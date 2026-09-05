@@ -1,6 +1,9 @@
 package probe
 
 import (
+	"errors"
+	"fmt"
+	"net"
 	"net/netip"
 	"testing"
 )
@@ -39,13 +42,133 @@ func TestBuildICMPEchoChecksum(t *testing.T) {
 // TestResolveTargetLiteral verifies an IP literal resolves to itself without DNS.
 func TestResolveTargetLiteral(t *testing.T) {
 	for _, lit := range []string{"192.0.2.1", "2001:db8::1"} {
-		got, err := ResolveTarget(lit)
+		got, err := ResolveTarget(lit, FamilyAny)
 		if err != nil {
 			t.Fatalf("ResolveTarget(%q): %v", lit, err)
 		}
 		want := netip.MustParseAddr(lit)
 		if got != want {
 			t.Errorf("ResolveTarget(%q) = %v, want %v", lit, got, want)
+		}
+	}
+}
+
+// TestFamilyOf verifies the mapping from a source address to the family that
+// constrains resolution: the zero address constrains nothing, and an
+// IPv4-mapped IPv6 address is IPv4 because that is the socket family it binds.
+func TestFamilyOf(t *testing.T) {
+	cases := []struct {
+		addr netip.Addr
+		want Family
+	}{
+		{netip.Addr{}, FamilyAny},
+		{netip.MustParseAddr("192.0.2.1"), FamilyIPv4},
+		{netip.MustParseAddr("2001:db8::1"), FamilyIPv6},
+		{netip.MustParseAddr("::ffff:192.0.2.1"), FamilyIPv4},
+		{netip.MustParseAddr("fe80::1%eth0"), FamilyIPv6},
+	}
+	for _, tc := range cases {
+		if got := FamilyOf(tc.addr); got != tc.want {
+			t.Errorf("FamilyOf(%v) = %v, want %v", tc.addr, got, tc.want)
+		}
+	}
+}
+
+// TestFamilyNetwork verifies each family names the net.Resolver network that
+// holds a lookup to it. The string is what reaches LookupNetIP, so a wrong one
+// silently drops the constraint.
+func TestFamilyNetwork(t *testing.T) {
+	cases := map[Family]string{FamilyAny: "ip", FamilyIPv4: "ip4", FamilyIPv6: "ip6"}
+	for family, want := range cases {
+		if got := family.network(); got != want {
+			t.Errorf("%v.network() = %q, want %q", family, got, want)
+		}
+	}
+}
+
+// TestResolveTargetLiteralFamilyMismatch verifies a literal target of the wrong
+// family is refused with ErrFamilyMismatch, so the conflict is named where the
+// operator can see both arguments rather than at the socket bind.
+func TestResolveTargetLiteralFamilyMismatch(t *testing.T) {
+	cases := []struct {
+		target string
+		family Family
+	}{
+		{"192.0.2.1", FamilyIPv6},
+		{"2001:db8::1", FamilyIPv4},
+	}
+	for _, tc := range cases {
+		got, err := ResolveTarget(tc.target, tc.family)
+		if !errors.Is(err, ErrFamilyMismatch) {
+			t.Errorf("ResolveTarget(%q, %v) = %v, %v; want ErrFamilyMismatch", tc.target, tc.family, got, err)
+		}
+	}
+}
+
+// TestResolveTargetUnmapsLiteral verifies an IPv4-mapped IPv6 literal comes back
+// as IPv4. The caller picks the socket family from the returned address, and a
+// mapped address reports Is6, which would open an ICMPv6 socket for an IPv4
+// destination.
+func TestResolveTargetUnmapsLiteral(t *testing.T) {
+	got, err := ResolveTarget("::ffff:192.0.2.1", FamilyIPv4)
+	if err != nil {
+		t.Fatalf("ResolveTarget: %v", err)
+	}
+	if !got.Is4() {
+		t.Errorf("ResolveTarget(\"::ffff:192.0.2.1\") = %v, want the unmapped IPv4 form", got)
+	}
+}
+
+// TestResolveTargetFamilyHint verifies a family-constrained hostname lookup
+// never answers with an address of the other family. The invariant holds in
+// every environment: a host whose "localhost" carries both families answers in
+// the asked family, and a host that carries only one answers ErrFamilyMismatch
+// for the other. Answering with the other family is the defect this constrains,
+// because the caller then binds a source the socket cannot carry.
+func TestResolveTargetFamilyHint(t *testing.T) {
+	for _, family := range []Family{FamilyIPv4, FamilyIPv6} {
+		got, err := ResolveTarget("localhost", family)
+		if err != nil {
+			if !errors.Is(err, ErrFamilyMismatch) {
+				t.Errorf("ResolveTarget(localhost, %v): %v; want an address or ErrFamilyMismatch", family, err)
+			}
+			continue
+		}
+		if FamilyOf(got) != family {
+			t.Errorf("ResolveTarget(localhost, %v) = %v, which is %v", family, got, FamilyOf(got))
+		}
+		// LookupNetIP answers an IPv4 address in the IPv4-mapped IPv6 form,
+		// which reports Is6. The caller reads the socket family off this
+		// address, so a mapped answer opens an ICMPv6 socket for IPv4.
+		if got != got.Unmap() {
+			t.Errorf("ResolveTarget(localhost, %v) = %v, want the unmapped form %v", family, got, got.Unmap())
+		}
+	}
+}
+
+// TestFamilyAbsent verifies the classifier that decides whether a
+// family-constrained lookup failure is a family conflict or a broken resolver.
+// It is the guard between "your source and your target disagree" and a DNS
+// failure the source had nothing to do with, and only the first may be blamed
+// on the source address.
+func TestFamilyAbsent(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		// The shape LookupNetIP returns for a name whose records are all of
+		// the other family, which is AC-3: an A-only name asked for in IPv6.
+		{"no suitable address", &net.AddrError{Err: "no suitable address found", Addr: "v4only.example"}, true},
+		{"not found", &net.DNSError{Err: "no such host", Name: "v4only.example", IsNotFound: true}, true},
+		{"timeout", &net.DNSError{Err: "i/o timeout", Name: "slow.example", IsTimeout: true}, false},
+		{"server failure", &net.DNSError{Err: "server misbehaving", Name: "broken.example"}, false},
+		{"unrelated", errors.New("connection refused"), false},
+		{"wrapped not found", fmt.Errorf("lookup: %w", &net.DNSError{Err: "no such host", IsNotFound: true}), true},
+	}
+	for _, tc := range cases {
+		if got := familyAbsent(tc.err); got != tc.want {
+			t.Errorf("familyAbsent(%s) = %v, want %v", tc.name, got, tc.want)
 		}
 	}
 }

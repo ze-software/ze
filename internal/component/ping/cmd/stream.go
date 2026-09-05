@@ -44,7 +44,7 @@ type pingConn interface {
 // which is the `monitor ping <dest>` default. size is the ICMP echo payload in
 // bytes; 0 sends the small default payload.
 func NewPingSession(ctx context.Context, target string, interval, timeout time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
-	addr, err := probe.ResolveTarget(target)
+	addr, err := probe.ResolveTarget(target, probe.FamilyAny)
 	if err != nil {
 		return nil, nil, err
 	}

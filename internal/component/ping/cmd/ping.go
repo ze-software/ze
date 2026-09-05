@@ -144,7 +144,7 @@ func parseMonitorPingArgs(args []string) (monitorPingArgs, error) {
 				if err := validateResolveTarget(args[i]); err != nil {
 					return out, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
 				}
-				addr, err := probe.ResolveTarget(args[i])
+				addr, err := probe.ResolveTarget(args[i], probe.FamilyAny)
 				if err != nil {
 					return out, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
 				}
@@ -221,7 +221,7 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, pingOpts, err
 				if err := validateResolveTarget(args[i]); err != nil {
 					return dest, 0, 0, opts, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)
 				}
-				addr, err := probe.ResolveTarget(args[i])
+				addr, err := probe.ResolveTarget(args[i], probe.FamilyAny)
 				if err != nil {
 					return dest, 0, 0, opts, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)
 				}

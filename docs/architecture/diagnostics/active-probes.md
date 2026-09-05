@@ -26,6 +26,27 @@ TTL and hop limit across platforms. A `ttlSetter` interface hides
 `SetTTL` against `SetHopLimit`, because the probe loop body is identical for
 both families. IPv6 works through the same path, selected by `dest.Is6()`.
 
+## The source address decides the family
+
+`resolve traceroute <target> source <address>` binds the probe socket to that
+address, and one socket carries one family. So the source is read before the
+target is resolved, and the family of the source is the family the target
+resolves in: an IPv6 source resolves a name to its AAAA record, an IPv4 source
+to its A record. With no source the resolution stays family-agnostic and the
+first answer wins.
+
+A target with no address in the source family is refused by name, before any
+socket is opened: `traceroute: source ::1 is IPv6 but target "192.0.2.1" has no
+IPv6 address`. The older order resolved the target first and bound second, so
+the operator got a bind failure that named the socket and neither argument.
+
+`ResolveTarget` unmaps the address it answers with. `LookupNetIP` returns an
+IPv4 answer in the IPv4-mapped IPv6 form, that form reports `Is6`, and the
+socket family is read off that address.
+
+<!-- source: internal/core/probe/icmp.go -- ResolveTarget, Family -->
+<!-- source: internal/component/traceroute/cmd/resolve.go -- handleResolveTraceroute -->
+
 ## Reply matching
 
 A reply is accepted only when the identifier (derived from the PID) and the

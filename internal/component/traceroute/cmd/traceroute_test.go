@@ -140,19 +140,19 @@ func TestTracerouteHopResult(t *testing.T) {
 }
 
 func TestResolveTarget_IP(t *testing.T) {
-	addr, err := probe.ResolveTarget("127.0.0.1")
+	addr, err := probe.ResolveTarget("127.0.0.1", probe.FamilyAny)
 	require.NoError(t, err)
 	assert.Equal(t, "127.0.0.1", addr.String())
 }
 
 func TestResolveTarget_IPv6(t *testing.T) {
-	addr, err := probe.ResolveTarget("::1")
+	addr, err := probe.ResolveTarget("::1", probe.FamilyAny)
 	require.NoError(t, err)
 	assert.True(t, addr.Is6())
 }
 
 func TestResolveTarget_Hostname(t *testing.T) {
-	addr, err := probe.ResolveTarget("localhost")
+	addr, err := probe.ResolveTarget("localhost", probe.FamilyAny)
 	require.NoError(t, err)
 	assert.True(t, addr.IsLoopback())
 }
