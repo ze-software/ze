@@ -265,9 +265,9 @@ command, and to send a route IS to announce it. The BGP set is `unicast`,
 `blackhole`, `flowspec`, `raw`, `update`, `cached` and `withdraw`.
 
 `withdraw` stays, and the asymmetry is correct. A withdraw is the opposite act,
-not the same act named twice. A withdrawal is also a thing an operator sends,
-because RFC 4271 carries it in the UPDATE's withdrawn-routes field, and it is
-the word BGP and ExaBGP both use. So an operator meets one spelling on each side
+not the same act named twice. A withdrawal is also a thing an operator sends.
+RFC 4271 carries it in the UPDATE's withdrawn-routes field. It is the word BGP
+and ExaBGP both use. So an operator meets one spelling on each side
 of the bridge.
 
 **`raw` is not a BGP verb.** It is the escape hatch every protocol has, and it
