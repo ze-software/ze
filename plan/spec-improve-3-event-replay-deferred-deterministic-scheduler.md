@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | blocked |
-| Depends | `plan/spec-improve-3-event-replay.md` (capture/replay must land first) |
+| Depends | `spec-improve-3-event-replay` (capture/replay must land first) |
 | Phase | - |
 | Updated | 2026-08-05 |
 
@@ -18,12 +18,12 @@ replay exist. A triage of every `*-deferred-*` spec found it.
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/deterministic-simulation-analysis.md` - the event-queue layer this spec would build
-4. `plan/spec-improve-3-event-replay.md` - the source spec, R-3 and A-2
+4. `spec-improve-3-event-replay` - the source spec, R-3 and A-2
 5. `internal/component/bgp/reactor/session.go`, `peer_run.go` - the clock seam
 
 ## Task
 
-Deferred from `plan/spec-improve-3-event-replay.md` (risk R-3, "Scope creep into full
+Deferred from `spec-improve-3-event-replay` (risk R-3, "Scope creep into full
 deterministic simulation", mitigated by the ruling that "this spec = capture +
 single-session replay only; simulation stays in the analysis doc"). The same spec's
 Design Insights state the boundary in full: replay asserts OUTCOMES (FSM transitions
@@ -87,7 +87,7 @@ improve-3 specified capture costs one nil check when disabled.
 ### Architecture Docs
 - [ ] `plan/deterministic-simulation-analysis.md` - the event queue, scheduler, and fault-injection layers improve-3 left out
   → Decision: improve-3 adopted only the Option-D clock-injection slice; the layers this spec needs stay described there
-- [ ] `plan/spec-improve-3-event-replay.md` - source spec: R-3, A-2, Design Insights, Capture Format v1
+- [ ] `spec-improve-3-event-replay` - source spec: R-3, A-2, Design Insights, Capture Format v1
   → Constraint: replay asserts outcomes, not interleavings; that boundary is what this spec moves
 - [ ] `docs/architecture/core-design.md` - session/reactor layering and ownership
   → Constraint: Session is owned by Peer; a scheduler must respect that ownership rather than reach across it
@@ -125,7 +125,7 @@ improve-3 specified capture costs one nil check when disabled.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A replay invocation over a capture file produced by `plan/spec-improve-3-event-replay.md` (JSONL, one event per line, with a version header).
+- A replay invocation over a capture file produced by `spec-improve-3-event-replay` (JSONL, one event per line, with a version header).
 - The session inbound read paths in `internal/component/bgp/reactor/`, where captured wire bytes are fed back.
 
 ### Transformation Path
@@ -146,7 +146,7 @@ improve-3 specified capture costs one nil check when disabled.
 ### Integration Points
 - `Session.SetClock` / `Peer.SetClock` / `Reactor.SetClock`, the existing injection chain.
 - `Peer.history` (`peer_run.go`) as the outcome oracle.
-- The capture format and replay harness delivered by `plan/spec-improve-3-event-replay.md`.
+- The capture format and replay harness delivered by `spec-improve-3-event-replay`.
 - `internal/core/clock` fake clock, already used by reactor tests.
 
 ### Architectural Verification
@@ -214,7 +214,7 @@ improve-3 specified capture costs one nil check when disabled.
 
 ### Implementation Phases
 
-1. **Phase: Blocked check (MANDATORY FIRST)** - confirm `plan/spec-improve-3-event-replay.md` has landed and that its A-2 has a final status. If A-2 confirmed, re-scope this spec with the user before writing code.
+1. **Phase: Blocked check (MANDATORY FIRST)** - confirm `spec-improve-3-event-replay` has landed and that its A-2 has a final status. If A-2 confirmed, re-scope this spec with the user before writing code.
 2. **Phase: Wiring** - register the replay scheduler seam; write the failing determinism test.
 3. **Phase: Event queue** - (fill during design)
 4. **Phase: Scheduler ordering** - (fill during design)
@@ -231,7 +231,7 @@ improve-3 specified capture costs one nil check when disabled.
 | Scope | Fault injection and full simulation stay out (improve-3 R-3) |
 
 ## Known Limitations
-- Blocked on `plan/spec-improve-3-event-replay.md`. This spec cannot start before capture and replay exist.
+- Blocked on `spec-improve-3-event-replay`. This spec cannot start before capture and replay exist.
 - (fill during design)
 
 ## Checklist

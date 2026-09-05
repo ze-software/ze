@@ -451,6 +451,12 @@ func captureBGPConfigEvent(handle registry.BGPReactorHandle, phase, txID string,
 	}
 	payload, err := json.Marshal(detail)
 	if err != nil {
+		// Say it, then record the operation without its detail. A config event
+		// with no payload also means "this phase carries no detail", so silence
+		// here would leave a lost payload and an empty one spelled the same way
+		// in the capture, and nothing in the file could tell them apart.
+		slogutil.LazyLogger("bgp.capture")().Warn("config detail could not be marshaled; the capture records the operation without it",
+			"op", phase, "tx-id", txID, "error", err)
 		payload = nil
 	}
 	rec.CaptureConfigEvent(phase, txID, payload)

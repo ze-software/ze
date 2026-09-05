@@ -133,8 +133,8 @@ deterministic simulation.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | ~~One tee point sees all inbound bytes~~ RESOLVED broken as anticipated: coalescing is DEFAULT ON and has its own read path | `readAndProcessCoalesced` (`session_coalesce.go`, header :69, body :107) verified by research agent | - | Design now specifies TWO tee points (Data Flow); shared tee helper so they cannot drift | confirmed (two tees adopted) |
-| A-2 | The injected clock seam is sufficient for deterministic replay of timer-driven behavior | grep: zero raw time.* in non-test reactor code; clock chain `peer.go` -> `session.go` -> `peer_run.go` | Replay diverges on hold/keepalive timing; need the analysis doc's event-queue layer | Prototype replay of a captured session with timer expiry; verify `internal/bgp/fsm/timer.go` (older path flagged by analysis doc) | unvalidated (basis strengthened) |
-| A-3 | JSONL per-message capture keeps up at stress rates when enabled | buffered writer design | Capture must sample or be documented as debug-rate only | Stress test with `ze-test peer --mode inject` during implementation | unvalidated |
+| A-2 | The injected clock seam is sufficient for deterministic replay of timer-driven behavior | grep: zero raw time.* in non-test reactor code; clock chain `peer.go` -> `session.go` -> `peer_run.go` | Replay diverges on hold/keepalive timing; need the analysis doc's event-queue layer | Prototype replay of a captured session with timer expiry; verify `internal/bgp/fsm/timer.go` (older path flagged by analysis doc) | confirmed for message-driven replay; timer EXPIRY is Work Not Done (see Assumptions Resolved) |
+| A-3 | JSONL per-message capture keeps up at stress rates when enabled | buffered writer design | Capture must sample or be documented as debug-rate only | Stress test with `ze-test peer --mode inject` during implementation | broken; the design removed the need (see Assumptions Resolved) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -276,6 +276,8 @@ deterministic simulation.
 | Doc checklist row 3: the replay command is `ze test replay`, so it belongs in `docs/guide/command-reference.md` | It landed as `ze-test replay`, a root of the ze-test binary. `command-reference.md` documents the `ze` dispatch only (`cmd/ze/main.go`) | Documentation review at implementation | Row 3 is N/A. The command is documented in `docs/functional-tests.md`, "Replaying a captured BGP session", beside the other ze-test tool roots |
 | Doc checklist row 10: a new `test/replay/` suite | The `.ci` went into the existing `test/plugin` suite, so no suite was added | Implementation | Row 10 is satisfied by the CLI Reference addition, not a suite inventory row |
 | A capture file is written once per PEER | `startCapture` runs once per `runOnce`, so it is once per CONNECTION ATTEMPT | Independent review, 2026-08-04 | `O_TRUNC` erased the capture of the session that failed, seconds after it failed. Fixed: a new session moves the previous file to `<file>.1` |
+| A-3: the writer must keep up at inject rates, so a stress run is what validates it | The writer is not required to keep up at all. `offer` sheds on a full queue, counts the loss, and `markDrops` writes the gap into the stream, so a replay reads a gap as a gap | Closure gate, 2026-09-05, reading `sessionCapture.offer` | A-3 is resolved BROKEN rather than validated. The stress run it asked for is not owed, and no code relies on the claim it made |
+| A best-effort path may drop the error it could not act on | A dropped `json.Marshal` error left a config event with no payload, which is also how "this phase carries no detail" is spelled, so the file could not tell a lost payload from an absent one | Closure gate review round 2, 2026-09-05 | Fixed: `captureBGPConfigEvent` logs the error with the operation and the transaction id before it drops the payload |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -392,6 +394,122 @@ stop per config; a rotated or stopped capture emits a final "capture-stop" event
   (mutation-verified 2026-08-03), and two benchmarks pinning zero allocation on
   the disabled and the enabled tee.
 
+### Bugs Found/Fixed
+- Every reconnect truncated the previous session's capture, so the file that
+  recorded a failure was erased seconds later. `newSessionCapture` now moves the
+  previous file to `<file>.1` (`TestSessionCapturePreservesThePreviousSession`).
+- `write` and `atLimit` recursed without a bound, so an event larger than an
+  empty file rotated for ever and ended the daemon on a stack overflow. The
+  retry is bounded to one attempt
+  (`TestSessionCaptureStopsWhenAnEventCannotEverFit`).
+- `WriteConfig` emitted a line its own `Reader` refuses, and the reader stops at
+  the FIRST long line, so one oversized reconcile cost every later event
+  (`TestWriterBoundsAnOversizeConfigPayload`).
+- `markDrops` advanced the counter before the write, so a refused drops line
+  left the stream claiming there was no gap. The counter advances on success only.
+- `captureBGPConfigEvent` discarded the `json.Marshal` error and wrote no
+  payload, which is also how a config event with no detail is spelled. The error
+  is now logged with the operation and the transaction id
+  (`internal/component/bgp/plugin/operation.go`, `captureBGPConfigEvent`).
+
+### Documentation Updates
+- `docs/comparison.md`: the "Session capture and replay" row and its paragraph,
+  anchored `<!-- source: internal/component/bgp/reactor/capture_replay.go -- sessionCapture, teeCapture -->`.
+- `docs/features.md`: the `doctor-bgp-capture-directory` code in the `ze doctor` row.
+- `docs/functional-tests.md`: "Replaying a captured BGP session", the `ze-test replay`
+  usage line and the `-` stdin form, anchored on `test/plugin/bgp-capture-replay.ci`.
+- `internal/component/bgp/yang/ze-bgp-conf.yang`: the `capture` container carries
+  a `ze:help` per leaf, which is where the config syntax is documented.
+- `./le doc check verify` FAILS on this tree, on findings that touch no file of
+  this spec: the `ze-bgp-conf:bgp/defaults/attribute` AIGP summary over char-cap
+  and word-cap, and four source anchors naming `getHelpExtension`, `Node.Help`
+  and `answerZeroTunnelIDSCCRQ`. Several sessions share this checkout
+  (`ai/rules/principles.md`), and those belong to another one.
+
+### Deviations from Plan
+- The replay command landed as `ze-test replay`, a root of the ze-test binary,
+  not `ze test replay` under the `ze` dispatch. `docs/guide/command-reference.md`
+  documents the `ze` dispatch only, so the command is documented in
+  `docs/functional-tests.md` beside the other ze-test tool roots.
+- The `.ci` landed in the existing `test/plugin` suite rather than a new
+  `test/replay/` one, so no suite was added.
+- A-3 was not validated as written. The design removed the need for it: see the
+  Mistake Log row and Assumptions Resolved.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Opt-in per-session JSONL capture of protocol input events | Done | `internal/core/capture` (`Writer`, `Reader`), `reactor/capture_replay.go` (`sessionCapture`) | off by default, `CaptureSettings.Enabled` |
+| Capture BGP inbound wire bytes with arrival metadata | Done | `Session.teeCapture` (`capture_replay.go`), called from `session_read.go` and `session_coalesce.go` | the full message, 19-byte header included |
+| Capture config transaction events | Done | `Reactor.CaptureConfigEvent` (`capture_replay.go`), `captureBGPConfigEvent` (`bgp/plugin/operation.go`), `ReconcilePeersWithJournal` (`reactor.go`) | verify, commit, rollback, add-peer, modify-peer, remove-peer, reconcile |
+| Replay command feeding the same processing path with a deterministic clock | Done | `runReplay` (`internal/test/cli/cmd_replay.go`) drives `Session.ReadAndProcess` under `sim.NewFakeClock` | no parallel decoder |
+| Enabled per peer via config | Done | `container capture` (`ze-bgp-conf.yang`), `parseCaptureSettings` (`reactor/config.go`) | per peer; no AC asked for a global knob |
+| Files are bounded | Done | `capture.Writer` limit (`writer.go` `flush`), `sessionCapture.atLimit` | one file at the cap, two under rotate |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSessionTeeCaptureDisabledDoesNotAllocate` asserts `AllocsPerRun == 0`; `BenchmarkSessionTeeCaptureDisabled` | a disabled capture is one nil compare |
+| AC-2 | Done | `TestSessionCaptureWritesEvents`; the `.ci` barrier `capture-has-messages` | OPEN, KEEPALIVE and UPDATE each one line |
+| AC-3 | Done | `TestReplayDrivesSession`; `.ci` seq=6 asserts `ESTABLISHED` and `announce=[10.0.0.0/24]` | prefixes come off the real path's `WireUpdate` |
+| AC-4 | Done | `TestSessionCaptureRotatesAtLimit`, `TestSessionCaptureStopsAtLimit` | both `on-limit` values |
+| AC-5 | Done | `TestReplayRejectsCorruptCapture`, `TestReplayRejectsUnknownVersion`, `TestReaderCorruptInput` | every error names the line |
+| AC-6 | Done | `TestSessionCaptureRecordsConfigEvents`, `TestReactorCaptureConfigEventReachesOpenCaptures` | the txID is carried from the plugin callback |
+| AC-7 | Done | `TestSessionCaptureRecordsPreEnforcementBytes` | the tee sits ahead of RFC 7606 enforcement |
+| AC-8 | Done | `TestSessionCaptureIdenticalAcrossReadPaths` | both read paths, identical stream |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| TestSessionCaptureWritesEvents | Done | `internal/component/bgp/reactor/capture_replay_test.go` | the plan named `capture_test.go`; that name was already taken by the diagnostic ring |
+| TestCaptureFormatRoundTrip | Changed | `internal/core/capture/writer_test.go` `TestWriterRoundTripMessage` and `TestWriterRoundTripConfigAndSession`; `reader_test.go` `TestReaderRejectsUnknownVersion` | split by event kind rather than one test |
+| TestReplayDrivesSession | Done | `internal/test/cli/cmd_replay_test.go` | |
+| TestTransactionEventCapture | Changed | `TestSessionCaptureRecordsConfigEvents` and `TestReactorCaptureConfigEventReachesOpenCaptures` (`capture_replay_test.go`) | the events are emitted at the reactor boundary, so the test lives there and not under `config/transaction` |
+| Boundary: capture size cap 1..1024 | Done | `TestParseCaptureSettingsBoundaries` (`capture_replay_test.go`) | 0 and 1025 refused, 1 and 1024 accepted |
+| bgp-capture-replay (functional) | Done | `test/plugin/bgp-capture-replay.ci` | PASS in 7.0s, case 101 of 741 in `./le functional plugin`, 2026-09-05 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/reactor/session_read.go` | Done | tee in `readAndProcessMessage`, after the body read |
+| `internal/component/bgp/reactor/session_coalesce.go` | Done | tee in `readAndProcessCoalesced`, at the same logical point |
+| `internal/component/bgp/reactor/reactor.go` and `bgp/plugin/operation.go` | Done | config event emission, guarded on `CapturesOpen` |
+| BGP peer YANG schema | Done | `container capture` in `internal/component/bgp/yang/ze-bgp-conf.yang` |
+| `internal/test/cli/register.go` | Changed | registered as the `ze-test replay` root, not `ze test replay` |
+| `internal/component/bgp/reactor/capture_replay.go` | Done | 708 lines |
+| capture format package under `internal/core/` | Done | `internal/core/capture` |
+| `internal/test/cli/cmd_replay.go` | Done | 392 lines |
+| `test/replay/bgp-capture-replay.ci` | Changed | landed as `test/plugin/bgp-capture-replay.ci` |
+
+### Audit Summary
+- **Total items:** 29
+- **Done:** 24
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5, each recorded in its row or in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator can capture what a misbehaving peer sent and ship the file | functional | `test/plugin/bgp-capture-replay.ci` PASS: the daemon runs with `capture { enabled true; }`, the fixture barrier `capture-has-messages` reads seq=3 out of `./capture/bgp-127.0.0.1.jsonl`, and `capture-closed` proves the file is terminated on SIGTERM. Mutation-verified 2026-08-03: with `Session.teeCapture` disabled the seq=3 barrier goes red |
+| A developer feeds that file back into the SAME state machine | functional | The same `.ci`, seq=6: `ze-test replay ./capture/bgp-127.0.0.1.jsonl` prints `OPEN`, `UPDATE`, `announce=[10.0.0.0/24]` and `ESTABLISHED`. `runReplay` calls `Session.ReadAndProcess`, the function the daemon's read loop calls, and reads the prefixes off the `WireUpdate` that path built, so there is no second decoder to diverge |
+| Replay is deterministic | functional | `runReplay` calls `session.SetClock(sim.NewFakeClock(replayEpoch))`, and `replayEpoch` is a fixed date, so the replay reports the same times whenever it runs. `internal/bgp/fsm/timer.go`, the older raw-time path the spec asked to check, does not exist in the tree |
+| Zero cost when capture is off | benchmark | `TestSessionTeeCaptureDisabledDoesNotAllocate` asserts `testing.AllocsPerRun(...) == 0` over `teeCapture` with `captureWriter == nil`. The assertion is what gates it: `BenchmarkSessionTeeCaptureDisabled` only reports |
+| A capture cannot fill a disk | unit | `TestSessionCaptureRotatesAtLimit` and `TestSessionCaptureStopsAtLimit` drive a cap through both `on-limit` values; `TestWriterLimitIsHard` and `TestWriterPayloadBoundIsExact` prove the encoder refuses a line WHOLE rather than crossing the bound |
+| A capture cannot carry a local secret | unit (negative) | `TestRedactConfigPayload` and `TestRedactPayloadFailsClosed` (`internal/core/capture/capture_test.go`): a payload that will not parse is replaced entirely and the error is returned, so a caller that ignores it still cannot leak |
+| A malformed UPDATE is captured as the peer sent it | unit | `TestSessionCaptureRecordsPreEnforcementBytes`: the tee sits ahead of the RFC 7606 short-circuit, which is what the existing `MessageObserver` hook could not do |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Deterministic replay of TIMER-driven behavior (hold expiry, keepalive), and multi-peer replay | The harness feeds messages and never advances the fake clock, so a timer expiry is not reproduced. Full timer determinism needs an event queue, which R-3 put out of scope | `plan/spec-improve-3-event-replay-deferred-deterministic-scheduler.md` |
+| A capture file name that carries the peer PORT | `captureFileName` keys on the address while the reactor keys peers by `AddrPort`, so two peers on one address with different ports share a file. Changing the name changes what an operator and the `.ci` both spell | Not yet homed. Recorded under Known Limitations and raised as N13; needs the owner to schedule a spec |
+| A stress run of the capture writer at inject rates | Superseded: `offer` sheds on a full queue and writes the gap into the stream, so the writer is not required to keep up | none; see the A-3 row under Assumptions Resolved |
+
 ## Review Gate
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
@@ -399,6 +517,13 @@ stop per config; a rotated or stopped capture emits a final "capture-stop" event
 <!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/improve-3-event-replay-zeclose-replay.md` |
+| `./le spec session review check` | `OK (0 code files, clean, hashes match ...)`. It also NOTEs that the running model could not be determined, so the review-model boundary is unchecked |
+| Rounds | 3. Round 2 found the discarded `json.Marshal` error in `captureBGPConfigEvent`; round 3 read the fix and found nothing above NOTE |
+| Reviewer lenses used | encoder bounds; capture lifecycle and goroutine ownership; replay harness against untrusted input; wiring against AC-1..AC-8; the `docs/contributing/ze-go-style.md` style pass; the spec's Security Review Checklist |
 
 ### Run 1 (initial)
 
@@ -436,14 +561,96 @@ function. Restored (`config.go`).
 - `config.go`: corrected the zero-cap comment, restored the RFC 5082 comment.
 - Five tests added, each mutation-verified (see `tmp/capture-land/mutation.log`).
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+### Run 2 (closure gate, 2026-09-05)
+
+One reviewer over the whole committed diff (`025a74b72` plus the gate repair
+`ca53400d4`), reading source rather than the Run 1 record. Lenses: the encoder's
+bounds, the capture lifecycle and its one goroutine, the replay harness against
+untrusted input, the wiring against AC-1..AC-8, the `ze-go-style.md` style pass,
+and the spec's own Security Review Checklist.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| I15 | ISSUE | `json.Marshal(detail)` failing set `payload = nil` and said nothing. A config event with no payload is also how "this phase carries no detail" is spelled, so a lost payload and an empty one read the same way in the file (`ai/rules/principles.md`, a value that is silently wrong) | `internal/component/bgp/plugin/operation.go` `captureBGPConfigEvent` | fixed: the error is logged on `bgp.capture` with the operation and the transaction id before the payload is dropped |
+| N16 | NOTE | `Writer.quoted` truncates at `maxFieldLen` BYTES, which can cut a multi-byte rune. Go's JSON decoder coerces the broken sequence to U+FFFD rather than failing, and every value written this way is an ASCII operation name, direction or transaction id | `internal/core/capture/writer.go` `quoted` | acknowledged: no reachable caller supplies a non-ASCII value |
+| N17 | NOTE | `Writer.flush` documents "nothing partial ever reaches the file". That holds for the LIMIT refusal; a short write from the OS under ENOSPC can still leave a partial line | `internal/core/capture/writer.go` `flush` | acknowledged: the outcome is reported rather than silent, and `Reader.Next` names the line |
+| N18 | NOTE | `--local-as`, `--peer-as` and `--router-id` are `flag.Uint`, so a value above 2^32 truncates on a 64-bit host | `internal/test/cli/cmd_replay.go` `cmdReplay` | acknowledged: a developer-facing test tool, and 0 falls back to the capture header |
+| N19 | NOTE | `internal/core/capture` carries no fuzz target. Its parsing beyond the standard library is the version check, the sequence check and the len-versus-data check; the bytes then go to the BGP decoder, which is fuzzed | `internal/core/capture/reader.go` `Reader.Next` | acknowledged |
+
+### Run 3 (2026-09-05)
+
+Read the I15 fix and the function around it. Zero BLOCKER, zero ISSUE. The four
+Run 2 NOTEs stand as recorded.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/capture_replay.go` | Yes | 708 lines, declares `sessionCapture` |
+| `internal/core/capture/capture.go` | Yes | declares `Header` and `RedactPayload` |
+| `internal/core/capture/writer.go` | Yes | declares `Writer` |
+| `internal/core/capture/reader.go` | Yes | declares `Reader` and `MaxLineLen` |
+| `internal/test/cli/cmd_replay.go` | Yes | declares `runReplay` |
+| `test/plugin/bgp-capture-replay.ci` | Yes | 128 lines, seven `cmd=` steps |
+| `internal/component/doctor/checks_bgp_capture.go` | Yes | emits `doctor-bgp-capture-directory` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | a disabled capture allocates nothing | `go test -run 'Capture\|Tee\|Replay' ./internal/component/bgp/reactor/...` returned `ok ... 1.045s`, which runs `TestSessionTeeCaptureDisabledDoesNotAllocate` |
+| AC-2 | one JSONL event per message | the same run, `TestSessionCaptureWritesEvents`; the `.ci` PASS at 7.0s |
+| AC-3 | replay reproduces the run | `go test ./internal/test/cli/...` returned `ok ... 1.932s` (`TestReplayDrivesSession`); the `.ci` asserts `ESTABLISHED` and `announce=[10.0.0.0/24]` |
+| AC-4 | the cap rotates or stops | the same reactor run, `TestSessionCaptureRotatesAtLimit` and `TestSessionCaptureStopsAtLimit` |
+| AC-5 | a corrupt file names the line and does not panic | `go test ./internal/core/capture/...` returned `ok ... 0.011s` (`TestReaderCorruptInput`); `TestReplayRejectsCorruptCapture` in the cli run |
+| AC-6 | config events carry the txID | the reactor run, `TestReactorCaptureConfigEventReachesOpenCaptures` |
+| AC-7 | pre-enforcement bytes | the reactor run, `TestSessionCaptureRecordsPreEnforcementBytes` |
+| AC-8 | both read paths identical | the reactor run, `TestSessionCaptureIdenticalAcrossReadPaths` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| peer config `capture { enabled true; }` tees at both read paths | `test/plugin/bgp-capture-replay.ci` | Yes: the config block sets `enabled true` and seq=3 waits on the fixture that reads seq=3 out of the file. `Session.teeCapture` is called from `readAndProcessMessage` (`session_read.go`) and `readAndProcessCoalesced` (`session_coalesce.go`) |
+| `ze-test replay <file>` reaches `Session.ReadAndProcess` | `test/plugin/bgp-capture-replay.ci` seq=6 | Yes: read the file. The expectations name `OPEN`, `UPDATE`, `announce=[10.0.0.0/24]` and `ESTABLISHED`, which only the real path produces |
+| `ze-test replay -` reads stdin | `test/plugin/bgp-capture-replay.ci` seq=7 | Yes: `stdin-replay-ok`; mutation-verified 2026-08-04 by swapping `cliio.OpenReader` for `os.Open` |
+| a config commit with capture on reaches `CaptureConfigEvent` | unit | `TestReactorCaptureConfigEventReachesOpenCaptures`, plus the `var _ bgpCaptureHandle = (*reactor.Reactor)(nil)` assertion in `bgp/config/register.go` that makes a lost method set a build error |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken, as anticipated; the design changed | Coalescing has its own read path and is default on, so there are TWO tees, in `readAndProcessMessage` and `readAndProcessCoalesced`, held identical by `TestSessionCaptureIdenticalAcrossReadPaths` |
+| A-2 | confirmed for this spec's scope | `runReplay` injects `sim.NewFakeClock(replayEpoch)` and message-driven replay is deterministic (`TestReplayDrivesSession`, `.ci` seq=6). The older raw-time path the spec asked to verify, `internal/bgp/fsm/timer.go`, does not exist in the tree. Timer EXPIRY is not exercised and is Work Not Done |
+| A-3 | broken; the design removed the need | The writer is not required to keep up. `sessionCapture.offer` sheds on a full 1024-deep queue, counts the loss, and `markDrops` writes the gap into the stream, so a replay never mistakes a gap for a quiet peer (`TestSessionCaptureDropsUnderBackpressure`). No stress run was made and none is relied on |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 1, feature list | the `ze doctor` row of `docs/features.md` names `doctor-bgp-capture-directory`, which `internal/core/diagnostic/codes.go` declares | Yes |
+| Row 2, config syntax | `container capture` in `internal/component/bgp/yang/ze-bgp-conf.yang` carries a `ze:help` per leaf, and `parseCaptureSettings` (`reactor/config.go`) enforces the same `1..1024` range the YANG declares | Yes |
+| Row 3, CLI reference | N/A: the command is `ze-test replay`, a ze-test root, and `docs/guide/command-reference.md` documents the `ze` dispatch only | Yes |
+| Row 10, test infrastructure | `docs/functional-tests.md`, "Replaying a captured BGP session", with the usage line and the `-` form, anchored on `test/plugin/bgp-capture-replay.ci` | Yes |
+| Row 11, comparison table | the "Session capture and replay" row and paragraph of `docs/comparison.md`, anchored `<!-- source: internal/component/bgp/reactor/capture_replay.go -- sessionCapture, teeCapture -->` | Yes |
+| Row 14, Prometheus counter | `ze_bgp_capture_dropped_events_total`, registered in `newReactorMetrics` (`reactor_metrics.go`), labelled by peer | Yes |
+| Row 15, doctor inventory | `internal/component/doctor/checks_bgp_capture.go` and `internal/core/diagnostic/codes.go` | Yes |
+| Rows 4, 5, 7, 8, 9, 12, 13, 16, 17 | No change: capture observes the wire and never writes it, adds no RPC, no plugin and no route metadata key. `./le repository check` passes, which resolves the source anchors over the changed files | Yes |
+| `./le doc check verify` | FAILS on findings that touch no file of this spec: the `ze-bgp-conf:bgp/defaults/attribute` AIGP summary over char-cap and word-cap, and four anchors naming `getHelpExtension`, `Node.Help` and `answerZeroTunnelIDSCCRQ` | Foreign |
+
+## Core Insight
+
+A capture that records DECODED events cannot record the inputs a bug capture
+exists for. Ze already had a message-observer hook, and it fires after RFC 7606
+enforcement has tombstoned attributes and synthesized withdrawals, so the one
+message an operator wants to ship is the one the hook cannot see. The tee had to
+go where the bytes are still the peer's: after the body read, before anything
+consumes the buffer, and on BOTH read paths, because coalescing is default on
+and has its own.
 
 ## Checklist
 

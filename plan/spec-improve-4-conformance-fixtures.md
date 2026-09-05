@@ -19,7 +19,7 @@ stub-`net.Conn` harness. Anchor drift fixed in-body: `stagesForMode`
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
 3. `plan/spec-improve-0-umbrella.md` -- set context
-4. `plan/spec-improve-3-event-replay.md` -- capture format this consumes
+4. `spec-improve-3-event-replay` -- capture format this consumes
 5. `docs/functional-tests.md` -- existing .ci harness
 
 ## Task
@@ -44,7 +44,7 @@ explicitly follow-up work, not this spec.
 - [ ] `docs/architecture/testing/verify-freshness-scope.md` - the certificate and per-path manifest one verification run records
 - [ ] `docs/functional-tests.md` - .ci harness capabilities and conventions
   → Decision: dedicated fixture runner hosted as a ze-test subcommand (`registerRoot` pattern, `internal/test/cli/register.go`) + make target; the .ci dialect stays untouched -- fixtures are data directories, not a second script dialect (satisfies the no-layering row below). Directives/parser surveyed 2026-07-10 (parser `internal/test/runner/record_parse.go` parseAndAdd; executor `runner_exec.go,:557`; directives `docs/functional-tests.md`)
-- [ ] `plan/spec-improve-3-event-replay.md` - capture/replay machinery this reuses
+- [ ] `spec-improve-3-event-replay` - capture/replay machinery this reuses
   → Constraint: fixture event streams use the versioned capture schema, no second format -- schema now ENUMERATED (improve-3 "Capture Format (v1)", 2026-07-10): header line + seq/ts/type events, message bytes base64, config ops with tx-id
 - [ ] `ai/rules/testing.md` - where fixture tests sit relative to .ci gate
   → Constraint: read 2026-07-10: the rule's directory table must gain a `test/protocol/` row when this lands (discovery-updates); and a test that EXISTS is not one that GATES -- the runner itself must be mutation-verified, which AC-3 (mutated expected file fails with a diff) provides
