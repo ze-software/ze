@@ -107,3 +107,34 @@ func TestAnswerLocalWritesTheAckDisableStillOwes(t *testing.T) {
 	mode.AnswerLocal(&out, LocalAckEnable)
 	assert.Equal(t, "done\n", out.String(), "enable-ack resumes and is acked")
 }
+
+// TestBridgeSAFIListIsOneDeclaration holds the family vocabulary to a single
+// source.
+//
+// bridgeFamilyRE's alternation and canonicalExabgpSAFI's mapping were two
+// hand-written copies of one vocabulary, and they drifted: mcast-vpn was in
+// neither, so every frame of api-mvpn was refused by a translator that names
+// the family correctly the moment it reaches the mapping. The alternation is
+// built from the map now, so a family the map knows is a family the regexp
+// matches, by construction rather than by review.
+//
+// VALIDATES: every key of bridgeSAFI is matched by bridgeFamilyRE and answers
+// its mapped ze name; mcast-vpn answers mvpn.
+// PREVENTS: the two halves drifting again, which costs a whole family silently.
+func TestBridgeSAFIListIsOneDeclaration(t *testing.T) {
+	for exabgpName, zeName := range bridgeSAFI {
+		t.Run(exabgpName, func(t *testing.T) {
+			line := "neighbor 10.0.0.1 announce ipv4 " + exabgpName + " 10.0.0.0/24 next-hop 1.2.3.4"
+			translation, err := TranslateLine(line)
+			require.NoError(t, err, "a family the map knows must be a family the regexp matches")
+			assert.Contains(t, translation.Command, "ipv4/"+zeName,
+				"the command must name the family ze declares, not the one ExaBGP wrote")
+		})
+	}
+
+	// The row that pays for the mapping existing at all.
+	translation, err := TranslateLine("announce ipv4 mcast-vpn source-ad source 10.0.0.1 group 239.0.0.1 rd 65000:1 next-hop 10.0.0.2")
+	require.NoError(t, err)
+	assert.Contains(t, translation.Command, "ipv4/mvpn")
+	assert.NotContains(t, translation.Command, "mcast-vpn", "ze does not know that spelling")
+}

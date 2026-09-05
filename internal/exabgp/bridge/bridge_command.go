@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -37,8 +38,45 @@ var (
 
 	// bridgeFamilyRE matches a route that states its family as an AFI and a
 	// SAFI. It captures both and the route that follows them.
-	bridgeFamilyRE = regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flow|flowspec|flow-vpn|flowspec-vpn)\s+(.+)$`)
+	//
+	// The alternation is BUILT from bridgeSAFI rather than written beside it. It
+	// was a second copy of that vocabulary until 2026-09-05, and the two had
+	// drifted: mcast-vpn was in neither, so every one of api-mvpn's fourteen
+	// frames was refused by a translator that could name the family perfectly
+	// well once it reached the mapping.
+	bridgeFamilyRE = regexp.MustCompile(`(?i)^(ipv[46])\s+(` + bridgeSAFIAlternation() + `)\s+(.+)$`)
 )
+
+// bridgeSAFI maps the SAFI an ExaBGP script writes to the one ze names. Most
+// are the same word; the rows that differ are the whole reason a mapping exists
+// rather than a passthrough.
+var bridgeSAFI = map[string]string{
+	"unicast":      "unicast",
+	"multicast":    "multicast",
+	"nlri-mpls":    "nlri-mpls",
+	"flow":         "flow",
+	"flowspec":     "flow",
+	"flow-vpn":     "flow-vpn",
+	"flowspec-vpn": "flow-vpn",
+	"mcast-vpn":    "mvpn",
+	"mup":          "mup",
+}
+
+// bridgeSAFIAlternation renders bridgeSAFI's keys as a regexp alternation,
+// longest first so a reader never has to reason about which branch wins.
+func bridgeSAFIAlternation() string {
+	names := make([]string, 0, len(bridgeSAFI))
+	for name := range bridgeSAFI {
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		if len(names[i]) != len(names[j]) {
+			return len(names[i]) > len(names[j])
+		}
+		return names[i] < names[j]
+	})
+	return strings.Join(names, "|")
+}
 
 // Translation is what the bridge makes of one ExaBGP line: the ze command to
 // dispatch, and the selector whose forward pool the caller flushes once that
@@ -470,15 +508,14 @@ func convertWithdrawSRPolicy(selector, afi, rest string) string {
 	return tb.String()
 }
 
+// canonicalExabgpSAFI answers the SAFI ze names for the one an ExaBGP script
+// wrote. An unmapped word is returned unchanged, because the regexp that
+// selected it was built from the same map and cannot offer one.
 func canonicalExabgpSAFI(safi string) string {
-	switch safi {
-	case "flowspec":
-		return "flow"
-	case "flowspec-vpn":
-		return "flow-vpn"
-	default:
-		return safi
+	if canonical, ok := bridgeSAFI[safi]; ok {
+		return canonical
 	}
+	return safi
 }
 
 func convertAnnounceFlowSpec(selector, family, routeStr string) string {
