@@ -5,8 +5,8 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/4 |
-| Updated | 2026-08-02 |
+| Phase | 4/4 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -102,7 +102,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 - [ ] `internal/component/l2tp/tunnel_fsm.go` - `writeSCCRPBody`, `parseSCCRQ`; the SCCRP AVP write order and the SCCRQ validation
 - [ ] `internal/component/l2tp/avp.go` - `WriteAVPHeader`; the AVP first word, where reserved bits 2-5 live
 - [ ] `internal/component/l2tp/header.go` - `controlFlagsFixed = 0xC802`; the control header ze emits
-- [ ] `internal/component/l2tp/reactor.go` - `handlePacket`; a TunnelID=0 datagram whose body fails to parse is logged at Debug and dropped, with no reply built
+- [ ] `internal/component/l2tp/reactor.go` - `handlePacket`; a TunnelID=0 datagram whose body fails to parse is logged at Debug and dropped, with no reply built (read 2026-08-02; SUPERSEDED by `e396d7424`, which answers every Section 6.1 failure with a rate-limited StopCCN)
 - [ ] `test/l2tp/bad-challenge-response.ci` - proves ze REJECTS a wrong tunnel-auth digest; no test proved ze accepts a right one it did not compute itself
 
 **Behavior to preserve:**
@@ -119,7 +119,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 
 ### Transformation Path
 1. `Reactor.handlePacket` (`internal/component/l2tp/reactor.go`) reads the datagram, parses the header, and for TunnelID=0 calls `parseSCCRQ` before taking `tunnelsMu`.
-2. `parseSCCRQ` (`internal/component/l2tp/tunnel_fsm.go`) walks the AVPs via `NewAVPIterator` and returns an `sccrqInfo`, or an error that causes a silent Debug-level drop.
+2. `parseSCCRQ` (`internal/component/l2tp/tunnel_fsm.go`) walks the AVPs via `NewAVPIterator` and returns an `sccrqInfo`, or an `*sccrqRejection` the reactor answers with StopCCN (`e396d7424`; it was a silent Debug-level drop when this section was written).
 3. `writeSCCRPBody` (`internal/component/l2tp/tunnel_fsm.go`) writes the SCCRP AVPs in order, Message Type first, each through `WriteAVPHeader` (`internal/component/l2tp/avp.go`).
 4. `ChallengeResponse` (`internal/component/l2tp/auth.go`) computes the Challenge Response AVP as `MD5(chapID || secret || challenge)`.
 5. The datagram leaves the UDP socket and the Python peer parses it with its own `split_avps`, sharing no code with ze.
@@ -401,21 +401,32 @@ lacked.
 ## Owner questions (`ai/rules/rfc-compliance.md`: raised, not annotated)
 
 Neither of these is written as a `{gap}`, and neither test was weakened to make
-ze look conformant. Both need a decision on which way to fix.
+ze look conformant. Q1 was withdrawn on 2026-09-05 once the RFC's own text
+settled it. **Q2 is the ONE thing this spec still owes, and it is the owner's.**
+This spec stays open until he decides it.
 
-**Q1. RFC2661-24.10-1: ze silently drops an SCCRQ whose Assigned Tunnel ID is 0
-instead of replying with StopCCN.** Verified at source: `parseSCCRQ`
-(`internal/component/l2tp/tunnel_fsm.go`) returns
-`"l2tp: Assigned Tunnel ID AVP must be non-zero"`, and `Reactor.handlePacket`
-(`internal/component/l2tp/reactor.go`) logs at Debug and returns. No StopCCN is
-built. The summary line reads `[MUST] ... reject with StopCCN (§24.10)`. RFC 2661
-§4.4.3 explicitly contemplates this reply: "permitting the peer to identify the
-appropriate tunnel even if a StopCCN is sent before an Assigned Tunnel ID AVP is
-received", so it is feasible. Against that, the current silent drop avoids
-emitting a control message in response to an unauthenticated datagram, which is a
-reflection-amplification consideration the code comment appears to be deliberate
-about. Which way do you want this fixed? A reproducer is at
-`test/draft/l2tp/rfc2661-control-wire-shape.ci` (draft, gitignored).
+**Q1 is RESOLVED BY IMPLEMENTATION and is withdrawn from the owner
+(2026-09-05).** It was never his to answer. The question offered a silent drop
+and a StopCCN reply as two defensible readings, and RFC 2661 Section 7.1 leaves
+no room for the first: it gives an AVP "whose value is out of range" and "a
+message that is missing a required AVP" ONE treatment in ONE sentence, as
+examples of a malformed control message, and Section 7.2.1's automaton fixes the
+action as StopCCN. The reflection-amplification argument the code comment carried
+is answered by a rate limiter, not by dropping a conformant peer's message.
+
+`e396d7424` implemented it. Every Section 6.1 mandatory AVP absence now returns
+an `*sccrqRejection`, and the reactor answers each through the single reply path
+the zero Assigned Tunnel ID already used: `answerRefusedSCCRQ` and
+`sendUnassociatedStopCCN` (`internal/component/l2tp/reactor.go`), one StopCCN per
+source-address slot per second, Result Code 2, Error Code 3, and an Error Message
+naming the AVP. The sibling `parseSCCRP` path carried the same defect for Section
+6.2 and was fixed in the same work. `RFC2661-6.1-1` and `RFC2661-6.2-1` are
+declared in `rfc/short/rfc2661.md` in both polarities, carried by four Go tests
+driven from the reactor's UDP socket and by
+`test/l2tp/rfc2661-sccrq-mandatory-avp.ci`, and seven discrimination records sit
+in `rfc/discrimination/rfc2661.json`. `./le rfc check` names no rfc2661 violation.
+
+The draft reproducer this question pointed at is superseded by that landed `.ci`.
 
 **Q2. 242 gated MUSTs cannot be proven at verify tier because no suite boots
 their subsystem** (BFD 98, VRRP 80, dhcpserver 28, geodns 18, dnsserver 18).
