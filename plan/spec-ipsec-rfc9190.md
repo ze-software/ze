@@ -10,6 +10,34 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## OWNER RULING 2026-09-05: §2.1.2 binds Ze, so AC-4 stands
+
+Put to him as the one genuine ambiguity an RFC audit found, and answered "yes
+binding". RFC 9190 §2.1.2: *"To enable resumption when using EAP-TLS with TLS
+1.3, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket
+messages (each associated with a PSK, a PSK identity, a ticket lifetime, and
+other parameters) in the initial authentication."* The purpose clause is NOT an
+antecedent that a server escapes by declining resumption: §2.1.3 makes only
+ACCEPTING resumption optional (*"It is up to the EAP-TLS peer to use
+resumption"*, and *"the EAP-TLS server MAY choose to require a full
+handshake"*), and no sentence anywhere makes ISSUANCE optional.
+
+Two consequences the implementation must carry:
+
+- `SessionTicketsDisabled: true` in `newTLSMethod` (`internal/core/eap/eap_tls.go`,
+  and the peer side in `peer.go`) is measured against a MUST. The comment calling
+  that decision deliberate is VOID as authority (`ai/rules/rfc-compliance.md`:
+  every earlier answer pointing away from full compliance is void and must be
+  re-raised, not cited).
+- `TestEAPTLSIssuesNoUnredeemableSessionTicket` pins that flag, and its stated
+  purpose is to keep AC-4's six §5.6/§5.7 MUSTs "provably dead until resumption
+  is built". Under this ruling it pins a non-conformance, so it is rewritten when
+  resumption lands rather than defended.
+
+RFC 9190 §5.4 is not affected by this ruling and was never ambiguous: three
+unconditional MUSTs on revocation and OCSP stapling, which no layer performs
+today. They are gaps, never exclusions.
+
 ## Task
 
 **Ze implements RFC 9190 (EAP-TLS 1.3) without admitting to it, and no gate
