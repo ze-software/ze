@@ -217,6 +217,59 @@ func TestScaledSuitesCarryTheDerivedConcurrency(t *testing.T) {
 	}
 }
 
+// TestSerialSuitesStaySerial pins the suites the host derivation must never
+// reach, on a host large enough for the derivation to answer 32.
+//
+// reload and managed share the kernel routing table, so each runs one test at a
+// time and says so in its Why. vpp carries no -p at all: its serial default
+// lives in the command (cmdVpp, internal/test/cli/cmd_vpp.go, which declares -p
+// with a default of 1), so a -p here would be a second declaration of it.
+//
+// VALIDATES: AC-6 of spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant.
+// PREVENTS: the derived -p reaching a suite that shares one routing table, which
+// is two daemons writing the same table. This restores the property
+// scripts/le/functional_test.py held as test_serial_suites_stay_serial; the port
+// to Go dropped it, and TestScaledSuitesCarryTheDerivedConcurrency does not cover
+// it, because that test reads Suite.Scaled rather than the recorded serial value.
+func TestSerialSuitesStaySerial(t *testing.T) {
+	t.Setenv("ZE_SUITE_CORES", "32")
+	env.ResetCache()
+	for _, probe := range []struct {
+		name string
+		tail []string
+	}{
+		{suiteReload, []string{"-p", "1"}},
+		{suiteManaged, []string{"-p", "1"}},
+		{suiteVpp, nil},
+	} {
+		suite, found := SuiteNamed(probe.name)
+		if !found {
+			t.Errorf("suite %s is not in the table", probe.name)
+			continue
+		}
+		if suite.Scaled {
+			t.Errorf("suite %s is Scaled, so the derivation reaches a serial suite", probe.name)
+		}
+		command := suite.Command()
+		if slices.Contains(command, "32") {
+			t.Errorf("suite %s took the derived concurrency: %v", probe.name, command)
+		}
+		if probe.tail == nil {
+			if slices.Contains(command, "-p") {
+				t.Errorf("suite %s states a -p the command already defaults: %v", probe.name, command)
+			}
+			continue
+		}
+		if len(command) < len(probe.tail) {
+			t.Errorf("suite %s command is %v, too short to end with %v", probe.name, command, probe.tail)
+			continue
+		}
+		if got := command[len(command)-len(probe.tail):]; !slices.Equal(got, probe.tail) {
+			t.Errorf("suite %s ends with %v, want %v", probe.name, got, probe.tail)
+		}
+	}
+}
+
 // TestUISuiteBoundsNativeToolBuilds keeps concurrent fixture compiles from
 // starving the daemons whose startup deadlines the same suite checks.
 func TestUISuiteBoundsNativeToolBuilds(t *testing.T) {

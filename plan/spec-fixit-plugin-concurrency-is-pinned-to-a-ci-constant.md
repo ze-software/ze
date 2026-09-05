@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/4 |
+| Phase | 3/4 |
 | Handoff | - |
-| Updated | 2026-08-23 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -83,11 +83,38 @@ all-at-once. That is the right shape for a WAIT-bound suite, which `ospf` looks
 like. Changing it on `plugin`'s evidence would risk the suites the evidence does
 not cover. Left alone; a separate measurement would be needed to touch it.
 
+## → Finding (2026-09-05, implementation session): the code shipped before this spec was worked
+
+Both code phases are IN THE TREE and were verified against source on 2026-09-05.
+This spec was written on 2026-08-20 against a makefile that no longer exists, and
+the port to `internal/le/functional` carried the change with it. Nothing here was
+re-designed: the finding is that the work is done, and what is left is the
+MEASUREMENT the spec owes.
+
+| Phase | Landed in | Producer today |
+|-------|-----------|----------------|
+| 1, the MCP deadline | `22a1fd952`, 2026-08-20, the commit that also added this spec | `cmdMcp` (`internal/test/cli/cmd_mcp.go`) multiplies `-timeout` by `runner.ChildParallelFactor`; `(*Runner).parallelFactorEnv` (`internal/test/runner/runner_exec_util.go`) publishes it |
+| 2, the derived concurrency | `1b87bdbc7` and `da417ecc4`, 2026-08-25, as part of the make-to-`le` port | `Parallel` and `cores` (`internal/le/functional/budget.go`), reached by `Suite.Command` (`internal/le/functional/suites.go`) for a `Scaled` suite |
+| 4, the docs | already on `docs/functional-tests.md`, "How a suite's concurrency is chosen" | that section, its table and its source anchors |
+
+**Phase 3, the measurement, is what stays open.** AC-2 and AC-4 each need repeated
+runs of the `plugin` and `encode` suites, and the owner refused a suite run in this
+session because another session holds the box for the ExaBGP compatibility work.
+A-1 and A-2 stay `unvalidated` for that reason, and neither is a code gap.
+
+Two page defects were repaired here, both from the make-to-`le`-to-Go port naming
+a symbol that no longer produces the value: `docs/functional-tests.md` cited
+`internal/le/functional.Answer` as the source of the derived `-p`, where `Parallel`
+(`internal/le/functional/budget.go`) produces it, and cited a `BUDGET_DEFAULTS`
+entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
+
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/functional-tests.md` - the suites and their budgets
   → Constraint: a per-suite budget is a wall-clock cap, not a concurrency knob
+- [ ] `docs/architecture/testing/ci-format.md` - the Design page `internal/le/functional/budget.go` declares
+  → Constraint: the budget and the derived `-p` are two answers from one suite table, so a second list of suites drifts from it
 - [ ] `ai/rules/testing.md` - what a suite owes
   → Constraint: raising a timeout is not a fix on its own
 
@@ -99,7 +126,8 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/le/functional/suites.go` - `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL`, the per-suite `run_suite` lines
+- [ ] `internal/le/functional/budget.go` - `ParallelFloor`, `cores`, `Parallel`: the derivation `ZE_PLUGIN_PARALLEL` and `ZE_ENCODE_PARALLEL` override
+- [ ] `internal/le/functional/suites.go` - `Suite.Scaled` and `Suite.Command`, which put the derived `-p` on the command line
 - [ ] `internal/test/cli/cmd_bgp.go` - the `-p` flag default for the five bgp-runner suites
 - [ ] `internal/test/runner/parallel.go` - `SuiteConcurrencyFloor`, `DefaultSuiteConcurrency`, `ParallelTimeoutHeadroom`, `parallelFactor`
 - [ ] `internal/test/cli/cmd_mcp.go`, `internal/test/cli/cmd_mcp_client.go` - the 10s readiness deadline and `waitReady`
@@ -129,7 +157,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| make ↔ bgp runner | the `-p` flag | Yes -- `test_plugin_concurrency_is_derived_not_pinned` drives the real makefile |
+| `le functional` ↔ bgp runner | the `-p` flag | Yes -- `TestParallelIsFlooredAndOverridable` and `TestScaledSuitesCarryTheDerivedConcurrency` drive `Suite.Command`, which is the argv the run executes. The makefile the row named was retired in `eae282592` |
 | runner ↔ per-test budget | `parallelFactor` | Yes -- `withParallelHeadroom`, unchanged |
 | runner ↔ an in-test deadline | `ze.test.parallel-factor` in the child environment | Yes -- `mcp-parallel-factor-published.ci` (producer), `TestMCPReadinessScalesWithConcurrency` (consumer) |
 
@@ -151,9 +179,9 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Scaling the MCP deadline removes that failure cluster | the cluster is exactly that message and its count tracks N | 32 stays flaky for another reason | AC-2: the message's count stays 0 across repeated runs at 32 | unvalidated |
-| A-2 | `encode` behaves like `plugin` | both run through the bgp runner and both were pinned at 8; `encode` has 57 tests and a 6.6s median | `encode` regresses where `plugin` gains | AC-4 measures `encode` separately, not by analogy | unvalidated |
-| A-3 | The derived value does not starve concurrent sessions | the box admits four such jobs; 32 concurrent daemons each is 128 | the box thrashes and every session slows | AC-5, and the limitation is recorded rather than closed | unvalidated |
+| A-1 | Scaling the MCP deadline removes that failure cluster | the cluster is exactly that message and its count tracks N | 32 stays flaky for another reason | AC-2: the message's count stays 0 across repeated runs at 32 | unvalidated. The mechanism is proven: `cmdMcp` (`internal/test/cli/cmd_mcp.go`) multiplies its `-timeout` by `runner.ChildParallelFactor`, and `mcp-parallel-factor-published.ci` proves the factor crosses the process boundary. The COUNT is not proven. No suite run since 2026-08-25 is recorded, and no `plan/known-failures/` shard or `plan/journal/` row names that message |
+| A-2 | `encode` behaves like `plugin` | both run through the bgp runner and both were pinned at 8; `encode` has 57 tests and a 6.6s median | `encode` regresses where `plugin` gains | AC-4 measures `encode` separately, not by analogy | unvalidated. AC-4 is a measurement, and no after-measurement exists for either suite |
+| A-3 | The derived value does not starve concurrent sessions | the box admits four such jobs; 32 concurrent daemons each is 128 | the box thrashes and every session slows | AC-5, and the limitation is recorded rather than closed | confirmed as arithmetic, unmeasured as behavior. `defaultSlots` (`internal/le/job/job.go`) answers `runtime.NumCPU() / gotoolchain.CoresPerJob()`, which is 32/8 = 4 on this box, and `Parallel` (`internal/le/functional/budget.go`) answers 32. Four admitted suites therefore start 128 tests on 32 cores, and `docs/functional-tests.md` now carries that number. Whether the box thrashes at that load is unmeasured |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -176,9 +204,9 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 |-------------|---|--------------|------|
 | an MCP test under concurrency | → | the scaled readiness deadline | `TestMCPReadinessScalesWithConcurrency`, `mcp-ready-under-load.ci` |
 | the runner exec'ing any `cmd=` child | → | `ze.test.parallel-factor` in its environment | `TestParallelFactorEnvPublishesTheRunnerFactor`, `mcp-parallel-factor-published.ci` |
-| `./le functional plugin` | → | the derived `ZE_PLUGIN_PARALLEL` | `test_plugin_concurrency_is_derived_not_pinned` |
-| a 4-vCPU host | → | the floor | `test_small_host_keeps_the_floor` |
-| `reload`, `managed` | → | their recorded serial setting | `test_serial_suites_stay_serial` |
+| `./le functional plugin` | → | the derived `ZE_PLUGIN_PARALLEL` | `TestParallelIsFlooredAndOverridable`, `TestScaledSuitesCarryTheDerivedConcurrency` |
+| a 4-vCPU host | → | the floor | `TestParallelIsFlooredAndOverridable` (cores 1, 7 and 8 all answer 8), `TestConcurrencyFloorIsTheRunnersOwn` |
+| `reload`, `managed`, `vpp` | → | their recorded serial setting | `TestSerialSuitesStaySerial` |
 
 ## Acceptance Criteria
 
@@ -201,10 +229,10 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 | `TestMCPReadinessScalesWithConcurrency` | `internal/test/cli/cmd_mcp_test.go` | AC-1 (consumer) | PASS. Reverting the scaling reports `after 150ms` for the 3x case |
 | `TestParallelFactorEnvPublishesTheRunnerFactor` | `internal/test/runner/runner_exec_util_test.go` | AC-1 (producer) | PASS. Publishing a constant makes one of its two cases disagree |
 | `TestDefaultSuiteConcurrencyIsBounded` | `internal/test/runner/parallel_test.go` | AC-8 | PASS. It already pinned `max(SuiteConcurrencyFloor, 2*NumCPU)` exactly, so a second test asserting the same expression would be a duplicate. Its doc comment now carries this spec's reason for leaving the value alone |
-| `TestSuiteConcurrencyDerivation.test_plugin_concurrency_is_derived_not_pinned` | `internal/le/` | AC-3, AC-5 | PASS |
-| `TestSuiteConcurrencyDerivation.test_small_host_keeps_the_floor` | `internal/le/` | AC-3 | PASS. Also holds the make floor equal to `runner.SuiteConcurrencyFloor` |
-| `TestSuiteConcurrencyDerivation.test_serial_suites_stay_serial` | `internal/le/` | AC-6 | PASS |
-| `TestSuiteConcurrencyDerivation.test_explicit_parallel_wins` | `internal/le/` | AC-7 | PASS |
+| `TestParallelIsFlooredAndOverridable` | `internal/le/functional/functional_test.go` | AC-3, AC-5, AC-7 | PASS 2026-09-05 |
+| `TestConcurrencyFloorIsTheRunnersOwn` | `internal/le/functional/functional_test.go` | AC-3 | PASS 2026-09-05. Holds `ParallelFloor` equal to `runner.SuiteConcurrencyFloor`, which is what the retired regex over `parallel.go` did |
+| `TestSerialSuitesStaySerial` | `internal/le/functional/functional_test.go` | AC-6 | PASS 2026-09-05, WRITTEN in this session: the port to Go dropped the retired `test_serial_suites_stay_serial` and left AC-6 with no test. Recorded red: making `reload` `Scaled` reports `suite reload ends with [-p 32], want [-p 1]` |
+| `TestScaledSuitesCarryTheDerivedConcurrency` | `internal/le/functional/functional_test.go` | AC-6 | PASS 2026-09-05. Pins which suites the derivation reaches at all |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -340,7 +368,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes, or `./le verify current mode full` over the shared checkout. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

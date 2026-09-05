@@ -367,8 +367,8 @@ run and the warning names no creep. That gives 855 * 1.40 / 0.80 = 1496s,
 rounded up to the whole minute. The kill then lands at 1.75x the measurement,
 which is a wedged suite and not a busy box.
 
-Adding a suite to that family is one line: a `BUDGET_DEFAULTS` entry in
-`internal/le/functional.Answer`. Setting `ZE_SUITE_TIMEOUT_<SUITE>` in
+Adding a suite to that family is one line: a `budgetDefaults` entry in
+`internal/le/functional/budget.go`. Setting `ZE_SUITE_TIMEOUT_<SUITE>` in
 the environment gives any suite one with no edit at all, because the variable
 name is derived from the suite's name.
 
@@ -645,7 +645,7 @@ A `.ci` suite runs `-p N` tests at once. Where N comes from depends on the suite
 
 | Suite | Source of `-p` | Value |
 |-------|----------------|-------|
-| `plugin`, `encode` | `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL` (`internal/le/functional.Answer`) | derived from the host: the core count, floored at 8 |
+| `plugin`, `encode` | `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL` (`internal/le/functional.Parallel`) | derived from the host: the core count, floored at 8 |
 | `reload`, `managed` | the native suite table in `internal/le/functional/suites.go` | 1. They share the kernel routing table |
 | `vpp` | the command's own default | 1 |
 | the other bgp-runner suites | `runner.DefaultParallelConcurrent` | 20 |
@@ -678,7 +678,10 @@ never measured them.
 
 An explicit value still wins over the derivation:
 `ZE_PLUGIN_PARALLEL=8 ./le functional plugin` pins the suite, and `-p 0`
-on the runner command line selects every test at once.
+on the runner command line selects every test at once. `ZE_SUITE_CORES` replaces
+the core count the derivation reads, so a large host can run the two suites as a
+4-vCPU runner does. A value that is not a number is the floor, because an empty
+`-p` would select every test at once.
 
 Raising concurrency moves flakes before it moves wall clock, so a deadline the
 harness cannot see is fixed first. `ParallelTimeoutHeadroom` widens every budget
@@ -688,11 +691,15 @@ listener, and six of one 32-way run's failures were that one message. The runner
 publishes `ze.test.parallel-factor` into every `cmd=` child's environment so such
 a deadline scales from the same source of truth.
 
-The runner does NOT read the job-admission budget. `internal/le/job.Answer` admits
-several jobs on a shared box, and a suite still sizes itself for the whole
-machine, so concurrent sessions can oversubscribe it.
+The runner does NOT read the job-admission budget. `defaultSlots`
+(`internal/le/job/job.go`) gives the machine one job slot for each core share it
+holds, which is four slots on the 32-core development box. Each admitted suite
+still sizes itself for all 32 cores, so four `plugin` runs at `-p 32` start 128
+tests at once on 32 cores. Closing that gap means the derivation reads the slot
+count, and no code does that today.
 
-<!-- source: internal/le/functional/actions.go -- Answer -->
+<!-- source: internal/le/functional/budget.go -- Parallel, cores, ParallelFloor -->
+<!-- source: internal/le/job/job.go -- defaultSlots -->
 <!-- source: internal/test/runner/parallel.go -- SuiteConcurrencyFloor, DefaultSuiteConcurrency, ParallelTimeoutHeadroom, ParallelFactorEnv -->
 <!-- source: internal/test/cli/cmd_bgp.go -- the bgp runner's -p default -->
 <!-- source: internal/test/cli/cmd_vpp.go -- the vpp suite's -p default of 1 -->
