@@ -130,7 +130,9 @@ type ChildSA struct {
 	// endpoints (dataplane.tunnelEndpoints refuses them).
 	Mode uint8
 
-	// UDPEncap records that this Child SA's ESP is wrapped in UDP on port 4500.
+	// UDPEncap records that this Child SA RECEIVES UDP-encapsulated ESP on port 4500.
+	// It is the form the inbound XFRM template selects, and nothing else: the form ze
+	// SENDS follows the NAT verdict alone, and installChildSA states why.
 	//
 	// Two independent RFC conditions set it, and either alone is enough.
 	//
@@ -156,20 +158,21 @@ type ChildSA struct {
 	// localPort through adoptAuthenticatedEndpoint (sa.go) and sets NATDetected
 	// nowhere. That case is the one this leaf exists to catch.
 	//
-	// KNOWN INTEROP CONFLICT, unresolved and NOT to be "fixed" by deleting the
-	// localPort disjunct. strongSwan 5.9.14 moves IKE to 4500 after IKE_SA_INIT with
-	// no NAT present, which RFC 7296 Section 2.23 permits
-	// (rfc/full/rfc7296.txt:3538), and then installs ESP states with NO encapsulation.
-	// ze floats, encapsulates, and the peer's kernel drops every packet. MEASURED:
-	// ze's outbound state carries "encap type espinudp" with oseq 0x4 while
-	// strongSwan's carries no encap line and counts XfrmInStateMismatch 4. Interop
-	// scenarios responder-psk and cookie-challenge fail on exactly this.
+	// The port term decided the SEND form too until 2026-08-02, and that broke interop.
+	// strongSwan 5.9.14 moves IKE to 4500 after IKE_SA_INIT with no NAT present, which
+	// RFC 7296 Section 2.23 permits (rfc/full/rfc7296.txt:3538), and then sends BARE
+	// ESP. Ze read the float as an encapsulation signal and encapsulated toward it, so
+	// the peer's kernel dropped every packet. MEASURED: ze's outbound state carried
+	// "encap type espinudp" with oseq 0x4 while strongSwan's carried no encap line and
+	// counted XfrmInStateMismatch 4, and scenarios responder-psk and cookie-challenge
+	// failed on exactly that. The send form now reads NATDetected alone, so this leaf
+	// governs reception only and the conflict is gone.
 	//
-	// Dropping the disjunct trades RFC7296-2.23-11 for that interop, and splitting the
-	// flag per direction does not help: a Linux XFRM inbound state accepts exactly ONE
-	// ESP form, so an encapsulated-receive state refuses the bare ESP strongSwan
-	// sends. The real fix is dual-form receive, owned by
-	// plan/spec-ipsec-esp-dual-form-receive.md. Awaiting an owner decision.
+	// The disjunct MUST NOT be deleted to chase that interop either. Dropping it trades
+	// away RFC7296-2.23-11, which asks that the encapsulated form be RECEIVED with no
+	// NAT detected. One Linux XFRM inbound state still binds exactly ONE ESP form, so
+	// the bare form strongSwan sends is served beside the kernel instead
+	// (SAParams.AcceptBothESPForms, dataplane/espform.go).
 	UDPEncap bool
 
 	// LocalIsInitiator is true when this side sent Ni for this Child SA's KEYMAT

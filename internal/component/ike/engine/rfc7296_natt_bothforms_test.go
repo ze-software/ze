@@ -160,23 +160,25 @@ func TestBfmBareESPKeptForUnfloatedSA(t *testing.T) {
 // with UDP_ENCAP_ESPINUDP set (transport.EnableESPInUDP) for the encapsulated form.
 // installChildSA programs whichever template the SA's port calls for.
 //
-// PLATFORM LIMIT, stated plainly. It bounds the words "at any time". On Linux XFRM one
-// inbound state accepts exactly ONE of the two forms. A state that carries an ESP-in-UDP
-// template refuses bare ESP with XfrmInStateMismatch. A state without one refuses
-// encapsulated ESP the same way.
+// KERNEL LIMIT, and the receive path works around it rather than accepting it. On Linux
+// XFRM one inbound state accepts exactly ONE of the two forms. A state that carries an
+// ESP-in-UDP template refuses bare ESP with XfrmInStateMismatch. A state without one
+// refuses encapsulated ESP the same way.
 //
 // MEASURED. TestEncapKernelBindsOneESPFormPerState
 // (dataplane/encap_integration_linux_test.go) drives a real kernel in QEMU and records
 // that truth table. It installs its two states on two DISTINCT SPIs.
 //
-// REASONED, and not measured: two states on ONE SPI do not help either. The state lookup
-// is keyed on destination, SPI, protocol and family, so it returns the first match and
-// the mismatch check then drops the packet. No test installs two states on one SPI.
-// plan/spec-ipsec-esp-dual-form-receive.md carries that as an assumption to validate, and
-// it owns the work of lifting the constraint.
+// MEASURED, where this comment once only reasoned: two states on ONE SPI do not help
+// either, and not by the mechanism the reasoning gave. The second state cannot be
+// INSTALLED at all. TestEncapTwoStatesOneSPI records "file exists" both with identical
+// addresses and with a differing source, because the uniqueness key and the lookup key
+// are the same tuple.
 //
-// Ze therefore receives both forms across its SAs at any time. It cannot accept a form
-// CHANGE on one established SA. The negative below pins that boundary.
+// So the kernel still serves one form per state, and the other form is served beside it
+// (SAParams.AcceptBothESPForms, dataplane/espform.go). Ze receives both forms WITHIN one
+// established Child SA as well as across its SAs, and the negative below pins that
+// property.
 //
 // WHAT WOULD FALSIFY THIS: a device that CAN only ever program one of the two forms. A
 // port-4500 socket without UDP_ENCAP set does the same, because the encapsulated form is
