@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -148,7 +148,7 @@ func pluginYANGFiles(root, source, module string, yangPaths map[string]string) (
 		}
 		files = append(files, directory+"/"+entry.Name())
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 

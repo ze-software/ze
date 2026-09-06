@@ -7,7 +7,7 @@ package host
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/smart"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -489,7 +489,7 @@ func SectionNames() []string {
 	for k := range sectionDetectors {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

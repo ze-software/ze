@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -283,8 +283,8 @@ func fixture06DNSCacheShow(ctx context.Context, p *sdk.Plugin) error {
 		for key := range data {
 			actual = append(actual, key)
 		}
-		sort.Strings(actual)
-		sort.Strings(expected)
+		slices.Sort(actual)
+		slices.Sort(expected)
 		if strings.Join(actual, "\x00") != strings.Join(expected, "\x00") {
 			return nil, fmt.Errorf("%s: keys=%v, want %v", command, actual, expected)
 		}

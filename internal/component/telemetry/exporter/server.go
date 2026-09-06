@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -265,7 +265,7 @@ func extractTelemetryConfig(tree map[string]any) telemetryConfig {
 		for k := range serverMap {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, key := range keys {
 			srv, ok := serverMap[key].(map[string]any)
 			if !ok {

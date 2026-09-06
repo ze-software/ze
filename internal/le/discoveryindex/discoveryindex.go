@@ -162,7 +162,7 @@ func scanDir(root, dir string, packages map[string]Package) error {
 		return err
 	}
 
-	sort.Strings(subdirs)
+	slices.Sort(subdirs)
 	for _, name := range subdirs {
 		if err := scanDir(root, filepath.Join(dir, name), packages); err != nil {
 			return err
@@ -229,7 +229,7 @@ func ordered(gofiles []string) []string {
 			rest = append(rest, name)
 		}
 	}
-	sort.Strings(rest)
+	slices.Sort(rest)
 	if slices.Contains(gofiles, "doc.go") {
 		return append([]string{"doc.go"}, rest...)
 	}
@@ -495,6 +495,6 @@ func SkipDirs() []string {
 	for name := range skipDirs {
 		out = append(out, name)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }

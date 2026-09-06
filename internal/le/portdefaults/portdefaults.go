@@ -48,7 +48,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -170,7 +170,7 @@ func unknownRegistrations(content string) []string {
 			out = append(out, call)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -215,7 +215,7 @@ func compare(goTable map[string]int, yangMap map[string]string, read readFile) [
 	for service := range goTable {
 		services = append(services, service)
 	}
-	sort.Strings(services)
+	slices.Sort(services)
 
 	for _, service := range services {
 		goPort := goTable[service]
@@ -247,7 +247,7 @@ func compare(goTable map[string]int, yangMap map[string]string, read readFile) [
 			extras = append(extras, service)
 		}
 	}
-	sort.Strings(extras)
+	slices.Sort(extras)
 	for _, service := range extras {
 		drifts = append(drifts, Drift{Service: service, GoPort: -1, YANGPort: -1, File: yangMap[service], Reason: ReasonStaleMap})
 	}

@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -123,7 +123,7 @@ func validAttributeNames() string {
 	for name := range unique {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return textbuf.Join(names, ", ")
 }
 

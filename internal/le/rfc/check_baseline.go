@@ -15,6 +15,7 @@ import (
 	"go/token"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -719,6 +720,6 @@ func baselineRecordBlobs(tree string, records []DiscriminationRecord) (map[strin
 			paths = append(paths, rel)
 		}
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return gitCatBlobs(tree, headRevision, paths)
 }

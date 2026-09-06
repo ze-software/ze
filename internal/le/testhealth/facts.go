@@ -22,6 +22,7 @@
 package testhealth
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -206,7 +207,7 @@ func readUnprovenRFCs(byKey map[string]object) ([]string, error) {
 	for _, raw := range listed {
 		out = append(out, valueText(raw))
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 
@@ -423,7 +424,7 @@ func statusText(statuses map[string]string) []string {
 	for key := range statuses {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	out := make([]string, 0, len(keys))
 	var tb textbuf.Buffer

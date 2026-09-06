@@ -91,7 +91,7 @@ func operationPlannerFromTrees(gateway transaction.EventGateway, runningTree, ca
 		for root := range req.Diffs {
 			roots = append(roots, root)
 		}
-		sort.Strings(roots)
+		slices.Sort(roots)
 
 		var operations []transaction.ConfigOperation
 		for _, root := range roots {
@@ -285,7 +285,7 @@ func buildTxInputs(affected []affectedPlugin, diff *config.ConfigDiff) ([]transa
 	for root := range diffMap {
 		allRoots = append(allRoots, root)
 	}
-	sort.Strings(allRoots)
+	slices.Sort(allRoots)
 
 	participants := make([]transaction.Participant, 0, len(affected))
 	verifySections := make(map[string][]rpc.ConfigSection, len(affected))

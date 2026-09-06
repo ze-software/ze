@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -260,7 +261,7 @@ func assignPages(pages []Page, nav siteNav) ([][]assignment, error) {
 			assignment{route: page.Route, mirror: page.Markdown, order: claim.order})
 	}
 	if len(unsectioned) != 0 {
-		sort.Strings(unsectioned)
+		slices.Sort(unsectioned)
 		return nil, fmt.Errorf("%d published page(s) belong to no section of llms-full.txt: %s"+
 			" -- give each one a section in llmsFullReadingOrder or a nav.json entry",
 			len(unsectioned), strings.Join(unsectioned, ", "))
@@ -376,7 +377,7 @@ func claimFor(route string, claimants map[string][]sectionClaim) (sectionClaim, 
 	for title := range titles {
 		tied = append(tied, title)
 	}
-	sort.Strings(tied)
+	slices.Sort(tied)
 	return best, tied
 }
 

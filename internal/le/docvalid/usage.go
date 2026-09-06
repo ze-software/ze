@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -201,7 +202,7 @@ func collectUsage(node *command.Node, path []string, walk *usageWalk) {
 	for name := range node.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		child := node.Children[name]
@@ -457,7 +458,7 @@ func gitHeadBlobs(root string, files map[string]string) (map[string]string, erro
 	for _, rel := range files {
 		names = append(names, rel)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	var request bytes.Buffer
 	for _, rel := range names {

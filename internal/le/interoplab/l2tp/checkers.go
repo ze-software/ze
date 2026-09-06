@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -344,7 +344,7 @@ func waitPPPInterface(ctx context.Context, lab labOperations, peer string, timeo
 	if err != nil {
 		return "", err
 	}
-	sort.Strings(links)
+	slices.Sort(links)
 	return links[0], nil
 }
 

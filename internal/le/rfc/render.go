@@ -14,6 +14,7 @@
 package rfc
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -586,7 +587,7 @@ func renderEvidenceLegend(carriers []Carrier) []string {
 			unrun = append(unrun, name)
 		}
 	}
-	sort.Strings(unrun)
+	slices.Sort(unrun)
 	var tail textbuf.Buffer
 	out = append(out, tail.
 		Str("A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not ").

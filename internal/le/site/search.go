@@ -216,7 +216,7 @@ func pageSearchRecords(output string) ([]searchRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(mirrors)
+	slices.Sort(mirrors)
 
 	records := make([]searchRecord, 0, len(mirrors))
 	for _, mirror := range mirrors {
@@ -246,7 +246,7 @@ func configSearchRecords(output string) ([]searchRecord, error) {
 	for name := range tree {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	records := make([]searchRecord, 0, len(names)+1)
 	landing := "The complete Ze configuration as one searchable tree of sections, generated " +

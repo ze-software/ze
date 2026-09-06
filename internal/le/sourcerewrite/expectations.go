@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -135,10 +136,10 @@ func reorderUpdatePayload(payload []byte) ([]byte, error) {
 		afterCodes[i] = int(ordered[i].code)
 		afterBytes[i] = string(ordered[i].raw)
 	}
-	sort.Ints(beforeCodes)
-	sort.Ints(afterCodes)
-	sort.Strings(beforeBytes)
-	sort.Strings(afterBytes)
+	slices.Sort(beforeCodes)
+	slices.Sort(afterCodes)
+	slices.Sort(beforeBytes)
+	slices.Sort(afterBytes)
 	if fmt.Sprint(beforeCodes) != fmt.Sprint(afterCodes) {
 		return nil, unparseableError{"attribute set changed"}
 	}

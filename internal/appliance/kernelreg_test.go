@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -297,7 +297,7 @@ func TestRegisteredKernelProfilesShippedSet(t *testing.T) {
 			t.Fatalf("registeredKernelProfiles: %v", err)
 		}
 		want := append([]string{"fixture"}, shippedKernelProfiles...)
-		sort.Strings(want)
+		slices.Sort(want)
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("profiles = %#v, want %#v", got, want)
 		}

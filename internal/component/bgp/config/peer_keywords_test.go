@@ -6,7 +6,7 @@ package bgpconfig
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -101,7 +101,7 @@ func peerContainerModules(t *testing.T) []string {
 	require.NoError(t, err)
 	require.NotEmpty(t, modules, "no .yang source under internal/component/bgp declares a `peer` container: this walk reads the wrong tree and the refusal below refuses nothing")
 
-	sort.Strings(modules)
+	slices.Sort(modules)
 	return modules
 }
 

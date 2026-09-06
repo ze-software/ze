@@ -31,7 +31,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -165,7 +165,7 @@ func (s Set) Files(t *testing.T) []string {
 		t.Fatalf("walk %s: %v", s.Dir, err)
 	}
 
-	sort.Strings(files)
+	slices.Sort(files)
 
 	if len(files) == 0 {
 		t.Fatalf("walk %s found no files", s.Dir)
@@ -460,7 +460,7 @@ func sortedKeys[V any](m map[string]V) []string {
 		keys = append(keys, k)
 	}
 
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	return keys
 }

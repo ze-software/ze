@@ -72,7 +72,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -285,7 +285,7 @@ func Check(root string, files []string, declared string) (Result, error) {
 	// The walk is a copy, because ordering the answer must not reorder the
 	// caller's own population.
 	walk := append([]string(nil), files...)
-	sort.Strings(walk)
+	slices.Sort(walk)
 
 	for _, rel := range walk {
 		if !walked(rel) {

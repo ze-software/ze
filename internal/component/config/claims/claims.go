@@ -22,6 +22,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 
@@ -167,7 +168,7 @@ func FromConfigRoots(m map[string][]string) []Claim {
 	for name := range m {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	var tb textbuf.Buffer
 	out := make([]Claim, 0, len(m))
@@ -252,7 +253,7 @@ func Audit(root *Node, cs []Claim, allow []Allow) Report {
 		}
 		return r.Findings[i].Path < r.Findings[j].Path
 	})
-	sort.Strings(r.Allowlisted)
+	slices.Sort(r.Allowlisted)
 	return r
 }
 
@@ -495,6 +496,6 @@ func childNames(n *Node) []string {
 	for name := range n.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

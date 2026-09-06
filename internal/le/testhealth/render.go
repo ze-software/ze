@@ -428,7 +428,7 @@ func bucketTable(metric Metric) (string, bool) {
 
 	years := make([]string, len(buckets.keys))
 	copy(years, buckets.keys)
-	sort.Strings(years)
+	slices.Sort(years)
 
 	var tb textbuf.Buffer
 	tb.Str("| package first commit | packages with tests | with a fuzz target " +

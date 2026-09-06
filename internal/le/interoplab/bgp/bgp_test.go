@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -114,7 +113,7 @@ func TestCheckerPopulationMatchesProducer(t *testing.T) {
 		}
 		producer = append(producer, entry.Name())
 	}
-	sort.Strings(producer)
+	slices.Sort(producer)
 	checkers := checkers()
 	native := make([]string, 0, len(checkers))
 	for name, checker := range checkers {
@@ -134,7 +133,7 @@ func TestCheckerPopulationMatchesProducer(t *testing.T) {
 			t.Errorf("bespoke checker %s still has generic extra operations", name)
 		}
 	}
-	sort.Strings(native)
+	slices.Sort(native)
 	if strings.Join(native, "\n") != strings.Join(producer, "\n") {
 		t.Fatalf("native scenario population differs from producer\nnative: %v\nproducer: %v", native, producer)
 	}

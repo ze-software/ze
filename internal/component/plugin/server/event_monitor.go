@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -221,7 +221,7 @@ func validateEventTypeAnyNamespace(eventType string) error {
 	for k := range seen {
 		valid = append(valid, k)
 	}
-	sort.Strings(valid)
+	slices.Sort(valid)
 	return fmt.Errorf("invalid event type %q (valid: %s)", eventType, textbuf.Join(valid, ", "))
 }
 

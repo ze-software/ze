@@ -3,7 +3,7 @@
 package main
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -48,7 +48,7 @@ func declaredVerbs(t *testing.T) []string {
 		}
 		verbs = append(verbs, verb)
 	}
-	sort.Strings(verbs)
+	slices.Sort(verbs)
 	return verbs
 }
 

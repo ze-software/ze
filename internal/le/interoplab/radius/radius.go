@@ -20,7 +20,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"time"
 
@@ -132,7 +132,7 @@ func ScenarioNames() []string {
 	for name := range scenarioCheckerMap(0) {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

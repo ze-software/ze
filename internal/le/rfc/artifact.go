@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -500,7 +499,7 @@ func rejectUnknownKeys(obj map[string]any, allowed map[string]bool, where string
 	if len(unknown) == 0 {
 		return nil
 	}
-	sort.Strings(unknown)
+	slices.Sort(unknown)
 	var tb textbuf.Buffer
 	return parseErr(tb.Str(where).Str(": unknown key(s) ").Str(pyRepr(unknown)).
 		Str("; expected one of ").Str(pyRepr(sortedKeys(allowed))))

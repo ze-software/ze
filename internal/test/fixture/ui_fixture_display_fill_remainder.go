@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -366,7 +366,7 @@ func uiDisplayFillRemainderRequire(condition bool, format string, args ...any) e
 
 func sortedStrings(values []string, reverse bool) []string {
 	result := append([]string(nil), values...)
-	sort.Strings(result)
+	slices.Sort(result)
 	if reverse {
 		for left, right := 0, len(result)-1; left < right; left, right = left+1, right-1 {
 			result[left], result[right] = result[right], result[left]
@@ -426,7 +426,7 @@ func uiDisplayFillRemainderEnvironmentWith(base []string, overrides map[string]s
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	env := make([]string, 0, len(keys))
 	for _, key := range keys {

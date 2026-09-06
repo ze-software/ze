@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"sort"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zepki "github.com/ze-software/ze/internal/component/pki"
@@ -390,7 +389,7 @@ func (m *listenerMigrator) resolveAuthIntents(tree *zeconfig.Tree) ([]resolvedAu
 	for name := range m.authReloaders {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	out := make([]resolvedAuth, 0, len(names))
 	for _, name := range names {

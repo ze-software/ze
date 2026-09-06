@@ -14,7 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -150,7 +150,7 @@ func templOrphans(
 		}
 		report.StraySources = append(report.StraySources, rel)
 	}
-	sort.Strings(report.StraySources)
+	slices.Sort(report.StraySources)
 	if len(report.StraySources) > 0 {
 		return report, nil
 	}
@@ -172,7 +172,7 @@ func templOrphans(
 			report.OrphanOutputs = append(report.OrphanOutputs, rel)
 		}
 	}
-	sort.Strings(report.OrphanOutputs)
+	slices.Sort(report.OrphanOutputs)
 	return report, nil
 }
 

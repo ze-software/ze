@@ -37,7 +37,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -132,7 +132,7 @@ func toolImports(src []byte) ([]string, error) {
 		}
 		names = append(names, strings.TrimPrefix(path, leTree))
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 
@@ -181,7 +181,7 @@ func registeringPackages(root string) ([]string, error) {
 			}
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 

@@ -1,7 +1,7 @@
 package command
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -157,8 +157,8 @@ func sortedEqual(t *testing.T, what string, got, want []string) {
 	t.Helper()
 	g := append([]string(nil), got...)
 	w := append([]string(nil), want...)
-	sort.Strings(g)
-	sort.Strings(w)
+	slices.Sort(g)
+	slices.Sort(w)
 	if len(g) != len(w) {
 		t.Fatalf("%s names %d operators, catalog holds %d\n  %s: %v\n  catalog: %v", what, len(g), len(w), what, g, w)
 	}

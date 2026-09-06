@@ -6,7 +6,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"sort"
+	"slices"
 
 	"github.com/sirupsen/logrus"
 	"go.fd.io/govpp/adapter/socketclient"
@@ -83,7 +83,7 @@ func (h govppLogrusHook) Fire(entry *logrus.Entry) error {
 	for key := range entry.Data {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		args = append(args, key, entry.Data[key])
 	}

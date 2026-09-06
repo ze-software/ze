@@ -7,7 +7,7 @@ package rs
 import (
 	"context"
 	"net/netip"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -63,7 +63,7 @@ func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer strin
 		return
 	}
 
-	sort.Strings(targets)
+	slices.Sort(targets)
 	sel := textbuf.Join(targets, ",")
 
 	if batch.selector != "" && batch.selector != sel {
@@ -140,7 +140,7 @@ func (rs *routeServer) selectForwardTargets(buf []string, sourcePeer string, msg
 		}
 		buf = append(buf, addr)
 	}
-	sort.Strings(buf)
+	slices.Sort(buf)
 	return buf
 }
 

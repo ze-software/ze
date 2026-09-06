@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -285,7 +285,7 @@ func exerciseDisplayAndFill(ctx context.Context, daemon *uiDisplayFillFilteredCo
 		return fmt.Errorf("fill did not bring every column back: %q", filledColumns)
 	}
 	sortedTail := append([]string(nil), filledColumns[1:]...)
-	sort.Strings(sortedTail)
+	slices.Sort(sortedTail)
 	if !uiDisplayFillFilteredCommandEqualStrings(filledColumns[1:], sortedTail) {
 		return fmt.Errorf("fill alpha did not order by name: %q", filledColumns)
 	}

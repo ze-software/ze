@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -572,7 +571,7 @@ func AliasesForCommand(command string) []Alias {
 	for name := range byName {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	aliases := make([]Alias, 0, len(names))
 	for _, name := range names {

@@ -13,6 +13,7 @@ package testhealth
 import (
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -446,7 +447,7 @@ func unprovenMetric(rows, unproven []ledgerRow) Metric {
 	for _, row := range unproven {
 		sorted = append(sorted, row.rfc)
 	}
-	sort.Strings(sorted)
+	slices.Sort(sorted)
 	for _, name := range sorted {
 		names = append(names, name)
 	}

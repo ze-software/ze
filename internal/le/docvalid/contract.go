@@ -24,6 +24,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -117,7 +118,7 @@ func Validate(root string) (ValidationResult, error) {
 			cmdModules = append(cmdModules, name)
 		}
 	}
-	sort.Strings(cmdModules)
+	slices.Sort(cmdModules)
 
 	// Collect the ze:command entries from the YANG tree.
 	var commands []CommandEntry
@@ -145,8 +146,8 @@ func Validate(root string) (ValidationResult, error) {
 		handlerSet[rpc.WireMethod] = true
 		handlers = append(handlers, rpc.WireMethod)
 	}
-	sort.Strings(handlers)
-	sort.Strings(skipped)
+	slices.Sort(handlers)
+	slices.Sort(skipped)
 
 	localHandlers, err := collectLocalHandlers(root)
 	if err != nil {
@@ -258,7 +259,7 @@ func collectLocalHandlers(root string) ([]string, error) {
 	for path := range paths {
 		out = append(out, path)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 
@@ -306,7 +307,7 @@ func localCommandRegistryFiles(root string) ([]string, error) {
 	if walkErr != nil {
 		return nil, walkErr
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 

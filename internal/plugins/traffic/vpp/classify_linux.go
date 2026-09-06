@@ -14,7 +14,7 @@ package trafficvpp
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"go.fd.io/govpp/binapi/interface_types"
 
@@ -196,7 +196,7 @@ func groupSteeringsByMask(fam classifyFamily, steerings []classifySteer) []maskG
 		g.matches = append(g.matches, s.match)
 		g.policers = append(g.policers, s.policerIdx)
 	}
-	sort.Strings(order)
+	slices.Sort(order)
 	groups := make([]maskGroup, 0, len(order))
 	for _, key := range order {
 		groups = append(groups, *byMask[key])

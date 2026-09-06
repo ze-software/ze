@@ -6,7 +6,7 @@
 package migration
 
 import (
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -27,7 +27,7 @@ func SerializeTree(tree *config.Tree) string {
 func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, isRoot bool) {
 	// Write simple values (sorted for deterministic output).
 	keys := tree.Values()
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		v, ok := tree.Get(key)
 		if !ok {
@@ -458,7 +458,7 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 func serializeGroupValues(tree *config.Tree, buf *textbuf.Buffer, indent string) {
 	// Write simple values (sorted for deterministic output).
 	keys := tree.Values()
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		v, ok := tree.Get(key)
 		if !ok {

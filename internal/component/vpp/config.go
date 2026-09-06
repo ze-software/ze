@@ -13,8 +13,8 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 
-	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -466,7 +466,7 @@ func parseDPDK(data json.RawMessage, dpdk *DPDKSettings) error {
 	for pci := range ifaceMap {
 		pciAddrs = append(pciAddrs, pci)
 	}
-	sort.Strings(pciAddrs)
+	slices.Sort(pciAddrs)
 	for _, pci := range pciAddrs {
 		entry := ifaceMap[pci]
 		iface := DPDKInterface{PCIAddress: pci}

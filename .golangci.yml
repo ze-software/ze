@@ -181,6 +181,17 @@ linters:
         - importShadow
         - unnamedResult
       settings:
+        # The style tag above already enables gocritic's ruleguard checker, but
+        # a checker with no rules file reports nothing. This path is what makes
+        # it do work. ${config-path} is the directory holding this file, and the
+        # rules live under a dot-directory so the Go toolchain never compiles
+        # them.
+        ruleguard:
+          rules: '${config-path}/.golangci/ruleguard/modern.go'
+          # A rules file that fails to parse must stop the run. The default
+          # logs the error and silently drops every rule in the file, which
+          # reports a clean tree from a gate that checked nothing.
+          failOn: all
         hugeParam:
           # ospfConfig is an intentionally-copied immutable config snapshot passed by value
           # across the OSPF package (setConfig/reconcile/forInstance and ~20 read helpers).

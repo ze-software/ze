@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -144,7 +144,7 @@ func duplicateTunnelEndpoints(files map[string]string) []string {
 		for label := range whoSet {
 			who = append(who, label)
 		}
-		sort.Strings(who)
+		slices.Sort(who)
 		key := claim.key
 		if key == "" {
 			key = "none"
@@ -152,7 +152,7 @@ func duplicateTunnelEndpoints(files map[string]string) []string {
 		out = append(out, fmt.Sprintf("%s %s -> %s key %s claimed by %s",
 			claim.domain, claim.local, claim.remote, key, strings.Join(who, ", ")))
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

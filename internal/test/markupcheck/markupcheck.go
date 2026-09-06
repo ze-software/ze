@@ -34,7 +34,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -140,7 +140,7 @@ func Findings(root string, exempt map[string]string) ([]string, error) {
 		names = append(names, name)
 	}
 
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		if used[name] {

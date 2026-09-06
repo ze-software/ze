@@ -4,7 +4,7 @@
 package command
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -76,7 +76,7 @@ func writeMap(b *textbuf.Buffer, m map[string]any, indent string) {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		writeKeyValue(b, key, m[key], indent)
@@ -121,7 +121,7 @@ func writeMapItem(b *textbuf.Buffer, m map[string]any, indent string) {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	var tb textbuf.Buffer
 	dashIndent := tb.Str(indent).Str("- ").String()

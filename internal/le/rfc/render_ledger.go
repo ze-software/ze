@@ -14,6 +14,7 @@
 package rfc
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -69,7 +70,7 @@ func statusSectionKeys() []string {
 	for _, section := range statusSections {
 		out = append(out, section.Key)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

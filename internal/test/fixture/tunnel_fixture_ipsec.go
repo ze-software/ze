@@ -9,7 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -64,7 +64,7 @@ func tunnelIPsecSPIs(ctx context.Context, endpoints map[string]bool) ([]string, 
 	for spi := range found {
 		result = append(result, spi)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result, nil
 }
 
@@ -102,7 +102,7 @@ func tunnelIPsecPolicies(ctx context.Context, networks ...string) ([]string, err
 	for policy := range found {
 		result = append(result, policy)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result, nil
 }
 

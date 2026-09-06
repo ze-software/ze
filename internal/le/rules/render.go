@@ -20,7 +20,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -56,7 +55,7 @@ func renderDir(ruleDir string) (string, error) {
 		}
 	}
 	if len(loose) > 0 {
-		sort.Strings(loose)
+		slices.Sort(loose)
 		tb.Reset()
 		return "", errors.New(tb.Str(stem).Str(": ").Str(pyListRepr(loose)).
 			Str(" sit(s) directly in the rule directory; every point lives in a `##` section directory, so the id is always <rule>/<section>/<slug>. Move it into its section").String())
@@ -100,7 +99,7 @@ func renderDir(ruleDir string) (string, error) {
 		}
 	}
 	if len(unlisted) > 0 {
-		sort.Strings(unlisted)
+		slices.Sort(unlisted)
 		tb.Reset()
 		return "", errors.New(tb.Str(stem).Str(": section directory/ies ").Str(pyListRepr(unlisted)).
 			Str(" exist but the manifest does not list them; add them to the reading order or delete them").String())
@@ -178,7 +177,7 @@ func readSection(ruleDir, stem string, listed manifestSectionSpec) (Section, err
 		}
 	}
 	if len(extra) > 0 {
-		sort.Strings(extra)
+		slices.Sort(extra)
 		tb.Reset()
 		return Section{}, errors.New(tb.Str(stem).Byte('/').Str(listed.Slug).
 			Str(": point file(s) ").Str(pyListRepr(extra)).
@@ -247,8 +246,8 @@ func deepAndNested(ruleDir string) (deep, nested []string, err error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	sort.Strings(deep)
-	sort.Strings(nested)
+	slices.Sort(deep)
+	slices.Sort(nested)
 	return deep, nested, nil
 }
 

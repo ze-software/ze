@@ -4,7 +4,7 @@ package diagnostic
 
 import (
 	"errors"
-	"sort"
+	"slices"
 	"sync"
 )
 
@@ -50,7 +50,7 @@ func AllCodes() []string {
 	for k := range codes {
 		result = append(result, k)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result
 }
 

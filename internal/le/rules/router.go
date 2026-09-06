@@ -29,7 +29,7 @@ package rules
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -82,7 +82,7 @@ func loadCorpusDir(dir string) ([]Task, error) {
 		}
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	var corpus []Task
 	for _, name := range names {
@@ -263,8 +263,8 @@ func buildRouterReport(rules []Rule, corpus []Task, core []Rule) RouterReport {
 			}
 			surfacedAny[rule.Name] = true
 		}
-		sort.Strings(task.Surfaced)
-		sort.Strings(task.SurfacedBlocking)
+		slices.Sort(task.Surfaced)
+		slices.Sort(task.SurfacedBlocking)
 		tasks = append(tasks, task)
 	}
 
@@ -290,7 +290,7 @@ func buildRouterReport(rules []Rule, corpus []Task, core []Rule) RouterReport {
 			report.UnroutableTerms = append(report.UnroutableTerms, rule.Name)
 		}
 	}
-	sort.Strings(report.MissedBlocking)
-	sort.Strings(report.UnroutableTerms)
+	slices.Sort(report.MissedBlocking)
+	slices.Sort(report.UnroutableTerms)
 	return report
 }

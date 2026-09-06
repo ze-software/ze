@@ -7,6 +7,7 @@ package lg
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -79,14 +80,14 @@ func buildNextHopGraph(routes []any) *nextHopGraph {
 	for addr := range egressSet {
 		queue = append(queue, addr)
 	}
-	sort.Strings(queue) // deterministic BFS order
+	slices.Sort(queue) // deterministic BFS order
 
 	for len(queue) > 0 {
 		cur := queue[0]
 		queue = queue[1:]
 		curLayer := layerMap[cur]
 		sources := reverse[cur]
-		sort.Strings(sources)
+		slices.Sort(sources)
 		for _, from := range sources {
 			if _, assigned := layerMap[from]; !assigned {
 				layerMap[from] = curLayer + 1

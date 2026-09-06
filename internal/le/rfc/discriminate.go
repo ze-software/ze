@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -256,7 +257,7 @@ func loadDiscrimination(tree string) ([]DiscriminationRecord, error) {
 		}
 		names = append(names, entry.Name())
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	var out []DiscriminationRecord
 	for _, name := range names {

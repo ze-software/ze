@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -225,7 +225,7 @@ func uiLeInventoryAnswersSortedKeys(value map[string]any) []string {
 	for key := range value {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

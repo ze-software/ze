@@ -365,7 +365,7 @@ func (c *Checker) compare(report *Report, rendered map[string]string, update boo
 			stale = append(stale, name)
 		}
 	}
-	sort.Strings(stale)
+	slices.Sort(stale)
 	for _, name := range stale {
 		problems++
 		message := fmt.Sprintf("golden/%s.conf has no node in contrib/netlab/topology.yml", name)
@@ -415,7 +415,7 @@ func sortedNames(rendered map[string]string) []string {
 	for name := range rendered {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

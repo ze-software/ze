@@ -5,7 +5,6 @@ package crypto
 import (
 	"errors"
 	"slices"
-	"sort"
 )
 
 // RFC 7296 Section 3.3.2: Transform Type Values.
@@ -265,7 +264,7 @@ func sortedKeys[V any](m map[string]V) []string {
 	for name := range m {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

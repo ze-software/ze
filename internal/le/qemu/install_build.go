@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -251,7 +252,7 @@ func installMatches(root, prefix, suffix string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("walk appliance artifacts under %s: %w", root, err)
 	}
-	sort.Strings(matches)
+	slices.Sort(matches)
 	return matches, nil
 }
 

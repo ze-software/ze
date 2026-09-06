@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -133,8 +133,8 @@ func checkDependencyDrift(versions map[string]string, data dependencyData) error
 			retired = append(retired, module)
 		}
 	}
-	sort.Strings(undocumented)
-	sort.Strings(retired)
+	slices.Sort(undocumented)
+	slices.Sort(retired)
 
 	if len(undocumented) != 0 {
 		return fmt.Errorf("go.mod requires %s directly with no entry in data/%s: add one",

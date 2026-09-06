@@ -17,7 +17,7 @@ package docstocode
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -88,7 +88,7 @@ func (r CodeReport) staleLines() string {
 	for path := range byPath {
 		paths = append(paths, path)
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 
 	var tb textbuf.Buffer
 	for _, path := range paths {
@@ -124,7 +124,7 @@ func renderCodeIndex(index codeIndex) string {
 	for pkg := range byPackage {
 		packages = append(packages, pkg)
 	}
-	sort.Strings(packages)
+	slices.Sort(packages)
 
 	for _, pkg := range packages {
 		files := byPackage[pkg]
@@ -136,7 +136,7 @@ func renderCodeIndex(index codeIndex) string {
 				allDocs[doc] = true
 			}
 		}
-		sort.Strings(paths)
+		slices.Sort(paths)
 
 		tb.Str("## `").Str(pkg).Str("/`\n\n")
 
@@ -187,7 +187,7 @@ func sortedKeys(set map[string]bool) []string {
 	for key := range set {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -290,6 +290,6 @@ func sortedRefPaths(index codeIndex) []string {
 	for path := range index.Refs {
 		paths = append(paths, path)
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths
 }

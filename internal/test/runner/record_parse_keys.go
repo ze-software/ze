@@ -7,7 +7,6 @@ package runner
 import (
 	"errors"
 	"slices"
-	"sort"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -37,9 +36,9 @@ func checkKeys(directive string, kv map[string]string, known ...string) error {
 	if len(unknown) == 0 {
 		return nil
 	}
-	sort.Strings(unknown)
+	slices.Sort(unknown)
 	accepted := slices.Clone(known)
-	sort.Strings(accepted)
+	slices.Sort(accepted)
 
 	var msg textbuf.Buffer
 	msg.Str(directive).Str(": unknown key")

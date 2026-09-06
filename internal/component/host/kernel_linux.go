@@ -9,7 +9,6 @@ import (
 	"os"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 )
@@ -150,7 +149,7 @@ func filterSecurityFlags(all []string) []string {
 			out = append(out, f)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

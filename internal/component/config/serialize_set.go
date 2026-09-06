@@ -8,7 +8,7 @@
 package config
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -330,7 +330,7 @@ func serializeSetList(b *textbuf.Buffer, tree *Tree, name string, node *ListNode
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 	}
 
 	for _, key := range keys {
@@ -362,7 +362,7 @@ func serializeSetFreeform(b *textbuf.Buffer, tree *Tree, name, prefix string) {
 	for k := range child.values {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		v := child.values[k]
@@ -418,7 +418,7 @@ func serializeSetFlex(b *textbuf.Buffer, tree *Tree, name string, node *FlexNode
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, key := range keys {
 			entry := entries[key]
 			entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(key)).Byte(' ').String()
@@ -439,7 +439,7 @@ func serializeSetInlineList(b *textbuf.Buffer, tree *Tree, name string, node *In
 	for k := range entries {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		entry := entries[key]
@@ -478,7 +478,7 @@ func serializeSetExtraValues(b *textbuf.Buffer, tree *Tree, children []string, p
 			extraKeys = append(extraKeys, k)
 		}
 	}
-	sort.Strings(extraKeys)
+	slices.Sort(extraKeys)
 
 	for _, k := range extraKeys {
 		b.Str("set ")
@@ -811,7 +811,7 @@ func serializeSetMetaList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 	}
 
 	for _, key := range keys {
@@ -876,7 +876,7 @@ func writeFreeformLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name, pre
 	for k := range child.values {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		v := child.values[k]
@@ -918,7 +918,7 @@ func writeFlexLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, 
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, key := range keys {
 			entry := entries[key]
 			entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(key)).Byte(' ').String()
@@ -940,7 +940,7 @@ func writeInlineListLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 	for k := range entries {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		entry := entries[key]
@@ -981,7 +981,7 @@ func serializeSetMetaExtraValues(b *textbuf.Buffer, tree *Tree, meta *MetaTree, 
 			extraKeys = append(extraKeys, k)
 		}
 	}
-	sort.Strings(extraKeys)
+	slices.Sort(extraKeys)
 
 	for _, k := range extraKeys {
 		writeMetaLeafLine(b, meta, k, prefix+k+" ", quoteIfNeeded(tree.values[k]))
@@ -1017,7 +1017,7 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 	if len(names) == 0 {
 		return
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		for _, e := range meta.entries[name] {

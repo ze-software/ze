@@ -1,7 +1,7 @@
 package seqmap
 
 import (
-	"sort"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -179,7 +179,7 @@ func TestSinceSkipsDead(t *testing.T) {
 		return true
 	})
 
-	sort.Strings(keys) // Range order in since may vary only for same-seq, but ours are unique
+	slices.Sort(keys) // Range order in since may vary only for same-seq, but ours are unique
 	assert.Equal(t, []string{"a", "c"}, keys)
 }
 

@@ -41,6 +41,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -396,7 +397,7 @@ func collectRPCs(loader *yang.Loader, report *HelpShapeReport) {
 		return
 	}
 	modules := loader.ModuleNames()
-	sort.Strings(modules)
+	slices.Sort(modules)
 
 	var tb textbuf.Buffer
 	for _, module := range modules {

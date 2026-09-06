@@ -266,7 +266,7 @@ func scan(tree string, roots []string, floor int) (Findings, map[string]bool, er
 	for pkgDir := range packages {
 		pkgDirs = append(pkgDirs, pkgDir)
 	}
-	sort.Strings(pkgDirs)
+	slices.Sort(pkgDirs)
 	for _, pkgDir := range pkgDirs {
 		found := packages[pkgDir]
 		if found.guarded || len(found.findings) == 0 {

@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -137,7 +137,7 @@ func (c *mcpClient) answerInputRequests(result map[string]any) (map[string]any, 
 	for key := range requests {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		request, ok := requests[key].(map[string]any)
 		if !ok {

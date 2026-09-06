@@ -15,7 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -179,7 +179,7 @@ func staleExplanations(root string, explained map[string]string, used map[string
 		names = append(names, name)
 	}
 
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		if used[name] {
@@ -462,7 +462,7 @@ func sortedFixtureNames(before, after map[string][]byte) []string {
 		}
 	}
 
-	sort.Strings(names)
+	slices.Sort(names)
 
 	return names
 }

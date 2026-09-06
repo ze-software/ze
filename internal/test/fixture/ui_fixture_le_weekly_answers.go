@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -119,7 +119,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 			for present := range first {
 				keys = append(keys, present)
 			}
-			sort.Strings(keys)
+			slices.Sort(keys)
 			return fmt.Errorf("FAIL: a post row carries no %q: %v", key, keys)
 		}
 	}

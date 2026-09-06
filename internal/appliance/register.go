@@ -4,7 +4,7 @@ package appliance
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -20,7 +20,7 @@ func subcommands() string {
 	for k := range seen {
 		sorted = append(sorted, k)
 	}
-	sort.Strings(sorted)
+	slices.Sort(sorted)
 	return textbuf.Join(sorted, ", ")
 }
 

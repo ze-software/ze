@@ -6,7 +6,7 @@
 package config
 
 import (
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -208,7 +208,7 @@ func serializeExtraValues(b *textbuf.Buffer, tree *Tree, children []string, inde
 			valueKeys = append(valueKeys, k)
 		}
 	}
-	sort.Strings(valueKeys)
+	slices.Sort(valueKeys)
 	for _, k := range valueKeys {
 		b.Str(prefix)
 		if tree.inactiveValues[k] {
@@ -423,7 +423,7 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 			for k := range entries {
 				keys = append(keys, k)
 			}
-			sort.Strings(keys)
+			slices.Sort(keys)
 			for _, key := range keys {
 				entry := entries[key]
 				b.Str(prefix)
@@ -443,7 +443,7 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 			for k := range entries {
 				keys = append(keys, k)
 			}
-			sort.Strings(keys)
+			slices.Sort(keys)
 
 			for _, key := range keys {
 				entry := entries[key]
@@ -526,7 +526,7 @@ func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 	}
 
 	for _, key := range keys {
@@ -563,7 +563,7 @@ func serializeListBlocks(b *textbuf.Buffer, entries map[string]*Tree, name strin
 	for k := range entries {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		entry := entries[key]
@@ -674,7 +674,7 @@ func serializeFreeform(b *textbuf.Buffer, tree *Tree, indent int) {
 	for k := range tree.values {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		v := tree.values[k]

@@ -17,7 +17,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -271,7 +271,7 @@ func resolveImagePath(baseDir, name, imageFile string) (string, error) {
 		return "", errNoImagesFoundRunzeAppliance
 	}
 
-	sort.Strings(images)
+	slices.Sort(images)
 	selected := images[len(images)-1]
 	return resolveContainedImagePath(realAppDir, filepath.Join(appDir, selected), selected)
 }

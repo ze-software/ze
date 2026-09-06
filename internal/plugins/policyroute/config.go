@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,7 +72,7 @@ func parsePolicyConfig(jsonData string) ([]PolicyRoute, error) {
 	for name := range routeMap {
 		policyNames = append(policyNames, name)
 	}
-	sort.Strings(policyNames)
+	slices.Sort(policyNames)
 
 	var policies []PolicyRoute
 	for _, name := range policyNames {

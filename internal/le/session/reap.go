@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -210,7 +209,7 @@ func reap(root, configDir, ownID string, dry bool, ops reapOps) (ReapReport, err
 		paths = append(paths, path)
 	}
 	paths = append(paths, markers...)
-	sort.Strings(paths)
+	slices.Sort(paths)
 	report.Paths = paths
 	report.RemovedDirs = len(dead)
 	report.Kept = len(candidates) - report.RemovedDirs
@@ -295,7 +294,7 @@ func pinnedSessions(root string, processes []processFact) (map[string]bool, []st
 			live[sid] = true
 		}
 	}
-	sort.Strings(stale)
+	slices.Sort(stale)
 	return live, stale
 }
 
@@ -317,7 +316,7 @@ func flatMarkers(root string, dead map[string]string) []string {
 			}
 		}
 	}
-	sort.Strings(markers)
+	slices.Sort(markers)
 	return markers
 }
 

@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"slices"
 	"sort"
 
 	"github.com/ze-software/ze/internal/mrt"
@@ -570,7 +571,7 @@ func sortedIntKeys(m map[int]int) []int {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Ints(keys)
+	slices.Sort(keys)
 	return keys
 }
 

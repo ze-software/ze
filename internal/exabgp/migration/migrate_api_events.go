@@ -8,7 +8,7 @@
 package migration
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -68,7 +68,7 @@ func apiBlockEvents(api *config.Tree) []string {
 		}
 	}
 
-	sort.Strings(events)
+	slices.Sort(events)
 	return events
 }
 

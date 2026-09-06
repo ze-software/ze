@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -191,7 +191,7 @@ func registeredKernelProfiles(srcDir string) ([]string, error) {
 		}
 		profiles = append(profiles, profile)
 	}
-	sort.Strings(profiles)
+	slices.Sort(profiles)
 	return profiles, nil
 }
 

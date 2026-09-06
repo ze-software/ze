@@ -4,7 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
@@ -129,7 +129,7 @@ func TestCIRootsRegistered(t *testing.T) {
 	}
 
 	if len(orphans) > 0 {
-		sort.Strings(orphans)
+		slices.Sort(orphans)
 		t.Fatalf("orphaned .ci suite(s) with no ze-test runner: %v\n"+
 			"Each test/<dir> holding .ci files must be rooted. Fix by either:\n"+
 			"  - registering the suite: add registerCIRoot(%q, ...) in internal/test/cli/register.go, or\n"+

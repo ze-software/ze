@@ -4,7 +4,7 @@
 package terminaldemo
 
 import (
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -75,7 +75,7 @@ func (s *terminalScreen) settle(text string) {
 	for row := range s.dirty {
 		rows = append(rows, row)
 	}
-	sort.Ints(rows)
+	slices.Sort(rows)
 	for _, row := range rows {
 		s.show(row)
 	}
@@ -318,7 +318,7 @@ func (s *terminalScreen) show(row int) {
 }
 
 func (s *terminalScreen) eraseRows(rows []int) {
-	sort.Ints(rows)
+	slices.Sort(rows)
 	for _, row := range rows {
 		s.show(row)
 		delete(s.rows, row)
@@ -479,6 +479,6 @@ func sortedRowKeys[T any](values map[int]T) []int {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Ints(keys)
+	slices.Sort(keys)
 	return keys
 }

@@ -6,7 +6,7 @@ package config
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -275,7 +275,7 @@ func changedSecretPaths(base, work *Tree, node Node) []string {
 	}
 	var changed []string
 	changedSecretWalk(base, work, node, "", &changed)
-	sort.Strings(changed)
+	slices.Sort(changed)
 	return changed
 }
 

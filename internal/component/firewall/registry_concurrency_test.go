@@ -3,7 +3,7 @@ package firewall
 import (
 	"fmt"
 	"runtime"
-	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -102,7 +102,7 @@ func (r *recordingBackend) Apply(desired []Table) error {
 	for _, tbl := range desired {
 		names = append(names, tbl.Name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	r.mu.Lock()
 	r.completed = append(r.completed, names)
 	r.mu.Unlock()
@@ -137,7 +137,7 @@ func TestApplyAllConcurrentOwnersConverge(t *testing.T) {
 	for i := range owners {
 		want = append(want, fmt.Sprintf("ze_c%d", i))
 	}
-	sort.Strings(want)
+	slices.Sort(want)
 
 	var wg sync.WaitGroup
 	for i := range owners {
@@ -180,7 +180,7 @@ func (g *gateBackend) Apply(desired []Table) error {
 	for _, tbl := range desired {
 		names = append(names, tbl.Name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	// CompareAndSwap (not sync.Once) so a SECOND concurrent Apply does NOT wait
 	// on the first: if reconcileMu were missing, the second Apply must be free

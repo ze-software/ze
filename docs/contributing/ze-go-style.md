@@ -362,6 +362,7 @@ Go adds its own costs, and each one has a cheaper form.
 | `strings.Join(parts, " ")` | One buffer, with a separator written between the parts |
 | A `map[string]V` on a hot path | A numeric or typed-enum key, parsed once at the boundary |
 | A value that escapes to the heap | An out pointer from the caller |
+| `sort.Strings`, `sort.Ints`, `sort.Float64s` | `slices.Sort`. The `sort` entry points wrap the slice in a `sort.Interface`, so every comparison and every swap is a dynamic call. `slices.Sort` is generic and compares directly |
 
 <!-- source: internal/core/textbuf/textbuf.go -- Buffer -->
 
@@ -494,6 +495,31 @@ rounds, so the reader knows that you thought about the case.
 
 <!-- source: .golangci.yml -- linters, formatters -->
 <!-- source: .editorconfig -- indentation per file type -->
+
+The toolchain does not know every idiom Ze holds itself to. The `modernize`
+suite in `x/tools` carries no rule for the `sort` entry points above, and
+neither does any other linter, so 622 call sites stayed invisible until this
+repository wrote the rule itself.
+
+Where that happens, the rule goes in `.golangci/ruleguard/modern.go`, which
+gocritic's `ruleguard` checker loads at run time. The rule then reaches every
+place the linter already reaches: the post-write hook, `./le verify lint run`,
+CI, and `//nolint`. A rule written this way needs no new gate, no new hook, and
+no custom linter binary.
+
+The leading dot on the directory keeps the Go toolchain out of it, so a rules
+file is never compiled, vendored, or linted. Give each rule a `Report` line
+that states the cost, and a `Suggest` line that gives the replacement. Note that
+`Suggest` rewrites the expression only: `--fix` does not add the new import or
+drop the old one, so a mass rewrite runs `gofmt -r` and then `goimports`.
+
+The dot is a trade, and the cost is on this page. Neither path gate reaches
+into the directory: `./le docs-to-code index-check` accepts a `<!-- source: -->`
+anchor into it without checking, and `./le doc check links` does not count a
+dotted path among its broken references. Both were measured by breaking the
+path and watching the count stay put. So if the rules file is renamed, nothing
+goes red and this paragraph goes quietly wrong. Check it by hand when you move
+the file.
 
 ### Dependencies
 

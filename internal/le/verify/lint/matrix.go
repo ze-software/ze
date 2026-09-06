@@ -5,7 +5,7 @@
 // Go form of the builds formerly selected by internal/le/verify/lint/matrix.go.
 package verifylint
 
-import "sort"
+import "slices"
 
 const (
 	area        = "verify lint"
@@ -161,6 +161,6 @@ func ReachableProjectTags(featureTags []string) []string {
 	for tag := range seen {
 		tags = append(tags, tag)
 	}
-	sort.Strings(tags)
+	slices.Sort(tags)
 	return tags
 }

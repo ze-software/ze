@@ -6,7 +6,7 @@ package pppoe
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -126,7 +126,7 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 	for name := range entries {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		if name == "" {

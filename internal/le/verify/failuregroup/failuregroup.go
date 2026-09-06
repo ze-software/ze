@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -55,7 +54,7 @@ func Paths(text string) []string {
 	for path := range seen {
 		out = append(out, path)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 
 	return out
 }
@@ -71,7 +70,7 @@ func Merge(into, more []string) []string {
 			into = append(into, path)
 		}
 	}
-	sort.Strings(into)
+	slices.Sort(into)
 
 	return into
 }

@@ -181,7 +181,7 @@ func acceptedRenamePairs(paths, removed []string, pairs []RenamePair) ([]RenameP
 	for name := range lowByName {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		oldCandidates := filterBasename(removed, name, usedOld)
 		newCandidates := filterBasename(paths, name, usedNew)
@@ -259,7 +259,7 @@ func pairAtDepth(oldPaths, newPaths []string, depth int) ([][2]string, []string,
 			keys = append(keys, key)
 		}
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	shared := make(map[string]bool, len(keys))
 	pairs := make([][2]string, 0)
 	oldLeft := make([]string, 0)
@@ -285,8 +285,8 @@ func pairAtDepth(oldPaths, newPaths []string, depth int) ([][2]string, []string,
 			newLeft = append(newLeft, group...)
 		}
 	}
-	sort.Strings(oldLeft)
-	sort.Strings(newLeft)
+	slices.Sort(oldLeft)
+	slices.Sort(newLeft)
 	matched := 0
 	if depth >= 2 {
 		matched = min(len(oldLeft), len(newLeft))

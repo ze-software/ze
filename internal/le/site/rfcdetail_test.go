@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -2241,7 +2241,7 @@ func rfcMarkerStarts(rendering string, all []string) []int {
 			}
 		}
 	}
-	sort.Ints(starts)
+	slices.Sort(starts)
 	return starts
 }
 

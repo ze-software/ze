@@ -22,7 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -249,7 +249,7 @@ func (r *Runner) changedHot(base string) ([]string, error) {
 	for path := range seen {
 		hot = append(hot, path)
 	}
-	sort.Strings(hot)
+	slices.Sort(hot)
 	return hot, nil
 }
 

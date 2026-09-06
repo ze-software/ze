@@ -23,7 +23,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -152,7 +152,7 @@ func All(root string) ([]string, error) {
 			specs = append(specs, filepath.ToSlash(relative))
 		}
 	}
-	sort.Strings(specs)
+	slices.Sort(specs)
 	return specs, nil
 }
 

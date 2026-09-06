@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -268,7 +268,7 @@ func ListRemotes(dbPath string) int {
 	for id := range seen {
 		ids = append(ids, id)
 	}
-	sort.Strings(ids)
+	slices.Sort(ids)
 
 	for _, id := range ids {
 		r := seen[id]

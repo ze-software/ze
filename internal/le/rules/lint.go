@@ -28,7 +28,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -507,7 +506,7 @@ func checkPointFiles(tree, pointsDir string) (int, []LintProblems, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 
 	var violations []LintProblems
 	for _, path := range paths {

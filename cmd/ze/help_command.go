@@ -424,7 +424,7 @@ func extractSubcommands(node *command.Node) []string {
 	for name := range node.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

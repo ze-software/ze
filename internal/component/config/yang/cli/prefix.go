@@ -5,7 +5,10 @@
 // Package yang provides the ze yang CLI subcommand for YANG tree analysis.
 package cli
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // Source domain constants for analysis nodes.
 const (
@@ -98,7 +101,7 @@ func disambiguationDepth(members []SiblingInfo) (minDepth, maxDepth int) {
 	for i, m := range members {
 		names[i] = m.Name
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	// For each name, the longest common prefix is with its sorted neighbor.
 	maxDepth = 0

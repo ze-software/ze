@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -134,7 +134,7 @@ func walkFiles(root string, include func(string) bool) ([]string, error) {
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, err
 }
 

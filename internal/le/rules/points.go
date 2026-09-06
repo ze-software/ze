@@ -29,7 +29,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -716,7 +715,7 @@ func parsePoint(text, slug string) (Point, error) {
 		}
 	}
 	if len(unknown) > 0 {
-		sort.Strings(unknown)
+		slices.Sort(unknown)
 		return Point{}, errors.New(tb.Str(slug).Str(": unknown header field(s) ").
 			Str(pyListRepr(unknown)).String())
 	}
@@ -810,7 +809,7 @@ func parseManifest(text, stem string) (map[string]string, []manifestSectionSpec,
 		}
 	}
 	if len(unknown) > 0 {
-		sort.Strings(unknown)
+		slices.Sort(unknown)
 		tb.Reset()
 		return nil, nil, errors.New(tb.Str(where).Str(": unknown field(s) ").
 			Str(pyListRepr(unknown)).String())
@@ -861,7 +860,7 @@ func refuseStale(stem, where string, stale []string) error {
 	if len(stale) == 0 {
 		return nil
 	}
-	sort.Strings(stale)
+	slices.Sort(stale)
 	var tb textbuf.Buffer
 	return errors.New(tb.Str(stem).Str(": ").Str(where).Str(" already holds ").
 		Str(pyListRepr(stale)).
@@ -973,6 +972,6 @@ func pointDirs(pointsDir string) []string {
 			out = append(out, dir)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }

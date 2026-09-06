@@ -11,7 +11,6 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -400,7 +399,7 @@ func rejectFamily(wanted string, seen map[string]struct{}) (*plugin.Response, er
 	for f := range seen {
 		known = append(known, f)
 	}
-	sort.Strings(known)
+	slices.Sort(known)
 	msg := fmt.Sprintf("unknown or un-negotiated family %q", wanted)
 	if len(known) == 0 {
 		msg += "; no peer has completed negotiation"

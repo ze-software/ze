@@ -16,7 +16,7 @@
 package isis
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -41,7 +41,7 @@ func newRecordingRegistry() *recordingRegistry {
 
 func (r *recordingRegistry) record(name string, labelNames []string) {
 	ls := append([]string(nil), labelNames...)
-	sort.Strings(ls)
+	slices.Sort(ls)
 	r.labels[name] = ls
 }
 

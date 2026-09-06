@@ -4,6 +4,7 @@ package cmdutil
 
 import (
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -307,7 +308,7 @@ func declaredValueCommands(t *testing.T) []string {
 		}
 	}
 	walk(cli.YANGCommandTree(), nil)
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -518,7 +519,7 @@ func shadowedDeclaredChildren(t *testing.T) map[string][]string {
 			}
 		}
 		walk(node, nil)
-		sort.Strings(out[entry.Path])
+		slices.Sort(out[entry.Path])
 	}
 	return out
 }
@@ -581,7 +582,7 @@ func declaredChildlessNode(t *testing.T) []string {
 	for name := range tree.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		child := tree.Children[name]
 		if len(child.Children) > 0 {
@@ -666,7 +667,7 @@ func undeclaredGroupingContainer(t *testing.T) ([]string, Resolution) {
 		for name := range node.Children {
 			names = append(names, name)
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 		for _, name := range names {
 			child := node.Children[name]
 			if len(child.Children) == 0 {

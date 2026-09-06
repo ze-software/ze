@@ -6,7 +6,7 @@
 package rfc
 
 import (
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -133,13 +133,13 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 				missing = append(missing, value)
 			}
 		}
-		sort.Strings(missing)
+		slices.Sort(missing)
 		for _, value := range missing {
 			held := make([]string, 0, len(polarity))
 			for current := range polarity {
 				held = append(held, current)
 			}
-			sort.Strings(held)
+			slices.Sort(held)
 			var tb textbuf.Buffer
 			var issue textbuf.Buffer
 			errs = append(errs, requirementFinding(req,

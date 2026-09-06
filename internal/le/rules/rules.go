@@ -22,7 +22,7 @@ package rules
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -81,7 +81,7 @@ func ruleFiles(rulesDir string) ([]string, error) {
 		}
 		out = append(out, filepath.Join(rulesDir, name))
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 
@@ -224,7 +224,7 @@ func sortedUnique(set map[string]bool) []string {
 	for key := range set {
 		out = append(out, key)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

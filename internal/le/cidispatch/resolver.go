@@ -18,7 +18,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -114,7 +114,7 @@ func newSurface(tree string) (Surface, error) {
 	for key := range seen {
 		keys = append(keys, strings.ToLower(key))
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return Surface{dispatcher: dispatcher, keys: keys}, nil
 }
 

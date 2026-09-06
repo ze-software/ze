@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -134,7 +135,7 @@ func Group(paths []string, maxAreas int) Report {
 
 	report.Areas = make([]Area, 0, len(byArea))
 	for area, files := range byArea {
-		sort.Strings(files)
+		slices.Sort(files)
 		report.Areas = append(report.Areas, Area{Area: area, Files: files})
 	}
 	sort.Slice(report.Areas, func(i, j int) bool {

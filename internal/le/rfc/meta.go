@@ -16,7 +16,7 @@ package rfc
 
 import (
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -524,7 +524,7 @@ func sortMetaStems(in map[string]Meta) []string {
 	for stem := range in {
 		out = append(out, stem)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

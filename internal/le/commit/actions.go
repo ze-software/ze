@@ -4,7 +4,7 @@ package commit
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -313,8 +313,8 @@ func clearDebtWith(root string, runner verifyengine.ActionRunner) (debtClearResu
 	for gate := range unrunnableSet {
 		result.Unrunnable = append(result.Unrunnable, gate)
 	}
-	sort.Strings(result.Runnable)
-	sort.Strings(result.Unrunnable)
+	slices.Sort(result.Runnable)
+	slices.Sort(result.Unrunnable)
 	passed := make(map[string]bool)
 	if len(result.Runnable) != 0 {
 		report := verify.Run(context.Background(), root, verify.Options{Commit: "HEAD"}, runner)

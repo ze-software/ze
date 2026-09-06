@@ -4,6 +4,7 @@ package domain
 
 import (
 	"encoding/json"
+	"slices"
 	"sort"
 	"strconv"
 
@@ -70,7 +71,7 @@ func (c *domainConfig) groupNames() []string {
 	for _, g := range c.groups {
 		names = append(names, g.Name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -90,7 +91,7 @@ func (c *domainConfig) referencedGroups() []string {
 		seen[r.Group] = true
 		names = append(names, r.Group)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -153,7 +154,7 @@ func parseDomainNames(v any) []string {
 			names = append(names, t)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

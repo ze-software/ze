@@ -13,7 +13,7 @@ package population
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 )
 
 // defaultUnexcused is the reason recorded against a member that no walk covered
@@ -123,7 +123,7 @@ func (c Claim) Assess() (Coverage, error) {
 			blind = append(blind, member)
 		}
 	}
-	sort.Strings(blind)
+	slices.Sort(blind)
 
 	unexcused := c.UnexcusedReason
 	if unexcused == "" {
@@ -149,7 +149,7 @@ func (c Claim) Assess() (Coverage, error) {
 			coverage.Healed = append(coverage.Healed, member)
 		}
 	}
-	sort.Strings(coverage.Healed)
+	slices.Sort(coverage.Healed)
 
 	if len(coverage.Unexcused) != 0 || len(coverage.Healed) != 0 {
 		coverage.Code = 1

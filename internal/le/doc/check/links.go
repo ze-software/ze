@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -203,7 +204,7 @@ func markdownCorpus(root string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("expanding markdown corpus %s: %w", pattern, err)
 		}
-		sort.Strings(matches)
+		slices.Sort(matches)
 		for _, match := range matches {
 			rel, err := filepath.Rel(root, match)
 			if err != nil {
@@ -446,7 +447,7 @@ func baselineFindings(root string, dead []deadCitation, baseline map[citationPai
 	for target := range uniqueTargets {
 		targets = append(targets, target)
 	}
-	sort.Strings(targets)
+	slices.Sort(targets)
 	ignored, err := checkIgnored(root, targets)
 	if err != nil {
 		return nil, nil, err

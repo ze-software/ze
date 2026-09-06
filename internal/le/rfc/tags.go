@@ -14,6 +14,7 @@ package rfc
 
 import (
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -237,7 +238,7 @@ func changedTagNames(text string) []string {
 	if len(found) == 0 {
 		return nil
 	}
-	sort.Strings(found)
+	slices.Sort(found)
 	return compactStrings(found)
 }
 

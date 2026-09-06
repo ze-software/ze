@@ -5,7 +5,7 @@ package rib
 
 import (
 	"encoding/json"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -338,6 +338,6 @@ func sortedRecordKeys(record map[string]any) []string {
 	for name := range record {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

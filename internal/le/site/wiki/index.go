@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -250,7 +251,7 @@ func refuseDanglingLinks(groups []Group, present map[string]bool) error {
 	if len(dangling) == 0 {
 		return nil
 	}
-	sort.Strings(dangling)
+	slices.Sort(dangling)
 	return fmt.Errorf("the wiki sidebar links %d page(s) the checkout does not hold: %s",
 		len(dangling), strings.Join(dangling, ", "))
 }
@@ -276,7 +277,7 @@ func refuseUnjudgedPages(present, listed map[string]bool) ([]Unlisted, error) {
 		accounted = append(accounted, Unlisted{Slug: slug, Why: why})
 	}
 	if len(unjudged) != 0 {
-		sort.Strings(unjudged)
+		slices.Sort(unjudged)
 		return nil, fmt.Errorf("the wiki sidebar does not list %d page(s) and nothing says why: %s"+
 			" -- list each one in %s, or state its reason in accountedUnlisted (internal/le/site/wiki/index.go)",
 			len(unjudged), strings.Join(unjudged, ", "), sidebarFile)

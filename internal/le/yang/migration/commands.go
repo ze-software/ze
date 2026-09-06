@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -123,7 +124,7 @@ func commandsToPlugins(root string, apply bool) (Report, error) {
 	}
 	sort.Slice(report.Moves, func(i, j int) bool { return report.Moves[i].Source < report.Moves[j].Source })
 	sort.Slice(report.Edits, func(i, j int) bool { return report.Edits[i].Path < report.Edits[j].Path })
-	sort.Strings(report.Skipped)
+	slices.Sort(report.Skipped)
 	if err := applyReport(root, &report); err != nil {
 		return report, err
 	}
@@ -154,7 +155,7 @@ func commandFiles(directory string, tests bool) ([]string, error) {
 			paths = append(paths, filepath.Join(directory, name))
 		}
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, nil
 }
 

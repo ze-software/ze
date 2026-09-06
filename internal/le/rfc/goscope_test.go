@@ -3,7 +3,7 @@ package rfc
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -76,8 +76,8 @@ func TestUnitAtResolvesEveryInScopeTag(t *testing.T) {
 	if inScope < 3000 {
 		t.Fatalf("only %d in-scope tag(s) were walked; this checkout carries thousands", inScope)
 	}
-	sort.Strings(unresolved)
-	sort.Strings(ambiguous)
+	slices.Sort(unresolved)
+	slices.Sort(ambiguous)
 	if len(unresolved) > 0 {
 		t.Errorf("%d of %d in-scope tag(s) resolve to no unit, so no record can name what they prove:\n%s",
 			len(unresolved), inScope, joinLimited(unresolved))

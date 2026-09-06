@@ -16,6 +16,7 @@ package ospf
 
 import (
 	"bytes"
+	"slices"
 	"sort"
 	"sync"
 
@@ -426,7 +427,7 @@ func activeInterfaceNames(cfg ospfConfig) []string {
 	for _, ic := range enrolled {
 		out = append(out, ic.Name)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

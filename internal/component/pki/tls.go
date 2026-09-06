@@ -8,7 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -93,7 +93,7 @@ func certificateNames(s *storeState) []string {
 	for n := range s.certificates {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -221,6 +221,6 @@ func configCertificateNames(cfg *PKIConfig) []string {
 	for n := range cfg.Certificates {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

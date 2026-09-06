@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 
@@ -92,7 +91,7 @@ func snapshot(t *testing.T, name string, got []string) {
 func TestRegisteredPluginNames(t *testing.T) {
 
 	names := registry.Names()
-	sort.Strings(names)
+	slices.Sort(names)
 
 	// linux-only plugins (e.g. iface-dhcp) are excluded from the
 	// cross-platform snapshot; TestPlatformPlugins covers them.
@@ -149,7 +148,7 @@ func TestRegisteredWireMethods(t *testing.T) {
 	for _, r := range rpcs {
 		methods = append(methods, r.WireMethod)
 	}
-	sort.Strings(methods)
+	slices.Sort(methods)
 
 	snapshot(t, "wire-methods", methods)
 }
@@ -165,7 +164,7 @@ func TestYANGSchemaProviders(t *testing.T) {
 	for n := range schemas {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	snapshot(t, "yang-providers", names)
 }

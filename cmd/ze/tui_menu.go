@@ -6,6 +6,7 @@ package main
 
 import (
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -113,7 +114,7 @@ func buildYANGLevel(path []string) menuLevel {
 	for name := range node.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	items := make([]menuItem, 0, len(names))
 	for _, name := range names {

@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -612,7 +611,7 @@ func allocationVerdicts(text string, ceilings map[string]int) ([]AllocationVerdi
 	for name := range ceilings {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	verdicts := make([]AllocationVerdict, 0, len(names))
 	var message textbuf.Buffer
 	for _, name := range names {

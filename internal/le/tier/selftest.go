@@ -18,7 +18,7 @@ package tier
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -622,7 +622,7 @@ func sortedNames(rows []Row) []string {
 	for _, row := range rows {
 		names = append(names, row.Name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

@@ -10,7 +10,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"testing"
 )
@@ -55,7 +55,7 @@ func RoutePatterns(t *testing.T, path string) ([]string, []DynamicPattern) {
 	scan := &routeScan{t: t, fset: fset}
 	scan.walk(file, "")
 
-	sort.Strings(scan.literal)
+	slices.Sort(scan.literal)
 
 	if len(scan.literal) == 0 {
 		t.Fatalf("%s registers no route with a literal pattern; the capture has lost its route list", path)

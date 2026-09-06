@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -81,7 +81,7 @@ func (et *EncodingTests) Discover(dir string) error {
 		return err
 	}
 
-	sort.Strings(files)
+	slices.Sort(files)
 
 	for _, ciFile := range files {
 		// Skip-and-warn on a parse error rather than aborting discovery: one

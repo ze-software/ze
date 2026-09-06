@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -157,7 +157,7 @@ func addressObjectFields(object map[string]any) []string {
 	for field := range object {
 		fields = append(fields, field)
 	}
-	sort.Strings(fields)
+	slices.Sort(fields)
 	return fields
 }
 

@@ -10,7 +10,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -258,7 +258,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	if !known {
 		t.Skip("git cannot read HEAD's blobs, so there is no committed state to seal")
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	digest := sha256.New()
 	for _, path := range paths {
 		if strings.HasSuffix(path, "_test.go") {

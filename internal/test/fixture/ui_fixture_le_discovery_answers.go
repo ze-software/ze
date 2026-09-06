@@ -15,7 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -373,7 +373,7 @@ func uiLeDiscoveryAnswersMergedEnvironment(overrides map[string]string) []string
 	for key := range overrides {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		env = append(env, key+"="+overrides[key])
 	}
@@ -575,7 +575,7 @@ func gitChangedFiles(ctx context.Context, root string) ([]string, error) {
 			}
 		}
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	unique := files[:0]
 	for _, name := range files {
 		if len(unique) == 0 || unique[len(unique)-1] != name {
@@ -590,7 +590,7 @@ func uiLeDiscoveryAnswersSortedKeys(values map[string]json.RawMessage) []string 
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

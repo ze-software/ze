@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -179,7 +179,7 @@ func (r *resolver) matchByMAC(name, want string) (*InterfaceInfo, error) {
 		for _, idx := range matched {
 			names = append(names, infos[idx].Name)
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 		return nil, fmt.Errorf("iface: MAC %s for logical interface %q is carried by %d devices (%s); a hardware MAC selects at most one device",
 			target, name, len(names), strings.Join(names, ", "))
 	}

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -48,7 +48,7 @@ func fixture06AllNextHops(entry map[string]any) []string {
 	for nextHop := range set {
 		out = append(out, nextHop)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

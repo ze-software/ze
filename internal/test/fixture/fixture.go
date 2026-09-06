@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -52,7 +52,7 @@ func Names() []string {
 	for name := range drivers {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

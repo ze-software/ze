@@ -15,7 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -71,7 +71,7 @@ func PrunableShards(tree string, keep map[string]bool) ([]string, error) {
 		stems = append(stems, stem)
 	}
 	// Sorted, so both callers speak about the files in one order.
-	sort.Strings(stems)
+	slices.Sort(stems)
 	return stems, nil
 }
 

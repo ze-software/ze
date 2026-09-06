@@ -7,7 +7,7 @@ package docvalid
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -93,7 +93,7 @@ func shapeRules(report HelpShapeReport) []string {
 			out = append(out, row.Rule)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -106,7 +106,7 @@ func shapeRPCRules(report HelpShapeReport) []string {
 			out = append(out, row.Rule)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -214,7 +214,7 @@ func shapeLocalRules(report HelpShapeReport) []string {
 			out = append(out, row.Rule)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

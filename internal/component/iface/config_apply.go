@@ -6,7 +6,7 @@ package iface
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -330,7 +330,7 @@ func (cfg *ifaceConfig) validateSelectors(infos []InterfaceInfo) error {
 		for _, idx := range matched {
 			names = append(names, infos[idx].Name)
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 		return fmt.Errorf("ethernet %q: MAC %s is carried by %d devices (%s); a hardware MAC selects at most one device",
 			e.Name, normalizeMAC(e.MatchMAC), len(names), strings.Join(names, ", "))
 	}

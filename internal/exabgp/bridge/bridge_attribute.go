@@ -17,7 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -107,7 +107,7 @@ func bridgeAttrNames() []string {
 	for name := range bridgeRouteAttrs {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

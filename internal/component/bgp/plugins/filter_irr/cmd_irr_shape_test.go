@@ -7,7 +7,7 @@ package filter_irr
 import (
 	"encoding/json"
 	"net/netip"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -256,6 +256,6 @@ func sortedNames(keys map[string]struct{}) []string {
 	for name := range keys {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

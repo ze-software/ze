@@ -4,7 +4,7 @@ package detect
 
 import (
 	"math"
-	"sort"
+	"slices"
 )
 
 type baseline struct {
@@ -99,7 +99,7 @@ func (b *baseline) recalc() {
 	}
 	sorted := make([]float64, len(b.samples))
 	copy(sorted, b.samples)
-	sort.Float64s(sorted)
+	slices.Sort(sorted)
 	idx := min(max(int(math.Ceil(float64(len(sorted))*0.99))-1, 0), len(sorted)-1)
 	b.p99Cache = sorted[idx]
 }

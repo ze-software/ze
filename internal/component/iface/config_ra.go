@@ -6,7 +6,7 @@ package iface
 import (
 	"fmt"
 	"net/netip"
-	"sort"
+	"slices"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/core/configvalue"
@@ -154,7 +154,7 @@ func raParsePrefixes(rm map[string]any, cfg *raUnitConfig) error {
 	for k := range pm {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		entry, _ := pm[key].(map[string]any)

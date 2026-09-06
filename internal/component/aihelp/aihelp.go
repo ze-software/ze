@@ -13,6 +13,7 @@
 package aihelp
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -148,7 +149,7 @@ func sortedChildren(node *command.Node) []string {
 	for name := range node.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -260,7 +261,7 @@ func Services() []Service {
 			for name := range svcEntry.Dir {
 				leafNames = append(leafNames, name)
 			}
-			sort.Strings(leafNames)
+			slices.Sort(leafNames)
 
 			for _, leafName := range leafNames {
 				child := svcEntry.Dir[leafName]
@@ -278,7 +279,7 @@ func Services() []Service {
 			}
 
 			svc.EnvVars = matchEnvVars(svcName, leafNames)
-			sort.Strings(svc.EnvVars)
+			slices.Sort(svc.EnvVars)
 
 			services = append(services, svc)
 		}
@@ -321,7 +322,7 @@ func Build() Reference {
 			}
 		}
 	}
-	sort.Strings(ref.Families)
+	slices.Sort(ref.Families)
 
 	for _, svc := range Services() {
 		leafNames := make([]string, len(svc.Leaves))

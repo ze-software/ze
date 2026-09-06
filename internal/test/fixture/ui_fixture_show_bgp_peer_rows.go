@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -374,7 +374,7 @@ system {
 		if err != nil {
 			return fmt.Errorf("%s lost a peer row: %v: %w", severalCommand, several, err)
 		}
-		sort.Strings(severalAddresses)
+		slices.Sort(severalAddresses)
 		if err := fixture.Observe(
 			uiShowBgpPeerRowsEqualStrings(severalAddresses, []string{addrTestNet1First, addrTestNet1Second}),
 			"%s lost a peer row: %v",
@@ -576,7 +576,7 @@ func uiShowBgpPeerRowsSortedKeys(row map[string]any) []string {
 	for key := range row {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

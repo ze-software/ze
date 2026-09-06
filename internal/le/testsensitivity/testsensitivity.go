@@ -202,7 +202,7 @@ func collectTestFiles(root string, population Population) ([]string, error) {
 			return nil, fmt.Errorf("walk %s: %w", dir, err)
 		}
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 
@@ -254,7 +254,7 @@ func trackedTestFiles(root string) ([]string, error) {
 		}
 		files = append(files, abs)
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 
@@ -304,6 +304,6 @@ func sortedKeys[V any](m map[string]V) []string {
 	for key := range m {
 		out = append(out, key)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }

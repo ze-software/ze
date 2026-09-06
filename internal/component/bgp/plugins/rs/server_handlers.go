@@ -12,7 +12,6 @@ import (
 	"maps"
 	"net/netip"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -219,7 +218,7 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 		// Map iteration is unordered, so without this the same peer-down emits a
 		// different byte sequence on every run: unreadable in a log, and
 		// untestable on the wire. Cold path, once per peer-down.
-		sort.Strings(nlris)
+		slices.Sort(nlris)
 		for i := 0; i < len(nlris); i += withdrawalBatchSize {
 			end := min(i+withdrawalBatchSize, len(nlris))
 			batch := nlris[i:end]
@@ -481,7 +480,7 @@ func (rs *routeServer) sendEOR(peerAddr string, gen uint64) {
 	rs.mu.RUnlock()
 
 	// Sort for deterministic ordering in tests and logs.
-	sort.Strings(families)
+	slices.Sort(families)
 
 	for _, fam := range families {
 		rs.updateRoute(peerAddr, "update text nlri "+fam+" eor")

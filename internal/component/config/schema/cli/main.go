@@ -166,7 +166,7 @@ func cmdList(args, plugins []string) int {
 		return 0
 	}
 
-	sort.Strings(modules)
+	slices.Sort(modules)
 
 	// Print header
 	fmt.Printf("%-24s %-20s %-16s %s\n", "Module", "Namespace", "Wants Config", "Imports")
@@ -252,7 +252,7 @@ func cmdHandlers(args, plugins []string) int {
 	for path := range handlers {
 		paths = append(paths, path)
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 
 	fmt.Println("Handler → Module mapping:")
 	for _, path := range paths {

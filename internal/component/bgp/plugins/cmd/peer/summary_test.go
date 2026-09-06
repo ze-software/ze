@@ -3,7 +3,7 @@ package peer
 import (
 	"encoding/json"
 	"net/netip"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -747,7 +747,7 @@ func spellingOf(t *testing.T, handler peerRowHandler, peers []plugin.PeerInfo, s
 	for key := range envelope {
 		spelling.keys = append(spelling.keys, key)
 	}
-	sort.Strings(spelling.keys)
+	slices.Sort(spelling.keys)
 	return spelling
 }
 

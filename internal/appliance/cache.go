@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -107,7 +108,7 @@ func kernelBuilderSources() (paths []string, ok bool) {
 			return nil, false
 		}
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, len(paths) > 0
 }
 
@@ -158,7 +159,7 @@ func kernelPatchSources(target string) (paths []string, ok bool) {
 	if err != nil || len(paths) == 0 {
 		return nil, false
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, true
 }
 
@@ -214,7 +215,7 @@ func initrdSourceFiles() (paths []string, ok bool) {
 			}
 		}
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, true
 }
 

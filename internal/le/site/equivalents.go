@@ -10,6 +10,7 @@ import (
 	"html"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -482,7 +483,7 @@ func groupEquivalentRows(rows []equivalentRow) []equivalentGroup {
 		}
 		byVerb[row.Group] = append(byVerb[row.Group], row)
 	}
-	sort.Strings(verbs)
+	slices.Sort(verbs)
 	groups := make([]equivalentGroup, 0, len(verbs))
 	for _, verb := range verbs {
 		groups = append(groups, equivalentGroup{Label: verb, Rows: byVerb[verb]})

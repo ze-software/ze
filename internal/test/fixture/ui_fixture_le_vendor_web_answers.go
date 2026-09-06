@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -100,7 +100,7 @@ func leVendorWebAnswers(parent context.Context) error {
 			for present := range report {
 				keys = append(keys, present)
 			}
-			sort.Strings(keys)
+			slices.Sort(keys)
 			return fmt.Errorf("FAIL: the report answered no %q key: %v", key, keys)
 		}
 	}
@@ -407,7 +407,7 @@ func leVendorWebDiffering(left, right map[string][]byte) []string {
 			differing = append(differing, name)
 		}
 	}
-	sort.Strings(differing)
+	slices.Sort(differing)
 	return differing
 }
 

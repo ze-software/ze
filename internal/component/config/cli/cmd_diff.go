@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -238,7 +238,7 @@ func outputDiffText(diff *config.ConfigDiff) int {
 		for k := range diff.Changed {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, k := range keys {
 			pair := diff.Changed[k]
 			fmt.Printf("~ %s: %v -> %v\n", k, pair.Old, pair.New)
@@ -253,6 +253,6 @@ func sortedKeys(m map[string]any) []string {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }

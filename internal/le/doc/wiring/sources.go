@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -262,7 +261,7 @@ func digestBases(root string) ([]string, error) {
 	for base := range bases {
 		out = append(out, base)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 
@@ -386,7 +385,7 @@ func ChangedFiles(root string) ([]string, error) {
 	for path := range files {
 		out = append(out, path)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 

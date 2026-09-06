@@ -12,7 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -332,7 +332,7 @@ func raceTags(root, extra string) (string, error) {
 	for tag := range tagSet {
 		features = append(features, tag)
 	}
-	sort.Strings(features)
+	slices.Sort(features)
 	tags = append(tags, features...)
 	if extra != "" {
 		tags = append(tags, extra)

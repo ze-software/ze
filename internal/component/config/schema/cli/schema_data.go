@@ -18,6 +18,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -46,7 +47,7 @@ func dataList(_ []string) (any, int) {
 		return nil, 1
 	}
 	modules := registry.ListModules()
-	sort.Strings(modules)
+	slices.Sort(modules)
 
 	rows := make([]map[string]any, 0, len(modules))
 	for _, name := range modules {
@@ -80,7 +81,7 @@ func dataHandlers(_ []string) (any, int) {
 	for path := range handlers {
 		paths = append(paths, path)
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 
 	rows := make([]map[string]any, 0, len(paths))
 	for _, path := range paths {

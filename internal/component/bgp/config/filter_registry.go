@@ -5,7 +5,7 @@ package bgpconfig
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -69,7 +69,7 @@ func (r *FilterRegistry) Names() []string {
 	for n := range r.entries {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -139,7 +139,7 @@ func manifestText(start, end map[string]string) string {
 			paths = append(paths, rel)
 		}
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 
 	var text textbuf.Buffer
 	text.Reset()
@@ -303,7 +303,7 @@ func scopedRows(manifest map[string]string, paths []string) []string {
 			}
 		}
 	}
-	sort.Strings(rows)
+	slices.Sort(rows)
 	return rows
 }
 

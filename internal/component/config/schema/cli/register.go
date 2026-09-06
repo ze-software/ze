@@ -9,7 +9,7 @@
 package cli
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
@@ -38,7 +38,7 @@ var schemaCommands = []string{subList, "methods", "events", subHandlers, subProt
 func subcommands() string {
 	sorted := make([]string, len(schemaCommands))
 	copy(sorted, schemaCommands)
-	sort.Strings(sorted)
+	slices.Sort(sorted)
 	return textbuf.Join(sorted, ", ")
 }
 

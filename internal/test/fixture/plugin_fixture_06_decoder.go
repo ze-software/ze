@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -175,7 +175,7 @@ func fixture06DispatchSingleDecode(ctx context.Context, p *sdk.Plugin) error {
 	for key := range data {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	fmt.Fprintf(os.Stderr, "OK: data is object with keys: %v\n", keys)
 	_, _, _ = p.DispatchCommand(ctx, "clear bgp rib in")
 	fmt.Fprintln(os.Stderr, "OK: error returned (RPC path or error field)")

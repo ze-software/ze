@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -321,7 +320,7 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 				}
 			}
 		}
-		sort.Strings(scope)
+		slices.Sort(scope)
 		for path := range files {
 			seen[path] = true
 		}

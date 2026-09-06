@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"sort"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -68,7 +69,7 @@ func showProfiles() any {
 	for name := range all {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	type mapEntry struct {
 		From uint32 `json:"from"`

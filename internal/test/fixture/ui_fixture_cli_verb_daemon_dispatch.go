@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -536,7 +536,7 @@ func uiCliVerbDaemonDispatchEnvironment(updates map[string]string) []string {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	env := make([]string, 0, len(keys))
 	for _, key := range keys {

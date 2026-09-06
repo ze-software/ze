@@ -10,7 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -304,7 +304,7 @@ func sortedGoExtractKeys(row map[string]any) []string {
 	for key := range row {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -313,6 +313,6 @@ func sortedGoExtractFileNames(files map[string]string) []string {
 	for name := range files {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

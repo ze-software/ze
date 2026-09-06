@@ -10,7 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -194,7 +194,7 @@ func changesPostSlugs(source string) ([]string, error) {
 		}
 		slugs = append(slugs, strings.TrimSuffix(entry.Name(), markdownExtension))
 	}
-	sort.Strings(slugs)
+	slices.Sort(slugs)
 	return slugs, nil
 }
 

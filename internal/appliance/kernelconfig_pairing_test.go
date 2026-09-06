@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -149,7 +149,7 @@ func TestEveryRuntimeConfigSymbolIsAssertedOrAcknowledged(t *testing.T) {
 		}
 		unpaired = append(unpaired, symbol)
 	}
-	sort.Strings(unpaired)
+	slices.Sort(unpaired)
 	if len(unpaired) != 0 {
 		t.Errorf("runtime.config turns on %d symbol(s) that runtime.require does not assert and unverifiedRuntimeSymbols does not acknowledge.\n"+
 			"Kconfig drops an unknown symbol silently, so one of these misspelled ships as a no-op.\n"+

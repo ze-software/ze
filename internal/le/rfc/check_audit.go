@@ -7,7 +7,7 @@ package rfc
 
 import (
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -94,7 +94,7 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 				for polarity := range polarities {
 					held = append(held, polarity)
 				}
-				sort.Strings(held)
+				slices.Sort(held)
 				if len(held) == 0 {
 					held = []string{"none"}
 				}
@@ -121,7 +121,7 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 			for key := range tests {
 				keys = append(keys, key)
 			}
-			sort.Strings(keys)
+			slices.Sort(keys)
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'not-applicable' but cites tests (").Str(strings.Join(keys, ", ")).Str("). If a test can exercise it, a reachable code path exists and the verdict is a judgement about that test").String())
 		}

@@ -8,7 +8,7 @@ package config
 import (
 	"fmt"
 	"maps"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -411,7 +411,7 @@ func (mt *MetaTree) AllSessions() []string {
 	for s := range seen {
 		sessions = append(sessions, s)
 	}
-	sort.Strings(sessions)
+	slices.Sort(sessions)
 	return sessions
 }
 

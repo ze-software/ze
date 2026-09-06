@@ -33,7 +33,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -167,7 +166,7 @@ func collectEdges(tree, module string) (Edges, error) {
 		return nil, err
 	}
 	for imported := range edges {
-		sort.Strings(edges[imported])
+		slices.Sort(edges[imported])
 	}
 	return edges, nil
 }
@@ -195,9 +194,9 @@ func (e Edges) importersOf(pkgPrefix, ownPrefix string) (external, registration,
 			}
 		}
 	}
-	sort.Strings(external)
-	sort.Strings(registration)
-	sort.Strings(tests)
+	slices.Sort(external)
+	slices.Sort(registration)
+	slices.Sort(tests)
 	return external, registration, tests
 }
 
@@ -243,7 +242,7 @@ func Classify(area, tree, module string, edges Edges, engines map[string]bool) (
 			names = append(names, entry.Name())
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	rows := make([]Row, 0, len(names))
 	for _, name := range names {
@@ -329,7 +328,7 @@ func findEngineDirs(tree string, nested []string) ([]string, error) {
 			return nil, err
 		}
 	}
-	sort.Strings(engines)
+	slices.Sort(engines)
 	return engines, nil
 }
 
@@ -446,6 +445,6 @@ func sortedKeys(items map[string]string) []string {
 	for key := range items {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }

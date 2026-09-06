@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/journal"
@@ -154,7 +154,7 @@ func oneStem(stems map[string]bool) (string, error) {
 		for stem := range stems {
 			names = append(names, stem)
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 		return "", fmt.Errorf("commit names more than one spec closure: %s", strings.Join(names, ", "))
 	}
 	for stem := range stems {
@@ -182,7 +182,7 @@ func CheckReview(root, stem string, paths []string) ReviewResult {
 			result.CodeFiles = append(result.CodeFiles, path)
 		}
 	}
-	sort.Strings(result.CodeFiles)
+	slices.Sort(result.CodeFiles)
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(artifact))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 	if err != nil {
 		result.Problems = []string{"no independent-review artifact at " + artifact}

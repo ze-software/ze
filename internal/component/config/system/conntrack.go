@@ -4,7 +4,7 @@ package system
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -370,7 +370,7 @@ func (c *ConntrackConfig) ValidateModules() error {
 	for _, m := range c.Modules {
 		if !ValidConntrackModule(m) {
 			names := AllConntrackModules()
-			sort.Strings(names)
+			slices.Sort(names)
 			return fmt.Errorf("conntrack: unknown module %q (valid: %s)", m, textbuf.Join(names, ", "))
 		}
 	}

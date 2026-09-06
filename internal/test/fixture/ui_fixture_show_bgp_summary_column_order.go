@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -428,6 +428,6 @@ func equalBGPColumnOrderStrings(left, right []string) bool {
 
 func sortedBGPColumnOrderStrings(values []string) bool {
 	ordered := append([]string(nil), values...)
-	sort.Strings(ordered)
+	slices.Sort(ordered)
 	return equalBGPColumnOrderStrings(values, ordered)
 }

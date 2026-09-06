@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -336,7 +336,7 @@ func sortedCounters(counters map[string]uint64) string {
 	for spi := range counters {
 		spis = append(spis, spi)
 	}
-	sort.Strings(spis)
+	slices.Sort(spis)
 	var out textbuf.Buffer
 	for index, spi := range spis {
 		if index > 0 {
@@ -376,7 +376,7 @@ func assertESPAdvanced(before, after map[saKey]uint64, want espDirection) error 
 			want.summary, want.source, want.target, want.peer,
 			sortedCounters(beforeBytes), sortedCounters(afterBytes))
 	}
-	sort.Strings(common)
+	slices.Sort(common)
 	return fmt.Errorf("%s: src %s dst %s at %s did not advance (before=%s after=%s, common SPIs %v)",
 		want.summary, want.source, want.target, want.peer,
 		sortedCounters(beforeBytes), sortedCounters(afterBytes), common)
@@ -561,7 +561,7 @@ func (l *scenarioLab) espPolicyPairs(ctx context.Context, peer string) (map[stri
 			return
 		}
 		pair := []string{source, destination}
-		sort.Strings(pair)
+		slices.Sort(pair)
 		key := tb.Reset().Str(pair[0]).Byte('|').Str(pair[1]).String()
 		pairs[key] = struct{}{}
 	}
@@ -583,7 +583,7 @@ func (l *scenarioLab) espPolicyPairs(ctx context.Context, peer string) (map[stri
 
 func policyPair(first, second string) string {
 	values := []string{first, second}
-	sort.Strings(values)
+	slices.Sort(values)
 	var tb textbuf.Buffer
 	return tb.Str(values[0]).Byte('|').Str(values[1]).String()
 }

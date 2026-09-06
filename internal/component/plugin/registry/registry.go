@@ -24,7 +24,6 @@ import (
 	"maps"
 	"net"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 
@@ -470,7 +469,7 @@ func FilterTypesDischarging(obligation string) []string {
 		}
 		types = append(types, reg.FilterTypes...)
 	}
-	sort.Strings(types)
+	slices.Sort(types)
 	return types
 }
 
@@ -616,7 +615,7 @@ func All() []*Registration {
 	for name := range plugins {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	result := make([]*Registration, len(names))
 	for i, name := range names {
@@ -634,7 +633,7 @@ func Names() []string {
 	for name := range plugins {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -1301,7 +1300,7 @@ func TopologicalTiers(names []string) ([][]string, error) {
 		}
 
 		// Sort tier for deterministic ordering.
-		sort.Strings(tier)
+		slices.Sort(tier)
 		tiers = append(tiers, tier)
 
 		// Remove tier nodes: set in-degree to -1 (processed), decrement dependents.

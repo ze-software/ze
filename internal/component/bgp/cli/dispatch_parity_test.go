@@ -6,7 +6,6 @@ import (
 	"go/token"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 )
@@ -32,10 +31,10 @@ func TestDispatchParity(t *testing.T) {
 		}
 		wantCommands = append(wantCommands, c)
 	}
-	sort.Strings(wantCommands)
+	slices.Sort(wantCommands)
 
 	gotCommands := append([]string(nil), bgpCommands...)
-	sort.Strings(gotCommands)
+	slices.Sort(gotCommands)
 
 	// Every switch case (minus exclusions) must appear in the slice.
 	for _, c := range wantCommands {

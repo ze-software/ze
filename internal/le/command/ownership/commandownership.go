@@ -28,7 +28,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -183,7 +183,7 @@ func ownerCommandDirs(s *scan) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(dirs)
+	slices.Sort(dirs)
 	return dirs, nil
 }
 
@@ -306,7 +306,7 @@ func checkNoOwnerAllowlistHasNoOwnerHandlers(s *scan) (Findings, error) {
 			names = append(names, root)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	var out Findings
 	for _, root := range names {

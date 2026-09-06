@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -152,7 +152,7 @@ func plugin15RuntimeMemory(ctx context.Context, p *sdk.Plugin) error {
 	for key := range m {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	fmt.Fprintf(os.Stderr, "OK: runtime memory returned %v\n", keys)
 	return nil
 }
@@ -349,8 +349,8 @@ func plugin15RIBBestWalk(ctx context.Context, p *sdk.Plugin) error {
 				for i := range routes {
 					wantPrefixes[i] = fmt.Sprintf("10.10.%d.0/24", i)
 				}
-				sort.Strings(gotPrefixes)
-				sort.Strings(wantPrefixes)
+				slices.Sort(gotPrefixes)
+				slices.Sort(wantPrefixes)
 				if !reflect.DeepEqual(gotPrefixes, wantPrefixes) {
 					failures = append(failures, fmt.Sprintf("best: prefixes %v != %v", gotPrefixes, wantPrefixes))
 				} else {

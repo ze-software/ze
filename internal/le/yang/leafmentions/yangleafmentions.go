@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -144,7 +145,7 @@ func discoverYangDirs(root string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(dirs)
+	slices.Sort(dirs)
 	return dirs, nil
 }
 

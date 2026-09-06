@@ -6,7 +6,7 @@ package yang
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/openconfig/goyang/pkg/yang"
@@ -70,7 +70,7 @@ func extractMetadata(mod *yang.Module) *Metadata {
 		for _, imp := range mod.Import {
 			imports = append(imports, imp.Name)
 		}
-		sort.Strings(imports)
+		slices.Sort(imports)
 		meta.Imports = imports
 	}
 

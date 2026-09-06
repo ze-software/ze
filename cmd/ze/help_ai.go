@@ -345,7 +345,7 @@ func printFamilies(rw *helpfmt.RenderWriter) {
 	for f := range families {
 		sorted = append(sorted, f)
 	}
-	sort.Strings(sorted)
+	slices.Sort(sorted)
 
 	var tb textbuf.Buffer
 	for _, fam := range sorted {

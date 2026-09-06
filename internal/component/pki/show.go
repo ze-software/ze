@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -261,7 +262,7 @@ func lookupCert(name string) (string, *CACertEntry, *CertificateEntry, *plugin.R
 	for n := range s.certificates {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	var tb textbuf.Buffer
 	if len(names) > 0 {

@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -139,7 +139,7 @@ func logSet04(ctx context.Context, p *sdk.Plugin) error {
 	for name := range levels {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	name := names[0]
 	if _, err := requireDone04(ctx, p, "request log level "+name+" debug"); err != nil {
 		return err

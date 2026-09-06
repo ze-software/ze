@@ -5,7 +5,7 @@ package yang
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -139,7 +139,7 @@ func (r *ValidatorRegistry) Names() []string {
 	for name := range r.validators {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -191,7 +191,7 @@ func CheckAllValidatorsRegistered(loader *Loader, reg *ValidatorRegistry) error 
 		missing = append(missing, name)
 	}
 	if len(missing) > 0 {
-		sort.Strings(missing)
+		slices.Sort(missing)
 		return fmt.Errorf("missing validator registrations: %s", textbuf.Join(missing, ", "))
 	}
 	return nil

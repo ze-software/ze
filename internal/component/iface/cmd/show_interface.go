@@ -10,7 +10,7 @@
 package cmd
 
 import (
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -188,7 +188,7 @@ func showInterfaceByType(wanted string) (*plugin.Response, error) {
 				valid = append(valid, t)
 			}
 		}
-		sort.Strings(valid)
+		slices.Sort(valid)
 		msg := "unknown interface type " + strconv.Quote(wanted)
 		if len(valid) == 0 {
 			msg += "; no interfaces have a classified type"

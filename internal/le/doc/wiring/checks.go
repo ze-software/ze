@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -121,7 +121,7 @@ func realCIFiles(root string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 
@@ -426,7 +426,7 @@ func realCIFilesIncludingDrafts(root string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 
@@ -573,7 +573,7 @@ func (g *checker) checkDocDrift() CheckResult {
 		return CheckResult{Output: tb.Byte('\n').String()}
 	}
 
-	sort.Strings(findings)
+	slices.Sort(findings)
 	g.declareFailureGroup(checkDocDriftName, sortedKeys(related),
 		"a changed symbol's documentation did not change with it", actionRerun)
 	return CheckResult{Failed: true, Violations: findings}
@@ -819,7 +819,7 @@ func sortedKeys(set map[string]bool) []string {
 	for key := range set {
 		out = append(out, key)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -853,7 +853,7 @@ func functionalTestAdvisory(changed []string) string {
 	tb.Str("ADVISORY: user-facing code changed without a functional-test change")
 	for _, suite := range sortedKeys(setOf(suites)) {
 		paths := suites[suite]
-		sort.Strings(paths)
+		slices.Sort(paths)
 		tb.Str("\n  expected coverage in ").Str(suite).Str(" for: ").Join(paths, ", ")
 	}
 	return tb.Str("\n  see ai/rules/testing.md").String()

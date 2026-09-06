@@ -948,7 +948,7 @@ func wikiExpectedVerbGroups(live []publishedCommand) []wikiVerbGroup {
 	for verb := range commands {
 		verbs = append(verbs, verb)
 	}
-	sort.Strings(verbs)
+	slices.Sort(verbs)
 	for _, verb := range verbs {
 		group := commands[verb]
 		sort.Slice(group, func(left, right int) bool {
@@ -2435,7 +2435,7 @@ func equivalentHTMLCommandIdentities(
 	for id := range document.rows {
 		ids = append(ids, id)
 	}
-	sort.Strings(ids)
+	slices.Sort(ids)
 	var identities []renderedCommandIndexIdentity
 	for _, id := range ids {
 		slug, idValid := strings.CutPrefix(id, "cmd-eq-")
@@ -2994,8 +2994,8 @@ func commandNameDifferences(expected, actual []string) (missing, extra []string)
 			extra = append(extra, name)
 		}
 	}
-	sort.Strings(missing)
-	sort.Strings(extra)
+	slices.Sort(missing)
+	slices.Sort(extra)
 	return missing, extra
 }
 
@@ -5903,7 +5903,7 @@ func compareRenderedCommandSurfaces(
 	for path := range expected {
 		paths = append(paths, path)
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	for _, relative := range paths {
 		publishedPath := filepath.Join(publicRoot, filepath.FromSlash(relative))
 		if _, err := os.ReadFile(publishedPath); err != nil { //nolint:gosec // generated sibling artifact

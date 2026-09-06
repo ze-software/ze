@@ -8,7 +8,7 @@ package config
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -360,7 +360,7 @@ func serializeAnnotatedList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 	}
 
 	for _, key := range keys {
@@ -428,7 +428,7 @@ func serializeAnnotatedFreeform(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 	for k := range child.values {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		v := child.values[k]
@@ -501,7 +501,7 @@ func serializeAnnotatedFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, key := range keys {
 			entry := entries[key]
 			entryMeta := metaListEntry(meta, name, key)
@@ -531,7 +531,7 @@ func serializeAnnotatedInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTree,
 	for k := range entries {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		entry := entries[key]
@@ -613,7 +613,7 @@ func serializeAnnotatedExtraValues(b *textbuf.Buffer, tree *Tree, meta *MetaTree
 	if len(extraKeys) == 0 {
 		return
 	}
-	sort.Strings(extraKeys)
+	slices.Sort(extraKeys)
 
 	prefix := strings.Repeat("\t", indent)
 	for _, k := range extraKeys {
@@ -775,7 +775,7 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 			for k := range child.values {
 				keys = append(keys, k)
 			}
-			sort.Strings(keys)
+			slices.Sort(keys)
 			for _, k := range keys {
 				v := child.values[k]
 				writeAnnotatedLeafGutter(b, childMeta, k, columns)
@@ -813,7 +813,7 @@ func serializeAnnotatedSetList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 	}
 
 	for _, key := range keys {
@@ -862,7 +862,7 @@ func serializeAnnotatedSetFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, key := range keys {
 			entry := entries[key]
 			entryPath := tb.Reset().Str(path).Byte(' ').Str(quoteIfNeeded(key)).String()
@@ -884,7 +884,7 @@ func serializeAnnotatedSetInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTr
 	for k := range entries {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		entry := entries[key]

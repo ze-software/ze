@@ -13,7 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -442,7 +442,7 @@ func withGuestEnv(base []string, values map[string]string) []string {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		var line textbuf.Buffer
 		out = append(out, line.Str(key).Byte('=').Str(values[key]).String())

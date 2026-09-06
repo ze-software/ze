@@ -5,7 +5,6 @@ import (
 	"go/parser"
 	"go/token"
 	"slices"
-	"sort"
 	"testing"
 )
 
@@ -35,10 +34,10 @@ func TestDispatchParity(t *testing.T) {
 		}
 		wantCommands = append(wantCommands, c)
 	}
-	sort.Strings(wantCommands)
+	slices.Sort(wantCommands)
 
 	gotCommands := append([]string(nil), schemaCommands...)
-	sort.Strings(gotCommands)
+	slices.Sort(gotCommands)
 
 	for _, c := range wantCommands {
 		if !slices.Contains(gotCommands, c) {

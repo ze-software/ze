@@ -12,7 +12,7 @@
 package rfc
 
 import (
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -271,7 +271,7 @@ func evidencePhrase(counts map[string]int) string {
 			extra = append(extra, label)
 		}
 	}
-	sort.Strings(extra)
+	slices.Sort(extra)
 	for _, label := range extra {
 		var tb textbuf.Buffer
 		parts = append(parts, tb.Str(label).Byte(' ').Int(int64(counts[label])).String())

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -422,7 +422,7 @@ func runtimeSubscribe02(ctx context.Context, plugin *sdk.Plugin, events <-chan s
 	if err != nil {
 		return err
 	}
-	sort.Strings(granted)
+	slices.Sort(granted)
 	if len(granted) != 2 || granted[0] != "keepalive" || granted[1] != eventState {
 		return fmt.Errorf("RUNTIME-SUB: configured receive grant changed: %v", granted)
 	}

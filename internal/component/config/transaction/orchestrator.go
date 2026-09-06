@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"sync"
 	"time"
 
@@ -579,7 +578,7 @@ func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, dif
 			uncovered = append(uncovered, p.Name)
 		}
 	}
-	sort.Strings(uncovered)
+	slices.Sort(uncovered)
 	return uncovered
 }
 

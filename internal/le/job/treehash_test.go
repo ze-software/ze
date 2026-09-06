@@ -12,7 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -148,7 +148,7 @@ func fixtureTreeHash(t *testing.T, dir string) string {
 		}
 	}
 	untracked := strings.Split(strings.TrimSuffix(string(runGitOutput(t, dir, "ls-files", "-o", "--exclude-standard")), "\n"), "\n")
-	sort.Strings(untracked)
+	slices.Sort(untracked)
 	for _, rel := range untracked {
 		if rel == "" {
 			continue

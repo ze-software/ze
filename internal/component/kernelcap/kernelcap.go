@@ -23,6 +23,7 @@ package kernelcap
 
 import (
 	"errors"
+	"slices"
 	"sort"
 	"sync"
 
@@ -181,7 +182,7 @@ func Enrolled() []string {
 	for i := range capabilities.entries {
 		names = append(names, capabilities.entries[i].Subsystem)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

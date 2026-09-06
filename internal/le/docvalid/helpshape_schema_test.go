@@ -6,7 +6,7 @@
 package docvalid
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -21,7 +21,7 @@ func shapeSchemaPaths(report HelpShapeReport, rule string) []string {
 			out = append(out, row.Path)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

@@ -9,7 +9,7 @@ package config
 import (
 	"fmt"
 	"maps"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/configorder"
@@ -433,7 +433,7 @@ func (t *Tree) ContainerNames() []string {
 	for k := range t.containers {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -642,7 +642,7 @@ func (t *Tree) MultiValueNames() []string {
 	for k := range t.multiValues {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

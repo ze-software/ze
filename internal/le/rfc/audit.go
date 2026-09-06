@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -570,7 +569,7 @@ func (k *keyOrder) orderOf(object map[string]any) []string {
 	for key := range object {
 		out = append(out, key)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

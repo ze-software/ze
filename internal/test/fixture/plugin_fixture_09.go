@@ -10,7 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -201,7 +201,7 @@ func interfaceTypeShow09(ctx context.Context, _ []string) error {
 				}
 			}
 		}
-		sort.Strings(expected)
+		slices.Sort(expected)
 		filtered := dispatch09(ctx, p, "show interface type "+wanted)
 		wrapper := map09(filtered.data)
 		filteredRows, ok := wrapper["interfaces"].([]any)
@@ -218,7 +218,7 @@ func interfaceTypeShow09(ctx context.Context, _ []string) error {
 				return fmt.Errorf("interface-type %s: row %s has type=%q", wanted, name, typeName)
 			}
 		}
-		sort.Strings(got)
+		slices.Sort(got)
 		if strings.Join(got, "\x00") != strings.Join(expected, "\x00") {
 			return fmt.Errorf("interface-type %s: filtered set %v != expected %v", wanted, got, expected)
 		}

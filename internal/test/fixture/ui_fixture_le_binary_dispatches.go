@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -415,7 +415,7 @@ func uiLeBinaryDispatchesSortedKeys(values map[string]any) []string {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -424,6 +424,6 @@ func sortedSet(values map[string]struct{}) []string {
 	for value := range values {
 		items = append(items, value)
 	}
-	sort.Strings(items)
+	slices.Sort(items)
 	return items
 }

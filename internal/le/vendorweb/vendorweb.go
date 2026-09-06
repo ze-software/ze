@@ -28,7 +28,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -124,7 +124,7 @@ func vendorPackages(root string) (pkgs []vendorPackage, skipped map[string]strin
 			continue
 		}
 
-		sort.Strings(pkg.files)
+		slices.Sort(pkg.files)
 		pkgs = append(pkgs, pkg)
 	}
 
@@ -177,7 +177,7 @@ func consumerDirs(root string) ([]string, error) {
 		return nil, fmt.Errorf("%s holds no %s/ directory, so nothing could be compared", base, consumerDirName)
 	}
 
-	sort.Strings(dirs)
+	slices.Sort(dirs)
 
 	return dirs, nil
 }

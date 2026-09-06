@@ -9,7 +9,6 @@ package config
 import (
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -150,7 +149,7 @@ func sortedEntryKeys(m map[string][]MetaEntry) []string {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -160,7 +159,7 @@ func sortedMapKeys(m map[string]*MetaTree) []string {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -356,7 +355,7 @@ func serializeBlameList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name stri
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 	}
 
 	for _, key := range keys {
@@ -412,7 +411,7 @@ func serializeBlameFreeform(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 	for k := range child.values {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		v := child.values[k]
@@ -483,7 +482,7 @@ func serializeBlameFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name stri
 		for k := range entries {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, key := range keys {
 			entry := entries[key]
 			entryMeta := metaListEntry(meta, name, key)
@@ -513,7 +512,7 @@ func serializeBlameInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, nam
 	for k := range entries {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		entry := entries[key]
@@ -594,7 +593,7 @@ func serializeBlameExtraValues(b *textbuf.Buffer, tree *Tree, meta *MetaTree, ch
 	if len(extraKeys) == 0 {
 		return
 	}
-	sort.Strings(extraKeys)
+	slices.Sort(extraKeys)
 
 	prefix := strings.Repeat("\t", indent)
 	for _, k := range extraKeys {

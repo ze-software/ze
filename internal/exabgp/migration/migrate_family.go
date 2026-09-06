@@ -6,7 +6,7 @@
 package migration
 
 import (
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -22,7 +22,7 @@ const (
 func convertFamilyToList(src, dst *config.Tree) {
 	// Get keys and sort for deterministic output.
 	keys := src.Values()
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	// Families go into session > family.
 	sessionContainer := dst.GetContainer("session")
@@ -85,7 +85,7 @@ func convertNexthopBlock(src *config.Tree) *config.Tree {
 
 	// Get keys and sort for deterministic output.
 	keys := src.Values()
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		// ExaBGP stores "ipv4 unicast ipv6" as key, value "true".

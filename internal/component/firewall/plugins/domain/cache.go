@@ -20,7 +20,7 @@ import (
 	"io/fs"
 	"net/netip"
 	"path/filepath"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -263,7 +263,7 @@ func (s *store) groupAddresses(groupName string, names []string, fam family) []s
 			out = append(out, addr)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -277,7 +277,7 @@ func (s *store) groupAddresses(groupName string, names []string, fam family) []s
 func (s *store) provenance(groupName string, names []string) map[string]string {
 	sorted := make([]string, len(names))
 	copy(sorted, names)
-	sort.Strings(sorted)
+	slices.Sort(sorted)
 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -379,7 +379,7 @@ func addressesFromRecords(records []string, fam family, limit int) (addresses []
 		}
 		addresses = append(addresses, addr.String())
 	}
-	sort.Strings(addresses)
+	slices.Sort(addresses)
 	return addresses, false
 }
 

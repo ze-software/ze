@@ -156,7 +156,7 @@ func (metric healthMetric) payloadKeys() []string {
 			keys = append(keys, key)
 		}
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -366,7 +366,7 @@ func healthWorstTable(metric healthMetric) (string, bool) {
 	for key := range keySet {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	var out textbuf.Buffer
 	out.Str("<table><thead><tr>")
@@ -425,7 +425,7 @@ func healthBucketTable(metric healthMetric) (string, bool) {
 	for year := range buckets {
 		years = append(years, year)
 	}
-	sort.Strings(years)
+	slices.Sort(years)
 
 	var out textbuf.Buffer
 	out.Str("<table><thead><tr><th>Package first commit</th><th>Packages with tests</th>").

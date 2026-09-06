@@ -9,7 +9,7 @@ package bgpconfig
 import (
 	"fmt"
 	"net/netip"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -916,7 +916,7 @@ func prependDefaultFilters(bgpContainer *config.Tree, peers []*reactor.PeerSetti
 	for name := range ldEntries {
 		defaults = append(defaults, name)
 	}
-	sort.Strings(defaults)
+	slices.Sort(defaults)
 
 	for _, ps := range peers {
 		for _, dflt := range defaults {

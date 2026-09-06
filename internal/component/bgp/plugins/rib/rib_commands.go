@@ -14,6 +14,7 @@ package rib
 import (
 	"fmt"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -569,7 +570,7 @@ func ribHelp() any {
 			}
 		}
 	}
-	sort.Strings(subs)
+	slices.Sort(subs)
 	return map[string]any{"subcommands": subs}
 }
 

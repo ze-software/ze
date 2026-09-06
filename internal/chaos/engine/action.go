@@ -5,7 +5,7 @@
 package engine
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -163,7 +163,7 @@ func V2ActionNames() []string {
 			names = append(names, name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

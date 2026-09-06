@@ -6,7 +6,7 @@ package yang
 import (
 	"embed"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/openconfig/goyang/pkg/yang"
@@ -151,6 +151,6 @@ func (l *Loader) moduleNamesBySuffix(suffix string) []string {
 			names = append(names, name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

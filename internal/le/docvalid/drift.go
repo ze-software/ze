@@ -18,7 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -146,7 +146,7 @@ func registryPluginNames() []string {
 	for _, reg := range all {
 		names = append(names, reg.Name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -168,7 +168,7 @@ func registryFamilyNames() []string {
 	for name := range names {
 		result = append(result, name)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result
 }
 

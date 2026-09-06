@@ -26,6 +26,7 @@ import (
 	"go/token"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -285,7 +286,7 @@ func taggedUnitOf(reader *sourceReader, index *scopeIndex, tags []Tag,
 		}
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	var tb textbuf.Buffer
 	tb.Str("no tag for ").Str(request.rid).Byte(' ').Str(request.polarity).
 		Str(" resolves to the unit ").Quoted(request.unit).Str(". ")

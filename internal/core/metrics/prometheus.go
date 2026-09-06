@@ -6,7 +6,7 @@ package metrics
 
 import (
 	"net/http"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -280,7 +280,7 @@ func (r *PrometheusRegistry) Names() ([]string, error) {
 	for name := range seen {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 

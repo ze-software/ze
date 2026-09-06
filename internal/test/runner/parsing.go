@@ -125,7 +125,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 	// First, try to discover .ci files (unified format)
 	ciPattern := filepath.Join(dir, "*.ci")
 	ciFiles, _ := filepath.Glob(ciPattern)
-	sort.Strings(ciFiles)
+	slices.Sort(ciFiles)
 
 	for _, ciFile := range ciFiles {
 		// Skip-and-warn on a parse error rather than aborting discovery: one
@@ -170,7 +170,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 			return err
 		}
 
-		sort.Strings(files)
+		slices.Sort(files)
 
 		var tb textbuf.Buffer
 		for _, confFile := range files {
@@ -195,7 +195,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 			return err
 		}
 
-		sort.Strings(invalidFiles)
+		slices.Sort(invalidFiles)
 
 		for _, confFile := range invalidFiles {
 			// Same skip-and-warn-and-record contract as the .ci loop above. A

@@ -16,7 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -152,7 +152,7 @@ func trackedGoFiles(root string) ([]string, error) {
 		}
 		files = append(files, filepath.ToSlash(string(token)))
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 

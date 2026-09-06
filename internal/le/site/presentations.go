@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -98,7 +98,7 @@ func bundlePresentationHTML(content, base string) string {
 		content = injectBeforeScript(content, strings.Join(tags, "\n")+"\n")
 	}
 	screenshots, _ := filepath.Glob(filepath.Join(base, "screenshots", "*"))
-	sort.Strings(screenshots)
+	slices.Sort(screenshots)
 	var mapBody textbuf.Buffer
 	mapBody.Reset()
 	for _, path := range screenshots {

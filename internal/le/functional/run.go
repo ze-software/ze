@@ -20,7 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -287,7 +287,7 @@ func ciGoTestPackages(root string) ([]string, error) {
 	for name := range packages {
 		out = append(out, name)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 

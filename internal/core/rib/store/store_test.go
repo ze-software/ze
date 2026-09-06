@@ -2,7 +2,7 @@ package store
 
 import (
 	"net/netip"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -131,7 +131,7 @@ func TestStoreModifyAll(t *testing.T) {
 		values = append(values, v)
 		return true
 	})
-	sort.Ints(values)
+	slices.Sort(values)
 	assert.Equal(t, []int{100, 101, 102}, values, "every entry must be mutated")
 }
 

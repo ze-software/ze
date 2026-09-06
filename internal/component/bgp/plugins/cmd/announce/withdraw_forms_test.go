@@ -6,7 +6,7 @@
 package announce
 
 import (
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/cmd/announce/yang"
@@ -79,7 +79,7 @@ func TestWithdrawFormsAreSeparateCommands(t *testing.T) {
 	for name := range withdraw.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	if len(names) != 3 || names[0] != "all" || names[1] != "id" || names[2] != "tag" {
 		t.Fatalf("withdraw lists %v as subcommands, want [all id tag]", names)
 	}

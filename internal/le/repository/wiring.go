@@ -27,7 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -160,7 +160,7 @@ func newScanner(ctx context.Context, tree string) (*scanner, error) {
 			return nil, err
 		}
 	}
-	sort.Strings(s.files)
+	slices.Sort(s.files)
 	return s, nil
 }
 
@@ -354,7 +354,7 @@ func (s *scanner) exportedConstsOfType(pkgDir, typeName string) ([]string, error
 			}
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 

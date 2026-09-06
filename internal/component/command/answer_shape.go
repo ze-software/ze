@@ -22,7 +22,7 @@
 
 package command
 
-import "sort"
+import "slices"
 
 // shapeRegistry holds the answer shape each command declares. The value is a
 // slice so that an EMPTY declaration is expressible: registering no shape marks
@@ -271,7 +271,7 @@ func rowSet(v any) (rows []any, keys []string, ok bool) {
 		for name := range typed {
 			names = append(names, name)
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 		rows = make([]any, 0, len(names))
 		for _, name := range names {
 			rows = append(rows, typed[name])

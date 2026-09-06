@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
@@ -73,7 +73,7 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 	for ip := range data.Peers {
 		ips = append(ips, ip)
 	}
-	sort.Strings(ips)
+	slices.Sort(ips)
 
 	seenASN := make(map[uint32]bool)
 

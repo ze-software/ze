@@ -13,7 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -333,7 +333,7 @@ func uiLeDocvalidAnswersFeatureTags(path string) (string, error) {
 	for tag := range found {
 		declared = append(declared, tag)
 	}
-	sort.Strings(declared)
+	slices.Sort(declared)
 	return strings.Join(append([]string{buildTagLE, "ze_docvalid_fixture"}, declared...), ","), nil
 }
 
@@ -373,7 +373,7 @@ func uiLeDocvalidAnswersEnvironment(overrides map[string]string) []string {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	answer := make([]string, 0, len(keys))
 	for _, key := range keys {
 		answer = append(answer, key+"="+values[key])
@@ -402,7 +402,7 @@ func uiLeDocvalidAnswersSortedKeys(document map[string]any) []string {
 	for key := range document {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -448,7 +448,7 @@ func differingFiles(left, right map[string][]byte) []string {
 			differing = append(differing, path)
 		}
 	}
-	sort.Strings(differing)
+	slices.Sort(differing)
 	return differing
 }
 

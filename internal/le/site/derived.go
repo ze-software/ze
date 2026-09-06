@@ -6,6 +6,7 @@ package site
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -203,7 +204,7 @@ func sortedStatuses(counts map[string]int) []string {
 	for status := range counts {
 		statuses = append(statuses, status)
 	}
-	sort.Strings(statuses)
+	slices.Sort(statuses)
 	return statuses
 }
 
@@ -262,7 +263,7 @@ func writeLLMSConfigRoots(out *textbuf.Buffer, inputs *llmsInputs) {
 	for name := range inputs.ConfigTree {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		node := inputs.ConfigTree[name]
 		description := trimInline(node.Description, 180)
@@ -357,13 +358,13 @@ func writeLLMSCommands(out *textbuf.Buffer, inputs *llmsInputs) {
 		}
 		byVerb[verb] = append(byVerb[verb], command)
 	}
-	sort.Strings(verbs)
+	slices.Sort(verbs)
 
 	modeNames := make([]string, 0, len(modes))
 	for mode := range modes {
 		modeNames = append(modeNames, mode)
 	}
-	sort.Strings(modeNames)
+	slices.Sort(modeNames)
 	counted := make([]string, 0, len(modeNames))
 	for _, mode := range modeNames {
 		counted = append(counted, strconv.Itoa(modes[mode])+" "+mode)

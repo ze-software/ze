@@ -3,7 +3,7 @@ package rpki
 
 import (
 	"net/netip"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -287,7 +287,7 @@ func sortedRowKeys(row map[string]any) string {
 	for key := range row {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return strings.Join(keys, " ")
 }
 
@@ -326,7 +326,7 @@ func candidateRowSets(answer map[string]any) []string {
 			keys = append(keys, name)
 		}
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

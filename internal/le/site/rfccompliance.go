@@ -8,6 +8,7 @@ import (
 	"html"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -663,14 +664,14 @@ func rfcGapsOf(requirements int, gapCounts map[string]int, gapOrder []string,
 			others = append(others, status)
 		}
 	}
-	sort.Strings(others)
+	slices.Sort(others)
 	for _, status := range others {
 		gaps.StatusCounts = append(gaps.StatusCounts, rfcStatusCount{Status: status, Count: byStatus[status]})
 	}
 
 	disclosed := make([]string, len(gapOrder))
 	copy(disclosed, gapOrder)
-	sort.Strings(disclosed)
+	slices.Sort(disclosed)
 	for _, stem := range disclosed {
 		if !strings.HasPrefix(rfcPublicStatus(rows, stem), "Supported") {
 			continue

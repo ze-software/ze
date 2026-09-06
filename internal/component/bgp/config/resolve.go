@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -354,7 +354,7 @@ func requiredFieldGaps(schema *config.Schema, bgpTree map[string]any) []required
 	for name := range peerMap {
 		peerNames = append(peerNames, name)
 	}
-	sort.Strings(peerNames)
+	slices.Sort(peerNames)
 
 	var gaps []requiredFieldGap
 	for _, peerName := range peerNames {

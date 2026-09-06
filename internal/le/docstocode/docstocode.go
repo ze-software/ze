@@ -145,7 +145,7 @@ func walkGo(root, dir string, visit func(path, rel string) error) error {
 		}
 	}
 
-	sort.Strings(files)
+	slices.Sort(files)
 	for _, name := range files {
 		path := filepath.Join(dir, name)
 		rel, err := filepath.Rel(root, path)
@@ -157,7 +157,7 @@ func walkGo(root, dir string, visit func(path, rel string) error) error {
 		}
 	}
 
-	sort.Strings(subdirs)
+	slices.Sort(subdirs)
 	for _, name := range subdirs {
 		sub := filepath.Join(dir, name)
 		rel, err := filepath.Rel(root, sub)
@@ -266,7 +266,7 @@ func SkipDirs() []string {
 	for name := range skipDirs {
 		out = append(out, name)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

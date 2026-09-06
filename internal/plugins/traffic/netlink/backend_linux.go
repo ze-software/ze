@@ -10,7 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/vishvananda/netlink"
@@ -343,7 +343,7 @@ func sortedDesiredNames(desired map[string]traffic.InterfaceQoS) []string {
 	for name := range desired {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -352,6 +352,6 @@ func sortedSnapshotNames(snapshots map[string]tcInterfaceSnapshot) []string {
 	for name := range snapshots {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

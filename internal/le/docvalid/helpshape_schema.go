@@ -40,7 +40,7 @@
 package docvalid
 
 import (
-	"sort"
+	"slices"
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -60,7 +60,7 @@ func collectSchema(loader *yang.Loader, report *HelpShapeReport) {
 		return
 	}
 	names := loader.ConfModuleNames()
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		module := loader.GetEntry(name)
@@ -91,7 +91,7 @@ func walkSchema(entry *gyang.Entry, module string, path []string,
 	for name := range entry.Dir {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		child := entry.Dir[name]

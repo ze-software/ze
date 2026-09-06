@@ -6,7 +6,7 @@ import (
 	"html"
 	"io/fs"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -90,7 +90,7 @@ func sitemapURLs(output string, routes []legacyRoute) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(urls)
+	slices.Sort(urls)
 	return urls, nil
 }
 

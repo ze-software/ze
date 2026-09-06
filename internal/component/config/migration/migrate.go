@@ -6,7 +6,7 @@ package migration
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
 )
@@ -410,7 +410,7 @@ func migrateTemplateToGroups(tree *config.Tree) (*config.Tree, error) {
 	for name := range namedTemplates {
 		sortedNames = append(sortedNames, name)
 	}
-	sort.Strings(sortedNames)
+	slices.Sort(sortedNames)
 	for _, name := range sortedNames {
 		bgp.AddListEntry("group", name, namedTemplates[name])
 	}

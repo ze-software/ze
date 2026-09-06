@@ -17,7 +17,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -326,7 +326,7 @@ func buildCore(core []Rule) string {
 	for reason := range reasons {
 		ordered = append(ordered, reason)
 	}
-	sort.Strings(ordered)
+	slices.Sort(ordered)
 
 	var tb textbuf.Buffer
 	header := append(append([]string{}, coreHeader...),

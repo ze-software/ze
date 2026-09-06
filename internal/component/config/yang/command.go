@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 
@@ -203,7 +202,7 @@ func BuildCommandTree(loader *Loader) *command.Node {
 			cmdModules = append(cmdModules, name)
 		}
 	}
-	sort.Strings(cmdModules)
+	slices.Sort(cmdModules)
 
 	for _, name := range cmdModules {
 		entry := loader.GetEntry(name)
@@ -505,7 +504,7 @@ func extractArgDefs(entry *gyang.Entry) []command.ArgDef {
 			undeclared = append(undeclared, name)
 		}
 	}
-	sort.Strings(undeclared)
+	slices.Sort(undeclared)
 
 	for _, name := range undeclared {
 		if def, ok := argDefFor(entry.Dir[name], name); ok {
@@ -846,7 +845,7 @@ func PathToUIResource(loader *Loader) map[string]UIResourceEntry {
 			cmdModules = append(cmdModules, name)
 		}
 	}
-	sort.Strings(cmdModules)
+	slices.Sort(cmdModules)
 
 	for _, name := range cmdModules {
 		entry := loader.GetEntry(name)

@@ -9,7 +9,7 @@ package perf
 
 import (
 	"bufio"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -175,7 +175,7 @@ func checkAllocCeilings(text string, ceilings map[string]int) []allocViolation {
 	for n := range ceilings {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	var viol []allocViolation
 	for _, name := range names {

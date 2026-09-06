@@ -30,7 +30,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -119,7 +118,7 @@ func (g gateMap) candidates() []string {
 			out = append(out, ref)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -507,7 +506,7 @@ func gatedRegressions(gm gateMap, baseline map[string]map[string]bool) []string 
 			}
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -547,12 +546,12 @@ func unboundRegressions(gm gateMap, baseline map[string]map[string]bool, onDisk 
 		if len(live) == 0 {
 			continue
 		}
-		sort.Strings(live)
+		slices.Sort(live)
 		tb.Reset()
 		out = append(out, tb.Str(check).Str(": named ").Join(live, ", ").
 			Str(" at HEAD, declares `none` now").String())
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -685,7 +684,7 @@ func buildGateMap(sources map[string]string, pointsDir, root string) (gateMap, e
 		}
 		ungated = append(ungated, ref)
 	}
-	sort.Strings(ungated)
+	slices.Sort(ungated)
 
 	return gateMap{
 		Points: points, Bindings: bindings, Gated: gated, Ungated: ungated,

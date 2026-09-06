@@ -24,7 +24,7 @@ package testhealth
 
 import (
 	"errors"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -250,7 +250,7 @@ func writeObject(tb *textbuf.Buffer, value object, depth int, indent bool) error
 	keys := make([]string, len(value.keys))
 	copy(keys, value.keys)
 	if indent {
-		sort.Strings(keys)
+		slices.Sort(keys)
 	}
 
 	tb.Byte('{')

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"net"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/mrt"
@@ -170,7 +170,7 @@ func sortedKeys(m map[string]uint64) []string {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

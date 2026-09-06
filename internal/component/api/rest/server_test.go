@@ -8,7 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -191,7 +191,7 @@ func (e *fakeEditor) WorkingContent() string {
 	for key := range e.values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	var b strings.Builder
 	b.WriteString("# config\n")
 	for _, key := range keys {

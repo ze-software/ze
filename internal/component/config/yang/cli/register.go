@@ -6,7 +6,7 @@
 package cli
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
@@ -34,7 +34,7 @@ var yangCommands = []string{subTree, subCompletion, subDoc}
 func subcommands() string {
 	sorted := make([]string, len(yangCommands))
 	copy(sorted, yangCommands)
-	sort.Strings(sorted)
+	slices.Sort(sorted)
 	return textbuf.Join(sorted, ", ")
 }
 

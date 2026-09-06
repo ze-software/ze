@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -525,10 +524,10 @@ func analyzeSessionCoverage(rules []coverageRule, files TranscriptFiles) session
 	}
 	report.AlwaysOnExcluded = len(report.AlwaysOnRules)
 	report.Unmatchable = len(report.UnmatchableRules)
-	sort.Strings(report.AlwaysOnRules)
-	sort.Strings(report.Matched)
-	sort.Strings(report.Missed)
-	sort.Strings(report.UnmatchableRules)
+	slices.Sort(report.AlwaysOnRules)
+	slices.Sort(report.Matched)
+	slices.Sort(report.Missed)
+	slices.Sort(report.UnmatchableRules)
 	return report
 }
 
@@ -643,7 +642,7 @@ func sessionCoverageSortedKeys[V any](set map[string]V) []string {
 	for key := range set {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -653,8 +652,8 @@ func sameStrings(left, right []string) bool {
 	}
 	leftCopy := append([]string(nil), left...)
 	rightCopy := append([]string(nil), right...)
-	sort.Strings(leftCopy)
-	sort.Strings(rightCopy)
+	slices.Sort(leftCopy)
+	slices.Sort(rightCopy)
 	for index := range leftCopy {
 		if leftCopy[index] != rightCopy[index] {
 			return false

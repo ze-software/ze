@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -62,7 +62,7 @@ func TestExaBGPProfileOrderAndTimingFixture(t *testing.T) {
 	for name := range exaProfiles {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	digest := sha256.New()
 	for _, name := range names {
 		profile := exaProfiles[name]
@@ -173,7 +173,7 @@ func TestLGLabInjectionPopulationAndOrder(t *testing.T) {
 			t.Errorf("prefix %s injections = %d, want 12", prefix, count)
 		}
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	if strings.Join(keys, ",") != "10.10.1.0/24,10.10.2.0/24,10.10.3.0/24" {
 		t.Fatalf("LG prefixes = %v", keys)
 	}

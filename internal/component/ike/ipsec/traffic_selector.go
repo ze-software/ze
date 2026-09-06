@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sort"
+	"slices"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -24,7 +24,7 @@ func sortedPeerNames(peers map[string]SiteToSitePeer) []string {
 	for name := range peers {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

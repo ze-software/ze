@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -383,7 +383,7 @@ func uiPipeReviewEntryContractsSortedKeys(values map[string]map[string]any) []st
 	for key := range values {
 		result = append(result, key)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result
 }
 

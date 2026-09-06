@@ -7,7 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -111,7 +111,7 @@ func Discover(root, selector string, checkers map[string]Checker) ([]ScenarioSou
 		}
 		names = append(names, entry.Name())
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	if len(names) == 0 {
 		if selector == "" {
 			return nil, errors.New("scenario directory contains no scenarios")

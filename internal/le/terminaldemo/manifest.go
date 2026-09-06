@@ -13,7 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -320,7 +320,7 @@ func nativeRecorderSources(root string) ([]string, error) {
 		}
 		found = append(found, recorderPackageDir+"/"+name)
 	}
-	sort.Strings(found)
+	slices.Sort(found)
 	return found, nil
 }
 
@@ -343,7 +343,7 @@ func renderContract(includeKind bool, demo Demo) []byte {
 }
 
 func (e *Engine) digestPaths(contract []byte, paths []string) (string, error) {
-	sort.Strings(paths)
+	slices.Sort(paths)
 	root, err := os.OpenRoot(e.root)
 	if err != nil {
 		return "", err
@@ -512,12 +512,12 @@ func (e *Engine) verifyAssets(manifest Manifest, indexed map[string]Demo, select
 			}
 		}
 		if len(foreign) > 0 {
-			sort.Strings(foreign)
+			slices.Sort(foreign)
 			names := make([]string, 0, len(expected))
 			for name := range expected {
 				names = append(names, name)
 			}
-			sort.Strings(names)
+			slices.Sort(names)
 			return fmt.Errorf("%s: a %s demo does not produce %s; its assets are %s", demoID, demo.Kind, strings.Join(foreign, ", "), strings.Join(names, ", "))
 		}
 		names, err := assetNames(demo.Kind)

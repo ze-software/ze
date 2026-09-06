@@ -5,6 +5,7 @@
 package command
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -92,7 +93,7 @@ func (set pipeFilterSet) filterNames() string {
 			names = append(names, filter.Name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return textbuf.Join(names, ", ")
 }
 

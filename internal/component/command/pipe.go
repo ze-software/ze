@@ -17,7 +17,7 @@ package command
 
 import (
 	"encoding/json"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -1057,7 +1057,7 @@ func appendValueText(buf *textbuf.Buffer, v any) {
 		for name := range typed {
 			keys = append(keys, name)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, name := range keys {
 			appendValueText(buf, typed[name])
 		}
@@ -1134,7 +1134,7 @@ func rowOperatorRefusal(operator string, data any) string {
 	var tb textbuf.Buffer
 	tb.Str(operator).Str(" needs rows, and this answer has none: ")
 	if keys := rowKeys(data); len(keys) > 1 {
-		sort.Strings(keys)
+		slices.Sort(keys)
 		tb.Str("it holds several lists (").Str(textbuf.Join(keys, ", ")).Str("), so select one first")
 		return tb.String()
 	}

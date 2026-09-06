@@ -18,7 +18,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -130,7 +129,7 @@ func modulesOf(tree, root string) ([]string, error) {
 		}
 		names = append(names, item.Name())
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 

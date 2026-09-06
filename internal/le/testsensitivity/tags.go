@@ -12,7 +12,7 @@ import (
 	"go/token"
 	"maps"
 	"regexp"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/le/featuretags"
 	verifylint "github.com/ze-software/ze/internal/le/verify/lint"
@@ -103,8 +103,8 @@ func classifyTags(expr constraint.Expr, universe map[string]bool) (free, unreach
 		free = append(free, tag)
 		return false
 	})
-	sort.Strings(free)
-	sort.Strings(unreachable)
+	slices.Sort(free)
+	slices.Sort(unreachable)
 	return free, unreachable
 }
 

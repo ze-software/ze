@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -234,8 +235,8 @@ func applyMove(root string, plan movePlan, report *MoveReport) error {
 			report.Registrations.Added = append(report.Registrations.Added, path)
 		}
 	}
-	sort.Strings(report.Registrations.Dropped)
-	sort.Strings(report.Registrations.Added)
+	slices.Sort(report.Registrations.Dropped)
+	slices.Sort(report.Registrations.Added)
 	report.Registrations.Preserved = len(report.Registrations.Dropped) == 0
 	if report.GeneratorCode != 0 {
 		report.Code = report.GeneratorCode
@@ -561,7 +562,7 @@ func mergeConflicts(root, source, destination string) ([]string, error) {
 		}
 		return nil
 	})
-	sort.Strings(conflicts)
+	slices.Sort(conflicts)
 	return conflicts, err
 }
 
@@ -584,7 +585,7 @@ func mergeTrees(root, source, destination string) error {
 	}); err != nil {
 		return err
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	for _, relative := range files {
 		from := filepath.Join(base, relative)
 		to := filepath.Join(root, filepath.FromSlash(destination), relative)

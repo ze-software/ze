@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -27,7 +27,7 @@ func sortedKeys(m map[string]*gyang.Entry) []string {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -212,7 +212,7 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 	// multiple -conf modules contributing to "environment")
 	// compose correctly regardless of iteration order.
 	modNames := loader.ModuleNames()
-	sort.Strings(modNames)
+	slices.Sort(modNames)
 	for _, modName := range modNames {
 		if !strings.HasSuffix(modName, "-conf") {
 			continue

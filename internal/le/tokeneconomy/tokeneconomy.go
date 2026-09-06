@@ -39,7 +39,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -672,9 +672,9 @@ func Collect(store string) []Transcript {
 	// so an error is a Ze defect instead of a store error. A store with no
 	// transcript answers an empty list. Run reports that list as an empty store.
 	mains, _ := filepath.Glob(filepath.Join(store, "*.jsonl")) //nolint:errcheck // a literal pattern cannot be malformed
-	sort.Strings(mains)
+	slices.Sort(mains)
 	agents, _ := filepath.Glob(filepath.Join(store, "*", "subagents", "agent-*.jsonl")) //nolint:errcheck // a literal pattern cannot be malformed
-	sort.Strings(agents)
+	slices.Sort(agents)
 
 	out := make([]Transcript, 0, len(mains)+len(agents))
 	for _, path := range mains {
@@ -835,7 +835,7 @@ func FindSessions(store string) ([]Session, []string) {
 		session.MainToolCalls = tools
 	}
 
-	sort.Strings(ids)
+	slices.Sort(ids)
 	out := make([]Session, 0, len(ids))
 	for _, id := range ids {
 		out = append(out, *byID[id])

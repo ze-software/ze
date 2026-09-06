@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -322,7 +321,7 @@ func (b *Bench) results() ([]string, error) {
 	if len(found) == 0 {
 		return nil, fmt.Errorf("no benchmark result in %s: run `le perf-bench run` first", dir)
 	}
-	sort.Strings(found)
+	slices.Sort(found)
 	return found, nil
 }
 

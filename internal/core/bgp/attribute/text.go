@@ -14,7 +14,7 @@ package attribute
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -30,7 +30,7 @@ var wellKnownCanonicalNames = func() []string {
 	for _, name := range communityNames {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }()
 

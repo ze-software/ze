@@ -8,6 +8,7 @@
 package rfc
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -122,7 +123,7 @@ func renderSupersededNote(in RenderInput, cov []CoverageRow) []string {
 	if len(superseded) == 0 {
 		return nil
 	}
-	sort.Strings(superseded)
+	slices.Sort(superseded)
 
 	unextracted, unresolved := 0, 0
 	for _, req := range in.Requirements {

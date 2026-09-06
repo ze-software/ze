@@ -469,7 +469,7 @@ func sortedSetKeys(set map[string]bool) []string {
 	for key := range set {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

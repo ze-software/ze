@@ -19,7 +19,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -2146,9 +2146,9 @@ func TestDoctorProbesEveryCoveredListener(t *testing.T) {
 		// calls ListenPacket only for "udp", so a UDP service probed as TCP binds
 		// a socket nothing contends for: the probe passes whatever holds the port
 		// the daemon actually needs, and the coverage claimed does not exist.
-		sort.Strings(gotNetworks)
+		slices.Sort(gotNetworks)
 		want := append([]string(nil), wantNetworks...)
-		sort.Strings(want)
+		slices.Sort(want)
 		assert.Equalf(t, want, gotNetworks,
 			"ze doctor probes %v for %q but it binds %v; a probe on the wrong transport cannot detect the conflict it exists to detect", gotNetworks, name, wantNetworks)
 		checked++

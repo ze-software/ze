@@ -174,7 +174,7 @@ func documentPaths(root, pattern string, excludeTemplate bool) ([]string, error)
 		}
 		paths = append(paths, filepath.ToSlash(relative))
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, nil
 }
 
@@ -220,7 +220,7 @@ func loadBaseline(repository *os.Root) ([]string, error) {
 	for entry := range entries {
 		baseline = append(baseline, entry)
 	}
-	sort.Strings(baseline)
+	slices.Sort(baseline)
 	return baseline, nil
 }
 

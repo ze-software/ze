@@ -4,7 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -98,13 +98,13 @@ func TestEveryForEachPeerCallerIsAccountedFor(t *testing.T) {
 		})
 		require.NoError(t, err)
 	}
-	sort.Strings(found)
+	slices.Sort(found)
 
 	recorded := make([]string, 0, len(forEachPeerCallers))
 	for file := range forEachPeerCallers {
 		recorded = append(recorded, file)
 	}
-	sort.Strings(recorded)
+	slices.Sort(recorded)
 
 	require.Equal(t, recorded, found,
 		"a ForEachPeer caller appeared or vanished: record how it treats a dynamic group's "+

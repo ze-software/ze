@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -326,7 +325,7 @@ func classifyHybrid(cpu *CPUInfo) {
 		cpu.Hybrid = false
 		return
 	}
-	sort.Ints(capacities)
+	slices.Sort(capacities)
 	minCap := capacities[0]
 	maxCap := capacities[len(capacities)-1]
 	if minCap == maxCap {

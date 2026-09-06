@@ -166,8 +166,8 @@ func enginePlacementGate(tree, module string, edges Edges) (CheckResult, error) 
 			stale = append(stale, engine)
 		}
 	}
-	sort.Strings(arrived)
-	sort.Strings(stale)
+	slices.Sort(arrived)
+	slices.Sort(stale)
 
 	result := CheckResult{Name: "engine-placement"}
 	var tb textbuf.Buffer
@@ -748,7 +748,7 @@ func disableableViolations(tree, module string, edges Edges, gates map[string]st
 	for pkg := range gates {
 		packages = append(packages, pkg)
 	}
-	sort.Strings(packages)
+	slices.Sort(packages)
 
 	var out []disableableViolation
 	for _, pkg := range packages {
@@ -899,7 +899,7 @@ func missingFrom(left, right map[string]bool) []string {
 			out = append(out, item)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -908,7 +908,7 @@ func missingFrom(left, right map[string]bool) []string {
 func sortedCopy(items []string) []string {
 	out := make([]string, len(items))
 	copy(out, items)
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -918,7 +918,7 @@ func sortedManifestKeys(items map[string]manifestRow) []string {
 	for key := range items {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -927,7 +927,7 @@ func sortedRowKeys(items map[string]Row) []string {
 	for key := range items {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

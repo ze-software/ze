@@ -15,7 +15,7 @@ package cli
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
@@ -34,7 +34,7 @@ func subcommands() string {
 	for k := range subcommandHandlers {
 		cmds = append(cmds, k)
 	}
-	sort.Strings(cmds)
+	slices.Sort(cmds)
 	return textbuf.Join(cmds, ", ")
 }
 

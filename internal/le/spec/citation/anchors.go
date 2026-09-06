@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -210,6 +210,6 @@ func sortedDocuments(found map[string][]string) []string {
 	for document := range found {
 		documents = append(documents, document)
 	}
-	sort.Strings(documents)
+	slices.Sort(documents)
 	return documents
 }

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -165,7 +165,7 @@ func newLinks(current, initial map[string]bool) []string {
 			added = append(added, name)
 		}
 	}
-	sort.Strings(added)
+	slices.Sort(added)
 	return added
 }
 

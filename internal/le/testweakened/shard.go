@@ -7,7 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -71,7 +71,7 @@ func ReadShards(root, dir, session string) ([]Shard, error) {
 		}
 		names = append(names, entry.Name())
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	shards := make([]Shard, 0, len(names))
 	for _, name := range names {
 		path := dir + "/" + name

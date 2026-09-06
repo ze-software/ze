@@ -8,7 +8,6 @@ import (
 	"os"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -505,7 +504,7 @@ func ifaceTunnelKinds08(ctx context.Context, p *sdk.Plugin) error {
 			missing = append(missing, name+" ("+kind+")")
 		}
 	}
-	sort.Strings(missing)
+	slices.Sort(missing)
 	if len(missing) != 0 {
 		return fmt.Errorf("kernel built no link for %s", strings.Join(missing, ", "))
 	}

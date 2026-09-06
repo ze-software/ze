@@ -8,7 +8,6 @@ import (
 	"os"
 	"regexp"
 	"slices"
-	"sort"
 	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -320,7 +319,7 @@ func ospfInstanceTeardownScenario(ctx context.Context, plugin *sdk.Plugin) error
 	for _, row := range rows {
 		ids = append(ids, int(routingNumber(row, "instance-id")))
 	}
-	sort.Ints(ids)
+	slices.Sort(ids)
 	if len(ids) != 1 || ids[0] != 0 {
 		return fmt.Errorf("show ospf instance IDs = %#v, want exactly [0] (base only, no phantom instance)", ids)
 	}

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -382,7 +382,7 @@ func TestEveryDeclaredSectionNamesAKindAndOneMembershipSource(t *testing.T) {
 		}
 		titles[section.title()] = true
 		routes := append([]string(nil), section.Routes...)
-		sort.Strings(routes)
+		slices.Sort(routes)
 		for position, route := range routes {
 			if !strings.HasPrefix(route, "/") || !strings.HasSuffix(route, "/") {
 				t.Errorf("the route %q is not spelled as pageRegistry spells one", route)

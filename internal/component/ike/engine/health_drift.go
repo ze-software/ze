@@ -4,7 +4,7 @@
 package engine
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -58,7 +58,7 @@ func driftingPeers() (peers []string, known bool) {
 			peers = append(peers, name)
 		}
 	}
-	sort.Strings(peers)
+	slices.Sort(peers)
 	return peers, true
 }
 

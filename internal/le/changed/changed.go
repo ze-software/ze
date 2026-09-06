@@ -21,7 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -178,7 +178,7 @@ func groupFiles(files []string) grouping {
 	for dir := range dirs {
 		result.unmapped = append(result.unmapped, dir)
 	}
-	sort.Strings(result.unmapped)
+	slices.Sort(result.unmapped)
 	return result
 }
 
@@ -229,7 +229,7 @@ func (s Selector) ChangedFiles() ([]string, error) {
 	for file := range seen {
 		files = append(files, file)
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 
@@ -270,7 +270,7 @@ func (s Selector) Packages(dirs []string) ([]string, error) {
 	for pkg := range found {
 		packages = append(packages, pkg)
 	}
-	sort.Strings(packages)
+	slices.Sort(packages)
 	return packages, nil
 }
 

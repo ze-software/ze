@@ -229,7 +229,7 @@ func newProtocolInboundSource(r *RIBManager, protoID redistevents.ProtocolID, se
 	}
 	// Sorted for the reason newInboundSource states: a streamed answer cannot
 	// order its rows after the fact.
-	sort.Strings(peers)
+	slices.Sort(peers)
 	return &protocolInboundSource{r: r, protoID: protoID, selector: selectorStr, peers: peers}
 }
 

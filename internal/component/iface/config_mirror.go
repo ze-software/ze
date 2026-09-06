@@ -5,7 +5,7 @@ package iface
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -256,7 +256,7 @@ func reconcileMirrors(cfg, previous *ifaceConfig, b Backend, devices, previousDe
 			names = append(names, name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	var errs []error
 	for _, osName := range names {

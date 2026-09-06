@@ -15,7 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -126,7 +126,7 @@ func endpointSig(enabled bool, endpoints []Endpoint) string {
 	for i, e := range endpoints {
 		eps[i] = net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
 	}
-	sort.Strings(eps)
+	slices.Sort(eps)
 	return strings.Join(eps, ",")
 }
 

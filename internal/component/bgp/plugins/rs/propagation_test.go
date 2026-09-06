@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -112,7 +112,7 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 		allIDs = append(allIDs, input.IDs...)
 
 		peers := append([]string(nil), input.Destinations...)
-		sort.Strings(peers)
+		slices.Sort(peers)
 		if len(peers) != 2 || peers[0] != "10.0.0.2" || peers[1] != "10.0.0.3" {
 			t.Errorf("destinations = %v, want [10.0.0.2 10.0.0.3]", peers)
 		}
@@ -484,7 +484,7 @@ func TestSelectTargets_SingleFamily_AllSupport(t *testing.T) {
 	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
-	sort.Strings(targets)
+	slices.Sort(targets)
 	if len(targets) != 2 {
 		t.Fatalf("expected 2 targets, got %d: %v", len(targets), targets)
 	}
@@ -557,7 +557,7 @@ func TestSelectTargets_MultiFamilyUpdate_PartialOverlap(t *testing.T) {
 	})
 	rs.mu.RUnlock()
 
-	sort.Strings(targets)
+	slices.Sort(targets)
 	// BOTH peers should be targets: 10.0.0.1 supports both, 10.0.0.2 supports ipv4.
 	// Known limitation: peer receives full UPDATE including unnegotiated families.
 	if len(targets) != 2 {
@@ -924,7 +924,7 @@ func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
-	sort.Strings(targets)
+	slices.Sort(targets)
 	if len(targets) != 2 {
 		t.Fatalf("expected 2 targets, got %d: %v", len(targets), targets)
 	}
@@ -1025,7 +1025,7 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 			targets := rs.selectForwardTargets(nil, tt.source, 0, tt.families)
 			rs.mu.RUnlock()
 
-			sort.Strings(targets)
+			slices.Sort(targets)
 			if len(targets) != tt.wantCount {
 				t.Errorf("expected %d targets, got %d: %v", tt.wantCount, len(targets), targets)
 			}

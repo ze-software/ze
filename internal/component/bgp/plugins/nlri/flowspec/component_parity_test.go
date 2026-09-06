@@ -3,6 +3,7 @@ package flowspec
 
 import (
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -142,6 +143,6 @@ func componentContainerNames(t *testing.T, module string) []string {
 		name := strings.TrimSuffix(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "container ")), " {")
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

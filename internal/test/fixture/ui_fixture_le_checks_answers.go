@@ -11,7 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -651,7 +651,7 @@ func leChecksEnvironment(overrides map[string]string) []string {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	env := make([]string, 0, len(keys))
 	for _, key := range keys {
 		env = append(env, key+"="+values[key])
@@ -691,7 +691,7 @@ func leChecksRequireKeys(object map[string]any, description string, required ...
 			for existing := range object {
 				keys = append(keys, existing)
 			}
-			sort.Strings(keys)
+			slices.Sort(keys)
 			return leChecksFailf("%s answered no %q key: %v", description, key, keys)
 		}
 	}

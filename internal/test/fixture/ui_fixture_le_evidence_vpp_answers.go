@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -391,7 +391,7 @@ func overlayEnv(base []string, changes map[string]string) []string {
 	for key := range changes {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		out = append(out, key+"="+changes[key])
 	}
@@ -431,7 +431,7 @@ func uiLeEvidenceVppAnswersSortedKeys(m map[string]any) []string {
 	for key := range m {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

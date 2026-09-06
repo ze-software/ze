@@ -11,7 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -51,7 +51,7 @@ func fixture(t *testing.T, name string) (string, []string) {
 	if len(files) == 0 {
 		t.Fatalf("the %s fixture holds no file", name)
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return root, files
 }
 
@@ -138,7 +138,7 @@ func TestAnUnreadableCarrierIsAFindingRatherThanASkip(t *testing.T) {
 		t.Fatal("a tree whose carriers name no readable version was reported valid")
 	}
 	got := reasons(result)
-	sort.Strings(got)
+	slices.Sort(got)
 	want := []string{ReasonUnreadableBase, ReasonUnreadableTag}
 	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("the run answered %v, want %v", got, want)

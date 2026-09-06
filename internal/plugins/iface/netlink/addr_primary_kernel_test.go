@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/netip"
 	"path/filepath"
-	"sort"
+	"slices"
 	"testing"
 )
 
@@ -117,7 +117,7 @@ func (k *kernelAddrTable) list() []string {
 	for _, addr := range k.addrs {
 		out = append(out, addr.Prefix.String())
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -143,7 +143,7 @@ func newKernelAddrTable(t *testing.T, dev string) *kernelAddrTable {
 func requireAddrList(t *testing.T, k *kernelAddrTable, want ...string) {
 	t.Helper()
 	got := k.list()
-	sort.Strings(want)
+	slices.Sort(want)
 	if len(got) != len(want) {
 		t.Fatalf("addresses = %v, want %v", got, want)
 	}

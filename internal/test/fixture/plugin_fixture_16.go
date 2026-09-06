@@ -8,7 +8,6 @@ import (
 	"os"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -260,7 +259,7 @@ func plugin16SystemFD(ctx context.Context, p *sdk.Plugin) error {
 	for key := range byType {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	fmt.Fprintf(os.Stderr, "OK: file-descriptors total=%v types=%v\n", data["total"], keys)
 	return nil
 }

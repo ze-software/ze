@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -152,7 +153,7 @@ func trackedAndUntrackedSourceFiles(paths Paths) ([]string, error) {
 			files = append(files, name)
 		}
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 
@@ -160,7 +161,7 @@ func trackedAndUntrackedSourceFiles(paths Paths) ([]string, error) {
 func sourceDigest(source string, files []string) (string, error) {
 	hash := sha256.New()
 	names := append([]string(nil), files...)
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		path := filepath.Join(source, name)
 		info, err := os.Lstat(path)

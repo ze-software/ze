@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"net/http/httptest"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -70,12 +70,12 @@ func Response(rec *httptest.ResponseRecorder, rewrites []Rewrite) []byte {
 		names = append(names, name)
 	}
 
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		values := make([]string, len(header[name]))
 		copy(values, header[name])
-		sort.Strings(values)
+		slices.Sort(values)
 
 		for _, value := range values {
 			b.WriteString("header: ")

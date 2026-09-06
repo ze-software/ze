@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -96,7 +96,7 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 	rest = strings.TrimSpace(rest)
 	if !annotationKinds[kind] {
 		known := append(AnnotationKinds(), SupersededKind)
-		sort.Strings(known)
+		slices.Sort(known)
 		return nil, parseErr(tb.Str(where).Str(": unknown annotation kind ").Str(pyRepr(kind)).
 			Str("; expected one of ").Str(pyRepr(known)))
 	}

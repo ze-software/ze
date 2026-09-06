@@ -5,7 +5,7 @@ package domain
 import (
 	"encoding/json"
 	"errors"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -239,7 +239,7 @@ func unknownGroupError(cfg *domainConfig, wanted string) error {
 		tb.Str("; no domain groups are configured")
 		return errors.New(tb.String())
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	tb.Str("; configured: ").Str(textbuf.Join(names, ", "))
 	return errors.New(tb.String())
 }

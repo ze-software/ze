@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -322,7 +323,7 @@ func groupCommands(commands []catalogCommand) []commandGroup {
 		}
 		byVerb[verb] = append(byVerb[verb], command)
 	}
-	sort.Strings(verbs)
+	slices.Sort(verbs)
 
 	groups := make([]commandGroup, 0, len(verbs))
 	for _, verb := range verbs {
@@ -353,7 +354,7 @@ func splitVerbBySubject(verb string, entries []*catalogCommand) []commandGroup {
 		}
 		bySubject[subject] = append(bySubject[subject], command)
 	}
-	sort.Strings(subjects)
+	slices.Sort(subjects)
 
 	groups := make([]commandGroup, 0, len(subjects)+1)
 	var other []*catalogCommand

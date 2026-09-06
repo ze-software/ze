@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -106,7 +107,7 @@ func (s *pstoreSource) Pending() ([]KernelRecord, error) {
 		}
 		names = append(names, entry.Name())
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	if len(names) > kernelRecordsMax {
 		names = names[:kernelRecordsMax]
 	}

@@ -26,7 +26,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -143,7 +143,7 @@ func (m Mirror) markdownIn(dir string) ([]string, error) {
 		}
 		names = append(names, strings.TrimSuffix(entry.Name(), markdown))
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 
@@ -269,7 +269,7 @@ func (m Mirror) Check() (Report, error) {
 			report.Stale = append(report.Stale, name)
 		}
 	}
-	sort.Strings(report.Stale)
+	slices.Sort(report.Stale)
 	return report, nil
 }
 
@@ -308,7 +308,7 @@ func driftIn(fresh, live, tree string) ([]string, error) {
 			stale = append(stale, filepath.Join(tree, path))
 		}
 	}
-	sort.Strings(stale)
+	slices.Sort(stale)
 	return stale, nil
 }
 

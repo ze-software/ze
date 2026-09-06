@@ -14,7 +14,6 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -100,7 +99,7 @@ func allBGPEventNames() []string {
 			events.DirectionToken(part, events.DirReceived),
 			events.DirectionToken(part, events.DirSent))
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -114,7 +113,7 @@ func allSendTypeCompletions() []string {
 			names = append(names, part)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -146,7 +145,7 @@ func AddressFamilyValidator() yang.CustomValidator {
 			for name := range families {
 				names = append(names, name)
 			}
-			sort.Strings(names)
+			slices.Sort(names)
 			return names
 		},
 	}

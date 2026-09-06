@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -113,7 +113,7 @@ func (h *Hub) ProcessConfig(ctx context.Context, blocks []ConfigBlock) error {
 	for ns := range namespaceSet {
 		namespaces = append(namespaces, ns)
 	}
-	sort.Strings(namespaces)
+	slices.Sort(namespaces)
 
 	// Commit all affected namespaces.
 	// NOTE: If commit fails mid-way, already-committed namespaces remain committed.

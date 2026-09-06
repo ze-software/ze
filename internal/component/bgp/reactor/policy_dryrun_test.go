@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"slices"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -213,8 +212,8 @@ func TestComputeChangedAttrs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := computeChangedAttrs(parseFilterAttrs(tt.before), parseFilterAttrs(tt.after))
-			sort.Strings(got)
-			sort.Strings(tt.want)
+			slices.Sort(got)
+			slices.Sort(tt.want)
 			if len(got) != len(tt.want) {
 				t.Fatalf("changed = %v, want %v", got, tt.want)
 			}

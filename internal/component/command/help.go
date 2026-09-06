@@ -4,6 +4,7 @@
 package command
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -123,7 +124,7 @@ func describeChildren(node *Node) string {
 	for name := range node.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	if len(names) > 4 {
 		var b textbuf.Buffer

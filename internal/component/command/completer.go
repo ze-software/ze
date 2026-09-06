@@ -4,7 +4,7 @@
 package command
 
 import (
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -378,7 +378,7 @@ func (c *TreeCompleter) oneOfSuggestions(node *Node, prefix string) []Suggestion
 	for name := range node.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	out := make([]Suggestion, 0, len(names))
 	for _, name := range names {
@@ -409,7 +409,7 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 		for k := range node.Children {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 
 		for _, name := range keys {
 			child := node.Children[name]

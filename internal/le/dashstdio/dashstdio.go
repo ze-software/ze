@@ -53,6 +53,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -134,7 +135,7 @@ func scan(tree string, roots []string, floor int) (Findings, error) {
 	for dir := range byDir {
 		dirs = append(dirs, dir)
 	}
-	sort.Strings(dirs)
+	slices.Sort(dirs)
 
 	var all Findings
 	for _, dir := range dirs {

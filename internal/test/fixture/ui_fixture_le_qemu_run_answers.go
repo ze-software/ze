@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -310,7 +309,7 @@ func uiLeQemuRunAnswersEnvironment(base []string, replacements map[string]string
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	result := make([]string, 0, len(keys))
 	for _, key := range keys {
 		result = append(result, key+"="+values[key])
@@ -344,7 +343,7 @@ func uiLeQemuRunAnswersSortedKeys(value map[string]any) []string {
 	for key := range value {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

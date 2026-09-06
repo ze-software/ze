@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/discoveryindex"
@@ -505,7 +504,7 @@ func targetScript(root, session, tag string, options *Options) (string, string, 
 			return "", "", errors.New("append: this session has no prepared script")
 		}
 		if len(matches) > 1 {
-			sort.Strings(matches)
+			slices.Sort(matches)
 			return "", "", fmt.Errorf("append is ambiguous: this session has %d prepared scripts; name script", len(matches))
 		}
 		content, err := os.ReadFile(matches[0])

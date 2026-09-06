@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -63,7 +63,7 @@ func parseISISDocRows(t *testing.T, path string) map[string]docRow {
 				labels = append(labels, l)
 			}
 		}
-		sort.Strings(labels)
+		slices.Sort(labels)
 		rows[name] = docRow{typ: typ, labels: labels}
 	}
 	return rows
@@ -84,7 +84,7 @@ func newRegisteredTypeRegistry() *registeredTypeRegistry {
 
 func (r *registeredTypeRegistry) record(name, typ string, labelNames []string) {
 	ls := append([]string(nil), labelNames...)
-	sort.Strings(ls)
+	slices.Sort(ls)
 	r.rows[name] = docRow{typ: typ, labels: ls}
 }
 

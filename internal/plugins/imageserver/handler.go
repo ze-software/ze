@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -246,7 +246,7 @@ func latestImage(dir string) (string, error) {
 	if len(imgs) == 0 {
 		return "", fmt.Errorf("no .img files")
 	}
-	sort.Strings(imgs)
+	slices.Sort(imgs)
 	return imgs[len(imgs)-1], nil
 }
 

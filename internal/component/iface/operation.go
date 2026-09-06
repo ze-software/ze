@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -265,7 +265,7 @@ func sortedManagedNames(managed map[string]bool) []string {
 	for name := range managed {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -317,7 +317,7 @@ func sortedAddressIfaces(addrs map[string]map[string]bool) []string {
 	for ifaceName := range addrs {
 		ifaces = append(ifaces, ifaceName)
 	}
-	sort.Strings(ifaces)
+	slices.Sort(ifaces)
 	return ifaces
 }
 
@@ -326,7 +326,7 @@ func sortedAddressCIDRs(addrs map[string]bool) []string {
 	for cidr := range addrs {
 		cidrs = append(cidrs, cidr)
 	}
-	sort.Strings(cidrs)
+	slices.Sort(cidrs)
 	return cidrs
 }
 

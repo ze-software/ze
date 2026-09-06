@@ -12,7 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -877,7 +877,7 @@ func (e *Editor) ActiveSessions() []string {
 		seen[change.SessionID] = true
 		sessions = append(sessions, change.SessionID)
 	}
-	sort.Strings(sessions)
+	slices.Sort(sessions)
 	return sessions
 }
 

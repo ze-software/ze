@@ -17,7 +17,7 @@
 package vendorweb
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -254,6 +254,6 @@ func sortedSkips(skipped map[string]string) []string {
 	for dir := range skipped {
 		out = append(out, dir)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }

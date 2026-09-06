@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"sort"
+	"slices"
 	"testing"
 )
 
@@ -163,7 +163,7 @@ func repeatedNames(kind, specVar string, names []string) []error {
 		}
 	}
 
-	sort.Strings(repeated)
+	slices.Sort(repeated)
 
 	findings := make([]error, 0, len(repeated))
 	for _, name := range repeated {

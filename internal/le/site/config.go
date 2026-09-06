@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -155,7 +155,7 @@ func sortedTreeSections(tree map[string]configNode) []string {
 	for name := range tree {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -195,7 +195,7 @@ func refuseOrphanConfigRoots(tree map[string]configNode, owners map[string][]reg
 	if len(orphans) == 0 {
 		return nil
 	}
-	sort.Strings(orphans)
+	slices.Sort(orphans)
 	return fmt.Errorf("config %s resolves to no node in the YANG configuration tree: %s",
 		plural(len(orphans), "root"), strings.Join(orphans, "; "))
 }

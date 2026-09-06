@@ -395,7 +395,7 @@ func commPrintJSON(st *commAnalysis, threshold float64, minRoutes int) {
 		if len(defaults) == 0 {
 			continue
 		}
-		sort.Strings(defaults)
+		slices.Sort(defaults)
 		entries = append(entries, asnEntry{as.asn, s.Routes, defaults})
 	}
 

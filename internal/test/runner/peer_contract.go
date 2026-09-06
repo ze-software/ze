@@ -22,7 +22,7 @@ package runner
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -281,7 +281,7 @@ func peerBlockNames(r *Record) []string {
 	for name := range seen {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -211,7 +211,7 @@ func recordKeys(text string) []string {
 
 func alphabetical(values []string) bool {
 	ordered := append([]string(nil), values...)
-	sort.Strings(ordered)
+	slices.Sort(ordered)
 	if len(values) != len(ordered) {
 		return false
 	}

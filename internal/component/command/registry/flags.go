@@ -2,7 +2,10 @@
 
 package registry
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // Value-hint kinds for FlagSpec.ValueHint. A shell can complete the flag's
 // value when the hint names a known value source; "" means the flag is a
@@ -61,6 +64,6 @@ func CommandFlagPaths() []string {
 	for p := range commandFlags {
 		paths = append(paths, p)
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths
 }

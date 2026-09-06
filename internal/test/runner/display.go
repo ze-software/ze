@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -467,7 +467,7 @@ func (d *Display) StressSummary(result *StressResult, count int) {
 	for nick := range stats {
 		nicks = append(nicks, nick)
 	}
-	sort.Strings(nicks)
+	slices.Sort(nicks)
 
 	var totalPassed, totalFailed, totalTimedOut int
 

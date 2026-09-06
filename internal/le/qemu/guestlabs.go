@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sort"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -141,7 +141,7 @@ func parseClosedCSV(raw, label string, allowed, defaults []string) ([]string, er
 		}
 		if !allowedSet[name] {
 			known := append([]string(nil), allowed...)
-			sort.Strings(known)
+			slices.Sort(known)
 			return nil, fmt.Errorf("unknown %s %q; known %ss: %s", label, name, label, strings.Join(known, ", "))
 		}
 		if seen[name] {

@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -468,7 +468,7 @@ func sortedMissing[L any, R any](left map[string]L, right map[string]R) []string
 			out = append(out, key)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -480,7 +480,7 @@ func sortedShared[L any, R any](left map[string]L, right map[string]R) []string 
 			out = append(out, key)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -525,7 +525,7 @@ func sortedKeysOf[V any](in map[string]V) []string {
 	for key := range in {
 		out = append(out, key)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -566,7 +566,7 @@ func uncredited(signed map[string]Extraction, enrolled map[string]bool) []string
 			out = append(out, stem)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

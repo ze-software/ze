@@ -4,7 +4,7 @@ package rs
 
 import (
 	"net/netip"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -190,7 +190,7 @@ func sortedRowKeys(row map[string]any) string {
 	for key := range row {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return strings.Join(keys, " ")
 }
 

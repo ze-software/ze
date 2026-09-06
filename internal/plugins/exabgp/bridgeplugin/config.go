@@ -13,7 +13,7 @@ package bridgeplugin
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/exabgp/bridge"
@@ -157,7 +157,7 @@ func parseScripts(blk map[string]any) ([]bridgerun.Script, error) {
 	for name := range entries {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	scripts := make([]bridgerun.Script, 0, len(names))
 	for _, name := range names {
@@ -219,7 +219,7 @@ func parseFeeds(entry map[string]any) []bridgerun.ScriptFeed {
 	for peer := range blocks {
 		peers = append(peers, peer)
 	}
-	sort.Strings(peers)
+	slices.Sort(peers)
 
 	feeds := make([]bridgerun.ScriptFeed, 0, len(peers))
 	for _, peer := range peers {

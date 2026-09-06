@@ -832,7 +832,7 @@ func applyAddressFamilies(cfg *ospfConfig, afTree map[string]any) error {
 	for name := range afTree {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		sub, ok := afTree[name].(map[string]any)
 		if !ok {

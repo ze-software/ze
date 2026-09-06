@@ -5,6 +5,7 @@ package diagnostic
 
 import (
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -102,7 +103,7 @@ func DoctorCheckNames() []string {
 	for i := range doctorCheckRegistry.entries {
 		names = append(names, doctorCheckRegistry.entries[i].Name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

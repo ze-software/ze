@@ -17,7 +17,7 @@
 package ifacera
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -72,7 +72,7 @@ func checkRAForwarding(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 		names := ifaceBlock.ListKeys(kind)
 		// A map gives no order, so the reported interfaces are sorted and two
 		// runs of `ze doctor` read the same.
-		sort.Strings(names)
+		slices.Sort(names)
 		for _, name := range names {
 			if !advertises(entries[name]) {
 				continue

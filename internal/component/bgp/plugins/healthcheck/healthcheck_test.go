@@ -5,7 +5,7 @@ package healthcheck
 import (
 	"encoding/json"
 	"reflect"
-	"sort"
+	"slices"
 	"testing"
 )
 
@@ -39,7 +39,7 @@ func keysOf(m map[string]any) []string {
 	for key := range m {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

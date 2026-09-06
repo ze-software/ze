@@ -10,7 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -220,7 +220,7 @@ func bagDifference(left, right map[string]int) []string {
 			difference = append(difference, line)
 		}
 	}
-	sort.Strings(difference)
+	slices.Sort(difference)
 	return difference
 }
 
@@ -251,7 +251,7 @@ func uiLeConsistencyAnswersSortedKeys(values map[string]json.RawMessage) []strin
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

@@ -5,7 +5,7 @@
 package cli
 
 import (
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -339,7 +339,7 @@ func diffList(lines *[]diffLine, orig, mod *config.Tree, name string, node *conf
 	for k := range keySet {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	prefix := strings.Repeat("\t", indent)
 
@@ -502,7 +502,7 @@ func diffExtraTreeValues(lines *[]diffLine, orig, mod *config.Tree, children []s
 	for k := range allExtras {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	var tb textbuf.Buffer
 	for _, k := range keys {

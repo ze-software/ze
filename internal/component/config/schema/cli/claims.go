@@ -3,9 +3,7 @@
 
 package cli
 
-import (
-	"sort"
-)
+import "slices"
 
 // ConfigHandlerPaths returns the handler paths the internal schema registry
 // binds, sorted.
@@ -28,6 +26,6 @@ func ConfigHandlerPaths() ([]string, error) {
 	for path := range handlers {
 		paths = append(paths, path)
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, nil
 }

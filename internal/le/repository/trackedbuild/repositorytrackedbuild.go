@@ -29,7 +29,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -428,7 +428,7 @@ func featureTags(dest string) ([]string, error) {
 		seen[fields[0]] = true
 		out = append(out, fields[0])
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 

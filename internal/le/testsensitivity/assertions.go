@@ -11,7 +11,7 @@ import (
 	"go/ast"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -334,7 +334,7 @@ func (p *pkgIndex) funcs(importPath string) map[string]crossHelper {
 		}
 		names = append(names, entry.Name())
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		file, parseErr := parseGo(filepath.Join(dir, name))

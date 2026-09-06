@@ -5,6 +5,7 @@ package perf
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"time"
 )
@@ -55,7 +56,7 @@ func Median(vals []int) int {
 
 	sorted := make([]int, len(vals))
 	copy(sorted, vals)
-	sort.Ints(sorted)
+	slices.Sort(sorted)
 
 	n := len(sorted)
 	if n%2 == 1 {
@@ -123,7 +124,7 @@ func CalculateLatencies(durations []time.Duration) (p50, p90, p99, max int) {
 		ms[i] = int(d / time.Millisecond)
 	}
 
-	sort.Ints(ms)
+	slices.Sort(ms)
 
 	p50 = Percentile(ms, 0.50)
 	p90 = Percentile(ms, 0.90)

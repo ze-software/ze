@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -318,7 +317,7 @@ system {
 		return fmt.Errorf("the fixture lost the keys the order is about: %q", header)
 	}
 	alphabetical := append([]string(nil), header...)
-	sort.Strings(alphabetical)
+	slices.Sort(alphabetical)
 	if uiShowBgpPeerListColumnOrderEqualStrings(header, alphabetical) {
 		return fmt.Errorf("the peer list columns are still alphabetical: %q", header)
 	}

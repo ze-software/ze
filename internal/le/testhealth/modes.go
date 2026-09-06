@@ -15,7 +15,7 @@ package testhealth
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -533,7 +533,7 @@ func sameSample(last, candidate object) bool {
 	for key := range keys {
 		names = append(names, key)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, key := range names {
 		if last.has(key) != candidate.has(key) {

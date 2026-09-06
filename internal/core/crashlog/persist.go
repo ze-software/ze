@@ -5,7 +5,7 @@ package crashlog
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -123,6 +123,6 @@ func listCrashFileNames(dir string) []string {
 			names = append(names, name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

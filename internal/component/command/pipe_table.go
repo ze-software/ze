@@ -248,7 +248,7 @@ func (s tableStyle) renderList(arr []any) string {
 	for k := range keySet {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	keys = s.orderKeys(keys)
 
 	// Initialize widths from header names.
@@ -539,7 +539,7 @@ func (s tableStyle) fillKeys(keys, rest []string) []string {
 
 	switch s.request.fill {
 	case fillAlpha:
-		sort.Strings(filled)
+		slices.Sort(filled)
 	case fillDefault:
 		// The command's own declaration orders what the operator did not name.
 		// The shape is read from the whole key set, because that is what tells
@@ -597,6 +597,6 @@ func tableSortedKeys(m map[string]any) []string {
 		}
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }

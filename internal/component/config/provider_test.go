@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 
@@ -320,7 +320,7 @@ func TestSchemaModules(t *testing.T) {
 		t.Fatalf("got %d modules, want 3", len(schema.Modules))
 	}
 
-	sort.Strings(schema.Modules)
+	slices.Sort(schema.Modules)
 	for i, name := range names {
 		if schema.Modules[i] != name {
 			t.Errorf("modules[%d] = %q, want %q", i, schema.Modules[i], name)

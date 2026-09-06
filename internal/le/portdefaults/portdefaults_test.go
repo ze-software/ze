@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -105,7 +105,7 @@ func sortedServices() []string {
 	for service := range serviceYANG {
 		services = append(services, service)
 	}
-	sort.Strings(services)
+	slices.Sort(services)
 	return services
 }
 

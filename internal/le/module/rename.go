@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -226,7 +227,7 @@ func gitTrackedFiles(root string) ([]string, error) {
 			files = append(files, filepath.ToSlash(string(part)))
 		}
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 
@@ -299,7 +300,7 @@ func planRenameMoves(files []string, old, new string) []PathMove {
 	for source := range set {
 		sources = append(sources, source)
 	}
-	sort.Strings(sources)
+	slices.Sort(sources)
 	moves := make([]PathMove, 0, len(sources))
 	for _, source := range sources {
 		moves = append(moves, PathMove{From: source, To: set[source]})
@@ -318,7 +319,7 @@ func postMoveTracked(files []string, moves []PathMove) []string {
 		}
 		out = append(out, relative)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

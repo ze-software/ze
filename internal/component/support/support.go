@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -232,7 +232,7 @@ func collect(modules map[string]moduleCollector, opts *collectOptions, reason, o
 	for k := range modules {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		fn := modules[name]

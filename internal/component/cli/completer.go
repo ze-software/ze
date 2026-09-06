@@ -8,7 +8,6 @@ package cli
 import (
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
@@ -962,7 +961,7 @@ func (c *Completer) validateCompletions(entry *gyang.Entry, prefix string) []Com
 		return nil
 	}
 
-	sort.Strings(values)
+	slices.Sort(values)
 
 	var completions []Completion
 	for _, v := range values {
@@ -1330,7 +1329,7 @@ func (c *Completer) getSortedChildren(entry *gyang.Entry) []string {
 	for name := range childrenMap {
 		children = append(children, name)
 	}
-	sort.Strings(children)
+	slices.Sort(children)
 	return children
 }
 

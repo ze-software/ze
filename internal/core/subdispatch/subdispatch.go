@@ -4,7 +4,7 @@ package subdispatch
 
 import (
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
@@ -73,7 +73,7 @@ func (d *Dispatcher) targetNames() []string {
 	for k := range d.handlers {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

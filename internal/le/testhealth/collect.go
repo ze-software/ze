@@ -17,6 +17,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -534,7 +535,7 @@ func adoptionMetric(buckets map[string]*bucket, undated []string) Metric {
 	for year := range buckets {
 		years = append(years, year)
 	}
-	sort.Strings(years)
+	slices.Sort(years)
 
 	clean := object{}
 	for _, year := range years {
@@ -685,7 +686,7 @@ func collectKnownFailures(t *tree) (Metric, error) {
 			names = append(names, entry.Name())
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	// LIVE = one shard file per live failure, excluding the two bookkeeping
 	// files. Counting the RESOLVED archive would report the debt this project

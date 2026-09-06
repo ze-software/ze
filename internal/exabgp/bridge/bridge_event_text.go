@@ -17,6 +17,7 @@ package bridge
 
 import (
 	"encoding/json"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -508,6 +509,6 @@ func sortedKeys(entries map[string]any) []string {
 	for key := range entries {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }

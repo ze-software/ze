@@ -19,7 +19,7 @@ package rfc
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -406,8 +406,8 @@ func scanDir(tree, dir string, carriers []Carrier) ([]Tag, error) {
 		}
 		files = append(files, entry.Name())
 	}
-	sort.Strings(files)
-	sort.Strings(dirs)
+	slices.Sort(files)
+	slices.Sort(dirs)
 
 	var tags []Tag
 	for _, name := range files {
@@ -512,8 +512,8 @@ func scanUnscannedDir(tree, dir string, carriers []Carrier) ([]UnscannedTag, err
 			files = append(files, entry.Name())
 		}
 	}
-	sort.Strings(files)
-	sort.Strings(dirs)
+	slices.Sort(files)
+	slices.Sort(dirs)
 
 	var out []UnscannedTag
 	for _, name := range files {
@@ -714,7 +714,7 @@ func scheduledActionsFrom(sources map[string]string) map[string]string {
 	for name := range sources {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		src := stripYAMLComments(sources[name])
 		if !isScheduled(src) {

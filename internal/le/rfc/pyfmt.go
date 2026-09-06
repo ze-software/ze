@@ -20,7 +20,7 @@ package rfc
 
 import (
 	"encoding/json"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -35,7 +35,7 @@ func sortedKeys(set map[string]bool) []string {
 	for key := range set {
 		out = append(out, key)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -117,7 +117,7 @@ func writeRepr(tb *textbuf.Buffer, value any) {
 		for key := range typed {
 			keys = append(keys, key)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for i, key := range keys {
 			if i > 0 {
 				tb.Str(", ")
@@ -229,7 +229,7 @@ func writeDump(tb *textbuf.Buffer, value any, depth int) {
 		for key := range typed {
 			keys = append(keys, key)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		tb.Str("{\n")
 		for i, key := range keys {
 			if i > 0 {

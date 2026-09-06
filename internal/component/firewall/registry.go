@@ -6,7 +6,7 @@ package firewall
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -153,7 +153,7 @@ func ApplyAll() error {
 	for owner := range tableRegistry.owners {
 		owners = append(owners, owner)
 	}
-	sort.Strings(owners)
+	slices.Sort(owners)
 	for _, owner := range owners {
 		all = append(all, tableRegistry.owners[owner]...)
 	}

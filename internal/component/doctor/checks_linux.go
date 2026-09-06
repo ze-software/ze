@@ -11,7 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -411,7 +411,7 @@ func netDevicesWithAddress(mac string) []string {
 		}
 		found = append(found, device)
 	}
-	sort.Strings(found)
+	slices.Sort(found)
 	return found
 }
 

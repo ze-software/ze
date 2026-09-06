@@ -604,6 +604,6 @@ func markdownFiles(root string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(found)
+	slices.Sort(found)
 	return found, nil
 }

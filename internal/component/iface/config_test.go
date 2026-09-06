@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -2671,7 +2671,7 @@ func (b *fakeBackend) ListMirrors() ([]MirrorState, error) {
 	for name := range b.mirrors {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	states := make([]MirrorState, 0, len(names))
 	for _, name := range names {
 		states = append(states, b.mirrors[name])

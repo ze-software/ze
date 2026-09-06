@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -257,7 +257,7 @@ func scanCITest(text string, checked *counts, parsed *parseCounts) []string {
 	for name := range fs.StdinBlocks {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		violations = append(violations, scanCIBlock(string(fs.StdinBlocks[name]), "stdin "+name, checked, parsed)...)
 	}
@@ -342,7 +342,7 @@ func scanParsedTree(root map[string]any, loc where) (violations []string, checke
 	walk(root, "")
 
 	// Map iteration order is random and a failure message is read by a person.
-	sort.Strings(violations)
+	slices.Sort(violations)
 	return violations, checked
 }
 

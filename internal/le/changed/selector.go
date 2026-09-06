@@ -73,7 +73,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -415,7 +415,7 @@ func manifestTags(gates []featureGate) []string {
 		seen[gate.tag] = true
 		tags = append(tags, gate.tag)
 	}
-	sort.Strings(tags)
+	slices.Sort(tags)
 	return tags
 }
 
@@ -636,7 +636,7 @@ func classifyPaths(root string, paths []string) ([]string, error) {
 			seeds = append(seeds, dir)
 		}
 	}
-	sort.Strings(seeds)
+	slices.Sort(seeds)
 	return seeds, nil
 }
 
@@ -892,7 +892,7 @@ func expandPackages(graph *packageGraph, seeds []string, opts selectorOptions) [
 	for importPath := range atDepth {
 		packages = append(packages, packageWord(graph.dirOf[importPath]))
 	}
-	sort.Strings(packages)
+	slices.Sort(packages)
 	return packages
 }
 
@@ -938,7 +938,7 @@ func difference(wide, narrow map[string]bool) []string {
 		}
 		only = append(only, member)
 	}
-	sort.Strings(only)
+	slices.Sort(only)
 	return only
 }
 
@@ -1027,7 +1027,7 @@ func reachedTags(root string, paths, seeds []string, gates []featureGate, everyT
 	for tag := range seen {
 		tags = append(tags, tag)
 	}
-	sort.Strings(tags)
+	slices.Sort(tags)
 	return tags
 }
 

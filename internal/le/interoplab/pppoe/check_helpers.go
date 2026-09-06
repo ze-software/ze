@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -68,7 +68,7 @@ func pppLinks(
 	for link := range unique {
 		links = append(links, link)
 	}
-	sort.Strings(links)
+	slices.Sort(links)
 	return links, nil
 }
 

@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -242,7 +243,7 @@ func claimSymbols(claim string) []string {
 		seen[lowered] = true
 		out = append(out, word)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

@@ -3,7 +3,7 @@ package rib
 import (
 	"encoding/json"
 	"net/netip"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1633,7 +1633,7 @@ func TestShowRowsAreDeterministic(t *testing.T) {
 		}
 	}
 	sortedPeers := append([]string(nil), peers...)
-	sort.Strings(sortedPeers)
+	slices.Sort(sortedPeers)
 	assert.Equal(t, sortedPeers, peers, "the peers are not walked in order")
 	assert.Len(t, peers, 4, "each peer appears as one contiguous group")
 

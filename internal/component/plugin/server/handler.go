@@ -6,7 +6,7 @@ package server
 import (
 	"context"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -158,7 +158,7 @@ func StreamingPrefixes() []string {
 	for p := range streamingHandlers {
 		prefixes = append(prefixes, p)
 	}
-	sort.Strings(prefixes)
+	slices.Sort(prefixes)
 	return prefixes
 }
 

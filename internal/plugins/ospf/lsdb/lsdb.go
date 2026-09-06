@@ -4,6 +4,7 @@
 package lsdb
 
 import (
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -580,7 +581,7 @@ func (d *LSDB) Snapshot() Snapshot {
 	for name := range d.links {
 		linkNames = append(linkNames, name)
 	}
-	sort.Strings(linkNames)
+	slices.Sort(linkNames)
 	links := make([]LinkSnapshot, 0, len(linkNames))
 	for _, name := range linkNames {
 		links = append(links, LinkSnapshot{Interface: name, LSAs: snapshotEntries(d.links[name], now, name, true)})

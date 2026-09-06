@@ -8,7 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -202,9 +202,9 @@ func TestStoreReadDir(t *testing.T) {
 		t.Fatalf("ReadDir(.): %v", err)
 	}
 	names := dirEntryNames(entries)
-	sort.Strings(names)
+	slices.Sort(names)
 	wantNames := []string{"bgp", "root.conf"}
-	sort.Strings(wantNames)
+	slices.Sort(wantNames)
 	if !equalStrings(names, wantNames) {
 		t.Errorf("ReadDir(.): got %v, want %v", names, wantNames)
 	}
@@ -225,7 +225,7 @@ func TestStoreReadDir(t *testing.T) {
 		t.Fatalf("ReadDir(bgp/peers): %v", err)
 	}
 	names = dirEntryNames(entries)
-	sort.Strings(names)
+	slices.Sort(names)
 	if !equalStrings(names, []string{"n1.conf", "n2.conf"}) {
 		t.Errorf("ReadDir(bgp/peers): got %v, want [n1.conf n2.conf]", names)
 	}
@@ -246,7 +246,7 @@ func TestStoreList(t *testing.T) {
 	writeOrFatal(t, s, "root.conf", []byte("r"))
 
 	got := s.List("bgp/peers")
-	sort.Strings(got)
+	slices.Sort(got)
 	want := []string{"bgp/peers/n1.conf", "bgp/peers/n2.conf"}
 	if !equalStrings(got, want) {
 		t.Errorf("List(bgp/peers): got %v, want %v", got, want)
@@ -1982,7 +1982,7 @@ func TestStoreReadDirRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	names := dirEntryNames(entries)
-	sort.Strings(names)
+	slices.Sort(names)
 	if len(names) != 2 || names[0] != "sub" || names[1] != "top.txt" {
 		t.Errorf("ReadDir root: got %v, want [sub, top.txt]", names)
 	}
@@ -2798,7 +2798,7 @@ func TestStoreDirReadDirStreaming(t *testing.T) {
 			t.Fatalf("ReadDir(1): %v", readErr)
 		}
 	}
-	sort.Strings(allNames)
+	slices.Sort(allNames)
 	want := []string{"alpha", "beta", "gamma"}
 	if !equalStrings(allNames, want) {
 		t.Errorf("streamed names: got %v, want %v", allNames, want)

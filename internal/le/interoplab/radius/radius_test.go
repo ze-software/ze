@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -589,7 +589,7 @@ func TestScenarioPopulationMatchesRegistry(t *testing.T) {
 			onDisk = append(onDisk, entry.Name())
 		}
 	}
-	sort.Strings(onDisk)
+	slices.Sort(onDisk)
 	registered := ScenarioNames()
 	if strings.Join(onDisk, ",") != strings.Join(registered, ",") {
 		t.Fatalf("scenario directories %v do not match the checker registry %v", onDisk, registered)

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/pkg/zefs"
@@ -154,7 +153,7 @@ func (p *Profile) ModuleNames() []string {
 	for name := range p.Modules {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -225,7 +224,7 @@ func listProfiles(storePath string) ([]string, error) {
 			names = append(names, name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 

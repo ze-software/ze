@@ -14,7 +14,7 @@
 package specstatus
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -72,7 +72,7 @@ func summaryOrder(counts map[string]int) []string {
 			rest = append(rest, st)
 		}
 	}
-	sort.Strings(rest)
+	slices.Sort(rest)
 	order := make([]string, 0, len(reportingOrder)+len(rest))
 	order = append(order, reportingOrder...)
 	return append(order, rest...)

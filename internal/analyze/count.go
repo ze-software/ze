@@ -8,7 +8,7 @@ package analyze
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 )
 
 func runCountAttrs(args []string) int {
@@ -61,7 +61,7 @@ Examples:
 	for k := range counts {
 		keys = append(keys, k)
 	}
-	sort.Ints(keys)
+	slices.Sort(keys)
 
 	fmt.Println("| Attrs | Count | Percent | Cumulative |")
 	fmt.Println("|-------|-------|---------|------------|")

@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -263,7 +263,7 @@ func acceptOnlyUnannotated(repoRoot string) (paths []string, parseFailures []acc
 		paths = append(paths, rel)
 		return nil
 	})
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, parseFailures, walkErr
 }
 
@@ -308,7 +308,7 @@ func diffStringSets(a []string, b map[string]struct{}) []string {
 			out = append(out, s)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -326,7 +326,7 @@ func baselineOrphans(baseline map[string]struct{}, current []string) []string {
 			out = append(out, s)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -375,7 +375,7 @@ func checkAcceptOnlyRatchet(repoRoot string) (acceptOnlyLintResult, error) {
 		var b textbuf.Buffer
 		unexpected = append(unexpected, b.Str(pf.path).Str(": ").Err(pf.err).String())
 	}
-	sort.Strings(unexpected)
+	slices.Sort(unexpected)
 
 	return acceptOnlyLintResult{
 		newViolations:         diffStringSets(current, baseline),

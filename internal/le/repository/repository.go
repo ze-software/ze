@@ -28,6 +28,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -112,7 +113,7 @@ func ChangedFiles(ctx context.Context, tree string) ([]string, error) {
 			files = append(files, line)
 		}
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, nil
 }
 

@@ -4,7 +4,7 @@ package support
 
 import (
 	"maps"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -57,7 +57,7 @@ func ModuleNames() []string {
 	for k := range moduleRegistry {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

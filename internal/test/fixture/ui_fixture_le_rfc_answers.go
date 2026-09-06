@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -673,7 +672,7 @@ func leRFCAnswersEnvironment(overrides map[string]string) []string {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	environment := make([]string, 0, len(keys))
 	for _, key := range keys {
 		environment = append(environment, key+"="+values[key])
@@ -711,7 +710,7 @@ func leRFCAnswersMapKeys[V any](values map[string]V) []string {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -868,7 +867,7 @@ func leRFCAnswersSymmetricDifference(a, b []string) []string {
 			difference = append(difference, value)
 		}
 	}
-	sort.Strings(difference)
+	slices.Sort(difference)
 	if len(difference) > 10 {
 		difference = difference[:10]
 	}

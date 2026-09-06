@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -206,7 +207,7 @@ func Candidates(root string, named []string) ([]pair, error) {
 		for _, path := range named {
 			wanted = append(wanted, strings.TrimPrefix(path, "./"))
 		}
-		sort.Strings(wanted)
+		slices.Sort(wanted)
 
 		var keep []pair
 		for _, name := range dedupe(wanted) {

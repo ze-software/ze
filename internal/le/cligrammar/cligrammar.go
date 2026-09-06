@@ -34,6 +34,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -513,7 +514,7 @@ func demoLaunchHits(tree string, accepted map[string]bool) ([]DemoLaunchHit, int
 		}
 		files = append(files, matches...)
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 
 	var hits []DemoLaunchHit
 	for _, path := range files {

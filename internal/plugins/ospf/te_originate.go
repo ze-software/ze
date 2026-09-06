@@ -14,6 +14,7 @@
 package ospf
 
 import (
+	"slices"
 	"sort"
 	"sync"
 
@@ -378,7 +379,7 @@ func sortedNames(m map[string]interfaceConfig) []string {
 	for name := range m {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

@@ -15,6 +15,7 @@ package cmd
 import (
 	"errors"
 	"net"
+	"slices"
 	"sort"
 	"strconv"
 	"syscall"
@@ -260,7 +261,7 @@ func handleShowVPNIPsecDataplaneDrift(_ *pluginserver.CommandContext, _ []string
 	for name := range peers {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	found := make([]driftFinding, 0)
 	for _, name := range names {

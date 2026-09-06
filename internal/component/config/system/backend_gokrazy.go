@@ -9,7 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/gokrazyutil"
@@ -167,7 +167,7 @@ func featureNames(raw any) []string {
 			}
 		}
 	}
-	sort.Strings(features)
+	slices.Sort(features)
 	return features
 }
 

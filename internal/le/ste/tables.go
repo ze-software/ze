@@ -15,7 +15,7 @@ package ste
 
 import (
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -325,7 +325,7 @@ func init() {
 	for _, entry := range nominalizations {
 		nouns = append(nouns, entry.Word)
 	}
-	sort.Strings(nouns)
+	slices.Sort(nouns)
 	joined := strings.Join(nouns, "|")
 
 	var light textbuf.Buffer

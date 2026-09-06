@@ -11,7 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -205,6 +205,6 @@ func checkTagPackagesCompile(tree string, tags []Tag, carriers []Carrier) ([]str
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(pkg).Str(": `go vet` cannot type-check this package, ").Str(stake).Str(". go vet said: ").Str(quoteCompiler(failures[pkg])).Str(". Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`").String())
 	}
-	sort.Strings(errs)
+	slices.Sort(errs)
 	return errs, nil
 }

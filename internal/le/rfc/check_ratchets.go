@@ -8,6 +8,7 @@ package rfc
 import (
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -125,7 +126,7 @@ func checkCoverageRatchet(requirements []Requirement, tags []Tag, enrolled map[s
 		if len(lost) == 0 {
 			continue
 		}
-		sort.Strings(lost)
+		slices.Sort(lost)
 		seen[req.RID] = true
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(requirementWhere(req)).Str(": ").Str(req.RID).
@@ -156,8 +157,8 @@ func checkEvidenceRatchet(requirements []Requirement, tags []Tag, enrolled map[s
 		for label := range current[req.RID] {
 			kept = append(kept, label)
 		}
-		sort.Strings(lost)
-		sort.Strings(kept)
+		slices.Sort(lost)
+		slices.Sort(kept)
 		still := "nothing but unit tests"
 		if len(kept) > 0 {
 			still = strings.Join(kept, ", ")

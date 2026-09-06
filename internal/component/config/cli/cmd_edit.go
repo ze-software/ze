@@ -12,7 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -355,7 +355,7 @@ func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.
 			configs = append(configs, f)
 		}
 	}
-	sort.Strings(configs)
+	slices.Sort(configs)
 
 	// AC-7: no configs exist, create default config
 	if len(configs) == 0 {

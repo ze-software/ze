@@ -7,6 +7,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -214,7 +215,7 @@ func collectCollisionsRecursive(node *AnalysisNode, path []string, minPrefix int
 	for name := range node.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, name := range names {
 		child := node.Children[name]
@@ -228,7 +229,7 @@ func (n *AnalysisNode) sortedChildren() []string {
 	for name := range n.Children {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

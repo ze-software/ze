@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -178,7 +179,7 @@ func classFilesOnDisk(tree string) ([]string, error) {
 		}
 		paths = append(paths, filepath.ToSlash(filepath.Join(journalDir, name)))
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, nil
 }
 
@@ -498,7 +499,7 @@ func AddedSpecEvidence(tree string, paths []string) ([]string, []string, error) 
 			}
 		}
 	}
-	sort.Strings(malformed)
+	slices.Sort(malformed)
 	return stems, malformed, nil
 }
 
@@ -561,6 +562,6 @@ func HeadSpecEvidence(tree string) (map[string]string, []string, error) {
 			}
 		}
 	}
-	sort.Strings(malformed)
+	slices.Sort(malformed)
 	return evidence, malformed, nil
 }

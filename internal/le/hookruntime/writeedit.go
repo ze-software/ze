@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -202,7 +201,7 @@ func writePointLanguage(ctx context) *verdict {
 		for _, match := range matches {
 			words = append(words, match[2])
 		}
-		sort.Strings(words)
+		slices.Sort(words)
 		return &verdict{2, red + bold + "❌ BLOCKED: lowercase obligation word in a rule directive" + reset + "\n  " + relative + " states " + strings.Join(words, ", ") + " in lowercase.\n  Use MUST, MUST NOT, SHOULD, SHOULD NOT, or MAY."}
 	}
 	if ctx.tool == toolWrite && !upperRFC.MatchString(visible) {

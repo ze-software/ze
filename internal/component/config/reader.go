@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -493,7 +493,7 @@ func diffBlocks(oldState, newState *blockState) []blockChange {
 	for h := range handlers {
 		sortedHandlers = append(sortedHandlers, h)
 	}
-	sort.Strings(sortedHandlers)
+	slices.Sort(sortedHandlers)
 
 	for _, handler := range sortedHandlers {
 		oldBlocks := oldState.blocks[handler]
@@ -520,7 +520,7 @@ func diffBlocks(oldState, newState *blockState) []blockChange {
 		for k := range keys {
 			sortedKeys = append(sortedKeys, k)
 		}
-		sort.Strings(sortedKeys)
+		slices.Sort(sortedKeys)
 
 		for _, key := range sortedKeys {
 			oldBlock := oldBlocks[key]

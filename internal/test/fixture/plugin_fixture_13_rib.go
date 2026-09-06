@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -402,7 +402,7 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 				for key := range result.object() {
 					keys = append(keys, key)
 				}
-				sort.Strings(keys)
+				slices.Sort(keys)
 				a.failures = append(a.failures, fmt.Errorf("%s missing error; keys=%v", check.label, keys))
 			}
 		}

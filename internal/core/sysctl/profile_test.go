@@ -1,7 +1,7 @@
 package sysctl
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -124,7 +124,7 @@ func TestAllProfiles(t *testing.T) {
 	}
 
 	names := []string{all[0].Name, all[1].Name}
-	sort.Strings(names)
+	slices.Sort(names)
 	if names[0] != "alpha" || names[1] != "beta" {
 		t.Errorf("AllProfiles names: got %v", names)
 	}

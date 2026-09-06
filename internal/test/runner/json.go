@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -246,7 +247,7 @@ func jsonFieldDiff(expected, actual map[string]any, prefix string) string {
 	for k := range allKeys {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		path := k
@@ -358,7 +359,7 @@ func normalizeValue(v any) any {
 	case []string:
 		sorted := make([]string, len(val))
 		copy(sorted, val)
-		sort.Strings(sorted)
+		slices.Sort(sorted)
 		result := make([]any, len(sorted))
 		for i, s := range sorted {
 			result[i] = s

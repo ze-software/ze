@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -125,7 +126,7 @@ func discoverSchemaDirectories(root string) ([]string, error) {
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
-	sort.Strings(directories)
+	slices.Sort(directories)
 	return directories, err
 }
 
@@ -231,7 +232,7 @@ func discoverGoFiles(root string) ([]string, error) {
 		}
 		paths = append(paths, found...)
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, nil
 }
 

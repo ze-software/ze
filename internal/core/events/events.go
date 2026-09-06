@@ -13,7 +13,7 @@ package events
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -94,7 +94,7 @@ func ValidEventNames(namespace string) string {
 	for k := range m {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return textbuf.Join(names, ", ")
 }
 
@@ -107,7 +107,7 @@ func ValidNamespaceNames() string {
 	for k := range ValidEvents {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return textbuf.Join(names, ", ")
 }
 
@@ -155,7 +155,7 @@ func allValidEventNames() string {
 	for k := range seen {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return textbuf.Join(names, ", ")
 }
 
@@ -239,7 +239,7 @@ func validNamespaceNamesLocked() string {
 	for k := range ValidEvents {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return textbuf.Join(names, ", ")
 }
 
@@ -292,6 +292,6 @@ func ValidSendTypeNames() string {
 	for k := range ValidSendTypes {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return textbuf.Join(names, ", ")
 }

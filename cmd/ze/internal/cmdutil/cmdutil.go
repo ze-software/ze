@@ -8,7 +8,7 @@ package cmdutil
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/cmd/ze/internal/suggest"
@@ -337,7 +337,7 @@ func commandList(tree *cli.Command) []CommandEntry {
 	for k := range tree.Children {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	entries := make([]CommandEntry, 0, len(keys))
 	for _, name := range keys {
@@ -590,7 +590,7 @@ func DescribeCommand(cmd *cli.Command) string {
 	for k := range cmd.Children {
 		subs = append(subs, k)
 	}
-	sort.Strings(subs)
+	slices.Sort(subs)
 	var tb textbuf.Buffer
 	return tb.Str("subcommands: ").Join(subs, ", ").String()
 }

@@ -12,7 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -83,7 +83,7 @@ func (dt *DecodingTests) Discover(dir string) error {
 		files = append(files, matches...)
 	}
 
-	sort.Strings(files)
+	slices.Sort(files)
 	ResetNickCounter()
 
 	for _, testFile := range files {

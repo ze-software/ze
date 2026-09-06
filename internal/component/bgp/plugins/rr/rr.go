@@ -19,7 +19,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -550,7 +550,7 @@ func (rr *routeReflector) sendEOR(peerAddr string, gen uint64) {
 	}
 	rr.mu.RUnlock()
 
-	sort.Strings(families)
+	slices.Sort(families)
 	for _, fam := range families {
 		rr.updateRoute(peerAddr, rrEORCmd(fam))
 	}

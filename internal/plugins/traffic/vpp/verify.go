@@ -5,7 +5,7 @@ package trafficvpp
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/traffic"
@@ -93,7 +93,7 @@ func Verify(desired map[string]traffic.InterfaceQoS) error {
 	for name := range desired {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	var errs []error
 	for _, name := range names {
 		iqos := desired[name]

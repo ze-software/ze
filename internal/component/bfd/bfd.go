@@ -23,6 +23,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -276,7 +277,7 @@ func resolveLoopDevices(wanted map[api.Key]sessionConfig) map[loopKey]string {
 		if st.vrfBind != "" {
 			out[lk] = st.vrfBind
 			if len(st.overriddenByVRF) > 0 {
-				sort.Strings(st.overriddenByVRF)
+				slices.Sort(st.overriddenByVRF)
 				logger().Info("bfd non-default VRF binds to VRF device; session interface leaves ignored",
 					"vrf", lk.vrf,
 					"mode", lk.mode.String(),
@@ -311,7 +312,7 @@ func sortedKeys(set map[string]struct{}) []string {
 	for k := range set {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

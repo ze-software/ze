@@ -3,7 +3,7 @@
 package firewallnft
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -71,7 +71,7 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 		}
 	}
 	if target == nil {
-		sort.Strings(names)
+		slices.Sort(names)
 		var buf textbuf.Buffer
 		buf.Str("firewall: table \"").Str(wanted).Str("\" not found")
 		if len(names) == 0 {
@@ -192,7 +192,7 @@ func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*pl
 			})
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	if len(args) == 0 {
 		list := make([]map[string]any, 0, len(names))

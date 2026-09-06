@@ -8,7 +8,7 @@
 package cli
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -25,7 +25,7 @@ const modeOffline = "offline"
 func subcommands() string {
 	sorted := make([]string, len(ifaceCommands))
 	copy(sorted, ifaceCommands)
-	sort.Strings(sorted)
+	slices.Sort(sorted)
 	return textbuf.Join(sorted, ", ")
 }
 

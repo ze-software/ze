@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -398,7 +397,7 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 	for name := range groups {
 		sortedGroupNames = append(sortedGroupNames, name)
 	}
-	sort.Strings(sortedGroupNames)
+	slices.Sort(sortedGroupNames)
 	for _, name := range sortedGroupNames {
 		result.Tree.AddListEntry("group", name, groups[name])
 	}

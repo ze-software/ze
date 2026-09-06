@@ -2,7 +2,7 @@ package rpki
 
 import (
 	"encoding/json"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -338,7 +338,7 @@ func jsonKeys(m map[string]any) []string {
 	for key := range m {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

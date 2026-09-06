@@ -4,7 +4,7 @@ package stats
 
 import (
 	"math"
-	"sort"
+	"slices"
 )
 
 // Mean returns the arithmetic mean of xs, or 0 for an empty slice.
@@ -49,7 +49,7 @@ func Quantile(xs []float64, q float64) float64 {
 	}
 	s := make([]float64, len(xs))
 	copy(s, xs)
-	sort.Float64s(s)
+	slices.Sort(s)
 	if len(s) == 1 {
 		return s[0]
 	}

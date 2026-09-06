@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -95,7 +95,7 @@ func tunnelTTLDefault08(ctx context.Context, p *sdk.Plugin) error {
 		return len(absent) == 0
 	})
 	if len(absent) != 0 {
-		sort.Strings(absent)
+		slices.Sort(absent)
 		return fmt.Errorf("the apply left no device for: %s", strings.Join(absent, "; "))
 	}
 
@@ -110,7 +110,7 @@ func tunnelTTLDefault08(ctx context.Context, p *sdk.Plugin) error {
 		wrong = append(wrong, line.String())
 	}
 	if len(wrong) != 0 {
-		sort.Strings(wrong)
+		slices.Sort(wrong)
 		return errors.New(strings.Join(wrong, "; "))
 	}
 

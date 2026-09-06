@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 
@@ -64,7 +63,7 @@ func producedFieldTypes(t *testing.T) []string {
 		types = append(types, name)
 	}
 
-	sort.Strings(types)
+	slices.Sort(types)
 
 	return types
 }

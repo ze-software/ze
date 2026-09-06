@@ -4,7 +4,7 @@
 package cmd
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -25,7 +25,7 @@ func handleDebugState(_ *pluginserver.CommandContext, _ []string) (*plugin.Respo
 	for name := range levels {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	subsystems := make([]map[string]any, 0, len(names))
 	for _, name := range names {

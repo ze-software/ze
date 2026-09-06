@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -209,7 +209,7 @@ func TestFeatureGatedModulesEnumerated(t *testing.T) {
 			missing = append(missing, module+" (tag "+tag+")")
 		}
 	}
-	sort.Strings(missing)
+	slices.Sort(missing)
 	for _, m := range missing {
 		t.Errorf("feature-gated YANG module %s is absent from the loader: this test run compiled it out, so the config claim gate did not check its roots", m)
 	}

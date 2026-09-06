@@ -18,7 +18,7 @@ package rfc
 import (
 	"maps"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -296,7 +296,7 @@ func movedKeys(recorded, current map[string]string) []string {
 			}
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -405,7 +405,7 @@ func auditFreshness(in auditFreshnessInput) map[string]Freshness {
 		}
 		if err != nil {
 			unresolved := append(append([]string{}, keys...), codeKeys...)
-			sort.Strings(unresolved)
+			slices.Sort(unresolved)
 			out[req.RID] = Freshness{State: StaleUnitState, Moved: dedupe(unresolved)}
 			continue
 		}

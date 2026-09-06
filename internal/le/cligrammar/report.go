@@ -11,7 +11,7 @@
 package cligrammar
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/command/grammar"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -144,7 +144,7 @@ func (r Result) Text() string {
 	for category := range r.Exempt {
 		categories = append(categories, category)
 	}
-	sort.Strings(categories)
+	slices.Sort(categories)
 	for _, category := range categories {
 		tb.Str("Exempt (").Str(category).Str("): ").Int(int64(r.Exempt[category])).Byte('\n')
 	}

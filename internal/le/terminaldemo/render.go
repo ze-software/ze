@@ -19,7 +19,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -581,7 +581,7 @@ func (e *Engine) removeSupersededAssets(demo Demo) ([]string, error) {
 		}
 		removed = append(removed, path)
 	}
-	sort.Strings(removed)
+	slices.Sort(removed)
 	return removed, nil
 }
 
@@ -730,7 +730,7 @@ func appendArtifactJSON(buffer *textbuf.Buffer, value any) error {
 		for key := range typed {
 			keys = append(keys, key)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		buffer.Byte('{')
 		for index, key := range keys {
 			if index > 0 {

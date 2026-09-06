@@ -12,7 +12,7 @@
 package inventory
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -290,7 +290,7 @@ func sortedKeys(m map[string]string) []string {
 	for key := range m {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -300,6 +300,6 @@ func sortedCountKeys(m map[string]int) []string {
 	for key := range m {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }

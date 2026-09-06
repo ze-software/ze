@@ -2,7 +2,7 @@ package cli
 
 import (
 	"encoding/json"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -399,7 +399,7 @@ func TestSecretChangeLinesPublishNoValue(t *testing.T) {
 	assert.Empty(t, secretChangeLines(nil))
 
 	paths := []string{"environment.api-server.token", "environment.api-server.client.fleet.token"}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	rendered := secretChangeLines(paths)
 
 	for _, leafPath := range paths {

@@ -370,7 +370,7 @@ func aspathPrintSummary(w io.Writer, st *aspathAnalysis) {
 	for l := range st.LengthDist {
 		lengths = append(lengths, l)
 	}
-	sort.Ints(lengths)
+	slices.Sort(lengths)
 	for _, l := range lengths {
 		c := st.LengthDist[l]
 		pct := float64(c) / float64(st.TotalPaths) * 100
@@ -386,7 +386,7 @@ func aspathPrintSummary(w io.Writer, st *aspathAnalysis) {
 	for d := range depthStats {
 		depths = append(depths, d)
 	}
-	sort.Ints(depths)
+	slices.Sort(depths)
 	for _, d := range depths {
 		c := depthStats[d]
 		pct := float64(c) / float64(trieNodes) * 100

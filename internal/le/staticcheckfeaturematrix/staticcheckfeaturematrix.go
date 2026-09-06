@@ -33,7 +33,7 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -337,7 +337,7 @@ func readFeatureTags(manifestPath string) ([]string, error) {
 	if len(tags) == 0 {
 		return nil, fmt.Errorf("%s: no feature tags found", featureManifest)
 	}
-	sort.Strings(tags)
+	slices.Sort(tags)
 	return tags, nil
 }
 
@@ -369,7 +369,7 @@ func validateAndSortTags(tags []string) ([]string, error) {
 		return nil, fmt.Errorf("matrix requires at least one feature tag")
 	}
 	sorted := append([]string(nil), tags...)
-	sort.Strings(sorted)
+	slices.Sort(sorted)
 	for index, tag := range sorted {
 		if !featureTagPattern.MatchString(tag) {
 			return nil, fmt.Errorf("matrix feature tag %q is invalid", tag)

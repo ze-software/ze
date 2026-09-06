@@ -36,7 +36,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -959,7 +958,7 @@ func (a *allTestsRun) integrationTags() (string, error) {
 		seen[fields[0]] = true
 		gates = append(gates, fields[0])
 	}
-	sort.Strings(gates)
+	slices.Sort(gates)
 
 	var tb textbuf.Buffer
 	tb.Str("ze_core integration")

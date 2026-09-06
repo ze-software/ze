@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -253,8 +254,8 @@ func nlrisMatch(expected, actual []string) bool {
 	a := make([]string, len(actual))
 	copy(e, expected)
 	copy(a, actual)
-	sort.Strings(e)
-	sort.Strings(a)
+	slices.Sort(e)
+	slices.Sort(a)
 	for i := range e {
 		if e[i] != a[i] {
 			return false
@@ -470,7 +471,7 @@ func validateOneGlobCheck(baseDir string, check fileCheck) error {
 	if err != nil {
 		return fmt.Errorf("expect=file:glob=%s: invalid glob: %w", check.Glob, err)
 	}
-	sort.Strings(matches)
+	slices.Sort(matches)
 	if check.Count != nil && len(matches) != *check.Count {
 		return fmt.Errorf("expect=file:glob=%s: count=%d, want %d", check.Glob, len(matches), *check.Count)
 	}

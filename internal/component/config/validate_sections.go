@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"sort"
+	"slices"
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -299,7 +299,7 @@ func ValidatorSectionCoverage() (ValidatorCoverage, error) {
 	for s := range unaccounted {
 		cov.Unaccounted = append(cov.Unaccounted, s)
 	}
-	sort.Strings(cov.Unaccounted)
+	slices.Sort(cov.Unaccounted)
 	return cov, nil
 }
 

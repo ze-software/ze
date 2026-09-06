@@ -2,7 +2,7 @@
 
 package command
 
-import "sort"
+import "slices"
 
 // verbRole classifies what a command verb does. The role is load-bearing for the
 // grammar gate: only VerbMutation verbs (set, delete) may target objects that live
@@ -81,6 +81,6 @@ func VerbList() []string {
 	for v := range Verbs {
 		verbs = append(verbs, v)
 	}
-	sort.Strings(verbs)
+	slices.Sort(verbs)
 	return verbs
 }

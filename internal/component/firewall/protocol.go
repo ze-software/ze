@@ -3,7 +3,7 @@
 
 package firewall
 
-import "sort"
+import "slices"
 
 // ianaProtocolNumbers maps each L4 protocol name carried by MatchProtocol to
 // its IANA protocol number (the value a backend programs into its L4-protocol
@@ -57,6 +57,6 @@ func ProtocolNames() []string {
 	for name := range ianaProtocolNumbers {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
