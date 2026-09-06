@@ -25,6 +25,7 @@ func init() {
 	Register("plugin/ddos-firewall-concurrency", p05DDoSFirewallConcurrency)
 	Register("plugin/ddos-incident-confidence", p05DDoSIncidentConfidence)
 	Register("plugin/ddos-policy", p05DDoSPolicy)
+	Register("plugin/ddos-timing-leaves", p05DDoSTimingLeaves)
 }
 
 type p05FloodSockets struct {
@@ -570,4 +571,92 @@ func p05DDoSPolicy(ctx context.Context, args []string) error {
 		fmt.Fprintf(os.Stderr, "OK: detection opened an incident but ddos-local is not active -- the allow/mitigation policy exempted mitigation (sent %d packets)\n", sent)
 		return nil
 	})
+}
+
+// p05DDoSTimingLeaves proves that two DDoS config leaves reach a running worker,
+// in one daemon run over one flood. Both used to be parsed, range-checked and
+// read by nothing (plan/immediate/spec-ddos-timing-leaves-reach-no-worker.md).
+//
+//   - ddos detect check-interval: the .ci sets it to 10 with confirm-duration 2,
+//     so the detector needs two evaluations, ten seconds apart, before it opens
+//     an incident. At the one-second cadence the leaf was stuck at, the same
+//     config detects in about three seconds, which is what the floor below
+//     catches.
+//   - ddos observe stale-incident-timeout: the .ci sets it to 1 and the flood
+//     never stops, so the detector stays active and emits no AttackCleared. The
+//     stale sweep worker is then the only thing that can put an end-time on the
+//     incident.
+func p05DDoSTimingLeaves(ctx context.Context, args []string) error {
+	return p05Observe(ctx, args, "ddos-timing-leaves-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
+		sockets, err := p05OpenFlood("", "127.0.0.7", 64)
+		if err != nil {
+			return err
+		}
+		defer sockets.Close()
+
+		sent, elapsed, err := p05AwaitIncident(ctx, plugin, sockets)
+		if err != nil {
+			return err
+		}
+		// p05CheckIntervalFloor is under the shortest time to detect the .ci's
+		// config permits. Only the SECOND of the two confirming evaluations is
+		// bounded away from the flood: the first can land in the moment after it
+		// starts, and the next one is a whole check-interval later. 8s of the 10
+		// leaves slack for a late feed tick, and still sits five seconds clear of
+		// the three the same config takes when check-interval reaches nothing.
+		const p05CheckIntervalFloor = 8 * time.Second
+		if elapsed < p05CheckIntervalFloor {
+			return fmt.Errorf("an incident opened %s after the flood started, under the %s that "+
+				"check-interval 10 with confirm-duration 2 allows: the detector is evaluating on the feed "+
+				"tick and not on the interval (sent %d packets)",
+				elapsed.Round(time.Millisecond), p05CheckIntervalFloor, sent)
+		}
+		fmt.Fprintf(os.Stderr, "CHECK-INTERVAL-HELD %s (floor %s)\n", elapsed.Round(time.Millisecond), p05CheckIntervalFloor)
+
+		if err := p05AwaitStaleSweep(ctx, plugin, sockets, sent); err != nil {
+			return err
+		}
+		fmt.Fprintln(os.Stderr, "STALE-SWEEP-FINALIZED")
+		return nil
+	})
+}
+
+// p05AwaitIncident floods until `show ddos incidents` reports one, and returns
+// the packets sent and how long the detector took to open it.
+func p05AwaitIncident(ctx context.Context, plugin *sdk.Plugin, sockets *p05FloodSockets) (int, time.Duration, error) {
+	start := time.Now()
+	deadline := start.Add(45 * time.Second)
+	sent := 0
+	for time.Now().Before(deadline) {
+		sent += sockets.blast(4000)
+		if len(p05IncidentRows(ctx, plugin)) > 0 {
+			return sent, time.Since(start), nil
+		}
+		if err := p05Wait(ctx, 200*time.Millisecond); err != nil {
+			return sent, 0, err
+		}
+	}
+	return sent, 0, fmt.Errorf("no incident opened within 45s of an unbroken flood (sent %d packets)", sent)
+}
+
+// p05AwaitStaleSweep keeps the flood running and waits for an incident to carry
+// an end-time. The flood is deliberately not stopped: an incident finalized
+// while the attack is still live can only have been swept, because the clear
+// path needs clear-consecutive-checks evaluations under the threshold first.
+func p05AwaitStaleSweep(ctx context.Context, plugin *sdk.Plugin, sockets *p05FloodSockets, sent int) error {
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		sent += sockets.blast(4000)
+		for _, candidate := range p05IncidentRows(ctx, plugin) {
+			row := p05Map(candidate)
+			if row["active"] == false && row["end-time"] != nil {
+				return nil
+			}
+		}
+		if err := p05Wait(ctx, 200*time.Millisecond); err != nil {
+			return err
+		}
+	}
+	return fmt.Errorf("no incident was finalized within 30s at stale-incident-timeout 1, with the flood "+
+		"still running and no clear event possible: the sweep worker is not running (sent %d packets)", sent)
 }

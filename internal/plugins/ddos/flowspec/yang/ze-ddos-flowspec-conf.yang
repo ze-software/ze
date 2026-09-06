@@ -94,9 +94,12 @@ module ze-ddos-flowspec-conf {
         type uint16 { range "1..600"; }
         default 10;
         description "Maximum FlowSpec announcements per minute.";
-        ze:help "Ze parses the value and refuses it outside 1 to 600, and then no code reads it. Ze
-            installs no rate limiter on FlowSpec announcements, so the responder announces as often as the
-            detector asks it to. A value other than the default 10 changes no behavior.";
+        ze:help "The most FlowSpec announcements Ze sends in any 60 second window. An announcement over
+                 the limit is refused and logged, and the responder stays idle, so the next attack
+                 characterization inside the window announces nothing upstream and the one after the
+                 window rolls does. The limit protects the BGP sessions the rule goes to: a peer that
+                 drops the session over announce churn loses every rule it holds. 10 is the default, and
+                 the range is 1 to 600.";
       }
       leaf max-mitigation-duration {
         type uint32 { range "0..604800"; }

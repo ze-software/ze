@@ -68,9 +68,22 @@ type detector struct {
 	baselineBps *baseline
 	// saveMu serializes baseline persistence so the periodic save (spawned off the
 	// tick) never races the save-on-Stop on the same file.
-	saveMu  sync.Mutex
-	sm      *stateMachine
+	saveMu sync.Mutex
+	sm     *stateMachine
+	// tickNum counts samples of the rate FEED, one per second. startup-grace and
+	// the periodic baseline save are both stated in seconds, so both read it.
 	tickNum int
+	// evalTicks is check-interval expressed in feed samples: the detector folds
+	// this many samples and evaluates their peak. interval holds the open fold.
+	// Both are guarded by d.mu.
+	//
+	// Config.Validate refuses check-interval outside 1 to 3600, so newDetector's
+	// floor of one only catches a Config built without it. Evaluating every
+	// sample is what that Config asked for, and a zero here would mean the
+	// detector evaluates on every sample too -- by accident, with nothing naming
+	// the case.
+	evalTicks int
+	interval  intervalPeak
 
 	prevRxPackets map[string]uint64
 	prevRxBytes   map[string]uint64
@@ -116,6 +129,38 @@ type pendingEmits struct {
 	cleared *ddosevent.AttackCleared
 }
 
+// intervalPeak accumulates the rate feed inside one check-interval.
+//
+// The evaluation reads the PEAK of the interval and not the sample the interval
+// closes on. A flood shorter than check-interval is the attack shape the
+// detector exists to catch, and sampling the closing tick alone would make every
+// one of them invisible. The threshold is compared against the same statistic
+// the baseline is built from, because applyTick feeds this peak to both.
+//
+// Peak PPS and peak BPS carry their own interface, for the reason applyTick
+// states: on a multi-interface box the amplified link need not be the top-PPS
+// one.
+type intervalPeak struct {
+	ticks    int
+	pps      float64
+	bps      float64
+	ppsIface string
+	bpsIface string
+}
+
+// add folds one feed sample into the open interval.
+func (p *intervalPeak) add(pps, bps float64, ppsIface, bpsIface string) {
+	p.ticks++
+	if pps > p.pps {
+		p.pps = pps
+		p.ppsIface = ppsIface
+	}
+	if bps > p.bps {
+		p.bps = bps
+		p.bpsIface = bpsIface
+	}
+}
+
 func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector {
 	d := &detector{
 		cfg:           cfg,
@@ -123,6 +168,7 @@ func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector 
 		dispatch:      dispatch,
 		baseline:      newBaseline(cfg.BaselineWindow, cfg.ThresholdMultiplier, cfg.AbsoluteFloor),
 		baselineBps:   newBaseline(cfg.BaselineWindow, cfg.BpsThresholdMultiplier, cfg.BpsFloor/8.0),
+		evalTicks:     max(1, cfg.CheckInterval),
 		prevRxPackets: make(map[string]uint64),
 		prevRxBytes:   make(map[string]uint64),
 		currentRxPps:  make(map[string]float64),
@@ -204,8 +250,6 @@ func (d *detector) tickRates(entries []trafficstat.InterfaceEntry) pendingEmits 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	d.tickNum++
-
 	// Track the peak packet rate and the peak bandwidth INDEPENDENTLY: on a
 	// multi-interface box the amplified (high-BPS, moderate-PPS) interface is
 	// often not the top-PPS one, so binding maxBps to the max-PPS interface would
@@ -227,7 +271,7 @@ func (d *detector) tickRates(entries []trafficstat.InterfaceEntry) pendingEmits 
 		}
 	}
 
-	return d.applyTick(maxPps, maxBps, maxPpsIface, maxBpsIface)
+	return d.tick(maxPps, maxBps, maxPpsIface, maxBpsIface)
 }
 
 func (d *detector) onRate(infos []iface.InterfaceInfo) {
@@ -241,8 +285,6 @@ func (d *detector) onRate(infos []iface.InterfaceInfo) {
 func (d *detector) tickInfos(infos []iface.InterfaceInfo) pendingEmits {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	d.tickNum++
 
 	var maxPps, maxBps float64
 	var maxPpsIface, maxBpsIface string
@@ -281,14 +323,51 @@ func (d *detector) tickInfos(infos []iface.InterfaceInfo) pendingEmits {
 		}
 	}
 
-	return d.applyTick(maxPps, maxBps, maxPpsIface, maxBpsIface)
+	return d.tick(maxPps, maxBps, maxPpsIface, maxBpsIface)
 }
 
-// applyTick runs the baseline and the state machine for a single tick and
-// returns the events the tick decided to publish. Caller must hold d.mu
-// (tickRates / tickInfos do) and the result MUST reach emitPending after that
-// lock is released: nothing is emitted here, because a fan-out under d.mu parks
-// the detector behind the responders' kernel reconcile (see the emitMu field doc).
+// tick advances the feed clock by one sample and evaluates when the sample
+// closes a check-interval. Caller holds d.mu (tickRates and tickInfos do).
+//
+// Both rate feeds publish once a second and check-interval is in seconds, so
+// evalTicks samples make one interval and the evaluation reads their peak.
+// Every leaf that counts ticks against the THRESHOLD -- confirm-duration,
+// clear-consecutive-checks, baseline-window -- therefore counts evaluations, one
+// per check-interval, which is what baseline.go's slowAdaptSamples comment
+// already describes. startup-grace stays in seconds, because it reads tickNum.
+func (d *detector) tick(maxPps, maxBps float64, maxPpsIface, maxBpsIface string) pendingEmits {
+	d.tickNum++
+
+	// The periodic baseline save follows the FEED sample, not the evaluation.
+	// baselineSaveInterval is a count of one-second ticks and the trigger is a
+	// modulo, so at a check-interval that does not divide it no evaluation would
+	// ever land on a multiple and the crash-safety save would stop running.
+	// Spawned off the tick: saveBaseline re-acquires d.mu once the caller has
+	// released it, so file I/O never runs under the lock (R-4). Guarded by
+	// d.stopped (mirrors onAttackStart) so it never races Stop's wg.Wait.
+	if d.tickNum%baselineSaveInterval == 0 && !d.stopped {
+		d.wg.Go(d.saveBaseline)
+	}
+
+	d.interval.add(maxPps, maxBps, maxPpsIface, maxBpsIface)
+	if d.interval.ticks < d.evalTicks {
+		// Inside the interval nothing is evaluated. Drain like every other exit:
+		// leaving a staged event behind would publish it out of order once the
+		// interval closes (see drainPending).
+		return d.drainPending()
+	}
+
+	peak := d.interval
+	d.interval = intervalPeak{}
+	return d.applyTick(peak.pps, peak.bps, peak.ppsIface, peak.bpsIface)
+}
+
+// applyTick runs the baseline and the state machine for one evaluation, over the
+// peak of the check-interval that just closed, and returns the events the
+// evaluation decided to publish. Caller must hold d.mu (tick does) and the
+// result MUST reach emitPending after that lock is released: nothing is emitted
+// here, because a fan-out under d.mu parks the detector behind the responders'
+// kernel reconcile (see the emitMu field doc).
 func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface string) pendingEmits {
 	threshold := d.baseline.Threshold()
 	ppsAbove := maxPps > threshold
@@ -363,14 +442,6 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface st
 			CurrentBps: maxBps,
 			Observable: true,
 		}
-	}
-
-	// Periodic persistence: belt-and-braces against a hard crash between the
-	// save-on-Stop points. Spawned off the tick -- saveBaseline re-acquires d.mu
-	// after applyTick releases it, so file I/O never runs under the lock. Guarded
-	// by d.stopped (mirrors onAttackStart) so it never races Stop's wg.Wait.
-	if d.tickNum%baselineSaveInterval == 0 && !d.stopped {
-		d.wg.Go(d.saveBaseline)
 	}
 
 	return d.drainPending()

@@ -36,36 +36,38 @@ module ze-ddos-detect-conf {
       type uint16 { range "1..3600"; }
       default 1;
       description "Seconds between detection evaluations.";
-      ze:help "Ze parses the value and refuses it outside 1 to 3600, and then no code reads it. The
-          detector evaluates once per tick of the rate feed it subscribes to. Both feeds tick once a
-          second: the traffic-statistics service, and the interface rate collector Ze falls back to when
-          that service is absent. The cadence stays at one second whatever this leaf holds. A value other
-          than the default 1 changes no behavior.";
+      ze:help "Seconds between detection evaluations. Both rate feeds publish once a second: the
+          traffic-statistics service, and the interface rate collector Ze falls back to when that service
+          is absent. The detector folds this many samples and evaluates their PEAK, so a flood shorter
+          than the interval still reaches the threshold. Every leaf that counts ticks against the
+          threshold counts evaluations, so its wall-clock meaning is multiplied by this value. The
+          default 1 evaluates every second.";
     }
     leaf confirm-duration {
       type uint16 { range "0..3600"; }
       default 3;
-      description "Consecutive ticks above threshold before triggering.";
-      ze:help "The count of consecutive ticks over the threshold that arms the detector. One tick is one second,
-          because the traffic-statistics service publishes rates on a one-second ticker. The default 3 needs three unbroken
-          seconds over the threshold. A value of 0 or 1 triggers on the first tick. One tick back under the
+      description "Consecutive evaluations above threshold before triggering.";
+      ze:help "The count of consecutive evaluations over the threshold that arms the detector. One evaluation is
+          check-interval seconds, one second at the default. The default 3 needs three unbroken
+          evaluations over the threshold. A value of 0 or 1 triggers on the first one. One evaluation back under the
           threshold returns the detector to idle and restarts the count.";
     }
     leaf clear-consecutive-checks {
       type uint16 { range "1..100"; }
       default 10;
-      description "Consecutive ticks below threshold before clearing.";
-      ze:help "The count of consecutive ticks under the threshold that ends an attack. The first tick under the
+      description "Consecutive evaluations below threshold before clearing.";
+      ze:help "The count of consecutive evaluations under the threshold that ends an attack. The first one under the
           threshold moves an active detector to the clearing state and counts as the first check. The default 10
-          therefore holds the attack live for ten seconds after the traffic stops. One tick back over the
-          threshold returns the detector to active and drops the count.";
+          therefore holds the attack live for ten evaluations, which is ten seconds at the default check-interval.
+          One evaluation back over the threshold returns the detector to active and drops the count.";
     }
     leaf baseline-window {
       type uint32 { range "10..86400"; }
       default 300;
       description "Rolling baseline window size in samples.";
-      ze:help "Rolling baseline window size in samples, and one sample is one second. The window p99 is recalculated
-          every 10 admitted samples, so a cold detector runs on absolute-floor alone for its first 10 seconds. A
+      ze:help "Rolling baseline window size in samples, and one sample is one evaluation, so one check-interval. The
+          window p99 is recalculated every 10 admitted samples, so a cold detector runs on absolute-floor alone for
+          its first 10 evaluations. A
           sample taken while the rate is over the threshold is refused, so an attack cannot raise the threshold
           that detects it. One sample in 3600 consecutive refused samples is admitted, which lets a lasting rise
           in traffic move the baseline. A persisted baseline is restored only when it carries 50 samples or
@@ -93,7 +95,8 @@ module ze-ddos-detect-conf {
       type uint16 { range "0..3600"; }
       default 90;
       description "Seconds after startup where only extreme spikes trigger.";
-      ze:help "Seconds after startup where only extreme spikes trigger, default 90. The count is one tick per second.
+      ze:help "Seconds after startup where only extreme spikes trigger, default 90. The count follows the rate feed,
+          one per second, so check-interval does not change it.
           A cold baseline warms during the grace period, and the grace stops that warm-up from firing on itself.
           Two things still trigger: a packet rate over five times absolute-floor, and the bandwidth trigger once
           its own baseline is ready.";

@@ -1,0 +1,77 @@
+# Test: two ddos config leaves that used to reach no worker now control a running
+# one, proven through `show ddos incidents` in one daemon run.
+#
+# VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-1 -- `check-interval 10`
+#            with `confirm-duration 2` holds the first incident back for at least
+#            one check-interval, because the detector folds ten feed samples into
+#            one evaluation (detector.go tick / intervalPeak). Measured: 10 to 20
+#            seconds wired, 3 seconds with the leaf ignored.
+# VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-3 -- `stale-incident-timeout 1`
+#            finalizes an incident that never received an AttackCleared, because
+#            the sweep worker started by ddos-observe's apply calls
+#            store.sweepStale on its ticker (observe/register.go startStaleSweep).
+# PREVENTS:  either leaf going back to being parsed, range-checked and read by
+#            nothing. Before this spec the detector evaluated once per feed tick
+#            whatever check-interval held, and sweepStale had a test caller only,
+#            so an incident with no clear event stayed open until
+#            incident-ring-size evicted it.
+#
+# WHY THE FLOOD NEVER STOPS. The clear path needs clear-consecutive-checks
+# evaluations under the threshold, which the config puts at 100 evaluations of 10
+# seconds each. So an incident that gains an end-time while the flood is still
+# running cannot have been finalized by AttackCleared. The sweep is the only
+# remaining path, which is what makes the second assertion discriminate.
+#
+# STATUS: option=needs-linux. ddos-detect declares Dependencies: ["interface"],
+#   and the interface plugin has no OS-default backend on darwin. It needs NO
+#   capability: the detector's rate feed is trafficstat over iface.ListRates(),
+#   whose tracker the interface plugin starts unconditionally
+#   (internal/component/iface/register.go), so no eBPF and no tc hook is
+#   involved. The victim is left unresolved on purpose -- an incident opens on
+#   AttackDetected with an empty target, and neither assertion reads the target.
+#   There is no BGP peer and no `bgp` block: neither leaf touches a session, and
+#   the daemon runs its plugins without one (test/plugin/ddos-detect-mitigate.ci
+#   does the same).
+option=needs-linux
+# Serialize against every other ddos test: they all flood the SAME loopback
+# interface and the detector picks the victim by top-destination-bytes over that
+# interface, so a sibling's concurrent flood is indistinguishable from this
+# test's own. Rationale in full: test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.observe:value=info
+# 45s for the detection poll plus 30s for the sweep poll, sequential worst cases
+# rather than alternatives, plus daemon startup. The measured run is under 30s.
+option=timeout:value=100s
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		check-interval 10
+		confirm-duration 2
+		clear-consecutive-checks 100
+		startup-grace 0
+		baseline-window 10
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+		stale-incident-timeout 1
+	}
+}
+
+plugin {
+	external ddos-timing-leaves-probe {
+		run "ze-test fixture plugin/ddos-timing-leaves"
+		encoder json
+	}
+}
+
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=95s
+expect=exit:code=0
+expect=stderr:contains=CHECK-INTERVAL-HELD
+expect=stderr:contains=STALE-SWEEP-FINALIZED

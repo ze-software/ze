@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -14,6 +15,11 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+// sweepInterval is how often the stale sweep runs. One second matches the
+// detector's own tick, so an incident is finalized within one tick of
+// stale-incident-timeout; the scan it costs is bounded by the ring capacity.
+const sweepInterval = time.Second
 
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
@@ -52,6 +58,65 @@ func init() {
 	}
 }
 
+// subscribeStore attaches one incident store to the detector's event stream and
+// returns the detach. Returning the unsubscribe keeps it bound to the store it
+// was created for, so a config apply that replaces the store cannot leave a
+// handler writing into the old one.
+func subscribeStore(bus ze.EventBus, s *store) (unsubscribe func()) {
+	unsubDetected := ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) {
+		s.open(e)
+	})
+	// Characterized carries the confidence score and refined signals; record the
+	// confidence onto the incident the matching Detected already opened.
+	unsubCharacterized := ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) {
+		s.characterize(e)
+	})
+	unsubOngoing := ddosevent.Ongoing.Subscribe(bus, func(_ *ddosevent.AttackOngoing) {})
+	unsubCleared := ddosevent.Cleared.Subscribe(bus, func(e *ddosevent.AttackCleared) {
+		s.finalize(e.Target)
+	})
+
+	return func() {
+		unsubDetected()
+		unsubCharacterized()
+		unsubOngoing()
+		unsubCleared()
+	}
+}
+
+// startStaleSweep starts the one worker goroutine that finalizes incidents which
+// never received an AttackCleared. The detector emits Cleared with an empty
+// target, so an incident opened against a resolved victim is never matched by
+// it, and a detector that is reconfigured or stopped mid-attack emits no Cleared
+// at all. This sweep is the only path that closes those incidents, and
+// stale-incident-timeout is the age at which it does.
+//
+// The caller MUST call the returned stop exactly once. stop closes the worker's
+// channel and returns only after the worker has exited, so the store can then be
+// replaced safely.
+func startStaleSweep(s *store, every time.Duration) (stop func()) {
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+
+	wg.Go(func() {
+		ticker := time.NewTicker(every)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				s.sweepStale()
+			}
+		}
+	})
+
+	return func() {
+		close(done)
+		wg.Wait()
+	}
+}
+
 func runEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("ddos-observe plugin starting")
@@ -59,7 +124,6 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
-	var incidentStore *store
 	defer activeStore.Store(nil)
 
 	parseSections := func(sections []sdk.ConfigSection) (*Config, error) {
@@ -80,41 +144,44 @@ func runEngine(conn net.Conn) int {
 	}
 
 	var (
-		pendingCfg         *Config
-		unsubDetected      func()
-		unsubCharacterized func()
-		unsubOngoing       func()
-		unsubCleared       func()
+		pendingCfg  *Config
+		unsubscribe func()
+		stopSweep   func()
 	)
 
-	subscribe := func(bus ze.EventBus, s *store) {
-		unsubDetected = ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) {
-			s.open(e)
-		})
-		// Characterized carries the confidence score and refined signals; record the
-		// confidence onto the incident the matching Detected already opened.
-		unsubCharacterized = ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) {
-			s.characterize(e)
-		})
-		unsubOngoing = ddosevent.Ongoing.Subscribe(bus, func(_ *ddosevent.AttackOngoing) {})
-		unsubCleared = ddosevent.Cleared.Subscribe(bus, func(e *ddosevent.AttackCleared) {
-			s.finalize(e.Target)
-		})
+	// teardown detaches the bus and stops the worker, in that order: a handler
+	// that fires during teardown must not race the goroutine that is exiting.
+	teardown := func() {
+		if unsubscribe != nil {
+			unsubscribe()
+			unsubscribe = nil
+		}
+		if stopSweep != nil {
+			stopSweep()
+			stopSweep = nil
+		}
 	}
+	defer teardown()
 
-	unsubscribe := func() {
-		if unsubDetected != nil {
-			unsubDetected()
+	// apply installs one config: a fresh store, the subscriptions that fill it,
+	// and the sweep worker that closes what never clears. Both the first
+	// configure and every later apply go through it, so the two paths cannot
+	// disagree about which of the three a config change replaces.
+	apply := func(cfg *Config) error {
+		bus, err := loadBus()
+		if err != nil {
+			return err
 		}
-		if unsubCharacterized != nil {
-			unsubCharacterized()
-		}
-		if unsubOngoing != nil {
-			unsubOngoing()
-		}
-		if unsubCleared != nil {
-			unsubCleared()
-		}
+		teardown()
+		staleTimeout := time.Duration(cfg.StaleIncidentTimeout) * time.Second
+		incidents := newStore(cfg.IncidentRingSize, staleTimeout)
+		activeStore.Store(incidents)
+		unsubscribe = subscribeStore(bus, incidents)
+		stopSweep = startStaleSweep(incidents, sweepInterval)
+		log.Info("ddos-observe: configured",
+			"ring-size", cfg.IncidentRingSize,
+			"stale-incident-timeout", cfg.StaleIncidentTimeout)
+		return nil
 	}
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -122,16 +189,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		bus, err := loadBus()
-		if err != nil {
-			return err
-		}
-		staleTimeout := time.Duration(cfg.StaleIncidentTimeout) * time.Second
-		incidentStore = newStore(cfg.IncidentRingSize, staleTimeout)
-		activeStore.Store(incidentStore)
-		subscribe(bus, incidentStore)
-		log.Info("ddos-observe: configured", "ring-size", cfg.IncidentRingSize)
-		return nil
+		return apply(cfg)
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
@@ -149,16 +207,7 @@ func runEngine(conn net.Conn) int {
 		if cfg == nil {
 			return nil
 		}
-		unsubscribe()
-		bus, err := loadBus()
-		if err != nil {
-			return err
-		}
-		staleTimeout := time.Duration(cfg.StaleIncidentTimeout) * time.Second
-		incidentStore = newStore(cfg.IncidentRingSize, staleTimeout)
-		activeStore.Store(incidentStore)
-		subscribe(bus, incidentStore)
-		return nil
+		return apply(cfg)
 	})
 
 	p.OnConfigRollback(func(_ string) error { return nil })
@@ -171,11 +220,9 @@ func runEngine(conn net.Conn) int {
 		ApplyBudget:  10,
 	}); err != nil {
 		log.Error("ddos-observe plugin failed", "error", err)
-		unsubscribe()
 		return 1
 	}
 
-	unsubscribe()
 	log.Info("ddos-observe plugin stopped")
 	return 0
 }

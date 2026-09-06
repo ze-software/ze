@@ -42,6 +42,13 @@ from `onRate`. A subscriber that assumes an order must account for that split.
 `detector.Stop()` cancels `d.ctx` and waits on `d.wg`, at shutdown and before a
 reconfigure replaces the detector.
 
+"Rate tick" here means one EVALUATION, and `check-interval` decides how many feed
+samples make one. The detector folds that many samples and evaluates their peak,
+so at the default of 1 an evaluation is a feed sample and at any higher value it
+is not. The trigger that starts characterization can therefore fire only once per
+`check-interval`.
+<!-- source: internal/plugins/ddos/detect/detector.go -- tick, intervalPeak -->
+
 ## The two locks, and why the second one exists
 
 <!-- source: internal/plugins/ddos/detect/detector.go -- emitMu, d.mu, attackGen -->

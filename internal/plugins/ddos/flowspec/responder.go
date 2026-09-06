@@ -118,6 +118,8 @@ type responder struct {
 	target ddosevent.VectorTuple
 	match  flowspecMatch
 	probe  *probe
+	// limiter enforces announce-rate-limit. Guarded by mu, which announce holds.
+	limiter announceLimiter
 	// announcedAt is when the live announce went out, and now is the clock that
 	// reads it. enforceMaxDuration compares the two against
 	// cfg.MaxMitigationDuration. now is a field so a test can move time without
@@ -147,8 +149,66 @@ type announceStatus struct {
 	probing bool
 }
 
+// announceWindow is the period announce-rate-limit is stated over. The leaf is
+// "announcements per minute", so the window is the minute it names.
+const announceWindow = time.Minute
+
+// announceLimiter enforces announce-rate-limit: at most limit announcements in
+// any announceWindow. It holds the announce times still inside the window, so
+// its memory is bounded by the leaf's own maximum of 600 entries.
+//
+// What the limit protects is upstream, not local. A FlowSpec announce goes to
+// every peer that carries the family, and a mitigation that churns announce and
+// withdraw pushes that churn onto sessions Ze does not own. A peer that drops
+// the session over it loses every rule it holds, not only the churning one.
+//
+// Not safe for concurrent use: the responder holds mu across allow.
+type announceLimiter struct {
+	limit  int
+	recent []time.Time // announce times inside the window, oldest first
+}
+
+// newAnnounceLimiter builds the limiter for an announce-rate-limit of limit.
+//
+// Config.Validate refuses the leaf outside 1 to 600, so a non-positive limit can
+// only reach here from a Config that skipped Validate. It takes the documented
+// default: a budget of none would refuse every announce and disable upstream
+// mitigation entirely, which reads as a broken responder rather than as a field
+// nobody set (ai/rules/principles.md).
+func newAnnounceLimiter(limit int) announceLimiter {
+	if limit < 1 {
+		limit = DefaultConfig().AnnounceRateLimit
+	}
+	return announceLimiter{limit: limit, recent: make([]time.Time, 0, limit)}
+}
+
+// allow reports whether an announce at now is inside the limit, and records it
+// when it is. A refusal consumes no budget, so the next announce after the
+// window rolls goes out.
+func (l *announceLimiter) allow(now time.Time) bool {
+	cutoff := now.Add(-announceWindow)
+	kept := l.recent[:0]
+	for _, at := range l.recent {
+		if at.After(cutoff) {
+			kept = append(kept, at)
+		}
+	}
+	l.recent = kept
+
+	if len(l.recent) >= l.limit {
+		return false
+	}
+	l.recent = append(l.recent, now)
+	return true
+}
+
 func newResponder(cfg *Config, dispatcher routeDispatcher) *responder {
-	r := &responder{cfg: cfg, dispatcher: dispatcher, now: time.Now}
+	r := &responder{
+		cfg:        cfg,
+		dispatcher: dispatcher,
+		limiter:    newAnnounceLimiter(cfg.AnnounceRateLimit),
+		now:        time.Now,
+	}
 	// Publish the idle snapshot before the responder is reachable, so status()
 	// never has to interpret a nil pointer as "no announcement".
 	r.setAnnouncement(false, ddosevent.VectorTuple{}, nil)
@@ -261,7 +321,33 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 // announce builds the flowspec match for target, announces it with action, and
 // starts the leak-probe. Caller holds r.mu and has already checked
 // enforce/allowlist/!active.
+//
+// It is the ONE place an announcement leaves the plugin, which is why
+// announce-rate-limit is enforced here: the blackhole fallback and the
+// characterized path both arrive through it, and a limit either path could walk
+// around is not a limit.
 func (r *responder) announce(target ddosevent.VectorTuple, action, reason string) {
+	// A FlowSpec rule IS its destination prefix, so there is no rule to write for
+	// an attack whose victim was never resolved. The detector emits exactly that
+	// when no traffic source can name a victim (characterizeAndEmit leaves the
+	// target empty), and blackhole-fallback then reaches here on the critical
+	// severity. renderFlowspecCommand writes the prefix through Prefix.String(),
+	// which is "invalid" for the zero value, and the engine answered
+	// `ipv4/flow encode: invalid prefix` on every one of them.
+	if !target.DstPrefix.IsValid() {
+		logger().Warn("ddos-flowspec: no victim resolved, not announcing",
+			"reason", reason, "effect", "no upstream rule; on-host mitigation and the detector are unaffected")
+		return
+	}
+	if !r.limiter.allow(r.clock()) {
+		// The responder stays idle, exactly as it does when Dispatch fails, so a
+		// later AttackCharacterized announces once the window frees. It never
+		// claims a rule the BGP engine does not hold.
+		logger().Warn("ddos-flowspec: announce-rate-limit reached, not announcing",
+			"target", target.DstPrefix, "announcements-per-minute", r.cfg.AnnounceRateLimit,
+			"reason", reason)
+		return
+	}
 	r.match = buildMatch(target)
 	cmd := renderFlowspecCommand(r.match, action, r.cfg.RateLimitBytes, "add")
 	if err := r.dispatcher.Dispatch(cmd); err != nil {
