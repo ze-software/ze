@@ -9,9 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ContractPath is the per-commit ledger both live and fixture checks read.
-const ContractPath = "test/weakened.md"
-
 var separatorCellPattern = regexp.MustCompile(`^:?-{2,}:?$`)
 
 // Row is one accepted weakening and its reason in the per-commit ledger.
@@ -19,6 +16,13 @@ type Row struct {
 	Name   string `json:"name"`
 	Reason string `json:"reason"`
 	Line   int    `json:"line"`
+}
+
+// Key identifies a row by what it says rather than by where it sits, so a row
+// can be recognized in the shard's committed text after the lines above it
+// moved. LandedRows compares on it.
+func (r Row) Key() string {
+	return r.Name + "\x00" + r.Reason
 }
 
 func parseLedger(contents, path string) ([]Row, []string) {

@@ -271,14 +271,15 @@ needle, or inverts a `reject=` is a weakening.
 `internal/le/testweakened` detects it, and a whole `.ci` file is one test, named by
 its file stem.
 
-Write the row in `test/weakened.md` BEFORE the edit, then make the edit, then
-name `test/weakened.md` in the commit. The file is replaced per commit and never
-accumulates. The full route, and what a reason has to say, is in
+Write the row in `test/weakened/<session>.md` BEFORE the edit, then make the
+edit, then name that shard in the commit. The shard is the one your own commit
+session owns, no other session reads it, and the gate drops each row once the
+commit carrying it lands. The full route, and what a reason has to say, is in
 `docs/contributing/testing.md`, "When a test must be weakened".
 
 An RFC-tagged test is stricter still: any behavior change to it needs the user's
-own approval, and no row in `test/weakened.md` satisfies that. See
-"RFC Requirement Tags" below.
+own approval, and no weakening row satisfies that. See "RFC Requirement Tags"
+below.
 
 ---
 ## Functional Suite Inventory
@@ -857,9 +858,10 @@ Rules the gate enforces:
   `ai/RFC-REQUIREMENTS.md`.
 - **Do not edit a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag its behavior cannot change without the owner's approval.
-  Write it as one row in `test/rfc-changed.md`, and commit that file with the
-  change. Fix the code instead. The native weakening check reads the file and
-  blocks the edit until a row names the test.
+  Write it as one row in `test/rfc-changed/<session>.md`, your own session's
+  shard of the owner-approval ledger, and commit that file with the change. Fix
+  the code instead. The native weakening check reads the shard and blocks the
+  edit until a row names the test.
 
 <!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
 

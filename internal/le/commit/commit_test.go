@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/lepath"
 	specsession "github.com/ze-software/ze/internal/le/spec/session"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
@@ -409,7 +410,7 @@ func TestTheReviewGateReadsTheArtifactTheRecorderWrites(t *testing.T) {
 	writeCommitFixture(t, root, "internal/a.go", "package internal\n")
 	stem := "native-port"
 
-	namespace, err := SessionID(root, "")
+	namespace, err := lepath.CommitSession(root, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -522,23 +523,33 @@ func TestClosureStemStillRefusesAMalformedJournalRow(t *testing.T) {
 	}
 }
 
+// TestCommitSessionIsStableAndExplicitlyReplaceable drives the namespace every
+// artifact of a prepared commit is named after: the script, the message, the
+// verification-debt shard and the two test-ledger shards. The producer is
+// lepath.CommitSession, which both this package and the pre-write hook read,
+// and the assertions are unchanged from when it lived here.
 func TestCommitSessionIsStableAndExplicitlyReplaceable(t *testing.T) {
 	root := t.TempDir()
-	first, err := sessionIDFor(root, "", "harness-one")
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "harness-one")
+	first, err := lepath.CommitSession(root, "")
 	if err != nil || len(first) != 8 {
-		t.Fatalf("sessionIDFor(first) = %q, %v", first, err)
+		t.Fatalf("CommitSession(first) = %q, %v", first, err)
 	}
-	again, err := sessionIDFor(root, "", "harness-one")
+	again, err := lepath.CommitSession(root, "")
 	if err != nil || again != first {
-		t.Fatalf("sessionIDFor(again) = %q, %v; want %q", again, err, first)
+		t.Fatalf("CommitSession(again) = %q, %v; want %q", again, err, first)
 	}
-	replaced, err := sessionIDFor(root, "ABCDEF12", "harness-one")
+	replaced, err := lepath.CommitSession(root, "ABCDEF12")
 	if err != nil || replaced != "abcdef12" {
-		t.Fatalf("sessionIDFor(replace) = %q, %v", replaced, err)
+		t.Fatalf("CommitSession(replace) = %q, %v", replaced, err)
 	}
-	other, err := sessionIDFor(root, "87654321", "harness-two")
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "harness-two")
+	other, err := lepath.CommitSession(root, "87654321")
 	if err != nil || other != "87654321" {
-		t.Fatalf("sessionIDFor(other) = %q, %v", other, err)
+		t.Fatalf("CommitSession(other) = %q, %v", other, err)
+	}
+	if kept, err := lepath.CommitSession(root, ""); err != nil || kept != "87654321" {
+		t.Fatalf("CommitSession(harness-two, again) = %q, %v; want 87654321", kept, err)
 	}
 }
 

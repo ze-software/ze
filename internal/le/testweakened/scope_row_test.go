@@ -25,7 +25,7 @@ func TestScopedRowCoversEveryFindingUnderItsTreeAndCommitPasses(t *testing.T) {
 		"package scripts\nfunc TestFoo(t *testing.T) { t.Fatal(\"x\") }\n")
 	writeParityFile(t, root, "scripts/nested/bar_test.go",
 		"package nested\nfunc TestBar(t *testing.T) { t.Fatal(\"x\") }\n")
-	writeParityFile(t, root, ContractPath,
+	writeParityFile(t, root, fixtureShard,
 		fixtureLedgerHeader+"| scripts/** | Python tooling retired; superseded by internal/le/... |\n")
 	if !runSelfTestGit(root, "init", "-q") || !runSelfTestGit(root, "add", "-A") ||
 		!runSelfTestGit(root,
@@ -40,7 +40,7 @@ func TestScopedRowCoversEveryFindingUnderItsTreeAndCommitPasses(t *testing.T) {
 		}
 	}
 
-	result := Check(Request{Root: root, Removed: removed})
+	result := Check(Request{Root: root, Session: fixtureSession, Removed: removed})
 	if result.ExitCode() != 0 || len(result.Problems) != 0 {
 		t.Fatalf("Check() = code %d, problems %q", result.ExitCode(), result.Problems)
 	}
@@ -53,17 +53,12 @@ func TestScopedRowCoveringNothingIsReportedAsLeftover(t *testing.T) {
 	t.Parallel()
 
 	root := newParityRepository(t)
-	writeParityFile(t, root, ContractPath,
+	writeParityFile(t, root, fixtureShard,
 		fixtureLedgerHeader+"| unrelated/tree/** | nothing here weakens |\n")
-	if !runSelfTestGit(root, "add", "-A") || !runSelfTestGit(root,
-		"-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
-		"commit", "-q", "-m", "scoped ledger") {
-		t.Fatal("commit unrelated scoped row")
-	}
 	writeParityFile(t, root, "pkg/a_test.go",
 		"package a\nfunc TestA(t *testing.T) {\n\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n")
 
-	result := Check(Request{Root: root, Paths: []string{"pkg/a_test.go"}})
+	result := Check(Request{Root: root, Session: fixtureSession, Paths: []string{"pkg/a_test.go"}})
 	if result.ExitCode() != 1 {
 		t.Fatalf("Check() = code %d, want 1", result.ExitCode())
 	}
@@ -74,6 +69,26 @@ func TestScopedRowCoveringNothingIsReportedAsLeftover(t *testing.T) {
 	if !containsProblem(result.Problems, "pkg/a_test.go weakens TestA") {
 		t.Fatalf("Check().Problems = %q, want the real weakening still reported unexplained",
 			result.Problems)
+	}
+
+	// The same row once its commit has landed. Git holds it beside the change
+	// it explained, so it accepts nothing further and MUST NOT refuse the next
+	// commit: reaching into a ledger to delete a row somebody else's landed
+	// commit left behind is the failure this shard layout removes
+	// (plan/journal/concurrent-session-corruption.md). The weakening in front
+	// of the gate is still unexplained, which is the discrimination.
+	if !runSelfTestGit(root, "add", "--", fixtureShard) || !runSelfTestGit(root,
+		"-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
+		"commit", "-q", "-m", "scoped ledger") {
+		t.Fatal("commit the scoped row")
+	}
+	landed := Check(Request{Root: root, Session: fixtureSession, Paths: []string{"pkg/a_test.go"}})
+	if containsProblem(landed.Problems, "unrelated/tree/**") {
+		t.Fatalf("Check().Problems = %q, want the landed row to block nothing", landed.Problems)
+	}
+	if landed.ExitCode() != 1 || !containsProblem(landed.Problems, "pkg/a_test.go weakens TestA") {
+		t.Fatalf("Check() = code %d, problems %q; want the weakening still refused",
+			landed.ExitCode(), landed.Problems)
 	}
 }
 
@@ -120,7 +135,7 @@ func TestScopedRowLeavesAFindingOutsideItsTreeUnexplained(t *testing.T) {
 		"package scripts\nfunc TestFoo(t *testing.T) { t.Fatal(\"x\") }\n")
 	writeParityFile(t, root, "otherarea/bar_test.go",
 		"package otherarea\nfunc TestBar(t *testing.T) { t.Fatal(\"x\") }\n")
-	writeParityFile(t, root, ContractPath,
+	writeParityFile(t, root, fixtureShard,
 		fixtureLedgerHeader+"| scripts/** | Python tooling retired |\n")
 	if !runSelfTestGit(root, "init", "-q") || !runSelfTestGit(root, "add", "-A") ||
 		!runSelfTestGit(root,
@@ -135,7 +150,7 @@ func TestScopedRowLeavesAFindingOutsideItsTreeUnexplained(t *testing.T) {
 		}
 	}
 
-	result := Check(Request{Root: root, Removed: removed})
+	result := Check(Request{Root: root, Session: fixtureSession, Removed: removed})
 	if result.ExitCode() != 1 {
 		t.Fatalf("Check() = code %d, want 1", result.ExitCode())
 	}
@@ -159,7 +174,7 @@ func TestFileScopedRowCoversItsFileAndNotASiblingFile(t *testing.T) {
 		"package pylint\nfunc TestPylint(t *testing.T) { t.Fatal(\"x\") }\n")
 	writeParityFile(t, root, "internal/le/pylint/other_test.go",
 		"package pylint\nfunc TestOther(t *testing.T) { t.Fatal(\"x\") }\n")
-	writeParityFile(t, root, ContractPath, fixtureLedgerHeader+
+	writeParityFile(t, root, fixtureShard, fixtureLedgerHeader+
 		"| internal/le/pylint/pylint_test.go | the Python linter it drove is gone |\n")
 	if !runSelfTestGit(root, "init", "-q") || !runSelfTestGit(root, "add", "-A") ||
 		!runSelfTestGit(root,
@@ -174,7 +189,7 @@ func TestFileScopedRowCoversItsFileAndNotASiblingFile(t *testing.T) {
 		}
 	}
 
-	result := Check(Request{Root: root, Removed: removed})
+	result := Check(Request{Root: root, Session: fixtureSession, Removed: removed})
 	if result.ExitCode() != 1 {
 		t.Fatalf("Check() = code %d, want 1", result.ExitCode())
 	}
@@ -199,7 +214,7 @@ func TestAScopeOverALivePathIsRefused(t *testing.T) {
 		{Path: "internal/le/thing/thing_test.go", Name: "TestThing"},
 		{Path: "scripts/dev/tool_test.go", Name: "TestTool"},
 	}
-	problems := liveScopeProblems([]string{"scripts/dev/tool_test.go"}, rows, findings)
+	problems := liveScopeProblems(fixtureShard, []string{"scripts/dev/tool_test.go"}, rows, findings)
 	if len(problems) != 1 {
 		t.Fatalf("problems = %v, want exactly the live scope refused", problems)
 	}

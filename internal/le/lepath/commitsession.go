@@ -1,5 +1,11 @@
 // Design: docs/features/ai-first.md -- per-harness commit-session identity
-package commit
+//
+// The eight-hex namespace names every artifact one session prepares: its commit
+// script, its commit message, its verification-debt shard and its two test
+// ledger shards. It lives here, beside ResolveSession, because the commit gate
+// and the pre-write hook both derive a path from it and neither may import the
+// other.
+package lepath
 
 import (
 	"crypto/rand"
@@ -10,23 +16,29 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 var commitSessionPattern = regexp.MustCompile(`^[0-9a-f]{8}$`)
 
-// SessionID returns the reusable eight-hex commit namespace for the canonical
-// native harness session. A requested value replaces the stored value.
-func SessionID(root, requested string) (string, error) {
-	session, err := lepath.ResolveSession(root, false)
+// CommitSession returns the reusable eight-hex commit namespace for the
+// canonical native harness session. A requested value replaces the stored value.
+func CommitSession(root, requested string) (string, error) {
+	session, err := ResolveSession(root, false)
 	if err != nil {
 		return "", err
 	}
-	return sessionIDFor(root, requested, session.ID)
+	return commitSessionFor(root, requested, session.ID)
 }
 
-func sessionIDFor(root, requested, fingerprint string) (string, error) {
+// CommitSessionFor maps one KNOWN harness identity to its commit namespace,
+// for a caller that was handed the identity rather than running under it. A
+// hook payload names the session whose edit it judges, and the namespace it
+// resolves has to be the one that session's commit will use.
+func CommitSessionFor(root, harness string) (string, error) {
+	return commitSessionFor(root, "", harness)
+}
+
+func commitSessionFor(root, requested, fingerprint string) (string, error) {
 	if fingerprint == "" || fingerprint == "." || fingerprint == ".." ||
 		strings.ContainsAny(fingerprint, `/\`+"\x00\r\n") {
 		return "", errors.New("commit session fingerprint is not a safe filename component")

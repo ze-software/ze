@@ -16,7 +16,7 @@ func TestProposedWriteRequiresMatchingWeakeningRow(t *testing.T) {
 	oldText := "package a\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n}\n"
 	newText := strings.Replace(oldText, "\trequire.NoError", "\tt.Skip(\"later\")\n\trequire.NoError", 1)
 	writeProposedFile(t, root, path, oldText)
-	writeProposedFile(t, root, ContractPath, fixtureLedgerHeader)
+	writeProposedFile(t, root, fixtureShard, fixtureLedgerHeader)
 
 	report, err := proposedFixture(root, ProposedRequest{
 		Path: path, Tool: "Write", ToolInput: ProposedToolInput{Content: newText},
@@ -26,7 +26,7 @@ func TestProposedWriteRequiresMatchingWeakeningRow(t *testing.T) {
 		report.Ledgers[0].Missing[0] != "TestA" {
 		t.Fatalf("unapproved Write = %#v, %v", report, err)
 	}
-	writeProposedFile(t, root, ContractPath, fixtureLedgerHeader+"| TestA | removed coverage is intentional |\n")
+	writeProposedFile(t, root, fixtureShard, fixtureLedgerHeader+"| TestA | removed coverage is intentional |\n")
 	report, err = proposedFixture(root, ProposedRequest{
 		Path: path, Tool: "Write", ToolInput: ProposedToolInput{Content: newText},
 	})
@@ -40,7 +40,7 @@ func TestProposedEditAndMultiEditReconstructWholeFile(t *testing.T) {
 	path := "pkg/a_test.go"
 	oldText := "package a\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n\trequire.Equal(t, 1, got)\n}\n"
 	writeProposedFile(t, root, path, oldText)
-	writeProposedFile(t, root, ContractPath, fixtureLedgerHeader+"| TestA | fixture accepts weakening |\n")
+	writeProposedFile(t, root, fixtureShard, fixtureLedgerHeader+"| TestA | fixture accepts weakening |\n")
 
 	edit, err := proposedFixture(root, ProposedRequest{
 		Path: path, Tool: "Edit", ToolInput: ProposedToolInput{
@@ -68,16 +68,16 @@ func TestProposedRFCChangeRequiresOwnerLedgerBeforeWeakeningLedger(t *testing.T)
 	oldText := "package a\n// RFC requirement: RFC2119-1-1 positive\nfunc TestRFC(t *testing.T) { require.Equal(t, 1, got) }\n"
 	newText := strings.Replace(oldText, "Equal(t, 1, got)", "Equal(t, 2, got)", 1)
 	writeProposedFile(t, root, path, oldText)
-	writeProposedFile(t, root, ContractPath, fixtureLedgerHeader+"| TestRFC | self-service reason |\n")
+	writeProposedFile(t, root, fixtureShard, fixtureLedgerHeader+"| TestRFC | self-service reason |\n")
 
 	report, err := proposedFixture(root, ProposedRequest{
 		Path: path, Tool: "Edit", Old: &oldText, New: &newText,
 	})
 	if err != nil || report.ExitCode() != 2 || len(report.RFCChanges) != 1 ||
-		len(report.Ledgers) == 0 || report.Ledgers[0].Path != rfcChangedLedger {
+		len(report.Ledgers) == 0 || report.Ledgers[0].Path != fixtureRFCShard {
 		t.Fatalf("unapproved RFC proposal = %#v, %v", report, err)
 	}
-	writeProposedFile(t, root, rfcChangedLedger,
+	writeProposedFile(t, root, fixtureRFCShard,
 		fixtureLedgerHeader+"| TestRFC | Thomas approved the evidence change |\n")
 	report, err = proposedFixture(root, ProposedRequest{
 		Path: path, Tool: "Edit", Old: &oldText, New: &newText,
@@ -120,7 +120,7 @@ func TestProposedInvalidUTF8LedgerFailsClosedAndBase64UsesReplacement(t *testing
 	ledger := []byte(fixtureLedgerHeader + "| Test")
 	ledger = append(ledger, 0xff)
 	ledger = append(ledger, []byte("A | invalid name cannot approve |\n")...)
-	writeProposedBytes(t, root, ContractPath, ledger)
+	writeProposedBytes(t, root, fixtureShard, ledger)
 	old64 := base64.StdEncoding.EncodeToString(append([]byte(oldText), 0xff))
 	new64 := base64.StdEncoding.EncodeToString(append([]byte(newText), 0xff))
 	report, err := proposedFixture(root, ProposedRequest{
@@ -146,7 +146,13 @@ func TestProposedInputAndReconstructedFilesAreBounded(t *testing.T) {
 	}
 }
 
+// proposedFixture names the fixture commit session on every request, because
+// the shards the hook reads are derived from it and a fixture that let the
+// live identity resolve would read a different file each run.
 func proposedFixture(root string, request ProposedRequest) (ProposedReport, error) {
+	if request.Session == "" {
+		request.Session = fixtureSession
+	}
 	content, err := json.Marshal(request)
 	if err != nil {
 		return ProposedReport{}, err

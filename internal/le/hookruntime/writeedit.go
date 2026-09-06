@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/spec/specpath"
 	"github.com/ze-software/ze/internal/le/ste"
 	"github.com/ze-software/ze/internal/le/testweakened"
@@ -387,6 +388,17 @@ func writeWeakening(ctx context) *verdict {
 	request := testweakened.ProposedRequest{Path: ctx.path, Tool: ctx.tool, ToolInput: testweakened.ProposedToolInput{
 		FilePath: ctx.path, Content: stringInput(ctx.input, "content"), OldString: stringInput(ctx.input, "old_string"), NewString: stringInput(ctx.input, "new_string"),
 	}}
+	// The ledger shards are named after the commit namespace, so the hook
+	// judges the edit against the shard the SAME session's commit will carry.
+	// The payload identity wins over ambient process state for the same reason
+	// it does everywhere else in this package.
+	if id := resolvedSessionID(ctx); id != "" {
+		session, err := lepath.CommitSessionFor(ctx.root, id)
+		if err != nil {
+			return &verdict{2, red + bold + "BLOCKED: native weakening check could not resolve the commit namespace" + reset + "\n  " + err.Error()}
+		}
+		request.Session = session
+	}
 	if value, ok := ctx.input["replace_all"].(bool); ok {
 		request.ToolInput.ReplaceAll = value
 	}

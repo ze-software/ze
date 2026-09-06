@@ -692,5 +692,7 @@ tag says has nothing for them to compare against. That is the hole
 count of tags that carry one is published in `ai/RFC-REQUIREMENTS.md`, under
 "Claim discrimination", beside the backlog that does not.
 
-A `test/weakened.md` row is self-service, and it does NOT authorize weakening an
-RFC-tagged test.
+A weakening row in `test/weakened/<session>.md` is self-service, and it does NOT
+authorize weakening an RFC-tagged test. The owner's approval is a row in
+`test/rfc-changed/<session>.md`, and `docs/contributing/rfc-implementation-guide.md`
+says who may write one.

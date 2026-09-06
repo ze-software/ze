@@ -3,6 +3,8 @@
 
 package hookcheck
 
+import "github.com/ze-software/ze/internal/le/testweakened"
+
 // fixtureSites contains one typed row per Results.check callsite in category order.
 // Loop-backed callsites carry a generator whose labels expand to concrete runtime names.
 var fixtureSites = [...]fixtureSite{
@@ -250,7 +252,7 @@ var fixtureSites = [...]fixtureSite{
 	{category: categoryRFCTestGuard, name: "rfc-guard-one-line-func-neighbor-still-blocks", expectedExit: -1},
 	{category: categoryRFCTestGuard, name: "rfc-guard-unlocatable-hunk-fails-closed", expectedExit: -1},
 	{category: categoryRFCTestGuard, name: "rfc-guard-untagged-file-unaffected", expectedExit: 0},
-	{category: categoryWeakenedHatch, name: "weakened-missing-row-refuses-the-edit", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsRow}, {match: matchContains, text: "test/weakened.md"}, {match: matchContains, text: "WRITE THE ROW FIRST"}}},
+	{category: categoryWeakenedHatch, name: "weakened-missing-row-refuses-the-edit", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsRow}, {match: matchContains, text: testweakened.WeakenedDir + "/"}, {match: matchContains, text: "WRITE THE ROW FIRST"}}},
 	{category: categoryWeakenedHatch, name: "weakened-row-opens-the-hatch", expectedExit: 0},
 	{category: categoryWeakenedHatch, name: "weakened-row-for-another-test-buys-nothing", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsRow}}},
 	{category: categoryWeakenedHatch, name: "weakened-qualified-row-opens-the-hatch", expectedExit: 0},
@@ -261,13 +263,13 @@ var fixtureSites = [...]fixtureSite{
 	{category: categoryWeakenedHatch, name: "weakened-count-drop-still-only-notices", expectedExit: 0, messages: []fixtureMessage{{match: matchContains, text: "removing assertions"}}},
 	{category: categoryWeakenedHatch, name: "weakened-sees-a-gofmt-table-case-leave", expectedExit: 0, messages: []fixtureMessage{{match: matchContains, text: "removing table-driven cases (2 -> 1)"}}},
 	{category: categoryWeakenedHatch, name: "weakened-embedlit-rewrite-is-not-a-case-leaving", expectedExit: 0},
-	{category: categoryRFCChangedLedger, name: "rfc-changed-absent-ledger-refuses", expectedExit: -1, messages: []fixtureMessage{{match: matchContains, text: rfcChangedLedgerPath}}},
+	{category: categoryRFCChangedLedger, name: "rfc-changed-absent-ledger-refuses", expectedExit: -1, messages: []fixtureMessage{{match: matchContains, text: testweakened.RFCChangedDir + "/"}}},
 	{category: categoryRFCChangedLedger, name: "rfc-changed-missing-row-refuses-the-edit", expectedExit: -1, messages: []fixtureMessage{{match: matchContains, text: "| TestTagged |"}, {match: matchContains, text: "RFC7606-7.1-1"}}},
 	{category: categoryRFCChangedLedger, name: "rfc-changed-row-opens-the-gate", expectedExit: 0},
 	{category: categoryRFCChangedLedger, name: "rfc-changed-row-for-another-test-buys-nothing", expectedExit: -1, messages: []fixtureMessage{{match: matchContains, text: "| TestTagged |"}}},
 	{category: categoryRFCChangedLedger, name: "rfc-changed-qualified-row-opens-the-gate", expectedExit: 0},
 	{category: categoryRFCChangedLedger, name: "rfc-changed-wrong-package-qualifier-buys-nothing", expectedExit: -1},
-	{category: categoryRFCChangedLedger, name: "rfc-changed-in-file-marker-no-longer-approves", expectedExit: -1, messages: []fixtureMessage{{match: matchContains, text: rfcChangedLedgerPath}}},
+	{category: categoryRFCChangedLedger, name: "rfc-changed-in-file-marker-no-longer-approves", expectedExit: -1, messages: []fixtureMessage{{match: matchContains, text: testweakened.RFCChangedDir + "/"}}},
 	{category: categoryRFCChangedLedger, name: "rfc-changed-message-does-not-teach-the-marker", expectedExit: -1, messages: []fixtureMessage{{match: matchNotContains, text: "// rfc-test-change-approved: <"}}},
 	{category: categoryRFCChangedLedger, name: "rfc-changed-unreadable-ledger-refuses", expectedExit: -1},
 	{category: categoryRFCChangedLedger, name: "rfc-changed-untagged-func-unaffected", expectedExit: 0},

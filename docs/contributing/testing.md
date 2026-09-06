@@ -192,19 +192,29 @@ A red test means the CODE is wrong by default. Fix the code. When the coverage i
 genuinely gone, because the feature it proved was removed or another test now
 proves it, the removal is recorded rather than silent.
 
-The record is `test/weakened.md`. It holds one row per weakened test, `| Test |
-Reason |`, and it is REPLACED per commit. Delete the rows of the last commit,
-write the rows of this one, and commit the file with the change. Git history
-holds every past row beside the change it accepted, so
-`git log -p -- test/weakened.md` is how you read them.
+The record is `test/weakened/<session>.md`, the ledger shard your own commit
+session owns, where `<session>` is the eight hex characters `./le commit
+session` prints. It holds one row per weakened test, `| Test | Reason |`. No
+other session reads your shard and none can write it, so nobody has to be
+careful about anybody else's rows.
+
+Write the rows this commit owes and leave the rest to the gate: `./le commit
+create` drops every row your shard holds whose text git already has at HEAD,
+because a row whose commit landed explains a diff history holds. Git history is
+where past rows are read, so `git log -p -- test/weakened/` shows each one
+beside the change it accepted.
 
 The route, in order:
 
-1. Write the row first. The native write-edit hook reads the file from disk, so
+1. Write the row first. The native write-edit hook reads the shard from disk, so
    a row added after the edit takes effect only after the edit is retried.
 2. Make the edit.
-3. Name `test/weakened.md` in the commit. `internal/le/commit.Answer` refuses
-   a commit that weakens a test and leaves the row in the working tree.
+3. Name `test/weakened/<session>.md` in the commit. `internal/le/commit.Answer`
+   refuses a commit that weakens a test and leaves the row in the working tree.
+
+`./le test-weakened check` prints every session's shard and the rows in it, and
+names yours. Read it when you want to know what the ledger holds without
+preparing a commit.
 
 The test name is the enclosing top-level `func TestXxx` for Go, and the file stem
 for a `.ci` or a `.et`. Write `package.TestName` when the bare name matches two

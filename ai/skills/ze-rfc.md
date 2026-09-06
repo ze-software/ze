@@ -508,8 +508,9 @@ is the only thing standing between a regression and a shipped protocol violation
 | The RFC text itself was misquoted | Fix the summary line (keep the ID), then re-run `/ze-rfc-audit` |
 | Refactor/rename/format only | Allowed — behavior must be unchanged |
 
-A row in `test/weakened.md` does **not** authorize changing a tagged test. It is
-self-service: you would be writing your own approval. Only the user can approve.
+A weakening row in `test/weakened/<session>.md` does **not** authorize changing a
+tagged test. It is self-service: you would be writing your own approval. Only
+the user can approve, and their answer is a row in `test/rfc-changed/<session>.md`.
 
 ### Error Handling
 | Condition | Detect How | Response | Code/Subcode |

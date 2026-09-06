@@ -10,7 +10,7 @@ func TestAuditExitCodesCoverCleanFindingAndCannotRun(t *testing.T) {
 	path := "pkg/a_test.go"
 	baseline := "package p\n\n// RFC requirement: RFC2119-1-1 positive\nfunc TestA(t *testing.T) {\n\trequire.Equal(t, 1, got)\n}\n"
 	writeProspectiveFile(t, root, path, baseline)
-	writeProspectiveFile(t, root, ContractPath, fixtureLedgerHeader)
+	writeProspectiveFile(t, root, fixtureShard, fixtureLedgerHeader)
 	runProspectiveGit(t, root, "init", "-q")
 	runProspectiveGit(t, root, "add", "-A")
 	runProspectiveGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "baseline")
@@ -38,14 +38,14 @@ func TestAuditHonoursWeakeningRowOnlyInTheCommitThatCarriesIt(t *testing.T) {
 	path := "pkg/a_test.go"
 	baseline := "package p\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n\trequire.Equal(t, 1, got)\n}\n"
 	writeProspectiveFile(t, root, path, baseline)
-	writeProspectiveFile(t, root, ContractPath, fixtureLedgerHeader)
+	writeProspectiveFile(t, root, fixtureShard, fixtureLedgerHeader)
 	runProspectiveGit(t, root, "init", "-q")
 	runProspectiveGit(t, root, "add", "-A")
 	runProspectiveGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "baseline")
 	base := strings.TrimSpace(runProspectiveGitOutput(t, root, "rev-parse", "HEAD"))
 
 	writeProspectiveFile(t, root, path, strings.ReplaceAll(baseline, "\trequire.NoError(t, err)\n", ""))
-	writeProspectiveFile(t, root, ContractPath, fixtureLedgerHeader+"| TestA | error coverage intentionally removed |\n")
+	writeProspectiveFile(t, root, fixtureShard, fixtureLedgerHeader+"| TestA | error coverage intentionally removed |\n")
 	runProspectiveGit(t, root, "add", "-A")
 	runProspectiveGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "accepted weakening")
 

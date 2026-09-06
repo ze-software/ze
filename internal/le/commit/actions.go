@@ -90,7 +90,7 @@ func Answer(args []string) (any, int) {
 		if err != nil {
 			return commandError(err, 2)
 		}
-		session, err := SessionID(root, values.one(keywordSession))
+		session, err := lepath.CommitSession(root, values.one(keywordSession))
 		if err != nil {
 			return commandError(err, 2)
 		}

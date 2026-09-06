@@ -15,7 +15,7 @@ func TestProspectiveCommitPreservesSharedIndexAndPairsRenameWithSpaces(t *testin
 	newPath := "new tools/shared/a test_test.go"
 	baseline := "package shared\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n\trequire.Equal(t, 1, got)\n}\n"
 	writeProspectiveFile(t, root, oldPath, baseline)
-	writeProspectiveFile(t, root, ContractPath, fixtureLedgerHeader)
+	writeProspectiveFile(t, root, fixtureShard, fixtureLedgerHeader)
 	writeProspectiveFile(t, root, "foreign.txt", "baseline\n")
 	runProspectiveGit(t, root, "init", "-q")
 	runProspectiveGit(t, root, "add", "-A")
@@ -59,7 +59,7 @@ func TestProspectiveCommitIgnoresUnrelatedWorktreeTests(t *testing.T) {
 	writeProspectiveFile(t, root, "pkg/a_test.go", baseline)
 	writeProspectiveFile(t, root, "pkg/unrelated_test.go", baseline)
 	writeProspectiveFile(t, root, "docs/note.txt", "old\n")
-	writeProspectiveFile(t, root, ContractPath, fixtureLedgerHeader)
+	writeProspectiveFile(t, root, fixtureShard, fixtureLedgerHeader)
 	runProspectiveGit(t, root, "init", "-q")
 	runProspectiveGit(t, root, "add", "-A")
 	runProspectiveGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "baseline")

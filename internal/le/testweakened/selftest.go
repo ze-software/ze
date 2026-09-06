@@ -14,6 +14,11 @@ import (
 
 const fixtureLedgerHeader = "| Test | Reason |\n|------|--------|\n"
 
+// selfTestSession is the commit namespace the fixture repository writes its
+// ledger shard under. Every Check call below names it, so the fixture proves
+// the same path derivation the live gate uses rather than a fixed file name.
+const selfTestSession = "5e1f7e57"
+
 type detectorFixture struct {
 	path   string
 	old    string
@@ -68,6 +73,7 @@ func SelfTest() SelfTestReport {
 		}
 	}
 
+	selfTestShard := ShardPath(WeakenedDir, selfTestSession)
 	root, err := os.MkdirTemp("", "ze-weakened-selftest-")
 	if err != nil {
 		check(false, text.Str("create fixture repository: ").Err(err).String())
@@ -75,7 +81,7 @@ func SelfTest() SelfTestReport {
 	}
 	defer func() { _ = os.RemoveAll(root) }()
 	check(runSelfTestGit(root, "init", "-q"), "initialize fixture repository")
-	check(writeSelfTestFile(root, ContractPath, fixtureLedgerHeader) == nil,
+	check(writeSelfTestFile(root, selfTestShard, fixtureLedgerHeader) == nil,
 		"write the fixture ledger")
 	for _, fixture := range appendCopyFixtures(positive, negative) {
 		if fixture.added {
@@ -96,7 +102,7 @@ func SelfTest() SelfTestReport {
 			text.Reset().Str("write worktree ").Str(fixture.path).String())
 		paths = append(paths, fixture.path)
 	}
-	missing := Check(Request{Root: root, Paths: paths})
+	missing := Check(Request{Root: root, Session: selfTestSession, Paths: paths})
 	check(missing.ExitCode() == 1, "unrecorded weakenings must be refused")
 	for _, fixture := range positive {
 		finding, found := findingForPath(missing.Findings, fixture.path)
@@ -116,33 +122,44 @@ func SelfTest() SelfTestReport {
 	for _, finding := range missing.Findings {
 		text.Str("| ").Str(finding.Name).Str(" | fixture accepts this weakening |\n")
 	}
-	check(writeSelfTestFile(root, ContractPath, text.String()) == nil,
+	check(writeSelfTestFile(root, selfTestShard, text.String()) == nil,
 		"write accepted fixture ledger")
-	accepted := Check(Request{Root: root, Paths: paths})
+	accepted := Check(Request{Root: root, Session: selfTestSession, Paths: paths})
 	check(accepted.ExitCode() == 0, "one matching row for every weakening must be accepted")
 	check(len(accepted.Findings) == len(missing.Findings),
 		"accepted check must judge the same finding population")
 
-	check(writeSelfTestFile(root, ContractPath,
+	check(writeSelfTestFile(root, selfTestShard,
 		text.Reset().Str(fixtureLedgerHeader).Str("| TestGone | stale |\n").String()) == nil,
 		"write stale fixture ledger")
-	stale := Check(Request{Root: root, Paths: paths})
+	stale := Check(Request{Root: root, Session: selfTestSession, Paths: paths})
 	check(stale.ExitCode() == 1 && containsProblem(stale.Problems, "does not weaken"),
 		"a stale row must be refused")
 
-	check(writeSelfTestFile(root, ContractPath, "# Tests\n\nno table\n") == nil,
+	check(writeSelfTestFile(root, selfTestShard, "# Tests\n\nno table\n") == nil,
 		"write malformed fixture ledger")
-	malformed := Check(Request{Root: root})
+	malformed := Check(Request{Root: root, Session: selfTestSession})
 	check(malformed.ExitCode() == 1 && containsProblem(malformed.Problems, "has no `| Test | Reason |`"),
 		"a malformed ledger must fail closed")
 
-	check(os.Remove(filepath.Join(root, filepath.FromSlash(ContractPath))) == nil,
+	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestShard))) == nil,
 		"remove fixture ledger")
-	absent := Check(Request{Root: root})
-	check(absent.ExitCode() == 1 && containsProblem(absent.Problems, "is missing"),
-		"an absent ledger must fail the live shape check")
+	// A session that holds no shard holds no rows, which is the state a
+	// checkout is in between commits and is not a problem of its own. The
+	// fail-closed contract sits where the absence decides something: a commit
+	// that weakens a test and has no shard is refused, and the refusal carries
+	// the header and the row to write.
+	absent := Check(Request{Root: root, Session: selfTestSession})
+	check(absent.ExitCode() == 0 && len(absent.Problems) == 0,
+		"an absent shard must read as a session holding no rows")
+	absentWithWeakening := Check(Request{Root: root, Session: selfTestSession, Paths: paths})
+	check(absentWithWeakening.ExitCode() == 1 &&
+		containsProblem(absentWithWeakening.Problems, "does not exist, and this commit weakens"),
+		"an absent shard must refuse a commit that weakens a test")
+	check(containsProblem(absentWithWeakening.Problems, "| Test | Reason |"),
+		"the absent-shard refusal must carry the header an author writes first")
 
-	cleanWithoutLedger := Check(Request{Root: root, Paths: []string{negative[0].path}})
+	cleanWithoutLedger := Check(Request{Root: root, Session: selfTestSession, Paths: []string{negative[0].path}})
 	check(cleanWithoutLedger.ExitCode() == 0,
 		"a change that weakens nothing must not read an absent ledger")
 

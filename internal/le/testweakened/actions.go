@@ -13,10 +13,10 @@ import (
 const area = "test-weakened"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "test/weakened.md still parses for the commit gate. Whether a commit is " +
-		"covered is a question about THAT commit's paths and a verify stage has none, " +
-		"so this checks the one thing true for every session in a shared checkout: a " +
-		"header that drifted would leave commit_helper.py reading no rows",
+	leaction.Action{Verb: "check", Why: "every ledger shard under test/weakened/ still parses for the commit " +
+		"gate, and the population is printed so an author sees whose rows are in " +
+		"the ledger without preparing a commit. Whether a commit is covered is a " +
+		"question about THAT commit's paths and a verify stage has none",
 		Answer: checkAnswer},
 	leaction.Action{Verb: "selftest", Why: "on a fixture repository whose answer is known, the checker still refuses a " +
 		"weakening with no row and accepts the same weakening once a row names it",
@@ -45,7 +45,7 @@ func checkAnswer() (any, int) {
 	var text textbuf.Buffer
 	if err != nil {
 		result := Result{
-			Contract: ContractPath,
+			Contract: WeakenedDir,
 			Problems: []string{text.Str(cannotRunPrefix).Err(err).String()},
 		}
 		return result, result.ExitCode()

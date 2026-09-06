@@ -22,7 +22,7 @@
 - **Two weakenings pass the gate and MUST be judged by hand.** `writeWeakening` reads structure, so it sees neither an expected value changed in place (`Equal(t, 1, x)` to `Equal(t, 2, x)`) nor a rewrite that repoints an existing test at new behavior: the function count and the assertion count are unchanged, and the coverage loss is semantic.
 - **A new behavior MUST get a NEW case, and an existing test MUST NOT be repurposed to carry it.** The behavior that test verified still needs proving.
 
-- **A legitimate weakening MUST have its row written in `test/weakened.md` BEFORE the edit, naming the test THIS edit weakens, and the commit MUST carry the file.** The detector reads the file from disk, so a row written after the refusal opens nothing until the edit is retried, and a row naming another test opens nothing at all. The row format is `docs/architecture/testing/test-health.md`.
+- **A legitimate weakening MUST have its row written in `test/weakened/<session>.md` BEFORE the edit, naming the test THIS edit weakens, and the commit MUST carry that shard.** The shard is the one your own commit session owns (`./le commit session`), no other session reads it, and the gate drops each row once the commit carrying it lands. The detector reads the shard from disk, so a row written after the refusal opens nothing until the edit is retried, and a row naming another test opens nothing at all. The row format is `docs/architecture/testing/test-health.md`.
 
 ## The Affected Population Is Not the Edited Population
 
@@ -43,7 +43,7 @@ Measured on 2026-08-22: `clear_debt` (`internal/le/commit`) changed the argument
 ## RFC-Tagged Tests
 
 - **A test carrying an `RFC requirement: <id> <polarity>` tag MUST NOT be edited to match the code.** It is the proof behind a public claim in `docs/features/rfc-status.md`, and `./le rfc check` counts it as that proof, so the edit retires the evidence while the claim stays up. Fix your code instead.
-- **A row in `test/weakened.md` is your own justification and MUST NOT be read as approval here.** Once the user approves, what they approved MUST be written as one row in `test/rfc-changed.md` before the edit; `writeWeakening` and the commit gate both read that file from disk.
+- **A weakening row is your own justification and MUST NOT be read as approval here.** Once the user approves, what they approved MUST be written as one row in `test/rfc-changed/<session>.md` before the edit; `writeWeakening` and the commit gate both read that shard from disk, and a commit MUST NOT carry another session's.
 
 - **Every gated requirement MUST have BOTH a positive and a negative test, and the assertion MUST name the EXACT outcome rather than a floor.** A negative-only test passes when the code rejects everything and a positive-only test passes when it accepts everything, so only the pair pins behavior to the requirement. `GreaterOrEqual(TreatAsWithdraw)` is also satisfied by `SessionReset`, so it cannot fail when the implementation over-reacts.
 

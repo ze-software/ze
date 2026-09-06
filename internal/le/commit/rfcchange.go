@@ -17,8 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/le/testweakened"
 )
 
-const rfcChangedPath = "test/rfc-changed.md"
-
 var rfcTagPattern = regexp.MustCompile(`RFC requirement:\s*[A-Za-z0-9][A-Za-z0-9._/-]*(?:\s+(?:positive|negative))?`)
 
 // RFCChange is one changed RFC-tagged test unit requiring owner approval.
@@ -29,7 +27,13 @@ type RFCChange struct {
 	Tags    []string `json:"tags"`
 }
 
-func rfcChangeProblems(root string, prospective testweakened.Prospective, carriesLedger bool) ([]RFCChange, []string) {
+// rfcChangeProblems judges the tagged tests a prospective commit changes
+// against this session's own shard of the RFC-changed ledger. It answers the
+// rows the commit uses, so the caller can drop the ones an earlier commit of
+// this session already landed.
+func rfcChangeProblems(
+	root, shard string, prospective testweakened.Prospective, carriesLedger bool,
+) ([]RFCChange, []testweakened.Row, []string) {
 	pairsByOld := make(map[string]testweakened.RenamePair)
 	pairedNew := make(map[string]bool)
 	for _, pair := range prospective.RenamePairs {
@@ -55,7 +59,7 @@ func rfcChangeProblems(root string, prospective testweakened.Prospective, carrie
 		}
 		oldText, problem := committedText(root, "HEAD", oldPath)
 		if problem != "" {
-			return nil, []string{"RFC-tagged change gate could not run: " + problem}
+			return nil, nil, []string{"RFC-tagged change gate could not run: " + problem}
 		}
 		if oldText == "" || !rfcTagPattern.MatchString(oldText) {
 			continue
@@ -64,27 +68,33 @@ func rfcChangeProblems(root string, prospective testweakened.Prospective, carrie
 		if newPath != "" {
 			content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(newPath))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
-				return nil, []string{"RFC-tagged change gate could not read " + newPath + ": " + err.Error()}
+				return nil, nil, []string{"RFC-tagged change gate could not read " + newPath + ": " + err.Error()}
 			}
 			newText = string(content)
 		}
 		changes = append(changes, changedRFCUnits(newPathOrOld(newPath, oldPath), oldText, newText)...)
 	}
 	if len(changes) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if !carriesLedger {
-		return changes, []string{fmt.Sprintf("this commit changes %d RFC-tagged test(s) and does not carry %s", len(changes), rfcChangedPath)}
+		return changes, nil, []string{fmt.Sprintf(
+			"this commit changes %d RFC-tagged test(s) and does not carry %s.\n"+
+				"  The row records what the OWNER approved, and it is the only place a "+
+				"later reader finds that approval beside the change it authorizes.\n"+
+				"  Name the file too:\n    file %s", len(changes), shard, shard)}
 	}
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rfcChangedPath))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(shard))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 	if err != nil {
-		return changes, []string{"cannot read " + rfcChangedPath + ": " + err.Error()}
+		return changes, nil, []string{"cannot read " + shard + ": " + err.Error()}
 	}
-	rows, problems := testweakened.ParseLedger(string(content), rfcChangedPath)
+	rows, problems := testweakened.ParseLedger(string(content), shard)
 	if len(problems) != 0 {
-		return changes, problems
+		return changes, nil, problems
 	}
+	landed := testweakened.LandedRows(root, shard)
 	claimed := make([]bool, len(changes))
+	keep := make([]testweakened.Row, 0, len(rows))
 	for _, row := range rows {
 		hits := 0
 		for index, change := range changes {
@@ -93,16 +103,24 @@ func rfcChangeProblems(root string, prospective testweakened.Prospective, carrie
 				hits++
 			}
 		}
-		if hits == 0 {
-			problems = append(problems, fmt.Sprintf("%s:%d names %s, which this commit does not change", rfcChangedPath, row.Line, row.Name))
+		if hits != 0 {
+			keep = append(keep, row)
+			continue
 		}
+		// An approval this session already committed is not a leftover to
+		// clear: git holds it beside the change it authorized, it approves
+		// nothing further, and the prune drops it from the shard.
+		if landed[row.Key()] {
+			continue
+		}
+		problems = append(problems, fmt.Sprintf("%s:%d names %s, which this commit does not change", shard, row.Line, row.Name))
 	}
 	for index, change := range changes {
 		if !claimed[index] {
-			problems = append(problems, fmt.Sprintf("%s changes RFC-tagged test %s and %s has no owner-approval row", change.Path, change.Name, rfcChangedPath))
+			problems = append(problems, fmt.Sprintf("%s changes RFC-tagged test %s and %s has no owner-approval row", change.Path, change.Name, shard))
 		}
 	}
-	return changes, problems
+	return changes, keep, problems
 }
 
 func changedRFCUnits(path, oldText, newText string) []RFCChange {

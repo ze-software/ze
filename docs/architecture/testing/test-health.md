@@ -113,21 +113,41 @@ a written excuse attached.
 
 The compiled weakening detector in `internal/le/testweakened` refuses an edit that
 deletes assertions, adds a `t.Skip`, drops an `expect=`, or introduces an
-assertion that cannot fail. Its escape hatch is a row in `test/weakened.md`
-naming the test the edit weakens.
+assertion that cannot fail. Its escape hatch is a row naming the test the edit
+weakens, written in the ledger shard your own commit session owns.
 
 | | |
 |---|---|
 | Refused at edit time by | `internal/le/hookruntime` calling `internal/le/testweakened` |
 | Refused at commit time by | `weakened_problems` (`internal/le/commit.Answer`) |
-| Reads | `test/weakened.md` + the HEAD content of the paths the commit names |
+| Reads | `test/weakened/<session>.md` + the HEAD content of the paths the commit names |
 | Source | `internal/le/testweakened.Answer`, called by both gates |
 | Parse gate | `./le test-weakened check`, in `./le verify current mode full` both modes |
 <!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
-The file holds two columns, under the exact header the parser anchors on:
+### The shard is named after your commit session
+
+The ledger is a directory, and each session writes one file in it:
+`test/weakened/<session>.md`, where `<session>` is the eight hex characters
+`./le commit session` prints. That is the same identity that names your commit
+script, your commit message and your verification-debt shard, and
+`internal/le/lepath.CommitSession` is the only thing that derives it.
+
+Two authors therefore never resolve to one path, so neither can replace the
+other's rows. Assembling the population is the GATE's job: the commit gate reads
+your shard, `./le test-weakened check` reads every shard and prints whose rows
+are in each, and `./le test-weakened audit` reads the shards each audited commit
+carried. A commit that names another session's shard is refused, because
+carrying it would publish that author's justification under your subject.
+
+`./le test-weakened check` is how you see the population without preparing a
+commit. It names your shard even when it holds nothing.
+
+The shard holds two columns, under the exact header the parser anchors on:
 
 ```
+# Test weakenings this commit accepts
+
 | Test | Reason |
 |------|--------|
 | TestName | <what left the suite, and why the commit is correct without it> |
@@ -143,14 +163,24 @@ The row is written BEFORE the edit. The detector reads the file from disk, so a
 row written after a refusal buys nothing until the edit is retried, and a row
 naming another test opens nothing.
 
-**The file is replaced per commit, and that shape is the whole design.** Delete
-the rows of the last commit. Write the rows of this one. Git history holds every
-past row beside the change it accepted. A record that cannot accumulate cannot
-become unreadable, so no ceiling and no census are needed to cap it.
+**The shard carries the rows of one commit, and the GATE keeps it that way.**
+Write the rows this commit owes. `./le commit create` drops every other row your
+shard holds whose text git already has at HEAD, because a row whose commit
+landed explains a diff history holds: it accepts nothing further, and it must
+not refuse the commit in front of it. A row that matches nothing and has NOT
+landed is still refused, because that one is a mistake rather than a record.
 
-**The commit must CARRY the file**, not merely have the row in the working tree.
-`internal/le/commit.Answer` refuses a weakening when `test/weakened.md` is not
-one of the repeated `file <path>` values passed to `./le commit create`.
+Deleting a landed row by hand was the old contract, and it failed in one
+specific way often enough to be measured: a row left behind blocks the next
+author, who then has to prove at HEAD that the work it describes landed before
+clearing somebody else's evidence. Three sessions did that repair by hand
+(`plan/journal/concurrent-session-corruption.md`). The gate performs the same
+proof now, from the git objects.
+
+**The commit must CARRY the shard**, not merely have the row in the working
+tree. `internal/le/commit.Answer` refuses a weakening when
+`test/weakened/<session>.md` is not one of the repeated `file <path>` values
+passed to `./le commit create`.
 
 **The commit gate judges the paths the commit NAMES, never the working tree**,
 which is where it differs from the sensitivity ratchet above. Several sessions

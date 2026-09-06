@@ -114,20 +114,24 @@ func Create(root string, options *Options) (Prepared, error) {
 	// is skipped: the path validation above, the message contract, the
 	// concurrency guard the generated script carries, and the push
 	// authorisation.
+	// The commit session is resolved before the gates rather than after,
+	// because the ledger shards those gates read are named after it. One
+	// identity names the script, the message, the debt shard and the two
+	// ledger shards, so a second author cannot reach any of them.
+	session, err := lepath.CommitSession(root, options.Session)
+	if err != nil {
+		return result, err
+	}
+	result.Session = session
+
 	native := lepath.IsCheckout(root)
 	if native {
-		if err := checkSourceGates(root, options, &result, paths, removed); err != nil {
+		if err := checkSourceGates(root, options, &result, paths, removed, session); err != nil {
 			return result, err
 		}
 	} else {
 		result.Verify = VerificationState{State: verifyNotApplicable, Detail: notCheckoutDetail}
 	}
-
-	session, err := SessionID(root, options.Session)
-	if err != nil {
-		return result, err
-	}
-	result.Session = session
 	reviewCheck := ""
 	if native {
 		paths, reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed)
@@ -209,25 +213,48 @@ func Create(root string, options *Options) (Prepared, error) {
 // ledger, the RFC-tagged tests, the discovery index and the test-coverage
 // obligation. Each one reads a file only the Ze checkout holds, so Create runs
 // this over that checkout alone.
-func checkSourceGates(root string, options *Options, result *Prepared, paths, removed []string) error {
+func checkSourceGates(root string, options *Options, result *Prepared, paths, removed []string, session string) error {
+	if problems := testweakened.ForeignShardProblems(session, slices.Concat(paths, removed)); len(problems) != 0 {
+		return errors.New(strings.Join(problems, "\n\n"))
+	}
 	prospective, problems := testweakened.ProspectiveCommit(root, paths, removed)
 	if len(problems) != 0 {
 		return errors.New(strings.Join(problems, "\n"))
 	}
-	carriesLedger := slices.Contains(paths, testweakened.ContractPath)
+	weakenedShard := testweakened.ShardPath(testweakened.WeakenedDir, session)
+	carriesLedger := slices.Contains(paths, weakenedShard)
 	weakening := testweakened.CheckCommit(testweakened.Request{
-		Root: root, Paths: paths, Removed: removed, RenamePairs: prospective.RenamePairs,
+		Root: root, Session: session, Paths: paths, Removed: removed,
+		RenamePairs: prospective.RenamePairs,
 	}, carriesLedger)
 	result.Weakened = weakening.Findings
 	if len(weakening.Problems) != 0 {
 		return errors.New(strings.Join(weakening.Problems, "\n\n"))
 	}
-	rfcChanges, rfcProblems := rfcChangeProblems(
-		root, prospective, slices.Contains(paths, rfcChangedPath),
+	rfcShard := testweakened.ShardPath(testweakened.RFCChangedDir, session)
+	rfcChanges, rfcKeep, rfcProblems := rfcChangeProblems(
+		root, rfcShard, prospective, slices.Contains(paths, rfcShard),
 	)
 	result.RFCChanges = rfcChanges
 	if len(rfcProblems) != 0 && strings.TrimSpace(options.RFCChangeOK) == "" {
 		return errors.New(strings.Join(rfcProblems, "\n\n"))
+	}
+	// The shards this commit carries hold the rows this commit uses. Every
+	// other row in them is one an earlier commit of this session landed, and
+	// the gate drops it here rather than asking the author to. That deletion
+	// by hand is what made a stale row block three commits it had nothing to
+	// do with (plan/journal/concurrent-session-corruption.md).
+	if !options.DryRun {
+		if carriesLedger {
+			if err := testweakened.PruneLanded(root, weakenedShard, weakening.Keep); err != nil {
+				return fmt.Errorf("prune landed rows from %s: %w", weakenedShard, err)
+			}
+		}
+		if slices.Contains(paths, rfcShard) {
+			if err := testweakened.PruneLanded(root, rfcShard, rfcKeep); err != nil {
+				return fmt.Errorf("prune landed rows from %s: %w", rfcShard, err)
+			}
+		}
 	}
 
 	if options.StaleIndexOK == "" {

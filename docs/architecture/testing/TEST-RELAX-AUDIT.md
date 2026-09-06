@@ -423,16 +423,17 @@ Read one bucket with `--list --bucket A`.
 ## The mechanism moved (2026-08-16)
 
 This page audits a mechanism that no longer exists. The justification for a
-weakened test is now one row in `test/weakened.md`, and that file is REPLACED per
-commit: it holds the rows of the change in hand, and git history holds every
-past row beside the change it accepted.
+weakened test is now one row in `test/weakened/<session>.md`, the ledger shard
+one commit session owns. It holds the rows of the change in hand, the gate drops
+each row once the commit carrying it lands, and git history holds every past row
+beside the change it accepted.
 
 | Was | Is |
 |-----|----|
-| a `test-relax:` comment in the test file, permanent | a row in `test/weakened.md`, replaced per commit |
+| a `test-relax:` comment in the test file, permanent | a row in `test/weakened/<session>.md`, dropped by the gate once its commit lands |
 | a ceiling file plus a census target counting HEAD | nothing to count, because a per-commit file cannot accumulate |
 | `c_test_weakening` opens on a token the edit writes | `c_test_weakening` opens on a row naming the test the edit weakens |
-| no commit-time check | `weakened_problems` (`internal/le/commit/actions.go`) recomputes the weakenings of the paths the commit names, and refuses a commit that does not carry `test/weakened.md` |
+| no commit-time check | `weakened_problems` (`internal/le/commit/actions.go`) recomputes the weakenings of the paths the commit names, and refuses a commit that does not carry `test/weakened/<session>.md` |
 | `make ze-relax-census` | `./le test-weakened check` |
 
 `internal/le/testweakened/actions.go` is the one implementation both gates call.
@@ -448,4 +449,4 @@ Session 3, the sweep, never ran. 28 legacy tokens are left in 18 test files.
 Neither gate reads them: `c_test_weakening` opens on a row, and
 `weakened_problems` asks a row for every weakening it finds. One reader is left,
 `relax_reasons` in `internal/le/testweakened/audit.go`, which still quotes a
-token at review time and does not yet read `test/weakened.md`.
+token at review time and does not yet read the weakening ledger.

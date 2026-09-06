@@ -30,7 +30,11 @@ type RenamePair struct {
 // Request is the exact change population the check judges. Paths and Removed
 // come from one commit, not from a scan of the shared worktree.
 type Request struct {
-	Root        string       `json:"root"`
+	Root string `json:"root"`
+	// Session is the commit namespace whose ledger shard this request reads.
+	// Empty resolves the running harness's own, which is what every live
+	// caller wants; a test names two sessions to drive two authors.
+	Session     string       `json:"session,omitempty"`
 	Paths       []string     `json:"paths,omitempty"`
 	Removed     []string     `json:"removed,omitempty"`
 	RenamePairs []RenamePair `json:"rename-pairs,omitempty"`
@@ -55,6 +59,16 @@ type Result struct {
 	Findings    []Finding `json:"findings,omitempty"`
 	Problems    []string  `json:"problems,omitempty"`
 	Comparison  bool      `json:"comparison"`
+	// Shards is the whole ledger population, one entry per session holding
+	// rows. The live shape check answers it, so an author reads whose rows
+	// are in the ledger without preparing a commit.
+	Shards []Shard `json:"shards,omitempty"`
+	// Keep is the rows of this session's shard that the commit under test
+	// uses. Every other row in that shard is one this commit already landed,
+	// which is what PruneLanded removes.
+	Keep []Row `json:"keep,omitempty"`
+	// Landed counts the rows ignored because git holds them at HEAD.
+	Landed int `json:"landed,omitempty"`
 }
 
 // Check performs either the live no-path shape check or one exact HEAD/worktree
@@ -70,17 +84,32 @@ func CheckCommit(request Request, ledgerCarried bool) Result {
 }
 
 func check(request Request, ledgerCarried bool) Result {
-	result := Result{Contract: ContractPath}
+	var result Result
 	if request.Root == "" {
 		var text textbuf.Buffer
 		result.Problems = []string{text.Str(cannotRunPrefix).
 			Str("the checkout root is empty").String()}
 		return result
 	}
+	session, shard, problem := sessionShard(request.Root, WeakenedDir, request.Session)
+	if problem != "" {
+		result.Problems = []string{problem}
+		return result
+	}
+	result.Contract = shard
 	if len(request.Paths) == 0 && len(request.Removed) == 0 {
-		rows, problems := readLedger(request.Root)
-		result.Rows = len(rows)
-		result.Problems = problems
+		shards, err := ReadShards(request.Root, WeakenedDir, session)
+		if err != nil {
+			var text textbuf.Buffer
+			result.Problems = []string{text.Str(cannotRunPrefix).Str("cannot read ").
+				Str(WeakenedDir).Str(": ").Err(err).String()}
+			return result
+		}
+		result.Shards = shards
+		for _, held := range shards {
+			result.Rows += len(held.Rows)
+			result.Problems = append(result.Problems, held.Problems...)
+		}
 		return result
 	}
 
@@ -109,38 +138,71 @@ func check(request Request, ledgerCarried bool) Result {
 	}
 
 	if !ledgerCarried {
-		result.Problems = unmatchedProblems(nil, findings)
+		result.Problems = unmatchedProblems(shard, nil, nil, findings)
 		var text textbuf.Buffer
 		result.Problems = append(result.Problems, text.Str("this commit weakens ").
 			Int(int64(len(findings))).Str(" test(s) and does not carry ").
-			Str(ContractPath).Str(". The row is in the working tree only, so git history ").
+			Str(shard).Str(". The row is in the working tree only, so git history ").
 			Str("would hold the weakening with no reason beside it. Name the file too:\n    file ").
-			Str(ContractPath).String())
+			Str(shard).String())
 		return result
 	}
-	rows, exists, readProblem := loadLedger(request.Root)
+	rows, exists, readProblem := loadLedger(request.Root, shard)
 	if readProblem != "" {
 		result.Problems = []string{readProblem}
 		return result
 	}
 	if !exists {
-		var page textbuf.Buffer
-		page.Str(ContractPath).Str(" does not exist, and this commit weakens ").
-			Int(int64(len(findings))).Str(" test(s). Write it:\n")
-		for index, finding := range findings {
-			if index != 0 {
-				page.Byte('\n')
-			}
-			page.Str("    ").Str(rowToWrite(finding, false))
-		}
-		result.Problems = []string{page.String()}
+		result.Problems = []string{writeTheShard(shard, findings)}
 		return result
 	}
-	parsed, parseProblems := parseLedger(rows, ContractPath)
+	parsed, parseProblems := parseLedger(rows, shard)
 	result.Rows = len(parsed)
+	landed := LandedRows(request.Root, shard)
 	result.Problems = slices.Concat(parseProblems,
-		liveScopeProblems(request.Removed, parsed, findings), unmatchedProblems(parsed, findings))
+		liveScopeProblems(shard, request.Removed, parsed, findings),
+		unmatchedProblems(shard, landed, parsed, findings))
+	result.Keep, result.Landed = keptRows(parsed, findings)
 	return result
+}
+
+// writeTheShard is the refusal an author meets before they have a shard. It
+// carries the whole contract, because the file used to carry it in a header
+// and the gate is now the only place a first-time author reads it.
+func writeTheShard(shard string, findings []Finding) string {
+	var page textbuf.Buffer
+	page.Str(shard).Str(" does not exist, and this commit weakens ").
+		Int(int64(len(findings))).Str(" test(s). Write it, header first:\n")
+	page.Str("    # Test weakenings this commit accepts\n")
+	page.Str("    \n")
+	page.Str("    | Test | Reason |\n")
+	page.Str("    |------|--------|")
+	for _, finding := range findings {
+		page.Byte('\n').Str("    ").Str(rowToWrite(finding, false))
+	}
+	page.Str("\n    This shard is yours: no other session reads it, and the gate drops ")
+	page.Str("each row once the commit carrying it lands.")
+	return page.String()
+}
+
+// keptRows answers the rows the commit under test uses, which is what its
+// shard carries into git history. Every other row it holds is one an earlier
+// commit of this session already landed.
+func keptRows(rows []Row, findings []Finding) ([]Row, int) {
+	keep := make([]Row, 0, len(rows))
+	for _, row := range rows {
+		used := false
+		for _, finding := range findings {
+			if rowMatches(row.Name, finding) {
+				used = true
+				break
+			}
+		}
+		if used {
+			keep = append(keep, row)
+		}
+	}
+	return keep, len(rows) - len(keep)
 }
 
 // liveScopeProblems refuses a path scope that covers a path this commit keeps.
@@ -156,7 +218,7 @@ func check(request Request, ledgerCarried bool) Result {
 // retired tree still has a directory on disk until git prunes it, and a
 // finding for a file this commit merely edits is exactly what must not be
 // swallowed.
-func liveScopeProblems(removed []string, rows []Row, findings []Finding) []string {
+func liveScopeProblems(shard string, removed []string, rows []Row, findings []Finding) []string {
 	retired := make(map[string]bool, len(removed))
 	for _, path := range removed {
 		retired[path] = true
@@ -172,7 +234,7 @@ func liveScopeProblems(removed []string, rows []Row, findings []Finding) []strin
 			if !scoped || !matches || retired[finding.Path] {
 				continue
 			}
-			problems = append(problems, text.Reset().Str(ContractPath).Byte(':').
+			problems = append(problems, text.Reset().Str(shard).Byte(':').
 				Int(int64(row.Line)).Str(" scopes ").Str(row.Name).
 				Str(", which covers ").Str(finding.Path).
 				Str(", a path this commit keeps. A path scope states one reason for every ").
@@ -205,9 +267,10 @@ func (r Result) Text() string {
 	switch r.ExitCode() {
 	case 0:
 		if !r.Comparison {
-			page.Colored(color.BrightGreen).Str("Weakened-test check: ").Str(ContractPath).
-				Str(" parses (").Int(int64(r.Rows)).Str(" row(s)).").
-				Colored(color.Reset).Byte('\n')
+			page.Colored(color.BrightGreen).Str("Weakened-test check: ").Str(WeakenedDir).
+				Str(" parses (").Int(int64(len(r.Shards))).Str(" session(s), ").
+				Int(int64(r.Rows)).Str(" row(s)).").Colored(color.Reset).Byte('\n')
+			page.Str(shardPopulation(r.Shards, r.Contract))
 			return page.String()
 		}
 		page.Colored(color.BrightGreen).Str("Weakened-test check: clean (").
@@ -350,22 +413,8 @@ func worktreeText(root, path string) string {
 	return string(content)
 }
 
-func readLedger(root string) ([]Row, []string) {
-	ledger, exists, problem := loadLedger(root)
-	if problem != "" {
-		return nil, []string{problem}
-	}
-	if !exists {
-		var text textbuf.Buffer
-		return nil, []string{text.Str(ContractPath).
-			Str(" is missing. The commit gate reads it, so a commit that weakens a test has nowhere to record the reason.").
-			String()}
-	}
-	return parseLedger(ledger, ContractPath)
-}
-
-func loadLedger(root string) (string, bool, string) {
-	content, err := readRepositoryFile(root, ContractPath)
+func loadLedger(root, shard string) (string, bool, string) {
+	content, err := readRepositoryFile(root, shard)
 	if err == nil {
 		return string(content), true, ""
 	}
@@ -373,7 +422,7 @@ func loadLedger(root string) (string, bool, string) {
 		return "", false, ""
 	}
 	var text textbuf.Buffer
-	return "", false, text.Str(cannotRunPrefix).Str("cannot read ").Str(ContractPath).
+	return "", false, text.Str(cannotRunPrefix).Str("cannot read ").Str(shard).
 		Str(": ").Err(err).String()
 }
 
@@ -412,7 +461,7 @@ func distinctPackages(findings []Finding, hits []int) int {
 	return len(seen)
 }
 
-func unmatchedProblems(rows []Row, findings []Finding) []string {
+func unmatchedProblems(shard string, landed map[string]bool, rows []Row, findings []Finding) []string {
 	problems := make([]string, 0)
 	claimed := make([]bool, len(findings))
 	var text textbuf.Buffer
@@ -424,9 +473,15 @@ func unmatchedProblems(rows []Row, findings []Finding) []string {
 			}
 		}
 		if len(hits) == 0 {
-			problems = append(problems, text.Reset().Str(ContractPath).Byte(':').Int(int64(row.Line)).
+			// A row this session already committed is not a leftover the
+			// author has to clear: git holds it, it accepts nothing more,
+			// and PruneLanded drops it from the shard this commit carries.
+			if landed[row.Key()] {
+				continue
+			}
+			problems = append(problems, text.Reset().Str(shard).Byte(':').Int(int64(row.Line)).
 				Str(" names ").Str(row.Name).
-				Str(", which this commit does not weaken. A row left over from the last commit accepts nothing here; delete it.").
+				Str(", which this commit does not weaken. Delete the row, or name the file it explains.").
 				String())
 			continue
 		}
@@ -436,7 +491,7 @@ func unmatchedProblems(rows []Row, findings []Finding) []string {
 		// collision (the same test name in two packages), and only that
 		// shape needs the operator to write one qualified row per package.
 		if len(hits) > 1 && !isScopedRowName(row.Name) && distinctPackages(findings, hits) > 1 {
-			text.Reset().Str(ContractPath).Byte(':').Int(int64(row.Line)).
+			text.Reset().Str(shard).Byte(':').Int(int64(row.Line)).
 				Str(" names ").Str(row.Name).
 				Str(", which this commit weakens in ").Int(int64(len(hits))).Str(" packages: ")
 			for index, hit := range hits {
@@ -466,7 +521,7 @@ func unmatchedProblems(rows []Row, findings []Finding) []string {
 			continue
 		}
 		text.Reset().Str(finding.Path).Str(" weakens ").Str(finding.Name).Str(" and ").
-			Str(ContractPath).Str(" has no row for it:\n")
+			Str(shard).Str(" has no row for it:\n")
 		for _, detail := range finding.Details {
 			text.Str("    - ").Str(detail).Byte('\n')
 		}

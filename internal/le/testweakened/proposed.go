@@ -21,15 +21,18 @@ import (
 const (
 	ProposedInputLimit = 16 << 20
 	proposedFileLimit  = 8 << 20
-	rfcChangedLedger   = "test/rfc-changed.md"
 )
 
 // ProposedRequest is the bounded stdin contract for `le test-weakened proposed`.
 // Fully reconstructed old/new values win over ToolInput. Base64 fields preserve
 // arbitrary bytes and are decoded with the hook's invalid-UTF-8 replacement rule.
 type ProposedRequest struct {
-	Path      string            `json:"path"`
-	Tool      string            `json:"tool"`
+	Path string `json:"path"`
+	Tool string `json:"tool"`
+	// Session is the commit namespace whose ledger shards authorize this
+	// edit. The hook passes the identity it was called with, so the row the
+	// author writes and the row the commit gate reads are one file.
+	Session   string            `json:"session,omitempty"`
 	Exists    *bool             `json:"exists,omitempty"`
 	ToolInput ProposedToolInput `json:"tool-input"`
 	Old       *string           `json:"old,omitempty"`
@@ -116,8 +119,9 @@ func (r ProposedReport) Text() string {
 		}
 	}
 	if r.Blocking {
-		text.Str("  Fix the code by default. A test/weakened.md row is self-service; ").
-			Str("it never substitutes for owner approval in test/rfc-changed.md.\n")
+		text.Str("  Fix the code by default. A ").Str(WeakenedDir).
+			Str(" row is self-service; it never substitutes for owner approval in ").
+			Str(RFCChangedDir).Str(".\n")
 	}
 	return text.String()
 }
@@ -162,6 +166,14 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 	if filepath.Dir(path) == "." {
 		packageName = ""
 	}
+	_, weakenedShard, problem := sessionShard(root, WeakenedDir, request.Session)
+	if problem != "" {
+		return ProposedReport{}, errors.New(problem)
+	}
+	_, rfcChangedShard, problem := sessionShard(root, RFCChangedDir, request.Session)
+	if problem != "" {
+		return ProposedReport{}, errors.New(problem)
+	}
 
 	rfcChanges := proposedRFCChanges(path, oldText, newText)
 	report.RFCChanges = rfcChanges
@@ -172,7 +184,7 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 			report.Messages = append(report.Messages,
 				"RFC-TAGGED test changed: "+change.Name+" ("+strings.Join(change.Tags, ", ")+")")
 		}
-		ledger := proposedLedger(root, rfcChangedLedger, path, packageName, names)
+		ledger := proposedLedger(root, rfcChangedShard, path, packageName, names)
 		report.Ledgers = append(report.Ledgers, ledger)
 		if len(ledger.Missing) != 0 || len(ledger.Problems) != 0 {
 			report.Blocking = true
@@ -190,7 +202,7 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 		if len(names) == 0 {
 			names = []string{strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))}
 		}
-		ledger := proposedLedger(root, ContractPath, path, packageName, names)
+		ledger := proposedLedger(root, weakenedShard, path, packageName, names)
 		report.Ledgers = append(report.Ledgers, ledger)
 		if len(ledger.Missing) != 0 || len(ledger.Problems) != 0 {
 			report.Blocking = true
@@ -412,7 +424,8 @@ func proposedTagOutsideFunction(path, content string) bool {
 }
 
 // proposedLedger checks names, the findings of the file at findingPath,
-// against the ledger at path (test/weakened.md, or the RFC-changed ledger).
+// against this session's shard of one ledger (the weakening ledger, or the
+// RFC-changed ledger).
 // Matching goes through rowMatches directly, not the exported RowMatches, so
 // a path-scoped row (scopedRowMatches in testweakened.go) is honored here too:
 // an edit inside a tree a scoped row already covers must not be reported as
@@ -427,7 +440,9 @@ func proposedLedger(root, path, findingPath, packageName string, names []string)
 	content, readErr := repository.ReadFile(filepath.FromSlash(path))
 	closeErr := repository.Close()
 	if readErr != nil {
-		ledger.Problems = []string{path + " does not exist yet or is unreadable; write it, header first: " + readErr.Error()}
+		ledger.Problems = []string{path + " is yours to write, and it does not exist yet: " +
+			"open it with `# Test weakenings this commit accepts`, a blank line, " +
+			"`| Test | Reason |` and `|------|--------|`, then the row below (" + readErr.Error() + ")"}
 		return ledger
 	}
 	if closeErr != nil {

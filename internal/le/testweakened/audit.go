@@ -208,7 +208,7 @@ func auditDiff(root, oldRevision, newRevision string, accepted []Row) ([]AuditFi
 		if len(rfcTags) != 0 {
 			rfcDetails = append(rfcDetails,
 				"RFC-TAGGED test changed: "+strings.Join(rfcTags, ", "),
-				"only the OWNER approves this, and the approval is a row in test/rfc-changed.md in the commit that carries the change",
+				"only the OWNER approves this, and the approval is a row in this session's "+RFCChangedDir+" shard in the commit that carries the change",
 			)
 		}
 		rfcReported := false
@@ -262,38 +262,49 @@ func parseChangedPaths(output string) []changedPath {
 	return changes
 }
 
+// acceptedRows answers the weakening rows one commit carried.
+//
+// The ledger is one shard per commit session, so the commit names its own
+// rows: the shards it changed are the shards its author wrote. Concatenating
+// them is this reader's job, which is what makes a shard nobody else reads
+// safe to write.
 func acceptedRows(root, commit string) ([]Row, string) {
-	_, _, code, started := gitCapture(root, "diff", "--quiet", commit+"^", commit, "--", ContractPath)
-	if !started {
-		return nil, "git could not inspect accepted weakening rows"
-	}
-	if code == 0 {
-		return nil, ""
-	}
-	if code != 1 {
-		return nil, "git could not scope accepted weakening rows to commit " + shortRevision(commit)
-	}
-	_, stderr, code, started := gitCapture(root, "cat-file", "-e", commit+":"+ContractPath)
-	if !started {
-		return nil, "git could not inspect accepted weakening rows"
-	}
-	if code != 0 {
-		if code == 1 {
-			return nil, ""
-		}
-		return nil, "git could not read accepted weakening rows from commit " +
+	changed, stderr, code, started := gitCapture(root, "diff", "--name-only",
+		commit+"^", commit, "--", WeakenedDir)
+	if !started || code != 0 {
+		return nil, "git could not inspect accepted weakening rows from commit " +
 			shortRevision(commit) + ": " + strings.TrimSpace(stderr)
 	}
-	content, problem := revisionText(root, commit, ContractPath)
-	if problem != "" {
-		return nil, problem
-	}
-	if content == "" {
-		return nil, ""
-	}
-	rows, problems := parseLedger(content, ContractPath)
-	if len(problems) != 0 {
-		return nil, "cannot read accepted rows from commit " + shortRevision(commit) + ": " + strings.Join(problems, "; ")
+	rows := make([]Row, 0)
+	for line := range strings.SplitSeq(strings.TrimSpace(changed), "\n") {
+		shard := strings.TrimSpace(line)
+		if shard == "" {
+			continue
+		}
+		if _, isShard := ShardSession(WeakenedDir, shard); !isShard {
+			continue
+		}
+		_, stderr, code, started := gitCapture(root, "cat-file", "-e", commit+":"+shard)
+		if !started {
+			return nil, "git could not inspect accepted weakening rows"
+		}
+		if code == 1 {
+			continue
+		}
+		if code != 0 {
+			return nil, "git could not read accepted weakening rows from commit " +
+				shortRevision(commit) + ": " + strings.TrimSpace(stderr)
+		}
+		content, problem := revisionText(root, commit, shard)
+		if problem != "" {
+			return nil, problem
+		}
+		parsed, problems := parseLedger(content, shard)
+		if len(problems) != 0 {
+			return nil, "cannot read accepted rows from commit " + shortRevision(commit) +
+				": " + strings.Join(problems, "; ")
+		}
+		rows = append(rows, parsed...)
 	}
 	return rows, ""
 }
