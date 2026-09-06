@@ -294,7 +294,7 @@ func translatedCommand(t *testing.T, line string) string {
 	t.Helper()
 	translation, err := TranslateLine(line)
 	require.NoError(t, err, "the bridge refused a line these cases expect it to translate")
-	return translation.Command
+	return onlyCommand(translation)
 }
 
 // TestExabgpToZebgpCommand_AnnounceBasic verifies basic announce conversion.
@@ -324,9 +324,13 @@ func TestExabgpToZebgpCommand_AnnounceWithAttributes(t *testing.T) {
 			contain: []string{"nhop 1.1.1.1", "origin igp", "nlri ipv4/unicast add 10.0.0.0/24"},
 		},
 		{
+			// The brackets travel. ze's parseBracketedListText reads every
+			// spelling ExaBGP writes -- `[ a b ]`, `[a b]` and `[a` ... `b]` --
+			// so stripping them here made this one attribute differ from every
+			// other list the translator carries, for no gain.
 			name:    "with_as_path",
 			input:   "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1 as-path [65001 65002]",
-			contain: []string{"as-path 65001 65002"},
+			contain: []string{"as-path [65001 65002]"},
 		},
 		{
 			name:    "with_med",
@@ -411,7 +415,7 @@ func TestExabgpToZebgpCommand_EmptyAndComment(t *testing.T) {
 		translation, err := TranslateLine(line)
 		require.NoError(t, err, "a line with no command is not a refusal: %q", line)
 		assert.True(t, translation.Nothing(), "%q carries no command", line)
-		assert.Equal(t, "", translation.Command)
+		assert.Equal(t, "", onlyCommand(translation))
 		assert.False(t, translation.Route, "%q owes no flush", line)
 	}
 }
@@ -1772,13 +1776,13 @@ func TestBridgeRefusesAnUnrecognizedLineByName(t *testing.T) {
 			translation, err := TranslateLine(tc.line)
 			require.ErrorIs(t, err, ErrLineNotTranslated)
 			assert.Contains(t, err.Error(), tc.line, "the refusal must name the line the script wrote")
-			assert.Empty(t, translation.Command, "a refused line reaches ze's dispatcher never")
+			assert.Empty(t, onlyCommand(translation), "a refused line reaches ze's dispatcher never")
 		})
 	}
 
 	translation, err := TranslateLine(bridgePassthrough)
 	require.NoError(t, err, "help is the one line that still passes through")
-	assert.Equal(t, bridgePassthrough, translation.Command)
+	assert.Equal(t, bridgePassthrough, onlyCommand(translation))
 	assert.False(t, translation.Route, "help puts nothing on a wire, so it owes no flush")
 }
 
@@ -1941,4 +1945,15 @@ func TestBridgeSRPolicyCommand(t *testing.T) {
 			assert.Equal(t, tt.want, result)
 		})
 	}
+}
+
+// onlyCommand answers the single ze command a Translation carries, and the
+// empty string when it carries none. A test that asserts on one command uses
+// it; a test about a line that becomes SEVERAL commands reads Commands itself,
+// because the count is the fact under test there.
+func onlyCommand(t Translation) string {
+	if len(t.Commands) == 0 {
+		return ""
+	}
+	return t.Commands[0]
 }

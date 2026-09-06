@@ -71,7 +71,9 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	// Subscribe to all events using text encoding (the bridge translates text events).
 	p.SetStartupSubscriptions([]string{"*"}, nil, "")
 
-	// Start the ExaBGP subprocess.
+	// Build the ExaBGP subprocess and its pipes. It is NOT started here: the
+	// OnAllPluginsReady registration below starts it, and says what an early
+	// start cost.
 	//nolint:gosec // User-provided plugin command is intentional.
 	cmd := exec.CommandContext(ctx, pluginCmd[0], pluginCmd[1:]...)
 	stdinPipe, err := cmd.StdinPipe()
@@ -85,11 +87,6 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 		return exitError
 	}
 	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: start plugin: %v\n", err)
-		return exitError
-	}
 
 	// Register event handler: ze events -> ExaBGP JSON on subprocess stdin.
 	p.OnEvent(func(event string) error {
@@ -110,10 +107,10 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 		return nil
 	})
 
-	// Read subprocess stdout in a goroutine: ExaBGP commands -> ze dispatch.
+	// Read subprocess stdout: ExaBGP commands -> ze dispatch.
 	ack := bridge.NewAckMode()
 	var wg sync.WaitGroup
-	wg.Go(func() {
+	readScript := func() {
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
 			if ctx.Err() != nil {
@@ -142,9 +139,19 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 				continue
 			}
 
-			if _, _, err := p.DispatchCommand(ctx, translation.Command); err != nil {
-				slog.Warn("sdk: dispatch command failed", "error", err, "cmd", translation.Command)
-				ack.WriteError(stdinPipe, err.Error())
+			// One ExaBGP line can be several ze commands, because ExaBGP puts
+			// each prefix on its own UPDATE. The script wrote one line and
+			// blocks for one answer, so it is acked once, after the last.
+			failed := false
+			for _, command := range translation.Commands {
+				if _, _, err := p.DispatchCommand(ctx, command); err != nil {
+					slog.Warn("sdk: dispatch command failed", "error", err, "cmd", command)
+					ack.WriteError(stdinPipe, err.Error())
+					failed = true
+					break
+				}
+			}
+			if failed {
 				continue
 			}
 			// The script is waiting for this. An ExaBGP API client sends one
@@ -166,6 +173,26 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 		if err := scanner.Err(); err != nil {
 			slog.Warn("sdk: plugin stdout scanner error", "error", err)
 		}
+	}
+
+	// The script starts once the engine has loaded every plugin in every
+	// startup phase and frozen the dispatcher registry.
+	//
+	// The script's first line is a command, and this runner dispatches it the
+	// moment it is read. Starting the script before p.Run therefore raced the
+	// 5-stage handshake: the engine sat at stage 5 waiting for `ready`, read a
+	// dispatch-command frame instead, and aborted the startup barrier, which
+	// took the bgp plugin and the daemon down with it. A script line can also
+	// address ANOTHER plugin -- `announce watchdog <name>` reaches bgp-watchdog
+	// -- so even OnStarted is too early, because a target in a later startup
+	// phase has not registered its command yet
+	// (pkg/plugin/sdk/sdk_callbacks.go, OnAllPluginsReady).
+	p.OnAllPluginsReady(func() error {
+		if err := cmd.Start(); err != nil {
+			return err
+		}
+		wg.Go(readScript)
+		return nil
 	})
 
 	// Run SDK event loop (blocks until bye or context cancel).

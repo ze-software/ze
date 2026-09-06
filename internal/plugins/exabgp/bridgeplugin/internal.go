@@ -63,14 +63,19 @@ func capabilityDecls(cfg bridgeConfig) []sdk.CapabilityDecl {
 }
 
 // bridgeRunner holds the subprocess state shared between the OnConfigure
-// (start) callback, OnEvent (write) callback, and the shutdown path.
+// (config capture) callback, the OnAllPluginsReady (start) callback, the
+// OnEvent (write) callback, and the shutdown path.
 type bridgeRunner struct {
 	log *slog.Logger
 	// ack answers the script after each dispatched command. An ExaBGP API
 	// client blocks on `done` before it sends the next line.
 	ack bridge.AckMode
 
-	mu       sync.Mutex
+	mu sync.Mutex
+	// config is the committed bridge config, captured at OnConfigure and read
+	// by the start callback. The two run in different startup stages, so the
+	// script command cannot be passed between them on the stack.
+	config   bridgeConfig
 	started  bool
 	child    *exec.Cmd
 	stdin    io.WriteCloser
@@ -124,13 +129,18 @@ func runInternalBridge(conn net.Conn) int {
 			if !cfg.Present {
 				continue
 			}
-			if err := r.applyConfig(ctx, p, cfg); err != nil {
+			if err := r.applyConfig(p, cfg); err != nil {
 				return err
 			}
 			return nil
 		}
 		return nil
 	})
+
+	// The script starts here rather than at OnConfigure, because its first line
+	// is a command and a command dispatched before the registries are frozen
+	// aborts the startup barrier. startWhenReady says what that cost.
+	p.OnAllPluginsReady(func() error { return r.startWhenReady(ctx, p) })
 
 	reg := sdk.Registration{
 		Families:    familyDecls([]string{defaultFamily}),
@@ -150,16 +160,19 @@ func runInternalBridge(conn net.Conn) int {
 	return 0
 }
 
-// applyConfig starts the subprocess on the first committed config. Reloads do
-// not restart the subprocess: the script owns its own lifecycle, and
+// applyConfig declares the capabilities the config asks for and remembers the
+// script command. It does NOT start the script: see startWhenReady.
+//
+// Reloads do not restart the subprocess: the script owns its own lifecycle, and
 // family/capability changes need a plugin restart (engine reconcile), matching
 // the external mode.
-func (r *bridgeRunner) applyConfig(ctx context.Context, p *sdk.Plugin, cfg bridgeConfig) error {
+func (r *bridgeRunner) applyConfig(p *sdk.Plugin, cfg bridgeConfig) error {
 	r.mu.Lock()
 	if r.started {
 		r.mu.Unlock()
 		return nil
 	}
+	r.config = cfg
 	r.mu.Unlock()
 
 	if cfg.Run == "" {
@@ -168,6 +181,32 @@ func (r *bridgeRunner) applyConfig(ctx context.Context, p *sdk.Plugin, cfg bridg
 
 	if caps := capabilityDecls(cfg); len(caps) > 0 {
 		p.SetCapabilities(caps)
+	}
+	return nil
+}
+
+// startWhenReady starts the script once the engine has loaded every plugin in
+// every startup phase and frozen the dispatcher registry.
+//
+// The script's very first line is a command, and the bridge dispatches it the
+// moment it is read. Starting the script at OnConfigure therefore put a
+// dispatch-command frame on the wire during the bridge's own 5-stage handshake:
+// the engine was at stage 5 waiting for `ready`, read the dispatch instead, and
+// aborted the startup barrier, which took the bgp plugin and the daemon with it
+// (`stage 5: expected ready, got ze-plugin-engine:dispatch-command`).
+//
+// A script line can also address ANOTHER plugin -- `announce watchdog <name>`
+// reaches bgp-watchdog -- so even a handshake-safe start is too early at
+// OnStarted, where a target in a later startup phase has not registered its
+// command yet. OnAllPluginsReady is the one point where both are settled
+// (pkg/plugin/sdk/sdk_callbacks.go, OnAllPluginsReady).
+func (r *bridgeRunner) startWhenReady(ctx context.Context, p *sdk.Plugin) error {
+	r.mu.Lock()
+	cfg := r.config
+	started := r.started
+	r.mu.Unlock()
+	if started || cfg.Run == "" {
+		return nil
 	}
 
 	if err := r.startScript(ctx, p, cfg); err != nil {
@@ -268,9 +307,19 @@ func (r *bridgeRunner) readLoop(ctx context.Context, p *sdk.Plugin, sout io.Read
 		if translation.Nothing() {
 			continue
 		}
-		if _, _, derr := p.DispatchCommand(ctx, translation.Command); derr != nil {
-			r.log.Warn("dispatch command failed", "error", derr, "cmd", translation.Command)
-			r.ack.WriteError(r.stdinWriter(), derr.Error())
+		// One ExaBGP line can be several ze commands, because ExaBGP puts each
+		// prefix on its own UPDATE. The script wrote one line and blocks for
+		// one answer, so it is acked once, after the last of them.
+		failed := false
+		for _, command := range translation.Commands {
+			if _, _, derr := p.DispatchCommand(ctx, command); derr != nil {
+				r.log.Warn("dispatch command failed", "error", derr, "cmd", command)
+				r.ack.WriteError(r.stdinWriter(), derr.Error())
+				failed = true
+				break
+			}
+		}
+		if failed {
 			continue
 		}
 		// The script is waiting for this. An ExaBGP API client sends one command,

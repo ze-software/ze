@@ -81,6 +81,38 @@ above it are checked by the verb-first grammar gate rather than exempted from it
 
 <!-- source: internal/component/command/grammar/checker.go -- bridgeSurface, ExemptCategory -->
 
+## A neighbor command is one of three things
+
+ExaBGP's API drives a neighbor as well as its routes. The three verbs do not
+share one answer, and `ConvertNeighborControl` decides which answer each one
+gets.
+
+| ExaBGP line | Answer |
+|---|---|
+| `neighbor <ip> teardown <subcode>` | `request peer <ip> teardown <subcode>` |
+| `create neighbor <ip> ...` | refused: ze creates no BGP peer at runtime |
+| `neighbor <ip> receive update ...` | refused: this is an event, not a command |
+
+The teardown carries a BGP cease subcode, and that subcode is what goes on the
+wire. ze sends Cease, which is RFC 4271 error code 6, and it supplies the RFC
+8203 shutdown communication itself when the command gives none. So the ExaBGP
+grammar, which carries a subcode and nothing else, needs no message added to it.
+
+`create neighbor` has no ze command behind it. `ze-bgp:peer-add` is declared in
+`ze-bgp-api.yang`, no handler registers it, and `./le command list` shows no CLI
+path that reaches it. A peer is created by an edit to the config tree and a
+commit, which is not one line a script writes. The bridge refuses the line by
+name. It does not map the line to `delete bgp peer` or to a teardown, because a
+command that does something else would acknowledge the script for a session that
+was never created.
+
+`receive` is not a command. It is ExaBGP's own EVENT vocabulary, written by the
+text response encoder, and it travels UP from the daemon to the script. The
+`api-check` script reads such a line on its stdin. The refusal names the
+direction, so that a reader opens the event encoder rather than the translator.
+
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- ConvertNeighborControl, convertTeardown -->
+
 ## The selector travels with the command
 
 After a route command, the bridge injects a flush and blocks until the forward

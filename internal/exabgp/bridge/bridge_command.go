@@ -28,10 +28,6 @@ const (
 )
 
 var (
-	// bridgeNeighborRE matches an ExaBGP line that names one neighbor. It
-	// captures the address and the command that follows it.
-	bridgeNeighborRE = regexp.MustCompile(`(?i)^neighbor\s+(\S+)\s+(.+)$`)
-
 	// bridgeSRPolicyRE matches an SR-Policy route, which states the AFI and
 	// then the policy fields in place of a prefix.
 	bridgeSRPolicyRE = regexp.MustCompile(`(?i)^(ipv[46])\s+sr-policy\s+(.+)$`)
@@ -89,8 +85,16 @@ func bridgeSAFIAlternation() string {
 // selector test answered on that token, so a moved grammar left every flush
 // skipped with no error and no log line (ai/rules/principles.md).
 type Translation struct {
-	// Command is the line to hand to ze's dispatcher.
-	Command string
+	// Commands are the lines to hand to ze's dispatcher, in order. Most ExaBGP
+	// lines become exactly one.
+	//
+	// One line becomes SEVERAL because ExaBGP puts each prefix on its OWN
+	// UPDATE. `announce attributes med 100 next-hop 101.1.101.1 nlri
+	// 1.0.0.1/32 1.0.0.2/32` is two UPDATEs on the wire, and a route carrying
+	// `split /23` is one per piece. A single ze command naming both prefixes is
+	// ONE update, which is a different thing on the wire from what the script
+	// asked for, and it is what api-attributes and api-announcement caught.
+	Commands []string
 	// Selector names the peers Command addresses. It is set whenever Route is,
 	// and no caller reads it otherwise.
 	Selector string
@@ -126,7 +130,7 @@ const (
 // Nothing reports a line that carries no command: a blank line, or a comment.
 // It is an ANSWER rather than a failure, and it is named so that no caller has
 // to read an empty Command as one.
-func (t Translation) Nothing() bool { return t.Command == "" }
+func (t Translation) Nothing() bool { return len(t.Commands) == 0 }
 
 // ErrLineNotTranslated is what TranslateLine answers for a line the bridge does
 // not read. The bridge refuses such a line rather than forwarding it, because a
@@ -162,21 +166,29 @@ func TranslateLine(line string) (Translation, error) {
 		return Translation{}, nil
 	}
 
-	selector := bridgeEveryPeer
-	rest := line
-	if match := bridgeNeighborRE.FindStringSubmatch(line); match != nil {
-		selector = match[1]
-		rest = strings.TrimSpace(match[2])
-	}
+	// ExaBGP pads a command to align it in a script, and its own qa/api corpus
+	// writes `announce` and `route` with 38 spaces between them. Every match
+	// below is on token text, so the run of spaces is collapsed once here
+	// rather than guarded against at each site.
+	selector, rest := splitNeighborSelector(strings.Join(strings.Fields(line), " "))
 
 	if translation, ok := convertControl(selector, rest); ok {
 		return translation, nil
 	}
-	if command, translated := convertRoute(selector, rest); translated {
-		return Translation{Command: command, Selector: selector, Route: true}, nil
+	if translation, ok, err := ConvertNeighborControl(selector, rest); ok {
+		if err != nil {
+			return Translation{}, fmt.Errorf("%w: %q", err, line)
+		}
+		return translation, nil
+	}
+	if commands, translated, err := convertRoute(selector, rest); translated {
+		if err != nil {
+			return Translation{}, fmt.Errorf("%w: %q", err, line)
+		}
+		return Translation{Commands: commands, Selector: selector, Route: true}, nil
 	}
 	if strings.EqualFold(rest, bridgePassthrough) {
-		return Translation{Command: bridgePassthrough}, nil
+		return Translation{Commands: []string{bridgePassthrough}}, nil
 	}
 	return Translation{}, fmt.Errorf("%w: %q", ErrLineNotTranslated, line)
 }
@@ -218,11 +230,11 @@ func convertControl(selector, rest string) (Translation, bool) {
 		return Translation{Local: LocalAckDisableNow}, true
 	case len(fields) == 1 && fields[0] == "shutdown",
 		len(fields) == 2 && fields[0] == "request" && fields[1] == "shutdown":
-		return Translation{Command: "request shutdown", Selector: selector}, true
+		return Translation{Commands: []string{"request shutdown"}, Selector: selector}, true
 	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" &&
 		(fields[2] == "in" || fields[2] == "out"):
 		return Translation{
-			Command:  tb.Str("clear bgp rib ").Str(fields[2]).String(),
+			Commands: []string{tb.Str("clear bgp rib ").Str(fields[2]).String()},
 			Selector: selector,
 		}, true
 	case fields[0] == "flush" && len(fields) >= 2 && fields[1] == "adj-rib":
@@ -230,14 +242,14 @@ func convertControl(selector, rest string) (Translation, bool) {
 		// in/out word an ExaBGP script may add has no counterpart and is not
 		// invented into one.
 		return Translation{
-			Command:  tb.Str("request peer ").Str(selector).Str(" flush").String(),
+			Commands: []string{tb.Str("request peer ").Str(selector).Str(" flush").String()},
 			Selector: selector,
 		}, true
 	case len(fields) == 3 && fields[1] == "watchdog" &&
 		(fields[0] == "announce" || fields[0] == "withdraw"):
 		name := strings.Fields(rest)[2]
 		return Translation{
-			Command:  tb.Str("request bgp watchdog ").Str(fields[0]).Byte(' ').Str(name).String(),
+			Commands: []string{tb.Str("request bgp watchdog ").Str(fields[0]).Byte(' ').Str(name).String()},
 			Selector: selector,
 		}, true
 	}
@@ -250,7 +262,7 @@ func convertControl(selector, rest string) (Translation, bool) {
 //
 // The caller decides what an untranslated line becomes, because the answer
 // differs between a line that names a neighbor and a line that does not.
-func convertRoute(selector, rest string) (string, bool) {
+func convertRoute(selector, rest string) ([]string, bool, error) {
 	const (
 		announceRoute = "announce route"
 		withdrawRoute = "withdraw route"
@@ -260,11 +272,44 @@ func convertRoute(selector, rest string) (string, bool) {
 
 	restLower := strings.ToLower(rest)
 
+	// The three forms that are not `<verb> <route>`: an End-of-RIB, which
+	// carries no route; the attributes form, which carries several; and the
+	// braced flow route, whose body is a nested grammar rather than a token
+	// run (bridge_flow.go).
+	if command, matched, err := convertEOR(selector, rest); matched {
+		if err != nil {
+			return nil, true, err
+		}
+		return []string{command}, true, nil
+	}
+	if strings.HasPrefix(restLower, announceVerb) || strings.HasPrefix(restLower, withdrawVerb) {
+		verb := nlriAdd
+		body := strings.TrimSpace(rest[len(announceVerb):])
+		if strings.HasPrefix(restLower, withdrawVerb) {
+			verb = nlriDel
+			body = strings.TrimSpace(rest[len(withdrawVerb):])
+		}
+		if commands, matched, err := convertAttributesForm(selector, rest, verb); matched {
+			return commands, true, err
+		}
+		// ExaBGP writes a flowspec route with no family word, `flow route
+		// ...`, as well as the family-qualified `ipv4 flow ...` that
+		// convertFamilyRoute reads below.
+		if command, matched, err := ConvertFlowRoute(selector, flowFamilyDefault, verb, body); matched {
+			if err != nil {
+				return nil, true, err
+			}
+			return []string{command}, true, nil
+		}
+	}
+
 	if strings.HasPrefix(restLower, announceRoute) {
-		return convertAnnounce(selector, rest[len(announceRoute):]), true
+		command, err := convertAnnounce(selector, rest[len(announceRoute):])
+		return command, true, err
 	}
 	if strings.HasPrefix(restLower, withdrawRoute) {
-		return convertWithdraw(selector, rest[len(withdrawRoute):]), true
+		command, err := convertWithdraw(selector, rest[len(withdrawRoute):])
+		return command, true, err
 	}
 	if strings.HasPrefix(restLower, announceVerb) {
 		return convertAnnounceFamily(selector, rest[len(announceVerb):])
@@ -272,164 +317,120 @@ func convertRoute(selector, rest string) (string, bool) {
 	if strings.HasPrefix(restLower, withdrawVerb) {
 		return convertWithdrawFamily(selector, rest[len(withdrawVerb):])
 	}
-	return "", false
+	return nil, false, nil
 }
 
-func convertAnnounce(selector, routeStr string) string {
-	routeStr = strings.TrimSpace(routeStr)
-	parts := strings.Fields(routeStr)
-	if len(parts) == 0 {
-		var tb textbuf.Buffer
-		return tb.Str("send bgp ").Str(selector).Str(" update text nlri ipv4/unicast add").String()
+// buildRouteCommand renders one ze update-text command from a family, an NLRI
+// and the attribute tail that follows it.
+//
+// It is the ONE place a route command is assembled, so the two ExaBGP spellings
+// -- `announce route <prefix>` and `announce <afi> <safi> <nlri>` -- cannot
+// disagree about which attributes they carry, which is exactly what they did
+// until 2026-09-05 (bridge_attribute.go).
+func buildRouteCommand(selector, family, verb, body string) ([]string, error) {
+	nlriTokens, attrTokens := splitRouteBody(strings.Fields(strings.TrimSpace(body)))
+	attrs, err := parseRouteAttributes(attrTokens)
+	if err != nil {
+		return nil, err
 	}
-
-	prefix := parts[0]
-	attrs := parts[1:]
-
-	// Parse attributes
-	cmdParts := make([]string, 1, len(attrs)+2)
-	cmdParts[0] = "send bgp " + selector + " update text"
-
-	i := 0
-	for i < len(attrs) {
-		key := strings.ToLower(attrs[i])
-		switch key {
-		case bridgeAttrNextHop:
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "nhop "+attrs[i+1])
-				i += 2
-			} else {
-				i++
-			}
-		case bridgeAttrOrigin:
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "origin "+strings.ToLower(attrs[i+1]))
-				i += 2
-			} else {
-				i++
-			}
-		case "as-path":
-			if i+1 < len(attrs) {
-				asp := attrs[i+1]
-				i += 2
-				if strings.HasPrefix(asp, "[") {
-					// Collect until ]
-					aspParts := []string{asp}
-					for i < len(attrs) && !strings.Contains(aspParts[len(aspParts)-1], "]") {
-						aspParts = append(aspParts, attrs[i])
-						i++
-					}
-					asp = textbuf.Join(aspParts, " ")
-				}
-				asp = strings.Trim(asp, "[]")
-				asp = strings.TrimSpace(asp)
-				if asp != "" {
-					cmdParts = append(cmdParts, "as-path "+asp)
-				}
-			} else {
-				i++
-			}
-		case "med":
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "med "+attrs[i+1])
-				i += 2
-			} else {
-				i++
-			}
-		case "local-preference":
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "local-preference "+attrs[i+1])
-				i += 2
-			} else {
-				i++
-			}
-		case "community":
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "community "+attrs[i+1])
-				i += 2
-			} else {
-				i++
-			}
-		case "large-community":
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "large-community "+attrs[i+1])
-				i += 2
-			} else {
-				i++
-			}
-		default: // unrecognized attribute keyword, skip
-			i++
+	// ExaBGP's `withdraw` flag announces the route in its withdrawn state, so
+	// it flips the NLRI verb rather than adding an attribute.
+	if attrs.Withdraw {
+		verb = nlriDel
+	}
+	// `split /<n>` announces the PIECES and not the prefix that was written, so
+	// the one NLRI becomes several before the command is built.
+	if attrs.Split > 0 {
+		if len(nlriTokens) != 1 {
+			return nil, fmt.Errorf("%w: split needs exactly one prefix", errSplitLength)
 		}
+		pieces, err := splitPrefix(nlriTokens[0], attrs.Split)
+		if err != nil {
+			return nil, err
+		}
+		nlriTokens = pieces
 	}
 
-	// Determine family from prefix
-	fam := defaultFamily
-	if strings.Contains(prefix, ":") {
-		fam = "ipv6/unicast"
-	}
-	cmdParts = append(cmdParts, "nlri "+fam+" add "+prefix)
-
-	return textbuf.Join(cmdParts, " ")
+	return oneCommandPerNLRI(selector, family, verb, attrs, nlriTokens, attrs.Split > 0), nil
 }
 
-func convertWithdraw(selector, routeStr string) string {
-	routeStr = strings.TrimSpace(routeStr)
-	parts := strings.Fields(routeStr)
-	var tb textbuf.Buffer
-	if len(parts) == 0 {
-		return tb.Str("send bgp ").Str(selector).Str(" update text nlri ipv4/unicast del").String()
+// oneCommandPerNLRI renders the ze commands for one ExaBGP route line.
+//
+// perNLRI decides whether the NLRI tokens are SEPARATE routes or the several
+// tokens of one. A split prefix and an `attributes ... nlri a b` section are
+// separate routes, and ExaBGP puts each on its own UPDATE. A mup or VPLS route
+// is one route written as several tokens, and splitting it would announce
+// nonsense.
+func oneCommandPerNLRI(selector, family, verb string, attrs routeAttributes, nlriTokens []string, perNLRI bool) []string {
+	write := func(tokens []string) string {
+		var tb textbuf.Buffer
+		tb.Str("send bgp ").Str(selector).Str(" update text")
+		if command := attrs.Command(); command != "" {
+			tb.Byte(' ').Str(command)
+		}
+		tb.Str(" nlri ").Str(family).Byte(' ').Str(verb)
+		for _, token := range tokens {
+			tb.Byte(' ').Str(token)
+		}
+		return tb.String()
 	}
 
-	prefix := parts[0]
-	fam := defaultFamily
-	if strings.Contains(prefix, ":") {
-		fam = "ipv6/unicast"
+	if !perNLRI {
+		return []string{write(nlriTokens)}
 	}
-	return tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String()
+	commands := make([]string, 0, len(nlriTokens))
+	for _, token := range nlriTokens {
+		commands = append(commands, write([]string{token}))
+	}
+	return commands
 }
+
+const (
+	nlriAdd = "add"
+	nlriDel = "del"
+)
+
+// flowFamilyDefault is the family a family-less `flow route ...` starts in.
+// ExaBGP's own grammar states no family on that form and reads the AFI off the
+// first address in the body, which ConvertFlowRoute does too: it promotes to
+// ipv6 on an IPv6 match component and to flow-vpn on a route distinguisher.
+const flowFamilyDefault = "ipv4/" + bridgeFlowSAFI
 
 // convertAnnounceFamily translates an ExaBGP announce that states its family,
 // which is every announce apart from a plain `announce route`. It reports false
 // when the text after the verb states no family the bridge reads.
-func convertAnnounceFamily(selector, rest string) (string, bool) {
-	rest = strings.TrimSpace(rest)
-
-	if match := bridgeSRPolicyRE.FindStringSubmatch(rest); match != nil {
-		afi := strings.ToLower(match[1])
-		return convertAnnounceSRPolicy(selector, afi, match[2]), true
-	}
-
-	match := bridgeFamilyRE.FindStringSubmatch(rest)
-	if match == nil {
-		return "", false
-	}
-
-	afi := strings.ToLower(match[1])
-	safi := canonicalExabgpSAFI(strings.ToLower(match[2]))
-	routeStr := match[3]
-
-	var tb textbuf.Buffer
-	fam := tb.Str(afi).Byte('/').Str(safi).String()
-	if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
-		return convertAnnounceFlowSpec(selector, fam, routeStr), true
-	}
-	return convertAnnounceWithFamily(selector, fam, routeStr), true
+func convertAnnounceFamily(selector, rest string) ([]string, bool, error) {
+	return convertFamilyRoute(selector, rest, nlriAdd)
 }
 
 // convertWithdrawFamily translates an ExaBGP withdraw that states its family,
 // which is every withdraw apart from a plain `withdraw route`. It reports false
 // when the text after the verb states no family the bridge reads.
-func convertWithdrawFamily(selector, rest string) (string, bool) {
+func convertWithdrawFamily(selector, rest string) ([]string, bool, error) {
+	return convertFamilyRoute(selector, rest, nlriDel)
+}
+
+// convertFamilyRoute translates a route whose line states its own family.
+//
+// The announce and the withdraw differ in ONE token, the NLRI verb, so they are
+// one function taking that verb. They were two until 2026-09-05, and the two
+// had diverged: the announce read four attribute keywords and the withdraw read
+// none, because the withdraw took `strings.Fields(routeStr)[0]` as the whole
+// route and discarded everything after it.
+func convertFamilyRoute(selector, rest, verb string) ([]string, bool, error) {
 	rest = strings.TrimSpace(rest)
 
 	if match := bridgeSRPolicyRE.FindStringSubmatch(rest); match != nil {
 		afi := strings.ToLower(match[1])
-		return convertWithdrawSRPolicy(selector, afi, match[2]), true
+		if verb == nlriDel {
+			return []string{convertWithdrawSRPolicy(selector, afi, match[2])}, true, nil
+		}
+		return []string{convertAnnounceSRPolicy(selector, afi, match[2])}, true, nil
 	}
 
 	match := bridgeFamilyRE.FindStringSubmatch(rest)
 	if match == nil {
-		return "", false
+		return nil, false, nil
 	}
 
 	afi := strings.ToLower(match[1])
@@ -439,13 +440,36 @@ func convertWithdrawFamily(selector, rest string) (string, bool) {
 	var tb textbuf.Buffer
 	fam := tb.Str(afi).Byte('/').Str(safi).String()
 	if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
-		return convertWithdrawFlowSpec(selector, fam, routeStr), true
+		if verb == nlriDel {
+			return []string{convertWithdrawFlowSpec(selector, fam, routeStr)}, true, nil
+		}
+		return []string{convertAnnounceFlowSpec(selector, fam, routeStr)}, true, nil
 	}
 
-	// The regexp reads the route out of a line with no trailing space, so the
-	// capture ends on a non-space byte and always holds one field or more.
-	prefix := strings.Fields(routeStr)[0]
-	return tb.Reset().Str("send bgp ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String(), true
+	command, err := buildRouteCommand(selector, fam, verb, routeStr)
+	return command, true, err
+}
+
+// convertAnnounce translates `announce route <prefix> ...`, the ExaBGP spelling
+// that states no family and takes it from the prefix.
+func convertAnnounce(selector, routeStr string) ([]string, error) {
+	return buildRouteCommand(selector, familyOfRoute(routeStr), nlriAdd, routeStr)
+}
+
+// convertWithdraw translates `withdraw route <prefix> ...`.
+func convertWithdraw(selector, routeStr string) ([]string, error) {
+	return buildRouteCommand(selector, familyOfRoute(routeStr), nlriDel, routeStr)
+}
+
+// familyOfRoute reads the family out of the prefix a family-less ExaBGP route
+// begins with. A colon in the prefix is IPv6; everything else is IPv4, which is
+// also the answer for an empty body, where ze names the family in its refusal.
+func familyOfRoute(routeStr string) string {
+	parts := strings.Fields(strings.TrimSpace(routeStr))
+	if len(parts) > 0 && strings.Contains(parts[0], ":") {
+		return "ipv6/unicast"
+	}
+	return defaultFamily
 }
 
 // convertAnnounceSRPolicy translates ExaBGP SR-Policy announce to Ze's update text format.
@@ -722,59 +746,4 @@ func normalizeFlowSpecComponentToken(family, token string) string {
 		return "destination-ipv4"
 	}
 	return token
-}
-
-func convertAnnounceWithFamily(selector, family, routeStr string) string {
-	routeStr = strings.TrimSpace(routeStr)
-	parts := strings.Fields(routeStr)
-	if len(parts) == 0 {
-		var tb textbuf.Buffer
-		return tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(family).Str(" add").String()
-	}
-
-	prefix := parts[0]
-	attrs := parts[1:]
-
-	var cmdParts []string
-	cmdParts = append(cmdParts, "send bgp "+selector+" update text")
-
-	i := 0
-	for i < len(attrs) {
-		key := strings.ToLower(attrs[i])
-		switch key {
-		case "next-hop":
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "nhop "+attrs[i+1])
-				i += 2
-			} else {
-				i++
-			}
-		case "origin":
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "origin "+strings.ToLower(attrs[i+1]))
-				i += 2
-			} else {
-				i++
-			}
-		case "label":
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "label "+attrs[i+1])
-				i += 2
-			} else {
-				i++
-			}
-		case "rd":
-			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, "rd "+attrs[i+1])
-				i += 2
-			} else {
-				i++
-			}
-		default: // unrecognized attribute keyword, skip
-			i++
-		}
-	}
-
-	cmdParts = append(cmdParts, "nlri "+family+" add "+prefix)
-	return textbuf.Join(cmdParts, " ")
 }

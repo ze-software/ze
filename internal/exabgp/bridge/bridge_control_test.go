@@ -37,7 +37,7 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
 		t.Run(tc.line, func(t *testing.T) {
 			translation, err := TranslateLine(tc.line)
 			require.NoError(t, err)
-			assert.Equal(t, tc.want, translation.Command)
+			assert.Equal(t, tc.want, onlyCommand(translation))
 			assert.Equal(t, LocalNone, translation.Local, "a dispatched command is not a local action")
 			assert.False(t, translation.Route, "a control command puts no UPDATE on a wire")
 		})
@@ -56,7 +56,7 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
 			translation, err := TranslateLine(tc.line)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, translation.Local)
-			assert.Empty(t, translation.Command, "a local action reaches ze's dispatcher never")
+			assert.Empty(t, onlyCommand(translation), "a local action reaches ze's dispatcher never")
 		})
 	}
 
@@ -64,7 +64,7 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
 	// be aimed the same way a route can.
 	translation, err := TranslateLine("neighbor 10.0.0.1 flush adj-rib out")
 	require.NoError(t, err)
-	assert.Equal(t, "request peer 10.0.0.1 flush", translation.Command)
+	assert.Equal(t, "request peer 10.0.0.1 flush", onlyCommand(translation))
 }
 
 // TestAckModeApplyTimesTheSilence pins the one thing the three ack words differ
@@ -127,7 +127,7 @@ func TestBridgeSAFIListIsOneDeclaration(t *testing.T) {
 			line := "neighbor 10.0.0.1 announce ipv4 " + exabgpName + " 10.0.0.0/24 next-hop 1.2.3.4"
 			translation, err := TranslateLine(line)
 			require.NoError(t, err, "a family the map knows must be a family the regexp matches")
-			assert.Contains(t, translation.Command, "ipv4/"+zeName,
+			assert.Contains(t, onlyCommand(translation), "ipv4/"+zeName,
 				"the command must name the family ze declares, not the one ExaBGP wrote")
 		})
 	}
@@ -135,6 +135,6 @@ func TestBridgeSAFIListIsOneDeclaration(t *testing.T) {
 	// The row that pays for the mapping existing at all.
 	translation, err := TranslateLine("announce ipv4 mcast-vpn source-ad source 10.0.0.1 group 239.0.0.1 rd 65000:1 next-hop 10.0.0.2")
 	require.NoError(t, err)
-	assert.Contains(t, translation.Command, "ipv4/mvpn")
-	assert.NotContains(t, translation.Command, "mcast-vpn", "ze does not know that spelling")
+	assert.Contains(t, onlyCommand(translation), "ipv4/mvpn")
+	assert.NotContains(t, onlyCommand(translation), "mcast-vpn", "ze does not know that spelling")
 }

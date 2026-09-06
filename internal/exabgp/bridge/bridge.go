@@ -688,19 +688,28 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writ
 		if translation.Nothing() {
 			continue
 		}
-		zebgpCmd := translation.Command
+		// One ExaBGP line can be several ze commands, because ExaBGP puts each
+		// prefix on its own UPDATE. The script is acked ONCE, after the last of
+		// them: it wrote one line and blocks for one answer.
+		var reqID uint64
+		var result pendingResult
+		var ackErr error
+		for _, zebgpCmd := range translation.Commands {
+			// Wrap in MuxConn dispatch-command format with unique request ID.
+			reqID = b.nextRequestID.Add(1)
+			ackCh := pending.register(reqID)
+			zeOut.Fprintln(formatDispatchRequest(reqID, zebgpCmd))
 
-		// Wrap in MuxConn dispatch-command format with unique request ID.
-		reqID := b.nextRequestID.Add(1)
-		ackCh := pending.register(reqID)
-		zeOut.Fprintln(formatDispatchRequest(reqID, zebgpCmd))
-
-		// Wait for ze to ack the dispatch before emitting done/error back
-		// to the plugin. A bounded timeout keeps the bridge from stalling
-		// indefinitely if ze drops the response line.
-		ackCtx, ackCancel := context.WithTimeout(ctx, dispatchAckTimeout)
-		result, ackErr := pending.wait(ackCtx, reqID, ackCh)
-		ackCancel()
+			// Wait for ze to ack the dispatch before emitting done/error back
+			// to the plugin. A bounded timeout keeps the bridge from stalling
+			// indefinitely if ze drops the response line.
+			ackCtx, ackCancel := context.WithTimeout(ctx, dispatchAckTimeout)
+			result, ackErr = pending.wait(ackCtx, reqID, ackCh)
+			ackCancel()
+			if ackErr != nil || !result.ok {
+				break
+			}
+		}
 		b.emitAck(pluginW, reqID, result, ackErr)
 
 		// For route commands, inject a flush and block until the forward pool
