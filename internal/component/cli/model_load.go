@@ -81,12 +81,14 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 
 	// Save to .conf: use CommitSession() in session mode (writes set+meta format),
 	// fall back to Save() for non-session mode (raw text / hierarchical).
+	var warnings []string
 	if m.editor.HasSession() {
 		commitResult, err := m.editor.CommitSession()
 		if err != nil {
 			m.editor.deleteLive()
 			return commandResult{}, err
 		}
+		warnings = commitResult.Warnings
 		if len(commitResult.Conflicts) > 0 {
 			m.editor.deleteLive()
 			var b textbuf.Buffer
@@ -97,10 +99,12 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 			return commandResult{output: b.String()}, nil
 		}
 	} else {
-		if err := m.editor.Save(); err != nil {
+		saveWarnings, err := m.editor.Save()
+		if err != nil {
 			m.editor.deleteLive()
 			return commandResult{}, err
 		}
+		warnings = saveWarnings
 	}
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
@@ -119,7 +123,9 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	return commandResult{
 		statusMessage: func() string {
 			var tb textbuf.Buffer
-			return tb.Str("Committed").Str(reloadWarning).Str(". Confirm within ").Int(int64(seconds)).Str("s or auto-revert. Use 'confirm' or 'confirm abort'.").String()
+			tb.Str("Committed").Str(reloadWarning).Str(". Confirm within ").Int(int64(seconds)).Str("s or auto-revert. Use 'confirm' or 'confirm abort'.")
+			appendCommitWarnings(&tb, warnings)
+			return tb.String()
 		}(),
 		refreshConfig:         true,
 		revalidate:            true,

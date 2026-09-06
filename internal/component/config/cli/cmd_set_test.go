@@ -284,3 +284,77 @@ func TestRunWithStorageDispatches(t *testing.T) {
 		t.Errorf("blob config should contain '65000' after RunWithStorage dispatch")
 	}
 }
+
+// TestCmdSetWeakPasswordWarnsAndSets verifies that a weak plaintext password
+// warns on stderr and is set anyway, and that a strong one is silent.
+//
+// VALIDATES: AC-1, AC-2 and AC-4 through the real entry point -- the operator
+// types `ze config set ... plaintext-password <value>` and reads stderr.
+// PREVENTS: the weakness verdict being computed in the config walk and dropped
+// before it reaches the operator, and the warning turning into a refusal.
+func TestCmdSetWeakPasswordWarnsAndSets(t *testing.T) {
+	cases := []struct {
+		name      string
+		user      string
+		plaintext string
+		warning   string
+	}{
+		{"short", "alice", "secret", "weak password (shorter than 8 characters)"},
+		{"denylisted", "bob", "LetMeIn", "weak password (one of the most common passwords)"},
+		{"strong", "carol", "correct horse battery staple", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			configPath := writeTestConfig(t, `bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1;
+			}
+		}
+		session {
+			asn {
+				remote 2;
+				local 1;
+			}
+		}
+	}
+}
+`)
+			code, stderr := captureStderr(t, func() int {
+				return cmdSet([]string{
+					configPath, "system", "authentication", "user", c.user,
+					"plaintext-password", c.plaintext,
+				})
+			})
+			if code != exitOK {
+				t.Fatalf("cmdSet returned %d, want %d; stderr: %s", code, exitOK, stderr)
+			}
+
+			data, err := os.ReadFile(configPath)
+			if err != nil {
+				t.Fatalf("read back: %v", err)
+			}
+			content := string(data)
+			if !strings.Contains(content, "$2a$") {
+				t.Errorf("password must be set as a bcrypt hash, got:\n%s", content)
+			}
+			if strings.Contains(content, c.plaintext) {
+				t.Errorf("plaintext must not survive in the file, got:\n%s", content)
+			}
+
+			if c.warning == "" {
+				if strings.Contains(stderr, "weak password") {
+					t.Errorf("a strong password must warn about nothing, got: %s", stderr)
+				}
+				return
+			}
+			if !strings.Contains(stderr, c.warning) {
+				t.Errorf("stderr must carry %q, got: %s", c.warning, stderr)
+			}
+			if !strings.Contains(stderr, "system.authentication.user."+c.user+".password") {
+				t.Errorf("the warning must name the leaf, got: %s", stderr)
+			}
+		})
+	}
+}

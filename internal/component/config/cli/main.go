@@ -127,6 +127,16 @@ func RunWithStorage(store storage.Storage, args []string) int {
 	return 1
 }
 
+// printCommitWarnings writes one advisory line for each warning a save
+// produced, before the command's own success line. A warning never changes the
+// exit code: the value the operator asked for is already written, and this is
+// the only place they learn ze thought it weak.
+func printCommitWarnings(warnings []string) {
+	for _, warning := range warnings {
+		fmt.Fprintf(os.Stderr, "warning: %s\n", warning) //nolint:errcheck // best-effort operator output
+	}
+}
+
 func usage() {
 	p := helpfmt.Page{
 		Command: "ze config",

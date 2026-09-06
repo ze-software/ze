@@ -915,65 +915,73 @@ func (e *Editor) resolveListTarget(fullPath []string) (parentPath []string, list
 
 // Save commits changes: creates backup of original, writes serialized tree.
 // Returns an error when a session is active -- use CommitSession() instead.
-func (e *Editor) Save() error {
+//
+// It returns the advisory warnings the commit produced, which today is one line
+// for each weak password it hashed (commitContent). The save SUCCEEDED whenever
+// the error is nil, warnings or not, so a caller displays them and MUST NOT
+// treat one as a failure.
+func (e *Editor) Save() ([]string, error) {
 	if e.session != nil {
-		return errSaveNotAllowedWithActiveSession
+		return nil, errSaveNotAllowedWithActiveSession
 	}
 
 	// stdin-sourced editor ("-"): emit the working config to the stdout sink
 	// instead of writing a file. Emit even when unchanged so the command stays a
 	// well-formed pipeline stage; no backup, no store write, no reload.
 	if e.stdoutSink != nil {
-		content, err := e.commitContent()
+		content, warnings, err := e.commitContent()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if _, err := io.WriteString(e.stdoutSink, content); err != nil {
-			return fmt.Errorf("failed to write config to stdout: %w", err)
+			return nil, fmt.Errorf("failed to write config to stdout: %w", err)
 		}
-		return nil
+		return warnings, nil
 	}
 
 	if !e.dirty.Load() {
-		return nil
+		return nil, nil
 	}
 
-	content, err := e.commitContent()
+	content, warnings, err := e.commitContent()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Create backup of original
 	if err := e.createBackup(e.originalContent, nil); err != nil {
-		return fmt.Errorf("failed to create backup: %w", err)
+		return nil, fmt.Errorf("failed to create backup: %w", err)
 	}
 
 	// Write serialized tree (or raw text fallback) to original path
 	if err := e.store.WriteFile(e.originalPath, []byte(content), 0o600); err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
+		return nil, fmt.Errorf("failed to write config: %w", err)
 	}
 
 	e.MarkCommittedContent(content)
 
-	return nil
+	return warnings, nil
 }
 
 // StageCandidate writes the current working config as a timestamped candidate.
 // It does not update the editor's committed state; callers do that only after
 // the daemon promotes the candidate.
-func (e *Editor) StageCandidate(stamp time.Time) (string, string, error) {
+//
+// The third result carries the same advisory warnings as Save: the candidate is
+// staged whatever they say.
+func (e *Editor) StageCandidate(stamp time.Time) (string, string, []string, error) {
 	if e.session != nil {
-		return "", "", errSaveNotAllowedWithActiveSession
+		return "", "", nil, errSaveNotAllowedWithActiveSession
 	}
-	content, err := e.commitContent()
+	content, warnings, err := e.commitContent()
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 	stampStr, err := storage.WriteCandidateVersion(e.store, e.originalPath, []byte(content), stamp)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to write candidate: %w", err)
+		return "", "", nil, fmt.Errorf("failed to write candidate: %w", err)
 	}
-	return content, stampStr, nil
+	return content, stampStr, warnings, nil
 }
 
 // MarkCommittedContent updates editor state after the daemon has promoted a candidate.
@@ -994,18 +1002,25 @@ func (e *Editor) MarkCommittedContent(content string) {
 	e.deleteEditFile()
 }
 
-func (e *Editor) commitContent() (string, error) {
+// commitContent serializes the working config and returns it with the advisory
+// warnings the transform produced. The warnings are the weakness verdicts on the
+// passwords it just hashed: the hash is already in the tree when they are read,
+// so they never stop the content being returned or written.
+func (e *Editor) commitContent() (string, []string, error) {
 	// Hash any plaintext-password siblings of ze:bcrypt leaves before
 	// serialization. Mirrors the commit-time hashing done in CommitSession.
+	var warnings []string
 	if e.treeValid && e.tree != nil && e.schema != nil {
 		if err := config.RejectMaskedSecretLeaves(e.tree, e.schema); err != nil {
-			return "", err
+			return "", nil, err
 		}
-		if _, err := config.ApplyPasswordHashing(e.tree, e.schema); err != nil {
-			return "", fmt.Errorf("hash password: %w", err)
+		hashed, err := config.ApplyPasswordHashing(e.tree, e.schema)
+		if err != nil {
+			return "", nil, fmt.Errorf("hash password: %w", err)
 		}
+		warnings = config.PasswordWeaknessWarnings(hashed)
 	}
-	return config.FormatSchemaStamp() + e.WorkingContent(), nil
+	return config.FormatSchemaStamp() + e.WorkingContent(), warnings, nil
 }
 
 // RestoreOriginalContent writes the previous committed content back to disk

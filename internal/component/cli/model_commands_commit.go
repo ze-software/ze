@@ -200,7 +200,8 @@ func (m *Model) commitSaveAndReload() (commandResult, error) {
 		return m.commitCandidateAndReload(detail)
 	}
 
-	if err := m.editor.Save(); err != nil {
+	warnings, err := m.editor.Save()
+	if err != nil {
 		return commandResult{}, err
 	}
 	m.recordConfigCommit(detail)
@@ -215,11 +216,22 @@ func (m *Model) commitSaveAndReload() (commandResult, error) {
 	}
 
 	var tb textbuf.Buffer
-	return commandResult{statusMessage: tb.Str("Configuration committed (daemon not running)").Str(archiveMsg).String(), refreshConfig: true, revalidate: true}, nil
+	tb.Str("Configuration committed (daemon not running)").Str(archiveMsg)
+	appendCommitWarnings(&tb, warnings)
+	return commandResult{statusMessage: tb.String(), refreshConfig: true, revalidate: true}, nil
+}
+
+// appendCommitWarnings writes one " (warning: <line>)" for each advisory line a
+// commit produced. Every caller of it has already succeeded: a warning tells the
+// operator what to look at and never says the commit failed.
+func appendCommitWarnings(tb *textbuf.Buffer, warnings []string) {
+	for _, warning := range warnings {
+		tb.Str(" (warning: ").Str(warning).Byte(')')
+	}
 }
 
 func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
-	content, _, err := m.editor.StageCandidate(time.Now())
+	content, _, warnings, err := m.editor.StageCandidate(time.Now())
 	if err != nil {
 		return commandResult{}, err
 	}
@@ -247,7 +259,9 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 		}
 	}
 	var tb2 textbuf.Buffer
-	return commandResult{statusMessage: tb2.Str("Configuration committed and reloaded").Str(archiveMsg).String(), refreshConfig: true, revalidate: true}, nil
+	tb2.Str("Configuration committed and reloaded").Str(archiveMsg)
+	appendCommitWarnings(&tb2, warnings)
+	return commandResult{statusMessage: tb2.String(), refreshConfig: true, revalidate: true}, nil
 }
 
 // cmdCommitSession commits only the current session's changes with conflict detection.
@@ -324,9 +338,7 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 
 	var tb4 textbuf.Buffer
 	tb4.Str("Session committed: ").Int(int64(commitResult.Applied)).Str(" change(s) applied")
-	if commitResult.MigrationWarning != "" {
-		tb4.Str(" (warning: ").Str(commitResult.MigrationWarning).Byte(')')
-	}
+	appendCommitWarnings(&tb4, commitResult.Warnings)
 	if transactional && commitResult.Applied > 0 {
 		tb4.Str(" and reloaded")
 	}

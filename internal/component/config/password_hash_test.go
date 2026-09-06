@@ -80,8 +80,10 @@ func TestApplyPasswordHashingIdempotent(t *testing.T) {
 
 	hashed, hashErr := ApplyPasswordHashing(tree, schema)
 	require.NoError(t, hashErr)
-	assert.Equal(t, []string{"system.authentication.user.alice.password"}, hashed,
-		"the walk reports the canonical leaf it hashed, by dot-path")
+	assert.Equal(t, []HashedPassword{{
+		Path:     "system.authentication.user.alice.password",
+		Weakness: "shorter than 8 characters",
+	}}, hashed, "the walk reports the canonical leaf it hashed, by dot-path")
 	alice := tree.GetContainer("system").GetContainer("authentication").GetList("user")["alice"]
 	firstHash, _ := alice.Get("password")
 
@@ -289,5 +291,65 @@ func TestApplyPasswordHashingOversizePlaintextRejected(t *testing.T) {
 	}
 	if _, ok := alice.Get("password"); ok {
 		t.Errorf("canonical password must remain unset on failure")
+	}
+}
+
+// TestHashPlaintextWeakStillSets: a weak password is hashed and set, and the
+// walk reports why it was weak.
+//
+// VALIDATES: AC-1, AC-2 and R-1 -- the weakness verdict rides out of the
+// hashing walk beside the leaf it judged, and the password is set regardless.
+//
+// PREVENTS: the warning becoming a rejection, which would invalidate every
+// config that already carries a short password.
+func TestHashPlaintextWeakStillSets(t *testing.T) {
+	cases := []struct {
+		name      string
+		plaintext string
+		weakness  string
+	}{
+		{"short", "secret", "shorter than 8 characters"},
+		{"denylisted", "LetMeIn", "one of the most common passwords"},
+		{"strong", "correct horse battery staple", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			schema := bcryptHashSchema()
+			tree := NewTree()
+			sys := tree.GetOrCreateContainer("system")
+			auth := sys.GetOrCreateContainer("authentication")
+			entry := NewTree()
+			entry.Set("plaintext-password", c.plaintext)
+			auth.AddListEntry("user", "alice", entry)
+
+			hashed, err := ApplyPasswordHashing(tree, schema)
+			require.NoError(t, err, "a weak password is never a commit failure")
+			require.Len(t, hashed, 1)
+			assert.Equal(t, "system.authentication.user.alice.password", hashed[0].Path)
+			assert.Equal(t, c.weakness, hashed[0].Weakness)
+
+			alice := tree.GetContainer("system").GetContainer("authentication").GetList("user")["alice"]
+			require.NotNil(t, alice)
+			hash, ok := alice.Get("password")
+			require.True(t, ok, "the password must be set whatever the policy says")
+			assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(hash), []byte(c.plaintext)),
+				"the stored hash must validate against the plaintext the operator gave")
+			_, plainOK := alice.Get("plaintext-password")
+			assert.False(t, plainOK, "the ephemeral leaf is consumed either way")
+
+			warnings := PasswordWeaknessWarnings(hashed)
+			if c.weakness == "" {
+				assert.Empty(t, warnings, "a strong password produces no warning line")
+				return
+			}
+			require.Len(t, warnings, 1)
+			assert.Contains(t, warnings[0], "system.authentication.user.alice.password")
+			assert.Contains(t, warnings[0], c.weakness)
+			// The leaf path legitimately carries the word "password", so the
+			// plaintexts above are chosen not to be a substring of it: an echo
+			// of the secret is then the only way this assertion can trip.
+			assert.NotContains(t, strings.ToLower(warnings[0]), strings.ToLower(c.plaintext),
+				"the warning names the leaf and the rule, never the password")
+		})
 	}
 }

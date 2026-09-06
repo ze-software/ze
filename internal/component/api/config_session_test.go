@@ -21,6 +21,10 @@ type fakeEditor struct {
 	stagedContent    string
 	committedContent string
 	restored         []string
+	// warnings is what Save and StageCandidate hand back, standing in for the
+	// advisory lines a real commit produces (a weak password, a skipped
+	// migration).
+	warnings []string
 }
 
 func newFakeEditor() *fakeEditor {
@@ -48,14 +52,14 @@ func (e *fakeEditor) Diff() string {
 	return b.String()
 }
 
-func (e *fakeEditor) Save() error {
+func (e *fakeEditor) Save() ([]string, error) {
 	e.saved = true
-	return nil
+	return e.warnings, nil
 }
 
-func (e *fakeEditor) StageCandidate(_ time.Time) (string, string, error) {
+func (e *fakeEditor) StageCandidate(_ time.Time) (string, string, []string, error) {
 	e.stagedContent = e.WorkingContent()
-	return e.stagedContent, "20260524-100000.000", nil
+	return e.stagedContent, "20260524-100000.000", e.warnings, nil
 }
 
 func (e *fakeEditor) MarkCommittedContent(content string) {
@@ -105,9 +109,9 @@ func (e *serializingEditor) SetValue(_ []string, _, _ string) error {
 
 func (e *serializingEditor) DeleteByPath(_ []string) error { return nil }
 func (e *serializingEditor) Diff() string                  { return "" }
-func (e *serializingEditor) Save() error                   { return nil }
-func (e *serializingEditor) StageCandidate(time.Time) (string, string, error) {
-	return "", "20260524-100000.000", nil
+func (e *serializingEditor) Save() ([]string, error)       { return nil, nil }
+func (e *serializingEditor) StageCandidate(time.Time) (string, string, []string, error) {
+	return "", "20260524-100000.000", nil, nil
 }
 func (e *serializingEditor) MarkCommittedContent(string)         {}
 func (e *serializingEditor) RestoreOriginalContent(string) error { return nil }

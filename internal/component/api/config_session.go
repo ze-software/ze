@@ -13,10 +13,17 @@ import (
 	"maps"
 	"sync"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // ErrSessionForbidden is returned when a user tries to access another user's session.
 var ErrSessionForbidden = errors.New("session access forbidden")
+
+// configSessionLogger writes the advisory lines a config commit produces over
+// the API transports. It is lazy so a process that never commits config
+// registers no subsystem.
+var configSessionLogger = slogutil.LazyLogger("api.config")
 
 // ConfigEditor abstracts the config editing operations the engine needs.
 // Implemented by the composition root using the real Editor.
@@ -24,8 +31,8 @@ type ConfigEditor interface {
 	SetValue(path []string, key, value string) error
 	DeleteByPath(fullPath []string) error
 	Diff() string
-	Save() error
-	StageCandidate(stamp time.Time) (content string, version string, err error)
+	Save() (warnings []string, err error)
+	StageCandidate(stamp time.Time) (content string, version string, warnings []string, err error)
 	MarkCommittedContent(content string)
 	RestoreOriginalContent(content string) error
 	Discard() error
@@ -248,16 +255,21 @@ func (m *ConfigSessionManager) Commit(req *ConfigCommitRequest) error {
 	onCommit := m.onCommit
 	m.mu.RUnlock()
 	if onCommit != nil {
-		content, _, stageErr := session.Editor.StageCandidate(time.Now())
+		content, _, warnings, stageErr := session.Editor.StageCandidate(time.Now())
 		if stageErr != nil {
 			return fmt.Errorf("commit candidate: %w", stageErr)
 		}
+		logCommitWarnings(req.Username, warnings)
 		if hookErr := onCommit(); hookErr != nil {
 			return fmt.Errorf("commit runtime reload failed: %w", hookErr)
 		}
 		session.Editor.MarkCommittedContent(content)
-	} else if saveErr := session.Editor.Save(); saveErr != nil {
-		return fmt.Errorf("commit: %w", saveErr)
+	} else {
+		warnings, saveErr := session.Editor.Save()
+		if saveErr != nil {
+			return fmt.Errorf("commit: %w", saveErr)
+		}
+		logCommitWarnings(req.Username, warnings)
 	}
 	session.closed = true
 	m.mu.Lock()
@@ -266,6 +278,16 @@ func (m *ConfigSessionManager) Commit(req *ConfigCommitRequest) error {
 	}
 	m.mu.Unlock()
 	return nil
+}
+
+// logCommitWarnings records the advisory lines a committed session produced,
+// today one for each weak password it hashed. The REST, gRPC and gNMI commit
+// responses carry no warning field, so the daemon log is where the operator can
+// still see it. The commit itself SUCCEEDED: this call never changes the result.
+func logCommitWarnings(username string, warnings []string) {
+	for _, warning := range warnings {
+		configSessionLogger().Warn(warning, "user", username)
+	}
 }
 
 // Discard throws away the session's candidate changes.

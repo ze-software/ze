@@ -6,7 +6,8 @@
 // (interactive) and prints a bcrypt hash to stdout suitable for pasting into
 // the `password` leaf of `system.authentication.user`. Uses the same cost
 // (bcrypt.DefaultCost) as `ze init` and the config commit hook so all three
-// produce interchangeable hashes.
+// produce interchangeable hashes, and the same weakness policy
+// (config.PasswordWeakness) so all three warn about the same passwords.
 package passwd
 
 import (
@@ -22,6 +23,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
@@ -71,6 +73,14 @@ func runImpl(r io.Reader, w, errOut io.Writer) int {
 	if plain == "" {
 		fmt.Fprintln(errOut, "error: empty password") //nolint:errcheck // best-effort error output
 		return 1
+	}
+	// The weakness policy is advisory here as it is on the commit path: the
+	// warning goes to errOut, the hash still goes to w, and the exit code stays
+	// 0. A caller piping the hash into a config gets the hash it asked for and
+	// the operator reading the terminal sees why it was a poor choice. The
+	// reason never carries the password (config.PasswordWeakness).
+	if weakness := config.PasswordWeakness(plain); weakness != "" {
+		fmt.Fprintf(errOut, "warning: weak password (%s)\n", weakness) //nolint:errcheck // best-effort warning output
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
 	if err != nil {

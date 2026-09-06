@@ -101,3 +101,52 @@ func TestRunImplOversizePlaintextRejected(t *testing.T) {
 		t.Errorf("error message should name the limit, got %q", errOut.String())
 	}
 }
+
+// TestRunImplWeakPlaintextWarnsAndHashes: a weak password draws a warning on
+// stderr and the hash is still printed with exit 0.
+//
+// VALIDATES: AC-7 -- the weakness policy is advisory in `ze passwd` as it is on
+// the commit path.
+//
+// PREVENTS: the warning becoming a refusal, which would break every pipeline
+// that feeds `ze passwd` into `ze config set`, and the warning echoing the
+// password into a terminal log.
+func TestRunImplWeakPlaintextWarnsAndHashes(t *testing.T) {
+	cases := []struct {
+		name      string
+		plaintext string
+		warning   string
+	}{
+		{"short", "hunter2", "weak password (shorter than 8 characters)"},
+		{"denylisted", "LetMeIn", "weak password (one of the most common passwords)"},
+		{"strong", "correct horse battery staple", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			in := strings.NewReader(c.plaintext + "\n")
+			var out, errOut bytes.Buffer
+
+			if code := runImpl(in, &out, &errOut); code != 0 {
+				t.Fatalf("a weak password is never refused: exit=%d stderr=%q", code, errOut.String())
+			}
+			hash := strings.TrimSpace(out.String())
+			if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(c.plaintext)); err != nil {
+				t.Errorf("hash %q does not validate against the plaintext: %v", hash, err)
+			}
+
+			stderr := errOut.String()
+			if c.warning == "" {
+				if strings.Contains(stderr, "weak password") {
+					t.Errorf("a strong password must warn about nothing, got %q", stderr)
+				}
+				return
+			}
+			if !strings.Contains(stderr, c.warning) {
+				t.Errorf("stderr must carry %q, got %q", c.warning, stderr)
+			}
+			if strings.Contains(strings.ToLower(stderr), strings.ToLower(c.plaintext)) {
+				t.Errorf("the warning must never echo the password, got %q", stderr)
+			}
+		})
+	}
+}

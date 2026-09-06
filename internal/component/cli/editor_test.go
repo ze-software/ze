@@ -80,7 +80,8 @@ func TestEditorStdoutSink(t *testing.T) {
 	var sink bytes.Buffer
 	ed.SetStdoutSink(&sink)
 	// No modification: Save must still emit the config (pipeline coherence).
-	require.NoError(t, ed.Save())
+	_, saveErr := ed.Save()
+	require.NoError(t, saveErr)
 	assert.Contains(t, sink.String(), "router-id")
 
 	// A real-path editor writes the file, never stdout.
@@ -91,7 +92,8 @@ func TestEditorStdoutSink(t *testing.T) {
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // best effort
 	ed2.MarkDirty()
-	require.NoError(t, ed2.Save())
+	_, save2Err := ed2.Save()
+	require.NoError(t, save2Err)
 	got, err := os.ReadFile(p)
 	require.NoError(t, err)
 	assert.Contains(t, string(got), "router-id")
@@ -115,7 +117,7 @@ func TestEditorSaveCreatesBackup(t *testing.T) {
 	ed.MarkDirty()
 
 	// Save
-	err = ed.Save()
+	_, err = ed.Save()
 	require.NoError(t, err)
 
 	// Verify backup was created
@@ -145,7 +147,7 @@ func TestEditorBackupInRollbackDir(t *testing.T) {
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	ed.MarkDirty()
-	err = ed.Save()
+	_, err = ed.Save()
 	require.NoError(t, err)
 
 	// Verify rollback/ directory was created
@@ -175,7 +177,7 @@ func TestEditorBackupNaming(t *testing.T) {
 		ed, err := NewEditor(configPath)
 		require.NoError(t, err)
 		ed.MarkDirty()
-		err = ed.Save()
+		_, err = ed.Save()
 		require.NoError(t, err)
 		ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 	}
@@ -239,7 +241,7 @@ func TestEditorRollback(t *testing.T) {
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 	ed.MarkDirty()
-	err = ed.Save()
+	_, err = ed.Save()
 	require.NoError(t, err)
 	_ = ed.Close()
 
@@ -523,7 +525,7 @@ func TestEditFileDeletedOnCommit(t *testing.T) {
 	require.NoError(t, err, "edit file should exist before commit")
 
 	// Commit
-	err = ed.Save()
+	_, err = ed.Save()
 	require.NoError(t, err)
 
 	// Edit file should be gone
@@ -1083,7 +1085,7 @@ func TestEditorSaveSerialized(t *testing.T) {
 	require.NoError(t, err)
 
 	// Save
-	err = ed.Save()
+	_, err = ed.Save()
 	require.NoError(t, err)
 
 	// Read from disk
@@ -2647,7 +2649,7 @@ func TestSaveGuardInSessionMode(t *testing.T) {
 	require.NoError(t, err)
 
 	// Save() should fail when session is active.
-	err = ed.Save()
+	_, err = ed.Save()
 	require.Error(t, err, "Save() should reject when session is active")
 	assert.Contains(t, err.Error(), "session",
 		"error message should mention session")
@@ -2668,7 +2670,7 @@ func TestSaveWorksWithoutSession(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
 
-	err = ed.Save()
+	_, err = ed.Save()
 	assert.NoError(t, err, "Save() should succeed without active session")
 
 	// Verify file was updated.
@@ -4661,7 +4663,7 @@ func TestCmdCommitSessionMigrationWarningFormat(t *testing.T) {
 	assert.Contains(t, msg, "(warning:", "migration warning should be included in message")
 	assert.Contains(t, msg, "3 change(s)", "change count should be in message")
 
-	// Also verify CommitResult.MigrationWarning is empty for normal commits.
+	// Also verify CommitResult.Warnings is empty for normal commits.
 	configPath := writeTestConfig(t, validBGPConfig)
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
@@ -4674,7 +4676,7 @@ func TestCmdCommitSessionMigrationWarningFormat(t *testing.T) {
 
 	result, err := ed.CommitSession()
 	require.NoError(t, err)
-	assert.Empty(t, result.MigrationWarning, "no migration warning for valid set+meta config")
+	assert.Empty(t, result.Warnings, "no warning for a valid set+meta config with no password")
 	assert.Equal(t, 1, result.Applied)
 }
 
@@ -5190,7 +5192,7 @@ func TestEditorWithBlobStorage(t *testing.T) {
 	assert.True(t, ed.Dirty())
 
 	// Save (commit) - should write back to blob
-	err = ed.Save()
+	_, err = ed.Save()
 	require.NoError(t, err)
 
 	// Read back from blob to verify the write went through storage

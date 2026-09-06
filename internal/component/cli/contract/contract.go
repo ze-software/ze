@@ -62,9 +62,15 @@ type Conflict struct {
 
 // CommitResult holds the outcome of a config commit.
 type CommitResult struct {
-	Conflicts        []Conflict
-	Applied          int
-	MigrationWarning string
+	Conflicts []Conflict
+	Applied   int
+	// Warnings holds the advisory lines the commit produced, in the order it
+	// produced them: a tree migration that could not run, and a password the
+	// weakness policy judged weak (internal/component/config/password_strength.go).
+	// Every one of them is advisory by construction. The commit that carries a
+	// warning SUCCEEDED, so a caller displays them and never treats one as a
+	// failure.
+	Warnings []string
 }
 
 // MonitorSession represents an active streaming monitor.

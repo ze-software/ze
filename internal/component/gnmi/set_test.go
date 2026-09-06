@@ -96,12 +96,12 @@ func (e *configSessionEditor) DeleteByPath(fullPath []string) error {
 }
 
 func (e *configSessionEditor) Diff() string { return "" }
-func (e *configSessionEditor) Save() error {
+func (e *configSessionEditor) Save() ([]string, error) {
 	e.committedContent = e.WorkingContent()
-	return nil
+	return nil, nil
 }
-func (e *configSessionEditor) StageCandidate(time.Time) (string, string, error) {
-	return e.WorkingContent(), "test-version", nil
+func (e *configSessionEditor) StageCandidate(time.Time) (string, string, []string, error) {
+	return e.WorkingContent(), "test-version", nil, nil
 }
 func (e *configSessionEditor) MarkCommittedContent(content string) {
 	e.committedContent = content

@@ -116,11 +116,15 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	}
 
 	// Save (creates backup automatically)
-	if err := ed.Save(); err != nil {
+	warnings, err := ed.Save()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: save failed: %v\n", err)
 		return exitError
 	}
 
+	// A weak password is set, not refused. The warning is printed before the
+	// success line so the operator reads it in the order it happened.
+	printCommitWarnings(warnings)
 	fmt.Fprintf(os.Stderr, "set %s %s\n", displayPath, value)
 
 	// Editing a stored config does not contact the daemon by default; --reload

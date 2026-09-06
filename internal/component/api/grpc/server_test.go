@@ -106,12 +106,12 @@ func (e *fakeEditor) Diff() string {
 	return b.String()
 }
 
-func (e *fakeEditor) Save() error {
+func (e *fakeEditor) Save() ([]string, error) {
 	e.committedContent = e.WorkingContent()
-	return nil
+	return nil, nil
 }
-func (e *fakeEditor) StageCandidate(time.Time) (string, string, error) {
-	return e.WorkingContent(), "test-version", nil
+func (e *fakeEditor) StageCandidate(time.Time) (string, string, []string, error) {
+	return e.WorkingContent(), "test-version", nil, nil
 }
 func (e *fakeEditor) MarkCommittedContent(content string) { e.committedContent = content }
 func (e *fakeEditor) RestoreOriginalContent(string) error { return nil }

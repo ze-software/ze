@@ -146,11 +146,13 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 		return exitOK
 	}
 
-	if err := ed.Save(); err != nil {
+	warnings, err := ed.Save()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: save failed: %v\n", err)
 		return exitError
 	}
 
+	printCommitWarnings(warnings)
 	fmt.Fprintf(os.Stderr, "%s %s\n", pastTense, displayPath)
 
 	// Editing a stored config does not contact the daemon by default; --reload

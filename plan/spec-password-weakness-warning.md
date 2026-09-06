@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-16 |
+| Phase | 5/6 |
+| Updated | 2026-09-05 |
 
 Anchor refresh (2026-07-22 plan review, design HOLDS against the landed bcrypt
 work, learned 1181): the R-4 risk materialized benignly -- 1181 touched the
@@ -178,8 +178,8 @@ re-approving the design.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The config-commit path can surface a non-fatal warning once the reason is threaded out of `ApplyPasswordHashing` | `CommitResult.MigrationWarning` (`contract.go`) already carries one advisory string to the operator; `commitContent()` (`editor_commands.go`) has none yet and must gain one | warning is swallowed at a site with no surface | trace all three commit call sites during audit (see Key Design Decisions) | unvalidated |
-| A-2 | Both password-set sites hold plaintext before hashing | password_hash.go, main.go | a set path bypasses the check | grep all bcrypt set sites | unvalidated |
+| A-1 | The config-commit path can surface a non-fatal warning once the reason is threaded out of `ApplyPasswordHashing` | `CommitResult.MigrationWarning` (`contract.go`) already carries one advisory string to the operator; `commitContent()` (`editor_commands.go`) has none yet and must gain one | warning is swallowed at a site with no surface | trace all three commit call sites during audit (see Key Design Decisions) | confirmed -- `CommitResult.Warnings` (renamed from `MigrationWarning`, `contract.go`) reaches `appendCommitWarnings` (`model_commands_commit.go`); `commitContent` gained `(string, []string, error)` and `Save`/`StageCandidate` carry it to `cmd_set.go`, `cmd_deactivate.go`, `model_load.go` and `ConfigSessionManager.Commit` |
+| A-2 | Both password-set sites hold plaintext before hashing | password_hash.go, main.go | a set path bypasses the check | grep all bcrypt set sites | confirmed -- `hashPlaintextSibling` (`password_hash.go`) is the only place a ze:bcrypt leaf is written from plaintext, and every config route reaches it through `ApplyPasswordHashing` (4 call sites); `runImpl` (`internal/plugins/passwd/main.go`) is the second and last plaintext site |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -219,10 +219,13 @@ re-approving the design.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPasswordStrengthShort` | `internal/component/config/password_strength_test.go` | short password returns a reason | |
-| `TestPasswordStrengthDenylist` | `internal/component/config/password_strength_test.go` | denylisted value (any case) returns a reason | |
-| `TestPasswordStrengthStrongNoReason` | `internal/component/config/password_strength_test.go` | strong password returns no reason | |
-| `TestHashPlaintextWeakStillSets` | `internal/component/config/password_hash_test.go` | weak password warns but is still hashed/set | |
+| `TestPasswordStrengthShort` | `internal/component/config/password_strength_test.go` | short password returns a reason, and 8 characters does not | PASS |
+| `TestPasswordStrengthDenylist` | `internal/component/config/password_strength_test.go` | denylisted value (any case) returns a reason; a substring does not | PASS |
+| `TestPasswordStrengthStrongNoReason` | `internal/component/config/password_strength_test.go` | strong password returns no reason | PASS |
+| `TestPasswordWeaknessNeverEchoesPlaintext` | `internal/component/config/password_strength_test.go` | the reason never carries the password (R-3) | PASS |
+| `TestHashPlaintextWeakStillSets` | `internal/component/config/password_hash_test.go` | weak password warns but is still hashed/set | PASS |
+| `TestCmdSetWeakPasswordWarnsAndSets` | `internal/component/config/cli/cmd_set_test.go` | `ze config set` prints the warning on stderr and exits 0 | see report: package build blocked by another session |
+| `TestRunImplWeakPlaintextWarnsAndHashes` | `internal/plugins/passwd/main_test.go` | `ze passwd` warns on stderr and still prints the hash | PASS |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -233,7 +236,7 @@ re-approving the design.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `password-weakness-warning` | `test/parse/password-weakness-warning.ci` | weak password warns yet sets; strong password is silent | |
+| `password-weakness-warning` | `test/parse/password-weakness-warning.ci` | weak password warns yet sets; strong password is silent | written; unrun, see report |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -315,7 +318,16 @@ re-approving the design.
 
 ## Implementation Summary
 ### What Was Implemented
-- (fill during implementation)
+- `internal/component/config/password_strength.go` -- `PasswordWeakness(plaintext) string`, `PasswordMinLength = 8`, and `passwordDenylist` (8 entries, whole-value case-insensitive match). The reason names the rule and never the password.
+- `internal/component/config/password_hash.go` -- `hashPlaintextSibling` runs the check on the plaintext before hashing and returns the reason beside the hashed bool. `ApplyPasswordHashing` now returns `[]HashedPassword{Path, Weakness}`, and `PasswordWeaknessWarnings` is the single home for the warning wording.
+- `internal/component/config/loader.go` -- `warnWeakPassword` logs one WARN line per weak password at load.
+- `internal/component/cli/contract/contract.go` -- `CommitResult.MigrationWarning string` became `CommitResult.Warnings []string`, one advisory channel carrying both the migration warning and the password warnings.
+- `internal/component/cli/editor_commit.go`, `editor_commands.go` -- both session commit sites and `commitContent`/`Save`/`StageCandidate` carry the warnings out.
+- `internal/component/cli/model_commands_commit.go`, `model_load.go` -- `appendCommitWarnings` renders them in the commit status line.
+- `internal/component/config/cli/cmd_set.go`, `cmd_deactivate.go`, `main.go` -- `printCommitWarnings` writes them to stderr before the success line.
+- `internal/component/api/config_session.go` -- the `ConfigEditor` interface carries the warnings and `ConfigSessionManager.Commit` logs them, because the REST, gRPC and gNMI commit responses have no warning field.
+- `internal/plugins/passwd/main.go` -- `runImpl` warns on `errOut` and still prints the hash with exit 0.
+- Docs: `docs/guide/authentication.md` (the policy, the surface table, the load-path line), `docs/features.md` (one row), `docs/guide/command-reference.md` (`ze passwd`).
 
 ## Review Gate
 

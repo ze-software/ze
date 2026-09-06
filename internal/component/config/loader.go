@@ -86,6 +86,7 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 	warnPlaintextOnDisk(configPath, hashed)
+	warnWeakPassword(hashed)
 
 	plugins, err := ExtractPluginsFromTree(tree)
 	if err != nil {
@@ -172,9 +173,13 @@ func applyParsedEnvironment(tree *Tree) {
 // plaintext leaf before this runs. redact.Command would also do nothing here,
 // because it blanks the token AFTER a credential key and a whole dot-path is
 // one token.
-func warnPlaintextOnDisk(configPath string, hashed []string) {
+func warnPlaintextOnDisk(configPath string, hashed []HashedPassword) {
 	if len(hashed) == 0 {
 		return
+	}
+	leaves := make([]string, 0, len(hashed))
+	for _, h := range hashed {
+		leaves = append(leaves, h.Path)
 	}
 	var tb textbuf.Buffer
 	var msg string
@@ -186,7 +191,20 @@ func warnPlaintextOnDisk(configPath string, hashed []string) {
 		msg = tb.Str("plaintext password in ").Str(configPath).
 			Str(": ze hashed it at load, and the file still holds the secret").String()
 	}
-	loaderLogger().Warn(msg, "leaves", textbuf.Join(hashed, " "))
+	loaderLogger().Warn(msg, "leaves", textbuf.Join(leaves, " "))
+}
+
+// warnWeakPassword warns once for each weak password the load just hashed. The
+// load path sets the password whatever the policy says, so this warning is the
+// only trace a weak credential leaves: a config file that ze accepted keeps
+// working, and the operator learns which account to re-enter.
+//
+// The reason names the rule and never the password (password_strength.go), so
+// the line is safe in a log ring an operator can read.
+func warnWeakPassword(hashed []HashedPassword) {
+	for _, warning := range PasswordWeaknessWarnings(hashed) {
+		loaderLogger().Warn(warning)
+	}
 }
 
 // parseTreeWithYANG parses config text and returns the tree together with the

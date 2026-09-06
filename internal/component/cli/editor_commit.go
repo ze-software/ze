@@ -53,14 +53,14 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	}
 
 	// Apply tree structure migrations if the committed config is hierarchical.
-	var migrationWarning string
+	var warnings []string
 	if config.DetectFormat(committedContent) == config.FormatHierarchical {
 		if migration.NeedsMigration(committedTree) {
 			result, migrateErr := migration.Migrate(committedTree)
 			if migrateErr == nil {
 				committedTree = result.Tree
 			} else {
-				migrationWarning = fmt.Sprintf("tree migration skipped: %v", migrateErr)
+				warnings = append(warnings, fmt.Sprintf("tree migration skipped: %v", migrateErr))
 			}
 		}
 	}
@@ -151,9 +151,14 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	// so the serialized config never carries plaintext. Drop the matching
 	// SessionEntries so commit metadata does not record orphan annotations
 	// for a leaf that no longer exists in the tree.
-	if _, err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {
+	hashed, err := config.ApplyPasswordHashing(committedTree, e.schema)
+	if err != nil {
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
+	// A weak password is already hashed and set by the time we read this. The
+	// commit succeeds and the operator is told, which is the whole contract of
+	// the weakness policy.
+	warnings = append(warnings, config.PasswordWeaknessWarnings(hashed)...)
 	myEntries = dropPlaintextPasswordEntries(myEntries)
 
 	if err := e.validateStagedTree(committedTree); err != nil {
@@ -199,7 +204,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	e.dirty.Store(false)
 	e.deleteEditFileGuard(guard)
 
-	return &CommitResult{Applied: applied, MigrationWarning: migrationWarning}, nil
+	return &CommitResult{Applied: applied, Warnings: warnings}, nil
 }
 
 // CommitSessionCandidate merges the current session's changes into a staged
@@ -242,14 +247,14 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 		return nil, "", fmt.Errorf("parse config: %w", err)
 	}
 
-	var migrationWarning string
+	var warnings []string
 	if config.DetectFormat(committedContent) == config.FormatHierarchical {
 		if migration.NeedsMigration(committedTree) {
 			result, migrateErr := migration.Migrate(committedTree)
 			if migrateErr == nil {
 				committedTree = result.Tree
 			} else {
-				migrationWarning = fmt.Sprintf("tree migration skipped: %v", migrateErr)
+				warnings = append(warnings, fmt.Sprintf("tree migration skipped: %v", migrateErr))
 			}
 		}
 	}
@@ -324,9 +329,11 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 	if err := config.RejectMaskedSecretLeaves(committedTree, e.schema); err != nil {
 		return nil, "", err
 	}
-	if _, err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {
+	hashed, err := config.ApplyPasswordHashing(committedTree, e.schema)
+	if err != nil {
 		return nil, "", fmt.Errorf("hash password: %w", err)
 	}
+	warnings = append(warnings, config.PasswordWeaknessWarnings(hashed)...)
 	myEntries = dropPlaintextPasswordEntries(myEntries)
 
 	if err := e.validateStagedTree(committedTree); err != nil {
@@ -346,7 +353,7 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 
 	e.dirty.Store(true)
 
-	return &CommitResult{Applied: applied, MigrationWarning: migrationWarning}, committedOutput, nil
+	return &CommitResult{Applied: applied, Warnings: warnings}, committedOutput, nil
 }
 
 // validateStagedTree runs the injected pre-commit validator over the tree the
