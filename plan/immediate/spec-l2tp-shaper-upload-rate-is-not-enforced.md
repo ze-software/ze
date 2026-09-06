@@ -63,6 +63,50 @@ the two should share one mechanism is a question this spec's design must put,
 because two mechanisms answering the same question is one too many
 (`ai/rules/simplicity.md`).
 
+## Research Findings (2026-09-06)
+
+The Task section names one open question: which mechanism enforces the upload
+direction, and which plugin owns it. This section answers it from the producers
+and states the decision the owner must take. No code changed, and the spec stays
+at `skeleton`, because every edit available takes that decision.
+
+### Verified facts
+
+| # | Fact | Producer read |
+|---|------|---------------|
+| F-1 | The shaper installs one root qdisc with one class, built from a single rate. Egress on a pppN interface carries traffic toward the subscriber, which is the download direction | `(*shaperPlugin).applyTC`, `internal/component/l2tp/plugins/shaper/shaper.go` |
+| F-2 | The upload direction is ingress on pppN, and the traffic data model cannot express it. `InterfaceQoS` holds one root `Qdisc` and carries no policer | `InterfaceQoS`, `Qdisc`, `TrafficClass`, `internal/component/traffic/model.go` |
+| F-3 | The netlink backend refuses the two ingress-hook qdisc kinds: "attaches at the ingress hook, not at the root, and is not configurable". So no upload enforcement is reachable through `traffic.Backend` today | `translateQdisc`, `internal/plugins/traffic/netlink/translate_linux.go` |
+| F-4 | The ingress hook is already shared. The mirror path installs clsact at handle `ffff:`, and the sampling path reuses it. A pppN policer is a third owner of that hook | `internal/plugins/iface/netlink/mirror_linux.go`, `internal/plugins/flowexport/sampling/tc_linux.go` |
+| F-5 | Both access types terminate on a pppN interface. The L2TP path shapes `SessionUpPayload.Interface` and the PPPoE path shapes `sess.PppInterface`. One ingress mechanism on pppN covers both | `(*shaperPlugin).onSessionUp` and `(*shaperPlugin).handleSubscriberSessionUp`, `shaper.go`; `internal/component/l2tp/pppoe/subsystem.go` |
+| F-6 | `spec-l2tp-12-xdp-policing.md` polices inbound L2TP data packets on the uplink NIC, keyed by tunnel id and session id. A PPPoE session carries no L2TP header, so that design cannot enforce upload for a PPPoE subscriber | `plan/to-review/spec-l2tp-12-xdp-policing.md`, Data Flow and AC-4 |
+| F-7 | That spec declares its own rate leaves under `l2tp { policing { ... } }` and takes the per-session rate from `SessionRateChangePayload.UploadRate`. It reads neither `l2tp/shaper/upload-rate` nor the RADIUS Filter-Id, and its session-up map entry uses its own YANG default | same spec, AC-6 and AC-6a |
+| F-8 | `subscriber.Session.UploadRate` has no producer. No assignment exists anywhere, so the PPPoE call site always hands the shaper a zero upload rate, and `show subscriber` never prints the key | `subscriber.Session`, `internal/component/l2tp/subscriber/session.go`; `internal/component/l2tp/subscriber/cmd/subscriber.go` |
+| F-9 | The `ze:help` beside the leaf already states that no interface enforces the rate. The leaf `description` and `docs/guide/l2tp.md` still read as a promise of enforcement | `internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang`; `docs/guide/l2tp.md`, the Traffic shaping section |
+
+F-8 corrects the Task section on one point. The PPPoE handler does take its
+upload argument as `_`, and the argument it discards is always zero.
+
+### The decision the owner must take
+
+Two mechanisms answer the same question, and only one of them should exist
+(`ai/rules/simplicity.md`).
+
+| Route | Owner | What it gives | What it costs |
+|-------|-------|---------------|---------------|
+| A: policing on the pppN ingress hook | `l2tp-shaper` | One mechanism for L2TP and PPPoE, on the interface that already carries the download shaping, fed by the rates this plugin already parses | An ingress policer in the traffic model, netlink translation, a VPP answer, and a third owner on the shared clsact hook. It makes the line-rate bucket of spec-l2tp-12 a duplicate |
+| B: XDP policing on the uplink NIC | `l2tp-policing`, spec-l2tp-12 | A design that is written and at `ready`, and drops before kernel decapsulation | A PPPoE subscriber stays unpoliced upward. `l2tp/shaper/upload-rate` and the upload half of the RADIUS Filter-Id keep no reader, so both have to move to the policing plugin or be read by it |
+
+Under either route `show l2tp shaper` must stop reporting a rate the shaper does
+not enforce. What replaces the `upload-rate-bps` key depends on the route.
+
+### Why no code changed
+
+Each candidate edit has a different correct form under each route: remove the
+leaf, reword the leaf `description`, change or drop the show key, or install a
+policer. Picking one picks the route. The route is the owner's decision
+(`ai/rules/rule-precedence.md`, rung 3).
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
