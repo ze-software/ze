@@ -417,6 +417,17 @@ separate faults hid behind that one number for three days
 (`spec-fixit-test-harness-fail-open-guards`, guard 3). Write new Ze
 helpers the same way.
 
+**A checker asserts on the STRUCTURED answer, never on the rendered text.** The
+IPsec suite asks with `show vpn ipsec sa | json` and decodes the list of SA
+records (`zeIKESAs`, `internal/le/interoplab/ipsec/helpers.go`). The text
+rendering is a table, and its column order follows the field names, so a
+line-anchored `<field> <value>` regex over that table matches by accident. On
+2026-09-06 one new field, `behind-nat`, took first place from `child-sa` in that
+order. Every nested Child SA key moved off the line start, and
+`child-rekey-narrowing`, `peer-reload-narrowing` and
+`initiator-rekey-answer-narrows` went red with no daemon behavior changed.
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- zeIKESAs, assertNATVerdict, assertZeSelectors -->
+
 All session waiters use explicit bounds (default 90 seconds, override via
 `SESSION_TIMEOUT`). The harness passes that value into the Ze container so a
 compiled process helper can size its barriers against the same budget.
@@ -514,11 +525,30 @@ BUILD_TIMEOUT=7200 ./le integration interop
 Interop tests require Docker and are not part of the offline precommit gate.
 They are a separate protocol-validation action.
 
-The first run builds the Docker images. How long that takes is a property of the
-build host, and the spread is wide. `Dockerfile.ze` copies the whole tree and
-compiles ze twice with no cache mount. One colima VM of 2 CPUs and 2 GB built it
-in 2m48s on 2026-09-04, and the same VM took 40m39s for it earlier that day, when
-the host disk was full and the guest was thrashing.
+The first run cross-compiles the lab binaries on the host, then builds the Docker
+images. No `Dockerfile.ze` carries a Go compiler: each one is an `alpine:3.21`
+base, one `apk add`, and a `COPY` of a binary the suite's preflight has already
+written into the build context (`internal/le/interoplab/zebuild.go`,
+`StageBinaries`). Each lab declares the binaries it needs beside the images it
+needs, and the bgp lab declares two, because its scenarios also run `ze-test`
+from inside the container.
+
+Measured on 2026-09-06 on a 32-core workstation: 6.1s and 4.8s for the two
+cross-compiles against a warm `cache/go-cache`, at a peak resident set of 1.03
+GiB and 0.98 GiB, then 54.7s for the `docker build`, which is now context
+transfer rather than compilation.
+
+The shape before 2026-09-06 is what those numbers are read against. `Dockerfile.ze`
+copied the whole tree and compiled ze twice with no cache mount. One colima VM of
+2 CPUs and 2 GB built it in 2m48s on 2026-09-04, and the same VM took 40m39s for
+it earlier that day, when the host disk was full and the guest was thrashing. On
+2026-09-06 the kernel killed that build three times on an idle 31 GiB
+workstation, once with 23 GiB free and nothing else running, so the compiler in
+the container was the thing that did not fit rather than the machine being busy.
+
+A consequence: `docker build -f test/interop/Dockerfile.ze .` on a clean checkout
+now fails at the `COPY` until `./le integration interop` has run its preflight.
+Each converted Dockerfile's header names the action that writes its binary.
 
 Each build is bounded at 90 minutes, and `BUILD_TIMEOUT` sets that bound in whole
 seconds for a machine slower or faster than that one. The bound stops a wedged
@@ -536,6 +566,7 @@ default was 10 minutes and each a cap once the default became 90.
 Subsequent runs with `NO_BUILD=1` skip rebuilds. Once the images exist, the full
 suite takes roughly 5-10 minutes depending on session establishment times.
 <!-- source: internal/le/interoplab/docker.go -- dockerBuildTimeoutDefault, buildTimeout -->
+<!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, LabBinary -->
 
 
 ### Debugging Failures
@@ -608,9 +639,24 @@ session and compares every received frame byte-for-byte.
 The harness migrates each ExaBGP-derived configuration, runs Ze, and compares
 its wire bytes with the known-good fixture. The 42 `.ci` cases in
 `test/exabgp-compat/encoding/` use `option=file:`, `option=serial`, `1:cmd:`,
-`1:raw:`, and `1:json:` records rather than the standard `.ci` format.
-`option=serial` marks process-driven fixtures that must not overlap other ExaBGP
-harness instances; the runner executes those after the parallel batch.
+`1:raw:`, `1:signal:`, and `1:json:` records rather than the standard `.ci`
+format. `option=serial` marks process-driven fixtures that must not overlap
+other ExaBGP harness instances; the runner executes those after the parallel
+batch.
+
+`<prefix>:signal:<NAME>` marks the point in a connection's script where the
+runner reloads Ze. It divides the script: every `raw` frame written before it
+must match before the reload happens, and the frames after it are matched only
+once it has. Each signal step consumes the NEXT `option=file:` config the case
+names, so a case owes one config more than it has signals, and the runner
+refuses a case where those two counts disagree. `test/exabgp-compat/api/api-reload.ci`
+is the case that drives this: its withdrawal of `2.0.0.0/24` is produced BY the
+reload.
+
+The fixtures name ExaBGP's reload signal, `SIGUSR1`. Ze reloads on SIGHUP, so
+the runner translates the name (`deliverExaBGPReloads`), writes the next
+migrated config over the path Ze reads, and signals Ze's own pid rather than the
+process group, which also holds the bridge's scripts.
 
 Coverage includes:
 

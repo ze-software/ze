@@ -1217,6 +1217,18 @@ runs in both `OnConfigure` and `OnConfigVerify`, so tc-only feature annotations 
 declaration once `spec-fw-7-traffic-vpp` introduces a second backend. Firewall will follow the same
 pattern in `spec-fw-8`.
 
+`InterfaceQoS` carries both directions. `Qdisc` programs egress, which is the direction a
+queueing discipline can shape by delaying a packet. `Ingress` is a `Policer`, a token bucket
+that drops what arrives above its rate, because the ingress hook holds no queue to delay into.
+The `trafficnetlink` backend installs it as a `matchall` filter with a `police` action on the
+shared `clsact` qdisc at tc priority 200, behind interface mirroring (priority 1) and
+flow-export sampling (priority 100), and removes only that priority on teardown so neither
+other owner loses its filters. The `trafficvpp` backend rejects a set `Ingress` at verify and
+at apply: it binds policers to the egress output arc and to the ingress classify pipeline for
+filtered classes, so an interface-wide upload rate has no faithful translation there. The one
+consumer today is the L2TP shaper, which enforces a subscriber's upload rate on the `pppN`
+interface for both L2TP and PPPoE sessions.
+
 `Backend.Apply` accepts a `context.Context` as its first parameter, plumbed from the traffic
 component's plugin lifetime. The `trafficvpp` backend honors the caller's ctx for its
 `conn.WaitConnected` call so a SIGTERM mid-reload does not block for the full VPP-reach timeout
@@ -1227,6 +1239,8 @@ narrow unexported `vppOps` interface (dump/policerAddDel/policerDel/policerOutpu
 exercise the create/update/undo/reconcile/orphan branches without a running VPP daemon.
 
 <!-- source: internal/component/traffic/backend.go -- Backend.Apply(ctx, desired) interface -->
+<!-- source: internal/plugins/traffic/netlink/policer_linux.go -- ingress policer translation, priority allocation, teardown -->
+<!-- source: internal/plugins/traffic/vpp/verify.go -- errIngressPolicerNotSupportedByBackend -->
 <!-- source: internal/plugins/traffic/vpp/ops.go -- vppOps interface (dumpInterfaces, policerAddDel, policerDel, policerOutput) -->
 <!-- source: internal/plugins/traffic/vpp/backend_linux.go -- govppOps adapter, applyWithOps, and WaitConnected honoring caller ctx -->
 <!-- source: internal/plugins/traffic/vpp/apply_test.go -- fakeOps + Apply-path unit tests -->
@@ -1234,7 +1248,7 @@ exercise the create/update/undo/reconcile/orphan branches without a running VPP 
 
 <!-- source: internal/component/firewall/model.go -- Table, Chain, Term, Match, Action types -->
 <!-- source: internal/component/firewall/backend.go -- Backend interface, RegisterBackend -->
-<!-- source: internal/component/traffic/model.go -- InterfaceQoS, Qdisc, TrafficClass types -->
+<!-- source: internal/component/traffic/model.go -- InterfaceQoS, Qdisc, TrafficClass, Policer types -->
 <!-- source: internal/component/traffic/backend.go -- Backend interface, RegisterBackend -->
 <!-- source: internal/component/traffic/register.go -- runEngine, OnConfigure, OnConfigApply, validateBackendGate -->
 
@@ -1692,11 +1706,34 @@ struct, so a field nobody classified still counts as a change.
 | Restart | any other difference | the peer is removed and re-added, and one log line names every field that forced it |
 
 `hotSwappableSettings` is the swap set, and it is a SUBTRACTION from the whole
-struct rather than a list of what matters. Three fields qualify: `ImportFilters`,
-`ExportFilters` and `PrefixUpdated`. Every other field forces a restart, so a field
-added to `PeerSettings` tomorrow is restart-scoped until somebody classifies it on
-purpose. A wrongly restarted session is visible and self-healing; a session left
-running on settings nobody checked is silent.
+struct rather than a list of what matters. Four fields qualify: `ImportFilters`,
+`ExportFilters`, `PrefixUpdated` and `StaticRoutes`. Every other field forces a
+restart, so a field added to `PeerSettings` tomorrow is restart-scoped until
+somebody classifies it on purpose. A wrongly restarted session is visible and
+self-healing; a session left running on settings nobody checked is silent.
+
+A route set is the one member whose consumer is the wire, so delivering the field
+alone would change nothing until the next connection. `deliverStaticRouteDelta`
+(`peer_static_wire.go`) is what makes it swappable: it announces the routes the
+running session does not hold, withdraws the ones the configuration no longer
+names, and leaves an unchanged route alone. The difference is computed against
+what the connection was SENT (`Peer.staticWire`), not against the previous
+configuration, because RFC 4271 Section 4.3 identifies a withdrawn route in the
+context of the connection it was advertised on: a route the configuration named
+and next-hop resolution refused never reached the wire, and is never withdrawn. A
+route whose prefix stays and whose attributes change is announced and not
+withdrawn, because RFC 4271 Section 3.1 has the second advertisement replace the
+first.
+
+<!-- source: internal/component/bgp/reactor/peer_static_wire.go -- deliverStaticRouteDelta, staticRouteDelta -->
+
+A withdrawal is built from the ANNOUNCEMENT the peer received and then rewritten
+by `message.SynthesizeWithdraw`, which moves the NLRI into the Withdrawn Routes
+field for IPv4 unicast and turns `MP_REACH_NLRI` into `MP_UNREACH_NLRI` for every
+other family. One code path therefore serves a VPN route, a labeled-unicast route
+and a plain prefix. `Peer.staticMu` serializes the initial send against the reload
+delta, so the two writers of one peer's route set never interleave and a
+withdrawal cannot precede the announcement it takes back.
 
 The capability set is the one conditional member. `negotiationOutcomeUnchanged`
 (`peer_settings_negotiation.go`) re-runs the negotiation: it builds the candidate
