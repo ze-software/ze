@@ -67,10 +67,12 @@ module ze-ldp-conf {
                      Parameters of the Initialization message. The receiving LSR MUST
                      calculate the KeepAlive Timer from 'the smaller of its proposed
                      KeepAlive Time and the KeepAlive Time received in the PDU'.
-                     The lower of the two proposals wins. Ze proposes 60 seconds in every
-                     Initialization message and reads this leaf nowhere, so a change here
-                     moves no timer. Ze sends a KeepAlive every third of the negotiated
-                     value and closes the session when no PDU arrives inside three times
+                     The lower of the two proposals wins. Ze proposes this value to each
+                     neighbor it opens a session to. Ze sends a KeepAlive every third of
+                     the negotiated value and closes the session when no PDU arrives
+                     inside three times it. The exchange happens one time, at the start
+                     of the session, so a session that is up keeps the value it
+                     negotiated. A change here applies to the sessions that open after
                      it.";
         }
 

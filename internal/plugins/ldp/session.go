@@ -57,6 +57,12 @@ const (
 	DefaultMaxPDULength  = 4096
 )
 
+// keepaliveTimeMax is the largest KeepAlive Time the wire can carry. RFC 5036
+// Section 3.5.3: "Two octet unsigned non zero integer that indicates the number
+// of seconds that the sending LSR proposes for the value of the KeepAlive Time."
+// One second is the smallest, 65535 the largest.
+const keepaliveTimeMax = 65535 * time.Second
+
 var (
 	errSessionClosed   = errors.New("ldp: session closed")
 	errKeepaliveExpiry = errors.New("ldp: keepalive timer expired")
@@ -125,25 +131,51 @@ func (s *Session) peerAddresses() []netip.Addr {
 	return out
 }
 
-// NewSession creates a session for the given adjacency. peerLSRID/peerLabelSpace
-// come from the discovered neighbor's Hello: the Initialization message ze sends
-// first must address the peer's LDP Identifier (RFC 5036 Section 3.5.3 "Receiver
-// LDP Identifier"), or a compliant peer (e.g. FRR) rejects the session.
-func NewSession(conn net.Conn, localLSRID [4]byte, localLabelSpace uint16, peerLSRID [4]byte, peerLabelSpace uint16, peerAddr netip.Addr, lib *LIB, log *slog.Logger) *Session {
+// SessionConfig carries the parameters a session is created with. LocalLSRID and
+// LocalLabelSpace name this LSR, PeerLSRID, PeerLabelSpace and PeerAddr come from
+// the discovered neighbor's Hello, and KeepaliveTime is the KeepAlive Time this
+// LSR proposes to that neighbor.
+type SessionConfig struct {
+	LocalLSRID      [4]byte
+	LocalLabelSpace uint16
+	PeerLSRID       [4]byte
+	PeerLabelSpace  uint16
+	PeerAddr        netip.Addr
+	KeepaliveTime   time.Duration
+}
+
+// NewSession creates a session for one discovered adjacency. cfg.PeerLSRID and
+// cfg.PeerLabelSpace come from the neighbor's Hello: the Initialization message
+// ze sends first must address the peer's LDP Identifier (RFC 5036 Section 3.5.3
+// "Receiver LDP Identifier"), or a compliant peer (e.g. FRR) rejects the session.
+// cfg.KeepaliveTime is what SendInit proposes, and handleInit lowers it to the
+// peer's value when the peer proposes less.
+func NewSession(conn net.Conn, cfg SessionConfig, lib *LIB, log *slog.Logger) *Session {
+	keepalive := cfg.KeepaliveTime
+	if keepalive < time.Second || keepalive > keepaliveTimeMax {
+		// The Common Session Parameters carry whole seconds in two octets, so a
+		// value outside that range cannot be proposed. Say so and propose the
+		// default rather than truncate to a number the peer would read as another
+		// interval (RFC 5036 Section 3.5.3).
+		log.Warn("ldp: keepalive time is outside the range RFC 5036 can carry, proposing the default",
+			"requested", keepalive, "proposed", DefaultKeepaliveTime)
+		keepalive = DefaultKeepaliveTime
+	}
+
 	return &Session{
 		state:         StateInitialized,
 		conn:          conn,
-		peerAddr:      peerAddr,
-		localLSRID:    localLSRID,
-		localLabelSpc: localLabelSpace,
-		peerLSRID:     peerLSRID,
-		peerLabelSpc:  peerLabelSpace,
-		keepaliveTime: DefaultKeepaliveTime,
+		peerAddr:      cfg.PeerAddr,
+		localLSRID:    cfg.LocalLSRID,
+		localLabelSpc: cfg.LocalLabelSpace,
+		peerLSRID:     cfg.PeerLSRID,
+		peerLabelSpc:  cfg.PeerLabelSpace,
+		keepaliveTime: keepalive,
 		// Initial hold time governs the wait for the peer's first Initialization
 		// message; handleInit replaces it with the negotiated value. Without this
 		// the first ReadLoop deadline is now+0 and times out before the peer's
 		// Init can arrive, so the session never establishes (RFC 5036 Section 2.5.3).
-		holdTime: 3 * DefaultKeepaliveTime,
+		holdTime: 3 * keepalive,
 		maxPDU:   DefaultMaxPDULength,
 		lib:      lib,
 		log:      log,
@@ -205,7 +237,12 @@ func (s *Session) stopped() bool {
 	}
 }
 
-// SendInit sends an Initialization message to the peer.
+// SendInit sends an Initialization message to the peer. Its Common Session
+// Parameters carry the KeepAlive Time the session was created with, which is the
+// value the operator configured. RFC 5036 Section 3.5.3: the field "indicates the
+// number of seconds that the sending LSR proposes for the value of the KeepAlive
+// Time". SendInit runs before ReadLoop, so no peer message can change
+// s.keepaliveTime while this reads it.
 func (s *Session) SendInit() error {
 	var buf [256]byte
 	msgID := s.nextMsgID.Add(1)

@@ -27,8 +27,13 @@ func TestExpireAdjacenciesStopsSession(t *testing.T) {
 
 	c1, c2 := net.Pipe()
 	t.Cleanup(func() { _ = c2.Close() })
-	sess := NewSession(c1, [4]byte{10, 0, 0, 1}, 0, lsrID, labelSpace,
-		netip.MustParseAddr("10.0.0.2"), newLIB(), slogutil.DiscardLogger())
+	sess := NewSession(c1, SessionConfig{
+		LocalLSRID:     [4]byte{10, 0, 0, 1},
+		PeerLSRID:      lsrID,
+		PeerLabelSpace: labelSpace,
+		PeerAddr:       netip.MustParseAddr("10.0.0.2"),
+		KeepaliveTime:  DefaultKeepaliveTime,
+	}, newLIB(), slogutil.DiscardLogger())
 	var mu sync.Mutex
 	sessions := map[string]*Session{key: sess}
 

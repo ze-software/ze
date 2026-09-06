@@ -171,7 +171,7 @@ func TestLDPInteropFRR(t *testing.T) {
 	ctx := t.Context()
 	mgr := newDiscoveryManager(ctx, log, func(ifctx context.Context, ifName string, c ldpConfig) {
 		discoverOnInterface(ifctx, log, c, lsrID, ifName, adjTable, func(adj *Adjacency) {
-			startSessionForAdj(ctx, log, adj, lsrID, c.TransportAddr, lib, sessions, &sessionsMu, fib)
+			startSessionForAdj(ctx, log, adj, lsrID, c.TransportAddr, c.KeepaliveTime, lib, sessions, &sessionsMu, fib)
 		})
 	})
 	mgr.reconcile(cfg)
@@ -179,6 +179,7 @@ func TestLDPInteropFRR(t *testing.T) {
 	// Poll for an operational session and a remote label binding from FRR.
 	var operational bool
 	var peerAddrs []netip.Addr
+	var negotiatedKA time.Duration
 	deadline := time.Now().Add(75 * time.Second)
 	for time.Now().Before(deadline) {
 		sessionsMu.Lock()
@@ -186,6 +187,7 @@ func TestLDPInteropFRR(t *testing.T) {
 			if s.State() == StateOperational {
 				operational = true
 				peerAddrs = s.peerAddresses()
+				negotiatedKA = s.currentKeepalive()
 			}
 		}
 		sessionsMu.Unlock()
@@ -204,6 +206,14 @@ func TestLDPInteropFRR(t *testing.T) {
 
 	require.True(t, operational, "ze did not reach an operational LDP session with FRR")
 	require.NotZero(t, lib.Len(), "ze received no label binding from FRR")
+
+	// The session settled on the KeepAlive Time ze was configured with. FRR
+	// proposes its 180-second default, so RFC 5036 Section 3.5.3 ("the smaller of
+	// its proposed KeepAlive Time and the KeepAlive Time received in the PDU")
+	// yields ze's 15 seconds only if ze put 15 on the wire. An engine that reads
+	// the leaf nowhere proposes 60 and this reads 60.
+	require.Equal(t, cfg.KeepaliveTime, negotiatedKA,
+		"the negotiated KeepAlive Time is not the value ze was configured with")
 
 	bindings := lib.allBindings()
 	t.Logf("ze learned %d binding(s) from FRR; first: %s -> label %d", len(bindings), bindings[0].FEC, bindings[0].Label)

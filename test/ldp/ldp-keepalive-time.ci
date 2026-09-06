@@ -1,0 +1,76 @@
+# Test: the ldp/keepalive-time leaf reaches the LDP engine.
+#
+# VALIDATES: spec-ldp-keepalive-time-proposal -- an operator who writes
+#            `keepalive-time 15` gets an engine that starts with 15 seconds, and
+#            says so, rather than one that reads the leaf nowhere. This test
+#            covers the config half of the chain: the written leaf reaches the
+#            running engine that builds each session. The other half, that the
+#            value is what the Initialization message carries (RFC 5036 section
+#            3.5.3), needs a peer, so it is pinned in
+#            internal/plugins/ldp/keepalive_test.go over the wire bytes and in
+#            internal/plugins/ldp/frr_interop_integration_linux_test.go against
+#            FRR.
+# PREVENTS:  regression to an engine that starts every session from the
+#            60-second default: the value here is 15, so an engine that falls
+#            back to the default trips the reject below.
+
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external ldp-show {
+		run "ze-test fixture ldp/ldp-session"
+		encoder json
+	}
+}
+
+ldp {
+	lsr-id 10.0.0.1
+	transport-address 10.0.0.1
+	hello-interval 5
+	hello-hold-time 15
+	keepalive-time 15
+	interfaces lo
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.ldp:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=ldp: engine started
+expect=stderr:contains=keepalive-time=15s
+reject=stderr:pattern=keepalive-time=1m0s
+reject=stderr:pattern=no lsr-id configured
+reject=stderr:pattern=engine idle
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

@@ -90,6 +90,17 @@ ldp {
 - `hello-interval` / `hello-hold-time` / `keepalive-time` -- optional soft-state
   timers (defaults 5s / 15s / 60s).
 
+`keepalive-time` is the KeepAlive Time ze proposes in the Initialization message
+of each new session (RFC 5036 section 3.5.3). The two LSRs keep the lower of the
+two proposals. Ze then sends a KeepAlive every third of the negotiated value, and
+it closes the session when no PDU arrives inside three times that value. The
+proposal is exchanged one time, when the session starts, so a change to this leaf
+applies to the sessions that open after it and leaves an established session on
+the value it negotiated.
+
+<!-- source: internal/plugins/ldp/session.go -- NewSession, SendInit -->
+<!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->
+
 Inspect LDP state with `show ldp neighbor` (session state, transport address)
 and `show ldp binding` (FEC-to-label bindings). A label binding learned from a
 neighbor programs an ingress push entry in the kernel MPLS FIB toward that

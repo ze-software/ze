@@ -34,9 +34,12 @@ import (
 func rfcTestSession(conn net.Conn) *Session {
 	return NewSession(
 		conn,
-		[4]byte{10, 0, 0, 1}, 0,
-		[4]byte{10, 0, 0, 2}, 0,
-		netip.MustParseAddr("10.0.0.2"),
+		SessionConfig{
+			LocalLSRID:    [4]byte{10, 0, 0, 1},
+			PeerLSRID:     [4]byte{10, 0, 0, 2},
+			PeerAddr:      netip.MustParseAddr("10.0.0.2"),
+			KeepaliveTime: DefaultKeepaliveTime,
+		},
 		newLIB(),
 		slogutil.DiscardLogger(),
 	)

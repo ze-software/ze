@@ -295,6 +295,13 @@ func runLDPEngine(conn net.Conn) int {
 			lsrID = cfg.LSRID.As4()
 		}
 
+		// State the timers the engine will use, so an operator can read back the
+		// Hello pacing of each link and the KeepAlive Time each new session
+		// proposes (RFC 5036 Section 3.5.3).
+		log.Info("ldp: engine started", "lsr-id", cfg.LSRID,
+			"hello-interval", cfg.HelloInterval, "hello-hold-time", cfg.HelloHoldTime,
+			"keepalive-time", cfg.KeepaliveTime)
+
 		fib = newLDPFIB(getEventBus(), log)
 
 		// AC-3: originate label bindings for the FECs this LSR is egress for
@@ -307,9 +314,19 @@ func runLDPEngine(conn net.Conn) int {
 		}
 
 		startFn := func(ifctx context.Context, ifName string, c ldpConfig) {
-			localTransport := cfg.TransportAddr
 			discoverOnInterface(ifctx, log, c, lsrID, ifName, adjTable, func(adj *Adjacency) {
-				startSessionForAdj(ctx, log, adj, lsrID, localTransport, lib, sessions, &sessionsMu, fib)
+				// Read the KeepAlive Time in force now rather than the copy this
+				// discovery goroutine started with. reconcile leaves a running
+				// interface alone, so a reload that changes only the timer reaches
+				// no session otherwise. RFC 5036 Section 3.5.3 negotiates the value
+				// once per session, so it is read once, when the session opens.
+				mgrMu.Lock()
+				keepalive := activeCfg.KeepaliveTime
+				mgrMu.Unlock()
+				// c.TransportAddr, not the address the engine started with: the TCP
+				// source address must be the one this interface's Hellos advertise,
+				// which discoverOnInterface takes from the same c.
+				startSessionForAdj(ctx, log, adj, lsrID, c.TransportAddr, keepalive, lib, sessions, &sessionsMu, fib)
 			})
 		}
 		mgr := newDiscoveryManager(ctx, log, startFn)
@@ -413,7 +430,22 @@ func ldpSessionDialer(localTransport netip.Addr) *network.RealDialer {
 	return dialer
 }
 
-func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, lsrID [4]byte, localTransport netip.Addr, lib *LIB, sessions map[string]*Session, sessionsMu *sync.Mutex, fib *ldpFIB) {
+// sessionConfigForAdj builds the parameters a session with adj is created with.
+// lsrID and keepalive come from the LDP config, the rest from the neighbor's
+// Hello. Label space 0 is the platform-wide label space: ze runs no per-interface
+// label space, so it proposes 0 in every LDP Identifier it sends.
+func sessionConfigForAdj(lsrID [4]byte, keepalive time.Duration, adj *Adjacency) SessionConfig {
+	return SessionConfig{
+		LocalLSRID:      lsrID,
+		LocalLabelSpace: 0,
+		PeerLSRID:       adj.PeerLSRID,
+		PeerLabelSpace:  adj.PeerLabelSpace,
+		PeerAddr:        adj.TransportAddr,
+		KeepaliveTime:   keepalive,
+	}
+}
+
+func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, lsrID [4]byte, localTransport netip.Addr, keepalive time.Duration, lib *LIB, sessions map[string]*Session, sessionsMu *sync.Mutex, fib *ldpFIB) {
 	sessionsMu.Lock()
 	defer sessionsMu.Unlock()
 	key := AdjacencyKey(adj.PeerLSRID, adj.PeerLabelSpace)
@@ -432,7 +464,7 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 		return
 	}
 
-	sess := NewSession(tcpConn, lsrID, 0, adj.PeerLSRID, adj.PeerLabelSpace, adj.TransportAddr, lib, log)
+	sess := NewSession(tcpConn, sessionConfigForAdj(lsrID, keepalive, adj), lib, log)
 	sessions[key] = sess
 
 	if m := ldpMetricsPtr.Load(); m != nil {

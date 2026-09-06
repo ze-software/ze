@@ -33,6 +33,24 @@ follows. No per-interface session teardown exists, and none is needed.
 The discovery start function is an injected field, so reconcile is unit-testable
 with no multicast I/O.
 
+## Decision: the KeepAlive Time is read when the session opens
+
+RFC 5036 section 3.5.3 exchanges the KeepAlive Time one time, in the
+Initialization message, so a running session cannot renegotiate it. Ze reads
+`ldp/keepalive-time` at the moment it builds a session, from the config in force
+then, and never afterwards. A reload therefore reaches the sessions that open
+after it, and an established session keeps the value it negotiated. Tearing
+sessions down to apply a new timer was rejected: it drops every LSP the peer
+carries, which is a large price for a timer change.
+
+The value is read from the active config rather than from the copy the discovery
+goroutine started with. Discovery reconciles per interface, and an interface that
+is already running keeps its goroutine, so a reload that changes only a timer
+would otherwise reach nothing.
+
+<!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj, startSessionForAdj -->
+<!-- source: internal/plugins/ldp/session.go -- SessionConfig, NewSession -->
+
 ## Decision: the doctor check is self-contained
 
 The port 646 readiness check probes a UDP and a TCP bind through a test seam and
