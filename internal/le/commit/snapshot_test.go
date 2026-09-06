@@ -46,6 +46,10 @@ func TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit(t *test
 	writeCommitFixture(t, root, "foreign.txt", "staged by a peer\n")
 	runCommitGit(t, root, "add", "--", "foreign.txt")
 	writeCommitFixture(t, root, "mine.txt", "the author wrote this\nand a second session added this\n")
+	// A dirty tracked path this commit does not name. The drift note must not
+	// mention it: the first commit through this route reported 190 such paths,
+	// nine of which were its own, and a note nobody can read is not a note.
+	writeCommitFixture(t, root, "tracked.txt", "a third session is mid-edit here\n")
 
 	output := runCommitScript(t, root, prepared.Script)
 
@@ -81,8 +85,12 @@ func TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit(t *test
 	if staged := strings.Fields(runCommitGitOutput(t, root, "diff", "--cached", "--name-only")); !slices.Equal(staged, []string{"foreign.txt"}) {
 		t.Fatalf("shared index after the run = %q, want only the peer's staged path", staged)
 	}
-	if !strings.Contains(output, "these paths changed on disk after this commit was prepared") {
+	if !strings.Contains(output, "these paths changed on disk after this commit was prepared") ||
+		!strings.Contains(output, "mine.txt") {
 		t.Fatalf("the run did not report the drift it left behind:\n%s", output)
+	}
+	if strings.Contains(output, "tracked.txt") {
+		t.Fatalf("the drift note named a path this commit does not carry:\n%s", output)
 	}
 }
 

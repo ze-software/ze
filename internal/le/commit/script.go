@@ -106,17 +106,26 @@ func renderPrivateIndex(block commitBlock, scriptPath string) string {
 // is still in the working tree, so nothing is lost, and `./le commit create`
 // run again carries it.
 //
-// `git update-index --refresh` is the comparison, because it answers on content
-// AND on mode. It runs against a COPY of the index, because refreshing an entry
-// whose file changed REWRITES that entry from the working tree: measured on
-// 2026-09-06, a refresh in place replaced the snapshot blob with the drifted one
-// and committed exactly what this design exists to leave behind.
+// The comparison stages the working tree into a THROWAWAY index and reads the
+// symmetric difference of the two entry sets, which answers on content, on mode
+// and on a file that has been deleted, for the named paths and nothing else.
+//
+// `git update-index --refresh` is the obvious tool and it is the wrong one,
+// measured twice on 2026-09-06. It REWRITES the entry it reports, so refreshing
+// the index in place replaced the snapshot blob with the drifted one and
+// committed exactly what this design exists to leave behind. And it refreshes
+// the WHOLE index rather than the pathspec, so on a copy it named every dirty
+// tracked file in the checkout: the first commit through this route printed 190
+// paths, nine of which were its own.
 func renderDriftNote(paths []string) string {
+	quoted := quotePaths(paths)
 	lines := []string{
-		`cp "$_ze_index" "$_ze_index.check"`,
-		`_ze_drift=$(GIT_INDEX_FILE="$_ze_index.check" git update-index --refresh -- ` +
-			quotePaths(paths) + ` 2>&1 || true)`,
-		`rm -f "$_ze_index.check"`,
+		`rm -f "$_ze_index.now"`,
+		`GIT_INDEX_FILE="$_ze_index.now" git add -f -- ` + quoted + ` 2>/dev/null || true`,
+		`_ze_drift=$({ GIT_INDEX_FILE="$_ze_index.now" git -c core.quotePath=false ls-files -s -- ` + quoted + `;` +
+			` GIT_INDEX_FILE="$_ze_index" git -c core.quotePath=false ls-files -s -- ` + quoted + `;` +
+			` } | sort | uniq -u | cut -f2- | sort -u)`,
+		`rm -f "$_ze_index.now"`,
 		`if [ -n "$_ze_drift" ]; then`,
 		`  echo "NOTE: these paths changed on disk after this commit was prepared." >&2`,
 		`  echo "The commit carries the prepared content; the difference stays in the working tree." >&2`,

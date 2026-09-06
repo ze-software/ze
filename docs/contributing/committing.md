@@ -139,9 +139,12 @@ them. One commit block holds, in order:
 5. `git update-index --force-remove` for any `remove` paths. A removal no longer
    deletes the working-tree file, so `rm` the file first, as the keyword table
    above says.
-6. A drift note. It refreshes a COPY of the private index and reports any named
-   path whose content or mode moved since preparation. It never refuses: the
-   commit is already safe, and the difference is still in the working tree.
+6. A drift note. It stages the working tree into a throwaway index and reports
+   any named path whose content, mode, or existence moved since preparation. It
+   never refuses: the commit is already safe, and the difference is still in the
+   working tree. `git update-index --refresh` looks like the tool for this and
+   is not, twice over: it rewrites the entry it reports, and it refreshes the
+   whole index rather than the pathspec.
 7. `git commit -F <message-file>` against the private index.
 8. `git ls-tree HEAD -- <paths> | git update-index --index-info`, which points
    the SHARED index at what was just committed. Without it every other session
