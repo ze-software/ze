@@ -496,3 +496,8 @@ N-A. Not protocol work.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Progress, 2026-09-06
+
+Committed in `0e72b398f2`, `d430407555` and `cd70557e7a`. The two QEMU labs are
+not written, so A-2, A-3 and A-5 stay unvalidated.

@@ -390,3 +390,7 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Progress, 2026-09-06
+
+Committed in `24c773bc57`. Two measurements stay open.

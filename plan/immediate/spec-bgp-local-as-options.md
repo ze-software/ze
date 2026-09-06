@@ -493,3 +493,15 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] Learned summary written to `plan/learned/NNN-bgp-local-as-options.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/immediate/spec-bgp-local-as-options.md` only (commit A preserves the spec in history)
+
+## Progress, 2026-09-06
+
+The announce rail landed in `5001022d13`. The three local-as configurations now
+differ on that rail. The group key had carried a bare `localAS`, so one peer
+received another peer's AS_PATH, decided by map order. Earlier work is in
+`b60737ac8`.
+
+RFC 7705 is still not enrolled, so no `RFC7705-3.3-N` tag can be written.
+
+The inbound append is now an operator decision. It is homed in
+`plan/spec-bgp-local-as-inbound-append.md`.

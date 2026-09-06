@@ -368,3 +368,10 @@ explaining why a mappable local AS needs no AS4_PATH edit.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Progress, 2026-09-06
+
+The spec landed in `9140ccc610`. The implementation is in flight and
+incomplete: the extractor signature changed and three call sites do not
+compile, at `filter_ordered.go:227`, `filter_ordered.go:372` and
+`policy_dryrun.go:240`.

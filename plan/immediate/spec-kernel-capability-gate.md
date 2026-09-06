@@ -591,3 +591,8 @@ N-A. No RFC governs kernel capability detection.
 | Severity | Finding | Location | Fixed by |
 |----------|---------|----------|----------|
 | | | | |
+
+## Progress, 2026-09-06
+
+Committed in `4e25253540`. Five `.ci` files are written and unexecuted, so A-4
+and A-5 stay unvalidated.

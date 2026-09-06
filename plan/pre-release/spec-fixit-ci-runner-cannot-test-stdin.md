@@ -644,3 +644,7 @@ Not applicable. No protocol-implementing code changes.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Progress, 2026-09-06
+
+Committed in `c31e6a5cb3`. Its three design options await the owner.

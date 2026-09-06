@@ -521,3 +521,8 @@ claiming a provenance the code did not have.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** remove the spec only, since commit A preserves it in history
+
+## Progress, 2026-09-06
+
+Committed in `2e5da6d39`. Three interop scenarios are written and were never
+run. The QEMU runner that two of them need does not exist.

@@ -379,3 +379,9 @@ true when those three files land.
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs
 - [ ] Functional tests for end-to-end behavior
+
+## Progress, 2026-09-06
+
+`6114b57a1f` carries the VPP half. The boot half was swept into another
+session's commit `0e72b398f2`: the content is at HEAD, but the attribution is
+wrong, and `git log -S isolcpus` answers with a kernel-panic subject.

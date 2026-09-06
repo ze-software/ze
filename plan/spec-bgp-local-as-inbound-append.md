@@ -446,3 +446,8 @@ The last column is the outbound rail landed in `5001022d13` and proven in
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Progress, 2026-09-06
+
+Committed in `fb29f8fbcb`, in the deferred bucket. The import filter expresses
+the append, so this needs no engine code.

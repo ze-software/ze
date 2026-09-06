@@ -441,3 +441,8 @@ this spec, and no wire behavior changes.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Progress, 2026-09-06
+
+Committed in `2175296427`, with `bc987697e1` for the commit message-suffix fix.
+Its `.ci` is committed and unrun.

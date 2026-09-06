@@ -871,3 +871,8 @@ driving the exabgp suite on the same box.)
 - [ ] Goal Validation evidence recorded
 - [ ] Pre-Commit Verification filled
 - [ ] Learned summary written; two-commit closure per `ai/rules/planning.md`
+
+## Progress, 2026-09-06
+
+Committed in `0619e860eb`. Advertisements were leaving at Hop Limit 1, so the
+whole BNG IPv6 path reached nobody. RFC 4861 and RFC 8106 are not enrolled.

@@ -566,3 +566,9 @@ Three `.ci` files pass under `ze-test ui`: `bgp-decode-pcap-file`,
 | Run | Date | Blockers | Issues | Result |
 |-----|------|----------|--------|--------|
 | | | | | |
+
+## Progress, 2026-09-06
+
+Committed in `18d7ffc8e0`. This box has no `tshark`, so no third-party parser
+has confirmed that the file dissects. The owner deleted two stdin `.ci` files
+as untestable.

@@ -374,3 +374,7 @@ re-approving the design.
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs (min length)
 - [ ] Functional tests for end-to-end behavior
+
+## Progress, 2026-09-06
+
+Committed in `0cb93dd5b0`. Its `.ci` never ran.

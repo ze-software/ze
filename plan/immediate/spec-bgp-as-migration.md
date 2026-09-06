@@ -501,3 +501,8 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] Learned summary written to `plan/learned/NNN-bgp-as-migration.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/immediate/spec-bgp-as-migration.md` only (commit A preserves the spec in history)
+
+## Progress, 2026-09-06
+
+Committed in `11f0a65db2`. Enrolment is not reached, and `RFC7705-3.3-9` is an
+unimplemented SHOULD.

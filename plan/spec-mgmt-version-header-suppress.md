@@ -369,3 +369,8 @@ All refs re-verified against current code:
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Functional tests for end-to-end behavior
+
+## Progress, 2026-09-06
+
+`3522fc9db4` carries the feature, `5b15df5e06` the amendment, and `170e0139ea`
+the configuration guide.
