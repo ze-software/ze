@@ -35,6 +35,10 @@ const (
 	bridgeAttrOriginatorID     = "originator-id"
 	bridgeAttrClusterList      = "cluster-list"
 	bridgeAttrAIGP             = "aigp"
+	bridgeAttrLabel            = "label"
+	bridgeAttrRouteDist        = "route-distinguisher"
+	bridgeAttrPathInformation  = "path-information"
+	bridgeAttrWatchdog         = "watchdog"
 )
 
 // The two keys an UPDATE's body carries in ze JSON: its path attributes and its
@@ -42,6 +46,32 @@ const (
 const (
 	bridgeUpdateAttr = "attr"
 	bridgeUpdateNLRI = "nlri"
+)
+
+// The SAFI ze names for each family the bridge translates a route into. One
+// declaration serves the ExaBGP-to-ze mapping, the family a family-less route
+// is read as, and the set whose NLRI is a plain prefix.
+const (
+	bridgeUnicastSAFI   = "unicast"
+	bridgeMulticastSAFI = "multicast"
+	bridgeLabeledSAFI   = "nlri-mpls"
+	bridgeVPNSAFI       = "mpls-vpn"
+	bridgeMUPSAFI       = "mup"
+)
+
+// The AFI ExaBGP writes for the two IP families the bridge translates.
+const (
+	bridgeAFIv4 = "ipv4"
+	bridgeAFIv6 = "ipv6"
+)
+
+// The two verbs an ExaBGP route line starts with, and the two-word forms
+// convertRoute reads first.
+const (
+	announceRoute = "announce route"
+	withdrawRoute = "withdraw route"
+	announceVerb  = "announce"
+	withdrawVerb  = "withdraw"
 )
 
 const (
@@ -74,15 +104,15 @@ var (
 // are the same word; the rows that differ are the whole reason a mapping exists
 // rather than a passthrough.
 var bridgeSAFI = map[string]string{
-	"unicast":      "unicast",
-	"multicast":    "multicast",
-	"nlri-mpls":    "nlri-mpls",
-	"flow":         "flow",
-	"flowspec":     "flow",
-	"flow-vpn":     "flow-vpn",
-	"flowspec-vpn": "flow-vpn",
-	"mcast-vpn":    "mvpn",
-	"mup":          "mup",
+	bridgeUnicastSAFI:   bridgeUnicastSAFI,
+	bridgeMulticastSAFI: bridgeMulticastSAFI,
+	bridgeLabeledSAFI:   bridgeLabeledSAFI,
+	bridgeFlowSAFI:      bridgeFlowSAFI,
+	"flowspec":          bridgeFlowSAFI,
+	bridgeFlowVPNSAFI:   bridgeFlowVPNSAFI,
+	"flowspec-vpn":      bridgeFlowVPNSAFI,
+	"mcast-vpn":         "mvpn",
+	bridgeMUPSAFI:       bridgeMUPSAFI,
 }
 
 // bridgeSAFIAlternation renders bridgeSAFI's keys as a regexp alternation,
@@ -132,6 +162,12 @@ type Translation struct {
 	// then, and a caller MUST read this before it reads Nothing: a local action
 	// carries no command and is not an empty line.
 	Local LocalAction
+	// Unmatched says the line named a destination no ze session can be, so it
+	// reaches nothing. Commands is empty, and a caller MUST read this before it
+	// reads Nothing for the reason Local gives: the script is blocked on an
+	// answer, and ExaBGP acknowledges a command whose selector matched no
+	// session rather than leaving the script waiting.
+	Unmatched bool
 }
 
 // LocalAction is a command the bridge performs ITSELF rather than dispatching.
@@ -236,7 +272,10 @@ func (t Translator) Line(line string) (Translation, error) {
 	// writes `announce` and `route` with 38 spaces between them. Every match
 	// below is on token text, so the run of spaces is collapsed once here
 	// rather than guarded against at each site.
-	selector, rest := splitNeighborSelector(strings.Join(strings.Fields(line), " "), t.everyPeer())
+	selector, rest, unmatched := splitNeighborSelector(strings.Join(strings.Fields(line), " "), t.everyPeer())
+	if unmatched {
+		return Translation{Unmatched: true}, nil
+	}
 
 	if translation, ok := convertControl(selector, rest); ok {
 		return translation, nil
@@ -311,8 +350,8 @@ func convertControl(selector, rest string) (Translation, bool) {
 			Commands: []string{tb.Str("request peer ").Str(selector).Str(" flush").String()},
 			Selector: selector,
 		}, true
-	case len(fields) == 3 && fields[1] == "watchdog" &&
-		(fields[0] == "announce" || fields[0] == "withdraw"):
+	case len(fields) == 3 && fields[1] == bridgeAttrWatchdog &&
+		(fields[0] == announceVerb || fields[0] == withdrawVerb):
 		name := strings.Fields(rest)[2]
 		return Translation{
 			Commands: []string{tb.Str("request bgp watchdog ").Str(fields[0]).Byte(' ').Str(name).String()},
@@ -329,13 +368,6 @@ func convertControl(selector, rest string) (Translation, bool) {
 // The caller decides what an untranslated line becomes, because the answer
 // differs between a line that names a neighbor and a line that does not.
 func (t Translator) convertRoute(selector, rest string) ([]string, bool, error) {
-	const (
-		announceRoute = "announce route"
-		withdrawRoute = "withdraw route"
-		announceVerb  = "announce"
-		withdrawVerb  = "withdraw"
-	)
-
 	restLower := strings.ToLower(rest)
 
 	// The three forms that are not `<verb> <route>`: an End-of-RIB, which
@@ -393,6 +425,7 @@ func (t Translator) convertRoute(selector, rest string) ([]string, bool, error) 
 func buildRouteCommand(selector, family, verb, body string) ([]string, error) {
 	nlriTokens, attrTokens := splitRouteBodyForFamily(family, strings.Fields(strings.TrimSpace(body)))
 	nlriTokens = shapePluginNLRI(family, nlriTokens)
+	nlriTokens = defaultPrefixLengths(family, nlriTokens)
 	attrs, err := parseRouteAttributes(attrTokens)
 	if err != nil {
 		return nil, err
@@ -529,9 +562,9 @@ func convertWithdraw(selector, routeStr string) ([]string, error) {
 // also the answer for an empty body, where ze names the family in its refusal.
 func familyOfRoute(routeStr string) string {
 	parts := strings.Fields(strings.TrimSpace(routeStr))
-	afi := "ipv4"
+	afi := bridgeAFIv4
 	if len(parts) > 0 && strings.Contains(parts[0], ":") {
-		afi = "ipv6"
+		afi = bridgeAFIv6
 	}
 
 	// The SAFI is read off the attributes, exactly as familyForAttributes does
@@ -545,15 +578,15 @@ func familyOfRoute(routeStr string) string {
 	_, attrTokens := splitRouteBody(parts)
 	attrs, err := parseRouteAttributes(attrTokens)
 	if err != nil {
-		return safiFamily(afi, "unicast")
+		return safiFamily(afi, bridgeUnicastSAFI)
 	}
 	switch {
 	case attrs.Has("rd"):
-		return safiFamily(afi, "mpls-vpn")
-	case attrs.Has("label"):
-		return safiFamily(afi, "nlri-mpls")
+		return safiFamily(afi, bridgeVPNSAFI)
+	case attrs.Has(bridgeAttrLabel):
+		return safiFamily(afi, bridgeLabeledSAFI)
 	}
-	return safiFamily(afi, "unicast")
+	return safiFamily(afi, bridgeUnicastSAFI)
 }
 
 // safiFamily joins an AFI and a SAFI into the family ze names.

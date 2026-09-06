@@ -79,11 +79,11 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 	bridgeAttrOriginatorID:    {Ze: bridgeAttrOriginatorID, Arity: arityValue},
 	bridgeAttrClusterList:     {Ze: bridgeAttrClusterList, Arity: arityList},
 	bridgeAttrAIGP:            {Ze: bridgeAttrAIGP, Arity: arityValue},
-	"label":                   {Ze: "label", Arity: arityList},
+	bridgeAttrLabel:           {Ze: bridgeAttrLabel, Arity: arityList},
 	"rd":                      {Ze: "rd", Arity: arityValue},
-	"route-distinguisher":     {Ze: "rd", Arity: arityValue},
-	"path-information":        {Ze: "path-information", Arity: arityValue},
-	"watchdog":                {Ze: "watchdog", Arity: arityValue},
+	bridgeAttrRouteDist:       {Ze: "rd", Arity: arityValue},
+	bridgeAttrPathInformation: {Ze: bridgeAttrPathInformation, Arity: arityValue},
+	bridgeAttrWatchdog:        {Ze: bridgeAttrWatchdog, Arity: arityValue},
 	"name":                    {Arity: arityValue, WireSilent: true},
 
 	// `split` is not an attribute: it re-cuts the prefix into smaller ones, so
@@ -152,7 +152,7 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 
 		// ExaBGP's `withdraw` flag turns an announce into a withdrawal of the
 		// same route, so it is read here rather than encoded.
-		if key == "withdraw" {
+		if key == withdrawVerb {
 			out.Withdraw = true
 			i++
 			continue
@@ -194,7 +194,7 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 		// as a number, and its own qa/api corpus uses the dotted form. ze reads
 		// a uint32, so the dotted form is converted rather than passed on to
 		// fail at a parser that would name the wrong thing.
-		if attr.Ze == "path-information" {
+		if attr.Ze == bridgeAttrPathInformation {
 			converted, err := pathIDNumber(value)
 			if err != nil {
 				return routeAttributes{}, err
@@ -261,7 +261,7 @@ func splitRouteBody(parts []string) (nlri, attrs []string) {
 // distinguisher out of it, so `nlri ipv4/mup add route-type mup-isd rd 100:100
 // prefix 10.0.1.0/24` arrived at the encoder with no RD at all.
 var bridgeNLRIOwnedAttrs = map[string]bool{
-	"rd": true, "route-distinguisher": true, "label": true, "path-information": true,
+	"rd": true, bridgeAttrRouteDist: true, bridgeAttrLabel: true, bridgeAttrPathInformation: true,
 }
 
 // splitRouteBodyForFamily cuts a route body at the first token that belongs to
@@ -273,7 +273,7 @@ func splitRouteBodyForFamily(family string, parts []string) (nlri, attrs []strin
 		if pluginNLRI && bridgeNLRIOwnedAttrs[key] {
 			continue
 		}
-		if _, known := bridgeRouteAttrs[key]; known || key == "withdraw" {
+		if _, known := bridgeRouteAttrs[key]; known || key == withdrawVerb {
 			return parts[:i], parts[i:]
 		}
 	}
@@ -287,7 +287,7 @@ func splitRouteBodyForFamily(family string, parts []string) (nlri, attrs []strin
 // `mup-isd 10.0.1.0/24` and `shared-join rp 10.99.199.1 group 239.251.255.228`.
 func bridgePluginNLRIFamily(family string) bool {
 	_, safi, ok := strings.Cut(family, "/")
-	return ok && (safi == "mup" || safi == "mvpn")
+	return ok && (safi == bridgeMUPSAFI || safi == "mvpn")
 }
 
 // takeAttrValue reads one attribute's value at index start and answers it with
@@ -360,7 +360,7 @@ var bridgeMUPRouteTypes = map[string]bool{
 // (internal/component/bgp/plugins/nlri/mup/encode.go, EncodeNLRIHex).
 func shapePluginNLRI(family string, tokens []string) []string {
 	_, safi, ok := strings.Cut(family, "/")
-	if !ok || safi != "mup" || len(tokens) < 2 || !bridgeMUPRouteTypes[strings.ToLower(tokens[0])] {
+	if !ok || safi != bridgeMUPSAFI || len(tokens) < 2 || !bridgeMUPRouteTypes[strings.ToLower(tokens[0])] {
 		return tokens
 	}
 

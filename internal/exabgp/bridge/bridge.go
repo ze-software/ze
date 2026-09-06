@@ -236,9 +236,9 @@ func parseFamilyToAFISAFI(family string) (afi, safi uint16) {
 
 	// AFI: ipv4=1, ipv6=2, l2vpn=25
 	switch afiStr {
-	case "ipv4":
+	case bridgeAFIv4:
 		afi = 1
-	case "ipv6":
+	case bridgeAFIv6:
 		afi = 2
 	case "l2vpn":
 		afi = 25
@@ -683,6 +683,13 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writ
 		// BEFORE Nothing: it carries no command and is not an empty line.
 		if translation.Local != LocalNone {
 			b.ack.AnswerLocal(pluginW, translation.Local)
+			continue
+		}
+		// A line whose selector names no ze session reaches nothing and is
+		// still answered: the script sent one command and blocks for one
+		// `done`.
+		if translation.Unmatched {
+			b.ack.WriteAck(pluginW)
 			continue
 		}
 		if translation.Nothing() {

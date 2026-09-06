@@ -678,7 +678,11 @@ func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int, zeB
 	if err != nil {
 		return nil, err
 	}
-	return startExaProcess(ctx, "client", zeBinary, []string{"start", config}, exaBGPClientEnv(test, port, zeBinary, config), nil)
+	client, err := startExaProcess(ctx, "client", zeBinary, []string{"start", config}, exaBGPClientEnv(test, port, zeBinary, config), nil)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func exaBGPServerArgs(test *exabgpTestEntry, port int, saveDir string) []string {
@@ -729,16 +733,36 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, configPath strin
 }
 
 func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary string) (string, error) {
-	var config textbuf.Buffer
-	for _, source := range test.configs {
-		command := exec.CommandContext(ctx, zeBinary, "exabgp", "migrate", source) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
-		output, err := command.Output()
-		if err != nil {
-			return "", fmt.Errorf("migrate %s: %w", source, err)
-		}
-		config.WriteString(absoluteBridgeRun(string(output), filepath.Dir(source)))
-		config.Byte('\n')
+	// One config, the FIRST. A case that names several names them in the order
+	// ze is to load them, and the ones after the first are RELOADS
+	// (exaBGPReloads). Concatenating them into one file was silently wrong: a
+	// second `neighbor` block for the same address overrode the first, so
+	// api-reload's two static routes became one and the withdrawal its fixture
+	// expects on reload could never happen (ai/rules/principles.md).
+	// A case naming SEVERAL configs is testing a RELOAD, and this runner cannot
+	// ask for one. ze reloads on SIGHUP inside the hub (cmd/ze/hub/main_reload.go)
+	// and answers `request reload` over SSH (internal/component/config/cli,
+	// execReloadCommand); the `ze start` this runner launches handles neither, so
+	// a SIGHUP kills it outright, which is how this was found.
+	//
+	// It is REFUSED rather than approximated. The approximation was to
+	// concatenate every config into one file, which is silently wrong: a second
+	// `neighbor` block for the same address overrides the first, so
+	// api-reload.1.conf's two static routes became one and the withdrawal its
+	// fixture expects on reload could never happen (ai/rules/principles.md).
+	if len(test.configs) > 1 {
+		var tb textbuf.Buffer
+		return "", errors.New(tb.Str(test.ciFile).
+			Str(" names ").Int(int64(len(test.configs))).
+			Str(" configs, so it drives a reload, and this runner has no way to ask ze for one: ").
+			Str("`ze start` dies on SIGHUP and `request reload` needs an SSH session").String())
 	}
+	migrated, err := migrateExaBGPConfig(ctx, zeBinary, test.configs[0])
+	if err != nil {
+		return "", err
+	}
+	var config textbuf.Buffer
+	config.WriteString(migrated)
 	// A DIRECTORY per test, not just a file. ze derives its config directory
 	// from its own binary unless ze.config.dir says otherwise
 	// (internal/core/paths.DefaultConfigDir), so every concurrent daemon in this
@@ -982,4 +1006,15 @@ func stopExaProcess(p *exaProcess) {
 		_ = syscall.Kill(-pid, syscall.SIGKILL)
 	}
 	<-p.done
+}
+
+// migrateExaBGPConfig converts one ExaBGP config into ze's syntax, with the
+// bridge's `run` line rooted at the config's own directory.
+func migrateExaBGPConfig(ctx context.Context, zeBinary, source string) (string, error) {
+	command := exec.CommandContext(ctx, zeBinary, "exabgp", "migrate", source) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
+	output, err := command.Output()
+	if err != nil {
+		return "", fmt.Errorf("migrate %s: %w", source, err)
+	}
+	return absoluteBridgeRun(string(output), filepath.Dir(source)), nil
 }

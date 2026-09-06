@@ -57,6 +57,7 @@ All capabilities share a common TLV (Type-Length-Value) format:
 | 9 | 0x09 | Role | RFC 9234 | 1 | Role plugin |
 | 64 | 0x40 | Graceful Restart | RFC 4724 | 2 + 4*n | Core parser |
 | 65 | 0x41 | 4-Byte AS Number | RFC 6793 | 4 | Core parser |
+| 68 | 0x44 | Multisession | draft-ietf-idr-bgp-multisession | 1 + n | Preserved as unknown |
 | 69 | 0x45 | ADD-PATH | RFC 7911 | 4 per family | Core parser |
 | 70 | 0x46 | Enhanced Route Refresh | RFC 7313 | 0 | Core parser |
 | 73 | 0x49 | FQDN | draft-walton-bgp-hostname-capability | Variable | Core parser |
@@ -65,9 +66,37 @@ All capabilities share a common TLV (Type-Length-Value) format:
 | 77 | 0x4D | Link-Local Next Hop | draft-ietf-idr-linklocal-capability | 0 | Preserved as unknown |
 | 128 | 0x80 | Route Refresh (Cisco) | Vendor | 0 | Preserved as unknown |
 | 131 | 0x83 | Multisession (Cisco) | Vendor | Variable | Preserved as unknown |
+| 185 | 0xB9 | Operational Message (ExaBGP) | Vendor | 0 | Preserved as unknown |
 
 The core parser preserves every unrecognized capability as `Unknown`. The BGP
 Role plugin handles code 9 through its capability declaration and OPEN callback.
+
+Ze declares neither multisession code, and no operational code, so it never
+reciprocates any of them. Two consequences follow for an ExaBGP peer:
+
+- Ze ignoring a received code 68 is what RFC 5492 Section 3 asks of a speaker
+  that does not support a capability.
+- An ExaBGP configured with `capability { multi-session; }` still drops the
+  session, because its own rule is that the capability binds both speakers or
+  neither. draft-ietf-idr-bgp-multisession-07 Section 11 states it: "If a BGP
+  speaker receives OPEN message that doesn't include Multisession Capability
+  and local BGP speaker is required to use multisession (e.g. through
+  configuration by operator), the local BGP speaker MUST drop the session".
+  `ze exabgp migrate` therefore WARNS, naming the peer and the keyword: the
+  migrated peer does not require multi-session, so its session comes up where
+  the ExaBGP one would have dropped. That is a behaviour change the operator has
+  to see, which is what the warning is for.
+
+Code 185 is not an IANA assignment. ExaBGP picked it for itself and marks it
+"ExaBGP only", because draft-ietf-idr-operational-message-00 Section 9 requests
+a capability code and a BGP message type from IANA and neither was allocated
+before the draft expired. Ze does not put a private codepoint on the wire.
+
+Upstream (exa-networks/exabgp):
+`src/exabgp/bgp/message/open/capability/capability.py`, `MULTISESSION` 0x44 and
+`OPERATIONAL` 0xB9.
+
+<!-- source: internal/exabgp/migration/migrate_unimplemented.go -- untranslatedCapabilityWarning -->
 <!-- source: internal/core/bgp/capability/capability.go -- Code constants, parseCapability, Unknown -->
 <!-- source: internal/component/bgp/plugins/role/config.go -- extractRoleCapabilities -->
 <!-- source: internal/component/bgp/plugins/role/validate.go -- extractRolesFromCaps -->

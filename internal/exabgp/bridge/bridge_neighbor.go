@@ -210,14 +210,14 @@ type neighborParameter struct {
 var neighborCreateParameters = map[string]neighborParameter{
 	// ExaBGP accepts two spellings for the local address, and they are one
 	// parameter: a line naming both is a duplicate, as it is in ExaBGP.
-	"local-address":    {keyword: zeKeywordLocalAddress, convert: neighborValueAsIs},
-	"local-ip":         {keyword: zeKeywordLocalAddress, convert: neighborValueAsIs},
-	"local-as":         {keyword: zeKeywordLocalAS, convert: neighborValueAsIs},
-	"peer-as":          {keyword: zeKeywordASN, convert: neighborValueAsIs},
-	"router-id":        {keyword: zeKeywordRouterID, convert: neighborValueAsIs},
-	"family-allowed":   {keyword: zeKeywordFamily, convert: neighborFamilies},
-	"graceful-restart": {keyword: zeKeywordGracefulRestart, convert: neighborValueAsIs},
-	"group-updates":    {keyword: zeKeywordGroupUpdates, convert: neighborValueAsIs},
+	"local-address":     {keyword: zeKeywordLocalAddress, convert: neighborValueAsIs},
+	"local-ip":          {keyword: zeKeywordLocalAddress, convert: neighborValueAsIs},
+	"local-as":          {keyword: zeKeywordLocalAS, convert: neighborValueAsIs},
+	"peer-as":           {keyword: zeKeywordASN, convert: neighborValueAsIs},
+	"router-id":         {keyword: zeKeywordRouterID, convert: neighborValueAsIs},
+	bridgeFamilyAllowed: {keyword: zeKeywordFamily, convert: neighborFamilies},
+	"graceful-restart":  {keyword: zeKeywordGracefulRestart, convert: neighborValueAsIs},
+	"group-updates":     {keyword: zeKeywordGroupUpdates, convert: neighborValueAsIs},
 }
 
 // neighborCreateOrder is the order the keywords are written in, so one line

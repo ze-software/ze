@@ -347,7 +347,7 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 		peerName := derivePeerName(expandedTree, &peerCounter)
 
 		// Convert neighbor to peer.
-		peer, err := migrateSingleNeighbor(expandedTree, result)
+		peer, err := migrateSingleNeighbor(expandedTree, peerName, result)
 		if err != nil {
 			return fmt.Errorf("neighbor %s: %w", addr, err)
 		}
@@ -775,24 +775,35 @@ func copySimpleFields(src, dst *config.Tree) {
 	}
 }
 
+// capabilityEnableFields and capabilityValueFields are the ExaBGP capability
+// keywords migrateCapability carries across, the first group as `<field>
+// enable` and the second keeping the value ExaBGP gave it. They are declared
+// here, where the translation happens, and read by untranslatedCapabilities
+// (migrate_unimplemented.go), which warns about every key in the block that is
+// in neither group. A keyword this function grows a branch for joins a list
+// here, and the warning stops naming it.
+var (
+	capabilityEnableFields = []string{"route-refresh", "extended-message", "link-local-nexthop"}
+	capabilityValueFields  = []string{"graceful-restart", "software-version"}
+)
+
 // migrateCapability converts ExaBGP capability syntax to ZeBGP.
 // ExaBGP: capability { route-refresh; graceful-restart 120; }.
 // ZeBGP: session { capability { route-refresh enable; graceful-restart 120; } }.
 //
 // RFC 8950: Infers nexthop capability from nexthop { } block presence.
-func migrateCapability(src, dst *config.Tree) error {
+//
+// It answers nothing: every keyword it does not translate is REPORTED by
+// migrateSingleNeighbor rather than refused here (migrate_unimplemented.go), so
+// there is no longer an ExaBGP capability block this function can fail on.
+func migrateCapability(src, dst *config.Tree) {
 	srcCap := src.GetContainer("capability")
 	dstCap := config.NewTree()
 	hasCapabilities := false
 
 	if srcCap != nil {
-		if err := refuseUnimplementedCapabilities(srcCap); err != nil {
-			return err
-		}
-
 		// Fields that need "enable" suffix (Flex type in schema).
-		enableFields := []string{"route-refresh", "extended-message", "link-local-nexthop"}
-		for _, field := range enableFields {
+		for _, field := range capabilityEnableFields {
 			if _, ok := srcCap.GetFlex(field); ok {
 				dstCap.Set(field, "enable")
 				hasCapabilities = true
@@ -810,8 +821,7 @@ func migrateCapability(src, dst *config.Tree) error {
 		}
 
 		// Fields that keep their values (Flex type in schema).
-		valueFields := []string{"graceful-restart", "software-version"}
-		for _, field := range valueFields {
+		for _, field := range capabilityValueFields {
 			// Check for container form first (e.g., graceful-restart { restart-time 120; }).
 			if container := srcCap.GetContainer(field); container != nil {
 				// Copy the container as-is.
@@ -869,7 +879,6 @@ func migrateCapability(src, dst *config.Tree) error {
 		}
 		sessionContainer.SetContainer("capability", dstCap)
 	}
-	return nil
 }
 
 const dirSendReceive = "send/receive"
@@ -1248,16 +1257,21 @@ func copyOtherItems(src *config.Tree, result *MigrateResult) {
 }
 
 // migrateSingleNeighbor converts a single neighbor tree to peer format.
-// Used for both top-level neighbors and template neighbors.
-func migrateSingleNeighbor(neighborTree *config.Tree, result *MigrateResult) (*config.Tree, error) {
+// Used for both top-level neighbors and template neighbors. peerName is the
+// name the emitted peer carries, and the warnings this function writes name it
+// so an operator with several neighbors knows which one they are about.
+func migrateSingleNeighbor(neighborTree *config.Tree, peerName string, result *MigrateResult) (*config.Tree, error) {
 	peer := config.NewTree()
 
 	// Copy simple fields.
 	copySimpleFields(neighborTree, peer)
 
 	// Migrate capability block.
-	if err := migrateCapability(neighborTree, peer); err != nil {
-		return nil, err
+	migrateCapability(neighborTree, peer)
+
+	// Say what the capability block asked for and the migration left out.
+	if warning := untranslatedCapabilityWarning(neighborTree.GetContainer("capability"), peerName); warning != "" {
+		result.Warnings = append(result.Warnings, warning)
 	}
 
 	// Copy other containers (family, etc.).

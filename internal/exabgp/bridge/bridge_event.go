@@ -395,6 +395,10 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 		}
 	}
 
+	// Literals rather than announceVerb and withdrawVerb, which spell the same
+	// two words for a different fact: those name the API COMMAND grammar, these
+	// name keys in ExaBGP's UPDATE JSON. One declaration serving both would let
+	// a rename of either follow the other in silence.
 	if len(announce) > 0 {
 		update["announce"] = announce
 	}

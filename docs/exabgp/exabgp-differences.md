@@ -55,29 +55,38 @@ Upstream (exa-networks/exabgp): `src/exabgp/reactor/api/command/limit.py`,
 
 **ZeBGP behavior:**
 - Uses the send verb and the protocol keyword: `send bgp <IP> update text ...`
-- The ExaBGP bridge PARSES all six qualifiers and then DISCARDS them. The
+- The ExaBGP bridge PARSES all six qualifiers and DISCARDS five of them. The
   command reaches the session the address names.
 - A Ze selector names a peer by address, name, ASN or glob. It cannot conjoin a
   predicate onto an address, so there is nothing to translate a qualifier into.
-<!-- source: internal/exabgp/bridge/bridge_selector.go -- bridgeSelectorKeys, splitNeighborSelector -->
+- The exception is `family-allowed in-open`, which no Ze session can satisfy.
+  ExaBGP's `in-open` names a session that negotiates the families the OPEN
+  carried; Ze STATES the families its OPEN offers and has no mode that defers
+  the choice. The bridge therefore treats the address it qualifies as excluded,
+  dispatches nothing, and still answers `done`, which is what ExaBGP does with a
+  command whose selector matches no session.
+<!-- source: internal/exabgp/bridge/bridge_selector.go -- bridgeSelectorKeys, splitNeighborSelector, selectorExcludes -->
 
 **RFC compliance:**
 - N/A - This is API syntax, not BGP protocol
 
 **Impact:**
-- A qualified command is accepted and reaches the peer the address names. The
-  qualifier changes nothing.
+- A qualified command is accepted and reaches the peer the address names,
+  unless the qualifier is `family-allowed in-open`.
 - The cost is bounded in one direction. An address resolves to at most one
   session in Ze, so a qualifier could only ever have REJECTED that session. Ze
   therefore sends where ExaBGP would have stayed silent, and never the reverse.
-- A test that needs a qualifier to EXCLUDE a session is not supported.
+- One qualifier VALUE does exclude, because it can never match: see
+  `family-allowed in-open` above. Any other value could name Ze's single
+  session, so it is discarded rather than evaluated.
 
 **Tests affected:**
 - `test/exabgp-compat/etc/run/api-multisession.run` sends
   `neighbor 127.0.0.1 local-as 1 family-allowed in-open announce route 9.9.9.9/24`,
   which ExaBGP drops because the session is named `family-allowed ipv4-unicast`
   under `multi-session`. `test/exabgp-compat/api/api-multisession.ci` expects
-  four UPDATE frames from five commands for that reason. Ze would send all five.
+  four UPDATE frames from five commands for that reason, and Ze now sends four
+  and acknowledges five.
 - `test/exabgp-compat/etc/run/api-announcement.run` uses the other qualifier
   types, none of which excludes a session there.
 
@@ -90,7 +99,9 @@ Upstream (exa-networks/exabgp): `src/exabgp/reactor/api/command/limit.py`,
 
 **Date:** 2025-12-23. Corrected 2026-09-06: the bridge parses the qualifiers
 since 2026-09-05, so a qualified command no longer fails to translate. The
-earlier text said such commands "will NOT work".
+earlier text said such commands "will NOT work". Corrected again the same day:
+`family-allowed in-open` now excludes, so the claim that no qualifier ever does
+is gone.
 
 ---
 

@@ -103,16 +103,16 @@ func TestMigrateCompatFixtures(t *testing.T) {
 	}
 }
 
-// TestMigrateCompatFixturesRefusingUnimplemented pins the two ExaBGP
+// TestMigrateCompatFixturesWarningUnimplemented pins the two ExaBGP
 // capabilities in the ported suite that ze has no implementation of, and pins
 // that a config asking for both is told about both in one run.
 //
-// VALIDATES: the migration stops and names every capability it refuses.
-// PREVENTS: two failures. The refusal being softened into a warning, which
-// would hand the operator a config whose sessions negotiate less than the
-// ExaBGP config asked for. And the refusal naming only the first, which sent
-// the operator of api-open.conf back for a second run to learn about the
-// second.
+// VALIDATES: the migration converts the config and names every capability it
+// left out, once per peer that asked for one.
+// PREVENTS: two failures. The drop going silent, which would hand the operator
+// a session that negotiates less than the ExaBGP config asked for with nothing
+// said. And the message naming only the first, which sent the operator of
+// api-open.conf back for a second run to learn about the second.
 //
 // ze sends neither capability. `internal/core/bgp/capability/capability.go`
 // declares codes 1, 2, 5, 6, 9, 64, 65, 69, 70, 73 and 76, and 68
@@ -121,7 +121,7 @@ func TestMigrateCompatFixtures(t *testing.T) {
 // code unallocated, so there is no assigned value to declare. Implementing
 // either extension is what flips this test, and its fixture then joins the
 // table above.
-func TestMigrateCompatFixturesRefusingUnimplemented(t *testing.T) {
+func TestMigrateCompatFixturesWarningUnimplemented(t *testing.T) {
 	for _, testCase := range []struct {
 		fixture string
 		named   []string
@@ -135,13 +135,23 @@ func TestMigrateCompatFixturesRefusingUnimplemented(t *testing.T) {
 				t.Fatalf("parse: %v", err)
 			}
 
-			_, err = MigrateFromExaBGP(tree)
-			if err == nil {
-				t.Fatal("the migration accepted a capability ze does not implement")
+			result, err := MigrateFromExaBGP(tree)
+			if err != nil {
+				t.Fatalf("the migration refused a config it can convert: %v", err)
 			}
+
+			said := strings.Join(result.Warnings, "\n")
 			for _, keyword := range testCase.named {
-				if !strings.Contains(err.Error(), keyword) {
-					t.Errorf("the refusal does not name %q: %v", keyword, err)
+				if !strings.Contains(said, keyword) {
+					t.Errorf("no warning names %q: %q", keyword, result.Warnings)
+				}
+			}
+
+			// The capability the migration left out is not in the output.
+			output := SerializeTree(result.Tree)
+			for _, keyword := range testCase.named {
+				if strings.Contains(output, keyword) {
+					t.Errorf("the migrated config still asks for %q", keyword)
 				}
 			}
 		})

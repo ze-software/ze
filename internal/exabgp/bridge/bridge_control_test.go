@@ -138,3 +138,151 @@ func TestBridgeSAFIListIsOneDeclaration(t *testing.T) {
 	assert.Contains(t, onlyCommand(translation), "ipv4/mvpn")
 	assert.NotContains(t, onlyCommand(translation), "mcast-vpn", "ze does not know that spelling")
 }
+
+// TestBareAddressBecomesAHostRoute pins ExaBGP's own reading of an address
+// written with no prefix length. Its `prefix` parser splits on `/` and takes 32
+// on failure, or 128 when the address holds a colon
+// (src/exabgp/configuration/static/parser.py), and the API reuses that parser.
+//
+// api-check.run writes `neighbor 127.0.0.1 announce route 1.2.3.4 next-hop
+// 5.6.7.8`, and its `.ci` expects 1.2.3.4/32 on the wire. Ze reads a prefix and
+// answered `invalid prefix: 1.2.3.4`, so the bridge acked a route that never
+// left.
+func TestBareAddressBecomesAHostRoute(t *testing.T) {
+	cases := []struct {
+		name string
+		line string
+		want string
+	}{
+		{
+			name: "ipv4 host route",
+			line: "neighbor 127.0.0.1 announce route 1.2.3.4 next-hop 5.6.7.8",
+			want: "send bgp 127.0.0.1 update text nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32",
+		},
+		{
+			name: "ipv6 host route",
+			line: "announce route 2001:db8::1 next-hop 2001:db8::2",
+			want: "send bgp * update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::1/128",
+		},
+		{
+			name: "a stated length is left alone",
+			line: "announce route 10.0.0.0/24 next-hop 1.1.1.1",
+			want: "send bgp * update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24",
+		},
+		{
+			name: "the attributes form completes every prefix it names",
+			line: "announce attributes next-hop 1.1.1.1 nlri 1.2.3.4 5.6.7.8/32",
+			want: "send bgp * update text nhop 1.1.1.1 nlri ipv4/unicast add 1.2.3.4/32 5.6.7.8/32",
+		},
+		{
+			name: "a withdraw completes it too",
+			line: "neighbor 127.0.0.1 withdraw route 1.2.3.4 next-hop 5.6.7.8",
+			want: "send bgp 127.0.0.1 update text nhop 5.6.7.8 nlri ipv4/unicast del 1.2.3.4/32",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			translation, err := TranslateLine(tc.line)
+			if err != nil {
+				t.Fatalf("TranslateLine(%q): %v", tc.line, err)
+			}
+			if len(translation.Commands) != 1 {
+				t.Fatalf("commands = %v, want one", translation.Commands)
+			}
+			if translation.Commands[0] != tc.want {
+				t.Errorf("command = %q, want %q", translation.Commands[0], tc.want)
+			}
+		})
+	}
+}
+
+// TestAFieldValueKeepsItsBareAddress is the negative half. A family whose NLRI
+// is a FIELD LIST carries bare addresses that are values rather than prefixes,
+// so completing one would corrupt the route instead of finishing it.
+func TestAFieldValueKeepsItsBareAddress(t *testing.T) {
+	line := "announce ipv4 mcast-vpn shared-join rp 10.99.199.1 group 239.251.255.228 " +
+		"rd 65000:99999 source-as 65000 next-hop 10.10.6.3"
+	translation, err := TranslateLine(line)
+	if err != nil {
+		t.Fatalf("TranslateLine: %v", err)
+	}
+	if len(translation.Commands) != 1 {
+		t.Fatalf("commands = %v, want one", translation.Commands)
+	}
+	got := translation.Commands[0]
+	for _, unwanted := range []string{"10.99.199.1/32", "239.251.255.228/32"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("command %q gave a field value a prefix length", got)
+		}
+	}
+}
+
+// TestFamilyAllowedInOpenReachesNoSession pins the one selector qualifier that
+// EXCLUDES: `family-allowed in-open`.
+//
+// VALIDATES: a line qualified `family-allowed in-open` dispatches nothing and is
+// still answered, and every other qualifier value still reaches the address.
+// PREVENTS: the route going out. ExaBGP's `in-open` names a session that
+// negotiates the families the OPEN carried; ze STATES the families its OPEN
+// offers and has no such mode, so no ze session is the one that qualifier
+// names (neighborFamilies, bridge_neighbor.go, refuses the same word on
+// `create neighbor`). Sending anyway put a prefix on the wire that ExaBGP would
+// not have sent, which is what `test/exabgp-compat/api/api-multisession.ci`
+// caught: five commands, four expected frames.
+func TestFamilyAllowedInOpenReachesNoSession(t *testing.T) {
+	cases := []struct {
+		name      string
+		line      string
+		unmatched bool
+		want      string
+	}{
+		{
+			name:      "in-open reaches nothing",
+			line:      "neighbor 127.0.0.1 local-as 1 family-allowed in-open announce route 9.9.9.9/24 next-hop 101.1.101.1",
+			unmatched: true,
+		},
+		{
+			name: "a named family still reaches the address",
+			line: "neighbor 127.0.0.1 local-as 1 family-allowed ipv4-unicast announce route 1.2.0.0/24 next-hop 101.1.101.1",
+			want: "send bgp 127.0.0.1 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.2.0.0/24",
+		},
+		{
+			name: "the other qualifiers still reach the address",
+			line: "neighbor 127.0.0.1 local-as 1 peer-as 1 local-ip 127.0.0.1 router-id 1.2.3.4 announce route 1.3.0.0/24 next-hop 101.1.101.1",
+			want: "send bgp 127.0.0.1 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.3.0.0/24",
+		},
+		{
+			name: "one excluded neighbor leaves the other addressed",
+			line: "neighbor 127.0.0.1 family-allowed in-open, neighbor 127.0.0.2 announce route 1.4.0.0/24 next-hop 101.1.101.1",
+			want: "send bgp 127.0.0.2 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.4.0.0/24",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			translation, err := TranslateLine(tc.line)
+			if err != nil {
+				t.Fatalf("TranslateLine(%q): %v", tc.line, err)
+			}
+			if tc.unmatched {
+				if !translation.Unmatched {
+					t.Fatalf("commands = %v, want the line to reach no session", translation.Commands)
+				}
+				if len(translation.Commands) != 0 {
+					t.Errorf("an unmatched line carries commands: %v", translation.Commands)
+				}
+				return
+			}
+			if translation.Unmatched {
+				t.Fatalf("the line reached no session, want %q", tc.want)
+			}
+			if len(translation.Commands) != 1 {
+				t.Fatalf("commands = %v, want one", translation.Commands)
+			}
+			if translation.Commands[0] != tc.want {
+				t.Errorf("command = %q, want %q", translation.Commands[0], tc.want)
+			}
+		})
+	}
+}

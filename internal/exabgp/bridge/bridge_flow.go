@@ -148,7 +148,7 @@ func flowRouteBody(body string) ([]string, bool) {
 // form instead.
 func flowRouteTokens(body string) []string {
 	var tb textbuf.Buffer
-	for i := 0; i < len(body); i++ {
+	for i := range len(body) {
 		switch body[i] {
 		case '{', '}':
 			tb.Byte(' ').Byte(body[i]).Byte(' ')
@@ -169,7 +169,7 @@ func flowRouteFamily(family string) bool {
 	if !ok {
 		return false
 	}
-	if afi != "ipv4" && afi != "ipv6" {
+	if afi != bridgeAFIv4 && afi != bridgeAFIv6 {
 		return false
 	}
 	return safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI
@@ -225,7 +225,7 @@ func (r *flowRoute) readWord(tokens []string, i int) (int, error) {
 	word := strings.ToLower(tokens[i])
 
 	switch word {
-	case "rd", "route-distinguisher":
+	case "rd", bridgeAttrRouteDist:
 		value, next, ok := flowRouteScalar(tokens, i)
 		if !ok {
 			return 0, flowRouteMissingValue(tokens[i])

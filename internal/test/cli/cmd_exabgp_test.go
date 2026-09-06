@@ -1,9 +1,9 @@
 package cli
 
 import (
-	"slices"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"

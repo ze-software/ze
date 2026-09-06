@@ -1336,12 +1336,14 @@ func TestConvertFlexToUpdate(t *testing.T) {
 	}
 }
 
-// TestMigrationRefusesUnsupportedCap verifies migration rejects multi-session, operational.
+// TestMigrationWarnsUnsupportedCap verifies the migration converts a config
+// asking for multi-session or operational, and names the capability it left
+// out in a warning that also names the peer.
 //
-// VALIDATES: AC-21, AC-22 — migration errors on unsupported capabilities.
+// VALIDATES: AC-21, AC-22 -- migration reports the capabilities it drops.
 // PREVENTS: Silently migrating capabilities with no ze runtime implementation.
 // Note: aigp was removed from this list after AIGP support was implemented (RFC 7311).
-func TestMigrationRefusesUnsupportedCap(t *testing.T) {
+func TestMigrationWarnsUnsupportedCap(t *testing.T) {
 	tests := []struct {
 		name string
 		cap  string
@@ -1363,9 +1365,13 @@ neighbor 10.0.0.1 {
 			tree, err := ParseExaBGPConfig(input)
 			require.NoError(t, err, "parse")
 
-			_, err = MigrateFromExaBGP(tree)
-			require.Error(t, err, "expected error for unsupported capability %q", tt.cap)
-			assert.Contains(t, err.Error(), "unsupported capability")
+			result, err := MigrateFromExaBGP(tree)
+			require.NoError(t, err, "migrate")
+
+			said := strings.Join(result.Warnings, "\n")
+			assert.Contains(t, said, "does not translate")
+			assert.Contains(t, said, tt.cap)
+			assert.NotContains(t, SerializeTree(result.Tree), tt.cap)
 		})
 	}
 }

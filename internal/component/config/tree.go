@@ -624,6 +624,28 @@ func (t *Tree) Values() []string {
 	return keys
 }
 
+// MultiValueNames returns the names held in multiValues, sorted.
+//
+// Values() answers the keys of the scalar `values` map and nothing else, so a
+// leaf the parser routed to multiValues -- every ze:syntax "flex" node written
+// as `<keyword> <word>;` lands there (parser.go, the Flex branch) -- is
+// reachable by name through GetFlex and invisible to a caller enumerating the
+// node. That gap is how the ExaBGP migration dropped `capability { aigp
+// enable; }` without a word: it read the keywords it knew and had no way to see
+// the rest (plan/journal/silent-fall-through.md).
+//
+// Sorted rather than in insertion order, because multiValues records none.
+func (t *Tree) MultiValueNames() []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	names := make([]string, 0, len(t.multiValues))
+	for k := range t.multiValues {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
+}
+
 // GetOrCreateContainer returns an existing container or creates a new one.
 // Used by migrations to ensure a container exists before adding to it.
 func (t *Tree) GetOrCreateContainer(name string) *Tree {

@@ -35,7 +35,7 @@ var errSplitLength = errors.New("invalid split length")
 // It reports false when the line is not an End-of-RIB.
 func convertEOR(selector, rest string, families []string) ([]string, bool, error) {
 	fields := strings.Fields(strings.TrimSpace(rest))
-	if len(fields) < 2 || !strings.EqualFold(fields[0], "announce") || !strings.EqualFold(fields[1], "eor") {
+	if len(fields) < 2 || !strings.EqualFold(fields[0], announceVerb) || !strings.EqualFold(fields[1], "eor") {
 		return nil, false, nil
 	}
 
@@ -75,7 +75,7 @@ func eorCommand(selector, family string) string {
 
 // bridgeAFI is the address family set ExaBGP names in a family-qualified line.
 // Source: ExaBGP src/exabgp/configuration/neighbor/family.py.
-var bridgeAFI = map[string]bool{"ipv4": true, "ipv6": true, "l2vpn": true}
+var bridgeAFI = map[string]bool{bridgeAFIv4: true, bridgeAFIv6: true, "l2vpn": true}
 
 // convertAttributesForm translates ExaBGP's `announce attributes <attrs> nlri
 // <prefix>...`, which states one attribute set and then every prefix that
@@ -124,6 +124,7 @@ func convertAttributesForm(selector, rest, verb string) ([]string, bool, error) 
 	// naming them all. Whether they share an UPDATE on the wire is the
 	// destination peer's `behavior { group-updates }` leaf, not the bridge's.
 	family := familyForAttributes(attrs, prefixes[0])
+	prefixes = defaultPrefixLengths(family, prefixes)
 	return oneCommandPerNLRI(selector, family, verb, attrs, prefixes, false), true, nil
 }
 
@@ -131,19 +132,72 @@ func convertAttributesForm(selector, rest, verb string) ([]string, bool, error) 
 // prefix that carries it. A route distinguisher makes it a VPN route, a bare
 // label makes it a labeled one, and the prefix decides the AFI.
 func familyForAttributes(attrs routeAttributes, prefix string) string {
-	afi := "ipv4"
+	afi := bridgeAFIv4
 	if strings.Contains(prefix, ":") {
-		afi = "ipv6"
+		afi = bridgeAFIv6
 	}
-	safi := "unicast"
+	safi := bridgeUnicastSAFI
 	switch {
 	case attrs.Has("rd"):
-		safi = "mpls-vpn"
-	case attrs.Has("label"):
-		safi = "nlri-mpls"
+		safi = bridgeVPNSAFI
+	case attrs.Has(bridgeAttrLabel):
+		safi = bridgeLabeledSAFI
 	}
 	var tb textbuf.Buffer
 	return tb.Str(afi).Byte('/').Str(safi).String()
+}
+
+// bridgePrefixSAFI are the SAFIs whose NLRI is a plain prefix, which is the set
+// ExaBGP reads with its `prefix` parser rather than with a per-family one.
+//
+// The families NOT here carry a field list as their NLRI: mup writes `mup-isd
+// 10.0.1.0/24`, mvpn writes `shared-join rp 10.99.199.1 group 239.251.255.228`,
+// and flowspec writes a match block. Their bare addresses are FIELD VALUES, so
+// giving one a prefix length would corrupt the route rather than complete it.
+var bridgePrefixSAFI = map[string]bool{
+	bridgeUnicastSAFI:   true,
+	bridgeMulticastSAFI: true,
+	bridgeLabeledSAFI:   true,
+	bridgeVPNSAFI:       true,
+}
+
+// defaultPrefixLengths gives a bare address the host length ExaBGP gives it.
+//
+// ExaBGP writes a host route as an address alone. Its `prefix` parser splits on
+// `/`, and on failure takes 32, or 128 when the address holds a colon
+// (src/exabgp/configuration/static/parser.py). The API reuses that parser, so a
+// script may write `announce route 1.2.3.4 next-hop 5.6.7.8` and mean
+// 1.2.3.4/32. Ze reads a prefix and answers `invalid prefix: 1.2.3.4`, so the
+// bridge completes the token rather than handing ze one it cannot read.
+//
+// api-check writes exactly that line, and it is the last thing between that
+// case and the wire: its `.ci` expects the /32 form in the frame.
+//
+// It is called at the two points a token run becomes NLRI: buildRouteCommand,
+// before `split /<n>` cuts a prefix that must already be one, and
+// convertAttributesForm, whose `nlri` section names the prefixes itself.
+func defaultPrefixLengths(family string, tokens []string) []string {
+	_, safi, ok := strings.Cut(family, "/")
+	if !ok || !bridgePrefixSAFI[safi] {
+		return tokens
+	}
+
+	var completed []string
+	for i, token := range tokens {
+		address, err := netip.ParseAddr(token)
+		if err != nil {
+			continue
+		}
+		if completed == nil {
+			completed = make([]string, len(tokens))
+			copy(completed, tokens)
+		}
+		completed[i] = netip.PrefixFrom(address, address.BitLen()).String()
+	}
+	if completed == nil {
+		return tokens
+	}
+	return completed
 }
 
 // splitPrefix cuts one prefix into every subnet of the given length, which is

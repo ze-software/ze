@@ -272,6 +272,12 @@ func (s *script) line(ctx context.Context, d Dispatcher, text string) {
 		s.ack.AnswerLocal(s.writer(), translation.Local)
 		return
 	}
+	// A line whose selector names no ze session reaches nothing and is still
+	// answered: the script sent one command and blocks for one `done`.
+	if translation.Unmatched {
+		s.ack.WriteAck(s.writer())
+		return
+	}
 	if translation.Nothing() {
 		return
 	}
