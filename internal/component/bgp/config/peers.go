@@ -501,7 +501,7 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 				OriginatorID:      attrs.OriginatorID,
 				ClusterList:       attrs.ClusterList,
 				AIGPMetric:        attrs.AIGPMetric,
-				PrefixSIDBytes:    attrs.PrefixSID.Bytes,
+				PrefixSIDBytes:    attrs.PrefixSID,
 				RawAttributes:     rawAttrs,
 			}
 
@@ -786,7 +786,10 @@ func reportsRoleless(ps *reactor.PeerSettings) bool {
 	if ps.PeerAS == 0 {
 		return true
 	}
-	return ps.PeerAS != ps.LocalAS
+	// The one rule (reactor, session_as_migration.go), not the equality re-derived here. A
+	// session running under the RFC 7705 Section 4.2 migration ASN is iBGP, so it owes no
+	// RFC 9234 role and naming it would put every migrating route reflector in this warning.
+	return ps.IsEBGP()
 }
 
 // warnPeersWithoutRole logs ONE line for the whole config, naming how many

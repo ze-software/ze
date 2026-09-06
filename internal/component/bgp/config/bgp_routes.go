@@ -457,7 +457,7 @@ func buildConfigRouteRequest(attr *config.Tree, content []string, isIPv6 bool) (
 		ExtCommunity:     parsed.ExtendedCommunity.Bytes,
 		IPv6ExtCommunity: ipv6ExtComm,
 		Community:        parsed.Community.Values,
-		PrefixSID:        parsed.PrefixSID.Bytes,
+		PrefixSID:        parsed.PrefixSID,
 		OriginatorID:     parsed.OriginatorID,
 		ClusterList:      parsed.ClusterList,
 		MED:              parsed.MED,

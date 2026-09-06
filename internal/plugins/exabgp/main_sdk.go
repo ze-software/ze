@@ -1,5 +1,6 @@
-// Design: docs/architecture/core-design.md — SDK/TLS connect-back mode for engine-launched bridge
-// Overview: main.go — exabgp CLI entry point and flag parsing
+// Design: docs/architecture/exabgp-bridge.md -- external SDK/TLS runner
+// Overview: main.go -- exabgp CLI entry point and flag parsing
+// Related: bridgerun/fleet.go -- the scripts both runners share
 //
 // When ze's process manager launches the exabgp bridge, it sets
 // ZE_PLUGIN_HUB_TOKEN (plus host/port). The bridge detects this and
@@ -8,24 +9,27 @@
 package exabgp
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
-	"os/exec"
-	"sync"
+	"path/filepath"
 
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
+	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // runSDKMode runs the ExaBGP bridge as an external plugin via TLS connect-back.
-// The SDK handles the 5-stage startup protocol and event loop. The bridge
-// translates between ze JSON events and ExaBGP JSON/text formats.
+// The SDK handles the 5-stage startup protocol and event loop. The scripts are
+// run by a bridgerun.Fleet, the same one the internal runner uses, so the fan-out
+// to every script's stdin and the read of every script's stdout are written once
+// (internal/plugins/exabgp/bridgeplugin/internal.go).
+//
+// This entry point carries ONE script, the command line the CLI was given. The
+// config route carries the whole set an ExaBGP config declares, because that is
+// the route `ze exabgp migrate` writes.
 //
 // Returns exit code (0 = success, 1 = error).
 func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh bool, addPath string) int {
@@ -71,109 +75,23 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	// Subscribe to all events using text encoding (the bridge translates text events).
 	p.SetStartupSubscriptions([]string{"*"}, nil, "")
 
-	// Build the ExaBGP subprocess and its pipes. It is NOT started here: the
-	// OnAllPluginsReady registration below starts it, and says what an early
-	// start cost.
-	//nolint:gosec // User-provided plugin command is intentional.
-	cmd := exec.CommandContext(ctx, pluginCmd[0], pluginCmd[1:]...)
-	stdinPipe, err := cmd.StdinPipe()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: stdin pipe: %v\n", err)
-		return exitError
-	}
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: stdout pipe: %v\n", err)
-		return exitError
-	}
-	cmd.Stderr = os.Stderr
+	// The script is NOT started here: the OnAllPluginsReady registration below
+	// starts it, and says what an early start cost.
+	//
+	// The process manager gives no respawn setting to this entry point, so the
+	// script keeps ExaBGP's default: a script that exits is started again
+	// (bridgerun/respawn.go states the rate limit that bounds it).
+	fleet := bridgerun.New(slogutil.Logger("exabgp-bridge"), families, []bridgerun.Script{{
+		Name:    filepath.Base(pluginCmd[0]),
+		Argv:    pluginCmd,
+		Respawn: true,
+	}})
 
-	// Register event handler: ze events -> ExaBGP JSON on subprocess stdin.
+	// ze events -> ExaBGP JSON on the script's stdin.
 	p.OnEvent(func(event string) error {
-		var zebgp map[string]any
-		if err := json.Unmarshal([]byte(event), &zebgp); err != nil {
-			slog.Warn("sdk: invalid JSON event", "error", err)
-			return nil
-		}
-		exabgpJSON := bridge.ZebgpToExabgpJSON(zebgp)
-		out, err := json.Marshal(exabgpJSON)
-		if err != nil {
-			slog.Warn("sdk: marshal ExaBGP JSON failed", "error", err)
-			return nil
-		}
-		if _, err := fmt.Fprintln(stdinPipe, string(out)); err != nil { //nolint:errcheck // output
-			slog.Warn("sdk: write to plugin failed", "error", err)
-		}
+		fleet.Broadcast(event)
 		return nil
 	})
-
-	// Read subprocess stdout: ExaBGP commands -> ze dispatch.
-	ack := bridge.NewAckMode()
-	var wg sync.WaitGroup
-	readScript := func() {
-		scanner := bufio.NewScanner(stdoutPipe)
-		for scanner.Scan() {
-			if ctx.Err() != nil {
-				return
-			}
-			line := scanner.Text()
-			if line == "" {
-				continue
-			}
-
-			translation, err := bridge.TranslateLine(line)
-			if err != nil {
-				// The bridge names the line it refused rather than handing an
-				// untranslated line to ze's dispatcher, where it would die as an
-				// unknown command with no mention of the bridge.
-				slog.Warn("sdk: line refused", "error", err)
-				continue
-			}
-			// A local action is answered by the bridge itself, so it is read
-			// BEFORE Nothing: it carries no command and is not an empty line.
-			if translation.Local != bridge.LocalNone {
-				ack.AnswerLocal(stdinPipe, translation.Local)
-				continue
-			}
-			if translation.Nothing() {
-				continue
-			}
-
-			// One ExaBGP line can be several ze commands, because ExaBGP puts
-			// each prefix on its own UPDATE. The script wrote one line and
-			// blocks for one answer, so it is acked once, after the last.
-			failed := false
-			for _, command := range translation.Commands {
-				if _, _, err := p.DispatchCommand(ctx, command); err != nil {
-					slog.Warn("sdk: dispatch command failed", "error", err, "cmd", command)
-					ack.WriteError(stdinPipe, err.Error())
-					failed = true
-					break
-				}
-			}
-			if failed {
-				continue
-			}
-			// The script is waiting for this. An ExaBGP API client sends one
-			// command, blocks for `done`, and gives up after two seconds, so a
-			// runner that dispatches without acking delivers exactly one command
-			// per script however well the translation works.
-			ack.WriteAck(stdinPipe)
-
-			// For route commands, inject a flush so the forward pool drains. The
-			// selector is the one the translator used.
-			if translation.Route {
-				var tb textbuf.Buffer
-				flushCmd := tb.Str("request peer ").Str(translation.Selector).Str(" flush").String()
-				if _, _, err := p.DispatchCommand(ctx, flushCmd); err != nil {
-					slog.Warn("sdk: flush failed", "error", err, "peer", translation.Selector)
-				}
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			slog.Warn("sdk: plugin stdout scanner error", "error", err)
-		}
-	}
 
 	// The script starts once the engine has loaded every plugin in every
 	// startup phase and frozen the dispatcher registry.
@@ -187,13 +105,7 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	// -- so even OnStarted is too early, because a target in a later startup
 	// phase has not registered its command yet
 	// (pkg/plugin/sdk/sdk_callbacks.go, OnAllPluginsReady).
-	p.OnAllPluginsReady(func() error {
-		if err := cmd.Start(); err != nil {
-			return err
-		}
-		wg.Go(readScript)
-		return nil
-	})
+	p.OnAllPluginsReady(func() error { return fleet.Start(ctx, p) })
 
 	// Run SDK event loop (blocks until bye or context cancel).
 	reg := sdk.Registration{
@@ -206,10 +118,7 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 		}
 	}
 
-	// Clean up subprocess.
-	stdinPipe.Close() //nolint:errcheck,gosec // trigger EOF for subprocess
-	_ = cmd.Wait()
-	wg.Wait()
+	fleet.Stop()
 
 	return exitOK
 }

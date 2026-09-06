@@ -973,6 +973,19 @@ func EncodeNLRIByFamily(family string, args []string) (string, error) {
 	return "", fmt.Errorf("no NLRI encoder for family %s", family)
 }
 
+// HasNLRIEncoderForFamily reports whether the plugin registered for a family
+// carries an in-process NLRI encoder, so a caller can ask whether
+// EncodeNLRIByFamily will answer before it builds the argument list.
+// It exists so no surface has to keep its own list of encodable families beside
+// this registry: the CLI text parser asks it which families it can accept.
+func HasNLRIEncoderForFamily(family string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	reg := familyIndex[family]
+	return reg != nil && reg.InProcessNLRIEncoder != nil
+}
+
 // RouteEncoderByFamily finds the plugin registered for a family and returns
 // its in-process route encoder. Returns nil if no encoder is registered.
 func RouteEncoderByFamily(family string) func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {

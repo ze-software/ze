@@ -191,6 +191,9 @@ flow {
             protocol =tcp;
             port [ =80 =443 ];
         }
+        scope {
+            interface-set [ transitive:input:1234:10 ];
+        }
         then {
             rate-limit 1000;
             redirect 65000:100;
@@ -198,6 +201,29 @@ flow {
     }
 }
 ```
+
+### Scope
+
+The `scope` block is the third section of a flow route. It holds interface-set
+extended communities, which tell the receiver to apply the filter on one set of
+interfaces and in one direction (draft-ietf-idr-flowspec-interfaceset).
+
+Each value takes one of two forms:
+
+```
+<transitive|non-transitive>:<input|output|input-output>:<asn>:<group-id>
+<input|output|input-output>:<asn>:<group-id>
+```
+
+The second form is transitive. The group identifier is a 14-bit number, so it
+goes from 0 to 16383.
+
+ze has no keyword for this extended community, so the migration writes the eight
+octets in the hexadecimal form the ze parser accepts. `interface-set [
+non-transitive:input:3405770241:1 ]` becomes
+`extended-community [0x4702caffee014001]`, and it reaches the wire as the same
+octets ExaBGP sends.
+<!-- source: internal/exabgp/migration/migrate_flow_scope.go -- interface-set conversion -->
 
 ---
 

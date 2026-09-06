@@ -38,65 +38,12 @@ var (
 // the generic path attributes from the pre-parsed attribute block. MVPN sets
 // Group=true so the reactor packs same-attribute routes into one UPDATE.
 func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, error) {
-	if len(req.Content) == 0 {
-		return registry.PluginRoute{}, errMVPNMissingRouteType
-	}
-
-	var routeType byte
-	switch req.Content[0] {
-	case "source-ad":
-		routeType = byte(MVPNSourceActive)
-	case "shared-join":
-		routeType = byte(MVPNSharedTreeJoin)
-	case "source-join":
-		routeType = byte(MVPNSourceTreeJoin)
-	default:
-		return registry.PluginRoute{}, fmt.Errorf("unknown MVPN route type %q", req.Content[0])
-	}
-
-	var source, group, rdStr string
-	var sourceAS uint32
-	for i := 1; i < len(req.Content); i += 2 {
-		key := req.Content[i]
-		if i+1 >= len(req.Content) {
-			return registry.PluginRoute{}, fmt.Errorf("missing value for %s", key)
-		}
-		val := req.Content[i+1]
-		switch key {
-		case "rp", "source":
-			source = val
-		case "group":
-			group = val
-		case "rd":
-			rdStr = val
-		case "source-as":
-			n, err := strconv.ParseUint(val, 10, 32)
-			if err != nil {
-				return registry.PluginRoute{}, fmt.Errorf("mvpn source-as %q: %w", val, err)
-			}
-			sourceAS = uint32(n)
-		default:
-			return registry.PluginRoute{}, fmt.Errorf("unknown MVPN keyword: %s", key)
-		}
-	}
-
-	if rdStr == "" {
-		return registry.PluginRoute{}, errMVPNMissingRD
-	}
-	rdBytes, err := rdStringToBytes(rdStr)
+	fields, err := parseMVPNFields(req.Content, req.IsIPv6)
 	if err != nil {
-		return registry.PluginRoute{}, fmt.Errorf("mvpn rd: %w", err)
-	}
-	srcAddr, err := netip.ParseAddr(source)
-	if err != nil {
-		return registry.PluginRoute{}, fmt.Errorf("mvpn source: %w", err)
-	}
-	grpAddr, err := netip.ParseAddr(group)
-	if err != nil {
-		return registry.PluginRoute{}, fmt.Errorf("mvpn group: %w", err)
+		return registry.PluginRoute{}, err
 	}
 
-	nlri, err := mvpnNLRI(routeType, rdBytes, sourceAS, srcAddr, grpAddr)
+	nlri, err := mvpnNLRI(fields.routeType, fields.rd, fields.sourceAS, fields.source, fields.group)
 	if err != nil {
 		return registry.PluginRoute{}, err
 	}

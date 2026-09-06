@@ -8,17 +8,25 @@ module ze-exabgp-bridge-conf {
     description
         "In-process ExaBGP compatibility bridge configuration for Ze. The
          bridge runs as an internal plugin (plugin { internal exabgp-bridge })
-         and spawns the operator's ExaBGP-format script as a subprocess,
-         translating between ze JSON events and the external JSON/text command
-         formats. The equivalent external form is `ze exabgp plugin <cmd>`
-         launched by the process manager; internal mode is additive and needs
-         the script command delivered through this config root rather than the
-         process-manager `run` line.
+         and spawns every ExaBGP-format script the process list declares as a
+         subprocess, translating between ze JSON events and the external
+         JSON/text command formats. The equivalent external form is
+         `ze exabgp plugin <cmd>` launched by the process manager, which carries
+         one script; internal mode is additive and needs the script commands
+         delivered through this config root rather than the process-manager
+         `run` line.
 
          The settings nest under a top-level `exabgp` container so that root
          stays available for future exabgp-related configuration; the bridge
          itself lives in the `bridge` child container (user directive
          2026-07-09). The registry plugin name remains exabgp-bridge.";
+
+    revision 2026-09-06 {
+        description
+            "Replace the single run leaf with a process list. An ExaBGP config
+             declares any number of process blocks, and the bridge ran one of
+             them.";
+    }
 
     revision 2026-07-09 {
         description "Initial revision (spec-followup-subsystem AC-1).";
@@ -37,14 +45,43 @@ module ze-exabgp-bridge-conf {
             ze:help "Present this container to configure the internal exabgp-bridge
 plugin.";
 
-            leaf run {
-                type string {
-                    length "1..4096";
+            list process {
+                key "name";
+                description "One ExaBGP-format script the bridge runs as a subprocess.";
+                ze:help "One block per script. An ExaBGP configuration declares the same set as
+'process <name> { run ... }', and the migration writes one block here for each of them. Ze
+starts every block, sends every event to every script, and reads commands from every script.
+The bridge does nothing until one block names a run command.";
+
+                leaf name {
+                    type string {
+                        length "1..64";
+                    }
+                    description "Name of the script, as the ExaBGP process block spelled it.";
+                    ze:help "The key of the block. Ze puts the name in its log lines, and an
+ExaBGP neighbor's 'api { processes [ ... ] }' list refers to a script by this name. Keep the
+name the ExaBGP configuration used.";
                 }
-                description "Command line of the ExaBGP-format script the bridge runs as a subprocess.";
-                ze:help "Two examples are './plugin.py' and 'python3 /opt/plugin.py'. Ze
+
+                leaf run {
+                    type string {
+                        length "1..4096";
+                    }
+                    description "Command line of the script.";
+                    ze:help "Two examples are './plugin.py' and 'python3 /opt/plugin.py'. Ze
 splits the line on whitespace. The first token is the executable, and the rest are its
-arguments. The bridge does nothing until this leaf is set.";
+arguments. A block with no run command is refused.";
+                }
+
+                leaf respawn {
+                    type boolean;
+                    default true;
+                    description "Start the script again when it exits.";
+                    ze:help "true starts the script again the moment it exits. false leaves it
+stopped, which is what a script that does its work once and exits needs. A script that exits
+more than five times in 64 seconds stays stopped whatever this leaf holds, and Ze logs that it
+did. ExaBGP spells this leaf the same way and applies the same limit.";
+                }
             }
 
             leaf-list family {

@@ -161,6 +161,24 @@ const bridgePassthrough = "help"
 // gone and what remains of it is an untyped path from a script's stdout to ze's
 // dispatcher.
 func TranslateLine(line string) (Translation, error) {
+	return Translator{}.Line(line)
+}
+
+// Translator carries what a translation needs beyond the line itself.
+//
+// One line needs it: a bare `announce eor` is every family, and which families
+// there are is the bridge's own declaration rather than anything the line says.
+// A zero Translator refuses that line by name and translates every other line
+// exactly as the package function does.
+type Translator struct {
+	// Families are the families this bridge declared, in ze spelling
+	// ("ipv4/unicast"). They are the set a bare End-of-RIB expands over.
+	Families []string
+}
+
+// Line converts one ExaBGP text command, as TranslateLine does, with the
+// translator's own context available to it.
+func (t Translator) Line(line string) (Translation, error) {
 	line = strings.TrimSpace(line)
 	if line == "" || strings.HasPrefix(line, "#") {
 		return Translation{}, nil
@@ -181,7 +199,7 @@ func TranslateLine(line string) (Translation, error) {
 		}
 		return translation, nil
 	}
-	if commands, translated, err := convertRoute(selector, rest); translated {
+	if commands, translated, err := t.convertRoute(selector, rest); translated {
 		if err != nil {
 			return Translation{}, fmt.Errorf("%w: %q", err, line)
 		}
@@ -262,7 +280,7 @@ func convertControl(selector, rest string) (Translation, bool) {
 //
 // The caller decides what an untranslated line becomes, because the answer
 // differs between a line that names a neighbor and a line that does not.
-func convertRoute(selector, rest string) ([]string, bool, error) {
+func (t Translator) convertRoute(selector, rest string) ([]string, bool, error) {
 	const (
 		announceRoute = "announce route"
 		withdrawRoute = "withdraw route"
@@ -276,11 +294,8 @@ func convertRoute(selector, rest string) ([]string, bool, error) {
 	// carries no route; the attributes form, which carries several; and the
 	// braced flow route, whose body is a nested grammar rather than a token
 	// run (bridge_flow.go).
-	if command, matched, err := convertEOR(selector, rest); matched {
-		if err != nil {
-			return nil, true, err
-		}
-		return []string{command}, true, nil
+	if commands, matched, err := convertEOR(selector, rest, t.Families); matched {
+		return commands, true, err
 	}
 	if strings.HasPrefix(restLower, announceVerb) || strings.HasPrefix(restLower, withdrawVerb) {
 		verb := nlriAdd
@@ -328,7 +343,8 @@ func convertRoute(selector, rest string) ([]string, bool, error) {
 // disagree about which attributes they carry, which is exactly what they did
 // until 2026-09-05 (bridge_attribute.go).
 func buildRouteCommand(selector, family, verb, body string) ([]string, error) {
-	nlriTokens, attrTokens := splitRouteBody(strings.Fields(strings.TrimSpace(body)))
+	nlriTokens, attrTokens := splitRouteBodyForFamily(family, strings.Fields(strings.TrimSpace(body)))
+	nlriTokens = shapePluginNLRI(family, nlriTokens)
 	attrs, err := parseRouteAttributes(attrTokens)
 	if err != nil {
 		return nil, err
@@ -351,16 +367,18 @@ func buildRouteCommand(selector, family, verb, body string) ([]string, error) {
 		nlriTokens = pieces
 	}
 
-	return oneCommandPerNLRI(selector, family, verb, attrs, nlriTokens, attrs.Split > 0), nil
+	return oneCommandPerNLRI(selector, family, verb, attrs, nlriTokens, false), nil
 }
 
 // oneCommandPerNLRI renders the ze commands for one ExaBGP route line.
 //
-// perNLRI decides whether the NLRI tokens are SEPARATE routes or the several
-// tokens of one. A split prefix and an `attributes ... nlri a b` section are
-// separate routes, and ExaBGP puts each on its own UPDATE. A mup or VPLS route
-// is one route written as several tokens, and splitting it would announce
-// nonsense.
+// perNLRI is FALSE for every caller today, and the parameter is kept because
+// the question it asks is real: are these tokens several routes or the several
+// tokens of one? What it must NOT be used for is framing. Whether two prefixes
+// share an UPDATE is the destination peer's `behavior { group-updates }` leaf,
+// and splitting here decided it for ze: api-attributes-path leaves the leaf at
+// its default and expects ONE frame carrying both prefixes, while
+// api-attributes sets it false and expects two.
 func oneCommandPerNLRI(selector, family, verb string, attrs routeAttributes, nlriTokens []string, perNLRI bool) []string {
 	write := func(tokens []string) string {
 		var tb textbuf.Buffer

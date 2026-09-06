@@ -73,6 +73,7 @@ module exabgp {
         leaf passive { type boolean; default false; }
         leaf group-updates { type boolean; default true; }
         leaf auto-flush { type boolean; default true; }
+        leaf manual-eor { type boolean; default false; }
 
         // Family block (ExaBGP uses space: "ipv4 unicast")
         container family {
@@ -109,8 +110,17 @@ module exabgp {
         leaf ttl-security { type uint16; }
         leaf local-link-local { type string; }
 
-        // API block (ExaBGP-specific)
-        container api {
+        // API block (ExaBGP-specific). ExaBGP takes an optional name after the
+        // keyword and invents one when it is absent (auto-named-<microseconds>,
+        // src/exabgp/configuration/neighbor/api.py ParseAPI.pre), so a neighbor
+        // can carry several blocks. The name groups the settings for a reader
+        // and changes no semantics: ParseAPI.flatten unions every block's
+        // processes and per-direction flags into one set. A keyed list accepts
+        // the anonymous form under config.KeyDefault and the named form under
+        // its name, and the migration unions the entries the same way.
+        list api {
+            key "name";
+            leaf name { type string; }
             leaf-list processes { ze:syntax "bracket"; type string; }
             leaf-list processes-match { ze:syntax "bracket"; type string; }
             container neighbor-changes { ze:syntax "flex"; }
@@ -225,6 +235,10 @@ module exabgp {
                 leaf next-hop { type string; }
                 container match { ze:syntax "freeform"; }
                 container then { ze:syntax "freeform"; }
+                // The third section of an ExaBGP flow route, beside match and
+                // then. It carries interface-set extended communities
+                // (src/exabgp/configuration/flow/scope.py ParseFlowScope).
+                container scope { ze:syntax "freeform"; }
             }
         }
 

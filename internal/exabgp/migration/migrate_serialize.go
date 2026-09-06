@@ -68,6 +68,21 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 			buf.WriteString(indent)
 			buf.WriteString("\tbridge {\n")
 			serializeTreeIndent(bridge, buf, indent+"\t\t", false)
+			// The bridge's scripts are a NAMED LIST, and serializeTreeIndent
+			// writes simple values only, so the list needs its own emission for
+			// the reason the block above records: a container nothing emits is
+			// dropped however correctly the migration built it. That is what
+			// happened to `process` between the migration learning to write it
+			// and this line existing.
+			for _, process := range bridge.GetListOrdered("process") {
+				buf.WriteString(indent)
+				buf.WriteString("\t\tprocess ")
+				buf.WriteString(process.Key)
+				buf.WriteString(" {\n")
+				serializeTreeIndent(process.Value, buf, indent+"\t\t\t", false)
+				buf.WriteString(indent)
+				buf.WriteString("\t\t}\n")
+			}
 			buf.WriteString(indent)
 			buf.WriteString("\t}\n")
 			buf.WriteString(indent)

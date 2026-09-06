@@ -457,17 +457,36 @@ func TestParseUpdateText_PathIDModifier(t *testing.T) {
 	assert.Equal(t, uint32(42), result.Groups[0].Announce[0].PathID())
 }
 
-// TestParseUpdateText_PathIDRejectTopLevel verifies path-information rejected at top level.
+// TestParseUpdateText_PathIDBothPositionsAgree verifies path-information means
+// the same thing before the first nlri section and inside one.
 //
-// VALIDATES: path-information is per-NLRI-section, not top-level.
-// PREVENTS: path-information accepted at top level after relocation.
-func TestParseUpdateText_PathIDRejectTopLevel(t *testing.T) {
-	_, err := ParseUpdateText([]string{
+// VALIDATES: both positions set the same path identifier on the NLRI, as `rd`
+// and `label` already did in both positions.
+// PREVENTS: the asymmetry this test used to PIN. It asserted that the top-level
+// keyword was refused, so `send bgp <peer> update text path-information 42 ...`
+// answered "unexpected token", while the same keyword one section later was
+// read. The wire bytes are asserted in update_text_exabgp_test.go
+// (TestPathInformationAtTheTopLevelReachesTheNLRI).
+func TestParseUpdateText_PathIDBothPositionsAgree(t *testing.T) {
+	topLevel, err := ParseUpdateText([]string{
 		"path-information", "42",
 		"nhop", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
-	require.Error(t, err)
+	require.NoError(t, err)
+	require.Len(t, topLevel.Groups, 1)
+	require.Len(t, topLevel.Groups[0].Announce, 1)
+
+	inSection, err := ParseUpdateText([]string{
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "path-information", "42", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, inSection.Groups, 1)
+	require.Len(t, inSection.Groups[0].Announce, 1)
+
+	assert.Equal(t, uint32(42), topLevel.Groups[0].Announce[0].PathID())
+	assert.Equal(t, uint32(42), inSection.Groups[0].Announce[0].PathID())
 }
 
 // TestParseUpdateText_LongForm_NextHop verifies "next-hop" is accepted alongside legacy "nhop".
@@ -912,9 +931,12 @@ func TestParseUpdateText_UnknownAttribute(t *testing.T) {
 // VALIDATES: Unsupported family returns error.
 // PREVENTS: Silent ignore of unsupported families.
 func TestParseUpdateText_UnsupportedFamily(t *testing.T) {
-	// MVPN is a valid family but not supported in text mode
+	// RTC is a valid family this parser cannot write: it parses no RTC NLRI of
+	// its own, and the rtc plugin registers no NLRI encoder for the registry
+	// path to reach. The example used to be MVPN, which is now writable
+	// (update_text_exabgp_test.go TestMVPNSectionMatchesTheExaBGPWire).
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/mvpn", "add", "10.0.0.0/24",
+		"nlri", "ipv4/rtc", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrFamilyNotSupported)
@@ -1691,7 +1713,7 @@ func TestParseUpdateText_NhopSetSelf(t *testing.T) {
 // Flat grammar has no del/set on nhop or top-level path-information.
 // nhop is a flat keyword-value. path-information is a per-NLRI-section modifier.
 // See TestParseUpdateText_FlatNhopSelf, TestParseUpdateText_FlatPathInfo,
-// TestParseUpdateText_PathIDModifier, TestParseUpdateText_PathIDRejectTopLevel.
+// TestParseUpdateText_PathIDModifier, TestParseUpdateText_PathIDBothPositionsAgree.
 
 // =============================================================================
 // Phase 2: rd and label tests (VPN/Labeled families)

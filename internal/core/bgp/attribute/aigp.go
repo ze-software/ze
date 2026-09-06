@@ -26,15 +26,25 @@ type AIGPTLV struct {
 
 // AIGP represents the AIGP path attribute (RFC 7311).
 //
-// RFC 7311 Section 3: The AIGP attribute is an optional transitive attribute
-// (type code 26) that carries accumulated IGP metric as a sequence of TLVs.
-// Only TLV type 1 (AIGP metric) is defined; unknown types are preserved.
+// RFC 7311 Section 3: "The AIGP attribute is an optional, non-transitive BGP
+// path attribute.  The attribute type code for the AIGP attribute is 26." It
+// carries the accumulated IGP metric as a sequence of TLVs. Only TLV type 1
+// (AIGP metric) is defined; unknown types are preserved.
 type AIGP struct {
 	TLVs []AIGPTLV
 }
 
-func (a *AIGP) Code() AttributeCode   { return AttrAIGP }
-func (a *AIGP) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
+func (a *AIGP) Code() AttributeCode { return AttrAIGP }
+
+// Flags returns the optional, NON-transitive flag pair, which is what makes the
+// attribute readable by a conformant peer.
+//
+// RFC 7311 Section 3.2: "If a BGP path attribute is received that has the AIGP
+// attribute codepoint but also has the transitive bit set, the attribute MUST be
+// considered to be a malformed AIGP attribute and MUST be discarded as specified
+// in this section." Ze emitted 0xC0 here until 2026-09-05, so every conformant
+// receiver discarded the AIGP attribute Ze sent.
+func (a *AIGP) Flags() AttributeFlags { return FlagOptional }
 
 // Len returns the total value length (sum of all TLV lengths).
 func (a *AIGP) Len() int {

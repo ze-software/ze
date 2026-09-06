@@ -73,6 +73,14 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 		return parseSRPolicySection(args, fam)
 	}
 
+	// A family this package does not parse itself reaches its registered plugin
+	// encoder, which takes the WHOLE token run rather than one prefix per
+	// token: `nlri ipv4/mup add route-type mup-isd rd 100:100 prefix 10.0.0.0/24`
+	// is one NLRI written as eight tokens.
+	if !nativeTextFamily(fam) {
+		return parseRegistryNLRISection(args, fam, accum)
+	}
+
 	consumed := 2 // "nlri" + family
 	i := 2
 
@@ -112,20 +120,20 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 		}
 
 		if token == kwLabel {
-			// label <value> (in-NLRI modifier)
+			// label <value> | label [ <value>... ] (in-NLRI modifier). The stack
+			// is read by the same parser the top-level keyword uses
+			// (update_text.go parseLabelStack), so the two positions accept the
+			// same values.
 			if i+1 >= len(args) {
-				return nlriParseResult{}, errors.New("label requires value (0-1048575)")
+				return nlriParseResult{}, errLabelRequiresValue
 			}
-			label, err := strconv.ParseUint(args[i+1], 10, 32)
+			labels, used, err := parseLabelStack(args[i+1:])
 			if err != nil {
-				return nlriParseResult{}, fmt.Errorf("invalid label: %w", err)
+				return nlriParseResult{}, err
 			}
-			if label > 0xFFFFF { // 20-bit max
-				return nlriParseResult{}, fmt.Errorf("label out of range (max 1048575): %d", label)
-			}
-			accum.Labels = []uint32{uint32(label)} //nolint:gosec // G115: bounded by check above
-			i += 2
-			consumed += 2
+			accum.Labels = labels
+			i += 1 + used
+			consumed += 1 + used
 			continue
 		}
 
@@ -372,7 +380,22 @@ func buildSingleNLRIResult(fam family.Family, mode string, n nlri.NLRI, consumed
 }
 
 // isSupportedFamily returns true if the family is supported in text mode.
+//
+// The switch names the families this package parses ITSELF. Everything else is
+// asked of the plugin registry rather than listed a second time here: the two
+// declarations had drifted, and mup and mvpn were refused with "family not
+// supported in text mode" by a parser standing next to a registered encoder
+// that could have answered (ai/rules/principles.md).
 func isSupportedFamily(f family.Family) bool {
+	if nativeTextFamily(f) {
+		return true
+	}
+	return registry.HasNLRIEncoderForFamily(f.String())
+}
+
+// nativeTextFamily reports whether this package parses the family's NLRI with
+// a parser of its own, rather than handing the tokens to a plugin encoder.
+func nativeTextFamily(f family.Family) bool {
 	switch f {
 	case family.IPv4Unicast,
 		family.IPv6Unicast,
@@ -401,4 +424,58 @@ func isSupportedFamily(f family.Family) bool {
 	default: // unsupported family
 		return false
 	}
+}
+
+// parseRegistryNLRISection parses an NLRI section whose family this package
+// does not parse itself, by handing the section's whole token run to the
+// plugin encoder registered for it.
+//
+// The section is `add <token>...` or `del <token>...`, and it ends at the next
+// boundary keyword. The tokens go to the encoder unread, because their grammar
+// belongs to the plugin that declared the family: the mup encoder reads
+// `route-type mup-isd rd 100:100 prefix 10.0.0.0/24`
+// (internal/component/bgp/plugins/nlri/mup/encode.go, EncodeNLRIHex) and the
+// mvpn encoder reads its own.
+func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum) (nlriParseResult, error) {
+	// args[0] = "nlri", args[1] = family; the caller has consumed neither.
+	i := 2
+	mode := ""
+	if i < len(args) && (args[i] == kwAdd || args[i] == kwDel) {
+		mode = args[i]
+		i++
+	}
+	if mode == "" {
+		return nlriParseResult{}, fmt.Errorf("%w: %s needs add or del", route.ErrMissingAddDel, fam)
+	}
+
+	start := i
+	for i < len(args) && !endsRegistrySection(args[i]) {
+		i++
+	}
+	if i == start {
+		return nlriParseResult{}, route.ErrEmptyNLRISection
+	}
+
+	encoded, err := encodeViaRegistry(fam, args[start:i], accum.PathID != 0)
+	if err != nil {
+		return nlriParseResult{}, err
+	}
+	return buildSingleNLRIResult(fam, mode, encoded, i)
+}
+
+// endsRegistrySection reports whether a token ends a plugin family's token run.
+//
+// It is isBoundaryKeyword less `rd`, `label` and `path-information`. Those three
+// are NLRI modifiers, and a plugin grammar spells them INSIDE its own run: the
+// mup encoder reads `rd 100:100` (nlri/mup/encode.go EncodeNLRIHex) and the mvpn
+// encoder reads `rd 65000:99999` (nlri/mvpn/encode.go parseMVPNFields). Stopping
+// at one would hand the encoder a section with no RD, and leave `rd` as the next
+// top-level token, where ParseUpdateText refuses it as an attribute written
+// after an NLRI section. So the plugin keeps all three.
+func endsRegistrySection(token string) bool {
+	switch token {
+	case kwRD, kwLabel, kwPathInfo:
+		return false
+	}
+	return isBoundaryKeyword(token)
 }

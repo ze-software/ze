@@ -206,7 +206,7 @@ func (b *Builder) ParseAIGP(s string) error {
 	if err != nil {
 		return fmt.Errorf("invalid aigp: %s", s)
 	}
-	b.setAIGP(metric)
+	b.SetAIGP(metric)
 	return nil
 }
 

@@ -1649,19 +1649,19 @@ func TestParseParenthesizedValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			value, consumed, err := parseParenthesizedValue(tt.args)
+			value, consumed, err := ParseParenthesizedValue(tt.args)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseParenthesizedValue() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ParseParenthesizedValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.wantErr {
 				return
 			}
 			if value != tt.wantValue {
-				t.Errorf("parseParenthesizedValue() value = %q, want %q", value, tt.wantValue)
+				t.Errorf("ParseParenthesizedValue() value = %q, want %q", value, tt.wantValue)
 			}
 			if consumed != tt.wantConsumed {
-				t.Errorf("parseParenthesizedValue() consumed = %d, want %d", consumed, tt.wantConsumed)
+				t.Errorf("ParseParenthesizedValue() consumed = %d, want %d", consumed, tt.wantConsumed)
 			}
 		})
 	}

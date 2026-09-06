@@ -2,27 +2,24 @@
 //
 // runInternalBridge is the RunEngine entry point for the internal exabgp-bridge
 // plugin. It mirrors the external SDK-mode runner (internal/plugins/exabgp
-// main_sdk.go runSDKMode) but sources the script command from the exabgp.bridge
-// config root delivered via the SDK OnConfigure (Stage 2) callback, since a
-// RunEngine(conn net.Conn) runner never sees the process-manager `run` line.
+// main_sdk.go runSDKMode) but sources the script commands from the
+// exabgp.bridge config root delivered via the SDK OnConfigure (Stage 2)
+// callback, since a RunEngine(conn net.Conn) runner never sees the
+// process-manager `run` line.
+//
+// The scripts themselves are run by a bridgerun.Fleet, which both runners share.
 
 package bridgeplugin
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
-	"io"
 	"log/slog"
 	"net"
-	"os"
-	"os/exec"
-	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
+	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -62,46 +59,37 @@ func capabilityDecls(cfg bridgeConfig) []sdk.CapabilityDecl {
 	return caps
 }
 
-// bridgeRunner holds the subprocess state shared between the OnConfigure
-// (config capture) callback, the OnAllPluginsReady (start) callback, the
-// OnEvent (write) callback, and the shutdown path.
+// bridgeRunner holds the state shared between the OnConfigure (config capture)
+// callback, the OnAllPluginsReady (start) callback, the OnEvent (write)
+// callback, and the shutdown path.
 type bridgeRunner struct {
 	log *slog.Logger
-	// ack answers the script after each dispatched command. An ExaBGP API
-	// client blocks on `done` before it sends the next line.
-	ack bridge.AckMode
 
 	mu sync.Mutex
 	// config is the committed bridge config, captured at OnConfigure and read
 	// by the start callback. The two run in different startup stages, so the
-	// script command cannot be passed between them on the stack.
-	config   bridgeConfig
-	started  bool
-	child    *exec.Cmd
-	stdin    io.WriteCloser
-	readerWG sync.WaitGroup
+	// script commands cannot be passed between them on the stack.
+	config  bridgeConfig
+	started bool
+	// fleet runs every configured script. It is nil until OnAllPluginsReady.
+	fleet *bridgerun.Fleet
 }
 
-// stdinWriter answers the script's stdin under the lock, or a discard writer
-// while no subprocess is running. It never answers nil: an ack written into a
-// nil writer panics, and an ack the script cannot receive is not an error the
-// bridge can act on.
-func (r *bridgeRunner) stdinWriter() io.Writer {
+// scripts answers the running fleet, or nil while none is running.
+func (r *bridgeRunner) scripts() *bridgerun.Fleet {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.stdin == nil {
-		return io.Discard
-	}
-	return r.stdin
+	return r.fleet
 }
 
-// runInternalBridge runs the ExaBGP bridge in-process. It spawns the operator's
-// script as a subprocess and translates between ze JSON events and the external
-// text/JSON commands, exactly like the external SDK-mode runner but with the
-// script command sourced from config. Returns the plugin exit code.
+// runInternalBridge runs the ExaBGP bridge in-process. It spawns every script
+// the config declares as a subprocess and translates between ze JSON events and
+// the external text/JSON commands, exactly like the external SDK-mode runner
+// but with the script commands sourced from config. Returns the plugin exit
+// code.
 func runInternalBridge(conn net.Conn) int {
 	log := logger()
-	r := &bridgeRunner{log: log, ack: bridge.NewAckMode()}
+	r := &bridgeRunner{log: log}
 
 	p := sdk.NewWithConn("exabgp-bridge", conn)
 	defer func() { _ = p.Close() }()
@@ -109,12 +97,12 @@ func runInternalBridge(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 
-	// Subscribe to all events so the bridge can translate them for the script.
+	// Subscribe to all events so the bridge can translate them for the scripts.
 	// Config-independent, so set before Run (Stage 5 reads it after this).
 	p.SetStartupSubscriptions([]string{"*"}, nil, "")
 
-	// ze events -> external JSON on the subprocess stdin. Registered before Run
-	// so the bridge (Stage 5) captures it; no-ops until the subprocess starts.
+	// ze events -> external JSON on every subprocess stdin. Registered before Run
+	// so the bridge (Stage 5) captures it; no-ops until the subprocesses start.
 	p.OnEvent(r.onEvent)
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -137,8 +125,8 @@ func runInternalBridge(conn net.Conn) int {
 		return nil
 	})
 
-	// The script starts here rather than at OnConfigure, because its first line
-	// is a command and a command dispatched before the registries are frozen
+	// The scripts start here rather than at OnConfigure, because a script's first
+	// line is a command and a command dispatched before the registries are frozen
 	// aborts the startup barrier. startWhenReady says what that cost.
 	p.OnAllPluginsReady(func() error { return r.startWhenReady(ctx, p) })
 
@@ -148,7 +136,7 @@ func runInternalBridge(conn net.Conn) int {
 	}
 	runErr := p.Run(ctx, reg)
 
-	// Shutdown: cancel the subprocess context, close stdin (EOF), wait.
+	// Shutdown: cancel the subprocess context, close each stdin (EOF), wait.
 	cancel()
 	r.stop()
 
@@ -161,9 +149,9 @@ func runInternalBridge(conn net.Conn) int {
 }
 
 // applyConfig declares the capabilities the config asks for and remembers the
-// script command. It does NOT start the script: see startWhenReady.
+// script commands. It does NOT start the scripts: see startWhenReady.
 //
-// Reloads do not restart the subprocess: the script owns its own lifecycle, and
+// Reloads do not restart the subprocesses: a script owns its own lifecycle, and
 // family/capability changes need a plugin restart (engine reconcile), matching
 // the external mode.
 func (r *bridgeRunner) applyConfig(p *sdk.Plugin, cfg bridgeConfig) error {
@@ -175,7 +163,7 @@ func (r *bridgeRunner) applyConfig(p *sdk.Plugin, cfg bridgeConfig) error {
 	r.config = cfg
 	r.mu.Unlock()
 
-	if cfg.Run == "" {
+	if len(cfg.Scripts) == 0 {
 		return errRunRequired
 	}
 
@@ -185,11 +173,11 @@ func (r *bridgeRunner) applyConfig(p *sdk.Plugin, cfg bridgeConfig) error {
 	return nil
 }
 
-// startWhenReady starts the script once the engine has loaded every plugin in
-// every startup phase and frozen the dispatcher registry.
+// startWhenReady starts every configured script once the engine has loaded
+// every plugin in every startup phase and frozen the dispatcher registry.
 //
-// The script's very first line is a command, and the bridge dispatches it the
-// moment it is read. Starting the script at OnConfigure therefore put a
+// A script's very first line is a command, and the bridge dispatches it the
+// moment it is read. Starting the scripts at OnConfigure therefore put a
 // dispatch-command frame on the wire during the bridge's own 5-stage handshake:
 // the engine was at stage 5 waiting for `ready`, read the dispatch instead, and
 // aborted the startup barrier, which took the bgp plugin and the daemon with it
@@ -205,164 +193,40 @@ func (r *bridgeRunner) startWhenReady(ctx context.Context, p *sdk.Plugin) error 
 	cfg := r.config
 	started := r.started
 	r.mu.Unlock()
-	if started || cfg.Run == "" {
+	if started || len(cfg.Scripts) == 0 {
 		return nil
 	}
 
-	if err := r.startScript(ctx, p, cfg); err != nil {
-		return err
-	}
-	r.log.Info("exabgp-bridge started", "run", cfg.Run, "families", cfg.Families)
-	return nil
-}
-
-// onEvent translates a ze JSON event into external JSON and writes it to the
-// subprocess stdin. No-ops until the subprocess is running.
-func (r *bridgeRunner) onEvent(event string) error {
-	r.mu.Lock()
-	w := r.stdin
-	r.mu.Unlock()
-	if w == nil {
-		return nil
-	}
-	var zebgp map[string]any
-	if err := json.Unmarshal([]byte(event), &zebgp); err != nil {
-		r.log.Warn("invalid JSON event", "error", err)
-		return nil
-	}
-	out, err := json.Marshal(bridge.ZebgpToExabgpJSON(zebgp))
-	if err != nil {
-		r.log.Warn("marshal external JSON failed", "error", err)
-		return nil
-	}
-	out = append(out, '\n')
-	if _, werr := w.Write(out); werr != nil {
-		r.log.Warn("write to plugin failed", "error", werr)
-	}
-	return nil
-}
-
-// startScript launches the script subprocess and the stdout reader goroutine
-// that dispatches translated commands to the engine.
-func (r *bridgeRunner) startScript(ctx context.Context, p *sdk.Plugin, cfg bridgeConfig) error {
-	argv := splitCommand(cfg.Run)
-	if len(argv) == 0 {
-		return errRunRequired
-	}
-
-	//nolint:gosec // G204: operator-provided script command is intentional (parity with external mode).
-	c := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	sin, err := c.StdinPipe()
-	if err != nil {
-		return err
-	}
-	sout, err := c.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	c.Stderr = os.Stderr
-
-	if err := c.Start(); err != nil {
+	fleet := bridgerun.New(r.log, cfg.Families, cfg.Scripts)
+	if err := fleet.Start(ctx, p); err != nil {
+		// A script that did start is stopped here rather than left running
+		// behind a failed startup.
+		fleet.Stop()
 		return err
 	}
 
 	r.mu.Lock()
-	r.child = c
-	r.stdin = sin
+	r.fleet = fleet
 	r.started = true
 	r.mu.Unlock()
 
-	r.readerWG.Add(1)
-	go r.readLoop(ctx, p, sout)
+	r.log.Info("exabgp-bridge started", "scripts", fleet.Count(), "families", cfg.Families)
 	return nil
 }
 
-// readLoop reads the script's stdout, translating each line into a ze command
-// and dispatching it to the engine.
-func (r *bridgeRunner) readLoop(ctx context.Context, p *sdk.Plugin, sout io.Reader) {
-	defer r.readerWG.Done()
-	scanner := bufio.NewScanner(sout)
-	for scanner.Scan() {
-		if ctx.Err() != nil {
-			return
-		}
-		line := scanner.Text()
-		if line == "" {
-			continue
-		}
-		translation, terr := bridge.TranslateLine(line)
-		if terr != nil {
-			// The bridge names the line it refused rather than handing an
-			// untranslated line to ze's dispatcher, where it would die as an
-			// unknown command with no mention of the bridge.
-			r.log.Warn("line refused", "error", terr)
-			continue
-		}
-		// A local action is answered by the bridge itself, so it is read BEFORE
-		// Nothing: it carries no command and is not an empty line.
-		if translation.Local != bridge.LocalNone {
-			r.ack.AnswerLocal(r.stdinWriter(), translation.Local)
-			continue
-		}
-		if translation.Nothing() {
-			continue
-		}
-		// One ExaBGP line can be several ze commands, because ExaBGP puts each
-		// prefix on its own UPDATE. The script wrote one line and blocks for
-		// one answer, so it is acked once, after the last of them.
-		failed := false
-		for _, command := range translation.Commands {
-			if _, _, derr := p.DispatchCommand(ctx, command); derr != nil {
-				r.log.Warn("dispatch command failed", "error", derr, "cmd", command)
-				r.ack.WriteError(r.stdinWriter(), derr.Error())
-				failed = true
-				break
-			}
-		}
-		if failed {
-			continue
-		}
-		// The script is waiting for this. An ExaBGP API client sends one command,
-		// blocks for `done`, and gives up after two seconds, so a runner that
-		// dispatches without acking delivers exactly one command per script.
-		r.ack.WriteAck(r.stdinWriter())
-		// Route commands: inject a per-peer flush so the forward pool drains. The
-		// selector is the one the translator used.
-		if translation.Route {
-			var tb textbuf.Buffer
-			flushCmd := tb.Str("request peer ").Str(translation.Selector).Str(" flush").String()
-			if _, _, ferr := p.DispatchCommand(ctx, flushCmd); ferr != nil {
-				r.log.Warn("flush failed", "error", ferr, "peer", translation.Selector)
-			}
-		}
+// onEvent hands one ze JSON event to every running script. No-op until the
+// scripts start.
+func (r *bridgeRunner) onEvent(event string) error {
+	if fleet := r.scripts(); fleet != nil {
+		fleet.Broadcast(event)
 	}
-	if serr := scanner.Err(); serr != nil {
-		r.log.Warn("plugin stdout scanner error", "error", serr)
-	}
+	return nil
 }
 
-// stop closes the subprocess stdin (EOF), waits for it and the reader goroutine.
+// stop closes every script's stdin (EOF) and waits for the scripts and their
+// goroutines. The caller MUST cancel the run context before calling it.
 func (r *bridgeRunner) stop() {
-	r.mu.Lock()
-	w := r.stdin
-	c := r.child
-	r.mu.Unlock()
-	if w != nil {
-		if err := w.Close(); err != nil {
-			r.log.Debug("close plugin stdin", "error", err)
-		}
+	if fleet := r.scripts(); fleet != nil {
+		fleet.Stop()
 	}
-	if c != nil {
-		if err := c.Wait(); err != nil {
-			r.log.Debug("subprocess exited", "error", err)
-		}
-	}
-	r.readerWG.Wait()
-}
-
-// splitCommand splits an operator run string into argv on whitespace. The
-// external mode receives argv already split by the shell/flag parser; internal
-// mode receives one config string, so it splits here.
-func splitCommand(cmd string) []string {
-	return strings.Fields(cmd)
 }

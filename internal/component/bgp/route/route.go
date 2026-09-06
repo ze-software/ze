@@ -427,10 +427,14 @@ func parseASPath(args []string) ([]uint32, int, error) {
 	return asPath, consumed, nil
 }
 
-// parseParenthesizedValue parses a parenthesis-delimited value from args.
+// ParseParenthesizedValue parses a parenthesis-delimited value from args.
 // Used for bgp-prefix-sid-srv6 ( l3-service ... ) format.
 // Returns the content between parentheses as a single string, and consumed count.
-func parseParenthesizedValue(args []string) (string, int, error) {
+//
+// Exported because `update text` spells the same value the same way
+// (plugins/cmd/update/update_text.go parseCommonAttributeText), and a second
+// collector beside this one would drift from it.
+func ParseParenthesizedValue(args []string) (string, int, error) {
 	if len(args) == 0 {
 		return "", 0, errEmptyArgsForParenthesizedValue
 	}

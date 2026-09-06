@@ -52,6 +52,7 @@ func init() {
 			return RunDecode(input, output)
 		},
 		InProcessNLRIDecoder:       DecodeNLRIHex,
+		InProcessNLRIEncoder:       EncodeNLRIHex,
 		InProcessConfigRouteParser: parseConfigRoute,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))

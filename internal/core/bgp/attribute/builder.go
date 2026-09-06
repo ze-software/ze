@@ -39,7 +39,11 @@ type Builder struct {
 	largeCommunities LargeCommunities
 	extCommunities   ExtendedCommunities
 	atomicAggregate  bool
+	aggregator       *Aggregator
+	originatorID     *OriginatorID
+	clusterList      ClusterList
 	aigp             *AIGP
+	prefixSID        []byte // BGP Prefix-SID TLVs (attribute 40), already encoded
 
 	// Pre-built wire bytes (for forwarding received attributes)
 	wire []byte
@@ -134,9 +138,68 @@ func (b *Builder) AddExtendedCommunity(ec ExtendedCommunity) *Builder {
 	return b
 }
 
-// setAIGP sets the AIGP attribute with the given metric value.
-func (b *Builder) setAIGP(metric uint64) *Builder { //nolint:unparam // fluent-builder contract: every Builder setter returns *Builder so calls chain (SetOrigin ... setWire). builder_parse.go ends its chain here, but a setter that returns nothing cannot sit in the middle of one
+// SetAtomicAggregate marks the ATOMIC_AGGREGATE attribute present.
+//
+// RFC 4271 Section 4.3 f): "ATOMIC_AGGREGATE is a well-known discretionary
+// attribute of length 0." Presence alone carries the meaning, so the setter
+// takes no value. Reset clears it.
+func (b *Builder) SetAtomicAggregate() *Builder {
+	b.atomicAggregate = true
+	return b
+}
+
+// SetAggregator sets the AGGREGATOR attribute (RFC 4271 Section 5.1.7).
+//
+// The caller MUST pass an IPv4 address and a non-zero ASN. The address field is
+// four octets wide, so an IPv6 value has nowhere to go, and RFC 7607 Section 2
+// forbids originating AS 0. Both are refused where operator text is read
+// (parseAggregatorText in the bgp-cmd-update plugin), because that is the only
+// boundary an invalid value can enter through.
+func (b *Builder) SetAggregator(asn uint32, addr netip.Addr) *Builder {
+	b.aggregator = &Aggregator{ASN: asn, Address: addr}
+	return b
+}
+
+// SetOriginatorID sets the ORIGINATOR_ID attribute (RFC 4456 Section 8).
+//
+// The caller MUST pass an IPv4 address: RFC 4456 Section 8 states the attribute
+// "is 4 bytes long", so a wider value cannot be encoded.
+func (b *Builder) SetOriginatorID(addr netip.Addr) *Builder {
+	o := OriginatorID(addr)
+	b.originatorID = &o
+	return b
+}
+
+// SetClusterList sets the CLUSTER_LIST attribute (RFC 4456 Section 8).
+//
+// The order of ids is the reflection path and is preserved: RFC 4456 Section 8
+// says a route reflector "MUST prepend the local CLUSTER_ID to the
+// CLUSTER_LIST", so the first id is the most recent reflector. The slice is
+// referenced, not copied; the caller MUST NOT mutate it afterwards.
+func (b *Builder) SetClusterList(ids []uint32) *Builder {
+	b.clusterList = ClusterList(ids)
+	return b
+}
+
+// SetAIGP sets the AIGP attribute with the given metric value (RFC 7311).
+func (b *Builder) SetAIGP(metric uint64) *Builder { //nolint:unparam // fluent-builder contract: every Builder setter returns *Builder so calls chain (SetOrigin ... setWire). builder_parse.go ends its chain here, but a setter that returns nothing cannot sit in the middle of one
 	b.aigp = NewAIGPMetric(metric)
+	return b
+}
+
+// SetPrefixSID sets the BGP Prefix-SID attribute (code 40) from its already
+// encoded TLV bytes, as ParsePrefixSID and ParsePrefixSIDSRv6 produce them.
+//
+// RFC 8669 Section 3: "The BGP Prefix-SID attribute is an optional, transitive
+// BGP path attribute." The flags are written 0xC0 for that reason, and the TLVs
+// are passed through unread: their layout is RFC 8669 Section 3.1 and RFC 9252
+// Section 3, and the encoder that produced them owns it (prefixsid.go).
+//
+// The slice is referenced, not copied; the caller MUST NOT mutate it afterwards.
+// An empty slice clears the attribute rather than emitting a zero-length one,
+// because attribute 40 with no TLV names no SID.
+func (b *Builder) SetPrefixSID(tlvs []byte) *Builder { //nolint:unparam // fluent-builder contract: every Builder setter returns *Builder so calls chain
+	b.prefixSID = tlvs
 	return b
 }
 
@@ -149,9 +212,10 @@ func (b *Builder) setWire(wire []byte) *Builder { //nolint:unparam // fluent-bui
 
 // builderInlineAttrs is the number of attributes AppendAttributes can produce.
 // It is the setter count, so a caller's scratch array never spills: ORIGIN,
-// AS_PATH, NEXT_HOP, MED, LOCAL_PREF, ATOMIC_AGGREGATE, COMMUNITY,
-// EXTENDED_COMMUNITY, AIGP, LARGE_COMMUNITY.
-const builderInlineAttrs = 10
+// AS_PATH, NEXT_HOP, MED, LOCAL_PREF, ATOMIC_AGGREGATE, AGGREGATOR, COMMUNITY,
+// ORIGINATOR_ID, CLUSTER_LIST, EXTENDED_COMMUNITY, AIGP, LARGE_COMMUNITY,
+// PREFIX_SID.
+const builderInlineAttrs = 14
 
 // AppendAttributes appends the builder's attributes to dst in ASCENDING type-code
 // order and returns the extended slice.
@@ -193,8 +257,17 @@ func (b *Builder) AppendAttributes(dst []Attribute) []Attribute {
 	if b.atomicAggregate {
 		dst = append(dst, AtomicAggregate{})
 	}
+	if b.aggregator != nil {
+		dst = append(dst, b.aggregator)
+	}
 	if len(b.communities) > 0 {
 		dst = append(dst, b.communities)
+	}
+	if b.originatorID != nil {
+		dst = append(dst, *b.originatorID)
+	}
+	if len(b.clusterList) > 0 {
+		dst = append(dst, b.clusterList)
 	}
 	if len(b.extCommunities) > 0 {
 		dst = append(dst, b.extCommunities)
@@ -204,6 +277,9 @@ func (b *Builder) AppendAttributes(dst []Attribute) []Attribute {
 	}
 	if len(b.largeCommunities) > 0 {
 		dst = append(dst, b.largeCommunities)
+	}
+	if len(b.prefixSID) > 0 {
+		dst = append(dst, NewOpaqueAttribute(FlagOptional|FlagTransitive, AttrPrefixSID, b.prefixSID))
 	}
 	return dst
 }
@@ -274,7 +350,11 @@ func (b *Builder) IsEmpty() bool {
 		len(b.largeCommunities) == 0 &&
 		len(b.extCommunities) == 0 &&
 		!b.atomicAggregate &&
+		b.aggregator == nil &&
+		b.originatorID == nil &&
+		len(b.clusterList) == 0 &&
 		b.aigp == nil &&
+		len(b.prefixSID) == 0 &&
 		len(b.wire) == 0
 }
 
@@ -290,7 +370,11 @@ func (b *Builder) Reset() {
 	b.largeCommunities = nil
 	b.extCommunities = nil
 	b.atomicAggregate = false
+	b.aggregator = nil
+	b.originatorID = nil
+	b.clusterList = nil
 	b.aigp = nil
+	b.prefixSID = nil
 	b.wire = nil
 }
 
@@ -325,9 +409,24 @@ func (b *Builder) ToAttributes() []Attribute {
 		result = append(result, AtomicAggregate{})
 	}
 
+	// AGGREGATOR
+	if b.aggregator != nil {
+		result = append(result, b.aggregator)
+	}
+
 	// COMMUNITY
 	if len(b.communities) > 0 {
 		result = append(result, b.communities)
+	}
+
+	// ORIGINATOR_ID
+	if b.originatorID != nil {
+		result = append(result, *b.originatorID)
+	}
+
+	// CLUSTER_LIST
+	if len(b.clusterList) > 0 {
+		result = append(result, b.clusterList)
 	}
 
 	// LARGE_COMMUNITY

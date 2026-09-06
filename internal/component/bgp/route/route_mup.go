@@ -151,7 +151,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 				return spec, errMissingBgpPrefixSidSrv6Value
 			}
 			// Parse parenthesized value
-			value, consumed, err := parseParenthesizedValue(args[i+1:])
+			value, consumed, err := ParseParenthesizedValue(args[i+1:])
 			if err != nil {
 				return spec, fmt.Errorf("invalid bgp-prefix-sid-srv6: %w", err)
 			}

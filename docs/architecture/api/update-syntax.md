@@ -502,23 +502,112 @@ bgp plugin ack async            # Return immediately (default)
 ## Grammar
 
 ### Text Mode
+
+`ParseUpdateText` reads a FLAT grammar. An attribute is a keyword followed by its
+value, every attribute comes before the first `nlri` section, and `set`, `add` and
+`del` are NLRI keywords only. The parser refuses `set` or `del` after an attribute
+keyword and answers with the flat form to use.
+
 ```
-<update-text> := <section>*
-<section>     := <scalar-attr> | <list-attr> | <nlri-section> | <wire-attr>
-
-<scalar-attr> := <scalar-name> (set <value> | del [<value>])
-<scalar-name> := origin | med | local-preference | nhop | path-information | rd | label
-
-<list-attr>   := <list-name> (set <list> | add <list> | del [<list>])
-<list-name>   := as-path | community | large-community | extended-community
+<update-text>  := <attribute>* <nlri-section>+
+<attribute>    := <attr-name> <value> | atomic-aggregate
+<attr-name>    := origin | med | local-preference | as-path | origin-as |
+                  community | large-community | extended-community |
+                  aggregator | originator-id | cluster-list | aigp |
+                  bgp-prefix-sid-srv6 | next-hop | path-information | rd | label
 
 <nlri-section> := nlri <family> <nlri-op>+
-<nlri-op>      := add prefix <prefix>[,<prefix>]... [watchdog set <name>] | del prefix <prefix>[,<prefix>]... | eor
+<nlri-op>      := add <prefix>+ [watchdog <name>] | del <prefix>+ | eor
 
-<wire-attr>    := attr (set <bytes> | del [<bytes>])   # hex/b64 mode only
+<wire-attr>    := attr set <bytes>                     # hex/b64 mode only
 
 <family>       := ipv4/unicast | ipv6/unicast | ipv4/mpls-vpn | ipv6/mpls-vpn | ...
 ```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText, isAttributeKeyword -->
+
+### Path Attributes
+
+| Keyword | Value form | Attribute | Reference |
+|---------|-----------|-----------|-----------|
+| `origin` | `igp \| egp \| incomplete` | ORIGIN (1) | RFC 4271 Section 5.1.1 |
+| `as-path` | `[ <asn>... ]` | AS_PATH (2) | RFC 4271 Section 5.1.2 |
+| `next-hop` | `<address> \| self` | NEXT_HOP (3) | RFC 4271 Section 5.1.3 |
+| `med` | `<uint32>` | MULTI_EXIT_DISC (4) | RFC 4271 Section 5.1.4 |
+| `local-preference` | `<uint32>` | LOCAL_PREF (5) | RFC 4271 Section 5.1.5 |
+| `atomic-aggregate` | none | ATOMIC_AGGREGATE (6) | RFC 4271 Section 5.1.6 |
+| `aggregator` | `<asn>:<ipv4>` | AGGREGATOR (7) | RFC 4271 Section 5.1.7, RFC 6793 |
+| `community` | `[ <comm>... ]` | COMMUNITY (8) | RFC 1997 |
+| `originator-id` | `<ipv4>` | ORIGINATOR_ID (9) | RFC 4456 Section 8 |
+| `cluster-list` | `[ <ipv4>... ]` | CLUSTER_LIST (10) | RFC 4456 Section 8 |
+| `extended-community` | `[ <ec>... ]` | EXTENDED_COMMUNITIES (16) | RFC 4360 |
+| `aigp` | `<uint64>` | AIGP (26) | RFC 7311 Section 3 |
+| `large-community` | `[ <lc>... ]` | LARGE_COMMUNITY (32) | RFC 8092 |
+| `bgp-prefix-sid-srv6` | `( <service> <sid> [<behavior>] [<structure>] )` | BGP Prefix-SID (40) | RFC 8669, RFC 9252 Section 3 |
+
+An `<ec>` in `extended-community` takes one of three forms.
+
+| Form | Example | Meaning |
+|------|---------|---------|
+| named | `target:65000:1`, `origin:65000:1.2.3.4` | the type keyword picks the encoding |
+| FlowSpec action | `discard`, `copy-to-nexthop`, `rate-limit:1000` | RFC 8955 Section 7 |
+| raw | `0x0002FDE900000001` | the 8 octets verbatim |
+
+The raw form is `0x` followed by exactly 16 hex digits, because RFC 4360 Section 2
+encodes "each Extended Community as an 8-octet quantity". It is how an operator
+writes a community Ze has no keyword for, and it is the form ExaBGP writes. Any
+other digit count is refused by name rather than padded or truncated. The config
+file accepts the same three forms.
+<!-- source: internal/core/bgp/attribute/extcomm_hex.go -- ParseExtendedCommunityHex -->
+
+Ze emits the attributes in ascending type-code order, whatever order the command
+wrote them in (RFC 4271 Section 5).
+
+`atomic-aggregate` is the only keyword that takes no value: RFC 4271 Section 4.3 f)
+makes it "a well-known discretionary attribute of length 0", so its presence in the
+command is the whole value.
+
+`aggregator` refuses AS 0, because RFC 7607 Section 2 states "A BGP speaker MUST NOT
+originate or propagate a route with an AS number of zero in the AS_PATH, AS4_PATH,
+AGGREGATOR, or AS4_AGGREGATOR attributes." `aggregator`, `originator-id` and each
+`cluster-list` id carry a four-octet address field, so an IPv6 value is refused
+rather than truncated.
+
+`bgp-prefix-sid-srv6` takes its value in PARENTHESES, which is the spelling ExaBGP
+writes:
+
+```
+bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )
+```
+
+| Field | Form | Meaning |
+|-------|------|---------|
+| service | `l3-service` or `l2-service` | RFC 9252 Section 2: SRv6 L3 Service TLV (type 5) or L2 Service TLV (type 6) |
+| sid | IPv6 address | the 16-octet SRv6 SID |
+| behavior | `0xNN`, optional | SRv6 Endpoint Behavior, RFC 8986. Absent means 0 |
+| structure | `[LB,LN,Func,Arg,TransLen,TransOffset]`, optional | the SRv6 SID Structure Sub-Sub-TLV of RFC 9252 Section 3.2.1, six values, each one octet |
+
+The six structure values are locator-block length, locator-node length, function
+length, argument length, transposition length and transposition offset, in that
+order. Six is the count RFC 9252 Section 3.2.1 fixes, so five or seven is refused
+by name rather than padded.
+
+The command reaches the same encoder as the config file's `bgp-prefix-sid-srv6`
+statement, so the two spellings produce identical attribute bytes.
+
+```bash
+send bgp edge1 update text \
+  bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] ) \
+  next-hop 2001::1 nlri ipv4/mup add route-type mup-isd rd 100:100 prefix 10.0.1.0/24
+```
+<!-- source: internal/core/bgp/attribute/prefixsid.go -- ParsePrefixSIDSRv6 -->
+
+```bash
+send bgp rr1 update text \
+  originator-id 10.0.99.12 cluster-list [ 3.3.3.3 192.168.201.1 ] \
+  atomic-aggregate aggregator 65000:10.0.0.1 aigp 100 \
+  nlri ipv4/unicast add 10.0.0.0/24
+```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseCommonAttributeText -->
 
 ### Standalone Watchdog Commands
 ```
@@ -535,16 +624,34 @@ request bgp watchdog withdraw <name>   # withdraw all routes in pool from peers
 
 | Type | Attributes |
 |------|------------|
-| **Scalar** | `origin`, `med`, `local-preference`, `nhop`, `path-information`, `rd`, `label` |
-| **List** | `as-path`, `community`, `large-community`, `extended-community` |
+| **Scalar** | `origin`, `med`, `local-preference`, `origin-as`, `aggregator`, `originator-id`, `aigp`, `bgp-prefix-sid-srv6`, `next-hop`, `path-information`, `rd`, `label` |
+| **List** | `as-path`, `community`, `large-community`, `extended-community`, `cluster-list` |
+| **Flag** | `atomic-aggregate` |
 
 ### Accumulator → Family Support
 
-| Accumulator | Valid for | Error for |
-|-------------|-----------|-----------|
-| `rd` | `*-vpn` families | All others |
-| `label` | `*-vpn`, `*-labeled` families | All others |
-| `path-information` | Any (if ADD-PATH negotiated) | Ignored if not negotiated |
+| Accumulator | Value | Valid for | Error for |
+|-------------|-------|-----------|-----------|
+| `rd` | `<ASN:NN>` or `<IP:NN>` | `*-vpn` families | All others |
+| `label` | `<label>` or `[ <label>... ]` | `*-vpn`, `*-labeled` families | All others |
+| `path-information` | `<uint32>` | Any (if ADD-PATH negotiated) | Ignored if not negotiated |
+
+All three are accepted in TWO positions, before the first `nlri` section and
+inside one, and they mean the same thing in both. `path-information` used to be
+accepted inside a section only, so a command that wrote all three together had
+two read and the third refused as an unknown token.
+
+`label` takes a LIST because an MPLS label stack is one. RFC 8277 Section 2
+encodes "one or more Label fields" of three octets each and sets the Bottom of
+Stack bit on the last, so `label [ 110 200 ]` writes two labels and `label 110`
+writes one. Each value is held to the 20 bits RFC 3032 Section 2.1 gives the
+Label field.
+
+```bash
+send bgp * update text rd 63333:100 label [ 110 200 ] next-hop 10.0.99.12 \
+  nlri ipv4/mpls-vpn add 128.0.64.0/18
+```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseLabelStack, parsePathInfoFlat -->
 <!-- source: internal/component/bgp/types/types.go -- UpdateTextResult, NLRIGroup -->
 
 ### Wire Mode (hex/b64)
@@ -565,7 +672,31 @@ request bgp watchdog withdraw <name>   # withdraw all routes in pool from peers
 | ipv6/mpls-vpn | ✅ | From MP_REACH_NLRI |
 | l2vpn/vpls | ✅ | RFC 4761 VPLS |
 | l2vpn/evpn | ✅ | RFC 7432 EVPN (Type 2, 3, 5) |
+| ipv4/mvpn, ipv6/mvpn | ✅ | RFC 6514 MCAST-VPN (route types 5, 6, 7) |
+| ipv4/mup, ipv6/mup | ✅ | MUP SAFI |
 | flowspec | ❌ | Complex encoding, use text |
+
+A family this parser does not read itself hands its whole token run to the NLRI
+encoder its plugin registered, so the grammar after `add` or `del` belongs to that
+plugin. MCAST-VPN and MUP are both written that way:
+
+```bash
+send bgp edge1 update text next-hop 10.10.6.3 extended-community [ target:192.168.94.12:5 ] \
+  nlri ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000
+```
+
+| Field | Route types | Meaning |
+|-------|-------------|---------|
+| `shared-join`, `source-join`, `source-ad` | 6, 7, 5 | RFC 6514 Section 4 route type |
+| `rp` or `source` | all | the C-RP address for a shared join, the C-S address otherwise |
+| `group` | all | the C-G address |
+| `rd` | all | RFC 4364 Route Distinguisher, required |
+| `source-as` | 6 and 7 only | the Source AS field RFC 6514 Section 4.6 gives a C-multicast route |
+
+The AFI decides the address family: an IPv6 source or group under `ipv4/mvpn` is
+refused, and so is a missing `source-as` on a join route, because AS 0 on the wire
+cannot be told from an AS the operator chose.
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/encode.go -- EncodeNLRIHex -->
 
 ## Attribute Wire Bytes
 

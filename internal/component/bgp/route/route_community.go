@@ -218,6 +218,7 @@ func parseTrafficMarkingFunction(args []string) ([]attribute.ExtendedCommunity, 
 // RFC 8955: FlowSpec traffic actions use specific type/subtype combinations.
 //
 // Formats:
+//   - 0xNNNNNNNNNNNNNNNN -> the 8 octets verbatim, for a community with no keyword
 //   - origin:ASN:IP     -> Type 0x00, Subtype 0x03 (2-byte ASN + 4-byte IP)
 //   - origin:IP:ASN     -> Type 0x01, Subtype 0x03 (4-byte IP + 2-byte ASN)
 //   - redirect:ADMIN:value -> Sub-type 0x08; ADMIN picks type 0x80, 0x81 or 0x82
@@ -226,6 +227,16 @@ func parseTrafficMarkingFunction(args []string) ([]attribute.ExtendedCommunity, 
 func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	if s == "" {
 		return attribute.ExtendedCommunity{}, errEmptyExtendedCommunity
+	}
+
+	// The raw 8-octet form, BEFORE the colon split, for the same reason the
+	// FlowSpec keywords below come before it: it carries no colon, so a
+	// split-first parser calls it malformed rather than raw. The config path
+	// (config/routeattr_community.go parseOneExtCommunity) has always accepted
+	// it, and ExaBGP writes it, so a community with no Ze keyword could be
+	// configured but not sent (ai/rules/principles.md).
+	if attribute.IsExtendedCommunityHex(s) {
+		return attribute.ParseExtendedCommunityHex(s)
 	}
 
 	// FlowSpec traffic actions written as one word, BEFORE the colon split: they
@@ -279,6 +290,29 @@ func parseRouteTargetExtCommunity(value string) (attribute.ExtendedCommunity, er
 	parts := strings.Split(value, ":")
 	if len(parts) != 2 {
 		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid target format: %s", value)
+	}
+
+	// RFC 4360 Section 3.2: "This is an extended type with Type Field composed
+	// of 2 octets and Value Field composed of 6 octets... The value of the
+	// high-order octet of this extended type is either 0x01 or 0x41." The global
+	// administrator is then a four-octet IPv4 address and the local
+	// administrator two octets, which is the third route-target form.
+	//
+	// It is the form an operator writes as `target:192.168.94.12:5`. Reading the
+	// administrator as a decimal ASN refused it by name, so a route target ze
+	// can encode perfectly well was unreachable from every text surface.
+	if addr, addrErr := netip.ParseAddr(parts[0]); addrErr == nil && addr.Is4() {
+		num, numErr := strconv.ParseUint(parts[1], 10, 16)
+		if numErr != nil {
+			return attribute.ExtendedCommunity{}, fmt.Errorf(
+				"invalid value in target: %s (IPv4 administrator format max 65535)", parts[1])
+		}
+		octets := addr.As4()
+		return attribute.ExtendedCommunity{
+			0x01, 0x02,
+			octets[0], octets[1], octets[2], octets[3],
+			byte(num >> 8), byte(num),
+		}, nil
 	}
 
 	asn, err := strconv.ParseUint(parts[0], 10, 32)

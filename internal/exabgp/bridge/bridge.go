@@ -671,7 +671,7 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writ
 			continue
 		}
 
-		translation, err := TranslateLine(line)
+		translation, err := Translator{Families: b.Families}.Line(line)
 		if err != nil {
 			// The bridge names the line it refused. Forwarding it instead put an
 			// untranslated line in front of ze's dispatcher, where it died as an

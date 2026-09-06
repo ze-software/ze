@@ -101,7 +101,7 @@ func TestIsAttributeKeyword(t *testing.T) {
 		KWOrigin, KWASPath, KWMED, KWLocalPreference,
 		KWAtomicAggregate, KWAggregator, KWOriginatorID,
 		KWClusterList, KWCommunity, KWLargeCommunity,
-		KWExtendedCommunity, KWNextHop,
+		KWExtendedCommunity, KWAIGP, KWNextHop,
 	} {
 		assert.True(t, isAttributeKeyword(kw), "%s should be attribute keyword", kw)
 	}
@@ -123,7 +123,7 @@ func TestIsTopLevelKeyword(t *testing.T) {
 		KWOrigin, KWASPath, KWMED, KWLocalPreference,
 		KWAtomicAggregate, KWAggregator, KWOriginatorID,
 		KWClusterList, KWCommunity, KWLargeCommunity,
-		KWExtendedCommunity, KWNextHop,
+		KWExtendedCommunity, KWAIGP, KWNextHop,
 	} {
 		assert.True(t, IsTopLevelKeyword(kw), "%s should be top-level keyword", kw)
 	}

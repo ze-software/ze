@@ -1,9 +1,17 @@
-// Design: docs/architecture/config/syntax.md — prefix-SID and SRv6 attribute parsing
-// RFC: rfc/short/rfc8669.md — Label-Index TLV (Type 1) wire format
-// RFC: rfc/short/rfc9252.md — SRv6 SID Information Sub-TLV wire format
-// Overview: routeattr.go — core route attribute types
+// Design: docs/architecture/wire/attributes.md -- BGP Prefix-SID (attribute 40) TLV encoding
+// RFC: rfc/short/rfc8669.md -- Label-Index TLV (Type 1) and Originator SRGB TLV (Type 3)
+// RFC: rfc/short/rfc9252.md -- SRv6 L3/L2 Service TLV and the SRv6 SID Information Sub-TLV
+// Related: builder.go -- SetPrefixSID, which puts these bytes on the wire
+//
+// The encoder sits in the attribute package because TWO entry points reach it
+// for the same operator text: the config file
+// (component/bgp/config/routeattr.go ParseRouteAttributes) and `update text`
+// (component/bgp/plugins/cmd/update/update_text.go parseCommonAttributeText).
+// The config package cannot serve the second one -- it already depends on the
+// command plugin -- and a second encoder beside this one is a future
+// disagreement with nothing to arbitrate it (ai/rules/principles.md).
 
-package bgpconfig
+package attribute
 
 import (
 	"errors"
@@ -20,13 +28,9 @@ var (
 	errUnmatchedParenthesisInSrgbList      = errors.New("unmatched parenthesis in SRGB list")
 	errInvalidSrv6PrefixSidExpectedL3      = errors.New("invalid srv6 prefix-sid: expected l3-service or l2-service")
 	errInvalidSrv6PrefixSidUnmatched       = errors.New("invalid srv6 prefix-sid: unmatched [ in SID structure")
+	errEmptyPrefixSID                      = errors.New("prefix-sid requires a label index, or a list \"index, [(base,range)...]\"")
+	errEmptyPrefixSIDSRv6                  = errors.New("srv6 prefix-sid requires a service and a SID: l3-service <ipv6> [0xNN] [struct]")
 )
-
-// PrefixSID represents BGP Prefix-SID (RFC 8669).
-// Stores the wire-format TLV bytes for attribute type 40.
-type PrefixSID struct {
-	Bytes []byte // Wire-format TLV bytes (without attribute header)
-}
 
 // ParsePrefixSID parses a prefix-sid string.
 // Formats:
@@ -38,9 +42,12 @@ type PrefixSID struct {
 //
 // Label Index TLV (Type 1):
 //   - Reserved (1 byte) + Flags (2 bytes) + Label-Index (4 bytes)
-func ParsePrefixSID(s string) (PrefixSID, error) {
-	if s == "" {
-		return PrefixSID{}, nil
+func ParsePrefixSID(s string) ([]byte, error) {
+	// An empty value names no SID. It is refused rather than answered with a nil
+	// TLV, which a caller cannot tell from a Prefix-SID it asked for and did not
+	// get (ai/rules/principles.md).
+	if strings.TrimSpace(s) == "" {
+		return nil, errEmptyPrefixSID
 	}
 
 	// Clean up the input
@@ -56,7 +63,7 @@ func ParsePrefixSID(s string) (PrefixSID, error) {
 	// Simple label index
 	idx, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
-		return PrefixSID{}, fmt.Errorf("invalid prefix-sid label index %q: %w", s, err)
+		return nil, fmt.Errorf("invalid prefix-sid label index %q: %w", s, err)
 	}
 
 	// Build TLV for Label Index (Type 1)
@@ -74,7 +81,7 @@ func ParsePrefixSID(s string) (PrefixSID, error) {
 		byte(idx),
 	}
 
-	return PrefixSID{Bytes: tlv}, nil
+	return tlv, nil
 }
 
 // parsePrefixSIDWithSRGB parses format: "300, [( 800000,4096) ,( 1000000,5000)]".
@@ -84,26 +91,26 @@ func ParsePrefixSID(s string) (PrefixSID, error) {
 //
 // SRGB TLV (Type 3):
 //   - Flags (2 bytes) + SRGB descriptors (6 bytes each: Base(3) + Range(3))
-func parsePrefixSIDWithSRGB(s string) (PrefixSID, error) {
+func parsePrefixSIDWithSRGB(s string) ([]byte, error) {
 	// Find the comma that separates label index from SRGB list
 	// Format: "300, [( 800000,4096) ,( 1000000,5000)]"
 	parts := strings.SplitN(s, ",", 2)
 	if len(parts) < 2 {
-		return PrefixSID{}, errInvalidPrefixSidFormatExpectedIndex
+		return nil, errInvalidPrefixSidFormatExpectedIndex
 	}
 
 	// Parse label index
 	idxStr := strings.TrimSpace(parts[0])
 	idx, err := strconv.ParseUint(idxStr, 10, 32)
 	if err != nil {
-		return PrefixSID{}, fmt.Errorf("invalid prefix-sid label index %q: %w", idxStr, err)
+		return nil, fmt.Errorf("invalid prefix-sid label index %q: %w", idxStr, err)
 	}
 
 	// Parse SRGB list
 	srgbStr := parts[1]
 	srgbs, err := parseSRGBList(srgbStr)
 	if err != nil {
-		return PrefixSID{}, err
+		return nil, err
 	}
 
 	// Build TLVs
@@ -146,7 +153,7 @@ func parsePrefixSIDWithSRGB(s string) (PrefixSID, error) {
 		result = append(result, srgbTLV...)
 	}
 
-	return PrefixSID{Bytes: result}, nil
+	return result, nil
 }
 
 // srgbEntry represents a single SRGB base,range pair.
@@ -218,9 +225,11 @@ func parseSRGBList(s string) ([]srgbEntry, error) {
 //   - struct = [LB,LN,Func,Arg,TransLen,TransOffset] (optional)
 //
 // RFC 9252 defines the wire format for SRv6-VPN SID.
-func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
-	if s == "" {
-		return PrefixSID{}, nil
+func ParsePrefixSIDSRv6(s string) ([]byte, error) {
+	// As ParsePrefixSID: an empty value is refused by name, so
+	// `bgp-prefix-sid-srv6 ( )` cannot silently drop the attribute.
+	if strings.TrimSpace(s) == "" {
+		return nil, errEmptyPrefixSIDSRv6
 	}
 
 	// Clean up input - remove outer parentheses
@@ -240,7 +249,7 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 		serviceType = 6 // TLV Type 6: SRv6 L2 Service
 		s = strings.TrimPrefix(s, "l2-service")
 	default:
-		return PrefixSID{}, errInvalidSrv6PrefixSidExpectedL3
+		return nil, errInvalidSrv6PrefixSidExpectedL3
 	}
 	s = strings.TrimSpace(s)
 
@@ -266,7 +275,7 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 	var err error
 	ipv6, err = netip.ParseAddr(ipStr)
 	if err != nil || !ipv6.Is6() {
-		return PrefixSID{}, fmt.Errorf("invalid srv6 prefix-sid: expected IPv6 address, got %q", ipStr)
+		return nil, fmt.Errorf("invalid srv6 prefix-sid: expected IPv6 address, got %q", ipStr)
 	}
 	s = strings.TrimSpace(s[ipEnd:])
 
@@ -285,7 +294,7 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 		behStr := s[2:behEnd]
 		behVal, err := strconv.ParseUint(behStr, 16, 16)
 		if err != nil {
-			return PrefixSID{}, fmt.Errorf("invalid srv6 behavior %q: %w", s[:behEnd], err)
+			return nil, fmt.Errorf("invalid srv6 behavior %q: %w", s[:behEnd], err)
 		}
 		behavior = uint16(behVal)
 		s = strings.TrimSpace(s[behEnd:])
@@ -295,17 +304,17 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 	if strings.HasPrefix(s, "[") {
 		end := strings.Index(s, "]")
 		if end == -1 {
-			return PrefixSID{}, errInvalidSrv6PrefixSidUnmatched
+			return nil, errInvalidSrv6PrefixSidUnmatched
 		}
 		structStr := s[1:end]
 		parts, count := stringsx.SplitCount(structStr, ",")
 		if count != 6 {
-			return PrefixSID{}, fmt.Errorf("invalid srv6 SID structure: expected 6 values, got %d", count)
+			return nil, fmt.Errorf("invalid srv6 SID structure: expected 6 values, got %d", count)
 		}
 		for _, p := range parts {
 			v, err := strconv.ParseUint(strings.TrimSpace(p), 10, 8)
 			if err != nil {
-				return PrefixSID{}, fmt.Errorf("invalid srv6 SID structure value %q: %w", p, err)
+				return nil, fmt.Errorf("invalid srv6 SID structure value %q: %w", p, err)
 			}
 			sidStruct = append(sidStruct, byte(v))
 		}
@@ -345,5 +354,5 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 	result = append(result, serviceType, byte(outerLen>>8), byte(outerLen))
 	result = append(result, innerTLV...)
 
-	return PrefixSID{Bytes: result}, nil
+	return result, nil
 }

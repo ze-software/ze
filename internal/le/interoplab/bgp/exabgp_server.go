@@ -142,8 +142,17 @@ func exabgpCaseConnection(prefix string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	if connection <= 0 {
+	if connection < 0 {
 		return 0, fmt.Errorf("connection %d is not a session", connection)
+	}
+	// Zero is the FIRST session, not an absent one. Upstream's own runner never
+	// reads this number -- `_read_expected_messages` in exabgp's qa/bin/functional
+	// splits the line on ':' and keeps only the `raw` payload -- so its fixtures
+	// number from zero and from one interchangeably, and api-broken-flow.ci uses
+	// BOTH for the same session: `0:` for the End-of-RIB and `1:` for the routes
+	// that follow it on that same wire.
+	if connection == 0 {
+		return 1, nil
 	}
 	return connection, nil
 }

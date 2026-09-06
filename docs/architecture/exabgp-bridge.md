@@ -1,11 +1,13 @@
 # ExaBGP Bridge Plugin
 
-The bridge runs an ExaBGP-API script against ze's BGP engine. It has two
-runners with one behavior: an external SDK-mode process, and an internal
-in-process runner.
+The bridge runs ExaBGP-API scripts against ze's BGP engine. It has two runners
+with one behavior: an external SDK-mode process, and an internal in-process
+runner. Both hand their scripts to one `bridgerun.Fleet`, so the fork, the
+event fan-out, the ack and the respawn are written once.
 
 <!-- source: internal/plugins/exabgp/bridgeplugin/internal.go -- runInternalBridge, familyDecls -->
 <!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- exabgp bridge config parsing -->
+<!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet, Script, Broadcast -->
 
 ## The bridge translates in two directions
 
@@ -131,13 +133,82 @@ are gone. The fact is stated once, by the builder that already knew it.
 <!-- source: internal/exabgp/bridge/bridge_command.go -- Translation, TranslateLine -->
 <!-- source: internal/exabgp/bridge/bridge.go -- pluginToZebgp -->
 
+## The bridge runs EVERY process the config declares
+
+An ExaBGP config declares any number of `process <name> { run ...; }` blocks,
+and a neighbor names the ones it wants in `api { processes [ a b ] }`. The ze
+side declares the same set:
+
+```
+exabgp {
+    bridge {
+        process one-shot {
+            run "./run/api-no-respawn-1.run"
+            respawn disable
+        }
+        process respawn {
+            run "./run/api-no-respawn-2.run"
+        }
+    }
+}
+```
+
+The block name is the ExaBGP process name, because that is the name a neighbor's
+`api { processes [ ... ] }` list refers to. A block with no `run` command is
+REFUSED and the refusal names it.
+
+The bridge forks one child for each block. One ze event is translated once and
+queued for EVERY child's stdin, and commands are read from EVERY child's stdout
+and dispatched. The ack is per child: each script writes a line and blocks for
+its own `done`, and `disable-ack` from one script silences that script alone.
+
+Until 2026-09-06 the config carried one `run` leaf and the bridge forked one
+child, so a config declaring two processes ran one of them and said nothing.
+That is the silently-wrong answer `ai/rules/principles.md` exists to prevent,
+and the three ported compatibility tests that name two processes
+(`api-no-respawn`, `api-multiple-api`, `api-api`) are what measured it.
+
+<!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Start, Fleet.Broadcast -->
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.line, script.writeLoop -->
+
+## A script that exits is started again, unless `respawn` says otherwise
+
+`respawn` is ExaBGP's leaf and ze keeps its behavior. The default is true: a
+script that exits is forked again the moment ze reads the EOF, with no backoff.
+`respawn disable` leaves the script stopped, which is what a script that does
+its work once and exits needs.
+
+The restart is rate-limited exactly as ExaBGP rate-limits it. ExaBGP buckets the
+clock into 64-second windows and refuses the sixth fork of one process inside
+one window, counting the first. A script that dies at once therefore forks five
+times, and then stays stopped with an error line naming it.
+
+<!-- source: internal/plugins/exabgp/bridgerun/respawn.go -- respawnLimiter, respawnWindow, respawnMax -->
+
+## One script cannot stall another
+
+Each child has a queue of at most 1000 lines and one goroutine draining it into
+that child's stdin. A child that stops reading fills its own pipe and its own
+queue, and the lines that no longer fit are dropped and counted. Without the
+queue that child would block the write, which is the SDK event loop for an event
+and the fan-out to every sibling for the rest of the fleet.
+
+The queue is also what makes each child's stdin have exactly one writer, so an
+event and an ack never interleave inside one line.
+
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- queueDepth, script.send -->
+
 ## The internal runner cannot read the `run` line
 
-The external runner takes the script command from the process-manager `run`
-line. A `RunEngine(conn net.Conn)` runner never sees that line, so the internal
-runner reads the script command from the `exabgp { bridge { ... } }` config
-root, delivered by the SDK `OnConfigure` callback at stage 2. This is the one
-structural difference between the two runners; everything after it is shared.
+The external runner takes its script command from the process-manager `run`
+line, so it carries ONE script. A `RunEngine(conn net.Conn)` runner never sees
+that line, so the internal runner reads the whole `process` list from the
+`exabgp { bridge { ... } }` config root, delivered by the SDK `OnConfigure`
+callback at stage 2. This is the one structural difference between the two
+runners; everything after it is shared.
+
+`ze exabgp migrate` writes the internal form, so a migrated ExaBGP config always
+reaches the runner that carries every process.
 
 ## Stage ordering constrains the family declaration
 

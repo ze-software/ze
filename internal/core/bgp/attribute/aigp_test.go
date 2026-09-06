@@ -190,11 +190,18 @@ func TestAIGPCode(t *testing.T) {
 	assert.Equal(t, AttributeCode(26), aigp.Code())
 }
 
+// TestAIGPFlags checks the flag pair AIGP goes on the wire with.
+//
+// RFC 7311 Section 3.2: "If a BGP path attribute is received that has the AIGP
+// attribute codepoint but also has the transitive bit set, the attribute MUST be
+// considered to be a malformed AIGP attribute and MUST be discarded as specified
+// in this section." A transitive AIGP is therefore not a cosmetic flag error: the
+// peer drops the attribute.
 func TestAIGPFlags(t *testing.T) {
 	aigp := NewAIGPMetric(0)
 	flags := aigp.Flags()
 	assert.True(t, flags.IsOptional())
-	assert.True(t, flags.IsTransitive())
+	assert.False(t, flags.IsTransitive())
 }
 
 func TestAIGPMetricNotPresent(t *testing.T) {
@@ -281,7 +288,7 @@ func TestBuilderParseAIGP(t *testing.T) {
 func TestBuilderAIGPWireRoundTrip(t *testing.T) {
 	b := NewBuilder()
 	b.SetOrigin(0)
-	b.setAIGP(500)
+	b.SetAIGP(500)
 	wireBytes := b.Build()
 	require.NotEmpty(t, wireBytes)
 
@@ -302,13 +309,13 @@ func TestBuilderAIGPWireRoundTrip(t *testing.T) {
 func TestBuilderAIGPIsEmpty(t *testing.T) {
 	b := NewBuilder()
 	assert.True(t, b.IsEmpty())
-	b.setAIGP(100)
+	b.SetAIGP(100)
 	assert.False(t, b.IsEmpty())
 }
 
 func TestBuilderAIGPReset(t *testing.T) {
 	b := NewBuilder()
-	b.setAIGP(100)
+	b.SetAIGP(100)
 	b.Reset()
 	assert.True(t, b.IsEmpty())
 	assert.Nil(t, b.aigp)
@@ -316,7 +323,7 @@ func TestBuilderAIGPReset(t *testing.T) {
 
 func TestBuilderAIGPToAttributes(t *testing.T) {
 	b := NewBuilder()
-	b.setAIGP(42)
+	b.SetAIGP(42)
 	attrs := b.ToAttributes()
 
 	var found *AIGP

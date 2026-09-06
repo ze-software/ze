@@ -22,9 +22,9 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// errRunRequired is returned when the exabgp.bridge container is committed
-// without a `run` command (nothing for the bridge to launch).
-var errRunRequired = errors.New("exabgp-bridge: 'run' is required to start the bridge")
+// errRunRequired is returned when the exabgp.bridge container is committed with
+// no `process` block (nothing for the bridge to launch).
+var errRunRequired = errors.New("exabgp-bridge: at least one 'process <name> { run ... }' block is required to start the bridge")
 
 var loggerPtr atomic.Pointer[slog.Logger]
 

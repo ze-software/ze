@@ -1,6 +1,8 @@
 // RFC: rfc/short/rfc8669.md — BGP Prefix-SID attribute (code 40) SR-MPLS TLVs
-// Overview: routeattr_prefixsid.go — ParsePrefixSID builds the Label-Index and
-// Originator SRGB TLV wire bytes carried in attribute 40.
+// Overview: ../../../core/bgp/attribute/prefixsid.go — ParsePrefixSID builds the
+// Label-Index and Originator SRGB TLV wire bytes carried in attribute 40. The
+// test stays here, beside the config path that reaches it, so the RFC carrier
+// path does not move.
 //
 // RFC 8669 §3.1 and §3.2 require the sender to clear the Label-Index TLV Reserved
 // and Flags fields and the Originator SRGB TLV Flags field. These tests pin the
@@ -13,6 +15,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission pins the SR-MPLS
@@ -26,17 +30,17 @@ import (
 // RFC requirement: RFC8669-3.1-3 positive -- the Label-Index TLV Reserved octet is emitted as 0 by the sender.
 // RFC requirement: RFC8669-3.1-5 positive -- the Label-Index TLV Flags field is emitted as 0 by the sender.
 func TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission(t *testing.T) {
-	sid, err := ParsePrefixSID("777")
+	sid, err := attribute.ParsePrefixSID("777")
 	require.NoError(t, err)
-	require.Len(t, sid.Bytes, 10, "Label-Index TLV = Type(1) + Length(2) + Value(7)")
+	require.Len(t, sid, 10, "Label-Index TLV = Type(1) + Length(2) + Value(7)")
 
-	require.Equal(t, byte(1), sid.Bytes[0], "TLV type MUST be 1 (Label-Index)")
-	require.Equal(t, []byte{0, 7}, sid.Bytes[1:3], "Label-Index TLV length MUST be 7")
+	require.Equal(t, byte(1), sid[0], "TLV type MUST be 1 (Label-Index)")
+	require.Equal(t, []byte{0, 7}, sid[1:3], "Label-Index TLV length MUST be 7")
 
-	require.Equal(t, byte(0), sid.Bytes[3], "RFC 8669 §3.1: Reserved MUST be clear on transmission")
-	require.Equal(t, []byte{0, 0}, sid.Bytes[4:6], "RFC 8669 §3.1: Flags MUST be clear on transmission")
+	require.Equal(t, byte(0), sid[3], "RFC 8669 §3.1: Reserved MUST be clear on transmission")
+	require.Equal(t, []byte{0, 0}, sid[4:6], "RFC 8669 §3.1: Flags MUST be clear on transmission")
 
-	require.Equal(t, []byte{0x00, 0x00, 0x03, 0x09}, sid.Bytes[6:10],
+	require.Equal(t, []byte{0x00, 0x00, 0x03, 0x09}, sid[6:10],
 		"the 4-octet Label Index carries the configured value 777")
 }
 
@@ -50,12 +54,12 @@ func TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission(t *testing.T) {
 //
 // RFC requirement: RFC8669-3.2-1 positive -- the Originator SRGB TLV Flags field is emitted as 0 by the sender.
 func TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission(t *testing.T) {
-	sid, err := ParsePrefixSID("300, [( 800000,4096) ,( 1000000,5000)]")
+	sid, err := attribute.ParsePrefixSID("300, [( 800000,4096) ,( 1000000,5000)]")
 	require.NoError(t, err)
 
 	// Label-Index TLV occupies the first 10 octets; the SRGB TLV follows.
-	require.Greater(t, len(sid.Bytes), 10, "the SRGB TLV must follow the Label-Index TLV")
-	srgb := sid.Bytes[10:len(sid.Bytes):len(sid.Bytes)]
+	require.Greater(t, len(sid), 10, "the SRGB TLV must follow the Label-Index TLV")
+	srgb := sid[10:len(sid):len(sid)]
 	require.Len(t, srgb, 17, "SRGB TLV = Type(1) + Length(2) + Flags(2) + 2 entries * 6")
 
 	require.Equal(t, byte(3), srgb[0], "TLV type MUST be 3 (Originator SRGB)")

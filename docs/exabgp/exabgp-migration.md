@@ -33,7 +33,8 @@ Ze aims for **easy migration from ExaBGP**, not 100% compatibility.
 |------|--------|-------|-------|
 | Keyword | `neighbor` | `peer` | Migration converts |
 | API output | `community` | `communities` | Plural for consistency |
-| Config syntax | `api { processes [...] }` | `attach process <name> { }` | One block per peer per program. The converter emits it |
+| Config syntax | `api [<name>] { processes [...] }` | `attach process <name> { }` | The name is optional and groups the settings for a reader. A peer can carry several api blocks, and ExaBGP unions them |
+| Process selection | `processes-match [ <regex>... ]` | `attach process <name> { }` | The pattern is anchored at the start of the process name, as `re.match` anchors it. A pattern set that selects no process is refused, and the two lists are mutually exclusive |
 | NLRI format | `announce`/`withdraw` with next-hop grouping | `<family>` array with `action: add/del` | See below |
 | RD format | `65000:1` | `2:65000:1` (with type prefix) | Disambiguates Type 0 vs Type 2 |
 

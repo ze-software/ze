@@ -7,17 +7,29 @@
 // RFC: rfc/short/rfc1997.md -- COMMUNITIES attribute and well-known values (parseCommunityText)
 // RFC: rfc/short/rfc3765.md -- NOPEER well-known community (parseCommunityText)
 // RFC: rfc/short/rfc2545.md -- the next-hop value must be a global IPv6 address (parseNhopFlat)
+// RFC: rfc/short/rfc4271.md -- ATOMIC_AGGREGATE and AGGREGATOR (parseAggregatorText)
+// RFC: rfc/short/rfc4456.md -- ORIGINATOR_ID and CLUSTER_LIST (parseClusterIDText)
+// RFC: rfc/short/rfc6793.md -- the AGGREGATOR ASN is written four-octet (parseAggregatorText)
+// RFC: rfc/short/rfc7607.md -- AS 0 is refused in the AGGREGATOR (parseAggregatorText)
+// RFC: rfc/short/rfc7311.md -- the AIGP metric (parseCommonAttributeText)
+// RFC: rfc/short/rfc9252.md -- the SRv6 Service TLV of BGP Prefix-SID (parseCommonAttributeText)
 //
 // update_text.go provides the update text parser for the "update text" command format.
 //
 // Grammar (flat — no set/add/del on attributes):
 //
 //	<update-text>  := <attribute>* <nlri-section>+
-//	<attribute>    := <attr-name> <value>
+//	<attribute>    := <attr-name> <value> | atomic-aggregate
 //	<attr-name>    := origin | med | local-preference | as-path | community |
-//	                  large-community | extended-community | nhop | path-information | rd | label
+//	                  large-community | extended-community | aggregator |
+//	                  originator-id | cluster-list | aigp | bgp-prefix-sid-srv6 |
+//	                  nhop | path-information | rd | label
 //	<nlri-section> := nlri <family> <nlri-op>+
 //	<nlri-op>      := add <prefix>+ [watchdog <name>] | del <prefix>+
+//
+// atomic-aggregate is the one attribute that takes no value: RFC 4271 Section
+// 4.3 f) makes it "a well-known discretionary attribute of length 0", so its
+// presence in the command is the whole value.
 //
 // Attributes are flat declarations (keyword + value). No set/add/del on attributes.
 // add/del are NLRI-only keywords (MP_REACH vs MP_UNREACH).
@@ -27,6 +39,7 @@
 package update
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -48,19 +61,32 @@ import (
 )
 
 var (
-	errMissingOriginValue            = errors.New("missing origin value")
-	errMissingLocalPreferenceValue   = errors.New("missing local-preference value")
-	errMissingMedValue               = errors.New("missing med value")
-	errMissingAsPathValue            = errors.New("missing as-path value")
-	errMissingOriginASValue          = errors.New("missing origin-as value")
-	errMissingCommunityValue         = errors.New("missing community value")
-	errMissingLargeCommunityValue    = errors.New("missing large-community value")
-	errMissingExtendedCommunityValue = errors.New("missing extended-community value")
-	errSetDelKeywordsRemovedUseNext  = errors.New("set/del keywords removed; use: next-hop <address|self>")
-	errSetDelKeywordsRemovedUseRd    = errors.New("set/del keywords removed; use: rd <value>")
-	errSetDelKeywordsRemovedUseLabel = errors.New("set/del keywords removed; use: label <value>")
-	errUsageSendUpdateEncoding       = errors.New("usage: send bgp <selector> update <text|hex|b64|cursor>")
+	errMissingOriginValue               = errors.New("missing origin value")
+	errMissingLocalPreferenceValue      = errors.New("missing local-preference value")
+	errMissingMedValue                  = errors.New("missing med value")
+	errMissingAsPathValue               = errors.New("missing as-path value")
+	errMissingOriginASValue             = errors.New("missing origin-as value")
+	errMissingCommunityValue            = errors.New("missing community value")
+	errMissingLargeCommunityValue       = errors.New("missing large-community value")
+	errMissingExtendedCommunityValue    = errors.New("missing extended-community value")
+	errMissingAggregatorValue           = errors.New("missing aggregator value")
+	errMissingOriginatorIDValue         = errors.New("missing originator-id value")
+	errMissingClusterListValue          = errors.New("missing cluster-list value")
+	errMissingAIGPValue                 = errors.New("missing aigp value")
+	errMissingPrefixSIDValue            = errors.New("missing bgp-prefix-sid-srv6 value")
+	errEmptyClusterList                 = errors.New("cluster-list requires at least one cluster id")
+	errSetDelKeywordsRemovedUseNext     = errors.New("set/del keywords removed; use: next-hop <address|self>")
+	errSetDelKeywordsRemovedUseRd       = errors.New("set/del keywords removed; use: rd <value>")
+	errSetDelKeywordsRemovedUseLabel    = errors.New("set/del keywords removed; use: label <value> or label [ <value>... ]")
+	errSetDelKeywordsRemovedUsePathInfo = errors.New("set/del keywords removed; use: path-information <id>")
+	errLabelRequiresValue               = errors.New("label requires a value (0-1048575) or a list [ <value>... ]")
+	errPathInfoRequiresValue            = errors.New("path-information requires a value (0-4294967295)")
+	errUsageSendUpdateEncoding          = errors.New("usage: send bgp <selector> update <text|hex|b64|cursor>")
 )
+
+// labelMax is the largest MPLS label. RFC 3032 Section 2.1 gives the Label field
+// 20 bits, so a wider value is refused rather than truncated onto the wire.
+const labelMax = 0xFFFFF
 
 // YANG schema paths for attribute validation.
 const (
@@ -105,10 +131,17 @@ const (
 )
 
 // isAttributeKeyword returns true if token is a per-attribute keyword.
+//
+// atomic-aggregate is one of them even though ParseUpdateText handles it in its
+// own case: the NLRI sub-parsers ask isBoundaryKeyword where a section ends, and
+// a value-less attribute ends one exactly as a valued attribute does.
 func isAttributeKeyword(token string) bool {
 	switch token {
 	case kwOrigin, kwMED, kwLocalPref, kwASPath, kwOriginAS,
-		kwCommunity, kwLargeCommunity, kwExtendedCommunity:
+		kwCommunity, kwLargeCommunity, kwExtendedCommunity,
+		textparse.KWAtomicAggregate, textparse.KWAggregator,
+		textparse.KWOriginatorID, textparse.KWClusterList, textparse.KWAIGP,
+		textparse.KWPrefixSIDSRv6:
 		return true
 	}
 	return false
@@ -141,10 +174,17 @@ type parsedAttrs struct {
 	Communities         []uint32
 	LargeCommunities    []bgptypes.LargeCommunity
 	ExtendedCommunities []attribute.ExtendedCommunity
+	AtomicAggregate     bool
+	Aggregator          *attribute.Aggregator
+	OriginatorID        netip.Addr
+	ClusterList         []uint32
+	AIGP                *uint64
+	PrefixSID           []byte // BGP Prefix-SID TLVs (attribute 40), already encoded
 
 	// VPN/labeled NLRI modifiers.
 	RD     nlri.RouteDistinguisher // Route Distinguisher for VPN families.
 	Labels []uint32                // MPLS labels for VPN/labeled families.
+	PathID uint32                  // ADD-PATH path identifier (RFC 7911 Section 3).
 }
 
 // nlriAccum holds VPN/labeled NLRI accumulator values for snapshot.
@@ -193,6 +233,24 @@ func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, bgptypes.RouteNextH
 	for _, ec := range a.ExtendedCommunities {
 		b.AddExtendedCommunity(ec)
 	}
+	if a.AtomicAggregate {
+		b.SetAtomicAggregate()
+	}
+	if a.Aggregator != nil {
+		b.SetAggregator(a.Aggregator.ASN, a.Aggregator.Address)
+	}
+	if a.OriginatorID.IsValid() {
+		b.SetOriginatorID(a.OriginatorID)
+	}
+	if len(a.ClusterList) > 0 {
+		b.SetClusterList(a.ClusterList)
+	}
+	if a.AIGP != nil {
+		b.SetAIGP(*a.AIGP)
+	}
+	if len(a.PrefixSID) > 0 {
+		b.SetPrefixSID(a.PrefixSID)
+	}
 
 	// Build wire bytes and wrap
 	wireBytes := b.Build()
@@ -215,7 +273,7 @@ func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, bgptypes.RouteNextH
 		labels = make([]uint32, len(a.Labels))
 		copy(labels, a.Labels)
 	}
-	return wire, nh, nlriAccum{RD: a.RD, Labels: labels}
+	return wire, nh, nlriAccum{PathID: a.PathID, RD: a.RD, Labels: labels}
 }
 
 // parseCommonAttributeText parses a common BGP attribute by keyword into parsedAttrs.
@@ -350,9 +408,154 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		}
 		attrs.ExtendedCommunities = ecs
 		return consumed, nil
+
+	case textparse.KWAggregator:
+		if idx+1 >= len(args) {
+			return 0, errMissingAggregatorValue
+		}
+		asn, addr, err := parseAggregatorText(args[idx+1])
+		if err != nil {
+			return 0, err
+		}
+		attrs.Aggregator = &attribute.Aggregator{ASN: asn, Address: addr}
+		return 1, nil
+
+	case textparse.KWOriginatorID:
+		if idx+1 >= len(args) {
+			return 0, errMissingOriginatorIDValue
+		}
+		addr, err := parseRouterIDText(args[idx+1])
+		if err != nil {
+			return 0, fmt.Errorf("invalid originator-id: %w", err)
+		}
+		attrs.OriginatorID = addr
+		return 1, nil
+
+	case textparse.KWClusterList:
+		if idx+1 >= len(args) {
+			return 0, errMissingClusterListValue
+		}
+		tokens, consumed := parseBracketedListText(args[idx+1:])
+		// RFC 4456 Section 8: CLUSTER_LIST "is a sequence of CLUSTER_ID values
+		// representing the reflection path that the route has passed". An empty
+		// sequence names no reflector, so it is refused rather than encoded as a
+		// zero-length attribute the operator did not ask for.
+		if len(tokens) == 0 {
+			return 0, errEmptyClusterList
+		}
+		ids := make([]uint32, 0, len(tokens))
+		for _, tok := range tokens {
+			id, err := parseClusterIDText(tok)
+			if err != nil {
+				return 0, err
+			}
+			ids = append(ids, id)
+		}
+		attrs.ClusterList = ids
+		return consumed, nil
+
+	case textparse.KWAIGP:
+		if idx+1 >= len(args) {
+			return 0, errMissingAIGPValue
+		}
+		// RFC 7311 Section 3: the AIGP TLV carries "Length: 11" with an 8-octet
+		// "Value: Accumulated IGP Metric", so the metric is an unsigned 64-bit
+		// integer and any wider or non-numeric token is refused here.
+		metric, err := strconv.ParseUint(args[idx+1], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid aigp %q: expected 0..18446744073709551615", args[idx+1])
+		}
+		attrs.AIGP = &metric
+		return 1, nil
+
+	case textparse.KWPrefixSIDSRv6:
+		if idx+1 >= len(args) {
+			return 0, errMissingPrefixSIDValue
+		}
+		// ExaBGP writes the value in parentheses:
+		// `bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )`.
+		// The tokens are rejoined and handed to the SAME encoder the config file
+		// reaches, so both spellings produce one attribute (prefixsid.go).
+		value, consumed, err := route.ParseParenthesizedValue(args[idx+1:])
+		if err != nil {
+			return 0, fmt.Errorf("invalid bgp-prefix-sid-srv6: %w", err)
+		}
+		tlvs, err := attribute.ParsePrefixSIDSRv6(value)
+		if err != nil {
+			return 0, err
+		}
+		attrs.PrefixSID = tlvs
+		return consumed, nil
 	}
 
 	return 0, nil
+}
+
+// parseAggregatorText parses the "<asn>:<ip>" AGGREGATOR value form.
+//
+// RFC 4271 Section 5.1.7: "A BGP speaker that performs route aggregation MAY add
+// the AGGREGATOR attribute, which SHALL contain its own AS number and IP
+// address." RFC 4271 Section 4.3 g) fixes the layout: "the last AS number that
+// formed the aggregate route (encoded as 2 octets), followed by the IP address of
+// the BGP speaker that formed the aggregate route (encoded as 4 octets)". Ze
+// writes the RFC 6793 four-octet AS form, and narrows it to AS_TRANS for a peer
+// that did not negotiate four-octet AS numbers (attribute.Aggregator).
+func parseAggregatorText(s string) (uint32, netip.Addr, error) {
+	asnText, addrText, found := strings.Cut(s, ":")
+	if !found {
+		return 0, netip.Addr{}, fmt.Errorf("invalid aggregator %q: expected <asn>:<ip>", s)
+	}
+
+	asn, err := strconv.ParseUint(asnText, 10, 32)
+	if err != nil {
+		return 0, netip.Addr{}, fmt.Errorf("invalid aggregator ASN %q: expected 1..4294967295", asnText)
+	}
+	// RFC 7607 Section 2: "A BGP speaker MUST NOT originate or propagate a route
+	// with an AS number of zero in the AS_PATH, AS4_PATH, AGGREGATOR, or
+	// AS4_AGGREGATOR attributes."
+	if asn == 0 {
+		return 0, netip.Addr{}, errors.New("invalid aggregator ASN 0: RFC 7607 forbids originating AS 0")
+	}
+
+	addr, err := parseRouterIDText(addrText)
+	if err != nil {
+		return 0, netip.Addr{}, fmt.Errorf("invalid aggregator address: %w", err)
+	}
+	return uint32(asn), addr, nil //nolint:gosec // G115: bounded by ParseUint bitSize=32
+}
+
+// parseClusterIDText parses one CLUSTER_ID as dotted-decimal "a.b.c.d".
+//
+// RFC 4456 Section 7: "all RRs in the same cluster can be configured with a
+// 4-byte CLUSTER_ID so that an RR can discard routes from other RRs in the same
+// cluster." Four octets is what the attribute carries, and the dotted form is the
+// one Ze renders (attribute.ClusterList.AppendText), so it is the one it reads.
+func parseClusterIDText(s string) (uint32, error) {
+	addr, err := parseRouterIDText(s)
+	if err != nil {
+		return 0, fmt.Errorf("invalid cluster-list id: %w", err)
+	}
+	v4 := addr.As4()
+	return binary.BigEndian.Uint32(v4[:]), nil
+}
+
+// parseRouterIDText parses a four-octet router identifier written as an IPv4
+// address, and returns it in its IPv4 form.
+//
+// RFC 4456 Section 8: ORIGINATOR_ID "is 4 bytes long and it will be created by an
+// RR in reflecting a route." The CLUSTER_ID (Section 7) and the AGGREGATOR
+// address (RFC 4271 Section 4.3 g)) are the same four octets. An IPv6 address has
+// nowhere to go in four octets, so it is refused here rather than truncated or
+// zero-filled at the encoder.
+func parseRouterIDText(s string) (netip.Addr, error) {
+	addr, err := netip.ParseAddr(s)
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("%q is not an address", s)
+	}
+	if !addr.Is4() && !addr.Is4In6() {
+		return netip.Addr{}, fmt.Errorf("%q is not an IPv4 address (the field is 4 octets)", s)
+	}
+	return addr.Unmap(), nil
 }
 
 // parseOriginText parses origin string to value.
@@ -555,6 +758,27 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 			}
 			i += consumed
 
+		case textparse.KWAtomicAggregate:
+			// RFC 4271 Section 4.3 f): "ATOMIC_AGGREGATE is a well-known
+			// discretionary attribute of length 0." It takes no value, so it
+			// cannot go through parseCommonAttributeText, whose contract reads a
+			// zero consumed-count as "keyword not handled".
+			if seenNLRI {
+				return nil, errAttrsAfterNLRI
+			}
+			attrs.AtomicAggregate = true
+			i++
+
+		case kwPathInfo:
+			if seenNLRI {
+				return nil, errAttrsAfterNLRI
+			}
+			consumed, err := parsePathInfoFlat(args[i:], &attrs)
+			if err != nil {
+				return nil, err
+			}
+			i += consumed
+
 		case kwRD:
 			if seenNLRI {
 				return nil, errAttrsAfterNLRI
@@ -595,7 +819,7 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 				i += 1 + extra
 				continue
 			}
-			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference (pref), as-path (path), community (s-com), large-community (l-com), extended-community (x-com), next-hop (next), path-information (info), rd, label, nlri, watchdog", token)
+			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference (pref), as-path (path), community (s-com), large-community (l-com), extended-community (x-com), atomic-aggregate, aggregator, originator-id, cluster-list, aigp, bgp-prefix-sid-srv6, next-hop (next), path-information (info), rd, label, nlri, watchdog", token)
 		}
 	}
 
@@ -652,25 +876,77 @@ func parseRDFlat(args []string, accum *parsedAttrs) (int, error) {
 	return 2, nil
 }
 
-// parseLabelFlat parses label <value> (flat, no set/del).
-// Label is a single MPLS label value (0-1048575).
+// parsePathInfoFlat parses path-information <id> at the top level.
+//
+// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the Path
+// Identifier field, which is of four octets", so the value is read as a 32-bit
+// unsigned number and any wider or non-numeric token is refused by name.
+//
+// The keyword is accepted here AND inside an nlri section, as `rd` and `label`
+// are. It used to be accepted only inside one, so a command that wrote all three
+// in the same position had two of them read and the third refused as an unknown
+// token (parseNLRISection).
+func parsePathInfoFlat(args []string, accum *parsedAttrs) (int, error) {
+	// args[0] = "path-information" (alias-resolved from "info").
+	if len(args) < 2 {
+		return 0, errPathInfoRequiresValue
+	}
+	if args[1] == kwSet || args[1] == kwDel {
+		return 0, errSetDelKeywordsRemovedUsePathInfo
+	}
+	id, err := strconv.ParseUint(args[1], 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid path-information %q: expected 0..4294967295", args[1])
+	}
+	accum.PathID = uint32(id) //nolint:gosec // G115: bounded by ParseUint bitSize 32
+	return 2, nil
+}
+
+// parseLabelFlat parses label <value> or label [ <value>... ] (flat, no set/del).
 func parseLabelFlat(args []string, accum *parsedAttrs) (int, error) {
 	// args[0] = "label"
 	if len(args) < 2 {
-		return 0, errors.New("label requires a value (0-1048575)")
+		return 0, errLabelRequiresValue
 	}
 	if args[1] == kwSet || args[1] == kwDel {
 		return 0, errSetDelKeywordsRemovedUseLabel
 	}
-	label, err := strconv.ParseUint(args[1], 10, 32)
+	labels, consumed, err := parseLabelStack(args[1:])
 	if err != nil {
-		return 0, fmt.Errorf("invalid label: %w", err)
+		return 0, err
 	}
-	if label > 0xFFFFF { // 20-bit max
-		return 0, fmt.Errorf("label out of range (max 1048575): %d", label)
+	accum.Labels = labels
+	return 1 + consumed, nil
+}
+
+// parseLabelStack reads the value of a `label` keyword: one bare number, or a
+// bracketed list of them.
+//
+// An MPLS label stack is a LIST, so the command has to be able to say one. RFC
+// 8277 Section 2 encodes "one or more Label fields" of three octets each and
+// puts the Bottom of Stack bit on the last one; the encoder registered for the
+// family writes those octets, and this parser only reads the values.
+//
+// One parser for both positions the keyword appears in, top level and inside an
+// nlri section, so the two cannot accept different things.
+func parseLabelStack(args []string) ([]uint32, int, error) {
+	tokens, consumed := parseBracketedListText(args)
+	if len(tokens) == 0 {
+		return nil, 0, errLabelRequiresValue
 	}
-	accum.Labels = []uint32{uint32(label)} //nolint:gosec // G115: bounded by check above
-	return 2, nil
+
+	labels := make([]uint32, 0, len(tokens))
+	for _, token := range tokens {
+		label, err := strconv.ParseUint(token, 10, 32)
+		if err != nil {
+			return nil, 0, fmt.Errorf("invalid label %q: expected 0..%d", token, labelMax)
+		}
+		if label > labelMax {
+			return nil, 0, fmt.Errorf("label out of range (max %d): %d", labelMax, label)
+		}
+		labels = append(labels, uint32(label)) //nolint:gosec // G115: bounded by the check above
+	}
+	return labels, consumed, nil
 }
 
 func init() {

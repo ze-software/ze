@@ -363,7 +363,7 @@ type ParsedRouteAttributes struct {
 	OriginatorID      uint32   // RFC 4456
 	ClusterList       []uint32 // RFC 4456
 	AIGPMetric        *uint64  // RFC 7311
-	PrefixSID         PrefixSID
+	PrefixSID         []byte   // BGP Prefix-SID TLV bytes (attribute 40), from attribute.ParsePrefixSID*
 	RawAttributes     []RawAttribute
 }
 
@@ -513,13 +513,13 @@ func ParseRouteAttributes(src *StaticRouteConfig) (*ParsedRouteAttributes, error
 	// SRv6 format starts with "l3-service" or "l2-service"
 	if src.PrefixSID != "" {
 		if strings.HasPrefix(src.PrefixSID, "l3-service") || strings.HasPrefix(src.PrefixSID, "l2-service") {
-			sid, err := ParsePrefixSIDSRv6(src.PrefixSID)
+			sid, err := attribute.ParsePrefixSIDSRv6(src.PrefixSID)
 			if err != nil {
 				return nil, err
 			}
 			attrs.PrefixSID = sid
 		} else {
-			sid, err := ParsePrefixSID(src.PrefixSID)
+			sid, err := attribute.ParsePrefixSID(src.PrefixSID)
 			if err != nil {
 				return nil, err
 			}

@@ -19,7 +19,11 @@ const (
 	KWCommunity         = "community"
 	KWLargeCommunity    = "large-community"
 	KWExtendedCommunity = "extended-community"
+	KWAIGP              = "aigp"
 	KWNextHop           = "next-hop"
+	// KWPrefixSIDSRv6 takes a parenthesized value, `( l3-service <sid> [0xNN] [struct] )`,
+	// which is the spelling ExaBGP writes (RFC 9252 SRv6 Service TLV).
+	KWPrefixSIDSRv6 = "bgp-prefix-sid-srv6"
 
 	// Structure keywords.
 	KWNLRI            = "nlri"
@@ -135,6 +139,7 @@ var attributeKeywords = map[string]bool{
 	KWCommunity:         true,
 	KWLargeCommunity:    true,
 	KWExtendedCommunity: true,
+	KWAIGP:              true,
 	KWNextHop:           true,
 }
 
@@ -152,6 +157,7 @@ var topLevelKeywords = map[string]bool{
 	KWCommunity:         true,
 	KWLargeCommunity:    true,
 	KWExtendedCommunity: true,
+	KWAIGP:              true,
 	KWNextHop:           true,
 	KWNLRI:              true,
 }

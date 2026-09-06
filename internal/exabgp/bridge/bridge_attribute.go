@@ -91,13 +91,13 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 	// (routeAttributes.Split) rather than writing a keyword.
 	"split": {Arity: arityValue},
 
-	// ze has no update-text spelling for these two, so a line carrying one is
+	"bgp-prefix-sid-srv6": {Ze: "bgp-prefix-sid-srv6", Arity: arityGroup},
+
+	// ze has no update-text spelling for this one, so a line carrying it is
 	// REFUSED rather than announced without it. `attribute` is ExaBGP's generic
 	// `attribute [ 0xFF 0x01 0x00 ]` escape hatch, which ze offers only through
-	// `update hex`; `bgp-prefix-sid-srv6` carries the SRv6 L3 service TLV of
-	// RFC 9252.
-	"attribute":           {Arity: arityList},
-	"bgp-prefix-sid-srv6": {Arity: arityGroup},
+	// `update hex`.
+	"attribute": {Arity: arityList},
 }
 
 // bridgeAttrNames lists the table's keywords, longest first, so a refusal can
@@ -187,6 +187,9 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 			return routeAttributes{}, fmt.Errorf("%w: %q", errAttributeNotEncodable, key)
 		}
 
+		if attr.Ze == "extended-community" {
+			value = qualifyExtCommunities(value)
+		}
 		// ExaBGP writes an ADD-PATH path identifier as an IPv4 address as well
 		// as a number, and its own qa/api corpus uses the dotted form. ze reads
 		// a uint32, so the dotted form is converted rather than passed on to
@@ -246,13 +249,45 @@ func parseSplitLength(value string) (int, error) {
 // Reading parts[0] as the whole NLRI is what made `announce ipv4 mup mup-isd
 // 10.0.1.0/24 ...` announce a prefix literally spelled `mup-isd`.
 func splitRouteBody(parts []string) (nlri, attrs []string) {
+	return splitRouteBodyForFamily("", parts)
+}
+
+// bridgeNLRIOwnedAttrs are the three keywords that belong to the NLRI of a
+// family whose wire form a PLUGIN encodes, rather than to the attribute block.
+//
+// ze reads them in both positions for a family it parses itself, so cutting the
+// NLRI at them costs nothing there. For mup and mvpn it costs everything: the
+// plugin encoder is handed the whole token run and reads the route
+// distinguisher out of it, so `nlri ipv4/mup add route-type mup-isd rd 100:100
+// prefix 10.0.1.0/24` arrived at the encoder with no RD at all.
+var bridgeNLRIOwnedAttrs = map[string]bool{
+	"rd": true, "route-distinguisher": true, "label": true, "path-information": true,
+}
+
+// splitRouteBodyForFamily cuts a route body at the first token that belongs to
+// the attribute block rather than the NLRI, which depends on the family.
+func splitRouteBodyForFamily(family string, parts []string) (nlri, attrs []string) {
+	pluginNLRI := bridgePluginNLRIFamily(family)
 	for i, token := range parts {
 		key := strings.ToLower(token)
+		if pluginNLRI && bridgeNLRIOwnedAttrs[key] {
+			continue
+		}
 		if _, known := bridgeRouteAttrs[key]; known || key == "withdraw" {
 			return parts[:i], parts[i:]
 		}
 	}
 	return parts, nil
+}
+
+// bridgePluginNLRIFamily reports whether a family's NLRI is encoded by a ze
+// plugin from a whole token run, rather than parsed prefix by prefix.
+//
+// The two members are the two SAFIs whose ExaBGP spelling is a field list:
+// `mup-isd 10.0.1.0/24` and `shared-join rp 10.99.199.1 group 239.251.255.228`.
+func bridgePluginNLRIFamily(family string) bool {
+	_, safi, ok := strings.Cut(family, "/")
+	return ok && (safi == "mup" || safi == "mvpn")
 }
 
 // takeAttrValue reads one attribute's value at index start and answers it with
@@ -305,4 +340,71 @@ func takeDelimited(parts []string, start int, open, close byte) (string, int, er
 		}
 	}
 	return "", start, errUnclosedGroup
+}
+
+// bridgeMUPRouteTypes are the four MUP route types, which ExaBGP writes as the
+// FIRST token of the NLRI and ze writes after the keyword `route-type`.
+//
+// Source: ExaBGP src/exabgp/configuration/announce/mup.py, the schema children.
+var bridgeMUPRouteTypes = map[string]bool{
+	"mup-isd": true, "mup-dsd": true, "mup-t1st": true, "mup-t2st": true,
+}
+
+// shapePluginNLRI rewrites an NLRI token run into the spelling the family's ze
+// plugin encoder reads. It answers the run unchanged for every family whose
+// spelling already agrees.
+//
+// mvpn agrees: ExaBGP writes `shared-join rp <ip> group <ip> rd <rd> source-as
+// <asn>` and the ze encoder reads exactly that. mup does not: ExaBGP leads with
+// the route type and the prefix bare, ze names both
+// (internal/component/bgp/plugins/nlri/mup/encode.go, EncodeNLRIHex).
+func shapePluginNLRI(family string, tokens []string) []string {
+	_, safi, ok := strings.Cut(family, "/")
+	if !ok || safi != "mup" || len(tokens) < 2 || !bridgeMUPRouteTypes[strings.ToLower(tokens[0])] {
+		return tokens
+	}
+
+	shaped := make([]string, 0, len(tokens)+2)
+	shaped = append(shaped, "route-type", tokens[0], "prefix", tokens[1])
+	return append(shaped, tokens[2:]...)
+}
+
+// qualifyExtCommunities names the TYPE of an extended community ExaBGP wrote
+// bare, and leaves every other spelling alone.
+//
+// ExaBGP accepts `0:0` and means a route target by it: its own decoder renders
+// the same eight octets back as `target:0:0`, which is what
+// test/exabgp-compat/api/api-attributes-vpn.ci carries in the command column.
+// ze reads the word before the first colon as the type, so the bare form
+// reaches it as the unknown type `0`.
+//
+// RFC 4360 Section 4: the Route Target is "the two-octet AS specific" and the
+// four-octet forms of the transitive extended community, which is the pair and
+// the triple this writes the word onto.
+func qualifyExtCommunities(value string) string {
+	if !strings.HasPrefix(value, "[") {
+		return qualifyExtCommunity(value)
+	}
+	inner := strings.TrimSuffix(strings.TrimPrefix(value, "["), "]")
+	fields := strings.Fields(inner)
+	for i := range fields {
+		fields[i] = qualifyExtCommunity(fields[i])
+	}
+	var tb textbuf.Buffer
+	return tb.Byte('[').Str(textbuf.Join(fields, " ")).Byte(']').String()
+}
+
+// qualifyExtCommunity writes `target:` onto one bare `<asn>:<n>` community.
+func qualifyExtCommunity(value string) string {
+	head, tail, ok := strings.Cut(value, ":")
+	if !ok || tail == "" {
+		return value
+	}
+	// A leading NUMBER is an administrator field, so the type word is missing.
+	// A leading word is the type itself: `target`, `origin`, `rate-limit`.
+	if _, err := strconv.ParseUint(head, 10, 32); err != nil {
+		return value
+	}
+	var tb textbuf.Buffer
+	return tb.Str("target:").Str(value).String()
 }

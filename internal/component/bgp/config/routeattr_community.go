@@ -6,7 +6,6 @@
 package bgpconfig
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -224,9 +223,16 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 //   - FlowSpec actions: rate-limit:N, rate-limit:N:packets, rate-limit-packets:N, redirect-to-nexthop-draft, copy-to-nexthop, mark N
 //   - Generic format: ASN:NN, IP:NN
 func parseOneExtCommunity(s string) ([]byte, error) {
-	// Check for hex format (0x prefix, no colons)
-	if (strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X")) && !strings.Contains(s, ":") {
-		return parseExtCommunityHex(s)
+	// The raw 8-octet form. The width check and the decode live in the attribute
+	// package because the `update text` API parser needs the SAME form
+	// (route/route_community.go parseExtendedCommunity); it had none, so a
+	// community an operator could configure could not be sent.
+	if attribute.IsExtendedCommunityHex(s) {
+		ec, err := attribute.ParseExtendedCommunityHex(s)
+		if err != nil {
+			return nil, err
+		}
+		return ec[:], nil
 	}
 
 	// FlowSpec single-word actions (no colons). The table lives in the attribute
@@ -321,28 +327,6 @@ func parseL2InfoExtCommunity(encapsStr, controlStr, mtuStr, prefStr string) ([]b
 		byte(mtu >> 8), byte(mtu),
 		byte(preference >> 8), byte(preference),
 	}, nil
-}
-
-// parseExtCommunityHex parses hex format extended community (e.g., "0x0002fde800000001").
-// The hex string represents the raw 8-byte wire format.
-// RFC 4360: Extended communities are 8 bytes (type + subtype + 6 bytes value).
-func parseExtCommunityHex(s string) ([]byte, error) {
-	// Strip 0x/0X prefix
-	hexStr := strings.TrimPrefix(s, "0x")
-	hexStr = strings.TrimPrefix(hexStr, "0X")
-
-	// Must be exactly 16 hex chars (8 bytes for extended community)
-	if len(hexStr) != 16 {
-		return nil, fmt.Errorf("invalid extended-community %q: hex format must be 16 chars (8 bytes)", s)
-	}
-
-	// Decode hex to bytes
-	raw, err := hex.DecodeString(hexStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid extended-community %q: %w", s, err)
-	}
-
-	return raw, nil
 }
 
 // fourByteASExtCommunity builds the four-octet AS specific extended community

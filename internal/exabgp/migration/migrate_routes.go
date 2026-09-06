@@ -139,9 +139,12 @@ func convertStaticToUpdate(static, dst *config.Tree) {
 }
 
 // convertFlowToUpdate converts ExaBGP flow blocks to Ze update blocks.
-// ExaBGP: flow { route NAME { rd RD; next-hop NH; match { criteria; } then { actions; } } }
+// ExaBGP: flow { route NAME { match { criteria; } scope { interface-set [ ... ]; } then { actions; } } }
 // Ze: update { attribute { extended-community ...; } nlri { ipv4/flow criterion value ...; } }.
-func convertFlowToUpdate(flow, dst *config.Tree) {
+//
+// It reports the error of a scope block ze cannot express, so a filter is never
+// announced with a wider reach than the ExaBGP config gave it.
+func convertFlowToUpdate(flow, dst *config.Tree) error {
 	for _, entry := range flow.GetListOrdered("route") {
 		route := entry.Value
 
@@ -167,8 +170,22 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 			}
 		}
 
-		// Parse then block → attributes.
+		// Parse scope block → interface-set extended communities. They are
+		// written BEFORE the then block's traffic actions because ExaBGP sorts
+		// its extended communities by value before it packs them
+		// (bgp/message/update/attribute/community/extended/communities.py,
+		// pack), and an interface set's type octet (0x07 or 0x47) sorts before
+		// a traffic action's (0x80). Writing them first reproduces that order.
 		var extComms []string
+		if scope := route.GetContainer("scope"); scope != nil {
+			scopeComms, err := flowScopeExtCommunities(entry.Key, scope)
+			if err != nil {
+				return err
+			}
+			extComms = append(extComms, scopeComms...)
+		}
+
+		// Parse then block → attributes.
 		var community string
 		var rawAttr string
 		if then := route.GetContainer("then"); then != nil {
@@ -290,6 +307,8 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 
 		dst.AddListEntry("update", "", update)
 	}
+
+	return nil
 }
 
 // convertL2VPNToUpdate converts neighbor-level l2vpn blocks to Ze update blocks.

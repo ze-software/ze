@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // TestParseExtendedCommunityHex verifies hex format parsing for extended communities.
@@ -146,8 +148,8 @@ func TestParsePrefixSIDSRv6Integration(t *testing.T) {
 	attrs, err := ParseRouteAttributes(&src)
 	require.NoError(t, err)
 	require.NotNil(t, attrs)
-	assert.NotEmpty(t, attrs.PrefixSID.Bytes, "PrefixSID bytes should not be empty for SRv6 format")
-	t.Logf("PrefixSID bytes: %x", attrs.PrefixSID.Bytes)
+	assert.NotEmpty(t, attrs.PrefixSID, "PrefixSID bytes should not be empty for SRv6 format")
+	t.Logf("PrefixSID bytes: %x", attrs.PrefixSID)
 }
 
 // TestParsePrefixSIDSRv6_ReservedFieldsZero verifies that the SRv6 Prefix-SID
@@ -166,19 +168,19 @@ func TestParsePrefixSIDSRv6_ReservedFieldsZero(t *testing.T) {
 	// Behavior 0x003e (End.DT6) forces a non-zero Behavior field so the assertions
 	// on the surrounding reserved/flags octets are not trivially satisfied by an
 	// all-zero value region.
-	ps, err := ParsePrefixSIDSRv6("l3-service 2001:db8::1 0x3e")
+	ps, err := attribute.ParsePrefixSIDSRv6("l3-service 2001:db8::1 0x3e")
 	require.NoError(t, err)
-	require.Len(t, ps.Bytes, 28, "unexpected SRv6 Prefix-SID wire length")
+	require.Len(t, ps, 28, "unexpected SRv6 Prefix-SID wire length")
 
-	assert.Equal(t, byte(5), ps.Bytes[0], "outer TLV type must be 5 (L3 Service)")
-	assert.EqualValues(t, 0, ps.Bytes[3], "RFC9252-3.1-1: Service TLV Reserved must be 0")
-	assert.Equal(t, byte(1), ps.Bytes[4], "sub-TLV type must be 1 (SID Information)")
-	assert.EqualValues(t, 0, ps.Bytes[7], "RFC9252-3.2-1: RESERVED1 must be 0")
-	assert.EqualValues(t, 0, ps.Bytes[24], "RFC9252-3.2-2: Service SID Flags must be 0")
+	assert.Equal(t, byte(5), ps[0], "outer TLV type must be 5 (L3 Service)")
+	assert.EqualValues(t, 0, ps[3], "RFC9252-3.1-1: Service TLV Reserved must be 0")
+	assert.Equal(t, byte(1), ps[4], "sub-TLV type must be 1 (SID Information)")
+	assert.EqualValues(t, 0, ps[7], "RFC9252-3.2-1: RESERVED1 must be 0")
+	assert.EqualValues(t, 0, ps[24], "RFC9252-3.2-2: Service SID Flags must be 0")
 	// Behavior field carries the requested 0x003e, proving the octets around it
 	// are independently zeroed rather than part of a zero-filled buffer.
-	assert.Equal(t, []byte{0x00, 0x3e}, ps.Bytes[25:27], "Behavior must round-trip")
-	assert.EqualValues(t, 0, ps.Bytes[27], "RFC9252-3.2-3: RESERVED2 must be 0")
+	assert.Equal(t, []byte{0x00, 0x3e}, ps[25:27], "Behavior must round-trip")
+	assert.EqualValues(t, 0, ps[27], "RFC9252-3.2-3: RESERVED2 must be 0")
 }
 
 // TestRFC8955TrafficActionUnusedBitsZero verifies the FlowSpec traffic-action extended

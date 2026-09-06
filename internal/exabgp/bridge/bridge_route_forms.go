@@ -18,10 +18,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// errEORNeedsFamily is what a bare `announce eor` answers. ExaBGP sends one
-// End-of-RIB per NEGOTIATED family, and the translator is a pure function of
-// one line: it does not know what was negotiated, and ze's update-text spells
-// End-of-RIB per family rather than for all of them at once.
+// errEORNeedsFamily is what a bare `announce eor` answers when the bridge was
+// given no family list. ExaBGP sends one End-of-RIB per NEGOTIATED family, and
+// ze's update-text spells the marker per family rather than for all of them at
+// once, so the expansion needs to know which families there are.
 var errEORNeedsFamily = errors.New("the ExaBGP bridge needs a family on `announce eor`")
 
 // errSplitLength is what a `split` answers when its length cannot cut the
@@ -33,27 +33,44 @@ var errSplitLength = errors.New("invalid split length")
 // NLRI and no withdrawn routes.
 //
 // It reports false when the line is not an End-of-RIB.
-func convertEOR(selector, rest string) (string, bool, error) {
+func convertEOR(selector, rest string, families []string) ([]string, bool, error) {
 	fields := strings.Fields(strings.TrimSpace(rest))
 	if len(fields) < 2 || !strings.EqualFold(fields[0], "announce") || !strings.EqualFold(fields[1], "eor") {
-		return "", false, nil
+		return nil, false, nil
 	}
+
+	// A bare `announce eor` is every family, which ExaBGP reads as every family
+	// the session negotiated. The bridge answers with the families it DECLARED,
+	// which is the set it asked to negotiate.
 	if len(fields) < 4 {
-		return "", true, errEORNeedsFamily
+		if len(families) == 0 {
+			return nil, true, errEORNeedsFamily
+		}
+		commands := make([]string, 0, len(families))
+		for _, family := range families {
+			commands = append(commands, eorCommand(selector, family))
+		}
+		return commands, true, nil
 	}
 
 	afi := strings.ToLower(fields[2])
 	safi := strings.ToLower(fields[3])
 	if !bridgeAFI[afi] {
-		return "", true, fmt.Errorf("%w: %q names no address family", errEORNeedsFamily, fields[2])
+		return nil, true, fmt.Errorf("%w: %q names no address family", errEORNeedsFamily, fields[2])
 	}
 	if _, known := bridgeSAFI[safi]; !known {
-		return "", true, fmt.Errorf("%w: %q names no subsequent address family", errEORNeedsFamily, fields[3])
+		return nil, true, fmt.Errorf("%w: %q names no subsequent address family", errEORNeedsFamily, fields[3])
 	}
 
 	var tb textbuf.Buffer
-	return tb.Str("send bgp ").Str(selector).Str(" update text nlri ").
-		Str(afi).Byte('/').Str(canonicalExabgpSAFI(safi)).Str(" eor").String(), true, nil
+	family := tb.Str(afi).Byte('/').Str(canonicalExabgpSAFI(safi)).String()
+	return []string{eorCommand(selector, family)}, true, nil
+}
+
+// eorCommand writes one per-family End-of-RIB.
+func eorCommand(selector, family string) string {
+	var tb textbuf.Buffer
+	return tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(family).Str(" eor").String()
 }
 
 // bridgeAFI is the address family set ExaBGP names in a family-qualified line.
@@ -103,10 +120,11 @@ func convertAttributesForm(selector, rest, verb string) ([]string, bool, error) 
 		verb = nlriDel
 	}
 
-	// Each prefix is its own route, so each gets its own UPDATE, which is what
-	// ExaBGP puts on the wire for this form.
+	// Every prefix carries the same attribute set, so it is ONE ze command
+	// naming them all. Whether they share an UPDATE on the wire is the
+	// destination peer's `behavior { group-updates }` leaf, not the bridge's.
 	family := familyForAttributes(attrs, prefixes[0])
-	return oneCommandPerNLRI(selector, family, verb, attrs, prefixes, true), true, nil
+	return oneCommandPerNLRI(selector, family, verb, attrs, prefixes, false), true, nil
 }
 
 // familyForAttributes reads the family off an attribute set and the first

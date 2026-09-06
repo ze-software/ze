@@ -135,8 +135,10 @@ func needsRIBPlugin(tree *config.Tree) bool {
 			}
 		}
 
-		// Check ExaBGP api block with receive { update; } (ExaBGP format).
-		if api := neighborTree.GetContainer("api"); api != nil {
+		// Check ExaBGP api blocks with receive { update; } (ExaBGP format). A
+		// neighbor can carry several api blocks, named or anonymous, and one
+		// asking for UPDATE is enough (exabgp.yang, list api).
+		for _, api := range neighborTree.GetList("api") {
 			if recv := api.GetContainer("receive"); recv != nil {
 				if _, ok := recv.GetFlex("update"); ok {
 					return true
@@ -189,7 +191,7 @@ const bridgePluginName = "exabgp-bridge"
 // the failure this function is being repaired for.
 func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]string {
 	processMap := make(map[string]string)
-	var tb textbuf.Buffer
+	processes := make([]bridgeProcess, 0, 2)
 	for _, entry := range tree.GetListOrdered("process") {
 		runCmd, ok := entry.Value.Get("run")
 		if !ok {
@@ -200,34 +202,47 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]strin
 			Name:   entry.Key,
 			RunCmd: runCmd,
 		})
-		if len(processMap) != 0 {
-			result.Warnings = append(result.Warnings, tb.Reset().
-				Str("process ").Str(entry.Key).
-				Str(" is not migrated: the exabgp bridge runs one script and ").
-				Str(processMap[bridgeBoundProcess(processMap)]).
-				Str(" already has it. Run the second script from the first, or start it beside ze").
-				String())
-			continue
-		}
-		injectBridgePlugin(result.Tree, runCmd)
+		processes = append(processes, bridgeProcess{
+			Name:    entry.Key,
+			RunCmd:  runCmd,
+			Respawn: exabgpRespawn(entry.Value),
+		})
 		processMap[entry.Key] = bridgePluginName
 	}
+	if len(processes) == 0 {
+		return processMap
+	}
+	injectBridgePlugin(result.Tree, processes)
 	return processMap
 }
 
-// bridgeBoundProcess answers the one ExaBGP process name the bridge took. The
-// map holds at most one entry by construction, so the loop reads it without
-// deciding anything.
-func bridgeBoundProcess(processMap map[string]string) string {
-	for name := range processMap {
-		return name
+// bridgeProcess is one ExaBGP process block, in the form the bridge declares.
+type bridgeProcess struct {
+	Name   string
+	RunCmd string
+	// Respawn is ExaBGP's own default, true, unless the block says otherwise.
+	Respawn bool
+}
+
+// exabgpRespawn reads a process block's `respawn` leaf. ExaBGP restarts a
+// process that exits unless the block turns it off
+// (src/exabgp/configuration/process/__init__.py, `'respawn': True`).
+func exabgpRespawn(process *config.Tree) bool {
+	value, ok := process.Get("respawn")
+	if !ok {
+		return true
 	}
-	return ""
+	switch strings.ToLower(strings.Trim(value, `"';`)) {
+	case "false", "disable", "no":
+		return false
+	default:
+		return true
+	}
 }
 
 // injectBridgePlugin declares the bridge and the script it runs:
 //
-//	exabgp { bridge { run "<command>" } }
+//	exabgp { bridge { process <name> { run "<command>"; respawn <v> } } }
 //	plugin { internal exabgp-bridge { use exabgp-bridge } }
 //
 // The family leaf is left out on purpose. It refines the ADD-PATH capability
@@ -236,9 +251,18 @@ func bridgeBoundProcess(processMap map[string]string) string {
 //
 // dst is the RESULT tree. Writing to the source tree loses the block: the
 // source is read and discarded, and only result.Tree reaches the serializer.
-func injectBridgePlugin(dst *config.Tree, runCmd string) {
+func injectBridgePlugin(dst *config.Tree, processes []bridgeProcess) {
 	bridge := config.NewTree()
-	bridge.Set("run", runCmd)
+	for _, process := range processes {
+		entry := config.NewTree()
+		entry.Set("run", process.RunCmd)
+		// The leaf is written only to turn respawning OFF, because true is
+		// both ExaBGP's default and the ze YANG default.
+		if !process.Respawn {
+			entry.Set("respawn", "disable")
+		}
+		bridge.AddListEntry("process", process.Name, entry)
+	}
 	exabgp := config.NewTree()
 	exabgp.SetContainer("bridge", bridge)
 	dst.SetContainer("exabgp", exabgp)
@@ -305,7 +329,9 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 		}
 
 		// Migrate process bindings (old: process { processes [...] } -> new: attach process NAME { ... }).
-		migrateProcessBindings(expandedTree, peer, processMap)
+		if err := migrateProcessBindings(expandedTree, peer, processMap, result.Processes); err != nil {
+			return fmt.Errorf("neighbor %s: %w", addr, err)
+		}
 
 		// Get or create group tree.
 		groupTree, ok := groups[groupName]
@@ -389,7 +415,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	leafFields := []string{
 		"description", "router-id", "local-address", "local-link-local", "local-as", "peer-as",
 		"hold-time", "passive", "listen", "connect", "ttl-security",
-		"md5-password", "md5-base64", "group-updates", "auto-flush",
+		"md5-password", "md5-base64", "group-updates", "auto-flush", "manual-eor",
 	}
 	for _, key := range leafFields {
 		if v, ok := neighbor.Get(key); ok {
@@ -410,7 +436,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	// Merge containers (neighbor overrides template, except static/announce which merge).
 	// These are the known container fields in ExaBGP neighbor config.
 	containerFields := []string{
-		"capability", "family", "nexthop", "api",
+		"capability", "family", "nexthop",
 	}
 	for _, key := range containerFields {
 		if c := neighbor.GetContainer(key); c != nil {
@@ -431,7 +457,12 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	// For static routes, we want template routes + neighbor routes.
 	// Both trees are ExaBGP input, which keeps its own `process` list
 	// (exabgp.yang); the rename applies to ze-native output alone.
-	listFields := []string{"process", "static"}
+	// The api entries of the template and of the neighbor are both kept, which
+	// is what ExaBGP does with them: ParseAPI.flatten unions the processes and
+	// the per-direction flags of every api block a neighbor holds
+	// (src/exabgp/configuration/neighbor/api.py). A process named by both is
+	// attached once (addProcessBinding).
+	listFields := []string{"process", "static", "api"}
 	for _, key := range listFields {
 		for _, entry := range neighbor.GetListOrdered(key) {
 			merged.AddListEntry(key, entry.Key, entry.Value.Clone())
@@ -525,24 +556,14 @@ func copySimpleFields(src, dst *config.Tree) {
 		connContainer.SetContainer("md5", md5Container)
 	}
 
-	// ExaBGP "group-updates" -> Ze behavior > group-updates
-	if v, ok := src.Get("group-updates"); ok {
-		behaviorContainer := dst.GetContainer("behavior")
-		if behaviorContainer == nil {
-			behaviorContainer = config.NewTree()
-			dst.SetContainer("behavior", behaviorContainer)
+	// Three ExaBGP neighbor leaves keep their name inside ze's behavior
+	// container (ze-bgp-conf.yang, peer > behavior).
+	for _, field := range []string{"group-updates", "manual-eor", "auto-flush"} {
+		v, ok := src.Get(field)
+		if !ok {
+			continue
 		}
-		behaviorContainer.Set("group-updates", v)
-	}
-
-	// ExaBGP "auto-flush" -> Ze behavior > auto-flush
-	if v, ok := src.Get("auto-flush"); ok {
-		behaviorContainer := dst.GetContainer("behavior")
-		if behaviorContainer == nil {
-			behaviorContainer = config.NewTree()
-			dst.SetContainer("behavior", behaviorContainer)
-		}
-		behaviorContainer.Set("auto-flush", v)
+		dst.GetOrCreateContainer("behavior").Set(field, v)
 	}
 
 	// Fields that move into session > asn: local-as -> local, peer-as -> remote.
@@ -810,8 +831,9 @@ func migrateHostnameToCapability(src, dstCap *config.Tree, hasCapabilities *bool
 	*hasCapabilities = true
 }
 
-// copyContainers copies container blocks from neighbor to peer.
-func copyContainers(src, dst *config.Tree) {
+// copyContainers copies container blocks from neighbor to peer. It reports the
+// error of a flow route whose scope block ze cannot express.
+func copyContainers(src, dst *config.Tree) error {
 	// Copy and convert family block.
 	// ExaBGP: "ipv4 unicast" -> ZeBGP list entries: key="ipv4/unicast".
 	// Families go into session > family.
@@ -831,7 +853,9 @@ func copyContainers(src, dst *config.Tree) {
 
 	// Convert flow block to update blocks.
 	if flow := src.GetContainer("flow"); flow != nil {
-		convertFlowToUpdate(flow, dst)
+		if err := convertFlowToUpdate(flow, dst); err != nil {
+			return err
+		}
 	}
 
 	// Convert neighbor-level l2vpn block to update blocks.
@@ -841,6 +865,7 @@ func copyContainers(src, dst *config.Tree) {
 	}
 
 	// RFC 8950: nexthop block is now moved into capability block by migrateCapability.
+	return nil
 }
 
 // bindRIBProcess binds the RIB plugin to a peer.
@@ -923,13 +948,35 @@ func attachedProcesses(peer *config.Tree) *config.Tree {
 
 // migrateProcessBindings converts ExaBGP api block and process blocks to ze
 // named attachments.
-// ExaBGP syntax: api { processes [ foo bar ]; }.
-// Ze syntax: attach process foo-compat { send [ update ]; }.
-func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string) {
-	// First, handle ExaBGP-style api block.
-	if api := src.GetContainer("api"); api != nil {
-		processNames := extractProcessNames(api)
-		for _, name := range processNames {
+// ExaBGP syntax: api { processes [ foo bar ]; } or api { processes-match [ ^foo ]; }.
+// Ze syntax: attach process foo-compat { send [ update ] }.
+//
+// declared is every ExaBGP process the config runs, which is what a
+// processes-match pattern selects from.
+func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string, declared []ExternalProcess) error {
+	// First, handle ExaBGP-style api blocks. A neighbor can name several, and
+	// ExaBGP unions their process lists rather than letting the last one win
+	// (src/exabgp/configuration/neighbor/api.py, ParseAPI.flatten), so every
+	// entry contributes its processes here.
+	for _, entry := range src.GetListOrdered("api") {
+		names := extractProcessList(entry.Value, "processes")
+		patterns := extractProcessList(entry.Value, processesMatchField)
+
+		// ExaBGP refuses a neighbor that carries both lists rather than
+		// choosing between them (src/exabgp/configuration/configuration.py,
+		// validate: "processes and processes-match are mutually exclusive").
+		if len(names) > 0 && len(patterns) > 0 {
+			return fmt.Errorf("api %s: processes and processes-match are mutually exclusive", entry.Key)
+		}
+		if len(patterns) > 0 {
+			matched, err := matchProcessNames(entry.Key, patterns, declared)
+			if err != nil {
+				return err
+			}
+			names = matched
+		}
+
+		for _, name := range names {
 			newName, ok := processMap[name]
 			if !ok {
 				continue // No plugin created for this process -- skip binding.
@@ -944,7 +991,7 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string)
 		procTree := entry.Value
 
 		// Check if this is old-style (has "processes" field) or new-style (named).
-		processNames := extractProcessNames(procTree)
+		processNames := extractProcessList(procTree, "processes")
 
 		if len(processNames) > 0 {
 			// Old-style: convert to named bindings.
@@ -964,18 +1011,21 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string)
 			attachedProcesses(dst).AddListEntry("process", newName, procTree.Clone())
 		}
 	}
+
+	return nil
 }
 
-// extractProcessNames extracts process names from a block with "processes" field.
-func extractProcessNames(tree *config.Tree) []string {
+// extractProcessList reads one bracketed list of an api block: the literal
+// names of "processes", or the regular expressions of "processes-match".
+func extractProcessList(tree *config.Tree, field string) []string {
 	// Try multi-value first.
-	processNames := tree.GetMultiValues("processes")
+	processNames := tree.GetMultiValues(field)
 	if len(processNames) > 0 {
 		return processNames
 	}
 
 	// Try single value.
-	if plist, ok := tree.Get("processes"); ok {
+	if plist, ok := tree.Get(field); ok {
 		// Parse process list: "[ name1 name2 ]" or "[ name1, name2 ]".
 		plist = strings.Trim(plist, "[]")
 		plist = strings.ReplaceAll(plist, ",", " ")
@@ -992,6 +1042,12 @@ func extractProcessNames(tree *config.Tree) []string {
 // receive list would drop the messages it reports on, and it announces and
 // withdraws, so a narrower send list would refuse the routes it originates.
 func addProcessBinding(dst *config.Tree, name string) {
+	// Two api blocks can name the same process. AddListEntry keeps both under
+	// generated keys, so the peer would attach the plugin twice.
+	if attachedProcesses(dst).GetList("process")[name] != nil {
+		return
+	}
+
 	proc := config.NewTree()
 	if name == bridgePluginName {
 		proc.Set("receive", "[ * ]")
@@ -1048,7 +1104,9 @@ func migrateSingleNeighbor(neighborTree *config.Tree, result *MigrateResult) (*c
 	}
 
 	// Copy other containers (family, etc.).
-	copyContainers(neighborTree, peer)
+	if err := copyContainers(neighborTree, peer); err != nil {
+		return nil, err
+	}
 
 	// Check for unsupported features.
 	checkUnsupported(neighborTree, result)
