@@ -13,95 +13,204 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**What the schema promises.** Twelve `rpc` statements across five YANG API
-modules declare a callable method and a one-line summary.
+**What the operator needs, and what the schema already promises.** An operator
+adds and removes BGP peers on a running router. Ze offers one route today, and
+it goes through the configuration file: `set bgp peer ...` then `commit`. That
+route works and is proven end to end by `test/plugin/rest-peer-set-delete-lifecycle.ci`,
+whose driver `restPeerLifecycle13` (`internal/test/fixture/plugin_fixture_13_rest.go`)
+adds a peer, commits, deletes another, commits, and re-adds the first, checking
+the reactor's peer table after each commit. Ze needs a second route beside it,
+for a peer that lives in the running daemon and is never written to the file.
+The schema already publishes that second route. `ze-bgp-api.yang`
+(`internal/component/bgp/yang/ze-bgp-api.yang`) declares `peer-add` "Add a new
+peer." and `peer-remove` "Remove a peer.".
 `internal/component/bgp/plugins/cmd/peer/yang/ze-bgp-cmd-peer-api.yang` declares
-`peer-add`, "Add a peer dynamically.", and `peer-save`, "Save peer(s) to config
-file.". `internal/component/cmd/set/yang/ze-cli-set-api.yang` declares
-`bgp-peer-with`, "Set peer with configuration (asn, local-as, timer, etc.).",
-and `bgp-peer-save`, "Save peer(s) to config file.".
-`internal/component/bgp/plugins/cmd/update/yang/ze-bgp-cmd-update-api.yang`
-declares `peer-update-hex`, "Parse and send hex/b64-format UPDATE to peer.".
-`internal/component/bgp/plugins/rib/yang/ze-rib-api.yang` declares
-`command-help`, "Show RIB command details.", and `command-complete`, "Complete
-RIB command/args.". `internal/component/bgp/yang/ze-bgp-api.yang` declares
-`peer-show`, `peer-show-capabilities`, `peer-show-statistics`, `peer-add` and
-`peer-remove`. Two surfaces publish every one of them. `cmdMethods` prints the
-wire method, the module and the summary of each rpc in each API module
-(`internal/component/config/schema/cli/main.go`), over the registry that
-`loadAPIRPCs` fills in the same file. `Build` puts the same wire method in the
-`RPCs` array of `ze help ai --json`, over the registry that `SchemaRegistry`
-fills beside it (`internal/component/aihelp/aihelp.go`). An unread config leaf
-is skipped in silence. A dead rpc is PUBLISHED, to an operator and to an AI
-agent, as a method Ze answers.
+`peer-add` "Add a peer dynamically." and `peer-save` "Save peer(s) to config
+file.". `cmdMethods` (`internal/component/config/schema/cli/main.go`) prints
+each one to an operator, and `Build` (`internal/component/aihelp/aihelp.go`)
+puts each one in the `RPCs` array of `ze help ai --json`. An unread config leaf
+is skipped in silence. A declared rpc with no handler is PUBLISHED as a method
+Ze answers.
 
-**What Ze does instead.** No handler answers any of the twelve names, and each
-was read at its producer. Peer creation and removal reach the reactor only
-through the config transaction path, which is why
-`internal/exabgp/bridge/bridge_neighbor.go` already carries the sentence "ze
-creates no BGP peer at runtime" inside `errNeighborCreate`. `handleUpdate`
-(`internal/component/bgp/plugins/cmd/update/update_text.go`) is registered once,
-as `ze-bgp:peer-update`, and switches on the encoding word to reach text, hex,
-b64 and cursor, so the hex form holds no wire method of its own. The RIB plugin
-registers nine methods and neither of the two
-(`internal/component/bgp/plugins/cmd/rib/rib.go`). The siblings that DO answer
-are served by `ribHelp`, `ribCommandList` and `ribEventList`
-(`internal/component/bgp/plugins/rib/rib_commands.go`), and that file holds no
-`command-help` or `command-complete` counterpart. The two `set` declarations are
-contradicted by their own sibling module: `ze-cli-set-cmd.yang` carries
-`revision 2026-06-03` whose description reads "Removed set bgp peer with/save.",
-and the API half was left behind. The three `peer-show` names are near misses of
-a rename, because `ze-bgp:peer-detail`, `ze-bgp:peer-capabilities` and
-`ze-bgp:peer-statistics` are registered and answer what the three declarations
-describe. Two other readers of `ExtractRPCs` are clean and MUST NOT be listed as
-publishers. `AllRPCDocs` (`internal/component/config/yang/cli/tree.go`) starts
-from `AllBuiltinRPCs` and drops any method with no CLI path. `buildParamMeta`
-(`cmd/ze/hub/command_meta.go`) iterates the paths `WireMethodToPath` answers. A
-declaration with no command node reaches neither.
+**The model this spec builds.** Three RPCs act on one runtime working set, and
+the configuration file is reconciled to that set on demand.
 
-**Why no gate saw them, and what the gate must settle first.** `./le docvalid
-command-contract` answers "All commands validated." today, and states its
-purpose as "every YANG command node has a handler, and every handler a node"
-(`internal/le/docvalid/actions.go`). `Validate`
+| RPC | What it does | What it does NOT do |
+|---|---|---|
+| `peer-create` | Builds the peer in the reactor and starts it | Write the configuration file |
+| `peer-delete` | Stops the peer and removes it from the reactor | Write the configuration file |
+| `peer-save` | Makes the configuration file state the running peer set | Change the running set |
+
+`peer-save` persists presence AND absence. A peer created at runtime is written
+into the file. A configured peer deleted at runtime is taken out of it. This
+sits BESIDE the configured route, and neither replaces the other.
+
+**What Ze does instead today, read at each producer.** `handleBgpPeerRemove`
+(`internal/component/bgp/plugins/cmd/peer/peer.go`) calls `Reactor.RemovePeer`
+and touches no configuration. That is right for a runtime peer. For a configured
+peer it is wrong twice: the peer returns at the next daemon start, and the
+transaction tree still holds it. `Reactor.AddDynamicPeer`
+(`internal/component/bgp/reactor/reactor_peers.go`) builds a peer from a config
+tree and calls `AddPeer`, writing nothing to the configuration. At HEAD no
+handler and no command node reach it. Uncommitted work in this checkout adds
+`create bgp peer` as `ze-bgp:peer-add`, in `create.go` and `ze-peer-cmd.yang`
+under `internal/component/bgp/plugins/cmd/peer/`. `peer-save` has no handler and
+no command node, and it is declared twice. No handler registers the prefix
+`ze-bgp-cmd-peer:` at all: `WireModule` (`internal/component/config/yang/rpc.go`)
+strips the `-api` suffix, so all 14 rpcs of `ze-bgp-cmd-peer-api.yang` publish
+under a prefix nothing serves. `peer-pause` and `peer-resume` work only because
+a command node in `ze-peer-cmd.yang` names `ze-bgp:peer-pause`, which
+`peer.go` does register.
+
+**The runtime peer has no origin marker, and that blocks everything.**
+`reconcilePeersJournaled` (`internal/component/bgp/reactor/reactor_api.go`)
+removes every peer the new configuration does not name, unless
+`PeerSettings.IsDynamic` is set. `IsDynamic`
+(`internal/component/bgp/reactor/peer_settings.go`) marks a peer built from a
+listen-range group template, and `AddDynamicPeer` sets it on no peer it builds.
+So a runtime-created peer dies at the next commit of any leaf, and the operator
+who created it is given no reason. A marker naming where each peer came from,
+the configuration file, a listen range, or a command, is PREREQUISITE work. The
+reconcile reads it to keep a command-created peer, and `peer-save` reads it to
+tell a peer it must write into the file from a peer the file already names. The
+marker becomes the configuration value once `peer-save` has written the peer
+out.
+
+**Both front doors, and what each can reach.** An operator types the command.
+A plugin calls `Plugin.DispatchCommand` (`pkg/plugin/sdk/sdk_engine.go`), which
+routes the same string through the engine's command dispatcher.
+`plugin01APIPeerRemove` (`internal/test/fixture/plugin_fixture_01_api.go`)
+already drives `delete bgp peer 127.0.0.1` that way, under
+`test/plugin/api-peer-remove.ci`. A third caller reaches the same commands:
+`convertNeighborCreate` (`internal/exabgp/bridge/bridge_neighbor.go`) translates
+ExaBGP's `create neighbor` to `create bgp peer` and `delete neighbor` to `delete
+bgp peer`, and the `api-peer-lifecycle` profile
+(`internal/le/interoplab/bgp/exabgp_helpers.go`) sends `create neighbor` then
+`announce route 1.1.0.0/24`, whose UPDATE bytes
+`test/exabgp-compat/api/api-peer-lifecycle.ci` asserts. A plugin cannot start a
+configuration transaction: the SDK's config surface is
+`OnConfigOperationDecompose` and `OnConfigOperationApply`
+(`pkg/plugin/sdk/sdk_callbacks.go`), which RECEIVE an operation the daemon
+decided, and `ze-config-cli-cmd.yang` declares read commands only. REST is the
+one initiating surface, through `ConfigSessionManager.Commit`
+(`internal/component/api/config_session.go`). So `peer-save` is what gives a
+plugin any way to persist a peer at all.
+
+**The seam `peer-save` lands on.** `handleBgpPeerPrefixUpdate`
+(`internal/component/bgp/plugins/cmd/peer/prefix_update.go`) is the only handler
+that writes configuration: it opens `cli.NewEditor` over the daemon's config
+path and calls `SaveDraft`, leaving a draft the operator must commit. That is
+not enough for `peer-save`, which must land in the file AND in the running
+configuration. `ConfigSessionManager.Commit` calls the `onCommit` reload hook.
+`Editor.CommitSession` (`internal/component/cli/editor_commit.go`) writes the
+file and fires no hook, so a handler that calls it leaves the reactor holding
+the old tree.
+
+**`peer-save` takes no selector, and the declaration that says "peer(s)" is
+wrong.** The reading this spec takes is that `peer-save` acts on the whole
+running set. A selector cannot express the half the owner asked for: after
+`peer-delete 10.0.0.1` the peer is gone from the running set, so a selector
+naming it selects nothing, and the ABSENCE is the fact being persisted. A
+selector form would answer "0 peers saved" whether the peer was deleted, never
+existed, or the word was mistyped, which is the silently wrong value
+`ai/rules/principles.md` bans. An operator who wants one specific peer in the
+file already has `set bgp peer ...` and `commit`. That reading constrains where
+the command node goes: the `update bgp peer` subtree in `ze-peer-cmd.yang`
+declares a mandatory `selector` leaf that every node under it inherits, so a
+selector-free save cannot live there. `update bgp config` is the candidate the
+design phase starts from, and the grammar feeders decide it
+(`./le cli-grammar`, `ai/rules/cli.md`).
+
+**One verb, and the sites that carry the other two spellings.** The tree
+declares `peer-remove`, the owner says `peer-delete`, and the served handler is
+`ze-delete:bgp-peer`. `ai/rules/cli.md` states "Ze is unreleased, so a second
+spelling MUST be renamed outright rather than aliased".
+`docs/contributing/ze-go-style.md` states "Ze keeps `delete` for config, `clear`
+for counters, and `remove` for a route", so `remove` names a route operation and
+`peer-remove` takes a word that is spoken for. The operator types `delete bgp
+peer`, and `create` and `delete` are the runtime-resource lifecycle pair the
+verb table declares (`Verbs`, `internal/component/command/verbs.go`). The three
+published methods are therefore `ze-bgp:peer-create`, `ze-bgp:peer-delete` and
+`ze-bgp:peer-save`, one prefix for one family.
+
+| Site | What changes |
+|---|---|
+| `internal/component/bgp/yang/ze-bgp-api.yang` | `rpc peer-add` becomes `peer-create`, `rpc peer-remove` becomes `peer-delete` |
+| `internal/component/bgp/plugins/cmd/peer/yang/ze-bgp-cmd-peer-api.yang` | the whole module, see the verdict below |
+| `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` | `ze:command "ze-bgp:peer-add"` and `ze:command "ze-delete:bgp-peer"` |
+| `internal/component/bgp/plugins/cmd/peer/peer.go` | the two `RPCRegistration` wire methods |
+| `internal/component/bgp/plugins/cmd/peer/yang/cmd_schema_test.go` | asserts the `ze:command` string |
+| `internal/component/cmd/delete/yang/self_containment_test.go` | maps the wire method to its owning package |
+| `internal/component/command/help_test.go` | a fixture row carries the wire method |
+| `internal/component/config/yang/command_test.go` | asserts `GetCommandExtension` answers the wire method |
+| `internal/core/ipc/yang_test.go` | `TestYANGBGPAPIRPCs` and `TestExtractRPCs` name lists |
+| `docs/architecture/exabgp-bridge.md` | states which command `create neighbor` reaches |
+
+**The other declarations, judged under the same model.**
+`ze-bgp-cmd-peer-api.yang` is a second declaration of a command surface
+`ze-peer-cmd.yang` already carries, at a prefix no handler serves. Five of its
+14 names are declared again in `ze-bgp-api.yang`. Every one of its rpcs whose
+command works has its own `description` and `ze:help` on its command node in
+`ze-peer-cmd.yang`, `pause` and `resume` among them, so deleting the module
+loses no prose and removes 14 unreachable catalog entries. It holds the only
+`peer-save` declaration in the tree, and the replacement goes in
+`ze-bgp-api.yang` beside `peer-create` and `peer-delete`. The two
+`ze-cli-set-api.yang` names are the clearest deletion in the set, because their
+own sibling records the removal: `ze-cli-set-cmd.yang` carries `revision
+2026-06-03` reading "Removed set bgp peer with/save.", above a comment reading
+"Peer config goes through the editor, and the parallel runtime-then-persist path
+is dropped." That decision is what the owner has now reversed, and the new path
+is the three RPCs above rather than a revival of `set bgp peer with`.
+`peer-update-hex` holds no wire method of its own: `handleUpdate`
+(`internal/component/bgp/plugins/cmd/update/update_text.go`) is registered once
+as `ze-bgp:peer-update` and switches on the encoding word to reach text, hex,
+b64 and cursor, so the declaration is deleted. `command-help` and
+`command-complete` in `ze-rib-api.yang`
+(`internal/component/bgp/plugins/rib/yang/ze-rib-api.yang`) publish
+`ze-rib:command-help` and `ze-rib:command-complete`, which no handler serves,
+while `internal/plugins/meta/cmd/help.go` registers `ze-bgp:command-help` and
+`ze-bgp:command-complete`. The RIB pair is deleted. `peer-show`,
+`peer-show-capabilities` and `peer-show-statistics` in `ze-bgp-api.yang` are
+near misses of a rename: `ze-bgp:peer-detail`, `ze-bgp:peer-capabilities` and
+`ze-bgp:peer-statistics` are registered and answer what the three describe, so
+the three declarations are repointed at the served names.
+
+**Which tests exist, and which do not.** `test/plugin/api-peer-remove.ci` proves
+a plugin can delete a peer and that it leaves `show bgp peer list`.
+`test/plugin/rest-peer-set-delete-lifecycle.ci` proves the configured route over
+REST. `test/editor/workflow/workflow-peer-lifecycle.et` proves `set`, `delete`
+and `commit` over the configuration tree. None of the three reads a RIB.
+`create bgp peer` has unit tests over the handler with a mock reactor
+(`create_test.go`) and no functional test of its own. One case comes closest:
+`test/exabgp-compat/native/api-peer-lifecycle.conf` drives ze through the
+ExaBGP bridge, and its `.ci` asserts the UPDATE bytes a route announced through
+the created peer puts on the wire. Whether that case is red at HEAD is
+UNVERIFIED here, and `./le functional exabgp-test` settles it. The owner's bar
+is that both routes work with the RIBs, so create means routes reach the
+Adj-RIB-In and the RIB, and delete means they leave and the withdrawals reach
+consumers. That bar is met by no test today.
+
+**Why no gate saw any of this.** `./le docvalid command-contract` answers "All
+commands validated." and states its purpose as "every YANG command node has a
+handler, and every handler a node" (`internal/le/docvalid/actions.go`). `Validate`
 (`internal/le/docvalid/contract.go`) keeps only modules whose name ends in
-`-cmd`, so an `-api` module is never opened. It also collects a node only where
+`-cmd`, so an `-api` module is never opened, and it collects a node only where
 `GetCommandExtension` answers a `ze:command` value, which a YANG `rpc` never
 carries. The same function computes `orphanLocalHandlers` and hands it to the
 report, while `contractSatisfied` reads `orphanYANG` and `orphanHandlers` alone,
-so the 15 rows the run prints under "Local handlers with no YANG command" change
-no verdict. A third question blocks the repair and MUST be answered before the
-gate is written, because the tree carries two spellings for one rpc's wire
-method. `RegisterRPCs` (`internal/component/plugin/server/schema.go`) builds the
-published method from `WireModule`, which strips `-api`, so `ze-rib-api.yang`
-publishes `ze-rib:status` while `ze-rib-cmd.yang` and `rib.go` both name the
-handler `ze-rib-api:status`. `ze-bgp-cmd-peer-api.yang` publishes the prefix
-`ze-bgp-cmd-peer`, which no registered handler uses at all, and its served
-commands are registered under `ze-bgp`. Counted by rpc NAME the set is twelve.
-Counted by published WIRE METHOD it is larger, and how much larger is unmeasured
-here. The gate this spec builds is what measures it.
-
-**What closing it means.** The implementer faces one choice for each
-declaration: write the handler, repoint the declaration at the handler that
-already answers, or delete the declaration. Deletion is the reading the rules
-support, and the owner has not decided. `ai/rules/cli.md` states "Ze is
-unreleased, so an unreleased grammar MUST be replaced outright rather than
-deprecated" and "Ze is unreleased, so a second spelling MUST be renamed outright
-rather than aliased". `docs/architecture/config/deprecated-options.md` states
-"There is no public deprecation lifecycle for old config versions". The two
-`set` names are the clearest case, because their own module records the removal.
-The three `peer-show` names are a rename under that second sentence rather than
-a deletion. Two tests assert that the declarations exist, and both MUST be corrected in the
-same work. `TestYANGBGPAPIRPCs` and `TestExtractRPCs`
-(`internal/core/ipc/yang_test.go`) match the rpc name lists with
-`assert.ElementsMatch`. Neither checks that a handler answers, so both are wrong
-about what they assert. Removing the seven declarations that carry a
-summary and no `ze:help` is also what takes `TestEveryCommandNodeHasASummary`
-(`internal/le/docvalid/helpshape_test.go`) from red to green. That test is red on
-exactly those seven today, and commit b1e62392fe says so in its own message:
-"RED: TestEveryCommandNodeHasASummary. It reports 7 missing-long-help refusals,
-one for each RPC declaration that no handler serves." The rows for this class are
-already written in `plan/journal/unwired-feature.md`, dated 2026-09-03 and
-2026-09-05, so this spec adds none.
+so the rows the run prints under "Local handlers with no YANG command" change no
+verdict. Both holes are closed by this spec. One test does see part of it:
+`TestEveryCommandNodeHasASummary` (`internal/le/docvalid/helpshape_test.go`) is
+RED in this checkout with 6 refusals, and five of them are the rpc declarations
+this spec removes, `ze-bgp-cmd-peer-api:peer-add`,
+`ze-bgp-cmd-peer-api:peer-save`, `ze-bgp-cmd-update-api:peer-update-hex`,
+`ze-cli-set-api:bgp-peer-save` and `ze-cli-set-api:bgp-peer-with`. Two tests
+assert the dead declarations exist and both are wrong about what they assert,
+because neither checks that a handler answers: `TestYANGBGPAPIRPCs` asserts each
+name is present, and `TestExtractRPCs` matches the whole set with
+`assert.ElementsMatch` (`internal/core/ipc/yang_test.go`). The rows for this
+class are already written in `plan/journal/unwired-feature.md`, dated 2026-09-03
+and 2026-09-05, so this spec adds none.
 
 ## Required Reading
 
@@ -209,7 +318,23 @@ already written in `plan/journal/unwired-feature.md`, dated 2026-09-03 and
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
+| AC-1 | An operator types `create bgp peer 10.0.0.1 asn 65001` on a running daemon | `show bgp peer list` names 10.0.0.1, and the peer dials the address |
+| AC-2 | The peer of AC-1 reaches Established and sends an UPDATE carrying 192.0.2.0/24 | `show bgp peer 10.0.0.1 rib` and `show bgp rib` both answer the prefix, and the best path for it names that peer |
+| AC-3 | AC-1 has run | The configuration file on disk is byte-identical to what it was before, and `show config` names no peer 10.0.0.1 |
+| AC-4 | A plugin calls `ze-bgp:peer-create` for 10.0.0.1 through the command dispatcher | The answer carries the peer address, the remote AS and the outcome, and AC-1 through AC-3 hold identically |
+| AC-5 | An operator types `delete bgp peer 10.0.0.1` while that peer holds 192.0.2.0/24 | `show bgp peer list` names no 10.0.0.1, and 192.0.2.0/24 is absent from `show bgp rib` |
+| AC-6 | A second peer had received 192.0.2.0/24 from Ze before AC-5 | That peer receives a WITHDRAW for 192.0.2.0/24, and a plugin subscribed to route events is told the route is gone |
+| AC-7 | AC-5 has run against a peer the configuration file declares | The configuration file on disk is unchanged, and a daemon started on that file brings the peer up again |
+| AC-8 | A plugin calls `ze-bgp:peer-delete` for 10.0.0.1 | AC-5 through AC-7 hold identically |
+| AC-9 | An unrelated leaf is set and committed while a peer created by AC-1 is running | The created peer stays up, keeps its session, and keeps its Adj-RIB-In |
+| AC-10 | `ze-bgp:peer-save` runs after AC-1 | The configuration file names peer 10.0.0.1 with the AS and every other value the create command stated, and a daemon started on that file brings the peer up |
+| AC-11 | `ze-bgp:peer-save` runs after AC-5 removed a peer the file declared | The configuration file names that peer no longer, and a daemon started on that file does not bring it up |
+| AC-12 | `ze-bgp:peer-save` runs at all | The running configuration and the file agree afterwards, so a later commit of an unrelated leaf removes no peer |
+| AC-13 | An operator types a word after `peer-save` | The command is refused, and the refusal says the command takes no selector and acts on the whole running set |
+| AC-14 | `ze schema methods` and `ze help ai --json` are read on a built daemon | Every method they publish has a registered handler |
+| AC-15 | A YANG `-api` module declares an rpc whose published wire method no handler serves | `./le docvalid command-contract` fails and names the module, the rpc and the wire method |
+| AC-16 | A registered handler has no YANG command node and no rpc declaration | `./le docvalid command-contract` fails, rather than printing the row under a passing verdict |
+| AC-17 | `ze-bgp-cmd-peer-api.yang`, the two `ze-cli-set-api.yang` names, `peer-update-hex`, and the two `ze-rib-api.yang` introspection names are gone | `TestEveryCommandNodeHasASummary` reports no refusal for an rpc declaration |
 
 ## End-to-End User Stories
 
