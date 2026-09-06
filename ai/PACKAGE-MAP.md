@@ -730,6 +730,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/plugins/exabgp` | provides the ze exabgp subcommand | --family |
 | `internal/plugins/exabgp/bridgeplugin` | In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) | exabgp-bridge |
 | `internal/plugins/exabgp/bridgeplugin/yang` | TODO |  |
+| `internal/plugins/exabgp/bridgerun` | TODO |  |
 | `internal/plugins/explain` | Look up what a Ze diagnostic code means |  |
 | `internal/plugins/fib/kernel` | FIB kernel: programs OS routes from system RIB via netlink/route socket | fib-kernel |
 | `internal/plugins/fib/kernel/events` | defines event constants for the FIB kernel plugin |  |
