@@ -510,6 +510,42 @@ The stub imposes nothing here: both of its forms work under either shape. Only
 `firewall-domain-group-update.ci` needs the in-process mutation API; the other
 two could run the stub as `cmd=background:exec=ze-test dns --port 53`.
 
+**Decision taken, and the fixtures are written.** The SSH route was chosen, on
+the spec's own ground: wiring rows 4 and 5 ask for proof over the operator path,
+and adding a plugin block would change what the daemon under test runs, so the
+two rows that lack proof would still lack it. `domainGroupUpdate`,
+`domainGroupClear` and `domainGroupShow`
+(`internal/test/fixture/netfilter_fixture_domain_group.go`, registered in
+`register_domain_group.go`) landed in `57925ff89d`.
+
+**All three ran and each was observed RED first**, outside the gate under a user
+namespace, with red forced separately in `changeLog.append`, the `applyTables`
+call in `clearDomainGroup`, and `enrichShow` — each breaking only the assertion
+written for it. They remain unexecuted by `./le functional plugin` and
+`./le functional firewall`, which is where the release reads them.
+
+Two blocking defects were found by writing them, and both are fixed:
+
+- **The daemon would not start.** `configure` started the refresh worker, whose
+  first act is a resolve, and that arrives while the engine still waits for the
+  configure response: `stage 5: expected ready, got ze-plugin-engine:resolve-dns`.
+  The worker now starts from `OnStarted`. Guarded by
+  `TestDomainGroupConfigureStartsNoRefreshWorker`, which also caught a data race
+  when the call is moved back.
+- **`expect=file:` resolved against the wrong directory.** `validateFileChecks`
+  (`internal/test/runner/runner_validate.go`) based the path on the `.ci`
+  directory unless a tmpfs was declared, and the update test is the only `.ci`
+  in the tree using that assertion without one. Base is now the directory the
+  child ran in, landed in `63071f9a66`.
+
+One header claim was wrong and is corrected in all three files: they said the
+fixture commits the term naming the group mid-test. It cannot — the config
+editor is a TUI and no non-interactive route commits config mid-test. It is also
+unnecessary, because a daemon start runs no verify (`configure`,
+`internal/component/firewall/plugins/domain/domain.go` says so in its own
+comment), so the term sits in the boot config and the table is held back until
+the first update.
+
 Wiring rows 4 and 5 remain without operator-path proof, and the show enrichment
 is still proven at the enricher rather than over the real SSH `ze cli` path.
 
