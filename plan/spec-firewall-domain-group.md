@@ -482,7 +482,33 @@ must perform, including the two "MUST NOT print" constraints the file-level
 `expect=stdout:` rule imposes.
 
 So this spec owes, in order: a `ze-test` DNS stub, the three fixtures, then the
-runs. The stub is new capability and owes a spec of its own before code.
+runs.
+
+**The stub is done.** `ze-test dns` landed in `40a253b00c` and its spec closed in
+`e094443032` and `3e9f770f0b`. It serves a zone a test chooses, with A and AAAA,
+a per-name response code (NOERROR, NXDOMAIN, SERVFAIL, REFUSED) and a per-name
+TTL, and it answers a type the name does not hold with NOERROR and an empty
+answer rather than NXDOMAIN, which is the case that would otherwise make this
+plugin read a live name as deleted. Both its own `.ci` files ran green after
+being observed red.
+
+**One design decision now blocks the three fixtures, and it belongs to this
+spec.** The three `.ci` files run the daemon as `cmd=background:exec=ze -` with
+no `plugin { external ... }` block, and launch the fixture as a separate
+`cmd=foreground:exec=ze-test fixture ...` process. That fixture therefore has no
+plugin channel on which to dispatch `update firewall domain-group web`. The
+sibling netfilter drivers reach a background daemon two ways only: by reading
+kernel state, or over SSH through `ze cli` (`firewallCLIShow`,
+`internal/test/fixture/netfilter_fixture_firewall.go`).
+
+| Option | Cost |
+|--------|------|
+| Add a `plugin { external ... }` block to the three `.ci` files | The fixture gains a channel and dispatches directly. Changes what the daemon under test is running, so the test no longer exercises the default shape |
+| Drive them over SSH via `ze cli`, as `firewallCLIShow` does | Exercises the real operator path, which is what wiring rows 4 and 5 ask for. More setup per test, and the assertions read rendered output rather than a return value |
+
+The stub imposes nothing here: both of its forms work under either shape. Only
+`firewall-domain-group-update.ci` needs the in-process mutation API; the other
+two could run the stub as `cmd=background:exec=ze-test dns --port 53`.
 
 Wiring rows 4 and 5 remain without operator-path proof, and the show enrichment
 is still proven at the enricher rather than over the real SSH `ze cli` path.
