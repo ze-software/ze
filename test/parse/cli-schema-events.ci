@@ -40,7 +40,7 @@ cmd=foreground:seq=2:exec=ze schema events ze-bgp-api:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze-bgp:peer-state-change
 # Should NOT contain notifications from other modules
-expect=stdout:not:contains=ze-rib:
+reject=stdout:contains=ze-rib:
 
 cmd=foreground:seq=3:exec=ze schema events ze-bogus-api:exit=1
 expect=exit:code=1

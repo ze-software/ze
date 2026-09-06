@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/sessionpath"
@@ -27,20 +28,30 @@ var (
 )
 
 // ciCommand holds a parsed cmd= line and its associated expectations.
+//
+// Every assertion here is scoped to ONE command: the cmd= line that precedes it
+// in the file, checked against that command's own stdout and stderr. This is
+// the parse suite's own scope and it differs from the generic runner, where a
+// stream assertion is file-level over one combined buffer
+// (docs/architecture/testing/ci-format.md).
 type ciCommand struct {
 	Seq       int
 	Exec      string
 	StdinName string
+	// Timeout is the authored `cmd=...:timeout=<duration>`. It was parsed and
+	// then dropped, so a command that does not exit ran until the whole test's
+	// budget expired and reported that instead of its own deadline.
+	Timeout string
 
-	ExpectExitCode  int
-	HasExitCode     bool
-	ExpectStdout    []string
-	ExpectStdoutNot []string
-	ExpectStdoutRe  []*regexp.Regexp
-	ExpectStderr    []string
-	RejectStdout    []string
-	RejectStdoutRe  []*regexp.Regexp
-	RejectStderrRe  []*regexp.Regexp
+	ExpectExitCode int
+	HasExitCode    bool
+	ExpectStdout   []string
+	ExpectStdoutRe []*regexp.Regexp
+	ExpectStderr   []string
+	ExpectStderrRe []*regexp.Regexp
+	RejectStdout   []string
+	RejectStdoutRe []*regexp.Regexp
+	RejectStderrRe []*regexp.Regexp
 }
 
 // parsingTest holds a single parsing test case.
@@ -288,123 +299,14 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 		}
 	}
 
-	var cur *ciCommand
+	p := ciFileParser{test: test}
 	for _, line := range v.OtherLines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-
-		if after, ok := strings.CutPrefix(trimmed, "cmd="); ok {
-			rc, parseErr := parseCmdExec("foreground", after)
-			if parseErr != nil {
-				return test, fmt.Errorf("%s: %w", filepath.Base(filePath), parseErr)
-			}
-			cur = &ciCommand{Seq: rc.Seq, Exec: rc.Exec, StdinName: rc.Stdin}
-			test.Commands = append(test.Commands, cur)
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "expect=exit:code="); ok {
-			if cur == nil {
-				continue
-			}
-			code, parseErr := strconv.Atoi(after)
-			if parseErr != nil {
-				return test, fmt.Errorf("%s: invalid exit code %q", filepath.Base(filePath), after)
-			}
-			cur.ExpectExitCode = code
-			cur.HasExitCode = true
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "expect=stderr:contains="); ok {
-			if cur != nil {
-				cur.ExpectStderr = append(cur.ExpectStderr, after)
-			}
-			test.ExpectErrors = append(test.ExpectErrors, after)
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "expect=stdout:contains="); ok {
-			if cur != nil {
-				cur.ExpectStdout = append(cur.ExpectStdout, after)
-			}
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "expect=stdout:not:contains="); ok {
-			if cur != nil {
-				cur.ExpectStdoutNot = append(cur.ExpectStdoutNot, after)
-			}
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "expect=stdout:regex="); ok {
-			re, compErr := regexp.Compile(after)
-			if compErr != nil {
-				return test, fmt.Errorf("%s: invalid stdout regex %q: %w", filepath.Base(filePath), after, compErr)
-			}
-			if cur != nil {
-				cur.ExpectStdoutRe = append(cur.ExpectStdoutRe, re)
-			}
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "reject=stdout:contains="); ok {
-			if cur != nil {
-				cur.RejectStdout = append(cur.RejectStdout, after)
-			}
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "reject=stdout:pattern="); ok {
-			re, compErr := regexp.Compile(after)
-			if compErr != nil {
-				return test, fmt.Errorf("%s: invalid reject stdout pattern %q: %w", filepath.Base(filePath), after, compErr)
-			}
-			if cur != nil {
-				cur.RejectStdoutRe = append(cur.RejectStdoutRe, re)
-			}
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "reject=stderr:pattern="); ok {
-			re, compErr := regexp.Compile(after)
-			if compErr != nil {
-				return test, fmt.Errorf("%s: invalid reject stderr pattern %q: %w", filepath.Base(filePath), after, compErr)
-			}
-			if cur != nil {
-				cur.RejectStderrRe = append(cur.RejectStderrRe, re)
-			}
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "option=skip-os:value="); ok {
-			for skipOS := range strings.SplitSeq(after, ",") {
-				if strings.TrimSpace(skipOS) == runtime.GOOS {
-					var tbS textbuf.Buffer
-					test.SkipReason = tbS.Str("skip-os=").Str(after).Str(" (current GOOS=").Str(runtime.GOOS).Byte(')').String()
-					break
-				}
-			}
-			continue
-		}
-
-		if after, ok := strings.CutPrefix(trimmed, "option=env:"); ok {
-			var envVar, envVal string
-			for field := range strings.SplitSeq(after, ":") {
-				if v, ok := strings.CutPrefix(field, "var="); ok {
-					envVar = v
-				}
-				if v, ok := strings.CutPrefix(field, "value="); ok {
-					envVal = v
-				}
-			}
-			if envVar != "" {
-				test.EnvVars = append(test.EnvVars, envVar+"="+envVal)
-			}
-			continue
+		if parseErr := p.line(trimmed); parseErr != nil {
+			return test, fmt.Errorf("%s: %w", filepath.Base(filePath), parseErr)
 		}
 	}
 
@@ -413,6 +315,216 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 	}
 
 	return test, nil
+}
+
+// ciFileParser carries the state one .ci file's directive lines build up: the
+// test under construction and the cmd= an assertion attaches to.
+type ciFileParser struct {
+	test *parsingTest
+	// cur is the cmd= line most recently read. Every per-command directive
+	// asserts against it, so a directive that arrives before the first cmd= has
+	// nothing to assert against and is refused rather than dropped.
+	cur *ciCommand
+}
+
+// ciDirective binds one .ci directive prefix to the parser that reads its value.
+type ciDirective struct {
+	prefix string
+	// needsCommand marks a directive whose value asserts against the preceding
+	// cmd=. The dispatcher refuses such a directive when no cmd= has been read.
+	needsCommand bool
+	parse        func(p *ciFileParser, value string) error
+}
+
+// ciDirectives is the whole dialect the parse suite reads, in first-match order.
+// It is the ONE declaration of that dialect: line dispatches through it and the
+// unknown-directive refusal lists it, so no second enumeration can drift from
+// what the parser does (ai/rules/principles.md). No entry may be a prefix of an
+// entry below it.
+//
+// The spellings are the generic parser's (record_parse.go). Two dialect-only
+// forms were deleted rather than aliased (ai/rules/no-layering.md). Both are
+// what two parsers over one corpus costs:
+//
+//   - `expect=stdout:regex=` became `expect=stdout:pattern=`. The generic parser
+//     reads `pattern=` and now REFUSES `regex=`, so every gate that walks the
+//     corpus with it (the accept-only ratchet) could not read three test/parse
+//     files at all.
+//   - `expect=stdout:not:contains=` became `reject=stdout:contains=`, which this
+//     parser already read with the identical meaning. This one was the dangerous
+//     half: the generic parser splits `not:contains=` at the `:contains=` key
+//     boundary and drops the bare `not`, so one written line meant "must be
+//     absent" to the suite that runs test/parse and "must be present" to every
+//     gate that reads it.
+var ciDirectives = []ciDirective{
+	{prefix: "cmd=", parse: (*ciFileParser).parseCommand},
+	{prefix: "expect=exit:code=", needsCommand: true, parse: (*ciFileParser).parseExitCode},
+	{prefix: "expect=stdout:contains=", needsCommand: true, parse: (*ciFileParser).parseExpectStdoutContains},
+	{prefix: "expect=stdout:pattern=", needsCommand: true, parse: (*ciFileParser).parseExpectStdoutPattern},
+	{prefix: "expect=stderr:contains=", parse: (*ciFileParser).parseExpectStderrContains},
+	{prefix: "expect=stderr:pattern=", needsCommand: true, parse: (*ciFileParser).parseExpectStderrPattern},
+	{prefix: "reject=stdout:contains=", needsCommand: true, parse: (*ciFileParser).parseRejectStdoutContains},
+	{prefix: "reject=stdout:pattern=", needsCommand: true, parse: (*ciFileParser).parseRejectStdoutPattern},
+	{prefix: "reject=stderr:pattern=", needsCommand: true, parse: (*ciFileParser).parseRejectStderrPattern},
+	{prefix: "option=skip-os:value=", parse: (*ciFileParser).parseSkipOS},
+	{prefix: "option=env:", parse: (*ciFileParser).parseEnv},
+}
+
+// line reads one directive line and refuses one no entry of ciDirectives reads.
+//
+// The chain that stood here had no default arm, so an unrecognized directive
+// was dropped and the file still parsed. Twenty lines across nine test/parse
+// files asserted nothing that way, and one of them was the only proof its test
+// made. A parser that meets a directive it cannot answer says so
+// (ai/rules/principles.md).
+//
+// The refusal quotes the whole line rather than a line number: OtherLines is
+// what tmpfs.ReadFrom left after it consumed the stdin= and tmpfs= blocks, so
+// its index is not the file's line number and quoting one would send the author
+// to the wrong place.
+func (p *ciFileParser) line(trimmed string) error {
+	for _, d := range ciDirectives {
+		after, ok := strings.CutPrefix(trimmed, d.prefix)
+		if !ok {
+			continue
+		}
+		if d.needsCommand && p.cur == nil {
+			return fmt.Errorf("%q has no cmd= line before it to assert against", trimmed)
+		}
+		return d.parse(p, after)
+	}
+
+	var b textbuf.Buffer
+	b.Str("unknown directive ").Quoted(trimmed).Str(" (the parse suite reads: ")
+	for i, d := range ciDirectives {
+		if i > 0 {
+			b.Str(", ")
+		}
+		b.Str(d.prefix)
+	}
+	b.Byte(')')
+	return errors.New(b.String())
+}
+
+func (p *ciFileParser) parseCommand(value string) error {
+	rc, err := parseCmdExec("foreground", value)
+	if err != nil {
+		return err
+	}
+	p.cur = &ciCommand{Seq: rc.Seq, Exec: rc.Exec, StdinName: rc.Stdin, Timeout: rc.Timeout}
+	p.test.Commands = append(p.test.Commands, p.cur)
+	return nil
+}
+
+func (p *ciFileParser) parseExitCode(value string) error {
+	code, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("invalid exit code %q", value)
+	}
+	p.cur.ExpectExitCode = code
+	p.cur.HasExitCode = true
+	return nil
+}
+
+func (p *ciFileParser) parseExpectStdoutContains(value string) error {
+	p.cur.ExpectStdout = append(p.cur.ExpectStdout, value)
+	return nil
+}
+
+func (p *ciFileParser) parseExpectStdoutPattern(value string) error {
+	re, err := compileCIPattern("expect=stdout:pattern", value)
+	if err != nil {
+		return err
+	}
+	p.cur.ExpectStdoutRe = append(p.cur.ExpectStdoutRe, re)
+	return nil
+}
+
+// parseExpectStderrContains is the one directive that does not need a preceding
+// cmd=. A .ci file holding an inline config and no command at all is a legacy
+// negative test, and ExpectErrors is what runLegacyTest checks the validator's
+// output against.
+func (p *ciFileParser) parseExpectStderrContains(value string) error {
+	if p.cur != nil {
+		p.cur.ExpectStderr = append(p.cur.ExpectStderr, value)
+	}
+	p.test.ExpectErrors = append(p.test.ExpectErrors, value)
+	return nil
+}
+
+func (p *ciFileParser) parseExpectStderrPattern(value string) error {
+	re, err := compileCIPattern("expect=stderr:pattern", value)
+	if err != nil {
+		return err
+	}
+	p.cur.ExpectStderrRe = append(p.cur.ExpectStderrRe, re)
+	return nil
+}
+
+func (p *ciFileParser) parseRejectStdoutContains(value string) error {
+	p.cur.RejectStdout = append(p.cur.RejectStdout, value)
+	return nil
+}
+
+func (p *ciFileParser) parseRejectStdoutPattern(value string) error {
+	re, err := compileCIPattern("reject=stdout:pattern", value)
+	if err != nil {
+		return err
+	}
+	p.cur.RejectStdoutRe = append(p.cur.RejectStdoutRe, re)
+	return nil
+}
+
+func (p *ciFileParser) parseRejectStderrPattern(value string) error {
+	re, err := compileCIPattern("reject=stderr:pattern", value)
+	if err != nil {
+		return err
+	}
+	p.cur.RejectStderrRe = append(p.cur.RejectStderrRe, re)
+	return nil
+}
+
+func (p *ciFileParser) parseSkipOS(value string) error {
+	for skipOS := range strings.SplitSeq(value, ",") {
+		if strings.TrimSpace(skipOS) != runtime.GOOS {
+			continue
+		}
+		var b textbuf.Buffer
+		p.test.SkipReason = b.Str("skip-os=").Str(value).Str(" (current GOOS=").Str(runtime.GOOS).Byte(')').String()
+		return nil
+	}
+	return nil
+}
+
+func (p *ciFileParser) parseEnv(value string) error {
+	var envVar, envVal string
+	for field := range strings.SplitSeq(value, ":") {
+		if v, ok := strings.CutPrefix(field, "var="); ok {
+			envVar = v
+		}
+		if v, ok := strings.CutPrefix(field, "value="); ok {
+			envVal = v
+		}
+	}
+	if envVar == "" {
+		return fmt.Errorf("option=env: needs var=<name>, got %q", value)
+	}
+	p.test.EnvVars = append(p.test.EnvVars, envVar+"="+envVal)
+	return nil
+}
+
+// compileCIPattern compiles a directive's regex and refuses an empty one, which
+// matches everything and so asserts nothing. Mirrors the generic parser
+// (record_parse.go), so one spelling means one thing in both suites.
+func compileCIPattern(directive, value string) (*regexp.Regexp, error) {
+	if value == "" {
+		return nil, fmt.Errorf("%s= must not be empty (an empty regex matches everything)", directive)
+	}
+	re, err := regexp.Compile(value)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s= %q: %w", directive, value, err)
+	}
+	return re, nil
 }
 
 // List prints available tests with type-specific formatting.
@@ -590,10 +702,50 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 	// Replace "-" with the stdin file path. After replacement, containsDash
 	// returns false, so the fallback pipe-stdin branch below is skipped
 	// (stdin was already provided as a file argument).
+	//
+	// A `-` that IS the daemon's config argument needs the `start` verb in
+	// front of the path: keyword-first grammar put the config path behind
+	// `start` (spec-fixit-config-file-positional-grammar), so `ze <path>` is not
+	// a command. Substituting in place produced exactly that argv, and the
+	// daemon answered "unknown command: <path>" with its usage and exit 1
+	// before it read one line of config. `test/parse/tacacs-key-required.ci` is
+	// what that cost: its `expect=exit:code=1` was satisfied by the usage error,
+	// so the file read as proof of a security guard that never ran. The generic
+	// runner reads the same zeDaemonConfigArgIndex to insert the verb
+	// (runner_exec.go); this one never got it.
+	//
+	// A `-` that is a SUBCOMMAND value (`ze config validate -`) is unaffected:
+	// zeDaemonConfigArgIndex answers on the first non-flag token, so it returns
+	// -1 for every quick-exit verb and the path is substituted in place.
+	daemonCfgIdx := -1
+	if parts[0] == r.zePath {
+		daemonCfgIdx = zeDaemonConfigArgIndex(parts[1:])
+	}
 	for i, p := range parts {
-		if p == "-" && ci.StdinName != "" {
-			parts[i] = filepath.Join(workDir, "stdin-"+ci.StdinName+".conf")
+		if p != "-" || ci.StdinName == "" {
+			continue
 		}
+		stdinPath := filepath.Join(workDir, "stdin-"+ci.StdinName+".conf")
+		if i == daemonCfgIdx+1 {
+			parts = slices.Concat(parts[:i], []string{zeVerbStart, stdinPath}, parts[i+1:])
+			break
+		}
+		parts[i] = stdinPath
+	}
+
+	// Honor the authored per-command deadline. Without it a command that does
+	// not exit runs until the whole test's budget expires and reports that
+	// instead of its own timeout, and a daemon launch whose config is accepted
+	// never exits at all.
+	if ci.Timeout != "" {
+		d, tErr := time.ParseDuration(ci.Timeout)
+		if tErr != nil {
+			test.Error = fmt.Errorf("seq %d: invalid timeout %q: %w", ci.Seq, ci.Timeout, tErr)
+			return false
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, d)
+		defer cancel()
 	}
 
 	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...) //nolint:gosec // Test runner
@@ -642,43 +794,52 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 	return true
 }
 
+// checkExpectations reports the first unmet assertion of one command, or "".
+// Every assertion is scoped to this command alone (see ciCommand).
 func checkExpectations(ci *ciCommand, stdout, stderr string) string {
 	for _, expect := range ci.ExpectStdout {
 		if !strings.Contains(stdout, expect) {
-			return fmt.Sprintf("stdout missing %q\nstdout: %s", expect, stdout)
-		}
-	}
-	for _, expect := range ci.ExpectStdoutNot {
-		if strings.Contains(stdout, expect) {
-			return fmt.Sprintf("stdout must not contain %q\nstdout: %s", expect, stdout)
+			return ciAssertFailure("stdout missing ", expect, "stdout", stdout)
 		}
 	}
 	for _, re := range ci.ExpectStdoutRe {
 		if !re.MatchString(stdout) {
-			return fmt.Sprintf("stdout does not match regex %q\nstdout: %s", re.String(), stdout)
+			return ciAssertFailure("stdout does not match regex ", re.String(), "stdout", stdout)
 		}
 	}
 	for _, expect := range ci.ExpectStderr {
 		if !strings.Contains(stderr, expect) {
-			return fmt.Sprintf("stderr missing %q\nstderr: %s", expect, stderr)
+			return ciAssertFailure("stderr missing ", expect, "stderr", stderr)
+		}
+	}
+	for _, re := range ci.ExpectStderrRe {
+		if !re.MatchString(stderr) {
+			return ciAssertFailure("stderr does not match regex ", re.String(), "stderr", stderr)
 		}
 	}
 	for _, reject := range ci.RejectStdout {
 		if strings.Contains(stdout, reject) {
-			return fmt.Sprintf("stdout must not contain %q\nstdout: %s", reject, stdout)
+			return ciAssertFailure("stdout must not contain ", reject, "stdout", stdout)
 		}
 	}
 	for _, re := range ci.RejectStdoutRe {
 		if re.MatchString(stdout) {
-			return fmt.Sprintf("stdout matches forbidden pattern %q\nstdout: %s", re.String(), stdout)
+			return ciAssertFailure("stdout matches forbidden pattern ", re.String(), "stdout", stdout)
 		}
 	}
 	for _, re := range ci.RejectStderrRe {
 		if re.MatchString(stderr) {
-			return fmt.Sprintf("stderr matches forbidden pattern %q\nstderr: %s", re.String(), stderr)
+			return ciAssertFailure("stderr matches forbidden pattern ", re.String(), "stderr", stderr)
 		}
 	}
 	return ""
+}
+
+// ciAssertFailure builds one assertion-failure message: what was expected, the
+// needle, and the whole stream the runner read, so the author sees why.
+func ciAssertFailure(what, needle, stream, output string) string {
+	var b textbuf.Buffer
+	return b.Str(what).Quoted(needle).Str("\n").Str(stream).Str(": ").Str(output).String()
 }
 
 // runLegacyTest handles .conf files (valid/ and invalid/ directories).

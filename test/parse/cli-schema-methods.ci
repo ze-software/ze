@@ -45,7 +45,7 @@ cmd=foreground:seq=2:exec=ze schema methods ze-system-api:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze-system:help
 # Should NOT contain RPCs from other modules
-expect=stdout:not:contains=ze-bgp:
+reject=stdout:contains=ze-bgp:
 
 cmd=foreground:seq=3:exec=ze schema methods ze-bogus-api:exit=1
 expect=exit:code=1

@@ -48,4 +48,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=output:contains=needs a protocol
+expect=stdout:contains=needs a protocol

@@ -30,7 +30,7 @@ expect=stdout:contains=module ze-bgp-conf
 expect=stdout:contains=namespace
 expect=stdout:contains=container bgp
 # Should NOT contain placeholder text
-expect=stdout:not:contains=no YANG content available
+reject=stdout:contains=no YANG content available
 
 cmd=foreground:seq=2:exec=ze schema show ze-graceful-restart:exit=0
 expect=exit:code=0

@@ -171,24 +171,24 @@ expect=stdout:contains=configuration valid
 # entries with their own leaves, and both resolvers.
 cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=full-dump:exit=0
 expect=exit:code=0
-expect=stdout:regex="enabled": "true"
-expect=stdout:regex="managed": "true"
-expect=stdout:regex="other-config": "true"
-expect=stdout:regex="maximum-interval": "900"
-expect=stdout:regex="minimum-interval": "300"
-expect=stdout:regex="router-lifetime": "1800"
-expect=stdout:regex="hop-limit": "64"
-expect=stdout:regex="reachable-time": "30000"
-expect=stdout:regex="retransmit-timer": "1000"
-expect=stdout:regex="2001:db8:1::/64"
-expect=stdout:regex="on-link": "true"
-expect=stdout:regex="autonomous": "true"
-expect=stdout:regex="valid-lifetime": "86400"
-expect=stdout:regex="preferred-lifetime": "43200"
-expect=stdout:regex="2001:db8:2::/64"
-expect=stdout:regex="2001:db8:1::53"
-expect=stdout:regex="2001:db8:1::54"
-expect=stdout:regex="lifetime": "3600"
+expect=stdout:pattern="enabled": "true"
+expect=stdout:pattern="managed": "true"
+expect=stdout:pattern="other-config": "true"
+expect=stdout:pattern="maximum-interval": "900"
+expect=stdout:pattern="minimum-interval": "300"
+expect=stdout:pattern="router-lifetime": "1800"
+expect=stdout:pattern="hop-limit": "64"
+expect=stdout:pattern="reachable-time": "30000"
+expect=stdout:pattern="retransmit-timer": "1000"
+expect=stdout:pattern="2001:db8:1::/64"
+expect=stdout:pattern="on-link": "true"
+expect=stdout:pattern="autonomous": "true"
+expect=stdout:pattern="valid-lifetime": "86400"
+expect=stdout:pattern="preferred-lifetime": "43200"
+expect=stdout:pattern="2001:db8:2::/64"
+expect=stdout:pattern="2001:db8:1::53"
+expect=stdout:pattern="2001:db8:1::54"
+expect=stdout:pattern="lifetime": "3600"
 
 # router-lifetime 0 and rdnss lifetime 0 validate.
 cmd=foreground:seq=3:exec=ze config validate -:stdin=zero:exit=0
@@ -199,6 +199,6 @@ expect=stdout:contains=configuration valid
 # regex off the "router-lifetime" and "valid-lifetime" leaves.
 cmd=foreground:seq=4:exec=ze cli -c "show config dump - | json":stdin=zero-dump:exit=0
 expect=exit:code=0
-expect=stdout:regex="router-lifetime": "0"
-expect=stdout:regex="lifetime": "0"
-expect=stdout:regex="2001:db8:3::53"
+expect=stdout:pattern="router-lifetime": "0"
+expect=stdout:pattern="lifetime": "0"
+expect=stdout:pattern="2001:db8:3::53"

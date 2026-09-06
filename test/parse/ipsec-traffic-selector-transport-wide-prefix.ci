@@ -49,4 +49,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=output:contains=exactly one IP address
+expect=stdout:contains=exactly one IP address

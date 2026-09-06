@@ -51,7 +51,7 @@ expect=stdout:contains="name"
 expect=stdout:contains="outcome"
 expect=stdout:contains="routing-table"
 expect=stdout:contains="unknown"
-expect=stdout:not:contains="invalid"
+reject=stdout:contains="invalid"
 
 cmd=foreground:seq=2:exec=ze cli -c "show plugins | yaml":exit=0
 expect=exit:code=0

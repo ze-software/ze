@@ -642,6 +642,10 @@ Prefer `exit=` whenever a file runs more than one quick-exit `ze` command. A
 
 #### Every stream assertion is FILE-level, over ONE buffer
 
+This section describes the **generic** runner, which is every suite except
+`test/parse`. The parse suite scopes each assertion to one command; see "The
+parse suite reads its own dialect" below.
+
 `expect=stdout:`, `expect=stderr:`, `reject=stdout:` and `reject=stderr:contains=`
 all read `Record.ClientOutput`, which the runner builds ONCE at the end of the
 test as the concatenated stdout AND stderr of every command in the file. Two
@@ -676,6 +680,56 @@ meaningful.
 **Known gap:** 108 quick-exit `ze` commands across 50 `.ci` files predate `exit=`
 and are still unasserted (their `expect=exit:code=` never reaches them). Arming
 them may surface real defects; tracked in `plan/known-failures/`.
+
+#### The parse suite reads its own dialect
+
+`test/parse` runs under `ParsingTests`, a second parser with its own execution
+model. Two differences are load-bearing for an author.
+
+**Every assertion is scoped to one command.** It is checked against the stdout
+and stderr of the `cmd=` line directly above it, not against a file-level
+buffer. So a needle asserted present under one command and absent under another
+means what it says here, and does not need the file split the section above
+describes. An assertion that appears before the first `cmd=` has nothing to
+assert against and **fails the file**; `expect=stderr:contains=` is the one
+exception, because a `.ci` holding an inline config and no command at all is a
+legacy negative test whose expected error it carries.
+
+**The dialect is a subset of the generic vocabulary, and nothing else parses.**
+A directive no arm reads **fails the file at discovery**, naming the directive,
+the file, and every directive the suite does read. It is the same rule as
+"Unknown Keys Are a Parse Error" above, applied to the whole line rather than to
+a key inside it.
+
+| Read by the parse suite |
+|---|
+| `cmd=`, `expect=exit:code=` |
+| `expect=stdout:contains=`, `expect=stdout:pattern=` |
+| `expect=stderr:contains=`, `expect=stderr:pattern=` |
+| `reject=stdout:contains=`, `reject=stdout:pattern=`, `reject=stderr:pattern=` |
+| `option=skip-os:value=`, `option=env:` |
+
+Two spellings this suite once had are **deleted**, not aliased. Both existed
+only here, and both are what two parsers over one corpus costs:
+
+- `expect=stdout:regex=` is now `expect=stdout:pattern=`. The generic parser
+  reads `pattern=` and refuses `regex=`, so the gates that walk the whole corpus
+  with it could not read three `test/parse` files at all.
+- `expect=stdout:not:contains=` is now `reject=stdout:contains=`, which this
+  suite already read with the identical meaning. This is the one that mattered:
+  the generic parser splits `not:contains=` at the `:contains=` key boundary and
+  drops the bare `not`, so one written line meant "must be absent" to the suite
+  that runs `test/parse` and "must be present" to every gate that reads it.
+
+**`cmd=...:timeout=<duration>` is honored**, and a bare `ze -` runs as
+`ze start <file>`, the same translation the generic runner makes. Substituting
+the path in place produced `ze <path>`, which is not a command: the daemon
+answered `unknown command: <path>` with its usage and exit 1 before reading a
+line of config, so a file could assert `expect=exit:code=1` and be satisfied by
+the usage error.
+
+<!-- source: internal/test/runner/parsing.go -- ciDirectives, ciFileParser.line, runOneCommand -->
+<!-- test: internal/test/runner/parsing_test.go -- TestParseCIRefusesUnknownDirective, TestParseCIAssertionsDiscriminate, TestParseCICorpusReadsUnderTheGenericParser -->
 
 **Daemon readiness (`ze` only):** a `ze` daemon launched **either** foreground or
 background is told (via `ZE_READY_FILE`) to write `daemon.ready` once startup

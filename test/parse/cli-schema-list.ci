@@ -37,5 +37,5 @@ expect=stdout:contains=ze.bgp
 expect=stdout:contains=ze-graceful-restart
 expect=stdout:contains=ze-hostname
 # Verify plugins show their config dependencies
-expect=stdout:regex=ze-graceful-restart.*bgp
-expect=stdout:regex=ze-hostname.*bgp
+expect=stdout:pattern=ze-graceful-restart.*bgp
+expect=stdout:pattern=ze-hostname.*bgp

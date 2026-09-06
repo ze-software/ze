@@ -62,5 +62,5 @@ cmd=foreground:seq=4:exec=ze cli -c "show plugins | match memlock | json":exit=0
 expect=exit:code=0
 expect=stdout:contains=memlock
 expect=stdout:contains=outcome
-expect=stdout:not:contains=unknown
-expect=stdout:not:contains="invalid"
+reject=stdout:contains=unknown
+reject=stdout:contains="invalid"
