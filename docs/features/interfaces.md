@@ -428,13 +428,22 @@ the tunnel spec before the backend reads the leaves. No Go constant repeats it, 
 the schema, the CLI completion, the config diff and the device cannot disagree.
 
 The defaults reach netlink-backed tunnels. The VPP tunnel calls carry no outer-TTL
-field, so neither the default nor an explicit `ttl` reaches a VPP-programmed gre,
-gretap or ipip device.
+field, so the `ttl` leaf is declared `ze:backend "netlink"` and a commit that names
+one on the vpp backend is refused by path:
+
+```
+/interface/tunnel/t0/encapsulation/gre/ttl: feature not supported by backend "vpp" (supported: netlink)
+```
+
+A vpp-backed tunnel that names no `ttl` still commits, because the gate reads what
+the operator wrote and the schema default is materialized after it. `sit` and the
+other netlink-only kinds are refused at the kind rather than at this leaf.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- the ttl and hoplimit leaves and their defaults -->
 <!-- source: internal/component/iface/tunnel.go -- tunnelSchema, loadTunnelSchema, applyDefaults -->
 <!-- source: internal/plugins/iface/vpp/tunnel.go -- createGRETunnel and createIPIPTunnel, which carry no TTL field -->
 <!-- source: test/plugin/tunnel-ttl-default.ci -- the outer TTL read back from each device -->
+<!-- source: internal/component/iface/register.go -- validateBackendGate, run before parseIfaceSections -->
 
 
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
@@ -793,8 +802,12 @@ A solicitation draws an answer after a random wait of 500 milliseconds at most,
 and a burst of solicitations draws one answer, timed from the first of them.
 Consecutive multicast advertisements stay 3 seconds apart, so a flood of
 solicitations cannot become a flood of advertisements (RFC 4861 Section 6.2.6).
-A sender that stops sends up to three advertisements with a Router Lifetime of
-0. Each host then drops Ze from its default router list at once.
+A sender that stops sends ONE advertisement with a Router Lifetime of 0, so each
+host drops Ze from its default router list at once instead of waiting the
+lifetime out (RFC 4861 Section 6.2.5). The RFC permits up to three. Ze sends one
+because three leave in a single scheduler tick, so a receiver cannot tell them
+apart and a link that drops one drops all three; radvd, FRR and BIRD each send
+one as well.
 
 Nothing leaves a link that is down. The next link-up event restarts the initial
 burst.
