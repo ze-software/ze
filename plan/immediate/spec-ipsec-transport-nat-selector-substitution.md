@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | done |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-06 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
 
@@ -639,3 +639,204 @@ checkers ends in `verifyESPDirectionsToward` over `natESPDirections`, and
 `assertESPAdvanced` (`internal/le/interoplab/ipsec/helpers.go`) refuses unless the
 XFRM byte counter of a surviving SPI GREW across the ping, in all four simplex
 directions, `swanDecryptsNAT` and `zeDecryptsNAT` among them.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The RFC 7296 Section 2.23.1 substitution on both roles, in `internal/component/ike/engine/ts_nat_substitute.go`, called from the single entry point of each role: `substituteResponderSelectors` inside `narrowChildSelectors` above the policy match that is Ze's SPD lookup, and `substituteInitiatorSelectors` inside `recordInitiatorSelectors` above every check.
+- `SA.PeerBehindNAT` beside `BehindNAT`, written at all four NAT_DETECTION branches (`detectResponderNAT`, `handleSAInitResponse`) and carried across both IKE SA rekey producers (`applyIKERekeyResponse`, `respondIKERekey`).
+- `SA.OriginalTSiAddr` and `SA.OriginalTSrAddr`, stored before the substitution on both roles.
+- `transportSelectorPairs` reads the IKE SA's observed pair through `observedLocalAddress` and `observedRemoteAddress` rather than the config, which is what its own doc comment already claimed.
+- `show vpn ipsec sa` reports `behind-nat`, `peer-behind-nat` and, added at closure, `original-tsi` and `original-tsr` (`saToMap`, `selectorAddressText`).
+- The interop lab's address-translating NAT box, keyed on a scenario `nat.conf` (`internal/le/interoplab/ipsec/nat.go`), and the three scenarios `real-nat-transport-ze-initiator`, `real-nat-transport-ze-responder` and `real-nat-tunnel-control` with their typed checkers.
+
+### Bugs Found/Fixed
+- **The checkers asserted on the rendered table, so they could not match.** `assertZeSAField` and `assertZeSelectors` read the TEXT rendering of `show vpn ipsec sa` with a line-anchored `<field> <value>` regex. `applyTableStyled` orders columns by field name, so `behind-nat` took first place from `child-sa` and moved every nested key off the line start, and `nat-detected` was a header cell whose `true` was a row cell. Fixed in `55bbb27077`: `zeIKESAs` asks `show vpn ipsec sa | json` and `decodeIKESAs` decodes the records. Covered by `TestIKESAAnswerDecodesJSONAndRefusesTheTable` and `TestNATVerdictNeedsEveryFieldTrueOnOneSA`.
+- **A latent selector-confusion in the same helper.** `assertZeSelectors` matched `ts-local` anywhere in the answer and `ts-remote` anywhere in the answer, so a local half from one Child SA and a remote half from another described a tunnel that does not exist. Both halves now come from ONE record.
+- **`OriginalTSiAddr` and `OriginalTSrAddr` were written and read by nothing.** Found at closure. Fixed by reporting both in the SA payload, covered by `TestShowIPsecSAReportsThePreSubstitutionSelectorAddresses` and by `test/ipsec/ipsec-sa-show.ci`.
+
+### Documentation Updates
+- `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md`, `ipsec-14-responder.md`, `ipsec-8-ikev2-child-xfrm.md`, `ipsec-7-ikev2-engine.md`, `ipsec-10-cli-diag.md`, `ipsec-13-rekey-wire.md` -- the substitution, its gate, the per-side NAT fields and the payload, each with a `<!-- source: -->` anchor.
+- `docs/guide/ipsec.md` -- a "Transport mode behind a NAT" section, extended at closure with the two original-selector fields.
+- `docs/architecture/testing/interop.md` -- "The IPsec NAT box". Committed in `2e5da6d394`. A SECOND edit, the rule that a checker asserts on the structured answer, is written in the working tree and is NOT committed: that file's copy carries three other sessions' hunks, so naming it would commit their work. Recorded in Work Not Done.
+- `docs/features.md` and `rfc/short/rfc7296.md` -- the NAT-traversal row and the Section 2.23.1 coverage sentence.
+- `./le repository check` reports no stale or dangling source anchor in any file this spec touched (37 findings, all in other packages).
+
+### Deviations from Plan
+- The QEMU runner (AC-11, AC-12) and `test/ipsec/ipsec-transport-nat-selectors.ci` were not built. Both are homed in `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md`.
+- `docs/architecture/testing/qemu-integration.md` was NOT edited, correctly: there is no action to list.
+- `docs/guide/command-reference.md`, `docs/architecture/api/commands.md` and `docs/comparison.md` were answered Yes in the design-time checklist and needed no edit: none of them enumerates the SA payload's fields or carries a transport-mode row. The greps are in Documentation Verified.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The scenarios' assertions were written against the command's TEXT rendering | That rendering is a table whose column order follows the field names, so adding one field re-sorted it and three unrelated scenarios went red | Six scenarios failed on their first run, and the failure message carried the values it said were missing | The checkers read the `json` rendering; the rule is on `docs/architecture/testing/interop.md` and the row is in `plan/journal/green-that-could-not-have-been-red.md` |
+| approach | The implementation commit named `internal/component/ike/engine/fsm.go`, `internal/le/interoplab/ipsec/checkers.go` and `test/interop-ipsec/parity_test.go` without diffing them first | All three carried another session's uncommitted EAP-TLS revocation work | Building the lab from a tree extracted at HEAD, and reading `git ls-tree` for the scenario directory the parity list names | Rows in `plan/journal/concurrent-session-corruption.md`; the habit is `git diff HEAD -- <path>` on every path a commit script names |
+| escalation | A field was added to the SA and written at both roles with no reader outside tests | `ai/rules/completion.md` requires a non-test caller, and the operator had no way to see the pre-substitution pair the guide told them differs | Closure wiring pass | `original-tsi` and `original-tsr` in `saToMap` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Substitute on the RESPONDER before the SPD lookup | Done | `ts_nat_substitute.go::substituteResponderSelectors`, called from `ts_narrow.go::narrowChildSelectors` | One entry point covers `buildAuthResponse`, `startResponderEAP` and `respondChildRekey` |
+| Substitute on the INITIATOR before any check | Done | `ts_nat_substitute.go::substituteInitiatorSelectors`, called from `ts_narrow.go::recordInitiatorSelectors` | Covers `adoptAuthResponseNegotiation` and `applyChildRekeyResponse` |
+| Record which side is behind the NAT | Done | `sa.go::SA.PeerBehindNAT`, `responder.go::detectResponderNAT`, `fsm.go::handleSAInitResponse` | All four branches |
+| Store the originals before substituting | Done | `ts_nat_substitute.go::storeOriginalSelectorAddresses` | Read by `show_ipsec.go::saToMap` |
+| The substituted address is one this node OBSERVED | Done | `ts_nat_substitute.go::observedLocalAddress`, `observedRemoteAddress` | `peerEndpoint`'s only writer is `sa.go::adoptAuthenticatedEndpoint`, called in `responder.go` after `verifyRemoteAuth` and in `fsm.go` only once the SA reached `StateEstablished` |
+| Prove it against a conforming peer across a real NAT | Done | `checkers.go::checkRealNATTransport`, `checkRealNATTunnelControl` | Green on 2026-09-06, red with the engine reverted |
+| Prove it on Ze's runtime kernel | Not done | - | `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestResponderSubstitutesTransportSelectorsBeforeNarrowing`, `TestResponderAnswersTheIKESAAddressesBehindANAT` | The answer on the wire is read back through `pairsToWire` |
+| AC-2 | Done | `TestResponderSubstitutesTransportSelectorsBeforeNarrowing` | The `BehindNAT` arm |
+| AC-3 | Done | `TestInitiatorAdoptsSubstitutedTransportSelectorsBehindNAT`, `TestTransportSelectorsMatchTheIKESAAddressesBehindANAT` | No TS_UNACCEPTABLE: `recordInitiatorSelectors` returns nil |
+| AC-4 | Done | `TestInitiatorAdoptsSubstitutedTransportSelectorsBehindNAT` | |
+| AC-5 | Done | `TestSubstitutionStoresTheOriginalSelectorAddresses`, `TestShowIPsecSAReportsThePreSubstitutionSelectorAddresses` | The second reaches them through the operator entry point |
+| AC-6 | Done | `TestSubstitutionStillRefusesAWidenedAnswer` | Three refusals and one acceptance, so it is not a blanket refusal |
+| AC-7 | Done | `TestTunnelModeSelectorsUnchangedWithNATDetected`, `real-nat-tunnel-control` | Both arms of the gate |
+| AC-8 | Done | `TestChildRekeyFloorComparedInSubstitutedSpace` | |
+| AC-9 | Done | The RED block in "Progress, 2026-09-06, second session" | Engine reverted, Ze image rebuilt, fixed checker in place |
+| AC-10 | Done | The verdict table in the same section | All three green, each ending in `verifyESPDirectionsToward` over `natESPDirections` |
+| AC-11 | Not done | - | `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md` |
+| AC-12 | Not done | - | Same spec |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestNATDetectionRecordsWhichSideIsBehindTheNAT` | Done | `internal/component/ike/engine/nat_detect_test.go` | Both roles, all four branches |
+| `TestTransportProposalUsesObservedIKEAddresses` | Done | `internal/component/ike/engine/ts_nat_substitute_test.go` | |
+| `TestResponderSubstitutesTransportSelectorsBeforeNarrowing` | Done | `ts_nat_substitute_test.go` | |
+| `TestInitiatorAdoptsSubstitutedTransportSelectorsBehindNAT` | Done | `ts_nat_substitute_test.go` | |
+| `TestSubstitutionStoresTheOriginalSelectorAddresses` | Done | `ts_nat_substitute_test.go` | |
+| `TestSubstitutionStillRefusesAWidenedAnswer` | Changed | `ts_nat_substitute_test.go` | Landed beside the others rather than in `ts_initiator_subset_test.go` |
+| `TestTunnelModeSelectorsUnchangedWithNATDetected` | Done | `ts_nat_substitute_test.go` | |
+| `TestChildRekeyFloorComparedInSubstitutedSpace` | Changed | `ts_nat_substitute_test.go` | Same file rather than `child_rekey_initiator_answer_test.go` |
+| `TestIPsecScenarioParity` | Done | `test/interop-ipsec/parity_test.go` | The three directories and their `nat.conf` requirement |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `sa.go`, `fsm.go`, `responder.go`, `rekey.go`, `transport_mode.go`, `ts_narrow.go`, `show_ipsec.go` | Done | |
+| `ts_nat_substitute.go`, `ts_nat_substitute_test.go`, `nat_detect_test.go` | Done | |
+| `internal/le/interoplab/ipsec/ipsec.go`, `checkers.go`, `helpers.go` | Done | The NAT plumbing landed in a new `nat.go` rather than in `ipsec.go` |
+| `test/interop-ipsec/Dockerfile.nat` and the three scenario directories | Done | |
+| `internal/le/qemu/actions.go`, `alltests.go`, `ipsec_nat_linux.go`, `gokrazy/kernel/runtime.require` | Not done | Owned by the new spec |
+| `test/ipsec/ipsec-transport-nat-selectors.ci` | Not done | Owned by the new spec |
+| `docs/architecture/testing/qemu-integration.md` | Changed | Correctly not edited: there is no action to list |
+| Every other documentation page named | Done | See Documentation Updates |
+
+### Audit Summary
+- **Total items:** 12 acceptance criteria, 9 planned tests, 22 planned files
+- **Done:** 10 of 12 AC, 7 of 9 tests as planned, 18 of 22 files
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 tests moved file, 1 file split into `nat.go`, 1 page correctly left alone, 4 files owned by a new spec
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 Ze establishes transport mode across a real NAT as INITIATOR and carries traffic | interop | `real-nat-transport-ze-initiator` PASS on 2026-09-06; `checkRealNATTransport` ends in `verifyESPDirectionsToward` over all four simplex directions, and `assertESPAdvanced` refuses unless a surviving SPI's XFRM byte counter GREW across a lossless ping |
+| G-2 The same on the RESPONDER role | interop | `real-nat-transport-ze-responder` PASS, same assertions, role set by the fixture pair alone |
+| G-3 The narrowing guard still refuses a genuinely wider answer | unit over the production adoption path | `TestSubstitutionStillRefusesAWidenedAnswer`: a responder-chosen TSr draws `errTSWidened` and `adoptAuthResponseNegotiation` answers `NotifyTSUnacceptable`; an any-port answer to a single-port proposal is refused; the conforming answer is accepted |
+| G-4 Tunnel mode across the same NAT is unchanged | interop and unit | `real-nat-tunnel-control` PASS, asserting the INNER selectors `10.10.0.1/32` and `10.20.0.1/32` that no translation moves, plus `mode tunnel` on the installed state; `TestTunnelModeSelectorsUnchangedWithNATDetected` covers both arms of the gate |
+| G-5 The proof is red-then-green against strongSwan behind a netfilter NAT, in Docker and in QEMU | interop, Docker half only | RED recorded in "Progress, 2026-09-06, second session": both transport scenarios fail at `wait for strongSwan SA ze timed out` with the engine reverted and the image rebuilt, so the Child SA never establishes without the substitution. The QEMU half is NOT met and is owned by `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-11 and AC-12: the QEMU three-namespace runner, its registration, its workflow caller, and the `runtime.require` kernel symbols | The runner does not exist, and building it is a package of its own rather than a line in this closure | `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md` |
+| `test/ipsec/ipsec-transport-nat-selectors.ci` | A `.ci` cannot reach a translation without namespaces, so it belongs with the runner | `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md` |
+| The `docs/architecture/testing/interop.md` hunk stating that a checker asserts on the structured answer | Written in the working tree, not committable: that file carries three other sessions' uncommitted hunks, so naming it in a commit script would commit their work | `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md`, as a documentation row; the text is already written in the working tree |
+| OQ-1, the Section 2.23.1 tunnel-mode fallback MAY | `ai/rules/rfc-compliance.md` reserves a MAY for Thomas, and this session cannot ask him. Ze answers TS_UNACCEPTABLE, which is conformant, so nothing is left non-conformant by the delay | Recorded in the Known Limitations of `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md` so the question survives this spec's deletion |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ipsec-transport-nat-selector-substitution-zeclose-ipsecnat-1151767.md`, 19 files, verdict clean |
+| `./le spec session review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | wiring and dead-symbol; logic and guard audit; security and untrusted input; documentation drift BEYOND the diff; RFC 7296 Section 2.23.1 conformance and its discrimination records; removed-behavior audit; simplicity and the Go style pass |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `SA.OriginalTSiAddr` and `SA.OriginalTSrAddr` are written at both roles and read by nothing outside tests, so AC-5's "readable after the Child SA installs" was true only of a unit test. `docs/guide/ipsec.md` already told the operator that the wire pair and the programmed pair differ behind a NAT, and gave no way to see the first | `internal/component/ike/engine/ts_nat_substitute.go::storeOriginalSelectorAddresses`, `internal/component/ike/cmd/show_ipsec.go::saToMap` | `original-tsi` and `original-tsr` in the SA payload through `selectorAddressText`, with `TestShowIPsecSAReportsThePreSubstitutionSelectorAddresses` and two assertions in `test/ipsec/ipsec-sa-show.ci`. Observed RED with the two payload keys removed and the suite rebuilt (`output missing "original-tsi":null`), GREEN with them |
+| 2 | BLOCKER, recorded and NOT repaired | `2e5da6d394` carried a third session's EAP-TLS revocation work in three files, not the one already journalled: the `cfg.CRLPEM = ca.CRLPEM()` hunk in `fsm.go`, `checkResponderEAPTLS13RevokedClient` with its `scenarioCheckers` entry in `checkers.go`, and the `responder-eap-tls13-revoked-client` row in `parity_test.go`. `(*CACertEntry).CRLPEM` and the scenario's eleven fixture files are all UNCOMMITTED, so at HEAD `internal/component/ike/engine` does not compile AND a registered scenario has no inputs | `internal/component/ike/engine/fsm.go`, `internal/le/interoplab/ipsec/checkers.go`, `test/interop-ipsec/parity_test.go` | Not repaired, by owner instruction and by `ai/rules/never-destroy-work.md`: removing any of the three deletes the other session's wiring, and committing their `store.go` and fixtures is the cross-commit `ai/rules/git-safety.md` forbids. Their commit repairs all three at once. Two rows are written into `plan/journal/concurrent-session-corruption.md` and that file is NOT in this closure's commit: `./le journal validate` refuses it over two OTHER sessions' rows whose Spec cell reads `crash-capture / vpp-isolated-cpus` and `crash-capture / firewall-domain-group`, which name no parseable stem, and naming the file would carry five foreign rows under this subject. This spec's committed journal row is the one `55bbb27077` landed in `plan/journal/green-that-could-not-have-been-red.md`; the finding itself is preserved by this table |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/ts_nat_substitute.go` | Yes | read in full at closure; 195 lines in `2e5da6d394 --stat` |
+| `internal/component/ike/engine/ts_nat_substitute_test.go` | Yes | `gopls symbols` lists 8 test functions and 5 fixture helpers |
+| `internal/component/ike/engine/nat_detect_test.go` | Yes | `gopls symbols` lists `TestNATDetectionRecordsWhichSideIsBehindTheNAT` and its 5 helpers |
+| `internal/le/interoplab/ipsec/nat.go` | Yes | read in full at closure |
+| `test/interop-ipsec/Dockerfile.nat` | Yes | 22 lines in `2e5da6d394 --stat` |
+| `test/interop-ipsec/scenarios/real-nat-transport-ze-initiator/{ze,swanctl,nat}.conf` | Yes | all three read at closure; `nat.conf` declares `172.28.0.2 172.28.0.6` and `172.28.0.3 172.28.0.7` |
+| `test/interop-ipsec/scenarios/real-nat-transport-ze-responder/`, `real-nat-tunnel-control/` | Yes | named in `ipsecScenarios`, which `TestEveryNativeScenarioHasCompleteInputs` walks; `go test ./test/interop-ipsec/` returns ok |
+| `internal/le/qemu/ipsec_nat_linux.go`, `test/ipsec/ipsec-transport-nat-selectors.ci` | No | Work Not Done; owned by `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-8 | The substitution, its gate, its ceiling and its rekey floor | `./le job run label ipsec-close-unit command go test ./internal/component/ike/engine/ ./internal/component/ike/cmd/ ./internal/le/interoplab/ipsec/ ./test/interop-ipsec/` returned exit 0, `ok .../ike/engine 33.392s` |
+| AC-5 | The originals are readable after the Child SA installs | `./le functional ipsec` -> `pass 19/19`, `20/24 PASS ipsec-sa-show`, which asserts `"original-tsi":null` and `"original-tsr":null` through the json rendering against a live daemon pair |
+| AC-6 | The ceiling still refuses a widened answer | `TestSubstitutionStillRefusesAWidenedAnswer` passes in the run above; read at source it asserts `errTSWidened`, `NotifyTSUnacceptable` from `adoptAuthResponseNegotiation`, a port refusal, and one acceptance |
+| AC-9 | The RED was observed with the image rebuilt and the FIXED checker in place | The pasted block in "Progress, 2026-09-06, second session". Its control failure text, `reports no IKE SA with nat-detected, behind-nat, peer-behind-nat all true`, is produced only by `assertNATVerdict` as `55bbb27077` rewrote it, which is what proves the fixed checker was the one that ran |
+| AC-10 | All three scenarios green, each asserting the byte counter | The verdict table in the same section; `checkRealNATTransport` and `checkRealNATTunnelControl` both end in `verifyESPDirectionsToward(..., natESPDirections)`, and `natESPDirections` names all four simplex SAs |
+| AC-11, AC-12 | - | Not done; Work Not Done |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `mode transport` peer answered from behind a NAT | none; `real-nat-transport-ze-initiator` | Yes: `checkRealNATTransport` establishes, waits for strongSwan's Child selectors, asserts Ze's NAT verdict and substituted selectors, requires `mode transport` on the INBOUND XFRM state, then pings and requires all four ESP counters to grow |
+| `connection-type respond` peer dialled from behind a NAT | none; `real-nat-transport-ze-responder` | Yes: the same body, role set by the fixtures alone |
+| NAT_DETECTION mismatch on either role | none; unit | Yes: `TestNATDetectionRecordsWhichSideIsBehindTheNAT` drives `detectResponderNAT` and `handleSAInitResponse` with real hashes, four cases per role |
+| `show vpn ipsec sa` reports the SA facts | `test/ipsec/ipsec-sa-show.ci` | Yes: read at source and run; it asserts the payload keys through the json pipe against two live daemons |
+| `./le qemu ipsec-nat-transport-test` | none | No: the action does not exist. Work Not Done |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The three scenarios pass against strongSwan with no `encap = yes`, which is reachable only if strongSwan answers the substituted pair; `checkRealNATTransport` waits for exactly `172.28.0.3/32` and `172.28.0.6/32` on the strongSwan side |
+| A-2 | confirmed, with its boundary recorded | `observedLocalAddress` returns the configured `local-address`, which `ikeListenHost` binds. The wildcard-bind case stays out of scope and belongs to `plan/immediate/spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md`, as the assumption itself stated |
+| A-3 | confirmed | No dataplane change was made, and all four XFRM byte counters advance across the translated path in each of the three scenarios |
+| A-4 | confirmed | One netfilter box with a secondary address per peer makes all four comparisons mismatch: `assertNATVerdict` requires `nat-detected`, `behind-nat` and `peer-behind-nat` all true on ONE SA record, and it passes |
+| A-5 | confirmed | The topology carries the scenarios' own ESP, and `natSetupScript` disables ICMP redirects so no peer learns to bypass the box |
+| A-6 | broken as a claim, because it was never put to the test | The QEMU runner was never built, so the Alpine `apk` half and the runtime-kernel half of this assumption are unmeasured. Restated as G-2 of `plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md`, whose AC-2 is the measurement |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #1 feature list | `docs/features.md` "IPsec NAT Traversal" states transport mode works across an address-translating NAT on both roles and anchors `ts_nat_substitute.go` | Yes |
+| #3 CLI reference | `grep -rn "vpn ipsec" docs/guide/command-reference.md` returns only `clear vpn ipsec sa`; the page enumerates no SA payload field, so nothing there went stale | Yes, no edit owed |
+| #4 API/RPC docs | `grep -rniE "ipsec" docs/architecture/api/commands.md` returns nothing | Yes, no edit owed |
+| #6 user guide | `docs/guide/ipsec.md` "Transport mode behind a NAT", with both source anchors, extended at closure with the two original-selector fields | Yes |
+| #9 RFC behavior | `rfc/short/rfc7296.md` Section 2.23.1 coverage sentence names both producers; `rfc/requirements/rfc7296.md` rows -1, -2 and -3 gained the NAT tests beside the pre-existing ones; six discrimination records in `rfc/discrimination/rfc7296.json`, and `./le rfc check` reports none of them stale | Yes |
+| #10 test infrastructure | `docs/architecture/testing/interop.md` "The IPsec NAT box" is committed. The second hunk is uncommitted and is a Work Not Done row | Partial, recorded |
+| #11 comparison table | `grep -rniE "ipsec\|transport mode" docs/comparison.md` returns nothing; the page carries no IPsec row | Yes, no edit owed |
+| #12 internal architecture | Five `docs/architecture/ike/` pages edited, each with a `<!-- source: -->` anchor; `./le repository check` reports no stale anchor in any file this spec touched | Yes |
+| Payload page | `docs/architecture/ike/ipsec-10-cli-diag.md` states both selector pairs and why the originals answer null rather than an empty string | Yes |
+| Inventory drift found and NOT owned here | `docs/features.md` "IPsec Interop Testing" enumerates scenarios by hand and already omitted the `natt-*` pair, `delete-while-window-held` and `peer-reload-narrowing` before this spec. A hand list beside a registry (`ai/rules/evidence.md`); pre-existing, and the goal does not depend on it | NOTE |
+
+## Core Insight
+
+The defect and the first fix are the same mistake at two layers. The engine pinned
+transport-mode selectors to the CONFIGURED address pair while its own comment claimed it
+read the IKE SA, and the checkers asserted on the RENDERED table while claiming to read
+what the command reported. Both were true by accident on the fixture in front of them: with
+no NAT the configured and observed addresses are equal, and with `child-sa` first in the
+column order the line-anchored regex matches. Both went false the moment a real variable
+moved. A claim that holds only because two things coincide is not evidence, and the test
+for it is the one this spec had to run twice: change the thing that makes them coincide,
+and see whether the assertion still discriminates.

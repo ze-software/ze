@@ -36,7 +36,16 @@ carries `nat-detected` beside `behind-nat` and `peer-behind-nat`, because RFC
 and an operator diagnosing a transport tunnel needs the fact `nat-detected`
 hides. All three come straight off the SA and are booleans in the JSON.
 
-<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
+**It also reports the selector addresses BEFORE that substitution.**
+`original-tsi` and `original-tsr` are the pair the peer put on the wire, and
+`child-sa.ts-local` and `child-sa.ts-remote` are the pair the kernel programs.
+Behind a NAT the two differ, and the section requires the originals be kept, so
+the payload is the operator's only reader of them. Both are text, and both are
+null on an SA that read no transport-mode selector set, which is every
+tunnel-mode SA. Null says the SA never held the fact; an empty string would read
+as an address nobody holds.
+
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap, selectorAddressText -->
 
 **Metrics and the health check live in the engine package.** They query engine
 internal state, and the host metric registration pattern already does the same.

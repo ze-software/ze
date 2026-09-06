@@ -830,6 +830,12 @@ the far end's was. Both can be true at once. A transport tunnel that does not co
 behind a NAT is diagnosed with those three fields first: all false means the peer sent no
 NAT_DETECTION notification, which no conforming IKEv2 implementation omits.
 
+The command shows both selector pairs, so you can see the substitution rather than infer
+it. `original-tsi` and `original-tsr` are the addresses the peer put on the wire, and
+`ts-local` and `ts-remote` inside `child-sa` are the addresses the kernel programs. On a
+tunnel-mode peer, and on any peer that never negotiated transport mode, the two original
+fields are null.
+
 Tunnel mode across the same NAT is unaffected. Section 2.23.1 governs transport mode alone,
 so a tunnel-mode Child SA negotiates the selectors you configured, untouched.
 

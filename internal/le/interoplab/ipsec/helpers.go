@@ -394,10 +394,6 @@ func (l *scenarioLab) checkXFRMCount(ctx context.Context, peer string, expected 
 	return nil
 }
 
-func (l *scenarioLab) ping(ctx context.Context, peer, target string, count int) string {
-	return l.execQuiet(ctx, peer, "ping", "-c", strconv.Itoa(count), "-W", "2", target)
-}
-
 // pingLoss reads the loss percentage out of a ping summary.
 //
 // An absent summary is a FAILURE and never a pass. A run that printed no summary

@@ -3,6 +3,7 @@
 package cmd
 
 import (
+	"net"
 	"testing"
 	"time"
 
@@ -89,9 +90,64 @@ func TestShowIPsecSA_WithSAs(t *testing.T) {
 	assert.Equal(t, "ecp256", row["dh-group"])
 	assert.Equal(t, false, row["nat-detected"])
 
+	// No transport-mode selector set was read on this SA, so the two stored
+	// pre-substitution addresses are absent. They answer null rather than "", because an
+	// empty string reads as an address nobody holds.
+	assert.Nil(t, row["original-tsi"])
+	assert.Nil(t, row["original-tsr"])
+
 	uptime, ok := row["uptime-seconds"].(float64)
 	require.True(t, ok)
 	assert.Greater(t, uptime, float64(0))
+}
+
+// TestShowIPsecSAReportsThePreSubstitutionSelectorAddresses drives the stored originals
+// of RFC 7296 Section 2.23.1 through the show handler, which is the only entry point an
+// operator has to them.
+//
+// VALIDATES: an SA carrying OriginalTSiAddr and OriginalTSrAddr reports both in the
+// payload of `show vpn ipsec sa`, as text, beside the NAT verdict fields.
+// PREVENTS: the two fields being written by the substitution and read by nothing, which
+// leaves the operator with the programmed pair alone and no way to see what the peer put
+// on the wire. Behind a NAT those are different addresses, which is the whole point of
+// the section.
+func TestShowIPsecSAReportsThePreSubstitutionSelectorAddresses(t *testing.T) {
+	table := engine.NewSATable()
+	sa := &engine.SA{
+		PeerName:      "nat-peer",
+		State:         engine.StateEstablished,
+		IsInitiator:   true,
+		CreatedAt:     time.Now().Add(-time.Minute),
+		EstablishedAt: time.Now().Add(-time.Minute),
+		NATDetected:   true,
+		BehindNAT:     true,
+		PeerBehindNAT: true,
+		// The pair the peer answered with, in ITS address space. Neither address exists
+		// on this node, which is why the substitution replaced them.
+		OriginalTSiAddr: net.ParseIP("172.28.0.6"),
+		OriginalTSrAddr: net.ParseIP("172.28.0.3"),
+	}
+	table.Insert(sa)
+	engine.SetActiveTableForTest(table)
+	engine.SetActivePeersForTest(map[string]*engine.PeerSession{})
+	defer func() {
+		engine.SetActiveTableForTest(nil)
+		engine.SetActivePeersForTest(nil)
+	}()
+
+	resp, err := handleShowVPNIPsecSA(nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	m, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	rows, _ := m["peers"].([]map[string]any)
+	require.Len(t, rows, 1)
+
+	row := rows[0]
+	assert.Equal(t, true, row["behind-nat"])
+	assert.Equal(t, true, row["peer-behind-nat"])
+	assert.Equal(t, "172.28.0.6", row["original-tsi"])
+	assert.Equal(t, "172.28.0.3", row["original-tsr"])
 }
 
 func TestShowIPsecStatus_WithSAs(t *testing.T) {

@@ -1406,7 +1406,7 @@ func checkRealNATTransportZeInitiator(ctx context.Context, lab *scenarioLab) err
 }
 
 // checkRealNATTransportZeResponder proves the SERVER half of the same section, with
-// strongSwan dialling in from behind the translation and Ze answering.
+// strongSwan dialing in from behind the translation and Ze answering.
 //
 // RFC 7296 Section 2.23.1, for the responder: "If the client is behind a NAT, substitute
 // the IP address in the TSi entries with the remote address of the IKE SA." and "If the

@@ -1,6 +1,8 @@
 // Design: docs/architecture/ike/ipsec-10-cli-diag.md -- show vpn ipsec handlers.
 // Related: monitor_ipsec.go -- streaming `monitor vpn ipsec` sibling of these
 // one-shot show handlers.
+// RFC: rfc/short/rfc7296.md -- the SA facts this payload reports: the NAT verdict per
+// side and the pre-substitution selector addresses (Sections 2.3, 2.23 and 2.23.1)
 // Owned by the ike component so that removing it removes the `show vpn ipsec ...`
 // command, its schema, and these handlers together. See
 // ai/rules/plugins.md.
@@ -8,6 +10,7 @@
 package cmd
 
 import (
+	"net"
 	"sort"
 	"time"
 
@@ -207,7 +210,15 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo,
 		// once in the two-NAT case that section draws.
 		"behind-nat":      sa.BehindNAT,
 		"peer-behind-nat": sa.PeerBehindNAT,
-		"rekey-count":     uint64(0),
+		// RFC 7296 Section 2.23.1: "Store the original Traffic Selector IP addresses as
+		// received source and destination address". Behind a NAT the selectors on the wire
+		// and the selectors the kernel programs are different addresses, and ts-local and
+		// ts-remote below report only the programmed pair. These two report what the peer
+		// really sent, which is the fact an operator needs to tell a substitution that ran
+		// from a peer that proposed the wrong thing.
+		"original-tsi": selectorAddressText(sa.OriginalTSiAddr),
+		"original-tsr": selectorAddressText(sa.OriginalTSrAddr),
+		"rekey-count":  uint64(0),
 		// RFC 7296 Section 2.3: the number of outstanding requests the peer promised to
 		// keep in its SET_WINDOW_SIZE notify. Zero means the peer sent none, which the
 		// same section reads as a window of one.
@@ -246,6 +257,20 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo,
 // The two are different answers: zero says the SA carried nothing, null says
 // nobody could ask. A caller that renders null as 0 would reintroduce exactly the
 // false-green this spec exists to remove (ai/rules/evidence.md).
+// selectorAddressText renders a stored pre-substitution selector address for the SA
+// payload.
+//
+// A nil address answers null rather than the empty string. Nil means no transport-mode
+// selector set was ever read on this SA, which is every tunnel-mode SA and every SA that
+// has not reached IKE_AUTH, and an empty string there reads as an address nobody holds
+// (ai/rules/principles.md).
+func selectorAddressText(ip net.IP) any {
+	if ip == nil {
+		return nil
+	}
+	return ip.String()
+}
+
 func addChildCounters(child map[string]any, info engine.PeerInfo, kernel sadCounters) {
 	inBytes, inPackets, inKnown := kernel.lookup(info.ChildInSPI)
 	outBytes, outPackets, outKnown := kernel.lookup(info.ChildOutSPI)

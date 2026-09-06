@@ -320,7 +320,7 @@ road-warrior access usable.
 |----------|--------|
 | What breaks if this is wrong? | Two live remote peers hold the same inner address and the gateway sends return traffic down the wrong SA, which is the exact hazard Section 5.1 names. A narrowing defect drops traffic for site-to-site peers that share the responder path. A lease leak exhausts the pool and refuses new clients. |
 | How is it reverted? | Single commit revert while no operator has a pool configured, because nothing today depends on the behavior. Once a deployment leases addresses, a revert strands clients that expect one, so the revert window closes at first use. |
-| Who else touches this path? | `plan/immediate/spec-ipsec-remote-access.md` (the same files, unresolved, OI-1), `plan/immediate/spec-ipsec-transport-nat-selector-substitution.md` and `plan/spec-ipsec-opaque-selector-port-mask.md` (traffic selectors), `plan/spec-ike-reauth.md` (IKE SA lifecycle and therefore lease release). |
+| Who else touches this path? | `plan/immediate/spec-ipsec-remote-access.md` (the same files, unresolved, OI-1), `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` (traffic-selector narrowing and the RFC 7296 Section 2.23.1 NAT substitution, which `spec-ipsec-transport-nat-selector-substitution` implemented and closed on 2026-09-06) and `plan/spec-ipsec-opaque-selector-port-mask.md` (traffic selectors), `plan/spec-ike-reauth.md` (IKE SA lifecycle and therefore lease release). |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

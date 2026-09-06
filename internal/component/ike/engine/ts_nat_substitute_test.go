@@ -328,7 +328,7 @@ func TestSubstitutionStoresTheOriginalSelectorAddresses(t *testing.T) {
 // VALIDATES: the ceiling is unchanged. An answered half that the substitution does NOT
 // cover, and a port outside the proposal, are both still refused with errTSWidened.
 // PREVENTS: R-1, the selector-confusion hole. The substitution replaces an address with
-// one this node observed; it must not become a licence to install whatever the peer named.
+// one this node observed; it must not become a license to install whatever the peer named.
 func TestSubstitutionStillRefusesAWidenedAnswer(t *testing.T) {
 	// Only the CLIENT is behind a NAT, so the substitution touches TSi alone and TSr is
 	// left exactly as the responder answered it. A responder naming a third party there is

@@ -175,6 +175,13 @@ expect=output:contains=is-initiator:timeout=3
 # section reads as a window of one. The key and its value together prove the field
 # reaches the CLI surface; the bare key alone would also match a renamed one.
 expect=output:contains="peer-window-size":0:timeout=3
+# RFC 7296 Section 2.23.1 requires the pre-substitution selector addresses be stored, and
+# `show vpn ipsec sa` is the only reader an operator has. This pair is tunnel mode with no
+# NAT, so no transport-mode selector set was read and both are null. The key AND the null
+# together prove the field reaches the CLI surface carrying the absence rather than an
+# empty string, which would read as an address nobody holds.
+expect=output:contains="original-tsi":null:timeout=3
+expect=output:contains="original-tsr":null:timeout=3
 expect=exit:code=0
 expect=stderr:contains=engine-steps: all steps passed
 reject=stderr:pattern=panic recovered
