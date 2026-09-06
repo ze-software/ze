@@ -117,6 +117,41 @@ func TestLSPRuntimeWritesOnlyCurrentSessionMarker(t *testing.T) {
 	}
 }
 
+// VALIDATES: the Data Flow Entry Point placeholder is refused from `design`
+// onward and accepted at `skeleton`.
+// PREVENTS: a hook that refuses the state the repository is full of. A skeleton
+// is a spec with no design yet, so its unwritten Entry Point is the honest
+// state; plan/README.md says so, and 39 committed specs carry that exact
+// placeholder. Refusing it there blocked every new skeleton from being written
+// at all, which is how this test came to exist.
+func TestValidateSpecPlaceholderScopedToDesignOnward(t *testing.T) {
+	const entryPoint = "\n## Data Flow\n\n### Entry Point\n[Where data enters]\n" +
+		"\n### Transformation Path\n\n### Boundaries Crossed\n\n### Integration Points\n"
+
+	body := func(status string) string {
+		return "# Spec: fixture\n\n| Field | Value |\n|-------|-------|\n| Status | " +
+			status + " |\n| Updated | 2026-09-06 |\n" + entryPoint
+	}
+
+	skeleton, _ := validateSpecText(t.TempDir(), body("skeleton"))
+	for _, got := range skeleton {
+		if strings.Contains(got, "Entry Point contains placeholder") {
+			t.Fatalf("a skeleton was refused for the placeholder it is allowed to carry: %q", got)
+		}
+	}
+
+	design, _ := validateSpecText(t.TempDir(), body("design"))
+	found := false
+	for _, got := range design {
+		if strings.Contains(got, "Entry Point contains placeholder") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("a design spec kept the placeholder and was not refused: %v", design)
+	}
+}
+
 func TestValidateSpecFailsSpeakWithoutToolName(t *testing.T) {
 	code, _, message := runHook(t, t.TempDir(), "validate-spec", map[string]any{"tool_input": map[string]any{}})
 	if code != 2 || !strings.Contains(message, "NOTHING WAS CHECKED") {

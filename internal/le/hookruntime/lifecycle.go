@@ -544,11 +544,17 @@ func hookValidateSpec(ctx context, errOut io.Writer) int {
 func validateSpecText(root, text string) ([]string, []string) {
 	errors := make([]string, 0)
 	warnings := make([]string, 0)
+	// The status is read into function scope because one check below is scoped
+	// to it. A skeleton is ALLOWED to carry the template's placeholders, which
+	// is what plan/README.md states: "skeleton is the one status allowed to
+	// carry template placeholders. From design onward the native validation
+	// hook blocks them, because the author is then claiming those sections are
+	// written."
+	status := ""
 	if !strings.Contains(text, "| Status |") {
 		errors = append(errors, "Missing metadata table. Add Status, Depends, Phase, Updated rows")
 	} else {
 		statusMatch := regexp.MustCompile(`(?m)^\| Status \| *([a-z-]+)`).FindStringSubmatch(text)
-		status := ""
 		if len(statusMatch) > 1 {
 			status = statusMatch[1]
 		}
@@ -586,7 +592,13 @@ func validateSpecText(root, text string) ([]string, []string) {
 			errors = append(errors, "Data Flow section missing '"+strings.TrimPrefix(subsection, "### ")+"' subsection")
 		}
 	}
-	if strings.Contains(data, "[Where data enters") || strings.Contains(data, "[Format at entry]") {
+	// A skeleton is a spec with no design yet, so an unwritten Entry Point is
+	// its honest state rather than a defect. Refusing it here made the hook
+	// disagree with plan/README.md and with the tree: 39 committed specs carry
+	// this placeholder, so the check refused a state the repository is full of,
+	// and the author of a NEW skeleton could not write one at all.
+	if status != "skeleton" &&
+		(strings.Contains(data, "[Where data enters") || strings.Contains(data, "[Format at entry]")) {
 		errors = append(errors, "Data Flow: Entry Point contains placeholder text. Document actual entry points!")
 	}
 	unit := markdownSection(text, "### Unit Tests")
