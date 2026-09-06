@@ -1,0 +1,121 @@
+# Test: `show firewall ruleset <table>` over the real SSH `ze cli` path names the
+#       DNS name that supplied each address in a domain group's set.
+# Spec: plan/spec-firewall-domain-group.md -- Wiring Test row 5, user story 3
+# VALIDATES: the enrichment reaches an operator. handleShowFirewallRuleset
+#            (internal/plugins/firewall/nft/cmd_show.go) calls show.Enrich, the
+#            hub forwards `enrich-show` to the domain plugin, enrichShow
+#            (internal/component/firewall/plugins/domain/enrich.go) attaches
+#            source-name to every element it resolved, and the merged answer is
+#            rendered to the client.
+# PREVENTS: the enrichment being proven at the enricher alone. enrichShow
+#           returning the right map says nothing about whether the registration
+#           key matches the command string the show handler passes, whether the
+#           merge survives the plugin boundary, or whether the name reaches the
+#           client at all. This file is the only assertion made from outside the
+#           daemon.
+#
+# NEVER EXECUTED. Written on 2026-09-06 and not run once. The command that runs
+# it is `./le functional firewall`; on a host without CAP_NET_ADMIN it is
+# skipped by the option below, and the runner that does execute it is
+# `./le qemu netns-test suites firewall`.
+#
+# THE GO FIXTURE IS NOT WRITTEN EITHER. `ze-test fixture
+# firewall/firewall-cli-domain-group-show` does not exist yet: it is named under
+# "Files to Create" in the spec and it is still owed. Until it exists this file
+# fails at command 2 for that reason and for no other. What the fixture MUST do,
+# in this order, is what the assertions below are written against:
+#   1. Serve DNS on 127.0.0.1:53, answering web.example.test with A
+#      203.0.113.10.
+#   2. Provision client credentials with `ze init` into a sandbox config dir,
+#      the way test/firewall/firewall-cli-show.ci's fixture does.
+#   3. Dispatch `update firewall domain-group web`, so the group has data.
+#   4. Commit, over `ze cli`, a term in table fw_dg matching
+#      source-domain-group web. It is committed HERE and not in the config
+#      below because a commit naming a never-resolved group is refused
+#      (OnConfigVerify), which is the order user story 1 already describes.
+#   5. Run `show firewall ruleset fw_dg` over `ze cli` and print the answer.
+#
+# ONE SCENARIO PER FILE. An expect=stdout: assertion is FILE-level: the runner
+# checks it against the concatenated output of every command in the file
+# (runner_exec.go, rec.ClientOutput), stdout and stderr together. Nothing here
+# asserts an absence, so the whole file reads one command's answer.
+#
+# Auth setup mirrors test/firewall/firewall-cli-show.ci: the daemon config
+# declares a super-admin user and an SSH server, and the fixture drives `ze cli`
+# against it. The SSH port is fixed because the per-test netns isolates it.
+#
+# This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
+option=needs-linux:caps=net-admin
+# Serialize against every other firewall-domain-group test: the nftables ruleset
+# is NODE-WIDE and the set names come from the group name (setNames, sets.go).
+option=exclusive:group=firewall-domain-group-nft
+option=timeout:value=30s
+
+stdin=ze-fw:terminator=EOF_CONF
+system {
+	# The hub resolver reads NameServers[0] as its server (newResolvers,
+	# cmd/ze/hub/main_system.go), so this points every lookup at the fixture's
+	# stub rather than at the host's real DNS.
+	name-server 127.0.0.1;
+	dns {
+		resolv-conf-path "";
+	}
+	authentication {
+		user operator {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO";
+		}
+	}
+}
+
+firewall {
+	backend nft;
+	domain-group web {
+		domain-names [ web.example.test ];
+		ttl-floor 60;
+	}
+	table fw_dg {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			# A drop-policy chain would lock out the `ze cli` -> SSH connection
+			# this test is driven over, so the policy is accept and the term the
+			# enrichment is read from is committed by the fixture.
+			term allow-loopback {
+				from { input-interface lo; }
+				then { accept; }
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port 2222;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze -:stdin=ze-fw
+cmd=foreground:seq=2:exec=ze-test fixture firewall/firewall-cli-domain-group-show:timeout=25s
+expect=exit:code=0
+
+# The set and its address are in the answer at all. Read back from the applied
+# kernel state by the show handler, so an in-memory copy fails here.
+expect=stdout:contains=domain_v4_web
+expect=stdout:contains=203.0.113.10
+
+# The name is attached to THAT address, and not merely somewhere in the same
+# document. `[^}]*` keeps both inside one element object, so a product that
+# rendered the group's names in a separate list, or attached the name to the
+# wrong element, fails this line while passing the two above. The alternation is
+# there because the key order of a rendered map is not this test's business:
+# source-name is the field enrichSet adds beside value (enrich.go), and either
+# order says the same thing.
+expect=stdout:pattern=(203\.0\.113\.10[^}]*web\.example\.test|web\.example\.test[^}]*203\.0\.113\.10)

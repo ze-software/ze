@@ -1,0 +1,104 @@
+# Test: `clear firewall domain-group <name>` drops the group's cached addresses
+#       and the set they were programmed into leaves the kernel.
+# Spec: plan/spec-firewall-domain-group.md -- user story 6
+# VALIDATES: the deliberate exit from last-known-good. The command reaches
+#            clearDomainGroup (internal/component/firewall/plugins/domain/
+#            command.go), which purges the cache, re-applies the tables through
+#            applyTables, and reports how many entries it removed.
+# PREVENTS: a clear that empties the plugin's memory and leaves the addresses
+#           enforced in nftables until the next restart, which is the failure an
+#           operator clearing a compromised name is trying to prevent.
+#
+# NEVER EXECUTED. Written on 2026-09-06 and not run once. The command that runs
+# it is `./le functional plugin`; on a host without CAP_NET_ADMIN it is skipped
+# by the option below, and the runner that does execute it is
+# `./le qemu netns-test suites plugin`.
+#
+# THE GO FIXTURE IS NOT WRITTEN EITHER. `ze-test fixture
+# plugin/firewall-domain-group-clear` does not exist yet: it is named under
+# "Files to Create" in the spec and it is still owed. Until it exists this file
+# fails at command 2 for that reason and for no other. What the fixture MUST do,
+# in this order, is what the assertions below are written against:
+#   1. Serve DNS on 127.0.0.1:53, answering web.example.test with A
+#      203.0.113.10.
+#   2. Dispatch `update firewall domain-group web` and print the answer, which
+#      carries the counts and no address.
+#   3. Dispatch `clear firewall domain-group web` and print the answer.
+#   4. Print the kernel read-back AFTER the clear: `nft list table inet ze_fw`.
+# It MUST NOT print a read-back before step 4, and it MUST NOT print the
+# addresses it served. The absence asserted at the end of this file is read from
+# the whole accumulated output, so an address printed anywhere for any reason
+# fails it.
+#
+# ONE SCENARIO PER FILE, and here that is load-bearing rather than tidy. An
+# expect=stdout: assertion is FILE-level: the runner checks it against the
+# concatenated output of every command in the file (runner_exec.go,
+# rec.ClientOutput), stdout and stderr together. This file says an address is
+# ABSENT, so it cannot also be the file that watches the address arrive. That
+# half is test/plugin/firewall-domain-group-update.ci.
+#
+# For the same reason the firewall debug log stays OFF here. Every other
+# firewall test raises it, and a debug line naming the address the plugin just
+# purged would land in the same buffer the absence below reads.
+#
+# This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
+option=needs-linux:caps=net-admin
+# Serialize against every other firewall-domain-group test: the nftables ruleset
+# is NODE-WIDE and the set names come from the group name (setNames, sets.go),
+# so two daemons with a group called `web` program and delete each other's set.
+option=exclusive:group=firewall-domain-group-nft
+# warn, not debug and not the default. The two absences at the end of this file
+# read the same buffer the daemon's own log lands in, so an info line naming the
+# set it just deleted would fail them for a reason that is not the product.
+option=env:var=ze.log.firewall:value=warn
+option=timeout:value=30s
+
+stdin=ze-fw:terminator=EOF_CONF
+system {
+	# The hub resolver reads NameServers[0] as its server (newResolvers,
+	# cmd/ze/hub/main_system.go), so this points every lookup at the fixture's
+	# stub rather than at the host's real DNS.
+	name-server 127.0.0.1;
+	dns {
+		resolv-conf-path "";
+	}
+}
+
+firewall {
+	backend nft;
+	domain-group web {
+		domain-names [ web.example.test ];
+		ttl-floor 60;
+	}
+	table ze_fw {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze -:stdin=ze-fw
+cmd=foreground:seq=2:exec=ze-test fixture plugin/firewall-domain-group-clear:timeout=25s
+expect=exit:code=0
+
+# The resolution really happened. Without this line the absence at the end would
+# also pass against a daemon that never resolved anything, which is the vacuity
+# this pair exists to close: the update answer reports the addresses it cached,
+# and it reports them as counts, so asserting it costs the absence nothing.
+expect=stdout:contains="ipv4-count"
+
+# The clear found entries to remove. clearDomainGroup answers with an ERROR when
+# the cache held nothing ("no cached addresses for web"), so this needle is only
+# produced by a purge that had something to purge.
+expect=stdout:contains="cleared"
+
+# And the addresses are gone from the kernel. The read-back is of the whole
+# table, so a set left behind with its elements in place fails here, and so does
+# a set emptied in the plugin's memory alone.
+reject=stdout:contains=203.0.113.10
+reject=stdout:contains=domain_v4_web

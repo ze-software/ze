@@ -201,7 +201,7 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `as-path-prepend-two-octet-peer` | `test/interop/scenarios/` | FRR | An `as-path-prepend` policy toward a peer that did not send the four-octet AS capability keeps the session established and produces a path FRR decodes | not run |
+| `as-path-prepend-two-octet-peer` | `test/interop/scenarios/` | FRR | An `as-path-prepend` policy toward a peer that did not send the four-octet AS capability keeps the session established and produces a path FRR decodes | written, never executed -- `./le integration scenario as-path-prepend-two-octet-peer` |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/filter_delta.go` - `ExtractASPathPrependOps` takes the wire attributes and the width, encodes at that width, and records the AS4_PATH operation when RFC 6793 Section 4.2.2 requires one
@@ -319,11 +319,16 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 ## Known Limitations
 
 - The forwarded rail toward a NON-EBGP destination does not call `aspathEdit.Record` at all (`reactor_api_forward.go` guards it on `facts.isEBGP`), so a width difference between an iBGP source and an iBGP destination is not transcoded on that rail. That is a separate question from this spec's defect, it predates it, and this spec neither fixes nor relies on it.
-- The interop scenario named above is NOT written and has never been run. The
-  fix landed with unit tests only, at both widths and both directions, asserting
-  on the bytes. `as-path-prepend-two-octet-peer` remains owed:
-  `test/interop/scenarios/as-path-prepend-two-octet-peer`, run by
-  `./le integration scenario as-path-prepend-two-octet-peer`.
+- The interop scenario named above is WRITTEN and has NEVER been executed.
+  `test/interop/scenarios/as-path-prepend-two-octet-peer` holds its `ze.conf`
+  and its `frr.conf`, and its assertions are the
+  `as-path-prepend-two-octet-peer` entry in `scenarioOperations`
+  (`internal/le/interoplab/bgp/checkers.go`). No lab has run it, so nothing yet
+  says the FRR configuration establishes, that the redistributed prefix
+  arrives, or that the four assertions read what they are written to read. The
+  command is `./le integration scenario as-path-prepend-two-octet-peer`. Until
+  it runs, the fix stands on unit tests alone, at both widths and both
+  directions, asserting on the bytes.
 
 ## RFC Documentation (Scope: protocol)
 

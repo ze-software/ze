@@ -349,3 +349,27 @@ const (
 	lgASPathThirdVia1B  = "13335,65300"
 	lgASPathThirdVia3B  = "20940,65300"
 )
+
+// The as-path-prepend-two-octet-peer scenario, where ze originates
+// prependTwoOctetPrefix toward an FRR that refused the four-octet AS
+// capability, with `as-path-prepend 2` on the export chain.
+//
+// prependTwoOctetASTransPair and prependTwoOctetRealASPair are the two
+// renderings a CORRECT run can produce, and the checker accepts either. FRR
+// reconstructs the four-octet path from AS4_PATH when the UPDATE carries one
+// (RFC 6793 Section 4.2.3) and prints AS_TRANS when it does not, and both say
+// the same thing: the local AS was prepended twice.
+//
+// prependTwoOctetHighHalf and prependTwoOctetLowHalf are the two halves of
+// 4200000001 (0xFA56EA01) read as two-octet AS numbers. They are what a reader
+// of a two-octet AS_PATH sees when a four-octet segment is spliced into it, so
+// neither may appear anywhere in FRR's view of the path.
+const (
+	prependTwoOctetPrefix      = "10.99.0.0/24"
+	prependTwoOctetASTransPair = "23456 23456"
+	prependTwoOctetRealASPair  = "4200000001 4200000001"
+	prependTwoOctetHighHalf    = "64086"
+	prependTwoOctetLowHalf     = "59905"
+
+	frrShowPrependPrefixJSON = "show bgp ipv4 unicast " + prependTwoOctetPrefix + " json"
+)

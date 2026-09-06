@@ -97,6 +97,40 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opBIRDSession, argument: birdZeProtocol},
 	},
+	// RFC 6793 Section 4.2.2, judged by FRR rather than by ze's own encoder. Ze
+	// prepends its non-mappable local AS twice toward a peer that refused the
+	// four-octet AS capability, so the segment ze splices into the AS_PATH has
+	// to be two-octet and has to carry AS_TRANS. Ze's unit tests pin the octets
+	// ze writes; only a second implementation says whether they can be read.
+	//
+	// NEVER EXECUTED. Written on 2026-09-06 with the scenario directory
+	// test/interop/scenarios/as-path-prepend-two-octet-peer, for
+	// plan/immediate/spec-as-path-prepend-encodes-at-the-negotiated-width.md,
+	// and not run once. The command that runs it is
+	// `./le integration scenario as-path-prepend-two-octet-peer`.
+	//
+	// THE TWO ABSENCES ARE WHAT MAKE THE RUN DISCRIMINATE. A prepend encoded at
+	// four octets over a two-octet payload has two possible ends. It malforms
+	// the attribute, and then FRR answers with a NOTIFICATION and the session
+	// assertions never settle; or it is read as a longer path whose members are
+	// the two halves of 4200000001, and then the prefix still arrives and the
+	// path still holds AS numbers, so every containment assertion passes.
+	// opFRRNoAS is the half that sees the second case, and it requires the
+	// route to be present before it reads an absence out of the answer.
+	"as-path-prepend-two-octet-peer": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: prependTwoOctetPrefix},
+		{
+			kind:     opWaitContainsAny,
+			peer:     peerFRR,
+			command:  []string{cmdVtysh, "-c", frrShowPrependPrefixJSON},
+			contains: []string{prependTwoOctetASTransPair, prependTwoOctetRealASPair},
+			timeout:  60 * time.Second,
+		},
+		{kind: opFRRNoAS, argument: prependTwoOctetPrefix, absent: []string{prependTwoOctetHighHalf}},
+		{kind: opFRRNoAS, argument: prependTwoOctetPrefix, absent: []string{prependTwoOctetLowHalf}},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	"bgp-4byte-asn-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 	},

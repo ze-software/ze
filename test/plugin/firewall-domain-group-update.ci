@@ -1,0 +1,122 @@
+# Test: `update firewall domain-group <name>` resolves the group's names now,
+#       programs the addresses into the group's nftables set, and records the
+#       move from the old addresses to the new ones in the change log.
+# Spec: plan/spec-firewall-domain-group.md -- Wiring Test row 4, user story 1
+# VALIDATES: the operator path. The command reaches the forwarded plugin command
+#            handler (updateDomainGroup, internal/component/firewall/plugins/
+#            domain/command.go), which resolves through the plugin-to-hub
+#            resolve RPC, writes the answer into the cache, re-applies the
+#            tables, and appends one change record per name and family.
+# PREVENTS: an update that reports a count while the kernel set stays empty, and
+#           a change log that records a resolution without saying what it
+#           replaced.
+#
+# NEVER EXECUTED. Written on 2026-09-06 and not run once. The command that runs
+# it is `./le functional plugin`; on a host without CAP_NET_ADMIN it is skipped
+# by the option below, and the runner that does execute it is
+# `./le qemu netns-test suites plugin`.
+#
+# THE GO FIXTURE IS NOT WRITTEN EITHER. `ze-test fixture
+# plugin/firewall-domain-group-update` does not exist yet: it is named under
+# "Files to Create" in the spec and it is still owed. Until it exists this file
+# fails at command 2 for that reason and for no other. What the fixture MUST do,
+# in this order, is what the assertions below are written against:
+#   1. Serve DNS on 127.0.0.1:53 (the address `system name-server` names below),
+#      answering web.example.test with A 203.0.113.10 and AAAA 2001:db8::10.
+#   2. Dispatch `update firewall domain-group web` and print the answer.
+#   3. Change the stub's answer for web.example.test to A 203.0.113.11.
+#   4. Dispatch `update firewall domain-group web` again and print the answer.
+#   5. Print the kernel read-back of the set: `nft list set inet ze_fw
+#      domain_v4_web`.
+# It MUST NOT print a read-back between steps 2 and 4: this file asserts on the
+# FINAL contents of the set, and an intermediate dump would put the replaced
+# address into the same buffer (see the file-level note below).
+#
+# ONE SCENARIO PER FILE. An expect=stdout: assertion is FILE-level: the runner
+# checks it against the concatenated output of every command in the file
+# (runner_exec.go, rec.ClientOutput), stdout and stderr together. So the
+# withdrawal half of this feature lives in
+# test/plugin/firewall-domain-group-clear.ci, which is the file that may say an
+# address is absent.
+#
+# This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
+option=needs-linux:caps=net-admin
+# Serialize against every other firewall-domain-group test. The nftables ruleset
+# is NODE-WIDE and the set names are derived from the group name
+# (domain_v4_<name>, setNames in sets.go), so two daemons programming a group
+# called `web` collide. The persisted cache is shared for the same reason
+# test/plugin/firewall-irr-update.ci gives: DefaultConfigDir
+# (internal/core/paths/paths.go) resolves to one directory per run.
+option=exclusive:group=firewall-domain-group-nft
+# ze.config.dir is what puts the change log where expect=file can read it.
+# changeLogPath() (changelog.go) joins DefaultConfigDir() with
+# firewall-domain-group.dns.jsonl, and DefaultConfigDir honours this override
+# (paths.go). Without it the log is written beside the binary and no assertion
+# below can see it.
+option=env:var=ze.config.dir:value=.
+option=timeout:value=30s
+
+stdin=ze-fw:terminator=EOF_CONF
+system {
+	# The resolver the hub builds reads NameServers[0] as its server
+	# (newResolvers, cmd/ze/hub/main_system.go), so this is what points every
+	# lookup at the fixture's stub instead of at the host's real DNS.
+	name-server 127.0.0.1;
+	dns {
+		# An empty path stops Ze writing a resolv.conf. The container this test
+		# runs in is shared, and the file is not what the resolver reads here.
+		resolv-conf-path "";
+	}
+}
+
+firewall {
+	backend nft;
+	# The group is declared, and NO term names it yet. A commit naming a group
+	# Ze has never resolved is refused (OnConfigVerify, AC-6), so the rule that
+	# matches the group is committed by the fixture AFTER the first update,
+	# which is the order user story 1 describes.
+	domain-group web {
+		domain-names [ web.example.test ];
+		ttl-floor 60;
+	}
+	table ze_fw {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze -:stdin=ze-fw
+cmd=foreground:seq=2:exec=ze-test fixture plugin/firewall-domain-group-update:timeout=25s
+expect=exit:code=0
+
+# The addresses reach the kernel. The set is read back from nftables, not from
+# the plugin's own memory, so a cache that filled while ApplyAll never ran fails
+# here.
+expect=stdout:contains=domain_v4_web
+expect=stdout:contains=203.0.113.11
+
+# The change log names the old addresses and the new ones. The first record is
+# the arrival, with nothing behind it; the second is the move. These are exact
+# JSON substrings: changeRecord is marshalled field by field in declaration
+# order (changelog.go), and append() replaces a nil Old or New with an empty
+# slice precisely so a reader never has to infer a direction from a missing
+# field. A product that logged only the new value passes neither line.
+#
+# NO NEEDLE HERE MAY HOLD A COLON. The runner splits a directive on ':' to read
+# its keys (record_parse.go; only expect=output and expect=stream are
+# intercepted before that split), so `"old":[]` would be read as a key. Each
+# needle below therefore starts or ends at a value boundary instead, which is
+# why they look truncated: `[],"new"` is the empty Old immediately followed by
+# the New field of the SAME record, and `["203.0.113.10"],"new"` is that
+# address as the Old of the second one.
+expect=file:path=firewall-domain-group.dns.jsonl:contains=[],"new"
+expect=file:path=firewall-domain-group.dns.jsonl:contains=["203.0.113.10"]}
+expect=file:path=firewall-domain-group.dns.jsonl:contains=["203.0.113.10"],"new"
+expect=file:path=firewall-domain-group.dns.jsonl:contains=["203.0.113.11"]}
+expect=file:path=firewall-domain-group.dns.jsonl:contains="web","name"
