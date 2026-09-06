@@ -190,9 +190,15 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 		}
 	}
 
+	// The AS this OPEN speaks under, resolved ONCE. The header field, the Four-octet AS
+	// capability and the ASN4 field the encoder reads all take it from here, because two
+	// resolutions is how a header saying one AS and a capability saying another get
+	// written (openLocalAS, session_as_migration.go).
+	openAS := openLocalAS(settings, s.asMigrationFallback)
+
 	// Add ASN4 unless disabled in config.
 	if !settings.DisableASN4 {
-		caps = append(caps, &capability.ASN4{ASN: settings.LocalAS})
+		caps = append(caps, &capability.ASN4{ASN: openAS})
 	}
 
 	// draft-abraitis-idr-addpath-paths-limit: suppress PATHS-LIMIT for RS fast-path peers
@@ -219,8 +225,13 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 	optParams, extendedParams := buildOptionalParams(caps)
 
 	// Determine AS to put in header (AS_TRANS if > 65535).
-	myAS := uint16(settings.LocalAS) //nolint:gosec // Truncation intended for AS_TRANS
-	if settings.LocalAS > 65535 {
+	//
+	// RFC 6793 Section 3: a speaker whose AS does not fit two octets sends AS_TRANS here
+	// and its real AS in the Four-octet AS capability. openAS is what both read, so a
+	// four-octet RFC 7705 migration ASN narrows to AS_TRANS on exactly the same terms as a
+	// four-octet local AS.
+	myAS := uint16(openAS) //nolint:gosec // Truncation intended for AS_TRANS
+	if openAS > 65535 {
 		myAS = 23456 // AS_TRANS
 	}
 
@@ -229,7 +240,7 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 		MyAS:           myAS,
 		HoldTime:       uint16(settings.ReceiveHoldTime / time.Second), //nolint:gosec // Hold time max 65535s
 		BGPIdentifier:  settings.RouterID,
-		ASN4:           settings.LocalAS,
+		ASN4:           openAS,
 		OptionalParams: optParams,
 		ExtendedParams: extendedParams,
 	}

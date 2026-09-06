@@ -107,8 +107,14 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		}
 	}
 
-	// Validate path attributes per RFC 7606
-	isIBGP := s.settings.LocalAS == s.settings.PeerAS
+	// Validate path attributes per RFC 7606.
+	//
+	// The verdict is the one rule (session_as_migration.go, isIBGPWith), not the equality
+	// re-derived here. RFC 7705 Section 4.2 requires a migrating session to take this
+	// branch: "the BGP speaker MUST treat UPDATEs sent and received to this peer as if
+	// this was a natively configured iBGP session". An inline equality kept the old rule,
+	// so such a session was iBGP for the forward path and eBGP for RFC 7606 at once.
+	isIBGP := s.settings.IsIBGP()
 	asn4 := false
 	if neg := s.Negotiated(); neg != nil {
 		asn4 = neg.ASN4

@@ -122,8 +122,13 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		exportFilters := p.ExportFilters()
 		prefixUpdated := p.oldestPrefixUpdated()
 		stats := p.Stats()
+		// The one rule (session_as_migration.go, isIBGPWith), taken over the guarded peerAS
+		// snapshot rather than off the shared settings. A session running under the RFC 7705
+		// Section 4.2 migration ASN reports internal here for the same reason it takes the
+		// internal branch everywhere else, so what a plugin reads about a peer agrees with
+		// what the forward path did to that peer's routes.
 		peerType := "external"
-		if s.LocalAS == peerAS {
+		if s.isIBGPWith(peerAS) {
 			peerType = "internal"
 		}
 		localPort, remotePort := p.tCPPorts()

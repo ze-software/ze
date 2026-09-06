@@ -139,10 +139,19 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 	// Local AS from session > asn > local (optional per-peer override).
 	peerLocalAS := localAS
 	var localASNoPrepend, localASReplaceAS bool
+	var migrationAS uint32
 	if sessionMap != nil {
 		if asnMap, ok := mapMap(sessionMap, "asn"); ok {
 			if v, ok := mapUint32(asnMap, "local"); ok {
 				peerLocalAS = v
+			}
+			// RFC 7705 Section 4.2 "Internal BGP AS Migration", from
+			// session > asn > migration. The container sits in the peer-fields
+			// grouping, which a group and a peer both use, so reading it here is
+			// what makes the mechanism "configurable on a per-neighbor or
+			// per-neighbor-group basis" (RFC7705-4.2-1).
+			if v, ok := mapUint32(asnMap, "migration"); ok {
+				migrationAS = v
 			}
 			// Local-AS modifiers from session > asn > local-options (leaf-list).
 			if raw, ok := asnMap["local-options"]; ok {
@@ -191,6 +200,10 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 	}
 	ps.LocalASNoPrepend = localASNoPrepend
 	ps.LocalASReplaceAS = localASReplaceAS
+
+	if err := setMigrationAS(ps, migrationAS); err != nil {
+		return nil, fmt.Errorf("peer %s: %w", name, err)
+	}
 
 	// Timer container (receive-hold-time, send-hold-time, connect-retry).
 	timerMap, _ := mapMap(tree, "timer")

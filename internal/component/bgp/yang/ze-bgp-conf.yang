@@ -595,7 +595,8 @@ module ze-bgp-conf {
             container asn {
                 description "AS number configuration";
                 ze:help "local overrides the global ASN for this session. remote names the peer ASN. Ze compares
-                    the two to decide whether the session is eBGP or iBGP.";
+                    the two to decide whether the session is eBGP or iBGP. migration names a second local ASN this
+                    iBGP session also accepts while the router moves from one ASN to another.";
                 leaf local {
                     type zt:asn;
                     ze:decorate "asn-name";
@@ -610,6 +611,18 @@ module ze-bgp-conf {
                     ze:help "Ze compares the value with the local ASN. A different value makes the session eBGP,
                         and an equal value makes it iBGP. That verdict decides the AS_PATH prepend, the auto
                         next-hop rewrite, and whether Ze sends LOCAL_PREF.";
+                }
+                leaf migration {
+                    type zt:asn;
+                    ze:decorate "asn-name";
+                    description "Second local AS this iBGP session accepts and sends during an AS migration.";
+                    ze:help "RFC 7705 Section 4.2 'Internal BGP AS Migration'. Set the leaf to the other ASN of the
+                        pair the router runs while it moves from one ASN to another: the local ASN is one of the two
+                        and this leaf is the other. Ze then accepts an OPEN whose My Autonomous System carries either
+                        ASN, and treats the session as native iBGP whichever ASN won. Ze sends the local ASN first and
+                        falls back to this one only after the peer answers Bad Peer AS, which is what keeps two
+                        speakers that both run the mechanism from deadlocking. remote must name one of the two ASNs,
+                        and Ze refuses a config where it names a third. Remove the leaf when the migration ends.";
                 }
                 leaf-list local-options {
                     type enumeration {

@@ -312,6 +312,16 @@ type Peer struct {
 	// Reset to false at the start of each runOnce iteration.
 	notificationExchanged atomic.Bool
 
+	// asMigrationFallback selects which of the two RFC 7705 Section 4.2 AS numbers the
+	// NEXT OPEN carries: false is the local AS, true is the migration AS. It lives on the
+	// Peer rather than on the Session because the fallback is a decision about the next
+	// CONNECTION, and a Session lasts one connection (NewSession, peer_run.go).
+	//
+	// Set by handleNotification when a peer answers OPEN Message Error / Bad Peer AS, read
+	// by buildOpen through openLocalAS (session_as_migration.go). It stays false for every
+	// peer that configures no migration AS, and openLocalAS never reads it for one.
+	asMigrationFallback atomic.Bool
+
 	// Ordered operation queue: Used when session is NOT established.
 	// Maintains strict ordering of announce/withdraw/teardown operations.
 	// Processed on session establishment; teardowns act as batch separators.
@@ -615,20 +625,24 @@ func (p *Peer) oldestPrefixUpdated() string {
 	return p.settings.OldestPrefixUpdated()
 }
 
-// IsIBGP reports whether this is an IBGP session (LocalAS == PeerAS) under p.mu.
+// IsIBGP reports whether this is an IBGP session under p.mu.
 // Cross-goroutine callers MUST use this rather than settings.IsIBGP(), which reads the
 // mutable PeerAS off the shared settings pointer without synchronization.
+//
+// The lock is the whole difference between the two. The VERDICT is settings.IsIBGP, taken
+// here under p.mu, so a session cannot be internal to one caller and external to another
+// (session_as_migration.go, isIBGPWith).
 func (p *Peer) IsIBGP() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.settings.LocalAS == p.settings.PeerAS
+	return p.settings.IsIBGP()
 }
 
 // IsEBGP reports whether this is an EBGP session under p.mu. See IsIBGP.
 func (p *Peer) IsEBGP() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.settings.LocalAS != p.settings.PeerAS
+	return p.settings.IsEBGP()
 }
 
 // NegotiatedHoldTime returns the negotiated hold time in seconds.

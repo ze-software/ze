@@ -320,6 +320,8 @@ func (s *Session) handleNotification(body []byte) error {
 		s.onNotifRecv(uint8(notif.ErrorCode), notif.ErrorSubcode)
 	}
 
+	s.noteASMigrationRejection(notif)
+
 	// RFC 8203 Section 2: log shutdown communication message if present.
 	if msg, msgErr := notif.ShutdownMessage(); msgErr == nil && msg != "" {
 		sessionLogger().Info("peer shutdown communication",

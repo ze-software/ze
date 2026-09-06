@@ -172,6 +172,7 @@ var (
 	ErrUnsupportedVersion   = errors.New("unsupported BGP version")
 	ErrBadBGPIdentifier     = errors.New("bad BGP identifier (RFC 6286 Section 2.2)")
 	ErrBadPeerAS            = errors.New("peer AS is zero (RFC 7607 Section 2)")
+	ErrPeerASMismatch       = errors.New("peer AS is not the AS this peer is configured for (RFC 4271 Section 6.2)")
 	ErrLocalASZero          = errors.New("local AS is zero (RFC 7607 Section 2)")
 	ErrFamilyNotNegotiated  = errors.New("address family not negotiated")
 	ErrSessionTearingDown   = errors.New("session is tearing down")
@@ -349,6 +350,17 @@ type Session struct {
 	// reload swap writes. Set by Peer; see SetConfigCapabilityGetter
 	// (peer_settings_negotiation.go).
 	configCapGetter func() []capability.Capability
+
+	// asMigrationFallback points at the owning Peer's RFC 7705 Section 4.2 fallback flag,
+	// which outlives this Session because it decides what the NEXT connection opens with
+	// (Peer.asMigrationFallback, peer.go). buildOpen reads it through openLocalAS and
+	// handleNotification sets it through noteASMigrationRejection.
+	//
+	// It is nil for a Session no Peer owns, which is what a test builds with NewSession.
+	// That is the mechanism's initial state rather than a missing answer: no peer has
+	// answered Bad Peer AS to a session that never connected, so the local AS is what
+	// Section 4.2 asks ze to send.
+	asMigrationFallback *atomic.Bool
 
 	// pluginFamiliesGetter retrieves families from plugins that declared decode.
 	// Used to auto-add Multiprotocol capabilities for plugin-provided families.

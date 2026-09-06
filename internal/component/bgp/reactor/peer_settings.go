@@ -251,6 +251,22 @@ type PeerSettings struct {
 	// PeerAS is the peer's AS number.
 	PeerAS uint32
 
+	// MigrationAS is the SECOND local AS number this iBGP session runs under while the
+	// router moves from one ASN to another (bgp/.../session/asn/migration). Zero means
+	// the mechanism is off, which is every session that does not configure the leaf.
+	//
+	// RFC 7705 Section 4.2: "When configured with this mechanism, a BGP speaker MUST
+	// accept BGP OPEN and establish an iBGP session from configured iBGP peers if the
+	// ASN value in "My Autonomous System" is either the globally configured ASN or a
+	// locally configured ASN provided when this capability is utilized."
+	//
+	// LocalAS is that "globally configured ASN" for this session and MigrationAS is the
+	// "locally configured ASN". The pair is unordered in effect: an operator sets the
+	// leaf to whichever of the two the router's own configuration does not already
+	// carry. peerASAccepted and isIBGPWith (session_as_migration.go) are the two rules
+	// that read it, and nothing else compares it directly.
+	MigrationAS uint32
+
 	// RouterID is our BGP router identifier (IPv4 format).
 	RouterID uint32
 
@@ -893,14 +909,18 @@ func peerKeyFromAddrPort(addr netip.Addr, port uint16) netip.AddrPort {
 	return netip.AddrPortFrom(addr, port)
 }
 
-// IsIBGP returns true if this is an internal BGP session (same AS).
+// IsIBGP returns true if this is an internal BGP session.
+//
+// The verdict is isIBGPWith (session_as_migration.go), the one rule, which reads the
+// configured peer AS against both of this session's own AS numbers.
 func (n *PeerSettings) IsIBGP() bool {
-	return n.LocalAS == n.PeerAS
+	return n.isIBGPWith(n.PeerAS)
 }
 
-// IsEBGP returns true if this is an external BGP session (different AS).
+// IsEBGP returns true if this is an external BGP session. It is the negation of IsIBGP and
+// holds no rule of its own, so the two can never disagree about one session.
 func (n *PeerSettings) IsEBGP() bool {
-	return n.LocalAS != n.PeerAS
+	return !n.IsIBGP()
 }
 
 // effectiveClusterID returns the cluster-id for route reflection.

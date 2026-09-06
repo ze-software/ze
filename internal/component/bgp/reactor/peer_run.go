@@ -212,6 +212,10 @@ func (p *Peer) runOnce() error {
 
 	// Create session
 	session := NewSession(p.settings)
+	// The RFC 7705 Section 4.2 fallback flag is the Peer's, and this session is one
+	// connection attempt against it: the session that MEETS Bad Peer AS is never the
+	// session that opens with the other AS (session_as_migration.go, openLocalAS).
+	session.asMigrationFallback = &p.asMigrationFallback
 	session.SetClock(p.clock)
 	session.SetDialer(p.dialer)
 	session.onMessageReceived = p.messageCallback

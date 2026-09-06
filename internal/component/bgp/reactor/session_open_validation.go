@@ -22,9 +22,12 @@ import (
 // same as the BGP Identifier of the local BGP speaker and the message is from an internal peer,
 // then the Error Subcode is set to 'Bad BGP Identifier'."
 //
-// "Internal peer" is the same test the RFC 7606 path uses for iBGP (LocalAS == PeerAS), preferring
-// the CONFIGURED peer AS because the two-octet My AS carries AS_TRANS for a 4-byte AS (RFC 6793)
-// and would misjudge exactly the speakers most likely to be renumbering.
+// "Internal peer" is the same test the RFC 7606 path uses for iBGP (isIBGPWith,
+// session_as_migration.go), preferring the CONFIGURED peer AS because the two-octet My AS carries
+// AS_TRANS for a 4-byte AS (RFC 6793) and would misjudge exactly the speakers most likely to be
+// renumbering. Taking the shared rule also carries RFC 7705 Section 4.2 here: a session running
+// under the migration ASN is internal for Section 2.2 exactly as it is for every other decision,
+// so the identifier check does not change meaning for the speakers actually mid-renumbering.
 //
 // A DYNAMIC peer has no configured AS here: buildDynamicPeerSettings sets PeerAS to 0 and
 // resolveDynamicPeerSettings only fills it at establishment, long after this runs. Reading that 0
@@ -42,7 +45,7 @@ func (s *Session) validateOpenIdentifier(open *message.Open) error {
 	if peerAS == 0 {
 		peerAS = openAdvertisedAS(open)
 	}
-	internal := s.settings.LocalAS == peerAS
+	internal := s.settings.isIBGPWith(peerAS)
 	err := open.ValidateBGPIdentifier(s.settings.RouterID, internal)
 	if err == nil {
 		return nil
