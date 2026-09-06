@@ -120,9 +120,12 @@ cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=45s
 # The engine reports the unbindable peers rather than staying quiet about them, and then
 # applies the configuration: both peer sessions start and the apply reaches its last line.
 command=show vpn ipsec status
-expect=stderr:contains=ike: peers without local-address will fail:timeout=20
-expect=stderr:contains=ike: started peer:timeout=10
-expect=stderr:contains=ike engine configured:timeout=10
+# No timeout= on these three. Unlike the expect=output steps beside them,
+# expect=stderr is evaluated once, against the accumulated output, after the run
+# ends -- there is nothing for a timeout to wait for.
+expect=stderr:contains=ike: peers without local-address will fail
+expect=stderr:contains=ike: started peer
+expect=stderr:contains=ike engine configured
 expect=output:contains=engine-running:timeout=5
 expect=output:contains=configured-peers:timeout=1
 expect=exit:code=0

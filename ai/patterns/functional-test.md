@@ -197,8 +197,11 @@ expect=json:json=<expected-json>
 | `expect=json:conn=N:seq=N:json=<obj>` | JSON field-by-field match (order-independent) |
 | `expect=exit:code=N` | Foreground process exit code |
 | `expect=stdout:contains=<text>` | Stdout substring match |
+| `expect=stdout:pattern=<regex>` | Stdout regex match |
 | `expect=stderr:contains=<text>` | Stderr substring match |
 | `expect=stderr:pattern=<regex>` | Stderr regex match |
+| `reject=stdout:contains=<text>` | Stdout must NOT contain the substring |
+| `reject=stderr:contains=<text>` | Output must NOT contain the substring |
 | `expect=syslog:pattern=<regex>` | Syslog regex match |
 | `reject=stderr:pattern=<regex>` | Fail if stderr matches |
 | `reject=bgp:conn=N:pattern=<hex>` | Fail if connection N of a check-mode ze-peer receives these wire bytes. Goes in the peer block, and needs an `expect=bgp:conn=N` in the same block to deliver something the rejection is measured against. That delivery is necessary and not sufficient. Send it LAST on that connection, or add `option=linger:value=true`. Otherwise the peer stops reading before a leak can arrive |

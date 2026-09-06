@@ -1,0 +1,14 @@
+# Test: ze appliance --help runs cleanly and carries no deprecation notice
+# spec-appliance-command-plugin AC-5: `ze appliance` is the supported path, so
+# nothing warns the operator away from it.
+#
+# Split out of no-install-appliance.ci, which forbids the word "appliance" in
+# the output of `ze install --help`. Both directives are FILE-level (they read
+# rec.ClientOutput, the concatenated output of every command in the file), so
+# this command's help text would have contradicted that file's reject.
+
+cmd=foreground:seq=1:exec=ze appliance --help:exit=0
+expect=exit:code=0
+expect=stdout:contains=init
+expect=stdout:contains=build
+reject=stderr:contains=deprecated

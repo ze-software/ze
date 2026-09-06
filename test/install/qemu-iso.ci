@@ -13,5 +13,5 @@
 
 cmd=foreground:seq=1:exec=./le qemu install-iso-test
 expect=exit:code=0
-expect=stdout:regex=INSTALL-ISO-QEMU: (PASS|SKIP)
-expect=stdout:regex=INSTALL-ISO-QEMU: (SKIP|installer consumed explicit ze.target=/dev/vda)
+expect=stdout:pattern=INSTALL-ISO-QEMU: (PASS|SKIP)
+expect=stdout:pattern=INSTALL-ISO-QEMU: (SKIP|installer consumed explicit ze.target=/dev/vda)

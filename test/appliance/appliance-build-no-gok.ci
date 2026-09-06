@@ -6,4 +6,4 @@
 cmd=foreground:seq=1:exec=ze appliance build nonexistent
 expect=exit:code=1
 expect=stderr:contains=error
-expect=stderr:not-contains=bin/gok
+reject=stderr:contains=bin/gok

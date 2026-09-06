@@ -1,15 +1,21 @@
 # Test: ze completion words -- non-env commands must not contain env children
 # VALIDATES: wireEnvHints does not pollute arbitrary command trees
 # PREVENTS: env appearing as a subcommand of bgp, signal, config, etc.
+#
+# The reject= below is FILE-level: the runner checks it against the
+# concatenated output of every command in the file (runner_exec.go,
+# rec.ClientOutput), so ONE line covers all three commands. Writing it three
+# times, once under each cmd=, reads as three per-command assertions and is
+# three copies of one.
+#
+# A completion record is name-TAB-summary (completion-words-summary.ci), so the
+# anchored pattern says what this test forbids -- a candidate NAMED env -- and
+# does not rot when a summary changes. The bare substring `env` this file used
+# to carry was clean only while no summary in these three trees said
+# "environment".
 
 cmd=foreground:seq=1:exec=ze completion words bgp:exit=0
-expect=exit:code=0
-expect=stdout:not-contains=env
-
 cmd=foreground:seq=2:exec=ze completion words signal:exit=0
-expect=exit:code=0
-expect=stdout:not-contains=env
-
 cmd=foreground:seq=3:exec=ze completion words config:exit=0
 expect=exit:code=0
-expect=stdout:not-contains=env	Ze
+reject=stdout:pattern=(?m)^env\t

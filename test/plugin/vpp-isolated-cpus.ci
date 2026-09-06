@@ -21,8 +21,9 @@
 # ONE SCENARIO PER FILE, and that is not style. An expect=stdout: assertion is
 # FILE-level: the runner checks it against the concatenated output of every
 # command in the file (runner_exec.go, rec.ClientOutput). A file that asserts
-# !contains for one command and contains for another asserts two contradictory
-# things about one string, and whichever the runner reaches first decides. So
+# reject=stdout:contains= for one command and expect=stdout:contains= for
+# another asserts two contradictory things about one string, and whichever the
+# runner reaches first decides. So
 # the case where a worker core is NOT isolated lives in
 # test/plugin/vpp-cpu-not-isolated.ci, and only the exit code is per-command.
 #
@@ -73,9 +74,9 @@ EOF_OFF
 # AC-1: workers land on isolated cores 2 and 3, so nothing is reported.
 cmd=foreground:seq=1:exec=ze doctor --json isolated-workers.conf:exit=1
 expect=exit:code=0
-expect=stdout:!contains=doctor-vpp-cpu-isolation
+reject=stdout:contains=doctor-vpp-cpu-isolation
 
 # VPP disabled: the check is silent whatever the host holds.
 cmd=foreground:seq=2:exec=ze doctor --json vpp-off.conf:exit=0
 expect=exit:code=0
-expect=stdout:!contains=doctor-vpp-cpu-isolation
+reject=stdout:contains=doctor-vpp-cpu-isolation

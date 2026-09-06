@@ -1,16 +1,15 @@
 # Test: old ze install appliance path is gone
 # spec-appliance-command-plugin AC-5: ze install no longer has an appliance subcommand.
+#
+# ONE COMMAND on purpose. expect=stdout: and reject=stdout: are FILE-level: the
+# runner checks them against the concatenated output of every command in the
+# file (runner_exec.go, rec.ClientOutput). `ze appliance --help` prints the very
+# word this file forbids, so the two commands cannot share a file. That command
+# lives in appliance-help-not-deprecated.ci.
 
 # ze install help lists only local and remote, not appliance
 cmd=foreground:seq=1:exec=ze install --help:exit=0
 expect=exit:code=0
 expect=stdout:contains=local
 expect=stdout:contains=remote
-expect=stdout:not-contains=appliance
-
-# ze appliance runs cleanly (no deprecation warning)
-cmd=foreground:seq=2:exec=ze appliance --help:exit=0
-expect=exit:code=0
-expect=stderr:not-contains=deprecated
-expect=stdout:contains=init
-expect=stdout:contains=build
+reject=stdout:contains=appliance

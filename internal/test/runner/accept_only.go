@@ -57,8 +57,9 @@ var setEnableErrExit = regexp.MustCompile(`(?m)^[ \t]*set[ \t]+(-[a-zA-Z]*e[a-zA
 //   - no value-observing assertion is populated (BGP/JSON messages, ze-peer
 //     expects/actions, stdout/stderr/syslog contains/pattern, await fence, file
 //     checks, HTTP checks, or engine steps);
-//   - no reject= is present (RejectStderr/RejectSyslog/RejectStdoutRegex, and the
-//     reject=stdout:contains= form that populates ExpectStdoutNotMatch);
+//   - no reject= is present (RejectStderr/RejectStderrMatch/RejectSyslog/
+//     RejectStdoutRegex, and the reject=stdout:contains= form that populates
+//     ExpectStdoutNotMatch);
 //   - no embedded tmpfs script enables `set -e` (it would do its own checking).
 //
 // This is the single definition of "weak"; the lint and the baseline generator
@@ -109,7 +110,8 @@ func isAcceptOnly(r *Record) bool {
 		return false
 	}
 	// Any reject= disqualifies (a negative expectation observes output).
-	if len(r.RejectStderr) != 0 || len(r.RejectSyslog) != 0 || len(r.RejectStdoutRegex) != 0 {
+	if len(r.RejectStderr) != 0 || len(r.RejectStderrMatch) != 0 ||
+		len(r.RejectSyslog) != 0 || len(r.RejectStdoutRegex) != 0 {
 		return false
 	}
 	// An embedded errexit script does its own checking.

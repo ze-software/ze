@@ -558,6 +558,9 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]string) error {
 	switch expType {
 	case directiveTypeBGP:
+		if err := checkKeys("expect=bgp", kv, "conn", "seq", "hex"); err != nil {
+			return err
+		}
 		conn, seq, err := parseConnSeq(kv)
 		if err != nil {
 			return fmt.Errorf("expect:bgp: %w", err)
@@ -577,6 +580,9 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		r.Expects = append(r.Expects, eb.Reset().Str("expect=bgp:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":hex=").Str(hexData).String())
 
 	case "json":
+		if err := checkKeys("expect=json", kv, "conn", "seq", "json"); err != nil {
+			return err
+		}
 		conn, seq, err := parseConnSeq(kv)
 		if err != nil {
 			return fmt.Errorf("expect:json: %w", err)
@@ -590,6 +596,9 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		msg.JSON = jsonData
 
 	case "exit":
+		if err := checkKeys("expect=exit", kv, "code"); err != nil {
+			return err
+		}
 		codeStr := kv["code"]
 		if codeStr == "" {
 			return errExpectExitMissingCode
@@ -601,7 +610,12 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		r.ExpectExitCode = &code
 
 	case "stderr":
-		// Support both pattern= (regex) and contains= (substring)
+		// Support both pattern= (regex) and contains= (substring). Stream
+		// NON-containment is reject=stderr:, never a negative key here
+		// (record_parse_keys.go).
+		if err := checkKeys("expect=stderr", kv, "pattern", "contains"); err != nil {
+			return err
+		}
 		if pattern, ok := kv["pattern"]; ok {
 			if pattern == "" {
 				return errors.New("expect=stderr:pattern= must not be empty (an empty regex matches everything)")
@@ -613,6 +627,11 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 
 	case "stdout":
+		// Stream non-containment is reject=stdout:contains=, never a negative
+		// key here (record_parse_keys.go).
+		if err := checkKeys("expect=stdout", kv, "pattern", "contains"); err != nil {
+			return err
+		}
 		if pattern, ok := kv["pattern"]; ok {
 			if pattern == "" {
 				return errors.New("expect=stdout:pattern= must not be empty (an empty regex matches everything)")
@@ -625,11 +644,11 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		if contains := kv["contains"]; contains != "" {
 			r.ExpectStdoutMatch = append(r.ExpectStdoutMatch, contains)
 		}
-		if notContains := kv["!contains"]; notContains != "" {
-			r.ExpectStdoutNotMatch = append(r.ExpectStdoutNotMatch, notContains)
-		}
 
 	case "syslog":
+		if err := checkKeys("expect=syslog", kv, "pattern"); err != nil {
+			return err
+		}
 		pattern := kv["pattern"]
 		if pattern == "" {
 			return errors.New("expect=syslog:pattern= must not be empty (an empty regex matches everything)")
@@ -637,6 +656,10 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		r.ExpectSyslog = append(r.ExpectSyslog, pattern)
 
 	case "file":
+		if err := checkKeys("expect=file", kv,
+			"path", "glob", "contains", "not-contains", "exists", "absent", "count"); err != nil {
+			return err
+		}
 		check, err := parseFileCheck(kv)
 		if err != nil {
 			return err
@@ -647,6 +670,9 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		// expect=output / expect=stream are intercepted in parseLine before the
 		// generic ':' split (their contains= needle may hold ':'); only event
 		// reaches here.
+		if err := checkKeys("expect=event", kv, "namespace", "name", "timeout"); err != nil {
+			return err
+		}
 		return parseEngineExpectEvent(r, kv)
 
 	default:
@@ -693,13 +719,30 @@ func isTruthy(s string) bool {
 func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]string) error {
 	switch rejType {
 	case "stderr":
-		pattern := kv["pattern"]
-		if pattern == "" {
-			return errors.New("reject=stderr:pattern= must not be empty (an empty regex matches everything)")
+		// pattern= is a regex over the daemon's stderr alone (validateLogging).
+		// contains= is a substring over the same accumulated stdout+stderr
+		// buffer its expect=stderr:contains= mirror reads, so the two answer one
+		// question with opposite polarity (runner_exec.go).
+		if err := checkKeys("reject=stderr", kv, "pattern", "contains"); err != nil {
+			return err
 		}
-		r.RejectStderr = append(r.RejectStderr, pattern)
+		if len(kv) == 0 {
+			return errors.New("reject=stderr needs pattern=<regex> or contains=<text>")
+		}
+		if contains := kv["contains"]; contains != "" {
+			r.RejectStderrMatch = append(r.RejectStderrMatch, contains)
+		}
+		if pattern, ok := kv["pattern"]; ok {
+			if pattern == "" {
+				return errors.New("reject=stderr:pattern= must not be empty (an empty regex matches everything)")
+			}
+			r.RejectStderr = append(r.RejectStderr, pattern)
+		}
 
 	case "syslog":
+		if err := checkKeys("reject=syslog", kv, "pattern"); err != nil {
+			return err
+		}
 		pattern := kv["pattern"]
 		if pattern == "" {
 			return errors.New("reject=syslog:pattern= must not be empty (an empty regex matches everything)")
@@ -707,6 +750,9 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 		r.RejectSyslog = append(r.RejectSyslog, pattern)
 
 	case "stdout":
+		if err := checkKeys("reject=stdout", kv, "pattern", "contains"); err != nil {
+			return err
+		}
 		if pattern, ok := kv["pattern"]; ok {
 			if pattern == "" {
 				return errors.New("reject=stdout:pattern= must not be empty (an empty regex matches everything)")

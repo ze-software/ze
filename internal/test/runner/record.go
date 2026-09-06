@@ -179,6 +179,7 @@ type Record struct {
 	// Exit code validation
 	ExpectExitCode    *int     // expect:exit:code=N - expected exit code (nil = don't check)
 	ExpectStderrMatch []string // expect=stderr:contains=TEXT - substring match (not regex), multiple allowed
+	RejectStderrMatch []string // reject=stderr:contains=TEXT - the mirror of ExpectStderrMatch, over the same buffer
 
 	// AwaitStderr, when non-empty, makes the runner BLOCK until the daemon's
 	// relayed stderr contains this substring before it tears the daemon down --
@@ -192,7 +193,7 @@ type Record struct {
 	AwaitStderr          string
 	AwaitStderrTimeout   string   // optional Go duration (e.g. "10s"); empty = default
 	ExpectStdoutMatch    []string // expect=stdout:contains=TEXT - substring match (not regex), multiple allowed
-	ExpectStdoutNotMatch []string // expect=stdout:!contains=TEXT - stdout must NOT contain TEXT, multiple allowed
+	ExpectStdoutNotMatch []string // reject=stdout:contains=TEXT - stdout must NOT contain TEXT, multiple allowed
 	ExpectStdoutRegex    []string // expect=stdout:pattern=PATTERN (regex)
 	RejectStdoutRegex    []string // reject=stdout:pattern=PATTERN (regex)
 

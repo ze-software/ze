@@ -7,4 +7,4 @@ expect=exit:code=0
 expect=stderr:contains=ze show
 expect=stderr:contains=Read-only
 expect=stderr:contains=Commands
-expect=stderr:not-contains=Returns audit log entries
+reject=stderr:contains=Returns audit log entries

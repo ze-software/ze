@@ -25,4 +25,4 @@
 option=timeout:value=900s
 cmd=foreground:seq=1:exec=./le qemu vpp-hugepages-test
 expect=exit:code=0
-expect=stdout:regex=VPP-HUGEPAGES-QEMU: (PASS|SKIP)
+expect=stdout:pattern=VPP-HUGEPAGES-QEMU: (PASS|SKIP)

@@ -1616,7 +1616,8 @@ expect=json:conn=1:seq=1:json={...}
 | `expect=stdout:` | `expect=stdout:contains=text` | Substring match in stdout |
 | `expect=stderr:` | `expect=stderr:pattern=...` or `contains=...` | Regex or substring match in stderr |
 | `expect=syslog:` | `expect=syslog:pattern=...` | Regex pattern in syslog |
-| `reject=stderr:` | `reject=stderr:pattern=...` | Fail if stderr matches regex |
+| `reject=stdout:` | `reject=stdout:contains=text` or `pattern=...` | Fail if stdout contains the substring, or matches the regex |
+| `reject=stderr:` | `reject=stderr:contains=text` or `pattern=...` | Fail if the output contains the substring, or stderr matches the regex |
 | `reject=syslog:` | `reject=syslog:pattern=...` | Fail if syslog matches regex |
 | `action=notification:` | `action=notification:conn=1:seq=1:text=...` | Send NOTIFICATION |
 | `action=rewrite:` | `action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf` | Rewrite config file |
@@ -2300,7 +2301,7 @@ expect=stderr:contains=specific error message substring
 
 **Regex match** (for variable parts like IPs, line numbers):
 ```
-expect=stderr:regex=peer \d+\.\d+\.\d+\.\d+: route-refresh requires
+expect=stderr:pattern=peer \d+\.\d+\.\d+\.\d+: route-refresh requires
 ```
 
 The test passes if:

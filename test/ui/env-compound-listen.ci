@@ -7,9 +7,9 @@ expect=exit:code=0
 expect=stdout:contains=ze.web.listen
 expect=stdout:contains=ze.mcp.listen
 expect=stdout:contains=ze.looking-glass.listen
-expect=stdout:!contains=ze.web.host
-expect=stdout:!contains=ze.web.port
-expect=stdout:!contains=ze.mcp.host
-expect=stdout:!contains=ze.mcp.port
-expect=stdout:!contains=ze.looking-glass.host
-expect=stdout:!contains=ze.looking-glass.port
+reject=stdout:contains=ze.web.host
+reject=stdout:contains=ze.web.port
+reject=stdout:contains=ze.mcp.host
+reject=stdout:contains=ze.mcp.port
+reject=stdout:contains=ze.looking-glass.host
+reject=stdout:contains=ze.looking-glass.port

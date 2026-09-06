@@ -47,11 +47,14 @@ expect=stdout:contains=router-id 1.2.3.4
 expect=stdout:contains=peer edge1
 expect=stdout:contains=local 65000
 
-# Path-scoped after "-" (AC-2): "-" does not disturb positional parsing.
+# Path-scoped after "-" (AC-2): "-" does not disturb positional parsing. The
+# NEGATIVE half of that -- the scoped output omits the tree above the path --
+# needs its own file, because expect=stdout: is FILE-level (runner_exec.go,
+# rec.ClientOutput) and the steps below print router-id from the whole tree. It
+# lives in dash-stdio-path-scope.ci.
 cmd=foreground:seq=2:exec=ze config show - bgp peer edge1:stdin=cfg:exit=0
 expect=stdout:contains=1.1.1.1
 expect=stdout:contains=remote 65001
-expect=stdout:not_contains=router-id 1.2.3.4
 
 # --- Phase 2: migrated config/cli readers still accept "-" (AC-4) ---
 # validate - (was an ad-hoc if path=="-" branch, now the shared helper).

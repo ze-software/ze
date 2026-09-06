@@ -15,7 +15,6 @@
 #
 # merge=union in .gitattributes keeps both sides of concurrent edits.
 test/appliance/appliance-list.ci
-test/appliance/vpp-hugepages-qemu.ci
 test/chaos/iface-link-flap.ci
 test/chaos/smoke-chaos.ci
 test/chaos/smoke-disconnect.ci
@@ -25,8 +24,6 @@ test/install/dhcp-pxe-config.ci
 test/install/image-server-config.ci
 test/install/install-generated-config-valid.ci
 test/install/pxe-chainload.ci
-test/install/qemu-full.ci
-test/install/qemu-iso.ci
 test/install/tftp-server-config.ci
 test/managed/auth-reject.ci
 test/managed/cli-reads-meta-keys.ci
@@ -135,5 +132,4 @@ test/plugin/traffic-monitor.ci
 test/ui/cli-completion-ghost-no-match.ci
 test/ui/cli-completion-invalid-context.ci
 test/ui/cli-completion-list-keys-single-peer.ci
-test/ui/completion-words-no-env-pollution.ci
 test/ui/monitor-ping-pipe-resolve-log.ci

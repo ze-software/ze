@@ -58,7 +58,7 @@ plugin {
 EOF_INTERNAL
 
 cmd=foreground:seq=3:exec=ze doctor --json gr-internal.conf:exit=0
-expect=stdout:!contains=plugin grint
+reject=stdout:contains=plugin grint
 
 # --- 4. Contrast: an internal bgp-gr beside an external one ---
 # setEgressState stores into a package-level pointer, so one in-process engine
@@ -76,4 +76,4 @@ plugin {
 EOF_BOTH
 
 cmd=foreground:seq=4:exec=ze doctor --json gr-both.conf:exit=0
-expect=stdout:!contains=plugin grsib
+reject=stdout:contains=plugin grsib

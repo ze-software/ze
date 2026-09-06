@@ -1,0 +1,43 @@
+# Test: `ze config show - <path>` scopes its answer to the path
+# VALIDATES: AC-2 -- a path after "-" narrows the output, and the tree above the
+#            path is NOT printed.
+# Design: docs/guide/command-reference.md -- the "-" stdin alias
+#
+# ONE COMMAND on purpose. expect=stdout: and reject=stdout: are FILE-level: the
+# runner checks them against the concatenated output of every command in the
+# file (runner_exec.go, rec.ClientOutput). Every other step in dash-stdio.ci
+# prints the whole tree, so the reject below could not live there -- it was
+# written there as `not_contains=`, a key nothing read, and asserted nothing at
+# all until the parser started refusing an unknown key.
+
+stdin=cfg:terminator=EOF_CFG
+bgp {
+	router-id 1.2.3.4;
+	session {
+		asn {
+			local 65000;
+		}
+	}
+	peer edge1 {
+		connection {
+			local {
+				ip 2.2.2.2;
+			}
+			remote {
+				ip 1.1.1.1;
+			}
+		}
+		session {
+			asn {
+				remote 65001;
+			}
+		}
+	}
+}
+EOF_CFG
+
+cmd=foreground:seq=1:exec=ze config show - bgp peer edge1:stdin=cfg:exit=0
+expect=exit:code=0
+expect=stdout:contains=1.1.1.1
+expect=stdout:contains=remote 65001
+reject=stdout:contains=router-id 1.2.3.4

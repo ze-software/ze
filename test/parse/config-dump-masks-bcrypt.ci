@@ -40,4 +40,8 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze cli -c "show config dump - | json":stdin=config
 expect=exit:code=0
 expect=stdout:contains=/* SECRET-DATA */
-expect=stdout:not=UlwuiuH82Unfsq
+# `not=` is a key no parser reads, so this assertion -- the whole proof that the
+# hash does not reach the client -- was dropped in silence and passed whatever
+# the command printed. reject=stdout:contains= is the spelling both .ci parsers
+# read (internal/test/runner/parsing.go, record_parse.go).
+reject=stdout:contains=UlwuiuH82Unfsq

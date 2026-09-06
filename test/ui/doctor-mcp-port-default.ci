@@ -34,4 +34,4 @@ cmd=foreground:seq=1:exec=ze doctor --json mcp-port-default.conf
 # The positive assertion first: doctor ran and produced its report. Without it a
 # doctor that printed nothing at all would satisfy the absence below.
 expect=stdout:contains="schema-version": 1
-expect=stdout:!contains=config-mcp-invalid
+reject=stdout:contains=config-mcp-invalid

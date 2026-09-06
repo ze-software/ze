@@ -29,4 +29,4 @@ plugin {
 EOF_SEPARATE
 
 cmd=foreground:seq=1:exec=ze doctor --json hub-separate.conf
-expect=stdout:!contains=doctor-hub-managed-collision
+reject=stdout:contains=doctor-hub-managed-collision

@@ -2,7 +2,13 @@
 # Spec: plan/spec-vpp-host-tuning.md AC-9
 # VALIDATES: with vpp.enabled and no hugepages reserved (the fixture root has no
 #            hugepages sysfs tree), `ze doctor --json` surfaces
-#            doctor-vpp-hugepages end-to-end; a disabled vpp config is silent.
+#            doctor-vpp-hugepages end-to-end.
+#
+# ONE COMMAND on purpose. expect=stdout: is FILE-level: the runner checks it
+# against the concatenated output of every command in the file (runner_exec.go,
+# rec.ClientOutput). The mirror case, a disabled vpp config that must stay
+# silent about the same needle, therefore lives in
+# test/plugin/vpp-doctor-hugepages-quiet.ci.
 # Linux-only: the hugepage check lives in doctor_linux.go. Its procfs/sysfs roots
 # are redirected via ze.test.doctor.hugepages-root so the test is hermetic and
 # does not depend on the host's real hugepage configuration.
@@ -16,26 +22,10 @@ vpp {
 }
 EOF_ON
 
-tmpfs=vpp-off.conf:terminator=EOF_OFF
-vpp {
-	enabled false;
-}
-EOF_OFF
-
-# // the per-command assertion changes 0 -> 1. No coverage is lost;
-# the expectation was self-contradictory. "VPP enabled and no hugepages
+# exit=1 is the contract, not a tolerated failure. "VPP enabled and no hugepages
 # reserved" is emitted at severity ERROR (evaluateVPPHugepages,
 # internal/component/vpp/doctor_linux.go), an error diagnostic makes the report
-# not-ready, and `ze doctor` exits 1 when it is not ready. So the old exit=0
-# asserted that the check does NOT fire, contradicting the stdout assertion on
-# the next line: the test could not pass whatever the code did. It went
-# unnoticed because the file is skip-os everywhere but Linux and had therefore
-# never run until CI existed. Asserting exit=1 pins the real contract -- a
-# missing reservation is a readiness FAILURE, not a note.
+# not-ready, and `ze doctor` exits 1 when it is not ready. An exit=0 here would
+# assert that the check does NOT fire, contradicting the stdout assertion below.
 cmd=foreground:seq=1:exec=ze doctor --json vpp-on.conf:exit=1
-expect=exit:code=0
 expect=stdout:contains=doctor-vpp-hugepages
-
-cmd=foreground:seq=2:exec=ze doctor --json vpp-off.conf:exit=0
-expect=exit:code=0
-expect=stdout:not-contains=doctor-vpp-hugepages

@@ -14,4 +14,4 @@
 
 cmd=foreground:seq=1:exec=./le qemu install-test
 expect=exit:code=0
-expect=stdout:regex=INSTALL-QEMU: (PASS|SKIP)
+expect=stdout:pattern=INSTALL-QEMU: (PASS|SKIP)

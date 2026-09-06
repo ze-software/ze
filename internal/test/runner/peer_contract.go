@@ -165,6 +165,7 @@ func isSelfValidated(rec *Record, hasCheckPeer bool) bool {
 		len(rec.ExpectStdoutRegex) > 0 ||
 		len(rec.RejectStdoutRegex) > 0 ||
 		len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
+		len(rec.RejectStderrMatch) > 0 ||
 		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 ||
 		len(rec.FileChecks) > 0 ||
 		len(rec.HTTPChecks) > 0

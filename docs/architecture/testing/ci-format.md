@@ -640,11 +640,31 @@ Prefer `exit=` whenever a file runs more than one quick-exit `ze` command. A
 (`hub`, `start`, `cli`, `monitor`) and which has no config-file argument or
 `--web` flag.
 
-Note that stdout/stderr expectations are file-level in the same way: they match the
-**accumulated** output of every command in the file, so `expect=stdout:contains=`
-can be satisfied by a different command than the one intended, and
-`reject=stdout:pattern=` trips on any command's output. When a reject must apply to
-one command, keep that command in its own file (see `test/vrrp/vrrp-doctor-quiet.ci`).
+#### Every stream assertion is FILE-level, over ONE buffer
+
+`expect=stdout:`, `expect=stderr:`, `reject=stdout:` and `reject=stderr:contains=`
+all read `Record.ClientOutput`, which the runner builds ONCE at the end of the
+test as the concatenated stdout AND stderr of every command in the file. Two
+consequences, and an author who misses either writes an assertion that cannot
+mean what it says:
+
+- **There is no per-command scope.** `expect=stdout:contains=` can be satisfied
+  by a different command than the one it sits under, and a reject trips on any
+  command's output. A file that asserts a needle PRESENT for one command and
+  ABSENT for another asserts two contradictory things about one string.
+- **The stream name selects nothing** for `contains=`. Only `pattern=` on
+  `expect=stderr:` / `reject=stderr:` reads stderr alone, through
+  `validateLogging`.
+
+So a negative assertion belongs in a file whose every command may satisfy it.
+Split the file otherwise: `test/plugin/vpp-doctor-hugepages.ci` and
+`vpp-doctor-hugepages-quiet.ci` are one scenario in two files for exactly this
+reason, as are `test/appliance/no-install-appliance.ci` and
+`appliance-help-not-deprecated.ci`, and each says so at the top. Also see
+`test/vrrp/vrrp-doctor-quiet.ci`, a single-command file so its reject is
+meaningful.
+<!-- source: internal/test/runner/runner_exec.go -- rec.ClientOutput = clientStdout.String() + clientStderr.String() -->
+<!-- source: internal/test/runner/runner_output_assert.go -- checkOutputAssertions -->
 <!-- source: internal/test/runner/runner_exec.go -- quickZe branch, per-command exit assertion -->
 <!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec, exitMarker -->
 <!-- source: internal/test/runner/record.go -- RunCommand.ExitCode -->
@@ -808,18 +828,35 @@ Validates the foreground process exit code. A test whose ONLY assertion is
 `expect=exit:code=0` is **accept-only** (weak) and is gated by a lint; see
 [Assertion Strength](#assertion-strength-accept-only-tests-and-readback).
 
+### Unknown Keys Are a Parse Error
+
+Every `expect=` and `reject=` arm declares the keys it reads, and a key outside
+that set fails the file at discovery, naming the key, the accepted keys, and the
+line. Nothing is dropped in silence.
+
+The rule exists because a dropped key takes the whole assertion with it. An
+`expect=stdout:not-contains=X` line recorded NO assertion and then passed
+whatever the command printed. Ten such lines were live across seven `.ci` files
+when the check was added, and one of them was the only assertion its test made.
+<!-- source: internal/test/runner/record_parse_keys.go -- checkKeys, retiredKeys -->
+
+Two spellings get a named message, because both are the right key somewhere
+else: `not-contains=` belongs to `expect=file:`, and `!contains=` was the
+`expect=stdout` spelling until stream non-containment moved to `reject=`.
+
 ### Stdout Expectations
 
 ```
 expect=stdout:contains=<text>
-expect=stdout:!contains=<text>
 expect=stdout:pattern=<regex>
 ```
 
-Three modes:
+Two modes:
 - `contains=` -- substring match against stdout (multiple allowed, all must match)
-- `!contains=` -- negative substring match (stdout must NOT contain text)
 - `pattern=` -- regex match against stdout (uses Go `regexp` syntax)
+
+Stdout must NOT contain text is `reject=stdout:contains=`, below. A stream has
+ONE negation spelling and it lives on `reject=`.
 
 ### Stderr Expectations
 
@@ -831,6 +868,12 @@ expect=stderr:contains=<text>
 Two modes:
 - `pattern=`: regex match against stderr (uses Go `regexp` syntax)
 - `contains=`: substring match against stderr
+
+`pattern=` reads the daemon's stderr alone. `contains=` reads the same combined
+buffer every stdout assertion reads (see the scope note below), so it matches a
+needle the command wrote to stdout. Reach for `pattern=` when the stream matters.
+
+Stderr must NOT contain text is `reject=stderr:contains=`, below.
 
 ### Await (deterministic stderr fence)
 
@@ -898,6 +941,7 @@ files, and logs. Do not write shell just to inspect files.
 ### Negative Expectations (reject)
 
 ```
+reject=stderr:contains=<text>
 reject=stderr:pattern=<regex>
 reject=stdout:contains=<text>
 reject=stdout:pattern=<regex>
@@ -909,6 +953,7 @@ Inverse of `expect=` -- the test **fails** if the pattern matches. Used to verif
 
 | Type | Description |
 |------|-------------|
+| `reject=stderr:contains=<text>` | Fail if the combined output contains substring (the mirror of `expect=stderr:contains=`) |
 | `reject=stderr:pattern=<regex>` | Fail if stderr matches regex |
 | `reject=stdout:contains=<text>` | Fail if stdout contains substring |
 | `reject=stdout:pattern=<regex>` | Fail if stdout matches regex |

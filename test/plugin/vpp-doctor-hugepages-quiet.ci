@@ -1,0 +1,28 @@
+# Test: ze doctor stays silent about hugepages when VPP is disabled
+# Spec: plan/spec-vpp-host-tuning.md AC-9
+# VALIDATES: a config with vpp.enabled false raises no doctor-vpp-hugepages
+#            diagnostic, whatever the host's hugepage reservation is.
+# Linux-only: the hugepage check lives in doctor_linux.go. Its procfs/sysfs roots
+# are redirected via ze.test.doctor.hugepages-root so the test is hermetic and
+# does not depend on the host's real hugepage configuration.
+#
+# Split out of vpp-doctor-hugepages.ci, which asserts the OPPOSITE needle for a
+# vpp-enabled config. Both directives are FILE-level: the runner checks them
+# against the concatenated output of every command in the file (runner_exec.go,
+# rec.ClientOutput), so a contains= and a reject= of one string in one file
+# assert two contradictory things and whichever the runner reaches first
+# decides.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.doctor.hugepages-root:value=nohugepages
+
+tmpfs=vpp-off.conf:terminator=EOF_OFF
+vpp {
+	enabled false;
+}
+EOF_OFF
+
+cmd=foreground:seq=1:exec=ze doctor --json vpp-off.conf:exit=0
+expect=exit:code=0
+expect=stdout:contains="diagnostics"
+reject=stdout:contains=doctor-vpp-hugepages
