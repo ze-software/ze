@@ -237,21 +237,28 @@ therefore puts the frames of ONE netted set on the wire, not four.
 
 The bridge is the same unit for ze. Its reader takes the complete lines of one
 read, carries any partial line into the next batch, and hands the batch to a
-dispatcher. Two rules then decide what leaves.
+dispatcher. Five rules then decide what leaves.
 
 Each row states what the batch DISPATCHES. What a dispatched withdrawal then
 puts on the wire is the reactor's answer, not the netting's: a session that has
-advertised nothing is written no withdrawal at all
+advertised nothing is written the withdrawal's attributes with no route in them
 (`docs/architecture/update-building.md`, "A Withdrawal Names a Route This
-Connection Advertised"). The two rules together are what make `api-fast` batch 1
+Connection Advertised"). The rules together are what make `api-fast` batch 1
 produce one frame.
 
 | Rule | What it does |
 |------|--------------|
+| A route is withdrawn at most ONCE per batch | `withdraw X`, `announce X`, `withdraw X` dispatches one withdrawal, and it answers the line that wrote it first |
 | A withdrawal cancels an announce of the same route EARLIER in the batch | `announce X` then `withdraw X` dispatches the withdrawal alone, and the announce never reaches ze |
 | An announce cancels nothing | `withdraw X` then `announce X` dispatches both |
 | Withdrawals dispatch before announces | whatever order the script wrote them in |
 | A command that carries no route keeps its write order | an End-of-RIB names no route, so it cancels nothing and nothing cancels it |
+
+The first rule is upstream's dict: a withdrawal is queued under the NLRI index,
+so a second write of the same line replaces the first rather than adding to it.
+`api-flow` is the recording. Its script withdraws one flow route, announces it,
+withdraws it again and announces it again, all in one write, and reads back one
+withdrawal and one announce.
 
 The route each command carries is stated by the translator that WROTE the
 command, on `Command.Key`. No consumer reads it back out of the command text: a

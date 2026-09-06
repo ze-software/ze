@@ -178,7 +178,11 @@ type BatchDispatch struct {
 
 // Net cancels the commands one batch takes back, and orders what survives.
 //
-// Two rules, and each is ExaBGP's own.
+// Three rules, and each is ExaBGP's own.
+//
+// A route is withdrawn at most ONCE per batch, however many times the script
+// wrote the line. Upstream queues a withdrawal in a dict keyed by the NLRI
+// index, so the second write replaces the first rather than adding to it.
 //
 // A withdrawal cancels an announce of the same route EARLIER in the batch, and
 // an announce cancels nothing. Upstream states both directions where it queues:
@@ -215,6 +219,9 @@ func Net(lines []BatchLine) []BatchDispatch {
 	// list, so a later announce of the same route survives an earlier
 	// withdrawal rather than being canceled by it.
 	announced := make(map[routeIdentity][]int)
+	// withdrawn holds the routes this batch has already queued a withdrawal for,
+	// so a second `withdraw` of the same route adds nothing to the wire.
+	withdrawn := make(map[routeIdentity]bool)
 	for i := range all {
 		key := all[i].Command.Key
 		if !key.Route() {
@@ -229,6 +236,18 @@ func Net(lines []BatchLine) []BatchDispatch {
 			canceled[earlier] = true
 		}
 		delete(announced, id)
+		if withdrawn[id] {
+			// Upstream queues a withdrawal in a dict keyed by the NLRI index, so a
+			// repeat REPLACES rather than adds (_del_from_rib_impl,
+			// src/exabgp/rib/outgoing.py, upstream exa-networks/exabgp): two
+			// `withdraw X` lines in one read put one MP_UNREACH_NLRI on the wire,
+			// whatever announces of X stand between them. Canceling the LATER one
+			// keeps that count of one and leaves the withdrawal where the script
+			// first wrote it. api-flow is the recording.
+			canceled[i] = true
+			continue
+		}
+		withdrawn[id] = true
 	}
 
 	netted := make([]BatchDispatch, 0, len(all))

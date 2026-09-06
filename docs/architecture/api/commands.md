@@ -689,11 +689,15 @@ send bgp <selector> update text nlri l2vpn/evpn add multicast rd <rd> ip <ip>
 
 #### A withdrawal can be answered with the peers it was withheld from
 
-`send bgp <selector> update text ... nlri <family> del ...` writes no UPDATE to
-a peer whose session has advertised nothing, because RFC 4271 Section 4.3
+`send bgp <selector> update text ... nlri <family> del ...` names no route to a
+peer whose session has advertised nothing, because RFC 4271 Section 4.3
 identifies a withdrawn route in the context of the connection it was previously
-advertised on. The command still answers `done`, and the peers it wrote nothing
-to are named in the response's `warnings`:
+advertised on. Such a peer is written the withdrawal's path attributes with no
+route in them, or nothing at all where the family's withdrawal carries no
+attributes of its own (`docs/architecture/update-building.md`, "A Withdrawal
+Names a Route This Connection Advertised"). The command still answers `done`,
+and the peers it withheld the routes from are named in the response's
+`warnings`:
 
 ```
 withdraw ipv4/unicast: withdrawal withheld: this session has advertised no route to the peer: ipv4/unicast, peers 192.0.2.10

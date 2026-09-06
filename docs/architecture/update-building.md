@@ -455,7 +455,13 @@ Two origination paths do NOT record: the config-driven initial sync (`peer_initi
 
 RFC 4271 Section 4.3 identifies a withdrawn route by its destination, "which unambiguously identifies the route in the context of the BGP speaker - BGP speaker connection to which it has been previously advertised."
 
-A connection that has advertised nothing has no route for any withdrawal to name, so the API rail writes no UPDATE to such a peer. The condition is about the CONNECTION, not about the route: once the connection has carried one UPDATE that makes any destination reachable, every later withdrawal is written, whether or not the peer holds the route named. A key-based rule would be a different rule and a wrong one, because an operator withdrawing a route the peer never received is telling a peer it must not hold it, and RFC 4271 Section 9.1.2 has the receiver ignore a withdrawal for a route it does not have.
+A connection that has advertised nothing has no route for any withdrawal to name, so the API rail names no route to such a peer. The condition is about the CONNECTION, not about the route: once the connection has carried one UPDATE that makes any destination reachable, every later withdrawal is written, whether or not the peer holds the route named. A key-based rule would be a different rule and a wrong one, because an operator withdrawing a route the peer never received is telling a peer it must not hold it, and RFC 4271 Section 9.1.2 has the receiver ignore a withdrawal for a route it does not have.
+
+What the peer receives is the withdrawal with its routes removed: the path attributes alone, with no MP_UNREACH_NLRI, no Withdrawn Routes and no NLRI. RFC 4271 Section 6.3: "An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message." No RFC asks a speaker to SEND it. It is the ExaBGP compatibility contract, and upstream reaches it the same way: `include_withdraw` drops each withdrawn NLRI while it is False and `UpdateCollection.messages` yields the packed attributes regardless. `api-flow` is the recording, and its second frame is that message.
+
+A family whose withdrawal carries no attributes of its own is written NOTHING, because removing the routes leaves an empty UPDATE rather than an attributes-only one. IPv4 unicast and the multiprotocol unicast families are that case, and upstream sends nothing for them too, which `api-fast` records.
+
+The message names no route, so it does not arm the connection either: a second withdrawal is withheld exactly as the first was.
 
 | Question | Answer |
 |----------|--------|
@@ -468,7 +474,7 @@ The answer is a WARNING and never a failure. The command did what it asked for, 
 
 ExaBGP has the same asymmetry, reached another way: `include_withdraw` starts False for each session and becomes True only when the first update pass exhausts, and its packing layer drops every withdrawn NLRI while it is False. `api-fast` is the recording: the withdrawal its first burst writes never reaches the wire, and the one its second burst writes does.
 <!-- source: internal/component/bgp/reactor/session_write.go -- Session.advertised, noteAdvertised, updateIsReachable -->
-<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- withdrawBatchFromPeers, logWithdrawWithheld -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- withdrawBatchFromPeers, buildWithheldWithdrawUpdate, logWithdrawWithheld -->
 
 ### What a Withdrawal Carries
 

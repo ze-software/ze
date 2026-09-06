@@ -336,3 +336,46 @@ func TestBridgeBatchAckControlAppliesInWriteOrder(t *testing.T) {
 	assert.Equal(t, "done\ndone\n", written.String(),
 		"the route before disable-ack and disable-ack itself are acked; the route after it is not")
 }
+
+// TestBridgeBatchWithdrawsOneRouteOnce is api-flow's own batch.
+//
+// Upstream queues a withdrawal in a dict keyed by the NLRI index, so a second
+// `withdraw` of the same route replaces the first rather than adding to it
+// (_del_from_rib_impl, src/exabgp/rib/outgoing.py). api-flow's script writes the
+// same flow withdrawal twice, around an announce of that route.
+//
+// VALIDATES: two withdrawals of one route in one batch dispatch ONE withdrawal,
+// the announce between them is still canceled, and the announce after them
+// still survives.
+// PREVENTS: the second withdrawal api-flow read as an unexpected frame, and a
+// dedupe that also swallowed the announce the script wrote last.
+func TestBridgeBatchWithdrawsOneRouteOnce(t *testing.T) {
+	netted := Net(batchOf(t,
+		"withdraw route 1.1.0.0/24 next-hop 101.1.101.1",
+		"announce route 1.1.0.0/24 next-hop 101.1.101.1",
+		"withdraw route 1.1.0.0/24 next-hop 101.1.101.1",
+		"announce route 1.1.0.0/24 next-hop 101.1.101.1",
+	))
+
+	require.Len(t, netted, 2, "one withdrawal and the announce that follows it")
+	assert.Contains(t, netted[0].Command.Text, "del 1.1.0.0/24")
+	assert.Contains(t, netted[1].Command.Text, "add 1.1.0.0/24")
+	assert.Equal(t, 0, netted[0].Line, "the withdrawal answers the line that first wrote it")
+	assert.Equal(t, 3, netted[1].Line, "and the announce answers the line the script wrote last")
+}
+
+// TestBridgeBatchWithdrawsEachRouteOnce keeps the dedupe on the route it names.
+//
+// VALIDATES: two withdrawals of DIFFERENT routes in one batch both dispatch.
+// PREVENTS: a dedupe keyed on the family or the verb rather than the route,
+// which would drop every withdrawal after the first in any batch.
+func TestBridgeBatchWithdrawsEachRouteOnce(t *testing.T) {
+	netted := Net(batchOf(t,
+		"withdraw route 1.1.0.0/24 next-hop 101.1.101.1",
+		"withdraw route 2.2.0.0/24 next-hop 101.1.101.1",
+	))
+
+	require.Len(t, netted, 2, "both routes are withdrawn")
+	assert.Contains(t, netted[0].Command.Text, "del 1.1.0.0/24")
+	assert.Contains(t, netted[1].Command.Text, "del 2.2.0.0/24")
+}

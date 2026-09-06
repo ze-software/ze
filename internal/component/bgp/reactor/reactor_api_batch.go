@@ -540,17 +540,32 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(peers []*Peer, batch bgptypes
 
 	// The guard is asked ONCE for each peer, above the unit loop, because it is
 	// a property of the connection rather than of the framing. A peer counts as
-	// SERVED: the command did what it asked for, and there was nothing to write.
+	// SERVED: the command did what it asked for, and no route was named to it.
 	writable, unarmed := splitOnAdvertised(peers)
 	withheld := make([]string, 0, len(unarmed))
-	for _, peer := range unarmed {
-		peer.adjOut.recordWithheld(len(batch.NLRIs))
-		logWithdrawWithheld(peer, batch)
-		withheld = append(withheld, peer.Settings().Address.String())
+	var lastErr error
+
+	if len(unarmed) > 0 {
+		// Built ONCE for the whole batch: it names no route, so it does not vary
+		// with the framing the unit loop below applies. It is nil when the
+		// withdrawal has no attributes of its own to write. The build region is
+		// the attribute buffer the unit loop reuses, and every send below returns
+		// before that loop starts.
+		withheldUpdate := a.buildWithheldWithdrawUpdate(attrHandle.Buf, batch, facts)
+		for _, peer := range unarmed {
+			peer.adjOut.recordWithheld(len(batch.NLRIs))
+			logWithdrawWithheld(peer, batch)
+			withheld = append(withheld, peer.Settings().Address.String())
+			if withheldUpdate == nil {
+				continue
+			}
+			if err := peer.SendUpdate(withheldUpdate); err != nil {
+				lastErr = err
+			}
+		}
 	}
 
 	sent := len(unarmed)
-	var lastErr error
 	unitLen := nlriUnitLen(len(batch.NLRIs), facts.groupUpdates)
 
 	for off := 0; ; off += unitLen {
@@ -1474,6 +1489,48 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 		// has none (buildBatchAnnounceUpdate carries the same reasoning for
 		// MP_REACH_NLRI, where the address is the operator's to fix).
 		logWithdrawTooLarge(batch, len(attrBuf), "attributes")
+		return nil
+	}
+	return &message.Update{
+		PathAttributes: attrBuf[:n],
+	}
+}
+
+// buildWithheldWithdrawUpdate builds the UPDATE a WITHHELD withdrawal writes: the
+// same message buildBatchWithdrawUpdate would have built, with the routes removed.
+// MP_UNREACH_NLRI is not contributed and no NLRI is written, so what reaches the
+// peer is the withdrawal's path attributes and nothing else.
+//
+// RFC 4271 Section 6.3: "An UPDATE message that contains correct path attributes,
+// but no NLRI, SHALL be treated as a valid UPDATE message." So the message is one
+// a conformant receiver accepts, and it names no route, which is the whole point:
+// withdrawBatchFromPeers withholds the routes because RFC 4271 Section 4.3 scopes
+// a withdrawn route to the connection it was previously advertised on.
+//
+// Nothing in an RFC asks a speaker to SEND it. It is an ExaBGP compatibility
+// contract, pinned by `test/exabgp-compat/api/api-flow.ci`, whose second frame is
+// this message: upstream drops each withdrawn NLRI while a session's
+// include_withdraw is still False and yields the packed attributes regardless
+// (`src/exabgp/bgp/message/update/collection.py`, UpdateCollection.messages).
+//
+// Returns nil when there is nothing left once the routes are gone. IPv4 unicast
+// carries its withdrawal in the Withdrawn Routes field with no path attributes,
+// and the multiprotocol unicast families carry a bare MP_UNREACH_NLRI, so both
+// leave an empty message rather than an attributes-only one. Upstream sends
+// nothing for those too, which `api-fast` records.
+func (a *reactorAPIAdapter) buildWithheldWithdrawUpdate(attrBuf []byte, batch bgptypes.NLRIBatch, facts announceFacts) *message.Update {
+	if batch.Family == family.IPv4Unicast || batch.Family.SAFI == family.SAFIUnicast {
+		return nil
+	}
+
+	plan := getAnnouncePlan()
+	defer putAnnouncePlan(plan)
+
+	base := a.planBatchAttrs(plan, batch, facts)
+
+	n, ok := plan.emit(base, attrBuf)
+	if !ok {
+		logWithdrawTooLarge(batch, len(attrBuf), "withheld-attributes")
 		return nil
 	}
 	return &message.Update{
