@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
@@ -107,244 +107,339 @@ leaf, reword the leaf `description`, change or drop the show key, or install a
 policer. Picking one picks the route. The route is the owner's decision
 (`ai/rules/rule-precedence.md`, rung 3).
 
+## Owner Decision (2026-09-06): route A
+
+Thomas chose route A. The subscriber upload rate is enforced by a policer on the
+`pppN` interface ingress hook, installed by the `l2tp-shaper` plugin through the
+traffic backend. Route B (`plan/to-review/spec-l2tp-12-xdp-policing.md`, XDP
+keyed on tunnel id and session id) is rejected: a PPPoE subscriber carries no
+L2TP header, so that key cannot reach it, and F-5 already shows both access
+types terminate on a `pppN`.
+
+Two corroborating readings and two defects to design away from, taken from
+osvbng (`~/Code/veesix-networks/osvbng`, read for shape, not copied):
+
+| # | Reading | Where |
+|---|---------|-------|
+| C-1 | osvbng polices upstream with a per-subscriber token-bucket policer on the subscriber interface's input feature arc, named `sub_<sw_if_index>_in`. Not tc, not XDP | `(*VPP).ApplyQoS`, `pkg/southbound/vpp/qos.go` |
+| C-2 | One mechanism serves both access types there for the same reason it does here: both decap nodes rewrite the RX interface to the per-session interface before the ingress arc runs, so the interface index is the natural key once the subscriber IP packet exists | `osvbng_pppoe_decap.c`, `l2tpv2_input.c` |
+| C-3 | The direction asymmetry is deliberate: downstream gets queueing and AQM, upstream gets a policer, because the subscriber's upload is already constrained by the access link | `osvbng_qos_sched/INTRODUCTION.md` |
+| C-4 | DEFECT to avoid: osvbng's numeric `qos.upload-rate` resolves into `ServiceGroup.UploadRate` and is read only by `LogAttrs`. Stored, shown, never programmed. That is exactly Ze's defect today | osvbng |
+| C-5 | DEFECT to avoid: `ApplyQoS` opens with an install-once guard, so a CoA is accepted, merged, and never programmed. The mid-session rate-change path is designed in here from the start, not added later | osvbng |
+
 ## Required Reading
 
-<!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
-     Capture what you learned as -> Decision: / -> Constraint: annotations, which
-     survive compaction; track reading progress in the session state file. -->
-
 ### Architecture Docs
-- [ ] `docs/architecture/<doc>.md` - [why relevant]
-  → Decision: [specific architectural decision that constrains this spec]
-  → Constraint: [specific rule from the doc that applies here]
+- [ ] `docs/architecture/core-design.md` - section 14b names the traffic component, its `Backend` interface and its data model
+  → Decision: one `Backend.Apply(ctx, map[string]InterfaceQoS)` programs an interface's whole desired state, so the upload direction belongs INSIDE `InterfaceQoS` rather than beside it
+  → Constraint: exact-or-reject. A backend that cannot represent a field refuses it at verify and at apply; it never programs a subset and reports success
+- [ ] `docs/guide/l2tp.md` - the Traffic shaping section is the operator's promise
+  → Constraint: the page read as a promise of two-direction shaping while only one direction was enforced, so it changes in the same work as the code
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfcNNNN.md` - [why relevant]
-  → Constraint: [specific RFC rule that applies here]
+- [ ] `rfc/short/rfc2865.md` - Section 5.11 Filter-Id carries the subscriber's rate profile
+  → Constraint: the Filter-Id is a free-form string, so a value that is not a rate is not an error; it means "no rate here"
+- [ ] `rfc/short/rfc5176.md` - CoA-Request semantics
+  → Constraint: an authorization change the NAS cannot carry out owes a CoA-NAK, so a rate the NAS accepts and does not program is a conformance defect as well as a functional one
 
-**Key insights:** (minimal context to resume after compaction)
-- [insight from docs]
+**Key insights:**
+- A qdisc shapes EGRESS by delaying a packet. The ingress hook holds no queue, so the only enforcement there is to drop, which is a policer.
+- The `clsact` qdisc at handle `ffff:` is shared: mirror owns tc priority 1, flow-export sampling owns 100. A third owner adds a priority and never replaces or deletes the qdisc.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (must read BEFORE you write this spec)
-- [ ] `path/to/file.go` - [what it currently does]
+**Source files read:**
+- [ ] `internal/component/l2tp/plugins/shaper/shaper.go` - `applyTC` took ONE rate and built one root qdisc from it; all three call sites passed the download rate
+- [ ] `internal/component/traffic/model.go` - `InterfaceQoS` held one root `Qdisc` and no policer, so the model could not express ingress
+- [ ] `internal/plugins/traffic/netlink/translate_linux.go` - `translateQdisc` refuses `QdiscClsact` and `QdiscIngress`: "attaches at the ingress hook, not at the root, and is not configurable"
+- [ ] `internal/plugins/traffic/netlink/backend_linux.go` - `applyInterface` programs root qdisc, classes, filters; `restoreOriginalLocked` puts the snapshot back
+- [ ] `internal/plugins/iface/netlink/mirror_linux.go` - `clsactQdisc`, and the comment that names the hook as shared and forbids deleting it
+- [ ] `internal/plugins/flowexport/sampling/tc_linux.go` - `SampleFilterPriority` 100, the second owner, and the matchall+action pattern the policer follows
+- [ ] `internal/component/l2tp/plugins/authradius/coa.go` - `extractRate` open-coded a `ParseRateBps` over the whole Filter-Id and emitted `UploadRate: downloadRate`
+- [ ] `internal/component/l2tp/plugins/authradius/extract_vsa.go` - `parseMikrotikRate` returned both directions; `extractVSARate` and `mikrotikRateToFilterID` dropped the second
+- [ ] `internal/component/l2tp/pppoe/subsystem.go` - `onSessionUp` built a `subscriber.Session` and never set `DownloadRate` or `UploadRate`
+- [ ] `internal/plugins/traffic/vpp/verify.go` - the exact-or-reject posture and the shape of a backend refusal
 
-**Behavior to preserve:** (unless the user explicitly said to change it)
-- [output format, function signature, or `.ci` expectation callers depend on]
+**Behavior to preserve:**
+- `show l2tp shaper` keys, including `upload-rate-bps`
+- The `l2tp/shaper` config surface: no leaf added, renamed or removed
+- Every existing qdisc translation, and the refusal of clsact and ingress AT THE ROOT
+- The mirror and sampling filters on the shared ingress hook
 
-**Behavior to change:** (only what the user asked for)
-- [list, or "None - preserve all existing behavior"]
+**Behavior to change:**
+- The upload rate is enforced by a policer on the `pppN` ingress hook, for L2TP and PPPoE alike
+- A CoA carrying an asymmetric Filter-Id is accepted rather than NAK'd, and changes both directions
+- A MikroTik `Mikrotik-Rate-Limit` keeps its upload half through Access-Accept
+- A PPPoE session carries the rates its RADIUS profile named
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Config: `l2tp { shaper { upload-rate 2mbit; } }`, YANG JSON into the plugin
+- RADIUS: Access-Accept `Filter-Id` or `Mikrotik-Rate-Limit`, and the same attributes in a CoA-Request
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `parseShaperConfig` reads `upload-rate` into `shaperConfig.UploadRate`; `uploadRateOrDefault` applies the documented default
+2. `traffic.ParseFilterIDRate` reads a RADIUS Filter-Id into a rate pair, for the shaper and the CoA listener alike
+3. `(*shaperPlugin).applyTC` builds `traffic.InterfaceQoS{Qdisc: ..., Ingress: traffic.NewPolicer(uploadBps)}`
+4. `(*backend).applyInterface` programs the root qdisc, then `applyIngressPolicer` adds the `clsact` hook and a `matchall` filter carrying a `police` action at priority 200
+5. Teardown: `restoreOriginalLocked` clears priority 200 and leaves the qdisc
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | [JSON format, command syntax] | No |
+| Shaper plugin ↔ traffic component | `traffic.Backend.Apply` with a value-typed `InterfaceQoS` | Yes -- `TestSessionUpEnforcesUploadRate` |
+| Traffic component ↔ kernel | netlink RTM_NEWTFILTER, matchall + police | Yes -- `TestNetlinkIntegration_IngressPolicerReachesTheKernel` reads it back |
+| RADIUS listener ↔ shaper | `l2tpevents.SessionRateChange` carrying both rates | Yes -- `TestRateChangeUpdatesUploadRate` |
+| PPPoE ↔ shaper | `subscriber.ShaperHandler(iface, download, upload)` | Yes -- `TestPPPoESessionUpCarriesRadiusRates` |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- `traffic.InterfaceQoS` gains `Ingress Policer`; both backends answer for it
+- `subscriber.ShaperHandler`'s third argument stops being discarded
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The shaper never speaks netlink; it fills `InterfaceQoS` and the backend translates |
+| No unintended coupling (components stay isolated) | Yes | `authradius` and the shaper share `traffic.ParseFilterIDRate` rather than importing each other |
+| No duplicated functionality (extends existing, does not recreate) | Yes | One `PolicerBurstBytes`, consumed by tc and VPP; the VPP `burstBytes` became a caller |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | Control plane, once per session |
+| Registration over hardcoding | Yes | No central enumeration edited; the backends already register, and `Policer` is a model field both read |
 
 ## Risks & Assumptions
 
-<!-- LIVE: written during RESEARCH/DESIGN, statuses updated during implementation.
-     Gate answers from /ze-spec (assumption challenge, Failure Mode Analysis)
-     land HERE, not only in conversation. -->
-
 ### Assumptions
-<!-- Every row needs a validation method. `unvalidated` is not a valid final
-     status: closure re-checks each one. A broken assumption also gets a
-     Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+| A-1 | A `matchall` filter with a `police` action on the clsact ingress hook is accepted by the kernel and enforces the rate | `vendor/github.com/vishvananda/netlink/filter_linux.go`, `encodePolice`; `internal/plugins/flowexport/sampling/tc_linux.go` uses the same filter kind on the same hook | The upload rate reaches nothing and the spec is not closed | `TestNetlinkIntegration_IngressPolicerReachesTheKernel` reads the police action back from a real kernel | confirmed |
+| A-2 | Adding a filter at priority 200 leaves the mirror's and sampling's filters intact | `mirror_linux.go` comment: the qdisc is shared and only filters are removed | Enabling subscriber shaping would silently disable mirroring on that interface | `TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone` | confirmed |
+| A-3 | Both access types terminate on a `pppN`, so one mechanism covers both | F-5, re-read at `(*shaperPlugin).handleSubscriberSessionUp` and `pppoe/subsystem.go` | PPPoE would need a second mechanism | `TestSubscriberSessionUpEnforcesUploadRate` | confirmed |
+| A-4 | The VPP backend cannot program an interface-wide ingress policer today | `internal/plugins/traffic/vpp/backend_linux.go`, `applyInterface` binds policers to the egress output arc and to the ingress classify pipeline for filtered classes only | An honest refusal would be an unnecessary regression | `TestVerifyRejectsIngressPolicer`; and `applyAll` already fails on a `pppN` with "interface not present in vpp", so the shaper never worked under VPP | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+| R-1 | A policer whose burst is too small drops every packet | Subscriber traffic collapses at low rates | `PolicerBurstBytes` applies a 2048-byte floor, and `Policer.Validate` refuses a rate with no burst |
+| R-2 | A rate above 34.359 Gbit/s truncates in the kernel's uint32 of bytes per second | Policing at a wrapped rate, which lets traffic through | `ingressPolicerFilter` refuses it; `TestIngressPolicerFilterRefusesUnrepresentableRate` pins both sides of the bound |
+| R-3 | A `pppN` number is reused and the next subscriber inherits the previous policer | A subscriber limited at someone else's rate | `restoreOriginalLocked` clears the priority unconditionally, so a restart-orphaned policer is cleared too |
 
 ## Blast Radius
 
-<!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | [other plugins, components, or specs working the same files] |
+| What breaks if this is wrong? | A subscriber's upload is dropped at the wrong rate, or an interface loses its mirror or sampling filters. Nothing outside the `pppN` interface and the shared ingress hook is touched |
+| How is it reverted? | Single commit revert. No config migration: no leaf was added or renamed |
+| Who else touches this path? | `internal/plugins/iface/netlink` (mirror, priority 1) and `internal/plugins/flowexport/sampling` (priority 100) on the same hook; `plan/to-review/spec-l2tp-12-xdp-policing.md` proposed the rejected alternative |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
-<!-- BLOCKING: proves the feature is reachable from its intended entry point.
-     Without it the feature exists in isolation: unit tests pass, nothing calls it.
-     Every row needs a concrete test name. "Deferred"/"TODO"/empty is rejected
-     by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| `l2tp { shaper { upload-rate 2mbit; } }` in the operator's config | → | `parseShaperConfig` then `(*shaperPlugin).applyTC` | `test/l2tp/shaper-upload-rate.ci` |
+| L2TP session-up event | → | `(*shaperPlugin).onSessionUp` -> `InterfaceQoS.Ingress` | `TestSessionUpEnforcesUploadRate` |
+| PPPoE session-up | → | `(*shaperPlugin).handleSubscriberSessionUp` | `TestSubscriberSessionUpEnforcesUploadRate` |
+| RADIUS Access-Accept `Filter-Id: rate:20mbit/5mbit` | → | `traffic.ParseFilterIDRate` -> both rates | `TestFilterIDRateReachesBothDirections` |
+| RADIUS CoA-Request carrying a rate | → | `extractRates` -> `SessionRateChangePayload.UploadRate` | `TestExtractRatesReadsAsymmetricFilterID`, `TestRateChangeUpdatesUploadRate` |
+| `InterfaceQoS.Ingress` set | → | `(*backend).applyIngressPolicer` -> kernel | `TestNetlinkIntegration_IngressPolicerReachesTheKernel` |
 
 ## Acceptance Criteria
 
-<!-- Define BEFORE implementation. Each row is a testable assertion, stated as
-     observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
+| AC-1 | `upload-rate 2mbit` configured, an L2TP session comes up on `ppp0` | `ppp0` carries a policer at 2 Mbit/s on its ingress hook |
+| AC-2 | `upload-rate` absent, `default-rate 7mbit` | The session's upload is policed at 7 Mbit/s, which is what the leaf's documented default says |
+| AC-3 | RADIUS Access-Accept `Filter-Id: rate:20mbit/5mbit` | Download shaped at 20 Mbit/s and upload policed at 5 Mbit/s |
+| AC-4 | A PPPoE session comes up | It gets the same two mechanisms, from the same config and the same RADIUS profile |
+| AC-5 | A CoA-Request carries `Filter-Id: rate:20mbit/5mbit` for a live session | CoA-ACK, and both directions are reprogrammed. It was CoA-NAK'd before |
+| AC-6 | A CoA-Request names a download rate only | The session keeps its existing upload rate rather than losing it |
+| AC-7 | The session goes down | The policer is removed and the shared clsact qdisc stays, with other subsystems' filters intact |
+| AC-8 | An interface asks for no upload enforcement | The shared ingress hook is not touched at all |
+| AC-9 | An upload rate above 34.359 Gbit/s | Refused with a message naming the bound, never truncated |
+| AC-10 | The `vpp` traffic backend is selected and an ingress policer is asked for | Refused at verify and at apply, naming what the backend cannot represent |
+| AC-11 | A MikroTik `Mikrotik-Rate-Limit` of `10M/5M` in an Access-Accept | Both halves survive into the Filter-Id the shaper reads |
 
 ## End-to-End User Stories
 
-<!-- One row per user-facing operation the feature enables. ACs verify that
-     components work; stories verify the chain is connected. A broken link in a
-     path is a spec gap: add the missing component to ACs, Files, and Test Plan
-     before proceeding. Delete this section when Scope is tooling or docs. -->
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | [for example "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+| 1 | Configures `upload-rate 2mbit` and starts the daemon | config -> YANG -> `parseShaperConfig` -> plugin | `test/l2tp/shaper-upload-rate.ci` |
+| 2 | An L2TP subscriber connects and is limited in both directions | session-up -> `applyTC` -> `Backend.Apply` -> tc | `TestSessionUpEnforcesUploadRate` + `TestNetlinkIntegration_IngressPolicerReachesTheKernel` |
+| 3 | A PPPoE subscriber connects with a RADIUS rate profile | Access-Accept -> session metadata -> `subscriber.Session` -> shaper | `TestPPPoESessionUpCarriesRadiusRates` |
+| 4 | The operator raises a live subscriber's rate by CoA | CoA -> `extractRates` -> rate-change event -> `applyTC` | `TestExtractRatesReadsAsymmetricFilterID` + `TestRateChangeUpdatesUploadRate` |
+| 5 | The subscriber disconnects and the interface is reused | session-down -> `RestoreOriginal` | `TestRestoreOriginalRemovesPolicerButKeepsHook` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+| `TestPolicerSetDistinguishesAbsentFromConfigured` | `internal/component/traffic/model_test.go` | the absent/configured guard has a name | pass |
+| `TestNewPolicerFillsBurst` | `internal/component/traffic/model_test.go` | a policer always carries a burst | pass |
+| `TestPolicerBurstBytesFloor` | `internal/component/traffic/model_test.go` | AC-1 low-rate floor | pass |
+| `TestPolicerValidateRejectsBurstlessRate` | `internal/component/traffic/model_test.go` | R-1 | pass |
+| `TestInterfaceQoSCarriesIngressPolicer` | `internal/component/traffic/model_test.go` | the model can express the upload direction | pass |
+| `TestParseFilterIDRateForms` / `...RejectsNonRates` | `internal/component/traffic/filterid_rate_test.go` | AC-3, both polarities | pass |
+| `TestIngressPolicerFilterCarriesRateAndDrop` | `internal/plugins/traffic/netlink/policer_linux_test.go` | AC-1 translation | pass |
+| `TestIngressPolicerFilterRefusesUnrepresentableRate` | same | AC-9, R-2 | pass |
+| `TestIngressPolicerFilterRefusesBurstlessPolicer` | same | R-1 | pass |
+| `TestApplyInstallsIngressPolicer` | same | AC-1, and that the qdisc is added not replaced | pass |
+| `TestApplyWithoutIngressPolicerTouchesNoIngressHook` | same | AC-8 | pass |
+| `TestApplyToleratesExistingClsact` | same | AC-7 coexistence | pass |
+| `TestRestoreOriginalRemovesPolicerButKeepsHook` | same | AC-7 | pass |
+| `TestRestoreOriginalToleratesMissingPolicer` / `...ReportsPolicerRemovalFailure` | same | the teardown error gate, both polarities | pass |
+| `TestVerifyRejectsIngressPolicer` / `TestVerifyAcceptsAbsentIngressPolicer` | `internal/plugins/traffic/vpp/verify_test.go` | AC-10, both polarities | pass |
+| `TestSessionUpEnforcesUploadRate` | `internal/component/l2tp/plugins/shaper/shaper_test.go` | AC-1 | pass |
+| `TestSessionUpFallsBackToDefaultRateForUpload` | same | AC-2 | pass |
+| `TestSessionUpEnforcesRadiusUploadHalf` | same | AC-3 | pass |
+| `TestRateChangeUpdatesUploadRate` | same | AC-5 | pass |
+| `TestRateChangeKeepsUploadRateWhenPayloadOmitsIt` | same | AC-6 | pass |
+| `TestSubscriberSessionUpEnforcesUploadRate` / `...FallsBackToConfiguredUploadRate` | same | AC-4 | pass |
+| `TestFilterIDRateReachesBothDirections` / `TestNonRateFilterIDLeavesConfiguredRates` | `internal/component/l2tp/plugins/shaper/filter_rate_test.go` | AC-3, both polarities, from the entry point | pass |
+| `TestExtractRatesReadsAsymmetricFilterID` / `...RejectsNonRate` / `...KeepsMikrotikUploadHalf` | `internal/component/l2tp/plugins/authradius/coa_test.go` | AC-5, AC-11 | pass |
+| `TestAccessAcceptKeepsMikrotikUploadHalf`, `TestExtractAuthMetadataMikrotikRate` | `internal/component/l2tp/plugins/authradius/extract_vsa_test.go` | AC-11 | pass |
+| `TestPPPoESessionUpCarriesRadiusRates` | `internal/component/l2tp/pppoe/subsystem_test.go` | AC-4 | pass |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+| `Policer.RateBps` | 1 .. 34359738360 | 34359738360 | 0 (absent, not invalid) | 34359738368 |
+| `Policer.BurstBytes` | 2048 .. 4294967295 | 4294967295 | 2047 | 4294967296 |
 
 ### Functional Tests
-<!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
-     the feature. New RPCs/APIs are never covered by unit tests alone.
-     Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| `shaper-upload-rate` | `test/l2tp/shaper-upload-rate.ci` | the operator configures an upload rate and the daemon starts with it reaching the plugin | pass |
 
 ### Interop Tests (Scope: protocol)
-<!-- REQUIRED when wire-visible behavior changes. See
-     ai/rules/interop-and-goal-validation.md, including the vacuity traps: prove
-     the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+| N-A | -- | -- | Nothing on the wire changed. The change is a kernel datapath policy on a local interface plus the reading of two RADIUS attributes Ze already received. The kernel is the peer, and `TestNetlinkIntegration_IngressPolicerReachesTheKernel` reads the installed state back from it | N-A |
 
 ## Files to Modify
-<!-- MUST include feature code (internal/*, cmd/*), not only test files.
-     Check each file's // Design: annotation: if the change alters behavior the
-     referenced architecture doc describes, list that doc here too. -->
-- `internal/...` - [feature changes]
+- `internal/component/traffic/model.go` - `Policer`, `NewPolicer`, `PolicerBurstBytes`, `InterfaceQoS.Ingress`
+- `internal/plugins/traffic/netlink/ops_linux.go` - `qdiscAdd` and `filterDel` on the kernel seam
+- `internal/plugins/traffic/netlink/backend_linux.go` - program the policer in `applyInterface`, clear it in `restoreOriginalLocked`
+- `internal/plugins/traffic/vpp/verify.go` - refuse an ingress policer at commit
+- `internal/plugins/traffic/vpp/backend_linux.go` - refuse it at apply, for a caller that bypassed verify
+- `internal/plugins/traffic/vpp/translate.go` - `burstBytes` becomes a caller of `traffic.PolicerBurstBytes`
+- `internal/component/l2tp/plugins/shaper/shaper.go` - `applyTC` takes both rates; all three call sites pass the upload rate
+- `internal/component/l2tp/plugins/shaper/config.go` - `uploadRateOrDefault`
+- `internal/component/l2tp/plugins/shaper/register.go` - the configure log names both rates
+- `internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang` - the help stops saying no interface enforces the rate
+- `internal/component/l2tp/plugins/authradius/coa.go` - `extractRates`, and both rates into the rate-change events
+- `internal/component/l2tp/plugins/authradius/extract_vsa.go` - `extractVSARates`, `mikrotikRateToFilterID` keeps both halves
+- `internal/component/l2tp/plugins/authradius/extract.go` - the Access-Accept caller
+- `internal/component/l2tp/pppoe/subsystem.go` - the producer for `subscriber.Session`'s two rate fields
+- `internal/test/fixture/tunnel_fixture_l2tp.go` - the fixture the new `.ci` drives
+- `docs/guide/l2tp.md` - the Traffic shaping section
+- `docs/architecture/core-design.md` - section 14b, the traffic data model
+- `docs/architecture/l2tp/cos-vendor-radius.md` - the "MikroTik upload rate is discarded" consequence is no longer true
+- `docs/architecture/l2tp/bng-1-radius-attributes.md` - `traffic.ParseFilterIDRate` is the one reader of a Filter-Id rate
+- `docs/architecture/traffic/fw-7-traffic-vpp.md` - the ingress policer joins the exact-or-reject list
+- `docs/architecture/traffic/tc-original-qdisc-restore.md` - `qdiscAdd` and `filterDel` on the `tcOps` seam, and what restore clears
+- `docs/architecture/l2tp/bng-5-pppoe.md` - where a PPPoE session reads its RADIUS rate profile
 
 ## Files to Create
-- `internal/...` - [new feature file]
-- `test/.../*.ci` - [functional test for end-user behavior]
+- `internal/component/traffic/filterid_rate.go` - `ParseFilterIDRate`, the one reader of a RADIUS Filter-Id rate
+- `internal/plugins/traffic/netlink/policer_linux.go` - the tc ingress policer
+- `test/l2tp/shaper-upload-rate.ci` - the operator's half of the chain
+
+## Files Removed
+- `internal/component/l2tp/plugins/shaper/filter_rate.go` - superseded by `traffic.ParseFilterIDRate`, which both consumers can reach
 
 ### Integration Checklist
-<!-- Answer every row Yes / No / N-A. Never leave a bare marker: an unanswered
-     row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
-| YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
-| YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
-| CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
-| Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
-| Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
-| Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
-| Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
-| BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
+| YANG schema (new RPCs/config) | No | No leaf added, renamed or removed. `upload-rate` already existed; this makes it do what it says |
+| YANG validation constraints | No | `zt:rate` already constrains the leaf |
+| YANG custom validators | No | `verifyShaperConfig` already parses the leaf at commit |
+| CLI commands/flags | No | `show l2tp shaper` keys are unchanged |
+| CLI grammar (keyword before value) | N-A | No command added |
+| Editor autocomplete | No | No new leaf |
+| Functional test for new RPC/API | Yes | `test/l2tp/shaper-upload-rate.ci` |
+| Pipe completeness | N-A | No new command output |
+| Env var registration | N-A | No new env var |
+| Doctor check for runtime dependencies | No | The clsact qdisc and the police action need no module beyond `sch_ingress`/`act_police`, which the existing mirror and sampling paths already depend on and which no doctor check covers today. Adding one would cover three subsystems, not this one, so it belongs to whoever covers the hook |
+| Prometheus counters/metrics | No | None added. The kernel counts policed drops in `tc -s filter`, which is where an operator reads them |
+| BGP family surface | N-A | Not BGP |
 
 ### Documentation Update Checklist (BLOCKING)
-<!-- Answer every row Yes / No / N-A. A No must be backed by a source-aware
-     check, not a guess: at minimum grep docs/ for source anchors pointing at the
-     files you changed. Any factual doc change carries a source anchor. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | | `docs/features.md` |
-| 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
-| 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
-| 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
-| 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
-| 11 | Affects daemon comparison? | | `docs/comparison.md` |
-| 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
-| 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
-| 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec citation anchors spec plan/<this-spec>.md` lists them. A doc DECLARED by a changed file's `// Design:` header BLOCKS until named here; a doc that only `<!-- source: -->` mentions it is advisory. Naming it as unaffected, with the reason, satisfies the check |
-| 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+| 1 | New user-facing feature? | No | `docs/features.md` already lists L2TP traffic shaping; this makes an advertised leaf work rather than adding a feature |
+| 2 | Config syntax changed? | No | Same leaves, same syntax |
+| 3 | CLI command added/changed? | No | -- |
+| 4 | API/RPC added/changed? | No | -- |
+| 5 | Plugin added/changed? | No | No plugin added or removed |
+| 6 | Has a user guide page? | Yes | `docs/guide/l2tp.md`, Traffic shaping: both directions, the mechanism for each, and the accepted Filter-Id forms |
+| 7 | Wire format changed? | No | -- |
+| 8 | Plugin SDK/protocol changed? | No | -- |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 2865 Section 5.11 and RFC 5176 were already claimed and remain so; the CoA path now carries out the change it acknowledges, which is what the existing claim already said |
+| 10 | Test infrastructure changed? | No | One fixture registered in an existing registry |
+| 11 | Affects daemon comparison? | No | -- |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` section 14b: the traffic model now carries both directions |
+| 13 | Route metadata keys added/changed? | No | -- |
+| 14 | Prometheus counters added/changed? | No | -- |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | -- |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED from `./le spec citation anchors`. Six docs are DECLARED by changed files. Five carry an edit and are named under Files to Modify: `cos-vendor-radius.md` (its "the MikroTik upload rate is discarded" consequence became false), `bng-1-radius-attributes.md` (names the one Filter-Id rate reader), `fw-7-traffic-vpp.md` (the ingress policer joins the exact-or-reject list), `tc-original-qdisc-restore.md` (two new `tcOps` calls, and what restore clears). Five carry an edit, the fifth being `docs/architecture/l2tp/bng-5-pppoe.md` (where a PPPoE session reads its RADIUS rate profile). One is unaffected: `docs/research/l2tpv2-ze-integration.md` is the original research note describing the shaper's registration and events, neither of which changed. Of the twelve advisory MENTIONS, `docs/guide/traffic-control.md` and `docs/architecture/traffic/followup-vpp-traffic.md` were read and describe the operator's qdisc config surface and the VPP rejection RATIONALE, neither of which this change alters beyond the `fw-7` row already added; `docs/guide/pppoe.md`, `docs/guide/configuration.md`, `docs/comparison.md`, `docs/features/rfc-status.md`, `docs/functional-tests.md`, `docs/architecture/traffic/cos-dynamic.md`, `docs/architecture/traffic/cp-survival-3-egress-cs6-sched.md`, `docs/architecture/traffic/fw-7b-backend-hardening.md`, `docs/architecture/l2tp/subscriber-session-model.md` and `docs/architecture/l2tp/cos-vendor-radius.md` (already named) make no claim this change falsifies |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | The `docs/guide/l2tp.md` example was checked against the YANG and is unchanged, because no leaf changed |
 
 ## Implementation Steps
 
-<!-- Concrete phases of work, not a restatement of the /ze-implement stages
-     (those live in the skill). Phase 1 is ALWAYS wiring. Order by dependency:
-     schema before resolution, resolution before CLI. Each phase follows TDD
-     (write test -> fail -> implement -> pass) and ends with a self-critical
-     review; fix what it finds before starting the next phase. -->
-
-1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
-   - Tests: [wiring test names from the Wiring Test table]
-   - Files: [register.go, handler skeleton, route registration]
-   - Verify: the entry point exists and is reachable. The wiring test fails because the feature is a stub
-2. **Phase: [name]** -- [what to implement]
-   - Tests: [test names from the TDD Plan]
-   - Files: [files from Files to Modify]
-   - Verify: tests fail → implement → tests pass → wiring test progresses
+1. **Phase: Wiring (MANDATORY FIRST)** -- give the model a way to express the upload direction
+   - Tests: `TestInterfaceQoSCarriesIngressPolicer`, `TestPolicerSetDistinguishesAbsentFromConfigured`, `TestNewPolicerFillsBurst`, `TestPolicerBurstBytesFloor`, `TestPolicerValidateRejectsBurstlessRate`
+   - Files: `internal/component/traffic/model.go`
+   - Verify: RED with `undefined: Policer`; then green
+2. **Phase: the tc ingress policer** -- translate and program it
+   - Tests: the `policer_linux_test.go` set, then `TestNetlinkIntegration_IngressPolicerReachesTheKernel` and `...LeavesOtherHookOwnersAlone`
+   - Files: `policer_linux.go`, `ops_linux.go`, `backend_linux.go`
+   - Verify: RED on the whole set; then green, including against a real kernel
+3. **Phase: the VPP answer** -- refuse what it cannot program
+   - Tests: `TestVerifyRejectsIngressPolicer`, `TestVerifyAcceptsAbsentIngressPolicer`
+   - Files: `vpp/verify.go`, `vpp/backend_linux.go`, `vpp/translate.go`
+   - Verify: RED on the refusal; then green
+4. **Phase: the shaper** -- both directions at every call site
+   - Tests: the seven upload tests in `shaper_test.go`
+   - Files: `shaper.go`, `config.go`
+   - Verify: seven RED for the same reason; then green
+5. **Phase: the rate-change path** -- one Filter-Id reader, both rates through CoA
+   - Tests: the `coa_test.go` and `extract_vsa_test.go` sets, `filter_rate_test.go`
+   - Files: `traffic/filterid_rate.go`, `authradius/coa.go`, `authradius/extract_vsa.go`, `authradius/extract.go`, `pppoe/subsystem.go`
+   - Verify: RED; then green
+6. **Phase: the operator's half** -- docs, YANG help, functional test
+   - Tests: `test/l2tp/shaper-upload-rate.ci`
+   - Files: the YANG, `docs/guide/l2tp.md`, `docs/architecture/core-design.md`, the fixture registry
+   - Verify: functional RED under a probe that ignores the leaf; then green
 
 ### Critical Review Checklist
 
-<!-- Feature-SPECIFIC checks. The generic ones in ai/rules/quality.md always
-     apply and are not repeated here. A row that would read the same on any spec
-     is not worth a row. -->
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file:line |
-| Feature completeness | Every user story has a working path, no broken links |
-| Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
-| Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
-| Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
-| Rule: [relevant rule] | [what to check] |
+| Completeness | Every AC-N has product code: AC-1..AC-3 `applyTC`, AC-4 `handleSubscriberSessionUp` + `pppoe/subsystem.go`, AC-5/AC-6 `onSessionRateChange` + `extractRates`, AC-7/AC-8 `applyIngressPolicer`/`removeIngressPolicer`, AC-9 `ingressPolicerFilter`, AC-10 `vpp/verify.go`, AC-11 `mikrotikRateToFilterID` |
+| Feature completeness | Both access types reach the policer, and the RADIUS profile reaches both of them |
+| Correctness | The kernel carries bytes per second, not bits: the translation divides by 8, and the integration test asserts the byte figure |
+| Correctness | Exceeding traffic is dropped, because the ingress hook has no queue to delay into |
+| Naming | `Ingress` names the direction, not the mechanism, so a future backend can implement it its own way |
+| Data flow | The shaper speaks no netlink; the tc priority allocation lives with the backend that owns the hook |
+| Rule: `ai/rules/principles.md` | The zero `Policer` is a guard with a name (`Set`), a comment and a test |
+| Rule: exact-or-reject | VPP refuses rather than programming the egress half and reporting success |
 
 ### Deliverables Checklist
 
-<!-- Every deliverable with a command that proves it. "Looks done" is not a
-     verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [concrete thing that must exist] | [grep/ls/test command] |
+| The upload rate reaches a real kernel | `./le integration traffic` |
+| The operator's config reaches the plugin | `./le functional l2tp` |
+| No mutation marker left behind | `grep -rn MUTATION-APPLIED internal/ test/ docs/` returns nothing |
+| The leaf's help no longer says nothing enforces it | `grep -n "no interface enforces" internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang` returns nothing |
 
 ### Security Review Checklist
 
-<!-- Feature-specific: untrusted input, injection, resource exhaustion, error
-     leakage, authorization that could fail open. -->
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | [what inputs need validation and how] |
+| Input validation | A RADIUS server is a remote party. `ParseFilterIDRate` accepts only a number and a known suffix, `traffic.ParseRateBps` bounds the value, and `ingressPolicerFilter` refuses a rate the kernel cannot carry rather than truncating it. A truncated rate is the dangerous direction: it lets traffic through |
+| Resource exhaustion | One filter per subscriber interface, removed on teardown. `restoreOriginalLocked` clears the priority unconditionally, so a policer orphaned by a restart is cleared when the interface is reused |
+| Failing open | A policer the backend cannot program is an error, never a silent skip. VPP refuses; tc refuses an unrepresentable rate |
 
 ### Failure Routing
 
@@ -359,25 +454,37 @@ policer. Picking one picks the route. The route is the owner's decision
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
-<!-- LIVE: write immediately when you learn something. At closure these route to
-     a subsystem arch doc, a rule, or the learned summary. -->
+
+- **The direction asymmetry is the design, not a compromise.** Downstream gets a queue because the BNG is the bottleneck there. Upstream gets a policer because the subscriber's access link already constrains them and the router has nothing to queue into on ingress. osvbng reached the same split independently (`osvbng_qos_sched/INTRODUCTION.md`).
+- **The interface index is the natural key once the subscriber's IP packet exists.** By the time the packet reaches the ingress feature arc, the tunnel and session ids are gone. That is why route B could not serve PPPoE, and it is the same reason osvbng names its policer `sub_<sw_if_index>_in`.
+- **An install-once guard is how this defect reappears.** osvbng accepts a CoA, merges it into the session, and never programs it, because `ApplyQoS` returns early when the policer exists. Every path here reprograms, and `TestRateChangeUpdatesUploadRate` pins it.
+- **A shared kernel hook needs a priority allocation, and Ze now has three owners.** Mirror 1, sampling 100, policer 200. Each is declared in its own package with a comment naming the others. A fourth owner should turn that into one declaration rather than a fourth comment.
 
 ## Key Design Decisions
-<!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
+
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Policer on the `pppN` ingress hook, owned by the shaper | XDP on the uplink NIC keyed by tunnel and session id (`plan/to-review/spec-l2tp-12-xdp-policing.md`) | A PPPoE subscriber carries no L2TP header, so that key cannot reach half the subscribers. Owner decision, 2026-09-06 |
+| `Ingress Policer` as a value field on `InterfaceQoS` | A pointer field; a separate `Backend` method | A value keeps the cross-boundary payload pointer-free, and one `Apply` still programs an interface's whole desired state |
+| `Policer.Set()` names the absent/configured distinction | Reading `RateBps > 0` at each call site | A zero that another branch relies on is a guard, and a guard gets a name, a comment and a test |
+| tc priority 200, after the two existing owners | 50, between mirror and sampling | The kernel stops at the first filter that returns a verdict, so running last is the only placement that changes neither existing owner's behavior |
+| Add the clsact qdisc, never replace it; remove only our priority | `qdiscReplace`, or deleting the qdisc on teardown | Both would drop every mirror and sampling filter on the interface |
+| `traffic.ParseFilterIDRate` shared by the shaper and the CoA listener | Leaving the CoA listener's open-coded `ParseRateBps` | The CoA path NAK'd the exact value the Access-Accept path accepts, so an asymmetric rate could be set at login and never changed. That blocks AC-5 |
+| The VPP backend refuses an ingress policer | Silently programming the egress half | Exact-or-reject, and a silently unenforced upload rate is the defect this spec closes |
+| `PolicerBurstBytes` declared once, consumed by tc and VPP | A second copy in the tc backend | A burst is one fact about a rate. Two copies drift |
 
 ## Known Limitations
-<!-- Deliberate scope boundaries. Anything here that is actually outstanding work
-     is not a limitation: write it as its own spec, in the bucket that item
-     belongs to, and name that spec here (ai/rules/planning.md). -->
-- [What was deliberately not done and why]
+
+- **The VPP backend does not police ingress.** It refuses instead. The L2TP shaper already could not run under VPP, because a Linux `pppN` is not a VPP interface and `applyAll` fails on it. Implementing a VPP subscriber input-arc policer is a separate piece of work and is not needed until subscriber termination moves into VPP.
+- **The tc filter priority allocation is declared in three packages.** Mirror, sampling and the policer each declare their own constant with a comment naming the other two. One shared declaration would be better and touches three plugins, so it is not folded into this change.
+- **`show l2tp shaper` reports the rates the shaper holds, not the rates the kernel holds.** Reading the installed policer back for the show command is a separate improvement; the integration test reads it from the kernel instead.
 
 ## RFC Documentation (Scope: protocol)
 
-Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
-MUST document: validation rules, error conditions, state transitions, timer
-constraints, message ordering, and every MUST/MUST NOT.
+RFC 2865 Section 5.11 (Filter-Id) and RFC 5176 Section 2.3 (CoA) are cited above
+the code that enforces them, in `shaper.go`, `coa.go` and
+`internal/component/traffic/filterid_rate.go`. No new MUST is implemented: the
+CoA path now carries out the authorization change it already acknowledged.
 
 ## Checklist
 

@@ -149,7 +149,10 @@ func (b *backend) applyInterface(link netlink.Link, qos *traffic.InterfaceQoS) e
 		}
 	}
 
-	return nil
+	// The root qdisc above shapes egress, which on a subscriber interface is
+	// the download direction. The upload direction arrives on the ingress hook,
+	// where a policer is the enforcement available (policer_linux.go).
+	return b.applyIngressPolicer(link, qos.Ingress)
 }
 
 func (b *backend) ensureSnapshot(link netlink.Link) error {
@@ -252,6 +255,12 @@ func (b *backend) restoreOriginalLocked(ifaceName string) error {
 		return fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
 	}
 	if err := snap.validateLink(link, b.bootID); err != nil {
+		return fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
+	}
+	// Clear the ingress policer before the root qdisc goes back. A policer left
+	// on the hook rate-limits whoever gets this interface next, and a pppN
+	// number is reused as soon as the subscriber count drops.
+	if err := b.removeIngressPolicer(link); err != nil {
 		return fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
 	}
 	if snap.Qdisc.restoredByDelete() {

@@ -28,7 +28,19 @@ var (
 	// silent semantic substitution that exact-or-reject forbids, so prio stays
 	// rejected with this actionable error. Rationale:
 	// docs/architecture/traffic/followup-vpp-traffic.md (AC-4).
-	errQdiscPrioNotSupportedByBackend = errors.New("qdisc prio: not supported by backend vpp (prio is a priority scheduler; VPP has no prio scheduler API, only classify+policer shaping -- use htb/tbf with per-class protocol/dscp filters instead, see plan/spec-followup-vpp-traffic.md AC-4)")
+	// errIngressPolicerNotSupportedByBackend names the ingress half of the QoS
+	// model. The tc backend polices ingress with a matchall+police filter on the
+	// clsact hook; VPP's equivalent is a policer on the interface's input
+	// feature arc, which this backend does not build: it binds policers to the
+	// egress output arc and to the ingress policer-classify pipeline for
+	// FILTERED classes only. Accepting the field and programming the egress
+	// half alone would leave the upload rate stored, shown and unenforced,
+	// which is the exact defect
+	// plan/immediate/spec-l2tp-shaper-upload-rate-is-not-enforced.md closes on
+	// the tc side. Rejecting is the exact-or-reject posture the rest of this
+	// file takes.
+	errIngressPolicerNotSupportedByBackend = errors.New("ingress policer: not supported by backend vpp (tc polices ingress with a clsact matchall+police filter; the vpp backend binds policers to the egress output arc and to the ingress classify pipeline for filtered classes only, so an interface-wide upload rate has no faithful translation here)")
+	errQdiscPrioNotSupportedByBackend      = errors.New("qdisc prio: not supported by backend vpp (prio is a priority scheduler; VPP has no prio scheduler API, only classify+policer shaping -- use htb/tbf with per-class protocol/dscp filters instead, see plan/spec-followup-vpp-traffic.md AC-4)")
 )
 
 // maxProtocol is the largest IP protocol / IPv6 next-header value that fits in
@@ -98,6 +110,9 @@ func Verify(desired map[string]traffic.InterfaceQoS) error {
 func verifyInterface(ifaceName string, iqos traffic.InterfaceQoS) error {
 	if err := verifyQdiscType(iqos.Qdisc.Type); err != nil {
 		return err
+	}
+	if iqos.Ingress.Set() {
+		return errIngressPolicerNotSupportedByBackend
 	}
 	// Reject interface names containing the separator: they would produce
 	// ambiguous policer names that cannot be parsed back into their parts.

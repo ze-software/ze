@@ -592,6 +592,24 @@ The `l2tp-shaper` plugin applies TC (traffic control) rules on `pppN`
 interfaces. Session establishment uses the configured default rate.
 RADIUS CoA can update the rate dynamically after the session is up.
 
+A subscriber session is shaped in both directions, and each direction uses a
+different mechanism.
+
+| Direction | On the `pppN` interface | Mechanism | Config leaf |
+|-----------|------------------------|-----------|-------------|
+| Download, toward the subscriber | egress | the configured queueing discipline (`tbf` or `htb`) | `default-rate` |
+| Upload, from the subscriber | ingress hook | a token-bucket policer that drops traffic above the rate | `upload-rate` |
+
+The upload direction uses a policer because the ingress hook holds no queue. A
+queueing discipline shapes by delaying a packet, and there is nothing to delay
+into on that hook, so the enforcement available is to drop what exceeds the
+rate. The policer attaches at tc priority 200 on the shared `clsact` qdisc, so
+interface mirroring (priority 1) and flow-export sampling (priority 100) keep
+working on the same interface.
+
+A PPPoE subscriber gets the same pair of mechanisms. Both access types
+terminate on a `pppN`, so one implementation serves them both.
+
 Configured under the `l2tp` config tree:
 
 ```
@@ -605,14 +623,20 @@ l2tp {
 ```
 
 RADIUS `Filter-Id` can override the default shaping rate when it contains a
-parseable rate, otherwise Ze keeps the configured default rate. `Session-Timeout`
+parseable rate, otherwise Ze keeps the configured default rate. The forms
+`10mbit`, `20mbit/5mbit`, `rate:10mbit` and `rate:20mbit/5mbit` are accepted, at
+Access-Accept and in a CoA-Request alike. A MikroTik `Mikrotik-Rate-Limit` of
+`10M/5M` is read the same way. The two-value forms set the download rate and the
+upload rate separately. `Session-Timeout`
 and `Idle-Timeout` start per-session teardown timers.
 `Acct-Interim-Interval` sets the accounting update cadence, clamped to 60..3600
 seconds. It applies to a session whose deployment left `acct-interval` unset.
 RFC 2869 Section 2.1 gives a configured `acct-interval` precedence over it.
 RADIUS CoA rate updates do not tear down the session.
 
-<!-- source: internal/component/l2tp/plugins/shaper/ -->
+<!-- source: internal/component/l2tp/plugins/shaper/shaper.go -- applyTC, both directions -->
+<!-- source: internal/plugins/traffic/netlink/policer_linux.go -- the tc ingress policer -->
+<!-- source: internal/component/traffic/filterid_rate.go -- ParseFilterIDRate -->
 
 ## CQM (Call Quality Metrics)
 

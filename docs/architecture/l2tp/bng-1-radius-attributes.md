@@ -268,3 +268,13 @@ teardown each reach the store. Missing either one leaks map entries.
 
 **Filter-Id rate accepts two spellings.** RADIUS servers vary, so both
 `rate:20mbit/5mbit` and the bare `20mbit/5mbit` parse. The prefix is optional.
+
+**One function reads them, for every caller.** `traffic.ParseFilterIDRate` is
+that function. The shaper reads the Access-Accept Filter-Id through it and the
+CoA listener reads the CoA-Request Filter-Id through it, so a value the NAS
+accepts at login is a value it accepts in a change of authorization. The CoA
+listener open-coded a `ParseRateBps` call over the whole string until
+2026-09-06, which accepted `rate:10mbit` and answered CoA-NAK to
+`rate:20mbit/5mbit`.
+
+<!-- source: internal/component/traffic/filterid_rate.go -- ParseFilterIDRate -->

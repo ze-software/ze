@@ -38,8 +38,11 @@ RADIUS data, and a silent overflow produces a nonsensical rate.
 - Adding a vendor costs one constant pair in the RADIUS dictionary, one case in
   the matcher or the rate extractor, and one test. No registration, no config,
   no schema.
-- The MikroTik upload rate is discarded. Only the download rate reaches the
-  shaper, which matches the existing Filter-Id rate path.
+- Both MikroTik rate halves reach the shaper. `mikrotikRateToFilterID` writes
+  the asymmetric spelling `20000000bit/5000000bit` when the two differ, and the
+  symmetric one when they do not, which is what `traffic.ParseFilterIDRate`
+  reads. Until 2026-09-06 the upload half was discarded here, which was harmless
+  only because no interface enforced an upload rate.
 - The change-of-authorization path has the same fallback as the Access-Accept
   path. Both check the vendor attributes after Filter-Id.
 

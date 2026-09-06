@@ -46,6 +46,7 @@ func init() {
 	Register("l2tp/rfc2661-emitted-control-shape", tunnelL2TPEmittedShape)
 	Register("l2tp/rfc2661-sccrq-mandatory-avp", tunnelL2TPMandatoryAVP)
 	Register("l2tp/rfc2661-sccrq-tunnel-id-zero", tunnelL2TPZeroTunnelID)
+	Register("l2tp/shaper-upload-rate", tunnelL2TPHandshakeDriver(0x0604, "py-shaper", "aabbccddeeff00112233445566778899", "OK: tunnel established with shaper upload-rate config"))
 	Register("l2tp/session-auth-pool", tunnelL2TPSessionDriver(0x0403, 600, "0011223344556677aabbccddeeff8899", 1, "auth-pool"))
 	Register("l2tp/session-cdn-teardown", tunnelL2TPSessionDriver(0x0123, 500, "00112233445566778899aabbccddeeff", 1, "cdn"))
 	Register("l2tp/session-incoming-lns", tunnelL2TPSessionDriver(0x0123, 500, "00112233445566778899aabbccddeeff", 1, "incoming"))

@@ -61,7 +61,16 @@ an operator config silently rewritten.
 
 <!-- source: internal/plugins/traffic/netlink/ops_linux.go -- tcOps, netlinkOps -->
 
-`tcOps` is the narrow unexported interface over the eight netlink calls the
-backend makes (link lookup, qdisc list, replace and delete, class list and add,
-filter list and add). `netlinkOps` is the production adapter. The snapshot and
-restore branches are therefore testable without a live interface.
+`tcOps` is the narrow unexported interface over the ten netlink calls the
+backend makes (link lookup, qdisc list, add, replace and delete, class list and
+add, filter list, add and delete). `netlinkOps` is the production adapter. The
+snapshot and restore branches are therefore testable without a live interface.
+
+`qdiscAdd` and `filterDel` belong to the ingress policer. The policer attaches
+at the shared `clsact` hook, whose qdisc object the mirror and sampling paths
+also hang filters on, so it is ADDED rather than replaced and only the
+policer's own filter priority is deleted. Restore clears that priority
+unconditionally, before the root qdisc goes back: the desired end state is "no
+policer at that priority", and asking the kernel for it is correct whether or
+not this process installed one. That also clears a policer orphaned by a
+restart, which a remembered-state check would miss.

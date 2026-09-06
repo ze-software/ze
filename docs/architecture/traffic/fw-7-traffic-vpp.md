@@ -41,6 +41,19 @@ translator's internal consistency, never that its output is what the external
 system acts on. For a backend talking to an external system, the test must
 exercise that system or the reviewer must read its semantics.
 
+**The ingress policer is rejected under this rule.** `InterfaceQoS.Ingress`
+carries a per-interface upload rate that the tc backend installs as a
+`matchall` filter with a `police` action on the `clsact` ingress hook. VPP binds
+policers to the egress output arc, and to the ingress classify pipeline for
+classes that carry a steering filter, so there is no faithful translation of an
+interface-wide upload rate here. `Verify` refuses it at commit and
+`applyInterface` refuses it again for a caller that reached `Apply` without
+passing through `OnConfigVerify`. Programming the egress half and reporting
+success would reproduce, one backend over, the exact defect the ingress policer
+was built to close.
+
+<!-- source: internal/plugins/traffic/vpp/verify.go -- errIngressPolicerNotSupportedByBackend -->
+
 ### A per-backend verifier, not a YANG gate
 
 The YANG `ze:backend` gate annotates LEAVES, not enum values. "Reject

@@ -10,6 +10,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/traffic"
 )
@@ -241,6 +242,173 @@ func TestNetlinkIntegration_RestoreOriginalQdiscAfterRestart(t *testing.T) {
 		}
 		if len(remaining) != 0 {
 			t.Fatalf("snapshots still persisted after restore = %v, want empty", remaining)
+		}
+	})
+}
+
+// ingressPolicerInKernel reads the police action the kernel holds at the
+// backend's priority on an interface's ingress hook. It reports ok=false when
+// no policer is installed there.
+func ingressPolicerInKernel(t *testing.T, ifaceName string) (rateBytesPerSec uint32, ok bool) {
+	t.Helper()
+
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		t.Fatalf("link %q: %v", ifaceName, err)
+	}
+	filters, err := netlink.FilterList(link, netlink.HANDLE_MIN_INGRESS)
+	if err != nil {
+		t.Fatalf("list ingress filters for %q: %v", ifaceName, err)
+	}
+	for _, f := range filters {
+		matchall, isMatchAll := f.(*netlink.MatchAll)
+		if !isMatchAll || matchall.Priority != policerFilterPriority {
+			continue
+		}
+		for _, action := range matchall.Actions {
+			if police, isPolice := action.(*netlink.PoliceAction); isPolice {
+				return police.Rate, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// ingressFilterPresent reports whether the ingress hook holds a filter at the
+// given priority.
+func ingressFilterPresent(t *testing.T, ifaceName string, priority uint16) bool {
+	t.Helper()
+
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		t.Fatalf("link %q: %v", ifaceName, err)
+	}
+	filters, err := netlink.FilterList(link, netlink.HANDLE_MIN_INGRESS)
+	if err != nil {
+		t.Fatalf("list ingress filters for %q: %v", ifaceName, err)
+	}
+	for _, f := range filters {
+		if f.Attrs().Priority == priority {
+			return true
+		}
+	}
+	return false
+}
+
+// VALIDATES: the subscriber upload rate reaches the kernel, and leaves it again
+// on teardown.
+//
+// Goal: prove the ingress policer is really installed, not merely translated.
+// Method: apply an InterfaceQoS carrying an Ingress policer to a veth in a
+// throwaway namespace, then read the police action back out of the kernel by
+// listing the ingress hook. A unit test over the translator proves the netlink
+// message is well formed; only this proves the kernel accepted it.
+//
+// PREVENTS: a return to the state where upload-rate was stored, reported by
+// `show l2tp shaper`, and enforced by nothing.
+func TestNetlinkIntegration_IngressPolicerReachesTheKernel(t *testing.T) {
+	withTrafficNetNS(t, func() {
+		const ifaceName = "ze_tc4"
+		link := addTrafficVeth(t, ifaceName, "ze_tc5")
+		replaceRootFQ(t, link)
+
+		registerSnapshotStore(t)
+		b := newBackendWithOps(netlinkOps{}, nil, "boot-1", nil)
+		desired := map[string]traffic.InterfaceQoS{
+			ifaceName: {
+				Interface: ifaceName,
+				Qdisc: traffic.Qdisc{
+					Type:         traffic.QdiscHTB,
+					DefaultClass: "default",
+					Classes: []traffic.TrafficClass{
+						{Name: "default", Rate: 10_000_000, Ceil: 10_000_000},
+					},
+				},
+				Ingress: traffic.NewPolicer(8_000_000),
+			},
+		}
+		if err := b.Apply(context.Background(), desired); err != nil {
+			t.Fatalf("Apply: %v", err)
+		}
+
+		rate, ok := ingressPolicerInKernel(t, ifaceName)
+		if !ok {
+			t.Fatal("the kernel holds no police action on the ingress hook: the upload rate is enforced by nothing")
+		}
+		// The kernel carries the policed rate in bytes per second.
+		if rate != 1_000_000 {
+			t.Fatalf("kernel police rate = %d bytes/s, want 1000000 (8 Mbit/s)", rate)
+		}
+
+		if err := b.RestoreOriginal(context.Background(), ifaceName); err != nil {
+			t.Fatalf("RestoreOriginal: %v", err)
+		}
+		if _, stillThere := ingressPolicerInKernel(t, ifaceName); stillThere {
+			t.Fatal("the police action survived teardown: the next session on this interface inherits it")
+		}
+	})
+}
+
+// VALIDATES: the policer coexists with the two other owners of the clsact hook.
+//
+// Goal: prove that installing a subscriber policer does not disturb a filter
+// another subsystem put on the same qdisc, and that removing the policer leaves
+// that filter in place. The mirror path owns priority 1 and flow-export
+// sampling owns priority 100; the policer is the third owner.
+//
+// Method: install a matchall filter at priority 1 by hand, standing in for the
+// mirror, then apply and tear down the policer around it.
+func TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone(t *testing.T) {
+	withTrafficNetNS(t, func() {
+		const ifaceName = "ze_tc6"
+		link := addTrafficVeth(t, ifaceName, "ze_tc7")
+		replaceRootFQ(t, link)
+		linkIndex := link.Attrs().Index
+
+		if err := netlink.QdiscAdd(ingressClsactQdisc(linkIndex)); err != nil {
+			t.Fatalf("pre-create clsact qdisc: %v", err)
+		}
+		neighbor := &netlink.MatchAll{
+			LinkIndex: linkIndex,
+			Parent:    netlink.HANDLE_MIN_INGRESS,
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+			Actions: []netlink.Action{
+				&netlink.GenericAction{Action: netlink.TC_ACT_PIPE},
+			},
+		}
+		if err := netlink.FilterAdd(neighbor); err != nil {
+			t.Fatalf("install the stand-in mirror filter: %v", err)
+		}
+
+		registerSnapshotStore(t)
+		b := newBackendWithOps(netlinkOps{}, nil, "boot-1", nil)
+		desired := map[string]traffic.InterfaceQoS{
+			ifaceName: {
+				Interface: ifaceName,
+				Qdisc: traffic.Qdisc{
+					Type:         traffic.QdiscHTB,
+					DefaultClass: "default",
+					Classes:      []traffic.TrafficClass{{Name: "default", Rate: 1_000_000, Ceil: 1_000_000}},
+				},
+				Ingress: traffic.NewPolicer(2_000_000),
+			},
+		}
+		if err := b.Apply(context.Background(), desired); err != nil {
+			t.Fatalf("Apply: %v", err)
+		}
+		if !ingressFilterPresent(t, ifaceName, 1) {
+			t.Fatal("installing the policer removed the other subsystem's filter")
+		}
+		if _, ok := ingressPolicerInKernel(t, ifaceName); !ok {
+			t.Fatal("no policer installed beside the existing filter")
+		}
+
+		if err := b.RestoreOriginal(context.Background(), ifaceName); err != nil {
+			t.Fatalf("RestoreOriginal: %v", err)
+		}
+		if !ingressFilterPresent(t, ifaceName, 1) {
+			t.Fatal("removing the policer took the other subsystem's filter with it")
 		}
 	})
 }

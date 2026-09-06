@@ -1,0 +1,46 @@
+# Test: the configured upload-rate reaches the shaper plugin.
+#
+# VALIDATES: spec-l2tp-shaper-upload-rate-is-not-enforced -- the operator's
+# upload-rate leaf reaches the code that installs the ingress policer.
+# PREVENTS:  a return to the state where upload-rate parsed, validated, and was
+# read by nothing: the leaf was stored on each session and reported by
+# `show l2tp shaper` while no interface enforced it.
+#
+# The policer's arrival in the kernel is proven by
+# TestNetlinkIntegration_IngressPolicerReachesTheKernel, which reads the police
+# action back off a real ingress hook. This test cannot reach session-up,
+# because a PPP session needs kernel modules. What it proves is the operator's
+# half of the chain: the config text is accepted, the daemon starts under it,
+# and the rate the operator named reaches the plugin that programs it.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    shaper {
+        qdisc-type tbf;
+        default-rate 10mbit;
+        upload-rate 2mbit;
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.l2tp-shaper:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=TEST_SECRET:value=s3cr3t
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=ze-test fixture l2tp/shaper-upload-rate $PORT:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=OK: tunnel established with shaper upload-rate config
+expect=stderr:contains=l2tp-shaper: configured
+expect=stderr:contains=upload-rate=2000000

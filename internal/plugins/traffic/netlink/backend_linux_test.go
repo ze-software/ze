@@ -34,6 +34,14 @@ type fakeTCOps struct {
 	// the kernel's one-protocol-per-(parent, priority) rule. See filterAdd.
 	added        []netlink.Filter
 	tcProtoOwner map[tcProtoKey]uint16
+
+	// addedQdiscs records every qdisc accepted by qdiscAdd, and deletedFilters
+	// every filter accepted by filterDel. The two errno fields let a test drive
+	// the kernel answers the ingress-policer path has to tolerate.
+	addedQdiscs    []netlink.Qdisc
+	deletedFilters []netlink.Filter
+	qdiscAddErr    error
+	filterDelErr   error
 }
 
 // tcProtoKey identifies one kernel tcf_proto instance: the kernel indexes the
@@ -73,6 +81,24 @@ func (f *fakeTCOps) qdiscList(link netlink.Link) ([]netlink.Qdisc, error) {
 func (f *fakeTCOps) qdiscReplace(qdisc netlink.Qdisc) error {
 	f.calls = append(f.calls, "replace:"+qdisc.Type())
 	f.replaced = append(f.replaced, qdisc)
+	return nil
+}
+
+func (f *fakeTCOps) qdiscAdd(qdisc netlink.Qdisc) error {
+	f.calls = append(f.calls, "qdiscAdd:"+qdisc.Type())
+	if f.qdiscAddErr != nil {
+		return f.qdiscAddErr
+	}
+	f.addedQdiscs = append(f.addedQdiscs, qdisc)
+	return nil
+}
+
+func (f *fakeTCOps) filterDel(filter netlink.Filter) error {
+	f.calls = append(f.calls, "filterDel:"+filter.Type())
+	if f.filterDelErr != nil {
+		return f.filterDelErr
+	}
+	f.deletedFilters = append(f.deletedFilters, filter)
 	return nil
 }
 
@@ -424,7 +450,11 @@ func TestRestoreOriginalUsesSnapshotNotFQCodelDefault(t *testing.T) {
 		t.Fatalf("RestoreOriginal: %v", err)
 	}
 
-	want := []string{"link:eth0", "replace:fq"}
+	// filterDel clears the ingress policer's own priority. It runs on every
+	// restore, including one for an interface that never carried a policer,
+	// because the desired end state is "no policer at that priority" and the
+	// kernel answers a delete that matches nothing with a tolerated errno.
+	want := []string{"link:eth0", "filterDel:matchall", "replace:fq"}
 	if got := ops.calls; !equalStringSlices(got, want) {
 		t.Fatalf("calls = %v, want %v", got, want)
 	}
@@ -515,7 +545,7 @@ func TestPersistedSnapshotSurvivesBackendRestart(t *testing.T) {
 	if err := b.RestoreOriginal(context.Background(), "eth0"); err != nil {
 		t.Fatalf("RestoreOriginal persisted snapshot: %v", err)
 	}
-	if got, want := ops.calls, []string{"link:eth0", "replace:fq"}; !equalStringSlices(got, want) {
+	if got, want := ops.calls, []string{"link:eth0", "filterDel:matchall", "replace:fq"}; !equalStringSlices(got, want) {
 		t.Fatalf("restore calls = %v, want %v", got, want)
 	}
 }

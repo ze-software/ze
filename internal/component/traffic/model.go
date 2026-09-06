@@ -147,9 +147,95 @@ func parseFilterType(name string) (FilterType, bool) {
 // --- Composite types ---
 
 // InterfaceQoS holds the complete QoS configuration for one interface.
+//
+// Qdisc programs the EGRESS direction, which is what leaves the interface. On a
+// subscriber interface that is the download direction. Ingress programs the
+// other one: traffic arriving on the interface, which is the subscriber's
+// upload. The two need different mechanisms because they are different
+// problems. Egress owns a queue, so it can shape by delaying a packet. Ingress
+// has no queue to delay into, so the only enforcement available there is to
+// drop what exceeds the rate, which is what a policer does.
 type InterfaceQoS struct {
 	Interface string
 	Qdisc     Qdisc
+	Ingress   Policer
+}
+
+// Policer is a token-bucket rate limiter on an interface's ingress hook.
+//
+// A zero Policer means the interface asks for no ingress enforcement, and Set
+// is the name of that distinction. The zero is safe to read that way because
+// ValidateRate already refuses a zero rate, so no operator can configure one:
+// there is no legitimate zero for a caller to confuse with an absent policer.
+type Policer struct {
+	// RateBps is the policed rate in bits per second. Traffic above it is
+	// dropped.
+	RateBps uint64
+	// BurstBytes is the depth of the token bucket in bytes. It MUST be large
+	// enough to hold one full packet: a bucket shallower than the packet can
+	// never fill enough to admit one, so every packet exceeds and the policer
+	// drops the whole flow. NewPolicer sizes it; Validate refuses a rate
+	// carrying no burst.
+	BurstBytes uint64
+}
+
+// burstWindowMs is the window a policer's burst absorbs at the policed rate.
+// 100ms of traffic rides out a brief spike without letting the long-term rate
+// exceed the configured one.
+const burstWindowMs = 100
+
+// burstBytesFloor is the smallest burst any policer gets. A standard Ethernet
+// MTU is 1500 bytes and this rounds up to 2048 to leave room for VLAN or tunnel
+// encapsulation. Below roughly 160 kbit/s the window alone yields less than one
+// packet, and a bucket that small drops everything.
+const burstBytesFloor = 2048
+
+// bitsPerByte converts the configured bit rate to the byte-denominated bucket
+// depth the kernel and VPP both take.
+const bitsPerByte = 8
+
+// millisecondsPerSecond scales the burst window into the rate's own unit.
+const millisecondsPerSecond = 1000
+
+// PolicerBurstBytes returns the token-bucket depth for a policed rate:
+//
+//	bytes = rateBps / 8 * (burstWindowMs / 1000)
+//
+// The floor applies below roughly 160 kbit/s, where the window alone yields
+// less than one packet. This is the one declaration of that derivation; the tc
+// and VPP backends both consume it, so the two cannot drift.
+func PolicerBurstBytes(rateBps uint64) uint64 {
+	b := rateBps * burstWindowMs / bitsPerByte / millisecondsPerSecond
+	if b < burstBytesFloor {
+		return burstBytesFloor
+	}
+	return b
+}
+
+// NewPolicer builds a policer for a rate, sizing the burst with
+// PolicerBurstBytes. Callers use this rather than the struct literal so no call
+// site can leave the burst at zero, which the kernel accepts and which drops
+// every packet.
+func NewPolicer(rateBps uint64) Policer {
+	return Policer{RateBps: rateBps, BurstBytes: PolicerBurstBytes(rateBps)}
+}
+
+// Set reports whether this policer asks for ingress enforcement. An absent
+// policer is the zero value, and a configured one always carries a rate.
+func (p Policer) Set() bool {
+	return p.RateBps > 0
+}
+
+// Validate refuses a policer a backend must not program. An absent one is
+// valid: it asks for nothing.
+func (p Policer) Validate() error {
+	if !p.Set() {
+		return nil
+	}
+	if p.BurstBytes < burstBytesFloor {
+		return fmt.Errorf("traffic: policer burst (%d bytes) must be >= %d; use NewPolicer to size it", p.BurstBytes, burstBytesFloor)
+	}
+	return nil
 }
 
 // Qdisc represents a queueing discipline with its classes and default class.

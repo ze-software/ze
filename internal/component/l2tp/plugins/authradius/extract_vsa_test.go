@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 func buildVSAAttr(t *testing.T, vendorID uint32, vendorType uint8, value []byte) radius.Attr {
@@ -130,9 +131,9 @@ func TestExtractMikrotikRate(t *testing.T) {
 			pkt := &radius.Packet{Attrs: []radius.Attr{
 				buildVSAAttr(t, radius.VendorMikrotik, radius.MikrotikRateLimit, []byte(tt.value)),
 			}}
-			got := extractVSARate(pkt)
+			got, _ := extractVSARates(pkt)
 			if got != tt.wantRate {
-				t.Errorf("extractVSARate = %d, want %d", got, tt.wantRate)
+				t.Errorf("extractVSARates = %d, want %d", got, tt.wantRate)
 			}
 		})
 	}
@@ -223,6 +224,12 @@ func TestExtractAuthMetadataVendorCoS(t *testing.T) {
 }
 
 // VALIDATES: AC-7 -- MikroTik rate wired into extractAuthMetadata.
+//
+// The expected value carries BOTH halves. It read "10000000bit" until
+// 2026-09-06, which pinned the loss of the subscriber's upload rate: the
+// MikroTik attribute says 10M down and 5M up, and the rewrite kept the first
+// number only. Nothing enforced upload then, so the loss was invisible; the
+// shaper now installs an ingress policer from this value.
 func TestExtractAuthMetadataMikrotikRate(t *testing.T) {
 	pkt := &radius.Packet{Attrs: []radius.Attr{
 		buildVSAAttr(t, radius.VendorMikrotik, radius.MikrotikRateLimit, []byte("10M/5M")),
@@ -231,8 +238,8 @@ func TestExtractAuthMetadataMikrotikRate(t *testing.T) {
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
-	if meta.FilterID != "10000000bit" {
-		t.Errorf("FilterID = %q, want %q", meta.FilterID, "10000000bit")
+	if meta.FilterID != "10000000bit/5000000bit" {
+		t.Errorf("FilterID = %q, want %q", meta.FilterID, "10000000bit/5000000bit")
 	}
 }
 
@@ -299,17 +306,45 @@ func TestParseCiscoAVPairCoS(t *testing.T) {
 
 func TestMikrotikRateToFilterID(t *testing.T) {
 	tests := []struct {
-		bps  uint64
-		want string
+		download uint64
+		upload   uint64
+		want     string
 	}{
-		{0, ""},
-		{10_000_000, "10000000bit"},
-		{1_000_000_000, "1000000000bit"},
+		{0, 0, ""},
+		{10_000_000, 10_000_000, "10000000bit"},
+		{1_000_000_000, 0, "1000000000bit"},
+		// An asymmetric pair keeps both halves, in the form the shaper reads.
+		{20_000_000, 5_000_000, "20000000bit/5000000bit"},
 	}
 	for _, tt := range tests {
-		got := mikrotikRateToFilterID(tt.bps)
+		got := mikrotikRateToFilterID(tt.download, tt.upload)
 		if got != tt.want {
-			t.Errorf("mikrotikRateToFilterID(%d) = %q, want %q", tt.bps, got, tt.want)
+			t.Errorf("mikrotikRateToFilterID(%d, %d) = %q, want %q", tt.download, tt.upload, got, tt.want)
 		}
+	}
+}
+
+// TestAccessAcceptKeepsMikrotikUploadHalf checks the Access-Accept path. A
+// MikroTik Rate-Limit of "10M/5M" is rewritten into the Filter-Id the shaper
+// reads, and that rewrite must carry both directions: writing only the download
+// rate loses the subscriber's upload limit before the shaper ever sees it.
+func TestAccessAcceptKeepsMikrotikUploadHalf(t *testing.T) {
+	encoded, err := radius.EncodeVSA(radius.VendorMikrotik, radius.MikrotikRateLimit, []byte("10M/5M"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkt := &radius.Packet{
+		Attrs: []radius.Attr{{Type: radius.AttrVendorSpecific, Value: encoded[2:]}},
+	}
+	meta := extractAuthMetadata(pkt)
+	if meta == nil {
+		t.Fatal("no metadata extracted from a packet carrying a MikroTik rate")
+	}
+	down, up, ok := traffic.ParseFilterIDRate(meta.FilterID)
+	if !ok {
+		t.Fatalf("the rewritten Filter-Id %q does not parse as a rate", meta.FilterID)
+	}
+	if down != 10_000_000 || up != 5_000_000 {
+		t.Fatalf("Filter-Id %q parses as %d/%d, want 10000000/5000000", meta.FilterID, down, up)
 	}
 }

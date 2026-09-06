@@ -31,20 +31,20 @@ func extractVSACoSProfile(pkt *radius.Packet) string {
 
 // extractVSARate scans Vendor-Specific attributes for a MikroTik
 // rate value. Returns download rate in bits per second, or 0 if not found.
-func extractVSARate(pkt *radius.Packet) uint64 {
+func extractVSARates(pkt *radius.Packet) (download, upload uint64) {
 	for _, raw := range pkt.FindAllAttr(radius.AttrVendorSpecific) {
 		vendorID, vendorType, value, err := radius.DecodeVSA(raw)
 		if err != nil || len(value) == 0 {
 			continue
 		}
 		if vendorID == radius.VendorMikrotik && vendorType == radius.MikrotikRateLimit {
-			dl, _ := parseMikrotikRate(value)
+			dl, ul := parseMikrotikRate(value)
 			if dl > 0 {
-				return dl
+				return dl, ul
 			}
 		}
 	}
-	return 0
+	return 0, 0
 }
 
 func matchVendorCoS(vendorID uint32, vendorType uint8, value []byte) string {
@@ -148,12 +148,20 @@ func parseMikrotikRateValue(s string) uint64 {
 	return n * mult
 }
 
-// mikrotikRateToFilterID converts a MikroTik download rate in bps to a
-// string that traffic.ParseRateBps can parse.
-func mikrotikRateToFilterID(bps uint64) string {
-	if bps == 0 {
+// mikrotikRateToFilterID converts a MikroTik rate pair in bps to a string that
+// traffic.ParseFilterIDRate can parse.
+//
+// Both directions are written. The MikroTik Rate-Limit attribute carries
+// rx/tx, the shaper now enforces both, and a rewrite that kept only the
+// download rate lost the subscriber's upload limit before the shaper saw it.
+func mikrotikRateToFilterID(downloadBps, uploadBps uint64) string {
+	if downloadBps == 0 {
 		return ""
 	}
 	var tb textbuf.Buffer
-	return tb.Uint(bps).Str("bit").String()
+	tb.Uint(downloadBps).Str("bit")
+	if uploadBps > 0 && uploadBps != downloadBps {
+		tb.Byte('/').Uint(uploadBps).Str("bit")
+	}
+	return tb.String()
 }

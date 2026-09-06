@@ -217,40 +217,18 @@ func rateToKbps(bps uint64) (uint32, error) {
 	return uint32(kbps), nil
 }
 
-// burstMilliseconds is the window size used to translate a policer rate
-// into a committed burst value. 100ms at the configured rate absorbs brief
-// traffic spikes without letting long-term rate exceed CIR. Lives in
-// this platform-agnostic file (burstBytes is called from here) so the
-// package compiles on non-Linux; backend_linux.go has //go:build linux
-// and cannot host shared constants.
-const burstMilliseconds = 100
-
-// minBurstBytes is the floor applied to burstBytes so even a 1kbps
-// policer can admit one full packet before the token bucket underruns.
-// Standard Ethernet MTU is 1500 bytes; we round up to 2048 to leave
-// headroom for VLAN / tunnel encapsulation without making the computed
-// window dominate at realistic rates.
+// minBurstBytes is the floor traffic.PolicerBurstBytes applies, restated here
+// only so this package's tests can name it. The value itself is declared once,
+// in internal/component/traffic, because the tc backend applies the same floor
+// for the same reason and two copies would drift.
 const minBurstBytes = 2048
 
-// burstBytes returns a committed-burst value in bytes sized to absorb
-// burstMilliseconds of traffic at the given rate. Derivation:
-//
-//	bytes = kbps * 1000 / 8 * (burstMilliseconds / 1000)
-//	      = kbps * burstMilliseconds / 8
-//
-// At the default 100ms window this is roughly kbps * 12.5 bytes, close
-// to the typical tc/HTB default. No overflow risk: kbps is uint32, the
-// product kbps * 100 fits in uint64 comfortably.
-//
-// A floor of minBurstBytes prevents the policer from dropping every
-// packet at very low rates (below ~160 kbps at 100ms window, the raw
-// formula produces less than one MTU of burst).
+// burstBytes returns a committed-burst value in bytes for a rate given in
+// kbps. The derivation and the floor live in traffic.PolicerBurstBytes, which
+// the tc backend's ingress policer uses as well: a policer's burst is one fact
+// about a rate, not one fact about a backend.
 func burstBytes(kbps uint32) uint64 {
-	b := uint64(kbps) * burstMilliseconds / 8
-	if b < minBurstBytes {
-		return minBurstBytes
-	}
-	return b
+	return traffic.PolicerBurstBytes(uint64(kbps) * kbpsPerBps)
 }
 
 // policerFromClass builds a PolicerAddDel message for one TrafficClass.

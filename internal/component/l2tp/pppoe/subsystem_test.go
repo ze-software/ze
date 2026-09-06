@@ -17,6 +17,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
@@ -146,5 +147,61 @@ func TestPPPoESessionDownPublishesWithoutSessionUp(t *testing.T) {
 	tunnelID, sessionID := down.Session.PPPKey()
 	if tunnelID != uint16(ifIndex) || sessionID != sid {
 		t.Fatalf("PPPKey = (%d, %d), want (%d, %d)", tunnelID, sessionID, ifIndex, sid)
+	}
+}
+
+// TestPPPoESessionUpCarriesRadiusRates checks that a PPPoE subscriber's RADIUS
+// rate profile reaches the session, and through it the shaper.
+//
+// subscriber.Session.DownloadRate and UploadRate had no producer at all: no
+// assignment existed anywhere, so PPPoE always handed the shaper a zero pair
+// and the RADIUS Filter-Id an operator's server returned changed nothing. The
+// RADIUS handler stores the profile under (ifindex, session-id), which is the
+// pair this event carries, so the lookup needs no new plumbing.
+func TestPPPoESessionUpCarriesRadiusRates(t *testing.T) {
+	const ifIndex = 21
+	const sid = uint16(84)
+
+	bus := newRecordBus()
+	sub := newTestSubsystem(t, bus, ifIndex)
+
+	mac := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x02}
+	srv := sub.servers[ifIndex]
+	if err := srv.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", UnitNum: 5, PppoxFD: -1}); err != nil {
+		t.Fatalf("seed session table: %v", err)
+	}
+	t.Cleanup(func() { subscriber.DefaultRegistry.Remove(pppoeSessionID(ifIndex, sid)) })
+
+	l2tp.StoreSessionMetadata(uint16(ifIndex), sid, &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
+	t.Cleanup(func() { l2tp.ClearSessionMetadata(uint16(ifIndex), sid) })
+
+	var shaped struct {
+		iface    string
+		download uint64
+		upload   uint64
+	}
+	prevShaper := subscriber.GetShaperHandler()
+	subscriber.RegisterShaperHandler(func(iface string, download, upload uint64) {
+		shaped.iface, shaped.download, shaped.upload = iface, download, upload
+	})
+	t.Cleanup(func() { subscriber.RegisterShaperHandler(prevShaper) })
+
+	sub.handlePPPEvent(ppp.EventSessionUp{TunnelID: uint16(ifIndex), SessionID: sid})
+
+	sess, ok := subscriber.DefaultRegistry.Get(pppoeSessionID(ifIndex, sid))
+	if !ok {
+		t.Fatal("session-up did not register the session")
+	}
+	if sess.DownloadRate != 20_000_000 {
+		t.Errorf("Session.DownloadRate = %d, want 20000000", sess.DownloadRate)
+	}
+	if sess.UploadRate != 5_000_000 {
+		t.Errorf("Session.UploadRate = %d, want 5000000", sess.UploadRate)
+	}
+	if shaped.iface != "ppp5" {
+		t.Fatalf("shaper called for %q, want ppp5", shaped.iface)
+	}
+	if shaped.download != 20_000_000 || shaped.upload != 5_000_000 {
+		t.Fatalf("shaper got %d/%d, want 20000000/5000000", shaped.download, shaped.upload)
 	}
 }

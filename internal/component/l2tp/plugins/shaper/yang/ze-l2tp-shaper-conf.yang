@@ -21,9 +21,11 @@ module ze-l2tp-shaper-conf {
 
         container shaper {
             description "Traffic shaping applied to each L2TP subscriber interface.";
-            ze:help "Ze installs the queueing discipline on the pppN interface when the
-                     session starts. A rate changed here reaches the sessions that start
-                     after the change. A running session keeps the rate it was given.";
+            ze:help "Ze installs the queueing discipline and the ingress policer on the pppN
+                     interface when the session starts. The queueing discipline carries the
+                     download rate and the policer carries the upload rate. A rate changed
+                     here reaches the sessions that start after the change. A running
+                     session keeps the rate it was given, and a RADIUS CoA changes it.";
             leaf qdisc-type {
                 type enumeration {
                     enum tbf {
@@ -45,8 +47,11 @@ module ze-l2tp-shaper-conf {
                 type zt:rate;
                 mandatory true;
                 description "Default download rate applied to a new session.";
-                ze:help "Default download rate applied to new sessions. The format is a number followed by a suffix, for
-                    example 10mbit or 100kbit.";
+                ze:help "Default download rate applied to new sessions. The format is a
+                         number followed by a suffix, for example 10mbit or 100kbit. Ze
+                         enforces it with the queueing discipline it installs on the pppN
+                         interface, which shapes what leaves the interface toward the
+                         subscriber.";
             }
             leaf upload-rate {
                 type zt:rate;
@@ -54,12 +59,14 @@ module ze-l2tp-shaper-conf {
                     "Default upload rate. When omitted, defaults to default-rate.";
                 ze:help "The format is a number and a suffix, for example 5mbit, and the
                          suffixes are bit, kbit, mbit, gbit, bps, kbps, mbps and gbps. Ze
-                         records the rate on each session that starts, and records
-                         default-rate instead when the leaf is absent. A RADIUS Filter-Id of
-                         the form rate:20mbit/5mbit replaces both this rate and the download
-                         rate on that session. The queueing discipline Ze installs on the
-                         pppN interface carries the download rate alone. The 'show l2tp
-                         shaper' command reports this rate, and no interface enforces it.";
+                         enforces it with a policer on the pppN interface ingress hook,
+                         which drops what the subscriber sends above the rate. A queueing
+                         discipline cannot carry this direction, because the ingress hook
+                         holds no queue to delay a packet into. Ze applies default-rate
+                         instead when the leaf is absent. A RADIUS Filter-Id of the form
+                         rate:20mbit/5mbit replaces both this rate and the download rate on
+                         that session, and a RADIUS CoA changes both on a running session.
+                         The 'show l2tp shaper' command reports the rate in force.";
             }
         }
     }

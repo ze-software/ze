@@ -482,9 +482,9 @@ func TestExtractRate(t *testing.T) {
 				{Type: radius.AttrFilterID, Value: radius.AttrString(tt.filterID)},
 			},
 		}
-		got := extractRate(pkt)
+		got, _ := extractRates(pkt)
 		if got != tt.want {
-			t.Errorf("extractRate(Filter-Id=%q) = %d, want %d", tt.filterID, got, tt.want)
+			t.Errorf("extractRates(Filter-Id=%q) = %d, want %d", tt.filterID, got, tt.want)
 		}
 	}
 }
@@ -495,8 +495,8 @@ func TestExtractRate_Invalid(t *testing.T) {
 			{Type: radius.AttrFilterID, Value: radius.AttrString("notarate")},
 		},
 	}
-	if got := extractRate(pkt); got != 0 {
-		t.Errorf("extractRate with invalid filter-id: got %d, want 0", got)
+	if got, _ := extractRates(pkt); got != 0 {
+		t.Errorf("extractRates with invalid filter-id: got %d, want 0", got)
 	}
 }
 
@@ -529,8 +529,76 @@ func TestCoAExtractMikrotikRate(t *testing.T) {
 			{Type: radius.AttrVendorSpecific, Value: encoded[2:]},
 		},
 	}
-	got := extractRate(pkt)
+	got, _ := extractRates(pkt)
 	if got != 10_000_000 {
-		t.Errorf("extractRate = %d, want %d", got, 10_000_000)
+		t.Errorf("extractRates = %d, want %d", got, 10_000_000)
+	}
+}
+
+// TestExtractRatesReadsAsymmetricFilterID checks that the CoA listener reads
+// the same Filter-Id forms the shaper accepts at Access-Accept. It open-coded
+// its own ParseRateBps call over the whole string, so "rate:20mbit/5mbit" did
+// not parse and the CoA was answered with a NAK: the operator could set an
+// asymmetric rate at login and not change it afterwards.
+func TestExtractRatesReadsAsymmetricFilterID(t *testing.T) {
+	cases := []struct {
+		filterID string
+		download uint64
+		upload   uint64
+	}{
+		{"10mbit", 10_000_000, 10_000_000},
+		{"100kbit", 100_000, 100_000},
+		{"1gbit", 1_000_000_000, 1_000_000_000},
+		{"5mbps", 40_000_000, 40_000_000},
+		{"rate:20mbit/5mbit", 20_000_000, 5_000_000},
+		{"20mbit/5mbit", 20_000_000, 5_000_000},
+	}
+	for _, c := range cases {
+		pkt := &radius.Packet{
+			Attrs: []radius.Attr{
+				{Type: radius.AttrFilterID, Value: radius.AttrString(c.filterID)},
+			},
+		}
+		down, up := extractRates(pkt)
+		if down != c.download {
+			t.Errorf("extractRates(Filter-Id=%q) download = %d, want %d", c.filterID, down, c.download)
+		}
+		if up != c.upload {
+			t.Errorf("extractRates(Filter-Id=%q) upload = %d, want %d", c.filterID, up, c.upload)
+		}
+	}
+}
+
+// TestExtractRatesRejectsNonRate checks the other polarity: a Filter-Id that
+// names no rate yields no rate, so handleCoA answers with the unsupported
+// attribute rather than a change of zero.
+func TestExtractRatesRejectsNonRate(t *testing.T) {
+	pkt := &radius.Packet{
+		Attrs: []radius.Attr{
+			{Type: radius.AttrFilterID, Value: radius.AttrString("notarate")},
+		},
+	}
+	if down, up := extractRates(pkt); down != 0 || up != 0 {
+		t.Errorf("extractRates with a non-rate Filter-Id = %d/%d, want 0/0", down, up)
+	}
+}
+
+// TestExtractRatesKeepsMikrotikUploadHalf checks the vendor path. The MikroTik
+// Rate-Limit value carries rx/tx, the parser already returns both, and the CoA
+// listener discarded the second one.
+func TestExtractRatesKeepsMikrotikUploadHalf(t *testing.T) {
+	encoded, err := radius.EncodeVSA(radius.VendorMikrotik, radius.MikrotikRateLimit, []byte("10M/5M"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkt := &radius.Packet{
+		Attrs: []radius.Attr{{Type: radius.AttrVendorSpecific, Value: encoded[2:]}},
+	}
+	down, up := extractRates(pkt)
+	if down != 10_000_000 {
+		t.Errorf("download = %d, want 10000000", down)
+	}
+	if up != 5_000_000 {
+		t.Errorf("upload = %d, want 5000000; the vendor attribute carried it and the listener dropped it", up)
 	}
 }

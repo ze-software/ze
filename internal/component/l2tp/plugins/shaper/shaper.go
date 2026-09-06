@@ -62,10 +62,14 @@ func (s *shaperPlugin) setEventBus(eb ze.EventBus) {
 	}
 }
 
-// handleSubscriberSessionUp is the subscriber.ShaperHandler registered
-// at init. Called by PPPoE on SessionUp. Applies TC with the default
-// configured rate (RADIUS metadata is L2TP-only for now).
-func (s *shaperPlugin) handleSubscriberSessionUp(iface string, downloadRate, _ uint64) {
+// handleSubscriberSessionUp is the subscriber.ShaperHandler registered at init.
+// Called by PPPoE on SessionUp. A PPPoE subscriber terminates on a pppN exactly
+// as an L2TP one does, so it gets the same pair of mechanisms: the qdisc for the
+// download direction and the ingress policer for the upload direction.
+//
+// A zero argument means the session carries no per-subscriber rate, which is
+// what subscriber.Session holds today, so the configured leaf applies.
+func (s *shaperPlugin) handleSubscriberSessionUp(iface string, downloadRate, uploadRate uint64) {
 	cfg := s.cfgPtr.Load()
 	if cfg == nil {
 		return
@@ -73,13 +77,16 @@ func (s *shaperPlugin) handleSubscriberSessionUp(iface string, downloadRate, _ u
 	if downloadRate == 0 {
 		downloadRate = cfg.DefaultRate
 	}
-	if err := s.applyTC(iface, cfg.QdiscType, downloadRate); err != nil {
+	if uploadRate == 0 {
+		uploadRate = cfg.uploadRateOrDefault()
+	}
+	if err := s.applyTC(iface, cfg.QdiscType, downloadRate, uploadRate); err != nil {
 		logger().Warn("l2tp-shaper: failed to apply TC on subscriber session-up",
 			"interface", iface, "error", err)
 		return
 	}
 	logger().Info("l2tp-shaper: applied shaping (subscriber)",
-		"interface", iface, "rate-bps", downloadRate)
+		"interface", iface, "download-bps", downloadRate, "upload-bps", uploadRate)
 }
 
 func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
@@ -92,16 +99,13 @@ func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 	state := sessionState{
 		iface:        payload.Interface,
 		downloadRate: cfg.DefaultRate,
-		uploadRate:   cfg.UploadRate,
+		uploadRate:   cfg.uploadRateOrDefault(),
 		appliedAt:    time.Now(),
-	}
-	if state.uploadRate == 0 {
-		state.uploadRate = cfg.DefaultRate
 	}
 
 	// RFC 2865 Section 5.11: Filter-Id from RADIUS overrides default rate.
 	if meta := l2tp.LoadSessionMetadata(payload.TunnelID, payload.SessionID); meta != nil && meta.FilterID != "" {
-		if down, up, ok := parseFilterRate(meta.FilterID); ok {
+		if down, up, ok := traffic.ParseFilterIDRate(meta.FilterID); ok {
 			state.downloadRate = down
 			state.uploadRate = up
 			logger().Info("l2tp-shaper: using RADIUS Filter-Id rate",
@@ -114,7 +118,7 @@ func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 		}
 	}
 
-	if err := s.applyTC(payload.Interface, cfg.QdiscType, state.downloadRate); err != nil {
+	if err := s.applyTC(payload.Interface, cfg.QdiscType, state.downloadRate, state.uploadRate); err != nil {
 		logger().Warn("l2tp-shaper: failed to apply TC on session-up",
 			"interface", payload.Interface, "error", err)
 		return
@@ -124,7 +128,7 @@ func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 	logger().Info("l2tp-shaper: applied shaping",
 		"interface", payload.Interface,
 		"tunnel", payload.TunnelID, "session", payload.SessionID,
-		"rate-bps", state.downloadRate)
+		"download-bps", state.downloadRate, "upload-bps", state.uploadRate)
 }
 
 func (s *shaperPlugin) onSessionDown(payload *l2tpevents.SessionDownPayload) {
@@ -164,34 +168,55 @@ func (s *shaperPlugin) onSessionRateChange(payload *l2tpevents.SessionRateChange
 		qdiscType = cfg.QdiscType
 	}
 
-	if err := s.applyTC(state.iface, qdiscType, payload.DownloadRate); err != nil {
+	// A payload that names no upload rate is a download-only change. Keeping the
+	// session's existing rate is the only reading that does not silently
+	// unenforce a direction the operator already authorized.
+	uploadRate := payload.UploadRate
+	if uploadRate == 0 {
+		uploadRate = state.uploadRate
+	}
+
+	if err := s.applyTC(state.iface, qdiscType, payload.DownloadRate, uploadRate); err != nil {
 		logger().Warn("l2tp-shaper: failed to update TC on rate-change",
 			"interface", state.iface, "error", err)
 		return
 	}
 
 	state.downloadRate = payload.DownloadRate
-	state.uploadRate = payload.UploadRate
+	state.uploadRate = uploadRate
 	state.appliedAt = time.Now()
 	s.sessions.Store(key, state)
 
 	logger().Info("l2tp-shaper: updated shaping",
 		"interface", state.iface,
 		"tunnel", payload.TunnelID, "session", payload.SessionID,
-		"rate-bps", payload.DownloadRate)
+		"download-bps", payload.DownloadRate, "upload-bps", uploadRate)
 }
 
-func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, rateBps uint64) error {
+// applyTC programs both directions of one subscriber interface.
+//
+// The two directions need different mechanisms. Egress on a pppN carries
+// traffic toward the subscriber, which is the download direction, and a qdisc
+// shapes it by queueing. Ingress carries the subscriber's upload, and there is
+// no queue to delay a packet into, so the enforcement available is a policer
+// that drops what exceeds the rate.
+//
+// Every call programs both. A rate change re-enters here with the new pair, so
+// nothing about the path is install-once: an authorization change that is
+// accepted and never programmed is the failure this design exists to avoid.
+func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, downloadBps, uploadBps uint64) error {
 	backend := traffic.GetBackend()
 	if backend == nil {
 		return errNoTrafficBackendLoadedConfigureTraffic
 	}
 
+	rateBps := downloadBps
 	qos := traffic.InterfaceQoS{
 		Interface: ifaceName,
 		Qdisc: traffic.Qdisc{
 			Type: qdiscType,
 		},
+		Ingress: traffic.NewPolicer(uploadBps),
 	}
 
 	if qdiscType == traffic.QdiscHTB {

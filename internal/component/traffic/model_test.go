@@ -182,3 +182,70 @@ func TestHTBCeilBoundary(t *testing.T) {
 		})
 	}
 }
+
+// TestPolicerSetDistinguishesAbsentFromConfigured checks the guard that tells
+// "this interface asks for no ingress enforcement" apart from "this interface
+// asks for a rate". The zero rate is not a rate ValidateRate accepts, so the
+// two are distinguishable, and Set is the name that says so.
+func TestPolicerSetDistinguishesAbsentFromConfigured(t *testing.T) {
+	var absent Policer
+	if absent.Set() {
+		t.Fatal("zero Policer reports Set")
+	}
+	if got := NewPolicer(5_000_000); !got.Set() {
+		t.Fatal("NewPolicer(5mbit) reports not Set")
+	}
+}
+
+// TestNewPolicerFillsBurst checks that a policer built from a rate carries a
+// burst, because a token bucket with no depth drops every packet.
+func TestNewPolicerFillsBurst(t *testing.T) {
+	p := NewPolicer(80_000_000)
+	if p.RateBps != 80_000_000 {
+		t.Fatalf("RateBps = %d, want 80000000", p.RateBps)
+	}
+	// 100ms of 80 Mbit/s is 1_000_000 bytes.
+	if p.BurstBytes != 1_000_000 {
+		t.Fatalf("BurstBytes = %d, want 1000000", p.BurstBytes)
+	}
+}
+
+// TestPolicerBurstBytesFloor checks the floor: at a low rate the 100ms window
+// yields less than one MTU, and a bucket that cannot hold one packet drops
+// every packet.
+func TestPolicerBurstBytesFloor(t *testing.T) {
+	if got := PolicerBurstBytes(1_000); got != 2048 {
+		t.Fatalf("PolicerBurstBytes(1kbit) = %d, want the 2048 floor", got)
+	}
+	if got := PolicerBurstBytes(0); got != 2048 {
+		t.Fatalf("PolicerBurstBytes(0) = %d, want the 2048 floor", got)
+	}
+}
+
+// TestPolicerValidateRejectsBurstlessRate checks that a policer carrying a rate
+// and no burst is refused rather than programmed, because the kernel would
+// accept it and drop every packet.
+func TestPolicerValidateRejectsBurstlessRate(t *testing.T) {
+	if err := (Policer{RateBps: 1_000_000}).Validate(); err == nil {
+		t.Fatal("Validate accepted a rate with no burst")
+	}
+	if err := (Policer{}).Validate(); err != nil {
+		t.Fatalf("Validate rejected an absent policer: %v", err)
+	}
+	if err := NewPolicer(1_000_000).Validate(); err != nil {
+		t.Fatalf("Validate rejected NewPolicer output: %v", err)
+	}
+}
+
+// TestInterfaceQoSCarriesIngressPolicer checks that the data model can express
+// the upload direction at all. Before this field the model held one root Qdisc,
+// which is egress only, so no upload enforcement was reachable through Backend.
+func TestInterfaceQoSCarriesIngressPolicer(t *testing.T) {
+	qos := InterfaceQoS{
+		Interface: "ppp0",
+		Ingress:   NewPolicer(5_000_000),
+	}
+	if !qos.Ingress.Set() {
+		t.Fatal("InterfaceQoS.Ingress does not carry the policer")
+	}
+}

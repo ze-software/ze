@@ -483,3 +483,44 @@ func TestVerifyRejectsLongPolicerName(t *testing.T) {
 		t.Errorf("want 'exceeds' message, got %v", err)
 	}
 }
+
+// TestVerifyRejectsIngressPolicer checks that the vpp backend refuses an
+// ingress policer instead of programming the egress half and dropping the rest.
+// A silently unenforced upload rate is the defect this spec exists to close, so
+// it must not reappear one backend over.
+func TestVerifyRejectsIngressPolicer(t *testing.T) {
+	desired := map[string]traffic.InterfaceQoS{
+		"ppp0": {
+			Interface: "ppp0",
+			Qdisc: traffic.Qdisc{
+				Type:    traffic.QdiscTBF,
+				Classes: []traffic.TrafficClass{{Name: "default", Rate: 10_000_000}},
+			},
+			Ingress: traffic.NewPolicer(5_000_000),
+		},
+	}
+	err := Verify(desired)
+	if err == nil {
+		t.Fatal("Verify accepted an ingress policer the vpp backend does not program")
+	}
+	if !strings.Contains(err.Error(), "ingress policer") {
+		t.Fatalf("error does not name the unsupported feature: %v", err)
+	}
+}
+
+// TestVerifyAcceptsAbsentIngressPolicer checks the other polarity: an interface
+// asking for no upload enforcement is unaffected by the refusal above.
+func TestVerifyAcceptsAbsentIngressPolicer(t *testing.T) {
+	desired := map[string]traffic.InterfaceQoS{
+		"eth0": {
+			Interface: "eth0",
+			Qdisc: traffic.Qdisc{
+				Type:    traffic.QdiscTBF,
+				Classes: []traffic.TrafficClass{{Name: "default", Rate: 10_000_000}},
+			},
+		},
+	}
+	if err := Verify(desired); err != nil {
+		t.Fatalf("Verify rejected an interface with no ingress policer: %v", err)
+	}
+}

@@ -16,6 +16,16 @@ type shaperConfig struct {
 	UploadRate  uint64 // upload rate in bps (0 = same as download)
 }
 
+// uploadRateOrDefault returns the rate the ingress policer carries. The
+// upload-rate leaf is optional and its documented default is the download rate,
+// so an absent leaf still leaves the upload direction enforced.
+func (c *shaperConfig) uploadRateOrDefault() uint64 {
+	if c.UploadRate > 0 {
+		return c.UploadRate
+	}
+	return c.DefaultRate
+}
+
 // parseShaperConfig extracts shaper settings from the l2tp YANG JSON.
 // JSON shape: {"shaper":{"qdisc-type":"tbf","default-rate":"10mbit","upload-rate":"5mbit"}}.
 func parseShaperConfig(data string) (*shaperConfig, bool, error) {

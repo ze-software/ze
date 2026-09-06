@@ -333,7 +333,7 @@ func (cl *coaListener) isAllowedSource(ip net.IP) bool {
 }
 
 func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
-	downloadRate := extractRate(pkt)
+	downloadRate, uploadRate := extractRates(pkt)
 	cosProfile := extractCoSProfile(pkt)
 
 	if downloadRate == 0 && cosProfile == "" {
@@ -343,7 +343,7 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 
 	// Try subscriber registry first (works for both PPPoE and L2TP).
 	if subSess, ok := cl.findSubscriberSession(pkt); ok {
-		cl.applySubscriberCoA(pkt, from, &subSess, downloadRate, cosProfile)
+		cl.applySubscriberCoA(pkt, from, &subSess, downloadRate, uploadRate, cosProfile)
 		return
 	}
 
@@ -389,7 +389,7 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 		TunnelID:     sess.TunnelLocalTID,
 		SessionID:    sid,
 		DownloadRate: downloadRate,
-		UploadRate:   downloadRate,
+		UploadRate:   uploadRate,
 	}); emitErr != nil {
 		logger().Warn("coa: emit rate-change failed", "error", emitErr)
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
@@ -398,7 +398,7 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 
 	cl.sendResponse(from, pkt, radius.CodeCoAACK, 0)
 	logger().Info("coa: accepted CoA",
-		"session", sid, "rate-bps", downloadRate, "from", from)
+		"session", sid, "download-bps", downloadRate, "upload-bps", uploadRate, "from", from)
 }
 
 // applySubscriberCoA carries out a CoA-Request against a subscriber-registry
@@ -409,7 +409,7 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 // MUST send a CoA-ACK in reply, and all requested authorization changes MUST be
 // made." The subscriber registry answers with one session, so "all matching
 // sessions" is that session and the ACK reports a change that was made.
-func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr, sub *subscriber.Session, downloadRate uint64, cosProfile string) {
+func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr, sub *subscriber.Session, downloadRate, uploadRate uint64, cosProfile string) {
 	if cl.cfg.Bus == nil {
 		logger().Warn("coa: no event bus, the authorization change cannot be carried out", "from", from)
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
@@ -419,7 +419,7 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 		if _, err := subevents.SessionRateChange.Emit(cl.cfg.Bus, &subevents.SessionRateChangePayload{
 			SessionID:    sub.ID,
 			DownloadRate: downloadRate,
-			UploadRate:   downloadRate,
+			UploadRate:   uploadRate,
 		}); err != nil {
 			logger().Warn("coa: emit subscriber rate-change failed", "error", err)
 			cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
@@ -432,7 +432,7 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 				TunnelID:     sub.TunnelID,
 				SessionID:    sub.SessionID,
 				DownloadRate: downloadRate,
-				UploadRate:   downloadRate,
+				UploadRate:   uploadRate,
 			}); err != nil {
 				logger().Warn("coa: emit l2tp rate-change failed", "error", err)
 				cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
@@ -454,7 +454,7 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 	}
 	cl.sendResponse(from, pkt, radius.CodeCoAACK, 0)
 	logger().Info("coa: accepted CoA",
-		"subscriber", sub.ID, "rate-bps", downloadRate,
+		"subscriber", sub.ID, "download-bps", downloadRate, "upload-bps", uploadRate,
 		"cos-profile", cosProfile, "from", from)
 }
 
@@ -584,18 +584,25 @@ func (cl *coaListener) findSessions(pkt *radius.Packet) []uint16 {
 	return out
 }
 
-// extractRate reads the download rate from CoA attributes.
+// extractRates reads the download and upload rates from CoA attributes.
 // Checks Filter-Id first, then MikroTik VSA as fallback.
-func extractRate(pkt *radius.Packet) uint64 {
+//
+// The Filter-Id is read through traffic.ParseFilterIDRate, which is the same
+// function the shaper uses at Access-Accept, so a value the NAS accepts at
+// login is a value it accepts in a CoA. Reading it with ParseRateBps instead
+// accepted "rate:10mbit" and refused "rate:20mbit/5mbit", so an asymmetric
+// rate could be set at login and never changed
+// (plan/journal/helper-bypassed-by-an-open-coded-copy.md).
+//
+// Both rates are returned because both are enforced: the shaper installs a
+// qdisc for the download direction and an ingress policer for the upload one.
+func extractRates(pkt *radius.Packet) (download, upload uint64) {
 	for _, raw := range pkt.FindAllAttr(radius.AttrFilterID) {
-		if rate, err := traffic.ParseRateBps(string(raw)); err == nil {
-			return rate
+		if down, up, ok := traffic.ParseFilterIDRate(string(raw)); ok {
+			return down, up
 		}
 	}
-	if rate := extractVSARate(pkt); rate > 0 {
-		return rate
-	}
-	return 0
+	return extractVSARates(pkt)
 }
 
 // extractCoSProfile reads the CoS profile name from CoA attributes.

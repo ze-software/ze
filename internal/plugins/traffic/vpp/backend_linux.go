@@ -315,6 +315,13 @@ func (b *backend) applyInterface(
 	newClassifyBindings map[string]classifyBinding,
 	undo *[]func(),
 ) error {
+	// The verifier rejects an ingress policer. Fail loudly here too: a
+	// programmatic caller (the l2tp shaper) reaches Apply without passing
+	// through OnConfigVerify, and programming the egress half alone would leave
+	// the subscriber's upload rate stored, shown and unenforced.
+	if desired.Ingress.Set() {
+		return errIngressPolicerNotSupportedByBackend
+	}
 	qdisc := desired.Qdisc
 	if qdisc.Type != traffic.QdiscHTB && qdisc.Type != traffic.QdiscTBF {
 		// Verifier rejects every other qdisc type. Fail loudly here so a

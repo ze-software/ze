@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/component/traffic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
@@ -339,6 +341,19 @@ func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
 			sess.AuthMethod = info.authMethod
 		}
 	}
+	// RFC 2865 Section 5.11: the Access-Accept Filter-Id carries the
+	// subscriber's rates. The RADIUS handler stores the profile under the same
+	// (ifindex, session-id) pair this event carries, so a PPPoE subscriber's
+	// authorized rates reach the shaper exactly as an L2TP one's do. Without
+	// this the two rate fields had no producer at all and every PPPoE session
+	// was shaped at the configured default whatever the RADIUS server answered.
+	if meta := l2tp.LoadSessionMetadata(e.TunnelID, e.SessionID); meta != nil && meta.FilterID != "" {
+		if download, upload, ok := traffic.ParseFilterIDRate(meta.FilterID); ok {
+			sess.DownloadRate = download
+			sess.UploadRate = upload
+		}
+	}
+
 	sess.AcctSessionID = sess.ID
 	subscriber.DefaultRegistry.Add(&sess)
 	subscriber.RecordSessionUp(subscriber.AccessPPPoE)

@@ -81,8 +81,8 @@ func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 		}
 	}
 	if meta.FilterID == "" {
-		if rate := extractVSARate(resp); rate > 0 {
-			meta.FilterID = mikrotikRateToFilterID(rate)
+		if down, up := extractVSARates(resp); down > 0 {
+			meta.FilterID = mikrotikRateToFilterID(down, up)
 			found = true
 		}
 	}

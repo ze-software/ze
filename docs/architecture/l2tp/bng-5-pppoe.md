@@ -46,6 +46,18 @@ and the event consumer would otherwise both close it.
 
 <!-- source: internal/component/l2tp/pppoe/ratelimit.go -- PADILimiter, Check -->
 
+**A PPPoE session reads its RADIUS rate profile from the shared session
+metadata store, not from a PPPoE-specific path.** The RADIUS auth handler stores
+the Access-Accept attributes under the `(tunnel id, session id)` pair the PPP
+driver carried, and for PPPoE that pair is `(ifindex, PPPoE session id)`, which
+`onSessionUp` already holds. So the subscriber's Filter-Id rates reach
+`subscriber.Session` with no new plumbing and no second attribute path. The two
+rate fields had no producer at all until 2026-09-06: every PPPoE session handed
+the shaper a zero pair and was shaped at the configured default whatever the
+RADIUS server answered.
+
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -- onSessionUp, the LoadSessionMetadata read -->
+
 ## Traps this code exists to avoid
 
 **`Lookup` returns a live pointer and the caller mutates it.** `handlePADR`
