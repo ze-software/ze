@@ -4,12 +4,10 @@ package cli
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/paths"
@@ -306,10 +303,20 @@ func parseExaBGPCI(root string, rec *runner.Record, ciFile string) (*exabgpTestE
 		tcpConnections: 1,
 	}
 
+	signals := 0
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// A `<prefix>:signal:<NAME>` step asks this runner to reload ze, and a
+		// reload loads the NEXT config the fixture named. Counting them here is
+		// what lets the pairing be checked before a daemon starts, rather than
+		// leaving a fixture that names too few configs to fail 180 seconds later
+		// on a timeout that names no cause.
+		if parts := strings.Split(line, ":"); len(parts) >= 3 && parts[1] == "signal" {
+			signals++
 			continue
 		}
 		if after, ok := strings.CutPrefix(line, "option=file:"); ok {
@@ -340,6 +347,13 @@ func parseExaBGPCI(root string, rec *runner.Record, ciFile string) (*exabgpTestE
 	if len(test.configs) == 0 {
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str("predecessor encoding test has no option=file: ").Str(ciFile).String())
+	}
+	if len(test.configs) != signals+1 {
+		var tb textbuf.Buffer
+		return nil, errors.New(tb.Str(ciFile).
+			Str(" names ").Int(int64(len(test.configs))).Str(" configs and ").
+			Int(int64(signals)).Str(" signal steps: the first config is the one ze starts on, ").
+			Str("and each signal reloads the next one, so a case owes one config more than it has signals").String())
 	}
 	return test, nil
 }
@@ -481,7 +495,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 	testCtx, cancel := context.WithTimeout(ctx, cli.timeout)
 	defer cancel()
 
-	server, portCh, err := startExaBGPServer(testCtx, test, 0, cli.saveDir)
+	server, events, err := startExaBGPServer(testCtx, test, 0, cli.saveDir)
 	if err != nil {
 		rec.State = runner.StateFail
 		rec.Duration = time.Since(rec.StartTime)
@@ -490,7 +504,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 	}
 
 	var detail exabgpRunDetail
-	port, err := waitExaBGPPort(testCtx, portCh, server)
+	port, err := waitExaBGPPort(testCtx, events.port, server)
 	if err != nil {
 		stopExaProcess(server)
 		detail.serverStdout = server.stdout.String()
@@ -502,7 +516,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 	}
 	detail.port = port
 
-	client, err := startExaBGPClient(testCtx, test, port, cli.zeBinary)
+	client, configs, err := startExaBGPClient(testCtx, test, port, cli.zeBinary)
 	if err != nil {
 		stopExaProcess(server)
 		detail.serverStdout = server.stdout.String()
@@ -512,6 +526,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 		rec.Error = err
 		return false, detail
 	}
+	go deliverExaBGPReloads(events.signal, client, configs)
 
 	serverDone := false
 	clientFailed := false
@@ -656,33 +671,38 @@ func runExaBGPClientForeground(test *exabgpTestEntry, port int, zeBinary string)
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(context.Background(), zeBinary, "start", config) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
-	cmd.Env = exaBGPClientEnv(test, port, zeBinary, config)
+	cmd := exec.CommandContext(context.Background(), zeBinary, "start", config.path) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
+	cmd.Env = exaBGPClientEnv(test, port, zeBinary, config.path)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func startExaBGPServer(ctx context.Context, test *exabgpTestEntry, port int, saveDir string) (*exaProcess, <-chan int, error) {
+func startExaBGPServer(ctx context.Context, test *exabgpTestEntry, port int, saveDir string) (*exaProcess, *exaEvents, error) {
 	binary, err := os.Executable()
 	if err != nil {
 		return nil, nil, err
 	}
-	portCh := make(chan int, 1)
-	proc, err := startExaProcess(ctx, "server", binary, exaBGPServerArgs(test, port, saveDir), exaBGPServerEnv(test, port), portCh)
-	return proc, portCh, err
+	// One signal slot for each config the fixture names, which is a slot more
+	// than the signals it can ask for (parseExaBGPCI checks that pairing). The
+	// send must never block: the sender is the goroutine draining the server's
+	// stdout pipe, and a blocked drain stops reap from ever calling Wait, which
+	// hangs stopExaProcess and with it the whole run.
+	events := &exaEvents{port: make(chan int, 1), signal: make(chan string, len(test.configs))}
+	proc, err := startExaProcess(ctx, "server", binary, exaBGPServerArgs(test, port, saveDir), exaBGPServerEnv(test, port), events)
+	return proc, events, err
 }
 
-func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int, zeBinary string) (*exaProcess, error) {
+func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int, zeBinary string) (*exaProcess, exabgpClientConfigs, error) {
 	config, err := exaBGPClientConfig(ctx, test, zeBinary)
 	if err != nil {
-		return nil, err
+		return nil, exabgpClientConfigs{}, err
 	}
-	client, err := startExaProcess(ctx, "client", zeBinary, []string{"start", config}, exaBGPClientEnv(test, port, zeBinary, config), nil)
+	client, err := startExaProcess(ctx, "client", zeBinary, []string{"start", config.path}, exaBGPClientEnv(test, port, zeBinary, config.path), nil)
 	if err != nil {
-		return nil, err
+		return nil, exabgpClientConfigs{}, err
 	}
-	return client, nil
+	return client, config, nil
 }
 
 func exaBGPServerArgs(test *exabgpTestEntry, port int, saveDir string) []string {
@@ -732,37 +752,32 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, configPath strin
 	return env
 }
 
-func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary string) (string, error) {
-	// One config, the FIRST. A case that names several names them in the order
-	// ze is to load them, and the ones after the first are RELOADS
-	// (exaBGPReloads). Concatenating them into one file was silently wrong: a
-	// second `neighbor` block for the same address overrode the first, so
-	// api-reload's two static routes became one and the withdrawal its fixture
-	// expects on reload could never happen (ai/rules/principles.md).
-	// A case naming SEVERAL configs is testing a RELOAD, and this runner cannot
-	// ask for one. ze reloads on SIGHUP inside the hub (cmd/ze/hub/main_reload.go)
-	// and answers `request reload` over SSH (internal/component/config/cli,
-	// execReloadCommand); the `ze start` this runner launches handles neither, so
-	// a SIGHUP kills it outright, which is how this was found.
-	//
-	// It is REFUSED rather than approximated. The approximation was to
-	// concatenate every config into one file, which is silently wrong: a second
-	// `neighbor` block for the same address overrides the first, so
-	// api-reload.1.conf's two static routes became one and the withdrawal its
-	// fixture expects on reload could never happen (ai/rules/principles.md).
-	if len(test.configs) > 1 {
-		var tb textbuf.Buffer
-		return "", errors.New(tb.Str(test.ciFile).
-			Str(" names ").Int(int64(len(test.configs))).
-			Str(" configs, so it drives a reload, and this runner has no way to ask ze for one: ").
-			Str("`ze start` dies on SIGHUP and `request reload` needs an SSH session").String())
+// exabgpClientConfigs is what a case's `option=file:` configs become: the path
+// ze starts on, and the native text of every config the fixture named after the
+// first, in fixture order.
+//
+// A case that names several configs is testing a RELOAD. The later ones are
+// held as TEXT rather than written beside the active path, because a reload
+// writes one of them OVER that path and nothing else ever reads them from disk.
+//
+// Concatenating them into one file was the old approximation and it was
+// silently wrong: a second `neighbor` block for the same address overrides the
+// first, so api-reload.1.conf's two static routes became one and the withdrawal
+// its fixture expects on reload could never happen (ai/rules/principles.md).
+type exabgpClientConfigs struct {
+	path    string
+	reloads []string
+}
+
+func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary string) (exabgpClientConfigs, error) {
+	native := make([]string, 0, len(test.configs))
+	for _, source := range test.configs {
+		migrated, err := migrateExaBGPConfig(ctx, zeBinary, source)
+		if err != nil {
+			return exabgpClientConfigs{}, err
+		}
+		native = append(native, strings.ReplaceAll(migrated, "local {", "local {\n\t\t\t\t\taccept false;"))
 	}
-	migrated, err := migrateExaBGPConfig(ctx, zeBinary, test.configs[0])
-	if err != nil {
-		return "", err
-	}
-	var config textbuf.Buffer
-	config.WriteString(migrated)
 	// A DIRECTORY per test, not just a file. ze derives its config directory
 	// from its own binary unless ze.config.dir says otherwise
 	// (internal/core/paths.DefaultConfigDir), so every concurrent daemon in this
@@ -774,35 +789,24 @@ func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary str
 	// each daemon reads and writes its own store.
 	directory, err := os.MkdirTemp("", "ze-exabgp-native-*")
 	if err != nil {
-		return "", err
+		return exabgpClientConfigs{}, err
 	}
 	// Seeded from the run's own config directory, not left empty. The store
 	// holds the local username and the plugin CA, and a daemon handed an empty
 	// one spends its startup minting them: conf-watchdog, which runs a plugin
 	// over that CA, timed out waiting for a daemon busy doing it.
 	if err := copyConfigDir(paths.ConfigDirFromBinary(zeBinary), directory); err != nil {
-		return "", err
+		return exabgpClientConfigs{}, err
 	}
 	// NOT ze.conf. That is the name the blob store adopts as its active config
 	// (internal/core/resolve.DefaultConfig), so a file called that in the config
 	// directory is migrated into the store at startup, and conf-watchdog timed
 	// out waiting for a daemon busy doing it.
-	file, err := os.Create(filepath.Join(directory, "migrated.conf")) //nolint:gosec // the directory is this process's own temporary one
-	if err != nil {
-		return "", err
+	path := filepath.Join(directory, "migrated.conf")
+	if err := os.WriteFile(path, []byte(native[0]), 0o600); err != nil {
+		return exabgpClientConfigs{}, err
 	}
-	path := file.Name()
-	nativeConfig := strings.ReplaceAll(config.String(), "local {", "local {\n\t\t\t\t\taccept false;")
-	if _, err := file.WriteString(nativeConfig); err != nil {
-		_ = file.Close()
-		_ = os.Remove(path)
-		return "", err
-	}
-	if err := file.Close(); err != nil {
-		_ = os.Remove(path)
-		return "", err
-	}
-	return path, nil
+	return exabgpClientConfigs{path: path, reloads: native[1:]}, nil
 }
 
 // absoluteBridgeRun rewrites the ExaBGP bridge's run command to an absolute
@@ -871,141 +875,6 @@ func copyConfigDir(source, destination string) error {
 		}
 	}
 	return nil
-}
-
-type exaProcess struct {
-	name   string
-	cmd    *exec.Cmd
-	stdout lockedBuffer
-	stderr lockedBuffer
-	done   chan struct{}
-	mu     sync.Mutex
-	err    error
-}
-
-type lockedBuffer struct {
-	mu sync.Mutex
-	b  bytes.Buffer
-}
-
-func (b *lockedBuffer) Append(s string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	_, _ = b.b.WriteString(s)
-	_ = b.b.WriteByte('\n')
-}
-
-func (b *lockedBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.b.String()
-}
-
-func startExaProcess(ctx context.Context, name, program string, args, env []string, portCh chan<- int) (*exaProcess, error) {
-	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // program and args target repository-owned compatibility fixtures.
-	cmd.Env = env
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	proc := &exaProcess{name: name, cmd: cmd, done: make(chan struct{})}
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-
-	// The readers are joined BEFORE Wait, which is the ordering StdoutPipe
-	// documents: Wait closes the pipe once it sees the command exit, so a read
-	// still in flight loses whatever the child wrote last. The verdict is read
-	// off this buffer, so a server that printed "successful" and exited zero was
-	// reported as "did not report success" whenever Wait won that race, which is
-	// a red saying nothing about the software under test. Both readers end on
-	// the EOF the child's exit produces, so joining them cannot outlive it.
-	copiers := &sync.WaitGroup{}
-	copiers.Add(2)
-	go copyExaOutputTracked(copiers, stdout, &proc.stdout, portCh)
-	go copyExaOutputTracked(copiers, stderr, &proc.stderr, nil)
-	go proc.reap(copiers, portCh)
-	return proc, nil
-}
-
-// copyExaOutputTracked drains one pipe and reports that it reached EOF, which
-// is what lets reap call Wait only once nothing is still reading.
-func copyExaOutputTracked(copiers *sync.WaitGroup, r io.Reader, dst *lockedBuffer, portCh chan<- int) {
-	defer copiers.Done()
-	copyExaOutput(r, dst, portCh)
-}
-
-// reap records the child's exit status once both pipes are drained, then wakes
-// everything waiting on this process.
-func (p *exaProcess) reap(copiers *sync.WaitGroup, portCh chan<- int) {
-	copiers.Wait()
-	err := p.cmd.Wait()
-	p.mu.Lock()
-	p.err = err
-	p.mu.Unlock()
-	close(p.done)
-	if portCh != nil {
-		close(portCh)
-	}
-}
-
-func copyExaOutput(r io.Reader, dst *lockedBuffer, portCh chan<- int) {
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 0, 4096), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
-		dst.Append(line)
-		if portCh == nil || !strings.HasPrefix(line, "PORT ") {
-			continue
-		}
-		port, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "PORT ")))
-		if err == nil && port > 0 {
-			select {
-			case portCh <- port:
-			default:
-			}
-		}
-	}
-}
-
-func (p *exaProcess) Err() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.err
-}
-
-func (p *exaProcess) Running() bool {
-	select {
-	case <-p.done:
-		return false
-	default:
-		return true
-	}
-}
-
-func stopExaProcess(p *exaProcess) {
-	if p == nil || p.cmd == nil || p.cmd.Process == nil {
-		return
-	}
-	if !p.Running() {
-		return
-	}
-	pid := p.cmd.Process.Pid
-	_ = syscall.Kill(-pid, syscall.SIGTERM)
-	select {
-	case <-p.done:
-		return
-	case <-time.After(500 * time.Millisecond):
-		_ = syscall.Kill(-pid, syscall.SIGKILL)
-	}
-	<-p.done
 }
 
 // migrateExaBGPConfig converts one ExaBGP config into ze's syntax, with the

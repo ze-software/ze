@@ -98,9 +98,39 @@ func TestExaBGPServerCaseParserPreservesWireBytes(t *testing.T) {
 		t.Fatal(err)
 	}
 	spec, err := readExaBGPCase(path)
-	if err != nil || spec.asn != 65000 || len(spec.frames[1]) != 1 ||
-		hex.EncodeToString(spec.frames[1][0]) != "ffffffffffffffffffffffffffffffff00170200000000" {
-		t.Fatalf("parsed case = ASN %d frames %x, error %v", spec.asn, spec.frames[1], err)
+	if err != nil || spec.asn != 65000 || len(spec.steps[1]) != 1 || spec.steps[1][0].kind != exabgpStepFrame ||
+		hex.EncodeToString(spec.steps[1][0].frame) != "ffffffffffffffffffffffffffffffff00170200000000" {
+		t.Fatalf("parsed case = ASN %d steps %+v, error %v", spec.asn, spec.steps[1], err)
+	}
+}
+
+// TestExaBGPServerCaseParserOrdersSignalWithFrames checks that a `signal`
+// directive lands in the connection's script at the point the fixture wrote it,
+// because that position is what tells the mock how many frames must match
+// before the runner is asked to reload ze. api-reload is the case that depends
+// on it: its withdrawal is produced BY the reload, so a signal read as nothing,
+// or read out of order, waits for a frame the speaker never sends.
+func TestExaBGPServerCaseParserOrdersSignalWithFrames(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "case.ci")
+	fixture := "A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000\n" +
+		"A2:signal:SIGUSR1\n" +
+		"A3:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001B:02:0004180200000000\n"
+	if err := os.WriteFile(path, []byte(fixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := readExaBGPCase(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := spec.steps[1]
+	if len(steps) != 3 {
+		t.Fatalf("connection 1 script = %d steps, want 3: %+v", len(steps), steps)
+	}
+	if steps[0].kind != exabgpStepFrame || steps[2].kind != exabgpStepFrame {
+		t.Fatalf("frame steps = %v and %v, want both %v", steps[0].kind, steps[2].kind, exabgpStepFrame)
+	}
+	if steps[1].kind != exabgpStepSignal || steps[1].signal != "SIGUSR1" {
+		t.Fatalf("signal step = kind %v name %q, want kind %v name SIGUSR1", steps[1].kind, steps[1].signal, exabgpStepSignal)
 	}
 }
 

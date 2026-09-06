@@ -38,14 +38,13 @@ func runExaBGPServer(args []string, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	expected, asn := spec.frames, spec.asn
 	if !spec.asnStated {
 		configured, found, asErr := peerASFromExaBGPConfig(os.Getenv("EXABGP_TEST_CONFIG"))
 		if asErr != nil {
 			return asErr
 		}
 		if found {
-			asn = configured
+			spec.asn = configured
 		}
 	}
 	connections := 1
@@ -74,7 +73,7 @@ func runExaBGPServer(args []string, output io.Writer) error {
 		if recorderErr != nil {
 			return recorderErr
 		}
-		err = serveExaBGPConnection(connection, asn, spec.sendDefaultRoute, expected[connectionIndex], recorder)
+		err = serveExaBGPConnection(connection, spec, connectionIndex, recorder, output)
 		recorder.close()
 		_ = connection.Close()
 		if err != nil {
@@ -85,7 +84,7 @@ func runExaBGPServer(args []string, output io.Writer) error {
 	return err
 }
 
-// readExaBGPCase reads a `.ci` fixture: the frames each connection owes, the AS
+// readExaBGPCase reads a `.ci` fixture: the script each connection owes, the AS
 // this mock presents, and whether the fixture STATED that AS or took the default.
 //
 // The caller needs the third answer because the default is a guess. Upstream's
@@ -98,7 +97,7 @@ func readExaBGPCase(path string) (exabgpCase, error) {
 		return exabgpCase{}, err
 	}
 	defer func() { _ = file.Close() }()
-	spec := exabgpCase{frames: make(map[int][][]byte), asn: 65000}
+	spec := exabgpCase{steps: make(map[int][]exabgpStep), asn: 65000}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -125,6 +124,25 @@ func readExaBGPCase(path string) (exabgpCase, error) {
 			continue
 		}
 		parts := strings.Split(line, ":")
+		if len(parts) < 3 {
+			continue
+		}
+		// `<prefix>:signal:<NAME>` names a point in the script where the RUNNER
+		// must signal the speaker. It was read as nothing until 2026-09-06, so
+		// api-reload's reload never happened and its post-reload frames never
+		// arrived.
+		if parts[1] == "signal" {
+			connection, err := exabgpCaseConnection(parts[0])
+			if err != nil {
+				return exabgpCase{}, fmt.Errorf("invalid signal connection in %q: %w", line, err)
+			}
+			name := strings.TrimSpace(parts[2])
+			if name == "" {
+				return exabgpCase{}, fmt.Errorf("signal directive names no signal: %q", line)
+			}
+			spec.steps[connection] = append(spec.steps[connection], exabgpStep{kind: exabgpStepSignal, signal: name})
+			continue
+		}
 		if len(parts) < 4 || parts[1] != "raw" {
 			continue
 		}
@@ -136,17 +154,47 @@ func readExaBGPCase(path string) (exabgpCase, error) {
 		if err != nil {
 			return exabgpCase{}, fmt.Errorf("decode raw directive: %w", err)
 		}
-		spec.frames[connection] = append(spec.frames[connection], wire)
+		spec.steps[connection] = append(spec.steps[connection], exabgpStep{kind: exabgpStepFrame, frame: wire})
 	}
 	return spec, scanner.Err()
 }
 
-// exabgpCase is what one `.ci` fixture states: the frames each connection owes,
+// exabgpStepKind says what one entry of a connection's script is. Zero is
+// Unspecified, so a step nobody wrote is never read as a frame the speaker owes.
+type exabgpStepKind uint8
+
+const (
+	exabgpStepUnspecified exabgpStepKind = iota
+	exabgpStepFrame
+	exabgpStepSignal
+)
+
+// exabgpStep is one entry of a connection's script, in the order the fixture
+// wrote it.
+//
+// A frame step is an expectation the speaker owes. A signal step is an
+// instruction to the RUNNER, which owns the ze process this mock cannot reach,
+// and it divides the script into ordered segments: every frame before it must
+// match before the signal is reported, and the frames after it are matched only
+// once it has been.
+type exabgpStep struct {
+	kind   exabgpStepKind
+	frame  []byte
+	signal string
+}
+
+// exabgpSignalMarker opens the line this mock writes on its stdout when a
+// script reaches a signal step. It follows the shape of the `PORT <n>` line the
+// runner already reads off that same stream, and a frame dump is unspaced
+// uppercase hex, so neither line can be read as the other.
+const exabgpSignalMarker = "SIGNAL"
+
+// exabgpCase is what one `.ci` fixture states: the script each connection owes,
 // the AS this mock presents and whether the fixture named it, and the UPDATEs
 // the mock sends of its own accord.
 type exabgpCase struct {
-	frames map[int][][]byte
-	asn    uint32
+	steps map[int][]exabgpStep
+	asn   uint32
 	// asnStated says the fixture named the AS. The caller needs it because the
 	// default is a guess: upstream's runner opened no session at all, so no
 	// fixture states an AS unless its author had a reason to.
@@ -199,7 +247,8 @@ func exabgpCaseConnection(prefix string) (int, error) {
 	return connection, nil
 }
 
-func serveExaBGPConnection(connection net.Conn, asn uint32, sendDefaultRoute bool, expected [][]byte, recorder *frameRecorder) error {
+func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex int, recorder *frameRecorder, output io.Writer) error {
+	steps := spec.steps[connectionIndex]
 	_ = connection.SetDeadline(time.Now().Add(60 * time.Second))
 	messageType, body, err := readBGPWireMessage(connection)
 	if err != nil {
@@ -209,10 +258,10 @@ func serveExaBGPConnection(connection net.Conn, asn uint32, sendDefaultRoute boo
 		return fmt.Errorf("first message type = %d, want OPEN", messageType)
 	}
 	matched := 0
-	if len(expected) > 0 && len(expected[0]) >= bgpHeaderLength && expected[0][18] == bgpOpen {
+	if len(steps) > 0 && steps[0].kind == exabgpStepFrame && len(steps[0].frame) >= bgpHeaderLength && steps[0].frame[18] == bgpOpen {
 		actualOpen := speakerMessage(bgpOpen, body)
-		if !bytes.Equal(actualOpen, expected[0]) {
-			return fmt.Errorf("OPEN = %X, want %X", actualOpen, expected[0])
+		if !bytes.Equal(actualOpen, steps[0].frame) {
+			return fmt.Errorf("OPEN = %X, want %X", actualOpen, steps[0].frame)
 		}
 		matched++
 	}
@@ -220,8 +269,8 @@ func serveExaBGPConnection(connection net.Conn, asn uint32, sendDefaultRoute boo
 	if len(openBody) < 10 {
 		return errors.New("truncated OPEN")
 	}
-	peerAS := uint16(asn)
-	if asn > 0xffff {
+	peerAS := uint16(spec.asn)
+	if spec.asn > 0xffff {
 		peerAS = 23456
 	}
 	binary.BigEndian.PutUint16(openBody[1:3], peerAS)
@@ -230,21 +279,60 @@ func serveExaBGPConnection(connection net.Conn, asn uint32, sendDefaultRoute boo
 		routerID[3] = 2
 	}
 	copy(openBody[5:9], routerID)
-	rewriteAS4Capability(openBody, asn)
+	rewriteAS4Capability(openBody, spec.asn)
 	if _, err := connection.Write(speakerMessage(bgpOpen, openBody)); err != nil {
 		return err
 	}
 	if _, err := connection.Write(speakerKeepalive()); err != nil {
 		return err
 	}
-	if sendDefaultRoute {
+	if spec.sendDefaultRoute {
 		if _, err := connection.Write(exabgpDefaultRoute()); err != nil {
 			return err
 		}
 	}
-	remaining := append([][]byte(nil), expected[matched:]...)
+	// The script is walked one segment at a time, a segment being the frames
+	// that stand between two signal steps. A fixture naming no signal has one
+	// segment, which is the whole script and the behavior every case had before
+	// signal steps existed.
+	position := matched
+	for position < len(steps) {
+		end := position
+		for end < len(steps) && steps[end].kind == exabgpStepFrame {
+			end++
+		}
+		if err := matchExaBGPFrames(connection, steps[position:end], recorder); err != nil {
+			return err
+		}
+		position = end
+		if position == len(steps) {
+			break
+		}
+		// Every frame the fixture wrote before this step has matched, so the
+		// runner can act on it now. This mock runs in a separate process from
+		// the speaker and holds only the TCP session, so reporting the step is
+		// all it can do about it.
+		if _, err := fmt.Fprintf(output, "%s %s\n", exabgpSignalMarker, steps[position].signal); err != nil {
+			return err
+		}
+		position++
+	}
+	if count := recorder.mismatches(); count > 0 {
+		return fmt.Errorf("%d frame(s) the speaker sent match no expectation", count)
+	}
+	return nil
+}
+
+// matchExaBGPFrames reads from the speaker until every frame of one segment has
+// matched. Inside a segment the frames match in any order, because a fixture
+// states what the speaker owes rather than the order its encoder picks.
+func matchExaBGPFrames(connection net.Conn, segment []exabgpStep, recorder *frameRecorder) error {
+	remaining := make([][]byte, 0, len(segment))
+	for _, step := range segment {
+		remaining = append(remaining, step.frame)
+	}
 	for len(remaining) > 0 {
-		messageType, body, err = readBGPWireMessage(connection)
+		messageType, body, err := readBGPWireMessage(connection)
 		if err != nil {
 			return err
 		}
@@ -271,9 +359,6 @@ func serveExaBGPConnection(connection net.Conn, asn uint32, sendDefaultRoute boo
 			return fmt.Errorf("unexpected message = %X; %d expected frames remain", actual, len(remaining))
 		}
 		remaining = append(remaining[:found], remaining[found+1:]...)
-	}
-	if count := recorder.mismatches(); count > 0 {
-		return fmt.Errorf("%d frame(s) the speaker sent match no expectation", count)
 	}
 	return nil
 }
