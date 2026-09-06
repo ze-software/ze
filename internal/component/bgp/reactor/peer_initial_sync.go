@@ -7,7 +7,7 @@ package reactor
 import (
 	"net/netip"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"unsafe"
 
@@ -71,14 +71,6 @@ func (p *Peer) sendInitialRoutes() {
 		return
 	}
 
-	peerLogger().Debug("sendInitialRoutes sending static routes", "peer", addr, "count", len(p.settings.StaticRoutes))
-
-	// Mark static config routes so the RIB plugin skips ribOut storage.
-	// These routes are always re-sent from config on reconnection; storing
-	// them in ribOut would cause duplicates (config + replay).
-	// Uses atomic flag checked by notifyMessageReceiver to tag sent events.
-	p.sendingConfigStatic.Store(true)
-
 	// RFC 8669 Section 8: "The propagation to other ASes MUST be explicitly
 	// configured." One answer for this whole send, because it is a property of
 	// the session rather than of a route (Peer.prefixSIDAllowed,
@@ -88,81 +80,28 @@ func (p *Peer) sendInitialRoutes() {
 	// Calculate max message size for this peer
 	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 
-	// Send routes - either grouped or individually based on config.
-	if p.settings.GroupUpdates {
-		// Group routes by attributes (same attributes = same UPDATE).
-		groups := groupRoutesByAttributes(p.settings.StaticRoutes)
+	// The set, the frames it produces and the record of what reached the wire are
+	// decided in ONE critical section under p.staticMu, because a config reload
+	// delivers the DIFFERENCE between two sets on this same connection
+	// (deliverStaticRouteDelta, peer_static_wire.go). Without the lock the two
+	// writers interleave, and a withdrawal can precede the announcement it takes
+	// back. The session is read before the lock is taken so the record names the
+	// connection these frames were written on.
+	wireSession := p.currentSession()
 
-		for _, routes := range groups {
-			addPath := p.addPathFor(routeFamily(&routes[0]))
-			if len(routes) == 1 {
-				// Single-route group (IPv6, VPN, LabeledUnicast, or solo IPv4)
-				// Resolve next-hop from RouteNextHop policy
-				nextHop, nhErr := p.resolveNextHop(routes[0].NextHop, routeFamily(&routes[0]))
-				if nhErr != nil {
-					routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
-					continue
-				}
-				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-				update := buildStaticRouteUpdateNew(ub, &routes[0], nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
-				err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
-				message.PutUpdateBuilder(ub)
-				if err != nil {
-					routesLogger().Debug("send error", "peer", addr, "error", err)
-					break
-				}
-			} else {
-				// Multi-route group - IPv4 unicast only (routeGroupKey ensures this)
-				// Use size-aware builder to respect max message size
-				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-				params := make([]message.UnicastParams, 0, len(routes))
-				for i := range routes {
-					r := &routes[i]
-					nextHop, nhErr := p.resolveNextHop(r.NextHop, routeFamily(r))
-					if nhErr != nil {
-						routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", r.Prefix, "error", nhErr)
-						continue
-					}
-					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed))
-				}
-				if len(params) == 0 {
-					message.PutUpdateBuilder(ub)
-					continue
-				}
-				err := ub.BuildGroupedUnicast(params, maxMsgSize, p.SendUpdate)
-				message.PutUpdateBuilder(ub)
-				if err != nil {
-					routesLogger().Debug("grouped unicast error", "peer", addr, "error", err)
-					break
-				}
-			}
-			for i := range routes {
-				route := &routes[i]
-				routesLogger().Debug("route sent", "peer", addr, "prefix", route.Prefix.String(), "nextHop", route.NextHop.String())
-			}
-		}
-	} else {
-		// Send each route in its own UPDATE.
-		for i := range p.settings.StaticRoutes {
-			route := &p.settings.StaticRoutes[i]
-			// Resolve next-hop from RouteNextHop policy
-			nextHop, nhErr := p.resolveNextHop(route.NextHop, routeFamily(route))
-			if nhErr != nil {
-				routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", route.Prefix, "error", nhErr)
-				continue
-			}
-			addPath := p.addPathFor(routeFamily(route))
-			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-			update := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
-			err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
-			message.PutUpdateBuilder(ub)
-			if err != nil {
-				routesLogger().Debug("send error", "peer", addr, "error", err)
-				break
-			}
-			routesLogger().Debug("route sent", "peer", addr, "prefix", route.Prefix.String(), "nextHop", route.NextHop.String())
-		}
-	}
+	p.staticMu.Lock()
+	routes := p.staticRoutes()
+	peerLogger().Debug("sendInitialRoutes sending static routes", "peer", addr, "count", len(routes))
+
+	// Mark static config routes so the RIB plugin skips ribOut storage.
+	// These routes are always re-sent from config on reconnection; storing
+	// them in ribOut would cause duplicates (config + replay).
+	// Uses atomic flag checked by notifyMessageReceiver to tag sent events.
+	p.sendingConfigStatic.Store(true)
+
+	sent := p.sendStaticRoutes(routes, p.settings.GroupUpdates, maxMsgSize, prefixSIDAllowed)
+	p.staticWire = staticWireSet{session: wireSession, routes: sent}
+	p.staticMu.Unlock()
 
 	// Send default routes for families with default-originate enabled.
 	// RFC 4271: default route is 0.0.0.0/0 (IPv4) or ::/0 (IPv6).
@@ -675,7 +614,7 @@ func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
 		}
 		g.nlris = append(g.nlris, route.NLRI)
 	}
-	sort.Strings(groupOrder)
+	slices.Sort(groupOrder)
 	for _, key := range groupOrder {
 		p.sendPluginRouteGroup(groups[key], maxMsgSize, sendFn, addr)
 	}

@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -643,17 +644,35 @@ func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 	}
 }
 
-// pluginToZebgp reads ExaBGP text commands from the plugin, translates them to ze
-// commands, wraps each in MuxConn dispatch-command format, writes to ze stdout,
-// and injects a peer-flush RPC after route commands (blocking until the flush completes).
-// When exabgp.api.ack is enabled (the default), the bridge emits `done\n` /
-// `error <msg>\n` on the plugin's stdin once ze has acknowledged each dispatch.
+// pluginToZebgp reads ExaBGP text commands from the plugin, cuts them into
+// batches, nets each batch, dispatches what survives over MuxConn, flushes each
+// selector the batch reached, and answers every line of the batch.
+//
+// One read is one batch, and the reader does no wire work: it hands each batch
+// to the dispatcher goroutine and returns to the pipe at once. A reader that
+// waited for the flush would let the script's NEXT write join the batch it was
+// still dispatching, and the netting would then cancel two commands the script
+// wrote in two separate writes (bridge_batch.go).
+//
+// When exabgp.api.ack is enabled (the default), each line is answered with
+// `done\n` or `error <msg>\n` after the batch's flush.
 func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writer, zeOut *syncWriter, pending *pendingResponses) {
-	const flushTimeout = 30 * time.Second
-	const dispatchAckTimeout = 30 * time.Second
+	batches := make(chan []string, BatchQueueDepth)
 
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
+	var dispatching sync.WaitGroup
+	dispatching.Go(func() {
+		for lines := range batches {
+			b.dispatchBatch(ctx, lines, pluginW, zeOut, pending)
+		}
+	})
+
+	defer func() {
+		close(batches)
+		dispatching.Wait()
+	}()
+
+	reader := NewBatchReader(r)
+	for {
 		if ctx.Err() != nil {
 			slog.Debug("plugin->zebgp: context canceled")
 			return
@@ -666,79 +685,93 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writ
 			return
 		}
 
-		line := scanner.Text()
-		if line == "" {
+		lines, err := reader.Next()
+		if len(lines) > 0 {
+			select {
+			case batches <- lines:
+			case <-ctx.Done():
+				return
+			}
+		}
+		if err == nil {
 			continue
 		}
+		if !errors.Is(err, io.EOF) {
+			slog.Warn("plugin->zebgp: read error", "error", err)
+		}
+		return
+	}
+}
 
+// dispatchBatch translates, nets, dispatches, flushes and answers one batch.
+//
+// It runs OFF the read path, on the goroutine pluginToZebgp owns.
+func (b *Bridge) dispatchBatch(ctx context.Context, lines []string, pluginW io.Writer, zeOut *syncWriter, pending *pendingResponses) {
+	const flushTimeout = 30 * time.Second
+	const dispatchAckTimeout = 30 * time.Second
+
+	batch := make([]BatchLine, 0, len(lines))
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			batch = append(batch, BatchLine{Text: line})
+			continue
+		}
 		translation, err := Translator{Families: b.Families}.Line(line)
 		if err != nil {
 			// The bridge names the line it refused. Forwarding it instead put an
 			// untranslated line in front of ze's dispatcher, where it died as an
 			// unknown command with no mention of the bridge that sent it.
 			slog.Warn("plugin->zebgp: line refused", "error", err)
-			continue
 		}
-		// A local action is answered here rather than dispatched, so it is read
-		// BEFORE Nothing: it carries no command and is not an empty line.
-		if translation.Local != LocalNone {
-			b.ack.AnswerLocal(pluginW, translation.Local)
-			continue
-		}
-		// A line whose selector names no ze session reaches nothing and is
-		// still answered: the script sent one command and blocks for one
-		// `done`.
-		if translation.Unmatched {
-			b.ack.WriteAck(pluginW)
-			continue
-		}
-		if translation.Nothing() {
-			continue
-		}
-		// One ExaBGP line can be several ze commands, because ExaBGP puts each
-		// prefix on its own UPDATE. The script is acked ONCE, after the last of
-		// them: it wrote one line and blocks for one answer.
-		var reqID uint64
-		var result pendingResult
-		var ackErr error
-		for _, zebgpCmd := range translation.Commands {
-			// Wrap in MuxConn dispatch-command format with unique request ID.
-			reqID = b.nextRequestID.Add(1)
-			ackCh := pending.register(reqID)
-			zeOut.Fprintln(formatDispatchRequest(reqID, zebgpCmd))
+		batch = append(batch, BatchLine{Text: line, Translation: translation, Err: err})
+	}
 
-			// Wait for ze to ack the dispatch before emitting done/error back
-			// to the plugin. A bounded timeout keeps the bridge from stalling
-			// indefinitely if ze drops the response line.
-			ackCtx, ackCancel := context.WithTimeout(ctx, dispatchAckTimeout)
-			result, ackErr = pending.wait(ackCtx, reqID, ackCh)
-			ackCancel()
-			if ackErr != nil || !result.ok {
-				break
-			}
+	netted := Net(batch)
+	answers := make([]BatchAnswer, len(batch))
+	for _, dispatch := range netted {
+		if answers[dispatch.Line].Failed {
+			// This line already met a refusal. Its remaining commands describe
+			// the same route, and the rest of the BATCH keeps going: one line's
+			// failure never swallows another line's answer.
+			continue
 		}
-		b.emitAck(pluginW, reqID, result, ackErr)
+		reqID := b.nextRequestID.Add(1)
+		ackCh := pending.register(reqID)
+		zeOut.Fprintln(formatDispatchRequest(reqID, dispatch.Command.Text))
 
-		// For route commands, inject a flush and block until the forward pool
-		// drains. The selector is the one the translator used, not one read back
-		// out of the command it wrote.
-		if translation.Route {
-			flushID := b.nextRequestID.Add(1)
-			flushCh := pending.register(flushID)
-			zeOut.Fprintln(formatFlushRequest(flushID, translation.Selector))
-
-			flushCtx, cancel := context.WithTimeout(ctx, flushTimeout)
-			if _, err := pending.wait(flushCtx, flushID, flushCh); err != nil {
-				slog.Warn("plugin->zebgp: flush wait error",
-					"error", err, "peer", translation.Selector)
-			}
-			cancel()
+		// Wait for ze to ack the dispatch before answering the line. A bounded
+		// timeout keeps the bridge from stalling indefinitely if ze drops the
+		// response line.
+		ackCtx, ackCancel := context.WithTimeout(ctx, dispatchAckTimeout)
+		result, ackErr := pending.wait(ackCtx, reqID, ackCh)
+		ackCancel()
+		if ackErr != nil {
+			slog.Warn("plugin->zebgp: dispatch ack wait error", "error", ackErr, "id", reqID)
+			answers[dispatch.Line] = BatchAnswer{Failed: true, Error: "ze dispatch timeout"}
+			continue
+		}
+		if !result.ok {
+			answers[dispatch.Line] = BatchAnswer{Failed: true, Error: result.errText}
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		slog.Warn("plugin->zebgp: scanner error", "error", err)
+	// The flush comes BEFORE every answer, because `done` means the command is
+	// done and a route is not done until it is on the wire. One flush per
+	// selector the batch reached, so a batch that announced to two neighbors
+	// drains both.
+	for _, selector := range BatchSelectors(batch, netted) {
+		flushID := b.nextRequestID.Add(1)
+		flushCh := pending.register(flushID)
+		zeOut.Fprintln(formatFlushRequest(flushID, selector))
+
+		flushCtx, cancel := context.WithTimeout(ctx, flushTimeout)
+		if _, err := pending.wait(flushCtx, flushID, flushCh); err != nil {
+			slog.Warn("plugin->zebgp: flush wait error", "error", err, "peer", selector)
+		}
+		cancel()
 	}
+
+	AnswerBatch(pluginW, &b.ack, batch, answers)
 }
 
 // truncate returns s truncated to maxLen runes with "..." suffix if needed.

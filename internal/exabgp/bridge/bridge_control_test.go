@@ -190,8 +190,8 @@ func TestBareAddressBecomesAHostRoute(t *testing.T) {
 			if len(translation.Commands) != 1 {
 				t.Fatalf("commands = %v, want one", translation.Commands)
 			}
-			if translation.Commands[0] != tc.want {
-				t.Errorf("command = %q, want %q", translation.Commands[0], tc.want)
+			if translation.Commands[0].Text != tc.want {
+				t.Errorf("command = %q, want %q", translation.Commands[0].Text, tc.want)
 			}
 		})
 	}
@@ -210,7 +210,7 @@ func TestAFieldValueKeepsItsBareAddress(t *testing.T) {
 	if len(translation.Commands) != 1 {
 		t.Fatalf("commands = %v, want one", translation.Commands)
 	}
-	got := translation.Commands[0]
+	got := translation.Commands[0].Text
 	for _, unwanted := range []string{"10.99.199.1/32", "239.251.255.228/32"} {
 		if strings.Contains(got, unwanted) {
 			t.Errorf("command %q gave a field value a prefix length", got)
@@ -280,8 +280,8 @@ func TestFamilyAllowedInOpenReachesNoSession(t *testing.T) {
 			if len(translation.Commands) != 1 {
 				t.Fatalf("commands = %v, want one", translation.Commands)
 			}
-			if translation.Commands[0] != tc.want {
-				t.Errorf("command = %q, want %q", translation.Commands[0], tc.want)
+			if translation.Commands[0].Text != tc.want {
+				t.Errorf("command = %q, want %q", translation.Commands[0].Text, tc.want)
 			}
 		})
 	}

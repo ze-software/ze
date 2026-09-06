@@ -256,11 +256,19 @@ type UpdateTextResult struct {
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI/MP_UNREACH_NLRI for non-IPv4-unicast families.
 type NLRIBatch struct {
-	Family  family.Family             // AFI/SAFI for all NLRIs
-	NLRIs   []nlri.NLRI               // NLRIs to announce or withdraw
-	NextHop RouteNextHop              // Next-hop policy (announce only)
-	Attrs   *attribute.Builder        // Attribute builder (for new routes)
-	Wire    *attribute.AttributesWire // Wire passthrough (for forwarding)
+	Family family.Family // AFI/SAFI for all NLRIs
+	NLRIs  []nlri.NLRI   // NLRIs to announce or withdraw
+	// NextHop is the next-hop policy. An announce resolves it per destination
+	// peer; a withdraw reads an EXPLICIT address only, to restate it as the RFC
+	// 4271 Section 5.1.3 NEXT_HOP attribute where the family carries one.
+	NextHop RouteNextHop
+	// Attrs and Wire are the attribute block the caller named, and a withdraw
+	// carries them exactly as an announce does. RFC 4760 Section 4: "An UPDATE
+	// message that contains the MP_UNREACH_NLRI is not required to carry any
+	// other path attributes", so a caller that names none is sent a bare
+	// MP_UNREACH_NLRI and a caller that names some is sent them.
+	Attrs *attribute.Builder        // Attribute builder (for new routes)
+	Wire  *attribute.AttributesWire // Wire passthrough (for forwarding)
 	// OriginAS, when nonzero, originates the route as a virtual router with this
 	// AS: AS_PATH is [OriginAS] to iBGP peers and [localAS, OriginAS] to eBGP
 	// peers (normal export prepend). Distinct from a verbatim `as-path` (route
@@ -273,6 +281,17 @@ type NLRIBatch struct {
 	// peers, and converted to withdrawals for non-LLGR eBGP peers. Zero (the
 	// common case) takes the unchanged grouped announce path.
 	Stale uint8
+	// Replay marks a batch that RE-ADVERTISES what a peer was already sent, so
+	// the destination peer's Adj-RIB-Out must not suppress it. It is set by the
+	// RIB plugin's resend rail, which is what `clear bgp rib out` and the
+	// RFC 2918 Section 3 route refresh behind it reach. Answering a request to
+	// re-send with silence is the one way the Adj-RIB-Out can blackhole a
+	// prefix, so the request says so rather than the reactor guessing.
+	//
+	// A peer-up replay does NOT need it: a session teardown empties the
+	// Adj-RIB-Out (Peer.clearEncodingContexts), so the new session's table
+	// suppresses nothing.
+	Replay bool
 }
 
 // RIBStatsInfo holds RIB statistics for Adj-RIB-In and Adj-RIB-Out.

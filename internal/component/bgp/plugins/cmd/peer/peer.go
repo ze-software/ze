@@ -127,6 +127,11 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},
 		// Additional owner-registered BGP peer commands.
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
+		// `create bgp peer` and `delete bgp peer` are one pair, and the two
+		// wire methods are spelled differently because each takes the name its
+		// own YANG module declares: peer-add is declared in ze-bgp-api.yang and
+		// peer-remove is served under the delete verb's prefix.
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", Handler: handleBgpPeerAdd, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: handleBgpPeerRemove, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-update:bgp-peer-prefix", Handler: handleBgpPeerPrefixUpdate, RequiresSelector: true},
 	)
@@ -185,6 +190,12 @@ func registerColumns() {
 	// what it reached, and why.
 	command.RegisterColumns([]string{cmdBgpPeerHistory},
 		command.ColumnOrder{"timestamp", "from", "to", "reason"},
+	)
+
+	// `create bgp peer` answers one record: which peer was created, what AS it
+	// speaks, and what happened. The order is that sentence.
+	command.RegisterColumns([]string{cmdBgpPeerCreate},
+		command.ColumnOrder{fieldPeer, fieldRemoteAS, fieldMessage},
 	)
 	// Every branch under `show bgp` declares NO order of its own, which is what
 	// stops it inheriting the two above and rendering peer columns over an
@@ -694,8 +705,8 @@ func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			fieldPeer: addr.String(),
-			"message": "peer removed",
+			fieldPeer:    addr.String(),
+			fieldMessage: "peer removed",
 		},
 	}, nil
 }

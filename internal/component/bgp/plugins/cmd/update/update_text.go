@@ -1063,6 +1063,12 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	// the per-peer readvertise egress filters. Zero for every non-stale command.
 	staleLevel := staleLevelFromMeta(ctx.Meta)
 
+	// RFC 4271 Section 9.2 has this speaker withhold a route a peer already
+	// holds, and each peer's Adj-RIB-Out is what answers that (adj_rib_out.go).
+	// A RESEND exists to put those same routes back on the wire, so it says so
+	// and the reactor sends them.
+	replay := replayFromMeta(ctx.Meta)
+
 	for _, group := range groups {
 		if len(group.Announce) > 0 {
 			batch := bgptypes.NLRIBatch{
@@ -1072,6 +1078,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				Wire:     group.Wire,
 				OriginAS: group.OriginAS,
 				Stale:    staleLevel,
+				Replay:   replay,
 			}
 			if err := bgpReactor.AnnounceNLRIBatch(sel, batch, ctx.Sender); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
@@ -1083,15 +1090,36 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 			announced += len(group.Announce)
 		}
 		if len(group.Withdraw) > 0 {
+			// The withdrawal carries what the operator wrote in front of `nlri`, the
+			// same block the announce above carries. Dropping Wire and NextHop here
+			// is how `send bgp <selector> update text <attributes> nlri <family> del
+			// <nlri>` acknowledged attributes that never reached the wire: the
+			// reactor received a batch that named none, so it could not tell the
+			// command apart from one that asked for none (ai/rules/principles.md).
+			// RFC 4760 Section 4 permits both shapes -- "An UPDATE message that
+			// contains the MP_UNREACH_NLRI is not required to carry any other path
+			// attributes" -- so the command is what decides which one is sent.
 			batch := bgptypes.NLRIBatch{
-				Family: group.Family,
-				NLRIs:  group.Withdraw,
+				Family:  group.Family,
+				NLRIs:   group.Withdraw,
+				NextHop: group.NextHop,
+				Wire:    group.Wire,
 			}
-			if err := bgpReactor.WithdrawNLRIBatch(sel, batch, ctx.Sender); err != nil {
-				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
-					warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
-					continue
-				}
+			switch err := bgpReactor.WithdrawNLRIBatch(sel, batch, ctx.Sender); {
+			case err == nil:
+			case errors.Is(err, route.ErrWithdrawWithheld):
+				// The named peers had been advertised nothing on this session,
+				// so the withdrawal named no route to them (RFC 4271
+				// Section 4.3). The command DID what it asked for, so it is
+				// counted and answered `done`, and the peers it wrote nothing
+				// to are named: a zero UPDATE count with a bare `done` and no
+				// reason is the silent no-op this rail must never produce
+				// (ai/rules/principles.md).
+				warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
+			case errors.Is(err, route.ErrNoPeersAcceptedFamily):
+				warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
+				continue
+			default:
 				return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 			}
 			withdrawn += len(group.Withdraw)
@@ -1145,4 +1173,19 @@ func staleLevelFromMeta(meta map[string]any) uint8 {
 	default:
 		return 0
 	}
+}
+
+// replayFromMeta reports whether this command re-advertises what the peer was
+// already sent, so the destination peer's Adj-RIB-Out must not suppress it.
+//
+// False when meta is nil or carries no "replay" key, which is every ordinary
+// announce. In-process (DirectBridge) the value arrives as the bool the RIB set;
+// a forked plugin's JSON round-trip decodes it as a bool too, so one case
+// covers both.
+func replayFromMeta(meta map[string]any) bool {
+	if meta == nil {
+		return false
+	}
+	replay, ok := meta["replay"].(bool)
+	return ok && replay
 }

@@ -71,6 +71,21 @@ var (
 var (
 	ErrNoPeersMatch          = errors.New("no peers match selector")
 	ErrNoPeersAcceptedFamily = errors.New("no peers have family negotiated")
+
+	// ErrWithdrawWithheld reports a withdrawal the API rail did not write,
+	// because the session had advertised no route to the peer.
+	//
+	// RFC 4271 Section 4.3 identifies a withdrawn route by "its destination
+	// (expressed as an IP prefix), which unambiguously identifies the route in
+	// the context of the BGP speaker - BGP speaker connection to which it has
+	// been previously advertised". A connection that has advertised nothing has
+	// no route for a withdrawal to name.
+	//
+	// It is a WARNING to the caller, never a failure: the command did what it
+	// asked for. It exists so the answer names the peers the withdrawal did not
+	// reach, because a zero UPDATE count with a bare `done` is the silent
+	// no-op this rail must never produce (ai/rules/principles.md).
+	ErrWithdrawWithheld = errors.New("withdrawal withheld: this session has advertised no route to the peer")
 )
 
 // splitPrefix splits a prefix into more-specific prefixes with the given length.

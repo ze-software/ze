@@ -88,7 +88,7 @@ var genericAttrCodes = []struct {
 	{attribute.AttrAS4Aggregator, 0xC0},   // Optional transitive (RFC 6793 Section 3)
 	{attribute.AttrOriginatorID, 0x80},    // Optional non-transitive (RFC 4456)
 	{attribute.AttrClusterList, 0x80},     // Optional non-transitive (RFC 4456)
-	{attribute.AttrAIGP, 0xC0},            // Optional transitive (RFC 7311)
+	{attribute.AttrAIGP, 0x80},            // Optional NON-transitive (RFC 7311 Section 3)
 	{attribute.AttrPrefixSID, 0xC0},       // Optional transitive (RFC 8669)
 }
 

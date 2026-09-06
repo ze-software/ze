@@ -2,10 +2,15 @@ module ze-peer-cmd {
     namespace "urn:ze:peer:cmd";
     prefix peercmd;
     import ze-extensions { prefix ze; }
-    // This module owns the show bgp health overview and the delete bgp peer
-    // command surface. Its show and delete subtrees container-merge onto the
-    // show and delete verb roots.
-    description "BGP peer operations: show, delete, and control peer sessions.";
+    import ze-types { prefix zt; }
+    // This module owns the show bgp health overview, and the create bgp peer
+    // and delete bgp peer command surface. Its show, create and delete subtrees
+    // container-merge onto the show, create and delete verb roots.
+    description "BGP peer operations: create, show, delete, and control peer sessions.";
+    // ze-bgp:peer-add was declared in ze-bgp-api.yang and no handler answered
+    // it, so ze created no BGP peer at runtime while the schema published the
+    // method to an operator and to an agent (ai/rules/principles.md).
+    revision 2026-09-06 { description "Add create bgp peer, the runtime counterpart of delete bgp peer."; }
     // The model states both grammars and the renderer reproduces each line, so
     // the deleted prose stated a second time what the model already says.
     revision 2026-08-30 { description "Delete the usage sentences of show bgp peer rib and request peer teardown."; }
@@ -26,6 +31,18 @@ module ze-peer-cmd {
     // 'show bgp' is the command that answers the peer summary, and the two views
     // are reached with the '| summary' and '| peers' pipe aliases.
     revision 2026-08-21 { description "Removed the 'summary' container under show bgp."; }
+
+    // A comma-separated list is one token, so it survives the dispatcher's
+    // keyword-value pass, which binds exactly one token to a keyword.
+    typedef family-list {
+        type string { pattern '[a-z0-9-]+/[a-z0-9-]+(,[a-z0-9-]+/[a-z0-9-]+)*'; }
+        description "One or more AFI/SAFI names, comma separated (ipv4/unicast,ipv6/unicast).";
+    }
+
+    typedef process-list {
+        type string { pattern '[a-zA-Z0-9_][a-zA-Z0-9_.-]*(,[a-zA-Z0-9_][a-zA-Z0-9_.-]*)*'; }
+        description "One or more plugin process names, comma separated.";
+    }
 
     container show {
         config false;
@@ -135,6 +152,66 @@ without a peer scope.";
                 ze:help "Lists every peer with address, state, ASN, and uptime. Reports how
 many are not Established. Much faster than 'show bgp peer *' when
 you just need a status overview.";
+            }
+        }
+    }
+
+    container create {
+        config false;
+
+        container bgp {
+            config false;
+            description "Add BGP peers to the running daemon.";
+            ze:help "This keyword runs nothing on its own. 'create bgp peer <address> asn <asn>'
+is the one command under it.";
+
+            container peer {
+                config false;
+
+                ze:command "ze-bgp:peer-add";
+                description "Add a peer to the running daemon.";
+                ze:help "The peer address and 'asn' are required. Every other keyword is
+optional. Ze builds the peer, starts it, and dials the address unless 'connect
+false' says otherwise. The peer lives in the running daemon alone. Ze writes
+nothing to the configuration, so a reload removes the peer. 'delete bgp peer'
+does the same on the way out, and it does not change the file on disk. An
+address that already names a peer is refused, and so is a keyword Ze cannot
+honor. Each name in 'attach' is bound to the whole surface: that process
+receives every message from this peer and can send every type toward it. Write
+the receive and send lists in the configuration file when the process needs
+less.";
+
+                // The leaf is named 'selector' because the dispatcher bridges
+                // that ONE leaf name onto CommandContext.Peer (selectorLeaf in
+                // internal/component/plugin/server/command.go), which is what
+                // lets the operator type the address straight after 'peer'.
+                // The type is an address rather than zt:peer-selector: a peer
+                // that does not exist yet matches no glob, no name and no AS
+                // pattern, so every other selector form names nothing here.
+                leaf selector { type zt:ip-address; mandatory true; description "Address of the peer to create"; }
+
+                leaf asn { type zt:asn; mandatory true; description "Remote AS of the peer"; }
+                leaf local-as { type zt:asn; description "Local AS for this session, overriding the router's"; }
+                leaf local-address { type zt:ip-address; description "Local address to bind the session to"; }
+                leaf router-id { type zt:ipv4-address; description "BGP Identifier for this session, overriding the router's"; }
+                leaf receive-hold-time { type uint16; description "Hold time in seconds (RFC 4271)"; }
+                leaf send-hold-time { type uint16; description "Send hold time in seconds, 0 for automatic (RFC 9687)"; }
+                leaf connect-retry { type uint16; description "ConnectRetry interval in seconds"; }
+                leaf connect {
+                    type enumeration { enum true; enum false; }
+                    description "Dial the peer, default true";
+                }
+                leaf accept {
+                    type enumeration { enum true; enum false; }
+                    description "Accept a connection from the peer, default true";
+                }
+                leaf family { type family-list; description "Address families to negotiate, comma separated"; }
+                leaf graceful-restart { type uint16; description "Graceful restart time in seconds (RFC 4724)"; }
+                leaf group-updates {
+                    type enumeration { enum true; enum false; }
+                    description "Group this peer's UPDATEs with other peers, default true";
+                }
+                leaf attach { type process-list; description "Plugin processes bound to this peer, comma separated"; }
             }
         }
     }

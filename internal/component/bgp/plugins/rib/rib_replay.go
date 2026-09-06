@@ -320,6 +320,16 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 // resendRoutesWithCursor replays routes using cursor mode for manual resend.
 // Unlike replayRoutesWithCursor, it does not send "plugin session ready" and
 // carries stale metadata (RFC 9494) through updateRouteWithMeta for stale groups.
+//
+// Every command carries meta["replay"], and it is what keeps this rail reaching
+// the wire. The session is UP, so the destination peer's Adj-RIB-Out holds every
+// route being resent and would withhold each one under RFC 4271 Section 9.2
+// (reactor/adj_rib_out.go). This rail is what `clear bgp rib out` and the
+// RFC 2918 Section 3 refresh behind it reach, and answering a request to re-send
+// with silence is the failure the marker exists to prevent.
+//
+// replayRoutesWithCursor needs no such marker: it runs on a peer that has just
+// come up, and a session teardown empties the Adj-RIB-Out.
 func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGroup) int {
 	if len(groups) == 0 {
 		return 0
@@ -336,15 +346,12 @@ func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGrou
 	for i := range groups {
 		g := &groups[i]
 		cmds := formatCursorCommands(g, prev)
+		meta := map[string]any{"replay": true}
 		if g.StaleLevel > 0 {
-			meta := map[string]any{"stale": g.StaleLevel}
-			for _, cmd := range cmds {
-				r.updateRouteWithMeta(peerAddr, cmd, meta)
-			}
-		} else {
-			for _, cmd := range cmds {
-				r.updateRoute(peerAddr, cmd)
-			}
+			meta["stale"] = g.StaleLevel
+		}
+		for _, cmd := range cmds {
+			r.updateRouteWithMeta(peerAddr, cmd, meta)
 		}
 		total += len(g.Prefixes)
 		prev = g.Route

@@ -52,6 +52,11 @@ const (
 	fieldEORSent            = "eor-sent"
 	fieldConnectionsDropped = "connections-dropped"
 
+	// What a lifecycle command DID, in the operator's own words. `create bgp
+	// peer`, `delete bgp peer` and `update bgp peer prefix` each answer under
+	// this key, so an operator reading one reads all three the same way.
+	fieldMessage = "message"
+
 	// The same counters divided by uptime, which `show bgp peer statistics`
 	// answers beside them.
 	fieldRateUpdatesReceived    = "rate-updates-received"

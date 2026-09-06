@@ -102,7 +102,7 @@ func TestConvertFlowRouteCompatScripts(t *testing.T) {
 			got, ok, err := ConvertFlowRoute("10.0.0.1", "ipv4/flow", tt.verb, tt.body)
 			require.NoError(t, err)
 			require.True(t, ok)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, got.Text)
 		})
 	}
 }
@@ -204,7 +204,7 @@ func TestConvertFlowRouteGrammar(t *testing.T) {
 			got, ok, err := ConvertFlowRoute("10.0.0.1", tt.family, flowVerbAdd, tt.body)
 			require.NoError(t, err)
 			require.True(t, ok)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, got.Text)
 		})
 	}
 }
@@ -269,7 +269,7 @@ func TestConvertFlowRouteRefusesAndNames(t *testing.T) {
 			got, ok, err := ConvertFlowRoute("10.0.0.1", "ipv4/flow", flowVerbAdd, tt.body)
 			require.Error(t, err)
 			assert.True(t, ok, "a malformed flow route is still a flow route, so the bridge owns it")
-			assert.Empty(t, got)
+			assert.Empty(t, got.Text)
 			assert.Contains(t, err.Error(), tt.names)
 		})
 	}
@@ -291,7 +291,7 @@ func TestConvertFlowRouteReportsAnotherForm(t *testing.T) {
 		got, ok, err := ConvertFlowRoute("10.0.0.1", "ipv4/flow", flowVerbAdd, body)
 		require.NoError(t, err, body)
 		assert.False(t, ok, body)
-		assert.Empty(t, got, body)
+		assert.Empty(t, got.Text, body)
 	}
 }
 
@@ -325,5 +325,5 @@ func TestConvertFlowRouteEveryPeerSelector(t *testing.T) {
 		"flow route { match { source 1.2.3.4/32; } then { discard; } }")
 	require.NoError(t, err)
 	require.True(t, ok)
-	assert.True(t, strings.HasPrefix(got, "send bgp * update text "), got)
+	assert.True(t, strings.HasPrefix(got.Text, "send bgp * update text "), got.Text)
 }

@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc7311",
+  "records": [
+    {
+      "rid": "RFC7311-3.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept",
+      "unit-sha": "88e1084a82b1a5f3",
+      "claim-sha": "84088e2ea7c172ac",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+      "producer-sha": "a1a2b50e77e289ce",
+      "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded",
+      "unit-sha": "0f45feb85c16daed",
+      "claim-sha": "df9d51bd54eee73b",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+      "producer-sha": "a1a2b50e77e289ce",
+      "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPNonTransitiveKeptOnReceive",
+      "unit-sha": "2b1cc7e10c14640b",
+      "claim-sha": "85dc6b61c58a2ccd",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+      "producer-sha": "a1a2b50e77e289ce",
+      "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPTransitiveDiscardedOnReceive",
+      "unit-sha": "f901b8449aed8713",
+      "claim-sha": "cf20566592369205",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+      "producer-sha": "a1a2b50e77e289ce",
+      "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

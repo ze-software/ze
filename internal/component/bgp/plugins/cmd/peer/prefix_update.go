@@ -159,10 +159,10 @@ func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"results": results,
-			"updated": updated,
-			"total":   len(peers),
-			"message": b.Str("updated ").Int(int64(updated)).Str(" of ").Int(int64(len(peers))).Str(" peer(s) -- run 'config commit' to apply").String(),
+			"results":    results,
+			"updated":    updated,
+			"total":      len(peers),
+			fieldMessage: b.Str("updated ").Int(int64(updated)).Str(" of ").Int(int64(len(peers))).Str(" peer(s) -- run 'config commit' to apply").String(),
 		},
 	}, nil
 }

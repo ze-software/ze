@@ -72,6 +72,14 @@ to close.
 encoder answers for them. The encoder names that answer apart from "this kind is
 unknown to me", so a gap reaches a log rather than a silence.
 
+An attribute whose value is an EMPTY LIST is written not at all. ExaBGP renders
+a list attribute through `str(attribute)` and skips it when that answers the
+empty string, which `ASPath.string` does for a path with no segments. A route
+this speaker originated has an empty AS_PATH and ze reports it as
+`"as-path": []`, so without the skip every announced line carried an
+` as-path [ ]` ExaBGP never writes. `api-check` compares the whole line, so that
+one token failed the case.
+
 Three places diverge from ExaBGP. Each one does because the ze event carries
 less than ExaBGP's own objects do.
 
@@ -97,6 +105,25 @@ A translator with no peers sends to every peer, `send bgp * ...`. That is what
 one script and one neighbor means, and it is what the bridge did for every
 script until 2026-09-06. Until then a two-process config put each script's
 routes on both sessions. `api-multiple-api` is the case for it.
+
+## A bare address is a host route
+
+ExaBGP writes a host route as an address alone. Its `prefix` parser splits on
+`/` and takes 32 on failure, or 128 when the address holds a colon, and the API
+reuses that parser. So `announce route 1.2.3.4 next-hop 5.6.7.8` means
+1.2.3.4/32.
+
+Ze reads a prefix, and answered `invalid prefix: 1.2.3.4`. The bridge therefore
+completes the token before it builds the command. It does so only for the SAFIs
+whose NLRI is a plain prefix: `unicast`, `multicast`, `nlri-mpls` and
+`mpls-vpn`. A family whose NLRI is a field list is left alone, because `mvpn`
+writes `shared-join rp 10.99.199.1 group 239.251.255.228` and those bare
+addresses are values rather than prefixes.
+
+The set is an allow-list rather than a subtraction, so a SAFI added later gets
+no prefix length until somebody decides it should.
+
+<!-- source: internal/exabgp/bridge/bridge_route_forms.go -- defaultPrefixLengths, bridgePrefixSAFI -->
 
 `convertRoute` is the one place that decides what the bridge translates, and it
 answers the same set of forms for a line that names a neighbor and for a line
@@ -200,11 +227,47 @@ direction, so that a reader opens the event encoder rather than the translator.
 
 <!-- source: internal/exabgp/bridge/bridge_neighbor.go -- ConvertNeighborControl, convertTeardown -->
 
+## One write is one batch, and a batch nets before it reaches the wire
+
+An operator migrating an ExaBGP script writes several API commands in ONE
+`write(2)`. ExaBGP reads its processes once per reactor cycle and holds what
+that read returned in its outgoing RIB, where the commands cancel each other
+before anything is encoded. A script that writes four lines in one write
+therefore puts the frames of ONE netted set on the wire, not four.
+
+The bridge is the same unit for ze. Its reader takes the complete lines of one
+read, carries any partial line into the next batch, and hands the batch to a
+dispatcher. Two rules then decide what leaves.
+
+| Rule | What it does |
+|------|--------------|
+| A withdrawal cancels an announce of the same route EARLIER in the batch | `announce X` then `withdraw X` puts neither on the wire |
+| An announce cancels nothing | `withdraw X` then `announce X` puts both on the wire |
+| Withdrawals dispatch before announces | whatever order the script wrote them in |
+| A command that carries no route keeps its write order | an End-of-RIB names no route, so it cancels nothing and nothing cancels it |
+
+The route each command carries is stated by the translator that WROTE the
+command, on `Command.Key`. No consumer reads it back out of the command text: a
+second reading of the `send bgp` grammar drifts the moment that grammar moves,
+with no test red.
+
+The reader does no wire work. It hands each batch to the dispatcher goroutine
+and returns to the pipe at once, so the next write a script makes becomes its
+own batch rather than joining the one still being dispatched. That is what keeps
+ze's batches no coarser than ExaBGP's, which is the standard the compatibility
+fixtures were recorded against. `api-fast` is the recording: its first write of
+four lines produces ONE frame, and its second write of three produces two, with
+the withdrawal first.
+
+<!-- source: internal/exabgp/bridge/bridge_batch.go -- BatchReader, Net -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- Command, RouteKey -->
+
 ## The selector travels with the command
 
-After a route command, the bridge injects a flush and blocks until the forward
-pool drains. The peer it flushes is `Translation.Selector`, the selector the
-translator used when it built the command.
+After a batch's route commands, the bridge injects one flush per selector the
+batch reached and blocks until each forward pool drains. The peer it flushes is
+`Translation.Selector`, the selector the translator used when it built the
+command.
 
 It was read back out of the finished command until 2026-09-05, by
 `ExtractPeerAddress`, which required a literal leading token and answered the
@@ -307,7 +370,16 @@ was still running. The two then reached the wire in whichever order they
 finished. `api-ipv4`, `api-ipv6`, `api-mvpn` and `api-vpnv4` each announce and
 withdraw one NLRI and read the frames in order. Each of them caught it.
 
-<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.line -->
+A batch keeps that rule. Every command of the batch dispatches, then one flush
+for each selector the batch reached, then one answer for each LINE the script
+wrote. The answers run in write order for a second reason: `disable-ack` is
+itself acked and silences what FOLLOWS it, so a batch answered in dispatch order
+would silence the wrong lines. One line whose dispatch failed is answered
+`error` on its own and the rest of the batch keeps its answers, because a script
+blocked for an answer that never comes stops there.
+
+<!-- source: internal/exabgp/bridge/bridge_batch.go -- AnswerBatch, BatchSelectors -->
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.batch -->
 
 ## `encoder` says which format a script reads
 

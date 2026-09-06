@@ -139,36 +139,47 @@ peer.SendUpdate(update)
 
 ### Path 2: Forward Path (Route Reflection)
 
-For routes received from peers and forwarded:
+For routes received from peers and forwarded, the wire bytes never enter a route
+struct. The received `WireUpdate` carries them, and it carries the ContextID of
+the session that produced them:
 
 ```
-Receive UPDATE → Parse → Route{wireBytes, sourceCtxID} → Forward
-                   │              │                          │
-                   │              │                          └── Zero-copy if contexts match
-                   │              └── Cached original wire bytes
-                   └── Store in RIB
+Receive UPDATE → WireUpdate{payload, sourceCtxID} → Forward
+                        │                              │
+                        │                              └── One build shared by every
+                        │                                  destination on that ContextID
+                        └── The read buffer, not a copy
 ```
+
+`forwardUpdateCore` resolves the source context once for the whole fan-out, then
+builds one body per `(destCtxID, wire, extended)` key and reuses it for every
+destination that lands on the same key. Peers with identical negotiated
+capabilities share one ContextID, so route reflection between same-capability
+clients builds once and sends the result N times.
 
 **Files involved:**
-- `internal/component/bgp/rib/route.go` - Route struct with wireBytes cache
+- `internal/component/bgp/reactor/reactor_api_forward.go` - ForwardUpdate, forwardUpdateCore, the per-context body cache
+- `internal/component/bgp/reactor/update_group.go` - GroupKey, the ContextID that decides which peers share a build
 - `internal/core/bgp/context/` - EncodingContext, ContextID, Registry
-- `ENCODING_CONTEXT.md` - Detailed context system docs
-<!-- source: internal/component/bgp/rib/route.go -- Route struct, CanForwardDirect -->
+- `docs/architecture/encoding-context.md` - Detailed context system docs
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore -->
+<!-- source: internal/component/bgp/reactor/update_group.go -- GroupKey, UpdateGroupIndex -->
 <!-- source: internal/core/bgp/context/registry.go -- ContextID, Registry -->
 
-**Flow example (route reflection):**
-```go
-// 1. Receive and store with wire cache
-route := rib.NewRouteWithWireCache(nlri, nextHop, attrs, asPath, wireBytes, sourceCtxID)
+`rib.Route` takes no part in this path. It is the value a named commit and the
+route API hand to `CommitService`, and it holds NLRI, next hop, attributes and
+AS-PATH only.
+<!-- source: internal/component/bgp/rib/route.go -- Route struct -->
+<!-- source: internal/component/bgp/rib/commit.go -- CommitService, NewCommitService -->
 
-// 2. Forward to peer - check context compatibility
-if route.CanForwardDirect(peer.sendCtxID) {
-    // Fast path: zero-copy
-    attrBytes := route.WireBytes()
-} else {
-    // Slow path: re-encode
-    attrBytes := route.PackAttributesFor(peer.sendCtxID)
-}
+**Flow example (named commit):**
+```go
+// 1. Build the route from what the operator asked for.
+route := rib.NewRouteWithASPath(nlri, nextHop, attrs, asPath)
+
+// 2. Group the routes and build one UPDATE per attribute group.
+cs := rib.NewCommitService(peer, encodingContext, grouped)
+stats, err := cs.Commit([]*rib.Route{route}, rib.CommitOptions{SendEOR: false})
 ```
 
 ---
@@ -369,6 +380,14 @@ adj-rib-out Routes → GroupByAttributesTwoLevel() → ASPathGroups → BuildGro
 
 **Config:** `group-updates true` (default) in peer settings.
 
+The leaf governs every rail that sends several NLRIs to one peer, not the
+adj-rib-out alone. `nlriUnitLen` turns it into framing, and the batch API rails
+(`AnnounceNLRIBatch`, `WithdrawNLRIBatch`) and the LLGR readvertise rail each
+read it there: with `group-updates false` a batch of N prefixes leaves as N
+UPDATE messages carrying one prefix each.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- nlriUnitLen, announceBatchToPeers, withdrawBatchFromPeers -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- the config-driven sync reads the same leaf -->
+
 ---
 
 ## Cross-Peer Update Groups
@@ -403,10 +422,78 @@ The index is a simple map with no goroutines or channels. It is accessed only fr
 
 ### Group-Aware Build Path (AnnounceNLRIBatch / WithdrawNLRIBatch)
 
-When update groups are enabled, the batch API groups peers by build-equivalent parameters (encoding context, next-hop resolution, AS_PATH form) and builds the UPDATE once per parameter set. All peers sharing those parameters receive the same pre-built wire bytes.
+When update groups are enabled, the batch API groups peers by build-equivalent parameters (encoding context, next-hop resolution, AS_PATH form, and the peer's `group-updates` leaf) and builds the UPDATE once per parameter set. All peers sharing those parameters receive the same pre-built wire bytes.
+
+The parameter set is `announceFacts`, and both rails use it. It is the argument set of the build AND the map key that forms the group, so a per-peer fact the build reads is a fact the key holds. A peer carrying `group-updates false` therefore cannot share a build with a peer that packs: the two receive a different number of messages from one batch.
+
+The withdraw rail had a `withdrawFacts` of its own, carrying three fields, while a withdrawal was a bare MP_UNREACH_NLRI and nothing but the framing could tell two peers apart. A withdrawal now carries attributes (below), so every per-peer decision that shapes an announce's attribute block shapes a withdrawal's too. `withdrawFactsFor` leaves the attribute-shaping fields zero for a unicast withdrawal, which carries no attributes whatever the peer answers, so those peers still share one build.
 
 When disabled or when each peer has a unique context, the code falls back to per-peer building with no behavior change.
-<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- groupsEnabled check, announceBuildKey, withdrawBuildKey -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- groupsEnabled check, announceFacts, withdrawFactsFor -->
+
+### The Adj-RIB-Out on the API Rails
+
+RFC 4271 Section 9.2: "A BGP speaker SHOULD NOT advertise a given feasible BGP route from its Adj-RIB-Out if it would produce an UPDATE message containing the same BGP route as was previously advertised."
+
+Each peer keeps a table of what the API rails have sent it. A second announce of a route it already holds, with the same bytes, puts nothing on the wire. Until 2026-09-06 there was no such table, so `announce route X` twice sent two identical UPDATEs, and an operator script that re-announces its set on a timer re-flooded every peer on every tick.
+
+| Question | Answer |
+|----------|--------|
+| What is the key | The NLRI exactly as written to the wire, so RFC 7911 ADD-PATH keys on the path identifier too |
+| What is compared | The attribute block the builder emitted for THIS peer: after next-hop resolution, the AS_PATH prepend, the LOCAL_PREF decision and every other `announceFacts` edit. The MP_REACH_NLRI payload and its length octets are cut, so one route's signature does not change with the size of the batch it travelled in |
+| What empties it | A withdrawal removes its route. A session teardown drops the whole table, because the peer reached over the next connection holds nothing (RFC 4271 Section 6.3) |
+| What is never suppressed | A withdrawal, and a batch carrying `NLRIBatch.Replay` |
+| What an operator sees | A debug line on `subsystem=bgp.routes` naming the peer, the family and the count, and a per-peer counter beside it |
+
+`Replay` is what keeps `clear bgp rib out` and the RFC 2918 route refresh behind it reaching the wire. That rail resends routes the peer already holds, over a session that is still up, so without the marker it would answer a request to re-send with silence. The RIB plugin's `resendRoutesWithCursor` sets it; the peer-up replay does not need it, because the teardown already emptied the table.
+
+Two origination paths do NOT record: the config-driven initial sync (`peer_initial_sync.go`) and the `SendRoutes` transaction rail. Neither can cause a wrong suppression, because a route that was never recorded is always sent; a route one of them sent and the API rail then announces is sent twice, exactly as before.
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, announceSignature, announceUnit -->
+<!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- resendRoutesWithCursor -->
+
+### A Withdrawal Names a Route This Connection Advertised
+
+RFC 4271 Section 4.3 identifies a withdrawn route by its destination, "which unambiguously identifies the route in the context of the BGP speaker - BGP speaker connection to which it has been previously advertised."
+
+A connection that has advertised nothing has no route for any withdrawal to name, so the API rail writes no UPDATE to such a peer. The condition is about the CONNECTION, not about the route: once the connection has carried one UPDATE that makes any destination reachable, every later withdrawal is written, whether or not the peer holds the route named. A key-based rule would be a different rule and a wrong one, because an operator withdrawing a route the peer never received is telling a peer it must not hold it, and RFC 4271 Section 9.1.2 has the receiver ignore a withdrawal for a route it does not have.
+
+| Question | Answer |
+|----------|--------|
+| Where the state lives | `Session.advertised`, so a new connection starts unset and there is nothing to clear at teardown |
+| What arms it | Any UPDATE carrying NLRI or MP_REACH_NLRI, written at any of the three points a message reaches the socket. A route the RIB forwarded arms it exactly as an API announce does |
+| What does not arm it | An End-of-RIB (RFC 4724 Section 2) and a pure withdrawal: neither makes a destination reachable |
+| What an operator sees | A warning on `subsystem=bgp.routes` naming the peer, the family, the count and the RFC section; a per-peer counter beside the suppressed count; and `route.ErrWithdrawWithheld` on the command's answer, naming every peer it was withheld from |
+
+The answer is a WARNING and never a failure. The command did what it asked for, so `send bgp <selector> update text ... nlri <family> del <nlri>` still answers `done` with the reason in its warnings. A zero UPDATE count with a bare `done` and no reason is the silent no-op this rail exists to avoid.
+
+ExaBGP has the same asymmetry, reached another way: `include_withdraw` starts False for each session and becomes True only when the first update pass exhausts, and its packing layer drops every withdrawn NLRI while it is False. `api-fast` is the recording: the withdrawal its first burst writes never reaches the wire, and the one its second burst writes does.
+<!-- source: internal/component/bgp/reactor/session_write.go -- Session.advertised, noteAdvertised, updateIsReachable -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- withdrawBatchFromPeers, logWithdrawWithheld -->
+
+### What a Withdrawal Carries
+
+RFC 4760 Section 4: "An UPDATE message that contains the MP_UNREACH_NLRI is not required to carry any other path attributes." Both shapes are conformant, so the family decides which one Ze sends.
+
+| Family | Withdrawal shape |
+|--------|------------------|
+| IPv4 unicast | Withdrawn Routes field (RFC 4271 Section 4.3), no path attributes |
+| IPv6 unicast | Bare MP_UNREACH_NLRI, no other path attributes |
+| Every other family | MP_UNREACH_NLRI plus the block `planBatchAttrs` plans for an announce: the caller's own attributes, the well-known mandatory ORIGIN and AS_PATH, the RFC 4271 Section 5.1.5 LOCAL_PREF toward an internal peer, and the legacy NEXT_HOP where the family carries one |
+
+Unicast is bare because the Withdrawn Routes field carries no attributes and the IPv6 unicast withdrawal is the same withdrawal in the RFC 4760 encoding: the AFI must not decide what `withdraw <prefix> next-hop X local-preference 200` means. ExaBGP splits them at the same seam.
+
+Until 2026-09-06 every withdrawal took the bare shape, so `send bgp <selector> update text <attributes> nlri <family> del <nlri>` was acknowledged and the attributes never reached the wire.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- buildBatchWithdrawUpdate, planBatchAttrs -->
+
+### The Legacy NEXT_HOP Beside MP_REACH_NLRI
+
+RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute." It is a SHOULD NOT, so carrying it is conformant, and `family.Family.LegacyNextHop` is the single declaration of which families Ze carries it for: unicast, multicast, labeled unicast, MCAST-VPN, MUP and MPLS-VPN. FlowSpec, VPLS, EVPN, SR Policy, RTC and BGP-LS carry none.
+
+The address must also be an IPv4 address that RFC 4271 Section 6.3 calls syntactically correct, so an IPv6 next hop and `0.0.0.0` each contribute nothing (`legacyNextHopApplies`).
+
+The config rail already sent it -- `message.(*UpdateBuilder).BuildVPN`, and the `nlri/mvpn` and `nlri/mup` config parsers -- while the API rail sent MP_REACH_NLRI alone, so one route reached the wire as two different byte strings depending on whether an operator configured it or announced it.
+<!-- source: internal/core/family/family.go -- Family.LegacyNextHop -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- legacyNextHopApplies -->
 
 ### Group-Aware Forward Path (ForwardUpdate)
 

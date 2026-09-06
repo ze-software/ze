@@ -424,6 +424,32 @@ type Peer struct {
 
 	mu sync.RWMutex
 
+	// staticMu serializes the two writers of this peer's static route set on the
+	// wire: sendInitialRoutes, on the establishment goroutine, and the reload
+	// delta, on the config goroutine (peer_static_delta.go). It guards staticWire
+	// as well, so the recorded set and the frames that produced it are decided in
+	// one critical section.
+	//
+	// The lock order is staticMu then p.mu, and never the reverse: both writers
+	// read the settings through the p.mu accessors while holding this one, and
+	// applyHotSwappableSettings releases p.mu before it calls the delta.
+	staticMu sync.Mutex
+
+	// staticWire is the static route set this peer's CURRENT connection has been
+	// sent, and the connection it was sent on. Guarded by staticMu.
+	//
+	// A reload's delta is computed against it rather than against the previous
+	// configuration: RFC 4271 Section 4.3 identifies a withdrawn route "in the
+	// context of the BGP speaker - BGP speaker connection to which it has been
+	// previously advertised", so the set that matters is what reached the wire.
+	// A route the configuration named and next-hop resolution refused never
+	// reaches it, and is never withdrawn.
+	//
+	// The session pointer is what retires the record: a new connection has been
+	// sent nothing, so a set recorded against the previous session answers "this
+	// connection holds nothing" without a teardown hook to clear it.
+	staticWire staticWireSet
+
 	// reactor is set when peer is added to reactor.
 	// Used to notify reactor of state changes.
 	reactor *Reactor
@@ -464,6 +490,12 @@ type Peer struct {
 	bfd bfdClient
 
 	health *sessionHealth
+
+	// adjOut is what this peer has been sent on the API origination rails, so a
+	// second announce of a route it already holds puts nothing on the wire
+	// (RFC 4271 Section 9.2). Cleared on teardown by clearEncodingContexts,
+	// because the next session's peer starts with nothing. See adj_rib_out.go.
+	adjOut adjRIBOut
 
 	fwdFacts atomic.Pointer[peerForwardFacts]
 
@@ -533,17 +565,17 @@ func NewPeer(settings *PeerSettings) *Peer {
 
 // Settings returns the configured peer settings.
 //
-// The returned pointer is shared, and five fields on the pointed-to struct are written
+// The returned pointer is shared, and six fields on the pointed-to struct are written
 // after construction, always under p.mu. resolveDynamicPeerSettings (reactor_dynamic.go)
 // writes PeerAS, ImportFilters and ExportFilters when a dynamic peer's session
 // establishes; applyHotSwappableSettings (peer_settings_apply.go) writes ImportFilters,
-// ExportFilters and PrefixUpdated when a config reload delivers a hot-swappable change,
-// and Capabilities as well when the reload proved the negotiation unchanged
-// (peer_settings_negotiation.go). A caller running on a different goroutine than those
-// writes MUST read those five fields through PeerAS()/ImportFilters()/ExportFilters()/
-// oldestPrefixUpdated()/ConfiguredCapabilities(), not off this pointer, or it races the
-// write. Every other PeerSettings field is set at construction and never mutated, so
-// reading it off this pointer is race-free.
+// ExportFilters, PrefixUpdated and StaticRoutes when a config reload delivers a
+// hot-swappable change, and Capabilities as well when the reload proved the negotiation
+// unchanged (peer_settings_negotiation.go). A caller running on a different goroutine
+// than those writes MUST read those six fields through PeerAS()/ImportFilters()/
+// ExportFilters()/oldestPrefixUpdated()/ConfiguredCapabilities()/staticRoutes(), not off
+// this pointer, or it races the write. Every other PeerSettings field is set at
+// construction and never mutated, so reading it off this pointer is race-free.
 //
 // A caller that needs the WHOLE struct rather than one field uses settingsSnapshot.
 // There is no goroutine that owns every write to this struct, so no caller can be
@@ -594,6 +626,18 @@ func (p *Peer) ImportFilters() []filterapi.FilterRef {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.settings.ImportFilters
+}
+
+// staticRoutes returns the routes the configuration asks this peer to originate,
+// under p.mu. A reload swap replaces this slice on a running peer
+// (applyHotSwappableSettings, peer_settings_apply.go), so cross-goroutine readers
+// MUST use this accessor rather than p.settings.StaticRoutes. The returned header
+// is a snapshot; the backing array is never mutated in place, because every writer
+// of the field builds a fresh slice (patchStaticRoutes, bgp/config/peers.go).
+func (p *Peer) staticRoutes() []StaticRoute {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.StaticRoutes
 }
 
 // ExportFilters returns the peer's export filter chain under p.mu. See ImportFilters.
@@ -1002,10 +1046,36 @@ func (p *Peer) RemoteRouterID() uint32 {
 	return p.remoteRouterID.Load()
 }
 
-// clearEncodingContexts clears the encoding contexts.
+// hasAdvertised reports whether this peer's CURRENT connection has been sent an
+// UPDATE that makes a destination reachable.
+//
+// RFC 4271 Section 4.3 identifies a withdrawn route "in the context of the BGP
+// speaker - BGP speaker connection to which it has been previously advertised",
+// so the question is asked of the connection and not of the peer: a peer with
+// no session has advertised nothing, and so has one whose session was replaced.
+// The state itself is Session.advertised, set at the three points a message
+// reaches the socket (session_write.go).
+func (p *Peer) hasAdvertised() bool {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return false
+	}
+	return session.advertised.Load()
+}
+
+// clearEncodingContexts clears the encoding contexts and the Adj-RIB-Out.
 // Called when session is torn down.
+//
+// The Adj-RIB-Out goes with them for the same reason: it models what the PEER
+// holds, and RFC 4271 Section 6.3 has a receiver delete every route learned over
+// a session that closed. A table kept across the teardown would suppress the
+// re-advertisement the next session is owed.
 func (p *Peer) clearEncodingContexts() {
 	p.fwdFacts.Store(nil)
+	p.adjOut.reset()
 
 	p.mu.Lock()
 	defer p.mu.Unlock()

@@ -211,11 +211,18 @@ func routeFamily(route *StaticRoute) family.Family {
 }
 
 // appendAIGPRaw packs an AIGP metric as a complete wire attribute and appends it
-// to the raw attribute list. RFC 7311: optional transitive, type 26.
+// to the raw attribute list.
+//
+// RFC 7311 Section 3: "The AIGP attribute is an optional, non-transitive BGP
+// path attribute.  The attribute type code for the AIGP attribute is 26."
+// RFC 7311 Section 3.2: "If a BGP path attribute is received that has the AIGP
+// attribute codepoint but also has the transitive bit set, the attribute MUST be
+// considered to be a malformed AIGP attribute and MUST be discarded", so the
+// transitive bit is what decides whether the peer reads this attribute at all.
 func appendAIGPRaw(rawAttrs [][]byte, metric uint64) [][]byte {
 	const hdrLen = 3                                  // flags(1) + code(1) + length(1)
 	buf := make([]byte, hdrLen+attribute.AIGPWireLen) // pool-fallback
-	buf[0] = byte(attribute.FlagOptional | attribute.FlagTransitive)
+	buf[0] = byte(attribute.FlagOptional)
 	buf[1] = byte(attribute.AttrAIGP)
 	buf[2] = byte(attribute.AIGPWireLen)
 	attribute.WriteAIGPMetric(buf, hdrLen, metric)

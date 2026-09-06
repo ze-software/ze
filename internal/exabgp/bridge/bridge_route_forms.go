@@ -33,7 +33,7 @@ var errSplitLength = errors.New("invalid split length")
 // NLRI and no withdrawn routes.
 //
 // It reports false when the line is not an End-of-RIB.
-func convertEOR(selector, rest string, families []string) ([]string, bool, error) {
+func convertEOR(selector, rest string, families []string) ([]Command, bool, error) {
 	fields := strings.Fields(strings.TrimSpace(rest))
 	if len(fields) < 2 || !strings.EqualFold(fields[0], announceVerb) || !strings.EqualFold(fields[1], "eor") {
 		return nil, false, nil
@@ -46,7 +46,7 @@ func convertEOR(selector, rest string, families []string) ([]string, bool, error
 		if len(families) == 0 {
 			return nil, true, errEORNeedsFamily
 		}
-		commands := make([]string, 0, len(families))
+		commands := make([]Command, 0, len(families))
 		for _, family := range families {
 			commands = append(commands, eorCommand(selector, family))
 		}
@@ -64,13 +64,17 @@ func convertEOR(selector, rest string, families []string) ([]string, bool, error
 
 	var tb textbuf.Buffer
 	family := tb.Str(afi).Byte('/').Str(canonicalExabgpSAFI(safi)).String()
-	return []string{eorCommand(selector, family)}, true, nil
+	return []Command{eorCommand(selector, family)}, true, nil
 }
 
 // eorCommand writes one per-family End-of-RIB.
-func eorCommand(selector, family string) string {
+//
+// It carries the zero RouteKey. RFC 4724 Section 2 makes the marker an UPDATE
+// with no reachable NLRI and no withdrawn routes, so it names no route: it
+// cancels nothing in a batch and nothing in a batch cancels it.
+func eorCommand(selector, family string) Command {
 	var tb textbuf.Buffer
-	return tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(family).Str(" eor").String()
+	return Command{Text: tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(family).Str(" eor").String()}
 }
 
 // bridgeAFI is the address family set ExaBGP names in a family-qualified line.
@@ -87,7 +91,7 @@ var bridgeAFI = map[string]bool{bridgeAFIv4: true, bridgeAFIv6: true, "l2vpn": t
 // bare `label` makes it a labeled one.
 //
 // It reports false when the line is not this form.
-func convertAttributesForm(selector, rest, verb string) ([]string, bool, error) {
+func convertAttributesForm(selector, rest, verb string) ([]Command, bool, error) {
 	fields := strings.Fields(strings.TrimSpace(rest))
 	if len(fields) < 2 {
 		return nil, false, nil

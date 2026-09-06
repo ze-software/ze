@@ -60,7 +60,19 @@ type preserveCase struct {
 const unknownTransitiveAttr = "c02804deadbeef" // flags C0, code 40 (0x28), len 4
 
 // aigpMetric1234 is an AIGP (RFC 7311) carrying the metric TLV for 1234.
-const aigpMetric1234 = "c01a0b" + "01000b" + "00000000000004d2" // flags C0, code 26, len 11
+//
+// Flags 0x80, optional and NON-transitive, is the only form this fixture may carry. RFC
+// 7311 Section 3: "The AIGP attribute is an optional, non-transitive BGP path attribute."
+// Section 3.2 then makes the other form malformed on receipt: "If a BGP path attribute is
+// received that has the AIGP attribute codepoint but also has the transitive bit set, the
+// attribute MUST be considered to be a malformed AIGP attribute and MUST be discarded as
+// specified in this section."
+//
+// It read 0xC0 until 2026-09-06, which fed ze an attribute ze is now required to discard
+// and asserted ze forwards it. The two rails disagreed as a result: the queued rail
+// re-encodes through (*attribute.AIGP).Flags and emits 0x80, and the batch rail copies the
+// caller's block verbatim and kept the 0xC0 it was handed.
+const aigpMetric1234 = "801a0b" + "01000b" + "00000000000004d2" // flags 80, code 26, len 11
 
 func preserveCases() []preserveCase {
 	const originIGP = "400101 00"
@@ -112,7 +124,7 @@ func buildPreserveBatchRail(t *testing.T, c preserveCase) []byte {
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 	update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
-		batch, netip.MustParseAddr(c.nextHop), c.isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, localASOnly(65000), false /*propagatePrefixSID*/)
+		batch, announceFacts{nextHop: netip.MustParseAddr(c.nextHop), isIBGP: c.isIBGP, asn4: true, prepend: localASOnly(65000)})
 	require.NotNil(t, update)
 	return update.PathAttributes
 }

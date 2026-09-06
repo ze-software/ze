@@ -10,7 +10,6 @@ import (
 	"maps"
 	"net/netip"
 	"slices"
-	"sort"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -417,7 +416,12 @@ type PeerSettings struct {
 	// RefusedAddPathFamilies are families that must NOT have ADD-PATH in peer's OPEN.
 	RefusedAddPathFamilies []capability.Family
 
-	// StaticRoutes are announced when session is established.
+	// StaticRoutes are announced when the session is established, and a config
+	// reload delivers the DIFFERENCE between two sets on the running session
+	// rather than restarting it (peer_settings_apply.go, peer_static_wire.go).
+	// It is therefore one of the fields written after construction: a reader on
+	// another goroutine takes it from Peer.staticRoutes under p.mu, never off
+	// Peer.Settings (peer.go).
 	StaticRoutes []StaticRoute
 
 	// Exotic route types (MUP/VPLS/MVPN/FlowSpec/SR-Policy) all flow through the
@@ -672,7 +676,7 @@ func (b *ProcessBinding) AutoLoadReceiveTypes() []string {
 			out = append(out, et)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -686,7 +690,7 @@ func (b *ProcessBinding) AutoLoadSendTypes() []string {
 			out = append(out, st)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

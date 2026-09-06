@@ -65,22 +65,22 @@ var (
 // prefix in a bare `source` or `destination` makes it an IPv6 route. ExaBGP
 // reads the AFI off the prefix the same way, because `flow route` states none
 // (src/exabgp/configuration/flow/parser.py, source and destination).
-func ConvertFlowRoute(selector, family, verb, body string) (string, bool, error) {
+func ConvertFlowRoute(selector, family, verb, body string) (Command, bool, error) {
 	tokens, ok := flowRouteBody(body)
 	if !ok {
-		return "", false, nil
+		return Command{}, false, nil
 	}
 
 	if verb != flowVerbAdd && verb != flowVerbDel {
-		return "", true, fmt.Errorf("exabgp flow route: verb %q is neither %q nor %q", verb, flowVerbAdd, flowVerbDel)
+		return Command{}, true, fmt.Errorf("exabgp flow route: verb %q is neither %q nor %q", verb, flowVerbAdd, flowVerbDel)
 	}
 	if !flowRouteFamily(family) {
-		return "", true, fmt.Errorf("exabgp flow route: %q is not a flowspec family", family)
+		return Command{}, true, fmt.Errorf("exabgp flow route: %q is not a flowspec family", family)
 	}
 
 	route := flowRoute{family: family}
 	if err := route.read(tokens); err != nil {
-		return "", true, err
+		return Command{}, true, err
 	}
 	return route.command(selector, verb), true, nil
 }
@@ -416,7 +416,7 @@ func (r *flowRoute) readComponent(tokens []string, i int) (int, error) {
 // components alone, so the attributes name no route; what they do is reach the
 // wire, because RFC 4760 Section 4 lets a withdrawal carry a path attribute
 // block and ExaBGP writes one.
-func (r *flowRoute) command(selector, verb string) string {
+func (r *flowRoute) command(selector, verb string) Command {
 	parts := make([]string, 0, 6)
 
 	var head textbuf.Buffer
@@ -439,7 +439,29 @@ func (r *flowRoute) command(selector, verb string) string {
 	}
 	parts = append(parts, nlri.String())
 
-	return textbuf.Join(parts, " ")
+	// The key is stated HERE, where the NLRI tokens are written, so the batch
+	// netting never reads them back out of the finished command. A withdrawal
+	// of this route writes the same rd and the same match components, so the
+	// two carry one key whatever the `then` block held (bridge_batch.go, Net).
+	return Command{Text: textbuf.Join(parts, " "), Key: r.key(verb)}
+}
+
+// key names the route this flow command carries.
+//
+// The route distinguisher joins the match components, because a VPN flow route
+// and a global one that match the same traffic are two routes (RFC 8955
+// Section 4.3 and RFC 8956 Section 3.1: the RD is part of the NLRI).
+func (r *flowRoute) key(verb string) RouteKey {
+	tokens := make([]string, 0, len(r.nlri)+2)
+	if r.rd != "" {
+		tokens = append(tokens, "rd", r.rd)
+	}
+	tokens = append(tokens, r.nlri...)
+	return RouteKey{
+		Family:   r.family,
+		NLRI:     textbuf.Join(tokens, " "),
+		Withdraw: verb == flowVerbDel,
+	}
 }
 
 // appendAttributes writes the path attributes the route carries, on an

@@ -151,7 +151,7 @@ type Translation struct {
 	// `split /23` is one per piece. A single ze command naming both prefixes is
 	// ONE update, which is a different thing on the wire from what the script
 	// asked for, and it is what api-attributes and api-announcement caught.
-	Commands []string
+	Commands []Command
 	// Selector names the peers Command addresses. It is set whenever Route is,
 	// and no caller reads it otherwise.
 	Selector string
@@ -168,6 +168,69 @@ type Translation struct {
 	// answer, and ExaBGP acknowledges a command whose selector matched no
 	// session rather than leaving the script waiting.
 	Unmatched bool
+}
+
+// Command is one ze command line, with the route it carries named by the
+// translator that wrote it.
+//
+// The key travels WITH the command for the reason the selector does: the
+// builder that wrote the command already held the family, the verb and the
+// NLRI. Reading them back out of the finished string would state one fact
+// twice, and the second statement drifts the moment the `send bgp` grammar
+// moves, with no test red (ai/rules/principles.md).
+type Command struct {
+	// Text is the ze command line to dispatch.
+	Text string
+	// Key names the routes Text carries, for the batch netting. It is zero for
+	// every command that carries no route.
+	Key RouteKey
+}
+
+// RouteKey names the routes one command carries.
+//
+// It is the family and the NLRI tokens as the command writes them, which is
+// the key ExaBGP nets on: `Change.index` is the family plus `NLRI.index()` and
+// carries no action, so one route's announce and its withdrawal share a key
+// (src/exabgp/rib/change.py, upstream exa-networks/exabgp).
+type RouteKey struct {
+	// Family is the ze family word: `ipv4/unicast`, `ipv4/flow` and the rest.
+	Family string
+	// NLRI is the command's NLRI tokens, joined by one space, in the order the
+	// command writes them. A command that carries several prefixes carries them
+	// all, so a withdrawal cancels an announce only when it names exactly the
+	// same routes. That is coarser than ExaBGP's per-prefix index and it errs
+	// the safe way: it can leave a frame on the wire, never remove one.
+	NLRI string
+	// Withdraw says the command's NLRI verb is `del`.
+	Withdraw bool
+}
+
+// Route reports whether this key names a route the netting can act on.
+//
+// A command that carries no route -- an End-of-RIB, a flush, a teardown -- has
+// the zero key, and the zero key is NOT a route rather than a route with an
+// empty name: two commands that name nothing must never cancel each other
+// (ai/rules/principles.md).
+func (k RouteKey) Route() bool { return k.Family != "" && k.NLRI != "" }
+
+// routeIdentity is one route without the action, which is what an announce and
+// its withdrawal share.
+type routeIdentity struct {
+	family string
+	nlri   string
+}
+
+func (k RouteKey) identity() routeIdentity {
+	return routeIdentity{family: k.Family, nlri: k.NLRI}
+}
+
+// textCommands wraps command lines that carry no route.
+func textCommands(texts ...string) []Command {
+	commands := make([]Command, 0, len(texts))
+	for _, text := range texts {
+		commands = append(commands, Command{Text: text})
+	}
+	return commands
 }
 
 // LocalAction is a command the bridge performs ITSELF rather than dispatching.
@@ -293,7 +356,7 @@ func (t Translator) Line(line string) (Translation, error) {
 		return Translation{Commands: commands, Selector: selector, Route: true}, nil
 	}
 	if strings.EqualFold(rest, bridgePassthrough) {
-		return Translation{Commands: []string{bridgePassthrough}}, nil
+		return Translation{Commands: textCommands(bridgePassthrough)}, nil
 	}
 	return Translation{}, fmt.Errorf("%w: %q", ErrLineNotTranslated, line)
 }
@@ -335,11 +398,11 @@ func convertControl(selector, rest string) (Translation, bool) {
 		return Translation{Local: LocalAckDisableNow}, true
 	case len(fields) == 1 && fields[0] == "shutdown",
 		len(fields) == 2 && fields[0] == "request" && fields[1] == "shutdown":
-		return Translation{Commands: []string{"request shutdown"}, Selector: selector}, true
+		return Translation{Commands: textCommands("request shutdown"), Selector: selector}, true
 	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" &&
 		(fields[2] == "in" || fields[2] == "out"):
 		return Translation{
-			Commands: []string{tb.Str("clear bgp rib ").Str(fields[2]).String()},
+			Commands: textCommands(tb.Str("clear bgp rib ").Str(fields[2]).String()),
 			Selector: selector,
 		}, true
 	case fields[0] == "flush" && len(fields) >= 2 && fields[1] == "adj-rib":
@@ -347,14 +410,14 @@ func convertControl(selector, rest string) (Translation, bool) {
 		// in/out word an ExaBGP script may add has no counterpart and is not
 		// invented into one.
 		return Translation{
-			Commands: []string{tb.Str("request peer ").Str(selector).Str(" flush").String()},
+			Commands: textCommands(tb.Str("request peer ").Str(selector).Str(" flush").String()),
 			Selector: selector,
 		}, true
 	case len(fields) == 3 && fields[1] == bridgeAttrWatchdog &&
 		(fields[0] == announceVerb || fields[0] == withdrawVerb):
 		name := strings.Fields(rest)[2]
 		return Translation{
-			Commands: []string{tb.Str("request bgp watchdog ").Str(fields[0]).Byte(' ').Str(name).String()},
+			Commands: textCommands(tb.Str("request bgp watchdog ").Str(fields[0]).Byte(' ').Str(name).String()),
 			Selector: selector,
 		}, true
 	}
@@ -367,7 +430,7 @@ func convertControl(selector, rest string) (Translation, bool) {
 //
 // The caller decides what an untranslated line becomes, because the answer
 // differs between a line that names a neighbor and a line that does not.
-func (t Translator) convertRoute(selector, rest string) ([]string, bool, error) {
+func (t Translator) convertRoute(selector, rest string) ([]Command, bool, error) {
 	restLower := strings.ToLower(rest)
 
 	// The three forms that are not `<verb> <route>`: an End-of-RIB, which
@@ -394,7 +457,7 @@ func (t Translator) convertRoute(selector, rest string) ([]string, bool, error) 
 			if err != nil {
 				return nil, true, err
 			}
-			return []string{command}, true, nil
+			return []Command{command}, true, nil
 		}
 	}
 
@@ -422,7 +485,7 @@ func (t Translator) convertRoute(selector, rest string) ([]string, bool, error) 
 // -- `announce route <prefix>` and `announce <afi> <safi> <nlri>` -- cannot
 // disagree about which attributes they carry, which is exactly what they did
 // until 2026-09-05 (bridge_attribute.go).
-func buildRouteCommand(selector, family, verb, body string) ([]string, error) {
+func buildRouteCommand(selector, family, verb, body string) ([]Command, error) {
 	nlriTokens, attrTokens := splitRouteBodyForFamily(family, strings.Fields(strings.TrimSpace(body)))
 	nlriTokens = shapePluginNLRI(family, nlriTokens)
 	nlriTokens = defaultPrefixLengths(family, nlriTokens)
@@ -460,8 +523,13 @@ func buildRouteCommand(selector, family, verb, body string) ([]string, error) {
 // and splitting here decided it for ze: api-attributes-path leaves the leaf at
 // its default and expects ONE frame carrying both prefixes, while
 // api-attributes sets it false and expects two.
-func oneCommandPerNLRI(selector, family, verb string, attrs routeAttributes, nlriTokens []string, perNLRI bool) []string {
-	write := func(tokens []string) string {
+func oneCommandPerNLRI(selector, family, verb string, attrs routeAttributes, nlriTokens []string, perNLRI bool) []Command {
+	// The key is stated HERE, beside the tokens it names, so no consumer reads
+	// it back out of the command text (ai/rules/principles.md). An announce and
+	// a withdrawal of one route reach this function with the same family and
+	// the same tokens, and differ in the verb alone, so the two carry one
+	// identity and the batch netting can cancel one against the other.
+	write := func(tokens []string) Command {
 		var tb textbuf.Buffer
 		tb.Str("send bgp ").Str(selector).Str(" update text")
 		if command := attrs.Command(); command != "" {
@@ -471,13 +539,20 @@ func oneCommandPerNLRI(selector, family, verb string, attrs routeAttributes, nlr
 		for _, token := range tokens {
 			tb.Byte(' ').Str(token)
 		}
-		return tb.String()
+		return Command{
+			Text: tb.String(),
+			Key: RouteKey{
+				Family:   family,
+				NLRI:     textbuf.Join(tokens, " "),
+				Withdraw: verb == nlriDel,
+			},
+		}
 	}
 
 	if !perNLRI {
-		return []string{write(nlriTokens)}
+		return []Command{write(nlriTokens)}
 	}
-	commands := make([]string, 0, len(nlriTokens))
+	commands := make([]Command, 0, len(nlriTokens))
 	for _, token := range nlriTokens {
 		commands = append(commands, write([]string{token}))
 	}
@@ -498,14 +573,14 @@ const flowFamilyDefault = "ipv4/" + bridgeFlowSAFI
 // convertAnnounceFamily translates an ExaBGP announce that states its family,
 // which is every announce apart from a plain `announce route`. It reports false
 // when the text after the verb states no family the bridge reads.
-func convertAnnounceFamily(selector, rest string) ([]string, bool, error) {
+func convertAnnounceFamily(selector, rest string) ([]Command, bool, error) {
 	return convertFamilyRoute(selector, rest, nlriAdd)
 }
 
 // convertWithdrawFamily translates an ExaBGP withdraw that states its family,
 // which is every withdraw apart from a plain `withdraw route`. It reports false
 // when the text after the verb states no family the bridge reads.
-func convertWithdrawFamily(selector, rest string) ([]string, bool, error) {
+func convertWithdrawFamily(selector, rest string) ([]Command, bool, error) {
 	return convertFamilyRoute(selector, rest, nlriDel)
 }
 
@@ -516,15 +591,15 @@ func convertWithdrawFamily(selector, rest string) ([]string, bool, error) {
 // had diverged: the announce read four attribute keywords and the withdraw read
 // none, because the withdraw took `strings.Fields(routeStr)[0]` as the whole
 // route and discarded everything after it.
-func convertFamilyRoute(selector, rest, verb string) ([]string, bool, error) {
+func convertFamilyRoute(selector, rest, verb string) ([]Command, bool, error) {
 	rest = strings.TrimSpace(rest)
 
 	if match := bridgeSRPolicyRE.FindStringSubmatch(rest); match != nil {
 		afi := strings.ToLower(match[1])
 		if verb == nlriDel {
-			return []string{convertWithdrawSRPolicy(selector, afi, match[2])}, true, nil
+			return []Command{convertWithdrawSRPolicy(selector, afi, match[2])}, true, nil
 		}
-		return []string{convertAnnounceSRPolicy(selector, afi, match[2])}, true, nil
+		return []Command{convertAnnounceSRPolicy(selector, afi, match[2])}, true, nil
 	}
 
 	match := bridgeFamilyRE.FindStringSubmatch(rest)
@@ -539,7 +614,7 @@ func convertFamilyRoute(selector, rest, verb string) ([]string, bool, error) {
 	var tb textbuf.Buffer
 	fam := tb.Str(afi).Byte('/').Str(safi).String()
 	if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
-		return []string{convertFlowSpec(selector, fam, routeStr, verb)}, true, nil
+		return []Command{convertFlowSpec(selector, fam, routeStr, verb)}, true, nil
 	}
 
 	command, err := buildRouteCommand(selector, fam, verb, routeStr)
@@ -548,12 +623,12 @@ func convertFamilyRoute(selector, rest, verb string) ([]string, bool, error) {
 
 // convertAnnounce translates `announce route <prefix> ...`, the ExaBGP spelling
 // that states no family and takes it from the prefix.
-func convertAnnounce(selector, routeStr string) ([]string, error) {
+func convertAnnounce(selector, routeStr string) ([]Command, error) {
 	return buildRouteCommand(selector, familyOfRoute(routeStr), nlriAdd, routeStr)
 }
 
 // convertWithdraw translates `withdraw route <prefix> ...`.
-func convertWithdraw(selector, routeStr string) ([]string, error) {
+func convertWithdraw(selector, routeStr string) ([]Command, error) {
 	return buildRouteCommand(selector, familyOfRoute(routeStr), nlriDel, routeStr)
 }
 
@@ -602,7 +677,7 @@ func safiFamily(afi, safi string) string {
 //
 // Extracts next-hop and the three NLRI fields (distinguisher, color, endpoint),
 // then appends all remaining tunnel-encap tokens verbatim.
-func convertAnnounceSRPolicy(selector, afi, rest string) string {
+func convertAnnounceSRPolicy(selector, afi, rest string) Command {
 	rest = strings.TrimSpace(rest)
 	parts := strings.Fields(rest)
 
@@ -611,18 +686,18 @@ func convertAnnounceSRPolicy(selector, afi, rest string) string {
 	for i := 0; i < len(parts); i++ {
 		key := strings.ToLower(parts[i])
 		switch key {
-		case bridgeAttrNextHop, "distinguisher", "color", "endpoint":
+		case bridgeAttrNextHop, srPolicyDistinguisher, srPolicyColor, srPolicyEndpoint:
 			if i+1 >= len(parts) {
 				break
 			}
 			switch key {
 			case bridgeAttrNextHop:
 				nhop = parts[i+1]
-			case "distinguisher":
+			case srPolicyDistinguisher:
 				distinguisher = parts[i+1]
-			case "color":
+			case srPolicyColor:
 				color = parts[i+1]
-			case "endpoint":
+			case srPolicyEndpoint:
 				endpoint = parts[i+1]
 			}
 			i++
@@ -637,23 +712,65 @@ func convertAnnounceSRPolicy(selector, afi, rest string) string {
 		tb.Str(" nhop ").Str(nhop)
 	}
 	tb.Str(" nlri ").Str(afi).Str("/sr-policy add")
-	tb.Str(" distinguisher ").Str(distinguisher)
-	tb.Str(" color ").Str(color)
-	tb.Str(" endpoint ").Str(endpoint)
+	tb.Byte(' ').Str(srPolicyDistinguisher).Byte(' ').Str(distinguisher)
+	tb.Byte(' ').Str(srPolicyColor).Byte(' ').Str(color)
+	tb.Byte(' ').Str(srPolicyEndpoint).Byte(' ').Str(endpoint)
 	for _, tok := range extra {
 		tb.Str(" ").Str(tok)
 	}
-	return tb.String()
+	// The three NLRI fields are the policy's identity, so the key names them
+	// and not the tunnel-encap tail that follows.
+	return Command{Text: tb.String(), Key: srPolicyKey(afi, distinguisher, color, endpoint, false)}
+}
+
+// srPolicyKey names one SR-Policy candidate path, stated where the command is
+// written.
+func srPolicyKey(afi, distinguisher, color, endpoint string, withdraw bool) RouteKey {
+	var fam textbuf.Buffer
+	var nlri textbuf.Buffer
+	return RouteKey{
+		Family: fam.Str(afi).Str("/sr-policy").String(),
+		NLRI: nlri.Str(srPolicyDistinguisher).Byte(' ').Str(distinguisher).
+			Byte(' ').Str(srPolicyColor).Byte(' ').Str(color).
+			Byte(' ').Str(srPolicyEndpoint).Byte(' ').Str(endpoint).String(),
+		Withdraw: withdraw,
+	}
 }
 
 // convertWithdrawSRPolicy translates ExaBGP SR-Policy withdraw to Ze's update text format.
-func convertWithdrawSRPolicy(selector, afi, rest string) string {
+func convertWithdrawSRPolicy(selector, afi, rest string) Command {
 	rest = strings.TrimSpace(rest)
 
 	var tb textbuf.Buffer
 	tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(afi).Str("/sr-policy del ").Str(rest)
-	return tb.String()
+
+	// The withdraw form writes the policy fields through unchanged, so the key
+	// is read off the same three keywords convertAnnounceSRPolicy writes. A
+	// field the line does not state leaves the key without it, and a key naming
+	// a different set of fields matches no announce, which leaves both on the
+	// wire rather than canceling the wrong one.
+	fields := strings.Fields(rest)
+	var distinguisher, color, endpoint string
+	for i := 0; i+1 < len(fields); i++ {
+		switch strings.ToLower(fields[i]) {
+		case srPolicyDistinguisher:
+			distinguisher = fields[i+1]
+		case srPolicyColor:
+			color = fields[i+1]
+		case srPolicyEndpoint:
+			endpoint = fields[i+1]
+		}
+	}
+	return Command{Text: tb.String(), Key: srPolicyKey(afi, distinguisher, color, endpoint, true)}
 }
+
+// The three keywords that name an SR-Policy candidate path. One declaration
+// serves the announce form, the withdraw form and the key both write.
+const (
+	srPolicyDistinguisher = "distinguisher"
+	srPolicyColor         = "color"
+	srPolicyEndpoint      = "endpoint"
+)
 
 // canonicalExabgpSAFI answers the SAFI ze names for the one an ExaBGP script
 // wrote. An unmapped word is returned unchanged, because the regexp that
@@ -675,7 +792,7 @@ func canonicalExabgpSAFI(safi string) string {
 // `withdraw flow route { match { ... } then { rate-limit 1; } }` reached ze with
 // no rate-limit extended community and left one out of the withdrawal ExaBGP
 // carries it on (api-broken-flow.ci).
-func convertFlowSpec(selector, family, routeStr, verb string) string {
+func convertFlowSpec(selector, family, routeStr, verb string) Command {
 	fam, attrs, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
 	cmdParts := make([]string, 1, len(attrs)+2)
 	cmdParts[0] = "send bgp " + selector + " update text"
@@ -690,7 +807,23 @@ func convertFlowSpec(selector, family, routeStr, verb string) string {
 		nlriPart.Byte(' ').Str(nlri)
 	}
 	cmdParts = append(cmdParts, nlriPart.String())
-	return textbuf.Join(cmdParts, " ")
+
+	// The key names the rd and the match components, which is what the NLRI
+	// part above writes. The attributes are left out: a withdrawal of one route
+	// carries fewer of them than its announce did, and a key that read them
+	// would never match (bridge_batch.go, Net).
+	var keyNLRI textbuf.Buffer
+	if rd != "" {
+		keyNLRI.Str("rd ").Str(rd)
+		if nlri != "" {
+			keyNLRI.Byte(' ')
+		}
+	}
+	keyNLRI.Str(nlri)
+	return Command{
+		Text: textbuf.Join(cmdParts, " "),
+		Key:  RouteKey{Family: fam, NLRI: keyNLRI.String(), Withdraw: verb == nlriDel},
+	}
 }
 
 func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string, string) {

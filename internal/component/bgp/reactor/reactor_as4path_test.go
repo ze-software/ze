@@ -84,7 +84,8 @@ func buildAnnounce(t *testing.T, batch bgptypes.NLRIBatch, isIBGP, asn4 bool) *m
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: mappableAS}}}
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), isIBGP, false, asn4, false, localASOnly(mappableAS), false /*propagatePrefixSID*/)
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+		announceFacts{nextHop: netip.MustParseAddr("10.0.0.1"), isIBGP: isIBGP, asn4: asn4, prepend: localASOnly(mappableAS)})
 	require.NotNil(t, update)
 	return update
 }
@@ -275,7 +276,8 @@ func TestAnnounceAS4Path_IPv6_OldPeer(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: mappableAS}}}
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, false, false, false, localASOnly(mappableAS), false /*propagatePrefixSID*/)
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+		announceFacts{nextHop: netip.MustParseAddr("2001:db8::1"), prepend: localASOnly(mappableAS)})
 
 	_, as4v, ok := findPathAttr(update.PathAttributes, byte(attribute.AttrAS4Path))
 	require.True(t, ok, "AS4_PATH present for IPv6 too")

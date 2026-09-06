@@ -165,7 +165,7 @@ func convertTeardown(selector string, fields []string) (Translation, bool, error
 	// it is decided; restating it in the bridge would be a copy that can drift.
 	var tb textbuf.Buffer
 	return Translation{
-		Commands: []string{tb.Str("request peer ").Str(selector).Str(" teardown ").Uint8(uint8(subcode)).String()},
+		Commands: textCommands(tb.Str("request peer ").Str(selector).Str(" teardown ").Uint8(uint8(subcode)).String()),
 		Selector: selector,
 	}, true, nil
 }
@@ -320,7 +320,7 @@ func convertNeighborCreate(fields []string) (Translation, bool, error) {
 		tb.Byte(' ').Str(keyword).Byte(' ').Str(value)
 	}
 
-	return Translation{Commands: []string{tb.String()}, Selector: address}, true, nil
+	return Translation{Commands: textCommands(tb.String()), Selector: address}, true, nil
 }
 
 // convertNeighborDelete writes the ze command that removes a peer from the
@@ -339,7 +339,7 @@ func convertNeighborDelete(fields []string) (Translation, bool, error) {
 
 	var tb textbuf.Buffer
 	return Translation{
-		Commands: []string{tb.Str("delete bgp peer ").Str(fields[0]).String()},
+		Commands: textCommands(tb.Str("delete bgp peer ").Str(fields[0]).String()),
 		Selector: fields[0],
 	}, true, nil
 }

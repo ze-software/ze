@@ -53,6 +53,12 @@ func TestAnnounceNLRIBatch_RejectsBatchTooLargeForBuildBuffer(t *testing.T) {
 		LocalAS:    65000,
 		PeerAS:     65000, // iBGP
 		RouterID:   0x01020301,
+		// The YANG default, which NewPeerSettings carries and a struct literal
+		// does not. The guard under test is about the peer that PACKS a whole
+		// batch into one message: `group-updates false` sends one UPDATE per
+		// NLRI, and one NLRI always fits the build buffer, so the overflow this
+		// test exists to reject would never be built.
+		GroupUpdates: true,
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -240,7 +246,7 @@ func TestBuildBatchAnnounce_InvalidNextHopWithOversizeAttrs(t *testing.T) {
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
-		netip.Addr{} /*invalid next-hop*/, false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, localASOnly(65000), false /*propagatePrefixSID*/)
+		announceFacts{nextHop: netip.Addr{} /*invalid*/, asn4: true, prepend: localASOnly(65000)})
 
 	require.Nil(t, update, "a block that does not fit the slot must be rejected, not resliced past len")
 }
@@ -273,7 +279,7 @@ func TestAnnounceAttrRegion_RejectsBlockLargerThanBuffer(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 				Wire:    wire,
 			},
-			netip.MustParseAddr("10.0.0.1"), false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, localASOnly(65000), false /*propagatePrefixSID*/)
+			announceFacts{nextHop: netip.MustParseAddr("10.0.0.1"), asn4: true, prepend: localASOnly(65000)})
 		return update
 	}
 
@@ -434,6 +440,12 @@ func establishedIPv6Adapter(t *testing.T) *reactorAPIAdapter {
 		LocalAS:    65000,
 		PeerAS:     65000, // iBGP
 		RouterID:   0x01020301,
+		// The YANG default, which NewPeerSettings carries and a struct literal
+		// does not. The guard under test is about the peer that PACKS a whole
+		// batch into one message: `group-updates false` sends one UPDATE per
+		// NLRI, and one NLRI always fits the build buffer, so the overflow this
+		// test exists to reject would never be built.
+		GroupUpdates: true,
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))

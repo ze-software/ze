@@ -95,19 +95,23 @@ type RFC7606ValidationResult struct {
 
 // Attribute type codes per RFC 4271.
 const (
-	attrCodeOrigin         uint8 = 1
-	attrCodeASPath         uint8 = 2
-	attrCodeNextHop        uint8 = 3
-	attrCodeMED            uint8 = 4
-	attrCodeLocalPref      uint8 = 5
-	attrCodeAtomicAgg      uint8 = 6
-	attrCodeAggregator     uint8 = 7
-	attrCodeCommunity      uint8 = 8
-	attrCodeOriginatorID   uint8 = 9
-	attrCodeClusterList    uint8 = 10
-	attrCodeMPReachNLRI    uint8 = 14
-	attrCodeMPUnreachNLRI  uint8 = 15
-	attrCodeExtCommunity   uint8 = 16
+	attrCodeOrigin        uint8 = 1
+	attrCodeASPath        uint8 = 2
+	attrCodeNextHop       uint8 = 3
+	attrCodeMED           uint8 = 4
+	attrCodeLocalPref     uint8 = 5
+	attrCodeAtomicAgg     uint8 = 6
+	attrCodeAggregator    uint8 = 7
+	attrCodeCommunity     uint8 = 8
+	attrCodeOriginatorID  uint8 = 9
+	attrCodeClusterList   uint8 = 10
+	attrCodeMPReachNLRI   uint8 = 14
+	attrCodeMPUnreachNLRI uint8 = 15
+	attrCodeExtCommunity  uint8 = 16
+	// RFC 7311 Section 3: "The attribute type code for the AIGP attribute is 26."
+	// Derived from the core declaration rather than repeated, so the flags check below
+	// and attribute.AIGP cannot come to disagree about which codepoint AIGP owns.
+	attrCodeAIGP                 = uint8(attribute.AttrAIGP)
 	attrCodeLargeCommunity uint8 = 32
 	attrCodePrefixSID      uint8 = 40
 )
@@ -129,13 +133,16 @@ var wellKnownAttrs = map[uint8]bool{
 	attrCodeAtomicAgg: true,
 }
 
-// validateAttributeFlags validates attribute flags per RFC 7606 Section 3.c.
+// validateAttributeFlags validates attribute flags per RFC 7606 Section 3.c, plus the two
+// per-attribute flag rules other RFCs add: RFC 4760 for the MP attributes and RFC 7311
+// Section 3.2 for AIGP.
 //
 // Well-known attributes must:
 // - NOT have the Optional bit set (they are mandatory)
 // - MUST have the Transitive bit set
 //
-// Returns nil if valid, or RFC7606ValidationResult with treat-as-withdraw action.
+// Returns nil if valid, or RFC7606ValidationResult carrying the action that attribute's
+// own RFC asks for: session reset, treat-as-withdraw, or attribute discard.
 func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
 	// RFC 7606 Section 5.3: the MP_REACH_NLRI/MP_UNREACH_NLRI attribute is "incorrect" if
 	// its flags are inconsistent with RFC 4760, which defines both as optional (Optional bit
@@ -155,6 +162,34 @@ func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
 					Str(" flags inconsistent with RFC 4760 (must be optional, non-transitive)").String(),
 			}
 		}
+		return nil
+	}
+
+	// RFC 7311 Section 3.2: "If a BGP path attribute is received that has the AIGP
+	// attribute codepoint but also has the transitive bit set, the attribute MUST be
+	// considered to be a malformed AIGP attribute and MUST be discarded as specified in
+	// this section."
+	//
+	// "As specified in this section" is attribute discard, not treat-as-withdraw and not a
+	// session reset. The same section says a malformed AIGP "MUST be treated exactly as if
+	// it were an unrecognized non-transitive attribute", which "is equivalent to the
+	// 'attribute discard' action specified in [BGP-ERROR]". So the UPDATE keeps its routes
+	// and loses only the AIGP.
+	//
+	// The discard is not silent. recordError turns this verdict into a DiscardEntry, and
+	// ApplyAttrDiscard stamps an ATTR_TOMBSTONE carrying code 26 and the reason below, so a
+	// downstream reader tells "an AIGP was discarded" from "no AIGP was present" by reading
+	// the marker rather than by finding nothing.
+	if code == attrCodeAIGP {
+		if flags&attrFlagTransitive != 0 {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionAttributeDiscard,
+				AttrCode:    code,
+				Reason:      DiscardReasonMalformedValue,
+				Description: "RFC 7311 Section 3.2: AIGP attribute received with the transitive bit set is malformed",
+			}
+		}
+		// AIGP is optional, so nothing else about its flags is constrained.
 		return nil
 	}
 

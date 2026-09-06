@@ -139,19 +139,3 @@ func sanitizeErrorMessage(msg string) string {
 	}
 	return clean[:end]
 }
-
-// emitAck is the bridge dispatch ack dispatcher: called once per command after
-// waiting for ze's response. Keeps the pluginToZebgp hot loop free of
-// branching over the (ok, err, timeout) tri-state.
-func (b *Bridge) emitAck(pluginW io.Writer, reqID uint64, result pendingResult, err error) {
-	if err != nil {
-		b.ack.WriteError(pluginW, "ze dispatch timeout")
-		slog.Warn("plugin->zebgp: dispatch ack wait error", "error", err, "id", reqID)
-		return
-	}
-	if result.ok {
-		b.ack.WriteAck(pluginW)
-		return
-	}
-	b.ack.WriteError(pluginW, result.errText)
-}

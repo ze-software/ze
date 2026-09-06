@@ -168,6 +168,37 @@ The same question is asked of a relayed route, where the address arrives as the
 third-party next hop Section 5.1.3 case 2 permits.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn -->
 
+### A Withdrawal Needs a Session That Advertised Something
+
+RFC 4271 Section 4.3 identifies a withdrawn route "in the context of the BGP
+speaker - BGP speaker connection to which it has been previously advertised", so
+a session that has advertised nothing has no route for a withdrawal to name. Ze
+writes no UPDATE to such a peer, and the command names it:
+
+```
+warning: withdraw ipv4/unicast: withdrawal withheld: this session has advertised
+no route to the peer: ipv4/unicast, peers 192.0.2.10
+```
+
+The command still answers `done`. Once the session has carried one UPDATE that
+makes any destination reachable, a configured route and a relayed one included,
+every later withdrawal is written, whether or not the peer holds the route
+named.
+
+A script migrated from ExaBGP meets the same rule there, where it comes from
+`include_withdraw`.
+
+### An ExaBGP Script's Burst Nets Before the Wire
+
+An ExaBGP API script that writes several commands in ONE write reads back the
+frames of the NET of that write, not one frame per line. ze's bridge takes the
+same unit: a withdrawal cancels an announce of the same route earlier in the
+same write, an announce cancels nothing, and the withdrawals of a write leave
+before its announces.
+
+Two commands written in two separate writes never cancel each other, whatever
+the interval between them. See `docs/architecture/exabgp-bridge.md`.
+
 ### NLRI Operations
 
 `add` and `del` are NLRI operations (MP_REACH and MP_UNREACH):

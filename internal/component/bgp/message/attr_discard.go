@@ -158,8 +158,21 @@ func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
 		return nil
 	}
 	// Parse (code, reason) pairs from value.
+	//
+	// draft-mangin-idr-attr-tombstone-00 Section 4.3: "Receivers MUST ignore any (code,
+	// reason) pair whose original attribute code is 0; such pairs are zero-filled padding,
+	// not records of discarded attributes."
+	//
+	// applyInPlace zeroes every value byte past the first pair and leaves the length field
+	// alone, so a marker stamped over an 11-octet AIGP carries one record and four padding
+	// pairs. Counting those made the rebuild below write phantom records into the merged
+	// marker, which Section 4.3 says a rebuilt value never contains, and made every reader
+	// of this list count discards that never happened.
 	var entries []DiscardEntry
 	for i := 0; i+1 < len(value); i += 2 {
+		if value[i] == 0 {
+			continue
+		}
 		entries = append(entries, DiscardEntry{
 			Code:   value[i],
 			Reason: value[i+1],

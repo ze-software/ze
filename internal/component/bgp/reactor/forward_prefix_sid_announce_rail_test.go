@@ -73,8 +73,13 @@ func TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 				Wire:    attribute.NewAttributesWire(packed, bgpctx.APIContextID),
 			},
-			netip.MustParseAddr("10.0.0.1"),
-			isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, localASOnly(65000), propagatePrefixSID)
+			announceFacts{
+				nextHop:            netip.MustParseAddr("10.0.0.1"),
+				isIBGP:             isIBGP,
+				asn4:               true,
+				prepend:            localASOnly(65000),
+				propagatePrefixSID: propagatePrefixSID,
+			})
 		require.NoError(t, buildErr)
 		require.NotNil(t, update)
 		return update.PathAttributes

@@ -211,9 +211,14 @@ families that were refreshed.";
         ze:help "The address and the ASN are required, and every other input is optional.
 'local-as' overrides the local ASN and 'router-id' overrides the router ID.
 'receive-hold-time' is the hold time RFC 4271 defines. 'send-hold-time' is the
-send hold timer RFC 9687 defines, where 0 selects the automatic value. 'local/connect' and
-'remote/accept' each default to true, so the peer starts outbound connections
-and accepts inbound ones.";
+send hold timer RFC 9687 defines, where 0 selects the automatic value. 'connect'
+and 'accept' each default to true, so the peer dials the address and answers a
+connection from it. 'family' names the address families the OPEN offers, and
+with no 'family' the OPEN carries no multiprotocol capability. 'attach' names
+the plugin processes this peer feeds. The peer lives in the running daemon
+alone: nothing is written to the configuration, so a reload removes it, which is
+what peer-remove mirrors on the way out. 'create bgp peer <address> asn <asn>'
+is the CLI path.";
         input {
             leaf address { type zt:ip-address; mandatory true; description "Peer address"; }
             leaf asn { type zt:asn; mandatory true; description "Peer ASN"; }
@@ -223,14 +228,17 @@ and accepts inbound ones.";
             leaf receive-hold-time { type uint16; description "Receive hold time (RFC 4271)"; }
             leaf send-hold-time { type uint16; description "Send hold time (RFC 9687, 0=auto)"; }
             leaf connect-retry { type uint16; description "Connect retry interval"; }
-            container local {
-                description "Local connection settings";
-                leaf connect { type boolean; description "Initiate outbound connections (default true)"; }
-            }
-            container remote {
-                description "Remote connection settings";
-                leaf accept { type boolean; description "Accept inbound connections (default true)"; }
-            }
+            leaf connect { type boolean; description "Dial the peer (default true)"; }
+            leaf accept { type boolean; description "Answer a connection from the peer (default true)"; }
+            leaf-list family { type zt:address-family; description "Address family to negotiate"; }
+            leaf graceful-restart { type uint16; description "Restart Time in seconds (RFC 4724)"; }
+            leaf group-updates { type boolean; description "Group this peer's UPDATEs with other peers (default true)"; }
+            leaf-list attach { type zt:node-name; description "Plugin process this peer feeds"; }
+        }
+        output {
+            leaf peer { type zt:ip-address; description "Address of the peer created"; }
+            leaf remote-as { type zt:asn; description "Remote AS of the peer created"; }
+            leaf message { type string; description "Always 'peer created'"; }
         }
     }
 

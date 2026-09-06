@@ -12,7 +12,9 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -439,6 +441,12 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		}
 		return err
 	}
+	// Asked only while the answer can still change. This function serves the
+	// forwarding rails as well as the originating ones, and once the connection
+	// has advertised something the walk below is not owed.
+	if !s.advertised.Load() {
+		s.noteAdvertised(updateIsReachable(update))
+	}
 
 	if s.prefixMetrics != nil {
 		s.prefixMetrics.wireBytesSent.With(s.settings.Address.String()).Add(float64(n))
@@ -476,6 +484,12 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
 		}
 		return err
+	}
+	// Asked only while the answer can still change, as above. This is the
+	// zero-copy forwarding path and it runs for every relayed UPDATE, so an
+	// armed connection pays one atomic load here rather than a walk of the body.
+	if !s.advertised.Load() {
+		s.noteAdvertised(bodyIsReachable(body))
 	}
 
 	if s.prefixMetrics != nil {
@@ -714,6 +728,10 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
 		return err
 	}
+	// This rail encodes a RouteSpec, so the UPDATE it just wrote always makes a
+	// destination reachable. The override branch above returned through
+	// writeRawUpdateBody, which asks the question of its own body.
+	s.noteAdvertised(true)
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
@@ -864,4 +882,50 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	}
 	s.resetSendHoldTimer()
 	return nil
+}
+
+// noteAdvertised records that a message making a destination reachable has been
+// written on this connection.
+//
+// reachable is FALSE for an End-of-RIB and for a pure withdrawal, which is the
+// distinction the state exists to keep: neither advertises a route, so neither
+// gives a later withdrawal a route to name (RFC 4271 Section 4.3,
+// Session.advertised).
+func (s *Session) noteAdvertised(reachable bool) {
+	if !reachable {
+		return
+	}
+	s.advertised.Store(true)
+}
+
+// updateIsReachable reports whether this UPDATE makes a destination reachable.
+//
+// RFC 4271 Section 4.3 carries an IPv4 unicast advertisement in the Network
+// Layer Reachability Information field. RFC 4760 Section 3 carries every other
+// family's in MP_REACH_NLRI. An UPDATE with neither carries only withdrawals,
+// or is the End-of-RIB marker of RFC 4724 Section 2.
+func updateIsReachable(update *message.Update) bool {
+	if len(update.NLRI) > 0 {
+		return true
+	}
+	_, _, _, found := attribute.AttrFind(update.PathAttributes, attribute.AttrMPReachNLRI)
+	return found
+}
+
+// bodyIsReachable asks updateIsReachable's question of a flat UPDATE body, which
+// is the form the forwarding rails write.
+//
+// A body it cannot parse answers FALSE. The state it feeds only ever PERMITS a
+// withdrawal, so an unreadable body leaves the withdrawal withheld and named
+// rather than sent on a guess (ai/rules/principles.md).
+func bodyIsReachable(body []byte) bool {
+	sections, err := wire.ParseUpdateSections(body)
+	if err != nil {
+		return false
+	}
+	if len(sections.NLRI(body)) > 0 {
+		return true
+	}
+	_, _, _, found := attribute.AttrFind(sections.Attrs(body), attribute.AttrMPReachNLRI)
+	return found
 }

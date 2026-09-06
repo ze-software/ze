@@ -24,7 +24,238 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// announceFacts is every per-peer fact that decides the bytes ONE peer receives
+// from an announce. It is the argument set of buildBatchAnnounceUpdate AND the
+// key that puts two peers on one build, and those being the same struct is the
+// point: a new per-peer wire decision reaches the builder only by becoming a
+// field here, and a field here is in the key by construction.
+//
+// The two used to be separate lists, and the key was kept in step by
+// remembering. Every field below arrived in its own commit, and three of them
+// arrived as a FIX rather than with the feature they belong to (nextHop,
+// addPath, propagatePrefixSID; only rsClient landed with its feature). A fact
+// the key had not learned put two peers who differ in it into one group: one
+// UPDATE was built and every member was sent it, so one peer received another
+// peer's bytes, with Go map iteration order deciding whose. Nothing went red,
+// because the UPDATE is well formed and the peer that built first is correct.
+// ai/rules/principles.md: "a new feature MUST register itself and be
+// discovered; it MUST NOT require an edit to a switch, a case, a factory, a
+// field list, or any other central enumeration."
+//
+// It is comparable and holds no pointer, no slice and no string, so it stays a
+// cheap map key on the announce path (ai/rules/performance.md). A per-peer fact
+// that could not be a map key could not partition the groups either, so the
+// constraint is the rail's rather than this type's.
+//
+// What is NOT a field here is the other half of the decision. attrBuf, nlriBuf
+// and the NLRIBatch stay parameters of the builder because they are PER-BATCH:
+// one pooled buffer pair is reused for every build in the fan-out, and every
+// peer is offered the same batch, so none of the three can tell two peers apart.
+type announceFacts struct {
+	// nextHop is what resolveNextHop answered for this peer, and it is the
+	// NEXT_HOP or the MP_REACH_NLRI next hop the builder writes.
+	nextHop netip.Addr
+	// isIBGP partitions the groups: RFC 4271 Section 5.1.2 forbids the AS_PATH
+	// prepend toward an internal peer, and Section 5.1.5 owes that peer a
+	// LOCAL_PREF an external peer must not be sent.
+	isIBGP bool
+	// rsClient partitions the groups: RFC 7947 S2.2.2.1 suppresses the AS_PATH
+	// prepend for RS-clients, so an RS-client and an ordinary eBGP peer no
+	// longer produce identical wire and must not share a built UPDATE.
+	rsClient bool
+	// propagatePrefixSID partitions the groups: RFC 8669 Section 8 removes the
+	// Prefix-SID toward an external peer the operator has not placed inside the
+	// SR domain, so two external peers that answer it differently no longer
+	// produce identical wire and must not share a built UPDATE. It is the
+	// operator's leaf rather than the answer, which is what the four rails in
+	// forward_prefix_sid.go carry too. An internal peer keeps the attribute
+	// whatever the leaf says, so two internal peers that differ only here build
+	// the same bytes twice; the leaf has no meaning on an internal session, and
+	// paying one build for that is cheaper than a key field that says something
+	// other than what the builder is given.
+	propagatePrefixSID bool
+	// prepend partitions the groups: RFC 7705 Section 3.3 puts a SECOND AS
+	// number in front of a route bound for a peer carrying a local-as override
+	// with no "Replace Old AS", so two peers sharing a local AS but differing
+	// on that option no longer produce identical wire and must not share a
+	// built UPDATE. Keying on the AS number alone let them share it, which is
+	// how the announce rail gave every configuration the replace-as bytes.
+	prepend localASPrepend
+	// addPath partitions the groups: RFC 7911 Section 3 puts a four-octet path
+	// identifier in front of every NLRI toward a peer that negotiated ADD-PATH,
+	// so the NLRI section itself differs. The send reads it as well, because an
+	// NLRI's length on the wire is what the splitter walks.
+	addPath bool
+	// asn4 partitions the groups: RFC 6793 Section 4.2.2 sends an OLD speaker
+	// AS_TRANS in the AS_PATH and the real AS numbers behind it in an AS4_PATH,
+	// where a NEW speaker is sent neither.
+	asn4 bool
+	// extended is the one field the BUILDER is not given a use for, and it is
+	// here because a group is one build AND one send. RFC 8654 raises this
+	// peer's maximum message size from 4096 to 65535 octets, and
+	// sendUpdateWithSplit takes that size as its split point. Two peers
+	// differing only here are handed one UPDATE and cut it into a different
+	// number of messages, so the bytes each one receives still differ and the
+	// group must still be partitioned. It is passed to the builder unread
+	// rather than kept beside the key, because a second list beside this one is
+	// the defect this type exists to remove.
+	extended bool
+	// groupUpdates partitions the groups: `behavior { group-updates false }`
+	// asks for one UPDATE per NLRI toward this peer, so one batch of several
+	// prefixes leaves as several messages where a grouping peer is sent one.
+	// The two receive a different number of frames from the same batch, so
+	// they must not share a build. nlriUnitLen owns the framing itself, and
+	// every rail that sends a batch reads it there.
+	groupUpdates bool
+}
+
+// announceFactsFor reads one peer's answer to every fact above. It is the only
+// construction on this rail, so a new field is populated in one place and
+// reaches the builder and the group key together.
+//
+// isIBGP is passed in rather than read here: the caller already read it for the
+// queue branch, and a dynamic peer can resolve its ASN between two reads
+// (Peer.IsIBGP is guarded for that reason).
+func announceFactsFor(peer *Peer, fam family.Family, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) announceFacts {
+	settings := peer.Settings()
+	return announceFacts{
+		nextHop:            nextHop,
+		isIBGP:             isIBGP,
+		rsClient:           settings.RSClient,
+		propagatePrefixSID: settings.PropagateSRv6PrefixSID,
+		prepend:            localASPrependFor(settings),
+		addPath:            peer.addPathFor(fam),
+		asn4:               peer.asn4(),
+		extended:           nc.ExtendedMessage,
+		groupUpdates:       settings.GroupUpdates,
+	}
+}
+
+// nlriUnitLen is how many NLRIs of one batch a single UPDATE carries toward one
+// peer, and it is the ONE place `behavior { group-updates <bool> }` becomes
+// framing. Every rail that sends a batch reads it here -- the announce, the
+// withdraw and the LLGR readvertise -- so none of them can answer the leaf
+// differently. Two rails answering one question separately is what let an
+// operator-supplied LOCAL_PREF cross an AS boundary until 2026-08-01
+// (buildBatchAnnounceUpdate, below), and the leaf had the same shape: the
+// config-driven initial sync read it (peer_initial_sync.go) and the API rails
+// did not, so `group-updates false` framed a config route one way and an
+// API-announced route the other.
+//
+// A count below one still answers one, so the callers' framing loop runs once: a
+// batch carrying no NLRI built and sent one attributes-only UPDATE before the
+// loop existed, and that is not a behavior this framing decides.
+func nlriUnitLen(count int, groupUpdates bool) int {
+	if !groupUpdates {
+		return 1
+	}
+	if count < 1 {
+		return 1
+	}
+	return count
+}
+
+// announceBatchToPeers builds this batch and sends it to every peer given, which
+// MUST agree on every announceFact: the facts are what the build reads, so one
+// build serves all of them.
+//
+// facts.groupUpdates decides the FRAMING. A peer that groups updates receives one
+// UPDATE carrying every NLRI of the batch; a peer whose `group-updates` leaf is
+// false receives one UPDATE per NLRI. The builds are still shared across the
+// peers of this set, because the leaf is a field of announceFacts and therefore
+// of the group key: a peer that groups and a peer that does not cannot arrive
+// here together.
+//
+// The two build buffers are taken once and reused by every unit. INVARIANT:
+// sendUpdateWithSplit is synchronous -- it blocks until the bytes are written to
+// TCP -- so a unit is on the wire before the next unit overwrites the buffer its
+// *message.Update referenced. An asynchronous write would be a use-after-return
+// here and in every caller that hands one build to several peers.
+//
+// Each peer's Adj-RIB-Out decides what it is actually sent. RFC 4271 Section
+// 9.2: "A BGP speaker SHOULD NOT advertise a given feasible BGP route from its
+// Adj-RIB-Out if it would produce an UPDATE message containing the same BGP
+// route as was previously advertised." So a peer that already holds every prefix
+// of a unit, with exactly the bytes this build produced, is sent nothing; a peer
+// that holds some of them is served from a build of its own over the rest. Every
+// peer of the group still shares the one build in the case the table exists to
+// leave alone, which is the case where nothing is suppressed (adj_rib_out.go).
+//
+// The count returned is ACCEPTANCES: one for each UPDATE written, and one for
+// each peer that needed none because it already held the batch. The callers read
+// only whether it is zero, and a zero would say "no peer carries this family",
+// which is untrue of a peer that has the route already.
+func (a *reactorAPIAdapter) announceBatchToPeers(peers []*Peer, batch bgptypes.NLRIBatch, facts announceFacts) (int, error) {
+	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, facts.extended))
+
+	attrHandle := getBuildBuf()
+	nlriHandle := getBuildBuf()
+	defer putBuildBuf(attrHandle)
+	defer putBuildBuf(nlriHandle)
+
+	sent := 0
+	var lastErr error
+	unitLen := nlriUnitLen(len(batch.NLRIs), facts.groupUpdates)
+
+	// partial holds the peers whose Adj-RIB-Out suppresses SOME of this unit's
+	// prefixes. It stays nil in the common case: a unit is one prefix whenever
+	// `group-updates false`, so a peer is either sent it or is not.
+	var partial []*Peer
+
+	for off := 0; ; off += unitLen {
+		end := min(off+unitLen, len(batch.NLRIs))
+		unit := batch
+		unit.NLRIs = batch.NLRIs[off:end]
+
+		update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, unit, facts)
+		if update == nil {
+			// Build rejected (already logged). Every unit carries the same
+			// attributes and the same facts, so the refusal repeats: stop here
+			// rather than send part of the batch, and report the builder's own
+			// reason instead of a silent drop.
+			return sent, buildErr
+		}
+
+		built := newAnnounceUnit(update, nlriHandle.Buf, unit, facts)
+		partial = partial[:0]
+
+		for _, peer := range peers {
+			held := built.heldBy(peer)
+			if held == len(unit.NLRIs) {
+				peer.adjOut.recordSuppressed(held)
+				logAnnounceSuppressed(peer, unit, held)
+				sent++
+				continue
+			}
+			if held > 0 {
+				partial = append(partial, peer)
+				continue
+			}
+			if err := peer.sendUpdateWithSplit(update, maxMsgSize, facts.addPath); err != nil {
+				lastErr = err
+				continue
+			}
+			built.recordAll(peer)
+			sent++
+		}
+
+		if len(partial) > 0 {
+			n, err := a.announcePartialToPeers(partial, &built, maxMsgSize)
+			sent += n
+			if err != nil {
+				lastErr = err
+			}
+		}
+
+		if end >= len(batch.NLRIs) {
+			break
+		}
+	}
+	return sent, lastErr
+}
 
 // AnnounceNLRIBatch announces a batch of NLRIs with shared attributes.
 // RFC 4271 Section 4.3: UPDATE Message Format.
@@ -87,61 +318,41 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	}
 
 	var lastErr error
+	// acceptedCount is what went out: one for each peer whose operations were
+	// queued, and one for each UPDATE written to an established peer. A peer
+	// carrying `group-updates false` contributes one per NLRI, because that is
+	// how many messages the batch becomes for it. Only the zero test at the end
+	// reads it.
 	var acceptedCount int
 
 	// Group-aware path: when update groups are enabled, collect established
-	// peers with identical build parameters and build the UPDATE once per group.
+	// peers whose announceFacts are equal and build the UPDATE once per group.
 	// Falls back to per-peer when disabled or when peers differ.
-	type announceBuildKey struct {
-		nextHop netip.Addr
-		isIBGP  bool
-		// rsClient partitions the groups: RFC 7947 S2.2.2.1 suppresses the AS_PATH
-		// prepend for RS-clients, so an RS-client and an ordinary eBGP peer no
-		// longer produce identical wire and must not share a built UPDATE.
-		rsClient bool
-		// propagatePrefixSID partitions the groups: RFC 8669 Section 8 removes the
-		// Prefix-SID toward an external peer the operator has not placed inside the
-		// SR domain, so two external peers that answer it differently no longer
-		// produce identical wire and must not share a built UPDATE. It is the
-		// operator's leaf rather than the answer, which is what the four rails in
-		// forward_prefix_sid.go carry too. An internal peer keeps the attribute
-		// whatever the leaf says, so two internal peers that differ only here build
-		// the same bytes twice; the leaf has no meaning on an internal session, and
-		// paying one build for that is cheaper than a key field that says something
-		// other than what the builder is given.
-		propagatePrefixSID bool
-		// prepend partitions the groups: RFC 7705 Section 3.3 puts a SECOND AS
-		// number in front of a route bound for a peer carrying a local-as override
-		// with no "Replace Old AS", so two peers sharing a local AS but differing
-		// on that option no longer produce identical wire and must not share a
-		// built UPDATE. Keying on the AS number alone let them share it, which is
-		// how the announce rail gave every configuration the replace-as bytes.
-		prepend  localASPrepend
-		addPath  bool
-		asn4     bool
-		extended bool // ExtendedMessage negotiated
-	}
 	type announceBuildGroup struct {
-		key     announceBuildKey
-		peers   []*Peer
-		nextHop netip.Addr
+		facts announceFacts
+		peers []*Peer
 	}
 
 	groupsEnabled := a.r.updateGroups != nil && a.r.updateGroups.Enabled()
-	var buildGroups map[announceBuildKey]*announceBuildGroup
+	var buildGroups map[announceFacts]*announceBuildGroup
 
 	if groupsEnabled {
-		buildGroups = make(map[announceBuildKey]*announceBuildGroup)
+		buildGroups = make(map[announceFacts]*announceBuildGroup)
 	}
 
-	for _, peer := range peers {
+	for i := range peers {
+		peer := peers[i]
 		// Guarded: this batch-announce path runs on an API/plugin goroutine and may read a
 		// dynamic peer still resolving its ASN (sibling PeerAS read at :886 is guarded too).
 		isIBGP := peer.IsIBGP()
 
-		// Resolve next-hop per peer using RouteNextHop policy
+		// Resolve next-hop per peer using RouteNextHop policy. A family that
+		// names no forwarding hop is not asked for one: RFC 8955 Section 4 sets
+		// the FlowSpec next-hop length to zero, so there is nothing to resolve
+		// and a failure to resolve it is not a reason to skip the peer
+		// (family.Family.NeedsNextHop).
 		nextHop, nhErr := peer.resolveNextHop(batch.NextHop, batch.Family)
-		if nhErr != nil {
+		if nhErr != nil && batch.Family.NeedsNextHop() {
 			routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
 			continue
 		}
@@ -159,9 +370,8 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			// Rare (GR-expiry) path; the common Stale==0 path is untouched.
 			if batch.Stale > 0 && len(a.r.readvertiseEgressFilters) > 0 {
 				sent, failErr := a.sendStaleReadvertise(peer, batch, nextHop, isIBGP, nc)
+				acceptedCount += sent
 				switch {
-				case sent:
-					acceptedCount++
 				case failErr != nil:
 					// The readvertise could not be carried out: a filter crashed,
 					// or its modifications could not be built. Either way the peer
@@ -170,52 +380,31 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 					// (ai/rules/cli.md) and would be downgraded to a warning on
 					// that basis. failErr names which one it was.
 					lastErr = failErr
-				default:
+				case sent == 0:
 					lastErr = route.ErrNoPeersAcceptedFamily
 				}
 				continue
 			}
 
+			facts := announceFactsFor(peer, batch.Family, nextHop, isIBGP, nc)
+
 			if groupsEnabled {
 				// Collect peer into build group for deferred batch build.
-				bk := announceBuildKey{
-					nextHop:            nextHop,
-					isIBGP:             isIBGP,
-					rsClient:           peer.Settings().RSClient,
-					propagatePrefixSID: peer.Settings().PropagateSRv6PrefixSID,
-					prepend:            localASPrependFor(peer.Settings()),
-					addPath:            peer.addPathFor(batch.Family),
-					asn4:               peer.asn4(),
-					extended:           nc.ExtendedMessage,
-				}
-				bg, ok := buildGroups[bk]
+				bg, ok := buildGroups[facts]
 				if !ok {
-					bg = &announceBuildGroup{key: bk, nextHop: nextHop}
-					buildGroups[bk] = bg
+					bg = &announceBuildGroup{facts: facts}
+					buildGroups[facts] = bg
 				}
 				bg.peers = append(bg.peers, peer)
 			} else {
-				// Per-peer path (update groups disabled).
-				maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
-				addPath := peer.addPathFor(batch.Family)
-				asn4 := peer.asn4()
-
-				attrHandle := getBuildBuf()
-				nlriHandle := getBuildBuf()
-				update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, peer.Settings().RSClient, asn4, addPath, localASPrependFor(peer.Settings()), peer.Settings().PropagateSRv6PrefixSID)
-
-				// Build rejected (already logged). Not sent, and not counted as
-				// accepted, so the caller gets the builder's own reason instead of a
-				// silent drop.
-				if update == nil {
-					lastErr = buildErr
-				} else if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
-					lastErr = err
-				} else {
-					acceptedCount++
+				// Per-peer path (update groups disabled). peers[i:i+1] is a view
+				// of the slice already in hand, so the one-peer set costs no
+				// allocation on the fan-out (ai/rules/performance.md).
+				n, sendErr := a.announceBatchToPeers(peers[i:i+1], batch, facts)
+				acceptedCount += n
+				if sendErr != nil {
+					lastErr = sendErr
 				}
-				putBuildBuf(attrHandle)
-				putBuildBuf(nlriHandle)
 			}
 		} else {
 			// Session not established or queue draining: queue to preserve order
@@ -230,35 +419,15 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 		}
 	}
 
-	// Build once per group, send to all members.
-	// INVARIANT: sendUpdateWithSplit is synchronous -- it blocks until bytes are
-	// written to TCP. The shared *message.Update references pooled buffers that
-	// are returned after this loop. Async writes would cause use-after-return.
+	// Build once per group, send to all members. The build buffers, the framing
+	// and the send invariant are announceBatchToPeers's, so a group of peers and
+	// a single peer cannot be framed differently.
 	for _, bg := range buildGroups {
-		maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, bg.key.extended))
-
-		attrHandle := getBuildBuf()
-		nlriHandle := getBuildBuf()
-		update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, bg.nextHop, bg.key.isIBGP, bg.key.rsClient, bg.key.asn4, bg.key.addPath, bg.key.prepend, bg.key.propagatePrefixSID)
-
-		// Build rejected (already logged): every peer in this group shares the
-		// build parameters, so none of them can be sent this batch.
-		if update == nil {
-			lastErr = buildErr
-			putBuildBuf(attrHandle)
-			putBuildBuf(nlriHandle)
-			continue
+		n, sendErr := a.announceBatchToPeers(bg.peers, batch, bg.facts)
+		acceptedCount += n
+		if sendErr != nil {
+			lastErr = sendErr
 		}
-
-		for _, peer := range bg.peers {
-			if err := peer.sendUpdateWithSplit(update, maxMsgSize, bg.key.addPath); err != nil {
-				lastErr = err
-			} else {
-				acceptedCount++
-			}
-		}
-		putBuildBuf(attrHandle)
-		putBuildBuf(nlriHandle)
 	}
 
 	// Return warning-level error if no peers accepted (all skipped due to family).
@@ -293,6 +462,172 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	return lastErr
 }
 
+// withdrawFactsFor reads one peer's answer to every fact that decides the bytes
+// it receives from a withdraw. It is the only construction on this rail, so a new
+// field is populated in one place and reaches the send and the group key together.
+//
+// The answer is an announceFacts, and it used to be a withdrawFacts of its own
+// carrying three fields. The two types were correct while a withdrawal was a bare
+// MP_UNREACH_NLRI, because nothing but the framing could tell two peers apart.
+// Now that a withdrawal carries the attributes the caller named
+// (buildBatchWithdrawUpdate), every per-peer decision that shapes an announce's
+// attribute block shapes a withdrawal's too, and a second fact set beside
+// announceFacts would be a second place to forget one -- which is exactly the
+// defect announceFacts exists to make unreachable.
+//
+// The attribute-shaping fields stay ZERO for a UNICAST withdrawal. That
+// withdrawal carries no path attributes whatever the peer answers
+// (buildBatchWithdrawUpdate), so no per-peer decision reaches its bytes and none
+// belongs in the key: leaving them zero keeps two peers that differ only in them
+// on ONE build, exactly as this rail grouped them before it carried attributes at
+// all (ai/rules/performance.md).
+//
+// nextHop is the caller's own, not a resolved one. A withdrawal makes nothing
+// reachable, so `next-hop self` has nothing to name and an unset next hop is not
+// a reason to skip the peer the way an announce's is (Peer.resolveNextHop returns
+// ErrNextHopUnset and AnnounceNLRIBatch skips on it). Reading it from the batch
+// rather than from the peer also keeps it out of the per-peer partition.
+func withdrawFactsFor(peer *Peer, batch bgptypes.NLRIBatch, isIBGP bool, nc *NegotiatedCapabilities) announceFacts {
+	settings := peer.Settings()
+	facts := announceFacts{
+		addPath:      peer.addPathFor(batch.Family),
+		extended:     nc.ExtendedMessage,
+		groupUpdates: settings.GroupUpdates,
+	}
+	if batch.Family.SAFI == family.SAFIUnicast {
+		return facts
+	}
+	if batch.NextHop.Policy == bgptypes.NextHopExplicit {
+		facts.nextHop = batch.NextHop.Addr
+	}
+	facts.isIBGP = isIBGP
+	facts.rsClient = settings.RSClient
+	facts.propagatePrefixSID = settings.PropagateSRv6PrefixSID
+	facts.prepend = localASPrependFor(settings)
+	facts.asn4 = peer.asn4()
+	return facts
+}
+
+// withdrawBatchFromPeers builds this batch's withdrawal and sends it to every
+// peer given, which MUST agree on every fact withdrawFactsFor reads. It is the
+// withdraw rail's twin of announceBatchToPeers: same pooled buffer pair, same
+// framing through nlriUnitLen, same synchronous-send invariant, and the same
+// DELIVERIES count.
+//
+// The withdrawal is what takes a route back OUT of each peer's Adj-RIB-Out, so
+// an announce of the same route afterwards is sent again rather than suppressed.
+// It is not itself suppressed by that table. The Adj-RIB-Out is this speaker's
+// model of what the peer holds, and a withdraw command is the operator saying
+// the peer must not hold it: refusing to send one because the model already says
+// so would put the model's word above the operator's, and RFC 4271 Section 9.1.2
+// has the receiver ignore a withdrawal for a route it does not have.
+//
+// ONE condition withholds a withdrawal, and it is about the connection rather
+// than about the route. RFC 4271 Section 4.3: a withdrawn route "is identified
+// by its destination (expressed as an IP prefix), which unambiguously identifies
+// the route in the context of the BGP speaker - BGP speaker connection to which
+// it has been previously advertised." A connection that has advertised nothing
+// has no route for any withdrawal to name, so nothing is written to it and the
+// peers it happened to are ANSWERED (route.ErrWithdrawWithheld). The third
+// return is those peers, by address, in the order they were met.
+func (a *reactorAPIAdapter) withdrawBatchFromPeers(peers []*Peer, batch bgptypes.NLRIBatch, facts announceFacts) (int, []string, error) {
+	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, facts.extended))
+
+	attrHandle := getBuildBuf()
+	nlriHandle := getBuildBuf()
+	defer putBuildBuf(attrHandle)
+	defer putBuildBuf(nlriHandle)
+
+	// The guard is asked ONCE for each peer, above the unit loop, because it is
+	// a property of the connection rather than of the framing. A peer counts as
+	// SERVED: the command did what it asked for, and there was nothing to write.
+	writable, unarmed := splitOnAdvertised(peers)
+	withheld := make([]string, 0, len(unarmed))
+	for _, peer := range unarmed {
+		peer.adjOut.recordWithheld(len(batch.NLRIs))
+		logWithdrawWithheld(peer, batch)
+		withheld = append(withheld, peer.Settings().Address.String())
+	}
+
+	sent := len(unarmed)
+	var lastErr error
+	unitLen := nlriUnitLen(len(batch.NLRIs), facts.groupUpdates)
+
+	for off := 0; ; off += unitLen {
+		end := min(off+unitLen, len(batch.NLRIs))
+		unit := batch
+		unit.NLRIs = batch.NLRIs[off:end]
+
+		update := a.buildBatchWithdrawUpdate(attrHandle.Buf, nlriHandle.Buf, unit, facts)
+		if update == nil {
+			// Build rejected (already logged). Every unit is written into the
+			// same buffers under the same facts, so the refusal repeats: stop
+			// here rather than withdraw part of the batch.
+			return sent, withheld, errWithdrawTooLarge
+		}
+
+		for _, peer := range writable {
+			// Forget first, and whatever the write does. The peer's Adj-RIB-Out
+			// is a model of what it holds, and after a withdrawal that failed to
+			// write it holds something this speaker can no longer name. Reading
+			// that as "the peer does not have it" re-sends a route it may still
+			// hold; reading it the other way would suppress one it does not.
+			forgetWithdrawn(peer, unit, nlriHandle.Buf, facts.addPath)
+			if err := peer.sendUpdateWithSplit(update, maxMsgSize, facts.addPath); err != nil {
+				lastErr = err
+				continue
+			}
+			sent++
+		}
+
+		if end >= len(batch.NLRIs) {
+			break
+		}
+	}
+	return sent, withheld, lastErr
+}
+
+// splitOnAdvertised partitions a fan-out into the peers a withdrawal MAY be
+// written to and the peers it is withheld from.
+//
+// RFC 4271 Section 4.3 scopes "previously advertised" to one connection, so the
+// question is asked once for each peer rather than once for each unit the batch
+// is framed into. The caller's own slice is answered untouched while every peer
+// is armed, which is the ordinary case and the one that must not allocate
+// (ai/rules/performance.md).
+func splitOnAdvertised(peers []*Peer) (writable, unarmed []*Peer) {
+	for i, peer := range peers {
+		if peer.hasAdvertised() {
+			if unarmed != nil {
+				writable = append(writable, peer)
+			}
+			continue
+		}
+		if unarmed == nil {
+			writable = append(make([]*Peer, 0, len(peers)), peers[:i]...)
+		}
+		unarmed = append(unarmed, peer)
+	}
+	if unarmed == nil {
+		return peers, nil
+	}
+	return writable, unarmed
+}
+
+// logWithdrawWithheld says which routes a peer was not withdrawn from, and why.
+//
+// A withdrawal withheld because the connection advertised nothing and one
+// dropped because the send failed are different outcomes, and an operator
+// reading a peer that received no UPDATE must be able to tell them apart
+// (ai/rules/principles.md). The counter beside it is adjRIBOut.withheldCount.
+func logWithdrawWithheld(peer *Peer, unit bgptypes.NLRIBatch) {
+	routesLogger().Warn("withdrawal withheld: this session has advertised no route to the peer",
+		"peer", peer.Settings().Address,
+		"family", unit.Family,
+		"routes", len(unit.NLRIs),
+		"rfc", "RFC 4271 Section 4.3")
+}
+
 // WithdrawNLRIBatch withdraws a batch of NLRIs.
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
@@ -313,27 +648,30 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 	}
 
 	var lastErr error
+	// acceptedCount is what went out: one for each peer whose operations were
+	// queued, and one for each UPDATE written to an established peer, exactly as
+	// on the announce rail. Only the zero test at the end reads it.
 	var acceptedCount int
+	// withheld names the peers this connection had advertised nothing to, so the
+	// answer can carry them (RFC 4271 Section 4.3, withdrawBatchFromPeers).
+	var withheld []string
 
-	// Group-aware path for withdraw: peers with the same addPath and
-	// ExtendedMessage produce identical withdraw UPDATEs.
-	type withdrawBuildKey struct {
-		addPath  bool
-		extended bool
-	}
+	// Group-aware path for withdraw: peers whose facts are equal produce
+	// identical withdraw UPDATEs and share one build.
 	type withdrawBuildGroup struct {
-		key   withdrawBuildKey
+		facts announceFacts
 		peers []*Peer
 	}
 
 	groupsEnabled := a.r.updateGroups != nil && a.r.updateGroups.Enabled()
-	var wdGroups map[withdrawBuildKey]*withdrawBuildGroup
+	var wdGroups map[announceFacts]*withdrawBuildGroup
 
 	if groupsEnabled {
-		wdGroups = make(map[withdrawBuildKey]*withdrawBuildGroup)
+		wdGroups = make(map[announceFacts]*withdrawBuildGroup)
 	}
 
-	for _, peer := range peers {
+	for i := range peers {
+		peer := peers[i]
 		if !peer.shouldQueue() {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
@@ -341,37 +679,28 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 				continue // Skip peer that doesn't support this family
 			}
 
+			// Guarded: this batch-withdraw path runs on an API/plugin goroutine and
+			// may read a dynamic peer still resolving its ASN, exactly as the
+			// announce rail's read at :306 does.
+			facts := withdrawFactsFor(peer, batch, peer.IsIBGP(), nc)
+
 			if groupsEnabled {
-				wk := withdrawBuildKey{
-					addPath:  peer.addPathFor(batch.Family),
-					extended: nc.ExtendedMessage,
-				}
-				wg, ok := wdGroups[wk]
+				wg, ok := wdGroups[facts]
 				if !ok {
-					wg = &withdrawBuildGroup{key: wk}
-					wdGroups[wk] = wg
+					wg = &withdrawBuildGroup{facts: facts}
+					wdGroups[facts] = wg
 				}
 				wg.peers = append(wg.peers, peer)
 			} else {
-				// Per-peer path (update groups disabled).
-				maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
-				addPath := peer.addPathFor(batch.Family)
-
-				attrHandle := getBuildBuf()
-				nlriHandle := getBuildBuf()
-				update := a.buildBatchWithdrawUpdate(attrHandle.Buf, nlriHandle.Buf, batch, addPath)
-
-				// Build rejected (already logged): not sent, and not counted as
-				// accepted, so the caller gets an error instead of a silent drop.
-				if update == nil {
-					lastErr = errWithdrawTooLarge
-				} else if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
-					lastErr = err
-				} else {
-					acceptedCount++
+				// Per-peer path (update groups disabled). peers[i:i+1] is a view
+				// of the slice already in hand, so the one-peer set costs no
+				// allocation on the fan-out (ai/rules/performance.md).
+				n, peerWithheld, sendErr := a.withdrawBatchFromPeers(peers[i:i+1], batch, facts)
+				acceptedCount += n
+				withheld = append(withheld, peerWithheld...)
+				if sendErr != nil {
+					lastErr = sendErr
 				}
-				putBuildBuf(attrHandle)
-				putBuildBuf(nlriHandle)
 			}
 		} else {
 			// Session not established or queue draining: queue to preserve order
@@ -382,35 +711,16 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 		}
 	}
 
-	// Build once per group, send to all members.
-	// INVARIANT: sendUpdateWithSplit is synchronous -- it blocks until bytes are
-	// written to TCP. The shared *message.Update references pooled buffers that
-	// are returned after this loop. Async writes would cause use-after-return.
+	// Build once per group, send to all members. The build buffers, the framing
+	// and the send invariant are withdrawBatchFromPeers's, so a group of peers
+	// and a single peer cannot be framed differently.
 	for _, wg := range wdGroups {
-		maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, wg.key.extended))
-
-		attrHandle := getBuildBuf()
-		nlriHandle := getBuildBuf()
-		update := a.buildBatchWithdrawUpdate(attrHandle.Buf, nlriHandle.Buf, batch, wg.key.addPath)
-
-		// Build rejected (already logged): every peer in this group shares the
-		// build parameters, so none of them can be sent this batch.
-		if update == nil {
-			lastErr = errWithdrawTooLarge
-			putBuildBuf(attrHandle)
-			putBuildBuf(nlriHandle)
-			continue
+		n, groupWithheld, sendErr := a.withdrawBatchFromPeers(wg.peers, batch, wg.facts)
+		acceptedCount += n
+		withheld = append(withheld, groupWithheld...)
+		if sendErr != nil {
+			lastErr = sendErr
 		}
-
-		for _, peer := range wg.peers {
-			if err := peer.sendUpdateWithSplit(update, maxMsgSize, wg.key.addPath); err != nil {
-				lastErr = err
-			} else {
-				acceptedCount++
-			}
-		}
-		putBuildBuf(attrHandle)
-		putBuildBuf(nlriHandle)
 	}
 
 	// Return warning-level error if no peers accepted (all skipped due to family).
@@ -423,6 +733,14 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 			return lastErr
 		}
 		return route.ErrNoPeersAcceptedFamily
+	}
+	// A withheld withdrawal is REPORTED, never swallowed: the caller turns it
+	// into a warning on the command's answer and still answers `done`
+	// (ai/rules/principles.md). A real send failure outranks it, because that
+	// one condemns the routes rather than explaining why none were owed.
+	if lastErr == nil && len(withheld) > 0 {
+		return fmt.Errorf("%w: %s, peers %s", route.ErrWithdrawWithheld,
+			batch.Family, textbuf.Join(withheld, ", "))
 	}
 	return lastErr
 }
@@ -609,6 +927,12 @@ func baseASPath(base []byte, srcASN4 bool) *attribute.ASPath {
 // (writeMandatoryAttrs). Both existed because this was the rail that diverged; the
 // queued rail happened to be right and had neither.
 //
+// facts carries every PER-PEER decision (announceFacts, above). attrBuf, nlriBuf
+// and batch are the per-batch half: one pooled buffer pair serves every build in
+// a fan-out, and every peer is offered the same batch. Taking the per-peer half
+// as ONE struct is what stops the caller's grouping key from omitting a fact
+// this function reads, which is how four separate defects reached the wire.
+//
 // attrBuf and nlriBuf are caller-provided buffers (from getBuildBuf, session.go).
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
@@ -620,16 +944,93 @@ func baseASPath(base []byte, srcASN4 bool) *attribute.ASPath {
 // caller because the two refusals need different operator action: errAnnounceTooLarge
 // asks for fewer prefixes per announce, errAnnounceNextHopUnencodable asks for a
 // next hop at all.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, rsClient, asn4, addPath bool, prepend localASPrepend, propagatePrefixSID bool) (*message.Update, error) {
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, facts announceFacts) (*message.Update, error) {
 	// Write NLRIs into caller-provided buffer
-	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, addPath)
+	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, facts.addPath)
 	if nlriOff < 0 {
 		logAnnounceTooLarge(batch, len(nlriBuf), "nlri")
 		return nil, errAnnounceTooLarge
 	}
 	nlriBytes := nlriBuf[:nlriOff]
 
-	dstCtx := announceDstCtx(asn4)
+	plan := getAnnouncePlan()
+	defer putAnnouncePlan(plan)
+
+	base := a.planBatchAttrs(plan, batch, facts)
+
+	if batch.Family != family.IPv4Unicast {
+		// RFC 4760 Section 3: every other family carries its next-hop and NLRI inside
+		// MP_REACH_NLRI. A relayed/replayed block may already carry one; the
+		// contribution replaces it.
+		//
+		// The same validity question the IPv4 NEXT_HOP branch answers in
+		// planBatchAttrs, with the same cause: resolveNextHop (peer.go) hands an
+		// explicit next-hop back unvalidated, the zero Addr included. What differs is
+		// the remedy. The IPv4 branch can leave the base's own NEXT_HOP alone because
+		// the NLRI travels in the UPDATE's own field, so the batch's prefixes still go
+		// out. Here the NLRI is INSIDE the attribute, and skipping the contribution
+		// would announce the BASE's prefixes in place of this batch's. So the whole
+		// UPDATE is refused instead.
+		// A family that names no forwarding hop carries NONE, and carrying none
+		// is what makes the length octet zero. RFC 8955 Section 4: "When
+		// advertising Flow Specifications, the Length of the Next-Hop Network
+		// Address MUST be set to 0.  The Network Address of the Next-Hop field
+		// MUST be ignored." Offering the unresolved address instead made the
+		// validator below refuse every FlowSpec announce ze was asked to send.
+		var nextHops []netip.Addr
+		if batch.Family.NeedsNextHop() {
+			nextHops = []netip.Addr{facts.nextHop}
+		}
+		mpReach := attribute.NewMPReachNLRI(attribute.AFI(batch.Family.AFI), attribute.SAFI(batch.Family.SAFI),
+			nextHops, nlriBytes)
+		if err := mpReach.ValidateNextHops(); err != nil {
+			logAnnounceNextHopUnencodable(batch, facts.nextHop, err)
+			return nil, errAnnounceNextHopUnencodable
+		}
+		plan.add(mpReach, nil)
+	}
+
+	n, ok := plan.emit(base, attrBuf)
+	if !ok {
+		// The plan's own refusals do not all mean oversize. announceAttrs.add is the
+		// backstop for an attribute with no wire form, and it reaches this rail for a
+		// contribution the branches above did not pre-check -- a filter's or a future
+		// contributor's. Reporting that as errAnnounceTooLarge asked the operator to
+		// send fewer prefixes on a batch whose size was never the problem
+		// (ai/rules/cli.md).
+		if cause := plan.refusalCause(); errors.Is(cause, attribute.ErrUnencodableNextHop) {
+			logAnnounceNextHopUnencodable(batch, facts.nextHop, cause)
+			return nil, errAnnounceNextHopUnencodable
+		}
+		logAnnounceTooLarge(batch, len(attrBuf), "attributes")
+		return nil, errAnnounceTooLarge
+	}
+
+	update := &message.Update{PathAttributes: attrBuf[:n]}
+	if batch.Family == family.IPv4Unicast {
+		update.NLRI = nlriBytes
+	}
+	return update, nil
+}
+
+// planBatchAttrs plans every path attribute a batch carries EXCEPT the one that
+// says which direction it travels in, and returns the caller's verbatim block for
+// plan.emit to merge the plan over.
+//
+// The two API rails differ in exactly one attribute. An announce adds
+// MP_REACH_NLRI and a withdraw adds MP_UNREACH_NLRI, and RFC 4271 Section 4.3
+// gives both UPDATEs the same Path Attributes field otherwise. So the mandatory
+// synthesis, the AS_PATH prepend, the LOCAL_PREF obligation and prohibition, the
+// legacy NEXT_HOP and the Prefix-SID strip are planned HERE, once, and neither
+// rail can answer one of those questions differently from the other. Answering
+// them separately is what let an operator's LOCAL_PREF cross an AS boundary until
+// 2026-08-01, and what left the withdraw rail emitting a bare MP_UNREACH_NLRI for
+// a command that named attributes until 2026-09-06.
+//
+// facts carries every PER-PEER decision (announceFacts, above), so a fact this
+// function reads is a fact the caller's grouping key holds.
+func (a *reactorAPIAdapter) planBatchAttrs(plan *announceAttrs, batch bgptypes.NLRIBatch, facts announceFacts) []byte {
+	dstCtx := announceDstCtx(facts.asn4)
 
 	// The BASE is the caller's verbatim attribute block. A Builder without the
 	// raw-wire escape hatch has no block at all: its attributes are contributions
@@ -654,9 +1055,6 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		}
 		// A Builder writes 4-octet ASNs.
 	}
-
-	plan := getAnnouncePlan()
-	defer putAnnouncePlan(plan)
 
 	hasCode := func(code attribute.AttributeCode) bool {
 		if plan.planned(uint8(code)) {
@@ -686,19 +1084,19 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		hadASPath = batch.Attrs.ToASPath() != nil
 	}
 	var rewrittenASPath *attribute.ASPath
-	if hadASPath && a.prependApplies(isIBGP, rsClient, srcKnown, prepend.primary) {
+	if hadASPath && a.prependApplies(facts.isIBGP, facts.rsClient, srcKnown, facts.prepend.primary) {
 		existingASPath := baseASPath(base, srcASN4)
 		if existingASPath == nil && batch.Attrs != nil {
 			existingASPath = batch.Attrs.ToASPath()
 		}
-		rewrittenASPath = a.announceASPathRewrite(existingASPath, isIBGP, rsClient, srcKnown, prepend)
+		rewrittenASPath = a.announceASPathRewrite(existingASPath, facts.isIBGP, facts.rsClient, srcKnown, facts.prepend)
 	}
 
 	// RFC 4271 Section 5.1.5, the prohibition half. localPrefAllowedTo
 	// (forward_local_pref.go) owns the answer and the confederation exception, so
 	// this rail and the two forward rails cannot disagree about it -- which they
 	// did until 2026-08-04, when only this one stripped.
-	localPrefAllowed := localPrefAllowedTo(isIBGP)
+	localPrefAllowed := localPrefAllowedTo(facts.isIBGP)
 
 	// The Builder's attributes, in the ascending order AppendAttributes declares.
 	for _, attr := range builderAttrs {
@@ -723,7 +1121,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		// Three AS numbers at most: the local-as prepend contributes two toward a
 		// migrating peer, and an origin-as adds one behind them.
 		var scratch [3]uint32
-		asns := announceASPathASNs(scratch[:0], isIBGP, prepend, batch.OriginAS)
+		asns := announceASPathASNs(scratch[:0], facts.isIBGP, facts.prepend, batch.OriginAS)
 		synth := plan.asPathFor(asns)
 		plan.add(synth, dstCtx)
 
@@ -732,12 +1130,13 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		// announceASPathASNs sequence the AS_PATH above encoded, so the two cannot
 		// disagree. Only when this rail synthesized the path: a verbatim AS_PATH owns
 		// its own encoding.
-		if !asn4 && anyNonMappableAS(asns) {
+		if !facts.asn4 && anyNonMappableAS(asns) {
 			plan.add(plan.as4PathFor(synth.Segments), nil)
 		}
 	}
 
-	if batch.Family == family.IPv4Unicast {
+	switch {
+	case batch.Family == family.IPv4Unicast:
 		// Write exactly one NEXT_HOP, the authoritative resolved address. The base may
 		// already carry one -- a relayed/replayed route stores the full received block,
 		// NEXT_HOP included -- and a contribution REPLACES it rather than adding a
@@ -747,30 +1146,21 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		// an explicit next-hop -- it deliberately returns whatever Addr was configured,
 		// invalid included (see TestResolveNextHop_ExplicitInvalid) -- and an invalid
 		// Addr encodes as a zero-LENGTH NEXT_HOP value (attribute/simple.go). If
-		// nextHop is invalid, leave the base's own NEXT_HOP alone rather than replace a
+		// the next hop is invalid, leave the base's own NEXT_HOP alone rather than replace a
 		// good address with a malformed one.
-		if nextHop.IsValid() {
-			plan.add(plan.nextHopFor(nextHop), nil)
+		if facts.nextHop.IsValid() {
+			plan.add(plan.nextHopFor(facts.nextHop), nil)
 		}
-	} else {
-		// RFC 4760 Section 3: every other family carries its next-hop and NLRI inside
-		// MP_REACH_NLRI. A relayed/replayed block may already carry one; the
-		// contribution replaces it.
-		//
-		// The same validity question as the IPv4 branch above, with the same cause:
-		// resolveNextHop (peer.go) hands an explicit next-hop back unvalidated, the
-		// zero Addr included. What differs is the remedy. The IPv4 branch can leave
-		// the base's own NEXT_HOP alone because the NLRI travels in the UPDATE's own
-		// field, so the batch's prefixes still go out. Here the NLRI is INSIDE the
-		// attribute, and skipping the contribution would announce the BASE's prefixes
-		// in place of this batch's. So the whole UPDATE is refused instead.
-		mpReach := attribute.NewMPReachNLRI(attribute.AFI(batch.Family.AFI), attribute.SAFI(batch.Family.SAFI),
-			[]netip.Addr{nextHop}, nlriBytes)
-		if err := mpReach.ValidateNextHops(); err != nil {
-			logAnnounceNextHopUnencodable(batch, nextHop, err)
-			return nil, errAnnounceNextHopUnencodable
-		}
-		plan.add(mpReach, nil)
+	case legacyNextHopApplies(batch.Family, facts.nextHop):
+		// The multiprotocol families that ALSO restate an IPv4 next hop as the
+		// RFC 4271 Section 5.1.3 attribute (family.Family.LegacyNextHop). Ze's config
+		// rail already sends it -- message.(*UpdateBuilder).BuildVPN, nlri/mvpn and
+		// nlri/mup each add code 3 for an IPv4 next hop, and 42 `conf-*` fixtures pin
+		// it -- while this rail sent MP_REACH_NLRI alone, so the same route reached
+		// the wire as two different byte strings depending on whether an operator
+		// configured it or announced it. RFC 4760 Section 3 makes both conformant
+		// (SHOULD NOT), so the rails agreeing is what the choice is for.
+		plan.add(plan.nextHopFor(facts.nextHop), nil)
 	}
 
 	// RFC 4271 Section 5.1.5, the obligation half: LOCAL_PREF SHALL be included in
@@ -807,33 +1197,34 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 	// only arrive as pre-encoded wire in RawWire, which IS the base
 	// (attribute.Builder.AppendAttributes). The presence test keeps a destination
 	// that was never sent one off the plan, exactly as the LOCAL_PREF strip does.
-	if !prefixSIDAllowedTo(isIBGP, propagatePrefixSID) {
+	if !prefixSIDAllowedTo(facts.isIBGP, facts.propagatePrefixSID) {
 		if _, _, _, found := attribute.AttrFind(base, attribute.AttrPrefixSID); found {
 			plan.drop(uint8(attribute.AttrPrefixSID))
 		}
 	}
 
-	n, ok := plan.emit(base, attrBuf)
-	if !ok {
-		// The plan's own refusals do not all mean oversize. announceAttrs.add is the
-		// backstop for an attribute with no wire form, and it reaches this rail for a
-		// contribution the branches above did not pre-check -- a filter's or a future
-		// contributor's. Reporting that as errAnnounceTooLarge asked the operator to
-		// send fewer prefixes on a batch whose size was never the problem
-		// (ai/rules/cli.md).
-		if cause := plan.refusalCause(); errors.Is(cause, attribute.ErrUnencodableNextHop) {
-			logAnnounceNextHopUnencodable(batch, nextHop, cause)
-			return nil, errAnnounceNextHopUnencodable
-		}
-		logAnnounceTooLarge(batch, len(attrBuf), "attributes")
-		return nil, errAnnounceTooLarge
-	}
+	return base
+}
 
-	update := &message.Update{PathAttributes: attrBuf[:n]}
-	if batch.Family == family.IPv4Unicast {
-		update.NLRI = nlriBytes
+// legacyNextHopApplies reports whether this batch restates its next hop as the
+// RFC 4271 Section 5.1.3 NEXT_HOP attribute beside MP_REACH_NLRI or
+// MP_UNREACH_NLRI. The family answers whether the attribute belongs
+// (family.Family.LegacyNextHop); the address answers whether one can be written.
+//
+// RFC 4271 Section 6.3: "Syntactic correctness means that the NEXT_HOP attribute
+// represents a valid IP host address." The unspecified address is not one, and a
+// receiver that finds it MUST answer with an Invalid NEXT_HOP Attribute
+// NOTIFICATION, so `next-hop 0.0.0.0` -- which an operator writes to say a
+// withdrawal names no next hop at all -- contributes nothing rather than
+// resetting the session.
+func legacyNextHopApplies(fam family.Family, nextHop netip.Addr) bool {
+	if !nextHop.Is4() {
+		return false
 	}
-	return update, nil
+	if nextHop.IsUnspecified() {
+		return false
+	}
+	return fam.LegacyNextHop()
 }
 
 // writeBatchNLRI writes every NLRI of a batch into nlriBuf, in order, and returns
@@ -997,6 +1388,30 @@ func announceASPathASNs(dst []uint32, isIBGP bool, prepend localASPrepend, origi
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
 //
+// The withdrawal carries the attributes the CALLER named, and UNICAST carries
+// none. RFC 4760 Section 4: "An UPDATE message that contains the MP_UNREACH_NLRI
+// is not required to carry any other path attributes", so both shapes are
+// conformant and the family decides which one this speaker sends.
+//
+// Until 2026-09-06 every withdrawal took the bare shape, so
+// `send bgp <selector> update text <attributes> nlri <family> del <nlri>`
+// acknowledged attributes that never reached the wire, and an operator could not
+// tell that from having asked for none (ai/rules/principles.md).
+//
+// Unicast is bare because RFC 4271 Section 4.3 gives the Withdrawn Routes field
+// no attributes, and the IPv6 unicast withdrawal is the SAME withdrawal in the
+// RFC 4760 encoding. Sending the two different blocks would make the AFI decide
+// what an operator's `withdraw <prefix> next-hop X local-preference 200` means.
+// ExaBGP splits them at the same seam, and the ported fixtures pin both halves:
+// api-ipv6.ci withdraws an IPv6 unicast prefix that named a next hop and a
+// local-preference and carries nothing, while api-flow.ci withdraws a FlowSpec
+// rule that named neither and carries ORIGIN, AS_PATH and LOCAL_PREF.
+//
+// What every other family carries is planBatchAttrs's answer, which is the
+// announce rail's answer: the caller's block, plus the RFC 4271 Section 4.3
+// well-known mandatory ORIGIN and AS_PATH, plus the Section 5.1.5 LOCAL_PREF
+// toward an internal peer, plus the legacy NEXT_HOP where the family carries one.
+//
 // Returns nil when the batch does not fit its pooled build buffers, exactly as
 // buildBatchAnnounceUpdate does. The withdraw rail carried the SAME two unbounded
 // writes the announce rail did: an NLRI loop that panics past len (WriteNLRI ends
@@ -1005,9 +1420,9 @@ func announceASPathASNs(dst []uint32, isIBGP bool, prepend localASPrepend, origi
 // claiming more octets than it contained. A short withdraw is not a lesser failure
 // than a short announce -- the peer keeps forwarding to prefixes it was never told
 // about.
-func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, addPath bool) *message.Update {
+func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, facts announceFacts) *message.Update {
 	// Write NLRIs into caller-provided buffer
-	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, addPath)
+	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, facts.addPath)
 	if nlriOff < 0 {
 		logWithdrawTooLarge(batch, len(nlriBuf), "nlri")
 		return nil
@@ -1015,7 +1430,9 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 	nlriBytes := nlriBuf[:nlriOff]
 
 	if batch.Family == (family.IPv4Unicast) {
-		// IPv4 unicast: Use WithdrawnRoutes field
+		// IPv4 unicast: Use WithdrawnRoutes field, which RFC 4271 Section 4.3 gives
+		// no attributes of its own. api-healthcheck-withdraw.ci pins the empty block
+		// for a withdrawal that named `next-hop self`.
 		return &message.Update{
 			WithdrawnRoutes: nlriBytes,
 		}
@@ -1027,13 +1444,40 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 		SAFI: attribute.SAFI(batch.Family.SAFI),
 		NLRI: nlriBytes,
 	}
-	if attribute.AttrWireLen(mpUnreach) > len(attrBuf) {
-		logWithdrawTooLarge(batch, len(attrBuf), "mp-unreach")
+
+	if batch.Family.SAFI == family.SAFIUnicast {
+		// IPv6 unicast: the same withdrawal the IPv4 branch above writes into the
+		// Withdrawn Routes field, so it carries the same attributes -- none. This is
+		// also the cheapest shape, and it is the one every large withdrawal takes
+		// (ai/rules/performance.md).
+		if attribute.AttrWireLen(mpUnreach) > len(attrBuf) {
+			logWithdrawTooLarge(batch, len(attrBuf), "mp-unreach")
+			return nil
+		}
+		attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
+		return &message.Update{
+			PathAttributes: attrBuf[:attrLen],
+		}
+	}
+
+	plan := getAnnouncePlan()
+	defer putAnnouncePlan(plan)
+
+	base := a.planBatchAttrs(plan, batch, facts)
+	plan.add(mpUnreach, nil)
+
+	n, ok := plan.emit(base, attrBuf)
+	if !ok {
+		// Every refusal reachable here is a size refusal. The one cause that is not,
+		// an attribute with no wire form, belongs to the NEXT_HOP the plan may
+		// contribute, and legacyNextHopApplies has already refused an address that
+		// has none (buildBatchAnnounceUpdate carries the same reasoning for
+		// MP_REACH_NLRI, where the address is the operator's to fix).
+		logWithdrawTooLarge(batch, len(attrBuf), "attributes")
 		return nil
 	}
-	attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
 	return &message.Update{
-		PathAttributes: attrBuf[:attrLen],
+		PathAttributes: attrBuf[:n],
 	}
 }
 
@@ -1307,33 +1751,64 @@ func (o *withdrawOutcome) record(sendErr error, nlriCount int) {
 }
 
 // sendStaleReadvertise handles one destination peer on a stale (LLGR) announce
-// batch. It builds the announce, runs the registered readvertise egress filters
-// (RFC 9494 LLGR) with meta["stale"] and the peer as destination, then realizes
+// batch. It frames the batch as the announce rail frames it, and for each unit
+// builds the announce, runs the registered readvertise egress filters (RFC 9494
+// LLGR) with meta["stale"] and the peer as destination, then realizes
 // the per-peer decision: withdrawal for a non-LLGR eBGP peer (mods.IsWithdraw),
 // a depreferenced announce for a non-LLGR iBGP peer (attribute mods), or the
 // unchanged announce for an LLGR-capable peer. The filter chain here is ONLY the
 // Readvertise-opted filters, never the full egress chain, so a readvertise does
 // not re-apply OTC/community/policy that already ran at the original announce.
 //
-// Returns (sent, failErr). sent reports that a message was accepted for sending.
-// failErr is non-nil when the re-advertise could not be carried out at all -- a
-// filter that could not run, or modifications that could not be built -- and it
-// wraps errStaleReadvertiseWithheld. The route is withheld either way; failErr
-// exists so the caller does not report a defect in Ze as a peer that declined
-// the family. A policy suppression yields (false, nil): that IS a decision.
-func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) (sent bool, failErr error) {
-	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
-	addPath := peer.addPathFor(batch.Family)
-	asn4 := peer.asn4()
-	prepend := localASPrependFor(peer.Settings())
-	rsClient := peer.Settings().RSClient
-	propagatePrefixSID := peer.Settings().PropagateSRv6PrefixSID
+// Returns (sent, failErr). sent counts the messages accepted for sending, which
+// is one for a peer that groups updates and one per NLRI for a peer carrying
+// `group-updates false`. failErr is non-nil when the re-advertise could not be
+// carried out at all -- a filter that could not run, or modifications that could
+// not be built -- and it wraps errStaleReadvertiseWithheld. The route is
+// withheld either way; failErr exists so the caller does not report a defect in
+// Ze as a peer that declined the family. A policy suppression yields (0, nil):
+// that IS a decision.
+func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) (sent int, failErr error) {
+	facts := announceFactsFor(peer, batch.Family, nextHop, isIBGP, nc)
+	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, facts.extended))
 
 	attrHandle := getBuildBuf()
 	nlriHandle := getBuildBuf()
 	defer putBuildBuf(attrHandle)
 	defer putBuildBuf(nlriHandle)
-	update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, rsClient, asn4, addPath, prepend, propagatePrefixSID)
+
+	// The framing is the announce rail's, through the same nlriUnitLen: a peer
+	// carrying `group-updates false` is re-advertised one prefix per UPDATE, and
+	// the filter decides once for each of them. The decision reads the
+	// destination and the stale level rather than the prefixes, so every unit of
+	// one batch gets the same answer.
+	unitLen := nlriUnitLen(len(batch.NLRIs), facts.groupUpdates)
+
+	for off := 0; ; off += unitLen {
+		end := min(off+unitLen, len(batch.NLRIs))
+		unit := batch
+		unit.NLRIs = batch.NLRIs[off:end]
+
+		unitSent, unitErr := a.sendStaleReadvertiseUnit(peer, unit, facts, maxMsgSize, attrHandle.Buf, nlriHandle.Buf)
+		if unitErr != nil {
+			return sent, unitErr
+		}
+		if unitSent {
+			sent++
+		}
+
+		if end >= len(batch.NLRIs) {
+			break
+		}
+	}
+	return sent, nil
+}
+
+// sendStaleReadvertiseUnit runs the readvertise egress filters over ONE built
+// UPDATE and carries out what they decided. attrBuf and nlriBuf are the caller's
+// pooled build buffers, reused by every unit of the batch.
+func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(peer *Peer, batch bgptypes.NLRIBatch, facts announceFacts, maxMsgSize int, attrBuf, nlriBuf []byte) (sent bool, failErr error) {
+	update, buildErr := a.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, facts)
 	if update == nil {
 		// The announce itself could not be encoded (already logged). Report the
 		// builder's own cause rather than a family mismatch: the family IS
@@ -1347,7 +1822,7 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 	dest := filterapi.PeerFilterInfo{
 		Address: peer.Settings().Address,
 		PeerAS:  peer.PeerAS(), // guarded: dest may be a dynamic peer still resolving its ASN
-		LocalAS: prepend.primary,
+		LocalAS: facts.prepend.primary,
 		// Name/GroupName complete the destination identity. The other six
 		// PeerFilterInfo fills in this package carry them
 		// (reactor_api_forward.go, reactor_api_forward_batch.go,
@@ -1382,22 +1857,35 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 		wdNlri := getBuildBuf()
 		defer putBuildBuf(wdAttr)
 		defer putBuildBuf(wdNlri)
-		wd := a.buildBatchWithdrawUpdate(wdAttr.Buf, wdNlri.Buf, batch, addPath)
+
+		// The withdrawal is THIS speaker's, not the operator's, so it names no
+		// attributes: RFC 9494 asks Ze to remove a stale route from a peer that
+		// cannot hold one, and the route's own attribute block describes the route
+		// this UPDATE is taking away. Clearing it here is what keeps
+		// buildBatchWithdrawUpdate's rule -- carry what the caller named -- true for
+		// a caller that named nothing (ai/rules/principles.md). A non-unicast family
+		// still gets the mandatory ORIGIN and AS_PATH that rail owes every
+		// withdrawal of its own.
+		bare := batch
+		bare.Wire = nil
+		bare.Attrs = nil
+		bare.NextHop = bgptypes.RouteNextHop{}
+		wd := a.buildBatchWithdrawUpdate(wdAttr.Buf, wdNlri.Buf, bare, announceFacts{addPath: facts.addPath})
 		if wd == nil {
 			// Same reasoning as the announce build above, under the withdraw
 			// rail's own cause (already logged); nothing was sent.
 			return false, errWithdrawTooLarge
 		}
-		return peer.sendUpdateWithSplit(wd, maxMsgSize, addPath) == nil, nil
+		return peer.sendUpdateWithSplit(wd, maxMsgSize, facts.addPath) == nil, nil
 	case staleModify:
 		// Non-LLGR iBGP peer: apply the depreference mods (NO_EXPORT + LOCAL_PREF=0).
 		if modified == nil {
-			return peer.sendUpdateWithSplit(update, maxMsgSize, addPath) == nil, nil
+			return peer.sendUpdateWithSplit(update, maxMsgSize, facts.addPath) == nil, nil
 		}
-		return peer.sendBodyWithSplit(modified, maxMsgSize, addPath) == nil, nil
+		return peer.sendBodyWithSplit(modified, maxMsgSize, facts.addPath) == nil, nil
 	default: // staleKeep
 		// LLGR-capable peer: send the stale route unchanged.
-		return peer.sendUpdateWithSplit(update, maxMsgSize, addPath) == nil, nil
+		return peer.sendUpdateWithSplit(update, maxMsgSize, facts.addPath) == nil, nil
 	}
 }
 

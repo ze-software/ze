@@ -159,6 +159,55 @@ func FamilyLess(a, b Family) bool {
 	return a.SAFI < b.SAFI
 }
 
+// LegacyNextHop reports whether an UPDATE for this family restates an IPv4 next
+// hop as the RFC 4271 Section 5.1.3 NEXT_HOP attribute, beside the next hop RFC
+// 4760 Section 3 carries inside MP_REACH_NLRI.
+//
+// RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one
+// encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
+// attribute.  If such a message contains the NEXT_HOP attribute, the BGP speaker
+// that receives the message SHOULD ignore this attribute." A SHOULD NOT is what
+// makes both answers conformant, so the answer is a compatibility decision rather
+// than a conformance one: ExaBGP sends the attribute for the families below, and
+// the ported ExaBGP contract fixtures pin those bytes
+// (docs/architecture/testing/interop.md).
+//
+// The set is the one Ze's config rail already sends, family by family: VPN
+// (message.(*UpdateBuilder).BuildVPN), MCAST-VPN (nlri/mvpn), MUP (nlri/mup),
+// labeled unicast and unicast. FlowSpec, VPLS, EVPN, SR Policy, RTC and BGP-LS
+// send none, because none of them names a forwarding hop an IPv4 NEXT_HOP could
+// restate. A family with no answer of its own takes the RFC's SHOULD NOT.
+func (f Family) LegacyNextHop() bool {
+	switch f.SAFI {
+	case SAFIUnicast, SAFIMulticast, SAFIMPLSLabel, SAFIMVPN, SAFIMUP, SAFIVPN:
+		return true
+	default:
+		return false
+	}
+}
+
+// NeedsNextHop reports whether an announce in this family has to resolve a
+// forwarding hop before it can be sent.
+//
+// FlowSpec is the family that does not. RFC 8955 Section 4: "When advertising
+// Flow Specifications, the Length of the Next-Hop Network Address MUST be set
+// to 0.  The Network Address of the Next-Hop field MUST be ignored." A rule
+// says what to DO with a packet rather than where to send it, so there is no
+// address for a caller to supply and none for a peer to resolve.
+//
+// The API announce rail asked every family for one and skipped the peer when
+// the answer was ErrNextHopUnset, so EVERY FlowSpec announce was dropped: the
+// command reported "no peer accepted this family", which was untrue, and the
+// operator saw a rule acknowledged and never advertised (ai/rules/principles.md).
+func (f Family) NeedsNextHop() bool {
+	switch f.SAFI {
+	case SAFIFlowSpec, SAFIFlowSpecVPN:
+		return false
+	default:
+		return true
+	}
+}
+
 // String returns a human-readable family name.
 // Format: <afi>/<safi> (e.g., "ipv4/unicast", "l2vpn/evpn").
 // Known families are served from a packed contiguous buffer (~1.3KB, L1-resident)

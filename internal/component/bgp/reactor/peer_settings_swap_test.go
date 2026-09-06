@@ -3,6 +3,7 @@
 package reactor
 
 import (
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
@@ -187,7 +188,6 @@ func TestPeerSettingsRestartReasonNamesTheChangedFields(t *testing.T) {
 		{"hold time", func(p *PeerSettings) { p.ReceiveHoldTime = 30 * time.Second }, "ReceiveHoldTime"},
 		{"md5 key", func(p *PeerSettings) { p.MD5Key = "s3cret" }, "MD5Key"},
 		{"peer as", func(p *PeerSettings) { p.PeerAS = 65099 }, "PeerAS"},
-		{"static routes", func(p *PeerSettings) { p.StaticRoutes = []StaticRoute{{Origin: 1}} }, "StaticRoutes"},
 		{"prefix maximum", func(p *PeerSettings) { p.PrefixMaximum = map[string]uint32{"ipv4/unicast": 10} }, "PrefixMaximum"},
 		{"route reflector client", func(p *PeerSettings) { p.RouteReflectorClient = true }, "RouteReflectorClient"},
 	}
@@ -206,7 +206,7 @@ func TestPeerSettingsRestartReasonNamesTheChangedFields(t *testing.T) {
 	}
 }
 
-// TestPeerSettingsRestartReasonEmptyForHotSwappableFields verifies that the two
+// TestPeerSettingsRestartReasonEmptyForHotSwappableFields verifies that the
 // declared hot-swappable fields, alone or together, need no restart.
 //
 // VALIDATES: the swap category is exactly what hotSwappableSettings copies.
@@ -218,10 +218,50 @@ func TestPeerSettingsRestartReasonEmptyForHotSwappableFields(t *testing.T) {
 	next := swapTestPeerSettings()
 	next.ImportFilters = []filterapi.FilterRef{{Name: "policy:new-import"}}
 	next.ExportFilters = []filterapi.FilterRef{{Name: "policy:new-export"}}
+	next.StaticRoutes = []StaticRoute{{Origin: 1}}
 
 	require.False(t, peerSettingsEqual(current, next), "the fixture must be a real change")
 	assert.Empty(t, peerSettingsRestartReason(current, next, nil))
 	assert.False(t, peerSettingsRestartRequired(current, next, nil))
+}
+
+// TestPeerSettingsStaticRouteChangeAloneSwaps verifies that editing a peer's
+// route set is delivered on the running session rather than bouncing it.
+//
+// VALIDATES: a reload that changes `static { route ... }` sends the difference on
+// the established session (deliverStaticRouteDelta, peer_static_wire.go).
+// PREVENTS: the restart that shipped with the fail-closed reload diff. StaticRoutes
+// was outside hotSwappableSettings, so adding one prefix tore the TCP connection
+// down and re-established it, and every peer of a busy speaker re-learned its whole
+// table to receive one route.
+func TestPeerSettingsStaticRouteChangeAloneSwaps(t *testing.T) {
+	current := swapTestPeerSettings()
+	current.StaticRoutes = []StaticRoute{{Prefix: netip.MustParsePrefix("10.0.0.0/24")}}
+	next := swapTestPeerSettings()
+	next.StaticRoutes = []StaticRoute{{Prefix: netip.MustParsePrefix("10.0.1.0/24")}}
+
+	require.False(t, peerSettingsEqual(current, next), "the fixture must be a real change")
+	assert.Empty(t, peerSettingsRestartReason(current, next, nil),
+		"a route-set change alone must not restart the session")
+}
+
+// TestPeerSettingsStaticRouteBesideRestartFieldNamesTheOtherField verifies that a
+// reload touching BOTH a route set and a restart-scoped field still restarts, and
+// names the field that forced it.
+//
+// VALIDATES: the swap set is a SUBTRACTION -- neutralizing StaticRoutes removes it
+// from the reason without excusing anything else (peerSettingsSwapPlan).
+// PREVENTS: an operator reading "changed=StaticRoutes" on a session that bounced
+// for its hold time, and fixing the wrong line of the configuration.
+func TestPeerSettingsStaticRouteBesideRestartFieldNamesTheOtherField(t *testing.T) {
+	current := swapTestPeerSettings()
+	next := swapTestPeerSettings()
+	next.StaticRoutes = []StaticRoute{{Prefix: netip.MustParsePrefix("10.0.1.0/24")}}
+	next.ReceiveHoldTime = 30 * time.Second
+
+	assert.True(t, peerSettingsRestartRequired(current, next, nil))
+	assert.Equal(t, "ReceiveHoldTime", peerSettingsRestartReason(current, next, nil),
+		"the reason names the field that forced the restart, not the one that did not")
 }
 
 // TestPeerSettingsRestartRequiredIsFailClosed verifies that the restart decision

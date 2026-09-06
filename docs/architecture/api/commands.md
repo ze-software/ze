@@ -42,6 +42,7 @@ The action verb determines the command's behavior; the module implements it.
 |------|---------|---------|
 | `show` | Read-only display (returns data, exits) | `show bgp peer <selector> detail`, `show warnings` |
 | `set` | Create or modify | `set bgp peer X ...` |
+| `create` | Add to the running daemon | `create bgp peer X asn 65001` |
 | `delete` | Remove | `delete bgp peer X` |
 | `update` | Route operations (announce, withdraw, refresh), firmware, prefix data | `update system firmware check`, `update bgp peer * prefix` |
 | `monitor` | Long-running auto-refreshing display | `monitor bgp` (TUI dashboard) |
@@ -565,6 +566,7 @@ show bgp peer <selector> capabilities # Show specific peer capabilities
 show bgp peer <selector> statistics   # Show specific peer statistics
 show bgp peer <selector> history      # Show FSM transition history
 request peer <selector> teardown [<cease-subcode>]  # Disconnect peer
+create bgp peer <address> asn <asn> [...]  # Add a peer to the running daemon
 delete bgp peer <name>             # Remove dynamic peer
 request peer <sel> flush           # Wait for forward pool to drain (barrier)
 ```
@@ -684,6 +686,23 @@ send bgp <selector> update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip
 send bgp <selector> update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
 send bgp <selector> update text nlri l2vpn/evpn add multicast rd <rd> ip <ip>
 ```
+
+#### A withdrawal can be answered with the peers it was withheld from
+
+`send bgp <selector> update text ... nlri <family> del ...` writes no UPDATE to
+a peer whose session has advertised nothing, because RFC 4271 Section 4.3
+identifies a withdrawn route in the context of the connection it was previously
+advertised on. The command still answers `done`, and the peers it wrote nothing
+to are named in the response's `warnings`:
+
+```
+withdraw ipv4/unicast: withdrawal withheld: this session has advertised no route to the peer: ipv4/unicast, peers 192.0.2.10
+```
+
+Once the session has carried one UPDATE that makes any destination reachable,
+every later withdrawal is written, whether or not the peer holds the route named.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- handleUpdateText -->
+<!-- source: internal/component/bgp/route/route.go -- ErrWithdrawWithheld -->
 
 ### Route Commands (update cursor)
 

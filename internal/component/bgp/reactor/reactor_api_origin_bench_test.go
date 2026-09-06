@@ -54,8 +54,8 @@ func BenchmarkAPIOriginVsForward(b *testing.B) {
 		for range b.N {
 			// Two contributions over the three-attribute base: NEXT_HOP (3) and
 			// LOCAL_PREF (5), the iBGP announce shape.
-			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop,
-				true /*iBGP*/, false, true /*asn4*/, false, localASOnly(65000), false /*propagatePrefixSID*/); u == nil {
+			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+				announceFacts{nextHop: nextHop, isIBGP: true, asn4: true, prepend: localASOnly(65000)}); u == nil {
 				b.Fatal("announce build failed")
 			}
 		}
@@ -122,8 +122,8 @@ func BenchmarkAnnounceRails(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for range b.N {
-			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop,
-				true, false, true, false, localASOnly(65000), false /*propagatePrefixSID*/); u == nil {
+			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+				announceFacts{nextHop: nextHop, isIBGP: true, asn4: true, prepend: localASOnly(65000)}); u == nil {
 				b.Fatal("batch build failed")
 			}
 		}
@@ -145,8 +145,8 @@ func BenchmarkAnnounceRails(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for range b.N {
-			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, mpNextHop,
-				true, false, true, false, localASOnly(65000), false /*propagatePrefixSID*/); u == nil {
+			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+				announceFacts{nextHop: mpNextHop, isIBGP: true, asn4: true, prepend: localASOnly(65000)}); u == nil {
 				b.Fatal("batch mp build failed")
 			}
 		}

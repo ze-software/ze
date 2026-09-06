@@ -46,7 +46,7 @@ type peerSettingsSwap struct {
 // session is visible and self-healing; a session left running on stale settings is
 // the silent mis-enforcement this spec exists to remove.
 //
-// Three fields qualify today, and each one qualifies for a reason read at the
+// Four fields qualify today, and each one qualifies for a reason read at the
 // consumer:
 //
 //   - ImportFilters: the ingress datapath re-reads it per received UPDATE through
@@ -63,8 +63,16 @@ type peerSettingsSwap struct {
 //     applyHotSwappableSettings republishes both, which is what makes this field
 //     swappable rather than inert. Every reader outside AddPeer goes through the
 //     p.mu-guarded accessor Peer.oldestPrefixUpdated (peer.go).
+//   - StaticRoutes: the routes this peer originates. Its consumer is the wire, and
+//     a session already holds what the previous set put there, so delivering the
+//     field alone would change nothing until the next connection. What makes it
+//     swappable is deliverStaticRouteDelta (peer_static_wire.go), which
+//     applyHotSwappableSettings calls: it announces what the running session does
+//     not hold and withdraws what the configuration no longer names. Its one
+//     reader, sendInitialRoutes, goes through the p.mu-guarded accessor
+//     Peer.staticRoutes, and p.staticMu serializes the two writers of the wire.
 //
-// All three are the mutable set: resolveDynamicPeerSettings (reactor_dynamic.go)
+// All four are the mutable set: resolveDynamicPeerSettings (reactor_dynamic.go)
 // writes the filter pair on the pointed-to struct under p.mu on a dynamic peer's
 // establishment, and every reader outside the facts snapshot goes through the
 // locked accessors. That is why writing them from the reload goroutine is race-free
@@ -74,6 +82,7 @@ func hotSwappableSettings(dst, src *PeerSettings) {
 	dst.ImportFilters = src.ImportFilters
 	dst.ExportFilters = src.ExportFilters
 	dst.PrefixUpdated = src.PrefixUpdated
+	dst.StaticRoutes = src.StaticRoutes
 }
 
 // peerSettingsRestartRequired reports whether applying next to a peer currently
@@ -101,8 +110,9 @@ func peerSettingsRestartReason(current, next *PeerSettings, s *Session) string {
 // Two categories can be delivered, and they qualify for DIFFERENT reasons. Keeping
 // them apart is what stops the second from over-reaching:
 //
-//   - Always swappable: the fields a running session re-reads or republishes
-//     (hotSwappableSettings). They have nothing to do with negotiation.
+//   - Always swappable: the fields a running session re-reads, republishes, or is
+//     sent the difference of (hotSwappableSettings). They have nothing to do with
+//     negotiation.
 //   - Swappable when the negotiation is proved unchanged: the capability set, per
 //     the owner's ruling of 2026-08-07 (negotiationOutcomeUnchanged,
 //     peer_settings_negotiation.go). This one is conditional on evidence from the
@@ -177,6 +187,10 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 //
 // A peer that left the map between the diff and the apply is skipped rather than
 // treated as an error: it is already gone, so there is nothing to keep current.
+//
+// The static route set rolls back with the rest, and by the same route: the undo
+// writes the peer's previous set back through applyHotSwappableSettings, which
+// sends the running session the reverse delta (peer_static_wire.go).
 func (a *reactorAPIAdapter) swapPeerSettingsJournaled(swaps []peerSettingsSwap, j configJournal) error {
 	r := a.r
 
@@ -243,16 +257,28 @@ func (p *Peer) hotSwappableSnapshot(copy settingsCopier) *PeerSettings {
 // (peer_settings_negotiation.go). The running session keeps the negotiation the
 // decision proved unchanged, and the new set governs the next OPEN.
 //
-// refreshForwardFactsIfLive and refreshPrefixStale run AFTER p.mu is released
-// because both re-acquire p.mu.RLock and RWMutex is not reentrant. This mirrors
-// resolveDynamicPeerSettings.
+// refreshForwardFactsIfLive, refreshPrefixStale and deliverStaticRouteDelta run
+// AFTER p.mu is released because each re-acquires p.mu.RLock and RWMutex is not
+// reentrant. This mirrors resolveDynamicPeerSettings.
+//
+// The static delta is asked for only when the copier REPLACED the route set, and
+// the question is put to the write itself rather than to a list beside it: a
+// copier that does not carry StaticRoutes leaves the header alone, and
+// sameStaticRouteSet reads that (peer_static_wire.go). Deriving it this way is the
+// same invariant hotSwappableSettings guards, one layer out -- a field cannot be
+// delivered onto the peer and then not delivered onto the wire.
 func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier) {
 	p.mu.Lock()
+	before := p.settings.StaticRoutes
 	copy(p.settings, next)
+	after := p.settings.StaticRoutes
 	p.mu.Unlock()
 
 	p.refreshForwardFactsIfLive()
 	p.refreshPrefixStale()
+	if !sameStaticRouteSet(before, after) {
+		p.deliverStaticRouteDelta(after)
+	}
 }
 
 // refreshPrefixStale republishes the prefix-staleness verdict from the peer's

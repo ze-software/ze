@@ -226,7 +226,8 @@ func TestStaleReadvertiseWireOutput(t *testing.T) {
 	// The announce body an LLGR-capable peer receives unchanged (the keep case).
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	announce, _ := a.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), true, false, false, false, localASOnly(65000), false /*propagatePrefixSID*/)
+	announce, _ := a.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+		announceFacts{nextHop: netip.MustParseAddr("10.0.0.1"), isIBGP: true, prepend: localASOnly(65000)})
 	require.NotNil(t, announce)
 	announceBody := fwdPackUpdateBody(announce)
 
@@ -251,7 +252,7 @@ func TestStaleReadvertiseWireOutput(t *testing.T) {
 	t.Run("withdraw: non-LLGR eBGP peer gets a withdrawal", func(t *testing.T) {
 		wdAttr := make([]byte, message.MaxMsgLen)
 		wdNlri := make([]byte, message.MaxMsgLen)
-		wd := a.buildBatchWithdrawUpdate(wdAttr, wdNlri, batch, false)
+		wd := a.buildBatchWithdrawUpdate(wdAttr, wdNlri, batch, announceFacts{})
 		require.NotNil(t, wd)
 		wdBody := fwdPackUpdateBody(wd)
 		sec, err := wire.ParseUpdateSections(wdBody)

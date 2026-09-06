@@ -54,20 +54,27 @@ func openBodyWithASN4Capability(asn4 uint32) []byte {
 func TestHandleOpenRejectsPeerASZero(t *testing.T) {
 	const localID uint32 = 0x0A000002
 
+	// configuredAS is the AS the SESSION is built for, so each case presents an
+	// AS its own session accepts. RFC 4271 Section 6.2 refuses any other one
+	// (validateOpenPeerAS, session_open_as.go), and this test is about the AS
+	// ZERO rule of RFC 7607 rather than about that mismatch: a case presenting
+	// a real AS the session was not configured for would go red for the wrong
+	// reason and take the negative arm's discrimination with it.
 	tests := []struct {
-		name       string
-		body       []byte
-		wantReject bool
+		name         string
+		body         []byte
+		configuredAS uint32
+		wantReject   bool
 	}{
-		{"my-as zero", openBodyWithIdentifier(0, 0x0A000001), true},
-		{"as-trans with four-octet AS zero", openBodyWithASN4Capability(0), true},
-		{"my-as is a real AS", openBodyWithIdentifier(65002, 0x0A000001), false},
-		{"as-trans with a real four-octet AS", openBodyWithASN4Capability(196608), false},
+		{"my-as zero", openBodyWithIdentifier(0, 0x0A000001), 65002, true},
+		{"as-trans with four-octet AS zero", openBodyWithASN4Capability(0), 65002, true},
+		{"my-as is a real AS", openBodyWithIdentifier(65002, 0x0A000001), 65002, false},
+		{"as-trans with a real four-octet AS", openBodyWithASN4Capability(196608), 196608, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			session, written := openSentSessionAS(t, 65002, localID)
+			session, written := openSentSessionAS(t, tt.configuredAS, localID)
 
 			err := session.handleOpen(tt.body)
 

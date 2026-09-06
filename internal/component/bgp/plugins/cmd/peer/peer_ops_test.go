@@ -210,30 +210,9 @@ func TestHandlerTeardownInvalidSubcode(t *testing.T) {
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
 
-// TestHandlerPeerAddBasic verifies peer add with minimal config-syntax options.
-//
-// VALIDATES: Peer add passes config tree with remote as to ApplyConfigDiff.
-// PREVENTS: Missing required fields in peer config.
-
-// TestHandlerPeerAddAllOptions verifies peer add with all options set.
-//
-// VALIDATES: All optional fields passed through config tree to ApplyConfigDiff.
-// PREVENTS: Option parsing bugs losing values.
-
-// TestHandlerPeerAddMissingASN verifies peer add requires remote AS.
-//
-// VALIDATES: remote as is a required parameter.
-// PREVENTS: Adding peer with zero ASN.
-
-// TestHandlerPeerAddWildcardPeer verifies peer add rejects wildcard.
-//
-// VALIDATES: Peer add requires specific peer address.
-// PREVENTS: Adding peer without target address.
-
-// TestHandlerPeerAddUnknownOption verifies peer add rejects unknown options.
-//
-// VALIDATES: Unknown options produce clear error.
-// PREVENTS: Silently ignoring typos in option names.
+// The five peer-add cases these lines described live in create_test.go, beside
+// the handler they drive. They were left here as comments with no body when the
+// handler was removed, so each one named a test that ran nothing.
 
 // TestHandlerPeerRemove verifies peer remove calls reactor.
 //

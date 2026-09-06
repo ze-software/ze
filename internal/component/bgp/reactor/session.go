@@ -311,6 +311,26 @@ type Session struct {
 	// only from the session read goroutine — no lock.
 	policyTeardownPending *policyTeardownRequest
 
+	// advertised says an UPDATE that makes a destination reachable has been
+	// written on THIS connection.
+	//
+	// RFC 4271 Section 4.3 identifies a withdrawn route by its destination,
+	// "which unambiguously identifies the route in the context of the BGP
+	// speaker - BGP speaker connection to which it has been previously
+	// advertised". A withdrawal sent before this connection advertised anything
+	// names no route, so the API rail declines to write one
+	// (withdrawBatchFromPeers) and says which peer it declined for.
+	//
+	// It lives on the Session rather than on the Peer because the connection is
+	// the unit the section names, so a new connection starts unset with nothing
+	// to clear. It is set at the three points a message reaches the socket --
+	// writeUpdateGated, writeRawUpdateBody and SendAnnounce -- so a route the
+	// RIB forwarded arms it exactly as an API announce does.
+	//
+	// An End-of-RIB and a pure withdrawal leave it alone: neither makes a
+	// destination reachable (RFC 4724 Section 2).
+	advertised atomic.Bool
+
 	// recvCtxID is the encoding context for received messages.
 	// Set by Peer after capability negotiation for zero-copy WireUpdate creation.
 	recvCtxID bgpctx.ContextID

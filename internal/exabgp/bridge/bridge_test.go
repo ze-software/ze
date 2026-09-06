@@ -1955,5 +1955,5 @@ func onlyCommand(t Translation) string {
 	if len(t.Commands) == 0 {
 		return ""
 	}
-	return t.Commands[0]
+	return t.Commands[0].Text
 }

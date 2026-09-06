@@ -3,10 +3,12 @@
 package announce
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/route"
 	"github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -257,9 +259,19 @@ func (r *Registry) withdrawEntryByTimer(id uint64) {
 func (r *Registry) withdrawEntries(entries []*tagEntry) (int, error) {
 	var lastErr error
 	for _, e := range entries {
-		if err := r.withdraw(e.Selector, e.Batch, e.Sender); err != nil {
-			lastErr = err
+		err := r.withdraw(e.Selector, e.Batch, e.Sender)
+		if err == nil {
+			continue
 		}
+		if errors.Is(err, route.ErrWithdrawWithheld) {
+			// The connection had advertised nothing, so the withdrawal named no
+			// route and none was written (RFC 4271 Section 4.3). The entry is
+			// retracted either way, so the command SUCCEEDED. The reason is
+			// named here because this answer carries no warning field.
+			announceLogger().Warn("withdraw withheld", "error", err)
+			continue
+		}
+		lastErr = err
 	}
 	return len(entries), lastErr
 }
