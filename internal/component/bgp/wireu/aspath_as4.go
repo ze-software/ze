@@ -63,7 +63,7 @@ func as4PathForPath(path *attribute.ASPath, dstASN4 bool) *attribute.AS4Path {
 	return &attribute.AS4Path{Segments: path.Segments}
 }
 
-// as4PathForRewrite returns the AS4_PATH to emit after asns have been prepended
+// AS4PathForRewrite returns the AS4_PATH to emit after asns have been prepended
 // to the outgoing AS_PATH, or nil when none is required.
 //
 // prepended is the outgoing AS path with asns already prepended. recvAS4 is the
@@ -77,7 +77,14 @@ func as4PathForPath(path *attribute.ASPath, dstASN4 bool) *attribute.AS4Path {
 //
 // A recvAS4 from a NEW speaker is invalid (RFC 6793 Section 4.1) and ignored:
 // with srcASN4 true, AS_PATH already carries the real four-octet ASNs.
-func as4PathForRewrite(prepended *attribute.ASPath, recvAS4 *attribute.AS4Path, asns []uint32, srcASN4, dstASN4 bool) *attribute.AS4Path {
+//
+// Exported because the reactor's policy prepend (ExtractASPathPrependOps,
+// filter_delta.go) asks the same question about the same attribute family. It
+// edits ONE payload rather than transcoding between two, so it passes the same
+// width for srcASN4 and dstASN4; the answer is then nil for every case that
+// needs no AS4_PATH, which is what lets that caller carry no condition of its
+// own (ai/rules/principles.md).
+func AS4PathForRewrite(prepended *attribute.ASPath, recvAS4 *attribute.AS4Path, asns []uint32, srcASN4, dstASN4 bool) *attribute.AS4Path {
 	if dstASN4 {
 		// RFC 6793 Section 4.1: "The new attributes, AS4_PATH and
 		// AS4_AGGREGATOR, MUST NOT be carried in an UPDATE message between

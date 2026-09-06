@@ -425,9 +425,9 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 	}
 
 	// --- AS4_PATH construction (RFC 6793 Section 4.2.2) ---
-	// as4PathForRewrite owns the "required or forbidden" rule, shared with
+	// AS4PathForRewrite owns the "required or forbidden" rule, shared with
 	// TranscodeASPath. A nil result leaves any received AS4_PATH untouched.
-	as4Path := as4PathForRewrite(existingPath, recvAS4Path, asns, srcASN4, dstASN4)
+	as4Path := AS4PathForRewrite(existingPath, recvAS4Path, asns, srcASN4, dstASN4)
 	newAS4PathWireSize := as4PathWireSize(as4Path)
 
 	// --- AGGREGATOR transcoding (RFC 6793 Section 4.2.2) ---

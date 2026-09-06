@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -641,8 +642,19 @@ func stripAttrHeader(wire []byte) []byte {
 // both the import and the export chain). The attributes come from the call
 // site's single parse of the modified text and are read, never mutated.
 //
+// asn4 is the width of the payload the segment is spliced into, and every call
+// site derives it from wherever that payload came from: the import chain and
+// the forwarded export chain read the SOURCE encoding context, because those
+// bytes are still in the sending peer's encoding, while exportFilterForBody
+// passes the destination's sendASN4, because the session write path has already
+// encoded that body in the destination's send context. It is the same fact
+// ExtractRemovePrivateASOps takes under the same name, for the same reason:
+// aspathHandler splices these bytes in front of the AS_PATH value where it
+// already sits, so a segment encoded at any other width leaves an attribute
+// that does not decode as one AS_PATH.
+//
 // Does nothing if the modified attributes do not contain as-path-prepend.
-func ExtractASPathPrependOps(scratch *valueScratch, modAttrs *filterAttrs, localAS uint32, mods *filterapi.ModAccumulator) {
+func ExtractASPathPrependOps(scratch *valueScratch, modAttrs *filterAttrs, attrs *attribute.AttributesWire, asn4 bool, localAS uint32, mods *filterapi.ModAccumulator) {
 	countStr, ok := modAttrs.get(faASPathPrepend)
 	if !ok || countStr == "" {
 		return
@@ -653,16 +665,135 @@ func ExtractASPathPrependOps(scratch *valueScratch, modAttrs *filterAttrs, local
 		return
 	}
 
-	// Build wire value: AS_SEQUENCE segment with N copies of localAS.
-	// Format: type(1) + count(1) + ASNs(4 each).
+	// The AS numbers this directive prepends. They are all localAS, but the
+	// slice is what the AS4_PATH derivation below takes, and it is the same
+	// shape wireu.ASPathIntent.Prepend carries on the ordinary prepend rail.
 	n := int(count)
-	buf := scratch.carveBytes(2 + n*4)
-	buf[0] = byte(attribute.ASSequence)
-	buf[1] = byte(n)
-	for i := range n {
-		binary.BigEndian.PutUint32(buf[2+i*4:], localAS)
+	asns := scratch.carveASNs(n)
+	for range n {
+		asns = append(asns, localAS)
 	}
+
+	// One AS_SEQUENCE segment, encoded at the width of the payload it joins.
+	//
+	// RFC 6793 Section 4.2.2: "In the AS_PATH attribute encoded with two-octet
+	// AS numbers, non-mappable four-octet AS numbers are represented by the
+	// well-known two-octet AS number, AS_TRANS."
+	//
+	// That substitution is NOT written here: ASPath.WriteToWithASN4 is where Ze
+	// declares it (writeSegmentWithSplit, internal/core/bgp/attribute/aspath.go),
+	// and ExtractRemovePrivateASOps reaches it the same way.
+	segs := scratch.carveSegments(1)
+	segs = append(segs, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: asns})
+	segment := &attribute.ASPath{Segments: segs}
+	buf := scratch.carveBytes(segment.LenWithASN4(asn4))
+	segment.WriteToWithASN4(buf, 0, asn4)
 	mods.Op(byte(attribute.AttrASPath), filterapi.AttrModPrepend, buf)
+
+	extractPrependAS4PathOp(scratch, attrs, asn4, asns, mods)
+}
+
+// extractPrependAS4PathOp records the AS4_PATH that RFC 6793 Section 4.2.2
+// obliges alongside a two-octet AS_PATH the prepend above just widened, or
+// records nothing when the section obliges none.
+//
+// The decision and the value both come from wireu.AS4PathForRewrite, which is
+// the single declaration of that rule (aspath_as4.go) and already serves the
+// ordinary prepend rail. This site edits ONE payload rather than transcoding
+// between two, so it passes asn4 for both of that function's widths; the
+// answer is then nil for every case that owes no AS4_PATH, which is why no
+// condition is repeated here.
+//
+// A MAPPABLE local AS at two-octet width owes nothing, and that is a ruling of
+// the RFC rather than an omission. RFC 6793 Section 4.2.3 reconstructs by
+// "taking as many AS numbers and path segments as necessary from the leading
+// part of the AS_PATH attribute, and then prepending them to the AS4_PATH
+// attribute", and a prepend lands exactly at that leading part, so the
+// reconstruction picks the prepended AS numbers up from AS_PATH by itself.
+func extractPrependAS4PathOp(scratch *valueScratch, attrs *attribute.AttributesWire, asn4 bool, asns []uint32, mods *filterapi.ModAccumulator) {
+	// RFC 6793 Section 4.1: "The new attributes, AS4_PATH and AS4_AGGREGATOR,
+	// MUST NOT be carried in an UPDATE message between NEW BGP speakers."
+	// AS4PathForRewrite returns nil here too; returning first also spares the
+	// four-octet path a parse it would throw away.
+	if asn4 || attrs == nil {
+		return
+	}
+
+	// What the outgoing AS_PATH will hold once the prepend applies. Read from
+	// the accumulator when an earlier extractor already Set it, because
+	// ExtractRemovePrivateASOps runs first at all three call sites and deriving
+	// from the wire instead would restore the private AS numbers it stripped.
+	path := &attribute.ASPath{}
+	if value, dropped, found := pendingAttrValue(mods, attribute.AttrASPath); !dropped {
+		if !found {
+			value, _ = attrs.GetRaw(attribute.AttrASPath) //nolint:errcheck // an absent AS_PATH is an empty base, not a failure
+		}
+		if len(value) > 0 {
+			parsed, err := attribute.ParseASPath(value, asn4)
+			if err != nil {
+				// Fail closed: half an AS-path family is worse on the wire than
+				// no prepend at all, and the AS_PATH operation above is still
+				// correct without this one only while the local AS is mappable.
+				fwdLogger().Warn("as-path-prepend: parse AS_PATH failed, AS4_PATH not derived", "error", err)
+				return
+			}
+			path = parsed
+		}
+	}
+	for _, asn := range asns {
+		path.Prepend(asn)
+	}
+
+	// The AS4_PATH the prepend joins, read from the same two places and in the
+	// same order. A Suppress leaves recvAS4 nil, which is what it means.
+	var recvAS4 *attribute.AS4Path
+	if value, dropped, found := pendingAttrValue(mods, attribute.AttrAS4Path); !dropped {
+		if !found {
+			value, _ = attrs.GetRaw(attribute.AttrAS4Path) //nolint:errcheck // an absent AS4_PATH is the common case
+		}
+		if len(value) > 0 {
+			// RFC 6793 Section 6: "A NEW BGP speaker that receives a malformed
+			// AS4_PATH attribute in an UPDATE message from an OLD BGP speaker
+			// MUST discard the attribute and continue processing the UPDATE
+			// message." A discarded one leaves recvAS4 nil, and the derivation
+			// then builds the AS4_PATH from AS_PATH.
+			if parsed, err := attribute.ParseAS4Path(value); err == nil {
+				recvAS4 = parsed
+			}
+		}
+	}
+
+	out := wireu.AS4PathForRewrite(path, recvAS4, asns, asn4, asn4)
+	if out == nil {
+		return
+	}
+	value := scratch.carveBytes(out.Len())
+	out.WriteTo(value, 0)
+	mods.Op(byte(attribute.AttrAS4Path), filterapi.AttrModSet, value)
+}
+
+// pendingAttrValue reports the last Set or Suppress an earlier extractor
+// recorded on code. dropped is true when that last operation was a Suppress,
+// which means the attribute is on its way out and its wire bytes MUST NOT be
+// read as a base. found is false when no operation names the code at all, and
+// the caller then falls back to the wire.
+//
+// It is the accumulator-wide counterpart of filterapi.LastSetOrSuppress, which
+// a handler calls over the operations of ONE attribute it has already been
+// handed.
+func pendingAttrValue(mods *filterapi.ModAccumulator, code attribute.AttributeCode) (value []byte, dropped, found bool) {
+	for _, op := range mods.Ops() {
+		if op.Code != byte(code) {
+			continue
+		}
+		switch op.Action {
+		case filterapi.AttrModSet:
+			value, dropped, found = op.Buf, false, true
+		case filterapi.AttrModSuppress:
+			value, dropped, found = nil, true, true
+		}
+	}
+	return value, dropped, found
 }
 
 // ExtractRemovePrivateASOps checks the parsed modified filter attributes

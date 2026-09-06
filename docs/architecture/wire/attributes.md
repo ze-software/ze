@@ -420,6 +420,28 @@ Used when:
 <!-- source: internal/core/bgp/attribute/attribute.go -- AttrAS4Path -->
 <!-- source: internal/core/bgp/attribute/as4.go -- AS4 path processing -->
 
+### The policy prepend obeys the same two rules
+
+The `as-path-prepend` filter action does not go through the per-destination
+AS-path rail. It records an operation that the AS_PATH handler splices in front
+of the value already in the payload, so the segment it builds is encoded at the
+width of THAT payload, and never at four octets by default.
+
+The width comes from the call site, and each one derives it from wherever the
+payload came from. The import chain and the forwarded export chain read the
+source encoding context, because those bytes are still in the sending peer's
+encoding. `exportFilterForBody` passes the destination's send width, because the
+session write path has already encoded that body in the destination's send
+context.
+
+At two octets, a local AS above 65535 is written as AS_TRANS by the same encoder
+every other AS_PATH goes through, and the real value is then carried in AS4_PATH.
+A MAPPABLE local AS records no AS4_PATH operation: RFC 6793 Section 4.2.3
+reconstructs by taking AS numbers from the leading part of AS_PATH, which is
+where a prepend lands, so the receiver recovers them without one.
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps -->
+<!-- source: internal/component/bgp/wireu/aspath_as4.go -- AS4PathForRewrite -->
+
 ---
 
 ## 18. AS4_AGGREGATOR (Code 18)

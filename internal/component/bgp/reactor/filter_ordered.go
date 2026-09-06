@@ -224,7 +224,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 		srcASN4 := srcCtx != nil && srcCtx.ASN4()
 		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, srcASN4, peerAS, &importMods)
-		ExtractASPathPrependOps(values, &modAttrs, peer.settings.LocalAS, &importMods)
+		ExtractASPathPrependOps(values, &modAttrs, attrsWire, srcASN4, peer.settings.LocalAS, &importMods)
 		// RFC 4271 Section 5.1.4's configured removal, and the ONLY site that
 		// converts the directive. The rewritten payload below replaces the
 		// WireUpdate before the RIB plugin runs Decision Process phases 1 and 2,
@@ -369,7 +369,7 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 		parseFilterAttrsInto(&modAttrs, res.Text)
 		textDeltaToModOps(values, &origAttrs, &modAttrs, &exportMods)
 		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, asn4, destPeerAS, &exportMods)
-		ExtractASPathPrependOps(values, &modAttrs, destLocalAS, &exportMods)
+		ExtractASPathPrependOps(values, &modAttrs, attrsWire, asn4, destLocalAS, &exportMods)
 		nlriOverride := extractLegacyNLRIOverride(values, updateText, res.Text)
 		if exportMods.Len() > 0 || nlriOverride != nil {
 			modPayload, _, modFail := buildModifiedPayload(wireUpdate.Payload(), &exportMods, r.attrModHandlers, nil, nlriOverride)

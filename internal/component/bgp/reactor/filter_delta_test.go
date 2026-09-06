@@ -648,7 +648,7 @@ func TestApplySendCommunityFilter(t *testing.T) {
 func TestExtractASPathPrependOps(t *testing.T) {
 	t.Run("prepend_3", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24"), 65000, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24"), nil, true, 65000, &mods)
 		require.Equal(t, 1, mods.Len())
 		op := mods.Ops()[0]
 		assert.Equal(t, byte(attribute.AttrASPath), op.Code)
@@ -665,13 +665,13 @@ func TestExtractASPathPrependOps(t *testing.T) {
 
 	t.Run("no_prepend", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("origin igp local-preference 200"), 65000, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("origin igp local-preference 200"), nil, true, 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 
 	t.Run("prepend_1", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 1"), 65001, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 1"), nil, true, 65001, &mods)
 		require.Equal(t, 1, mods.Len())
 		op := mods.Ops()[0]
 		require.Len(t, op.Buf, 6) // type(1) + count(1) + 1*ASN(4)
@@ -680,13 +680,13 @@ func TestExtractASPathPrependOps(t *testing.T) {
 
 	t.Run("invalid_count_zero", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 0"), 65000, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 0"), nil, true, 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 
 	t.Run("invalid_count_over_32", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 33"), 65000, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 33"), nil, true, 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 }
@@ -1110,7 +1110,7 @@ func runFilterDeltaExtractors(scratch *valueScratch, original, modified string, 
 	modAttrs := parseFilterAttrs(modified)
 	textDeltaToModOps(scratch, origAttrs, modAttrs, &mods)
 	ExtractRemovePrivateASOps(scratch, modAttrs, attrsWire, asn4, peerAS, &mods)
-	ExtractASPathPrependOps(scratch, modAttrs, localAS, &mods)
+	ExtractASPathPrependOps(scratch, modAttrs, nil, true, localAS, &mods)
 	return mods.Ops()
 }
 
@@ -1317,7 +1317,7 @@ func BenchmarkFilterModifyEgress(b *testing.B) {
 		parseFilterAttrsInto(&modAttrs, modified)
 		textDeltaToModOps(values, &origAttrs, &modAttrs, &mods)
 		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, true, 65001, &mods)
-		ExtractASPathPrependOps(values, &modAttrs, 65000, &mods)
+		ExtractASPathPrependOps(values, &modAttrs, nil, true, 65000, &mods)
 		releaseValueScratch(values)
 	}
 }
@@ -1561,8 +1561,8 @@ func TestEncodeValuesIntoScratch(t *testing.T) {
 
 		var mods filterapi.ModAccumulator
 		modAttrs := parseFilterAttrs("origin igp as-path-prepend 2")
-		ExtractASPathPrependOps(scratch, modAttrs, 65000, &mods)
-		ExtractASPathPrependOps(scratch, modAttrs, 65001, &mods)
+		ExtractASPathPrependOps(scratch, modAttrs, nil, true, 65000, &mods)
+		ExtractASPathPrependOps(scratch, modAttrs, nil, true, 65001, &mods)
 
 		ops := mods.Ops()
 		require.Len(t, ops, 2)
@@ -1611,4 +1611,410 @@ func TestEncodeValuesIntoScratch(t *testing.T) {
 		assert.Equal(t, "00000032", hex.EncodeToString(first),
 			"the grow orphans the earlier window onto the old array, it does not corrupt it")
 	})
+}
+
+// prependFixture builds an AttributesWire and the matching UPDATE payload for
+// an as-path-prepend test: ORIGIN, then AS_PATH holding asPathValue, then an
+// AS4_PATH holding as4PathValue when one is given.
+//
+// The payload advertises 10.0.0.0/24, because buildModifiedPayload refuses to
+// CREATE a path attribute on a body that advertises nothing (advertiseGate,
+// RFC 4271 Sections 4.3 and 6.3), and creating AS4_PATH is what half these
+// cases are about.
+func prependFixture(asPathValue, as4PathValue []byte) (attrs *attribute.AttributesWire, payload []byte) {
+	packed := makeAttr(0x40, byte(attribute.AttrOrigin), []byte{0x00})
+	packed = append(packed, makeAttr(0x40, byte(attribute.AttrASPath), asPathValue)...)
+	if as4PathValue != nil {
+		packed = append(packed, makeAttr(0xC0, byte(attribute.AttrAS4Path), as4PathValue)...)
+	}
+	return attribute.NewAttributesWire(packed, 0), buildModTestPayload(packed, modTestNLRI)
+}
+
+// opBuf returns the buffer of the last operation recorded on code, and whether
+// one was recorded at all. Reading the LAST is what the handlers do.
+func opBuf(mods *filterapi.ModAccumulator, code attribute.AttributeCode) ([]byte, bool) {
+	var buf []byte
+	found := false
+	for _, op := range mods.Ops() {
+		if op.Code == byte(code) {
+			buf, found = op.Buf, true
+		}
+	}
+	return buf, found
+}
+
+// attrValueFromPayload returns the VALUE bytes of one attribute in a rebuilt
+// UPDATE payload, so an assertion reads what a peer would parse rather than a
+// decoded struct.
+func attrValueFromPayload(t *testing.T, payload []byte, code attribute.AttributeCode) ([]byte, bool) {
+	t.Helper()
+
+	require.GreaterOrEqual(t, len(payload), 4, "payload holds a withdrawn length and an attribute length")
+	wdLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	require.GreaterOrEqual(t, len(payload), 2+wdLen+2, "payload holds an attribute length")
+	attrLen := int(binary.BigEndian.Uint16(payload[2+wdLen : 4+wdLen]))
+	start := 4 + wdLen
+	require.GreaterOrEqual(t, len(payload), start+attrLen, "payload holds its whole attribute section")
+
+	section := payload[start : start+attrLen]
+	for off := 0; off+3 <= len(section); {
+		flags, attrCode := section[off], section[off+1]
+		valOff, valLen := off+3, int(section[off+2])
+		if flags&0x10 != 0 {
+			require.GreaterOrEqual(t, len(section), off+4, "extended-length header fits")
+			valOff, valLen = off+4, int(binary.BigEndian.Uint16(section[off+2:off+4]))
+		}
+		require.GreaterOrEqual(t, len(section), valOff+valLen, "attribute value fits its section")
+		if attrCode == byte(code) {
+			return section[valOff : valOff+valLen], true
+		}
+		off = valOff + valLen
+	}
+	return nil, false
+}
+
+// flatASNs returns every AS number of a decoded path, in path order. The policy
+// prepend is recorded as its OWN AS_SEQUENCE segment, because aspathHandler
+// splices it in FRONT of the source value rather than merging into the source
+// segment, so this is the path a receiving peer computes and Segments[0] alone
+// is only its leading half.
+func flatASNs(path *attribute.ASPath) []uint32 {
+	var out []uint32
+	for _, seg := range path.Segments {
+		out = append(out, seg.ASNs...)
+	}
+	return out
+}
+
+// flatAS4ASNs is flatASNs for an AS4_PATH.
+func flatAS4ASNs(path *attribute.AS4Path) []uint32 {
+	var out []uint32
+	for _, seg := range path.Segments {
+		out = append(out, seg.ASNs...)
+	}
+	return out
+}
+
+// TestPrependEncodesAtTheNegotiatedASNWidth is the encoding half of the defect:
+// the AS_SEQUENCE the policy prepend records must be written at the width of
+// the payload aspathHandler splices it into, and a local AS above 65535 must
+// appear as AS_TRANS when that width is two octets.
+//
+// The method asserts the recorded operation's BYTES, because the defect is an
+// encoding one and a decoded struct hides it.
+//
+// RFC 6793 Section 4.2.2: "In the AS_PATH attribute encoded with two-octet AS
+// numbers, non-mappable four-octet AS numbers are represented by the well-known
+// two-octet AS number, AS_TRANS."
+//
+// VALIDATES: AC-1, AC-2, AC-5 -- the segment width follows asn4, with AS_TRANS
+// substituted for a non-mappable local AS at two octets.
+// PREVENTS: a four-octet AS_SEQUENCE spliced onto a two-octet AS_PATH, which is
+// an attribute the receiving peer cannot parse.
+func TestPrependEncodesAtTheNegotiatedASNWidth(t *testing.T) {
+	tests := []struct {
+		name    string
+		asn4    bool
+		localAS uint32
+		text    string
+		want    []byte
+	}{
+		{
+			name:    "four_octet_mappable",
+			asn4:    true,
+			localAS: 65000,
+			text:    "origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24",
+			want: []byte{
+				byte(attribute.ASSequence), 3,
+				0, 0, 0xFD, 0xE8,
+				0, 0, 0xFD, 0xE8,
+				0, 0, 0xFD, 0xE8,
+			},
+		},
+		{
+			name:    "two_octet_mappable",
+			asn4:    false,
+			localAS: 65000,
+			text:    "origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24",
+			want: []byte{
+				byte(attribute.ASSequence), 3,
+				0xFD, 0xE8,
+				0xFD, 0xE8,
+				0xFD, 0xE8,
+			},
+		},
+		{
+			name:    "two_octet_boundary_65535_is_mappable",
+			asn4:    false,
+			localAS: 65535,
+			text:    "as-path-prepend 1",
+			want:    []byte{byte(attribute.ASSequence), 1, 0xFF, 0xFF},
+		},
+		{
+			name:    "two_octet_boundary_65536_becomes_as_trans",
+			asn4:    false,
+			localAS: 65536,
+			text:    "as-path-prepend 1",
+			want:    []byte{byte(attribute.ASSequence), 1, 0x5B, 0xA0}, // 23456
+		},
+		{
+			name:    "two_octet_non_mappable_becomes_as_trans",
+			asn4:    false,
+			localAS: 131072,
+			text:    "as-path-prepend 2",
+			want: []byte{
+				byte(attribute.ASSequence), 2,
+				0x5B, 0xA0, // AS_TRANS
+				0x5B, 0xA0,
+			},
+		},
+		{
+			name:    "four_octet_non_mappable_keeps_the_real_value",
+			asn4:    true,
+			localAS: 131072,
+			text:    "as-path-prepend 1",
+			want:    []byte{byte(attribute.ASSequence), 1, 0x00, 0x02, 0x00, 0x00},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrs, _ := prependFixture([]byte{byte(attribute.ASSequence), 1, 0xFB, 0xF0}, nil)
+			if tt.asn4 {
+				attrs, _ = prependFixture([]byte{byte(attribute.ASSequence), 1, 0, 0, 0xFB, 0xF0}, nil)
+			}
+
+			var mods filterapi.ModAccumulator
+			ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs(tt.text), attrs, tt.asn4, tt.localAS, &mods)
+
+			buf, found := opBuf(&mods, attribute.AttrASPath)
+			require.True(t, found, "an AS_PATH operation was recorded")
+			assert.Equal(t, tt.want, buf, "AS_PATH prepend segment bytes")
+		})
+	}
+}
+
+// TestPrependAtTwoOctetWidthCarriesTheRealASNInAS4Path is the second half of
+// the defect: once a non-mappable local AS is written as AS_TRANS, the real
+// four-octet value exists nowhere unless AS4_PATH carries it.
+//
+// RFC 6793 Section 4.2.2: "The NEW BGP speaker MUST also send the AS path
+// information in the AS4_PATH attribute (encoded with four-octet AS numbers),
+// except for the case where all of the AS path information is composed of
+// mappable four-octet AS numbers only. In this case, the NEW BGP speaker MUST
+// NOT send the AS4_PATH attribute."
+//
+// The mappable rows below are the "MUST NOT send" half, and they are not an
+// omission: RFC 6793 Section 4.2.3 reconstructs by taking AS numbers "from the
+// leading part of the AS_PATH attribute", which is exactly where a prepend
+// lands, so a mappable prepend needs no AS4_PATH of its own.
+//
+// VALIDATES: AC-3, AC-4, AC-5 -- AS4_PATH is created, extended, or withheld.
+// PREVENTS: a two-octet peer being told AS_TRANS with the real AS number lost.
+func TestPrependAtTwoOctetWidthCarriesTheRealASNInAS4Path(t *testing.T) {
+	// AS_SEQUENCE [64496], two-octet.
+	asPath2 := []byte{byte(attribute.ASSequence), 1, 0xFB, 0xF0}
+	// AS_SEQUENCE [131073], always four-octet (RFC 6793 Section 3).
+	as4Path := []byte{byte(attribute.ASSequence), 1, 0x00, 0x02, 0x00, 0x01}
+
+	tests := []struct {
+		name     string
+		asn4     bool
+		localAS  uint32
+		asPath   []byte
+		as4Path  []byte
+		wantAS4  []byte
+		wantNone bool
+	}{
+		{
+			name:    "creates_as4_path_when_the_local_as_is_non_mappable",
+			asn4:    false,
+			localAS: 131072,
+			asPath:  asPath2,
+			wantAS4: []byte{
+				byte(attribute.ASSequence), 2,
+				0x00, 0x02, 0x00, 0x00, // 131072, the real local AS
+				0, 0, 0xFB, 0xF0, // 64496, carried over from AS_PATH
+			},
+		},
+		{
+			name:    "extends_a_received_as4_path",
+			asn4:    false,
+			localAS: 131072,
+			asPath:  []byte{byte(attribute.ASSequence), 1, 0x5B, 0xA0}, // AS_TRANS from the sender
+			as4Path: as4Path,
+			wantAS4: []byte{
+				byte(attribute.ASSequence), 2,
+				0x00, 0x02, 0x00, 0x00, // 131072
+				0x00, 0x02, 0x00, 0x01, // 131073, the sender's real AS
+			},
+		},
+		{
+			name:     "mappable_local_as_needs_no_as4_path",
+			asn4:     false,
+			localAS:  65000,
+			asPath:   asPath2,
+			wantNone: true,
+		},
+		{
+			name:     "four_octet_width_never_records_an_as4_path",
+			asn4:     true,
+			localAS:  131072,
+			asPath:   []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFB, 0xF0},
+			wantNone: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrs, _ := prependFixture(tt.asPath, tt.as4Path)
+
+			var mods filterapi.ModAccumulator
+			ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 1"), attrs, tt.asn4, tt.localAS, &mods)
+
+			buf, found := opBuf(&mods, attribute.AttrAS4Path)
+			if tt.wantNone {
+				assert.False(t, found, "no AS4_PATH operation is recorded")
+				return
+			}
+			require.True(t, found, "an AS4_PATH operation was recorded")
+			assert.Equal(t, tt.wantAS4, buf, "AS4_PATH value bytes")
+		})
+	}
+}
+
+// TestPrependAS4PathDoesNotUndoRemovePrivateAS pins the interaction between the
+// two extractors that both rewrite the AS-path family. ExtractRemovePrivateASOps
+// runs FIRST at all three call sites, so a prepend deriving its AS4_PATH from
+// the wire attributes would overwrite the stripped attribute and put the private
+// AS numbers back on the wire.
+//
+// VALIDATES: AC-8 -- the recorded AS4_PATH holds neither the private ASN nor a
+// restored copy of it.
+// PREVENTS: an RFC 6996 private ASN leaking back through the prepend's own
+// AS4_PATH operation.
+func TestPrependAS4PathDoesNotUndoRemovePrivateAS(t *testing.T) {
+	// AS_PATH (two-octet): 64496 public, 64512 private.
+	// AS4_PATH: 64512 private, 131073 public and non-mappable.
+	attrs, _ := prependFixture(
+		[]byte{byte(attribute.ASSequence), 2, 0xFB, 0xF0, 0xFC, 0x00},
+		[]byte{byte(attribute.ASSequence), 2, 0, 0, 0xFC, 0x00, 0x00, 0x02, 0x00, 0x01},
+	)
+	modAttrs := parseFilterAttrs("origin igp remove-private strip as-path-prepend 1 nlri ipv4/unicast add 10.0.0.0/24")
+
+	scratch := newTestScratch(t)
+	var mods filterapi.ModAccumulator
+	ExtractRemovePrivateASOps(scratch, modAttrs, attrs, false, 64511, &mods)
+	ExtractASPathPrependOps(scratch, modAttrs, attrs, false, 131072, &mods)
+
+	buf, found := opBuf(&mods, attribute.AttrAS4Path)
+	require.True(t, found, "an AS4_PATH operation was recorded")
+	assert.Equal(t, []byte{
+		byte(attribute.ASSequence), 2,
+		0x00, 0x02, 0x00, 0x00, // 131072, the real local AS, prepended
+		0x00, 0x02, 0x00, 0x01, // 131073, the only survivor of remove-private
+	}, buf, "AS4_PATH value bytes after remove-private then prepend")
+	assert.NotContains(t, string(buf), string([]byte{0, 0, 0xFC, 0x00}), "the private ASN 64512 is not restored")
+}
+
+// TestImportPrependEncodesAtTheSourceASNWidth drives the import chain's own
+// extractor sequence and rebuild, at both widths, and reads the AS_PATH the
+// rebuilt payload carries.
+//
+// The import chain passes the width of the SOURCE encoding context, because the
+// payload it edits is still in the sending peer's encoding and the result is
+// re-wrapped under that same context id (reactor_notify.go). The assertion is on
+// the rebuilt attribute's bytes, which is what every later consumer parses.
+//
+// VALIDATES: AC-6 -- the rebuilt AS_PATH decodes at the source's width with the
+// prepend at its leading edge.
+// PREVENTS: a stored route whose AS_PATH does not decode at its own context's
+// width.
+func TestImportPrependEncodesAtTheSourceASNWidth(t *testing.T) {
+	for _, asn4 := range []bool{false, true} {
+		name := "two_octet_source"
+		asPathValue := []byte{byte(attribute.ASSequence), 1, 0xFB, 0xF0}
+		if asn4 {
+			name = "four_octet_source"
+			asPathValue = []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFB, 0xF0}
+		}
+
+		t.Run(name, func(t *testing.T) {
+			attrs, payload := prependFixture(asPathValue, nil)
+			modAttrs := parseFilterAttrs("origin igp as-path-prepend 2 nlri ipv4/unicast add 10.0.0.0/24")
+
+			scratch := newTestScratch(t)
+			var mods filterapi.ModAccumulator
+			ExtractRemovePrivateASOps(scratch, modAttrs, attrs, asn4, 64511, &mods)
+			ExtractASPathPrependOps(scratch, modAttrs, attrs, asn4, 65000, &mods)
+
+			out, _, fail := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+			require.False(t, fail.failed(), "the rebuild applied the prepend")
+			require.NotNil(t, out, "the rebuild produced a payload")
+
+			value, found := attrValueFromPayload(t, out, attribute.AttrASPath)
+			require.True(t, found, "the rebuilt payload carries an AS_PATH")
+
+			path, err := attribute.ParseASPath(value, asn4)
+			require.NoError(t, err, "the rebuilt AS_PATH decodes at the source width")
+			require.NotEmpty(t, path.Segments, "the decoded path has a segment")
+			assert.Equal(t, []uint32{65000, 65000, 64496}, flatASNs(path), "prepended AS numbers lead the path")
+		})
+	}
+}
+
+// TestExportPrependEncodesAtTheDestinationASNWidth is the egress twin of the
+// test above. The export chain passes the width of the payload it edits, which
+// is the destination's sendASN4 for an originated body (exportFilterForBody) and
+// the source context for a forwarded one (runEgressPolicyChain). Either way the
+// bytes reach writeRawUpdateBody unchanged, so this is what a peer parses.
+//
+// VALIDATES: AC-7 -- the wire override's AS_PATH decodes at the destination's
+// width with the prepend at its leading edge.
+// PREVENTS: an UPDATE a two-octet peer answers with a NOTIFICATION.
+func TestExportPrependEncodesAtTheDestinationASNWidth(t *testing.T) {
+	for _, asn4 := range []bool{false, true} {
+		name := "two_octet_destination"
+		asPathValue := []byte{byte(attribute.ASSequence), 1, 0xFB, 0xF0}
+		wantLeading := []uint32{23456, 64496} // AS_TRANS, then the source AS
+		if asn4 {
+			name = "four_octet_destination"
+			asPathValue = []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFB, 0xF0}
+			wantLeading = []uint32{131072, 64496}
+		}
+
+		t.Run(name, func(t *testing.T) {
+			attrs, payload := prependFixture(asPathValue, nil)
+			modAttrs := parseFilterAttrs("origin igp as-path-prepend 1 nlri ipv4/unicast add 10.0.0.0/24")
+
+			scratch := newTestScratch(t)
+			var mods filterapi.ModAccumulator
+			ExtractRemovePrivateASOps(scratch, modAttrs, attrs, asn4, 64511, &mods)
+			ExtractASPathPrependOps(scratch, modAttrs, attrs, asn4, 131072, &mods)
+
+			out, _, fail := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+			require.False(t, fail.failed(), "the rebuild applied the prepend")
+			require.NotNil(t, out, "the rebuild produced a payload")
+
+			value, found := attrValueFromPayload(t, out, attribute.AttrASPath)
+			require.True(t, found, "the override carries an AS_PATH")
+			path, err := attribute.ParseASPath(value, asn4)
+			require.NoError(t, err, "the override's AS_PATH decodes at the destination width")
+			require.NotEmpty(t, path.Segments, "the decoded path has a segment")
+			assert.Equal(t, wantLeading, flatASNs(path), "prepended AS numbers lead the path")
+
+			// RFC 6793 Section 4.2.2: the AS4_PATH accompanies the two-octet
+			// AS_PATH and MUST NOT accompany the four-octet one.
+			as4, hasAS4 := attrValueFromPayload(t, out, attribute.AttrAS4Path)
+			if asn4 {
+				assert.False(t, hasAS4, "no AS4_PATH toward a four-octet peer")
+				return
+			}
+			require.True(t, hasAS4, "an AS4_PATH accompanies the two-octet AS_PATH")
+			as4Path, err := attribute.ParseAS4Path(as4)
+			require.NoError(t, err, "the AS4_PATH decodes")
+			require.NotEmpty(t, as4Path.Segments, "the AS4_PATH has a segment")
+			assert.Equal(t, []uint32{131072, 64496}, flatAS4ASNs(as4Path), "the real local AS is in AS4_PATH")
+		})
+	}
 }
