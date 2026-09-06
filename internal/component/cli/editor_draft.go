@@ -647,8 +647,8 @@ func (e *Editor) detectConflicts() []Conflict {
 				conflicts = append(conflicts, Conflict{
 					Path:       conflictPath(mine, other),
 					Type:       ConflictLive,
-					MyValue:    pendingConflictValue(mine),
-					OtherValue: pendingConflictValue(other),
+					MyValue:    pendingConflictValue(e.schema, mine),
+					OtherValue: pendingConflictValue(e.schema, other),
 					OtherUser:  otherUser,
 				})
 			}
@@ -746,11 +746,15 @@ func conflictPath(a, b config.PendingChange) string {
 	return a.NewPath
 }
 
-func pendingConflictValue(change config.PendingChange) string {
+// pendingConflictValue answers the text a conflict report may publish for one
+// side of the overlap. Both sides read it, so the value another user typed
+// reaches this operator's terminal through OtherValue, and the schema is what
+// keeps a credential out of both.
+func pendingConflictValue(schema *config.Schema, change config.PendingChange) string {
 	if change.Kind == config.PendingChangeRename {
-		return change.Summary()
+		return change.Summary(schema)
 	}
-	return change.Value
+	return config.DisplayValueAtPath(schema, strings.Fields(change.Path), change.Value)
 }
 
 func pathOverlaps(a, b string) bool {

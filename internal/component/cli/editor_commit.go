@@ -108,12 +108,16 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 			((se.Entry.Previous != "" && committedValue != se.Entry.Previous) ||
 				(se.Entry.Previous == "" && committedValue != ""))
 		if isStale {
+			// Three raw leaf values reach the operator's terminal here: what
+			// this session set, what the commit holds, and what was there
+			// before. The report still names the path, so the operator learns
+			// that the leaf is contested without reading a credential.
 			conflicts = append(conflicts, Conflict{
 				Path:          se.Path,
 				Type:          ConflictStale,
-				MyValue:       myValue,
-				OtherValue:    committedValue,
-				PreviousValue: se.Entry.Previous,
+				MyValue:       config.DisplayValueAtPath(e.schema, pathParts, myValue),
+				OtherValue:    config.DisplayValueAtPath(e.schema, pathParts, committedValue),
+				PreviousValue: config.DisplayValueAtPath(e.schema, pathParts, se.Entry.Previous),
 			})
 		}
 	}
@@ -296,12 +300,16 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 			((se.Entry.Previous != "" && committedValue != se.Entry.Previous) ||
 				(se.Entry.Previous == "" && committedValue != ""))
 		if isStale {
+			// Three raw leaf values reach the operator's terminal here: what
+			// this session set, what the commit holds, and what was there
+			// before. The report still names the path, so the operator learns
+			// that the leaf is contested without reading a credential.
 			conflicts = append(conflicts, Conflict{
 				Path:          se.Path,
 				Type:          ConflictStale,
-				MyValue:       myValue,
-				OtherValue:    committedValue,
-				PreviousValue: se.Entry.Previous,
+				MyValue:       config.DisplayValueAtPath(e.schema, pathParts, myValue),
+				OtherValue:    config.DisplayValueAtPath(e.schema, pathParts, committedValue),
+				PreviousValue: config.DisplayValueAtPath(e.schema, pathParts, se.Entry.Previous),
 			})
 		}
 	}
@@ -578,7 +586,7 @@ func insertRefStaleConflict(committedTree *config.Tree, schema *config.Schema, o
 		return &Conflict{
 			Path:       op.PendingChange().Path,
 			Type:       ConflictStale,
-			MyValue:    op.PendingChange().Summary(),
+			MyValue:    op.PendingChange().Summary(schema),
 			OtherValue: "insert target path missing",
 		}
 	}
@@ -591,7 +599,7 @@ func insertRefStaleConflict(committedTree *config.Tree, schema *config.Schema, o
 		return &Conflict{
 			Path:          op.PendingChange().Path,
 			Type:          ConflictStale,
-			MyValue:       op.PendingChange().Summary(),
+			MyValue:       op.PendingChange().Summary(schema),
 			OtherValue:    "insert reference removed",
 			PreviousValue: op.OldKey,
 		}
@@ -606,7 +614,7 @@ func renameStaleConflict(committedTree *config.Tree, schema *config.Schema, op c
 		return &Conflict{
 			Path:       op.SourcePath(),
 			Type:       ConflictStale,
-			MyValue:    op.PendingChange().Summary(),
+			MyValue:    op.PendingChange().Summary(schema),
 			OtherValue: "rename source path missing",
 		}
 	}
@@ -615,7 +623,7 @@ func renameStaleConflict(committedTree *config.Tree, schema *config.Schema, op c
 		return &Conflict{
 			Path:       op.SourcePath(),
 			Type:       ConflictStale,
-			MyValue:    op.PendingChange().Summary(),
+			MyValue:    op.PendingChange().Summary(schema),
 			OtherValue: "rename source missing",
 		}
 	}
@@ -623,7 +631,7 @@ func renameStaleConflict(committedTree *config.Tree, schema *config.Schema, op c
 		return &Conflict{
 			Path:       op.DestinationPath(),
 			Type:       ConflictStale,
-			MyValue:    op.PendingChange().Summary(),
+			MyValue:    op.PendingChange().Summary(schema),
 			OtherValue: "rename destination already exists",
 		}
 	}
@@ -683,8 +691,8 @@ func checkLiveConflicts(meta *config.MetaTree, mySessionID, yangPath string, pat
 				conflicts = append(conflicts, Conflict{
 					Path:       yangPath,
 					Type:       ConflictLive,
-					MyValue:    myValue,
-					OtherValue: otherValue,
+					MyValue:    config.DisplayValueAtPath(schema, pathParts, myValue),
+					OtherValue: config.DisplayValueAtPath(schema, pathParts, otherValue),
 					OtherUser:  entry.User,
 				})
 			}

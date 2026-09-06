@@ -335,6 +335,53 @@ func (s *Schema) Children() []string {
 	return s.root.Children()
 }
 
+// LookupTokenPath resolves a path of CLI tokens to the schema node it names.
+// It walks the schema alone, so it resolves a leaf as well as a container or a
+// list, whether or not the tree holds a value there.
+//
+// The tokens are the operator's own, so the path interleaves a list's name with
+// the key of one entry: `bgp peer 1.1.1.1 description`. A key names no schema
+// node, so the walk steps over it. An entry can also be anonymous, written with
+// no key at all, and the two cases are told apart the way walkSchemaNode tells
+// them apart: when the token after the list is a child of the list, the entry
+// is anonymous and the token is part of the path; otherwise the token is a key.
+//
+// Lookup is the sibling for a slash-joined path with no keys in it.
+//
+// It answers nil when the schema is nil, when a token names no child, and when
+// the path continues past a node that holds no children.
+func (s *Schema) LookupTokenPath(path []string) Node {
+	if s == nil || len(path) == 0 {
+		return nil
+	}
+
+	var current childProvider = s
+	var node Node
+
+	for i := 0; i < len(path); {
+		node = current.Get(path[i])
+		if node == nil {
+			return nil
+		}
+		i++
+
+		if list, isList := node.(*ListNode); isList && i < len(path) && list.Get(path[i]) == nil {
+			i++
+		}
+		if i == len(path) {
+			break
+		}
+
+		next, hasChildren := node.(childProvider)
+		if !hasChildren {
+			return nil
+		}
+		current = next
+	}
+
+	return node
+}
+
 // Lookup finds a node by path (e.g., "bgp/peer/timer").
 func (s *Schema) Lookup(path string) (Node, error) {
 	parts := SplitPath(path)

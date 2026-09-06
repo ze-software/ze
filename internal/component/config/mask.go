@@ -7,6 +7,7 @@ package config
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -25,6 +26,93 @@ import (
 // secret says so with ze:sensitive, plaintext-password included.
 func LeafHoldsSecret(leaf *LeafNode) bool {
 	return leaf != nil && (leaf.Sensitive || leaf.Bcrypt)
+}
+
+// secretAtPath reports whether the schema marks the leaf named by a path of CLI
+// tokens as holding a secret. It is the path-shaped reading of LeafHoldsSecret,
+// for the command that holds an operator's path and value and no tree at all.
+//
+// It FAILS CLOSED on the two answers it cannot give. A nil schema resolves
+// nothing, and a path that names no node resolves nothing, so neither can be
+// told from a path that resolves to a credential. Editor.DisplayTreeAtPath
+// failed OPEN in that same position and published the tree it was asked to
+// mask, which is the fourth time this defect class reopened.
+//
+// A node that is not a LeafNode answers false, and that is the SCHEMA
+// answering rather than a failure: ze:sensitive and ze:bcrypt are fields of
+// LeafNode, so no other node kind can carry the marking, and maskWalk makes the
+// same judgement over a tree. A leaf-list that could hold a secret would need
+// the marking on its own node kind first, and this function then has to read
+// it.
+func secretAtPath(schema *Schema, path []string) bool {
+	node := schema.LookupTokenPath(path)
+	if node == nil {
+		return true
+	}
+	leaf, isLeaf := node.(*LeafNode)
+	if !isLeaf {
+		return false
+	}
+	return LeafHoldsSecret(leaf)
+}
+
+// DisplayValueAtPath answers the text a command may echo back for the value the
+// operator supplied at path. A secret reads as SecretDataPlaceholder.
+//
+// This is the shape no tree mask fits. MaskSecrets, MaskSecretsInPlace and
+// Editor.DisplayTreeAtPath each clean a tree, and an acknowledgement is written
+// from the operator's own tokens before any tree is read: `set %s %s` in
+// cmdSetImpl, the status line of the SSH CLI's set, the dry-run line, the
+// adoption prompt of `ze config edit`.
+//
+// An empty value stays empty, so an unset leaf echoes no placeholder.
+func DisplayValueAtPath(schema *Schema, path []string, value string) string {
+	if value == "" || !secretAtPath(schema, path) {
+		return value
+	}
+
+	return SecretDataPlaceholder
+}
+
+// DisplayMessageAtPath answers the refusal text a command may publish about the
+// value it rejected at path. It is DisplayValueAtPath for the other shape a
+// value reaches a terminal in: inside a sentence.
+//
+// A refusal names what it refused. Completer.ValidateValueAtPath writes
+// `invalid value %q for %s`, and ValidateValue writes `invalid uint16: %q`, so
+// the message carries the credential the operator just typed.
+func DisplayMessageAtPath(schema *Schema, path []string, message, value string) string {
+	if !secretAtPath(schema, path) {
+		return message
+	}
+
+	return MaskSecretInMessage(message, value)
+}
+
+// MaskSecretInMessage removes value from message, wherever the message wrote
+// it. The caller has already decided that value is a secret.
+//
+// Replacement rather than truncation keeps the rest of the sentence, so the
+// operator still reads which rule the value broke.
+func MaskSecretInMessage(message, value string) string {
+	if value == "" {
+		return message
+	}
+
+	masked := strings.ReplaceAll(message, value, SecretDataPlaceholder)
+
+	// A message built with %q carries the ESCAPED value, so a secret holding a
+	// quote, a backslash or a control character survives the replacement above:
+	// `pa"ss` is written `"pa\"ss"` and the raw text appears nowhere in it.
+	// strconv.Quote produces exactly what %q wrote, and the outer quotes belong
+	// to the message rather than to the value, so only what sits between them is
+	// replaced. A guard that covers the easy values and not the awkward ones
+	// publishes the credential precisely when it is least guessable.
+	if quoted := strconv.Quote(value); len(quoted) > 2 {
+		masked = strings.ReplaceAll(masked, quoted[1:len(quoted)-1], SecretDataPlaceholder)
+	}
+
+	return masked
 }
 
 // SecretKeys answers the NAME of every leaf the schema marks as holding a

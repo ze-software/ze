@@ -195,7 +195,13 @@ func (pc PendingChange) ConflictPaths() []string {
 }
 
 // Summary returns a concise human-readable form of the pending change.
-func (pc PendingChange) Summary() string {
+//
+// It takes the schema because the default branch echoes Value, which is what
+// the operator typed at Path. A schema that marks that leaf ze:sensitive or
+// ze:bcrypt makes the summary a display path for a credential, and the
+// adoption prompt of `ze config edit` writes one line of it per change. A nil
+// schema masks every value, because it cannot tell a credential from a timer.
+func (pc PendingChange) Summary(schema *Schema) string {
 	var tb textbuf.Buffer
 	switch pc.Kind {
 	case PendingChangeDelete:
@@ -207,7 +213,8 @@ func (pc PendingChange) Summary() string {
 	case PendingChangeRename:
 		return tb.Str("rename ").Str(pc.OldPath).Str(" to ").Str(pc.NewPath).String()
 	default:
-		return tb.Str("set ").Str(pc.Path).Byte(' ').Str(pc.Value).String()
+		value := DisplayValueAtPath(schema, strings.Fields(pc.Path), pc.Value)
+		return tb.Str("set ").Str(pc.Path).Byte(' ').Str(value).String()
 	}
 }
 

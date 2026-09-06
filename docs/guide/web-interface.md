@@ -102,9 +102,11 @@ apart.
 | The config tree, the diff, the compare view and the download | A secret leaf that holds a value reads as the placeholder. An unset secret stays empty, so the field still reads as unconfigured |
 | The commit diff | A rotated secret is named as a changed path. Neither the old value nor the new one is printed |
 | The web CLI bar and the terminal | `show` masks the same leaves. The verb needs no config authorization, so any authenticated session used to reach them |
+| The terminal's answer to `set` | The acknowledgement reads `set <leaf> /* SECRET-DATA */`, so the value never travels back in the response body |
 | Commit, load and upload | A tree carrying the placeholder in a secret leaf is refused. Restore the real value from the edit-authorized raw download, or set it through `plaintext-<name>` or `ze passwd` |
 
-<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, DisplayValueAtPath, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/web/cli_terminal.go -- executeTerminalSet -->
 
 ## Rendering
 

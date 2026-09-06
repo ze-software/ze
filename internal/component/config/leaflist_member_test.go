@@ -504,6 +504,6 @@ func TestPendingChangeMemberSummary(t *testing.T) {
 	pc := PendingChangeFromSessionEntry(se)
 	assert.Equal(t, PendingChangeDelete, pc.Kind)
 	assert.Equal(t, "8.8.8.8", pc.Member)
-	assert.True(t, strings.Contains(pc.Summary(), "8.8.8.8"),
-		"delete summary must name the member, got %q", pc.Summary())
+	assert.True(t, strings.Contains(pc.Summary(nil), "8.8.8.8"),
+		"delete summary must name the member, got %q", pc.Summary(nil))
 }

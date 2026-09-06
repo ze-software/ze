@@ -451,42 +451,36 @@ func (e *Editor) WalkPathWithSchema(path []string) (*config.Tree, config.Node) {
 	return e.walkPathWithSchema(path)
 }
 
-// LookupSchemaNode returns the schema node at the terminus of path.
-// Unlike WalkPathWithSchema, this walks the schema only (no tree walk),
-// so it resolves leaves as well as containers and list entries. Used by
-// one-shot CLI verbs that need to dispatch deactivate/activate based on
-// the node kind regardless of whether the value is currently set.
+// LookupSchemaNode returns the schema node at the terminus of path, read
+// against this editor's schema. Unlike WalkPathWithSchema, it walks the schema
+// only (no tree walk), so it resolves leaves as well as containers and list
+// entries. One-shot CLI verbs dispatch deactivate and activate on the node kind
+// it answers, whether or not the value is currently set.
 //
-// List keys interleaved in the path are skipped (a list child consumes
-// two tokens: its name and its key value).
+// Schema.LookupTokenPath owns the walk, because the display mask reads the same
+// question and two walks over one path would answer it two ways.
 func (e *Editor) LookupSchemaNode(path []string) config.Node {
-	if e.schema == nil || len(path) == 0 {
-		return nil
-	}
-	var current schemaGetter = e.schema
-	var last config.Node
-	i := 0
-	for i < len(path) {
-		name := path[i]
-		node := current.Get(name)
-		if node == nil {
-			return nil
-		}
-		last = node
-		i++
-		// Step over a list key, if this list child has one.
-		if _, isList := node.(*config.ListNode); isList && i < len(path) {
-			i++
-		}
-		if i < len(path) {
-			sg, ok := node.(schemaGetter)
-			if !ok {
-				return nil // path continues past a leaf -- invalid
-			}
-			current = sg
-		}
-	}
-	return last
+	return e.schema.LookupTokenPath(path)
+}
+
+// DisplayValueAtPath answers the text a command may echo back for the value the
+// operator supplied at path, read against this editor's schema. A secret reads
+// as config.SecretDataPlaceholder.
+func (e *Editor) DisplayValueAtPath(path []string, value string) string {
+	return config.DisplayValueAtPath(e.schema, path, value)
+}
+
+// DisplayMessageAtPath answers the refusal text a command may publish about the
+// value it rejected at path, read against this editor's schema.
+func (e *Editor) DisplayMessageAtPath(path []string, message, value string) string {
+	return config.DisplayMessageAtPath(e.schema, path, message, value)
+}
+
+// PendingChangeSummary answers the one-line form of a pending change, read
+// against this editor's schema. The adoption prompt of `ze config edit` writes
+// one per change, and a set summary carries the value the operator typed.
+func (e *Editor) PendingChangeSummary(change config.PendingChange) string {
+	return change.Summary(e.schema)
 }
 
 // ResolveLeafListValue checks whether fullPath terminates inside a

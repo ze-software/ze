@@ -13,7 +13,8 @@ redact credential tokens in the command log.
 
 <!-- source: internal/component/ssh/passwordauth.go -- authenticatePasswordResult, isLocalTransport, loggedCommand -->
 <!-- source: internal/component/authz/auth.go -- CheckPassword, authenticateUser -->
-<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskBcrypt, MaskSecrets, MaskSecretsInPlace, SecretKeys, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskBcrypt, MaskSecrets, MaskSecretsInPlace, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath, MaskSecretInMessage, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/config/schema.go -- Schema.LookupTokenPath -->
 <!-- source: internal/component/cli/editor_mask.go -- DisplayContentAtPath, DisplayOriginalContentAtPath -->
 <!-- source: internal/core/redact/redact.go -- IsBcryptHash, Command, JSON, Placeholder -->
 
@@ -42,6 +43,22 @@ serializers, the web per-leaf builders, and the config dump.
 the same predicate. The BGP resolver flattens group and peer inheritance, so a
 path in the resolved map addresses no schema node. The config dump and the
 config diff both read a name there.
+
+**What a command echoes back is masked by PATH.** `DisplayValueAtPath` answers
+the text a command may print for the value the operator supplied, and
+`DisplayMessageAtPath` answers the same for the sentence that refuses it. This
+is the third shape, and no tree mask fits it: an acknowledgement is written from
+the operator's own tokens before any tree is read. `set %s %s`, the dry-run
+line, the SSH CLI status line, the web terminal answer, the adoption prompt of
+`ze config edit` and both sides of a commit conflict each wrote the raw value.
+Both functions read the same predicate through `Schema.LookupTokenPath`, which
+resolves a path that interleaves a list name with one entry's key.
+
+**The path mask fails CLOSED.** A nil schema resolves nothing and an unknown
+path resolves nothing, so neither can be told from a path that names a
+credential, and both answer the placeholder. A node that is not a leaf answers
+its value: `ze:sensitive` and `ze:bcrypt` are fields of `LeafNode`, so no other
+node kind can carry the marking.
 
 **The placeholder is never the reversible sensitive-value marker.** A sensitive
 leaf uses a reversible encoding; bcrypt is one way and the parser refuses the

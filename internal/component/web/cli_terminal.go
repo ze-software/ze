@@ -842,11 +842,17 @@ func executeTerminalSet(mgr *EditorManager, username string, contextPath, args [
 		return tb.Str("error: invalid leaf name: ").Str(args[0]).String()
 	}
 
-	if err := mgr.SetValue(username, contextPath, args[0], textbuf.Join(args[1:], " ")); err != nil {
-		return tb.Reset().Str("error: ").Err(err).String()
+	value := textbuf.Join(args[1:], " ")
+	leafPath := append(append([]string{}, contextPath...), args[0])
+
+	if err := mgr.SetValue(username, contextPath, args[0], value); err != nil {
+		return tb.Reset().Str("error: ").Str(config.DisplayMessageAtPath(mgr.schema, leafPath, err.Error(), value)).String()
 	}
 
-	return tb.Reset().Str("set ").Str(args[0]).Byte(' ').Join(args[1:], " ").String()
+	// The acknowledgement travels to the browser in the response body, so a
+	// credential in it reaches view-source, the disk cache and any proxy that
+	// reads the document.
+	return tb.Reset().Str("set ").Str(args[0]).Byte(' ').Str(config.DisplayValueAtPath(mgr.schema, leafPath, value)).String()
 }
 
 // executeTerminalDelete handles the delete command in terminal mode.

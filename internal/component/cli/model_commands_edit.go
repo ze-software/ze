@@ -56,9 +56,10 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 		if _, err := m.completer.validateTokenPath(path); err != nil {
 			return commandResult{}, err
 		}
-		// Validate value against YANG type before applying
+		// Validate value against YANG type before applying. A refusal names
+		// what it refused, so the message carries the value the operator typed.
 		if err := m.completer.ValidateValueAtPath(path, value); err != nil {
-			return commandResult{}, err
+			return commandResult{}, errors.New(m.editor.DisplayMessageAtPath(path, err.Error(), value))
 		}
 		if err := m.editor.SetValue(containerPath, key, value); err != nil {
 			return commandResult{}, fmt.Errorf("set failed: %w", err)
@@ -70,10 +71,14 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 
 	var tb textbuf.Buffer
 	if isListKey {
+		// A list key names an entry rather than holding a value, so no schema
+		// leaf can mark it as a secret.
 		tb.Str("created ").Str(containerPath[len(containerPath)-1]).Byte(' ').Str(value)
 	} else {
 		displayPath := append(append([]string{}, containerPath...), key)
-		tb.Str("set ").Join(displayPath, " ").Byte(' ').Str(value)
+		// The status line echoes what the operator typed. A credential typed
+		// here would sit in the scrollback of a shared terminal.
+		tb.Str("set ").Join(displayPath, " ").Byte(' ').Str(m.editor.DisplayValueAtPath(path, value))
 	}
 
 	// Detect conflicts with other users' change files after each edit.
@@ -299,7 +304,7 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 	// Validate value against the leaf-list's YANG type before applying,
 	// the same gate cmdSet applies to scalar leaves.
 	if err := m.completer.ValidateValueAtPath(fullPath, value); err != nil {
-		return commandResult{}, err
+		return commandResult{}, errors.New(m.editor.DisplayMessageAtPath(fullPath, err.Error(), value))
 	}
 
 	if err := m.editor.InsertLeafListValue(containerPath, leafListName, value, position, ref); err != nil {
@@ -310,7 +315,7 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 	m.searchCache = ""
 
 	var tb textbuf.Buffer
-	tb.Str("Inserted ").Str(value).Str(" into ").Str(leafListName).Byte(' ').Str(position)
+	tb.Str("Inserted ").Str(m.editor.DisplayValueAtPath(fullPath, value)).Str(" into ").Str(leafListName).Byte(' ').Str(position)
 	if ref != "" {
 		tb.Byte(' ').Str(ref)
 	}

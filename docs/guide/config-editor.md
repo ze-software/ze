@@ -73,8 +73,16 @@ view, the annotated view, the search results, the blame view, `ze config show`,
 `ze config dump`, and `ze config diff`. `ze config diff` masks the COMPUTED diff,
 so a rotated credential still reports as changed and neither value is shown. The
 text output and the JSON output agree.
-<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys -->
+
+What a command says back is masked too. `ze config set` writes
+`set <path> /* SECRET-DATA */` rather than the password the operator typed, and
+so do its `--dry-run` line, the `set` status line of the SSH CLI editor, the
+adoption prompt of `ze config edit`, and both sides of a commit conflict. A
+refusal names the rule the value broke and not the value. The path stays in the
+clear, so the operator still reads which leaf was written.
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
+<!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
 
 ### Commands run one at a time, in order
 

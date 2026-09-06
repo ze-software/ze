@@ -94,7 +94,9 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	completer := cli.NewCompleter()
 	completer.SetTree(ed.Tree())
 	if err := completer.ValidateValueAtPath(path, value); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		// A refusal names what it refused, so the message carries the value.
+		// The operator still reads which rule the value broke.
+		fmt.Fprintf(os.Stderr, "error: %s\n", ed.DisplayMessageAtPath(path, err.Error(), value))
 		return exitError
 	}
 
@@ -106,8 +108,13 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 
 	displayPath := textbuf.Join(path, " ")
 
+	// The acknowledgement echoes what the operator typed, and a credential
+	// typed at this prompt would land in scrollback, in a terminal recording
+	// and in anything capturing the session.
+	displayValue := ed.DisplayValueAtPath(path, value)
+
 	if *dryRun {
-		fmt.Fprintf(os.Stderr, "dry-run: would set %s %s\n", displayPath, value)
+		fmt.Fprintf(os.Stderr, "dry-run: would set %s %s\n", displayPath, displayValue)
 		diff := ed.Diff()
 		if diff != "" {
 			fmt.Fprint(os.Stderr, diff)
@@ -125,7 +132,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	// A weak password is set, not refused. The warning is printed before the
 	// success line so the operator reads it in the order it happened.
 	printCommitWarnings(warnings)
-	fmt.Fprintf(os.Stderr, "set %s %s\n", displayPath, value)
+	fmt.Fprintf(os.Stderr, "set %s %s\n", displayPath, displayValue)
 
 	// Editing a stored config does not contact the daemon by default; --reload
 	// opts in. See notifyDaemonReload.

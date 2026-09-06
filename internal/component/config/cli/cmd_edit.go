@@ -631,7 +631,7 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 			changes := ed.PendingChanges(sid)
 			fmt.Fprintf(os.Stderr, "\nFound pending changes from previous session (%s, %d changes):\n", sid, len(changes)) //nolint:errcheck // terminal output
 			for _, change := range changes {
-				fmt.Fprintf(os.Stderr, "  %s\n", change.Summary()) //nolint:errcheck // terminal output
+				fmt.Fprintf(os.Stderr, "  %s\n", ed.PendingChangeSummary(change)) //nolint:errcheck // terminal output
 			}
 			fmt.Fprintf(os.Stderr, "\nAdopt these changes? (yes/no) ") //nolint:errcheck // terminal output
 
