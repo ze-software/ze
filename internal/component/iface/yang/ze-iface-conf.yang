@@ -472,12 +472,22 @@ module ze-iface-conf {
 
                     container pd {
                         description "Prefix delegation";
+                        ze:help "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no
+                                 server for a delegated prefix. Ze does install a prefix that a
+                                 server sends on its own in the IA_PD option of a Reply. Ze
+                                 publishes that prefix as a lease on this unit. The length leaf
+                                 below reaches no message Ze sends.";
 
                         leaf length {
                             type uint8 {
                                 range "48..64";
                             }
                             description "Requested prefix length";
+                            ze:help "The prefix length ze asks for, from 48 to 64. Ze reads the
+                                     leaf into the DHCP client configuration and then sends no
+                                     IA_PD option, so the value reaches no server and changes
+                                     nothing. A prefix that a server sends on its own keeps the
+                                     length that server assigned.";
                         }
                     }
 
@@ -994,6 +1004,13 @@ module ze-iface-conf {
                             }
 
                             leaf ttl {
+                                // netlink only: GreTunnelV2 and IpipTunnel
+                                // (vendor/go.fd.io/govpp/binapi) carry no hop-limit value, and only
+                                // tunnel_types.Tunnel does, which the gre and ipip APIs do not take.
+                                // Inherit alone would be reachable through the encap flag
+                                // TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_HOP_LIMIT, which ze does
+                                // not set. So netlink implements this leaf and vpp does not.
+                                ze:backend "netlink";
                                 type uint8;
                                 default 64;
                                 description "Outer-header TTL. 0 = inherit from the inner packet";
@@ -1003,7 +1020,10 @@ module ze-iface-conf {
                                          it matches the hoplimit default of the IPv6-underlay
                                          kinds. 0 makes the kernel take the value from the inner
                                          packet instead, which drops the packet early when the
-                                         inner TTL is small or the underlay is more than one hop.";
+                                         inner TTL is small or the underlay is more than one hop.
+                                         Only the netlink backend implements the leaf. The vpp
+                                         tunnel API carries no outer TTL, so a commit that names
+                                         a ttl on the vpp backend is refused by path.";
                             }
 
                             leaf tos {
@@ -1054,6 +1074,13 @@ module ze-iface-conf {
                             }
 
                             leaf ttl {
+                                // netlink only: GreTunnelV2 and IpipTunnel
+                                // (vendor/go.fd.io/govpp/binapi) carry no hop-limit value, and only
+                                // tunnel_types.Tunnel does, which the gre and ipip APIs do not take.
+                                // Inherit alone would be reachable through the encap flag
+                                // TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_HOP_LIMIT, which ze does
+                                // not set. So netlink implements this leaf and vpp does not.
+                                ze:backend "netlink";
                                 type uint8;
                                 default 64;
                                 description "Outer-header TTL. 0 = inherit from the inner packet";
@@ -1063,7 +1090,10 @@ module ze-iface-conf {
                                          it matches the hoplimit default of the IPv6-underlay
                                          kinds. 0 makes the kernel take the value from the inner
                                          packet instead, which drops the packet early when the
-                                         inner TTL is small or the underlay is more than one hop.";
+                                         inner TTL is small or the underlay is more than one hop.
+                                         Only the netlink backend implements the leaf. The vpp
+                                         tunnel API carries no outer TTL, so a commit that names
+                                         a ttl on the vpp backend is refused by path.";
                             }
 
                             leaf tos {
@@ -1231,6 +1261,13 @@ module ze-iface-conf {
                             uses tunnel-v4-endpoints;
 
                             leaf ttl {
+                                // netlink only: GreTunnelV2 and IpipTunnel
+                                // (vendor/go.fd.io/govpp/binapi) carry no hop-limit value, and only
+                                // tunnel_types.Tunnel does, which the gre and ipip APIs do not take.
+                                // Inherit alone would be reachable through the encap flag
+                                // TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_HOP_LIMIT, which ze does
+                                // not set. So netlink implements this leaf and vpp does not.
+                                ze:backend "netlink";
                                 type uint8;
                                 default 64;
                                 description "Outer-header TTL. 0 = inherit from the inner packet";
@@ -1240,7 +1277,10 @@ module ze-iface-conf {
                                          it matches the hoplimit default of the IPv6-underlay
                                          kinds. 0 makes the kernel take the value from the inner
                                          packet instead, which drops the packet early when the
-                                         inner TTL is small or the underlay is more than one hop.";
+                                         inner TTL is small or the underlay is more than one hop.
+                                         Only the netlink backend implements the leaf. The vpp
+                                         tunnel API carries no outer TTL, so a commit that names
+                                         a ttl on the vpp backend is refused by path.";
                             }
 
                             leaf tos {
@@ -1748,11 +1788,15 @@ module ze-iface-conf {
 
         container monitor {
             description "Interface monitoring settings";
+            ze:help "Ze reads no value under this container, so nothing below it changes the
+                     behavior of the daemon.";
 
             leaf loopback {
                 type boolean;
                 default false;
                 description "Monitor loopback interface";
+                ze:help "Ze reads no value under the monitor container, so this leaf changes no
+                         behavior whether it is true or false. The default is false.";
             }
         }
     }

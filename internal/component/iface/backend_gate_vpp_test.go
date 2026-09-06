@@ -1,6 +1,7 @@
 package iface
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -103,6 +104,96 @@ func TestBackendGateVppWireguard(t *testing.T) {
 	t.Run("netlink_still_accepts_wireguard", func(t *testing.T) {
 		if err := validateBackendGate(gateSection(wgData("netlink")), "netlink"); err != nil {
 			t.Errorf("netlink should still accept wireguard: %v", err)
+		}
+	})
+}
+
+// TestBackendGateVppRefusesTunnelTTL drives the commit entry point, not the
+// walker, and proves both polarities of the ttl leaf's netlink-only
+// annotation: an explicitly configured ttl on a vpp-backed gre, gretap or
+// ipip tunnel is refused by path, and the same tunnel without a ttl commits.
+//
+// The entry point matters. verifyIfaceConfig is what OnConfigVerify calls, and
+// inside it parseAndVerifyIfaceSections runs validateBackendGate BEFORE
+// parseIfaceSections, so the gate reads what the operator wrote and never the
+// schema default that parseTunnelEntry materializes afterwards. A test on the
+// walker alone would prove neither half of that ordering.
+//
+// VALIDATES: R-3 of spec-tunnel-ttl-default, settled as refuse rather than
+//
+//	warn. An explicit ttl reached no vpp device and reported success,
+//	which is the value that is silently wrong that ai/rules/principles.md
+//	forbids.
+//
+// PREVENTS: the leaf reading as authoritative on a backend that drops it.
+//
+//	GreTunnelV2 and IpipTunnel carry no hop-limit value, so no value an
+//	operator writes can reach a vpp-programmed tunnel.
+func TestBackendGateVppRefusesTunnelTTL(t *testing.T) {
+	kinds := []struct {
+		name string
+		body string
+	}{
+		{"gre", `"gre":{"local":{"ip":"192.0.2.1"},"remote":{"ip":"192.0.2.2"}%s}`},
+		{"gretap", `"gretap":{"local":{"ip":"192.0.2.1"},"remote":{"ip":"192.0.2.2"}%s}`},
+		{"ipip", `"ipip":{"local":{"ip":"192.0.2.1"},"remote":{"ip":"192.0.2.2"}%s}`},
+	}
+	config := func(backend, body string) string {
+		return `{"interface":{"backend":"` + backend + `","tunnel":{"t0":{"name":"t0","encapsulation":{` + body + `}}}}}`
+	}
+
+	for _, kind := range kinds {
+		body := func(extra string) string { return strings.Replace(kind.body, "%s", extra, 1) }
+
+		t.Run("refuse_explicit_ttl_"+kind.name, func(t *testing.T) {
+			err := verifyIfaceConfig(gateSection(config("vpp", body(`,"ttl":"200"`))))
+			if err == nil {
+				t.Fatalf("vpp must refuse an explicit ttl on a %s tunnel: the value reaches no device", kind.name)
+			}
+			for _, want := range []string{"encapsulation/" + kind.name + "/ttl", `"vpp"`, "netlink"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal %q does not name %q", err, want)
+				}
+			}
+		})
+
+		t.Run("refuse_explicit_inherit_"+kind.name, func(t *testing.T) {
+			// 0 is a value like any other here: the vpp backend sets no
+			// hop-limit copy flag either, so inherit does not reach the
+			// device and must not be accepted as though it did.
+			if err := verifyIfaceConfig(gateSection(config("vpp", body(`,"ttl":"0"`)))); err == nil {
+				t.Errorf("vpp must refuse an explicit ttl 0 on a %s tunnel", kind.name)
+			}
+		})
+
+		t.Run("accept_unset_ttl_"+kind.name, func(t *testing.T) {
+			// The schema default is materialized after the gate has run, so a
+			// tunnel that names no ttl still commits under vpp.
+			if err := verifyIfaceConfig(gateSection(config("vpp", body("")))); err != nil {
+				t.Errorf("vpp must accept a %s tunnel that names no ttl: %v", kind.name, err)
+			}
+		})
+
+		t.Run("netlink_still_accepts_explicit_ttl_"+kind.name, func(t *testing.T) {
+			// The annotation names the backend that does not implement the
+			// leaf. It is not a ban on the leaf.
+			if err := verifyIfaceConfig(gateSection(config("netlink", body(`,"ttl":"200"`)))); err != nil {
+				t.Errorf("netlink must still accept an explicit ttl on a %s tunnel: %v", kind.name, err)
+			}
+		})
+	}
+
+	// sit carries no annotation of its own, so the whole kind is already
+	// refused under vpp by the tunnel list. Its ttl leaf is deliberately NOT
+	// annotated: a leaf-level refusal there would name the leaf where the kind
+	// is the problem, and CreateTunnel rejects the kind at apply too.
+	t.Run("sit_refused_by_kind_not_by_ttl", func(t *testing.T) {
+		err := verifyIfaceConfig(gateSection(config("vpp", `"sit":{"local":{"ip":"192.0.2.1"},"remote":{"ip":"192.0.2.2"},"ttl":"200"}`)))
+		if err == nil {
+			t.Fatal("vpp must refuse a sit tunnel")
+		}
+		if strings.Contains(err.Error(), "sit/ttl") {
+			t.Errorf("the sit refusal must name the kind, not the ttl leaf: %v", err)
 		}
 	})
 }
