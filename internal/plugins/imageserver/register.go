@@ -74,16 +74,16 @@ func runImageServerPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("imageserver", conn)
 	defer closeLogged(p, log, "plugin conn")
 
-	var httpServer *http.Server
+	var httpServers []*http.Server
 	var zefsDir string
 
 	stopServer := func() {
-		if httpServer != nil {
-			if err := httpServer.Close(); err != nil {
-				log.Debug("imageserver: http close failed", "error", err)
+		for _, srv := range httpServers {
+			if err := srv.Close(); err != nil {
+				log.Debug("imageserver: http close failed", "addr", srv.Addr, "error", err)
 			}
-			httpServer = nil
 		}
+		httpServers = nil
 		if zefsDir != "" {
 			if err := os.RemoveAll(zefsDir); err != nil {
 				log.Debug("imageserver: remove zefs dir failed", "error", err)
@@ -121,36 +121,12 @@ func runImageServerPlugin(conn net.Conn) int {
 			}
 		}
 
-		bindIP := ""
-		if len(cfg.ListenInterfaces) > 0 {
-			resolved, resolveErr := resolveInterfaceIPv4(cfg.ListenInterfaces[0])
-			if resolveErr != nil {
-				log.Error("imageserver: resolve interface failed",
-					"interface", cfg.ListenInterfaces[0], "error", resolveErr)
-				return
-			}
-			bindIP = resolved
-		}
-
-		mux := newMux(cfg, zefsPath, bindIP)
-		addr := bindIP + ":" + strconv.Itoa(cfg.ListenPort)
-		httpServer = &http.Server{
-			Addr:              addr,
-			Handler:           mux,
-			ReadTimeout:       30 * time.Second,
-			ReadHeaderTimeout: 10 * time.Second,
-			WriteTimeout:      5 * time.Minute,
-			MaxHeaderBytes:    1 << 16,
-		}
-
-		// Bind synchronously so a failed bind is reported honestly. The old
-		// code logged "started" inside the serve goroutine and only reported a
-		// bind failure afterwards, which masked the install-path failure where
-		// the server never came up at all.
-		var lc net.ListenConfig
-		ln, lerr := lc.Listen(context.Background(), "tcp", addr)
-		if lerr != nil {
-			log.Error("imageserver: listen failed", "addr", addr, "error", lerr)
+		httpServers = startTargets(cfg, zefsPath, listenTargets(cfg.ListenInterfaces, log), log)
+		if len(httpServers) == 0 {
+			// Every named interface failed to resolve or to bind. Report that
+			// instead of logging "started" over a server that serves nothing.
+			log.Error("imageserver: no interfaces bound; server not serving",
+				"interfaces", cfg.ListenInterfaces)
 			stopServer()
 			return
 		}
@@ -160,15 +136,10 @@ func runImageServerPlugin(conn net.Conn) int {
 		logServedImage(log, cfg.ImageDirectory)
 
 		log.Info("imageserver: started",
-			"addr", ln.Addr().String(),
+			"interfaces", cfg.ListenInterfaces,
+			"listeners", len(httpServers),
 			"image-directory", cfg.ImageDirectory,
 			"boot-directory", cfg.BootDirectory)
-
-		go func() {
-			if err := httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
-				log.Error("imageserver: serve error", "error", err)
-			}
-		}()
 	}
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -201,6 +172,105 @@ func runImageServerPlugin(conn net.Conn) int {
 	stopServer()
 	log.Info("imageserver plugin stopped")
 	return 0
+}
+
+// listenTarget is one address the image server binds, with the listen-interface
+// entry the operator wrote for it so a failure names the interface rather than
+// the address alone. An empty iface is the "no interface named" case, whose
+// empty ip binds every address of the host.
+type listenTarget struct {
+	iface string
+	ip    string
+}
+
+// listenTargets resolves every entry of listen-interface to its IPv4 address,
+// one target for each entry. The leaf is a leaf-list, so every entry is served:
+// internal/plugins/tftpserver/register.go and
+// internal/plugins/dhcpserver/register.go read the same leaf the same way, and
+// an operator who runs the three services for one PXE install gets all of them
+// on the interfaces named. An entry that does not resolve is reported and
+// skipped, so one wrong name does not stop the interfaces that do resolve.
+// With no entry at all the result is one target with an empty address, which
+// binds every address of the host.
+func listenTargets(names []string, log *slog.Logger) []listenTarget {
+	if len(names) == 0 {
+		return []listenTarget{{}}
+	}
+
+	targets := make([]listenTarget, 0, len(names))
+	for _, name := range names {
+		ip, err := resolveInterfaceIPv4(name)
+		if err != nil {
+			log.Error("imageserver: resolve interface failed", "interface", name, "error", err)
+			continue
+		}
+		targets = append(targets, listenTarget{iface: name, ip: ip})
+	}
+	return targets
+}
+
+// startTargets binds one HTTP server for each target and returns the servers
+// that bound. A target that fails to bind is reported and skipped, so one
+// unusable interface does not stop the others from serving. The caller MUST
+// call Close on every returned server to stop its serve goroutine.
+func startTargets(cfg imageConfig, zefsPath string, targets []listenTarget, log *slog.Logger) []*http.Server {
+	servers := make([]*http.Server, 0, len(targets))
+	for _, target := range targets {
+		srv, err := serveTarget(cfg, zefsPath, target)
+		if err != nil {
+			log.Error("imageserver: listen failed",
+				"interface", target.iface, "addr", listenAddr(target.ip, cfg.ListenPort), "error", err)
+			continue
+		}
+		log.Info("imageserver: listening", "interface", target.iface, "addr", srv.Addr)
+		servers = append(servers, srv)
+	}
+	return servers
+}
+
+// serveTarget binds one HTTP server on the target address and serves it in its
+// own goroutine. The mux carries the target address, so the boot.ipxe script
+// this listener serves names the address the client reached rather than another
+// interface's. The caller MUST call Close on the returned server to stop the
+// goroutine.
+func serveTarget(cfg imageConfig, zefsPath string, target listenTarget) (*http.Server, error) {
+	addr := listenAddr(target.ip, cfg.ListenPort)
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           newMux(cfg, zefsPath, target.ip),
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      5 * time.Minute,
+		MaxHeaderBytes:    1 << 16,
+	}
+
+	// Bind synchronously so a failed bind is reported honestly. The old code
+	// logged "started" inside the serve goroutine and only reported a bind
+	// failure afterwards, which masked the install-path failure where the
+	// server never came up at all.
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Serve, not ListenAndServe, so Addr is free to carry the address the
+	// kernel gave us. It differs from the requested one when the port is 0.
+	srv.Addr = ln.Addr().String()
+
+	go func() {
+		if serveErr := srv.Serve(ln); serveErr != nil && serveErr != http.ErrServerClosed {
+			loggerPtr.Load().Error("imageserver: serve error", "addr", srv.Addr, "error", serveErr)
+		}
+	}()
+
+	return srv, nil
+}
+
+// listenAddr joins a bind address and a port. An empty ip yields ":port", which
+// binds every address of the host.
+func listenAddr(ip string, port int) string {
+	return net.JoinHostPort(ip, strconv.Itoa(port))
 }
 
 // resolveInterfaceIPv4 returns the first IPv4 address of the logical interface,

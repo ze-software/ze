@@ -1,0 +1,42 @@
+# Test: every listen-interface entry reaches the image server, not the first
+# alone. listen-interface is a leaf-list, and the TFTP and DHCP servers bind one
+# listener for each entry of the same leaf.
+# VALIDATES: listenTargets (imageserver/register.go) resolves EVERY entry, so a
+#            second entry is reported by name instead of being dropped in
+#            silence.
+# PREVENTS: regression of the silent drop where cfg.ListenInterfaces[0] was the
+#           only entry read, so an operator naming two interfaces got HTTP on
+#           one of them and no log line naming the other.
+#
+# Mechanism: both entries name a device that does not exist. resolveInterfaceIPv4
+# falls back to a direct net.InterfaceByName lookup (no iface backend in this
+# service-only config), which fails for a non-existent device on every platform,
+# so this test needs no platform gating. Each entry must appear in the log by
+# name; the pre-fix code logged the first and returned. With no interface bound
+# the zero-listener guard fires, and "imageserver: started" must not appear.
+
+stdin=ze-image:terminator=EOF_CONF
+service {
+    image-server {
+        enabled true
+        listen-interface ze-no-such-iface0
+        listen-interface ze-no-such-iface1
+        listen-port 18081
+        image-directory build/pxe/images
+        boot-directory build/pxe/boot
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.imageserver:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-image
+# The await fence holds the daemon until its relayed stderr carries the needle.
+# The needle carries no ':' because parseAwait kv-splits the value.
+# Producer: imageserver/register.go startServer, "imageserver: no interfaces
+# bound; server not serving", logged after listenTargets reported every entry.
+await=stderr:contains=no interfaces bound
+expect=stderr:contains=ze-no-such-iface0
+expect=stderr:contains=ze-no-such-iface1
+expect=stderr:contains=imageserver: no interfaces bound
+reject=stderr:pattern=imageserver: started

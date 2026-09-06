@@ -13,6 +13,17 @@ ZeFS database.
 - **Its own HTTP listener, not the web component.** Image transfers are large
   and long, and they must not compete with the web UI. The two have independent
   lifecycles, so provisioning can run with no web UI at all.
+- **One listener for each `listen-interface` entry.** The leaf is a `leaf-list`,
+  and the TFTP server and the DHCP server bind one listener for each entry of
+  the same leaf. A host that provisions two install networks names two
+  interfaces and gets HTTP on both. An entry that does not resolve is logged and
+  skipped, so one wrong name does not stop the others; when nothing binds, the
+  plugin logs `no interfaces bound` rather than `started`. With no entry the
+  port is bound on every address of the host.
+- **Each listener serves a boot script naming its own address.** The mux is
+  built for the address it binds, so `/install/boot/boot.ipxe` sends the client
+  back to the interface it reached. One mux shared by every listener would send
+  a client on the second network to the first network's address.
 - **`http.ServeFile` does the serving.** Range requests, content type, and
   conditional requests come from the standard library. No manual file I/O.
 - **Path traversal is prevented by rejecting the filename, not by cleaning it.**
