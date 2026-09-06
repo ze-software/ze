@@ -460,3 +460,71 @@ func assertEncodes(t *testing.T, cfg RAConfig, want string) {
 		t.Errorf("RALen = %d, BuildRA wrote %d", got, n)
 	}
 }
+
+// TestBuildRARDNSSCountBoundary walks the RDNSS count across the edge of the
+// option's one-octet Length field.
+//
+// VALIDATES: RFC 8106 Section 5.1, "8-bit unsigned integer. The length of the
+// option (including the Type and Length fields) is in units of 8 octets. The
+// minimum value is 3 if one IPv6 address is contained in the option. Every
+// additional RDNSS address increases the length by 2." The field therefore
+// holds 1 + 2n and RDNSSMax addresses are the most that fit.
+// PREVENTS: a wrapped Length octet. writeRDNSS computes
+// `uint8(1 + 2*len(cfg.RDNSS))`, so 128 addresses would write 1 rather than
+// 257 and emit an option claiming to be 8 octets long while carrying 2056. No
+// receiver reports that back and RALen would still say the message was whole,
+// so the wire would be malformed with nothing red anywhere. No caller reaches
+// this today, which is exactly why the encoder states the bound rather than
+// trusting each caller to.
+func TestBuildRARDNSSCountBoundary(t *testing.T) {
+	servers := func(n int) []netip.Addr {
+		list := make([]netip.Addr, 0, n)
+		for i := range n {
+			list = append(list, netip.AddrFrom16([16]byte{
+				0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, byte(i >> 8), byte(i),
+			}))
+		}
+		return list
+	}
+
+	// The literal is deliberate: reading RDNSSMax here would agree with any
+	// bound the encoder chose, including a wrong one.
+	const lastThatFits = 127
+
+	for _, tc := range []struct {
+		name    string
+		count   int
+		encoded bool
+	}{
+		{"one", 1, true},
+		{"last valid", lastThatFits, true},
+		{"first too many", lastThatFits + 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := RAConfig{RDNSS: servers(tc.count), RDNSSLifetime: 3600}
+			buf := make([]byte, RALen(cfg)+8)
+			n := BuildRA(buf, 0, cfg)
+
+			if !tc.encoded {
+				if n != 0 {
+					t.Fatalf("BuildRA wrote %d octets for %d resolvers, want 0: the Length octet cannot hold 1 + 2*%d",
+						n, tc.count, tc.count)
+				}
+				return
+			}
+			if n != RALen(cfg) {
+				t.Fatalf("BuildRA wrote %d octets for %d resolvers, want %d", n, tc.count, RALen(cfg))
+			}
+			// The option starts right after the 16-octet header, because this
+			// configuration carries no other option.
+			if got := buf[raHeaderLen]; got != OptRDNSS {
+				t.Fatalf("option type = %d, want %d", got, OptRDNSS)
+			}
+			want := byte(1 + 2*tc.count)
+			if got := buf[raHeaderLen+1]; got != want {
+				t.Errorf("Length = %d for %d resolvers, want %d (RFC 8106 Section 5.1)", got, tc.count, want)
+			}
+		})
+	}
+}

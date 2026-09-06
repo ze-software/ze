@@ -29,6 +29,31 @@ const (
 	OptRDNSS = 25
 )
 
+// MessageHopLimit is the IPv6 Hop Limit every Neighbor Discovery message is
+// sent with. It is not RAConfig.CurHopLimit, which is the value this router
+// tells HOSTS to put in their own outgoing packets.
+//
+// RFC 4861 states it in the IP Fields of each message: Section 4.1 gives the
+// Router Solicitation "Hop Limit 255" and Section 4.2 gives the Router
+// Advertisement the same. Section 6.1.2 makes it a receiver obligation: "A node
+// MUST silently discard any received Router Advertisement messages that do not
+// satisfy all of the following validity checks: ... The IP Hop Limit field has
+// a value of 255, i.e., the packet could not possibly have been forwarded by a
+// router." A message sent with any other value therefore reaches nobody, and
+// the 255 is what proves to the receiver that no router forwarded it.
+//
+// A sender MUST set this rather than inherit it. The Linux default multicast
+// hop limit is 1, and golang.org/x/net/ipv6.ControlMessage.Marshal emits the
+// IPV6_HOPLIMIT control message only when HopLimit is above zero, so a sender
+// that sets neither the socket option nor the control message field sends at
+// hop limit 1 and every conforming host discards it.
+//
+// One constant for every sender. The LAN interface sender and the PPP
+// subscriber sender each answer this sentence, and until 2026-09-05 they
+// answered it differently: the LAN sender set 255 and the PPP sender set
+// nothing.
+const MessageHopLimit = 255
+
 // Router Advertisement flag bits in the octet after Cur Hop Limit
 // (RFC 4861 Section 4.2). The remaining six bits are Reserved and are sent
 // as zero.
@@ -57,6 +82,24 @@ const (
 	// linkLayerOptionLen.
 	linkLayerAddressLen = linkLayerOptionLen - 2
 )
+
+// RDNSSMax is the largest number of resolver addresses one RDNSS option can
+// carry.
+//
+// RFC 8106 Section 5.1 defines the option's Length field: "8-bit unsigned
+// integer. The length of the option (including the Type and Length fields) is
+// in units of 8 octets. The minimum value is 3 if one IPv6 address is
+// contained in the option. Every additional RDNSS address increases the length
+// by 2." So the field holds 1 + 2n, it is one octet, and 1 + 2*127 is 255, the
+// last value that fits.
+//
+// The bound is stated here because this encoder is the only place the octet is
+// computed. Both callers already stay far inside it: the interface unit's
+// leaf-list declares `max-elements 8` in yang/ze-iface-conf.yang, and the PPP
+// subscriber sender advertises no resolvers at all. BuildRA refuses a longer
+// list rather than wrapping the octet, because a wrapped length is a malformed
+// option that no receiver reports back.
+const RDNSSMax = 127
 
 // LifetimeInfinity in a Prefix Information or RDNSS lifetime field means the
 // information never expires (RFC 4861 Section 4.6.2, RFC 8106 Section 5.1).
@@ -138,9 +181,10 @@ func RALen(cfg RAConfig) int {
 
 // BuildRA writes a Router Advertisement into buf starting at off and returns
 // the number of octets written. It returns 0 and writes nothing when off is
-// negative or buf has fewer than RALen(cfg) octets left. An RA is never shorter
-// than its 16-octet header, so 0 unambiguously means "not encoded" and the
-// caller must treat it as an error rather than as an empty message.
+// negative, when cfg carries more than RDNSSMax resolvers, or when buf has
+// fewer than RALen(cfg) octets left. An RA is never shorter than its 16-octet
+// header, so 0 unambiguously means "not encoded" and the caller must treat it
+// as an error rather than as an empty message.
 //
 // The Checksum field is left zero: callers send RAs on a raw ICMPv6 socket,
 // where the kernel computes the ICMPv6 checksum.
@@ -149,7 +193,7 @@ func RALen(cfg RAConfig) int {
 // Information, RDNSS. RFC 4861 Section 4.6 gives options no required order and
 // tells receivers to ignore the ones they do not recognize.
 func BuildRA(buf []byte, off int, cfg RAConfig) int {
-	if off < 0 || len(buf)-off < RALen(cfg) {
+	if off < 0 || len(cfg.RDNSS) > RDNSSMax || len(buf)-off < RALen(cfg) {
 		return 0
 	}
 	start := off

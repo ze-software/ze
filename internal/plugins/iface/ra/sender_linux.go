@@ -33,13 +33,6 @@ const allRoutersGroup = "ff02::2"
 // (RFC 4861 Section 6.2.6).
 const allNodesGroup = "ff02::1"
 
-// advertisementHopLimit is the IPv6 Hop Limit every Neighbor Discovery message
-// carries. RFC 4861 Section 4.2 states it, and Section 6.1.2 makes a receiver
-// discard an advertisement that arrives with any other value. The kernel
-// default for multicast is 1, so the sender sets this on the socket rather
-// than trusting the default.
-const advertisementHopLimit = 255
-
 // rsReadBufferSize bounds one Router Solicitation read. A solicitation is a
 // short message and only its arrival matters, so a longer one is truncated
 // rather than buffered.
@@ -118,10 +111,10 @@ func openRASocket(binding iface.Binding, log *slog.Logger) (net.PacketConn, *ipv
 	// Section 6.1.2 makes a receiver drop anything else. Setting this is not
 	// optional: the kernel default multicast hop limit is 1, so an
 	// advertisement sent without it is discarded by every conforming host.
-	if err := pc.SetMulticastHopLimit(advertisementHopLimit); err != nil {
+	if err := pc.SetMulticastHopLimit(ndp.MessageHopLimit); err != nil {
 		return fail(fmt.Errorf("iface-ra: set multicast hop limit: %w", err))
 	}
-	if err := pc.SetHopLimit(advertisementHopLimit); err != nil {
+	if err := pc.SetHopLimit(ndp.MessageHopLimit); err != nil {
 		return fail(fmt.Errorf("iface-ra: set hop limit: %w", err))
 	}
 
@@ -214,7 +207,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 	}()
 
 	dst := &net.UDPAddr{IP: net.ParseIP(allNodesGroup), Zone: binding.OsName}
-	control := &ipv6.ControlMessage{IfIndex: binding.Ifindex, HopLimit: advertisementHopLimit}
+	control := &ipv6.ControlMessage{IfIndex: binding.Ifindex, HopLimit: ndp.MessageHopLimit}
 
 	advertisement := s.spec.Advertisement
 	// RFC 4861 Section 4.6.1: the advertisement carries the sending

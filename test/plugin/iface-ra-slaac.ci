@@ -1,0 +1,127 @@
+# Test: an operator advertises a /64 on a LAN unit, and a host on that link
+#       autoconfigures an address from it.
+#
+# VALIDATES: spec-router-advertisement, AC-1 and AC-2, over the path a user
+#            actually walks. The daemon parses the ipv6 router-advertisement
+#            container (parseRAConfig, internal/component/iface/config_ra.go),
+#            reconcileRA (internal/component/iface/reconcile_ra.go) builds the
+#            RASenderSpec and calls the factory the iface-ra plugin registered
+#            at init (internal/plugins/iface/ra/register.go), the sender opens
+#            the raw ICMPv6 socket and advertises (sender_linux.go), and the
+#            kernel on the far end of the veth forms a SLAAC address.
+# PREVENTS:  a sender that works when a test constructs it directly and never
+#            starts from configuration. The Go integration tests under
+#            internal/plugins/iface/ra call startSender themselves, so they
+#            prove the wire format and prove nothing about the seam between the
+#            configuration and the plugin. Every link in that seam -- the YANG
+#            container reaching the parser, the parser reaching reconcileRA, the
+#            factory being set, the spec carrying the prefix -- is unexercised
+#            by them and is exercised here.
+#
+# The discriminating assertion is the LIFETIMES, not the address. A global
+# address inside 2001:db8:5a1::/64 on the host end could in principle come from
+# somewhere else, and an address alone would also pass against a build whose
+# Prefix Information lifetimes never left the encoder. valid-lifetime 86400 and
+# preferred-lifetime 43200 are advertised here and asserted by the fixture: a
+# statically added address carries 4294967295 in both fields, so those two
+# numbers reached the host only through the option this test exists to prove.
+#
+# The intervals are the RFC 4861 Section 6.2.1 floor rather than the defaults:
+# maximum-interval 4 with minimum-interval 3 satisfies the 0.75 ceiling exactly
+# (3 <= 0.75 * 4) and puts an advertisement on the link every 3 to 4 seconds, so
+# the fixture's 30 s poll covers at least seven of them. At the 600 s default
+# the first advertisement would be the only one inside any sane timeout, and a
+# host that missed it -- its accept_ra is set by the fixture, which cannot run
+# before the daemon does -- would fail a test the sender passed.
+#
+# needs-linux:caps=net-admin: creating a veth pair, writing per-device sysctls
+# and opening a raw ICMPv6 socket need CAP_NET_ADMIN and CAP_NET_RAW, which the
+# verify runner does not have. Runs as root under `./le qemu all-tests`.
+#
+# KERNEL STATE THIS TEST OWNS: the veth pair zeraslc0/zeraslc1, created from the
+# configuration and deleted by the daemon at shutdown, and the address block
+# 2001:db8:5a1::/64. Nothing else under test/ names either device or that
+# prefix. The SLAAC address the host forms goes with the device.
+option=needs-linux:caps=net-admin
+option=timeout:value=90s
+
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external iface-ra-slaac {
+		run "ze-test fixture plugin/iface-ra-slaac"
+		encoder json
+	}
+}
+
+# zeraslc0 is the router end: it carries the address, forwards, and advertises.
+# zeraslc1 is the host end, and it is deliberately bare. It carries no address
+# in this configuration, so every global address it ends up with came from the
+# advertisement.
+interface {
+	backend netlink
+
+	veth zeraslc0 {
+		peer zeraslc1
+		unit 0 {
+			ipv6 {
+				address [ 2001:db8:5a1::1/64 ]
+				forwarding true
+				router-advertisement {
+					enabled true
+					maximum-interval 4
+					minimum-interval 3
+					router-lifetime 1800
+					prefix 2001:db8:5a1::/64 {
+						on-link true
+						autonomous true
+						valid-lifetime 86400
+						preferred-lifetime 43200
+					}
+					rdnss {
+						server [ 2001:db8:5a1::53 ]
+						lifetime 3600
+					}
+				}
+			}
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=autoconfigured
+expect=stderr:contains=from the advertisement on zeraslc0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

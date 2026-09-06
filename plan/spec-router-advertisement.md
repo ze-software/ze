@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-10 |
+| Updated | 2026-09-05 |
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
 citations below updated in-body): `reconcileDHCP` now `register.go`,
@@ -179,13 +179,13 @@ Additional findings (2026-07-10 research pass, all read firsthand):
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The BNG RA builder/socket pattern generalises to a LAN sender | ra.go / ra_linux.go exist; 2026-07-10 read confirms the socket setup (ListenPacket + SO_BINDTODEVICE + JoinGroup + ICMP6_FILTER, ra_linux.go) has no ppp-specific step | need a fresh RA stack | integration test `TestRASenderPeerAutoconfigures` (netns veth) | unvalidated (design-level evidence only; settle in Phase 4) |
-| A-2 | A Prefix Information option can be added cleanly to the RA builder | BuildRA is a linear offset-append encoder (ra.go); options append after the 16-byte header exactly like RDNSS (ra.go) | builder rework needed | unit test `TestBuildRAPrefixOption` golden vectors | unvalidated (design-level evidence only; settle in Phase 2) |
-| A-3 | RA sending coexists with host-side accept_ra settings | sysctl model (known_linux.go); the userspace raw-socket send path is independent of accept_ra/forwarding sysctls | interface loops/conflicts | test forwarding-on + accept_ra-off in QEMU (part of `TestRASenderPeerAutoconfigures` setup) | unvalidated |
-| A-4 | RAs must carry IPv6 Hop Limit 255 to be accepted by the Linux ndisc receive path, and the sender must set the multicast hop limit explicitly (kernel default is 1) | RFC 4861 Section 4.2 receiver rule; ppp sender sets only ControlMessage.IfIndex (ra_linux.go) and its subscribers may rely on different validation. UNVERIFIED against kernel source; treated as a requirement to prove | RAs silently dropped by every standard receiver | integration test asserts the peer autoconfigures AND a packet capture (raw socket read in the test) shows hop limit 255; if the ppp path is proven broken, file a followup | unvalidated |
-| A-5 | The factory + reconcile seam (dhcpClientFactory shape) supports restart-on-param-change for RA senders | reconcileDHCP restarts clients whose params changed (register.go comment + dhcpEntry.params, register.go) | reconcile rework | unit test `TestReconcileRA` with a stub factory | unvalidated |
-| A-6 | A `*net.Interface` constructed from the resolver Binding (Index + Name only) is sufficient for `ipv6.PacketConn.JoinGroup` and `ControlMessage.IfIndex` | JoinGroup consumes the interface index; ppp passes a full struct but uses only `iface.Index` in the send path (ra_linux.go). UNVERIFIED against x/net/ipv6 internals | fall back to post-resolution `net.InterfaceByName(binding.OsName)` plus an iface_resolution.go allowlist entry (ldp precedent, iface_resolution.go) | integration test joins the group and receives an RS through the filter | unvalidated |
-| A-7 | The YANG loader accepts a new container inside the `interface-unit` grouping without touching other modules | dhcpv6/mirror/mpls containers already sit there (ze-iface-conf.yang,425,444) | schema surgery needed | `test/parse/iface-router-advertisement.ci` passes | unvalidated |
+| A-1 | The BNG RA builder/socket pattern generalises to a LAN sender | ra.go / ra_linux.go exist; 2026-07-10 read confirms the socket setup (ListenPacket + SO_BINDTODEVICE + JoinGroup + ICMP6_FILTER, ra_linux.go) has no ppp-specific step | need a fresh RA stack | integration test `TestRASenderPeerAutoconfigures` (netns veth) | VALIDATED. `openRASocket` (`internal/plugins/iface/ra/sender_linux.go`) is the ppp socket setup with no ppp-specific step, and `TestRASenderPeerAutoconfigures` shows a peer kernel act on what it sends |
+| A-2 | A Prefix Information option can be added cleanly to the RA builder | BuildRA is a linear offset-append encoder (ra.go); options append after the 16-byte header exactly like RDNSS (ra.go) | builder rework needed | unit test `TestBuildRAPrefixOption` golden vectors | VALIDATED. `writePrefixOptions` (`internal/core/ndp/ra.go`) appends after the header exactly like RDNSS; `TestBuildRAPrefixOption` holds the golden bytes |
+| A-3 | RA sending coexists with host-side accept_ra settings | sysctl model (known_linux.go); the userspace raw-socket send path is independent of accept_ra/forwarding sysctls | interface loops/conflicts | test forwarding-on + accept_ra-off in QEMU (part of `TestRASenderPeerAutoconfigures` setup) | VALIDATED. The integration test's router end forwards while the host end runs `accept_ra=2`, and the host still autoconfigures |
+| A-4 | RAs must carry IPv6 Hop Limit 255 to be accepted by the Linux ndisc receive path, and the sender must set the multicast hop limit explicitly (kernel default is 1) | RFC 4861 Section 4.2 receiver rule; ppp sender sets only ControlMessage.IfIndex (ra_linux.go) and its subscribers may rely on different validation. UNVERIFIED against kernel source; treated as a requirement to prove | RAs silently dropped by every standard receiver | integration test asserts the peer autoconfigures AND a packet capture (raw socket read in the test) shows hop limit 255; if the ppp path is proven broken, file a followup | VALIDATED, and it found the defect it predicted. `ipv6.ControlMessage.Marshal` (`vendor/golang.org/x/net/ipv6/control.go`) emits IPV6_HOPLIMIT only for a positive value, and the Linux multicast default is 1, so the requirement is real. `TestRASenderWireFormat` reads 255 off the wire for the LAN sender. The ppp path WAS broken and is FIXED here rather than deferred (see Deviations): the spec's own "file a followup" line pointed away from an RFC MUST, which the 2026-07-27 owner directive voids |
+| A-5 | The factory + reconcile seam (dhcpClientFactory shape) supports restart-on-param-change for RA senders | reconcileDHCP restarts clients whose params changed (register.go comment + dhcpEntry.params, register.go) | reconcile rework | unit test `TestReconcileRA` with a stub factory | VALIDATED. `reconcileRA` restarts on `RASenderSpec.Equal` returning false (`internal/component/iface/reconcile_ra.go`); `TestReconcileRA` covers start, stop and restart-on-change |
+| A-6 | A `*net.Interface` constructed from the resolver Binding (Index + Name only) is sufficient for `ipv6.PacketConn.JoinGroup` and `ControlMessage.IfIndex` | JoinGroup consumes the interface index; ppp passes a full struct but uses only `iface.Index` in the send path (ra_linux.go). UNVERIFIED against x/net/ipv6 internals | fall back to post-resolution `net.InterfaceByName(binding.OsName)` plus an iface_resolution.go allowlist entry (ldp precedent, iface_resolution.go) | integration test joins the group and receives an RS through the filter | VALIDATED, no fallback needed. `openRASocket` builds `&net.Interface{Index, Name}` from the Binding and `JoinGroup` accepts it; `TestRASolicitedResponse` receives a solicitation through the filter. `./le iface-resolution` names no site in this code |
+| A-7 | The YANG loader accepts a new container inside the `interface-unit` grouping without touching other modules | dhcpv6/mirror/mpls containers already sit there (ze-iface-conf.yang,425,444) | schema surgery needed | `test/parse/iface-router-advertisement.ci` passes | VALIDATED. The container sits in the `interface-unit` grouping and no other module changed; `ze config validate` accepts the full block and the two zero-lifetime variants |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -534,7 +534,47 @@ YANG leaf table (container `router-advertisement`, inside `unit`/`ipv6`, `ze:os 
 - ~~Skeleton only: acceptance criteria and tests are provisional placeholders for DESIGN.~~ (resolved 2026-07-10: design completed)
 - The Prefix Information option does not exist in the codebase yet; it is core to this feature and ~~must be designed~~ is specified in D-2/D-10 and Phase 2 (amended 2026-07-10).
 - Out of scope, deliberate (2026-07-10): DNSSL and the MTU option (RFC 8106 / RFC 4861 Section 4.6.4), RFC 4191 route information and router preference, unicast RAs to individual hosts, VPP backend support (container is `ze:backend "netlink"`; a VPP RA path would use VPP's own ip6-ra feature and is a separate spec), auto-deriving advertised prefixes from configured unit addresses, `show interface` RA state, RFC 6275 mobile-IP fields.
-- The ppp sender keeps its fixed timers and prefix-less policy; only its encoding is delegated. If A-4 proves the ppp hop-limit handling broken, the fix is a followup, not silent scope growth here.
+- The ppp sender keeps its fixed timers and prefix-less policy; only its encoding is delegated. ~~If A-4 proves the ppp hop-limit handling broken, the fix is a followup, not silent scope growth here.~~ (VOID 2026-09-05: A-4 proved it broken, and a spec row deferring an RFC MUST is exactly what `ai/rules/rfc-compliance.md` voids. Fixed in this spec; see Bugs Found/Fixed.)
+
+### OPEN: RFC 4861 and RFC 8106 enrolment (owner decision, raised 2026-09-05)
+
+The spec's Design checklist asks for `rfc/short/` summaries for RFC 4861 and
+RFC 8106 "via `/ze-rfc` at implement time, before Phase 2", and the
+Documentation checklist row 9 asks for the two `docs/features/rfc-status.md`
+rows those summaries generate. Neither summary exists and neither row exists.
+
+This is NOT blocking and NOT gated. `./le rfc check` reports 79 findings over
+this tree and none of them names RFC 4861, RFC 8106, `internal/core/ndp` or
+`internal/plugins/iface/ra`. `rfc/short/rfc4862.md` is enrolled and covers the
+SLAAC receive side; `internal/core/ndp/schedule.go` states in its header that
+RFC 4861 has no summary and is not enrolled.
+
+It is left OPEN rather than done because doing it is a decision, not a task:
+
+- `rfc/full/rfc4861.txt` carries 151 MUST/SHALL occurrences across 97 pages,
+  covering the whole of Neighbor Discovery. Ze implements one part of it, the
+  router send side, twice. Neighbor Solicitation and Advertisement, Redirect,
+  address resolution, Neighbor Unreachability Detection and the whole host RA
+  processing path are performed by the Linux kernel on Ze's behalf.
+- The 2026-08-31 owner directive says a requirement met through a lower layer
+  is MET rather than `{not-applicable}`, and that each such requirement still
+  owes a test asserting what Ze installs for the layer below. For most of
+  RFC 4861 Ze installs nothing but a handful of `accept_ra` sysctls, so what
+  each of those 151 lines is worth is a judgement about scope, not a lookup.
+- `ai/rules/rfc-compliance.md` reserves every one of those calls to Thomas: a
+  session may not write `{gap}`, `{not-applicable}` or `binds-another-role` on
+  its own authority, and `binds-another-role` is presumed wrong before it is
+  written.
+- A `backlog` enrolment kind exists and would put RFC 4861 on the public ledger
+  as work owed. It is NOT taken here, because leaving 151 requirements
+  unextracted is doing less, and the rule requires that be put to Thomas rather
+  than decided.
+
+The question for the owner is which way to fix it, and the arms are: enrol both
+RFCs fully now as their own spec; enrol RFC 8106 now (one option, 5 pages) and
+give RFC 4861 its own spec; or record both as `backlog` with a named owner and
+date. RFC 8106 also has no `rfc/full/rfc8106.txt` in the tree and would need
+fetching first.
 
 ## RFC Documentation
 
@@ -571,11 +611,43 @@ hand-editing Status to route around that check is banned.)
 - `internal/core/diagnostic/codes.go`: `doctor-iface-ra-forwarding`.
 
 ### Bugs Found/Fixed
-- None in existing code. The ppp sender's missing multicast hop limit (A-4) is
-  unchanged and still unverified; see Assumptions.
+- (2026-08-03) None in existing code. The ppp sender's missing multicast hop
+  limit (A-4) was left unchanged and unverified.
+- (2026-09-05) THAT WAS THE BUG, and it is fixed here. Every Router
+  Advertisement the BNG subscriber path sent was discarded by every conforming
+  receiver, so the whole ppp IPv6 steering feature reached nobody while looking
+  healthy from inside. `raSender.send`
+  (`internal/component/l2tp/ppp/ra_send.go`) built
+  `&ipv6.ControlMessage{IfIndex: s.ifIndex}` and `startRASender`
+  (`internal/component/l2tp/ppp/ra_linux.go`) called neither
+  `SetMulticastHopLimit` nor `SetHopLimit`, so nothing set the IPv6 Hop Limit.
+  `ControlMessage.Marshal` (`vendor/golang.org/x/net/ipv6/control.go`, guard
+  `cm.HopLimit > 0`) emits the IPV6_HOPLIMIT control message only for a
+  positive value, and the Linux default multicast hop limit is 1. RFC 4861
+  Section 6.1.2: "A node MUST silently discard any received Router
+  Advertisement messages that do not satisfy all of the following validity
+  checks: ... The IP Hop Limit field has a value of 255, i.e., the packet could
+  not possibly have been forwarded by a router."
+- The fix is one shared constant and four call sites.
+  `ndp.AdvertisementHopLimit` (`internal/core/ndp/ra.go`) is now the only place
+  255 is written, which is what `ndp.CeaseWait` already does for the Section
+  6.2.6 rate limit. Both senders set the socket option and the per-packet
+  control message. `TestRASendAsksForHopLimit255`
+  (`internal/component/l2tp/ppp/ra_send_test.go`) was observed RED against the
+  reverted `send` and green after, and the row is in
+  `plan/journal/unwired-feature.md`.
 
 ### Documentation Updates
-- (delegated in the same session; see the session report)
+- (2026-08-03, delegated in the same session) `docs/features.md`,
+  `docs/guide/configuration.md`, `docs/guide/plugins.md`,
+  `docs/features/interfaces.md`, `docs/comparison.md`,
+  `docs/plugin-development/metrics.md`, `docs/plugin-overview.md` and
+  `docs/features/plugins.md` all carry the feature; verified 2026-09-05 by
+  grep, every file hits.
+- NOT DONE, and it needs an owner decision rather than a session:
+  `docs/features/rfc-status.md` rows for RFC 4861 and RFC 8106. The page is
+  GENERATED from the `## Meta` table of each `rfc/short/<stem>.md`, and neither
+  summary exists. See Known Limitations.
 
 ### Deviations from Plan
 | Planned | Done | Why |
@@ -585,12 +657,21 @@ hand-editing Status to route around that check is banned.)
 | Add `./internal/plugins/iface/ra/...` to `ZE_QEMU_INTEGRATION_PKGS` in `internal/le/integration/gates.go` | No the native action tables under `internal/le/` edit | The variable is derived by `grep -rl '^//go:build integration && linux'`, so the build tag alone enrolls the package. |
 | Parse and reconcile tests in `internal/component/iface/config_test.go` | `config_ra_test.go` and `reconcile_ra_test.go` | `config_test.go` is already past the 1000-line modularity limit, and `config.go` and `register.go` are too. The new code went into new files for the same reason. |
 | Factory signature mirroring `SetDHCPClientFactory`'s twelve positional parameters | `SetRASenderFactory(func(RASenderSpec) (RAStopper, error))` | One value struct carries the advertisement, so a new leaf does not change the seam. `RASenderSpec.Equal` drives restart-on-change, because the struct holds slices and `==` is unavailable. |
+| "If A-4 proves the ppp hop-limit handling broken, the fix is a followup, not silent scope growth here" (Known Limitations, 2026-07-10) | The ppp hop limit is FIXED in this spec (2026-09-05) | A-4 proved it broken, and the deferral was an RFC 4861 MUST pointed away from full compliance. `ai/rules/rfc-compliance.md` voids every earlier answer of that shape "wherever it hides", naming a spec row explicitly, and puts conformance on rung 2 above scope integrity. The fix is four lines and one shared constant, so nothing about it is scope growth. |
+| `advertisementHopLimit` a private constant in `internal/plugins/iface/ra/sender_linux.go` | `ndp.AdvertisementHopLimit`, exported from `internal/core/ndp/ra.go` and read by both senders | Two senders answering one RFC sentence is exactly the shape `ndp.CeaseWait` already fixed for RFC 4861 Section 6.2.6. A second private copy is a future disagreement with nothing to arbitrate it. |
 
 ## Implementation Audit
 
 ### Requirements from Task
+(2026-09-05 verification pass. Every row read at the producer.)
+
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Per-interface RA config: managed/other flags, default lifetime, intervals, hop limit | done | `router-advertisement` container, `internal/component/iface/yang/ze-iface-conf.yang`; `parseRAConfig`, `internal/component/iface/config_ra.go` | every leaf carries a range, a default and a description |
+| One or more advertised prefixes with on-link/autonomous flags and lifetimes | done | `prefix` list in the YANG; `raParsePrefixes` and `raParsePrefixEntry`, `config_ra.go`; `writePrefixOptions`, `internal/core/ndp/ra.go` | |
+| RDNSS (DNSSL and MTU descoped 2026-07-10) | done | `rdnss` container; `raParseRDNSS`, `config_ra.go`; `writeRDNSS`, `ndp/ra.go` | |
+| Respond to Router Solicitations | done | `readSolicitations` and the `solicitations` case of `Sender.run`, `internal/plugins/iface/ra/sender_linux.go`; `ndp.SolicitedSendTime` | |
+| Send unsolicited RAs on a timer | done | the `timer.C` case of `Sender.run`; `ndp.UnsolicitedInterval` | |
 
 ### Acceptance Criteria
 (2026-08-03. All 14 met. "proven" means a green test asserts the AC's stated behavior and a
@@ -614,19 +695,61 @@ mutation of the producing code turned that test red.)
 | AC-14 | proven | `raParseRDNSS` keeps an explicit 0 (`TestRAConfigZeroLifetimesAccepted`, `TestRASenderConfigFromUnit`) | the leaf carries no YANG default, which is what keeps 0 distinguishable from unset |
 
 ### Tests from TDD Plan
+(2026-09-05. Present means the function exists and its package is green.)
+
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestBuildRAHeader` | present, green | `internal/core/ndp/ra_test.go` | |
+| `TestBuildRAPrefixOption` | present, green | `internal/core/ndp/ra_test.go` | `TestBuildRAMultiplePrefixes` added beside it |
+| `TestBuildRASourceLinkLayer` | present, green | `internal/core/ndp/ra_test.go` | |
+| `TestBuildRARDNSS` | present, green | `internal/core/ndp/ra_test.go` | |
+| `TestBuildRAParity` | present, green | `internal/component/l2tp/ppp/ra_parity_test.go` | AC-10 |
+| `TestRAConfigParse` | present, green | `internal/component/iface/config_ra_test.go` | moved from `config_test.go`, see Deviations |
+| `TestRAConfigCrossFieldReject` | present, green | `internal/component/iface/config_ra_test.go` | |
+| `TestReconcileRA` | present, green | `internal/component/iface/reconcile_ra_test.go` | `TestReconcileRANoFactoryIsNoOp` covers the nil factory |
+| `TestRASenderMetrics` | present, green | `internal/plugins/iface/ra/ifacera_test.go` | moved off `sender_linux_test.go` so it runs on every host, not Linux only |
+| `TestRAIntervalBounds` | present, green | `internal/plugins/iface/ra/sender_linux_test.go` | `TestRASolicitedDelayBounds` and `TestRARateLimit` beside it |
+| `TestRASenderPeerAutoconfigures` | present, NOT RUN this session | `internal/plugins/iface/ra/ra_integration_linux_test.go` | QEMU; the owner barred VM runs in this session |
+| `TestRASolicitedResponse` | present, NOT RUN this session | same | QEMU |
+| `TestRAFinalZeroLifetime` | present, green | `internal/plugins/iface/ra/sender_linux_test.go` | the wire half is `TestRAFinalZeroLifetimeOnWire`, QEMU, not run |
+| `TestRALinkDownUp` | present, NOT RUN this session | `ra_integration_linux_test.go` | QEMU |
+| `TestRASendAsksForHopLimit255` (added 2026-09-05) | present, green, RED observed | `internal/component/l2tp/ppp/ra_send_test.go` | the ppp hop-limit fix; not in the original plan because the defect was not known |
 
 ### Files from Plan
+(2026-09-05, `ls` and `grep` over the tree.)
+
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/core/ndp/ra.go` | exists | plus `schedule.go`, added later for the shared RFC 4861 Section 6.2 arithmetic |
+| `internal/core/ndp/ra_test.go` | exists | plus `schedule_test.go` |
+| `internal/component/l2tp/ppp/ra_parity_test.go` | exists | |
+| `internal/plugins/iface/ra/ifacera.go` | exists | |
+| `internal/plugins/iface/ra/register.go` | exists | |
+| `internal/plugins/iface/ra/sender_linux.go` | exists | |
+| `internal/plugins/iface/ra/sender_linux_test.go` | exists | |
+| `internal/plugins/iface/ra/ra_integration_linux_test.go` | exists | five tests, one more than planned |
+| `internal/plugins/iface/ra/doctor_linux.go` | exists | split into `doctor.go`, `doctor_linux.go`, `doctor_other.go` so the check registers on every host |
+| `test/parse/iface-router-advertisement.ci` | exists | |
+| `test/parse/iface-router-advertisement-invalid.ci` | exists | |
+| `test/parse/iface-vpp-rejects-router-advertisement.ci` | exists | |
+| `test/plugin/iface-ra-slaac.ci` | CREATED 2026-09-05 | was the one missing deliverable; its fixture is `internal/test/fixture/plugin_fixture_08_ra.go`. Written and schema-validated, NOT executed: it is `needs-linux` and the owner barred QEMU in this session |
+| `rfc/short/rfc4861.md`, `rfc/short/rfc8106.md` | NOT CREATED | needs an owner decision, see Known Limitations |
+| `internal/le/integration/gates.go` | not edited | the package list is derived from the build tag, see Deviations |
+| `internal/core/diagnostic/codes.go` | edited | `doctor-iface-ra-forwarding` |
+| `internal/component/plugin/all/all.go` | generated | carries the blank import of `internal/plugins/iface/ra` |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+(2026-09-05)
+
+- **Total items:** 14 acceptance criteria, 5 task requirements, 15 planned tests, 17 planned files.
+- **Done:** all 14 ACs, all 5 requirements, all 15 tests present, 16 of 17 file rows.
+- **Partial:** none.
+- **Skipped:** none by this session. One item is OPEN and needs the owner:
+  the `rfc/short/` summaries for RFC 4861 and RFC 8106, and therefore the two
+  `docs/features/rfc-status.md` rows they generate.
+- **Changed:** 6 rows, all in Deviations. Two are new this session: the ppp
+  hop-limit fix that the 2026-07-10 text deferred, and the hop-limit constant
+  moving to `internal/core/ndp`.
 
 ## Goal Validation (BLOCKING)
 
@@ -664,27 +787,59 @@ mutation of the producing code turned that test red.)
 
 ## Pre-Commit Verification
 
-<!-- Filled at /implement completion; see ai/rules/planning.md step 5. -->
+(2026-09-05. Package-scoped only: the owner barred QEMU, `./le verify worktree`
+and the full functional suite for this session, because another session was
+driving the exabgp suite on the same box.)
 
 ### Files Exist (ls)
 | File | Exists |
 |------|--------|
+| `internal/core/ndp/{ra,schedule}.go` + tests | yes |
+| `internal/plugins/iface/ra/` (10 files) | yes |
+| `internal/component/iface/{config_ra,reconcile_ra}.go` + tests | yes |
+| `internal/component/l2tp/ppp/ra_parity_test.go` | yes |
+| `test/parse/iface-router-advertisement{,-invalid}.ci`, `test/parse/iface-vpp-rejects-router-advertisement.ci` | yes |
+| `test/plugin/iface-ra-slaac.ci` + `internal/test/fixture/plugin_fixture_08_ra.go` | yes, created 2026-09-05 |
+| `rfc/short/rfc4861.md`, `rfc/short/rfc8106.md` | NO, open decision |
 
 ### AC Verified (grep/test)
 | AC ID | Evidence |
 |-------|----------|
+| AC-1, AC-4 | `go test ./internal/core/ndp/...` green: `TestBuildRAPrefixOption`, `TestBuildRARDNSS` |
+| AC-2 | `TestRASenderPeerAutoconfigures` exists and was green on 2026-08-03; not re-run here (QEMU barred) |
+| AC-3 | `go test ./internal/plugins/iface/ra/...` green: `TestRARateLimit`, `TestRASolicitedDelayBounds` |
+| AC-5 | `TestRAFinalZeroLifetime` green |
+| AC-6, AC-13, AC-14 | `go test ./internal/component/iface/...` green; `ze config validate` accepts the zero-lifetime file and rejects the cross-field file |
+| AC-7 | `ze:backend "netlink"` on the container, `test/parse/iface-vpp-rejects-router-advertisement.ci` present |
+| AC-8 | `openRASocket` sets both hop-limit options through `ndp.AdvertisementHopLimit`; wire proof is `TestRASenderWireFormat`, not re-run |
+| AC-9 | `Sender.onLinkEvent` present; `TestRALinkDownUp` not re-run |
+| AC-10 | `go test -run TestBuildRAParity ./internal/component/l2tp/ppp/` green |
+| AC-11 | `./le iface-resolution` names ONE site, `internal/test/fixture/plugin_fixture_08_tunnel_ttl_linux.go:32`, which is committed, unmodified and unrelated. Zero sites in `internal/core/ndp` or `internal/plugins/iface/ra`, zero new allowlist entries |
+| AC-12 | `TestRASenderMetrics`, `TestRAMetricsWithoutRegistry` green |
 
 ### Wiring Verified (end-to-end)
 | Wiring row | Evidence |
 |------------|----------|
+| set RA with a prefix, RA carries a Prefix Information option | `TestRASenderWireFormat` (QEMU, not re-run) |
+| config applied by the booted daemon, peer forms a SLAAC address | `test/plugin/iface-ra-slaac.ci`, WRITTEN 2026-09-05 and schema-validated, NOT EXECUTED. This is the only proof that the config reaches the sender through `reconcileRA` and the factory seam; the Go integration tests call `startSender` directly and skip that seam entirely |
+| YANG schema accepts the container | `ze config validate` returns 0 on both the parse-test file and the new `.ci` config |
 
 ### Assumptions Resolved
 | ID | Final status | Evidence |
 |----|--------------|----------|
+| A-1 | validated | `openRASocket`, `TestRASenderPeerAutoconfigures` |
+| A-2 | validated | `writePrefixOptions`, `TestBuildRAPrefixOption` |
+| A-3 | validated | the integration test forwards on the router end and accepts on the host end |
+| A-4 | validated, and it found a real defect | `ControlMessage.Marshal` guard read in `vendor/golang.org/x/net/ipv6/control.go`; the ppp sender was broken and is fixed here |
+| A-5 | validated | `RASenderSpec.Equal`, `TestReconcileRA` |
+| A-6 | validated, no fallback needed | `&net.Interface{Index, Name}` accepted by `JoinGroup`; `./le iface-resolution` clean over this code |
+| A-7 | validated | no other YANG module changed |
 
 ### Documentation Verified
 | Doc row | Evidence |
 |---------|----------|
+| features, configuration, plugins, interfaces, comparison, metrics, plugin-overview, features/plugins | grep hits in all eight files, 2026-09-05 |
+| `docs/features/rfc-status.md` RFC 4861 / RFC 8106 rows | ABSENT. The page is generated from `rfc/short/*.md`, so the rows cannot be written without the summaries. Open decision |
 
 ## Checklist
 

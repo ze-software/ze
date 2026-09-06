@@ -35,14 +35,16 @@ type raRecorder struct {
 	closeErr error // what Close returns, for the gone-interface case
 
 	mu        sync.Mutex
-	steps     []string    // "send" or "close", in call order
-	lifetimes []uint16    // Router Lifetime of each RA sent, in send order
-	at        []time.Time // when each RA was sent, in send order
+	steps     []string               // "send" or "close", in call order
+	lifetimes []uint16               // Router Lifetime of each RA sent, in send order
+	at        []time.Time            // when each RA was sent, in send order
+	control   []*ipv6.ControlMessage // the per-packet IP options of each RA, in send order
 }
 
-func (r *raRecorder) WriteTo(b []byte, _ *ipv6.ControlMessage, _ net.Addr) (int, error) {
+func (r *raRecorder) WriteTo(b []byte, cm *ipv6.ControlMessage, _ net.Addr) (int, error) {
 	r.mu.Lock()
 	r.steps = append(r.steps, "send")
+	r.control = append(r.control, cm)
 	// RFC 4861 Section 4.2: Router Lifetime is the 16-bit field at octet 6,
 	// after type, code, checksum, Cur Hop Limit and the flags octet.
 	r.lifetimes = append(r.lifetimes, binary.BigEndian.Uint16(b[6:8]))
@@ -85,6 +87,24 @@ func (r *raRecorder) order() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return append([]string(nil), r.steps...)
+}
+
+// sentHopLimits returns the IPv6 Hop Limit each advertisement asked the kernel
+// for, in send order. A control message that carries no hop limit records 0,
+// which is what golang.org/x/net/ipv6.ControlMessage.Marshal treats as "say
+// nothing", leaving the socket default of 1 in the packet.
+func (r *raRecorder) sentHopLimits() []int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	limits := make([]int, 0, len(r.control))
+	for _, cm := range r.control {
+		if cm == nil {
+			limits = append(limits, 0)
+			continue
+		}
+		limits = append(limits, cm.HopLimit)
+	}
+	return limits
 }
 
 // sentLifetimes returns the Router Lifetime each advertisement carried, in
@@ -447,3 +467,46 @@ var (
 	_ io.Closer   = (*raRecorder)(nil)
 	_ clock.Clock = (*sleepClock)(nil)
 )
+
+// TestRASendAsksForHopLimit255 proves every advertisement this package writes,
+// the periodic one and the final zero-lifetime one, asks the kernel for
+// Hop Limit 255.
+//
+// VALIDATES: RFC 4861 Section 6.1.2, "A node MUST silently discard any received
+// Router Advertisement messages that do not satisfy all of the following
+// validity checks: ... The IP Hop Limit field has a value of 255, i.e., the
+// packet could not possibly have been forwarded by a router."
+// PREVENTS: the measured defect. Until 2026-09-05 raSender.send built
+// `&ipv6.ControlMessage{IfIndex: s.ifIndex}` and startRASender called neither
+// SetMulticastHopLimit nor SetHopLimit. ControlMessage.Marshal
+// (vendor/golang.org/x/net/ipv6/control.go, `cm.HopLimit > 0`) emits the
+// IPV6_HOPLIMIT control message only for a positive value, so every subscriber
+// advertisement left at the Linux default multicast hop limit of 1 and every
+// conforming host discarded it. Nothing was red: the encoder was correct, the
+// schedule was correct, and the packet reached the wire.
+//
+// The assertion is on the control message rather than on a captured packet
+// because that is the field the send path chooses. The socket option
+// startRASender now sets is the second half of the same requirement, and it
+// needs a raw ICMPv6 socket, so TestRASenderWireFormat
+// (internal/plugins/iface/ra/ra_integration_linux_test.go) reads the octet off
+// the wire for the LAN sender under QEMU.
+func TestRASendAsksForHopLimit255(t *testing.T) {
+	rec := &raRecorder{}
+	sender := newTestRASender(rec)
+
+	sender.send(raRouterLifetime)
+	sender.send(raCeaseLifetime)
+
+	limits := rec.sentHopLimits()
+	if len(limits) != 2 {
+		t.Fatalf("recorded %d advertisements, want 2", len(limits))
+	}
+	// The literal is deliberate. Reading ndp.MessageHopLimit here would
+	// agree with whatever value the sender chose, including 1.
+	for i, got := range limits {
+		if got != 255 {
+			t.Errorf("advertisement %d asked for Hop Limit %d, want 255 (RFC 4861 Section 6.1.2)", i, got)
+		}
+	}
+}

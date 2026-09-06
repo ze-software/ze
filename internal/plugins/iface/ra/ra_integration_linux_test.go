@@ -396,7 +396,7 @@ func sendRouterSolicitation(t *testing.T, dev string) {
 		t.Fatalf("bind solicitation socket to %s: %v", dev, err)
 	}
 	pc := ipv6.NewPacketConn(conn)
-	if err := pc.SetMulticastHopLimit(advertisementHopLimit); err != nil {
+	if err := pc.SetMulticastHopLimit(ndp.MessageHopLimit); err != nil {
 		t.Fatalf("set solicitation hop limit: %v", err)
 	}
 
@@ -405,7 +405,7 @@ func sendRouterSolicitation(t *testing.T, dev string) {
 	solicitation := make([]byte, 8)
 	solicitation[0] = ndp.ICMPv6TypeRouterSolicitation
 
-	control := &ipv6.ControlMessage{IfIndex: linkIndex(t, dev), HopLimit: advertisementHopLimit}
+	control := &ipv6.ControlMessage{IfIndex: linkIndex(t, dev), HopLimit: ndp.MessageHopLimit}
 	dst := &net.UDPAddr{IP: net.ParseIP(allRoutersGroup), Zone: dev}
 	if _, err := pc.WriteTo(solicitation, control, dst); err != nil {
 		t.Fatalf("send Router Solicitation on %s: %v", dev, err)

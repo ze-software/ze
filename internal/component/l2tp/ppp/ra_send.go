@@ -13,6 +13,8 @@ import (
 	"net"
 
 	"golang.org/x/net/ipv6"
+
+	"github.com/ze-software/ze/internal/core/ndp"
 )
 
 // raWriter writes one Router Advertisement to the link. *ipv6.PacketConn
@@ -49,7 +51,13 @@ func (s *raSender) send(lifetime uint16) {
 		OtherConfig:    true,
 		RouterLifetime: lifetime,
 	})
-	cm := &ipv6.ControlMessage{IfIndex: s.ifIndex}
+	// RFC 4861 Section 6.1.2: "A node MUST silently discard any received
+	// Router Advertisement messages that do not satisfy all of the following
+	// validity checks: ... The IP Hop Limit field has a value of 255". The
+	// field is set here as well as on the socket, because these are two
+	// independent paths to the same octet and a subscriber that never sees an
+	// advertisement gives no signal that one of them was missed.
+	cm := &ipv6.ControlMessage{IfIndex: s.ifIndex, HopLimit: ndp.MessageHopLimit}
 	if _, err := s.conn.WriteTo(buf[:n], cm, s.dst); err != nil {
 		s.logger.Debug("ppp: RA send failed", "error", err, "iface", s.ifname)
 	}

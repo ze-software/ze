@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/ndp"
 )
 
 // startRASender opens a raw ICMPv6 socket on ifname, joins the all-routers
@@ -34,6 +35,20 @@ func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 	}
 
 	pc := ipv6.NewPacketConn(conn)
+
+	// RFC 4861 Section 6.1.2: "A node MUST silently discard any received
+	// Router Advertisement messages that do not satisfy all of the following
+	// validity checks: ... The IP Hop Limit field has a value of 255". The
+	// Linux default multicast hop limit is 1, so a socket that never sets this
+	// advertises to nobody. ra_send.go sets the same field per packet in the
+	// control message; both paths are written because a subscriber that acts on
+	// no advertisement looks exactly like a subscriber that received none.
+	if hlErr := pc.SetMulticastHopLimit(ndp.MessageHopLimit); hlErr != nil {
+		logger.Warn("ppp: RA failed to set multicast hop limit", "error", hlErr, "iface", ifname)
+	}
+	if hlErr := pc.SetHopLimit(ndp.MessageHopLimit); hlErr != nil {
+		logger.Warn("ppp: RA failed to set hop limit", "error", hlErr, "iface", ifname)
+	}
 
 	iface, err := net.InterfaceByName(ifname)
 	if err != nil {
