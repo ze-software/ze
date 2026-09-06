@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | plugin |
-| Depends | `plan/immediate/spec-cli-show-bgp-answer-shapes.md` |
+| Depends | `spec-cli-show-bgp-answer-shapes` |
 | Phase | 5/5 |
 | Handoff | - |
 | Updated | 2026-08-24 |
@@ -123,7 +123,7 @@ the producing function.
 | `show bgp rpki aspa` | `aspaCommand` | tab | `entries` | `customer-asn`, `providers` | none |
 | `show bgp rs status` | `handleCommand` | doc | none | — | — |
 | `show bgp rs peers` | `peerStatus` | tab | `peers` | `address`, `remote`, `up` | `address` |
-| `show bgp adj-rib-in` | `AdjRIBInManager.show` | tab | `adj-rib-in`, a map keyed by peer address whose values are ARRAYS | `family`, `key`, `nhop-hex`, `attr-hex`, `nlri-hex`, `seq-index`, `validation-state` | the map key is a peer address; `key` embeds the prefix in a compound string |
+| `show bgp adj-rib-in` | `AdjRIBInManager.show` | map (this row read `tab` when it was written, which was wrong: see A-5) | `adj-rib-in`, rows keyed by peer address, each row that peer's routes as a LIST | none. A column name orders the keys of a ROW, and these sit one level below it | the map key is a peer address; `key` embeds the prefix in a compound string |
 | `show bgp adj-rib-in status` | `AdjRIBInManager.status` | doc | `peers` is a map of address to a COUNT, not to an object, so it is no row set | — | the map keys are addresses |
 | `show bgp healthcheck` | `probeManager.handleShow` | tab | the answer itself, a bare array with no envelope key | `name`, `group`, `state` | none |
 
@@ -187,11 +187,11 @@ the producing function.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The dependency spec's floor rule has landed, so a plugin declaring onto a path the BGP command plugin blanked wins | `plan/immediate/spec-cli-show-bgp-answer-shapes.md` Phase 1 | The declaration is silently dropped, or drops the empty declaration and lets the child inherit `show bgp`'s peer columns | `TestPluginShapeOverridesEmptyDeclaration` | unvalidated |
+| A-1 | The dependency spec's floor rule has landed, so a plugin declaring onto a path the BGP command plugin blanked wins | `spec-cli-show-bgp-answer-shapes` Phase 1 | The declaration is silently dropped, or drops the empty declaration and lets the child inherit `show bgp`'s peer columns | `TestPluginShapeOverridesEmptyDeclaration` | unvalidated |
 | A-2 | No caller depends on `show bgp healthcheck` answering one object for a named probe, nor on `show bgp rpki aspa` answering one object for a customer ASN | The commands are reached only through the dispatcher | A caller breaks | `gopls references` on `handleShow` and `aspaCommand`, and a grep of `test/` for both command paths | confirmed 2026-08-24. `handleShow` is called only by `handleCommand` (`healthcheck.go`) and `aspaCommand` only by `handleCommand` (`rpki.go`); every other reference is a test in the same package. One `.ci` reads the named-probe answer, `test/plugin/as112-probe-anycast-not-loopback.ci`, and it matches the SUBSTRINGS `state: UP` and `state: DOWN` in the `\| yaml` render, which survive the two-space sequence indent `writeMapItem` (`internal/component/command/format.go`) adds. No `.ci` reads the aspa lookup answer |
 | A-3 | A plugin that stops and restarts re-declares, so removal on stop loses nothing | `UnregisterPluginAliases` already works this way | A restarted plugin's commands lose their declarations | `TestUnregisterPluginShapes` and a plugin restart in a `.ci` |ered unvalidated |
 | A-4 | `show bgp rpki status` and `show bgp adj-rib-in status` genuinely hold no single row set | Read of `rowsInKeyed` against both producers: one has two candidate keys, the other maps an address to a scalar | Declaring `doc` refuses a row operator that used to answer | A `.ci` asserting the refusal names the operator | confirmed 2026-08-24. `statusCommand` (`rpki.go`) writes two candidate keys, pinned by `TestDocCommandsHoldNoSingleRowSet`; `AdjRIBInManager.status` (`rib_commands.go`) maps an address to an `int`, pinned by `TestStatusHoldsNoRowSet`. `test/ui/show-bgp-plugin-shapes.ci` asserts both refusals by operator name and on `cannot apply here` |
-| A-5 | `show bgp adj-rib-in` holds a row set keyed by peer address, so the `first 1` operator answers one peer's routes. This is the premise of AC-16 and of the Current Behavior row that calls the command `tab` | The Current Behavior table read the payload as "a map keyed by peer address whose values are ARRAYS" and treated that as rows | AC-16 cannot be satisfied, and the command must declare `doc` rather than `tab` | Read of `rowSet` (`internal/component/command/answer_shape.go`) against `AdjRIBInManager.show` (`rib_commands.go`) | **broken 2026-08-24**. `rowSet` reads a map as rows only when EVERY value is an object, and the peer map's values are arrays, so it is no row set. The one candidate left is the envelope itself: one row named `adj-rib-in` carrying every peer, over which the `first 1` operator answers the whole table and `count` answers 1. Making AC-16 true needs the peer map to hold objects, which changes a payload "Behavior to preserve" protects and which `test/interop/scenarios/show-rib-under-frr-load/check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, `test/interop/scenarios/rpki-frr/rpki-check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> and `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> navigate. Phase 4 therefore declares `doc`, which refuses the operator by name, and AC-16 is put to the owner |
+| A-5 | `show bgp adj-rib-in` holds a row set keyed by peer address, so the `first 1` operator answers one peer's routes. This is the premise of AC-16 and of the Current Behavior row that calls the command `tab` | The Current Behavior table read the payload as "a map keyed by peer address whose values are ARRAYS" and treated that as rows | AC-16 cannot be satisfied, and the command must declare `doc` rather than `tab` | Read of `rowSet` (`internal/component/command/answer_shape.go`) against `AdjRIBInManager.show` (`rib_commands.go`) | **broken 2026-08-24, repaired 2026-09-06**. `rowSet` reads a map as rows only when EVERY value is an object, and the peer map's values are arrays, so it is no row set. The one candidate left is the envelope itself: one row named `adj-rib-in` carrying every peer, over which the `first 1` operator answers the whole table and `count` answers 1. Making AC-16 true needs the peer map to hold objects, which changes a payload "Behavior to preserve" protects and which `test/interop/scenarios/show-rib-under-frr-load/check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, `test/interop/scenarios/rpki-frr/rpki-check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> and `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> navigate. Phase 4 therefore declares `doc`, which refuses the operator by name, and AC-16 is put to the owner | RULED 2026-09-06: the reader was taught the shape rather than the payload reshaped, so the assumption now HOLDS. `rowSet` reads an identity map whose values share one shape, the command declares `map`, and `| first 1` answers one peer's routes. The Current Behavior row calling the command `tab` stays wrong, because a column name orders the keys of a ROW and a row here is a list.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -238,7 +238,7 @@ the producing function.
 | AC-13 | `show bgp rs peers \| count` | Answers the peer count |
 | AC-14 | `show bgp healthcheck` with a probe name | Answers a one-row set, in the same spelling it uses with no argument |
 | AC-15 | `show bgp rpki aspa` with a customer ASN | Answers a one-row set, in the same spelling it uses with no argument |
-| AC-16 | ~~`show bgp adj-rib-in \| first 1`~~ | ~~Answers one peer's routes~~ **FALSE AS WORDED, 2026-08-24, Phase 4, and the Current Behavior table was wrong with it.** `AdjRIBInManager.show` (`internal/component/bgp/plugins/adj_rib_in/rib_commands.go`) writes an envelope whose `adj-rib-in` key holds a map of peer address to an ARRAY of routes. `rowSet` (`internal/component/command/answer_shape.go`) reads a map as rows only when EVERY value is an object, so that map is not a row set; the only candidate left is the envelope itself, read as ONE row named `adj-rib-in` holding every peer. `first 1` would answer the whole table and `count` would answer 1. Declaring `tab` with the route field names would be wrong twice over, because those names are keys two levels below any row. The command therefore declares `doc`, which refuses the row operators by name. Making AC-16 true means the peer map must hold objects rather than arrays, which changes a payload "Behavior to preserve" protects and which three consumers navigate as it stands (`test/interop/scenarios/show-rib-under-frr-load/check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, `.../rpki-frr/rpki-check.py`, `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->). That is a payload question rather than a declaration question, so it is Thomas's call and not this spec's. Recorded as A-5 broken |
+| AC-16 | `show bgp adj-rib-in \| first 1` | Answers one peer's routes. **RULED 2026-09-06 by the owner, and no longer struck: the ROW READER was wrong, and the payload is unchanged.** The peer address is the row's identity and it is already in the answer, as the map key, so nothing is invented to name a row. `rowSet` (`internal/component/command/answer_shape.go`) reads an identity map whose values share ONE shape, so a row is a list under this command and an object under `show bgp peer list`; `identityValuesShareOneShape` keeps a mixed map one document. `commandDecls` (`internal/component/bgp/plugins/adj_rib_in/rib.go`) declares `map` for the command, which is what admits the operator before dispatch. `| first 1` answers one peer's routes under that peer's address, and `| count` answers the peer count. Proved from the real chain by `TestShowAnswersRowsKeyedByPeer`, `TestShowCountsThePeers` and `TestShowRendersInEveryFormat` (`rib_shape_test.go`), each red before the fix, and asserted end to end by `test/ui/show-bgp-plugin-shapes.ci`. The three consumers the earlier reading protected are retired, and no payload change was needed for any of them |
 | AC-17 | Every one of the eleven commands | Declares a shape, and declares a column order and an address-field list where its answer has rows and addresses |
 | AC-18 | `ze help command --json` for a plugin `show bgp` path, from a RUNNING daemon | Lists the operators that path supports |
 
@@ -467,15 +467,13 @@ additively, and it is not a protocol Ze speaks to another implementation.
 - The engine cannot check a declared column name against a payload it has not
   seen. For the eleven commands the `.ci` checks it; for a third-party plugin it
   stays the author's responsibility.
-- `show bgp adj-rib-in` answers ONE DOCUMENT, and every row operator over it is
-  refused by name. `AdjRIBInManager.show` maps each peer address to an ARRAY of
-  routes, and `rowSet` reads a map as rows only when every value is an object,
-  so the payload holds no row set the engine can address. See A-5: the shape
-  this spec's Current Behavior table predicted for the command was `tab`, and
-  the producer does not support it. The peer address is also the map KEY rather
-  than a field, so no address field is declared and `| resolve` is refused for
-  that separate reason -- the identity-keyed row set limitation carried by
-  the retired deferral shard "cli-show-bgp-answer-shapes".
+- `show bgp adj-rib-in` declares `map` and its rows are its peers, each row
+  being that peer's routes (ruled 2026-09-06; see AC-16). It declares NO column
+  order, because a column name orders the keys of a row and this row is a list
+  whose keys sit one level below it. `| resolve` stays refused: the peer address
+  is the map KEY rather than a field, so no address field is declared, which is
+  the identity-keyed row set limitation carried by the retired deferral shard
+  "cli-show-bgp-answer-shapes".
 
 ## Checklist
 

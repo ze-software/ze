@@ -14,7 +14,7 @@ did not verify something, the row says so.
 
 | Spec | Status | Where its unfinished items went |
 |------|--------|----------------|
-| `plan/immediate/spec-cli-show-bgp-answer-shapes.md` | in-progress, 5 of 5 phases done | four specs in `plan/immediate/`, listed below |
+| `spec-cli-show-bgp-answer-shapes` | CLOSED 2026-09-05 and removed from `plan/` | four specs in `plan/immediate/`, listed below |
 | `plan/spec-plugin-declares-answer-shape.md` | in-progress, 5 of 5 phases done | `plan/spec-plugin-declaration-names-a-path-it-serves.md`, `plan/spec-daemon-backed-command-catalog.md` |
 
 Run `/ze-close` on each. It appends `plan/TEMPLATE-CLOSURE.md`, runs the Review
@@ -65,18 +65,21 @@ rather than satisfying it. The seventh row of
 `plan/journal/gate-fires-outside-its-population.md` records the whole thing,
 including the shape of the real fix.
 
-## Two acceptance criteria are struck and need Thomas
+## Acceptance criteria that were struck
 
-Neither is a defect in the implementation. Both are payload-design questions the
-specs deliberately refused to answer, and each has a deferral row.
+Both are ruled and neither is struck any more. Each was put to the owner as a
+payload-design question the specs refused to answer, and each was answered
+without a payload change.
 
 | AC | Why it is struck |
 |----|------------------|
-| `spec-cli-show-bgp-answer-shapes` AC-14 | `bestResult` (`internal/component/bgp/plugins/rib/rib_pipeline_best.go`) carries the next hop inside `attributes`, and `selectRecord` cuts a record naming one displayed field to the displayed ones, so `show bgp rib best` cannot answer `display prefix next-hop` while `show bgp rib` can. The AC was re-pointed at two keys of the same row. Flattening the next hop changes a payload "Behavior to preserve" protects |
-| `spec-plugin-declares-answer-shape` AC-16 | `AdjRIBInManager.show` keys `adj-rib-in` to ARRAYS, and `rowSet` reads a map as rows only when every value is an object, so the envelope becomes one row holding every peer. The command declares `doc`. Making the AC true means the peer map must hold objects, which three test consumers navigate as it stands |
+| `spec-cli-show-bgp-answer-shapes` AC-14 | RULED 2026-08-24 by the main thread and no longer struck: the CHAIN is corrected, so the AC reads `show bgp rib best \| display prefix best-peer`, two keys of one row. `bestResult` (`internal/component/bgp/plugins/rib/rib_pipeline_best.go`) carries the next hop inside `attributes` and `selectRecord` cuts a record naming one displayed field to the displayed ones, so flattening it would change a payload "Behavior to preserve" protects. Which fields a route row carries at its top level is `plan/immediate/spec-show-bgp-rib-best-row-top-level-fields.md` |
+| `spec-plugin-declares-answer-shape` AC-16 | RULED 2026-09-06 by Thomas and no longer struck: the ROW READER was too strict and the payload was right. `rowSet` (`internal/component/command/answer_shape.go`) now reads an identity map whose values share ONE shape, so the peer map is rows and each row is that peer's routes. `commandDecls` (`adj_rib_in/rib.go`) declares `map`, and `show bgp adj-rib-in \| first 1` answers one peer's routes under that peer's address |
 
-A closure that marks either AC met without a payload change is marking something
-false. Leave both struck and let Thomas rule.
+AC-16 needed no payload change, so the three consumers that navigated the peer
+map are untouched. The row's identity is the peer address, which is the map key
+and is already in the answer: nothing is invented to name a row. The evidence is
+in the spec's AC-16 row.
 
 ## What the review should look hardest at
 
@@ -116,12 +119,12 @@ through by hand, outside `commit_helper.py`, so it bypassed the debt gate.
 
 ## Findings left open, all recorded
 
-None blocks closure. Each has a journal row or a deferral row with a
-destination.
+None blocks closure. Each has a journal row or a spec that owns it.
+`plan/deferrals/` was deleted on 2026-09-05, so nothing here is a deferral row.
 
 | Finding | Where |
 |---------|-------|
-| `resolve` and `origin` decorate every address-shaped value, so the declared address-field list gates admission and not action | `plan/journal/declared-format-contradicts-payload.md` |
+| `resolve` and `origin` decorate every address-shaped value, so the declared address-field list gates admission and not action | `plan/journal/declared-format-contradicts-payload.md`. FIXED on 2026-08-27 by `spec-cli-pipe-operator-coverage`: `bindAddressFields` (`internal/component/command/pipe.go`) copies the declaration onto each address operator, and `addressFieldSelected` (`pipe_resolve.go`) decorates a declared key alone. The row still reads "not fixed" |
 | Five `show bgp` commands take a free-form value in an untyped positional slot | `plan/journal/command-takes-an-untyped-positional-value.md` |
 | A plugin can declare a shape on a path a builtin serves, where that builtin declares nothing | `plan/spec-plugin-declaration-names-a-path-it-serves.md` |
 | `resolve` and `origin` over an identity-keyed row set | `plan/immediate/spec-show-bgp-operators-over-identity-keyed-rows.md` |
