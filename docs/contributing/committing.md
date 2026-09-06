@@ -9,10 +9,22 @@ command works.
 
 ## Why one command owns it
 
-Several sessions share this checkout, so they share one git index. A loose
-`git add` followed by a `git commit` therefore carries whatever another session
-staged in between. The command bundles the add, the remove, the commit and the
-optional push into one script, so no partial-staging window exists.
+Several sessions share this checkout, so they share one git index and one
+working tree. A loose `git add` followed by a `git commit` therefore carries
+whatever another session staged in between, and `git add` reads the working
+tree, so it also carries whatever another session wrote into a file your commit
+names.
+
+The generated script answers both. It commits from an index of its OWN, seeded
+from HEAD when the script runs, so the commit's population is exactly the paths
+the block names. And it commits the blob each path held when `create` READ it,
+so an edit that arrives afterwards stays in the working tree for whoever wrote
+it to commit under their own subject.
+
+Neither property depends on you noticing anything. Eight rows in
+`plan/journal/concurrent-session-corruption.md` are one session's unfinished
+work published under another session's message, and the last of them happened
+to an author who had been warned about those exact files minutes beforehand.
 
 ## The keywords
 
@@ -56,9 +68,9 @@ path before the script is written:
 have to run `git ls-files --error-unmatch` yourself.
 
 A list keyword buys one thing: a population too large to type stays explicit. It
-broadens nothing else. Every line is validated as its own path, the script
-spells each one, and the concurrency guard names them all. Write the list with a
-command that answers what changed, then read it before you pass it:
+broadens nothing else. Every line is validated as its own path, and the script
+spells each one in its block marker and in its index entries. Write the list
+with a command that answers what changed, then read it before you pass it:
 
 ```bash
 cd ../gh-pages && git -c core.quotePath=false status --porcelain |
@@ -119,12 +131,21 @@ them. One commit block holds, in order:
 1. A `# Commit <tag>: <subject>` comment and a `# ze-commit-block:` marker
    naming the tag and every path.
 2. The critical-review gate re-check, when the commit closes a spec.
-3. `git add -- ` with one quoted path per line.
-4. `git rm -- ` for any `remove` paths.
-5. A concurrency guard. It reads `git diff --cached --name-only` and refuses
-   when the index holds a path this block did not name, which is how a
-   concurrent session's staged file is caught before it is committed.
-6. `git commit -F <message-file>`.
+3. `git read-tree HEAD` into `<script-path-without-.sh>.index`, the private
+   index this block commits from.
+4. `git update-index --index-info` with one `git ls-files -s` line per path,
+   written by `snapshotIndexEntries` when `create` ran. The line names the blob,
+   so the content is fixed at preparation time.
+5. `git update-index --force-remove` for any `remove` paths. A removal no longer
+   deletes the working-tree file, so `rm` the file first, as the keyword table
+   above says.
+6. A drift note. It refreshes a COPY of the private index and reports any named
+   path whose content or mode moved since preparation. It never refuses: the
+   commit is already safe, and the difference is still in the working tree.
+7. `git commit -F <message-file>` against the private index.
+8. `git ls-tree HEAD -- <paths> | git update-index --index-info`, which points
+   the SHARED index at what was just committed. Without it every other session
+   reads those paths as staged changes of yours.
 
 The script opens with `set -euo pipefail` and a `cd` to the checkout it was
 PREPARED for, named as an absolute path, so a failed step stops it and a script
@@ -172,8 +193,8 @@ for want of a file that tree never had, or read a path that means something else
 in it. `verify=NOT-APPLICABLE` says so in the output, and no verification-debt
 row is written into a tree that has no native gate to owe.
 
-Path validation, the message contract, the concurrency guard and the push
-authorisation apply in every tree.
+Path validation, the message contract, the private index the script commits
+from, and the push authorisation apply in every tree.
 
 ## After the script runs
 
@@ -186,15 +207,13 @@ the push status, and the verification evidence or the skip reason.
 
 ## When a commit fails
 
-A failed commit leaves the index STAGED, and the next session inherits it. The
-script stages first and commits second, so the failure exits non-zero, prints
-something like `failed to write commit object`, and reads as "nothing happened".
-The staging IS what happened.
+A failed commit leaves the SHARED index exactly as it found it. The staging
+happens in the block's private index, and the shared one is written only after
+`git commit` succeeds, so a failure really is "nothing happened". Fix the cause
+and run the script again.
 
-After any failed commit, read `git diff --cached --name-only`, then either fix
-the cause and re-run at once, or unstage your own paths. A signing failure is
-the usual trigger precisely because it fails LAST, after every gate has passed
-and every file is already staged.
+A signing failure is the usual trigger, because it fails LAST, after every gate
+has passed.
 
 On `gpg failed to sign` or `cannot open /dev/tty`, ask the user to run
 `! echo test | gpg --clearsign` to unlock the agent, then re-run the script.

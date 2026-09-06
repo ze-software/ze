@@ -194,17 +194,23 @@ func TestCreateRefusesChargedStructuralRedWithoutRecordedOverride(t *testing.T) 
 	}
 }
 
-func TestGeneratedBlockQuotesPathsAndGuardsForeignStaging(t *testing.T) {
+func TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex(t *testing.T) {
 	t.Parallel()
 	block := commitBlock{
 		Tag: "a", Subject: "quote fixture", Paths: []string{"plain.txt", "space name.txt", "quote's.txt"},
 		Removed: []string{"old name.txt"}, MessagePath: "tmp/message name.txt",
+		IndexEntries: []string{"100644 " + strings.Repeat("0", 40) + " 0\tplain.txt"},
 	}
 	script := renderBlock(block, "tmp/commit-owner.sh")
 	for _, want := range []string{
-		"git add -f -- \\", "'space name.txt'", `'quote'"'"'s.txt'`, "git rm -- 'old name.txt'",
-		"git -c core.quotePath=false diff --cached --name-only", "this script: tmp/commit-owner.sh",
-		"git commit -F 'tmp/message name.txt'",
+		`_ze_index="$PWD"/'tmp/commit-owner.index'`,
+		`GIT_INDEX_FILE="$_ze_index" git read-tree HEAD`,
+		"git update-index --index-info <<'ZE_INDEX_INFO'",
+		"100644 " + strings.Repeat("0", 40) + " 0\tplain.txt",
+		"'space name.txt'", `'quote'"'"'s.txt'`,
+		`git update-index --force-remove -- 'old name.txt'`,
+		`GIT_INDEX_FILE="$_ze_index" git commit -F 'tmp/message name.txt'`,
+		"git ls-tree HEAD -- 'plain.txt' 'space name.txt' 'quote'\"'\"'s.txt' | git update-index --index-info",
 	} {
 		if !strings.Contains(script, want) {
 			t.Errorf("generated block lacks %q:\n%s", want, script)
@@ -215,73 +221,14 @@ func TestGeneratedBlockQuotesPathsAndGuardsForeignStaging(t *testing.T) {
 	}
 }
 
-func TestStagingGuardRefusesForeignIndexAndAcceptsItsOwn(t *testing.T) {
-	root := newCommitRepository(t)
-	writeCommitFixture(t, root, "mine.txt", "mine\n")
-	writeCommitFixture(t, root, "tracked.txt", "foreign edit\n")
-	runCommitGit(t, root, "add", "--", "tracked.txt")
-
-	guard := renderStagingGuard([]string{"mine.txt"}, "tmp/commit-owner.sh")
-	command := exec.CommandContext(t.Context(), "bash", "-c", guard)
-	command.Dir = root
-	output, err := command.CombinedOutput()
-	if err == nil || !strings.Contains(string(output), "ABORT: index has staged files") ||
-		!strings.Contains(string(output), "this script: tmp/commit-owner.sh") ||
-		!strings.Contains(string(output), "tracked.txt") {
-		t.Fatalf("foreign staging verdict = %v, %q", err, output)
-	}
-
-	runCommitGit(t, root, "restore", "--staged", "--", "tracked.txt")
-	runCommitGit(t, root, "add", "--", "mine.txt")
-	command = exec.CommandContext(t.Context(), "bash", "-c", guard)
-	command.Dir = root
-	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("own staging was refused: %v: %s", err, output)
-	}
-}
-
-// TestRefusedBlockLeavesTheIndexAsItFoundIt runs a whole generated block
-// against a repository another session has already staged into, and asserts
-// the refusal stages nothing of its own.
-//
-// VALIDATES: the concurrency guard is emitted BEFORE the add and the rm, so a
-// refused script leaves the index exactly as it found it.
-// PREVENTS: the deadlock of 2026-08-30. The guard used to run after staging,
-// so a refused script added its own paths on the way to reporting somebody
-// else's. Two sessions then held one index between them, each script refusing
-// the other's paths, and neither could proceed. Clearing that needs
-// `git restore --staged`, which no agent may run, so it reached the owner.
-func TestRefusedBlockLeavesTheIndexAsItFoundIt(t *testing.T) {
-	root := newCommitRepository(t)
-	writeCommitFixture(t, root, "mine.txt", "mine\n")
-	writeCommitFixture(t, root, "gone.txt", "removed by this block\n")
-	runCommitGit(t, root, "add", "--", "gone.txt")
-	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
-		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "add gone.txt")
-
-	// The other session got there first.
-	writeCommitFixture(t, root, "tracked.txt", "foreign edit\n")
-	runCommitGit(t, root, "add", "--", "tracked.txt")
-
-	block := commitBlock{
-		Tag: "a", Subject: "refused", Paths: []string{"mine.txt"},
-		Removed: []string{"gone.txt"}, MessagePath: "tmp/message.txt",
-	}
-	command := exec.CommandContext(t.Context(), "bash", "-c", renderBlock(block, "tmp/commit-mine.sh"))
-	command.Dir = root
-	output, err := command.CombinedOutput()
-	if err == nil {
-		t.Fatalf("the block committed over a foreign index: %s", output)
-	}
-	if !strings.Contains(string(output), "ABORT: index has staged files") {
-		t.Fatalf("refusal did not name the guard: %s", output)
-	}
-
-	staged := strings.Fields(runCommitGitOutput(t, root, "diff", "--cached", "--name-only"))
-	if !slices.Equal(staged, []string{"tracked.txt"}) {
-		t.Fatalf("the refusal changed the index: staged = %q, want only the foreign path", staged)
-	}
-}
+// The two tests that stood here judged the staged-file guard: that it refused a
+// concurrent session's staged path, and that a refused block left the shared
+// index as it found it. The guard is deleted, because a block now commits from
+// an index of its own, where a foreign staged path cannot appear at all
+// (renderPrivateIndex, script.go). Both properties are asserted over the
+// mechanism that replaced it, in snapshot_test.go:
+// TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit and
+// TestABlockLeavesTheSharedIndexAloneWhenItsCommitFails.
 
 func TestCreateDryRunBuildsExactScriptWithoutTouchingSharedIndex(t *testing.T) {
 	root := newCommitRepository(t)
@@ -300,8 +247,8 @@ func TestCreateDryRunBuildsExactScriptWithoutTouchingSharedIndex(t *testing.T) {
 	if !slices.Equal(prepared.Added, []string{"mine name.txt"}) || len(prepared.Removed) != 0 {
 		t.Fatalf("prepared population = added %q removed %q", prepared.Added, prepared.Removed)
 	}
-	if !strings.Contains(prepared.ScriptText, "git add -f -- \\\n  'mine name.txt'") ||
-		strings.Contains(prepared.ScriptText, "git add -f -- \\\n  'tracked.txt'") {
+	if !strings.Contains(prepared.ScriptText, "\t"+"mine name.txt\n") ||
+		strings.Contains(prepared.ScriptText, "tracked.txt") {
 		t.Fatalf("prepared script stages the wrong population:\n%s", prepared.ScriptText)
 	}
 	if staged := strings.TrimSpace(runCommitGitOutput(t, root, "diff", "--cached", "--name-only")); staged != "tracked.txt" {

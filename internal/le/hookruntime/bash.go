@@ -170,7 +170,7 @@ func bashDestructiveGit(ctx context) *verdict {
 		if gitVerbRun(command, pattern) {
 			return &verdict{2, "❌ Blocked: " + pattern + " (run manually)\n" +
 				"Staging and committing go through ./le commit create, which writes one\n" +
-				"script that stages, commits and checks the index for another session's paths.\n" +
+				"script that commits your named paths from an index of its own.\n" +
 				"To delete a tracked file, use plain `rm` and pass the path to `remove`."}
 		}
 	}

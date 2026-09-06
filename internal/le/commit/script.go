@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -24,13 +23,22 @@ const (
 )
 
 type commitBlock struct {
-	Tag         string
-	Subject     string
-	Paths       []string
-	Removed     []string
-	MessagePath string
-	ReviewCheck string
+	Tag     string
+	Subject string
+	Paths   []string
+	Removed []string
+	// IndexEntries is `git ls-files -s` for Paths, read when the commit was
+	// PREPARED. It is what the block commits, so the content is the content
+	// Create's gates judged rather than whatever the working tree holds when
+	// the script runs. snapshotIndexEntries writes it.
+	IndexEntries []string
+	MessagePath  string
+	ReviewCheck  string
 }
+
+// indexInfoDelimiter closes the heredoc that feeds the snapshot to git. A
+// `git ls-files -s` line starts with a six-digit mode, so no entry can spell it.
+const indexInfoDelimiter = "ZE_INDEX_INFO"
 
 func renderBlock(block commitBlock, scriptPath string) string {
 	all := append(append([]string{}, block.Paths...), block.Removed...)
@@ -41,69 +49,110 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	if block.ReviewCheck != "" {
 		lines = append(lines, "# critical-review gate re-check", block.ReviewCheck)
 	}
-	// The guard runs BEFORE anything stages. A script that adds first and
-	// refuses second leaves the index dirtier than it found it: the abort
-	// reports the other session's paths while this session's are now staged
-	// too, so both scripts refuse each other and neither can proceed. Clearing
-	// that needs `git restore --staged`, which no agent may run, so the
-	// deadlock reaches the owner.
-	//
-	// The guard reads the same index either way. Its exclusion list names this
-	// commit's own paths, which are simply not staged yet at this point, so
-	// moving it up costs it nothing and it still sees every foreign path.
-	if guard := renderStagingGuard(all, scriptPath); guard != "" {
-		lines = append(lines, guard)
-	}
-	if len(block.Paths) != 0 {
-		lines = append(lines, renderAdd(block.Paths))
-	}
-	if len(block.Removed) != 0 {
-		lines = append(lines, "git rm -- "+quotePaths(block.Removed))
-	}
-	lines = append(lines, "git commit -F "+shellQuote(block.MessagePath))
+	lines = append(lines,
+		renderPrivateIndex(block, scriptPath),
+		`GIT_INDEX_FILE="$_ze_index" git commit -F `+shellQuote(block.MessagePath),
+		renderSharedIndexRepair(block))
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func renderAdd(paths []string) string {
-	lines := make([]string, 0, 1+len(paths))
-	// -f is what lets a TRACKED file under an ignored directory be staged. Git
-	// reports the whole pathspec as ignored and exits 1 without it, even though
-	// it staged every path, which stops the script between the add and the
-	// commit and leaves the index full. Forcing costs nothing here: every path
-	// in this script passed validateAddPath, which already refuses a path git
-	// ignores with the index consulted.
-	lines = append(lines, "git add -f -- \\")
-	for index, path := range paths {
-		suffix := " \\"
-		if index+1 == len(paths) {
-			suffix = ""
-		}
-		lines = append(lines, "  "+shellQuote(path)+suffix)
+// renderPrivateIndex emits the staging half of a block: an index of this
+// block's own, seeded from HEAD when the script RUNS and filled with the blob
+// each path held when `./le commit create` read it.
+//
+// The shared index is never written before the commit, which is what makes the
+// commit's POPULATION exactly the paths the block names. A concurrent session's
+// staged file is not in this index, so it cannot ride along, and no window
+// exists between the staging and the commit for one to appear in. Seeding from
+// HEAD at run time is what keeps a peer's commit made in the meantime: the tree
+// this block writes is that HEAD plus its own paths.
+//
+// The commit's CONTENT is the snapshot rather than the working tree, so an edit
+// that lands after preparation is left where it is, for whoever wrote it to
+// commit under their own subject. Eight rows in
+// `plan/journal/concurrent-session-corruption.md` are one session's unfinished
+// sentence published under another session's message, and `git add` reading the
+// working tree is how every one of them happened.
+func renderPrivateIndex(block commitBlock, scriptPath string) string {
+	lines := []string{
+		`_ze_index="$PWD"/` + shellQuote(indexFileFor(scriptPath)),
+		`rm -f "$_ze_index"`,
+		`GIT_INDEX_FILE="$_ze_index" git read-tree HEAD`,
+	}
+	if len(block.IndexEntries) != 0 {
+		lines = append(lines,
+			`GIT_INDEX_FILE="$_ze_index" git update-index --index-info <<'`+indexInfoDelimiter+`'`)
+		lines = append(lines, block.IndexEntries...)
+		lines = append(lines, indexInfoDelimiter)
+	}
+	if len(block.Removed) != 0 {
+		lines = append(lines,
+			`GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- `+quotePaths(block.Removed))
+	}
+	if len(block.Paths) != 0 {
+		lines = append(lines, renderDriftNote(block.Paths))
 	}
 	return strings.Join(lines, "\n")
 }
 
-func renderStagingGuard(paths []string, scriptPath string) string {
-	if len(paths) == 0 {
-		return ""
-	}
-	expectedPaths := append([]string{}, paths...)
-	sort.Strings(expectedPaths)
-	expected := make([]string, 0, len(expectedPaths)*2)
-	for _, path := range expectedPaths {
-		expected = append(expected, "-e", shellQuote(path))
-	}
+// renderDriftNote emits the report that a named path no longer holds the
+// content this commit carries.
+//
+// It is a NOTE and not a gate. The commit is already safe, because the snapshot
+// is what lands, and refusing here would block an author whose only offense is
+// that a peer touched a file they share. What it prevents is the one silence
+// the snapshot introduces: an author who edits a named path after preparing the
+// commit would otherwise never learn that their newest edit stayed behind. It
+// is still in the working tree, so nothing is lost, and `./le commit create`
+// run again carries it.
+//
+// `git update-index --refresh` is the comparison, because it answers on content
+// AND on mode. It runs against a COPY of the index, because refreshing an entry
+// whose file changed REWRITES that entry from the working tree: measured on
+// 2026-09-06, a refresh in place replaced the snapshot blob with the drifted one
+// and committed exactly what this design exists to leave behind.
+func renderDriftNote(paths []string) string {
 	lines := []string{
-		"# Concurrency guard: refuse a concurrent session's staged files.",
-		"_ze_foreign=$(git -c core.quotePath=false diff --cached --name-only | grep -vxF " + strings.Join(expected, " ") + " || true)",
-		`if [ -n "$_ze_foreign" ]; then`,
-		`  echo "ABORT: index has staged files not in this commit (concurrent session?):" >&2`,
-		"  echo " + shellQuote("  this script: "+scriptPath) + " >&2",
-		`  echo "$_ze_foreign" >&2`,
-		"  exit 1",
+		`cp "$_ze_index" "$_ze_index.check"`,
+		`_ze_drift=$(GIT_INDEX_FILE="$_ze_index.check" git update-index --refresh -- ` +
+			quotePaths(paths) + ` 2>&1 || true)`,
+		`rm -f "$_ze_index.check"`,
+		`if [ -n "$_ze_drift" ]; then`,
+		`  echo "NOTE: these paths changed on disk after this commit was prepared." >&2`,
+		`  echo "The commit carries the prepared content; the difference stays in the working tree." >&2`,
+		`  echo "$_ze_drift" >&2`,
 		"fi",
 	}
 	return strings.Join(lines, "\n")
+}
+
+// renderSharedIndexRepair points the shared index at what was just committed,
+// for this block's paths and no others.
+//
+// Without it the shared index still describes the previous HEAD for those
+// paths, which `git status` and every other session's tooling read as a staged
+// change of this session's. Nobody could clear that without `git restore
+// --staged`, which no agent may run. `git commit` does this itself for a
+// partial commit; a commit made from a private index has to do it here.
+func renderSharedIndexRepair(block commitBlock) string {
+	lines := make([]string, 0, 3)
+	if len(block.Paths) != 0 {
+		lines = append(lines,
+			"# Point the shared index at what was committed. Nothing else in it is touched.",
+			"git ls-tree HEAD -- "+quotePaths(block.Paths)+" | git update-index --index-info")
+	}
+	if len(block.Removed) != 0 {
+		lines = append(lines, "git update-index --force-remove -- "+quotePaths(block.Removed))
+	}
+	lines = append(lines, `rm -f "$_ze_index"`)
+	return strings.Join(lines, "\n")
+}
+
+// indexFileFor names the private index beside the script that uses it. Both
+// carry the same random suffix, so no second script and no other session can
+// take the name, and a reader who has the script path has the index path.
+func indexFileFor(scriptPath string) string {
+	return strings.TrimSuffix(scriptPath, ".sh") + ".index"
 }
 
 func shellQuote(value string) string {

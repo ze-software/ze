@@ -111,9 +111,8 @@ func Create(root string, options *Options) (Prepared, error) {
 	// it wrote a verification-debt row into the published site.
 	//
 	// What still holds in either tree is what protects any tree, and none of it
-	// is skipped: the path validation above, the message contract, the
-	// concurrency guard the generated script carries, and the push
-	// authorisation.
+	// is skipped: the path validation above, the message contract, the private
+	// index the generated script commits from, and the push authorisation.
 	// The commit session is resolved before the gates rather than after,
 	// because the ledger shards those gates read are named after it. One
 	// identity names the script, the message, the debt shard and the two
@@ -170,9 +169,15 @@ func Create(root string, options *Options) (Prepared, error) {
 	if err != nil {
 		return result, err
 	}
+	// The snapshot is taken HERE, after every gate has judged these paths, so
+	// what the script commits is what the gates read.
+	entries, err := snapshotIndexEntries(root, paths)
+	if err != nil {
+		return result, err
+	}
 	block := commitBlock{
 		Tag: tag, Subject: strings.TrimSpace(options.Subject), Paths: paths, Removed: removed,
-		MessagePath: messagePath, ReviewCheck: reviewCheck,
+		IndexEntries: entries, MessagePath: messagePath, ReviewCheck: reviewCheck,
 	}
 	if options.Replace && existing != "" {
 		if err := refuseForeignReplace(existing, append(paths, removed...)); err != nil {
