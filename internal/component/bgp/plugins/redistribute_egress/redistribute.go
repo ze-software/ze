@@ -250,19 +250,23 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			}
 			continue
 		}
-		if !ev.Accept(route, cname) {
-			logger().Debug(Name+": evaluator rejected", "source", name, "consumer", cname, "origin", route.Origin, "family", famVal.String())
-			if m := getMetrics(); m != nil {
-				for range b.Entries {
+		logger().Debug(Name+": offering batch to consumer", "consumer", cname, "entries", len(b.Entries))
+		for i := range b.Entries {
+			entry := &b.Entries[i]
+			// Acceptance is decided for each ROUTE, not for the batch: an import
+			// rule can name a tag, and the tag belongs to the entry. Every other
+			// input to the decision (origin, source, family) is the same for the
+			// whole batch, so the rule set is walked with only the tag varying.
+			route.Tag = entry.Tag
+			if !ev.Accept(route, cname) {
+				logger().Debug(Name+": evaluator rejected", "source", name, "consumer", cname, "origin", route.Origin, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
+				if m := getMetrics(); m != nil {
 					m.filteredRuleTotal.Inc()
 				}
+				continue
 			}
-			continue
-		}
-		logger().Debug(Name+": dispatching to consumer", "consumer", cname, "entries", len(b.Entries))
-		for i := range b.Entries {
 			// Empty peer selector: the incremental path fans out to all peers.
-			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, &b.Entries[i])
+			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry)
 		}
 	}
 }
@@ -297,6 +301,7 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 			Peer:      peer,
 			OriginASN: effectiveOriginASN,
 			Community: community,
+			Tag:       entry.Tag,
 		})
 		return
 	}

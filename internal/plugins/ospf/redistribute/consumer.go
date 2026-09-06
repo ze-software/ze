@@ -188,7 +188,7 @@ func (c *Consumer) InjectRoute(_ context.Context, fam family.Family, entry confi
 	}
 	prefix = prefix.Masked()
 
-	if err := inj.InjectExternal(prefix, src); err != nil {
+	if err := inj.InjectExternal(prefix, src, entry.Tag); err != nil {
 		// R-3: never swallow a failed AS-External origination -- log it.
 		slog.Warn("ospf redist consumer: AS-External origination failed after inject",
 			"prefix", prefix.String(), "source", src, "error", err)

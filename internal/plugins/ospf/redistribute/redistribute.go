@@ -32,9 +32,11 @@ import "net/netip"
 // `redistribute` config), the ASBR E-bit, and the AS-wide flooding.
 type ExternalInjector interface {
 	// InjectExternal originates (or replaces) a Type 5 AS-External-LSA for prefix,
-	// learned from source (connected/static/bgp). It returns an error so the
-	// consumer can log a failed origination instead of swallowing it (R-3).
-	InjectExternal(prefix netip.Prefix, source string) error
+	// learned from source (connected/static/bgp). routeTag is the route's OWN
+	// external route tag, zero when it carries none; the engine decides how it
+	// combines with the per-source `tag` from configuration. It returns an error so
+	// the consumer can log a failed origination instead of swallowing it (R-3).
+	InjectExternal(prefix netip.Prefix, source string, routeTag uint32) error
 	// WithdrawExternal MaxAge-purges the Type 5 for prefix, reporting whether one
 	// existed. Returning false (never injected) is not an error.
 	WithdrawExternal(prefix netip.Prefix) (bool, error)

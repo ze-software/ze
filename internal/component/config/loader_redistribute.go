@@ -5,6 +5,7 @@ package config
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
@@ -68,10 +69,17 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 				}
 			}
 
+			tag, matchTag, err := importTag(entry.Value, source)
+			if err != nil {
+				return nil, err
+			}
+
 			rules = append(rules, redistribute.ImportRule{
 				Source:      source,
 				Destination: dest.Key,
 				Families:    families,
+				Tag:         tag,
+				MatchTag:    matchTag,
 			})
 		}
 	}
@@ -80,4 +88,24 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 		return nil, nil
 	}
 	return rules, nil
+}
+
+// importTag reads the optional `tag` leaf of one import entry. It reports the value
+// and whether the leaf was written at all, because zero IS a selectable tag: a route
+// with no `tag` carries zero, so `import <source> { tag 0 }` names the untagged routes
+// and an entry with no `tag` leaf names every route in the source. Collapsing the two
+// into one uint32 would make the first rule import everything (ai/rules/principles.md).
+//
+// An out-of-range value is refused by name rather than clamped: a tag the operator
+// cannot express is a config error, and a clamped one silently imports the wrong set.
+func importTag(entry *Tree, source string) (tag uint32, matchTag bool, err error) {
+	raw, ok := entry.Get("tag")
+	if !ok {
+		return 0, false, nil
+	}
+	value, parseErr := strconv.ParseUint(raw, 10, 32)
+	if parseErr != nil {
+		return 0, false, fmt.Errorf("redistribute: import %q has an invalid tag %q: a route tag is a number from 0 to 4294967295", source, raw)
+	}
+	return uint32(value), true, nil
 }

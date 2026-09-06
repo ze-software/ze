@@ -1,0 +1,84 @@
+# Test: ze config validate with a redistribute import tag filter.
+#
+# VALIDATES: spec-static-route-tag-reaches-no-consumer AC-10 -- an operator writes
+# `import static { tag N }` beside a static route carrying the same tag, and the whole
+# configuration validates, so the tag filter is reachable from the config file.
+# VALIDATES: spec-static-route-tag-reaches-no-consumer AC-11 -- a tag outside the
+# uint32 range is refused, and the message names the range.
+# PREVENTS: the tag leaf being added to the loader and not to the YANG schema, which
+# makes every configuration that uses it fail to load.
+
+stdin=redist-tag-valid:terminator=EOF_VALID
+static {
+	table default {
+		route 10.99.0.0/24 {
+			tag 4242
+			next {
+				hop 127.0.0.1 {
+				}
+			}
+		}
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	redistribute {
+		static {
+			tag 7
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+
+redistribute {
+	destination ospf {
+		import static {
+			tag 4242;
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=redist-tag-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Boundary: the route tag is a uint32, so 4294967295 is the last valid value
+# --- and 4294967296 is one past it. The schema refuses the second by name.
+stdin=redist-tag-last:terminator=EOF_LAST
+redistribute {
+	destination ospf {
+		import static {
+			tag 4294967295;
+		}
+	}
+}
+EOF_LAST
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=redist-tag-last
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+stdin=redist-tag-range:terminator=EOF_RANGE
+redistribute {
+	destination ospf {
+		import static {
+			tag 4294967296;
+		}
+	}
+}
+EOF_RANGE
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=redist-tag-range:exit=1
+expect=exit:code=1
+expect=stdout:contains=invalid uint32
+expect=stdout:contains=4294967296

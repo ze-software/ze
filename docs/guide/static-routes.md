@@ -238,6 +238,18 @@ static {
 - `metric`: kernel route priority (lower is preferred)
 - `tag`: opaque value for route policy matching in redistribute
 
+The tag is not programmed to the kernel, because Linux has no route tag
+attribute. It travels with the route into redistribution, where it does two
+things. A `redistribute { destination <proto> { import static { tag N } } }`
+rule imports only the routes carrying `N`. And when the route reaches OSPF, Ze
+writes the tag into the External Route Tag of the AS-external LSA (RFC 2328
+Appendix A.4.5). A route that carries a tag keeps it there, ahead of the `tag`
+configured for the whole source under `ospf { redistribute { static { ... } } }`;
+a route with no tag takes that configured value.
+
+<!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
+<!-- source: internal/plugins/ospf/redist_wiring.go -- externalRouteTag -->
+
 ## CLI
 
 ```

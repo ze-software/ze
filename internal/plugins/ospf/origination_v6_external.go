@@ -31,7 +31,7 @@ var v6ExternalSelfTypes = map[types.LSType]struct{}{
 // v6InjectExternal originates (or refreshes) an OSPFv3 external LSA for a redistributed IPv6
 // prefix and re-originates the Router-LSA so its E-bit reflects ASBR status. The LSID is
 // assigned once per prefix and remembered for withdrawal.
-func (e *engine) v6InjectExternal(prefix netip.Prefix, source string) error {
+func (e *engine) v6InjectExternal(prefix netip.Prefix, source string, routeTag uint32) error {
 	// Serialize with the NSSA Type-7->Type-5 translation flush (translateNSSAV6, also under
 	// nssaMu): that per-second pass snapshots redistV6 into a keep-set, then FlushStaleSelfLSAs
 	// purges any self AS-External not in it. Without this lock an injection that lands in the
@@ -66,7 +66,7 @@ func (e *engine) v6InjectExternal(prefix netip.Prefix, source string) error {
 	}
 	e.mu.Unlock()
 
-	type2, metric, tag := externalParams(cfg, source)
+	type2, metric, tag := externalParams(cfg, source, routeTag)
 	nssas, canType5 := e.externalScopeV6()
 	for _, n := range nssas {
 		propagate := !canType5 && n.hasFA

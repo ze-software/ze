@@ -135,6 +135,21 @@ type RouteChangeEntry struct {
 	// default for every non-BGP producer -- preserves the batch-level behavior.
 	// Value type; reset by the pool's clear(); no allocation.
 	OriginAS uint32
+
+	// Tag is the route's own opaque 32-bit tag, set by the producer that holds it
+	// (the static plugin's `tag` leaf today). Two consumers read it: a
+	// redistribution import rule matches on it, and the OSPF consumer writes it
+	// into the External Route Tag of the AS-External-LSA it originates (RFC 2328
+	// Appendix A.4.5).
+	//
+	// Zero means "this route carries no tag". Every producer already treats the two
+	// as one value -- an absent `tag` leaf parses to zero, `show static route` omits
+	// a zero tag, and zero is the OSPF default external route tag -- so the pool's
+	// clear() leaves an entry saying exactly what an unconfigured route says. The
+	// reliance on that zero is a guard, and it is named where it is read
+	// (externalRouteTag, internal/plugins/ospf/redist_wiring.go), never inline.
+	// Value type; reset by the pool's clear(); no allocation.
+	Tag uint32
 }
 
 // RouteChangeBatch is the payload of (<protocol>, "route-change"). One batch

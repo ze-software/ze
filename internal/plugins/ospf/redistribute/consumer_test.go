@@ -20,20 +20,26 @@ import (
 
 type fakeInjector struct {
 	injected    map[netip.Prefix]string
+	tags        map[netip.Prefix]uint32
 	withdrawn   map[netip.Prefix]bool
 	injectErr   error
 	withdrawErr error
 }
 
 func newFakeInjector() *fakeInjector {
-	return &fakeInjector{injected: map[netip.Prefix]string{}, withdrawn: map[netip.Prefix]bool{}}
+	return &fakeInjector{
+		injected:  map[netip.Prefix]string{},
+		tags:      map[netip.Prefix]uint32{},
+		withdrawn: map[netip.Prefix]bool{},
+	}
 }
 
-func (f *fakeInjector) InjectExternal(p netip.Prefix, source string) error {
+func (f *fakeInjector) InjectExternal(p netip.Prefix, source string, routeTag uint32) error {
 	if f.injectErr != nil {
 		return f.injectErr
 	}
 	f.injected[p] = source
+	f.tags[p] = routeTag
 	return nil
 }
 

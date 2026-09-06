@@ -58,6 +58,16 @@ parse. Ze resolves the name against that registry when it redistributes a route.
                     description "Address families Ze imports from this source.";
                     ze:help "An empty leaf-list imports every family.";
                 }
+
+                leaf tag {
+                    type uint32;
+                    description "Import only the routes that carry this route tag.";
+                    ze:help "The route tag is the value the source protocol attached to the route, for
+example the tag leaf of a static route. A rule that names a tag imports the routes carrying exactly that
+value and rejects the others. A rule with no tag leaf imports every route from the source, whatever tag
+it carries. The value 0 is a tag like any other: a route with no tag carries 0, so tag 0 imports the
+untagged routes alone.";
+                }
             }
         }
     }

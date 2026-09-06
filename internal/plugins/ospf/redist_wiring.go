@@ -21,9 +21,9 @@ var errEngineNotReady = errors.New("ospf: engine not ready for external originat
 // 5 AS-External-LSA for prefix learned from source, applying the per-source metric /
 // metric-type / route-tag from the `ospf` container's `redistribute` config (or the
 // code defaults), then re-originates the Router-LSA (E-bit) and re-floods.
-func (e *engine) InjectExternal(prefix netip.Prefix, source string) error {
+func (e *engine) InjectExternal(prefix netip.Prefix, source string, routeTag uint32) error {
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
-		return e.v6InjectExternal(prefix, source)
+		return e.v6InjectExternal(prefix, source, routeTag)
 	}
 	e.mu.Lock()
 	cfg := e.cfg
@@ -35,7 +35,7 @@ func (e *engine) InjectExternal(prefix netip.Prefix, source string) error {
 	if !prefix.IsValid() || !prefix.Addr().Is4() {
 		return fmt.Errorf("ospf: external prefix %q is not IPv4", prefix)
 	}
-	type2, metric, tag := externalParams(cfg, source)
+	type2, metric, tag := externalParams(cfg, source, routeTag)
 	prefix = prefix.Masked()
 	// 0.0.0.0/0 shares its Type 5 LSA key with `default-information originate`; route it
 	// through the serialized default-route coordinator so a withdraw from one intent
@@ -191,18 +191,43 @@ func (e *engine) WithdrawExternal(prefix netip.Prefix) (bool, error) {
 	return removed, nil
 }
 
-// externalParams resolves the metric type (E1/E2), 24-bit metric, and route tag for
-// a redistributed route from the `ospf` container's per-source `redistribute` entry,
-// falling back to the code defaults (metric 20, type-2) when the source is not
-// enrolled (assumption A-2: the generic RouteEntry carries no per-route metric).
-func externalParams(cfg ospfConfig, source string) (type2 bool, metric, tag uint32) {
+// externalParams resolves the metric type (E1/E2), 24-bit metric, and External Route
+// Tag for a redistributed route. The metric and the metric type come from the `ospf`
+// container's per-source `redistribute` entry, falling back to the code defaults
+// (metric 20, type-2) when the source is not enrolled. The tag is the route's own tag
+// when it carries one, and the per-source `tag` otherwise; externalRouteTag owns that
+// choice.
+func externalParams(cfg ospfConfig, source string, routeTag uint32) (type2 bool, metric, tag uint32) {
 	type2, metric, tag = true, DefaultExternalMetric, 0
 	for _, r := range cfg.Redistribute {
 		if r.Source == source {
-			return r.MetricType != metricType1, r.Metric, r.Tag
+			type2, metric, tag = r.MetricType != metricType1, r.Metric, r.Tag
+			break
 		}
 	}
-	return type2, metric, tag
+	return type2, metric, externalRouteTag(routeTag, tag)
+}
+
+// externalRouteTag chooses the External Route Tag for a redistributed route: the
+// route's own tag when it carries one, and the per-source `tag` under
+// `ospf { redistribute { source <src> } }` otherwise. RFC 2328 Appendix A.4.5 defines
+// the field -- "A 32-bit field attached to each external route.  This is not used by
+// the OSPF protocol itself." -- so the RFC settles the encoding and leaves the
+// precedence to the implementation. Ze gives the more specific value the win: the
+// per-source tag names a whole source, and a tag on one route names that route
+// (owner decision, 2026-09-06; spec-static-route-tag-reaches-no-consumer D-2).
+//
+// A zero routeTag is a GUARD, not a value: it means the route carries no tag. Every
+// producer already reads the two as one thing -- an absent `tag` leaf parses to zero,
+// `show static route` omits a zero tag, and zero is the OSPF default external route
+// tag -- so a route that says nothing and a route that says zero ask for the same LSA.
+// The guard lives here, with a test on both sides of it, rather than inline at each
+// caller (ai/rules/principles.md).
+func externalRouteTag(routeTag, configured uint32) uint32 {
+	if routeTag != 0 {
+		return routeTag
+	}
+	return configured
 }
 
 // wireRedistProducer connects the redistribution producer Source to the SPF

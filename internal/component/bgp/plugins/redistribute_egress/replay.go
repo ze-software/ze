@@ -313,11 +313,6 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 	}
 	famVal := family.Family{AFI: family.AFI(b.AFI), SAFI: family.SAFI(b.SAFI)}
 	route := configredist.RedistRoute{Origin: name, Family: famVal, Source: name}
-	// Destination-scoped: only sources imported under this destination replay.
-	if !ev.Accept(route, destination) {
-		logger().Debug("redistribute-orchestrator: evaluator rejected replay batch", "source", name, "destination", destination, "family", famVal.String())
-		return
-	}
 
 	consumer, ok := configredist.LookupConsumer(destination)
 	if !ok {
@@ -329,6 +324,14 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		entry := &b.Entries[i]
 		if entry.Action != redistevents.ActionAdd {
 			continue // a replay reflects the current live set; only adds are meaningful
+		}
+		// Destination-scoped, and decided for each route: only sources imported
+		// under this destination replay, and an import rule naming a tag replays
+		// only the routes carrying it. The incremental path decides the same way.
+		route.Tag = entry.Tag
+		if !ev.Accept(route, destination) {
+			logger().Debug("redistribute-orchestrator: evaluator rejected replay entry", "source", name, "destination", destination, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
+			continue
 		}
 		dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, entry)
 		if m := getMetrics(); m != nil && m.replayTotal != nil {

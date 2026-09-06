@@ -68,6 +68,8 @@ func (e *Evaluator) Rules() []ImportRule {
 			Source:      r.Source,
 			Destination: r.Destination,
 			Families:    slices.Clone(r.Families),
+			Tag:         r.Tag,
+			MatchTag:    r.MatchTag,
 		}
 	}
 	return out

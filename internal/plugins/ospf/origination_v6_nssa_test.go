@@ -45,7 +45,7 @@ func TestOSPFv6InjectExternalNSSAType7(t *testing.T) {
 	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: nssa}
 	prefix := netip.MustParsePrefix("2001:db8:9::/64")
 
-	require.NoError(t, eng.InjectExternal(prefix, "connected"))
+	require.NoError(t, eng.InjectExternal(prefix, "connected", 0))
 	lsid := eng.redistV6[prefix.Masked()]
 	body, ok := decodeV6External(t, eng, nssa, v6NSSAKey(rid, lsid))
 	require.True(t, ok, "pure NSSA ASBR must originate an OSPFv3 NSSA-LSA")
@@ -60,7 +60,7 @@ func TestOSPFv6InjectExternalNormalType5(t *testing.T) {
 	eng, rid := newV6RedistEngine(t, `{"ospf":{"router-id":"10.0.9.4","redistribute":{"connected":{"source":"connected"}}}}`)
 	prefix := netip.MustParsePrefix("2001:db8:5::/64")
 
-	require.NoError(t, eng.InjectExternal(prefix, "connected"))
+	require.NoError(t, eng.InjectExternal(prefix, "connected", 0))
 	lsid := eng.redistV6[prefix.Masked()]
 	body, ok := decodeV6External(t, eng, types.BackboneArea, v6ExternalKey(rid, lsid))
 	require.True(t, ok, "non-NSSA ASBR keeps AS-wide Type-5 origination")
@@ -78,7 +78,7 @@ func TestOSPFv6InjectExternalSurvivesNSSATranslation(t *testing.T) {
 	// and confirms the serialized path runs without deadlock.)
 	eng, rid := newV6RedistEngine(t, `{"ospf":{"router-id":"10.0.9.5","redistribute":{"connected":{"source":"connected"}}}}`)
 	prefix := netip.MustParsePrefix("2001:db8:1a::/64")
-	require.NoError(t, eng.InjectExternal(prefix, "connected"))
+	require.NoError(t, eng.InjectExternal(prefix, "connected", 0))
 	lsid := eng.redistV6[prefix.Masked()]
 	if _, ok := eng.lsdb.LookupLSA(types.BackboneArea, v6ExternalKey(rid, lsid)); !ok {
 		t.Fatal("injected AS-External-LSA missing right after injection")
@@ -121,7 +121,7 @@ func TestOSPFv6NSSAWithdrawPurges(t *testing.T) {
 	nssa := types.AreaID{0, 0, 0, 9}
 	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: nssa}
 	prefix := netip.MustParsePrefix("2001:db8:99::/64")
-	require.NoError(t, eng.InjectExternal(prefix, "connected"))
+	require.NoError(t, eng.InjectExternal(prefix, "connected", 0))
 	lsid := eng.redistV6[prefix.Masked()]
 
 	removed, err := eng.WithdrawExternal(prefix)

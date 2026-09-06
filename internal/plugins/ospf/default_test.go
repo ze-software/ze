@@ -132,7 +132,7 @@ func TestOSPFDefaultRouteSharedWithRedistribute(t *testing.T) {
 		eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.1.1","default-information":{"originate":true,"always":true}}}`)
 		eng.applyDefaultInformation()
 		require.Equal(t, 1, eng.lsdb.SelfExternalCount(rid))
-		require.NoError(t, eng.InjectExternal(testDefaultRoute, "static"))
+		require.NoError(t, eng.InjectExternal(testDefaultRoute, "static", 0))
 		require.Equal(t, 1, eng.lsdb.SelfExternalCount(rid), "one shared Type 5 default for both intents")
 
 		removed, err := eng.WithdrawExternal(testDefaultRoute)
@@ -144,7 +144,7 @@ func TestOSPFDefaultRouteSharedWithRedistribute(t *testing.T) {
 	t.Run("default_information_off_keeps_redistributed_default", func(t *testing.T) {
 		eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.1.2","default-information":{"originate":true,"always":true}}}`)
 		eng.applyDefaultInformation()
-		require.NoError(t, eng.InjectExternal(testDefaultRoute, "static"))
+		require.NoError(t, eng.InjectExternal(testDefaultRoute, "static", 0))
 		require.Equal(t, 1, eng.lsdb.SelfExternalCount(rid))
 
 		// default-information disabled, redistribute still injects the default.

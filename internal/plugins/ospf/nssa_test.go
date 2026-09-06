@@ -183,7 +183,7 @@ func TestEngineNSSATranslationSkipsRedistributed(t *testing.T) {
 	q := ridOf("10.0.8.2")
 
 	// R redistributes network X as a Type 5 (Forwarding Address 0).
-	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.50.0.0/24"), "connected"))
+	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.50.0.0/24"), "connected", 0))
 	require.Equal(t, 1, eng.lsdb.SelfExternalCount(self), "R's redistributed Type 5 for X")
 
 	// Q (an NSSA-internal ASBR) advertises a P=1 Type 7 for the SAME network X.

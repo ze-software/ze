@@ -212,6 +212,26 @@ Each `import <source>` under it names where they come from. The optional
 `family` leaf-list narrows which address families that source contributes. An
 empty list imports every family.
 
+The optional `tag` leaf narrows the same rule by route tag. The route tag is the
+value the source protocol attached to the route, for example the `tag` leaf of a
+static route. A rule that names a tag imports the routes carrying exactly that
+value and rejects the others. A rule with no `tag` leaf imports every route from
+the source, whatever tag it carries.
+
+```
+redistribute {
+    destination ospf {
+        import static {
+            tag 4242;
+        }
+    }
+}
+```
+
+The value 0 is a tag like any other. A route with no tag carries 0, so `tag 0`
+imports the untagged routes alone. The filter runs for each route, not for each
+batch, so one source can feed two destinations with two different tag sets.
+
 That block is the whole configuration. It needs no `plugin` block and no
 `attach process` block. The orchestrator that dispatches the routes auto-loads
 because the `redistribute` root is present. The two peer bindings the rules

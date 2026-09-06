@@ -126,7 +126,7 @@ func TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA(t *testing.T) {
 func TestOSPFv3NSSADefaultSurvivesUnrelatedWithdrawal(t *testing.T) {
 	eng, rid, nssa := v6DualAreaNSSAABR(t, "")
 	prefix := netip.MustParsePrefix("2001:db8:9::/64")
-	require.NoError(t, eng.InjectExternal(prefix, "connected"))
+	require.NoError(t, eng.InjectExternal(prefix, "connected", 0))
 	eng.applyNSSADefaults()
 	require.Equal(t, 2, countAreaLSAsByType(eng, nssa, types.LSType(ospfv3types.LSTypeNSSA)),
 		"the redistributed prefix and the default are both NSSA-LSAs")
@@ -147,7 +147,7 @@ func TestOSPFv3NSSADefaultLSIDDoesNotCollide(t *testing.T) {
 	eng, _, _ := v6DualAreaNSSAABR(t, "")
 
 	for _, s := range []string{"2001:db8:1::/64", "2001:db8:2::/64", "2001:db8:3::/64"} {
-		require.NoError(t, eng.InjectExternal(netip.MustParsePrefix(s), "connected"))
+		require.NoError(t, eng.InjectExternal(netip.MustParsePrefix(s), "connected", 0))
 	}
 
 	for prefix, lsid := range eng.redistV6 {

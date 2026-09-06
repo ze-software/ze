@@ -18,6 +18,11 @@ type RedistRoute struct {
 	Origin string        // Protocol that originated this route ("bgp", "ospf", "connected", ...)
 	Family family.Family // Address family (ipv4/unicast, ipv6/unicast, ...)
 	Source string        // Specific source name ("ibgp", "ebgp", "ospf", ...)
+	// Tag is the route's own opaque 32-bit tag, the value an operator wrote on the
+	// route in the producing protocol (the static plugin's `tag` leaf). An import
+	// rule matches on it. Zero means the route carries no tag, which is a value a
+	// rule can select: see ImportRule.MatchTag.
+	Tag uint32
 }
 
 // ImportRule represents a parsed redistribution import entry from config.
@@ -34,6 +39,15 @@ type ImportRule struct {
 	// scoped.
 	Destination string
 	Families    []family.Family // Allowed families (empty = all families accepted)
+	// Tag is the route tag this rule imports, read when MatchTag is set. A rule that
+	// names a tag imports only routes carrying exactly that value.
+	Tag uint32
+	// MatchTag reports whether the rule filters on Tag at all. It is a separate field
+	// because zero IS a tag an operator can select: a route with no `tag` leaf carries
+	// zero, so `import static { tag 0 }` means "only the untagged routes". Folding the
+	// two into one uint32 would make that rule indistinguishable from a rule with no
+	// tag filter, which accepts every route in the source (ai/rules/principles.md).
+	MatchTag bool
 }
 
 // mustNameImportingProtocol refuses an empty importing protocol.
@@ -73,6 +87,7 @@ func mustNameImportingProtocol(importingProtocol string) {
 //     (destination scoping: an import under `destination bgp` feeds only BGP)
 //   - neither its specific source nor umbrella origin matches the rule's source
 //   - its family is not in the allowed list (when families is non-empty)
+//   - the rule names a tag (MatchTag) and the route carries a different one
 //
 // importingProtocol MUST name a protocol. An empty name panics.
 func (r ImportRule) Accept(route RedistRoute, importingProtocol string) bool {
@@ -89,6 +104,12 @@ func (r ImportRule) Accept(route RedistRoute, importingProtocol string) bool {
 		return false
 	}
 	if route.Source != r.Source && route.Origin != r.Source {
+		return false
+	}
+	// Tag filter: a rule that names a tag imports only routes carrying exactly that
+	// value. MatchTag decides whether the comparison happens at all, so a rule naming
+	// tag 0 selects the untagged routes rather than every route in the source.
+	if r.MatchTag && route.Tag != r.Tag {
 		return false
 	}
 	return len(r.Families) == 0 || slices.Contains(r.Families, route.Family)

@@ -501,6 +501,7 @@ func (rm *routeManager) emitRouteChangeID(action redistevents.RouteAction, r sta
 		Prefix: r.Prefix,
 		Metric: r.Metric,
 		Table:  r.Table,
+		Tag:    r.Tag,
 	})
 	if _, err := staticevents.RouteChange.Emit(bus, b); err != nil {
 		logger().Warn("static: route-change emit failed", "error", err)

@@ -84,12 +84,15 @@ module ze-static-conf {
 
                 leaf tag {
                     type uint32;
-                    description "Opaque tag Ze stores against this route.";
+                    description "Opaque tag Ze attaches to this route for policy and redistribution.";
                     ze:help "Ze prints the value in the tag field of show static route and in the config
-                        diff. It writes the value into no kernel route. RouteChangeEntry carries no tag
-                        field, so a consumer of the redistribute bus never sees this value, and no route
-                        policy matches on it. A change to tag alone re-applies the route, because the
-                        config diff compares the field.";
+                        diff. A redistribute import rule can select routes by tag: write the same value in
+                        a tag leaf under redistribute destination <proto> import static. When Ze
+                        redistributes the route into OSPF, it writes the value into the External Route Tag
+                        of the AS-external LSA, and the tag on the route wins over the tag configured for
+                        the source. Ze writes the value into no kernel route, because Linux has no route
+                        tag attribute. A change to tag alone re-applies the route, because the config diff
+                        compares the field.";
                 }
 
                 choice action {

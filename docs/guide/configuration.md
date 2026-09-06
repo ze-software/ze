@@ -340,7 +340,9 @@ ospf {
 
 Redistribution and default-route origination make the router an ASBR. The `ospf`
 container sets the per-source external metric, metric-type (`type-1`/`type-2`),
-and route tag, and configures `default-information originate`. The shared
+and route tag, and configures `default-information originate`. A redistributed
+route that carries its own tag, such as a static route with a `tag` leaf,
+overrides the per-source tag; a route with no tag takes the per-source value. The shared
 top-level `redistribute` block enrols the actual route flow: `destination ospf`
 imports routes as OSPFv2 Type 5 LSAs for IPv4, OSPFv3 AS-External-LSAs for
 normal IPv6 areas, or OSPFv3 NSSA-LSAs for attached IPv6 NSSA areas.

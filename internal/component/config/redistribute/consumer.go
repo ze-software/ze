@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -52,6 +52,12 @@ type RouteEntry struct {
 	// asn<<16|value) the route carries. The BGP consumer emits
 	// `community [ ... ]`; other consumers ignore it. Additive.
 	Community []uint32
+	// Tag is the route's own opaque 32-bit tag, forwarded verbatim from
+	// redistevents.RouteChangeEntry.Tag. The OSPF consumer writes it into the
+	// External Route Tag of the AS-External-LSA it originates (RFC 2328 Appendix
+	// A.4.5); the BGP and IS-IS consumers ignore it. Zero means the route carries
+	// no tag. Additive: it does not change the RedistConsumer interface signature.
+	Tag uint32
 }
 
 var (
@@ -164,6 +170,6 @@ func ConsumerNames() []string {
 	for n := range consumers {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

@@ -606,6 +606,15 @@ var scenarioOperations = map[string][]operation{
 	"ospf-ptmp-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
+	"ospf-redist-static-tag-frr": {
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
+		// The route's own `tag 4242` reaches FRR as the External Route Tag of the
+		// Type 5, ahead of the `tag 7` the `ospf` container sets for the static
+		// source; the untagged route takes that 7. Reading the LSA by Link State ID
+		// keeps each tag tied to its own prefix.
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf database external 10.99.0.0"}, contains: []string{"External Route Tag: 4242"}, timeout: 90 * time.Second},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf database external 10.98.0.0"}, contains: []string{"External Route Tag: 7"}, timeout: 90 * time.Second},
+	},
 	"ospf-ri-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
