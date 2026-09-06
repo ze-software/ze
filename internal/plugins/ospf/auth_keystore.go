@@ -31,6 +31,24 @@ type resolvedKey struct {
 	// only while now is within [sendStart, sendStop). A zero bound is unbounded.
 	sendStart time.Time
 	sendStop  time.Time
+	// acceptStart/acceptStop bound the RFC 7474 §4 accept-lifetime: a packet signed with
+	// this key verifies only while now is within [acceptStart, acceptStop). A zero bound
+	// is unbounded, so a key with no configured accept-lifetime verifies at every time.
+	acceptStart time.Time
+	acceptStop  time.Time
+}
+
+// acceptsAt reports whether k may verify a packet received at now.
+//
+// RFC 7474 Section 4: "For packet reception, the key validity interval as defined by
+// AcceptLifetimeStart and AcceptLifetimeEnd must include the current time."
+//
+// The window is half-open [acceptStart, acceptStop), which is the interval
+// lifetimeBounds documents and selectSendKey already applies to the send side.
+func (k *resolvedKey) acceptsAt(now time.Time) bool {
+	started := k.acceptStart.IsZero() || !now.Before(k.acceptStart)
+	notStopped := k.acceptStop.IsZero() || now.Before(k.acceptStop)
+	return started && notStopped
 }
 
 // replayKey identifies the anti-replay high-water-mark slot. RFC 7474 §2 requires it be
@@ -44,11 +62,12 @@ type replayKey struct {
 }
 
 // authStore resolves per-interface key chains (with area `inherit`), selects the signing
-// key, accepts any chain key on receive (hitless rotation), and enforces the RFC 2328
-// App D / RFC 7474 non-decreasing cryptographic sequence number per neighbor.
+// key, accepts any chain key whose accept-lifetime covers the current time on receive
+// (hitless rotation), and enforces the RFC 2328 App D / RFC 7474 non-decreasing
+// cryptographic sequence number per neighbor.
 type authStore struct {
 	mu         sync.Mutex
-	chains     map[string][]resolvedKey // interface -> keys (sign with [0], accept any)
+	chains     map[string][]resolvedKey // interface -> keys (sign with the active one, accept any in its window)
 	srcByIface map[string][4]byte       // interface -> IPv4 source address (RFC 7474 Apad bind)
 	sendSeq    map[string]uint32        // interface -> per-packet send counter (low-order word)
 	recvSeq    map[replayKey]uint64     // last accepted sequence
@@ -60,8 +79,9 @@ type authStore struct {
 	// persistence is available; otherwise newAuthStore seeds it from a hashed
 	// high-resolution clock (bootCountFromClock) which advances on every restart.
 	bootCount uint32
-	// now is the wall clock used for send-key lifetime selection. It defaults to
-	// time.Now and is overridden in tests for deterministic lifetime windows.
+	// now is the wall clock used for send-key selection and for the receive-side
+	// accept-lifetime gate. It defaults to time.Now and is overridden in tests for
+	// deterministic lifetime windows.
 	now func() time.Time
 }
 
@@ -259,20 +279,25 @@ func (s *authStore) configure(cfg ospfConfig) {
 	s.mu.Unlock()
 }
 
-// resolveChainKeys resolves a key chain's keys into the send-key form the store holds.
-// Lifetimes are validated by validateConfig before configure runs, so a parse failure here
-// is impossible; a zero window means "always valid" (unset).
+// resolveChainKeys resolves a key chain's keys into the runtime form the store holds,
+// carrying both directional windows: the send-lifetime that selects the signing key and
+// the RFC 7474 §4 accept-lifetime that gates reception. Lifetimes are validated by
+// validateConfig before configure runs, so a parse failure here is impossible; a zero
+// window means "always valid" (unset).
 func resolveChainKeys(kc keyChainConfig) []resolvedKey {
 	keys := make([]resolvedKey, 0, len(kc.Keys))
 	for _, k := range kc.Keys {
-		start, stop, _ := lifetimeBounds(k.SendLifetime)
+		sendStart, sendStop, _ := lifetimeBounds(k.SendLifetime)
+		acceptStart, acceptStop, _ := lifetimeBounds(k.AcceptLifetime)
 		keys = append(keys, resolvedKey{
-			keyID:     k.KeyID,
-			auType:    authAuType(k.Algorithm, kc.ExtendedSequence),
-			algo:      k.Algorithm,
-			secret:    decodeSecret(k.Secret),
-			sendStart: start,
-			sendStop:  stop,
+			keyID:       k.KeyID,
+			auType:      authAuType(k.Algorithm, kc.ExtendedSequence),
+			algo:        k.Algorithm,
+			secret:      decodeSecret(k.Secret),
+			sendStart:   sendStart,
+			sendStop:    sendStop,
+			acceptStart: acceptStart,
+			acceptStop:  acceptStop,
 		})
 	}
 	return keys
@@ -353,9 +378,24 @@ func (s *authStore) signKey(iface string) (packet.AuthKey, packet.AuType, uint64
 // address from the packet's IP header (bound into the AuType 3 Apad per RFC 7474 §5). It
 // returns ("", true) when accepted (including when no auth is configured), or a failure
 // reason and false.
+//
+// Only a key whose accept-lifetime covers the current time is tried, so an operator
+// retires a key by closing its window and never has to delete it from the chain. The
+// receive side of an expired chain fails CLOSED: no key is tried, no digest is compared,
+// and the packet is refused. That is the opposite of selectSendKey, which keeps signing
+// with an expired key, and both choices point the same way -- signing with a stale key is
+// safer than sending unauthenticated, and refusing a stale key is safer than
+// authenticating a neighbor the operator believes is retired.
+//
+// The "accept-lifetime" reason is reported when the window is what refused the packet:
+// the sender named a key this chain holds and that key is outside its window, or no key
+// of the chain is inside one. A secret that is genuinely wrong still reports
+// "digest-mismatch", so the counter sends the operator to the clock or to the key
+// material and never to the wrong one of the two.
 func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire []byte) (string, bool) {
 	s.mu.Lock()
 	keys := s.chains[iface]
+	now := s.now()
 	s.mu.Unlock()
 	if len(keys) == 0 {
 		return "", true // auth not configured on this interface
@@ -367,7 +407,23 @@ func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire [
 	if h.AuType != keys[0].auType {
 		return "autype-mismatch", false
 	}
+	// senderKeyID is the key the packet itself names. AuType 1 names none, so a
+	// simple-password chain answers for the chain as a whole and never per key.
+	senderKeyID, senderNamedKey := packet.AuthKeyID(h)
+	senderKeyRetired := false
+	inWindow := 0
 	for _, k := range keys {
+		// RFC 7474 Section 4: "For packet reception, the key validity interval as
+		// defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current
+		// time." A key outside its window is skipped before the digest is computed, so
+		// it can neither accept the packet nor record its sequence number.
+		if !k.acceptsAt(now) {
+			if senderNamedKey && k.keyID == senderKeyID {
+				senderKeyRetired = true
+			}
+			continue
+		}
+		inWindow++
 		seq, ok := packet.Verify(wire, h.AuType, packet.AuthKey{KeyID: k.keyID, Algorithm: k.algo, Secret: k.secret}, src)
 		if !ok {
 			continue
@@ -387,6 +443,9 @@ func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire [
 		s.recvSeq[rk] = seq
 		s.mu.Unlock()
 		return "", true
+	}
+	if senderKeyRetired || inWindow == 0 {
+		return "accept-lifetime", false
 	}
 	if keys[0].auType == packet.AuTypeSimple {
 		return "password-mismatch", false

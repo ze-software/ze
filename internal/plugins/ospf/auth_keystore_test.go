@@ -1,8 +1,10 @@
 // VALIDATES: spec-ospf-12 -- the auth key store resolves per-interface chains with area
-// `inherit`, decodes `$9$` secrets, signs with the active key, accepts any chain key on
-// receive (hitless rotation), and rejects a replayed cryptographic sequence number.
+// `inherit`, decodes `$9$` secrets, signs with the active key, accepts a chain key on
+// receive only while its accept-lifetime covers the current time (hitless rotation,
+// RFC 7474 Section 4), and rejects a replayed cryptographic sequence number.
 // PREVENTS: regressions where `inherit` does not resolve, a rotated key drops the
-// adjacency, or an old sequence number is accepted.
+// adjacency, a key whose accept window has closed still authenticates a neighbor, or an
+// old sequence number is accepted.
 package ospf
 
 import (
@@ -406,4 +408,157 @@ func TestOSPFAuthESNCounterWrapAdvancesBootCount(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, uint64(0x1235)<<32|1, seq2)
 	assert.Greater(t, seq2, seq, "sequence must not regress across the counter wrap")
+}
+
+// signedHelloWith signs a Hello with an explicit key and sequence, modeling a PEER
+// that holds the key rather than this store's own send path. It is what an
+// accept-lifetime test needs: the packet must be cryptographically perfect, so the
+// only thing that can reject it is the receive window.
+func signedHelloWith(t *testing.T, key packet.AuthKey, seq uint64) []byte {
+	t.Helper()
+	p := packet.Packet{Header: packet.Header{Type: packet.PacketTypeHello, AuType: packet.AuTypeCryptographic}, Hello: &packet.Hello{NetworkMask: [4]byte{255, 255, 255, 0}, HelloInterval: 10, DeadInterval: 40}}
+	buf := make([]byte, p.EncodedLen())
+	n := p.WriteTo(buf, 0)
+	signed, err := packet.Sign(buf[:n], packet.AuTypeCryptographic, key, seq, [4]byte{})
+	require.NoError(t, err)
+	return signed
+}
+
+// TestVerifyRejectsOutsideAcceptLifetime drives AC-1/AC-2: a packet signed with a chain
+// key verifies only while the store's clock is inside that key's accept-lifetime. The
+// packet bytes are identical in all three assertions, so the clock is the only variable.
+func TestVerifyRejectsOutsideAcceptLifetime(t *testing.T) {
+	s := newAuthStore()
+	s.configure(lifetimeAuthCfg(keyConfig{
+		KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret",
+		AcceptLifetime: lifetimeConfig{Start: "2026-03-01T00:00:00Z", End: "2026-06-01T00:00:00Z"},
+	}))
+	peer := ridOf("2.2.2.2")
+	wire := signedHelloWith(t, packet.AuthKey{KeyID: 1, Algorithm: "hmac-sha-256", Secret: []byte("topsecret")}, 1)
+
+	// RFC requirement: RFC7474-4-1 negative -- a correctly signed packet received BEFORE the key's AcceptLifetimeStart (2026-02-01 against a window opening 2026-03-01) is refused with the accept-lifetime reason, so a key is not used on reception outside its validity interval (resolvedKey.acceptsAt and authStore.verify, auth_keystore.go).
+	s.now = func() time.Time { return rfc3339(t, "2026-02-01T00:00:00Z") }
+	reason, ok := s.verify("eth0", peer, [4]byte{}, wire)
+	assert.False(t, ok, "before the accept window opens the packet is refused")
+	assert.Equal(t, "accept-lifetime", reason)
+
+	// RFC requirement: RFC7474-4-1 positive -- the same packet bytes verify when the clock (2026-04-01) is INSIDE the key's [AcceptLifetimeStart, AcceptLifetimeEnd) window, so the interval including the current time is what admits the key (resolvedKey.acceptsAt and authStore.verify, auth_keystore.go).
+	s.now = func() time.Time { return rfc3339(t, "2026-04-01T00:00:00Z") }
+	reason, ok = s.verify("eth0", peer, [4]byte{}, wire)
+	assert.True(t, ok, "inside the accept window the same packet verifies")
+	assert.Empty(t, reason)
+
+	// RFC requirement: RFC7474-4-1 negative -- the same packet is refused again once the clock (2026-07-01) is past AcceptLifetimeEnd (2026-06-01), so the window closes as well as opens.
+	s.now = func() time.Time { return rfc3339(t, "2026-07-01T00:00:00Z") }
+	reason, ok = s.verify("eth0", peer, [4]byte{}, wire)
+	assert.False(t, ok, "after the accept window closes the packet is refused")
+	assert.Equal(t, "accept-lifetime", reason)
+}
+
+// TestVerifyAcceptLifetimePerKey drives AC-3: the window is per key, not per chain. A
+// retired key stops verifying while its successor keeps working, which is what makes
+// closing the window a usable way to retire a key.
+func TestVerifyAcceptLifetimePerKey(t *testing.T) {
+	s := newAuthStore()
+	s.configure(lifetimeAuthCfg(
+		keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "old", AcceptLifetime: lifetimeConfig{Start: "2026-01-01T00:00:00Z", End: "2026-06-01T00:00:00Z"}},
+		keyConfig{KeyID: 2, Algorithm: "hmac-sha-256", Secret: "new", AcceptLifetime: lifetimeConfig{Start: "2026-05-01T00:00:00Z", End: "2026-12-01T00:00:00Z"}},
+	))
+	peer := ridOf("2.2.2.2")
+	oldWire := signedHelloWith(t, packet.AuthKey{KeyID: 1, Algorithm: "hmac-sha-256", Secret: []byte("old")}, 1)
+	newWire := signedHelloWith(t, packet.AuthKey{KeyID: 2, Algorithm: "hmac-sha-256", Secret: []byte("new")}, 1)
+
+	// Overlap: both accept windows contain the clock, so both keys verify (hitless rollover).
+	s.now = func() time.Time { return rfc3339(t, "2026-05-15T00:00:00Z") }
+	_, oldOK := s.verify("eth0", peer, [4]byte{}, oldWire)
+	assert.True(t, oldOK, "the outgoing key still verifies during the overlap")
+	_, newOK := s.verify("eth0", peer, [4]byte{}, newWire)
+	assert.True(t, newOK, "the incoming key verifies during the overlap")
+
+	// After key 1's window closes only key 2 verifies.
+	s.now = func() time.Time { return rfc3339(t, "2026-08-01T00:00:00Z") }
+	reason, retiredOK := s.verify("eth0", peer, [4]byte{}, oldWire)
+	assert.False(t, retiredOK, "the retired key no longer verifies")
+	assert.Equal(t, "accept-lifetime", reason)
+	_, liveOK := s.verify("eth0", peer, [4]byte{}, signedHelloWith(t, packet.AuthKey{KeyID: 2, Algorithm: "hmac-sha-256", Secret: []byte("new")}, 2))
+	assert.True(t, liveOK, "the live key keeps verifying after its predecessor retires")
+}
+
+// TestVerifyUnsetAcceptLifetimeAlwaysVerifies pins the default: a key with no
+// accept-lifetime is unbounded, so gating reception on the window changes nothing for a
+// chain that configures none.
+func TestVerifyUnsetAcceptLifetimeAlwaysVerifies(t *testing.T) {
+	s := newAuthStore()
+	s.configure(authCfg(keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret"}))
+	s.now = func() time.Time { return rfc3339(t, "2099-01-01T00:00:00Z") }
+
+	wire := signedHelloWith(t, packet.AuthKey{KeyID: 1, Algorithm: "hmac-sha-256", Secret: []byte("topsecret")}, 1)
+	reason, ok := s.verify("eth0", ridOf("2.2.2.2"), [4]byte{}, wire)
+	assert.True(t, ok, "an unset accept-lifetime is unbounded")
+	assert.Empty(t, reason)
+}
+
+// TestAcceptLifetimeReachesVerifyFromConfig is the wiring test: it starts at the
+// operator's `accept-lifetime { start end }` config leaves, runs the real config parser,
+// and shows the parsed window arriving at the receive gate. A unit test built from a
+// hand-made keyConfig would pass even if parseKeyChain dropped the container.
+func TestAcceptLifetimeReachesVerifyFromConfig(t *testing.T) {
+	const data = `{"ospf":{"router-id":"10.0.0.1",` +
+		`"areas":{"area":{"0":{"area-id":"0","authentication":{"key-chain":"kc1"}}}},` +
+		`"interfaces":{"interface":{"eth0":{"area":"0","authentication":{"mode":"inherit"}}}},` +
+		`"key-chains":{"kc1":{"name":"kc1","key":{"1":{"key-id":"1","algorithm":"hmac-sha-256","secret":"topsecret",` +
+		`"accept-lifetime":{"start":"2026-03-01T00:00:00Z","end":"2026-06-01T00:00:00Z"}}}}}}}`
+	cfg, err := parseOSPFConfig(ospfSec(data), nil)
+	require.NoError(t, err)
+	require.NoError(t, validateConfig(cfg))
+
+	s := newAuthStore()
+	s.configure(cfg)
+	peer := ridOf("2.2.2.2")
+	wire := signedHelloWith(t, packet.AuthKey{KeyID: 1, Algorithm: "hmac-sha-256", Secret: []byte("topsecret")}, 1)
+
+	s.now = func() time.Time { return rfc3339(t, "2026-04-01T00:00:00Z") }
+	_, inside := s.verify("eth0", peer, [4]byte{}, wire)
+	assert.True(t, inside, "the configured window admits the packet")
+
+	s.now = func() time.Time { return rfc3339(t, "2026-09-01T00:00:00Z") }
+	reason, outside := s.verify("eth0", peer, [4]byte{}, wire)
+	assert.False(t, outside, "the configured window refuses the packet once it closes")
+	assert.Equal(t, "accept-lifetime", reason)
+}
+
+// TestVerifyWrongSecretInsideAcceptLifetimeReportsDigestMismatch is the negative pole of
+// the accept-lifetime reason: the window is reported only when the window is what refused
+// the packet. A key whose window is open and whose secret is wrong still reports
+// "digest-mismatch", so ze_ospf_auth_failures_total sends the operator to the key material
+// rather than to the clock.
+func TestVerifyWrongSecretInsideAcceptLifetimeReportsDigestMismatch(t *testing.T) {
+	s := newAuthStore()
+	s.configure(authCfg(keyConfig{
+		KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret",
+		AcceptLifetime: lifetimeConfig{Start: "2026-03-01T00:00:00Z", End: "2026-06-01T00:00:00Z"},
+	}))
+	s.now = func() time.Time { return rfc3339(t, "2026-04-01T00:00:00Z") }
+
+	wire := signedHelloWith(t, packet.AuthKey{KeyID: 1, Algorithm: "hmac-sha-256", Secret: []byte("the-wrong-secret")}, 1)
+	reason, ok := s.verify("eth0", ridOf("2.2.2.2"), [4]byte{}, wire)
+	assert.False(t, ok, "a wrong secret is refused")
+	assert.Equal(t, "digest-mismatch", reason, "the window is open, so the digest is what failed")
+}
+
+// TestVerifyUnknownKeyIDOutsideEveryWindow pins the chain-level arm of the reason: a
+// packet naming a key the chain does not hold, received when no key is in its window, is
+// refused as "accept-lifetime" because no key could have been tried at all.
+func TestVerifyUnknownKeyIDOutsideEveryWindow(t *testing.T) {
+	s := newAuthStore()
+	s.configure(authCfg(keyConfig{
+		KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret",
+		AcceptLifetime: lifetimeConfig{Start: "2026-03-01T00:00:00Z", End: "2026-06-01T00:00:00Z"},
+	}))
+	s.now = func() time.Time { return rfc3339(t, "2026-09-01T00:00:00Z") }
+
+	wire := signedHelloWith(t, packet.AuthKey{KeyID: 9, Algorithm: "hmac-sha-256", Secret: []byte("topsecret")}, 1)
+	reason, ok := s.verify("eth0", ridOf("2.2.2.2"), [4]byte{}, wire)
+	assert.False(t, ok, "no key of the chain is in its window")
+	assert.Equal(t, "accept-lifetime", reason)
 }

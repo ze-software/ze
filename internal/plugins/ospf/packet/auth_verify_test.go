@@ -355,3 +355,29 @@ func TestOSPFAuthCryptoChecksumOctetAuthenticated(t *testing.T) {
 	_, bad := Verify(tampered, AuTypeCryptographic, key, [4]byte{})
 	assert.False(t, bad, "a mutated checksum octet fails the AuType 2 digest")
 }
+
+// VALIDATES: AuthKeyID reads the Key ID from the field each AuType puts it in, and reports
+// that AuType 0 and AuType 1 name no key.
+// PREVENTS: a caller reporting the wrong key, or re-deriving the auth-field offsets, when
+// it has to say WHICH key a received packet named. The AuType 2 Key ID is one octet at
+// offset 2 (RFC 2328 App D) and the AuType 3 Key ID is four octets at offset 4 (RFC 7474
+// Section 3), so reading either at the other's offset gives a plausible wrong number.
+func TestAuthKeyID(t *testing.T) {
+	cases := []struct {
+		name    string
+		header  Header
+		wantID  uint32
+		wantHas bool
+	}{
+		{name: "AuType 2 one-octet key id", header: Header{AuType: AuTypeCryptographic, Auth: AuthField{0, 0, 7, 32, 0, 0, 0, 1}}, wantID: 7, wantHas: true},
+		{name: "AuType 3 four-octet key id", header: Header{AuType: AuTypeCryptographicESN, Auth: AuthField{0, 0, 0, 40, 0x00, 0x01, 0x02, 0x03}}, wantID: 0x00010203, wantHas: true},
+		{name: "AuType 0 names no key", header: Header{AuType: AuTypeNull, Auth: AuthField{0, 0, 7, 32, 0, 0, 0, 1}}, wantID: 0, wantHas: false},
+		{name: "AuType 1 names no key", header: Header{AuType: AuTypeSimple, Auth: AuthField{'s', 'e', 'c', 'r', 'e', 't', 0, 0}}, wantID: 0, wantHas: false},
+	}
+	for _, tc := range cases {
+		gotID, gotHas := AuthKeyID(tc.header)
+		if gotID != tc.wantID || gotHas != tc.wantHas {
+			t.Errorf("%s: AuthKeyID = (%d, %t), want (%d, %t)", tc.name, gotID, gotHas, tc.wantID, tc.wantHas)
+		}
+	}
+}

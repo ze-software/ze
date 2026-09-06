@@ -1475,9 +1475,11 @@ the window open with no end bound, so this key signs until a later key starts.";
 Key Stop Accept. RFC 7474 section 4 requires that, for packet reception, 'the key validity
 interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current
 time'. Ze checks that both timestamps parse as RFC 3339 and refuses the configuration when
-one does not. Ze does not gate reception on the window yet. Verification tries every key of
-the chain and accepts the packet whose digest matches one of them. Use `send-lifetime` to
-control which key signs.";
+one does not. On receive Ze tries only the keys whose window covers the current time, so a
+packet made with a key outside its window is dropped and counted under the accept-lifetime
+reason. A key with no accept-lifetime is accepted at every time. When no key of the chain is
+in its window, every packet on the interface is dropped. Use `send-lifetime` to control
+which key signs.";
                     leaf start {
                         type string { length "1..64"; }
                         description "RFC3339 start timestamp.";

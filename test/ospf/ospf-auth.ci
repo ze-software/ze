@@ -4,8 +4,11 @@
 # secret, and `extended-sequence` (RFC 7474 AuType 3) validates; an area `authentication
 # { key-chain }` default and a per-interface `authentication { mode inherit }` validate;
 # the algorithm enumeration rejects an unknown value.
+# VALIDATES: spec-ospf-accept-lifetime-receive-window -- an `accept-lifetime { start end }`
+# window on a key validates, and a timestamp that is not RFC 3339 is refused at commit.
 # PREVENTS: regressions where the auth leaves are unwired, the algorithm enum accepts a
-# bogus value, or the extended-sequence / inherit leaves are missing.
+# bogus value, the extended-sequence / inherit leaves are missing, or the accept-lifetime
+# container is dropped from the schema.
 
 # --- Valid: key chain (HMAC-SHA-256, extended-sequence) inherited by an interface. ---
 stdin=ospf-auth-valid:terminator=EOF_VALID
@@ -65,3 +68,72 @@ EOF_BAD
 cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-auth-badalgo:exit=1
 expect=exit:code=1
 expect=stdout:contains=algorithm
+
+# --- Valid: per-key accept-lifetime window, the RFC 7474 section 4 receive interval. ---
+stdin=ospf-auth-accept-lifetime:terminator=EOF_ACCEPT
+ospf {
+	router-id 10.0.0.1
+	key-chains kc1 {
+		key 1 {
+			algorithm hmac-sha-256
+			secret myverysecretkey
+			send-lifetime {
+				start 2026-01-01T00:00:00Z
+				end 2026-06-01T00:00:00Z
+			}
+			accept-lifetime {
+				start 2026-01-01T00:00:00Z
+				end 2026-07-01T00:00:00Z
+			}
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+			authentication {
+				key-chain kc1
+			}
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			authentication {
+				mode inherit
+			}
+		}
+	}
+}
+EOF_ACCEPT
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-auth-accept-lifetime:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid: an accept-lifetime timestamp that is not RFC 3339 is refused. -----
+stdin=ospf-auth-accept-badtime:terminator=EOF_ACCEPT_BAD
+ospf {
+	router-id 10.0.0.1
+	key-chains kc1 {
+		key 1 {
+			algorithm hmac-sha-256
+			secret myverysecretkey
+			accept-lifetime {
+				start yesterday
+			}
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+EOF_ACCEPT_BAD
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-auth-accept-badtime:exit=1
+expect=exit:code=1
+expect=stdout:contains=accept-lifetime

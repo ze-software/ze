@@ -264,3 +264,26 @@ func Verify(wire []byte, auType AuType, key AuthKey, src [4]byte) (uint64, bool)
 	}
 	return 0, false
 }
+
+// AuthKeyID returns the Key ID a received packet names, and false for an AuType that
+// names none. Verify selects the verifying key implicitly by this field, so a caller that
+// has to report WHICH of its keys the sender used reads it here rather than re-deriving
+// the offsets.
+//
+// RFC 2328 Appendix D: the AuType 2 Key ID is the single octet at offset 2 of the
+// authentication field. RFC 7474 Section 3: AuType 3 carries a 32-bit Key ID in the four
+// octets that follow the Reserved and Auth Data Len fields.
+//
+// AuType 0 carries no authentication and AuType 1 carries a password with no key
+// identity, so neither names a key.
+func AuthKeyID(h Header) (uint32, bool) {
+	switch h.AuType {
+	case AuTypeCryptographic:
+		return uint32(h.Auth[2]), true
+	case AuTypeCryptographicESN:
+		return readUint32(h.Auth[:], 4), true
+	case AuTypeNull, AuTypeSimple:
+		return 0, false
+	}
+	return 0, false
+}

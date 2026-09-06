@@ -39,6 +39,18 @@ extended 64-bit cryptographic sequence).
   protection AND a conformant peer forms zero AuType-3 adjacencies. A
   self-round-trip test cannot catch this, because both sides share the same wrong
   Apad. Sign with one source and verify with another.
+- **The accept-lifetime gate runs BEFORE the digest and before the replay
+  bookkeeping.** RFC 7474 Section 4 requires the accept window to include the
+  current time for a key used on reception, so a key outside its window is
+  skipped and can neither accept the packet nor record its sequence number. A
+  gate placed after the digest comparison would let an out-of-window key advance
+  the high-water mark, and the packet the operator meant to refuse would then
+  block the legitimate one behind it. The send side and the receive side point
+  the same way but do the opposite thing: `selectSendKey` keeps signing with an
+  expired key (signing stale beats sending unauthenticated), and `verify` refuses
+  every key whose window has closed (refusing stale beats authenticating a
+  neighbor the operator retired).
+  <!-- source: internal/plugins/ospf/auth_keystore.go -- resolvedKey.acceptsAt, authStore.verify -->
 - **Replay rejects an EQUAL sequence, not only a lower one.** RFC 7474 Section 2
   requires the received sequence to be strictly greater than the last accepted.
   The send counter increments per packet, so an equal sequence is always a

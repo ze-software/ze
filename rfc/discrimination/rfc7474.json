@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7474",
+  "records": [
+    {
+      "rid": "RFC7474-4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime",
+      "unit-sha": "e77daa88adf88978",
+      "claim-sha": "8e35afec623ce177",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::acceptsAt",
+      "producer-sha": "377e93f52520fce9",
+      "break": "body of acceptsAt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime",
+      "unit-sha": "e77daa88adf88978",
+      "claim-sha": "693708c47152c4be",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::acceptsAt",
+      "producer-sha": "377e93f52520fce9",
+      "break": "body of acceptsAt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
