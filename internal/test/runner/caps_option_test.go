@@ -169,3 +169,46 @@ func TestBPFTokenIsCapBPFOnly(t *testing.T) {
 			"no kernel this runs on needs it, so the gate would over-skip", capsBPF, bits, capSysResource)
 	}
 }
+
+// The net-bind token maps to CAP_NET_BIND_SERVICE and gates in BOTH polarities.
+//
+// VALIDATES: `caps=net-bind` skips without the capability, runs with it, and
+// asks the probe about the bit its NAME claims.
+// PREVENTS: two failures with one shape. Declaring `caps=net-admin` on a test
+// whose only privileged act is binding port 53 would skip a host that can bind
+// it and cannot program nftables, deleting coverage; checking no bit at all
+// would let the test run unprivileged, where `ze-test dns` fails to bind and
+// the daemon's lookups time out against nothing.
+func TestCapsNetBindGateBothPolarities(t *testing.T) {
+	bits := capsRequired[capsNetBind]
+	if !slices.Contains(bits, capNetBindService) {
+		t.Errorf("capsRequired[%q] = %v, missing CAP_NET_BIND_SERVICE (bit %d)", capsNetBind, bits, capNetBindService)
+	}
+	if slices.Contains(bits, capNetAdmin) {
+		t.Errorf("capsRequired[%q] = %v also requires CAP_NET_ADMIN (bit %d): binding a port programs no netlink, "+
+			"so the gate would skip a host that could run the test", capsNetBind, bits, capNetAdmin)
+	}
+
+	var seen []string
+	withCapsRecording(t, false, &seen)
+
+	absent := parseNeedsLinux(t, "option=needs-linux:caps=net-bind")
+	if runtime.GOOS != goosLinux {
+		return // the GOOS skip fires first, and is covered by the bare-option test
+	}
+	if absent.SkipReason == "" {
+		t.Fatal("caps=net-bind ran without CAP_NET_BIND_SERVICE: the stub cannot bind port 53 and the test fails on the host, not on ze")
+	}
+	if !slices.Contains(seen, capsNetBind) {
+		t.Errorf("the probe was never asked about %q (seen: %v)", capsNetBind, seen)
+	}
+	if !strings.Contains(absent.SkipReason, capsNetBind) {
+		t.Errorf("skip reason %q does not name the missing capability", absent.SkipReason)
+	}
+
+	withCaps(t, true)
+	present := parseNeedsLinux(t, "option=needs-linux:caps=net-bind")
+	if present.SkipReason != "" {
+		t.Fatalf("caps=net-bind skipped WITH the capability present: %q -- the DNS stub tests would never run, even under QEMU", present.SkipReason)
+	}
+}

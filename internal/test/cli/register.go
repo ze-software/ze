@@ -6,6 +6,7 @@ import (
 	interopbgp "github.com/ze-software/ze/internal/le/interoplab/bgp"
 	"github.com/ze-software/ze/internal/test/fixture"
 	"github.com/ze-software/ze/internal/test/mock/cymru"
+	dnsmock "github.com/ze-software/ze/internal/test/mock/dns"
 	"github.com/ze-software/ze/internal/test/mock/irr"
 	"github.com/ze-software/ze/internal/test/mock/peeringdb"
 	radiusmock "github.com/ze-software/ze/internal/test/mock/radius"
@@ -67,6 +68,7 @@ func init() {
 
 	// Mock servers
 	registerRoot("cymru", cymru.Run, "Deterministic Cymru DNS mock server (ASN to TXT responses)")
+	registerRoot("dns", dnsmock.Run, "Deterministic DNS mock server (A/AAAA zone with NODATA, NXDOMAIN, SERVFAIL and REFUSED names)")
 	registerRoot("irr", irr.Run, "Deterministic IRR whois mock server (AS-SET expansion, prefix lookup)")
 	registerRoot("peeringdb", peeringdb.Run, "Deterministic PeeringDB mock server (ASN-derived prefix counts)")
 	registerRoot("rpki", rpki.Run, "Deterministic RPKI mock server (IP modulo for validation state)")

@@ -18,10 +18,11 @@ const goosLinux = "linux"
 // typo must be rejected on macOS too, or the author who wrote it gets no
 // feedback until someone runs on Linux.
 const (
-	capNetAdmin    = 12 // CAP_NET_ADMIN: interfaces, netlink, nftables
-	capNetRaw      = 13 // CAP_NET_RAW: raw and packet sockets (ICMP ping, traceroute)
-	capSysResource = 24 // CAP_SYS_RESOURCE: raise rlimits (RLIMIT_MEMLOCK for eBPF)
-	capBPF         = 39 // CAP_BPF: load eBPF programs and create maps (>= 5.8)
+	capNetBindService = 10 // CAP_NET_BIND_SERVICE: bind a port below 1024 (the DNS stub on 53)
+	capNetAdmin       = 12 // CAP_NET_ADMIN: interfaces, netlink, nftables
+	capNetRaw         = 13 // CAP_NET_RAW: raw and packet sockets (ICMP ping, traceroute)
+	capSysResource    = 24 // CAP_SYS_RESOURCE: raise rlimits (RLIMIT_MEMLOCK for eBPF)
+	capBPF            = 39 // CAP_BPF: load eBPF programs and create maps (>= 5.8)
 )
 
 // Values `option=needs-linux:caps=` accepts, as a comma-separated list.
@@ -55,8 +56,19 @@ const (
 //     fails with a readable reason that is nonetheless about the HOST and not
 //     about ze. CAP_NET_RAW alone: nothing on this path needs NET_ADMIN, and
 //     requiring both would skip a host that can genuinely run the test.
+//
+//   - net-bind: binding a port below 1024. `ze-test dns` serves its stub zone
+//     on port 53, because `system name-server` is declared `type zt:ip-address`
+//     (internal/component/config/system/yang/ze-system-conf.yang) and carries
+//     no port, so a daemon pointed at the stub reaches it there or nowhere.
+//     CAP_NET_BIND_SERVICE alone: nothing on this path programs netlink, and
+//     declaring net-admin instead would name one capability while needing
+//     another -- a guard that cannot evaluate what it claims
+//     (ai/rules/evidence.md) -- as well as skipping a host that can bind port 53
+//     but cannot program nftables.
 const (
 	capsNetAdmin = "net-admin"
+	capsNetBind  = "net-bind"
 	capsNetRaw   = "net-raw"
 	capsBPF      = "bpf"
 )
@@ -69,6 +81,7 @@ const (
 // (ai/rules/evidence.md).
 var capsRequired = map[string][]int{
 	capsNetAdmin: {capNetAdmin},
+	capsNetBind:  {capNetBindService},
 	capsNetRaw:   {capNetRaw},
 	capsBPF:      {capBPF},
 }

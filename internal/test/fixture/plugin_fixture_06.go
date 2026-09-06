@@ -27,6 +27,8 @@ func init() {
 		"plugin/dispatch-command-single-decode": fixture06DispatchSingleDecode,
 		"plugin/dns-cache-show":                 fixture06DNSCacheShow,
 		"plugin/dns-lookup-show":                fixture06DNSLookupShow,
+		"plugin/dns-stub-answer-change":         dnsStubAnswerChange,
+		"plugin/dns-stub-lookup":                dnsStubLookup,
 		"plugin/doctor-owner-check-show":        fixture06DoctorOwnerCheck,
 		"plugin/enricher-external-show-checker": fixture06EnricherExternalChecker,
 		"plugin/enricher-fakeenrich-show":       fixture06EnricherFakeChecker,

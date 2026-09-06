@@ -1,0 +1,73 @@
+# Test: a name's address changes while the daemon runs, and the next lookup
+#       reports the new one with no cache-clearing command in between.
+# Spec: plan/spec-ze-test-dns-stub.md -- Wiring Test row 2, user story 2
+# VALIDATES: AC-6 and AC-7. The stub runs INSIDE the fixture process, which is
+#            what a `cmd=background` process with no control channel cannot do:
+#            dnsStubAnswerChange (internal/test/fixture/plugin_fixture_dns_stub.go)
+#            holds the server and calls Set between two dispatches.
+# PREVENTS: a test that reports the daemon's own cache back to itself. The zone
+#           answers with TTL 0, and cache.put
+#           (internal/component/resolve/dns/cache.go) returns before storing a
+#           zero-TTL answer, so the second lookup reaches the stub. A stub that
+#           substituted a comfortable default TTL would make this file pass on
+#           the stale address.
+#
+# The stub binds port 53, because `system name-server` is declared
+# `type zt:ip-address` (internal/component/config/system/yang/ze-system-conf.yang)
+# and carries no port.
+option=needs-linux:caps=net-bind
+# Serialize against every other test that binds port 53.
+option=exclusive:group=dns-stub-port-53
+option=timeout:value=30s
+
+stdin=ze-dns:terminator=EOF_CONF
+system {
+	name-server 127.0.0.1;
+	dns {
+		resolv-conf-path "";
+	}
+}
+
+plugin {
+	external dns-stub-answer-change-test {
+		run "ze-test fixture plugin/dns-stub-answer-change"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-dns:timeout=25s
+expect=exit:code=0
+
+# NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':' to read its
+# keys (record_parse.go).
+expect=stdout:contains=before the change -> records 203.0.113.10 status NOERROR
+expect=stdout:contains=after the change -> records 203.0.113.11 status NOERROR

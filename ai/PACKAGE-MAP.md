@@ -859,6 +859,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/test/localdatacoverage` | TODO |  |
 | `internal/test/markupcheck` | holds the static checks over a package that renders markup |  |
 | `internal/test/mock/cymru` | implements a deterministic Team Cymru DNS mock server for tests |  |
+| `internal/test/mock/dns` | implements a deterministic DNS mock server for functional tests |  |
 | `internal/test/mock/irr` | implements a deterministic IRR whois mock server for tests |  |
 | `internal/test/mock/peeringdb` | implements a deterministic PeeringDB HTTP mock server for tests |  |
 | `internal/test/mock/radius` | implements a mock RADIUS server (RFC 2865) for AAA testing |  |

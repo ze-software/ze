@@ -1,0 +1,92 @@
+# Test: a daemon whose `system name-server` names the stub resolves the stub's
+#       zone through `show dns lookup`, for A, for AAAA, for a name that holds
+#       one family only, and for a name that does not exist.
+# Spec: plan/spec-ze-test-dns-stub.md -- Wiring Test rows 1 and 3, user story 1
+# VALIDATES: AC-8. The stub is the separate `ze-test dns --port 53` process
+#            started below, so this file is the subcommand's consumer: the query
+#            leaves the daemon's own resolver (Resolver.query,
+#            internal/component/resolve/dns/resolver.go) and the answer is
+#            rendered by handleDNSLookup (internal/component/resolve/cmd/show_dns.go).
+# PREVENTS: a stub that answers NXDOMAIN for the AAAA of an IPv4-only name.
+#           resolveAndRecord (internal/component/firewall/plugins/domain/domain.go)
+#           reads NXDOMAIN as "this name is gone" and empties what the name
+#           contributes to a live firewall set, so that answer would make every
+#           domain-group test that uses this stub lie.
+#
+# The stub binds port 53, because `system name-server` is declared
+# `type zt:ip-address` (internal/component/config/system/yang/ze-system-conf.yang)
+# and carries no port, so a daemon pointed at a stub reaches it there or nowhere.
+option=needs-linux:caps=net-bind
+# Serialize against every other test that binds port 53. The port is NODE-WIDE
+# and the address is fixed by the leaf's type, so two stubs cannot coexist.
+option=exclusive:group=dns-stub-port-53
+option=timeout:value=30s
+
+stdin=ze-dns:terminator=EOF_CONF
+system {
+	# newResolvers (cmd/ze/hub/main_system.go) reads NameServers[0] into
+	# ResolverConfig.Server, and NewResolver appends port 53 to a value that
+	# carries none. This is what points every lookup at the stub.
+	name-server 127.0.0.1;
+	dns {
+		# An empty path stops Ze writing a resolv.conf. The runner's container is
+		# shared, and the file is not what the resolver reads here.
+		resolv-conf-path "";
+	}
+}
+
+plugin {
+	external dns-stub-lookup-test {
+		run "ze-test fixture plugin/dns-stub-lookup"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-test dns --port 53
+cmd=foreground:seq=2:exec=ze -:stdin=ze-dns:timeout=25s
+expect=exit:code=0
+
+# NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':' to read its
+# keys (record_parse.go), so every assertion below stops at a value boundary.
+# dnsAnswerLine (internal/test/fixture/plugin_fixture_dns_stub.go) renders the
+# OBSERVED answer, with "none" for no records and "NOERROR" for the status field
+# handleDNSLookup omits on a successful answer.
+expect=stdout:contains=web.example.test type A -> records 203.0.113.10 status NOERROR
+# The IPv6 address holds colons, so this needle stops before the first one. The
+# family and the status are what this row is asserting.
+expect=stdout:contains=web.example.test type AAAA -> records 2001
+expect=stdout:contains=v4only.example.test type A -> records 198.51.100.10 status NOERROR
+# The AAAA of an IPv4-only name answers NOERROR with no records (RFC 2308
+# Section 2.2). NXDOMAIN here would say the name is gone and would empty a live
+# firewall set, which is the failure this stub exists to avoid.
+expect=stdout:contains=v4only.example.test type AAAA -> records none status NOERROR
+expect=stdout:contains=absent.example.test type A -> records none status NXDOMAIN
