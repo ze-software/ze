@@ -16,9 +16,18 @@ marker = os.path.join(tempfile.gettempdir(), f'exabgp-hc-test-{os.getpid()}')
 # Shell one-liner: succeed once (create marker), then fail
 check_cmd = f'test ! -f {marker} && touch {marker} || exit 1'
 
+# --next-hop is stated rather than left to the module's default of `self`.
+# This case peers 127.0.0.1 with 127.0.0.1, so `self` resolves to the peer's
+# own address, and RFC 4271 Section 5.1.3 says "A route originated by a BGP
+# speaker SHALL NOT be advertised to a peer using an address of that peer as
+# NEXT_HOP". ze withholds such a route and says so, which is the conformant
+# act, so `self` would leave this case asserting a frame ze must never send.
+# The module is still the subject: --next-hop is one of its own options, and
+# every other byte of the announce comes from it.
 sys.argv = [
     'healthcheck',
     '--cmd', check_cmd,
+    '--next-hop', '101.101.101.101',
     '--withdraw-on-down',
     '--no-ip-setup',
     '--no-syslog',

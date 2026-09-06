@@ -76,7 +76,7 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	for index, suite := range []string{"encoding", "api"} {
 		subject := recorder.commands[2+index]
 		wantSubject := []string{
-			"uv", "run", "--with", "paramiko", zeTest.Artifact,
+			"uv", "run", "--with", "paramiko", "--with", exaBGPPythonPackage, zeTest.Artifact,
 			"exabgp", suite, "--all", "--timeout", "180s",
 		}
 		if !reflect.DeepEqual(subject.Arguments, wantSubject) {

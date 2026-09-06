@@ -103,19 +103,34 @@ func TestMigrateCompatFixtures(t *testing.T) {
 	}
 }
 
-// TestMigrateCompatFixturesRefusingMultiSession pins the one ExaBGP capability
-// in the ported suite that ze has no implementation of.
+// TestMigrateCompatFixturesRefusingUnimplemented pins the two ExaBGP
+// capabilities in the ported suite that ze has no implementation of, and pins
+// that a config asking for both is told about both in one run.
 //
-// VALIDATES: the migration stops and names the capability.
-// PREVENTS: the refusal being softened into a warning, which would hand the
-// operator a config whose sessions negotiate less than the ExaBGP config asked
-// for. ze sends no multi-session capability: capability.go declares codes 1, 2,
-// 5, 6, 9, 64, 65, 69, 70, 73 and 76, and 68 is not among them. Implementing it
-// is what flips this test, and the fixtures then join the table above.
-func TestMigrateCompatFixturesRefusingMultiSession(t *testing.T) {
-	for _, fixture := range []string{"api-multisession", "api-open"} {
-		t.Run(fixture, func(t *testing.T) {
-			tree, err := ParseExaBGPConfig(compatFixture(t, fixture))
+// VALIDATES: the migration stops and names every capability it refuses.
+// PREVENTS: two failures. The refusal being softened into a warning, which
+// would hand the operator a config whose sessions negotiate less than the
+// ExaBGP config asked for. And the refusal naming only the first, which sent
+// the operator of api-open.conf back for a second run to learn about the
+// second.
+//
+// ze sends neither capability. `internal/core/bgp/capability/capability.go`
+// declares codes 1, 2, 5, 6, 9, 64, 65, 69, 70, 73 and 76, and 68
+// (draft-ietf-idr-bgp-multisession-07 Section 4) is not among them.
+// draft-ietf-idr-operational-message-00 Section 9 leaves its own capability
+// code unallocated, so there is no assigned value to declare. Implementing
+// either extension is what flips this test, and its fixture then joins the
+// table above.
+func TestMigrateCompatFixturesRefusingUnimplemented(t *testing.T) {
+	for _, testCase := range []struct {
+		fixture string
+		named   []string
+	}{
+		{fixture: "api-multisession", named: []string{"multi-session"}},
+		{fixture: "api-open", named: []string{"multi-session", "operational"}},
+	} {
+		t.Run(testCase.fixture, func(t *testing.T) {
+			tree, err := ParseExaBGPConfig(compatFixture(t, testCase.fixture))
 			if err != nil {
 				t.Fatalf("parse: %v", err)
 			}
@@ -124,8 +139,10 @@ func TestMigrateCompatFixturesRefusingMultiSession(t *testing.T) {
 			if err == nil {
 				t.Fatal("the migration accepted a capability ze does not implement")
 			}
-			if !strings.Contains(err.Error(), "multi-session") {
-				t.Errorf("the refusal does not name the capability: %v", err)
+			for _, keyword := range testCase.named {
+				if !strings.Contains(err.Error(), keyword) {
+					t.Errorf("the refusal does not name %q: %v", keyword, err)
+				}
 			}
 		})
 	}

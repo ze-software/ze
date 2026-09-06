@@ -26,6 +26,7 @@ const (
 	configRoot      = "exabgp"
 	bridgeContainer = "bridge"
 	processList     = "process"
+	feedList        = "feed"
 )
 
 const (
@@ -183,9 +184,75 @@ func parseScripts(blk map[string]any) ([]bridgerun.Script, error) {
 				return nil, fmt.Errorf("exabgp bridge: process %q: respawn %q invalid (true|false)", name, v)
 			}
 		}
-		scripts = append(scripts, bridgerun.Script{Name: name, Argv: argv, Respawn: respawn})
+		encoder, err := parseEncoder(name, entry)
+		if err != nil {
+			return nil, err
+		}
+		scripts = append(scripts, bridgerun.Script{
+			Name:    name,
+			Argv:    argv,
+			Feeds:   parseFeeds(entry),
+			Encoder: encoder,
+			Respawn: respawn,
+		})
 	}
 	return scripts, nil
+}
+
+// parseFeeds reads a process block's `feed` list: the peers that feed this
+// script and the events each one feeds it.
+//
+// The blocks arrive as a map, which has no order, so the result is sorted by
+// address. Order decides nothing the bridge reads, and a stable one is what a
+// test can assert.
+//
+// A block that is not a container is SKIPPED rather than refused: the YANG
+// declares the shape, so a value of another shape cannot reach a committed
+// config, and the runner has nothing better to do with one than ignore it.
+func parseFeeds(entry map[string]any) []bridgerun.ScriptFeed {
+	blocks, ok := asMap(entry, feedList)
+	if !ok {
+		return nil
+	}
+
+	peers := make([]string, 0, len(blocks))
+	for peer := range blocks {
+		peers = append(peers, peer)
+	}
+	sort.Strings(peers)
+
+	feeds := make([]bridgerun.ScriptFeed, 0, len(peers))
+	for _, peer := range peers {
+		block, ok := blocks[peer].(map[string]any)
+		if !ok {
+			continue
+		}
+		feeds = append(feeds, bridgerun.ScriptFeed{
+			Peer:   peer,
+			Events: asStringList(block, "event"),
+		})
+	}
+	return feeds
+}
+
+// parseEncoder reads a process block's `encoder` leaf: the format this script's
+// events are written in.
+//
+// An absent leaf is JSON. The bridge declares the 6.0.0 envelope
+// (bridge.Version), and ExaBGP 6 answers every process in JSON whatever its
+// `encoder` leaf says, so JSON is what an unstated encoder means for a script
+// written against that version. A config that wants the line format asks for it
+// by name, and the migration writes the word when the ExaBGP config carried it.
+func parseEncoder(name string, entry map[string]any) (bridge.Encoder, error) {
+	value, ok := asString(entry, "encoder")
+	if !ok || value == "" {
+		return bridge.EncoderJSON, nil
+	}
+	encoder, err := bridge.ParseEncoder(value)
+	if err != nil {
+		return bridge.EncoderUnspecified, fmt.Errorf("exabgp bridge: process %q: %w", name, err)
+	}
+	return encoder, nil
 }
 
 // splitCommand splits an operator run string into argv on whitespace. The

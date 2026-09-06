@@ -66,25 +66,25 @@ type bridgeRouteAttr struct {
 }
 
 var bridgeRouteAttrs = map[string]bridgeRouteAttr{
-	"next-hop":            {Ze: "nhop", Arity: arityValue},
-	"origin":              {Ze: "origin", Arity: arityValue},
-	"med":                 {Ze: "med", Arity: arityValue},
-	"local-preference":    {Ze: "local-preference", Arity: arityValue},
-	"as-path":             {Ze: "as-path", Arity: arityList},
-	"community":           {Ze: "community", Arity: arityList},
-	"large-community":     {Ze: "large-community", Arity: arityList},
-	"extended-community":  {Ze: "extended-community", Arity: arityList},
-	"atomic-aggregate":    {Ze: "atomic-aggregate", Arity: arityFlag},
-	"aggregator":          {Ze: "aggregator", Arity: arityValue},
-	"originator-id":       {Ze: "originator-id", Arity: arityValue},
-	"cluster-list":        {Ze: "cluster-list", Arity: arityList},
-	"aigp":                {Ze: "aigp", Arity: arityValue},
-	"label":               {Ze: "label", Arity: arityList},
-	"rd":                  {Ze: "rd", Arity: arityValue},
-	"route-distinguisher": {Ze: "rd", Arity: arityValue},
-	"path-information":    {Ze: "path-information", Arity: arityValue},
-	"watchdog":            {Ze: "watchdog", Arity: arityValue},
-	"name":                {Arity: arityValue, WireSilent: true},
+	bridgeAttrNextHop:         {Ze: "nhop", Arity: arityValue},
+	bridgeAttrOrigin:          {Ze: bridgeAttrOrigin, Arity: arityValue},
+	bridgeAttrMED:             {Ze: bridgeAttrMED, Arity: arityValue},
+	bridgeAttrLocalPreference: {Ze: bridgeAttrLocalPreference, Arity: arityValue},
+	bridgeAttrASPath:          {Ze: bridgeAttrASPath, Arity: arityList},
+	bridgeAttrCommunity:       {Ze: bridgeAttrCommunity, Arity: arityList},
+	bridgeAttrLargeCommunity:  {Ze: bridgeAttrLargeCommunity, Arity: arityList},
+	bridgeAttrExtCommunity:    {Ze: bridgeAttrExtCommunity, Arity: arityList},
+	bridgeAttrAtomicAggregate: {Ze: bridgeAttrAtomicAggregate, Arity: arityFlag},
+	bridgeAttrAggregator:      {Ze: bridgeAttrAggregator, Arity: arityValue},
+	bridgeAttrOriginatorID:    {Ze: bridgeAttrOriginatorID, Arity: arityValue},
+	bridgeAttrClusterList:     {Ze: bridgeAttrClusterList, Arity: arityList},
+	bridgeAttrAIGP:            {Ze: bridgeAttrAIGP, Arity: arityValue},
+	"label":                   {Ze: "label", Arity: arityList},
+	"rd":                      {Ze: "rd", Arity: arityValue},
+	"route-distinguisher":     {Ze: "rd", Arity: arityValue},
+	"path-information":        {Ze: "path-information", Arity: arityValue},
+	"watchdog":                {Ze: "watchdog", Arity: arityValue},
+	"name":                    {Arity: arityValue, WireSilent: true},
 
 	// `split` is not an attribute: it re-cuts the prefix into smaller ones, so
 	// the parser carries its length out to the caller that owns the NLRI
@@ -187,7 +187,7 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 			return routeAttributes{}, fmt.Errorf("%w: %q", errAttributeNotEncodable, key)
 		}
 
-		if attr.Ze == "extended-community" {
+		if attr.Ze == bridgeAttrExtCommunity {
 			value = qualifyExtCommunities(value)
 		}
 		// ExaBGP writes an ADD-PATH path identifier as an IPv4 address as well

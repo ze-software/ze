@@ -80,6 +80,19 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 				buf.WriteString(process.Key)
 				buf.WriteString(" {\n")
 				serializeTreeIndent(process.Value, buf, indent+"\t\t\t", false)
+				// The peers that feed a script are a NAMED LIST inside the
+				// process block, for the reason the block above records: a
+				// container nothing emits is dropped however correctly the
+				// migration built it.
+				for _, feed := range process.Value.GetListOrdered("feed") {
+					buf.WriteString(indent)
+					buf.WriteString("\t\t\tfeed ")
+					buf.WriteString(feed.Key)
+					buf.WriteString(" {\n")
+					serializeTreeIndent(feed.Value, buf, indent+"\t\t\t\t", false)
+					buf.WriteString(indent)
+					buf.WriteString("\t\t\t}\n")
+				}
 				buf.WriteString(indent)
 				buf.WriteString("\t\t}\n")
 			}
@@ -152,6 +165,22 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 			buf.WriteString(indent)
 			buf.WriteString("}\n")
 		}
+	}
+
+	// An ExaBGP configuration is a BGP daemon's configuration whether or not it
+	// declares a neighbor, so the migrated file states the `bgp` root even when
+	// it carries nothing. Ze loads its BGP engine from that root
+	// (ConfigRoots matching, cmd/ze/hub/main.go), so a file without it starts a
+	// daemon that answers no BGP command at all: `create bgp peer` reports "no
+	// reactor loaded", and so does every announce a script sends.
+	//
+	// api-peer-lifecycle is exactly that config. It declares one process and no
+	// neighbor, and its script creates the peer over the API.
+	if isRoot && len(groupList) == 0 && len(tree.GetListOrdered("peer")) == 0 {
+		buf.WriteString(indent)
+		buf.WriteString("bgp {\n")
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
 	}
 
 	// Write peer blocks (legacy -- should not appear after migration).

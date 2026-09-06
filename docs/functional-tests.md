@@ -526,6 +526,19 @@ fails when a capability-gated test has no registered QEMU path.
 <!-- source: internal/test/runner/record_parse.go -- capability gate -->
 <!-- source: internal/test/runner/record_parse.go -- caps=net-admin gate and skip reason -->
 
+`caps=` takes a comma-separated list, and `capsRequired`
+(`internal/test/runner/caps.go`) is the one table that maps each token to the
+capability bits the probe tests.
+
+| Token | Capability | What needs it |
+|-------|-----------|---------------|
+| `net-admin` | CAP_NET_ADMIN | interfaces, netlink, nftables |
+| `net-bind` | CAP_NET_BIND_SERVICE | binding a port below 1024, which `ze-test dns` does on 53 |
+| `net-raw` | CAP_NET_RAW | raw and packet sockets (ping, traceroute) |
+| `bpf` | CAP_BPF | loading eBPF programs and creating maps |
+
+<!-- source: internal/test/runner/caps.go -- capsRequired -->
+
 The `traffic` suite is enrolled
 in `allTestsRun.Run` in `internal/le/qemu/alltests.go`; `test/traffic/traffic-boot-qdisc-tc.ci` and
 `traffic-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and
@@ -2428,6 +2441,51 @@ Usage: `ze-test irr --port 4343 [--empty-after-first]`
 
 <!-- source: internal/test/mock/irr/irr.go -- IRR mock whois subcommand -->
 
+### ze-test dns
+
+Deterministic DNS server for any functional test that resolves a name. It
+answers A and AAAA on 127.0.0.1 over UDP, from a fixed zone.
+
+| Name | Rcode | A | AAAA | TTL |
+|------|-------|---|------|-----|
+| `web.example.test` | NOERROR | 203.0.113.10 | 2001:db8::10 | 0 |
+| `v4only.example.test` | NOERROR | 198.51.100.10 | none | 0 |
+| `cached.example.test` | NOERROR | 203.0.113.20 | none | 300 |
+| `broken.example.test` | SERVFAIL | none | none | - |
+| `refused.example.test` | REFUSED | none | none | - |
+| any other name | NXDOMAIN | none | none | - |
+
+A name the zone carries, queried for a record type it does not hold, answers
+NOERROR with an empty answer section (RFC 2308 Section 2.2). `v4only.example.test`
+is that case for AAAA, and it is the answer a caller must not read as NXDOMAIN:
+`resolveAndRecord` (`internal/component/firewall/plugins/domain/domain.go`)
+empties a name's contribution to a firewall set on NXDOMAIN and keeps its last
+good answer on SERVFAIL and REFUSED.
+
+A TTL of 0 keeps the answer out of the daemon's resolver cache, so a second
+lookup reaches the stub rather than the cache. That is what lets a test change an
+answer and observe the change with no cache-clearing command.
+
+The stub has two forms. `ze-test dns --port <N>` is the process a `.ci` starts
+with `cmd=background`, and `dns.Start` plus `Server.Set` is the in-process form a
+compiled fixture uses when it must change an answer while the test runs.
+`test/plugin/dns-stub-lookup.ci` drives the first and
+`test/plugin/dns-stub-answer-change.ci` the second.
+
+A daemon is pointed at the stub through `system name-server`, which is declared
+`type zt:ip-address` and carries no port, so such a test runs the stub on port 53
+and declares `option=needs-linux:caps=net-bind` plus
+`option=exclusive:group=dns-stub-port-53`.
+
+`ze-test cymru` is a separate DNS server. It synthesizes a Team Cymru TXT record
+from the queried ASN and shares no answer with this zone.
+
+Usage: `ze-test dns --port 53`
+
+<!-- source: internal/test/mock/dns/dns.go -- ze-test dns subcommand -->
+<!-- source: internal/test/mock/dns/zone.go -- the zone table above -->
+<!-- source: internal/test/mock/dns/server.go -- Start, Set, Close -->
+
 ### Security
 
 - Path traversal protection on `option:file:` fixture paths
@@ -2456,11 +2514,18 @@ summary format as the other functional suites. The public action is:
 ```
 <!-- source: internal/test/cli/cmd_exabgp.go -- native selection and progress output -->
 
-The stage runs the suite through `uv run --with paramiko`, so `uv` must be on
-PATH. `./le setup install` does not install it; the CI runner installs it in
-`.github/workflows/verify.yml`. Without it the stage exits 127, and the report
-names the child that could not start.
-<!-- source: internal/le/functional/exabgp.go -- exaBGPCommands and exaBGPReport.Text -->
+The stage runs the suite through `uv run --with paramiko --with exabgp==<pin>`,
+so `uv` must be on PATH. `./le setup install` does not install it; the CI runner
+installs it in `.github/workflows/verify.yml`. Without it the stage exits 127,
+and the report names the child that could not start.
+
+The `exabgp` distribution is the predecessor's own Python code, and one case
+runs it: `api-healthcheck-module` imports `exabgp.application.healthcheck` and
+drives ze through the API line protocol that module writes. The release is
+pinned in `exaBGPPythonPackage`, because a new release can change the
+healthcheck's option set or its announce line, which changes what the case
+drives.
+<!-- source: internal/le/functional/exabgp.go -- exaBGPCommands, exaBGPPythonPackage and exaBGPReport.Text -->
 
 ---
 

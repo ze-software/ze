@@ -81,9 +81,18 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	// The process manager gives no respawn setting to this entry point, so the
 	// script keeps ExaBGP's default: a script that exits is started again
 	// (bridgerun/respawn.go states the rate limit that bounds it).
+	// The process manager gives this entry point no encoder setting, so the
+	// script gets the format the 6.0.0 envelope names, which is the one this
+	// runner has always written. The config route carries the operator's own
+	// choice (internal/plugins/exabgp/bridgeplugin/config.go, parseEncoder).
+	//
+	// It gets no peer list either, so it is fed by every peer and its
+	// unaddressed commands reach every peer. One script and one command line
+	// name no relation to narrow.
 	fleet := bridgerun.New(slogutil.Logger("exabgp-bridge"), families, []bridgerun.Script{{
 		Name:    filepath.Base(pluginCmd[0]),
 		Argv:    pluginCmd,
+		Encoder: bridge.EncoderJSON,
 		Respawn: true,
 	}})
 

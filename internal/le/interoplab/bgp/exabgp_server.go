@@ -34,11 +34,12 @@ func runExaBGPServer(args []string, output io.Writer) error {
 	if flags.NArg() != 1 || *port < 0 {
 		return errors.New("exabgp-server wants [--port N] CASE.ci")
 	}
-	expected, asn, stated, err := readExaBGPCase(flags.Arg(0))
+	spec, err := readExaBGPCase(flags.Arg(0))
 	if err != nil {
 		return err
 	}
-	if !stated {
+	expected, asn := spec.frames, spec.asn
+	if !spec.asnStated {
 		configured, found, asErr := peerASFromExaBGPConfig(os.Getenv("EXABGP_TEST_CONFIG"))
 		if asErr != nil {
 			return asErr
@@ -73,7 +74,7 @@ func runExaBGPServer(args []string, output io.Writer) error {
 		if recorderErr != nil {
 			return recorderErr
 		}
-		err = serveExaBGPConnection(connection, asn, expected[connectionIndex], recorder)
+		err = serveExaBGPConnection(connection, asn, spec.sendDefaultRoute, expected[connectionIndex], recorder)
 		recorder.close()
 		_ = connection.Close()
 		if err != nil {
@@ -91,15 +92,13 @@ func runExaBGPServer(args []string, output io.Writer) error {
 // own runner never opened a session at all, so no fixture states an AS unless
 // its author had a reason to, and 65000 is right for none of them until the
 // config happens to name it.
-func readExaBGPCase(path string) (map[int][][]byte, uint32, bool, error) {
+func readExaBGPCase(path string) (exabgpCase, error) {
 	file, err := os.Open(path) //nolint:gosec // the case file is the .ci fixture this helper is pointed at by the tracked lab runner
 	if err != nil {
-		return nil, 0, false, err
+		return exabgpCase{}, err
 	}
 	defer func() { _ = file.Close() }()
-	result := make(map[int][][]byte)
-	asn := uint32(65000)
-	stated := false
+	spec := exabgpCase{frames: make(map[int][][]byte), asn: 65000}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -109,10 +108,20 @@ func readExaBGPCase(path string) (map[int][][]byte, uint32, bool, error) {
 		if value, ok := strings.CutPrefix(line, "option=asn:"); ok {
 			parsed, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
-				return nil, 0, false, err
+				return exabgpCase{}, err
 			}
-			asn = uint32(parsed)
-			stated = true
+			spec.asn = uint32(parsed)
+			spec.asnStated = true
+			continue
+		}
+		// `option=update:` names an UPDATE this mock sends to the speaker once
+		// the session is up. It was read as nothing until 2026-09-06, so a case
+		// whose script waits for that route waited for ever.
+		if value, ok := strings.CutPrefix(line, "option=update:"); ok {
+			if value != "send-default-route" {
+				return exabgpCase{}, fmt.Errorf("unknown option=update: %q", value)
+			}
+			spec.sendDefaultRoute = true
 			continue
 		}
 		parts := strings.Split(line, ":")
@@ -121,15 +130,30 @@ func readExaBGPCase(path string) (map[int][][]byte, uint32, bool, error) {
 		}
 		connection, err := exabgpCaseConnection(parts[0])
 		if err != nil {
-			return nil, 0, false, fmt.Errorf("invalid raw connection in %q: %w", line, err)
+			return exabgpCase{}, fmt.Errorf("invalid raw connection in %q: %w", line, err)
 		}
 		wire, err := hex.DecodeString(strings.Join(parts[2:], ""))
 		if err != nil {
-			return nil, 0, false, fmt.Errorf("decode raw directive: %w", err)
+			return exabgpCase{}, fmt.Errorf("decode raw directive: %w", err)
 		}
-		result[connection] = append(result[connection], wire)
+		spec.frames[connection] = append(spec.frames[connection], wire)
 	}
-	return result, asn, stated, scanner.Err()
+	return spec, scanner.Err()
+}
+
+// exabgpCase is what one `.ci` fixture states: the frames each connection owes,
+// the AS this mock presents and whether the fixture named it, and the UPDATEs
+// the mock sends of its own accord.
+type exabgpCase struct {
+	frames map[int][][]byte
+	asn    uint32
+	// asnStated says the fixture named the AS. The caller needs it because the
+	// default is a guess: upstream's runner opened no session at all, so no
+	// fixture states an AS unless its author had a reason to.
+	asnStated bool
+	// sendDefaultRoute is `option=update:send-default-route`, which makes this
+	// mock announce 0.0.0.0/32 once the session is up.
+	sendDefaultRoute bool
 }
 
 // exabgpCaseConnection reads the connection a `.ci` expectation belongs to.
@@ -175,7 +199,7 @@ func exabgpCaseConnection(prefix string) (int, error) {
 	return connection, nil
 }
 
-func serveExaBGPConnection(connection net.Conn, asn uint32, expected [][]byte, recorder *frameRecorder) error {
+func serveExaBGPConnection(connection net.Conn, asn uint32, sendDefaultRoute bool, expected [][]byte, recorder *frameRecorder) error {
 	_ = connection.SetDeadline(time.Now().Add(60 * time.Second))
 	messageType, body, err := readBGPWireMessage(connection)
 	if err != nil {
@@ -212,6 +236,11 @@ func serveExaBGPConnection(connection net.Conn, asn uint32, expected [][]byte, r
 	}
 	if _, err := connection.Write(speakerKeepalive()); err != nil {
 		return err
+	}
+	if sendDefaultRoute {
+		if _, err := connection.Write(exabgpDefaultRoute()); err != nil {
+			return err
+		}
 	}
 	remaining := append([][]byte(nil), expected[matched:]...)
 	for len(remaining) > 0 {
@@ -382,4 +411,24 @@ func peerASFromExaBGPConfig(path string) (uint32, bool, error) {
 		return uint32(parsed), true, nil
 	}
 	return 0, false, scanner.Err()
+}
+
+// exabgpDefaultRoute is the UPDATE `option=update:send-default-route` sends: the
+// prefix 0.0.0.0/32 with ORIGIN igp, an empty AS_PATH, NEXT_HOP 127.0.0.1 and
+// LOCAL_PREF 100.
+//
+// The bytes are upstream's, from qa/sbin/bgp-3.6 in the ExaBGP repository, where
+// the same option writes this literal. api-check's script waits for ze to render
+// exactly this route back to it as a text event, so a byte invented here would
+// be a route the case was never written about.
+func exabgpDefaultRoute() []byte {
+	return speakerMessage(bgpUpdate, []byte{
+		0x00, 0x00, // Withdrawn Routes Length
+		0x00, 0x15, // Total Path Attribute Length
+		0x40, 0x01, 0x01, 0x00, // ORIGIN igp
+		0x40, 0x02, 0x00, // AS_PATH, empty
+		0x40, 0x03, 0x04, 0x7F, 0x00, 0x00, 0x01, // NEXT_HOP 127.0.0.1
+		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64, // LOCAL_PREF 100
+		0x20, 0x00, 0x00, 0x00, 0x00, // NLRI 0.0.0.0/32
+	})
 }

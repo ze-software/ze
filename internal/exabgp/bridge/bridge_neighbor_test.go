@@ -87,31 +87,203 @@ func TestNeighborTeardownRefusesASubcodeTheWireCannotCarry(t *testing.T) {
 	}
 }
 
-// TestNeighborCreateIsRefusedByName holds the answer for a command ze has no
-// way to perform.
+// TestNeighborCreateWritesTheZeCreateCommand holds the translation of the one
+// line that brings a BGP peer into being while ze runs.
 //
-// GOAL: the bridge says ze cannot create a peer at runtime, rather than mapping
-// the line to a command that does something else.
-// METHOD: translate the api-peer-lifecycle line and require the named error.
+// GOAL: `create neighbor <ip> ...` reaches `create bgp peer <ip> asn <asn> ...`
+// with every parameter the script wrote, so api-peer-lifecycle gets the session
+// it announces its route on.
+// METHOD: translate the api-peer-lifecycle line and compare the whole command
+// string, because a dropped parameter is invisible in a substring match.
 //
-// VALIDATES: `create neighbor ...` answers errNeighborCreate and no command.
-// PREVENTS: an approximate translation, and a silent success that acks the
-// script for a session that was never created (ai/rules/principles.md).
-func TestNeighborCreateIsRefusedByName(t *testing.T) {
-	const line = "create neighbor 127.0.0.1 local-address 127.0.0.1 local-as 1 peer-as 1 router-id 1.2.3.4 api peer-lifecycle"
+// VALIDATES: peer-as becomes asn, local-address and router-id travel, each `api`
+// process becomes an `attach` name, and the created address is the selector.
+// PREVENTS: a parameter accepted and dropped, which would build a session with
+// the wrong AS or feed no plugin, and ack the script for it
+// (ai/rules/principles.md).
+func TestNeighborCreateWritesTheZeCreateCommand(t *testing.T) {
+	cases := []struct {
+		name string
+		rest string
+		want string
+	}{
+		{
+			"api-peer-lifecycle",
+			"create neighbor 127.0.0.1 local-address 127.0.0.1 local-as 1 peer-as 1 router-id 1.2.3.4 api peer-lifecycle",
+			"create bgp peer 127.0.0.1 asn 1 local-as 1 local-address 127.0.0.1 router-id 1.2.3.4 accept false attach peer-lifecycle",
+		},
+		{
+			"the smallest line ExaBGP accepts",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 65001 peer-as 65002",
+			"create bgp peer 10.0.0.2 asn 65002 local-as 65001 local-address 10.0.0.1 accept false",
+		},
+		{
+			"local-ip is the second spelling of local-address",
+			"create neighbor 10.0.0.2 local-ip 10.0.0.1 local-as 65001 peer-as 65002",
+			"create bgp peer 10.0.0.2 asn 65002 local-as 65001 local-address 10.0.0.1 accept false",
+		},
+		{
+			"two api processes reach one attach",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 65001 peer-as 65002 api proc1 api proc2",
+			"create bgp peer 10.0.0.2 asn 65002 local-as 65001 local-address 10.0.0.1 accept false attach proc1,proc2",
+		},
+		{
+			"the family list changes separator and joiner",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 65001 peer-as 65002 family-allowed ipv4-unicast/ipv6-unicast",
+			"create bgp peer 10.0.0.2 asn 65002 local-as 65001 local-address 10.0.0.1 accept false family ipv4/unicast,ipv6/unicast",
+		},
+		{
+			"graceful-restart and group-updates travel",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 65001 peer-as 65002 graceful-restart 120 group-updates false",
+			"create bgp peer 10.0.0.2 asn 65002 local-as 65001 local-address 10.0.0.1 accept false graceful-restart 120 group-updates false",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			translation, ok, err := ConvertNeighborControl(bridgeEveryPeer, tc.rest)
+			if !ok {
+				t.Fatalf("create names a neighbor lifecycle command, got ok=false for %q", tc.rest)
+			}
+			if err != nil {
+				t.Fatalf("error = %v, want a translation", err)
+			}
+			if got := onlyCommand(translation); got != tc.want {
+				t.Errorf("command = %q, want %q", got, tc.want)
+			}
+			if translation.Route {
+				t.Error("a create carries no route, so no flush is owed")
+			}
+		})
+	}
+}
 
-	translation, ok, err := ConvertNeighborControl(bridgeEveryPeer, line)
+// TestNeighborCreateSelectorIsTheCreatedPeer keeps the destination on the
+// command the bridge wrote.
+//
+// GOAL: the line begins with `create`, so splitNeighborSelector reads no
+// neighbor and hands the wildcard down. The address in the line is the peer.
+// METHOD: translate with the wildcard selector and read Translation.Selector.
+//
+// VALIDATES: the selector is the created address rather than the wildcard.
+// PREVENTS: a later flush or ack addressed to every peer instead of this one.
+func TestNeighborCreateSelectorIsTheCreatedPeer(t *testing.T) {
+	const line = "create neighbor 192.0.2.7 local-address 192.0.2.1 local-as 1 peer-as 2"
+
+	translation, _, err := ConvertNeighborControl(bridgeEveryPeer, line)
+	if err != nil {
+		t.Fatalf("error = %v, want a translation", err)
+	}
+	if translation.Selector != "192.0.2.7" {
+		t.Errorf("selector = %q, want the created peer 192.0.2.7", translation.Selector)
+	}
+}
+
+// TestNeighborCreateRefusesWhatZeCannotHonour holds every parameter the bridge
+// will not carry.
+//
+// GOAL: a parameter ze has no behavior for is refused BY NAME, rather than
+// dropped from a command the script is then acked for.
+// METHOD: translate one line per refusal and require the named error with no
+// command.
+//
+// VALIDATES: `family-allowed in-open`, an unknown parameter, a duplicate, a
+// value-less parameter, a missing required parameter and a missing address each
+// answer their own error.
+// PREVENTS: a peer built with fewer families, no plugin binding, or the wrong
+// AS, which every test that reads only the session state would pass
+// (ai/rules/principles.md).
+func TestNeighborCreateRefusesWhatZeCannotHonour(t *testing.T) {
+	cases := []struct {
+		name string
+		rest string
+		want error
+	}{
+		{
+			"in-open names no ze behavior",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 1 peer-as 2 family-allowed in-open",
+			errNeighborFamilyInOpen,
+		},
+		{
+			"a family that is not afi-safi",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 1 peer-as 2 family-allowed ipv4",
+			errNeighborFamilyForm,
+		},
+		{
+			"a parameter the bridge does not read",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 1 peer-as 2 md5 secret",
+			errNeighborParameter,
+		},
+		{
+			"a parameter with no value",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 1 peer-as",
+			errNeighborParameter,
+		},
+		{
+			"the two local-address spellings are one parameter",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-ip 10.0.0.3 local-as 1 peer-as 2",
+			errNeighborDuplicate,
+		},
+		{
+			"no peer-as",
+			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 1",
+			errNeighborCreateRequired,
+		},
+		{
+			"no local-address",
+			"create neighbor 10.0.0.2 local-as 1 peer-as 2",
+			errNeighborCreateRequired,
+		},
+		{
+			"no address at all",
+			"create neighbor",
+			errNeighborCreateAddress,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			translation, ok, err := ConvertNeighborControl(bridgeEveryPeer, tc.rest)
+			if !ok {
+				t.Fatal("create names a neighbor lifecycle command, so the bridge owns the refusal")
+			}
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("error = %v, want %v", err, tc.want)
+			}
+			if onlyCommand(translation) != "" {
+				t.Errorf("a refused line carries no command, got %q", onlyCommand(translation))
+			}
+		})
+	}
+}
+
+// TestNeighborDeleteReachesTheZeDeleteCommand holds the sibling of create.
+//
+// GOAL: `delete neighbor <ip>` reaches `delete bgp peer <ip>`, and a line
+// carrying ExaBGP's filter is refused rather than widened.
+// METHOD: translate one line of each shape.
+//
+// VALIDATES: the plain line becomes the ze command, and a filtered one answers
+// errNeighborDeleteFilter.
+// PREVENTS: a filtered delete that removes a peer the script did not name.
+func TestNeighborDeleteReachesTheZeDeleteCommand(t *testing.T) {
+	translation, ok, err := ConvertNeighborControl(bridgeEveryPeer, "delete neighbor 127.0.0.1")
 	if !ok {
-		t.Fatal("create names a neighbor lifecycle command, so the bridge owns the refusal")
+		t.Fatal("delete names a neighbor lifecycle command")
 	}
-	if !errors.Is(err, errNeighborCreate) {
-		t.Fatalf("error = %v, want errNeighborCreate", err)
+	if err != nil {
+		t.Fatalf("error = %v, want a translation", err)
 	}
-	if onlyCommand(translation) != "" {
-		t.Errorf("a refused line carries no command, got %q", onlyCommand(translation))
+	if got := onlyCommand(translation); got != "delete bgp peer 127.0.0.1" {
+		t.Errorf("command = %q, want %q", got, "delete bgp peer 127.0.0.1")
 	}
-	if translation.Local != LocalNone {
-		t.Error("a refusal is not a local action the bridge answers")
+
+	_, _, err = ConvertNeighborControl(bridgeEveryPeer, "delete neighbor 127.0.0.1 local-as 1")
+	if !errors.Is(err, errNeighborDeleteFilter) {
+		t.Fatalf("error = %v, want errNeighborDeleteFilter", err)
+	}
+
+	_, _, err = ConvertNeighborControl(bridgeEveryPeer, "delete neighbor")
+	if !errors.Is(err, errNeighborDeleteAddress) {
+		t.Fatalf("error = %v, want errNeighborDeleteAddress", err)
 	}
 }
 

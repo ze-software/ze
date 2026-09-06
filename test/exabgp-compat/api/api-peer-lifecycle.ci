@@ -5,6 +5,13 @@ option=file:api-peer-lifecycle.conf
 # IMPORTANT: tcp_connections=0 prevents ExaBGP from exiting when no peers initially configured
 option=tcp_connections:0
 #
+# The peer is created by the API rather than declared in the config, so the
+# mock speaker cannot read its AS out of the neighbor block the way every other
+# case does. It is stated here, and it MUST match the peer-as the script's
+# `create neighbor` line carries: ze refuses an OPEN whose AS is not the one the
+# peer was created for (RFC 4271 Section 6.2, Bad Peer AS).
+option=asn:1
+#
 # Dynamic peer 127.0.0.1 is created via API and connects, then sends:
 # 1. EOR (End-of-RIB marker) after session establishment
 1:cmd:announce eor ipv4 unicast

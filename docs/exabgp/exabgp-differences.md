@@ -38,38 +38,59 @@ ExaBGP difference and the non-determinism.
 ## Neighbor Qualifier Syntax (Multi-Session)
 
 **ExaBGP behavior:**
-- Supports neighbor qualifiers for multi-session matching:
+- Supports six qualifiers after a neighbor address, each taking one value:
+  `local-ip`, `local-address`, `local-as`, `peer-as`, `router-id`,
+  `family-allowed`.
   - `neighbor <IP> local-as <ASN> announce route ...`
-  - `neighbor <IP> peer-as <ASN> announce route ...`
-  - `neighbor <IP> local-ip <IP> announce route ...`
-  - `neighbor <IP> router-id <IP> announce route ...`
-- Commands only apply to sessions matching ALL specified qualifiers
-- Enables targeting specific sessions when multiple sessions exist to same peer
+  - `neighbor <IP> family-allowed <families> announce route ...`
+- A qualifier NARROWS the set of sessions the command reaches. ExaBGP matches
+  each qualifier as a substring of the session's own name, so a command whose
+  qualifier does not appear in that name reaches no session and sends nothing.
+- `family-allowed` is where `capability { multi-session; }` shows: the name
+  carries `family-allowed in-open` on an ordinary session, and the session's
+  family list on a multi-session one.
+Upstream (exa-networks/exabgp): `src/exabgp/reactor/api/command/limit.py`,
+`SELECTOR_KEYS` and `match_neighbor`; `src/exabgp/bgp/neighbor/neighbor.py`,
+`name()` and its `in-open` / family-list branch.
 
 **ZeBGP behavior:**
 - Uses the send verb and the protocol keyword: `send bgp <IP> update text ...`
-- Does NOT support multi-session qualifier syntax
-- Commands apply to all sessions matching the peer IP
+- The ExaBGP bridge PARSES all six qualifiers and then DISCARDS them. The
+  command reaches the session the address names.
+- A Ze selector names a peer by address, name, ASN or glob. It cannot conjoin a
+  predicate onto an address, so there is nothing to translate a qualifier into.
+<!-- source: internal/exabgp/bridge/bridge_selector.go -- bridgeSelectorKeys, splitNeighborSelector -->
 
 **RFC compliance:**
 - N/A - This is API syntax, not BGP protocol
 
 **Impact:**
-- API tests using `local-as`, `peer-as`, `local-ip`, `router-id` qualifiers will NOT work
-- Test scripts must be simplified to use basic `neighbor <IP>` syntax
-- Tests requiring multi-session discrimination are NOT SUPPORTED
+- A qualified command is accepted and reaches the peer the address names. The
+  qualifier changes nothing.
+- The cost is bounded in one direction. An address resolves to at most one
+  session in Ze, so a qualifier could only ever have REJECTED that session. Ze
+  therefore sends where ExaBGP would have stayed silent, and never the reverse.
+- A test that needs a qualifier to EXCLUDE a session is not supported.
 
 **Tests affected:**
-- `announcement.run` - Uses all qualifier types
-- Any test requiring multi-session targeting
+- `test/exabgp-compat/etc/run/api-multisession.run` sends
+  `neighbor 127.0.0.1 local-as 1 family-allowed in-open announce route 9.9.9.9/24`,
+  which ExaBGP drops because the session is named `family-allowed ipv4-unicast`
+  under `multi-session`. `test/exabgp-compat/api/api-multisession.ci` expects
+  four UPDATE frames from five commands for that reason. Ze would send all five.
+- `test/exabgp-compat/etc/run/api-announcement.run` uses the other qualifier
+  types, none of which excludes a session there.
 
 **Decision rationale:**
 1. Multi-session to same peer is a rare use case
 2. Simpler API implementation
 3. Most use cases only need single session per peer
-4. Can be added later if needed
+4. A conjunctive selector is a change to the Ze command grammar, which is not
+   the bridge's to make
 
-**Date:** 2025-12-23
+**Date:** 2025-12-23. Corrected 2026-09-06: the bridge parses the qualifiers
+since 2026-09-05, so a qualified command no longer fails to translate. The
+earlier text said such commands "will NOT work".
 
 ---
 

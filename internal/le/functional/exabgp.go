@@ -34,6 +34,22 @@ const (
 
 const exaBGPOutputMax = 8 << 20
 
+// exaBGPPythonPackage is the predecessor's own Python distribution, and it is
+// a SUBJECT of this stage rather than a convenience for it. api-healthcheck-module
+// runs ExaBGP's healthcheck application in process
+// (`from exabgp.application.healthcheck import main`, test/exabgp-compat/etc/run/),
+// so what that case proves is that ze answers the API line protocol ExaBGP's own
+// code writes. Without the distribution the script dies on ModuleNotFoundError,
+// and a stub in its place would leave the case green while proving nothing.
+//
+// Pinned for the reason StaticcheckVersion is pinned (internal/le/setup/tools.go):
+// a release that changes the healthcheck's option set, its announce line, or its
+// ack handling changes what the case drives, and an unpinned dependency makes
+// that a silent change on a machine that happened to resolve a newer release.
+// 5.0.13 supplies every option the fixture passes, `--no-ack` and
+// `--fast-interval` among them.
+const exaBGPPythonPackage = "exabgp==5.0.13"
+
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         exaBGPTimeoutKey,
 	Type:        envString,
@@ -337,7 +353,7 @@ func exaBGPCommands(
 		commands = append(commands, exaBGPCommand{
 			Stage: "exabgp-" + suite,
 			Arguments: []string{
-				"uv", "run", "--with", "paramiko", set.zeTestPath(),
+				"uv", "run", "--with", "paramiko", "--with", exaBGPPythonPackage, set.zeTestPath(),
 				"exabgp", suite, "--all", "--timeout", timeout,
 			},
 			Directory:         toolchain.Root,

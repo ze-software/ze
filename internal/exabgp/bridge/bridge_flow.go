@@ -411,19 +411,23 @@ func (r *flowRoute) readComponent(tokens []string, i int) (int, error) {
 
 // command renders the route as the ze update-text command.
 //
-// A withdraw carries the NLRI and the route distinguisher and nothing else,
-// which is what the flat form already answers: ze matches a withdrawn flowspec
-// route on its components, so the attributes that would have travelled with an
-// announcement say nothing about which route to remove.
+// An announcement and a withdrawal are the same command under a different NLRI
+// verb, attributes included. ze matches a withdrawn FlowSpec rule on its
+// components alone, so the attributes name no route; what they do is reach the
+// wire, because RFC 4760 Section 4 lets a withdrawal carry a path attribute
+// block and ExaBGP writes one.
 func (r *flowRoute) command(selector, verb string) string {
 	parts := make([]string, 0, 6)
 
 	var head textbuf.Buffer
 	parts = append(parts, head.Str("send bgp ").Str(selector).Str(" update text").String())
 
-	if verb == flowVerbAdd {
-		parts = r.appendAttributes(parts)
-	}
+	// Gating this on the verb dropped every `then` action, every community and the
+	// next-hop from a withdrawal, so the translator lost what the script wrote:
+	// api-broken-flow.ci withdraws `flow route { match { ... } then
+	// { rate-limit 1; } }` and expects the rate-limit extended community on the
+	// withdrawal (ai/rules/principles.md).
+	parts = r.appendAttributes(parts)
 
 	var nlri textbuf.Buffer
 	nlri.Str("nlri ").Str(r.family).Byte(' ').Str(verb)
@@ -438,7 +442,8 @@ func (r *flowRoute) command(selector, verb string) string {
 	return textbuf.Join(parts, " ")
 }
 
-// appendAttributes writes the path attributes an announcement carries.
+// appendAttributes writes the path attributes the route carries, on an
+// announcement and on a withdrawal alike.
 func (r *flowRoute) appendAttributes(parts []string) []string {
 	if r.nhop != "" {
 		var tb textbuf.Buffer

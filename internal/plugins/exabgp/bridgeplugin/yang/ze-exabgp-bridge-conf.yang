@@ -25,7 +25,9 @@ module ze-exabgp-bridge-conf {
         description
             "Replace the single run leaf with a process list. An ExaBGP config
              declares any number of process blocks, and the bridge ran one of
-             them.";
+             them. Add the encoder leaf, which ExaBGP declares per process, and
+             the feed list, which carries the neighbors that name this process
+             in their api block and the events each one grants it.";
     }
 
     revision 2026-07-09 {
@@ -71,6 +73,48 @@ name the ExaBGP configuration used.";
                     ze:help "Two examples are './plugin.py' and 'python3 /opt/plugin.py'. Ze
 splits the line on whitespace. The first token is the executable, and the rest are its
 arguments. A block with no run command is refused.";
+                }
+
+                leaf encoder {
+                    type enumeration {
+                        enum text;
+                        enum json;
+                    }
+                    default json;
+                    description "Format the script's events are written in.";
+                    ze:help "json writes one JSON object per event. text writes ExaBGP's
+one-event-per-line format, such as 'neighbor 127.0.0.1 receive update announced 10.0.0.0/24
+next-hop 10.0.0.1 origin igp'. ExaBGP spells this leaf the same way and declares it per process,
+so one bridge can feed a text script and a JSON script at once. The default is json because the
+envelope Ze declares is 6.0.0, and ExaBGP 6 answers every process in JSON.";
+                }
+
+                list feed {
+                    key "peer";
+                    description "One peer that feeds this script, and the events it feeds.";
+                    ze:help "An ExaBGP neighbor names the processes it feeds in
+'api { processes [ ... ] }' and the message kinds it feeds them in the same block, so the
+relation is per peer AND per script. The migration writes one block here for each neighbor that
+named this script. Ze also sends a command that names no neighbor to these peers alone. A
+process with NO feed block is fed by every peer with every event, which is what one script and
+one neighbor means.";
+
+                    leaf peer {
+                        type zt:ip-address;
+                        description "Address of the peer that feeds this script.";
+                        ze:help "The address the peer's own 'connection { remote { ip ... } }' declares.";
+                    }
+
+                    leaf-list event {
+                        type string;
+                        ze:syntax "bracket";
+                        description "Events this peer feeds this script.";
+                        ze:help "ExaBGP's own event names: 'receive-update', 'send-update',
+'receive-open', 'send-keepalive', 'receive-notification', 'send-refresh', 'receive-operational'
+and their siblings, plus 'neighbor-changes', 'negotiated', 'fsm' and 'signal'. An EMPTY list
+feeds no event from this peer, which is what an ExaBGP api block that names a process and no
+message kind does.";
+                    }
                 }
 
                 leaf respawn {

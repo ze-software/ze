@@ -109,14 +109,35 @@ bgp {
 
 ## Unsupported ExaBGP extensions
 
-These ExaBGP extensions are recognized during migration, but Ze does not
-implement their behavior:
+Ze does not implement these two ExaBGP extensions, so it REFUSES a config that
+asks for either one. It does not warn and continue. A migration that dropped
+the capability would hand you a session that negotiates less than your ExaBGP
+config asked for, and say nothing.
 
 | Syntax | Result |
 |--------|--------|
-| `capability { multi-session; }` | Warning. Ze uses standard BGP session handling. |
-| `capability { operational; }` | Warning. ExaBGP operational messages are not implemented. |
-| `operational { ... }` under a peer | Warning. The block is not applied. |
+| `capability { multi-session; }` | `ze exabgp migrate` stops: `unsupported capability "multi-session": not implemented in ze` |
+| `capability { operational; }` | `ze exabgp migrate` stops: `unsupported capability "operational": not implemented in ze` |
+| Both in one peer | One error names both: `unsupported capabilities "multi-session", "operational": not implemented in ze` |
+| `operational { ... }` under an ExaBGP neighbor | `ze exabgp migrate` stops at the parser: `line N: unknown field in neighbor: operational` |
+| `capability { multi-session; }` in Ze syntax | `ze config migrate` stops at the parser: `line N: unknown field in capability: multi-session` |
+| `operational { ... }` under a peer, in Ze syntax | `ze config migrate` stops at the parser: `line N: unknown field in peer: operational` |
+
+To migrate such a config, delete the capability from the ExaBGP file first. The
+sessions Ze then builds carry every other capability the file asked for.
+
+Each extension comes from an IETF draft that expired without becoming an RFC:
+
+| Extension | Draft | Expired | Codepoint |
+|-----------|-------|---------|-----------|
+| `multi-session` | draft-ietf-idr-bgp-multisession-07 | 2013-03-16 | Section 4 assigns capability code 68 |
+| `operational` | draft-ietf-idr-operational-message-00 | 2012-09-01 | Section 9 requests a capability code and a BGP message type from IANA. Neither was allocated |
+
+`operational` therefore has no assigned value to put on the wire. ExaBGP fills
+both with private values of its own, capability `0xB9` and message type `0x06`.
+Ze does not copy a private codepoint.
+
+<!-- source: internal/exabgp/migration/migrate_unimplemented.go -- refuseUnimplementedCapabilities, the refusal and the two drafts -->
 
 ## Commands
 

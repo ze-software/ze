@@ -11,8 +11,8 @@ event fan-out, the ack and the respawn are written once.
 
 ## The bridge translates in two directions
 
-An ExaBGP script writes text commands down to ze, and ze sends JSON events up
-to the script. Each direction has its own translator.
+An ExaBGP script writes text commands down to ze, and ze sends events up to the
+script. Each direction has its own translator.
 
 Down, `TranslateLine` reads one ExaBGP line and writes one ze CLI command.
 `neighbor <address> announce route <prefix> next-hop <nh>` becomes
@@ -25,29 +25,93 @@ the selector that command addresses, and whether the command puts an UPDATE on a
 wire. The caller flushes with that selector. It does not read the selector back
 out of the command, and the next section says what that cost.
 
-Up, `bridge_event.go` renders ze's BGP messages as ExaBGP JSON. The envelope
-version is 6.0.0, which is the syntax target for the bridge.
+Up, `bridge_event.go` reads one ze event into a `bridge.Event`. Each encoder
+renders that. `ExabgpJSON` writes one JSON object per event, in envelope version
+6.0.0. `AppendText` writes ExaBGP's one-event-per-line text. A script's own
+`encoder` leaf decides which one it gets.
+
+The read happens ONCE for the whole fleet, and each format is rendered once. So
+the cost of a fan-out grows with the number of formats in use, not with the
+number of scripts. Both numbers matter here, because the fan-out runs for every
+UPDATE of every peer.
 
 The ExaBGP side is an external contract. An operator writes a script against
 ExaBGP, so a change to ze's own CLI does not reach that script through the
 translated forms.
 
 <!-- source: internal/exabgp/bridge/bridge_command.go -- TranslateLine, Translation, convertRoute -->
-<!-- source: internal/exabgp/bridge/bridge_event.go -- Version -->
+<!-- source: internal/exabgp/bridge/bridge_event.go -- ReadEvent, Event, ExabgpJSON -->
+<!-- source: internal/exabgp/bridge/bridge_event_text.go -- Event.AppendText, TextForm -->
 
-## A line that names no neighbor goes to every peer
+## The text encoder is ExaBGP's own, ported
 
-`TranslateLine` matches `neighbor <address> <rest>` with a regular
-expression. A line that does not match names no destination, and ExaBGP sends
-such a line to every neighbor. The bridge reads it the same way. It translates
-the line with the wildcard peer selector, so `announce route <prefix>` becomes
-`send bgp * update text nlri ipv4/unicast add <prefix>`.
+A process declaring `encoder text` gets ExaBGP's line format, ported from
+`Response.Text` in `src/exabgp/reactor/api/response/text.py`. The v4 encoder in
+`response/v4/text.py` answers byte-identical lines, so there is one format
+rather than two.
+
+```
+neighbor 127.0.0.1 up
+neighbor 127.0.0.1 down - hold timer expired
+neighbor 127.0.0.1 receive update start
+neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 127.0.0.1 origin igp local-preference 100
+neighbor 127.0.0.1 receive update withdrawn 10.0.0.0/24
+neighbor 127.0.0.1 receive update end
+neighbor 127.0.0.1 send keepalive
+neighbor 127.0.0.1 send notification code 6 subcode 2 data 41424344
+neighbor 127.0.0.1 send open version 4 asn 65001 hold_time 90 router_id 1.1.1.1 capabilities [ ... ]
+neighbor 127.0.0.1 receive route-refresh afi 1 safi 1 0
+```
+
+One event is one line. So every value a PEER chose is escaped before it is
+written. A shutdown reason carrying a newline would otherwise forge a whole
+event on the script's stdin. That is the CWE-116 ExaBGP's own `oneline()` exists
+to close.
+
+`negotiated`, `fsm` and `signal` get NO line, which is what ExaBGP's own text
+encoder answers for them. The encoder names that answer apart from "this kind is
+unknown to me", so a gap reaches a log rather than a silence.
+
+Three places diverge from ExaBGP. Each one does because the ze event carries
+less than ExaBGP's own objects do.
+
+| What | ze writes | Why |
+|---|---|---|
+| An attribute with no registered JSON key | ` attribute [ 0xCC <value> ]` | the event carries no attribute flags on this path |
+| The capability list of an `open` line | ze's name and value for each capability | the event carries a code, a name and a value, not ExaBGP's `Capabilities` object |
+| A structured NLRI | its `nlri` field, or compact JSON | `extensive()` is per family and is not reachable from the object ze sends |
+
+<!-- source: internal/exabgp/bridge/bridge_event_text.go -- appendUpdateText, appendOneline, textAttributes -->
+
+## A line that names no neighbor goes to the peers that feed the script
+
+`TranslateLine` matches `neighbor <address> <rest>` with a regular expression. A
+line that does not match names no destination. ExaBGP sends such a line to the
+peers whose `api { processes [ ... ] }` list names the process that wrote it
+(`Reactor.peers(service)`, `src/exabgp/reactor/loop.py`). The bridge reads it the
+same way. `Translator.Peers` carries those addresses, so `announce route
+<prefix>` becomes
+`send bgp 127.0.0.1,192.0.2.1 update text nlri ipv4/unicast add <prefix>`.
+
+A translator with no peers sends to every peer, `send bgp * ...`. That is what
+one script and one neighbor means, and it is what the bridge did for every
+script until 2026-09-06. Until then a two-process config put each script's
+routes on both sessions. `api-multiple-api` is the case for it.
 
 `convertRoute` is the one place that decides what the bridge translates, and it
 answers the same set of forms for a line that names a neighbor and for a line
 that does not. The set is the ExaBGP vocabulary: `announce route`,
 `withdraw route`, `announce ipv[46] <safi>` and `withdraw ipv[46] <safi>`, with
 the SR-Policy shape of each.
+
+An announce and its withdraw differ in ONE token, the NLRI verb, so each pair is
+one function taking that verb: `convertFamilyRoute` for a family-stating route
+and `convertFlowSpec` for `flow route { ... }`. Both pairs were two functions and
+both had diverged, dropping on the withdraw side what the announce side read. The
+FlowSpec pair discarded the `then { ... }` block, so
+`withdraw flow route { match { ... } then { rate-limit 1; } }` reached ze with no
+rate-limit extended community.
+<!-- source: internal/exabgp/bridge/bridge_command.go -- convertFamilyRoute, convertFlowSpec -->
 
 ## `help` is the only line that passes through
 
@@ -92,7 +156,8 @@ gets.
 | ExaBGP line | Answer |
 |---|---|
 | `neighbor <ip> teardown <subcode>` | `request peer <ip> teardown <subcode>` |
-| `create neighbor <ip> ...` | refused: ze creates no BGP peer at runtime |
+| `create neighbor <ip> ...` | `create bgp peer <ip> asn <asn> ...` |
+| `delete neighbor <ip>` | `delete bgp peer <ip>` |
 | `neighbor <ip> receive update ...` | refused: this is an event, not a command |
 
 The teardown carries a BGP cease subcode, and that subcode is what goes on the
@@ -100,13 +165,33 @@ wire. ze sends Cease, which is RFC 4271 error code 6, and it supplies the RFC
 8203 shutdown communication itself when the command gives none. So the ExaBGP
 grammar, which carries a subcode and nothing else, needs no message added to it.
 
-`create neighbor` has no ze command behind it. `ze-bgp:peer-add` is declared in
-`ze-bgp-api.yang`, no handler registers it, and `./le command list` shows no CLI
-path that reaches it. A peer is created by an edit to the config tree and a
-commit, which is not one line a script writes. The bridge refuses the line by
-name. It does not map the line to `delete bgp peer` or to a teardown, because a
-command that does something else would acknowledge the script for a session that
-was never created.
+`create neighbor` reaches `create bgp peer`, the command `ze-bgp:peer-add`
+answers. The peer ze builds lives in the running daemon alone, which is what
+ExaBGP's own dynamic peer does: neither writes the configuration file, so a
+reload removes the peer. `delete neighbor` reaches `delete bgp peer`, the
+counterpart.
+
+Each parameter maps to the `create bgp peer` keyword that means the same thing.
+
+| ExaBGP parameter | ze keyword |
+|---|---|
+| `local-address`, `local-ip` | `local-address` |
+| `local-as` | `local-as` |
+| `peer-as` | `asn` |
+| `router-id` | `router-id` |
+| `family-allowed ipv4-unicast/ipv6-unicast` | `family ipv4/unicast,ipv6/unicast` |
+| `graceful-restart <seconds>` | `graceful-restart <seconds>` |
+| `group-updates true\|false` | `group-updates true\|false` |
+| `api <process>`, repeated | `attach <process,process>` |
+
+Four lines are refused, and each refusal names what it refused rather than
+dropping it. `family-allowed in-open` is ExaBGP's "let the OPEN decide the
+families", and ze states the families its OPEN offers, so the word names no ze
+behavior. A parameter the table does not carry is refused by name. A line
+missing `local-address`, `local-as` or `peer-as` is refused, because ExaBGP
+refuses it too, so the script reads the same answer from either daemon. And
+`delete neighbor <ip> <filter>` is refused, because `delete bgp peer` takes the
+selector alone and a filter would reach a peer the script did not name.
 
 `receive` is not a command. It is ExaBGP's own EVENT vocabulary, written by the
 text response encoder, and it travels UP from the daemon to the script. The
@@ -142,12 +227,19 @@ side declares the same set:
 ```
 exabgp {
     bridge {
-        process one-shot {
-            run "./run/api-no-respawn-1.run"
-            respawn disable
+        process public {
+            run "./run/api-multiple-public.run"
+            encoder text
+            feed 127.0.0.1 {
+                event [ receive-update send-update ]
+            }
         }
-        process respawn {
-            run "./run/api-no-respawn-2.run"
+        process private {
+            run "./run/api-multiple-private.run"
+            respawn disable
+            feed 192.168.0.1 {
+                event [ ]
+            }
         }
     }
 }
@@ -157,16 +249,83 @@ The block name is the ExaBGP process name, because that is the name a neighbor's
 `api { processes [ ... ] }` list refers to. A block with no `run` command is
 REFUSED and the refusal names it.
 
-The bridge forks one child for each block. One ze event is translated once and
-queued for EVERY child's stdin, and commands are read from EVERY child's stdout
-and dispatched. The ack is per child: each script writes a line and blocks for
-its own `done`, and `disable-ack` from one script silences that script alone.
+The bridge forks one child for each block and reads commands from EVERY child's
+stdout. It fans each event out to the children the event's peer FEEDS. The ack is
+per child: each script writes a line and blocks for its own `done`, and
+`disable-ack` from one script silences that script alone.
 
 Until 2026-09-06 the config carried one `run` leaf and the bridge forked one
 child, so a config declaring two processes ran one of them and said nothing.
 That is the silently-wrong answer `ai/rules/principles.md` exists to prevent,
 and the three ported compatibility tests that name two processes
 (`api-no-respawn`, `api-multiple-api`, `api-api`) are what measured it.
+
+## `feed` is the relation ExaBGP models on the neighbor
+
+An ExaBGP `api` block names BOTH the processes a neighbor feeds and the message
+kinds it feeds them. The relation is therefore per neighbor AND per process. Two
+neighbors can grant one process different events. A per-process event list could
+not say that, and the union of two grants over-delivers to the neighbor that
+granted less. So the ze side writes one `feed` block per peer, inside the
+process block.
+
+The event names are ExaBGP's own api keys: `receive-update`, `send-open`,
+`send-keepalive` and their siblings, each built from the direction and
+`Message.CODE.SHORT`. The four standalone words `neighbor-changes`,
+`negotiated`, `fsm` and `signal` join them. `bridge.Event.APIKey` answers the key
+for one event, and the fan-out compares the two, so there is no second table.
+
+The two empties are DIFFERENT and the difference is load-bearing.
+
+| Config | What the script is fed |
+|---|---|
+| no `feed` block at all | every event of every peer, which is what one script and one neighbor means |
+| a `feed` block with an empty `event` list | nothing from that peer |
+
+The second row is ExaBGP's own answer to `api { processes [ p ]; }` with no
+direction block. Its `flatten` reads an absent message kind as a refusal, not as
+a default.
+
+Until 2026-09-06 every script got every event of every peer. `api-check` is the
+case that measured it. Its neighbor grants `receive-update` and `send-update`
+alone. Its script exits 1 on the first line that is not the announce it waits
+for, so the session's OPEN was enough to fail it.
+
+<!-- source: internal/exabgp/migration/migrate_api_events.go -- apiBlockEvents -->
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.receives, grantSet -->
+
+## A route is acked after its flush
+
+A route command owes the script two answers, and their order is the contract.
+`done` means the command is done. A route is not done until it is on the wire.
+So the bridge dispatches the per-peer flush FIRST and acks after it. ExaBGP
+orders them the same way: `announce_route` awaits every peer's flush event and
+calls `answer_done` after it.
+
+Acking first let a script send its next command while the previous route's flush
+was still running. The two then reached the wire in whichever order they
+finished. `api-ipv4`, `api-ipv6`, `api-mvpn` and `api-vpnv4` each announce and
+withdraw one NLRI and read the frames in order. Each of them caught it.
+
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.line -->
+
+## `encoder` says which format a script reads
+
+`encoder` is ExaBGP's leaf. Ze declares it in the same place, inside the process
+block, so one bridge can feed a text script and a JSON script at once.
+
+An absent leaf is `json`. The envelope ze declares is 6.0.0, and ExaBGP 6 answers
+every process in JSON whatever its leaf says. So JSON is what an unstated encoder
+means for a script written against that version. `ze exabgp migrate` writes the
+word only when the ExaBGP config carried one. `respawn` follows the same rule.
+
+A word that names neither format is REFUSED, by the config parser and by the
+migration. Each of them names the process and the word. Until 2026-09-06 the
+leaf was parsed by nothing at all: a config asking for text got JSON, with no
+error and no log line.
+
+<!-- source: internal/exabgp/bridge/bridge_encoder.go -- Encoder, ParseEncoder -->
+<!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- parseEncoder, parseFeeds -->
 
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Start, Fleet.Broadcast -->
 <!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.line, script.writeLoop -->
@@ -209,6 +368,11 @@ runners; everything after it is shared.
 
 `ze exabgp migrate` writes the internal form, so a migrated ExaBGP config always
 reaches the runner that carries every process.
+
+The external runner carries no `encoder` and no `feed` either, for the same
+reason: a process-manager command line states neither. Its one script is written
+in JSON and is fed by every peer. Both are stated at the construction site
+rather than left to a zero value.
 
 ## Stage ordering constrains the family declaration
 

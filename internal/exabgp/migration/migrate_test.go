@@ -1510,6 +1510,13 @@ neighbor 10.0.0.1 {
 		"converter must emit the current keyword, got:\n%s", output)
 	assert.NotContains(t, output, "\nprocess ",
 		"converter must not emit the retired keyword, got:\n%s", output)
-	assert.NotContains(t, output, "\tprocess ",
+
+	// The retired keyword is a PEER-level `process <name> {`, so the check is
+	// on the peer body rather than on the whole file. The bridge root declares
+	// its scripts as `exabgp { bridge { process <name> { ... } } }`, which is a
+	// different list with the same word, and the file-wide check refused it.
+	_, peerBody, found := strings.Cut(output, "\nbgp {")
+	require.True(t, found, "converter emitted no bgp block, got:\n%s", output)
+	assert.NotContains(t, peerBody, "\t\t\tprocess ",
 		"converter must not emit the retired keyword, got:\n%s", output)
 }

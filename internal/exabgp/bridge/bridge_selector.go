@@ -31,6 +31,11 @@ var bridgeSelectorKeys = map[string]bool{
 // splitNeighborSelector reads the destination off the front of an ExaBGP line
 // and answers it as a ze peer selector, with the command that follows it.
 //
+// everyPeer is the selector for a line that names no neighbor. The caller
+// supplies it because the answer belongs to the SCRIPT rather than to the line:
+// a script every neighbor feeds sends to every peer, and a script two neighbors
+// name sends to those two (Translator.everyPeer).
+//
 // ExaBGP writes the destination four ways, and all four occur in its own test
 // corpus:
 //
@@ -46,17 +51,17 @@ var bridgeSelectorKeys = map[string]bool{
 // in ze, so a qualifier can only have REJECTED that session, and ze sends where
 // ExaBGP would have stayed silent. Conjunctive selectors are a change to the
 // command grammar, which is not the bridge's to make.
-func splitNeighborSelector(line string) (selector, rest string) {
+func splitNeighborSelector(line, everyPeer string) (selector, rest string) {
 	fields := strings.Fields(line)
 	if len(fields) == 0 || !strings.EqualFold(fields[0], "neighbor") {
-		return bridgeEveryPeer, line
+		return everyPeer, line
 	}
 
 	var addresses []string
 	i := 0
 	for i < len(fields) && strings.EqualFold(fields[i], "neighbor") {
 		if i+1 >= len(fields) {
-			return bridgeEveryPeer, line
+			return everyPeer, line
 		}
 		addresses = append(addresses, strings.TrimSuffix(fields[i+1], ","))
 		i += 2
@@ -83,7 +88,7 @@ func splitNeighborSelector(line string) (selector, rest string) {
 	}
 
 	if len(addresses) == 0 {
-		return bridgeEveryPeer, line
+		return everyPeer, line
 	}
 	return selectorForAddresses(addresses), strings.Join(fields[i:], " ")
 }

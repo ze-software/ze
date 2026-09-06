@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Version is the ExaBGP JSON envelope version. Set to 6.0.0 to match
@@ -25,32 +27,163 @@ const (
 	modeBoth    = "both"
 )
 
-// Message type constants.
+// Message type constants: the `bgp.message.type` values ze writes
+// (docs/architecture/api/json-format.md, "Event Types").
 const (
-	msgTypeOpen   = "open"
-	msgTypeUpdate = "update"
-	msgTypeState  = "state"
+	msgTypeOpen         = "open"
+	msgTypeUpdate       = "update"
+	msgTypeState        = "state"
+	msgTypeKeepalive    = "keepalive"
+	msgTypeNotification = "notification"
+	msgTypeRefresh      = "refresh"
+	msgTypeNegotiated   = "negotiated"
+	msgTypeFSM          = "fsm"
+	msgTypeSignal       = "signal"
+
+	// msgTypeSent is ze's own kind for an UPDATE this speaker SENT. Its data
+	// sits under `update` like any other UPDATE, and ze's own event reader
+	// folds it back to `update` before a consumer sees it
+	// (internal/component/bgp/event.go, the EventKindSent branch). The bridge
+	// does the same fold, so a script meets one UPDATE kind in two directions
+	// rather than two kinds.
+	//
+	// It was NOT folded until 2026-09-06, and the cost was total: every UPDATE
+	// ze sent reached a script as an event named `sent`, which the ExaBGP
+	// vocabulary has no word for, so the JSON encoder wrote an envelope with no
+	// message in it and the peer's own routes were invisible to the script.
+	msgTypeSent = "sent"
 )
 
-// ZebgpToExabgpJSON converts a ZeBGP JSON event to ExaBGP JSON format.
+// Event is one ze BGP event, read off its JSON once.
 //
-// ZeBGP ze-bgp JSON format (per docs/architecture/api/json-format.md):
+// The bridge fans one event out to every script, and two scripts can declare
+// different encoders, so the read happens once for the fleet and each encoder
+// renders from this. Peer is also what the fan-out filters on, so the address
+// is taken from the producing field rather than looked for again in each
+// encoder.
+type Event struct {
+	// Payload is the `bgp` object: the event stripped of its ze envelope.
+	Payload map[string]any
+	// Data is the object named by Kind, or Payload itself for a state event,
+	// whose value is a string at the `bgp` level rather than a container.
+	Data map[string]any
+	// Kind is the `message.type`.
+	Kind string
+	// Direction is ExaBGP's word for the way the message traveled: `receive`
+	// or `send`.
+	Direction string
+	// Peer is the remote address, the one key both encoders and the fan-out
+	// filter read.
+	Peer string
+	// PeerASN is the remote AS, as JSON delivered it.
+	PeerASN float64
+	// RouterID is THIS speaker's BGP Identifier for the session, empty when the
+	// event carries none.
+	RouterID string
+}
+
+// ReadEvent reads one ze JSON event.
+//
+// The ze-bgp shape it reads (docs/architecture/api/json-format.md):
 //
 //	{
 //	  "type": "bgp",
 //	  "bgp": {
 //	    "peer": {"local": {"address": "...", "as": ...}, "remote": {"address": "10.0.0.1", "as": 65001}},
 //	    "message": {"id": 1, "direction": "received", "type": "update"},
-//	    "update": {
-//	      "attr": {"origin": "igp"},
-//	      "ipv4/unicast": [...]
-//	    }
+//	    "update": {"attr": {"origin": "igp"}, "nlri": {"ipv4/unicast": [...]}}
 //	  }
 //	}
 //
-// State events use simple string (not container):
+// A state event carries its value as a string at the `bgp` level rather than in
+// a container of its own:
 //
 //	{"type": "bgp", "bgp": {"message": {"type": "state"}, "peer": {...}, "state": "up"}}
+//
+// An event with no `message.type` is named by the key it carries instead, which
+// is what the ze CLI's own decode path produces.
+func ReadEvent(zebgp map[string]any) Event {
+	event := Event{Payload: zebgp, Direction: modeReceive}
+
+	// Strip the ze-bgp JSON wrapper when it is present.
+	if rootType, _ := zebgp["type"].(string); rootType == "bgp" {
+		if bgp, ok := zebgp["bgp"].(map[string]any); ok {
+			event.Payload = bgp
+		}
+	}
+
+	if message, ok := event.Payload["message"].(map[string]any); ok {
+		event.Kind, _ = message["type"].(string)
+		if direction, ok := message["direction"].(string); ok {
+			switch direction {
+			case "received":
+				event.Direction = modeReceive
+			case "sent":
+				event.Direction = modeSend
+			}
+		}
+	}
+	if event.Kind == msgTypeSent {
+		event.Kind = msgTypeUpdate
+		event.Direction = modeSend
+	}
+	if event.Kind == "" {
+		event.Kind = eventKindByKey(event.Payload)
+	}
+
+	if peer, ok := event.Payload["peer"].(map[string]any); ok {
+		if remote, ok := peer["remote"].(map[string]any); ok {
+			event.Peer, _ = remote["address"].(string)
+			event.PeerASN, _ = remote["as"].(float64)
+		}
+		event.RouterID, _ = peer["router-id"].(string)
+	}
+
+	// A state event carries its value as a string at the `bgp` level, so it has
+	// no container of its own to descend into.
+	event.Data = event.Payload
+	if event.Kind != msgTypeState {
+		if nested, ok := event.Payload[event.Kind].(map[string]any); ok {
+			event.Data = nested
+		}
+	}
+	return event
+}
+
+// eventKindByKey names the event by the key it carries, for a payload whose
+// `message.type` is absent.
+//
+// It answers the EMPTY string for a payload that carries none of them, and both
+// encoders read that as an event they cannot render. Answering `update` was the
+// silently-wrong value `ai/rules/principles.md` bans: the bridge subscribes to
+// every event ze publishes, so it meets envelopes that carry no BGP message at
+// all, and each one reached a script as an UPDATE announcing nothing, from a
+// peer named by the empty string.
+//
+// An UPDATE stripped of its metadata is still named, by the `attr` and `nlri`
+// keys its body carries, which is the shape ze's own decode path produces.
+func eventKindByKey(payload map[string]any) string {
+	for _, kind := range []string{msgTypeOpen, msgTypeUpdate, msgTypeState} {
+		if _, ok := payload[kind]; ok {
+			return kind
+		}
+	}
+	for _, body := range []string{bridgeUpdateAttr, bridgeUpdateNLRI} {
+		if _, ok := payload[body]; ok {
+			return msgTypeUpdate
+		}
+	}
+	return ""
+}
+
+// ZebgpToExabgpJSON reads one ze JSON event and renders it as ExaBGP JSON. It
+// is the two steps in one call, for a caller that renders a single event in a
+// single format.
+func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
+	return ReadEvent(zebgp).ExabgpJSON()
+}
+
+// ExabgpJSON renders the event as one ExaBGP JSON object.
 //
 // ExaBGP format (nested):
 //
@@ -64,104 +197,46 @@ const (
 //	    "message": {"update": {...}}
 //	  }
 //	}
-func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
-	// Extract from ze-bgp JSON wrapper if present
-	bgpPayload := zebgp
-	if rootType, _ := zebgp["type"].(string); rootType == "bgp" {
-		if bgp, ok := zebgp["bgp"].(map[string]any); ok {
-			bgpPayload = bgp
-		}
-	}
-
-	// Get message metadata from bgp.message
-	var msgType string
-	direction := modeReceive
-	if msg, ok := bgpPayload["message"].(map[string]any); ok {
-		msgType, _ = msg["type"].(string)
-		if dir, ok := msg["direction"].(string); ok {
-			switch dir {
-			case "received":
-				direction = modeReceive
-			case "sent":
-				direction = modeSend
-			}
-		}
-	}
-	if msgType == "" {
-		// Fallback: detect type by presence of key
-		if _, ok := bgpPayload[msgTypeOpen]; ok {
-			msgType = msgTypeOpen
-		} else if _, ok := bgpPayload[msgTypeUpdate]; ok {
-			msgType = msgTypeUpdate
-		} else if _, ok := bgpPayload[msgTypeState]; ok {
-			msgType = msgTypeState
-		} else {
-			msgType = msgTypeUpdate
-		}
-	}
-
-	// Get peer from bgp level (ze-bgp JSON format)
-	peer, _ := bgpPayload["peer"].(map[string]any)
-	var peerAddr string
-	var peerASN float64
-	var routerID string
-	if remote, ok := peer["remote"].(map[string]any); ok {
-		peerAddr, _ = remote["address"].(string)
-		peerASN, _ = remote["as"].(float64)
-	}
-	routerID, _ = peer["router-id"].(string)
-
-	// Get event-specific data from nested key (except state which is a string)
-	eventData := bgpPayload
-	if msgType != msgTypeState {
-		if nested, ok := bgpPayload[msgType].(map[string]any); ok {
-			eventData = nested
-		}
-	}
-
-	// Build ExaBGP envelope
+func (e Event) ExabgpJSON() map[string]any {
 	result := map[string]any{
 		"exabgp": Version,
 		"time":   float64(time.Now().Unix()),
 		"host":   hostname(),
 		"pid":    os.Getpid(),
 		"ppid":   os.Getppid(),
-		"type":   msgType,
+		"type":   e.Kind,
 	}
 
-	// Build neighbor section
 	neighbor := map[string]any{
-		"address":   map[string]any{"peer": peerAddr},
-		"asn":       map[string]any{"peer": peerASN},
-		"direction": direction,
+		"address":   map[string]any{"peer": e.Peer},
+		"asn":       map[string]any{"peer": e.PeerASN},
+		"direction": e.Direction,
 	}
-	if routerID != "" {
-		neighbor["router-id"] = routerID
+	if e.RouterID != "" {
+		neighbor["router-id"] = e.RouterID
 	}
 
-	switch msgType {
-	case "state":
-		// State is a simple string at bgp level (not a container)
-		state, _ := bgpPayload["state"].(string)
+	switch e.Kind {
+	case msgTypeState:
+		// State is a simple string at bgp level (not a container).
+		state, _ := e.Payload["state"].(string)
 		neighbor["state"] = state
 
-	case "update":
-		update := convertUpdateIPC2(eventData)
+	case msgTypeUpdate:
+		update := convertUpdateIPC2(e.Data)
 		if len(update) > 0 {
 			neighbor["message"] = map[string]any{"update": update}
 		}
 
-	case "notification":
-		// Fields in notification object
-		neighbor["notification"] = map[string]any{
-			"code":    eventData["code"],
-			"subcode": eventData["subcode"],
-			"data":    eventData["data"],
+	case msgTypeNotification:
+		neighbor[msgTypeNotification] = map[string]any{
+			"code":    e.Data["code"],
+			"subcode": e.Data["subcode"],
+			"data":    e.Data["data"],
 		}
 
-	case "negotiated":
-		// Fields in negotiated object
-		result["negotiated"] = convertNegotiated(eventData)
+	case msgTypeNegotiated:
+		result[msgTypeNegotiated] = convertNegotiated(e.Data)
 	}
 
 	result["neighbor"] = neighbor
@@ -413,4 +488,41 @@ func normalizeOutgoingExtendedCommunityToken(value string) string {
 		return strings.TrimSuffix(value, ":bytes")
 	}
 	return value
+}
+
+// ExaBGP's own names for the four events that are not a BGP message.
+const (
+	apiKeyNeighborChanges = "neighbor-changes"
+	apiKeyNegotiated      = "negotiated"
+	apiKeyFSM             = "fsm"
+	apiKeySignal          = "signal"
+)
+
+// APIKey answers the name an ExaBGP neighbor's `api` block uses to grant this
+// event to a process.
+//
+// ExaBGP flattens an api block into one key per event: the four standalone
+// words below, and `<direction>-<message>` for a BGP message, where the message
+// word is Message.CODE.SHORT -- `open`, `update`, `notification`, `keepalive`,
+// `refresh`, `operational`. Its dispatcher then walks the processes THAT key
+// names rather than every process it runs
+// (src/exabgp/configuration/neighbor/api.py, ParseAPI.flatten;
+// src/exabgp/reactor/api/processes.py, Processes._notify).
+//
+// Ze spells the same message kinds the same way, so the key is the direction
+// and the kind with a hyphen between them.
+func (e Event) APIKey() string {
+	switch e.Kind {
+	case msgTypeState:
+		return apiKeyNeighborChanges
+	case msgTypeNegotiated:
+		return apiKeyNegotiated
+	case msgTypeFSM:
+		return apiKeyFSM
+	case msgTypeSignal:
+		return apiKeySignal
+	}
+
+	var tb textbuf.Buffer
+	return tb.Str(e.Direction).Byte('-').Str(e.Kind).String()
 }

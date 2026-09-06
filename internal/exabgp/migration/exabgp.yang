@@ -123,7 +123,13 @@ module exabgp {
             leaf name { type string; }
             leaf-list processes { ze:syntax "bracket"; type string; }
             leaf-list processes-match { ze:syntax "bracket"; type string; }
+            // The four events that are not a BGP message. ExaBGP writes each as
+            // a bare word in the api block, and grants it to that block's
+            // processes (src/exabgp/configuration/neighbor/api.py, ParseAPI).
             container neighbor-changes { ze:syntax "flex"; }
+            container negotiated { ze:syntax "flex"; }
+            container fsm { ze:syntax "flex"; }
+            container signal { ze:syntax "flex"; }
             container receive { ze:syntax "freeform"; }
             container send { ze:syntax "freeform"; }
         }

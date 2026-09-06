@@ -15,9 +15,36 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// ExaBGP's own word for each path attribute. One declaration serves both
+// directions: the route grammar a script writes DOWN (bridgeRouteAttrs) and the
+// text rendering of an event that goes UP (textAttributes). They are the same
+// vocabulary, and two copies of it would disagree the first time ExaBGP renamed
+// one.
 const (
-	bridgeAttrNextHop = "next-hop"
-	bridgeAttrOrigin  = "origin"
+	bridgeAttrNextHop          = "next-hop"
+	bridgeAttrOrigin           = "origin"
+	bridgeAttrMED              = "med"
+	bridgeAttrLocalPreference  = "local-preference"
+	bridgeAttrASPath           = "as-path"
+	bridgeAttrCommunity        = "community"
+	bridgeAttrLargeCommunity   = "large-community"
+	bridgeAttrExtCommunity     = "extended-community"
+	bridgeAttrExtCommunityIPv6 = "extended-community-ipv6"
+	bridgeAttrAtomicAggregate  = "atomic-aggregate"
+	bridgeAttrAggregator       = "aggregator"
+	bridgeAttrOriginatorID     = "originator-id"
+	bridgeAttrClusterList      = "cluster-list"
+	bridgeAttrAIGP             = "aigp"
+)
+
+// The two keys an UPDATE's body carries in ze JSON: its path attributes and its
+// NLRI, by family (docs/architecture/api/json-format.md).
+const (
+	bridgeUpdateAttr = "attr"
+	bridgeUpdateNLRI = "nlri"
+)
+
+const (
 	bridgeFlowSAFI    = "flow"
 	bridgeFlowVPNSAFI = "flow-vpn"
 
@@ -151,9 +178,10 @@ const bridgePassthrough = "help"
 // ZeBGP:  send bgp <ip> update text nhop <nh> origin <o> nlri ipv4/unicast add <prefix>.
 //
 // A line that names no neighbor names no destination, and ExaBGP sends such a
-// line to every neighbor. The bridge reads it the same way, with the wildcard
-// selector: `announce route <prefix>` becomes
-// `send bgp * update text nlri ipv4/unicast add <prefix>`.
+// line to the peers that attach the process that wrote it. This package
+// function carries no process, so it sends to every peer: `announce route
+// <prefix>` becomes `send bgp * update text nlri ipv4/unicast add <prefix>`.
+// Translator.Peers is how a script narrows that.
 //
 // Every other line is REFUSED by name. The passthrough that forwarded it used to
 // carry ze's own announce and withdraw spellings, which have moved under
@@ -166,14 +194,34 @@ func TranslateLine(line string) (Translation, error) {
 
 // Translator carries what a translation needs beyond the line itself.
 //
-// One line needs it: a bare `announce eor` is every family, and which families
-// there are is the bridge's own declaration rather than anything the line says.
-// A zero Translator refuses that line by name and translates every other line
-// exactly as the package function does.
+// Two things are not in the line. A bare `announce eor` is every family, and
+// which families there are is the bridge's own declaration. A line that names
+// no neighbor is every peer that attaches THIS script, and which peers those
+// are is the neighbor's `api { processes [ ... ] }` list rather than anything
+// the script writes. A zero Translator refuses the End-of-RIB line by name and
+// sends an unaddressed line to every peer, which is what one process serving
+// every neighbor means.
 type Translator struct {
 	// Families are the families this bridge declared, in ze spelling
 	// ("ipv4/unicast"). They are the set a bare End-of-RIB expands over.
 	Families []string
+	// Peers are the addresses of the peers that attach the script this
+	// translator serves. An empty list is every peer.
+	//
+	// ExaBGP scopes a process's commands the same way: Reactor.peers(service)
+	// answers every peer when the service is empty, and otherwise the peers
+	// whose api block names that process
+	// (src/exabgp/reactor/loop.py, Reactor.peers).
+	Peers []string
+}
+
+// everyPeer answers the selector for a line that names no neighbor: the peers
+// this script serves, or the wildcard when it serves them all.
+func (t Translator) everyPeer() string {
+	if len(t.Peers) == 0 {
+		return bridgeEveryPeer
+	}
+	return selectorForAddresses(t.Peers)
 }
 
 // Line converts one ExaBGP text command, as TranslateLine does, with the
@@ -188,7 +236,7 @@ func (t Translator) Line(line string) (Translation, error) {
 	// writes `announce` and `route` with 38 spaces between them. Every match
 	// below is on token text, so the run of spaces is collapsed once here
 	// rather than guarded against at each site.
-	selector, rest := splitNeighborSelector(strings.Join(strings.Fields(line), " "))
+	selector, rest := splitNeighborSelector(strings.Join(strings.Fields(line), " "), t.everyPeer())
 
 	if translation, ok := convertControl(selector, rest); ok {
 		return translation, nil
@@ -458,10 +506,7 @@ func convertFamilyRoute(selector, rest, verb string) ([]string, bool, error) {
 	var tb textbuf.Buffer
 	fam := tb.Str(afi).Byte('/').Str(safi).String()
 	if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
-		if verb == nlriDel {
-			return []string{convertWithdrawFlowSpec(selector, fam, routeStr)}, true, nil
-		}
-		return []string{convertAnnounceFlowSpec(selector, fam, routeStr)}, true, nil
+		return []string{convertFlowSpec(selector, fam, routeStr, verb)}, true, nil
 	}
 
 	command, err := buildRouteCommand(selector, fam, verb, routeStr)
@@ -484,10 +529,37 @@ func convertWithdraw(selector, routeStr string) ([]string, error) {
 // also the answer for an empty body, where ze names the family in its refusal.
 func familyOfRoute(routeStr string) string {
 	parts := strings.Fields(strings.TrimSpace(routeStr))
+	afi := "ipv4"
 	if len(parts) > 0 && strings.Contains(parts[0], ":") {
-		return "ipv6/unicast"
+		afi = "ipv6"
 	}
-	return defaultFamily
+
+	// The SAFI is read off the attributes, exactly as familyForAttributes does
+	// for the `announce attributes` form: a route distinguisher makes it a VPN
+	// route and a bare label makes it a labeled one.
+	//
+	// Reading the prefix alone sent every `announce route <p> rd <rd> label <l>`
+	// as ipv4/unicast, a family the peer had not negotiated, so the UPDATE was
+	// dropped with no error and the bridge acked the script. api-vpnv4 is that
+	// line (ai/rules/principles.md).
+	_, attrTokens := splitRouteBody(parts)
+	attrs, err := parseRouteAttributes(attrTokens)
+	if err != nil {
+		return safiFamily(afi, "unicast")
+	}
+	switch {
+	case attrs.Has("rd"):
+		return safiFamily(afi, "mpls-vpn")
+	case attrs.Has("label"):
+		return safiFamily(afi, "nlri-mpls")
+	}
+	return safiFamily(afi, "unicast")
+}
+
+// safiFamily joins an AFI and a SAFI into the family ze names.
+func safiFamily(afi, safi string) string {
+	var tb textbuf.Buffer
+	return tb.Str(afi).Byte('/').Str(safi).String()
 }
 
 // convertAnnounceSRPolicy translates ExaBGP SR-Policy announce to Ze's update text format.
@@ -560,14 +632,24 @@ func canonicalExabgpSAFI(safi string) string {
 	return safi
 }
 
-func convertAnnounceFlowSpec(selector, family, routeStr string) string {
+// convertFlowSpec translates one ExaBGP `flow route { ... }` into the ze command
+// that puts it on the wire, under the NLRI verb the caller names.
+//
+// The announce and the withdraw differ in that verb alone, so they are one
+// function taking it -- the shape convertFamilyRoute already took, for the same
+// reason. They were two, and the two had diverged: the withdraw discarded the
+// attrs parseFlowSpecBridgeRoute reads out of the `then { ... }` block, so
+// `withdraw flow route { match { ... } then { rate-limit 1; } }` reached ze with
+// no rate-limit extended community and left one out of the withdrawal ExaBGP
+// carries it on (api-broken-flow.ci).
+func convertFlowSpec(selector, family, routeStr, verb string) string {
 	fam, attrs, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
 	cmdParts := make([]string, 1, len(attrs)+2)
 	cmdParts[0] = "send bgp " + selector + " update text"
 	cmdParts = append(cmdParts, attrs...)
 
 	var nlriPart textbuf.Buffer
-	nlriPart.Str("nlri ").Str(fam).Str(" add")
+	nlriPart.Str("nlri ").Str(fam).Byte(' ').Str(verb)
 	if rd != "" {
 		nlriPart.Str(" rd ").Str(rd)
 	}
@@ -576,19 +658,6 @@ func convertAnnounceFlowSpec(selector, family, routeStr string) string {
 	}
 	cmdParts = append(cmdParts, nlriPart.String())
 	return textbuf.Join(cmdParts, " ")
-}
-
-func convertWithdrawFlowSpec(selector, family, routeStr string) string {
-	fam, _, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
-	var tb textbuf.Buffer
-	tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(fam).Str(" del")
-	if rd != "" {
-		tb.Str(" rd ").Str(rd)
-	}
-	if nlri != "" {
-		tb.Byte(' ').Str(nlri)
-	}
-	return tb.String()
 }
 
 func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string, string) {
@@ -617,10 +686,10 @@ func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string
 			} else {
 				i++
 			}
-		case "community", "large-community", "extended-community":
+		case bridgeAttrCommunity, bridgeAttrLargeCommunity, bridgeAttrExtCommunity:
 			if i+1 < len(parts) {
 				value, next := collectBridgeAttrValue(parts, i+1)
-				if key == "extended-community" {
+				if key == bridgeAttrExtCommunity {
 					value = normalizeFlowSpecExtCommunityValue(value)
 				}
 				attrs = append(attrs, key+" "+value)

@@ -50,8 +50,21 @@ type script struct {
 	log     *slog.Logger
 
 	// translator turns one ExaBGP line into ze commands. It carries the family
-	// list a bare `announce eor` expands over.
+	// list a bare `announce eor` expands over, and the peers a line that names
+	// no neighbor reaches.
 	translator bridge.Translator
+
+	// encoder is the format this script's events are written in, from the
+	// `encoder` leaf of the process block that declared it. It is per script
+	// because ExaBGP declares it per process, so one bridge can feed a text
+	// script and a JSON script at once.
+	encoder bridge.Encoder
+
+	// grants is the peer-and-event relation each neighbor's api block declared
+	// for this script: the events one peer feeds it, by peer address. A NIL map
+	// is every peer and every event, which is what a script no neighbor
+	// singles out is fed by.
+	grants map[string]map[string]struct{}
 
 	// ack answers this script after each dispatched command. An ExaBGP API
 	// client blocks on `done` before it sends the next line.
@@ -87,9 +100,71 @@ func newScript(log *slog.Logger, translator bridge.Translator, s Script) *script
 		respawn:    s.Respawn,
 		log:        log,
 		translator: translator,
+		encoder:    s.Encoder,
+		grants:     grantSet(s.Feeds),
 		ack:        bridge.NewAckMode(),
 		queue:      make(chan []byte, queueDepth),
 	}
+}
+
+// grantSet builds the membership test the fan-out runs for every event. It is
+// built ONCE, at startup, because the fan-out runs for every UPDATE of every
+// peer.
+//
+// An empty feed list answers nil, which receives() reads as every peer and
+// every event.
+func grantSet(feeds []ScriptFeed) map[string]map[string]struct{} {
+	if len(feeds) == 0 {
+		return nil
+	}
+	grants := make(map[string]map[string]struct{}, len(feeds))
+	for _, feed := range feeds {
+		events, ok := grants[feed.Peer]
+		if !ok {
+			events = make(map[string]struct{}, len(feed.Events))
+			grants[feed.Peer] = events
+		}
+		for _, event := range feed.Events {
+			events[event] = struct{}{}
+		}
+	}
+	return grants
+}
+
+// receives reports whether one peer feeds this script one event, named by the
+// key ExaBGP's api block grants it with (bridge.Event.APIKey).
+//
+// A script with no feed list receives every event of every peer. That is what a
+// config with one script means, and it is what the bridge did for every script
+// until 2026-09-06.
+func (s *script) receives(peer, apiKey string) bool {
+	if s.grants == nil {
+		return true
+	}
+	events, ok := s.grants[peer]
+	if !ok {
+		return false
+	}
+	_, ok = events[apiKey]
+	return ok
+}
+
+// feedPeers answers the addresses of the peers a script is fed by, which is the
+// set an ExaBGP line that names no neighbor is sent to.
+//
+// ExaBGP scopes a process's COMMANDS by peer alone: Reactor.peers(service)
+// reads `api['processes']` and never the per-message grants
+// (src/exabgp/reactor/loop.py). So a peer that feeds a script no event at all
+// still receives the routes that script announces.
+func feedPeers(feeds []ScriptFeed) []string {
+	if len(feeds) == 0 {
+		return nil
+	}
+	peers := make([]string, 0, len(feeds))
+	for _, feed := range feeds {
+		peers = append(peers, feed.Peer)
+	}
+	return peers
 }
 
 // start forks the child and records the fork against the respawn limit.
@@ -212,13 +287,19 @@ func (s *script) line(ctx context.Context, d Dispatcher, text string) {
 			return
 		}
 	}
-	// The script is waiting for this. An ExaBGP API client sends one command,
-	// blocks for `done`, and gives up after two seconds, so a runner that
-	// dispatches without acking delivers exactly one command per script.
-	s.ack.WriteAck(s.writer())
-
 	// Route commands: inject a per-peer flush so the forward pool drains. The
 	// selector is the one the translator used.
+	//
+	// The flush comes BEFORE the ack, because `done` means the command is done
+	// and a route is not done until it is on the wire. ExaBGP orders the two
+	// the same way: announce_route awaits every peer's flush event and calls
+	// answer_done after it (src/exabgp/reactor/api/command/announce.py).
+	//
+	// Acking first let a script send its NEXT command while the previous
+	// route's flush was still running, and the two then reached the wire in
+	// whichever order they finished. api-ipv4, api-ipv6, api-mvpn and api-vpnv4
+	// each announce and withdraw one NLRI 200ms apart and read the frames in
+	// order, and each of them caught it.
 	if translation.Route {
 		var tb textbuf.Buffer
 		flush := tb.Str("request peer ").Str(translation.Selector).Str(" flush").String()
@@ -226,6 +307,11 @@ func (s *script) line(ctx context.Context, d Dispatcher, text string) {
 			s.log.Warn("exabgp-bridge flush failed", "script", s.name, "error", ferr, "peer", translation.Selector)
 		}
 	}
+
+	// The script is waiting for this. An ExaBGP API client sends one command,
+	// blocks for `done`, and gives up after two seconds, so a runner that
+	// dispatches without acking delivers exactly one command per script.
+	s.ack.WriteAck(s.writer())
 }
 
 // reap waits for the exited child and forgets its pipes. It runs after read

@@ -3,6 +3,8 @@ package bridgeplugin
 import (
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
 
 // VALIDATES: the internal exabgp-bridge parses every `process` block an ExaBGP
@@ -195,5 +197,62 @@ func TestParseConfigRespawnInvalid(t *testing.T) {
 	_, err := parseConfig(`{"exabgp":{"bridge":{"process":{"main":{"run":"./a.py","respawn":"sometimes"}}}}}`)
 	if err == nil {
 		t.Fatalf("expected a refusal for respawn=sometimes")
+	}
+}
+
+// TestParseConfigReadsTheEncoderAndTheFeeds checks that everything an ExaBGP
+// process block carries beyond `run` and `respawn` reaches the runner. The
+// `encoder` leaf was read by NOTHING until 2026-09-06: a config asking for the
+// text event format was parsed, accepted, and answered in JSON.
+func TestParseConfigReadsTheEncoderAndTheFeeds(t *testing.T) {
+	data := `{"exabgp":{"bridge":{"process":{
+		"public":{"run":"./public.run","encoder":"text","feed":{
+			"127.0.0.1":{"event":["receive-update","send-update"]},
+			"10.0.0.1":{"event":[]}}},
+		"quiet":{"run":"./quiet.run"}}}}}`
+	cfg, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if len(cfg.Scripts) != 2 {
+		t.Fatalf("Scripts = %+v, want two", cfg.Scripts)
+	}
+
+	// parseScripts sorts by name, so `public` is first and `quiet` second.
+	if got := cfg.Scripts[0]; got.Encoder != bridge.EncoderText {
+		t.Errorf("public encoder = %v, want text", got.Encoder)
+	}
+	// parseFeeds sorts by address, so 10.0.0.1 comes before 127.0.0.1.
+	feeds := cfg.Scripts[0].Feeds
+	if len(feeds) != 2 || feeds[0].Peer != "10.0.0.1" || feeds[1].Peer != "127.0.0.1" {
+		t.Fatalf("public feeds = %+v, want 10.0.0.1 then 127.0.0.1", feeds)
+	}
+	if got := feeds[1].Events; len(got) != 2 || got[0] != "receive-update" || got[1] != "send-update" {
+		t.Errorf("127.0.0.1 events = %v, want [receive-update send-update]", got)
+	}
+	if got := feeds[0].Events; len(got) != 0 {
+		t.Errorf("10.0.0.1 events = %v, want none: a neighbor can grant a script nothing", got)
+	}
+
+	// An absent encoder is JSON, which is what the 6.0.0 envelope this bridge
+	// declares names, and an absent peer list is every peer.
+	if got := cfg.Scripts[1]; got.Encoder != bridge.EncoderJSON {
+		t.Errorf("quiet encoder = %v, want json", got.Encoder)
+	}
+	if got := cfg.Scripts[1].Feeds; len(got) != 0 {
+		t.Errorf("quiet feeds = %v, want none: no feed block is every peer and every event", got)
+	}
+}
+
+// TestParseConfigRefusesAnUnknownEncoder proves the leaf fails closed and names
+// the process. Accepting the word and answering JSON is the silently-wrong
+// value this leaf was added to remove.
+func TestParseConfigRefusesAnUnknownEncoder(t *testing.T) {
+	_, err := parseConfig(`{"exabgp":{"bridge":{"process":{"main":{"run":"./p.run","encoder":"yaml"}}}}}`)
+	if err == nil {
+		t.Fatalf("parseConfig accepted encoder yaml")
+	}
+	if !strings.Contains(err.Error(), "main") || !strings.Contains(err.Error(), "yaml") {
+		t.Errorf("error = %v, want it to name the process and the word", err)
 	}
 }

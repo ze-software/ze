@@ -5,11 +5,10 @@
 // Overview: bridge_command.go -- the line translator that calls this converter
 // Related: bridge_event.go -- the event encoder, which writes JSON and not text
 //
-// ExaBGP's API drives a neighbor as well as its routes: it creates one, tears
-// one down, and reports what one received. The three verbs land in three
-// different places, and this file is where that is decided rather than guessed.
-// One is a ze command, one is a command ze does not have, and one is not a
-// command at all.
+// ExaBGP's API drives a neighbor as well as its routes: it creates one, deletes
+// one, tears one down, and reports what one received. The four verbs land in
+// three different places, and this file is where that is decided rather than
+// guessed. Three are ze commands, and one is not a command at all.
 
 package bridge
 
@@ -22,17 +21,40 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// errNeighborCreate is the answer for `create neighbor`. ze has no command that
-// creates a BGP peer while it runs: `ze-bgp:peer-add` is declared in
-// internal/component/bgp/yang/ze-bgp-api.yang and no handler registers it, so
-// `./le command list` shows no CLI path that reaches it. A peer is created by
-// editing the config tree and committing, which is not one line a script writes.
+// The refusals `create neighbor` and `delete neighbor` answer with.
 //
-// The refusal is named rather than approximated. `delete bgp peer` exists and
-// `request peer <sel> teardown` exists, and neither one creates anything, so a
-// mapping to either would acknowledge the script for a session that was never
-// created (ai/rules/principles.md).
-var errNeighborCreate = errors.New("ze creates no BGP peer at runtime: ze-bgp:peer-add is declared with no handler and no CLI path, so a peer is created by config and commit")
+// Each one names the ExaBGP parameter ze cannot honor, rather than dropping it
+// and acking the script for a peer that is not the one it asked for
+// (ai/rules/principles.md).
+var (
+	// ExaBGP refuses its own line when one of these three is absent
+	// (_parse_neighbor_params, src/exabgp/reactor/api/command/peer.py), so the
+	// bridge refuses it here and the script gets the same answer it would get
+	// from ExaBGP rather than a ze error about a different leaf.
+	errNeighborCreateRequired = errors.New("create neighbor requires local-address, local-as and peer-as")
+
+	errNeighborCreateAddress = errors.New("create neighbor takes the peer address after the neighbor keyword")
+
+	errNeighborParameter = errors.New("create neighbor does not take this parameter")
+
+	errNeighborDuplicate = errors.New("create neighbor takes this parameter once")
+
+	// `family-allowed in-open` is ExaBGP's "negotiate the families in the
+	// OPEN": its parser answers an empty family list for it. ze states the
+	// families its OPEN offers and has no mode that defers the choice, and an
+	// omitted `family` is ipv4/unicast rather than "whatever the peer sends".
+	// So the two are different sessions and the word is refused.
+	errNeighborFamilyInOpen = errors.New("ze states the families its OPEN offers, so `family-allowed in-open` names no ze behavior")
+
+	errNeighborFamilyForm = errors.New("a family is <afi>-<safi>, and several are separated by /")
+
+	// ExaBGP's `peer delete <selector> local-as 1` filters which peers the
+	// delete reaches. `delete bgp peer` takes the selector alone, so a filter
+	// would delete a peer the script did not name.
+	errNeighborDeleteFilter = errors.New("delete neighbor takes one address, and ze's delete carries no filter")
+
+	errNeighborDeleteAddress = errors.New("delete neighbor takes one address")
+)
 
 // errNeighborReceive is the answer for `receive`. It names ExaBGP's own EVENT
 // vocabulary, written by the text response encoder
@@ -54,7 +76,8 @@ var errTeardownSubcode = errors.New("teardown takes one BGP cease subcode, 0 to 
 // that are not routes. It reports false when the line is not one of them.
 //
 //	neighbor <ip> teardown <subcode>  -> request peer <ip> teardown <subcode>
-//	create neighbor <ip> ...          -> refused, ze has no such command
+//	create neighbor <ip> ...          -> create bgp peer <ip> asn <asn> ...
+//	delete neighbor <ip>              -> delete bgp peer <ip>
 //	neighbor <ip> receive ...         -> refused, this is an event, not a command
 //
 // The three answers are three different things, and a caller MUST read them
@@ -67,21 +90,40 @@ var errTeardownSubcode = errors.New("teardown takes one BGP cease subcode, 0 to 
 // rest is the line with any `neighbor <address>` prefix already removed, and
 // selector names the peers it addresses. A line that names no neighbor arrives
 // with the wildcard selector, the same as every other converter here.
+//
+// A create and a delete line name their OWN peer, in the token after
+// `neighbor`, so both ignore the selector they arrive with: the line begins
+// with the verb rather than with `neighbor`, so splitNeighborSelector had
+// nothing to read and answered the wildcard.
 func ConvertNeighborControl(selector, rest string) (Translation, bool, error) {
-	fields := strings.Fields(strings.ToLower(rest))
+	fields := strings.Fields(rest)
 	if len(fields) == 0 {
 		return Translation{}, false, nil
 	}
+	verb := strings.ToLower(fields[0])
+	names := len(fields) > 1 && strings.EqualFold(fields[1], "neighbor")
 
 	switch {
-	case fields[0] == "teardown":
-		return convertTeardown(selector, fields)
-	case fields[0] == "create" && len(fields) > 1 && fields[1] == "neighbor":
-		return Translation{}, true, fmt.Errorf("%w: %q", errNeighborCreate, rest)
-	case fields[0] == "receive":
+	case verb == "teardown":
+		return convertTeardown(selector, lowerFields(fields))
+	case verb == "create" && names:
+		return convertNeighborCreate(fields[2:])
+	case verb == "delete" && names:
+		return convertNeighborDelete(fields[2:])
+	case verb == "receive":
 		return Translation{}, true, fmt.Errorf("%w: %q", errNeighborReceive, rest)
 	}
 	return Translation{}, false, nil
+}
+
+// lowerFields answers a lowercased copy, for the converters that compare every
+// token and carry none of them through.
+func lowerFields(fields []string) []string {
+	lowered := make([]string, len(fields))
+	for i, field := range fields {
+		lowered[i] = strings.ToLower(field)
+	}
+	return lowered
 }
 
 // convertTeardown writes the ze command that closes a session with the cease
@@ -126,4 +168,206 @@ func convertTeardown(selector string, fields []string) (Translation, bool, error
 		Commands: []string{tb.Str("request peer ").Str(selector).Str(" teardown ").Uint8(uint8(subcode)).String()},
 		Selector: selector,
 	}, true, nil
+}
+
+// The `create bgp peer` keywords this converter writes. Each one is a leaf of
+// the same name in ze-peer-cmd.yang, and each is named three times here: in the
+// mapping table, in the order the command is written in, and in the required
+// set. A constant is what keeps the three agreeing.
+const (
+	zeKeywordASN             = "asn"
+	zeKeywordLocalAS         = "local-as"
+	zeKeywordLocalAddress    = "local-address"
+	zeKeywordRouterID        = "router-id"
+	zeKeywordAccept          = "accept"
+	zeKeywordFamily          = "family"
+	zeKeywordGracefulRestart = "graceful-restart"
+	zeKeywordGroupUpdates    = "group-updates"
+	zeKeywordAttach          = "attach"
+)
+
+// neighborParameter is one ExaBGP `create neighbor` parameter: the
+// `create bgp peer` keyword that carries it, and the conversion its value
+// needs on the way.
+type neighborParameter struct {
+	keyword string
+	convert func(value string) (string, error)
+}
+
+// neighborCreateParameters is every parameter ExaBGP's `create neighbor` reads
+// (_parse_neighbor_params, src/exabgp/reactor/api/command/peer.py), except
+// `api`, which repeats and is collected on its own.
+//
+// A parameter ze cannot honor is REFUSED by name rather than dropped, and
+// there is exactly one: `family-allowed in-open`. Every other parameter has a
+// `create bgp peer` keyword that means the same thing, so the table is the whole
+// mapping and a reader needs no second list (ai/rules/evidence.md).
+//
+// The VALUES pass through unconverted where the two grammars agree on the
+// spelling. ze's handler types each one and names the offending keyword
+// (peerCreateKeywords, internal/component/bgp/plugins/cmd/peer/create.go), so a
+// second range check here would be a copy that can drift.
+var neighborCreateParameters = map[string]neighborParameter{
+	// ExaBGP accepts two spellings for the local address, and they are one
+	// parameter: a line naming both is a duplicate, as it is in ExaBGP.
+	"local-address":    {keyword: zeKeywordLocalAddress, convert: neighborValueAsIs},
+	"local-ip":         {keyword: zeKeywordLocalAddress, convert: neighborValueAsIs},
+	"local-as":         {keyword: zeKeywordLocalAS, convert: neighborValueAsIs},
+	"peer-as":          {keyword: zeKeywordASN, convert: neighborValueAsIs},
+	"router-id":        {keyword: zeKeywordRouterID, convert: neighborValueAsIs},
+	"family-allowed":   {keyword: zeKeywordFamily, convert: neighborFamilies},
+	"graceful-restart": {keyword: zeKeywordGracefulRestart, convert: neighborValueAsIs},
+	"group-updates":    {keyword: zeKeywordGroupUpdates, convert: neighborValueAsIs},
+}
+
+// neighborCreateOrder is the order the keywords are written in, so one line
+// always produces one command text. A map iterates at random, and a command
+// that changes shape between two runs is one no test can assert on.
+var neighborCreateOrder = []string{
+	zeKeywordASN, zeKeywordLocalAS, zeKeywordLocalAddress, zeKeywordRouterID,
+	zeKeywordAccept, zeKeywordFamily, zeKeywordGracefulRestart,
+	zeKeywordGroupUpdates, zeKeywordAttach,
+}
+
+// neighborCreateRequired is the set ExaBGP itself demands. The bridge demands
+// the same three, so a script missing one gets the answer it would get from
+// ExaBGP rather than a ze error naming a config leaf it never wrote.
+var neighborCreateRequired = []string{zeKeywordASN, zeKeywordLocalAS, zeKeywordLocalAddress}
+
+// convertNeighborCreate writes the ze command that creates a BGP peer while the
+// daemon runs.
+//
+// fields is the line after `create neighbor`, so fields[0] is the peer address
+// and the rest are parameter pairs.
+//
+//	create neighbor 127.0.0.1 local-address 127.0.0.1 local-as 1 peer-as 1 api peer-lifecycle
+//	create bgp peer 127.0.0.1 asn 1 local-as 1 local-address 127.0.0.1 attach peer-lifecycle
+//
+// The peer ze builds lives in the reactor alone, which is what ExaBGP's own
+// dynamic peer does: neither writes the configuration file.
+func convertNeighborCreate(fields []string) (Translation, bool, error) {
+	if len(fields) == 0 {
+		return Translation{}, true, errNeighborCreateAddress
+	}
+	address := fields[0]
+
+	values := make(map[string]string, len(fields)/2)
+	var processes []string
+
+	for i := 1; i < len(fields); i++ {
+		name := strings.ToLower(fields[i])
+		if i+1 >= len(fields) {
+			return Translation{}, true, fmt.Errorf("%w: %q takes a value", errNeighborParameter, name)
+		}
+		value := fields[i+1]
+		i++
+
+		// `api` is the one repeating parameter: ExaBGP writes the keyword once
+		// per process. ze names them all in one `attach`, because the
+		// dispatcher binds exactly one token to a keyword.
+		if name == "api" {
+			processes = append(processes, value)
+			continue
+		}
+
+		parameter, known := neighborCreateParameters[name]
+		if !known {
+			return Translation{}, true, fmt.Errorf("%w: %q", errNeighborParameter, name)
+		}
+		if _, seen := values[parameter.keyword]; seen {
+			return Translation{}, true, fmt.Errorf("%w: %q", errNeighborDuplicate, name)
+		}
+		converted, err := parameter.convert(value)
+		if err != nil {
+			return Translation{}, true, err
+		}
+		values[parameter.keyword] = converted
+	}
+
+	if len(processes) > 0 {
+		values[zeKeywordAttach] = textbuf.Join(processes, ",")
+	}
+
+	// The created neighbor DIALS and does not listen.
+	//
+	// ExaBGP's neighbor_create builds a Neighbor and leaves `passive` at its
+	// default of false, so the peer connects out (_build_neighbor,
+	// src/exabgp/reactor/api/command/peer.py). It opens no listening socket for
+	// it either: ExaBGP has ONE listener, declared statically in the
+	// configuration file, and a neighbor created over the API never adds a
+	// second one.
+	//
+	// ze binds a listener per peer address that accepts (startMultiListeners,
+	// internal/component/bgp/reactor/reactor.go), so a created peer carrying
+	// `local-address` and ze's default `accept true` would open a socket ExaBGP
+	// never opens. Stating `accept false` is what makes the two daemons build
+	// the same session out of the same line.
+	values[zeKeywordAccept] = "false"
+
+	for _, required := range neighborCreateRequired {
+		if _, stated := values[required]; !stated {
+			return Translation{}, true, errNeighborCreateRequired
+		}
+	}
+
+	var tb textbuf.Buffer
+	tb.Str("create bgp peer ").Str(address)
+	for _, keyword := range neighborCreateOrder {
+		value, stated := values[keyword]
+		if !stated {
+			continue
+		}
+		tb.Byte(' ').Str(keyword).Byte(' ').Str(value)
+	}
+
+	return Translation{Commands: []string{tb.String()}, Selector: address}, true, nil
+}
+
+// convertNeighborDelete writes the ze command that removes a peer from the
+// running daemon.
+//
+// ExaBGP takes a filter after the selector (`peer delete 127.0.0.2 local-as 1`)
+// and `delete bgp peer` takes the selector alone, so a filtered line is refused
+// rather than widened into a delete the script did not ask for.
+func convertNeighborDelete(fields []string) (Translation, bool, error) {
+	if len(fields) == 0 {
+		return Translation{}, true, errNeighborDeleteAddress
+	}
+	if len(fields) > 1 {
+		return Translation{}, true, fmt.Errorf("%w: %q", errNeighborDeleteFilter, textbuf.Join(fields[1:], " "))
+	}
+
+	var tb textbuf.Buffer
+	return Translation{
+		Commands: []string{tb.Str("delete bgp peer ").Str(fields[0]).String()},
+		Selector: fields[0],
+	}, true, nil
+}
+
+// neighborValueAsIs carries a value ze spells the same way ExaBGP does.
+func neighborValueAsIs(value string) (string, error) { return value, nil }
+
+// neighborFamilies rewrites ExaBGP's family list into ze's.
+//
+// ExaBGP separates families with `/` and joins the AFI to the SAFI with `-`
+// (_parse_families). ze writes one family as `afi/safi` and separates them with
+// a comma, so `ipv4-unicast/ipv6-unicast` becomes `ipv4/unicast,ipv6/unicast`.
+// The NAMES are not translated: ze validates each one against its family
+// registry and refuses the line naming the family it did not find.
+func neighborFamilies(value string) (string, error) {
+	if strings.EqualFold(value, "in-open") {
+		return "", errNeighborFamilyInOpen
+	}
+
+	families := strings.Split(value, "/")
+	converted := make([]string, 0, len(families))
+	for _, exabgp := range families {
+		afi, safi, split := strings.Cut(exabgp, "-")
+		if !split || afi == "" || safi == "" || strings.Contains(safi, "-") {
+			return "", fmt.Errorf("%w: %q", errNeighborFamilyForm, exabgp)
+		}
+		var tb textbuf.Buffer
+		converted = append(converted, tb.Str(afi).Byte('/').Str(safi).String())
+	}
+	return textbuf.Join(converted, ","), nil
 }
