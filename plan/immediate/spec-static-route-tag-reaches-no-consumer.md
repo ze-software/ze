@@ -55,6 +55,35 @@ matches on this tag" before it writes any code. A refusal is the honest
 placeholder if the answer is that no consumer wants it yet, and the spec then
 stays open, which is the shape `plan/spec-vrf.md` records for `vrf`.
 
+## Decision Required (blocks implementation, 2026-09-06)
+
+The consumer survey below answers the question the Task section says the design
+owes, and the answer is that Ze holds exactly one consumer able to carry a route
+tag: the OSPF external route tag. Reaching it is not a wiring fix inside the
+static plugin. Three things have to be settled first, and each is Thomas's.
+
+| # | Question | The two readings |
+|---|----------|------------------|
+| D-1 | Which consumer is this leaf for? | The OSPF (and, once IS-IS grows an RFC 5130 administrative tag, IS-IS) external route tag. Or a tag MATCH in redistribution rules and BGP filters, which is the original description's promise ("Opaque tag for route policy matching", removed in `b1e62392fe`) and which Ze does not have at all |
+| D-2 | If D-1 is OSPF: what wins, the route's tag or `ospf { redistribute { source static { tag N } } }`? | The per-route tag wins when nonzero and the configured tag is the fallback. Or the configured tag stays authoritative and the per-route tag is the fallback. RFC 2328 sec 12.4.4 defines the field and says nothing about precedence, so this is a Ze choice that changes documented OSPF behavior |
+| D-3 | If neither is wanted yet, is the leaf refused at commit? | A refusal in the shape of `unimplementedVRFValidator` is the honest placeholder, and it keeps this spec open the way `plan/spec-vrf.md` records `vrf`. Choosing it is the owner's call, not the implementer's |
+
+**Package size if D-1 is OSPF.** The change spans six packages, not the two this
+spec was cut for:
+
+| Package | Edit |
+|---------|------|
+| `internal/plugins/static` | `emitRouteChangeID` sets the entry's tag |
+| `internal/core/redistevents` | `RouteChangeEntry.Tag uint32`, additive like `OriginAS` |
+| `internal/component/bgp/plugins/redistribute_egress` | orchestrator copies it into `RouteEntry` |
+| `internal/component/config/redistribute` | `RouteEntry.Tag uint32` |
+| `internal/plugins/ospf/redistribute` | `ExternalInjector.InjectExternal` signature grows the tag; the consumer passes it |
+| `internal/plugins/ospf` | `externalParams` applies D-2; v2, v3 and the NSSA translator all originate from it |
+
+Plus the YANG text: the `tag` leaf's description and its `ze:help` were corrected
+in `b1e62392fe` to state that no consumer sees the value, so both are rewritten
+in the same change that makes it false.
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
@@ -76,13 +105,52 @@ stays open, which is the shape `plan/spec-vrf.md` records for `vrf`.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `path/to/file.go` - [what it currently does]
+- [ ] `internal/plugins/static/config.go` - `parseRoute` reads `tag` through
+  `mapUint32` and assigns `staticRoute.Tag`. No validation beyond the uint32 range.
+  → Constraint: the value is accepted and stored whatever a consumer does with it.
+- [ ] `internal/plugins/static/model.go` - `staticRoute.Tag uint32`.
+- [ ] `internal/plugins/static/diff.go` - `routesEqual` compares `Tag`, so a tag
+  change alone re-applies the route.
+- [ ] `internal/plugins/static/inject.go` - `showRoutes` copies `Tag` into
+  `showRoute.Tag` (`json:"tag,omitempty"`); `emitRouteChangeID` builds a
+  `redistevents.RouteChangeEntry` with Action, Prefix, Metric and Table only.
+- [ ] `internal/plugins/static/backend_linux.go` - `buildRoute` sets `Dst`,
+  `Protocol`, `Priority`, `Table`, `Gw`/`LinkIndex`/`MultiPath`. Nothing else.
+- [ ] `internal/core/redistevents/events.go` - `RouteChangeEntry` declares
+  Action, Prefix, NextHop, Metric, Table, OriginAS. No Tag.
+  → Decision: `OriginAS` and `Community` are the precedent for an additive
+  per-entry field, so the shape of a `Tag` field is settled; its READER is not.
+- [ ] `internal/component/config/redistribute/route.go` - `ImportRule` matches on
+  source, destination and family. Nothing in Ze's redistribution rules or BGP
+  filter types matches on a route tag.
+- [ ] `internal/plugins/ospf/redist_wiring.go` - `externalParams` resolves the
+  external route tag from the OSPF container's per-source `redistribute` entry
+  (the `tag` leaf under `ospf/redistribute/source` in `ze-ospf-conf.yang`), NOT
+  from the redistributed route.
+  → Constraint: OSPF already has an operator-set tag for this exact route set, so
+  a per-route tag needs a precedence rule against it.
+- [ ] `internal/plugins/ospf/redistribute/consumer.go` - `InjectRoute` calls
+  `ExternalInjector.InjectExternal(prefix, source)`. The injector seam carries no
+  tag, so a per-route tag needs that signature changed.
+- [ ] `internal/plugins/isis/redistribute/` - no tag of any kind. IS-IS carries no
+  RFC 5130 administrative tag anywhere in this build.
 
-**Behavior to preserve:** (unless the user explicitly said to change it)
-- [output format, function signature, or `.ci` expectation callers depend on]
+**Consumer survey (the question the Task section says the design owes):**
 
-**Behavior to change:** (only what the user asked for)
-- [list, or "None - preserve all existing behavior"]
+| Candidate consumer | Can it carry a route tag? | Verdict |
+|--------------------|---------------------------|---------|
+| Linux kernel FIB | No. `enum rtattr_type_t` in `linux/rtnetlink.h` has no tag attribute. `RTA_FLOW` is the routing REALM pair, read by `ip rule` and the tc route classifier, and `netlink.Route.Realm` encodes it | Writing an opaque tag there changes packet classification. A realm is a different concept and would be a different leaf |
+| Redistribution rules / BGP filters | No. `ImportRule` matches source, destination, family. No filter type matches a tag | Would have to be built as a new match feature |
+| BGP wire | No attribute means "route tag" | Mapping it to a community is an invention |
+| OSPF external route tag (RFC 2328 Type 5, and the OSPFv3 external LSA) | Yes: `packet.ASExternalLSA.ExternalRouteTag`, already originated from `externalParams` | The only legible consumer, and it is already fed from OSPF-side config |
+
+**Behavior to preserve:**
+- `show static route` JSON key `tag` (`test/static/static-show.ci` asserts it).
+- `routesEqual` re-applying a route whose tag alone changed.
+- `ospf { redistribute { source <src> { tag N } } }` continuing to set the
+  external route tag for sources that carry no per-route tag.
+
+**Behavior to change:** blocked on the decision below.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
